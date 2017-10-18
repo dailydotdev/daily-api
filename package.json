@@ -1,0 +1,45 @@
+{
+  "name": "devkit-api",
+  "version": "0.0.0",
+  "main": "index.js",
+  "author": "Ido Shamun <ido@elegantmonkeys.com>",
+  "private": true,
+  "engines": {
+    "node": "~8.6.0"
+  },
+  "scripts": {
+    "mocha": "NODE_ENV=test mocha",
+    "lint": "eslint . --ext .js",
+    "test": "npm run lint && npm run mocha",
+    "build": "babel . -d build --source-maps --ignore build,node_modules,test && cp package.json swagger.yaml yarn.lock ./build",
+    "babel-node": "babel-node",
+    "watch": "nodemon --exec npm run babel-node -- $npm_package_main | pino",
+    "start": "node $npm_package_main"
+  },
+  "dependencies": {
+    "joi": "^13.0.0",
+    "koa": "^2.3.0",
+    "koa-bodyparser": "^4.2.0",
+    "koa-compose": "^4.0.0",
+    "koa-context-validator": "^0.4.1",
+    "koa-pino-logger": "^2.1.1",
+    "koa-router": "^7.2.1",
+    "pino": "^4.7.3"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "chai": "^4.1.2",
+    "chai-as-promised": "^7.1.1",
+    "eslint": "^4.9.0",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-chai-friendly": "^0.4.0",
+    "eslint-plugin-import": "^2.7.0",
+    "eslint-plugin-mocha": "^4.11.0",
+    "mocha": "^4.0.1",
+    "nodemon": "^1.12.1",
+    "sinon": "^4.0.1",
+    "sinon-chai": "^2.14.0",
+    "supertest": "^3.0.0"
+  }
+}
