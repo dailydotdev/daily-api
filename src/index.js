@@ -29,8 +29,4 @@ const router = new Router({
 app.use(router.routes(), router.allowedMethods());
 app.use(health.routes(), health.allowedMethods());
 
-app.listen(config.port);
-
-logger.info(`server is listening to ${config.port}`);
-
 export default app;

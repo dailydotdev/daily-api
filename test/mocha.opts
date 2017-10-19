@@ -1,4 +1,4 @@
---compilers js:babel-register
+--require babel-register
 --ui bdd
 --recursive test/integration
 --recursive test/unit
