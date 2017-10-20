@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import db, { createTables } from '../../src/db';
+import db, { createTables, dropTables } from '../../src/db';
 
 const createTablesAndExpect = async () => {
   await createTables();
@@ -15,10 +15,7 @@ describe('database layer', async () => {
   });
 
   it('should create tables when not exist', async () => {
-    await db.schema.dropTableIfExists('posts');
-    await db.schema.dropTableIfExists('sources');
-    await db.schema.dropTableIfExists('publications');
-
+    await dropTables();
     return createTablesAndExpect();
   });
 

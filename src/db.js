@@ -58,3 +58,9 @@ export const createTables = async () => {
   await createSourcesTable();
   return createPostsTable();
 };
+
+export const dropTables = async () => {
+  await db.schema.dropTableIfExists('posts');
+  await db.schema.dropTableIfExists('sources');
+  return db.schema.dropTableIfExists('publications');
+};
