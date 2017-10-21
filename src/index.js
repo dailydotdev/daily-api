@@ -5,6 +5,7 @@ import KoaPinoLogger from 'koa-pino-logger';
 import Router from 'koa-router';
 
 import config from './config';
+import errorHandler from './middlewares/errorHandler';
 
 import health from './routes/health';
 import sources from './routes/sources';
@@ -22,6 +23,7 @@ const logger = pino(loggerOptions);
 
 app.use(bodyParser());
 app.use(KoaPinoLogger({ logger }));
+app.use(errorHandler());
 
 const router = new Router({
   prefix: '/v1',

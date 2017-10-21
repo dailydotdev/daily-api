@@ -1,0 +1,47 @@
+import { EntityNotFoundError, ValidationError } from '../errors';
+
+const errorHandler = () =>
+  async (ctx, next) => {
+    try {
+      await next();
+    } catch (err) {
+      switch (err.name) {
+        case ValidationError.name:
+          ctx.status = 400;
+          ctx.body = {
+            code: 1,
+            message: err.message,
+          };
+          break;
+        case EntityNotFoundError.name:
+          ctx.status = 404;
+          ctx.body = {
+            code: -1,
+            message: `EntityNotFound error: ${err.message}`,
+          };
+          break;
+        default:
+          ctx.status = err.status || 500;
+          ctx.body = {
+            message: err.message || 'Unexpected error',
+          };
+          break;
+      }
+
+      // This is a workaround because of koa-pino-logger issues
+      ctx.log.error({
+        res: ctx.res,
+        err: {
+          type: err.constructor.name,
+          message: err.message,
+          stack: err.stack,
+        },
+        responseTime: ctx.res.responseTime,
+      }, 'request errored');
+
+      // This is how koa wiki suggests error handling, however it is not working with pino
+      // ctx.app.emit('error', err, ctx);
+    }
+  };
+
+export default errorHandler;
