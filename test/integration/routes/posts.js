@@ -14,6 +14,7 @@ describe('posts routes', async () => {
   beforeEach(async () => {
     await dropTables();
     await createTables();
+    return Promise.all(fixturePubs.map(pub => publication.add(pub.name, pub.image)));
   });
 
   before(() => {
@@ -25,8 +26,9 @@ describe('posts routes', async () => {
     server.close();
   });
 
+  const mapOutput = p => Object.assign({}, p, { publishedAt: p.publishedAt.toISOString() });
+
   it('should fetch latest posts', async () => {
-    await Promise.all(fixturePubs.map(pub => publication.add(pub.name, pub.image)));
     await Promise.all(fixture.input.map(p =>
       post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.image)));
 
@@ -35,7 +37,23 @@ describe('posts routes', async () => {
       .query({ latest: fixture.input[1].publishedAt.toISOString(), page: 0, pageSize: 20 })
       .expect(200);
 
-    expect(result.body).to.deep.equal(fixture.output
-      .map(p => Object.assign({}, p, { publishedAt: p.publishedAt.toISOString() })));
+    expect(result.body).to.deep.equal(fixture.output.map(mapOutput));
+  });
+
+  it('should fetch post by id', async () => {
+    await Promise.all(fixture.input.map(p =>
+      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.image)));
+
+    const result = await request
+      .get(`/v1/posts/${fixture.output[0].id}`)
+      .expect(200);
+
+    expect(result.body).to.deep.equal(mapOutput(fixture.output[0]));
+  });
+
+  it('should return not found when post doesn\'t exist', async () => {
+    await request
+      .get('/v1/posts/1234')
+      .expect(404);
   });
 });

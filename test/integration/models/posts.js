@@ -38,4 +38,17 @@ describe('post model', async () => {
     const page2 = await post.getLatest(fixture.input[1].publishedAt, 1, 1);
     expect(page2).to.deep.equal([fixture.output[1]]);
   });
+
+  it('should fetch post by id', async () => {
+    await Promise.all(fixture.input.map(p =>
+      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.image)));
+
+    const model = await post.get(fixture.output[0].id);
+    expect(model).to.deep.equal(fixture.output[0]);
+  });
+
+  it('should return null when no such post', async () => {
+    const model = await post.get('123124');
+    expect(model).to.equal(null);
+  });
 });

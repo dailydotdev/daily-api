@@ -43,7 +43,7 @@ const errorHandler = () =>
         // This is how koa wiki suggests error handling, however it is not working with pino
         // ctx.app.emit('error', err, ctx);
       } else {
-        ctx.log.warn({
+        ctx.log.info({
           res: ctx.res,
           err: {
             type: err.constructor.name,
