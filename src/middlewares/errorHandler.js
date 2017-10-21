@@ -28,19 +28,31 @@ const errorHandler = () =>
           break;
       }
 
-      // This is a workaround because of koa-pino-logger issues
-      ctx.log.error({
-        res: ctx.res,
-        err: {
-          type: err.constructor.name,
-          message: err.message,
-          stack: err.stack,
-        },
-        responseTime: ctx.res.responseTime,
-      }, 'request errored');
+      if (ctx.status >= 500) {
+        // This is a workaround because of koa-pino-logger issues
+        ctx.log.error({
+          res: ctx.res,
+          err: {
+            type: err.constructor.name,
+            message: err.message,
+            stack: err.stack,
+          },
+          responseTime: ctx.res.responseTime,
+        }, 'request errored');
 
-      // This is how koa wiki suggests error handling, however it is not working with pino
-      // ctx.app.emit('error', err, ctx);
+        // This is how koa wiki suggests error handling, however it is not working with pino
+        // ctx.app.emit('error', err, ctx);
+      } else {
+        ctx.log.warn({
+          res: ctx.res,
+          err: {
+            type: err.constructor.name,
+            message: err.message,
+            stack: err.stack,
+          },
+          responseTime: ctx.res.responseTime,
+        }, 'request failed');
+      }
     }
   };
 
