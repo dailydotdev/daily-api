@@ -9,6 +9,7 @@ import errorHandler from './middlewares/errorHandler';
 
 import health from './routes/health';
 import sources from './routes/sources';
+import posts from './routes/posts';
 
 const app = new Koa();
 
@@ -30,6 +31,7 @@ const router = new Router({
 });
 
 router.use(sources.routes(), sources.allowedMethods());
+router.use(posts.routes(), posts.allowedMethods());
 
 app.use(router.routes(), router.allowedMethods());
 app.use(health.routes(), health.allowedMethods());

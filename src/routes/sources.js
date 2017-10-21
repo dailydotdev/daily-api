@@ -19,7 +19,7 @@ router.get(
 router.post(
   '/',
   validator({
-    body: validations.source,
+    body: validations.source.required(),
   }, {
     stripUnknown: true,
   }),

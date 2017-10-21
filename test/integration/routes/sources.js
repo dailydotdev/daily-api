@@ -26,7 +26,7 @@ describe('sources routes', async () => {
   });
 
   it('should fetch all sources', async () => {
-    await Promise.all(fixturePubs.map(pub => publication.add(pub.name, pub.name)));
+    await Promise.all(fixturePubs.map(pub => publication.add(pub.name, pub.image)));
     await Promise.all(fixture.map(s => source.add(s.publicationId, s.url)));
 
     const result = await request
@@ -37,7 +37,7 @@ describe('sources routes', async () => {
   });
 
   it('should add new source', async () => {
-    await Promise.all(fixturePubs.map(pub => publication.add(pub.name, pub.name)));
+    await Promise.all(fixturePubs.map(pub => publication.add(pub.name, pub.image)));
 
     const result = await request
       .post('/v1/sources')

@@ -1,7 +1,4 @@
-import {
-  object,
-  string,
-} from 'koa-context-validator';
+import { object, string } from 'koa-context-validator';
 
 const publicationId = string();
 
