@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import knex from 'knex';
 import config from './config';
 
@@ -64,3 +65,6 @@ export const dropTables = async () => {
   await db.schema.dropTableIfExists('sources');
   return db.schema.dropTableIfExists('publications');
 };
+
+export const toCamelCase = obj => _.mapKeys(obj, (value, key) => _.camelCase(key));
+export const toSnakeCase = obj => _.mapKeys(obj, (value, key) => _.snakeCase(key));

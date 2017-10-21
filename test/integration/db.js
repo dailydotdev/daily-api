@@ -10,10 +10,6 @@ const createTablesAndExpect = async () => {
 };
 
 describe('database layer', async () => {
-  after(async () => {
-    db.destroy();
-  });
-
   it('should create tables when not exist', async () => {
     await dropTables();
     return createTablesAndExpect();

@@ -7,6 +7,7 @@ import Router from 'koa-router';
 import config from './config';
 
 import health from './routes/health';
+import sources from './routes/sources';
 
 const app = new Koa();
 
@@ -25,6 +26,8 @@ app.use(KoaPinoLogger({ logger }));
 const router = new Router({
   prefix: '/v1',
 });
+
+router.use(sources.routes(), sources.allowedMethods());
 
 app.use(router.routes(), router.allowedMethods());
 app.use(health.routes(), health.allowedMethods());

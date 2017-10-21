@@ -25,6 +25,7 @@
     "koa-context-validator": "^0.4.1",
     "koa-pino-logger": "^2.1.1",
     "koa-router": "^7.2.1",
+    "lodash": "^4.17.4",
     "mysql": "^2.15.0",
     "pino": "^4.7.3"
   },
