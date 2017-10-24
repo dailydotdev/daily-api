@@ -1,4 +1,5 @@
 import publications from './publications';
+import config from '../../src/config';
 
 const input = [
   {
@@ -24,10 +25,11 @@ const output = [
     title: input[1].title,
     url: input[1].url,
     publishedAt: input[1].publishedAt,
-    image: publications[1].image,
+    image: config.defaultImage,
     publication: {
       id: publications[1].id,
       name: publications[1].name,
+      image: publications[1].image,
     },
   },
   {
@@ -39,6 +41,7 @@ const output = [
     publication: {
       id: publications[0].id,
       name: publications[0].name,
+      image: publications[0].image,
     },
   },
 ];

@@ -20,6 +20,7 @@ const config = {
   port,
   mysql: getMysqlConfig(),
   admin: process.env.ADMIN_KEY,
+  defaultImage: process.env.DEFAULT_IMAGE,
 };
 
 export default config;

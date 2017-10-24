@@ -1,4 +1,5 @@
 import db, { toCamelCase, toSnakeCase } from '../db';
+import config from '../config';
 
 const table = 'posts';
 
@@ -16,11 +17,12 @@ const mapPost = (post) => {
     id: post.id,
     title: post.title,
     url: post.url,
-    image: post.image ? post.image : post.pubImage,
+    image: post.image ? post.image : config.defaultImage,
     publishedAt: post.publishedAt,
     publication: {
       id: post.pubId,
       name: post.pubName,
+      image: post.pubImage,
     },
   };
 };
