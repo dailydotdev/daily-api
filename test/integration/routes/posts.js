@@ -7,7 +7,7 @@ import fixturePubs from '../../fixtures/publications';
 import fixture from '../../fixtures/posts';
 import app from '../../../src';
 
-describe('posts routes', async () => {
+describe('posts routes', () => {
   let request;
   let server;
 
@@ -40,20 +40,22 @@ describe('posts routes', async () => {
     expect(result.body).to.deep.equal(fixture.output.map(mapOutput));
   });
 
-  it('should fetch post by id', async () => {
-    await Promise.all(fixture.input.map(p =>
-      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.image)));
+  describe('get post by id endpoint', () => {
+    it('should fetch post', async () => {
+      await Promise.all(fixture.input.map(p =>
+        post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.image)));
 
-    const result = await request
-      .get(`/v1/posts/${fixture.output[0].id}`)
-      .expect(200);
+      const result = await request
+        .get(`/v1/posts/${fixture.output[0].id}`)
+        .expect(200);
 
-    expect(result.body).to.deep.equal(mapOutput(fixture.output[0]));
-  });
+      expect(result.body).to.deep.equal(mapOutput(fixture.output[0]));
+    });
 
-  it('should return not found when post doesn\'t exist', async () => {
-    await request
-      .get('/v1/posts/1234')
-      .expect(404);
+    it('should return not found when post doesn\'t exist', async () => {
+      await request
+        .get('/v1/posts/1234')
+        .expect(404);
+    });
   });
 });

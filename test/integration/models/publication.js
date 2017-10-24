@@ -3,7 +3,7 @@ import { createTables, dropTables } from '../../../src/db';
 import publication from '../../../src/models/publication';
 import fixture from '../../fixtures/publications';
 
-describe('publication model', async () => {
+describe('publication model', () => {
   beforeEach(async () => {
     await dropTables();
     return createTables();

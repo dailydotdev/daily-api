@@ -5,7 +5,7 @@ import source from '../../../src/models/source';
 import fixturePubs from '../../fixtures/publications';
 import fixture from '../../fixtures/sources';
 
-describe('source model', async () => {
+describe('source model', () => {
   beforeEach(async () => {
     await dropTables();
     await createTables();

@@ -5,7 +5,7 @@ import post from '../../../src/models/post';
 import fixturePubs from '../../fixtures/publications';
 import fixture from '../../fixtures/posts';
 
-describe('post model', async () => {
+describe('post model', () => {
   beforeEach(async () => {
     await dropTables();
     await createTables();

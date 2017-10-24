@@ -20,3 +20,12 @@ export class ValidationError extends Error {
     this.reason = reason;
   }
 }
+
+export class ForbiddenError extends Error {
+  constructor() {
+    super('Method is forbidden');
+    Error.captureStackTrace(this, this.constructor);
+
+    this.name = this.constructor.name;
+  }
+}

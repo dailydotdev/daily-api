@@ -1,4 +1,4 @@
-import { EntityNotFoundError, ValidationError } from '../errors';
+import { EntityNotFoundError, ForbiddenError, ValidationError } from '../errors';
 
 const errorHandler = () =>
   async (ctx, next) => {
@@ -16,8 +16,15 @@ const errorHandler = () =>
         case EntityNotFoundError.name:
           ctx.status = 404;
           ctx.body = {
-            code: -1,
-            message: `EntityNotFound error: ${err.message}`,
+            code: 2,
+            message: err.message,
+          };
+          break;
+        case ForbiddenError.name:
+          ctx.status = 403;
+          ctx.body = {
+            code: 3,
+            message: err.message,
           };
           break;
         default:

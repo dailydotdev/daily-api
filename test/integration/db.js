@@ -9,7 +9,7 @@ const createTablesAndExpect = async () => {
   expect(db.schema.hasTable('publications')).to.eventually.equal(true);
 };
 
-describe('database layer', async () => {
+describe('database layer', () => {
   it('should create tables when not exist', async () => {
     await dropTables();
     return createTablesAndExpect();

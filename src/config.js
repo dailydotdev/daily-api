@@ -19,6 +19,7 @@ const config = {
   env,
   port,
   mysql: getMysqlConfig(),
+  admin: process.env.ADMIN_KEY,
 };
 
 export default config;
