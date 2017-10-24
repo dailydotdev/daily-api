@@ -1,7 +1,12 @@
+import trace from '@google-cloud/trace-agent';
 import pino from 'pino';
 import app from './src/index';
 import config from './src/config';
 import { createTables } from './src/db';
+
+if (config.env === 'production') {
+  trace.start();
+}
 
 const logger = pino();
 

@@ -17,6 +17,7 @@
     "start": "node $npm_package_main"
   },
   "dependencies": {
+    "@google-cloud/trace-agent": "^2.3.0",
     "knex": "^0.13.0",
     "koa": "^2.3.0",
     "koa-bodyparser": "^4.2.0",
