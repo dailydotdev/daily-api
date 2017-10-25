@@ -16,7 +16,7 @@ const post = object().keys({
   url: string().uri({ scheme: ['http', 'https'] }).required(),
   publicationId: publicationId.required(),
   publishedAt: date().iso().required(),
-  image: httpLink.required(),
+  image: httpLink,
 });
 
 export default {

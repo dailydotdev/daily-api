@@ -80,6 +80,17 @@ describe('posts routes', () => {
       expect(result.body).to.deep.equal(body);
     });
 
+    it('should add new post without image', async () => {
+      const body = mapDate(fixture.input[1]);
+      const result = await request
+        .post('/v1/posts')
+        .send(body)
+        .set('Authorization', config.admin)
+        .expect(200);
+
+      expect(result.body).to.deep.equal(body);
+    });
+
     it('should send bad request when publication doesn\'t exist', async () => {
       const body = Object.assign({}, mapDate(fixture.input[0]), { publicationId: '348901' });
       const result = await request
