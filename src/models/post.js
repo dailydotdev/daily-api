@@ -5,7 +5,7 @@ const table = 'posts';
 
 const select = () =>
   db.select(
-    `${table}.id`, `${table}.title`, `${table}.url`, `${table}.image`, `${table}.published_at`,
+    `${table}.id`, `${table}.title`, `${table}.url`, `${table}.image`, `${table}.published_at`, `${table}.created_at`,
     'publications.id as pub_id', 'publications.image as pub_image', 'publications.name as pub_name',
   )
     .from(table)
@@ -19,6 +19,7 @@ const mapPost = (post) => {
     url: post.url,
     image: post.image ? post.image : config.defaultImage,
     publishedAt: post.publishedAt,
+    createdAt: post.createdAt,
     publication: {
       id: post.pubId,
       name: post.pubName,
@@ -29,8 +30,8 @@ const mapPost = (post) => {
 
 const getLatest = (latest, page, pageSize) =>
   select()
-    .where(`${table}.published_at`, '<=', latest)
-    .orderBy(`${table}.published_at`, 'desc')
+    .where(`${table}.created_at`, '<=', latest)
+    .orderBy(`${table}.created_at`, 'desc')
     .offset(page * pageSize)
     .limit(pageSize)
     .map(toCamelCase)
@@ -44,9 +45,9 @@ const get = id =>
     .map(mapPost)
     .then(res => (res.length ? res[0] : null));
 
-const add = (id, title, url, publicationId, publishedAt, image) => {
+const add = (id, title, url, publicationId, publishedAt, createdAt, image) => {
   const obj = {
-    id, title, url, publicationId, publishedAt, image,
+    id, title, url, publicationId, publishedAt, createdAt, image,
   };
   return db.insert(toSnakeCase(obj)).into(table)
     .then(() => obj);

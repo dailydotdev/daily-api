@@ -52,7 +52,7 @@ router.post(
       ctx.status = 200;
       ctx.body = await post.add(
         requestBody.id, requestBody.title, requestBody.url, requestBody.publicationId,
-        requestBody.publishedAt, requestBody.image,
+        requestBody.publishedAt, requestBody.createdAt, requestBody.image,
       );
     } catch (err) {
       if (err.code === 'ER_NO_REFERENCED_ROW_2') {

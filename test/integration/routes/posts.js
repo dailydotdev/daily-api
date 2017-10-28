@@ -27,11 +27,14 @@ describe('posts routes', () => {
     server.close();
   });
 
-  const mapDate = p => Object.assign({}, p, { publishedAt: p.publishedAt.toISOString() });
+  const mapDate = p => Object.assign({}, p, {
+    publishedAt: p.publishedAt.toISOString(),
+    createdAt: p.createdAt.toISOString(),
+  });
 
   it('should fetch latest posts', async () => {
     await Promise.all(fixture.input.map(p =>
-      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.image)));
+      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt, p.image)));
 
     const result = await request
       .get('/v1/posts/latest')
@@ -44,7 +47,7 @@ describe('posts routes', () => {
   describe('get by id endpoint', () => {
     it('should fetch post', async () => {
       await Promise.all(fixture.input.map(p =>
-        post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.image)));
+        post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt, p.image)));
 
       const result = await request
         .get(`/v1/posts/${fixture.output[0].id}`)
@@ -105,7 +108,7 @@ describe('posts routes', () => {
 
     it('should send conflict when id already exist', async () => {
       await Promise.all(fixture.input.map(p =>
-        post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.image)));
+        post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt, p.image)));
 
       const body = mapDate(fixture.input[0]);
       const result = await request

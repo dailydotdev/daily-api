@@ -16,21 +16,21 @@ describe('post model', () => {
     const input = fixture.input[0];
     const model = await post.add(
       input.id, input.title, input.url,
-      input.publicationId, input.publishedAt, input.image,
+      input.publicationId, input.publishedAt, input.createdAt, input.image,
     );
     expect(model).to.deep.equal(input);
   });
 
   it('should fetch all posts sorted by time', async () => {
     await Promise.all(fixture.input.map(p =>
-      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.image)));
+      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt, p.image)));
     const models = await post.getLatest(fixture.input[1].publishedAt, 0, 20);
     expect(models).to.deep.equal(fixture.output);
   });
 
   it('should fetch posts by pages sorted by time', async () => {
     await Promise.all(fixture.input.map(p =>
-      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.image)));
+      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt, p.image)));
 
     const page1 = await post.getLatest(fixture.input[1].publishedAt, 0, 1);
     expect(page1).to.deep.equal([fixture.output[0]]);
@@ -41,7 +41,7 @@ describe('post model', () => {
 
   it('should fetch post by id', async () => {
     await Promise.all(fixture.input.map(p =>
-      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.image)));
+      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt, p.image)));
 
     const model = await post.get(fixture.output[0].id);
     expect(model).to.deep.equal(fixture.output[0]);

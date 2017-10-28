@@ -8,6 +8,7 @@ const input = [
     url: 'https://myblog.com/post.html',
     publicationId: publications[0].id,
     publishedAt: new Date(2017, 10, 21, 15, 10, 5),
+    createdAt: new Date(2017, 10, 21, 15, 10, 5),
     image: 'https://myblog.com/image.png',
   },
   {
@@ -16,6 +17,7 @@ const input = [
     url: 'https://myblog.com/post2.html',
     publicationId: publications[1].id,
     publishedAt: new Date(2017, 10, 21, 15, 10, 10),
+    createdAt: new Date(2017, 10, 21, 15, 10, 10),
   },
 ];
 
@@ -25,6 +27,7 @@ const output = [
     title: input[1].title,
     url: input[1].url,
     publishedAt: input[1].publishedAt,
+    createdAt: input[1].createdAt,
     image: config.defaultImage,
     publication: {
       id: publications[1].id,
@@ -37,6 +40,7 @@ const output = [
     title: input[0].title,
     url: input[0].url,
     publishedAt: input[0].publishedAt,
+    createdAt: input[0].createdAt,
     image: input[0].image,
     publication: {
       id: publications[0].id,

@@ -46,6 +46,7 @@ const createPostsTable = async () => {
       table.string('publication_id').notNullable();
       table.foreign('publication_id').references('publications.id');
       table.timestamp('published_at').notNullable();
+      table.timestamp('created_at').defaultTo(db.fn.now());
 
       table.index('image');
     });
