@@ -3,6 +3,7 @@ import bodyParser from 'koa-bodyparser';
 import pino from 'pino';
 import KoaPinoLogger from 'koa-pino-logger';
 import Router from 'koa-router';
+import cors from '@koa/cors';
 
 import config from './config';
 import errorHandler from './middlewares/errorHandler';
@@ -23,6 +24,7 @@ const loggerOptions = (() => {
 
 const logger = pino(loggerOptions);
 
+app.use(cors());
 app.use(bodyParser());
 app.use(KoaPinoLogger({ logger }));
 app.use(errorHandler());
