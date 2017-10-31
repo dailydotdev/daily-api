@@ -43,9 +43,11 @@ const createPostsTable = async () => {
       table.string('title').notNullable();
       table.string('url').unique().notNullable();
       table.string('image');
+      table.float('ratio');
+      table.text('placeholder');
       table.string('publication_id').notNullable();
       table.foreign('publication_id').references('publications.id');
-      table.timestamp('published_at').notNullable();
+      table.timestamp('published_at').nullable();
       table.timestamp('created_at').defaultTo(db.fn.now());
 
       table.index('image');

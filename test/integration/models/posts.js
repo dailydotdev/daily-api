@@ -15,33 +15,44 @@ describe('post model', () => {
   it('should add new post to db', async () => {
     const input = fixture.input[0];
     const model = await post.add(
-      input.id, input.title, input.url,
-      input.publicationId, input.publishedAt, input.createdAt, input.image,
+      input.id, input.title, input.url, input.publicationId, input.publishedAt,
+      input.createdAt, input.image, input.ratio, input.placeholder,
     );
+
     expect(model).to.deep.equal(input);
   });
 
   it('should fetch all posts sorted by time', async () => {
     await Promise.all(fixture.input.map(p =>
-      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt, p.image)));
-    const models = await post.getLatest(fixture.input[1].publishedAt, 0, 20);
+      post.add(
+        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+        p.image, p.ratio, p.placeholder,
+      )));
+
+    const models = await post.getLatest(fixture.input[1].createdAt, 0, 20);
     expect(models).to.deep.equal(fixture.output);
   });
 
   it('should fetch posts by pages sorted by time', async () => {
     await Promise.all(fixture.input.map(p =>
-      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt, p.image)));
+      post.add(
+        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+        p.image, p.ratio, p.placeholder,
+      )));
 
-    const page1 = await post.getLatest(fixture.input[1].publishedAt, 0, 1);
+    const page1 = await post.getLatest(fixture.input[1].createdAt, 0, 1);
     expect(page1).to.deep.equal([fixture.output[0]]);
 
-    const page2 = await post.getLatest(fixture.input[1].publishedAt, 1, 1);
+    const page2 = await post.getLatest(fixture.input[1].createdAt, 1, 1);
     expect(page2).to.deep.equal([fixture.output[1]]);
   });
 
   it('should fetch post by id', async () => {
     await Promise.all(fixture.input.map(p =>
-      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt, p.image)));
+      post.add(
+        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+        p.image, p.ratio, p.placeholder,
+      )));
 
     const model = await post.get(fixture.output[0].id);
     expect(model).to.deep.equal(fixture.output[0]);

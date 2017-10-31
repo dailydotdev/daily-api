@@ -6,18 +6,33 @@ const table = 'posts';
 const select = () =>
   db.select(
     `${table}.id`, `${table}.title`, `${table}.url`, `${table}.image`, `${table}.published_at`, `${table}.created_at`,
+    `${table}.ratio`, `${table}.placeholder`,
     'publications.id as pub_id', 'publications.image as pub_image', 'publications.name as pub_name',
   )
     .from(table)
     .join('publications', `${table}.publication_id`, 'publications.id');
 
-// eslint-disable-next-line arrow-body-style
-const mapPost = (post) => {
+const mapImage = (post) => {
+  if (post.image) {
+    return {
+      image: post.image,
+      ratio: post.ratio,
+      placeholder: post.placeholder,
+    };
+  }
+
   return {
+    image: config.defaultImage.url,
+    ratio: config.defaultImage.ratio,
+    placeholder: config.defaultImage.placeholder,
+  };
+};
+
+const mapPost = post =>
+  Object.assign({}, {
     id: post.id,
     title: post.title,
     url: post.url,
-    image: post.image ? post.image : config.defaultImage,
     publishedAt: post.publishedAt,
     createdAt: post.createdAt,
     publication: {
@@ -25,8 +40,7 @@ const mapPost = (post) => {
       name: post.pubName,
       image: post.pubImage,
     },
-  };
-};
+  }, mapImage(post));
 
 const getLatest = (latest, page, pageSize) =>
   select()
@@ -45,9 +59,9 @@ const get = id =>
     .map(mapPost)
     .then(res => (res.length ? res[0] : null));
 
-const add = (id, title, url, publicationId, publishedAt, createdAt, image) => {
+const add = (id, title, url, publicationId, publishedAt, createdAt, image, ratio, placeholder) => {
   const obj = {
-    id, title, url, publicationId, publishedAt, createdAt, image,
+    id, title, url, publicationId, publishedAt, createdAt, image, ratio, placeholder,
   };
   return db.insert(toSnakeCase(obj)).into(table)
     .then(() => obj);

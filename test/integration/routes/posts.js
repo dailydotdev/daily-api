@@ -28,17 +28,20 @@ describe('posts routes', () => {
   });
 
   const mapDate = p => Object.assign({}, p, {
-    publishedAt: p.publishedAt.toISOString(),
+    publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,
     createdAt: p.createdAt.toISOString(),
   });
 
   it('should fetch latest posts', async () => {
     await Promise.all(fixture.input.map(p =>
-      post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt, p.image)));
+      post.add(
+        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+        p.image, p.ratio, p.placeholder,
+      )));
 
     const result = await request
       .get('/v1/posts/latest')
-      .query({ latest: fixture.input[1].publishedAt.toISOString(), page: 0, pageSize: 20 })
+      .query({ latest: fixture.input[1].createdAt.toISOString(), page: 0, pageSize: 20 })
       .expect(200);
 
     expect(result.body).to.deep.equal(fixture.output.map(mapDate));
@@ -47,7 +50,10 @@ describe('posts routes', () => {
   describe('get by id endpoint', () => {
     it('should fetch post', async () => {
       await Promise.all(fixture.input.map(p =>
-        post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt, p.image)));
+        post.add(
+          p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+          p.image, p.ratio, p.placeholder,
+        )));
 
       const result = await request
         .get(`/v1/posts/${fixture.output[0].id}`)
@@ -108,7 +114,10 @@ describe('posts routes', () => {
 
     it('should send conflict when id already exist', async () => {
       await Promise.all(fixture.input.map(p =>
-        post.add(p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt, p.image)));
+        post.add(
+          p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+          p.image, p.ratio, p.placeholder,
+        )));
 
       const body = mapDate(fixture.input[0]);
       const result = await request

@@ -47,18 +47,19 @@ router.post(
     stripUnknown: true,
   }),
   async (ctx) => {
-    const requestBody = ctx.request.body;
+    const { body } = ctx.request;
     try {
       ctx.status = 200;
       ctx.body = await post.add(
-        requestBody.id, requestBody.title, requestBody.url, requestBody.publicationId,
-        requestBody.publishedAt, requestBody.createdAt, requestBody.image,
+        body.id, body.title, body.url, body.publicationId,
+        body.publishedAt, body.createdAt, body.image, body.ratio,
+        body.placeholder,
       );
     } catch (err) {
       if (err.code === 'ER_NO_REFERENCED_ROW_2') {
         throw new ValidationError('publicationId', ['"publicationId" fails because there is no publication with this id']);
       } else if (err.code === 'ER_DUP_ENTRY') {
-        throw new EntityExistError('post', 'id', requestBody.id);
+        throw new EntityExistError('post', 'id', body.id);
       } else {
         throw err;
       }

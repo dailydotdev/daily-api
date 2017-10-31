@@ -10,13 +10,14 @@ const input = [
     publishedAt: new Date(2017, 10, 21, 15, 10, 5),
     createdAt: new Date(2017, 10, 21, 15, 10, 5),
     image: 'https://myblog.com/image.png',
+    ratio: 1.2,
+    placeholder: 'data:image/png;base64,qweuoi2108js',
   },
   {
     id: '2',
     title: 'Post #2',
     url: 'https://myblog.com/post2.html',
     publicationId: publications[1].id,
-    publishedAt: new Date(2017, 10, 21, 15, 10, 10),
     createdAt: new Date(2017, 10, 21, 15, 10, 10),
   },
 ];
@@ -26,9 +27,11 @@ const output = [
     id: input[1].id,
     title: input[1].title,
     url: input[1].url,
-    publishedAt: input[1].publishedAt,
+    publishedAt: null,
     createdAt: input[1].createdAt,
-    image: config.defaultImage,
+    image: config.defaultImage.url,
+    ratio: config.defaultImage.ratio,
+    placeholder: config.defaultImage.placeholder,
     publication: {
       id: publications[1].id,
       name: publications[1].name,
@@ -42,6 +45,8 @@ const output = [
     publishedAt: input[0].publishedAt,
     createdAt: input[0].createdAt,
     image: input[0].image,
+    ratio: 1.2,
+    placeholder: 'data:image/png;base64,qweuoi2108js',
     publication: {
       id: publications[0].id,
       name: publications[0].name,
