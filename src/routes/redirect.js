@@ -9,7 +9,7 @@ router.get(
   '/',
   validator({
     query: {
-      link: string().uri({ scheme: ['http', 'https'] }).required(),
+      link: string().required(),
       post: string().required(),
       source: string().required(),
     },
