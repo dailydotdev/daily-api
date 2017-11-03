@@ -45,6 +45,7 @@ const mapPost = post =>
 const getLatest = (latest, page, pageSize) =>
   select()
     .where(`${table}.created_at`, '<=', latest)
+    .andWhere('publications.enabled', '=', 1)
     .orderBy(`${table}.created_at`, 'desc')
     .offset(page * pageSize)
     .limit(pageSize)

@@ -16,6 +16,9 @@ const createPublicationsTable = async () => {
       table.string('id').primary();
       table.string('name').unique().notNullable();
       table.string('image').notNullable();
+      table.boolean('enabled').defaultTo(0);
+
+      table.index('enabled');
     });
   }
 

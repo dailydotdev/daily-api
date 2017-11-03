@@ -9,7 +9,7 @@ describe('source model', () => {
   beforeEach(async () => {
     await dropTables();
     await createTables();
-    await Promise.all(fixturePubs.map(pub => publication.add(pub.name, pub.image)));
+    await Promise.all(fixturePubs.map(pub => publication.add(pub.name, pub.image, pub.enabled)));
   });
 
   it('should add new source to db', async () => {

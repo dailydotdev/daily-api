@@ -20,6 +20,13 @@ const input = [
     publicationId: publications[1].id,
     createdAt: new Date(2017, 10, 21, 15, 10, 10),
   },
+  {
+    id: '3',
+    title: 'Post #3',
+    url: 'https://myblog.com/post3.html',
+    publicationId: publications[2].id,
+    createdAt: new Date(2017, 10, 21, 15, 10, 10),
+  },
 ];
 
 const output = [
