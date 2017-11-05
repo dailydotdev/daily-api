@@ -52,8 +52,8 @@ const getLatest = (latest, page, pageSize) =>
     .map(toCamelCase)
     .map(mapPost);
 
-const get = id =>
-  select()
+const get = (id, fields) =>
+  select(fields)
     .where(`${table}.id`, '=', id)
     .limit(1)
     .map(toCamelCase)
