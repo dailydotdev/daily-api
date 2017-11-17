@@ -3,3 +3,4 @@ build/
 node_modules/
 app.yaml
 local.sh
+prod.sh
