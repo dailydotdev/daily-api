@@ -49,6 +49,7 @@ router.post(
   async (ctx) => {
     const { body } = ctx.request;
     try {
+      ctx.log.info('adding new post');
       ctx.status = 200;
       ctx.body = await post.add(
         body.id, body.title, body.url, body.publicationId,
