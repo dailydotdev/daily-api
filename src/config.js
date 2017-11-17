@@ -29,6 +29,9 @@ const config = {
     domain: process.env.COOKIES_DOMAIN,
     key: process.env.COOKIES_KEY,
   },
+  cors: {
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN : '*',
+  },
 };
 
 export default config;

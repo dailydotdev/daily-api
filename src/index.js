@@ -30,7 +30,9 @@ const logger = pino(loggerOptions);
 
 app.keys = [config.cookies.key];
 
-app.use(cors());
+app.proxy = config.env === 'production';
+
+app.use(cors({ origin: config.cors.origin }));
 app.use(bodyParser());
 app.use(KoaPinoLogger({ logger }));
 app.use(errorHandler());
@@ -43,7 +45,6 @@ app.use(session({
   rolling: true,
   store: new KnexStore(db, { tableName: 'sessions', sync: true }),
   domain: config.cookies.domain,
-  secure: config.env === 'production',
 }, app));
 app.use(userAgent);
 
