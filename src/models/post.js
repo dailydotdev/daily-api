@@ -3,13 +3,22 @@ import config from '../config';
 
 const table = 'posts';
 
-const select = () =>
+const select = (timestamp = new Date()) =>
   db.select(
     `${table}.id`, `${table}.title`, `${table}.url`, `${table}.image`, `${table}.published_at`, `${table}.created_at`,
-    `${table}.ratio`, `${table}.placeholder`,
+    `${table}.ratio`, `${table}.placeholder`, 'ranked.views',
     'publications.id as pub_id', 'publications.image as pub_image', 'publications.name as pub_name',
   )
-    .from(table)
+    .from(function groupEvents() {
+      this.select('post_id as id')
+        .count('post_id as views')
+        .from('events')
+        .where('type', '=', 'view')
+        .groupBy('post_id')
+        .where('timestamp', '<=', timestamp)
+        .as('ranked');
+    }).as('ignored')
+    .rightJoin(table, `${table}.id`, 'ranked.id')
     .join('publications', `${table}.publication_id`, 'publications.id');
 
 const mapImage = (post) => {
@@ -43,17 +52,17 @@ const mapPost = post =>
   }, mapImage(post));
 
 const getLatest = (latest, page, pageSize) =>
-  select()
+  select(latest)
     .where(`${table}.created_at`, '<=', latest)
     .andWhere('publications.enabled', '=', 1)
-    .orderBy(`${table}.created_at`, 'desc')
+    .orderByRaw(`timestampdiff(second, ${table}.created_at, current_timestamp()) - coalesce(ranked.views, 0) * 15 * 60 ASC`)
     .offset(page * pageSize)
     .limit(pageSize)
     .map(toCamelCase)
     .map(mapPost);
 
-const get = (id, fields) =>
-  select(fields)
+const get = id =>
+  select()
     .where(`${table}.id`, '=', id)
     .limit(1)
     .map(toCamelCase)
