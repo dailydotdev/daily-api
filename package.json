@@ -25,11 +25,15 @@
     "koa": "^2.3.0",
     "koa-bodyparser": "^4.2.0",
     "koa-context-validator": "^0.4.1",
+    "koa-generic-session-knex": "^1.0.1",
     "koa-pino-logger": "^2.1.1",
     "koa-router": "^7.2.1",
+    "koa-session": "^5.5.1",
+    "koa-useragent": "^1.0.0",
     "lodash": "^4.17.4",
     "mysql": "^2.15.0",
-    "pino": "^4.7.3"
+    "pino": "^4.7.3",
+    "uuid": "^3.1.0"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",

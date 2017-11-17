@@ -60,16 +60,39 @@ const createPostsTable = async () => {
   return Promise.resolve();
 };
 
+const createEventsTable = async () => {
+  const exists = await db.schema.hasTable('events');
+  if (!exists) {
+    return db.schema.createTable('events', (table) => {
+      table.string('type').notNullable();
+      table.string('referer').nullable();
+      table.string('agent').nullable();
+      table.string('ip').nullable();
+      table.string('user_id').notNullable();
+      table.string('post_id').notNullable();
+      table.timestamp('timestamp').defaultTo(db.fn.now());
+
+      table.index('type');
+      table.index('user_id');
+      table.index('post_id');
+    });
+  }
+
+  return Promise.resolve();
+};
+
 export const createTables = async () => {
   await createPublicationsTable();
   await createSourcesTable();
-  return createPostsTable();
+  await createPostsTable();
+  await createEventsTable();
 };
 
 export const dropTables = async () => {
   await db.schema.dropTableIfExists('posts');
   await db.schema.dropTableIfExists('sources');
-  return db.schema.dropTableIfExists('publications');
+  await db.schema.dropTableIfExists('publications');
+  await db.schema.dropTableIfExists('events');
 };
 
 export const toCamelCase = obj => _.mapKeys(obj, (value, key) => _.camelCase(key));

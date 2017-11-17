@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { createTables } from './src/db';
 
 createTables()

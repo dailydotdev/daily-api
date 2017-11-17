@@ -4,9 +4,13 @@ import pino from 'pino';
 import KoaPinoLogger from 'koa-pino-logger';
 import Router from 'koa-router';
 import cors from '@koa/cors';
+import session from 'koa-session';
+import KnexStore from 'koa-generic-session-knex';
+import userAgent from 'koa-useragent';
 
 import config from './config';
 import errorHandler from './middlewares/errorHandler';
+import db from './db';
 
 import health from './routes/health';
 import sources from './routes/sources';
@@ -24,10 +28,24 @@ const loggerOptions = (() => {
 
 const logger = pino(loggerOptions);
 
+app.keys = [config.cookies.key];
+
 app.use(cors());
 app.use(bodyParser());
 app.use(KoaPinoLogger({ logger }));
 app.use(errorHandler());
+app.use(session({
+  key: 'session',
+  maxAge: 1000 * 60 * 60 * 24 * 365,
+  overwrite: true,
+  httpOnly: true,
+  signed: true,
+  rolling: true,
+  store: new KnexStore(db, { tableName: 'sessions', sync: true }),
+  domain: config.cookies.domain,
+  secure: config.env === 'production',
+}, app));
+app.use(userAgent);
 
 const router = new Router({
   prefix: '/v1',

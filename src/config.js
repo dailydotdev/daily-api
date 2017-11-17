@@ -25,6 +25,10 @@ const config = {
     ratio: parseFloat(process.env.DEFAULT_IMAGE_RATIO),
     placeholder: process.env.DEFAULT_IMAGE_PLACEHOLDER,
   },
+  cookies: {
+    domain: process.env.COOKIES_DOMAIN,
+    key: process.env.COOKIES_KEY,
+  },
 };
 
 export default config;
