@@ -16,6 +16,7 @@ import health from './routes/health';
 import sources from './routes/sources';
 import posts from './routes/posts';
 import redirect from './routes/redirect';
+import download from './routes/download';
 
 const app = new Koa();
 
@@ -57,6 +58,7 @@ router.use(posts.routes(), posts.allowedMethods());
 
 app.use(router.routes(), router.allowedMethods());
 app.use(redirect.routes(), redirect.allowedMethods());
+app.use(download.routes(), download.allowedMethods());
 app.use(health.routes(), health.allowedMethods());
 
 export default app;
