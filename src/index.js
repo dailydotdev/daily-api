@@ -15,6 +15,7 @@ import db from './db';
 import health from './routes/health';
 import sources from './routes/sources';
 import posts from './routes/posts';
+import publications from './routes/publications';
 import redirect from './routes/redirect';
 import download from './routes/download';
 
@@ -55,6 +56,7 @@ const router = new Router({
 
 router.use(sources.routes(), sources.allowedMethods());
 router.use(posts.routes(), posts.allowedMethods());
+router.use(publications.routes(), publications.allowedMethods());
 
 app.use(router.routes(), router.allowedMethods());
 app.use(redirect.routes(), redirect.allowedMethods());

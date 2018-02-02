@@ -6,6 +6,9 @@ const mapPub = pub => Object.assign({}, pub, { enabled: pub.enabled === 1 });
 
 const getAll = () => db.select().from(table).orderBy('name').map(mapPub);
 
+const getEnabled = () => db.select().from(table).where('enabled', '=', 1).orderBy('name')
+  .map(mapPub);
+
 const add = (name, image, enabled) => {
   const id = name.toLowerCase().replace(' ', '_').replace('\'', '');
   const obj = {
@@ -18,4 +21,4 @@ const add = (name, image, enabled) => {
     .then(() => mapPub(obj));
 };
 
-export default { getAll, add };
+export default { getAll, getEnabled, add };

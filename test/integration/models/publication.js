@@ -19,4 +19,10 @@ describe('publication model', () => {
     const models = await publication.getAll();
     expect(models).to.deep.equal(fixture);
   });
+
+  it('should fetch all enabled publications from db', async () => {
+    await Promise.all(fixture.map(pub => publication.add(pub.name, pub.image, pub.enabled)));
+    const models = await publication.getEnabled();
+    expect(models).to.deep.equal([fixture[0], fixture[1]]);
+  });
 });
