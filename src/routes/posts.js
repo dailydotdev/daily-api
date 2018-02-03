@@ -1,5 +1,5 @@
 import Router from 'koa-router';
-import validator, { date, number } from 'koa-context-validator';
+import validator, { date, number, string } from 'koa-context-validator';
 import post from '../models/post';
 import { EntityNotFoundError, ValidationError, EntityExistError } from '../errors';
 import validations from '../validations';
@@ -14,14 +14,15 @@ router.get(
   validator({
     query: {
       latest: date().iso().required(),
-      page: number().min(0),
-      pageSize: number().positive().max(40),
+      page: number().min(0).required(),
+      pageSize: number().positive().max(40).required(),
+      pubs: string(),
     },
   }),
   async (ctx) => {
     const { query } = ctx.request;
     ctx.status = 200;
-    ctx.body = await post.getLatest(query.latest, query.page, query.pageSize);
+    ctx.body = await post.getLatest(query.latest, query.page, query.pageSize, query.pubs ? query.pubs.split(',') : null);
   },
 );
 

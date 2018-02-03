@@ -47,6 +47,18 @@ describe('post model', () => {
     expect(page2).to.deep.equal([fixture.output[1]]);
   });
 
+  it('should fetch posts only from given publications', async () => {
+    await Promise.all(fixture.input.map(p =>
+      post.add(
+        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+        p.image, p.ratio, p.placeholder,
+      )));
+
+    const models =
+      await post.getLatest(fixture.input[1].createdAt, 0, 20, [fixture.input[1].publicationId]);
+    expect(models).to.deep.equal([fixture.output[0]]);
+  });
+
   it('should fetch post by id', async () => {
     await Promise.all(fixture.input.map(p =>
       post.add(

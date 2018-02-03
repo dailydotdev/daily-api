@@ -47,6 +47,26 @@ describe('posts routes', () => {
     expect(result.body).to.deep.equal(fixture.output.map(mapDate));
   });
 
+  it('should fetch latest posts by given publications', async () => {
+    await Promise.all(fixture.input.map(p =>
+      post.add(
+        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+        p.image, p.ratio, p.placeholder,
+      )));
+
+    const result = await request
+      .get('/v1/posts/latest')
+      .query({
+        latest: fixture.input[1].createdAt.toISOString(),
+        page: 0,
+        pageSize: 20,
+        pubs: [fixture.input[1].publicationId].join(','),
+      })
+      .expect(200);
+
+    expect(result.body).to.deep.equal([fixture.output[0]].map(mapDate));
+  });
+
   describe('get by id endpoint', () => {
     it('should fetch post', async () => {
       await Promise.all(fixture.input.map(p =>

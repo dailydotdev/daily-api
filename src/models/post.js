@@ -51,10 +51,18 @@ const mapPost = post =>
     },
   }, mapImage(post));
 
-const getLatest = (latest, page, pageSize) =>
+const whereByPublications = (publications) => {
+  if (publications && publications.length > 0) {
+    return ['publications.id', 'in', publications];
+  }
+
+  return ['publications.enabled', '=', 1];
+};
+
+const getLatest = (latest, page, pageSize, publications) =>
   select(latest)
     .where(`${table}.created_at`, '<=', latest)
-    .andWhere('publications.enabled', '=', 1)
+    .andWhere(...whereByPublications(publications))
     .orderByRaw(`timestampdiff(second, ${table}.created_at, current_timestamp()) - coalesce(ranked.views, 0) * 15 * 60 ASC`)
     .offset(page * pageSize)
     .limit(pageSize)
