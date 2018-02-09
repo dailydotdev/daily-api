@@ -4,16 +4,6 @@ import { EntityNotFoundError } from '../errors';
 import { initSession } from '../sessions';
 import { add as addEvent } from '../events';
 
-const updateQueryParameter = (url, key, value) => {
-  const re = new RegExp(`([?&])${key}=.*?(&|$)`, 'i');
-  const separator = url.indexOf('?') !== -1 ? '&' : '?';
-  if (url.match(re)) {
-    return url.replace(re, `$1${key}=${value}$2`);
-  }
-
-  return `${url}${separator}${key}=${value}`;
-};
-
 const router = Router({
   prefix: '/r',
 });
@@ -31,8 +21,7 @@ router.get(
         ctx.log.info(`redirecting bot to post ${model.id}`);
       }
 
-      ctx.status = 301;
-      ctx.redirect(updateQueryParameter(model.url, 'ref', 'daily'));
+      await ctx.render('redirect.hbs', { url: model.url });
     } else {
       throw new EntityNotFoundError('post', 'id', ctx.params.id);
     }

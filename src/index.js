@@ -1,4 +1,5 @@
 import Koa from 'koa';
+import path from 'path';
 import bodyParser from 'koa-bodyparser';
 import pino from 'pino';
 import KoaPinoLogger from 'koa-pino-logger';
@@ -7,6 +8,8 @@ import cors from '@koa/cors';
 import session from 'koa-session';
 import KnexStore from 'koa-generic-session-knex';
 import userAgent from 'koa-useragent';
+import etag from 'koa-etag';
+import views from 'koa-views';
 
 import config from './config';
 import errorHandler from './middlewares/errorHandler';
@@ -49,6 +52,12 @@ app.use(session({
   domain: config.cookies.domain,
 }, app));
 app.use(userAgent);
+app.use(etag());
+app.use(views(path.join(__dirname, 'views'), {
+  map: {
+    hbs: 'handlebars',
+  },
+}));
 
 const router = new Router({
   prefix: '/v1',
