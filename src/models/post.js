@@ -11,7 +11,7 @@ const select = (timestamp = new Date()) =>
   )
     .from(function groupEvents() {
       this.select('post_id as id')
-        .count('post_id as views')
+        .countDistinct('user_id as views')
         .from('events')
         .where('type', '=', 'view')
         .groupBy('post_id')
@@ -63,7 +63,7 @@ const getLatest = (latest, page, pageSize, publications) =>
   select(latest)
     .where(`${table}.created_at`, '<=', latest)
     .andWhere(...whereByPublications(publications))
-    .orderByRaw(`timestampdiff(second, ${table}.created_at, current_timestamp()) - coalesce(ranked.views, 0) * 15 * 60 ASC`)
+    .orderByRaw(`timestampdiff(second, ${table}.created_at, current_timestamp()) - coalesce(ranked.views, 0) * 12 * 60 ASC`)
     .offset(page * pageSize)
     .limit(pageSize)
     .map(toCamelCase)
