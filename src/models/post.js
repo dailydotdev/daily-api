@@ -85,4 +85,32 @@ const add = (id, title, url, publicationId, publishedAt, createdAt, image, ratio
     .then(() => obj);
 };
 
-export default { getLatest, get, add };
+const getPostToTweet = async () => {
+  const res = await db.select(`${table}.id`, `${table}.title`, 'publications.twitter')
+    .from(function groupEvents() {
+      this.select('post_id as id')
+        .countDistinct('user_id as views')
+        .from('events')
+        .where('type', '=', 'view')
+        .groupBy('post_id')
+        .as('ranked');
+    }).as('ignored')
+    .join(table, `${table}.id`, 'ranked.id')
+    .join('publications', `${table}.publication_id`, 'publications.id')
+    .where(`${table}.tweeted`, '=', 0)
+    .andWhere('ranked.views', '>=', 30)
+    .orderBy('created_at')
+    .limit(1);
+  return res.length ? res[0] : null;
+};
+
+const setPostsAsTweeted = id =>
+  db(table).where('id', '=', id).update({ tweeted: 1 });
+
+export default {
+  getLatest,
+  get,
+  add,
+  getPostToTweet,
+  setPostsAsTweeted,
+};

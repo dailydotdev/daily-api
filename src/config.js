@@ -32,6 +32,13 @@ const config = {
   cors: {
     origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN : '*',
   },
+  twitter: {
+    consumerKey: process.env.TWITTER_CONSUMER_KEY,
+    consumerSecret: process.env.TWITTER_CONSUMER_SECRET,
+    accessTokenKey: process.env.TWITTER_ACCESS_TOKEN_KEY,
+    accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
+  },
+  urlPrefix: process.env.URL_PREFIX,
 };
 
 export default config;

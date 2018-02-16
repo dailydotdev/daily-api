@@ -17,6 +17,7 @@ const createPublicationsTable = async () => {
       table.string('name').unique().notNullable();
       table.string('image').notNullable();
       table.boolean('enabled').defaultTo(0);
+      table.string('twitter').nullable();
 
       table.index('enabled');
     });
@@ -52,8 +53,10 @@ const createPostsTable = async () => {
       table.foreign('publication_id').references('publications.id');
       table.timestamp('published_at').nullable();
       table.timestamp('created_at').defaultTo(db.fn.now());
+      table.boolean('tweeted').defaultTo(0);
 
       table.index('image');
+      table.index('tweeted');
     });
   }
 

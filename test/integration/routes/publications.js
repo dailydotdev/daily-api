@@ -12,7 +12,8 @@ describe('publications routes', () => {
   beforeEach(async () => {
     await dropTables();
     await createTables();
-    return Promise.all(fixture.map(pub => publication.add(pub.name, pub.image, pub.enabled)));
+    return Promise.all(fixture.map(pub =>
+      publication.add(pub.name, pub.image, pub.enabled, pub.twitter)));
   });
 
   before(() => {

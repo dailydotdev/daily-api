@@ -21,6 +21,7 @@ import posts from './routes/posts';
 import publications from './routes/publications';
 import redirect from './routes/redirect';
 import download from './routes/download';
+import tweet from './routes/tweet';
 
 const app = new Koa();
 
@@ -66,6 +67,7 @@ const router = new Router({
 router.use(sources.routes(), sources.allowedMethods());
 router.use(posts.routes(), posts.allowedMethods());
 router.use(publications.routes(), publications.allowedMethods());
+router.use(tweet.routes(), tweet.allowedMethods());
 
 app.use(router.routes(), router.allowedMethods());
 app.use(redirect.routes(), redirect.allowedMethods());

@@ -17,7 +17,7 @@ describe('event model', () => {
     expect(model).to.deep.equal(fixture[0]);
   });
 
-  it('should fetch all publications from db', async () => {
+  it('should fetch all events from db', async () => {
     await Promise.all(fixture.map(e =>
       event.add(e.type, e.userId, e.postId, e.referer, e.agent, e.ip, e.timestamp)));
     const models = await event.getAll();

@@ -9,13 +9,14 @@ const getAll = () => db.select().from(table).orderBy('name').map(mapPub);
 const getEnabled = () => db.select().from(table).where('enabled', '=', 1).orderBy('name')
   .map(mapPub);
 
-const add = (name, image, enabled) => {
+const add = (name, image, enabled, twitter) => {
   const id = name.toLowerCase().replace(' ', '_').replace('\'', '');
   const obj = {
     id,
     name,
     image,
     enabled: enabled ? 1 : 0,
+    twitter,
   };
   return db.insert(obj).into(table)
     .then(() => mapPub(obj));
