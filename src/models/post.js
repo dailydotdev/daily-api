@@ -86,7 +86,7 @@ const add = (id, title, url, publicationId, publishedAt, createdAt, image, ratio
 };
 
 const getPostToTweet = async () => {
-  const res = await db.select(`${table}.id`, `${table}.title`, 'publications.twitter')
+  const res = await db.select(`${table}.id`, `${table}.title`, `${table}.image`, 'publications.twitter')
     .from(function groupEvents() {
       this.select('post_id as id')
         .countDistinct('user_id as views')

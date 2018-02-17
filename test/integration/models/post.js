@@ -105,6 +105,7 @@ describe('post model', () => {
     expect(model).to.deep.equal({
       id: fixture.input[0].id,
       title: fixture.input[0].title,
+      image: fixture.input[0].image,
       twitter: fixturePubs[0].twitter,
     });
   });
