@@ -17,8 +17,11 @@ router.get(
   '/trending',
   async (ctx) => {
     const model = await post.getPostToTweet();
-    await post.setPostsAsTweeted(model.id);
-    await tweet(buildTweet(model));
+    if (model) {
+      ctx.log.info(`tweeting post ${model.id}`);
+      await post.setPostsAsTweeted(model.id);
+      await tweet(buildTweet(model));
+    }
     ctx.status = 204;
   },
 );
