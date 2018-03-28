@@ -13,7 +13,7 @@ const source = object().keys({
 const post = object().keys({
   id: postId.required(),
   title: string().required(),
-  url: string().uri({ scheme: ['http', 'https'] }).required(),
+  url: string().required(),
   publicationId: publicationId.required(),
   publishedAt: date().iso().allow(null),
   createdAt: date().iso().required(),

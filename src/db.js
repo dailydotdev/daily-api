@@ -57,6 +57,8 @@ const createPostsTable = async () => {
 
       table.index('image');
       table.index('tweeted');
+      // TODO: index should be DESC
+      table.index('created_at');
     });
   }
 
