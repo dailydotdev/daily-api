@@ -27,6 +27,15 @@ router.get(
 );
 
 router.get(
+  '/views',
+  async (ctx) => {
+    ctx.log.info('updating views');
+    await post.updateViews();
+    ctx.status = 204;
+  },
+);
+
+router.get(
   '/:id',
   async (ctx) => {
     const model = await post.get(ctx.params.id);
