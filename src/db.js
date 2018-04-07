@@ -55,6 +55,7 @@ const createPostsTable = async () => {
       table.timestamp('created_at').defaultTo(db.fn.now());
       table.boolean('tweeted').defaultTo(0);
       table.integer('views').defaultTo(0);
+      table.boolean('promoted').defaultTo(0);
 
       table.index('image');
       table.index('tweeted');
@@ -62,6 +63,7 @@ const createPostsTable = async () => {
       table.index('created_at');
       table.index('views');
       table.index(['views', 'created_at']);
+      table.index('promoted');
     });
   }
 

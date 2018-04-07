@@ -17,7 +17,7 @@ describe('post model', () => {
     const input = fixture.input[0];
     const model = await post.add(
       input.id, input.title, input.url, input.publicationId, input.publishedAt,
-      input.createdAt, input.image, input.ratio, input.placeholder,
+      input.createdAt, input.image, input.ratio, input.placeholder, input.promoted,
     );
 
     expect(model).to.deep.equal(input);
@@ -27,7 +27,7 @@ describe('post model', () => {
     await Promise.all(fixture.input.map(p =>
       post.add(
         p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-        p.image, p.ratio, p.placeholder,
+        p.image, p.ratio, p.placeholder, p.promoted,
       )));
 
     const models = await post.getLatest(fixture.input[1].createdAt, 0, 20);
@@ -38,7 +38,7 @@ describe('post model', () => {
     await Promise.all(fixture.input.map(p =>
       post.add(
         p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-        p.image, p.ratio, p.placeholder,
+        p.image, p.ratio, p.placeholder, p.promoted,
       )));
 
     const page1 = await post.getLatest(fixture.input[1].createdAt, 0, 1);
@@ -52,7 +52,7 @@ describe('post model', () => {
     await Promise.all(fixture.input.map(p =>
       post.add(
         p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-        p.image, p.ratio, p.placeholder,
+        p.image, p.ratio, p.placeholder, p.promoted,
       )));
 
     const models =
@@ -60,11 +60,22 @@ describe('post model', () => {
     expect(models).to.deep.equal([fixture.output[0]]);
   });
 
+  it('should fetch all promoted posts', async () => {
+    await Promise.all(fixture.input.map(p =>
+      post.add(
+        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+        p.image, p.ratio, p.placeholder, p.promoted,
+      )));
+
+    const models = await post.getPromoted();
+    expect(models).to.deep.equal(fixture.promotedOutput);
+  });
+
   it('should fetch post by id', async () => {
     await Promise.all(fixture.input.map(p =>
       post.add(
         p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-        p.image, p.ratio, p.placeholder,
+        p.image, p.ratio, p.placeholder, p.promoted,
       )));
 
     const model = await post.get(fixture.output[0].id);
@@ -81,7 +92,7 @@ describe('post model', () => {
     await Promise.all(fixture.input.map((p, index) =>
       post.add(
         p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-        p.image, p.ratio, p.placeholder, views[index],
+        p.image, p.ratio, p.placeholder, p.promoted, views[index],
       )));
 
     const model = await post.getPostToTweet();
@@ -97,7 +108,7 @@ describe('post model', () => {
     await Promise.all(fixture.input.map(p =>
       post.add(
         p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-        p.image, p.ratio, p.placeholder, p.views,
+        p.image, p.ratio, p.placeholder, p.promoted, p.views,
       )));
 
     await post.setPostsAsTweeted(fixture.input[0].id);

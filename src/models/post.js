@@ -53,10 +53,17 @@ const whereByPublications = (publications) => {
 const getLatest = (latest, page, pageSize, publications) =>
   select()
     .where(`${table}.created_at`, '<=', latest)
+    .andWhere(`${table}.promoted`, '=', 0)
     .andWhere(...whereByPublications(publications))
     .orderByRaw(`timestampdiff(second, ${table}.created_at, current_timestamp()) - ${table}.views * 12 * 60 ASC`)
     .offset(page * pageSize)
     .limit(pageSize)
+    .map(toCamelCase)
+    .map(mapPost);
+
+const getPromoted = () =>
+  select()
+    .where(`${table}.promoted`, '=', 1)
     .map(toCamelCase)
     .map(mapPost);
 
@@ -68,20 +75,23 @@ const get = id =>
     .map(mapPost)
     .then(res => (res.length ? res[0] : null));
 
-const add =
-  (id, title, url, publicationId, publishedAt, createdAt, image, ratio, placeholder, views = 0) => {
-    const obj = {
-      id, title, url, publicationId, publishedAt, createdAt, image, ratio, placeholder,
-    };
-    return db.insert(toSnakeCase(Object.assign({}, obj, { views }))).into(table)
-      .then(() => obj);
+const add = (
+  id, title, url, publicationId, publishedAt, createdAt,
+  image, ratio, placeholder, promoted = false, views = 0,
+) => {
+  const obj = {
+    id, title, url, publicationId, publishedAt, createdAt, image, ratio, placeholder, promoted,
   };
+  return db.insert(toSnakeCase(Object.assign({}, obj, { views }))).into(table)
+    .then(() => obj);
+};
 
 const getPostToTweet = async () => {
   const res = await db.select(`${table}.id`, `${table}.title`, `${table}.image`, 'publications.twitter')
     .from(table)
     .join('publications', `${table}.publication_id`, 'publications.id')
     .where(`${table}.tweeted`, '=', 0)
+    .andWhere(`${table}.promoted`, '=', 0)
     .andWhere(`${table}.views`, '>=', 30)
     .orderBy('created_at')
     .limit(1);
@@ -104,6 +114,7 @@ const updateViews = async () => {
 
 export default {
   getLatest,
+  getPromoted,
   get,
   add,
   getPostToTweet,

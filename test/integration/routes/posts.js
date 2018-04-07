@@ -36,7 +36,7 @@ describe('posts routes', () => {
     await Promise.all(fixture.input.map(p =>
       post.add(
         p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-        p.image, p.ratio, p.placeholder,
+        p.image, p.ratio, p.placeholder, p.promoted,
       )));
 
     const result = await request
@@ -51,7 +51,7 @@ describe('posts routes', () => {
     await Promise.all(fixture.input.map(p =>
       post.add(
         p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-        p.image, p.ratio, p.placeholder,
+        p.image, p.ratio, p.placeholder, p.promoted,
       )));
 
     const result = await request
@@ -67,12 +67,26 @@ describe('posts routes', () => {
     expect(result.body).to.deep.equal([fixture.output[0]].map(mapDate));
   });
 
+  it('should fetch promoted posts', async () => {
+    await Promise.all(fixture.input.map(p =>
+      post.add(
+        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+        p.image, p.ratio, p.placeholder, p.promoted,
+      )));
+
+    const result = await request
+      .get('/v1/posts/promoted')
+      .expect(200);
+
+    expect(result.body).to.deep.equal(fixture.promotedOutput.map(mapDate));
+  });
+
   describe('get by id endpoint', () => {
     it('should fetch post', async () => {
       await Promise.all(fixture.input.map(p =>
         post.add(
           p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-          p.image, p.ratio, p.placeholder,
+          p.image, p.ratio, p.placeholder, p.promoted,
         )));
 
       const result = await request
@@ -110,7 +124,7 @@ describe('posts routes', () => {
     });
 
     it('should add new post without image', async () => {
-      const body = mapDate(fixture.input[1]);
+      const body = mapDate(fixture.input[3]);
       const result = await request
         .post('/v1/posts')
         .send(body)
@@ -136,7 +150,7 @@ describe('posts routes', () => {
       await Promise.all(fixture.input.map(p =>
         post.add(
           p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-          p.image, p.ratio, p.placeholder,
+          p.image, p.ratio, p.placeholder, p.promoted,
         )));
 
       const body = mapDate(fixture.input[0]);

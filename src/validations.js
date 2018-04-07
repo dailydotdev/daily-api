@@ -1,4 +1,4 @@
-import { object, string, date, number } from 'koa-context-validator';
+import { object, string, date, number, boolean } from 'koa-context-validator';
 
 const publicationId = string();
 const postId = string();
@@ -20,6 +20,7 @@ const post = object().keys({
   image: httpLink,
   ratio: number().positive(),
   placeholder: string(),
+  promoted: boolean().default(false),
 });
 
 export default {

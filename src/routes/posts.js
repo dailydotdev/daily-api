@@ -27,6 +27,14 @@ router.get(
 );
 
 router.get(
+  '/promoted',
+  async (ctx) => {
+    ctx.status = 200;
+    ctx.body = await post.getPromoted();
+  },
+);
+
+router.get(
   '/views',
   async (ctx) => {
     ctx.log.info('updating views');
@@ -64,7 +72,7 @@ router.post(
       ctx.body = await post.add(
         body.id, body.title, body.url, body.publicationId,
         body.publishedAt, body.createdAt, body.image, body.ratio,
-        body.placeholder,
+        body.placeholder, body.promoted,
       );
     } catch (err) {
       if (err.code === 'ER_NO_REFERENCED_ROW_2') {
