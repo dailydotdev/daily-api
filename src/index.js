@@ -22,6 +22,7 @@ import publications from './routes/publications';
 import redirect from './routes/redirect';
 import download from './routes/download';
 import tweet from './routes/tweet';
+import ads from './routes/ads';
 
 const app = new Koa();
 
@@ -68,10 +69,12 @@ router.use(sources.routes(), sources.allowedMethods());
 router.use(posts.routes(), posts.allowedMethods());
 router.use(publications.routes(), publications.allowedMethods());
 router.use(tweet.routes(), tweet.allowedMethods());
+router.use(ads.routes(), ads.allowedMethods());
 
 app.use(router.routes(), router.allowedMethods());
 app.use(redirect.routes(), redirect.allowedMethods());
 app.use(download.routes(), download.allowedMethods());
 app.use(health.routes(), health.allowedMethods());
+
 
 export default app;
