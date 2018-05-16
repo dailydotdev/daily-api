@@ -13,7 +13,7 @@ router.get(
     if (ctx.session.userId) {
       ctx.status = 200;
       ctx.body = {
-        userId: ctx.session.userId,
+        id: ctx.session.userId,
       };
     } else {
       throw new ForbiddenError();
