@@ -23,6 +23,7 @@ import redirect from './routes/redirect';
 import download from './routes/download';
 import tweet from './routes/tweet';
 import ads from './routes/ads';
+import users from './routes/users';
 
 const app = new Koa();
 
@@ -70,6 +71,7 @@ router.use(posts.routes(), posts.allowedMethods());
 router.use(publications.routes(), publications.allowedMethods());
 router.use(tweet.routes(), tweet.allowedMethods());
 router.use(ads.routes(), ads.allowedMethods());
+router.use(users.routes(), users.allowedMethods());
 
 app.use(router.routes(), router.allowedMethods());
 app.use(redirect.routes(), redirect.allowedMethods());
