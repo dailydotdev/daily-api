@@ -31,7 +31,7 @@
     "koa-generic-session-knex": "^1.0.1",
     "koa-pino-logger": "^2.1.1",
     "koa-router": "^7.2.1",
-    "koa-session": "^5.5.1",
+    "koa-session": "^5.8.1",
     "koa-useragent": "^1.0.0",
     "koa-views": "^6.1.3",
     "lodash": "^4.17.4",

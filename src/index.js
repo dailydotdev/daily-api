@@ -45,12 +45,12 @@ app.use(bodyParser());
 app.use(KoaPinoLogger({ logger }));
 app.use(errorHandler());
 app.use(session({
-  key: 'session',
+  key: 'da',
   maxAge: 1000 * 60 * 60 * 24 * 365,
   overwrite: true,
   httpOnly: true,
   signed: true,
-  rolling: true,
+  renew: true,
   store: new KnexStore(db, { tableName: 'sessions', sync: true }),
   domain: config.cookies.domain,
 }, app));

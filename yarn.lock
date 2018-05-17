@@ -2506,13 +2506,14 @@ koa-send@^4.0.0:
     mz "^2.6.0"
     resolve-path "^1.3.3"
 
-koa-session@^5.5.1:
-  version "5.5.1"
-  resolved "https://registry.yarnpkg.com/koa-session/-/koa-session-5.5.1.tgz#ec491cd61950916caeb1a107d62815eb797cbba9"
+koa-session@^5.8.1:
+  version "5.8.1"
+  resolved "https://registry.yarnpkg.com/koa-session/-/koa-session-5.8.1.tgz#f57b558a20e4da713cc2f96bfa67946bb4110548"
   dependencies:
     crc "^3.4.4"
     debug "^2.2.0"
     is-type-of "^1.0.0"
+    pedding "^1.1.0"
     uid-safe "^2.1.3"
 
 koa-useragent@^1.0.0:
@@ -3153,6 +3154,10 @@ pause-stream@0.0.11:
   resolved "https://registry.yarnpkg.com/pause-stream/-/pause-stream-0.0.11.tgz#fe5a34b0cbce12b5aa6a2b403ee2e73b602f1445"
   dependencies:
     through "~2.3"
+
+pedding@^1.1.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/pedding/-/pedding-1.1.0.tgz#f7b138c288d4bd584eada1215f5bd924f1e1e667"
 
 performance-now@^0.2.0:
   version "0.2.0"
