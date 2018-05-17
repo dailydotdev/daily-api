@@ -40,7 +40,7 @@ app.keys = [config.cookies.key];
 
 app.proxy = config.env === 'production';
 
-app.use(cors({ origin: config.cors.origin }));
+app.use(cors({ credentials: true }));
 app.use(bodyParser());
 app.use(KoaPinoLogger({ logger }));
 app.use(errorHandler());
