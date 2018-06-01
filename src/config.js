@@ -39,6 +39,7 @@ const config = {
     accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
   },
   urlPrefix: process.env.URL_PREFIX,
+  adsCount: process.env.ADS_COUNT,
 };
 
 export default config;
