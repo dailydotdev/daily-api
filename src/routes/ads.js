@@ -31,30 +31,29 @@ const fetchBSA = async (ip) => {
 
 const fetchAds = async () => {
   const ads = await ad.getEnabledAds(new Date());
-  const index = Math.floor(Math.random() * config.adsCount);
-  if (index < ads.length) {
-    const selected = ads[index];
-    return {
-      id: selected.id,
-      description: selected.title,
-      image: selected.image,
-      placeholder: selected.placeholder,
-      ratio: selected.ratio,
-      link: selected.url,
-      source: selected.source,
-    };
-  }
-
-  return null;
+  return ads.map(a => ({
+    id: a.id,
+    description: a.title,
+    image: a.image,
+    placeholder: a.placeholder,
+    ratio: a.ratio,
+    link: a.url,
+    source: a.source,
+  }));
 };
 
 router.get('/', async (ctx) => {
   const body = await Promise.all([
     fetchBSA(ctx.request.ip),
     fetchAds(),
-  ]).then(([ad1, ad2]) => {
-    const a = ad1 || ad2;
-    return a ? [a] : [];
+  ]).then(([bsa, ads]) => {
+    const index = Math.floor(Math.random() * config.adsCount);
+
+    if (index < ads.length) {
+      return [ads[index]];
+    }
+
+    return bsa ? [bsa] : [];
   });
   ctx.status = 200;
   ctx.body = body;
