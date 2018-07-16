@@ -1,12 +1,12 @@
 import { expect } from 'chai';
-import { createTables, dropTables } from '../../../src/db';
+import { migrate, rollback } from '../../../src/db';
 import ad from '../../../src/models/ad';
 import fixture from '../../fixtures/ads';
 
 describe('post model', () => {
   beforeEach(async () => {
-    await dropTables();
-    await createTables();
+    await rollback();
+    await migrate();
   });
 
   it('should add new ad to db', async () => {

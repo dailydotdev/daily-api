@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import supertest from 'supertest';
-import { createTables, dropTables } from '../../../src/db';
+import { migrate, rollback } from '../../../src/db';
 import publication from '../../../src/models/publication';
 import fixture from '../../fixtures/publications';
 import app from '../../../src';
@@ -10,8 +10,8 @@ describe('publications routes', () => {
   let server;
 
   beforeEach(async () => {
-    await dropTables();
-    await createTables();
+    await rollback();
+    await migrate();
     return Promise.all(fixture.map(pub =>
       publication.add(pub.name, pub.image, pub.enabled, pub.twitter)));
   });

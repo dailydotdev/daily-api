@@ -4,8 +4,13 @@ import trace from './trace';
 import pino from 'pino';
 import app from './src/index';
 import config from './src/config';
+import { migrate } from './src/db';
 
 const logger = pino();
 
-app.listen(config.port);
-logger.info(`server is listening to ${config.port}`);
+logger.info('migrating database');
+migrate()
+  .then(() => {
+    app.listen(config.port);
+    logger.info(`server is listening to ${config.port}`);
+  });

@@ -1,12 +1,12 @@
 import { expect } from 'chai';
-import { createTables, dropTables } from '../../../src/db';
+import { migrate, rollback } from '../../../src/db';
 import event from '../../../src/models/event';
 import fixture from '../../fixtures/events';
 
 describe('event model', () => {
   beforeEach(async () => {
-    await dropTables();
-    return createTables();
+    await rollback();
+    return migrate();
   });
 
   it('should add new event to db', async () => {

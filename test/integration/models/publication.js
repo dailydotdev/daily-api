@@ -1,12 +1,12 @@
 import { expect } from 'chai';
-import { createTables, dropTables } from '../../../src/db';
+import { migrate, rollback } from '../../../src/db';
 import publication from '../../../src/models/publication';
 import fixture from '../../fixtures/publications';
 
 describe('publication model', () => {
   beforeEach(async () => {
-    await dropTables();
-    return createTables();
+    await rollback();
+    return migrate();
   });
 
   it('should add new publication to db', async () => {

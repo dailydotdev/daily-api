@@ -5,7 +5,7 @@
   "author": "Ido Shamun <ido@elegantmonkeys.com>",
   "private": true,
   "engines": {
-    "node": "~8.6.0"
+    "node": "~10.6.0"
   },
   "scripts": {
     "mocha": "NODE_ENV=test mocha",
@@ -15,11 +15,11 @@
     "babel-node": "babel-node",
     "watch": "nodemon --exec yarn run babel-node -- $npm_package_main | pino",
     "start": "node $npm_package_main",
-    "deploy": "yarn build && cd build && gcloud --project devkit-prod app deploy app.yaml && cd ..",
-    "cron": "gcloud --project devkit-prod app deploy cron.yaml",
-    "createTables": "babel-node createTables.js"
+    "deploy": "yarn build && cd build && gcloud --project devkit-prod app deploy app.yaml --no-promote && cd ..",
+    "cron": "gcloud --project devkit-prod app deploy cron.yaml"
   },
   "dependencies": {
+    "@google-cloud/pubsub": "^0.19.0",
     "@google-cloud/trace-agent": "^2.3.0",
     "@koa/cors": "2",
     "handlebars": "^4.0.11",

@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { createTables, dropTables } from '../../../src/db';
+import { migrate, rollback } from '../../../src/db';
 import publication from '../../../src/models/publication';
 import source from '../../../src/models/source';
 import fixturePubs from '../../fixtures/publications';
@@ -7,8 +7,8 @@ import fixture from '../../fixtures/sources';
 
 describe('source model', () => {
   beforeEach(async () => {
-    await dropTables();
-    await createTables();
+    await rollback();
+    await migrate();
     await Promise.all(fixturePubs.map(pub => publication.add(pub.name, pub.image, pub.enabled)));
   });
 
