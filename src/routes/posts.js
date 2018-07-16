@@ -56,34 +56,4 @@ router.get(
   },
 );
 
-router.post(
-  '/',
-  adminAuth,
-  validator({
-    body: validations.post.required(),
-  }, {
-    stripUnknown: true,
-  }),
-  async (ctx) => {
-    const { body } = ctx.request;
-    try {
-      ctx.log.info('adding new post');
-      ctx.status = 200;
-      ctx.body = await post.add(
-        body.id, body.title, body.url, body.publicationId,
-        body.publishedAt, body.createdAt, body.image, body.ratio,
-        body.placeholder, body.promoted,
-      );
-    } catch (err) {
-      if (err.code === 'ER_NO_REFERENCED_ROW_2') {
-        throw new ValidationError('publicationId', ['"publicationId" fails because there is no publication with this id']);
-      } else if (err.code === 'ER_DUP_ENTRY') {
-        throw new EntityExistError('post', 'id', body.id);
-      } else {
-        throw err;
-      }
-    }
-  },
-);
-
 export default router;

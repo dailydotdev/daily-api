@@ -14,6 +14,7 @@ import views from 'koa-views';
 import config from './config';
 import errorHandler from './middlewares/errorHandler';
 import db from './db';
+import logger from './logger';
 
 import health from './routes/health';
 import sources from './routes/sources';
@@ -26,15 +27,6 @@ import ads from './routes/ads';
 import users from './routes/users';
 
 const app = new Koa();
-
-const loggerOptions = (() => {
-  if (config.env === 'test') {
-    return { level: 'error' };
-  }
-  return null;
-})();
-
-const logger = pino(loggerOptions);
 
 app.keys = [config.cookies.key];
 
