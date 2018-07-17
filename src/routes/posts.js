@@ -1,9 +1,7 @@
 import Router from 'koa-router';
 import validator, { date, number, string } from 'koa-context-validator';
 import post from '../models/post';
-import { EntityNotFoundError, ValidationError, EntityExistError } from '../errors';
-import validations from '../validations';
-import adminAuth from '../middlewares/adminAuth';
+import { EntityNotFoundError } from '../errors';
 
 const router = Router({
   prefix: '/posts',

@@ -1,7 +1,6 @@
 import Koa from 'koa';
 import path from 'path';
 import bodyParser from 'koa-bodyparser';
-import pino from 'pino';
 import KoaPinoLogger from 'koa-pino-logger';
 import Router from 'koa-router';
 import cors from '@koa/cors';

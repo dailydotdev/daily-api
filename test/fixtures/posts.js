@@ -19,7 +19,7 @@ const input = [
     title: 'Post #2',
     url: 'https://myblog.com/post2.html',
     publicationId: publications[1].id,
-    createdAt: new Date(2017, 10, 21, 15, 10, 10),
+    createdAt: new Date(2017, 10, 21, 15, 11, 10),
     promoted: false,
   },
   {
@@ -27,7 +27,7 @@ const input = [
     title: 'Post #3',
     url: 'https://myblog.com/post3.html',
     publicationId: publications[2].id,
-    createdAt: new Date(2017, 10, 21, 15, 10, 10),
+    createdAt: new Date(2017, 10, 21, 15, 11, 10),
     promoted: false,
   },
   {
@@ -35,7 +35,7 @@ const input = [
     title: 'Post #4',
     url: 'https://myblog.com/post4.html',
     publicationId: publications[2].id,
-    createdAt: new Date(2017, 10, 21, 15, 10, 10),
+    createdAt: new Date(2017, 10, 21, 15, 11, 10),
     promoted: true,
   },
 ];

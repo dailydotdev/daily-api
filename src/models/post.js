@@ -55,7 +55,7 @@ const getLatest = (latest, page, pageSize, publications) =>
     .where(`${table}.created_at`, '<=', latest)
     .andWhere(`${table}.promoted`, '=', 0)
     .andWhere(...whereByPublications(publications))
-    .orderByRaw(`timestampdiff(second, ${table}.created_at, current_timestamp()) - ${table}.views * 12 * 60 ASC`)
+    .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views + 1), 2) * 60 ASC`)
     .offset(page * pageSize)
     .limit(pageSize)
     .map(toCamelCase)

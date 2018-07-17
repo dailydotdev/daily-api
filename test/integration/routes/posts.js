@@ -5,7 +5,6 @@ import publication from '../../../src/models/publication';
 import post from '../../../src/models/post';
 import fixturePubs from '../../fixtures/publications';
 import fixture from '../../fixtures/posts';
-import config from '../../../src/config';
 import app from '../../../src';
 
 describe('posts routes', () => {

@@ -26,7 +26,7 @@ export default () => subscription.get({ autoCreate: true })
           if (err.code === 'ER_NO_REFERENCED_ROW_2') {
             logger.warn(`publication id ${data.publicationId} does not exist`);
           } else if (err.code === 'ER_DUP_ENTRY') {
-            logger.log(`post ${data.id} already exists`);
+            logger.info(`post ${data.id} already exists`);
           } else {
             throw err;
           }
