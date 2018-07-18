@@ -9,7 +9,7 @@ import subscriber from './src/subscriber';
 
 logger.info('migrating database');
 migrate()
-  .then(() => subscriber())
+  .then(() => (config.env === 'production' ? subscriber() : Promise.resolve()))
   .then(() => {
     app.listen(config.port);
     logger.info(`server is listening to ${config.port}`);

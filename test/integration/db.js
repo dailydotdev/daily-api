@@ -1,5 +1,6 @@
 import { expect } from 'chai';
-import db, { migrate, rollback } from '../../src/db';
+import knexCleaner from 'knex-cleaner';
+import db, { migrate } from '../../src/db';
 
 const migrateAndExpect = async () => {
   await migrate();
@@ -11,7 +12,7 @@ const migrateAndExpect = async () => {
 
 describe('database layer', () => {
   it('should create tables when not exist', async () => {
-    await rollback();
+    await knexCleaner.clean(db, { ignoreTables: ['knex_migrations', 'knex_migrations_lock'] });
     return migrateAndExpect();
   });
 

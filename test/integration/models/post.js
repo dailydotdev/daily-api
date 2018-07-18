@@ -1,5 +1,6 @@
 import { expect } from 'chai';
-import { migrate, rollback } from '../../../src/db';
+import knexCleaner from 'knex-cleaner';
+import db, { migrate } from '../../../src/db';
 import publication from '../../../src/models/publication';
 import post from '../../../src/models/post';
 import fixturePubs from '../../fixtures/publications';
@@ -7,19 +8,20 @@ import fixture from '../../fixtures/posts';
 
 describe('post model', () => {
   beforeEach(async () => {
-    await rollback();
+    await knexCleaner.clean(db, { ignoreTables: ['knex_migrations', 'knex_migrations_lock'] });
     await migrate();
     await Promise.all(fixturePubs.map(pub =>
       publication.add(pub.name, pub.image, pub.enabled, pub.twitter)));
   });
 
   it('should add new post to db', async () => {
-    const input = fixture.input[0];
+    const input = Object.assign({}, fixture.input[0]);
     const model = await post.add(
       input.id, input.title, input.url, input.publicationId, input.publishedAt,
       input.createdAt, input.image, input.ratio, input.placeholder, input.promoted,
     );
 
+    delete input.tags;
     expect(model).to.deep.equal(input);
   });
 
@@ -115,5 +117,16 @@ describe('post model', () => {
 
     const model = await post.getPostToTweet();
     expect(model).to.equal(null);
+  });
+
+  it('should add tags to new post', async () => {
+    const input = Object.assign({}, fixture.input[0]);
+    const model = await post.add(
+      input.id, input.title, input.url, input.publicationId, input.publishedAt,
+      input.createdAt, input.image, input.ratio, input.placeholder, input.promoted, 0, input.tags,
+    );
+
+    delete input.tags;
+    expect(model).to.deep.equal(input);
   });
 });

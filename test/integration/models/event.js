@@ -1,11 +1,12 @@
 import { expect } from 'chai';
-import { migrate, rollback } from '../../../src/db';
+import knexCleaner from 'knex-cleaner';
+import db, { migrate } from '../../../src/db';
 import event from '../../../src/models/event';
 import fixture from '../../fixtures/events';
 
 describe('event model', () => {
   beforeEach(async () => {
-    await rollback();
+    await knexCleaner.clean(db, { ignoreTables: ['knex_migrations', 'knex_migrations_lock'] });
     return migrate();
   });
 

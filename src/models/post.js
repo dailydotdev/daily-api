@@ -2,6 +2,7 @@ import db, { toCamelCase, toSnakeCase } from '../db';
 import config from '../config';
 
 const table = 'posts';
+const tagsTable = 'tags';
 
 const select = () =>
   db.select(
@@ -77,13 +78,15 @@ const get = id =>
 
 const add = (
   id, title, url, publicationId, publishedAt, createdAt,
-  image, ratio, placeholder, promoted = false, views = 0,
+  image, ratio, placeholder, promoted = false, views = 0, tags = [],
 ) => {
   const obj = {
     id, title, url, publicationId, publishedAt, createdAt, image, ratio, placeholder, promoted,
   };
-  return db.insert(toSnakeCase(Object.assign({}, obj, { views }))).into(table)
-    .then(() => obj);
+  return db.transaction(async (trx) => {
+    await trx.insert(toSnakeCase(Object.assign({}, obj, { views }))).into(table);
+    return trx.insert(tags.map(tag => ({ post_id: id, tag }))).into(tagsTable);
+  }).then(() => obj);
 };
 
 const getPostToTweet = async () => {

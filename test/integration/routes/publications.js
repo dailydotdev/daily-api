@@ -1,6 +1,7 @@
 import { expect } from 'chai';
 import supertest from 'supertest';
-import { migrate, rollback } from '../../../src/db';
+import knexCleaner from 'knex-cleaner';
+import db, { migrate } from '../../../src/db';
 import publication from '../../../src/models/publication';
 import fixture from '../../fixtures/publications';
 import app from '../../../src';
@@ -10,7 +11,7 @@ describe('publications routes', () => {
   let server;
 
   beforeEach(async () => {
-    await rollback();
+    await knexCleaner.clean(db, { ignoreTables: ['knex_migrations', 'knex_migrations_lock'] });
     await migrate();
     return Promise.all(fixture.map(pub =>
       publication.add(pub.name, pub.image, pub.enabled, pub.twitter)));

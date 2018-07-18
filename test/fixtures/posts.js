@@ -13,6 +13,7 @@ const input = [
     ratio: 1.2,
     placeholder: 'data:image/png;base64,qweuoi2108js',
     promoted: false,
+    tags: ['a', 'b', 'c'],
   },
   {
     id: '2',

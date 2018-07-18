@@ -20,7 +20,7 @@ export default () => subscription.get({ autoCreate: true })
       post.add(
         data.id, data.title, data.url, data.publicationId,
         new Date(data.publishedAt), new Date(), data.image, data.ratio,
-        data.placeholder, data.promoted,
+        data.placeholder, data.promoted, 0, data.tags,
       )
         .catch((err) => {
           if (err.code === 'ER_NO_REFERENCED_ROW_2') {
