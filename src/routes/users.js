@@ -14,6 +14,8 @@ router.get(
       ctx.status = 200;
       ctx.body = {
         id: ctx.session.userId,
+        loggedIn: ctx.session.loggedIn,
+        providers: ctx.session.providers,
       };
     } else {
       throw new ForbiddenError();

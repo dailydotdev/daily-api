@@ -54,6 +54,7 @@
     "eslint-plugin-mocha": "^4.11.0",
     "knex-cleaner": "^1.1.4",
     "mocha": "^4.0.1",
+    "nock": "^9.4.2",
     "nodemon": "^1.12.1",
     "sinon": "^4.0.1",
     "sinon-chai": "^2.14.0",

@@ -24,6 +24,7 @@ import download from './routes/download';
 import tweet from './routes/tweet';
 import ads from './routes/ads';
 import users from './routes/users';
+import auth from './routes/auth';
 
 const app = new Koa();
 
@@ -40,7 +41,7 @@ app.use(session({
   maxAge: 1000 * 60 * 60 * 24 * 365,
   overwrite: true,
   httpOnly: true,
-  signed: true,
+  signed: config.env !== 'test',
   renew: true,
   store: new KnexStore(db, { tableName: 'sessions', sync: true }),
   domain: config.cookies.domain,
@@ -63,6 +64,7 @@ router.use(publications.routes(), publications.allowedMethods());
 router.use(tweet.routes(), tweet.allowedMethods());
 router.use(ads.routes(), ads.allowedMethods());
 router.use(users.routes(), users.allowedMethods());
+router.use(auth.routes(), auth.allowedMethods());
 
 app.use(router.routes(), router.allowedMethods());
 app.use(redirect.routes(), redirect.allowedMethods());
