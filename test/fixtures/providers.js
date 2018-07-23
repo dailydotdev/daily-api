@@ -1,6 +1,11 @@
 const fixture = [
   {
-    userId: 'user', provider: 'github', accessToken: 'token'
+    userId: '1',
+    provider: 'github',
+    accessToken: 'token',
+    providerId: 'id',
+    refreshToken: null,
+    expiresIn: null,
   },
 ];
 

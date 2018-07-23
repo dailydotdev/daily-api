@@ -10,12 +10,16 @@ describe('provider model', () => {
     return migrate();
   });
 
-  it('should add new publication to db', async () => {
+  it('should add new provider to db', async () => {
     const model = await provider.add(
       fixture[0].userId,
       fixture[0].provider,
       fixture[0].accessToken,
+      fixture[0].providerId,
+      fixture[0].expiresIn,
+      fixture[0].refreshToken,
     );
+
     expect(model).to.deep.equal(fixture[0]);
   });
 
@@ -24,8 +28,36 @@ describe('provider model', () => {
       fixture[0].userId,
       fixture[0].provider,
       fixture[0].accessToken,
+      fixture[0].providerId,
+      fixture[0].expiresIn,
+      fixture[0].refreshToken,
     );
-    const model = await provider.get(fixture[0].userId, fixture[0].provider);
+    const model = await provider.getByUserId(fixture[0].userId);
     expect(model).to.deep.equal(fixture[0]);
+  });
+
+  it('should fetch provider by provider id and provider name', async () => {
+    await provider.add(
+      fixture[0].userId,
+      fixture[0].provider,
+      fixture[0].accessToken,
+      fixture[0].providerId,
+      fixture[0].expiresIn,
+      fixture[0].refreshToken,
+    );
+    const model = await provider.getByProviderId(fixture[0].providerId, fixture[0].provider);
+    expect(model).to.deep.equal(fixture[0]);
+  });
+
+  it('should update existing provider', async () => {
+    await provider.add(
+      fixture[0].userId,
+      fixture[0].provider,
+      fixture[0].accessToken,
+      fixture[0].providerId,
+      fixture[0].expiresIn,
+      fixture[0].refreshToken,
+    );
+    await provider.updateToken(fixture[0].userId, fixture[0].provider, 'new_token');
   });
 });

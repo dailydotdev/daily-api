@@ -1,94 +1,141 @@
 import Router from 'koa-router';
 import rp from 'request-promise-native';
-import uuid4 from 'uuid/v4';
 import validator, { object, string } from 'koa-context-validator';
 import { initSession } from '../sessions';
 import config from '../config';
 import provider from '../models/provider';
+import refreshToken from '../models/refreshToken';
+import { fetchProfile } from '../profile';
+import { sign } from '../jwt';
 
 const router = Router({
   prefix: '/auth',
 });
 
-router.get(
-  '/github/authorize',
-  validator({
-    query: {
-      redirect_uri: string().required(),
+const providersConfig = {
+  github: config.github,
+  google: config.google,
+};
+
+Object.keys(providersConfig).forEach((providerName) => {
+  const providerConfig = providersConfig[providerName];
+  const redirectUri = `${config.urlPrefix}/v1/auth/${providerName}/callback`;
+
+  router.get(
+    `/${providerName}/authorize`,
+    validator({
+      query: {
+        redirect_uri: string().required(),
+      },
+    }),
+    async (ctx) => {
+      const { query } = ctx.request;
+      const url = `${providerConfig.authorizeUrl}?access_type=offline&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&client_id=${providerConfig.clientId}&scope=${encodeURIComponent(providerConfig.scope)}&state=${encodeURIComponent(query.redirect_uri)}`;
+
+      ctx.status = 307;
+      ctx.redirect(url);
     },
-  }),
-  async (ctx) => {
+  );
+
+  router.get(`/${providerName}/callback`, async (ctx) => {
     const { query } = ctx.request;
-    const state = uuid4().replace(/-/g, '');
-    const redirectUri = encodeURIComponent(`${config.urlPrefix}/v1/auth/github/callback?redirect_uri=${query.redirect_uri}`);
-    const url = `https://github.com/login/oauth/authorize?redirect_uri=${redirectUri}&client_id=${config.github.clientId}&scope=user:email&state=${state}`;
+    ctx.status = 307;
+    ctx.redirect(`${query.state}?code=${query.code}`);
+  });
 
-    ctx.status = 301;
-    ctx.redirect(url);
-  },
-);
+  router.post(
+    `/${providerName}/authenticate`,
+    validator({
+      body: object().keys({
+        code: string().required(),
+      }),
+    }, {
+      stripUnknown: true,
+    }),
+    async (ctx) => {
+      const { body } = ctx.request;
+      const resRaw = await rp({
+        url: providerConfig.authenticateUrl,
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+        },
+        form: {
+          client_id: providerConfig.clientId,
+          client_secret: providerConfig.clientSecret,
+          code: body.code,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code',
+        },
+      });
 
-router.get('/github/callback', async (ctx) => {
-  const { query } = ctx.request;
-  ctx.status = 301;
-  ctx.redirect(`${query.redirect_uri}?code=${query.code}&state=${query.state}`);
+      const res = (typeof resRaw === 'string') ? JSON.parse(resRaw) : resRaw;
+
+      if (!res.access_token) {
+        ctx.status = 403;
+        return;
+      }
+
+      const profile = await fetchProfile(providerName, res.access_token);
+      const userProvider = await provider.getByProviderId(profile.id, providerName);
+
+      let newUser = true;
+      if (userProvider) {
+        ctx.session.userId = userProvider.userId;
+        newUser = false;
+        await provider.updateToken(ctx.session.userId, providerName, res.access_token);
+      } else {
+        initSession(ctx);
+        await provider.add(
+          ctx.session.userId, providerName, res.access_token, profile.id,
+          res.expires_in ? (new Date(Date.now() + (res.expires_in * 1000))) : null,
+          res.refresh_token,
+        );
+      }
+
+      const accessToken = await sign({ userId: ctx.session.userId });
+      const rfToken = refreshToken.generate(ctx.session.userId);
+      await refreshToken.add(ctx.session.userId, rfToken);
+
+      ctx.log.info(`connected ${ctx.session.userId} with ${providerName}`);
+
+      ctx.status = 200;
+      ctx.body = {
+        id: ctx.session.userId,
+        loggedIn: true,
+        providers: [providerName],
+        newUser,
+        accessToken: accessToken.token,
+        expiresIn: accessToken.expiresIn,
+        refreshToken: rfToken,
+      };
+    },
+  );
 });
 
 router.post(
-  '/github/authenticate',
+  '/refresh',
   validator({
     body: object().keys({
-      state: string().required(),
-      code: string().required(),
+      refreshToken: string().required(),
     }),
+  }, {
+    stripUnknown: true,
   }),
   async (ctx) => {
     const { body } = ctx.request;
-    const res = await rp({
-      url: 'https://github.com/login/oauth/access_token',
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-      },
-      json: {
-        client_id: config.github.clientId,
-        client_secret: config.github.clientSecret,
-        state: body.state,
-        code: body.code,
-      },
-    });
+    const model = await refreshToken.getByToken(body.refreshToken);
 
-    if (!res.access_token) {
+    if (!model) {
       ctx.status = 403;
       return;
     }
 
-    initSession(ctx);
-    ctx.session.loggedIn = true;
-    ctx.session.providers = ctx.session.providers || [];
-    if (ctx.session.providers.indexOf('github') < 0) {
-      ctx.session.providers.push('github');
-    }
-    ctx.log.info(`connected ${ctx.session.userId} with github`);
+    console.log(`refreshed token for ${model.userId}`);
 
-    let newUser = true;
-    try {
-      await provider.add(ctx.session.userId, 'github', res.access_token);
-    } catch (err) {
-      if (err.code === 'ER_DUP_ENTRY') {
-        newUser = false;
-      } else {
-        throw err;
-      }
-    }
-
+    const accessToken = await sign({ userId: ctx.session.userId });
     ctx.status = 200;
-    ctx.body = {
-      id: ctx.session.userId,
-      loggedIn: ctx.session.loggedIn,
-      providers: ctx.session.providers,
-      newUser,
-    };
+    ctx.body = accessToken;
   },
 );
 
