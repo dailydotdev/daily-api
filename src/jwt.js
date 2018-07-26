@@ -27,5 +27,6 @@ export const verify = koaJwt({
   secret: config.jwt.secret,
   audience: config.jwt.audience,
   issuer: config.jwt.issuer,
+  passthrough: true,
   getToken: ctx => ctx.request.query.access_token,
 });

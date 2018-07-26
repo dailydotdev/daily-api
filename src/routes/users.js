@@ -31,51 +31,40 @@ const router = Router({
 router.get(
   '/me',
   async (ctx) => {
-    initSession(ctx);
-    if (ctx.session.userId) {
-      const body = {
-        id: ctx.session.userId,
-        loggedIn: ctx.session.loggedIn,
-        providers: ctx.session.providers,
-      };
-
-      if (ctx.session.loggedIn) {
-        const userProvider = await provider.getByUserId(ctx.session.userId);
-        if (!userProvider) {
-          ctx.session = null;
-          throw new ForbiddenError();
-        }
-
-        if (userProvider.expiresIn && userProvider.expiresIn < new Date()) {
-          ctx.log.info(`refreshing access token for user ${ctx.session.userId}`);
-          const res = await refreshGoogleToken(ctx.session.userId, userProvider.refreshToken);
-          await provider.updateToken(
-            ctx.session.userId, userProvider.provider,
-            res.access_token, new Date(Date.now() + (res.expires_in * 1000)),
-          );
-          userProvider.accessToken = res.access_token;
-        }
-
-        const profile = await fetchProfile(userProvider.provider, userProvider.accessToken);
-        ctx.status = 200;
-
-        if (userProvider.provider === 'github') {
-          ctx.body = Object.assign({}, body, {
-            name: profile.name,
-            profile: profile.avatar_url,
-          });
-        } else {
-          ctx.body = Object.assign({}, body, {
-            name: profile.displayName,
-            profile: profile.image.url.split('?')[0],
-          });
-        }
-      } else {
-        ctx.status = 200;
-        ctx.body = body;
+    if (ctx.state.user) {
+      const { userId } = ctx.state.user;
+      const userProvider = await provider.getByUserId(userId);
+      if (!userProvider) {
+        ctx.session = null;
+        throw new ForbiddenError();
       }
+
+      if (userProvider.expiresIn && userProvider.expiresIn < new Date()) {
+        ctx.log.info(`refreshing access token for user ${userId}`);
+        const res = await refreshGoogleToken(userId, userProvider.refreshToken);
+        await provider.updateToken(
+          userId, userProvider.provider,
+          res.access_token, new Date(Date.now() + (res.expires_in * 1000)),
+        );
+        userProvider.accessToken = res.access_token;
+      }
+
+      const profile = await fetchProfile(userProvider.provider, userProvider.accessToken);
+      ctx.status = 200;
+      ctx.body = {
+        id: userId,
+        providers: [userProvider.provider],
+        name: profile.name,
+        image: profile.image,
+      };
     } else {
-      throw new ForbiddenError();
+      initSession(ctx);
+      if (ctx.session.userId) {
+        ctx.status = 200;
+        ctx.body = { id: ctx.session.userId };
+      } else {
+        throw new ForbiddenError();
+      }
     }
   },
 );

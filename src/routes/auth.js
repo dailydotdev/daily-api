@@ -102,8 +102,9 @@ Object.keys(providersConfig).forEach((providerName) => {
       ctx.status = 200;
       ctx.body = {
         id: ctx.session.userId,
-        loggedIn: true,
         providers: [providerName],
+        name: profile.name,
+        image: profile.image,
         newUser,
         accessToken: accessToken.token,
         expiresIn: accessToken.expiresIn,
@@ -131,7 +132,7 @@ router.post(
       return;
     }
 
-    console.log(`refreshed token for ${model.userId}`);
+    ctx.log.info(`refreshed token for ${model.userId}`);
 
     const accessToken = await sign({ userId: ctx.session.userId });
     ctx.status = 200;

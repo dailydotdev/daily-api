@@ -14,11 +14,21 @@ const fetchGithubProfile = accessToken =>
     .then(res => JSON.parse(res));
 
 // eslint-disable-next-line import/prefer-default-export
-export const fetchProfile = (provider, accessToken) => {
+export const fetchProfile = async (provider, accessToken) => {
   if (provider === 'github') {
-    return fetchGithubProfile(accessToken);
+    const profile = await fetchGithubProfile(accessToken);
+    return {
+      id: profile.id,
+      name: profile.name,
+      image: profile.avatar_url,
+    };
   } else if (provider === 'google') {
-    return fetchGoogleProfile(accessToken);
+    const profile = await fetchGoogleProfile(accessToken);
+    return {
+      id: profile.id,
+      name: profile.displayName,
+      image: profile.image.url.split('?')[0],
+    };
   }
 
   throw new Error('unsupported profile provider');

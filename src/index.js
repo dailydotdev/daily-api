@@ -14,6 +14,7 @@ import config from './config';
 import errorHandler from './middlewares/errorHandler';
 import db from './db';
 import logger from './logger';
+import { verify as verifyJwt } from './jwt';
 
 import health from './routes/health';
 import sources from './routes/sources';
@@ -36,6 +37,7 @@ app.use(cors({ credentials: true }));
 app.use(bodyParser());
 app.use(KoaPinoLogger({ logger }));
 app.use(errorHandler());
+app.use(verifyJwt);
 app.use(session({
   key: 'da',
   maxAge: 1000 * 60 * 60 * 24 * 365,
