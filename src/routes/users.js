@@ -69,4 +69,12 @@ router.get(
   },
 );
 
+router.post(
+  '/logout',
+  async (ctx) => {
+    ctx.session = null;
+    ctx.status = 204;
+  },
+);
+
 export default router;

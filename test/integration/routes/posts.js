@@ -7,6 +7,7 @@ import post from '../../../src/models/post';
 import fixturePubs from '../../fixtures/publications';
 import fixture from '../../fixtures/posts';
 import app from '../../../src';
+import { sign } from '../../../src/jwt';
 
 describe('posts routes', () => {
   let request;
@@ -102,6 +103,101 @@ describe('posts routes', () => {
         .expect(404);
 
       expect(result.body.code).to.equal(2);
+    });
+  });
+
+  describe('get bookmarks endpoint', () => {
+    it('should throw forbidden without authorization', async () => {
+      await request
+        .get('/v1/posts/bookmarks')
+        .query({
+          latest: new Date(),
+          page: 0,
+          pageSize: 20,
+        })
+        .expect(403);
+    });
+
+    it('should get bookmarks sorted by time', async () => {
+      await Promise.all(fixture.input.map(p =>
+        post.add(
+          p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+          p.image, p.ratio, p.placeholder, p.promoted, p.views,
+        )));
+
+      await post.bookmark(fixture.bookmarks);
+
+      const latest = new Date(Date.now() + (60 * 60 * 1000));
+      const accessToken = await sign({ userId: fixture.bookmarks[0].userId });
+
+      const res = await request
+        .get('/v1/posts/bookmarks')
+        .set('Authorization', `Bearer ${accessToken.token}`)
+        .query({
+          latest,
+          page: 0,
+          pageSize: 20,
+        })
+        .expect(200);
+
+      expect(res.body).to.deep.equal([fixture.output[1], fixture.output[0]].map(mapDate));
+    });
+  });
+
+  describe('set bookmarks endpoint', () => {
+    it('should throw forbidden without authorization', async () => {
+      await request
+        .post('/v1/posts/bookmarks')
+        .send([])
+        .expect(403);
+    });
+
+    it('should set bookmarks', async () => {
+      await Promise.all(fixture.input.map(p =>
+        post.add(
+          p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+          p.image, p.ratio, p.placeholder, p.promoted, p.views,
+        )));
+
+      const accessToken = await sign({ userId: fixture.bookmarks[0].userId });
+
+      const body = fixture.bookmarks
+        .filter(b => b.userId === fixture.bookmarks[0].userId)
+        .map(b => b.postId);
+
+      const res = await request
+        .post('/v1/posts/bookmarks')
+        .set('Authorization', `Bearer ${accessToken.token}`)
+        .send(body)
+        .expect(200);
+
+      expect(res.body).to.deep.equal(body);
+    });
+  });
+
+  describe('remove bookmark endpoint', () => {
+    it('should throw forbidden without authorization', async () => {
+      await request
+        .post('/v1/posts/bookmarks')
+        .send([])
+        .expect(403);
+    });
+
+    it('should remove bookmark', async () => {
+      await Promise.all(fixture.input.map(p =>
+        post.add(
+          p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+          p.image, p.ratio, p.placeholder, p.promoted, p.views,
+        )));
+
+      await post.bookmark(fixture.bookmarks);
+
+      const accessToken = await sign({ userId: fixture.bookmarks[0].userId });
+
+      await request
+        .delete(`/v1/posts/${fixture.bookmarks[0].postId}/bookmark`)
+        .set('Authorization', `Bearer ${accessToken.token}`)
+        .expect(204);
     });
   });
 });

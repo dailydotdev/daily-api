@@ -15,7 +15,7 @@ describe('settings model', () => {
     expect(model).to.deep.equal(fixture.input[0]);
   });
 
-  it('should fetch refresh token by token', async () => {
+  it('should get settings by id', async () => {
     await Promise.all(fixture.input.map(settings.upsert));
 
     const model = await settings.getByUserId(fixture.input[0].userId);
@@ -23,9 +23,9 @@ describe('settings model', () => {
   });
 
   it('should update existing settings to db', async () => {
-    await settings.upsert(fixture.input[0]);
-    await settings.upsert(Object.assign({}, fixture.input[0], { theme: 'bright' }));
-    const model = await settings.getByUserId(fixture.input[0].userId);
-    expect(model).to.deep.equal(Object.assign({}, fixture.output[0], { theme: 'bright' }));
+    await settings.upsert(fixture.input[1]);
+    await settings.upsert(Object.assign({}, fixture.input[1], { theme: 'bright' }));
+    const model = await settings.getByUserId(fixture.input[1].userId);
+    expect(model).to.deep.equal(Object.assign({}, fixture.output[1], { theme: 'bright' }));
   });
 });

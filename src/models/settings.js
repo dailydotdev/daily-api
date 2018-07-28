@@ -8,6 +8,10 @@ const getByUserId = userId =>
     .where('user_id', '=', userId)
     .limit(1)
     .map(toCamelCase)
+    .map(row => Object.assign({}, row, {
+      enableCardAnimations: row.enableCardAnimations === 1,
+      showTopSites: row.showTopSites === 1,
+    }))
     .then(res => (res.length ? res[0] : null))
     .then((res) => {
       delete res.updatedAt;

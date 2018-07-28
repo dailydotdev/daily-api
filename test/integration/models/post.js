@@ -3,6 +3,7 @@ import knexCleaner from 'knex-cleaner';
 import db, { migrate } from '../../../src/db';
 import publication from '../../../src/models/publication';
 import post from '../../../src/models/post';
+import feed from '../../../src/models/feed';
 import fixturePubs from '../../fixtures/publications';
 import fixture from '../../fixtures/posts';
 
@@ -128,5 +129,66 @@ describe('post model', () => {
 
     delete input.tags;
     expect(model).to.deep.equal(input);
+  });
+
+  it('should bookmark a given post', async () => {
+    await Promise.all(fixture.input.map(p =>
+      post.add(
+        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+        p.image, p.ratio, p.placeholder, p.promoted, p.views,
+      )));
+
+    const models = await post.bookmark(fixture.bookmarks);
+    expect(models).to.deep.equal(fixture.bookmarks);
+  });
+
+  it('should get bookmarks sorted by time', async () => {
+    await Promise.all(fixture.input.map(p =>
+      post.add(
+        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+        p.image, p.ratio, p.placeholder, p.promoted, p.views,
+      )));
+
+    await post.bookmark(fixture.bookmarks);
+
+    const latest = new Date(Date.now() + (60 * 60 * 1000));
+
+    const page1 = await post.getBookmarks(latest, 0, 1, fixture.bookmarks[0].userId);
+    expect(page1).to.deep.equal([fixture.output[1]]);
+
+    const page2 = await post.getBookmarks(latest, 1, 1, fixture.bookmarks[0].userId);
+    expect(page2).to.deep.equal([fixture.output[0]]);
+  });
+
+  it('should remove bookmark', async () => {
+    await Promise.all(fixture.input.map(p =>
+      post.add(
+        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+        p.image, p.ratio, p.placeholder, p.promoted, p.views,
+      )));
+
+    await post.bookmark(fixture.bookmarks);
+    await post.removeBookmark(fixture.bookmarks[0].userId, fixture.bookmarks[0].postId);
+
+    const latest = new Date(Date.now() + (60 * 60 * 1000));
+
+    const page1 = await post.getBookmarks(latest, 0, 2, fixture.bookmarks[0].userId);
+    expect(page1).to.deep.equal([fixture.output[1]]);
+  });
+
+  it('should get users latest', async () => {
+    await Promise.all(fixture.input.map(p =>
+      post.add(
+        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
+        p.image, p.ratio, p.placeholder, p.promoted, p.views,
+      )));
+
+    await post.bookmark([{ userId: 'user1', postId: fixture.input[0].id }]);
+    await feed.upsert([{ userId: 'user1', publicationId: fixture.input[1].publicationId, enabled: false }]);
+
+    const latest = new Date(Date.now() + (60 * 60 * 1000));
+
+    const models = await post.getUserLatest(latest, 0, 20, 'user1');
+    expect(models).to.deep.equal([Object.assign({ bookmarked: true }, fixture.output[1])]);
   });
 });

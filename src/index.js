@@ -27,6 +27,7 @@ import ads from './routes/ads';
 import users from './routes/users';
 import auth from './routes/auth';
 import settings from './routes/settings';
+import feeds from './routes/feeds';
 
 const app = new Koa();
 
@@ -61,6 +62,7 @@ const router = new Router({
   prefix: '/v1',
 });
 
+router.use(feeds.routes(), feeds.allowedMethods());
 router.use(sources.routes(), sources.allowedMethods());
 router.use(posts.routes(), posts.allowedMethods());
 router.use(publications.routes(), publications.allowedMethods());

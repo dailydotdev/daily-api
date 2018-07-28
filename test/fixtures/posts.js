@@ -92,4 +92,15 @@ const promotedOutput = [
   },
 ];
 
-export default { input, output, promotedOutput };
+const bookmarks = [
+  { userId: 'user1', postId: input[1].id },
+  { userId: 'user1', postId: input[0].id },
+  { userId: 'user2', postId: input[0].id },
+];
+
+export default {
+  input,
+  output,
+  promotedOutput,
+  bookmarks,
+};

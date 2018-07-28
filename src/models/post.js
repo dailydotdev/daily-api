@@ -3,12 +3,13 @@ import config from '../config';
 
 const table = 'posts';
 const tagsTable = 'tags';
+const bookmarksTable = 'bookmarks';
 
-const select = () =>
+const select = (...additional) =>
   db.select(
     `${table}.id`, `${table}.title`, `${table}.url`, `${table}.image`, `${table}.published_at`, `${table}.created_at`,
     `${table}.ratio`, `${table}.placeholder`,
-    'publications.id as pub_id', 'publications.image as pub_image', 'publications.name as pub_name',
+    'publications.id as pub_id', 'publications.image as pub_image', 'publications.name as pub_name', ...additional,
   )
     .from(table)
     .join('publications', `${table}.publication_id`, 'publications.id');
@@ -29,6 +30,14 @@ const mapImage = (post) => {
   };
 };
 
+const mapBookmark = (post) => {
+  if (post.bookmarked) {
+    return { bookmarked: post.bookmarked === 1 };
+  }
+
+  return {};
+};
+
 const mapPost = post =>
   Object.assign({}, {
     id: post.id,
@@ -41,7 +50,7 @@ const mapPost = post =>
       name: post.pubName,
       image: post.pubImage,
     },
-  }, mapImage(post));
+  }, mapImage(post), mapBookmark(post));
 
 const whereByPublications = (publications) => {
   if (publications && publications.length > 0) {
@@ -115,6 +124,43 @@ const updateViews = async () => {
   });
 };
 
+const getBookmarks = (latest, page, pageSize, userId) =>
+  select()
+    .join(bookmarksTable, `${table}.id`, `${bookmarksTable}.post_id`)
+    .where(`${bookmarksTable}.created_at`, '<=', latest)
+    .andWhere(`${bookmarksTable}.user_id`, '=', userId)
+    .orderByRaw(`${bookmarksTable}.created_at DESC`)
+    .offset(page * pageSize)
+    .limit(pageSize)
+    .map(toCamelCase)
+    .map(mapPost);
+
+const bookmark = (bookmarks) => {
+  const obj = bookmarks.map(b => toSnakeCase(Object.assign({ createdAt: new Date() }, b)));
+
+  return db.insert(obj)
+    .into(bookmarksTable).then(() => bookmarks);
+};
+
+const getUserLatest = (latest, page, pageSize, userId) =>
+  select(db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`))
+    .leftJoin('feeds', builder =>
+      builder.on('feeds.publication_id', '=', `${table}.publication_id`).andOn('feeds.user_id', '=', db.raw('?', [userId])))
+    .leftJoin(bookmarksTable, builder =>
+      builder.on(`${bookmarksTable}.post_id`, '=', `${table}.id`).andOn(`${bookmarksTable}.user_id`, '=', db.raw('?', [userId])))
+    .where(`${table}.created_at`, '<=', latest)
+    .andWhere(`${table}.promoted`, '=', 0)
+    .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
+      builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
+    .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views + 1), 2) * 60 ASC`)
+    .offset(page * pageSize)
+    .limit(pageSize)
+    .map(toCamelCase)
+    .map(mapPost);
+
+const removeBookmark = (userId, postId) =>
+  db(bookmarksTable).where(toSnakeCase({ userId, postId })).delete();
+
 export default {
   getLatest,
   getPromoted,
@@ -123,4 +169,8 @@ export default {
   getPostToTweet,
   setPostsAsTweeted,
   updateViews,
+  getBookmarks,
+  bookmark,
+  removeBookmark,
+  getUserLatest,
 };

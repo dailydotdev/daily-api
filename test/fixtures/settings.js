@@ -2,6 +2,8 @@ const input = [
   {
     userId: 'user1',
     theme: 'darcula',
+    showTopSites: false,
+    enableCardAnimations: false,
   },
   {
     userId: 'user2',
@@ -15,8 +17,8 @@ const output = [
   {
     userId: 'user1',
     theme: 'darcula',
-    showTopSites: null,
-    enableCardAnimations: null,
+    showTopSites: false,
+    enableCardAnimations: false,
   },
   {
     userId: 'user2',

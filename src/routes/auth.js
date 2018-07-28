@@ -7,6 +7,7 @@ import provider from '../models/provider';
 import refreshToken from '../models/refreshToken';
 import { fetchProfile } from '../profile';
 import { sign } from '../jwt';
+import { notifyNewUser } from '../slack';
 
 const router = Router({
   prefix: '/auth',
@@ -91,6 +92,8 @@ Object.keys(providersConfig).forEach((providerName) => {
           res.expires_in ? (new Date(Date.now() + (res.expires_in * 1000))) : null,
           res.refresh_token,
         );
+
+        notifyNewUser(profile, providerName);
       }
 
       const accessToken = await sign({ userId: ctx.session.userId });
