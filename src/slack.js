@@ -9,7 +9,7 @@ export const notifyNewUser = (profile, provider) =>
     attachments: [{
       title: profile.name,
       author_name: provider.replace(/^\w/, c => c.toUpperCase()),
-      image_url: profile.image,
+      thumb_url: profile.image,
     }],
   });
 
