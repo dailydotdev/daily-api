@@ -8,6 +8,7 @@ import KnexStore from 'koa-generic-session-knex';
 import userAgent from 'koa-useragent';
 import etag from 'koa-etag';
 import views from 'koa-views';
+import cors from '@koa/cors';
 
 import config from './config';
 import errorHandler from './middlewares/errorHandler';
@@ -34,6 +35,16 @@ app.keys = [config.cookies.key];
 
 app.proxy = config.env === 'production';
 
+app.use(cors({
+  credentials: true,
+  origin(ctx) {
+    const requestOrigin = ctx.get('Origin');
+    if (config.cors.origin.indexOf(requestOrigin) > -1) {
+      return requestOrigin;
+    }
+    return false;
+  },
+}));
 app.use(bodyParser());
 app.use(KoaPinoLogger({ logger }));
 app.use(errorHandler());
