@@ -34,11 +34,7 @@ describe('posts routes', () => {
   });
 
   it('should fetch latest posts', async () => {
-    await Promise.all(fixture.input.map(p =>
-      post.add(
-        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-        p.image, p.ratio, p.placeholder, p.promoted,
-      )));
+    await Promise.all(fixture.input.map(p => post.add(p)));
 
     const result = await request
       .get('/v1/posts/latest')
@@ -49,11 +45,7 @@ describe('posts routes', () => {
   });
 
   it('should fetch latest posts by given publications', async () => {
-    await Promise.all(fixture.input.map(p =>
-      post.add(
-        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-        p.image, p.ratio, p.placeholder, p.promoted,
-      )));
+    await Promise.all(fixture.input.map(p => post.add(p)));
 
     const result = await request
       .get('/v1/posts/latest')
@@ -69,11 +61,7 @@ describe('posts routes', () => {
   });
 
   it('should fetch promoted posts', async () => {
-    await Promise.all(fixture.input.map(p =>
-      post.add(
-        p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-        p.image, p.ratio, p.placeholder, p.promoted,
-      )));
+    await Promise.all(fixture.input.map(p => post.add(p)));
 
     const result = await request
       .get('/v1/posts/promoted')
@@ -84,11 +72,7 @@ describe('posts routes', () => {
 
   describe('get by id endpoint', () => {
     it('should fetch post', async () => {
-      await Promise.all(fixture.input.map(p =>
-        post.add(
-          p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-          p.image, p.ratio, p.placeholder, p.promoted,
-        )));
+      await Promise.all(fixture.input.map(p => post.add(p)));
 
       const result = await request
         .get(`/v1/posts/${fixture.output[0].id}`)
@@ -119,11 +103,7 @@ describe('posts routes', () => {
     });
 
     it('should get bookmarks sorted by time', async () => {
-      await Promise.all(fixture.input.map(p =>
-        post.add(
-          p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-          p.image, p.ratio, p.placeholder, p.promoted, p.views,
-        )));
+      await Promise.all(fixture.input.map(p => post.add(p)));
 
       await post.bookmark(fixture.bookmarks);
 
@@ -153,11 +133,7 @@ describe('posts routes', () => {
     });
 
     it('should set bookmarks', async () => {
-      await Promise.all(fixture.input.map(p =>
-        post.add(
-          p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-          p.image, p.ratio, p.placeholder, p.promoted, p.views,
-        )));
+      await Promise.all(fixture.input.map(p => post.add(p)));
 
       const accessToken = await sign({ userId: fixture.bookmarks[0].userId });
 
@@ -184,11 +160,7 @@ describe('posts routes', () => {
     });
 
     it('should remove bookmark', async () => {
-      await Promise.all(fixture.input.map(p =>
-        post.add(
-          p.id, p.title, p.url, p.publicationId, p.publishedAt, p.createdAt,
-          p.image, p.ratio, p.placeholder, p.promoted, p.views,
-        )));
+      await Promise.all(fixture.input.map(p => post.add(p)));
 
       await post.bookmark(fixture.bookmarks);
 

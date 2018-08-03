@@ -1,5 +1,6 @@
 import Router from 'koa-router';
 import publication from '../models/publication';
+import cors from '../middlewares/cors';
 
 const router = Router({
   prefix: '/publications',
@@ -7,6 +8,7 @@ const router = Router({
 
 router.get(
   '/',
+  cors,
   async (ctx) => {
     const models = await publication.getEnabled();
 

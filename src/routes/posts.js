@@ -2,6 +2,7 @@ import Router from 'koa-router';
 import validator, { array, date, number, string } from 'koa-context-validator';
 import post from '../models/post';
 import { EntityNotFoundError, ForbiddenError } from '../errors';
+import cors from '../middlewares/cors';
 
 const router = Router({
   prefix: '/posts',
@@ -9,6 +10,7 @@ const router = Router({
 
 router.get(
   '/latest',
+  cors,
   validator({
     query: {
       latest: date().iso().required(),
@@ -31,6 +33,7 @@ router.get(
 
 router.get(
   '/promoted',
+  cors,
   async (ctx) => {
     ctx.status = 200;
     ctx.body = await post.getPromoted();
@@ -48,6 +51,7 @@ router.get(
 
 router.get(
   '/bookmarks',
+  cors,
   validator({
     query: {
       latest: date().iso().required(),

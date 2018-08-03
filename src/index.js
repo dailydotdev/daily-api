@@ -3,7 +3,6 @@ import path from 'path';
 import bodyParser from 'koa-bodyparser';
 import KoaPinoLogger from 'koa-pino-logger';
 import Router from 'koa-router';
-import cors from '@koa/cors';
 import session from 'koa-session';
 import KnexStore from 'koa-generic-session-knex';
 import userAgent from 'koa-useragent';
@@ -35,7 +34,6 @@ app.keys = [config.cookies.key];
 
 app.proxy = config.env === 'production';
 
-app.use(cors({ credentials: true }));
 app.use(bodyParser());
 app.use(KoaPinoLogger({ logger }));
 app.use(errorHandler());

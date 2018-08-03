@@ -17,6 +17,7 @@ router.get(
       if (ctx.session.userId) {
         ctx.log.info(`redirecting user ${ctx.session.userId} to post ${model.id}`);
         addEvent(ctx, 'view', model.id);
+        ctx.set('Cache-Control', 'max-age=31536000');
         await ctx.render('redirect.hbs', { url: model.url });
       } else {
         ctx.log.info(`redirecting bot to post ${model.id}`);

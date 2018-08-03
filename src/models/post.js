@@ -1,3 +1,5 @@
+import _ from 'lodash';
+
 import db, { toCamelCase, toSnakeCase } from '../db';
 import config from '../config';
 
@@ -85,30 +87,48 @@ const get = id =>
     .map(mapPost)
     .then(res => (res.length ? res[0] : null));
 
-const add = (
-  id, title, url, publicationId, publishedAt, createdAt,
-  image, ratio, placeholder, promoted = false, views = 0, tags = [],
-) => {
-  const obj = {
-    id, title, url, publicationId, publishedAt, createdAt, image, ratio, placeholder, promoted,
-  };
-  return db.transaction(async (trx) => {
-    await trx.insert(toSnakeCase(Object.assign({}, obj, { views }))).into(table);
-    return trx.insert(tags.map(tag => ({ post_id: id, tag }))).into(tagsTable);
-  }).then(() => obj);
-};
+/**
+ * Add new post to database
+ * @param {Object} obj - The post to add.
+ * @param {String} obj.id
+ * @param {String} obj.title
+ * @param {String} obj.url
+ * @param {String} obj.publicationId
+ * @param {Date} obj.publishedAt - When the post was published
+ * @param {Date} obj.createdAt - When the post was created in our database
+ * @param {String} obj.image
+ * @param {Number} obj.ratio - Image width to height ratio
+ * @param {String} obj.placeholder - Base64 image placeholder
+ * @param {Boolean} [obj.promoted] - Whether the post is promoted
+ * @param {Number} [obj.views] - Number of views
+ * @param {String[]} [obj.tags]
+ * @param {String} [obj.twitterSite] - Twitter handle of the publication
+ * @param {String} [obj.twitterCreator] - Twitter handle of the author
+ */
+const add = obj =>
+  db.transaction(async (trx) => {
+    await trx.insert(toSnakeCase(Object.assign({ views: 0 }, _.omit(obj, 'tags')))).into(table);
+    return trx.insert((obj.tags || []).map(tag => ({ post_id: obj.id, tag }))).into(tagsTable);
+  }).then(() => _.omit(obj, 'tags'));
 
 const getPostToTweet = async () => {
-  const res = await db.select(`${table}.id`, `${table}.title`, `${table}.image`, 'publications.twitter')
+  const res = await db.select(`${table}.id`, `${table}.title`, `${table}.image`, `${table}.site_twitter`, `${table}.creator_twitter`, 'publications.twitter')
     .from(table)
     .join('publications', `${table}.publication_id`, 'publications.id')
     .where(`${table}.tweeted`, '=', 0)
     .andWhere(`${table}.promoted`, '=', 0)
     .andWhere(`${table}.views`, '>=', 30)
     .orderBy('created_at')
-    .limit(1);
+    .limit(1)
+    .map(toCamelCase);
   return res.length ? res[0] : null;
 };
+
+const getPostTags = id =>
+  db.select('tag')
+    .from(tagsTable)
+    .where('post_id', '=', id)
+    .map(res => res.tag);
 
 const setPostsAsTweeted = id =>
   db(table).where('id', '=', id).update({ tweeted: 1 });
@@ -173,4 +193,5 @@ export default {
   bookmark,
   removeBookmark,
   getUserLatest,
+  getPostTags,
 };
