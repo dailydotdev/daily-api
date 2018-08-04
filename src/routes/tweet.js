@@ -20,7 +20,7 @@ const buildTweet = (model, tags) => {
   const siteHandler = getSiteHandler(model);
   const via = siteHandler ? ` via ${siteHandler}` : '';
   const by = model.creatorTwitter ? ` by ${model.creatorTwitter}` : '';
-  const hashtags = tags.map(tag => `#${tag.replace(/-/g, '')}`).join(' ');
+  const hashtags = tags.map(tag => `#${tag.replace(/-| /g, '')}`).join(' ');
   return `${model.title}${via}${by}\n${hashtags}\n\n${link}`;
 };
 
