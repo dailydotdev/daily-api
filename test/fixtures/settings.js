@@ -19,12 +19,14 @@ const output = [
     theme: 'darcula',
     showTopSites: false,
     enableCardAnimations: false,
+    insaneMode: false,
   },
   {
     userId: 'user2',
     theme: 'darcula',
     showTopSites: true,
     enableCardAnimations: false,
+    insaneMode: false,
   },
 ];
 

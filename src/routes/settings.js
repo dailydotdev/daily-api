@@ -28,6 +28,7 @@ router.post(
       theme: string(),
       showTopSites: boolean(),
       enableCardAnimations: boolean(),
+      insaneMode: boolean(),
     }),
   }, {
     stripUnknown: true,

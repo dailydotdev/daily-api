@@ -11,6 +11,7 @@ const getByUserId = userId =>
     .map(row => Object.assign({}, row, {
       enableCardAnimations: row.enableCardAnimations === 1,
       showTopSites: row.showTopSites === 1,
+      insaneMode: row.insaneMode === 1,
     }))
     .then(res => (res.length ? res[0] : null))
     .then((res) => {
