@@ -4,12 +4,12 @@ import post from '../models/post';
 import { tweet } from '../twitter';
 
 const getSiteHandler = (model) => {
-  if (model.siteTwitter) {
-    return model.siteTwitter;
-  }
-
   if (model.twitter) {
     return `@${model.twitter}`;
+  }
+
+  if (model.siteTwitter) {
+    return model.siteTwitter;
   }
 
   return null;
