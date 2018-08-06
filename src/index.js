@@ -35,11 +35,13 @@ app.keys = [config.cookies.key];
 
 app.proxy = config.env === 'production';
 
+const allowedOrigins = config.cors.origin.split(',');
+
 app.use(cors({
   credentials: true,
   origin(ctx) {
     const requestOrigin = ctx.get('Origin');
-    if (config.cors.origin.indexOf(requestOrigin) > -1) {
+    if (allowedOrigins.filter(origin => requestOrigin.indexOf(origin) > -1).length) {
       return requestOrigin;
     }
     return false;
