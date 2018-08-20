@@ -12,28 +12,41 @@ const subName = `add-post-to-db${config.env === 'production' ? '' : `-${config.e
 const topic = pubsub.topic(topicName);
 const subscription = topic.subscription(subName);
 
+const addPost = data =>
+  post.add(data)
+    .catch((err) => {
+      if (err.code === 'ER_NO_REFERENCED_ROW_2') {
+        return logger.warn(`publication id ${data.publicationId} does not exist`);
+      }
+
+      if (err.code === 'ER_DUP_ENTRY') {
+        return logger.info(`post ${data.id} already exists`);
+      }
+
+      if (err.code === 'ER_TRUNCATED_WRONG_VALUE') {
+        return addPost(Object.assign({}, data, { publishedAt: null }));
+      }
+
+      throw err;
+    });
+
 export default () => subscription.get({ autoCreate: true })
   .then(() => {
     logger.info(`waiting for messages in ${topicName}`);
     subscription.on('message', (message) => {
       const data = JSON.parse(Buffer.from(message.data, 'base64').toString());
-      logger.info(`adding post ${data.id} to db`, data);
+      logger.info({ post: data }, `adding post ${data.id} to db`);
       data.publishedAt = new Date(data.publishedAt);
       data.createdAt = new Date();
       const props = ['id', 'title', 'url', 'publicationId', 'publishedAt', 'createdAt', 'image', 'ratio', 'placeholder', 'tags', 'siteTwitter', 'creatorTwitter'];
-      post.add(_.pick(data, props))
-        .catch((err) => {
-          if (err.code === 'ER_NO_REFERENCED_ROW_2') {
-            logger.warn(`publication id ${data.publicationId} does not exist`);
-          } else if (err.code === 'ER_DUP_ENTRY') {
-            logger.info(`post ${data.id} already exists`);
-          } else {
-            throw err;
-          }
-        })
+      addPost(_.pick(data, props))
         .then(() => {
-          logger.info(`added successfully post ${data.id}`);
+          logger.info({ post: data }, `added successfully post ${data.id}`);
           message.ack();
+        })
+        .catch((err) => {
+          logger.error({ post: data, err }, 'failed to add post to db');
+          message.nack();
         });
     });
   });
