@@ -17,7 +17,7 @@ const input = [
   },
   {
     id: '2',
-    title: 'Post #2',
+    title: 'Style your Terminal better by mastering these settings 🤩\\xF0\\x9F\\xA4\\xA9',
     url: 'https://myblog.com/post2.html',
     publicationId: publications[1].id,
     createdAt: new Date(2017, 10, 21, 15, 11, 10),
