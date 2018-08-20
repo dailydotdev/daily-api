@@ -48,7 +48,7 @@ app.use(cors({
   },
 }));
 app.use(bodyParser());
-app.use(KoaPinoLogger({ logger }));
+app.use(KoaPinoLogger({ logger, useLevel: 'debug' }));
 app.use(errorHandler());
 app.use(verifyJwt);
 app.use(session({
