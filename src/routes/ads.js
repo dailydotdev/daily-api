@@ -42,19 +42,25 @@ const fetchAds = async () => {
   }));
 };
 
+const chooseAd = async (ctx) => {
+  const ads = await fetchAds();
+  const index = Math.floor(Math.random() * config.adsCount);
+
+  if (index < ads.length) {
+    return [ads[index]];
+  }
+
+  const bsa = await fetchBSA(ctx.request.ip);
+  if (bsa) {
+    return [bsa];
+  }
+
+  ctx.log.info('no ads to serve');
+  return [];
+};
+
 router.get('/', async (ctx) => {
-  const body = await Promise.all([
-    fetchBSA(ctx.request.ip),
-    fetchAds(),
-  ]).then(([bsa, ads]) => {
-    const index = Math.floor(Math.random() * config.adsCount);
-
-    if (index < ads.length) {
-      return [ads[index]];
-    }
-
-    return bsa ? [bsa] : [];
-  });
+  const body = await chooseAd(ctx);
   ctx.status = 200;
   ctx.body = body;
 });
