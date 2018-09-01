@@ -12,6 +12,7 @@ const getByUserId = userId =>
       enableCardAnimations: row.enableCardAnimations === 1,
       showTopSites: row.showTopSites === 1,
       insaneMode: row.insaneMode === 1,
+      appInsaneMode: row.appInsaneMode === 1,
     }))
     .then(res => (res.length ? res[0] : null))
     .then((res) => {

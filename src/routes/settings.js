@@ -29,6 +29,7 @@ router.post(
       showTopSites: boolean(),
       enableCardAnimations: boolean(),
       insaneMode: boolean(),
+      appInsaneMode: boolean(),
     }),
   }, {
     stripUnknown: true,
