@@ -1,6 +1,6 @@
 {
   "name": "devkit-api",
-  "version": "0.16.4",
+  "version": "0.16.5",
   "main": "index.js",
   "author": "Ido Shamun <ido@elegantmonkeys.com>",
   "private": true,
