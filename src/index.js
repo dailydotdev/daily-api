@@ -28,6 +28,7 @@ import users from './routes/users';
 import auth from './routes/auth';
 import settings from './routes/settings';
 import feeds from './routes/feeds';
+import notifications from './routes/notifications';
 
 const app = new Koa();
 
@@ -82,6 +83,7 @@ router.use(ads.routes(), ads.allowedMethods());
 router.use(users.routes(), users.allowedMethods());
 router.use(auth.routes(), auth.allowedMethods());
 router.use(settings.routes(), settings.allowedMethods());
+router.use(notifications.routes(), notifications.allowedMethods());
 
 app.use(router.routes(), router.allowedMethods());
 app.use(redirect.routes(), redirect.allowedMethods());
