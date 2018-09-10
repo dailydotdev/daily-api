@@ -16,10 +16,16 @@ router.get(
     },
   }),
   async (ctx) => {
-    const model = await notification.get(ctx.request.query.since);
+    const latestPromise = notification.getLatest();
+    const since = await notification.get(ctx.request.query.since);
 
     ctx.status = 200;
-    ctx.body = model;
+    if (since.length) {
+      ctx.body = since;
+    } else {
+      const latest = await latestPromise;
+      ctx.body = latest ? [latest] : [];
+    }
   },
 );
 

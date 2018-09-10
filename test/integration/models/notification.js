@@ -28,4 +28,11 @@ describe('notification model', () => {
     const model = await notification.get(new Date(2017, 10, 21, 15, 58, 0));
     expect(model).to.deep.equal(fixture.slice(2, 7));
   });
+
+  it('should fetch latest notification', async () => {
+    await Promise.all(fixture.map(n => notification.add(n)));
+
+    const model = await notification.getLatest();
+    expect(model).to.deep.equal(fixture[fixture.length - 1]);
+  });
 });

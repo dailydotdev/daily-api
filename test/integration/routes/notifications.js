@@ -53,4 +53,13 @@ describe('notifications routes', () => {
 
     expect(body).to.deep.equal(fixture.slice(2, 7).map(mapDate));
   });
+
+  it('should return latest notification', async () => {
+    const { body } = await request
+      .get('/v1/notifications')
+      .query({ since: (new Date(2017, 10, 21, 19, 23, 5)).toISOString() })
+      .expect(200);
+
+    expect(body).to.deep.equal(fixture.slice(6, 7).map(mapDate));
+  });
 });
