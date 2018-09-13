@@ -24,7 +24,7 @@ steps:
 - name: gcr.io/cloud-builders/yarn:node-8.12.0
   args: ['build']
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA', '-f', './Dockerfile', './build']
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA', '.']
 
 images: ['gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA']
 
