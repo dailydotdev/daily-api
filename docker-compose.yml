@@ -7,7 +7,12 @@ services:
     environment:
       MYSQL_DATABASE: test
       MYSQL_ROOT_PASSWORD: 12345
-
+  wait:
+    image: waisbrot/wait
+    links:
+    - mysql
+    environment:
+    - TARGETS=mysql:3306
 networks:
   default:
     external:

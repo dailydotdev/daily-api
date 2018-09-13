@@ -4,6 +4,9 @@
   "main": "index.js",
   "author": "Ido Shamun <ido@elegantmonkeys.com>",
   "private": true,
+  "engines": {
+    "node": "~8.12.0"
+  },
   "scripts": {
     "mocha": "NODE_ENV=test mocha",
     "lint": "eslint . --ext .js",
