@@ -13,6 +13,10 @@ const getMysqlConfig = () => {
     return Object.assign({}, base, { socketPath: `/cloudsql/${process.env.MYSQL_INSTANCE}` });
   }
 
+  if (process.env.MYSQL_HOST) {
+    return Object.assign({}, base, { host: process.env.MYSQL_HOST });
+  }
+
   return base;
 };
 

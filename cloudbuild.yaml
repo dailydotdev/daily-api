@@ -1,0 +1,34 @@
+steps:
+- name: gcr.io/cloud-builders/yarn:node-8.12.0
+  args: ['install']
+- name: 'docker/compose:1.22.0'
+  args: ['up', '-d']
+- name: 'docker/compose:1.22.0'
+  args: ['run', 'wait']
+- name: gcr.io/cloud-builders/yarn:node-8.12.0
+  args: ['test']
+  env:
+  - MYSQL_HOST=mysql
+  - MYSQL_USER=root
+  - MYSQL_PASSWORD=12345
+  - MYSQL_DATABASE=test
+  - NODE_ENV=test
+  - ADMIN_KEY=12345
+  - DEFAULT_IMAGE_URL=https://cdn.com/image
+  - DEFAULT_IMAGE_RATIO=1.2
+  - DEFAULT_IMAGE_PLACEHOLDER=data:image/png;base64,asddasdqw
+  - JWT_SECRET=1234567890
+  - JWT_AUDIENCE=Daily Testing
+  - JWT_ISSUER=Daily API Testing
+  secretEnv: ['SLACK_WEBHOOK']
+- name: gcr.io/cloud-builders/yarn:node-8.12.0
+  args: ['build']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA', '.']
+
+images: ['gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA']
+
+secrets:
+- kmsKeyName: projects/daily-ops/locations/global/keyRings/daily-ci/cryptoKeys/daily-api-ci
+  secretEnv:
+    SLACK_WEBHOOK: "CiQA4mdVwsQrCLnNuXW+vtn46vuCLTwG0MwaSyDWsYk6HLrGPikSdgDpyKhXmF+YRgzIImIatRppR0qOLqg7YSLHv3A+BORSU7SmArWBVqXcScEF8IiV2fBTU7C5d5xuK0uSHHO4vBAugtZkUicfRMyFafi0fb7nhFHyZTTX+Y3sdTTMbhaTXpxBkSaZ3AWHRf8cpNCMlSRPUQXl+kI="

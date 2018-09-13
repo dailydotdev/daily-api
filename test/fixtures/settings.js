@@ -20,6 +20,7 @@ const output = [
     showTopSites: false,
     enableCardAnimations: false,
     insaneMode: false,
+    appInsaneMode: true,
   },
   {
     userId: 'user2',
@@ -27,6 +28,7 @@ const output = [
     showTopSites: true,
     enableCardAnimations: false,
     insaneMode: false,
+    appInsaneMode: true,
   },
 ];
 
