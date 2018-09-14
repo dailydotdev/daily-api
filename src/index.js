@@ -9,7 +9,6 @@ import userAgent from 'koa-useragent';
 import etag from 'koa-etag';
 import views from 'koa-views';
 import cors from '@koa/cors';
-import proxy from 'koa-proxies';
 
 import config from './config';
 import errorHandler from './middlewares/errorHandler';
