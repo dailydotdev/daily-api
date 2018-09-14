@@ -1,6 +1,6 @@
 steps:
-#- name: gcr.io/cloud-builders/yarn:node-8.12.0
-#  args: ['install']
+- name: gcr.io/cloud-builders/yarn:node-8.12.0
+  args: ['install']
 #- name: 'docker/compose:1.22.0'
 #  args: ['up', '-d']
 #- name: 'docker/compose:1.22.0'
