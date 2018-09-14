@@ -35,7 +35,7 @@ steps:
   - --keyring=daily-ci
   - --key=daily-api-ci
 - name: 'gcr.io/$PROJECT_ID/helm'
-  args: ['helm', 'upgrade', 'daily-api', './helm/daily-api', '--namespace', 'daily', '-f', './helm/values/prod.yaml', '--set-string', 'image.tag=d3c846f,image.repository=gcr.io/$PROJECT_ID/$REPO_NAME', '-i']
+  args: ['upgrade', 'daily-api', './helm/daily-api', '--namespace', 'daily', '-f', './helm/values/prod.yaml', '--set-string', 'image.tag=d3c846f,image.repository=gcr.io/$PROJECT_ID/$REPO_NAME', '-i']
   env:
   - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
   - 'CLOUDSDK_CONTAINER_CLUSTER=prod'
