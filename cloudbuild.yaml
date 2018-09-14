@@ -34,12 +34,12 @@ steps:
   - --location=global
   - --keyring=daily-ci
   - --key=daily-api-ci
-- name: 'gcr.io/cloud-builders/helm'
+- name: 'gcr.io/$PROJECT_ID/helm'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    helm upgrade daily-api ./helm/daily-api --namespace daily -f ./helm/values/prod.yaml --set-string image.tag=$SHORT_SHA -i
+    helm upgrade daily-api ./helm/daily-api --namespace daily -f ./helm/values/prod.yaml --set-string image.tag=$SHORT_SHA,image.repository=gcr.io/$PROJECT_ID/$REPO_NAME -i
   env:
   - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
   - 'CLOUDSDK_CONTAINER_CLUSTER=prod'
