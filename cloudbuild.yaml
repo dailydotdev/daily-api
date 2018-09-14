@@ -45,7 +45,7 @@ steps:
 
 images: ['gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA', 'gcr.io/$PROJECT_ID/$REPO_NAME:$BRANCH_NAME']
 
-secrets:
-- kmsKeyName: projects/daily-ops/locations/global/keyRings/daily-ci/cryptoKeys/daily-api-ci
-  secretEnv:
-    SLACK_WEBHOOK: "CiQA4mdVwsQrCLnNuXW+vtn46vuCLTwG0MwaSyDWsYk6HLrGPikSdgDpyKhXmF+YRgzIImIatRppR0qOLqg7YSLHv3A+BORSU7SmArWBVqXcScEF8IiV2fBTU7C5d5xuK0uSHHO4vBAugtZkUicfRMyFafi0fb7nhFHyZTTX+Y3sdTTMbhaTXpxBkSaZ3AWHRf8cpNCMlSRPUQXl+kI="
+#secrets:
+#- kmsKeyName: projects/daily-ops/locations/global/keyRings/daily-ci/cryptoKeys/daily-api-ci
+#  secretEnv:
+#    SLACK_WEBHOOK: "CiQA4mdVwsQrCLnNuXW+vtn46vuCLTwG0MwaSyDWsYk6HLrGPikSdgDpyKhXmF+YRgzIImIatRppR0qOLqg7YSLHv3A+BORSU7SmArWBVqXcScEF8IiV2fBTU7C5d5xuK0uSHHO4vBAugtZkUicfRMyFafi0fb7nhFHyZTTX+Y3sdTTMbhaTXpxBkSaZ3AWHRf8cpNCMlSRPUQXl+kI="
