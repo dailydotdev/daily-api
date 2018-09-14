@@ -5,3 +5,4 @@ app.yaml
 local.sh
 prod.sh
 cron.yaml
+helm/values/*.yaml

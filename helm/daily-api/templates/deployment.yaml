@@ -1,0 +1,197 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "daily-api.fullname" . }}
+  labels:
+    app: {{ template "daily-api.name" . }}
+    chart: {{ template "daily-api.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "daily-api.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        checksum/files: {{ include (print $.Template.BasePath "/secret-files.yaml") . | sha256sum }}
+        checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        app: {{ template "daily-api.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /_ah/health
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /_ah/health
+              port: http
+          env:
+          - name: NODE_ENV
+            value: production
+          - name: PORT
+            value: "3000"
+          - name: GCLOUD_TRACE_NEW_CONTEXT
+            value: "1"
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: "/etc/config/serviceAccount.json"
+          - name: MYSQL_USER
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: MYSQL_USER
+          - name: MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: MYSQL_PASSWORD
+          - name: MYSQL_DATABASE
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: MYSQL_DATABASE
+          - name: MYSQL_HOST
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: MYSQL_HOST
+          - name: ADMIN_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: ADMIN_KEY
+          - name: COOKIES_DOMAIN
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: COOKIES_DOMAIN
+          - name: COOKIES_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: COOKIES_KEY
+          - name: TWITTER_CONSUMER_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: TWITTER_CONSUMER_KEY
+          - name: TWITTER_CONSUMER_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: TWITTER_CONSUMER_SECRET
+          - name: TWITTER_ACCESS_TOKEN_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: TWITTER_ACCESS_TOKEN_KEY
+          - name: TWITTER_ACCESS_TOKEN_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: TWITTER_ACCESS_TOKEN_SECRET
+          - name: GITHUB_CLIENT_ID
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: GITHUB_CLIENT_ID
+          - name: GITHUB_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: GITHUB_CLIENT_SECRET
+          - name: GOOGLE_CLIENT_ID
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: GOOGLE_CLIENT_ID
+          - name: GOOGLE_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: GOOGLE_CLIENT_SECRET
+          - name: JWT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: JWT_SECRET
+          - name: JWT_AUDIENCE
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: JWT_AUDIENCE
+          - name: JWT_ISSUER
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: JWT_ISSUER
+          - name: SLACK_WEBHOOK
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: SLACK_WEBHOOK
+          - name: DEFAULT_IMAGE_URL
+            valueFrom:
+              configMapKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: DEFAULT_IMAGE_URL
+          - name: DEFAULT_IMAGE_PLACEHOLDER
+            valueFrom:
+              configMapKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: DEFAULT_IMAGE_PLACEHOLDER
+          - name: DEFAULT_IMAGE_RATIO
+            valueFrom:
+              configMapKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: DEFAULT_IMAGE_RATIO
+          - name: URL_PREFIX
+            valueFrom:
+              configMapKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: URL_PREFIX
+          - name: ADS_COUNT
+            valueFrom:
+              configMapKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: ADS_COUNT
+          - name: CORS_ORIGIN
+            valueFrom:
+              configMapKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: CORS_ORIGIN
+          volumeMounts:
+          - name: config
+            mountPath: "/etc/config"
+            readOnly: true
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+      volumes:
+      - name: config
+        secret:
+          secretName: {{ template "daily-api.fullname" . }}-files
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}

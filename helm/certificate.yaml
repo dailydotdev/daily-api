@@ -1,0 +1,19 @@
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Certificate
+metadata:
+  name: app-dailynow-co-tls
+  namespace: daily
+spec:
+  secretName: app-dailynow-co-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: app.dailynow.co
+  dnsNames:
+  - app.dailynow.co
+  acme:
+    config:
+    - http01:
+        ingress: daily-api
+      domains:
+      - app.dailynow.co

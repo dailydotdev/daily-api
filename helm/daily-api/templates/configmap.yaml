@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "daily-api.fullname" . }}
+  labels:
+    app: {{ template "daily-api.name" . }}
+    chart: {{ template "daily-api.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  DEFAULT_IMAGE_URL: {{ .Values.appConfig.defaultImage.url }}
+  DEFAULT_IMAGE_PLACEHOLDER: {{ .Values.appConfig.defaultImage.placeholder }}
+  DEFAULT_IMAGE_RATIO: {{ .Values.appConfig.defaultImage.ratio | quote }}
+  URL_PREFIX: {{ .Values.appConfig.urlPrefix }}
+  ADS_COUNT: {{ .Values.appConfig.adsCount | quote }}
+  CORS_ORIGIN: {{ .Values.appConfig.corsOrigin }}
+
