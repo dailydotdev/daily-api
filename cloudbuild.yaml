@@ -36,7 +36,7 @@ steps:
   - --key=daily-api-ci
 - name: 'gcr.io/$PROJECT_ID/helm'
   entrypoint: 'bash'
-  args: ['-c', '[[ "$BRANCH_NAME" == "master" ]] && /builder/helm.bash upgrade daily-api ./helm/daily-api --namespace daily -f ./helm/values/prod.yaml --set-string image.tag=$SHORT_SHA,image.repository=gcr.io/$PROJECT_ID/$REPO_NAME -i']
+  args: ['-c', '([[ "$BRANCH_NAME" == "master" ]] && /builder/helm.bash upgrade daily-api ./helm/daily-api --namespace daily -f ./helm/values/prod.yaml --set-string image.tag=$SHORT_SHA,image.repository=gcr.io/$PROJECT_ID/$REPO_NAME -i) || ([[ "$BRANCH_NAME" != "master" ]] && echo "Skipping...")']
   env:
   - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
   - 'CLOUDSDK_CONTAINER_CLUSTER=prod'
