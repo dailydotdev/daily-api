@@ -1,0 +1,43 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ template "daily-api.fullname" . }}-tweet
+  labels:
+    app: {{ template "daily-api.name" . }}
+    chart: {{ template "daily-api.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  schedule: "0 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: job
+            image: byrnedo/alpine-curl
+            args:
+            - http://{{ template "daily-api.fullname" . }}/v1/tweet/trending
+          restartPolicy: OnFailure
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ template "daily-api.fullname" . }}-views
+  labels:
+    app: {{ template "daily-api.name" . }}
+    chart: {{ template "daily-api.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  schedule: "*/10 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: job
+            image: byrnedo/alpine-curl
+            args:
+            - http://{{ template "daily-api.fullname" . }}/v1/posts/views
+          restartPolicy: OnFailure
