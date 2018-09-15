@@ -16,7 +16,13 @@
     "watch": "nodemon --exec yarn run babel-node -- $npm_package_main | pino",
     "start": "node $npm_package_main",
     "deploy": "yarn build && cd build && gcloud --project devkit-prod app deploy app.yaml --no-promote && cd ..",
-    "cron": "gcloud --project devkit-prod app deploy cron.yaml"
+    "cron": "gcloud --project devkit-prod app deploy cron.yaml",
+    "encrypt:prod": "gcloud --project daily-ops kms encrypt --plaintext-file=./helm/values/prod.yaml --ciphertext-file=./helm/values/prod.yaml.enc --location=global --keyring=daily-ci --key=daily-api-ci"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "yarn encrypt:prod && git add helm/values/prod.yaml.enc"
+    }
   },
   "dependencies": {
     "@google-cloud/pubsub": "^0.19.0",
@@ -55,6 +61,7 @@
     "eslint-plugin-chai-friendly": "^0.4.0",
     "eslint-plugin-import": "^2.7.0",
     "eslint-plugin-mocha": "^4.11.0",
+    "husky": "^1.0.0-rc.14",
     "knex-cleaner": "^1.1.4",
     "mocha": "^4.0.1",
     "nock": "^9.4.2",
