@@ -7,6 +7,8 @@ const getMysqlConfig = () => {
     password: process.env.MYSQL_PASSWORD,
     database: process.env.MYSQL_DATABASE,
     charset: 'utf8mb4',
+    pool: { min: 2, max: 20 },
+    acquireConnectionTimeout: 10000,
   };
 
   if (process.env.MYSQL_INSTANCE && process.env.NODE_ENV === 'production') {
