@@ -35,6 +35,7 @@ spec:
             httpGet:
               path: /_ah/health
               port: http
+            initialDelaySeconds: 30
           readinessProbe:
             httpGet:
               path: /_ah/health
