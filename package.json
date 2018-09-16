@@ -31,7 +31,7 @@
     "@slack/client": "^4.3.1",
     "handlebars": "^4.0.11",
     "jsonwebtoken": "^8.3.0",
-    "knex": "^0.13.0",
+    "knex": "^0.15.2",
     "koa": "^2.3.0",
     "koa-bodyparser": "^4.2.0",
     "koa-context-validator": "^0.4.1",
