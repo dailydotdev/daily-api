@@ -1,7 +1,6 @@
 import Router from 'koa-router';
 import rp from 'request-promise-native';
 import { ForbiddenError } from '../errors';
-import { initSession } from '../sessions';
 import config from '../config';
 import provider from '../models/provider';
 import { fetchProfile } from '../profile';
@@ -57,14 +56,11 @@ router.get(
         name: profile.name,
         image: profile.image,
       };
+    } else if (ctx.session.userId) {
+      ctx.status = 200;
+      ctx.body = { id: ctx.session.userId };
     } else {
-      initSession(ctx);
-      if (ctx.session.userId) {
-        ctx.status = 200;
-        ctx.body = { id: ctx.session.userId };
-      } else {
-        throw new ForbiddenError();
-      }
+      throw new ForbiddenError();
     }
   },
 );

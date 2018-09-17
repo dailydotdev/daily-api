@@ -15,6 +15,7 @@ import errorHandler from './middlewares/errorHandler';
 import db from './db';
 import logger from './logger';
 import { verify as verifyJwt } from './jwt';
+import verifySession from './sessions';
 
 import health from './routes/health';
 import sources from './routes/sources';
@@ -69,6 +70,8 @@ app.use(views(path.join(__dirname, 'views'), {
     hbs: 'handlebars',
   },
 }));
+
+app.use(verifySession);
 
 const router = new Router({
   prefix: '/v1',

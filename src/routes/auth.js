@@ -1,7 +1,6 @@
 import Router from 'koa-router';
 import rp from 'request-promise-native';
 import validator, { object, string } from 'koa-context-validator';
-import { initSession } from '../sessions';
 import config from '../config';
 import provider from '../models/provider';
 import refreshToken from '../models/refreshToken';
@@ -86,7 +85,6 @@ Object.keys(providersConfig).forEach((providerName) => {
         newUser = false;
         await provider.updateToken(ctx.session.userId, providerName, res.access_token);
       } else {
-        initSession(ctx);
         await provider.add(
           ctx.session.userId, providerName, res.access_token, profile.id,
           res.expires_in ? (new Date(Date.now() + (res.expires_in * 1000))) : null,
