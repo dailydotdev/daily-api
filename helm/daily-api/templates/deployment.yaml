@@ -47,6 +47,8 @@ spec:
             value: "3000"
           - name: GCLOUD_TRACE_NEW_CONTEXT
             value: "1"
+          - name: KEEP_ALIVE_TIMEOUT
+            value: "620000"
           - name: GOOGLE_APPLICATION_CREDENTIALS
             value: "/etc/config/serviceAccount.json"
           - name: MYSQL_USER
