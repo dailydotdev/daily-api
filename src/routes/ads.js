@@ -60,7 +60,7 @@ const fetchCodeFund = async (ctx) => {
 
     return {
       company: 'CodeFund',
-      description: res.description,
+      description: `${res.headline} ${res.description}`,
       image: res.large_image_url,
       link: res.link,
       pixel: pixel ? [pixel.indexOf('//') === 0 ? `https:${pixel}` : pixel] : [],
