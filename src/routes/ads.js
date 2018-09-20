@@ -9,8 +9,7 @@ const router = Router({
 
 const fetchBSA = async (ctx) => {
   try {
-    // eslint-disable-next-line prefer-destructuring
-    const ip = ctx.request.ip;
+    const { ip } = ctx.request;
     const url = `https://srv.buysellads.com/ads/CKYI623Y.json?segment=placement:dailynowco&forwardedip=${ip}`;
     const res = await rp(url);
     const ads =
@@ -37,32 +36,34 @@ const fetchBSA = async (ctx) => {
 
 const fetchCodeFund = async (ctx) => {
   try {
-    // eslint-disable-next-line prefer-destructuring
-    const ip = ctx.request.ip;
+    const { ip } = ctx.request;
     const url = 'https://codefund.io/api/v1/impression/a4ace977-6531-4708-a4d9-413c8910ac2c';
-    const res = await rp.post({
+    const res = await rp({
       url,
+      method: 'POST',
       json: true,
       body: {
         ip_address: ip,
+        user_agent: ctx.req.headers['user-agent'],
       },
       headers: {
+        'User-Agent': ctx.req.headers['user-agent'],
         'X-CodeFund-API-Key': config.codefundApiKey,
       },
     });
-    const cfAd = JSON.parse(res);
-    if (cfAd.house_ad) {
+
+    if (res.house_ad) {
       return null;
     }
 
-    const pixel = { cfAd };
+    const { pixel } = res;
 
     return {
       company: 'CodeFund',
-      description: cfAd.description,
-      image: cfAd.large_image_url,
-      link: cfAd.link,
-      pixel: pixel ? [pixel.startsWith('//') ? `https:${pixel}` : pixel] : [],
+      description: res.description,
+      image: res.large_image_url,
+      link: res.link,
+      pixel: pixel ? [pixel.indexOf('//') === 0 ? `https:${pixel}` : pixel] : [],
       source: 'CodeFund',
     };
   } catch (err) {
