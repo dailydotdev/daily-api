@@ -7,23 +7,66 @@ const router = Router({
   prefix: '/a',
 });
 
-const fetchBSA = async (ip) => {
-  const url = `https://srv.buysellads.com/ads/CKYI623Y.json?segment=placement:dailynowco&forwardedip=${ip}`;
-  const res = await rp(url);
-  const ads =
-    JSON.parse(res).ads.filter(a => Object.keys(a).length && Object.prototype.hasOwnProperty.call(a, 'statlink'));
-  if (ads.length) {
-    const selected = ads[0];
+const fetchBSA = async (ctx) => {
+  try {
+    // eslint-disable-next-line prefer-destructuring
+    const ip = ctx.request.ip;
+    const url = `https://srv.buysellads.com/ads/CKYI623Y.json?segment=placement:dailynowco&forwardedip=${ip}`;
+    const res = await rp(url);
+    const ads =
+      JSON.parse(res).ads.filter(a => Object.keys(a).length && Object.prototype.hasOwnProperty.call(a, 'statlink'));
+    if (ads.length) {
+      const selected = ads[0];
+      return {
+        company: selected.company,
+        description: selected.description,
+        image: selected.logo,
+        link: `https:${selected.statlink}`,
+        pixel: Object.prototype.hasOwnProperty.call(selected, 'pixel') ?
+          (selected.pixel.split('||').map(pixel => pixel.replace('[timestamp]', selected.timestamp))) : [],
+        backgroundColor: selected.backgroundColor,
+        source: 'BSA',
+      };
+    }
+  } catch (err) {
+    ctx.log.warn('failed to fetch ad from BSA', { err });
+  }
+
+  return null;
+};
+
+const fetchCodeFund = async (ctx) => {
+  try {
+    // eslint-disable-next-line prefer-destructuring
+    const ip = ctx.request.ip;
+    const url = 'https://codefund.io/api/v1/impression/a4ace977-6531-4708-a4d9-413c8910ac2c';
+    const res = await rp.post({
+      url,
+      json: true,
+      body: {
+        ip_address: ip,
+      },
+      headers: {
+        'X-CodeFund-API-Key': config.codefundApiKey,
+      },
+    });
+    const cfAd = JSON.parse(res);
+    if (cfAd.house_ad) {
+      return null;
+    }
+
+    const pixel = { cfAd };
+
     return {
-      company: selected.company,
-      description: selected.description,
-      image: selected.logo,
-      link: `https:${selected.statlink}`,
-      pixel: Object.prototype.hasOwnProperty.call(selected, 'pixel') ?
-        (selected.pixel.split('||').map(pixel => pixel.replace('[timestamp]', selected.timestamp))) : [],
-      backgroundColor: selected.backgroundColor,
-      source: 'BSA',
+      company: 'CodeFund',
+      description: cfAd.description,
+      image: cfAd.large_image_url,
+      link: cfAd.link,
+      pixel: pixel ? [pixel.startsWith('//') ? `https:${pixel}` : pixel] : [],
+      source: 'CodeFund',
     };
+  } catch (err) {
+    ctx.log.warn('failed to fetch ad from Codefund', { err });
   }
 
   return null;
@@ -50,9 +93,14 @@ const chooseAd = async (ctx) => {
     return [ads[index]];
   }
 
-  const bsa = await fetchBSA(ctx.request.ip);
+  const bsa = await fetchBSA(ctx);
   if (bsa) {
     return [bsa];
+  }
+
+  const cf = await fetchCodeFund(ctx);
+  if (cf) {
+    return [cf];
   }
 
   ctx.log.info('no ads to serve');

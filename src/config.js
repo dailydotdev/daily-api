@@ -67,6 +67,7 @@ const config = {
     issuer: process.env.JWT_ISSUER,
     expiresIn: 30 * 24 * 60 * 60 * 1000,
   },
+  codefundApiKey: process.env.CODEFUND_API_KEY,
 };
 
 export default config;

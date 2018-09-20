@@ -176,6 +176,11 @@ spec:
               configMapKeyRef:
                 name: {{ template "daily-api.fullname" . }}
                 key: CORS_ORIGIN
+          - name: CODEFUND_API_KEY
+            valueFrom:
+              configMapKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: CODEFUND_API_KEY
           volumeMounts:
           - name: config
             mountPath: "/etc/config"
