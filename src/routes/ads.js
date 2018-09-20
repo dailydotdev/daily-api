@@ -94,14 +94,14 @@ const chooseAd = async (ctx) => {
     return [ads[index]];
   }
 
-  const bsa = await fetchBSA(ctx);
-  if (bsa) {
-    return [bsa];
-  }
-
   const cf = await fetchCodeFund(ctx);
   if (cf) {
     return [cf];
+  }
+
+  const bsa = await fetchBSA(ctx);
+  if (bsa) {
+    return [bsa];
   }
 
   ctx.log.info('no ads to serve');
