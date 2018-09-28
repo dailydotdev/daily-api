@@ -36,7 +36,8 @@ const fetchBSA = async (ctx) => {
 
 const fetchCodeFund = async (ctx) => {
   try {
-    const { ip } = ctx.request;
+    // const { ip } = ctx.request;
+    const ip = '162.246.212.78';
     const url = 'https://codefund.io/api/v1/impression/a4ace977-6531-4708-a4d9-413c8910ac2c';
     const res = await rp({
       url,
@@ -58,10 +59,12 @@ const fetchCodeFund = async (ctx) => {
 
     const { pixel } = res;
 
+    const image = res.images.find(x => x.size_descriptor === 'wide');
+
     return {
       company: 'CodeFund',
       description: `${res.headline} ${res.description}`,
-      image: res.large_image_url,
+      image: image ? image.url : res.large_image_url,
       link: res.link,
       pixel: pixel ? [pixel.indexOf('//') === 0 ? `https:${pixel}` : pixel] : [],
       source: 'CodeFund',
