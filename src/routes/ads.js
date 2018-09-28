@@ -36,8 +36,7 @@ const fetchBSA = async (ctx) => {
 
 const fetchCodeFund = async (ctx) => {
   try {
-    // const { ip } = ctx.request;
-    const ip = '162.246.212.78';
+    const { ip } = ctx.request;
     const url = 'https://codefund.io/api/v1/impression/a4ace977-6531-4708-a4d9-413c8910ac2c';
     const res = await rp({
       url,
