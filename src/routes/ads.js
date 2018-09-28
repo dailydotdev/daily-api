@@ -53,7 +53,7 @@ const fetchCodeFund = async (ctx) => {
       },
     });
 
-    if (res.house_ad) {
+    if (res.house_ad || !res.link.length) {
       return null;
     }
 
