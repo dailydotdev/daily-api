@@ -40,7 +40,7 @@ Object.keys(providersConfig).forEach((providerName) => {
   router.get(`/${providerName}/callback`, async (ctx) => {
     const { query } = ctx.request;
     ctx.status = 307;
-    ctx.redirect(`${query.state}?code=${query.code}`);
+    ctx.redirect(`${query.state}${query.state.indexOf('?') > -1 ? '&' : '?'}code=${query.code}`);
   });
 
   router.post(
