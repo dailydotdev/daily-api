@@ -178,6 +178,24 @@ const getUserLatest = (latest, page, pageSize, userId) =>
     .map(toCamelCase)
     .map(mapPost);
 
+const getToilet = (latest, page, pageSize, userId) =>
+  select(db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`))
+    .leftJoin('feeds', builder =>
+      builder.on('feeds.publication_id', '=', `${table}.publication_id`).andOn('feeds.user_id', '=', db.raw('?', [userId])))
+    .leftJoin(bookmarksTable, builder =>
+      builder.on(`${bookmarksTable}.post_id`, '=', `${table}.id`).andOn(`${bookmarksTable}.user_id`, '=', db.raw('?', [userId])))
+    .where(`${table}.created_at`, '<=', latest)
+    .andWhereRaw(`timestampdiff(hour, ${table}.created_at, current_timestamp()) <= 24`)
+    .andWhere(`${table}.promoted`, '=', 0)
+    .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
+      builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
+    .andWhereRaw(`${bookmarksTable}.post_id IS NULL`)
+    .orderBy(`${table}.created_at`, 'DESC')
+    .offset(page * pageSize)
+    .limit(pageSize)
+    .map(toCamelCase)
+    .map(mapPost);
+
 const removeBookmark = (userId, postId) =>
   db(bookmarksTable).where(toSnakeCase({ userId, postId })).delete();
 
@@ -194,4 +212,5 @@ export default {
   removeBookmark,
   getUserLatest,
   getPostTags,
+  getToilet,
 };

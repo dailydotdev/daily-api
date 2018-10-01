@@ -1,6 +1,7 @@
 import Router from 'koa-router';
 import validator, { array, date, number, string } from 'koa-context-validator';
 import post from '../models/post';
+import { fetchBSA, fetchCodeFund } from '../ads';
 import { EntityNotFoundError, ForbiddenError } from '../errors';
 
 const router = Router({
@@ -43,6 +44,48 @@ router.get(
     ctx.log.info('updating views');
     await post.updateViews();
     ctx.status = 204;
+  },
+);
+
+const fetchToiletAd = async (ctx) => {
+  const cf = await fetchCodeFund(ctx, '89dc8cbd-475f-4941-bfa8-03e509b8f897');
+  if (cf) {
+    return [cf];
+  }
+
+  const bsa = await fetchBSA(ctx);
+  if (bsa) {
+    return [bsa];
+  }
+
+  ctx.log.info('no ads to serve for toilet');
+  return [];
+};
+
+router.get(
+  '/toilet',
+  validator({
+    query: {
+      latest: date().iso().required(),
+      page: number().min(0).required(),
+    },
+  }),
+  async (ctx) => {
+    if (!ctx.state.user) {
+      throw new ForbiddenError();
+    }
+
+    const { query } = ctx.request;
+
+    const assignType = type => x => Object.assign({}, x, { type });
+
+    const [posts, ads] = await Promise.all([
+      post.getToilet(query.latest, query.page, 8, ctx.state.user.userId),
+      query.page === 0 ? Promise.resolve([]) : fetchToiletAd(ctx),
+    ]);
+
+    ctx.status = 200;
+    ctx.body = [].concat(ads.map(assignType('ad')), posts.map(assignType('post')));
   },
 );
 

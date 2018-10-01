@@ -6,6 +6,7 @@ import publication from '../../../src/models/publication';
 import post from '../../../src/models/post';
 import fixturePubs from '../../fixtures/publications';
 import fixture from '../../fixtures/posts';
+import fixtureToilet from '../../fixtures/toilet';
 import app from '../../../src';
 import { sign } from '../../../src/jwt';
 
@@ -170,6 +171,36 @@ describe('posts routes', () => {
         .delete(`/v1/posts/${fixture.bookmarks[0].postId}/bookmark`)
         .set('Authorization', `Bearer ${accessToken.token}`)
         .expect(204);
+    });
+  });
+
+  describe('toilet endpoint', () => {
+    it('should throw forbidden without authorization', async () => {
+      await request
+        .get('/v1/posts/toilet')
+        .query({
+          latest: new Date(Date.now() + (60 * 60 * 1000)),
+          page: 0,
+        })
+        .expect(403);
+    });
+
+    it('should get toilet', async () => {
+      await Promise.all(fixtureToilet.input.map(p => post.add(p)));
+      await post.bookmark(fixtureToilet.bookmarks);
+
+      const accessToken = await sign({ userId: fixtureToilet.bookmarks[0].userId });
+
+      const res = await request
+        .get('/v1/posts/toilet')
+        .query({
+          latest: new Date(Date.now() + (60 * 60 * 1000)),
+          page: 0,
+        })
+        .set('Authorization', `Bearer ${accessToken.token}`)
+        .expect(200);
+
+      expect(res.body).to.deep.equal(fixtureToilet.output.map(mapDate).map(x => Object.assign({}, x, { type: 'post' })));
     });
   });
 });

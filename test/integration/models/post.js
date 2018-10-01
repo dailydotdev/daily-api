@@ -7,6 +7,7 @@ import post from '../../../src/models/post';
 import feed from '../../../src/models/feed';
 import fixturePubs from '../../fixtures/publications';
 import fixture from '../../fixtures/posts';
+import fixtureToilet from '../../fixtures/toilet';
 
 describe('post model', () => {
   beforeEach(async () => {
@@ -143,5 +144,15 @@ describe('post model', () => {
     const tags = await post.getPostTags(input.id);
 
     expect(tags).to.deep.equal(input.tags);
+  });
+
+  it('should get toilet posts', async () => {
+    await Promise.all(fixtureToilet.input.map(p => post.add(p)));
+    await post.bookmark(fixtureToilet.bookmarks);
+
+    const latest = new Date(Date.now() + (60 * 60 * 1000));
+
+    const models = await post.getToilet(latest, 0, 8, 'user1');
+    expect(models).to.deep.equal(fixtureToilet.output);
   });
 });
