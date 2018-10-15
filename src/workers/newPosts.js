@@ -1,8 +1,8 @@
 import PubSub from '@google-cloud/pubsub';
 import _ from 'lodash';
-import config from './config';
-import logger from './logger';
-import post from './models/post';
+import config from '../config';
+import logger from '../logger';
+import post from '../models/post';
 
 const pubsub = new PubSub();
 

@@ -3,11 +3,13 @@ import logger from './src/logger';
 import app from './src/index';
 import config from './src/config';
 import { migrate } from './src/db';
-import subscriber from './src/subscriber';
+import newPostsWorker from './src/workers/newPosts';
+import newViewEventsWorker from './src/workers/newViewEvents';
 
 logger.info('migrating database');
 migrate()
-  .then(() => (config.env === 'production' ? subscriber() : Promise.resolve()))
+  .then(newPostsWorker)
+  .then(newViewEventsWorker)
   .then(() => {
     const server = app.listen(config.port);
 

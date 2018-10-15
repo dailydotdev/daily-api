@@ -9,6 +9,7 @@ import userAgent from 'koa-useragent';
 import etag from 'koa-etag';
 import views from 'koa-views';
 import cors from '@koa/cors';
+import proxy from 'koa-proxies';
 
 import config from './config';
 import errorHandler from './middlewares/errorHandler';
@@ -21,7 +22,6 @@ import health from './routes/health';
 import sources from './routes/sources';
 import posts from './routes/posts';
 import publications from './routes/publications';
-import redirect from './routes/redirect';
 import download from './routes/download';
 import tweet from './routes/tweet';
 import ads from './routes/ads';
@@ -89,9 +89,14 @@ router.use(settings.routes(), settings.allowedMethods());
 router.use(notifications.routes(), notifications.allowedMethods());
 
 app.use(router.routes(), router.allowedMethods());
-app.use(redirect.routes(), redirect.allowedMethods());
 app.use(download.routes(), download.allowedMethods());
 app.use(health.routes(), health.allowedMethods());
+
+app.use(proxy('/r', {
+  target: config.redirectorUrl,
+  changeOrigin: true,
+  xfwd: true,
+}));
 
 
 export default app;

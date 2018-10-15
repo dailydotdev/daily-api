@@ -78,4 +78,5 @@ appConfig: {}
 #    issuer: ''
 #  slackWebhook: ''
 #  corsOrigin: ''
+#  redirectorUrl: ''
 

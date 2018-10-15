@@ -68,6 +68,7 @@ const config = {
     expiresIn: 30 * 24 * 60 * 60 * 1000,
   },
   codefundApiKey: process.env.CODEFUND_API_KEY,
+  redirectorUrl: process.env.REDIRECTOR_URL || 'http://localhost:9090',
 };
 
 export default config;

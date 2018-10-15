@@ -181,6 +181,11 @@ spec:
               secretKeyRef:
                 name: {{ template "daily-api.fullname" . }}
                 key: CODEFUND_API_KEY
+          - name: REDIRECTOR_URL
+            valueFrom:
+              configMapKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: REDIRECTOR_URL
           volumeMounts:
           - name: config
             mountPath: "/etc/config"
