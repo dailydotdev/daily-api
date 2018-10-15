@@ -6,6 +6,11 @@ exports.up = knex =>
       .then(() =>
         trx.schema.table('events', (table) => {
           table.unique(['type', 'user_id', 'post_id']);
-        })));
+        }))
+      .then(() => trx.commit())
+      .catch((err) => {
+        trx.rollback();
+        throw err;
+      }));
 
 exports.down = () => Promise.resolve();
