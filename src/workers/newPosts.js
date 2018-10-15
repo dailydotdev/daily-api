@@ -27,6 +27,10 @@ const addPost = data =>
         return addPost(Object.assign({}, data, { publishedAt: null }));
       }
 
+      if (err.code === 'ER_DATA_TOO_LONG' && err.sqlMessage.indexOf('tag') > -1) {
+        return addPost(Object.assign({}, data, { tags: [] }));
+      }
+
       throw err;
     });
 
