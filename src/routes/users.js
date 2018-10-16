@@ -4,6 +4,7 @@ import { ForbiddenError } from '../errors';
 import config from '../config';
 import provider from '../models/provider';
 import { fetchProfile } from '../profile';
+import { getTrackingId, setTrackingId } from '../tracking';
 
 const refreshGoogleToken = async (userId, refreshToken) => {
   const res = await rp({
@@ -30,11 +31,12 @@ const router = Router({
 router.get(
   '/me',
   async (ctx) => {
+    const trackingId = getTrackingId(ctx);
     if (ctx.state.user) {
       const { userId } = ctx.state.user;
       const userProvider = await provider.getByUserId(userId);
       if (!userProvider) {
-        ctx.session = null;
+        setTrackingId(ctx, null);
         throw new ForbiddenError();
       }
 
@@ -56,9 +58,9 @@ router.get(
         name: profile.name,
         image: profile.image,
       };
-    } else if (ctx.session.userId) {
+    } else if (trackingId && trackingId.length) {
       ctx.status = 200;
-      ctx.body = { id: ctx.session.userId };
+      ctx.body = { id: trackingId };
     } else {
       throw new ForbiddenError();
     }
@@ -68,7 +70,7 @@ router.get(
 router.post(
   '/logout',
   async (ctx) => {
-    ctx.session = null;
+    setTrackingId(ctx, null);
     ctx.status = 204;
   },
 );

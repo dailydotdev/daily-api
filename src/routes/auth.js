@@ -7,6 +7,7 @@ import refreshToken from '../models/refreshToken';
 import { fetchProfile } from '../profile';
 import { sign } from '../jwt';
 import { notifyNewUser } from '../slack';
+import { getTrackingId, setTrackingId } from '../tracking';
 
 const router = Router({
   prefix: '/auth',
@@ -81,12 +82,12 @@ Object.keys(providersConfig).forEach((providerName) => {
 
       let newUser = true;
       if (userProvider) {
-        ctx.session.userId = userProvider.userId;
+        setTrackingId(ctx, userProvider.userId);
         newUser = false;
-        await provider.updateToken(ctx.session.userId, providerName, res.access_token);
+        await provider.updateToken(userProvider.userId, providerName, res.access_token);
       } else {
         await provider.add(
-          ctx.session.userId, providerName, res.access_token, profile.id,
+          getTrackingId(ctx), providerName, res.access_token, profile.id,
           res.expires_in ? (new Date(Date.now() + (res.expires_in * 1000))) : null,
           res.refresh_token,
         );
@@ -94,15 +95,16 @@ Object.keys(providersConfig).forEach((providerName) => {
         notifyNewUser(profile, providerName);
       }
 
-      const accessToken = await sign({ userId: ctx.session.userId });
-      const rfToken = refreshToken.generate(ctx.session.userId);
-      await refreshToken.add(ctx.session.userId, rfToken);
+      const userId = getTrackingId(ctx);
+      const accessToken = await sign({ userId });
+      const rfToken = refreshToken.generate(userId);
+      await refreshToken.add(userId, rfToken);
 
-      ctx.log.info(`connected ${ctx.session.userId} with ${providerName}`);
+      ctx.log.info(`connected ${userId} with ${providerName}`);
 
       ctx.status = 200;
       ctx.body = {
-        id: ctx.session.userId,
+        id: userId,
         providers: [providerName],
         name: profile.name,
         image: profile.image,
@@ -135,7 +137,7 @@ router.post(
 
     ctx.log.info(`refreshed token for ${model.userId}`);
 
-    const accessToken = await sign({ userId: ctx.session.userId });
+    const accessToken = await sign({ userId: model.userId });
     ctx.status = 200;
     ctx.body = accessToken;
   },

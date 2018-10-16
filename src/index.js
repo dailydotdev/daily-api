@@ -3,7 +3,6 @@ import path from 'path';
 import bodyParser from 'koa-bodyparser';
 import KoaPinoLogger from 'koa-pino-logger';
 import Router from 'koa-router';
-import session from 'koa-session';
 import KnexStore from 'koa-generic-session-knex';
 import userAgent from 'koa-useragent';
 import etag from 'koa-etag';
@@ -16,7 +15,7 @@ import errorHandler from './middlewares/errorHandler';
 import db from './db';
 import logger from './logger';
 import { verify as verifyJwt } from './jwt';
-import verifySession from './sessions';
+import verifyTracking, { getTrackingId, setTrackingId } from './tracking';
 
 import health from './routes/health';
 import sources from './routes/sources';
@@ -33,7 +32,7 @@ import notifications from './routes/notifications';
 
 const app = new Koa();
 
-app.keys = [config.cookies.key];
+app.keys = [config.cookies.secret];
 
 app.proxy = config.env === 'production';
 
@@ -53,16 +52,6 @@ app.use(bodyParser());
 app.use(KoaPinoLogger({ logger, useLevel: 'debug' }));
 app.use(errorHandler());
 app.use(verifyJwt);
-app.use(session({
-  key: 'da',
-  maxAge: 1000 * 60 * 60 * 24 * 365,
-  overwrite: true,
-  httpOnly: true,
-  signed: config.env !== 'test',
-  renew: true,
-  store: new KnexStore(db, { tableName: 'sessions', sync: true }),
-  domain: config.cookies.domain,
-}, app));
 app.use(userAgent);
 app.use(etag());
 app.use(views(path.join(__dirname, 'views'), {
@@ -71,7 +60,23 @@ app.use(views(path.join(__dirname, 'views'), {
   },
 }));
 
-app.use(verifySession);
+/* migrate legacy cookies */
+const legacyStore = new KnexStore(db, { tableName: 'sessions', sync: true });
+app.use(async (ctx, next) => {
+  const legacyCookie = ctx.cookies.get('da', { signed: true });
+  if (legacyCookie) {
+    const s = await legacyStore.get(legacyCookie);
+    if (s) {
+      setTrackingId(ctx, s.userId);
+      await legacyStore.destroy(legacyCookie);
+    }
+    ctx.cookies.set('da');
+    ctx.log.info(`migrated cookie of ${getTrackingId(ctx)}`);
+  }
+  return next();
+});
+
+app.use(verifyTracking);
 
 const router = new Router({
   prefix: '/v1',
