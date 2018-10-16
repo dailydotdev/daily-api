@@ -64,13 +64,15 @@ app.use(views(path.join(__dirname, 'views'), {
 const legacyStore = new KnexStore(db, { tableName: 'sessions', sync: true });
 app.use(async (ctx, next) => {
   const legacyCookie = ctx.cookies.get('da', { signed: true });
-  if (legacyCookie) {
+  const newCookie = getTrackingId(ctx);
+  if (legacyCookie && (!newCookie || !newCookie.length)) {
     const s = await legacyStore.get(legacyCookie);
     if (s) {
       setTrackingId(ctx, s.userId);
       await legacyStore.destroy(legacyCookie);
     }
     ctx.cookies.set('da');
+    ctx.cookies.set('da.sig');
     ctx.log.info(`migrated cookie of ${getTrackingId(ctx)}`);
   }
   return next();
