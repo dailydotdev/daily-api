@@ -71,10 +71,10 @@ app.use(async (ctx, next) => {
       if (s) {
         setTrackingId(ctx, s.userId);
         await legacyStore.destroy(legacyCookie);
+        ctx.log.info(`migrated cookie of ${s.userId}`);
       }
       ctx.cookies.set('da');
       ctx.cookies.set('da.sig');
-      ctx.log.info(`migrated cookie of ${s.userId}`);
     }
   }
   return next();
