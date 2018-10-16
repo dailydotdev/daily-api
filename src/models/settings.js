@@ -14,10 +14,14 @@ const getByUserId = userId =>
       insaneMode: row.insaneMode === 1,
       appInsaneMode: row.appInsaneMode === 1,
     }))
-    .then(res => (res.length ? res[0] : null))
     .then((res) => {
-      delete res.updatedAt;
-      return res;
+      if (res.length) {
+        const set = res[0];
+        delete set.updatedAt;
+        return set;
+      }
+
+      return null;
     });
 
 const upsert = (settings) => {
