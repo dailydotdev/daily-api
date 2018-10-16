@@ -63,17 +63,19 @@ app.use(views(path.join(__dirname, 'views'), {
 /* migrate legacy cookies */
 const legacyStore = new KnexStore(db, { tableName: 'sessions', sync: true });
 app.use(async (ctx, next) => {
-  const legacyCookie = ctx.cookies.get('da', { signed: true });
   const newCookie = getTrackingId(ctx);
-  if (legacyCookie && (!newCookie || !newCookie.length)) {
-    const s = await legacyStore.get(legacyCookie);
-    if (s) {
-      setTrackingId(ctx, s.userId);
-      await legacyStore.destroy(legacyCookie);
+  if (!newCookie || !newCookie.length) {
+    const legacyCookie = ctx.cookies.get('da', { signed: true });
+    if (legacyCookie && legacyCookie.length) {
+      const s = await legacyStore.get(legacyCookie);
+      if (s) {
+        setTrackingId(ctx, s.userId);
+        await legacyStore.destroy(legacyCookie);
+      }
+      ctx.cookies.set('da');
+      ctx.cookies.set('da.sig');
+      ctx.log.info(`migrated cookie of ${s.userId}`);
     }
-    ctx.cookies.set('da');
-    ctx.cookies.set('da.sig');
-    ctx.log.info(`migrated cookie of ${getTrackingId(ctx)}`);
   }
   return next();
 });
