@@ -52,7 +52,7 @@ const fetchToiletAd = async (ctx) => {
   try {
     const { ip } = ctx.request;
     const res = await rp({
-      url: `http://${config.monetizationUrl}/a/toilet`,
+      url: `${config.monetizationUrl}/a/toilet`,
       method: 'GET',
       headers: {
         'x-forwarded-for': ip,
