@@ -1,12 +1,10 @@
 import Koa from 'koa';
-import path from 'path';
 import bodyParser from 'koa-bodyparser';
 import KoaPinoLogger from 'koa-pino-logger';
 import Router from 'koa-router';
 import KnexStore from 'koa-generic-session-knex';
 import userAgent from 'koa-useragent';
 import etag from 'koa-etag';
-import views from 'koa-views';
 import cors from '@koa/cors';
 import proxy from 'koa-proxies';
 
@@ -23,7 +21,6 @@ import posts from './routes/posts';
 import publications from './routes/publications';
 import download from './routes/download';
 import tweet from './routes/tweet';
-import ads from './routes/ads';
 import users from './routes/users';
 import auth from './routes/auth';
 import settings from './routes/settings';
@@ -54,11 +51,6 @@ app.use(errorHandler());
 app.use(verifyJwt);
 app.use(userAgent);
 app.use(etag());
-app.use(views(path.join(__dirname, 'views'), {
-  map: {
-    hbs: 'handlebars',
-  },
-}));
 
 /* migrate legacy cookies */
 const legacyStore = new KnexStore(db, { tableName: 'sessions', sync: true });
@@ -91,7 +83,6 @@ router.use(sources.routes(), sources.allowedMethods());
 router.use(posts.routes(), posts.allowedMethods());
 router.use(publications.routes(), publications.allowedMethods());
 router.use(tweet.routes(), tweet.allowedMethods());
-router.use(ads.routes(), ads.allowedMethods());
 router.use(users.routes(), users.allowedMethods());
 router.use(auth.routes(), auth.allowedMethods());
 router.use(settings.routes(), settings.allowedMethods());
@@ -105,6 +96,13 @@ app.use(proxy('/r', {
   target: config.redirectorUrl,
   changeOrigin: true,
   xfwd: true,
+}));
+
+app.use(proxy('/v1/a', {
+  target: config.monetizationUrl,
+  changeOrigin: true,
+  xfwd: true,
+  rewrite: path => path.substr('/v1'.length),
 }));
 
 

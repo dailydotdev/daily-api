@@ -12,7 +12,7 @@ data:
   DEFAULT_IMAGE_PLACEHOLDER: {{ .Values.appConfig.defaultImage.placeholder }}
   DEFAULT_IMAGE_RATIO: {{ .Values.appConfig.defaultImage.ratio | quote }}
   URL_PREFIX: {{ .Values.appConfig.urlPrefix }}
-  ADS_COUNT: {{ .Values.appConfig.adsCount | quote }}
   CORS_ORIGIN: {{ .Values.appConfig.corsOrigin }}
+  MONETIZATION_URL: {{ .Values.appConfig.monetizationUrl }}
   REDIRECTOR_URL: {{ .Values.appConfig.redirectorUrl }}
 

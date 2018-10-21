@@ -53,7 +53,6 @@ const config = {
     accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
   },
   urlPrefix: process.env.URL_PREFIX,
-  adsCount: process.env.ADS_COUNT,
   github: {
     clientId: process.env.GITHUB_CLIENT_ID,
     clientSecret: process.env.GITHUB_CLIENT_SECRET,
@@ -74,7 +73,7 @@ const config = {
     issuer: process.env.JWT_ISSUER,
     expiresIn: 30 * 24 * 60 * 60 * 1000,
   },
-  codefundApiKey: process.env.CODEFUND_API_KEY,
+  monetizationUrl: process.env.MONETIZATION_URL || 'http://localhost:9090',
   redirectorUrl: process.env.REDIRECTOR_URL || 'http://localhost:9090',
 };
 

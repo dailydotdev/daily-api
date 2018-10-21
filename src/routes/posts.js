@@ -1,7 +1,8 @@
+import rp from 'request-promise-native';
 import Router from 'koa-router';
 import validator, { array, date, number, string } from 'koa-context-validator';
+import config from '../config';
 import post from '../models/post';
-import { fetchBSA, fetchCodeFund } from '../ads';
 import { EntityNotFoundError, ForbiddenError } from '../errors';
 
 const router = Router({
@@ -48,18 +49,20 @@ router.get(
 );
 
 const fetchToiletAd = async (ctx) => {
-  const cf = await fetchCodeFund(ctx, '89dc8cbd-475f-4941-bfa8-03e509b8f897');
-  if (cf) {
-    return [cf];
+  try {
+    const { ip } = ctx.request;
+    const res = await rp({
+      url: `http://${config.monetizationUrl}/a/toilet`,
+      method: 'GET',
+      headers: {
+        'x-forwarded-for': ip,
+      },
+    });
+    return JSON.parse(res);
+  } catch (err) {
+    ctx.log.warn('failed to fetch ad from monetization service', { err });
+    return [];
   }
-
-  const bsa = await fetchBSA(ctx);
-  if (bsa) {
-    return [bsa];
-  }
-
-  ctx.log.info('no ads to serve for toilet');
-  return [];
 };
 
 router.get(
