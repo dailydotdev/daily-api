@@ -7,11 +7,11 @@ const router = Router({
 router.get(
   '/',
   async (ctx) => {
-    ctx.status = 301;
+    ctx.status = 307;
 
-    const browser = ctx.userAgent.browser.toLowerCase();
-
-    if (browser === 'firefox') {
+    if (ctx.userAgent.isBot) {
+      ctx.redirect('https://www.dailynow.co');
+    } else if (ctx.userAgent.browser.toLowerCase() === 'firefox') {
       ctx.redirect('https://addons.mozilla.org/en-US/firefox/addon/daily/');
     } else {
       ctx.redirect('https://chrome.google.com/webstore/detail/daily-discover-web-techno/jlmpjdjjbgclbocgajdjefcidcncaied');
