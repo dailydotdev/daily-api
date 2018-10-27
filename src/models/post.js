@@ -65,7 +65,6 @@ const whereByPublications = (publications) => {
 const getLatest = (latest, page, pageSize, publications) =>
   select()
     .where(`${table}.created_at`, '<=', latest)
-    .andWhere(`${table}.promoted`, '=', 0)
     .andWhere(...whereByPublications(publications))
     .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views + 1), 2) * 60 ASC`)
     .offset(page * pageSize)
@@ -116,7 +115,6 @@ const getPostToTweet = async () => {
     .from(table)
     .join('publications', `${table}.publication_id`, 'publications.id')
     .where(`${table}.tweeted`, '=', 0)
-    .andWhere(`${table}.promoted`, '=', 0)
     .andWhere(`${table}.views`, '>=', 30)
     .orderBy('created_at')
     .limit(1)
@@ -169,7 +167,6 @@ const getUserLatest = (latest, page, pageSize, userId) =>
     .leftJoin(bookmarksTable, builder =>
       builder.on(`${bookmarksTable}.post_id`, '=', `${table}.id`).andOn(`${bookmarksTable}.user_id`, '=', db.raw('?', [userId])))
     .where(`${table}.created_at`, '<=', latest)
-    .andWhere(`${table}.promoted`, '=', 0)
     .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
       builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
     .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views + 1), 2) * 60 ASC`)
@@ -186,7 +183,6 @@ const getToilet = (latest, page, pageSize, userId) =>
       builder.on(`${bookmarksTable}.post_id`, '=', `${table}.id`).andOn(`${bookmarksTable}.user_id`, '=', db.raw('?', [userId])))
     .where(`${table}.created_at`, '<=', latest)
     .andWhereRaw(`timestampdiff(hour, ${table}.created_at, current_timestamp()) <= 24`)
-    .andWhere(`${table}.promoted`, '=', 0)
     .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
       builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
     .andWhereRaw(`${bookmarksTable}.post_id IS NULL`)
