@@ -132,9 +132,7 @@ describe('post model', () => {
     await post.bookmark([{ userId: 'user1', postId: fixture.input[0].id }]);
     await feed.upsert([{ userId: 'user1', publicationId: fixture.input[1].publicationId, enabled: false }]);
 
-    const latest = new Date(Date.now() + (60 * 60 * 1000));
-
-    const models = await post.getUserLatest(latest, 0, 20, 'user1');
+    const models = await post.getUserLatest(fixture.input[1].createdAt, 0, 20, 'user1');
     expect(models).to.deep.equal([Object.assign({ bookmarked: true }, fixture.output[1])]);
   });
 

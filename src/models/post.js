@@ -32,6 +32,8 @@ const mapImage = (post) => {
   };
 };
 
+const getTimeLowerBounds = latest => new Date(latest - (10 * 24 * 60 * 60 * 1000));
+
 const mapBookmark = (post) => {
   if (post.bookmarked) {
     return { bookmarked: post.bookmarked === 1 };
@@ -65,6 +67,7 @@ const whereByPublications = (publications) => {
 const getLatest = (latest, page, pageSize, publications) =>
   select()
     .where(`${table}.created_at`, '<=', latest)
+    .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
     .andWhere(...whereByPublications(publications))
     .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views + 1), 2) * 60 ASC`)
     .offset(page * pageSize)
@@ -167,6 +170,7 @@ const getUserLatest = (latest, page, pageSize, userId) =>
     .leftJoin(bookmarksTable, builder =>
       builder.on(`${bookmarksTable}.post_id`, '=', `${table}.id`).andOn(`${bookmarksTable}.user_id`, '=', db.raw('?', [userId])))
     .where(`${table}.created_at`, '<=', latest)
+    .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
     .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
       builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
     .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views + 1), 2) * 60 ASC`)
@@ -182,6 +186,7 @@ const getToilet = (latest, page, pageSize, userId) =>
     .leftJoin(bookmarksTable, builder =>
       builder.on(`${bookmarksTable}.post_id`, '=', `${table}.id`).andOn(`${bookmarksTable}.user_id`, '=', db.raw('?', [userId])))
     .where(`${table}.created_at`, '<=', latest)
+    .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
     .andWhereRaw(`timestampdiff(hour, ${table}.created_at, current_timestamp()) <= 24`)
     .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
       builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
