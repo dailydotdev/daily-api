@@ -69,7 +69,7 @@ const getLatest = (latest, page, pageSize, publications) =>
     .where(`${table}.created_at`, '<=', latest)
     .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
     .andWhere(...whereByPublications(publications))
-    .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views + 1), 2) * 60 ASC`)
+    .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`)
     .offset(page * pageSize)
     .limit(pageSize)
     .map(toCamelCase)
@@ -173,7 +173,7 @@ const getUserLatest = (latest, page, pageSize, userId) =>
     .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
     .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
       builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
-    .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views + 1), 2) * 60 ASC`)
+    .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`)
     .offset(page * pageSize)
     .limit(pageSize)
     .map(toCamelCase)
