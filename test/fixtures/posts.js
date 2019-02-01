@@ -1,43 +1,51 @@
 import publications from './publications';
 import config from '../../src/config';
 
+const now = new Date();
+now.setMilliseconds(0);
+
 const input = [
   {
     id: '1',
     title: 'Post #1',
     url: 'https://myblog.com/post.html',
     publicationId: publications[0].id,
-    publishedAt: new Date(2017, 10, 21, 15, 10, 5),
-    createdAt: new Date(2017, 10, 21, 15, 10, 5),
+    publishedAt: new Date(now - 1000),
+    createdAt: new Date(now - 1000),
     image: 'https://myblog.com/image.png',
     ratio: 1.2,
     placeholder: 'data:image/png;base64,qweuoi2108js',
     promoted: false,
-    tags: ['a', 'b', 'c'],
+    tags: ['a', 'b'],
+    views: 1,
   },
   {
     id: '2',
     title: 'Style your Terminal better by mastering these settings 🤩\\xF0\\x9F\\xA4\\xA9',
     url: 'https://myblog.com/post2.html',
     publicationId: publications[1].id,
-    createdAt: new Date(2017, 10, 21, 15, 11, 10),
+    createdAt: now,
     promoted: false,
+    views: 2,
   },
   {
     id: '3',
     title: 'Post #3',
     url: 'https://myblog.com/post3.html',
     publicationId: publications[2].id,
-    createdAt: new Date(2017, 10, 21, 15, 11, 10),
+    createdAt: now,
     promoted: false,
+    views: 3,
+    tags: ['a'],
   },
   {
     id: '4',
     title: 'Post #4',
     url: 'https://myblog.com/post4.html',
     publicationId: publications[2].id,
-    createdAt: new Date(2017, 10, 21, 15, 11, 10),
+    createdAt: now,
     promoted: true,
+    views: 4,
   },
 ];
 
@@ -56,6 +64,8 @@ const output = [
       name: publications[1].name,
       image: publications[1].image,
     },
+    views: input[1].views,
+    tags: [],
   },
   {
     id: input[0].id,
@@ -71,6 +81,8 @@ const output = [
       name: publications[0].name,
       image: publications[0].image,
     },
+    views: input[0].views,
+    tags: input[0].tags,
   },
 ];
 
@@ -89,6 +101,8 @@ const promotedOutput = [
       name: publications[2].name,
       image: publications[2].image,
     },
+    views: input[3].views,
+    tags: [],
   },
 ];
 

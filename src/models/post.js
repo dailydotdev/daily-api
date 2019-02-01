@@ -2,6 +2,7 @@ import _ from 'lodash';
 
 import db, { toCamelCase, toSnakeCase } from '../db';
 import config from '../config';
+import tag from './tag';
 
 const table = 'posts';
 const tagsTable = 'tags';
@@ -10,11 +11,12 @@ const bookmarksTable = 'bookmarks';
 const select = (...additional) =>
   db.select(
     `${table}.id`, `${table}.title`, `${table}.url`, `${table}.image`, `${table}.published_at`, `${table}.created_at`,
-    `${table}.ratio`, `${table}.placeholder`,
+    `${table}.ratio`, `${table}.placeholder`, `${table}.views`, 'tags_concat_view.tags',
     'publications.id as pub_id', 'publications.image as pub_image', 'publications.name as pub_name', ...additional,
   )
     .from(table)
-    .join('publications', `${table}.publication_id`, 'publications.id');
+    .join('publications', `${table}.publication_id`, 'publications.id')
+    .leftJoin('tags_concat_view', `${table}.id`, 'tags_concat_view.post_id');
 
 const mapImage = (post) => {
   if (post.image) {
@@ -54,6 +56,8 @@ const mapPost = post =>
       name: post.pubName,
       image: post.pubImage,
     },
+    views: post.views || 0,
+    tags: post.tags ? post.tags.split(',') : [],
   }, mapImage(post), mapBookmark(post));
 
 const whereByPublications = (publications) => {
@@ -110,8 +114,8 @@ const get = id =>
 const add = obj =>
   db.transaction(async (trx) => {
     await trx.insert(toSnakeCase(Object.assign({ views: 0 }, _.omit(obj, 'tags')))).into(table);
-    return trx.insert((obj.tags || []).map(tag => ({ post_id: obj.id, tag }))).into(tagsTable);
-  }).then(() => _.omit(obj, 'tags'));
+    return tag.addPostTags((obj.tags || []).map(t => ({ postId: obj.id, tag: t })), trx);
+  }).then(() => obj);
 
 const getPostToTweet = async () => {
   const res = await db.select(`${table}.id`, `${table}.title`, `${table}.image`, `${table}.site_twitter`, `${table}.creator_twitter`, 'publications.twitter')

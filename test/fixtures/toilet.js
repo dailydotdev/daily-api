@@ -13,7 +13,8 @@ const input = [
     ratio: 1.2,
     placeholder: 'data:image/png;base64,qweuoi2108js',
     promoted: false,
-    tags: ['a', 'b', 'c'],
+    tags: ['a', 'b'],
+    views: 1,
   },
   {
     id: 't2',
@@ -22,6 +23,7 @@ const input = [
     publicationId: publications[1].id,
     createdAt: new Date(Math.floor(Date.now() / 1000) * 1000),
     promoted: false,
+    views: 2,
   },
   {
     id: 't3',
@@ -30,6 +32,8 @@ const input = [
     publicationId: publications[2].id,
     createdAt: new Date((Math.floor(Date.now() / 1000) - (60 * 60)) * 1000),
     promoted: false,
+    views: 3,
+    tags: ['a'],
   },
   {
     id: 't4',
@@ -38,6 +42,7 @@ const input = [
     publicationId: publications[2].id,
     createdAt: new Date(2017, 10, 21, 15, 11, 10),
     promoted: true,
+    views: 4,
   },
 ];
 
@@ -56,6 +61,8 @@ const output = [
       name: publications[1].name,
       image: publications[1].image,
     },
+    views: input[1].views,
+    tags: [],
   },
   {
     id: input[0].id,
@@ -71,6 +78,8 @@ const output = [
       name: publications[0].name,
       image: publications[0].image,
     },
+    views: input[0].views,
+    tags: input[0].tags,
   },
 ];
 

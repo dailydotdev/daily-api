@@ -36,6 +36,7 @@ describe('posts routes', () => {
 
   it('should fetch latest posts', async () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
+    await request.post('/v1/tags/updateCount');
 
     const result = await request
       .get('/v1/posts/latest')
@@ -105,6 +106,7 @@ describe('posts routes', () => {
 
     it('should get bookmarks sorted by time', async () => {
       await Promise.all(fixture.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
 
       await post.bookmark(fixture.bookmarks);
 
@@ -187,6 +189,7 @@ describe('posts routes', () => {
 
     it('should get toilet', async () => {
       await Promise.all(fixtureToilet.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
       await post.bookmark(fixtureToilet.bookmarks);
 
       const accessToken = await sign({ userId: fixtureToilet.bookmarks[0].userId });
