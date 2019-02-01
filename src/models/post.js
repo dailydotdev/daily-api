@@ -8,6 +8,12 @@ const table = 'posts';
 const tagsTable = 'tags';
 const bookmarksTable = 'bookmarks';
 
+const joinTags = (subquery, asc = true) =>
+  db.select('res.*', 'tags_concat_view.tags')
+    .from(subquery.as('res'))
+    .leftJoin('tags_concat_view', 'res.id', 'tags_concat_view.post_id')
+    .orderBy('score', asc ? 'asc' : 'desc');
+
 const select = (...additional) =>
   db.select(
     `${table}.id`, `${table}.title`, `${table}.url`, `${table}.image`, `${table}.published_at`, `${table}.created_at`,
@@ -56,7 +62,7 @@ const mapPost = post =>
       image: post.pubImage,
     },
     views: post.views || 0,
-    // tags: post.tags ? post.tags.split(',') : [],
+    tags: post.tags ? post.tags.split(',') : [],
   }, mapImage(post), mapBookmark(post));
 
 const whereByPublications = (publications) => {
@@ -68,26 +74,26 @@ const whereByPublications = (publications) => {
 };
 
 const getLatest = (latest, page, pageSize, publications) =>
-  select()
+  joinTags(select(db.raw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 as score`))
     .where(`${table}.created_at`, '<=', latest)
     .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
     .andWhere(...whereByPublications(publications))
-    .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`)
+    .orderBy('score', 'asc')
     .offset(page * pageSize)
-    .limit(pageSize)
+    .limit(pageSize))
     .map(toCamelCase)
     .map(mapPost);
 
 const getPromoted = () =>
-  select()
-    .where(`${table}.promoted`, '=', 1)
+  joinTags(select(db.raw('1 as score'))
+    .where(`${table}.promoted`, '=', 1))
     .map(toCamelCase)
     .map(mapPost);
 
 const get = id =>
-  select()
+  joinTags(select(db.raw('1 as score'))
     .where(`${table}.id`, '=', id)
-    .limit(1)
+    .limit(1))
     .map(toCamelCase)
     .map(mapPost)
     .then(res => (res.length ? res[0] : null));
@@ -149,13 +155,13 @@ const updateViews = async () => {
 };
 
 const getBookmarks = (latest, page, pageSize, userId) =>
-  select()
+  joinTags(select(`${bookmarksTable}.created_at as score`)
     .join(bookmarksTable, `${table}.id`, `${bookmarksTable}.post_id`)
     .where(`${bookmarksTable}.created_at`, '<=', latest)
     .andWhere(`${bookmarksTable}.user_id`, '=', userId)
-    .orderByRaw(`${bookmarksTable}.created_at DESC`)
+    .orderBy('score', 'desc')
     .offset(page * pageSize)
-    .limit(pageSize)
+    .limit(pageSize), false)
     .map(toCamelCase)
     .map(mapPost);
 
@@ -167,7 +173,10 @@ const bookmark = (bookmarks) => {
 };
 
 const getUserLatest = (latest, page, pageSize, userId) =>
-  select(db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`))
+  joinTags(select(
+    db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`),
+    db.raw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 as score`),
+  )
     .leftJoin('feeds', builder =>
       builder.on('feeds.publication_id', '=', `${table}.publication_id`).andOn('feeds.user_id', '=', db.raw('?', [userId])))
     .leftJoin(bookmarksTable, builder =>
@@ -176,14 +185,14 @@ const getUserLatest = (latest, page, pageSize, userId) =>
     .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
     .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
       builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
-    .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`)
+    .orderBy('score', 'asc')
     .offset(page * pageSize)
-    .limit(pageSize)
+    .limit(pageSize), false)
     .map(toCamelCase)
     .map(mapPost);
 
 const getToilet = (latest, page, pageSize, userId) =>
-  select(db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`))
+  joinTags(select(db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`), `${table}.created_at as score`)
     .leftJoin('feeds', builder =>
       builder.on('feeds.publication_id', '=', `${table}.publication_id`).andOn('feeds.user_id', '=', db.raw('?', [userId])))
     .leftJoin(bookmarksTable, builder =>
@@ -194,9 +203,9 @@ const getToilet = (latest, page, pageSize, userId) =>
     .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
       builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
     .andWhereRaw(`${bookmarksTable}.post_id IS NULL`)
-    .orderBy(`${table}.created_at`, 'DESC')
+    .orderBy('score', 'desc')
     .offset(page * pageSize)
-    .limit(pageSize)
+    .limit(pageSize), false)
     .map(toCamelCase)
     .map(mapPost);
 

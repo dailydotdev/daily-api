@@ -62,7 +62,7 @@ const output = [
       image: publications[1].image,
     },
     views: input[1].views,
-    // tags: [],
+    tags: [],
   },
   {
     id: input[0].id,
@@ -79,7 +79,7 @@ const output = [
       image: publications[0].image,
     },
     views: input[0].views,
-    // tags: input[0].tags,
+    tags: input[0].tags,
   },
 ];
 
