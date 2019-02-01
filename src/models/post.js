@@ -11,12 +11,11 @@ const bookmarksTable = 'bookmarks';
 const select = (...additional) =>
   db.select(
     `${table}.id`, `${table}.title`, `${table}.url`, `${table}.image`, `${table}.published_at`, `${table}.created_at`,
-    `${table}.ratio`, `${table}.placeholder`, `${table}.views`, 'tags_concat_view.tags',
+    `${table}.ratio`, `${table}.placeholder`, `${table}.views`,
     'publications.id as pub_id', 'publications.image as pub_image', 'publications.name as pub_name', ...additional,
   )
     .from(table)
-    .join('publications', `${table}.publication_id`, 'publications.id')
-    .leftJoin('tags_concat_view', `${table}.id`, 'tags_concat_view.post_id');
+    .join('publications', `${table}.publication_id`, 'publications.id');
 
 const mapImage = (post) => {
   if (post.image) {
@@ -57,7 +56,7 @@ const mapPost = post =>
       image: post.pubImage,
     },
     views: post.views || 0,
-    tags: post.tags ? post.tags.split(',') : [],
+    // tags: post.tags ? post.tags.split(',') : [],
   }, mapImage(post), mapBookmark(post));
 
 const whereByPublications = (publications) => {
