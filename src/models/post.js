@@ -8,17 +8,17 @@ const table = 'posts';
 const tagsTable = 'tags';
 const bookmarksTable = 'bookmarks';
 
-const joinTags = (subquery, asc = true) =>
-  db.select('res.*', 'tags_concat_view.tags')
-    .from(subquery.as('res'))
-    .leftJoin('tags_concat_view', 'res.id', 'tags_concat_view.post_id')
-    .orderBy('score', asc ? 'asc' : 'desc');
-
 const select = (...additional) =>
   db.select(
     `${table}.id`, `${table}.title`, `${table}.url`, `${table}.image`, `${table}.published_at`, `${table}.created_at`,
     `${table}.ratio`, `${table}.placeholder`, `${table}.views`,
     'publications.id as pub_id', 'publications.image as pub_image', 'publications.name as pub_name', ...additional,
+    db.select(db.raw(`GROUP_CONCAT(${tagsTable}.tag ORDER BY tags_count.count DESC SEPARATOR ',')`))
+      .from(tagsTable)
+      .join('tags_count', `${tagsTable}.tag`, 'tags_count.tag')
+      .where(`${tagsTable}.post_id`, '=', db.raw(`${table}.id`))
+      .groupBy(`${tagsTable}.post_id`)
+      .as('tags'),
   )
     .from(table)
     .join('publications', `${table}.publication_id`, 'publications.id');
@@ -74,26 +74,26 @@ const whereByPublications = (publications) => {
 };
 
 const getLatest = (latest, page, pageSize, publications) =>
-  joinTags(select(db.raw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 as score`))
+  select()
     .where(`${table}.created_at`, '<=', latest)
     .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
     .andWhere(...whereByPublications(publications))
-    .orderBy('score', 'asc')
+    .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`)
     .offset(page * pageSize)
-    .limit(pageSize))
+    .limit(pageSize)
     .map(toCamelCase)
     .map(mapPost);
 
 const getPromoted = () =>
-  joinTags(select(db.raw('1 as score'))
-    .where(`${table}.promoted`, '=', 1))
+  select()
+    .where(`${table}.promoted`, '=', 1)
     .map(toCamelCase)
     .map(mapPost);
 
 const get = id =>
-  joinTags(select(db.raw('1 as score'))
+  select()
     .where(`${table}.id`, '=', id)
-    .limit(1))
+    .limit(1)
     .map(toCamelCase)
     .map(mapPost)
     .then(res => (res.length ? res[0] : null));
@@ -155,13 +155,13 @@ const updateViews = async () => {
 };
 
 const getBookmarks = (latest, page, pageSize, userId) =>
-  joinTags(select(`${bookmarksTable}.created_at as score`)
+  select()
     .join(bookmarksTable, `${table}.id`, `${bookmarksTable}.post_id`)
     .where(`${bookmarksTable}.created_at`, '<=', latest)
     .andWhere(`${bookmarksTable}.user_id`, '=', userId)
-    .orderBy('score', 'desc')
+    .orderByRaw(`${bookmarksTable}.created_at DESC`)
     .offset(page * pageSize)
-    .limit(pageSize), false)
+    .limit(pageSize)
     .map(toCamelCase)
     .map(mapPost);
 
@@ -173,10 +173,7 @@ const bookmark = (bookmarks) => {
 };
 
 const getUserLatest = (latest, page, pageSize, userId) =>
-  joinTags(select(
-    db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`),
-    db.raw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 as score`),
-  )
+  select(db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`))
     .leftJoin('feeds', builder =>
       builder.on('feeds.publication_id', '=', `${table}.publication_id`).andOn('feeds.user_id', '=', db.raw('?', [userId])))
     .leftJoin(bookmarksTable, builder =>
@@ -185,14 +182,14 @@ const getUserLatest = (latest, page, pageSize, userId) =>
     .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
     .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
       builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
-    .orderBy('score', 'asc')
+    .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`)
     .offset(page * pageSize)
-    .limit(pageSize), false)
+    .limit(pageSize)
     .map(toCamelCase)
     .map(mapPost);
 
 const getToilet = (latest, page, pageSize, userId) =>
-  joinTags(select(db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`), `${table}.created_at as score`)
+  select(db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`))
     .leftJoin('feeds', builder =>
       builder.on('feeds.publication_id', '=', `${table}.publication_id`).andOn('feeds.user_id', '=', db.raw('?', [userId])))
     .leftJoin(bookmarksTable, builder =>
@@ -203,9 +200,9 @@ const getToilet = (latest, page, pageSize, userId) =>
     .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
       builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
     .andWhereRaw(`${bookmarksTable}.post_id IS NULL`)
-    .orderBy('score', 'desc')
+    .orderBy(`${table}.created_at`, 'DESC')
     .offset(page * pageSize)
-    .limit(pageSize), false)
+    .limit(pageSize)
     .map(toCamelCase)
     .map(mapPost);
 
