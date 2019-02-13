@@ -45,7 +45,7 @@ spec:
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: {{ template "daily-api.fullname" . }}-views
+  name: {{ template "daily-api.fullname" . }}-tags
   labels:
     app: {{ template "daily-api.name" . }}
     chart: {{ template "daily-api.chart" . }}
