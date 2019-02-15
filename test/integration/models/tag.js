@@ -44,6 +44,6 @@ describe('tag model', () => {
     await tag.updateTagsCount();
 
     const models = await tag.getPopular();
-    expect(models).to.deep.equal([{ tag: 'b' }, { tag: 'a' }]);
+    expect(models).to.deep.equal([{ name: 'b' }, { name: 'a' }]);
   });
 });

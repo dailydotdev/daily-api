@@ -11,7 +11,7 @@ const input = [
     url: 'https://myblog.com/post.html',
     publicationId: publications[0].id,
     publishedAt: new Date(now - 1000),
-    createdAt: new Date(now - 1000),
+    createdAt: new Date(now - 2000),
     image: 'https://myblog.com/image.png',
     ratio: 1.2,
     placeholder: 'data:image/png;base64,qweuoi2108js',
@@ -33,7 +33,7 @@ const input = [
     title: 'Post #3',
     url: 'https://myblog.com/post3.html',
     publicationId: publications[2].id,
-    createdAt: now,
+    createdAt: new Date(now - 1000),
     promoted: false,
     views: 3,
     tags: ['a'],
@@ -86,6 +86,45 @@ const output = [
   },
 ];
 
+const pubsOutput = [
+  {
+    id: input[3].id,
+    title: input[3].title,
+    url: input[3].url,
+    publishedAt: null,
+    createdAt: input[3].createdAt,
+    image: config.defaultImage.url,
+    ratio: config.defaultImage.ratio,
+    placeholder: config.defaultImage.placeholder,
+    publication: {
+      id: publications[2].id,
+      name: publications[2].name,
+      image: publications[2].image,
+    },
+    views: input[3].views,
+    tags: [],
+  },
+  {
+    id: input[2].id,
+    title: input[2].title,
+    url: input[2].url,
+    publishedAt: null,
+    createdAt: input[2].createdAt,
+    image: config.defaultImage.url,
+    ratio: config.defaultImage.ratio,
+    placeholder: config.defaultImage.placeholder,
+    publication: {
+      id: publications[2].id,
+      name: publications[2].name,
+      image: publications[2].image,
+    },
+    views: input[2].views,
+    tags: input[2].tags,
+  },
+];
+
+const tagsOutput = [pubsOutput[1], output[1]];
+
 const promotedOutput = [
   {
     id: input[3].id,
@@ -116,5 +155,7 @@ export default {
   input,
   output,
   promotedOutput,
+  pubsOutput,
+  tagsOutput,
   bookmarks,
 };

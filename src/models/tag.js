@@ -6,7 +6,7 @@ const tagsTable = 'tags';
 
 const getPopular = () =>
   db.from(table)
-    .select('tag')
+    .select('tag as name')
     .orderBy('count', 'desc')
     .where('count', '>=', 50)
     .limit(50);

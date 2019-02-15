@@ -60,6 +60,6 @@ describe('tags routes', () => {
       .get('/v1/tags/popular')
       .expect(200);
 
-    expect(result.body).to.deep.equal([{ tag: 'b' }, { tag: 'a' }]);
+    expect(result.body).to.deep.equal([{ name: 'b' }, { name: 'a' }]);
   });
 });

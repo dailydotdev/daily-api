@@ -205,5 +205,39 @@ describe('posts routes', () => {
 
       expect(res.body).to.deep.equal(fixtureToilet.output.map(mapDate).map(x => Object.assign({}, x, { type: 'post' })));
     });
+
+    it('should fetch posts by publication', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
+
+      const result = await request
+        .get('/v1/posts/publication')
+        .query({
+          latest: fixture.input[3].createdAt.toISOString(),
+          page: 0,
+          pageSize: 20,
+          pub: fixture.input[3].publicationId,
+        })
+        .expect(200);
+
+      expect(result.body).to.deep.equal(fixture.pubsOutput.map(mapDate));
+    });
+
+    it('should fetch posts by tag', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
+
+      const result = await request
+        .get('/v1/posts/tag')
+        .query({
+          latest: fixture.input[3].createdAt.toISOString(),
+          page: 0,
+          pageSize: 20,
+          tag: 'a',
+        })
+        .expect(200);
+
+      expect(result.body).to.deep.equal(fixture.tagsOutput.map(mapDate));
+    });
   });
 });

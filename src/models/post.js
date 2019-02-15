@@ -84,6 +84,27 @@ const getLatest = (latest, page, pageSize, publications) =>
     .map(toCamelCase)
     .map(mapPost);
 
+const getByPublication = (latest, page, pageSize, publication) =>
+  select()
+    .where(`${table}.created_at`, '<=', latest)
+    .andWhere('publications.id', '=', publication)
+    .orderBy('created_at', 'DESC')
+    .offset(page * pageSize)
+    .limit(pageSize)
+    .map(toCamelCase)
+    .map(mapPost);
+
+const getByTag = (latest, page, pageSize, tagName) =>
+  select()
+    .join(tagsTable, `${tagsTable}.post_id`, `${table}.id`)
+    .where(`${table}.created_at`, '<=', latest)
+    .andWhere(`${tagsTable}.tag`, '=', tagName)
+    .orderBy('created_at', 'DESC')
+    .offset(page * pageSize)
+    .limit(pageSize)
+    .map(toCamelCase)
+    .map(mapPost);
+
 const getPromoted = () =>
   select()
     .where(`${table}.promoted`, '=', 1)
@@ -211,6 +232,8 @@ const removeBookmark = (userId, postId) =>
 
 export default {
   getLatest,
+  getByPublication,
+  getByTag,
   getPromoted,
   get,
   add,

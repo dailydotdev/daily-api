@@ -15,7 +15,7 @@ router.get(
     query: {
       latest: date().iso().required(),
       page: number().min(0).required(),
-      pageSize: number().positive().max(40).required(),
+      pageSize: number().positive().required(),
       pubs: string(),
     },
   }),
@@ -28,6 +28,40 @@ router.get(
       ctx.body =
         await post.getUserLatest(query.latest, query.page, query.pageSize, ctx.state.user.userId);
     }
+  },
+);
+
+router.get(
+  '/tag',
+  validator({
+    query: {
+      latest: date().iso().required(),
+      page: number().min(0).required(),
+      pageSize: number().positive().required(),
+      tag: string().required(),
+    },
+  }),
+  async (ctx) => {
+    const { query } = ctx.request;
+    ctx.status = 200;
+    ctx.body = await post.getByTag(query.latest, query.page, query.pageSize, query.tag);
+  },
+);
+
+router.get(
+  '/publication',
+  validator({
+    query: {
+      latest: date().iso().required(),
+      page: number().min(0).required(),
+      pageSize: number().positive().required(),
+      pub: string().required(),
+    },
+  }),
+  async (ctx) => {
+    const { query } = ctx.request;
+    ctx.status = 200;
+    ctx.body = await post.getByPublication(query.latest, query.page, query.pageSize, query.pub);
   },
 );
 

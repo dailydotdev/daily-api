@@ -24,7 +24,7 @@ describe('post model', () => {
     expect(model).to.deep.equal(input);
   });
 
-  it('should fetch all posts sorted by time', async () => {
+  it('should fetch all posts sorted by score', async () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
     await tag.updateTagsCount();
 
@@ -32,7 +32,7 @@ describe('post model', () => {
     expect(models).to.deep.equal(fixture.output);
   });
 
-  it('should fetch posts by pages sorted by time', async () => {
+  it('should fetch posts by pages sorted by score', async () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
     await tag.updateTagsCount();
 
@@ -158,5 +158,26 @@ describe('post model', () => {
 
     const models = await post.getToilet(latest, 0, 8, 'user1');
     expect(models).to.deep.equal(fixtureToilet.output);
+  });
+
+  it('should fetch all posts by publications sorted by time', async () => {
+    await Promise.all(fixture.input.map(p => post.add(p)));
+    await tag.updateTagsCount();
+
+    const models = await post.getByPublication(
+      fixture.input[3].createdAt,
+      0,
+      20,
+      fixture.input[3].publicationId,
+    );
+    expect(models).to.deep.equal(fixture.pubsOutput);
+  });
+
+  it('should fetch all posts by tag sorted by time', async () => {
+    await Promise.all(fixture.input.map(p => post.add(p)));
+    await tag.updateTagsCount();
+
+    const models = await post.getByTag(fixture.input[3].createdAt, 0, 20, 'a');
+    expect(models).to.deep.equal(fixture.tagsOutput);
   });
 });
