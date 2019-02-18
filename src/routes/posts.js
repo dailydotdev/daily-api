@@ -9,6 +9,8 @@ const router = Router({
   prefix: '/posts',
 });
 
+const splitArrayStr = str => (str ? str.split(',') : null);
+
 router.get(
   '/latest',
   validator({
@@ -17,13 +19,17 @@ router.get(
       page: number().min(0).required(),
       pageSize: number().positive().required(),
       pubs: string(),
+      tags: string(),
     },
   }),
   async (ctx) => {
     const { query } = ctx.request;
     ctx.status = 200;
     if (!ctx.state.user) {
-      ctx.body = await post.getLatest(query.latest, query.page, query.pageSize, query.pubs ? query.pubs.split(',') : null);
+      ctx.body = await post.getLatest(
+        query.latest, query.page, query.pageSize,
+        splitArrayStr(query.pubs), splitArrayStr(query.tags),
+      );
     } else {
       ctx.body =
         await post.getUserLatest(query.latest, query.page, query.pageSize, ctx.state.user.userId);

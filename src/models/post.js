@@ -16,7 +16,7 @@ const select = (...additional) =>
     db.select(db.raw(`GROUP_CONCAT(${tagsTable}.tag ORDER BY tags_count.count DESC SEPARATOR ',')`))
       .from(tagsTable)
       .join('tags_count', `${tagsTable}.tag`, 'tags_count.tag')
-      .where(`${tagsTable}.post_id`, '=', db.raw(`${table}.id`))
+      .where(`${tagsTable}.post_id`, '=', db.raw(`\`${table}\`.\`id\``))
       .groupBy(`${tagsTable}.post_id`)
       .as('tags'),
   )
@@ -73,14 +73,29 @@ const whereByPublications = (publications) => {
   return ['publications.enabled', '=', 1];
 };
 
-const getLatest = (latest, page, pageSize, publications) =>
-  select()
-    .where(`${table}.created_at`, '<=', latest)
-    .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
-    .andWhere(...whereByPublications(publications))
-    .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`)
-    .offset(page * pageSize)
-    .limit(pageSize)
+const filterByTags = (query, tags) => {
+  if (tags && tags.length > 0) {
+    const tagsQuery = db.select(db.raw('1'))
+      .from(tagsTable)
+      .where('tag', 'in', tags)
+      .andWhere('post_id', '=', db.raw(`${table}.id`));
+    return query.whereExists(tagsQuery);
+  }
+
+  return query;
+};
+
+const getLatest = (latest, page, pageSize, publications, tags) =>
+  filterByTags(
+    select()
+      .where(`${table}.created_at`, '<=', latest)
+      .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
+      .andWhere(...whereByPublications(publications))
+      .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`)
+      .offset(page * pageSize)
+      .limit(pageSize),
+    tags,
+  )
     .map(toCamelCase)
     .map(mapPost);
 

@@ -32,6 +32,14 @@ describe('post model', () => {
     expect(models).to.deep.equal(fixture.output);
   });
 
+  it('should fetch posts by tags sorted by score', async () => {
+    await Promise.all(fixture.input.map(p => post.add(p)));
+    await tag.updateTagsCount();
+
+    const models = await post.getLatest(fixture.input[1].createdAt, 0, 20, null, ['a']);
+    expect(models).to.deep.equal([fixture.output[1]]);
+  });
+
   it('should fetch posts by pages sorted by score', async () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
     await tag.updateTagsCount();
