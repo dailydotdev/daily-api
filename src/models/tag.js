@@ -26,11 +26,8 @@ const addPostTags = (tags, trx = db) =>
   trx.insert(tags.map(toSnakeCase)).into(tagsTable);
 
 const search = query =>
-  db.from(table)
-    .select('tag as name')
-    .orderBy('count', 'desc')
-    .whereRaw('MATCH (tag) AGAINST (\'??\' IN BOOLEAN MODE)', [`*${query}*`])
-    .limit(50);
+  getPopular()
+    .andWhereRaw('MATCH (tag) AGAINST (\'??\' IN BOOLEAN MODE)', [`*${query}*`]);
 
 export default {
   getPopular,
