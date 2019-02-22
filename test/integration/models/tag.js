@@ -46,4 +46,16 @@ describe('tag model', () => {
     const models = await tag.getPopular();
     expect(models).to.deep.equal([{ name: 'b' }, { name: 'a' }]);
   });
+
+  it('should search for relevant tags', async () => {
+    await db.from('tags_count').insert([
+      { tag: 'web-dev', count: 100 },
+      { tag: 'software-development', count: 200 },
+      { tag: 'dev-leads', count: 50 },
+      { tag: 'fullstack', count: 300 },
+    ]);
+
+    const models = await tag.search('dev');
+    expect(models).to.deep.equal([{ name: 'software-development' }, { name: 'web-dev' }, { name: 'dev-leads' }]);
+  });
 });

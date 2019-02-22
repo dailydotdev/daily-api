@@ -25,8 +25,16 @@ const updateTagsCount = async () =>
 const addPostTags = (tags, trx = db) =>
   trx.insert(tags.map(toSnakeCase)).into(tagsTable);
 
+const search = query =>
+  db.from(table)
+    .select('tag as name')
+    .orderBy('count', 'desc')
+    .whereRaw('MATCH (tag) AGAINST (\'??\' IN BOOLEAN MODE)', [`*${query}*`])
+    .limit(50);
+
 export default {
   getPopular,
   updateTagsCount,
   addPostTags,
+  search,
 };

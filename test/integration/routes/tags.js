@@ -62,4 +62,23 @@ describe('tags routes', () => {
 
     expect(result.body).to.deep.equal([{ name: 'b' }, { name: 'a' }]);
   });
+
+  it('should search for relevant tags', async () => {
+    await db.from('tags_count').insert([
+      { tag: 'web-dev', count: 100 },
+      { tag: 'software-development', count: 200 },
+      { tag: 'dev-leads', count: 50 },
+      { tag: 'fullstack', count: 300 },
+    ]);
+
+    const result = await request
+      .get('/v1/tags/search')
+      .query({ query: 'dev' })
+      .expect(200);
+
+    expect(result.body).to.deep.equal({
+      query: 'dev',
+      hits: [{ name: 'software-development' }, { name: 'web-dev' }, { name: 'dev-leads' }],
+    });
+  });
 });
