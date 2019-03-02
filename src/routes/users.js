@@ -1,28 +1,8 @@
 import Router from 'koa-router';
-import rp from 'request-promise-native';
 import { ForbiddenError } from '../errors';
-import config from '../config';
 import provider from '../models/provider';
-import { fetchProfile } from '../profile';
+import { fetchProfile, refreshGoogleToken } from '../profile';
 import { getTrackingId, setTrackingId } from '../tracking';
-
-const refreshGoogleToken = async (userId, refreshToken) => {
-  const res = await rp({
-    url: config.google.authenticateUrl,
-    method: 'POST',
-    headers: {
-      accept: 'application/json',
-    },
-    form: {
-      client_id: config.google.clientId,
-      client_secret: config.google.clientSecret,
-      refresh_token: refreshToken,
-      grant_type: 'refresh_token',
-    },
-  });
-
-  return (typeof res === 'string') ? JSON.parse(res) : res;
-};
 
 const router = Router({
   prefix: '/users',
