@@ -27,6 +27,6 @@ const fixture = [
     html: 'notification #7',
     timestamp: new Date(2017, 10, 21, 19, 23, 5),
   },
-];
+].reverse();
 
 export default fixture;

@@ -5,7 +5,7 @@ const table = 'notifications';
 const get = (since) => {
   const select = db.select().from(table);
   const query = since ? select.where('timestamp', '>', since) : select;
-  return query.orderBy('timestamp', 'ASC').limit(5).map(toCamelCase);
+  return query.orderBy('timestamp', 'DESC').limit(5).map(toCamelCase);
 };
 
 const getLatest = () =>
