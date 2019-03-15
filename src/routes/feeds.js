@@ -14,7 +14,7 @@ router.get(
       throw new ForbiddenError();
     }
 
-    const model = await feed.getByUserId(ctx.state.user.userId);
+    const model = await feed.getUserPublications(ctx.state.user.userId);
 
     ctx.status = 200;
     ctx.body = model;
@@ -36,11 +36,67 @@ router.post(
       throw new ForbiddenError();
     }
 
-    const model = await feed.upsert(ctx.request.body.map(item =>
+    const model = await feed.upsertUserPublications(ctx.request.body.map(item =>
       Object.assign({ userId: ctx.state.user.userId }, item)));
 
     ctx.status = 200;
     ctx.body = model;
+  },
+);
+
+router.get(
+  '/tags',
+  async (ctx) => {
+    if (!ctx.state.user) {
+      throw new ForbiddenError();
+    }
+
+    const model = await feed.getUserTags(ctx.state.user.userId);
+
+    ctx.status = 200;
+    ctx.body = model;
+  },
+);
+
+router.post(
+  '/tags',
+  validator({
+    body: array().items(object().keys({
+      tag: string().required(),
+    })),
+  }, {
+    stripUnknown: true,
+  }),
+  async (ctx) => {
+    if (!ctx.state.user) {
+      throw new ForbiddenError();
+    }
+
+    const model = await feed.addUserTags(ctx.request.body.map(item =>
+      Object.assign({ userId: ctx.state.user.userId }, item)));
+
+    ctx.status = 200;
+    ctx.body = model;
+  },
+);
+
+router.delete(
+  '/tags',
+  validator({
+    body: object().keys({
+      tag: string().required(),
+    }),
+  }, {
+    stripUnknown: true,
+  }),
+  async (ctx) => {
+    if (!ctx.state.user) {
+      throw new ForbiddenError();
+    }
+
+    await feed.removeUserTags(ctx.request.body.tag, ctx.state.user.userId);
+
+    ctx.status = 204;
   },
 );
 

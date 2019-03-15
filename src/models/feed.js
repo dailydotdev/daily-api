@@ -1,15 +1,16 @@
 import db, { toCamelCase, toSnakeCase } from '../db';
 
 const table = 'feeds';
+const userTagsTable = 'user_tags';
 
-const getByUserId = userId =>
+const getUserPublications = userId =>
   db.select()
     .from(table)
     .where('user_id', '=', userId)
     .map(toCamelCase)
     .map(res => Object.assign({}, res, { enabled: res.enabled === 1 }));
 
-const upsert = (feed) => {
+const upsertUserPublications = (feed) => {
   const obj = feed.map(toSnakeCase);
 
   const insert = db(table).insert(obj).toString();
@@ -17,7 +18,24 @@ const upsert = (feed) => {
     .then(() => feed);
 };
 
+const getUserTags = userId =>
+  db.select()
+    .from(userTagsTable)
+    .where('user_id', '=', userId)
+    .map(toCamelCase);
+
+const addUserTags = (tags) => {
+  const obj = tags.map(toSnakeCase);
+  return db(userTagsTable).insert(obj).then(() => tags);
+};
+
+const removeUserTags = (tag, userId) =>
+  db(userTagsTable).where('user_id', '=', userId).andWhere('tag', '=', tag).delete();
+
 export default {
-  getByUserId,
-  upsert,
+  getUserPublications,
+  upsertUserPublications,
+  getUserTags,
+  addUserTags,
+  removeUserTags,
 };
