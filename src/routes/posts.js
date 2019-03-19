@@ -50,7 +50,10 @@ router.get(
   async (ctx) => {
     const { query } = ctx.request;
     ctx.status = 200;
-    ctx.body = await post.getByTag(query.latest, query.page, query.pageSize, query.tag);
+    ctx.body = await post.getByTag(
+      query.latest, query.page, query.pageSize, query.tag,
+      ctx.state.user ? ctx.state.user.userId : null,
+    );
   },
 );
 
@@ -67,7 +70,10 @@ router.get(
   async (ctx) => {
     const { query } = ctx.request;
     ctx.status = 200;
-    ctx.body = await post.getByPublication(query.latest, query.page, query.pageSize, query.pub);
+    ctx.body = await post.getByPublication(
+      query.latest, query.page, query.pageSize, query.pub,
+      ctx.state.user ? ctx.state.user.userId : null,
+    );
   },
 );
 

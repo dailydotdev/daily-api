@@ -3,6 +3,7 @@ import _ from 'lodash';
 import db, { toCamelCase, toSnakeCase } from '../db';
 import config from '../config';
 import tag from './tag';
+import feed from './feed';
 
 const table = 'posts';
 const tagsTable = 'tags';
@@ -99,24 +100,29 @@ const getLatest = (latest, page, pageSize, publications, tags) =>
     .map(toCamelCase)
     .map(mapPost);
 
-const getByPublication = (latest, page, pageSize, publication) =>
-  select()
+const selectWithBookmarked = userId =>
+  select(db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`))
+    .leftJoin(bookmarksTable, builder =>
+      builder.on(`${bookmarksTable}.post_id`, '=', `${table}.id`).andOn(`${bookmarksTable}.user_id`, '=', db.raw('?', [userId])));
+
+const getFeed = (latest, page, pageSize, userId) =>
+  (userId ? selectWithBookmarked(userId) : select())
     .where(`${table}.created_at`, '<=', latest)
-    .andWhere('publications.id', '=', publication)
-    .orderBy('created_at', 'DESC')
     .offset(page * pageSize)
-    .limit(pageSize)
+    .limit(pageSize);
+
+const getByPublication = (latest, page, pageSize, publication, userId) =>
+  getFeed(latest, page, pageSize, userId)
+    .andWhere('publications.id', '=', publication)
+    .orderBy(`${table}.created_at`, 'DESC')
     .map(toCamelCase)
     .map(mapPost);
 
-const getByTag = (latest, page, pageSize, tagName) =>
-  select()
+const getByTag = (latest, page, pageSize, tagName, userId) =>
+  getFeed(latest, page, pageSize, userId)
     .join(tagsTable, `${tagsTable}.post_id`, `${table}.id`)
-    .where(`${table}.created_at`, '<=', latest)
     .andWhere(`${tagsTable}.tag`, '=', tagName)
-    .orderBy('created_at', 'DESC')
-    .offset(page * pageSize)
-    .limit(pageSize)
+    .orderBy(`${table}.created_at`, 'DESC')
     .map(toCamelCase)
     .map(mapPost);
 
@@ -208,37 +214,32 @@ const bookmark = (bookmarks) => {
     .into(bookmarksTable).then(() => bookmarks);
 };
 
-const getUserLatest = (latest, page, pageSize, userId) =>
-  select(db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`))
-    .leftJoin('feeds', builder =>
-      builder.on('feeds.publication_id', '=', `${table}.publication_id`).andOn('feeds.user_id', '=', db.raw('?', [userId])))
-    .leftJoin(bookmarksTable, builder =>
-      builder.on(`${bookmarksTable}.post_id`, '=', `${table}.id`).andOn(`${bookmarksTable}.user_id`, '=', db.raw('?', [userId])))
-    .where(`${table}.created_at`, '<=', latest)
-    .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
-    .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
-      builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
-    .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`)
-    .offset(page * pageSize)
-    .limit(pageSize)
+const getUserLatest = async (latest, page, pageSize, userId) => {
+  const tags = (await feed.getUserTags(userId)).map(t => t.tag);
+  return filterByTags(
+    getFeed(latest, page, pageSize, userId)
+      .leftJoin('feeds', builder =>
+        builder.on('feeds.publication_id', '=', `${table}.publication_id`).andOn('feeds.user_id', '=', db.raw('?', [userId])))
+      .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
+      .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
+        builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
+      .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`),
+    tags,
+  )
     .map(toCamelCase)
     .map(mapPost);
+};
 
 const getToilet = (latest, page, pageSize, userId) =>
-  select(db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`))
+  getFeed(latest, page, pageSize, userId)
     .leftJoin('feeds', builder =>
       builder.on('feeds.publication_id', '=', `${table}.publication_id`).andOn('feeds.user_id', '=', db.raw('?', [userId])))
-    .leftJoin(bookmarksTable, builder =>
-      builder.on(`${bookmarksTable}.post_id`, '=', `${table}.id`).andOn(`${bookmarksTable}.user_id`, '=', db.raw('?', [userId])))
-    .where(`${table}.created_at`, '<=', latest)
     .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
     .andWhereRaw(`timestampdiff(hour, ${table}.created_at, current_timestamp()) <= 24`)
     .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
       builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
     .andWhereRaw(`${bookmarksTable}.post_id IS NULL`)
     .orderBy(`${table}.created_at`, 'DESC')
-    .offset(page * pageSize)
-    .limit(pageSize)
     .map(toCamelCase)
     .map(mapPost);
 
