@@ -107,5 +107,10 @@ app.use(proxy('/v1/a', {
   rewrite: path => path.substr('/v1'.length),
 }));
 
+app.use(proxy('/icon', {
+  target: config.besticonUrl,
+  changeOrigin: true,
+  xfwd: true,
+}));
 
 export default app;

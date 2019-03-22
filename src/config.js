@@ -75,6 +75,7 @@ const config = {
   },
   monetizationUrl: process.env.MONETIZATION_URL || 'http://localhost:9090',
   redirectorUrl: process.env.REDIRECTOR_URL || 'http://localhost:9090',
+  besticonUrl: process.env.BESTICON_URL || 'http://localhost:8080',
 };
 
 export default config;

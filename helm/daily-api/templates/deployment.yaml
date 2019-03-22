@@ -181,6 +181,11 @@ spec:
               configMapKeyRef:
                 name: {{ template "daily-api.fullname" . }}
                 key: REDIRECTOR_URL
+          - name: BESTICON_URL
+            valueFrom:
+              configMapKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: BESTICON_URL
           volumeMounts:
           - name: config
             mountPath: "/etc/config"

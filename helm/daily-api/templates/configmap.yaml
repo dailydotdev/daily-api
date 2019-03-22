@@ -15,4 +15,5 @@ data:
   CORS_ORIGIN: {{ .Values.appConfig.corsOrigin }}
   MONETIZATION_URL: {{ .Values.appConfig.monetizationUrl }}
   REDIRECTOR_URL: {{ .Values.appConfig.redirectorUrl }}
+  BESTICON_URL: {{ .Values.appConfig.besticonUrl }}
 
