@@ -42,7 +42,7 @@ export default () => subscription.get({ autoCreate: true })
       logger.info({ post: data }, `adding post ${data.id} to db`);
       data.publishedAt = new Date(data.publishedAt);
       data.createdAt = new Date();
-      const props = ['id', 'title', 'url', 'publicationId', 'publishedAt', 'createdAt', 'image', 'ratio', 'placeholder', 'tags', 'siteTwitter', 'creatorTwitter'];
+      const props = ['id', 'title', 'url', 'publicationId', 'publishedAt', 'createdAt', 'image', 'ratio', 'placeholder', 'tags', 'siteTwitter', 'creatorTwitter', 'readTime'];
       addPost(_.pick(data, props))
         .then(() => {
           logger.info({ post: data }, `added successfully post ${data.id}`);

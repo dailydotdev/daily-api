@@ -18,6 +18,7 @@ const input = [
     promoted: false,
     tags: ['a', 'b'],
     views: 1,
+    readTime: 5,
   },
   {
     id: '2',
@@ -66,6 +67,7 @@ const output = [
     },
     views: input[1].views,
     tags: [],
+    readTime: null,
   },
   {
     id: input[0].id,
@@ -83,6 +85,7 @@ const output = [
     },
     views: input[0].views,
     tags: input[0].tags,
+    readTime: input[0].readTime,
   },
 ];
 
@@ -103,6 +106,7 @@ const pubsOutput = [
     },
     views: input[3].views,
     tags: [],
+    readTime: null,
   },
   {
     id: input[2].id,
@@ -120,6 +124,7 @@ const pubsOutput = [
     },
     views: input[2].views,
     tags: input[2].tags,
+    readTime: null,
   },
 ];
 
@@ -142,6 +147,7 @@ const promotedOutput = [
     },
     views: input[3].views,
     tags: [],
+    readTime: null,
   },
 ];
 

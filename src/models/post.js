@@ -12,7 +12,7 @@ const bookmarksTable = 'bookmarks';
 const select = (...additional) =>
   db.select(
     `${table}.id`, `${table}.title`, `${table}.url`, `${table}.image`, `${table}.published_at`, `${table}.created_at`,
-    `${table}.ratio`, `${table}.placeholder`, `${table}.views`,
+    `${table}.ratio`, `${table}.placeholder`, `${table}.views`, `${table}.read_time`,
     'publications.id as pub_id', 'publications.image as pub_image', 'publications.name as pub_name', ...additional,
     db.select(db.raw(`GROUP_CONCAT(${tagsTable}.tag ORDER BY tags_count.count DESC SEPARATOR ',')`))
       .from(tagsTable)
@@ -64,6 +64,7 @@ const mapPost = post =>
     },
     views: post.views || 0,
     tags: post.tags ? post.tags.split(',') : [],
+    readTime: post.readTime,
   }, mapImage(post), mapBookmark(post));
 
 const whereByPublications = (publications) => {
@@ -157,6 +158,7 @@ const get = id =>
  * @param {String[]} [obj.tags]
  * @param {String} [obj.twitterSite] - Twitter handle of the publication
  * @param {String} [obj.twitterCreator] - Twitter handle of the author
+ * @param {Number} [obj.readTime] - Read time estimation
  */
 const add = obj =>
   db.transaction(async (trx) => {
