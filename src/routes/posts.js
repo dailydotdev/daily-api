@@ -1,9 +1,10 @@
 import rp from 'request-promise-native';
 import Router from 'koa-router';
-import validator, { array, date, number, string } from 'koa-context-validator';
+import validator, { array, date, number, object, string } from 'koa-context-validator';
 import config from '../config';
 import post from '../models/post';
 import { EntityNotFoundError, ForbiddenError } from '../errors';
+import { notifyPostReport } from '../slack';
 
 const router = Router({
   prefix: '/posts',
@@ -202,6 +203,33 @@ router.get(
     if (model) {
       ctx.status = 200;
       ctx.body = model;
+    } else {
+      throw new EntityNotFoundError('post', 'id', ctx.params.id);
+    }
+  },
+);
+
+const reasons = {
+  broken: 'Link is broken',
+  nsfw: 'Post is NSFW',
+};
+
+router.post(
+  '/:id/report',
+  validator({
+    body: object().keys({
+      reason: string().required(),
+    }),
+  }, {
+    stripUnknown: true,
+  }),
+  async (ctx) => {
+    const { body } = ctx.request;
+    const reason = reasons[body.reason];
+    const model = await post.get(ctx.params.id);
+    if (model) {
+      await notifyPostReport(ctx.state.user.userId, model, reason);
+      ctx.status = 204;
     } else {
       throw new EntityNotFoundError('post', 'id', ctx.params.id);
     }
