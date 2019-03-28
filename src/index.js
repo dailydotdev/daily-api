@@ -10,7 +10,7 @@ import proxy from 'koa-proxies';
 
 
 import config from './config';
-import compress from './middlewares/compress';
+// import compress from './middlewares/compress';
 import errorHandler from './middlewares/errorHandler';
 import db from './db';
 import logger from './logger';
