@@ -36,7 +36,8 @@ app.keys = [config.cookies.secret];
 
 app.proxy = config.env === 'production';
 
-app.use(compress());
+// TODO: disabled due to performance issues
+// app.use(compress());
 
 const allowedOrigins = config.cors.origin.split(',');
 
