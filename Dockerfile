@@ -1,4 +1,4 @@
-FROM node:11.6.0-alpine
+FROM node:11.12.0-alpine
 
 EXPOSE 3000
 
