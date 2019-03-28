@@ -8,7 +8,9 @@ import etag from 'koa-etag';
 import cors from '@koa/cors';
 import proxy from 'koa-proxies';
 
+
 import config from './config';
+import compress from './middlewares/compress';
 import errorHandler from './middlewares/errorHandler';
 import db from './db';
 import logger from './logger';
@@ -33,6 +35,8 @@ const app = new Koa();
 app.keys = [config.cookies.secret];
 
 app.proxy = config.env === 'production';
+
+app.use(compress());
 
 const allowedOrigins = config.cors.origin.split(',');
 

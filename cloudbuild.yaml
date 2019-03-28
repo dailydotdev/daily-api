@@ -1,12 +1,12 @@
 steps:
-- name: node:10.12.0
+- name: node:11.6.0
   entrypoint: 'yarn'
   args: ['install']
 - name: 'docker/compose:1.22.0'
   args: ['up', '-d']
 - name: 'docker/compose:1.22.0'
   args: ['run', 'wait']
-- name: node:10.12.0
+- name: node:11.6.0
   entrypoint: 'yarn'
   args: ['test']
   env:
@@ -23,7 +23,7 @@ steps:
   - JWT_AUDIENCE=Daily Testing
   - JWT_ISSUER=Daily API Testing
   secretEnv: ['SLACK_WEBHOOK']
-- name: node:10.12.0
+- name: node:11.6.0
   entrypoint: 'yarn'
   args: ['build']
 - name: 'gcr.io/cloud-builders/docker'

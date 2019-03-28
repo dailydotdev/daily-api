@@ -5,7 +5,7 @@
   "author": "Ido Shamun <ido@elegantmonkeys.com>",
   "private": true,
   "engines": {
-    "node": "~10.12.0"
+    "node": "~11.6.0"
   },
   "scripts": {
     "mocha": "NODE_ENV=test mocha",
@@ -29,13 +29,17 @@
     "@google-cloud/trace-agent": "^2.11.0",
     "@koa/cors": "2",
     "@slack/client": "^4.3.1",
+    "bytes": "^3.1.0",
+    "compressible": "^2.0.16",
+    "iltorb": "^2.4.2",
     "jsonwebtoken": "^8.3.0",
     "knex": "^0.15.2",
-    "koa": "^2.3.0",
+    "koa": "^2.7.0",
     "koa-bodyparser": "^4.2.0",
     "koa-context-validator": "^0.4.1",
     "koa-etag": "^3.0.0",
     "koa-generic-session-knex": "^1.0.1",
+    "koa-is-json": "^1.0.0",
     "koa-jwt": "^3.3.2",
     "koa-pino-logger": "^2.1.1",
     "koa-proxies": "^0.7.0",
@@ -46,8 +50,11 @@
     "pino": "^4.7.3",
     "request": "^2.85.0",
     "request-promise-native": "^1.0.5",
+    "statuses": "^1.5.0",
+    "stream": "^0.0.2",
     "twitter": "^1.7.1",
-    "uuid": "^3.1.0"
+    "uuid": "^3.1.0",
+    "zlib": "^1.0.5"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
