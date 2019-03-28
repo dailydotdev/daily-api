@@ -2,8 +2,9 @@ FROM node:10.12.0-alpine
 
 EXPOSE 3000
 
-RUN apk add --no-cache libstdc++ \
- && apk add --no-cache --update git make g++ unzip autoconf automake libtool file openssl curl python
+RUN \
+  apk --no-cache add \
+  libc6-compat
 
 COPY package.json .
 COPY yarn.lock .
