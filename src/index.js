@@ -117,5 +117,10 @@ app.use(proxy('/icon', {
   changeOrigin: true,
   xfwd: true,
 }));
+app.use(proxy('/lettericons', {
+  target: config.besticonUrl,
+  changeOrigin: true,
+  xfwd: true,
+}));
 
 export default app;
