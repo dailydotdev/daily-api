@@ -57,7 +57,7 @@ const output = [
     url: input[1].url,
     publishedAt: null,
     createdAt: input[1].createdAt,
-    image: config.defaultImage.url,
+    image: config.defaultImage.url[0],
     ratio: config.defaultImage.ratio,
     placeholder: config.defaultImage.placeholder,
     publication: {
@@ -96,7 +96,7 @@ const pubsOutput = [
     url: input[3].url,
     publishedAt: null,
     createdAt: input[3].createdAt,
-    image: config.defaultImage.url,
+    image: config.defaultImage.url[0],
     ratio: config.defaultImage.ratio,
     placeholder: config.defaultImage.placeholder,
     publication: {
@@ -114,7 +114,7 @@ const pubsOutput = [
     url: input[2].url,
     publishedAt: null,
     createdAt: input[2].createdAt,
-    image: config.defaultImage.url,
+    image: config.defaultImage.url[0],
     ratio: config.defaultImage.ratio,
     placeholder: config.defaultImage.placeholder,
     publication: {
@@ -137,7 +137,7 @@ const promotedOutput = [
     url: input[3].url,
     publishedAt: null,
     createdAt: input[3].createdAt,
-    image: config.defaultImage.url,
+    image: config.defaultImage.url[0],
     ratio: config.defaultImage.ratio,
     placeholder: config.defaultImage.placeholder,
     publication: {

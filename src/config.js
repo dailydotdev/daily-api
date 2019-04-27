@@ -28,7 +28,7 @@ const config = {
   mysql: getMysqlConfig(),
   admin: process.env.ADMIN_KEY,
   defaultImage: {
-    url: process.env.DEFAULT_IMAGE_URL,
+    url: process.env.DEFAULT_IMAGE_URL.split(','),
     ratio: parseFloat(process.env.DEFAULT_IMAGE_RATIO),
     placeholder: process.env.DEFAULT_IMAGE_PLACEHOLDER,
   },

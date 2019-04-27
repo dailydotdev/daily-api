@@ -54,7 +54,7 @@ const output = [
     url: input[1].url,
     publishedAt: null,
     createdAt: input[1].createdAt,
-    image: config.defaultImage.url,
+    image: config.defaultImage.url[0],
     ratio: config.defaultImage.ratio,
     placeholder: config.defaultImage.placeholder,
     publication: {

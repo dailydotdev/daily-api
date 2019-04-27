@@ -33,8 +33,10 @@ const mapImage = (post) => {
     };
   }
 
+  const index = Math.floor(Math.random() * config.defaultImage.url.length);
+
   return {
-    image: config.defaultImage.url,
+    image: config.defaultImage.url[index],
     ratio: config.defaultImage.ratio,
     placeholder: config.defaultImage.placeholder,
   };
