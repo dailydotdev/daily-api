@@ -35,7 +35,6 @@ export const callGithubApi = (endpoint, accessToken) =>
 export const fetchGithubProfile = accessToken =>
   callGithubApi('user', accessToken);
 
-// eslint-disable-next-line import/prefer-default-export
 export const fetchProfile = async (provider, accessToken) => {
   if (provider === 'github') {
     const profile = await fetchGithubProfile(accessToken);
@@ -56,3 +55,28 @@ export const fetchProfile = async (provider, accessToken) => {
   throw new Error('unsupported profile provider');
 };
 
+export const fetchInfo = async (user) => {
+  if (user.provider === 'github') {
+    const [profile, emails] = await Promise.all([
+      fetchGithubProfile(user.accessToken),
+      callGithubApi('user/public_emails', user.accessToken),
+    ]);
+    if (emails.length) {
+      return {
+        name: profile.name,
+        email: emails[0].email,
+      };
+    }
+  }
+
+  const token = await refreshGoogleToken(user.userId, user.refreshToken);
+  const profile = await fetchGoogleProfile(token.access_token);
+  if (profile.emailAddresses.length) {
+    return {
+      name: profile.names[0].displayName,
+      email: profile.emailAddresses[0].value,
+    };
+  }
+
+  return null;
+};

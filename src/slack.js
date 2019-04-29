@@ -33,7 +33,7 @@ export const notifyPostReport = (userId, post, reason) =>
     }],
   });
 
-export const notifyNewSource = (userId, source) =>
+export const notifyNewSource = (userId, name, email, source) =>
   webhook.send({
     text: 'New source requested!',
     attachments: [{
@@ -41,6 +41,14 @@ export const notifyNewSource = (userId, source) =>
         {
           title: 'User',
           value: userId,
+        },
+        {
+          title: 'Name',
+          value: name,
+        },
+        {
+          title: 'Email',
+          value: email,
         },
         {
           title: 'Source',
