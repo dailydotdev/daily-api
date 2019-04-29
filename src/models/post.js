@@ -33,7 +33,7 @@ const mapImage = (post) => {
     };
   }
 
-  const index = post.createdAt.getTime() % config.defaultImage.url.length;
+  const index = Math.floor(post.createdAt.getTime() / 1000) % config.defaultImage.url.length;
 
   return {
     image: config.defaultImage.url[index],
