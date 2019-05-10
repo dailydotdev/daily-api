@@ -4,11 +4,11 @@ const table = 'tags_count';
 const postsTable = 'posts';
 const tagsTable = 'tags';
 
-const getPopular = () =>
+const getPopular = (count = 50) =>
   db.from(table)
     .select('tag as name')
     .orderBy('count', 'desc')
-    .where('count', '>=', 50)
+    .where('count', '>=', count)
     .limit(50);
 
 const updateTagsCount = async () =>
@@ -26,7 +26,7 @@ const addPostTags = (tags, trx = db) =>
   trx.insert(tags.map(toSnakeCase)).into(tagsTable);
 
 const search = query =>
-  getPopular()
+  getPopular(10)
     .andWhereRaw('MATCH (tag) AGAINST (\'??\' IN BOOLEAN MODE)', [`*${query}*`]);
 
 export default {
