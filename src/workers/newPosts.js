@@ -27,8 +27,14 @@ const addPost = data =>
         return addPost(Object.assign({}, data, { publishedAt: null }));
       }
 
-      if (err.code === 'ER_DATA_TOO_LONG' && err.sqlMessage.indexOf('tag') > -1) {
-        return addPost(Object.assign({}, data, { tags: [] }));
+      if (err.code === 'ER_DATA_TOO_LONG') {
+        if (err.sqlMessage.indexOf('tag') > -1) {
+          return addPost(Object.assign({}, data, { tags: [] }));
+        }
+
+        if (err.sqlMessage.indexOf('url') > -1) {
+          return logger.warn(`url is too long ${data.url}`);
+        }
       }
 
       throw err;
