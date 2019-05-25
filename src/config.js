@@ -52,30 +52,12 @@ const config = {
     accessTokenKey: process.env.TWITTER_ACCESS_TOKEN_KEY,
     accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
   },
-  urlPrefix: process.env.URL_PREFIX,
-  github: {
-    clientId: process.env.GITHUB_CLIENT_ID,
-    clientSecret: process.env.GITHUB_CLIENT_SECRET,
-    authorizeUrl: 'https://github.com/login/oauth/authorize',
-    authenticateUrl: 'https://github.com/login/oauth/access_token',
-    scope: 'user:email',
-  },
-  google: {
-    clientId: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    authorizeUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-    authenticateUrl: 'https://www.googleapis.com/oauth2/v4/token',
-    scope: 'profile email',
-  },
   jwt: {
     secret: process.env.JWT_SECRET,
     audience: process.env.JWT_AUDIENCE,
     issuer: process.env.JWT_ISSUER,
     expiresIn: 30 * 24 * 60 * 60 * 1000,
   },
-  monetizationUrl: process.env.MONETIZATION_URL || 'http://localhost:9090',
-  redirectorUrl: process.env.REDIRECTOR_URL || 'http://localhost:9090',
-  besticonUrl: process.env.BESTICON_URL || 'http://localhost:8080',
 };
 
 export default config;

@@ -76,16 +76,6 @@ spec:
               secretKeyRef:
                 name: {{ template "daily-api.fullname" . }}
                 key: ADMIN_KEY
-          - name: COOKIES_DOMAIN
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: COOKIES_DOMAIN
-          - name: COOKIES_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: COOKIES_KEY
           - name: TWITTER_CONSUMER_KEY
             valueFrom:
               secretKeyRef:
@@ -106,26 +96,6 @@ spec:
               secretKeyRef:
                 name: {{ template "daily-api.fullname" . }}
                 key: TWITTER_ACCESS_TOKEN_SECRET
-          - name: GITHUB_CLIENT_ID
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: GITHUB_CLIENT_ID
-          - name: GITHUB_CLIENT_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: GITHUB_CLIENT_SECRET
-          - name: GOOGLE_CLIENT_ID
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: GOOGLE_CLIENT_ID
-          - name: GOOGLE_CLIENT_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: GOOGLE_CLIENT_SECRET
           - name: JWT_SECRET
             valueFrom:
               secretKeyRef:
@@ -161,31 +131,6 @@ spec:
               configMapKeyRef:
                 name: {{ template "daily-api.fullname" . }}
                 key: DEFAULT_IMAGE_RATIO
-          - name: URL_PREFIX
-            valueFrom:
-              configMapKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: URL_PREFIX
-          - name: CORS_ORIGIN
-            valueFrom:
-              configMapKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: CORS_ORIGIN
-          - name: MONETIZATION_URL
-            valueFrom:
-              configMapKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: MONETIZATION_URL
-          - name: REDIRECTOR_URL
-            valueFrom:
-              configMapKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: REDIRECTOR_URL
-          - name: BESTICON_URL
-            valueFrom:
-              configMapKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: BESTICON_URL
           volumeMounts:
           - name: config
             mountPath: "/etc/config"

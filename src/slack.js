@@ -2,17 +2,6 @@ import { IncomingWebhook } from '@slack/client';
 
 const webhook = new IncomingWebhook(process.env.SLACK_WEBHOOK);
 
-export const notifyNewUser = (profile, provider) =>
-  webhook.send({
-    text: 'Daily just got a new user!',
-    attachments: [{
-      title: profile.name,
-      author_name: provider.replace(/^\w/, c => c.toUpperCase()),
-      thumb_url: profile.image,
-      color: '#96FF1E',
-    }],
-  });
-
 export const notifyPostReport = (userId, post, reason) =>
   webhook.send({
     text: 'Post was just reported!',

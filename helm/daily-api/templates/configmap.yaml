@@ -11,9 +11,4 @@ data:
   DEFAULT_IMAGE_URL: {{ .Values.appConfig.defaultImage.url }}
   DEFAULT_IMAGE_PLACEHOLDER: {{ .Values.appConfig.defaultImage.placeholder }}
   DEFAULT_IMAGE_RATIO: {{ .Values.appConfig.defaultImage.ratio | quote }}
-  URL_PREFIX: {{ .Values.appConfig.urlPrefix }}
-  CORS_ORIGIN: {{ .Values.appConfig.corsOrigin }}
-  MONETIZATION_URL: {{ .Values.appConfig.monetizationUrl }}
-  REDIRECTOR_URL: {{ .Values.appConfig.redirectorUrl }}
-  BESTICON_URL: {{ .Values.appConfig.besticonUrl }}
 
