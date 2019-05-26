@@ -9,7 +9,6 @@ import config from './config';
 // import compress from './middlewares/compress';
 import errorHandler from './middlewares/errorHandler';
 import logger from './logger';
-import { verify as verifyJwt } from './jwt';
 
 import health from './routes/health';
 import sources from './routes/sources';
@@ -33,8 +32,25 @@ app.proxy = true;
 app.use(bodyParser());
 app.use(KoaPinoLogger({ logger, useLevel: 'debug' }));
 app.use(errorHandler());
-app.use(verifyJwt);
 app.use(etag());
+
+// Machine-to-machine authentication
+app.use((ctx, next) => {
+  if (ctx.request.get('authorization') === `Service ${config.accessSecret}`
+    && ctx.request.get('user-id') && ctx.request.get('logged-in')) {
+    // eslint-disable-next-line
+    ctx.state = {
+      user: {
+        userId: ctx.request.get('user-id'),
+      },
+      service: true,
+    };
+  } else {
+    ctx.request.headers['user-id'] = null;
+    ctx.request.headers['logged-in'] = null;
+  }
+  return next();
+});
 
 const router = new Router({
   prefix: '/v1',

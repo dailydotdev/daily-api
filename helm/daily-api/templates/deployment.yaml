@@ -101,21 +101,6 @@ spec:
               configMapKeyRef:
                 name: {{ template "daily-api.fullname" . }}
                 key: URL_PREFIX
-          - name: JWT_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: JWT_SECRET
-          - name: JWT_AUDIENCE
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: JWT_AUDIENCE
-          - name: JWT_ISSUER
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: JWT_ISSUER
           - name: SLACK_WEBHOOK
             valueFrom:
               secretKeyRef:
@@ -136,6 +121,11 @@ spec:
               configMapKeyRef:
                 name: {{ template "daily-api.fullname" . }}
                 key: DEFAULT_IMAGE_RATIO
+          - name: ACCESS_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: ACCESS_SECRET
           volumeMounts:
           - name: config
             mountPath: "/etc/config"

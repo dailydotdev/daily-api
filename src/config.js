@@ -53,12 +53,8 @@ const config = {
     accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
   },
   urlPrefix: process.env.URL_PREFIX,
-  jwt: {
-    secret: process.env.JWT_SECRET,
-    audience: process.env.JWT_AUDIENCE,
-    issuer: process.env.JWT_ISSUER,
-    expiresIn: 30 * 24 * 60 * 60 * 1000,
-  },
+  accessSecret: process.env.ACCESS_SECRET || 'topsecret',
+  gatewaySecret: process.env.GATEWAY_SECRET,
 };
 
 export default config;

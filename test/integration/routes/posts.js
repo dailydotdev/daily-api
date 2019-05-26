@@ -1,6 +1,7 @@
 import { expect } from 'chai';
 import supertest from 'supertest';
 import knexCleaner from 'knex-cleaner';
+import config from '../../../src/config';
 import db, { migrate } from '../../../src/db';
 import publication from '../../../src/models/publication';
 import post from '../../../src/models/post';
@@ -8,7 +9,6 @@ import fixturePubs from '../../fixtures/publications';
 import fixture from '../../fixtures/posts';
 import fixtureToilet from '../../fixtures/toilet';
 import app from '../../../src';
-import { sign } from '../../../src/jwt';
 
 describe('posts routes', () => {
   let request;
@@ -128,11 +128,12 @@ describe('posts routes', () => {
       await post.bookmark(fixture.bookmarks);
 
       const latest = new Date(Date.now() + (60 * 60 * 1000));
-      const accessToken = await sign({ userId: fixture.bookmarks[0].userId });
 
       const res = await request
         .get('/v1/posts/bookmarks')
-        .set('Authorization', `Bearer ${accessToken.token}`)
+        .set('Authorization', `Service ${config.accessSecret}`)
+        .set('User-Id', fixture.bookmarks[0].userId)
+        .set('Logged-In', true)
         .query({
           latest,
           page: 0,
@@ -155,15 +156,15 @@ describe('posts routes', () => {
     it('should set bookmarks', async () => {
       await Promise.all(fixture.input.map(p => post.add(p)));
 
-      const accessToken = await sign({ userId: fixture.bookmarks[0].userId });
-
       const body = fixture.bookmarks
         .filter(b => b.userId === fixture.bookmarks[0].userId)
         .map(b => b.postId);
 
       const res = await request
         .post('/v1/posts/bookmarks')
-        .set('Authorization', `Bearer ${accessToken.token}`)
+        .set('Authorization', `Service ${config.accessSecret}`)
+        .set('User-Id', fixture.bookmarks[0].userId)
+        .set('Logged-In', true)
         .send(body)
         .expect(200);
 
@@ -184,11 +185,11 @@ describe('posts routes', () => {
 
       await post.bookmark(fixture.bookmarks);
 
-      const accessToken = await sign({ userId: fixture.bookmarks[0].userId });
-
       await request
         .delete(`/v1/posts/${fixture.bookmarks[0].postId}/bookmark`)
-        .set('Authorization', `Bearer ${accessToken.token}`)
+        .set('Authorization', `Service ${config.accessSecret}`)
+        .set('User-Id', fixture.bookmarks[0].userId)
+        .set('Logged-In', true)
         .expect(204);
     });
   });
@@ -209,15 +210,15 @@ describe('posts routes', () => {
       await request.post('/v1/tags/updateCount');
       await post.bookmark(fixtureToilet.bookmarks);
 
-      const accessToken = await sign({ userId: fixtureToilet.bookmarks[0].userId });
-
       const res = await request
         .get('/v1/posts/toilet')
         .query({
           latest: new Date(Date.now() + (60 * 60 * 1000)),
           page: 0,
         })
-        .set('Authorization', `Bearer ${accessToken.token}`)
+        .set('Authorization', `Service ${config.accessSecret}`)
+        .set('User-Id', fixtureToilet.bookmarks[0].userId)
+        .set('Logged-In', true)
         .expect(200);
 
       expect(res.body).to.deep.equal(fixtureToilet.output.map(mapDate).map(x => Object.assign({}, x, { type: 'post' })));

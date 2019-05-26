@@ -71,10 +71,6 @@ appConfig: {}
 #    client:
 #      id: ''
 #      secret: ''
-#  jwt:
-#    secret: ''
-#    audience: ''
-#    issuer: ''
 #  slackWebhook: ''
 #  corsOrigin: ''
 #  monetizationUrl: ''

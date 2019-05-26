@@ -19,9 +19,6 @@ steps:
   - DEFAULT_IMAGE_URL=https://cdn.com/image
   - DEFAULT_IMAGE_RATIO=1.2
   - DEFAULT_IMAGE_PLACEHOLDER=data:image/png;base64,asddasdqw
-  - JWT_SECRET=1234567890
-  - JWT_AUDIENCE=Daily Testing
-  - JWT_ISSUER=Daily API Testing
   secretEnv: ['SLACK_WEBHOOK']
 - name: node:10.12.0
   entrypoint: 'yarn'

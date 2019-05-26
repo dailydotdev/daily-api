@@ -1,11 +1,11 @@
 import { expect } from 'chai';
 import supertest from 'supertest';
 import knexCleaner from 'knex-cleaner';
+import config from '../../../src/config';
 import db, { migrate } from '../../../src/db';
 import settings from '../../../src/models/settings';
 import fixture from '../../fixtures/settings';
 import app from '../../../src';
-import { sign } from '../../../src/jwt';
 
 describe('settings routes', () => {
   let request;
@@ -33,11 +33,12 @@ describe('settings routes', () => {
 
   it('should return the user settings', async () => {
     await settings.upsert(fixture.input[0]);
-    const accessToken = await sign({ userId: fixture.input[0].userId });
 
     const { body } = await request
       .get('/v1/settings')
-      .set('Authorization', `Bearer ${accessToken.token}`)
+      .set('Authorization', `Service ${config.accessSecret}`)
+      .set('User-Id', fixture.input[0].userId)
+      .set('Logged-In', true)
       .expect(200);
 
     expect(body).to.deep.equal(fixture.output[0]);
@@ -50,11 +51,11 @@ describe('settings routes', () => {
   });
 
   it('should update the user settings', async () => {
-    const accessToken = await sign({ userId: 'user3' });
-
     const { body } = await request
       .post('/v1/settings')
-      .set('Authorization', `Bearer ${accessToken.token}`)
+      .set('Authorization', `Service ${config.accessSecret}`)
+      .set('User-Id', 'user3')
+      .set('Logged-In', true)
       .send({ userId: 'user3', theme: 'bright' })
       .expect(200);
 
