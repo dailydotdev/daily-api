@@ -96,6 +96,11 @@ spec:
               secretKeyRef:
                 name: {{ template "daily-api.fullname" . }}
                 key: TWITTER_ACCESS_TOKEN_SECRET
+          - name: URL_PREFIX
+            valueFrom:
+              configMapKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: URL_PREFIX
           - name: JWT_SECRET
             valueFrom:
               secretKeyRef:

@@ -52,6 +52,7 @@ const config = {
     accessTokenKey: process.env.TWITTER_ACCESS_TOKEN_KEY,
     accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
   },
+  urlPrefix: process.env.URL_PREFIX,
   jwt: {
     secret: process.env.JWT_SECRET,
     audience: process.env.JWT_AUDIENCE,
