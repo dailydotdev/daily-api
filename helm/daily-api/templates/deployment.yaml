@@ -126,6 +126,16 @@ spec:
               secretKeyRef:
                 name: {{ template "daily-api.fullname" . }}
                 key: ACCESS_SECRET
+          - name: GATEWAY_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: GATEWAY_SECRET
+          - name: GATEWAY_URL
+            valueFrom:
+              configMapKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: GATEWAY_URL
           volumeMounts:
           - name: config
             mountPath: "/etc/config"

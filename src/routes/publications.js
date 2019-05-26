@@ -2,8 +2,8 @@ import Router from 'koa-router';
 import validator, { object, string } from 'koa-context-validator';
 import publication from '../models/publication';
 import { notifyNewSource } from '../slack';
-import provider from '../models/provider';
 import { fetchInfo } from '../profile';
+import { ForbiddenError } from '../errors';
 
 const router = Router({
   prefix: '/publications',
@@ -29,9 +29,12 @@ router.post(
     stripUnknown: true,
   }),
   async (ctx) => {
+    if (!ctx.state.user || !ctx.state.user.userId) {
+      throw new ForbiddenError();
+    }
+
     const { body } = ctx.request;
-    const userProvider = await provider.getByUserId(ctx.state.user.userId);
-    const { email, name } = await fetchInfo(userProvider);
+    const { email, name } = await fetchInfo(ctx.state.user.userId);
     await notifyNewSource(ctx.state.user.userId, name, email, body.source);
     ctx.status = 204;
   },

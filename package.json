@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@google-cloud/pubsub": "^0.19.0",
-    "@google-cloud/trace-agent": "^2.11.0",
+    "@google-cloud/trace-agent": "^3.6.1",
     "@koa/cors": "2",
     "@slack/client": "^4.3.1",
     "bytes": "^3.1.0",
