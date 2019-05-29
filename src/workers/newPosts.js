@@ -35,6 +35,10 @@ const addPost = data =>
         if (err.sqlMessage.indexOf('url') > -1) {
           return logger.warn(`url is too long ${data.url}`);
         }
+
+        if (err.sqlMessage.indexOf('title') > -1) {
+          return logger.warn(`title is too long ${data.title}`);
+        }
       }
 
       throw err;
