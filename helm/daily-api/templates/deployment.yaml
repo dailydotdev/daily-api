@@ -136,6 +136,11 @@ spec:
               configMapKeyRef:
                 name: {{ template "daily-api.fullname" . }}
                 key: GATEWAY_URL
+          - name: CLOUDINARY_URL
+            valueFrom:
+              secretKeyRef:
+                name: {{ template "daily-api.fullname" . }}
+                key: CLOUDINARY_URL
           volumeMounts:
           - name: config
             mountPath: "/etc/config"

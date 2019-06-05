@@ -54,7 +54,7 @@ const config = {
   },
   urlPrefix: process.env.URL_PREFIX,
   accessSecret: process.env.ACCESS_SECRET || 'topsecret',
-  gatewaySecret: process.env.GATEWAY_SECRET,
+  gatewaySecret: process.env.GATEWAY_SECRET || 'topsecret',
   gatewayUrl: process.env.GATEWAY_URL || 'http://localhost:4000',
 };
 
