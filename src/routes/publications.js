@@ -13,11 +13,10 @@ import rolesAuth from '../middlewares/rolesAuth';
 import { ForbiddenError, ValidationError } from '../errors';
 
 const pubsub = new PubSub();
-const pubsubTopic = pubsub.topic('pub-request');
 
 const notifyPubRequest = (type, req) => {
   if (config.env === 'production') {
-    return pubsubTopic.publish(Buffer.from(JSON.stringify({ type, pubRequest: req })));
+    return pubsub.topic('pub-request').publish(Buffer.from(JSON.stringify({ type, pubRequest: req })));
   }
 
   return Promise.resolve();
