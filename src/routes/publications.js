@@ -4,12 +4,24 @@ import validator, { object, string } from 'koa-context-validator';
 import cloudinary from 'cloudinary';
 import Busboy from 'busboy';
 import rp from 'request-promise-native';
+import PubSub from '@google-cloud/pubsub';
 import config from '../config';
 import publication from '../models/publication';
 import pubsRequest from '../models/pubsRequest';
 import { fetchInfo } from '../profile';
 import rolesAuth from '../middlewares/rolesAuth';
 import { ForbiddenError, ValidationError } from '../errors';
+
+const pubsub = new PubSub();
+const pubsubTopic = pubsub.topic('pub-request');
+
+const notifyPubRequest = (type, req) => {
+  if (config.env === 'production') {
+    return pubsubTopic.publish(Buffer.from(JSON.stringify({ type, pubRequest: req })));
+  }
+
+  return Promise.resolve();
+};
 
 const uploadLogo = (name, stream) =>
   new Promise((resolve, reject) => {
@@ -97,12 +109,14 @@ router.post(
 
     const { body } = ctx.request;
     const { email, name } = await fetchInfo(ctx.state.user.userId);
-    await pubsRequest.add({
+    const req = {
       url: body.source,
       userId: ctx.state.user.userId,
       userName: name,
       userEmail: email,
-    });
+    };
+    await pubsRequest.add(req);
+    await notifyPubRequest('new', req);
     ctx.status = 204;
   },
 );
@@ -180,7 +194,9 @@ router.post(
 
     await publication.add(req.pubName, req.pubImage, true, req.pubTwitter, req.pubId);
     await pubsRequest.update(ctx.params.id, { closed: true });
-    await addSuperfeedrSubscription(req.pubRss, req.pubId);
+    if (config.env === 'production') {
+      await addSuperfeedrSubscription(req.pubRss, req.pubId);
+    }
     ctx.log.info({ pubsRequest: req }, `added new publication ${req.pubId}`);
     ctx.status = 204;
   },
