@@ -9,10 +9,9 @@ const getAll = () => db.select().from(table).orderBy('name').map(mapPub);
 const getEnabled = () => db.select().from(table).where('enabled', '=', 1).orderBy('name')
   .map(mapPub);
 
-const add = (name, image, enabled, twitter) => {
-  const id = name.toLowerCase().replace(' ', '_').replace('\'', '');
+const add = (name, image, enabled, twitter, id = null) => {
   const obj = {
-    id,
+    id: id || name.toLowerCase().replace(' ', '_').replace('\'', ''),
     name,
     image,
     enabled: enabled ? 1 : 0,

@@ -11,8 +11,10 @@ describe('pubs request model', () => {
     return migrate();
   });
 
-  it('should add new pub request to db', async () => {
+  it('should add and get pub request from db', async () => {
     await pubsRequest.add(fixture.input[0]);
+    const model = _.omit(await pubsRequest.getById(1), ['id', 'createdAt']);
+    expect(model).to.deep.equal(fixture.output[0]);
   });
 
   it('should get only open requests from db', async () => {

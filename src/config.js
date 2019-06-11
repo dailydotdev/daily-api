@@ -56,6 +56,14 @@ const config = {
   accessSecret: process.env.ACCESS_SECRET || 'topsecret',
   gatewaySecret: process.env.GATEWAY_SECRET || 'topsecret',
   gatewayUrl: process.env.GATEWAY_URL || 'http://localhost:4000',
+  superfeedr: {
+    user: process.env.SUPERFEEDR_USER,
+    pass: process.env.SUPERFEEDR_PASS,
+  },
+  webhook: {
+    url: process.env.WEBHOOK_URL,
+    secret: process.env.WEBHOOK_SECRET,
+  },
 };
 
 export default config;
