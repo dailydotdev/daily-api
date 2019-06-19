@@ -157,7 +157,9 @@ router.post(
   rolesAuth('moderator'),
   pubRequestExists,
   async (ctx) => {
+    const update = { approved: true };
     await pubsRequest.update(ctx.params.id, { approved: true });
+    await notifyPubRequest('approve', Object.assign({}, ctx.state.pubRequest, update));
     ctx.status = 204;
   },
 );
@@ -174,10 +176,9 @@ router.post(
     stripUnknown: true,
   }),
   async (ctx) => {
-    await pubsRequest.update(
-      ctx.params.id,
-      { approved: false, reason: ctx.request.body.reason, closed: true },
-    );
+    const update = { approved: false, reason: ctx.request.body.reason, closed: true };
+    await pubsRequest.update(ctx.params.id, update);
+    await notifyPubRequest('decline', Object.assign({}, ctx.state.pubRequest, update));
     ctx.status = 204;
   },
 );
@@ -193,10 +194,12 @@ router.post(
     }
 
     await publication.add(req.pubName, req.pubImage, true, req.pubTwitter, req.pubId);
-    await pubsRequest.update(ctx.params.id, { closed: true });
+    const update = { closed: true };
+    await pubsRequest.update(ctx.params.id, update);
     if (config.env === 'production') {
       await addSuperfeedrSubscription(req.pubRss, req.pubId);
     }
+    await notifyPubRequest('publish', Object.assign({}, ctx.state.pubRequest, update));
     ctx.log.info({ pubsRequest: req }, `added new publication ${req.pubId}`);
     ctx.status = 204;
   },
