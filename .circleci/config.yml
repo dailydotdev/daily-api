@@ -16,6 +16,7 @@ jobs:
           paths:
             - ./node_modules
   test:
+    working_directory: ~/app
     docker:
       - image: circleci/node:10.12.0
       - image: mysql:5.7
@@ -47,6 +48,7 @@ jobs:
             DEFAULT_IMAGE_RATIO: 1.2
             DEFAULT_IMAGE_PLACEHOLDER: data:image/png;base64,asddasdqw
   build_docker:
+    working_directory: ~/app
     docker:
       - image: google/cloud-sdk
     steps:
