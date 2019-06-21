@@ -33,7 +33,7 @@ jobs:
           name: test
           command: yarn test
           environment:
-            MYSQL_HOST: mysql
+            MYSQL_HOST: localhost
             MYSQL_USER: root
             MYSQL_PASSWORD: 12345
             MYSQL_DATABASE: test
