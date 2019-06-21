@@ -20,15 +20,15 @@ jobs:
           paths:
             - ./node_modules
       - run:
-        name: Waiting for MySQL to be ready
-        command: |
-          for i in `seq 1 10`;
-          do
-            nc -z localhost 3306 && echo Success && exit 0
-            echo -n .
-            sleep 1
-          done
-          echo Failed waiting for Postgress && exit 1
+          name: Waiting for MySQL to be ready
+          command: |
+            for i in `seq 1 10`;
+            do
+              nc -z localhost 3306 && echo Success && exit 0
+              echo -n .
+              sleep 1
+            done
+            echo Failed waiting for Postgress && exit 1
       - run:
           name: test
           command: yarn test
