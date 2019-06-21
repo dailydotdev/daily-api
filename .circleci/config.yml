@@ -24,7 +24,7 @@ jobs:
           MYSQL_ROOT_PASSWORD: 12345
     steps:
       - run:
-          name: Waiting for MySQL to be ready
+          name: Wait for MySQL
           command: |
             for i in `seq 1 10`;
             do
@@ -49,6 +49,9 @@ jobs:
   build_docker:
     docker:
       - image: google/cloud-sdk
-    run: |
-      echo $GCLOUD_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
-      docker build -t gcr.io/daily-ops/$CIRCLE_PROJECT_REPONAME:$CIRCLE_SHA1 .
+    steps:
+      - run:
+          name: Build Docker
+          command: |
+            echo $GCLOUD_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
+            docker build -t gcr.io/daily-ops/$CIRCLE_PROJECT_REPONAME:$CIRCLE_SHA1 .
