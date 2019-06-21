@@ -4,33 +4,37 @@ jobs:
     working_directory: ~/app
     docker:
       - image: circleci/node:10.12.0
-      - image: mysql:5.7
-        environment:
-          MYSQL_DATABASE: test
-          MYSQL_ROOT_PASSWORD: 12345
     steps:
       - checkout
       - restore_cache:
           key: dependency-cache-{{ checksum "yarn.lock" }}
       - run:
-          name: install dependencies
+          name: Install dependencies
           command: yarn install
       - save_cache:
           key: dependency-cache-{{ checksum "yarn.lock" }}
           paths:
             - ./node_modules
+  test:
+    docker:
+      - image: circleci/node:10.12.0
+      - image: mysql:5.7
+        environment:
+          MYSQL_DATABASE: test
+          MYSQL_ROOT_PASSWORD: 12345
+    steps:
       - run:
           name: Waiting for MySQL to be ready
           command: |
             for i in `seq 1 10`;
             do
-              nc -z localhost 3306 && echo Success && exit 0
-              echo -n .
-              sleep 1
+            nc -z localhost 3306 && echo Success && exit 0
+            echo -n .
+            sleep 1
             done
             echo Failed waiting for Postgress && exit 1
       - run:
-          name: test
+          name: Test
           command: yarn test
           environment:
             MYSQL_HOST: localhost
@@ -42,3 +46,9 @@ jobs:
             DEFAULT_IMAGE_URL: https://cdn.com/image
             DEFAULT_IMAGE_RATIO: 1.2
             DEFAULT_IMAGE_PLACEHOLDER: data:image/png;base64,asddasdqw
+  build_docker:
+    docker:
+      - image: google/cloud-sdk
+    run: |
+      echo $GCLOUD_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
+      docker build -t gcr.io/daily-ops/$CIRCLE_PROJECT_REPONAME:$CIRCLE_SHA1 .
