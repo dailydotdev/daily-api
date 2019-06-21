@@ -55,3 +55,15 @@ jobs:
           command: |
             echo $GCLOUD_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
             docker build -t gcr.io/daily-ops/$CIRCLE_PROJECT_REPONAME:$CIRCLE_SHA1 .
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+      - build_docker:
+          requires:
+            - test
