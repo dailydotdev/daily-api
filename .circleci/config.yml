@@ -46,7 +46,7 @@ jobs:
           paths:
             - build
   build_and_push_docker:
-    macine: true
+    machine: true
     steps:
       - attach_workspace:
           at: .
