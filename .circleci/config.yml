@@ -54,16 +54,20 @@ jobs:
   build_and_push_docker:
     machine: true
     steps:
+      - run:
+          name: Export extra env vars
+          command: |
+            echo "export CIRCLE_SHA1_SHORT=\"$(echo "$CIRCLE_SHA1" | cut -c -7)\"" >> $BASH_ENV # Redirect MY_ENV_VAR into $BASH_ENV
       - checkout
       - attach_workspace:
           at: .
       - gcp-gcr/build-image:
           image: $CIRCLE_PROJECT_REPONAME
-          tag: $CIRCLE_SHA1
+          tag: $CIRCLE_SHA1_SHORT
       - gcp-gcr/gcr-auth
       - gcp-gcr/push-image:
           image: $CIRCLE_PROJECT_REPONAME
-          tag: $CIRCLE_SHA1
+          tag: $CIRCLE_SHA1_SHORT
 workflows:
   build:
     jobs:
