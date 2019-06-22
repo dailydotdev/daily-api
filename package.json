@@ -65,6 +65,7 @@
     "husky": "^1.0.0-rc.14",
     "knex-cleaner": "^1.1.4",
     "mocha": "^4.0.1",
+    "mocha-junit-reporter": "^1.23.0",
     "nock": "^9.4.2",
     "nodemon": "^1.12.1",
     "sinon": "^4.0.1",
