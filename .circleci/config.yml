@@ -1,9 +1,9 @@
-version: 2
+version: 2.1
 jobs:
   build:
-    working_directory: ~/app
     docker:
       - image: circleci/node:10.12.0
+      - image: mysql:5.7
     steps:
       - checkout
       - restore_cache:
@@ -15,15 +15,6 @@ jobs:
           key: dependency-cache-{{ checksum "yarn.lock" }}
           paths:
             - ./node_modules
-  test:
-    working_directory: ~/app
-    docker:
-      - image: circleci/node:10.12.0
-      - image: mysql:5.7
-        environment:
-          MYSQL_DATABASE: test
-          MYSQL_ROOT_PASSWORD: 12345
-    steps:
       - run:
           name: Wait for MySQL
           command: |
@@ -47,25 +38,29 @@ jobs:
             DEFAULT_IMAGE_URL: https://cdn.com/image
             DEFAULT_IMAGE_RATIO: 1.2
             DEFAULT_IMAGE_PLACEHOLDER: data:image/png;base64,asddasdqw
-  build_docker:
-    working_directory: ~/app
-    docker:
-      - image: google/cloud-sdk
-    steps:
       - run:
-          name: Build Docker
-          command: |
-            echo $GCLOUD_SERVICE_KEY | gcloud auth activate-service-account --key-file=-
-            docker build -t gcr.io/daily-ops/$CIRCLE_PROJECT_REPONAME:$CIRCLE_SHA1 .
+          name: Build
+          command: yarn build
+      - persist_to_workspace:
+          root: .
+          paths:
+            - build
+  build_and_push_docker:
+    steps:
+      - attach_workspace:
+          at: .
+      - gcp-gcr/build-and-push-image:
+          image: $CIRCLE_PROJECT_REPONAME
+          tag: $CIRCLE_SHA1
 
+orbs:
+  gcp-gcr: circleci/gcp-gcr@x.y.z
 workflows:
   version: 2
   build_and_test:
     jobs:
       - build
-      - test:
+      - build_and_push_docker:
           requires:
             - build
-      - build_docker:
-          requires:
-            - test
+          context: gcr
