@@ -46,9 +46,12 @@ jobs:
           command: yarn build
       - persist_to_workspace:
           root: .
+          paths:
+            - build
   build_and_push_docker:
     machine: true
     steps:
+      - checkout
       - attach_workspace:
           at: .
       - gcp-gcr/build-image:
