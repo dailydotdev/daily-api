@@ -1,6 +1,8 @@
 version: 2.1
 orbs:
   gcp-gcr: circleci/gcp-gcr@0.6.0
+  helm: circleci/helm@0.1.2
+  gcp-cli: circleci/gcp-cli@1.8.1
 
 jobs:
   build:
@@ -52,7 +54,8 @@ jobs:
           paths:
             - build
   build_and_push_docker:
-    machine: true
+    docker:
+      - image: google/cloud-sdk
     steps:
       - checkout
       - attach_workspace:
@@ -64,6 +67,22 @@ jobs:
       - gcp-gcr/push-image:
           image: $CIRCLE_PROJECT_REPONAME
           tag: $CIRCLE_SHA1
+  deploy_helm:
+    docker:
+      - image: google/cloud-sdk
+    steps:
+      - checkout
+      - gcp-cli/initialize
+      - run:
+          name: Decrypt variables
+          command: gcloud kms decrypt --ciphertext-file=./helm/values/prod.yaml.enc --plaintext-file=./helm/values/prod.yaml --location=global --keyring=daily-ci --key=daily-api-ci
+      - run:
+          name: Get cluster credentials
+          command: gcloud container clusters get-credentials prod
+      - helm/install-helm-client
+      - run:
+          name: Update Helm release
+          command: helm upgrade $CIRCLE_PROJECT_REPONAME ./helm/$CIRCLE_PROJECT_REPONAME --namespace daily -f ./helm/values/prod.yaml --set-string image.tag=$CIRCLE_SHA1 -i
 workflows:
   build:
     jobs:
@@ -72,6 +91,10 @@ workflows:
           requires:
             - build
           context: GCR
+      - deploy_helm:
+          requires:
+            - build_and_push_docker
+          context: PROD
       - gcp-gcr/add-image-tag:
           requires:
             - build_and_push_docker
@@ -79,3 +102,7 @@ workflows:
           image: $CIRCLE_PROJECT_REPONAME
           source-tag: $CIRCLE_SHA1
           target-tag: latest
+          filters:
+            branches:
+              only:
+                - master
