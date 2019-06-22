@@ -46,17 +46,17 @@ jobs:
           command: yarn build
       - persist_to_workspace:
           root: .
-          paths:
-            - build
   build_and_push_docker:
     machine: true
     steps:
       - attach_workspace:
           at: .
-      - gcp-gcr/build-and-push-image:
+      - gcp-gcr/build-image:
           image: $CIRCLE_PROJECT_REPONAME
           tag: $CIRCLE_SHA1
-
+      - gcp-gcr/gcr-auth
+      - gcp-gcr/push-image:
+          tag: $CIRCLE_SHA1
 workflows:
   build:
     jobs:
