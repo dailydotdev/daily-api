@@ -55,7 +55,7 @@ jobs:
           tag: $CIRCLE_SHA1
 
 orbs:
-  gcp-gcr: circleci/gcp-gcr@x.y.z
+  gcp-gcr: circleci/gcp-gcr@0.6.0
 workflows:
   version: 2
   build_and_test:
