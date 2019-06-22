@@ -100,6 +100,10 @@ workflows:
           requires:
             - build_and_push_docker
           context: PROD
+          filters:
+            branches:
+              only:
+                - master
       - gcp-gcr/add-image-tag:
           requires:
             - build_and_push_docker
