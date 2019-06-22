@@ -71,4 +71,4 @@ workflows:
       - build_and_push_docker:
           requires:
             - build
-          context: gcr
+          context: GCR
