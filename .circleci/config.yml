@@ -78,7 +78,8 @@ jobs:
       - run:
           name: Get cluster credentials
           command: gcloud container clusters get-credentials prod
-      - helm/install-helm-client
+      - helm/install-helm-client:
+          version: 2.9.1
       - run:
           name: Update Helm release
           command: helm upgrade $CIRCLE_PROJECT_REPONAME ./helm/$CIRCLE_PROJECT_REPONAME --namespace daily -f ./helm/values/prod.yaml --set-string image.tag=$CIRCLE_SHA1 -i
