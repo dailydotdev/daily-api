@@ -50,6 +50,8 @@ jobs:
             DEFAULT_IMAGE_PLACEHOLDER: data:image/png;base64,asddasdqw
       - store_test_results:
           path: ~/junit
+      - store_artifacts:
+          path: ~/junit
       - run:
           name: Build
           command: yarn build
