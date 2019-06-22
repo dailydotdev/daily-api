@@ -74,7 +74,7 @@ jobs:
       - gcp-cli/initialize
       - run:
           name: Decrypt variables
-          command: gcloud --project daily-ops kms decrypt --ciphertext-file=./helm/values/prod.yaml.enc --plaintext-file=./helm/values/prod.yaml --location=global --keyring=daily-ci --key=daily-api-ci
+          command: gcloud kms decrypt --ciphertext-file=./helm/values/prod.yaml.enc --plaintext-file=./helm/values/prod.yaml --location=global --keyring=daily-ci --key=daily-api-ci --project daily-ops
       - run:
           name: Get cluster credentials
           command: gcloud container clusters get-credentials prod
@@ -85,23 +85,23 @@ jobs:
 workflows:
   build:
     jobs:
-      - build
-      - build_and_push_docker:
-          requires:
-            - build
-          context: GCR
+#      - build
+#      - build_and_push_docker:
+#          requires:
+#            - build
+#          context: GCR
       - deploy_helm:
-          requires:
-            - build_and_push_docker
+#          requires:
+#            - build_and_push_docker
           context: PROD
-      - gcp-gcr/add-image-tag:
-          requires:
-            - build_and_push_docker
-          context: GCR
-          image: $CIRCLE_PROJECT_REPONAME
-          source-tag: $CIRCLE_SHA1
-          target-tag: latest
-          filters:
-            branches:
-              only:
-                - master
+#      - gcp-gcr/add-image-tag:
+#          requires:
+#            - build_and_push_docker
+#          context: GCR
+#          image: $CIRCLE_PROJECT_REPONAME
+#          source-tag: $CIRCLE_SHA1
+#          target-tag: latest
+#          filters:
+#            branches:
+#              only:
+#                - master
