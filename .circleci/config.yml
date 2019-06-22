@@ -54,8 +54,7 @@ jobs:
           paths:
             - build
   build_and_push_docker:
-    docker:
-      - image: google/cloud-sdk
+    machine: true
     steps:
       - checkout
       - attach_workspace:
