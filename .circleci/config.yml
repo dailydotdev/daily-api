@@ -33,10 +33,12 @@ jobs:
             sleep 1
             done
             echo Failed waiting for Postgress && exit 1
+      - run: mkdir ~/junit
       - run:
           name: Test
-          command: yarn test
+          command: yarn test --reporter mocha-junit-reporter
           environment:
+            MOCHA_FILE: ~/junit/test-results.xml
             MYSQL_HOST: localhost
             MYSQL_USER: root
             MYSQL_PASSWORD: 12345
@@ -46,6 +48,8 @@ jobs:
             DEFAULT_IMAGE_URL: https://cdn.com/image
             DEFAULT_IMAGE_RATIO: 1.2
             DEFAULT_IMAGE_PLACEHOLDER: data:image/png;base64,asddasdqw
+      - store_test_results:
+          path: ~/junit
       - run:
           name: Build
           command: yarn build
