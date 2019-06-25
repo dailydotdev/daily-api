@@ -6,5 +6,8 @@ module.exports = {
       password: process.env.MYSQL_PASSWORD,
       database: process.env.MYSQL_DATABASE,
     },
+    seeds: {
+      directory: './seeds/dev',
+    },
   },
 };
