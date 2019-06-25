@@ -46,8 +46,8 @@ app.use((ctx, next) => {
       service: true,
     };
   } else {
-    ctx.request.headers['user-id'] = null;
-    ctx.request.headers['logged-in'] = null;
+    delete ctx.request.headers['user-id'];
+    delete ctx.request.headers['logged-in'];
   }
   return next();
 });
