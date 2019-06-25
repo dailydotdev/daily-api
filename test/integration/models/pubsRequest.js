@@ -28,7 +28,7 @@ describe('pubs request model', () => {
     const models = (await pubsRequest.getOpenRequests());
     await pubsRequest.update(models[0].id, { pubId: 'id' });
     const updatedModels = (await pubsRequest.getOpenRequests()).map(x => _.omit(x, ['id', 'createdAt']));
-    expect(updatedModels).to.deep.equal([
+    expect(updatedModels).to.have.deep.members([
       Object.assign({}, fixture.output[0], { pubId: 'id' }),
       fixture.output[3],
     ]);
