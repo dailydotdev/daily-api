@@ -71,11 +71,6 @@ spec:
               secretKeyRef:
                 name: {{ template "daily-api.fullname" . }}
                 key: MYSQL_HOST
-          - name: ADMIN_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: ADMIN_KEY
           - name: TWITTER_CONSUMER_KEY
             valueFrom:
               secretKeyRef:

@@ -11,7 +11,6 @@ import errorHandler from './middlewares/errorHandler';
 import logger from './logger';
 
 import health from './routes/health';
-import sources from './routes/sources';
 import posts from './routes/posts';
 import publications from './routes/publications';
 import tweet from './routes/tweet';
@@ -21,8 +20,6 @@ import notifications from './routes/notifications';
 import tags from './routes/tags';
 
 const app = new Koa();
-
-app.keys = [config.cookies.secret];
 
 app.proxy = true;
 
@@ -57,7 +54,6 @@ const router = new Router({
 });
 
 router.use(feeds.routes(), feeds.allowedMethods());
-router.use(sources.routes(), sources.allowedMethods());
 router.use(posts.routes(), posts.allowedMethods());
 router.use(publications.routes(), publications.allowedMethods());
 router.use(tweet.routes(), tweet.allowedMethods());
