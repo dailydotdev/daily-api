@@ -32,20 +32,6 @@ const config = {
     ratio: parseFloat(process.env.DEFAULT_IMAGE_RATIO),
     placeholder: process.env.DEFAULT_IMAGE_PLACEHOLDER,
   },
-  cookies: {
-    opts: {
-      domain: process.env.COOKIES_DOMAIN,
-      maxAge: 1000 * 60 * 60 * 24 * 365,
-      overwrite: true,
-      httpOnly: false,
-      signed: false,
-    },
-    secret: process.env.COOKIES_KEY,
-    key: 'da2',
-  },
-  cors: {
-    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN : '*',
-  },
   twitter: {
     consumerKey: process.env.TWITTER_CONSUMER_KEY,
     consumerSecret: process.env.TWITTER_CONSUMER_SECRET,

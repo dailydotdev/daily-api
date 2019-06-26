@@ -43,7 +43,6 @@ jobs:
             MYSQL_PASSWORD: 12345
             MYSQL_DATABASE: test
             NODE_ENV: test
-            ADMIN_KEY: 12345
             DEFAULT_IMAGE_URL: https://cdn.com/image
             DEFAULT_IMAGE_RATIO: 1.2
             DEFAULT_IMAGE_PLACEHOLDER: data:image/png;base64,asddasdqw

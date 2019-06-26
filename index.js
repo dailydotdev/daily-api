@@ -6,10 +6,16 @@ import { migrate } from './src/db';
 import newPostsWorker from './src/workers/newPosts';
 import newViewEventsWorker from './src/workers/newViewEvents';
 
+const registerWorks = async () => {
+  if (process.env.GCLOUD_PROJECT) {
+    await newPostsWorker();
+    await newViewEventsWorker();
+  }
+};
+
 logger.info('migrating database');
 migrate()
-  .then(newPostsWorker)
-  .then(newViewEventsWorker)
+  .then(registerWorks)
   .then(() => {
     const server = app.listen(config.port);
 
