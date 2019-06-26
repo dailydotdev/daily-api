@@ -7,7 +7,7 @@ import newPostsWorker from './src/workers/newPosts';
 import newViewEventsWorker from './src/workers/newViewEvents';
 
 const registerWorks = async () => {
-  if (process.env.GCLOUD_PROJECT) {
+  if (process.env.GCLOUD_PROJECT || process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     await newPostsWorker();
     await newViewEventsWorker();
   }
