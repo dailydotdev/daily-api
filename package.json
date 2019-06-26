@@ -10,7 +10,7 @@
     "mocha": "NODE_ENV=test mocha",
     "lint": "eslint . --ext .js",
     "test": "yarn run lint && yarn run mocha",
-    "build": "babel . -d build --source-maps --ignore build,node_modules,test && cp package.json yarn.lock ./build",
+    "build": "babel . -d build --source-maps --ignore build,node_modules,test && cp package.json yarn.lock ./build && cp -r seeds/data ./build/seeds",
     "babel-node": "babel-node",
     "watch": "nodemon --exec yarn run babel-node -- $npm_package_main | pino",
     "start": "node $npm_package_main",
