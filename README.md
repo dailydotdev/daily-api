@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Daily API</h1>
-  <strong>Legacy service for delivering and managing Daily content👀</strong>
+  <strong>Service for delivering and managing Daily content</strong>
 </div>
 <br>
 <p align="center">
