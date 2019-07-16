@@ -44,7 +44,7 @@
     "lodash": "^4.17.13",
     "mysql": "^2.15.0",
     "pino": "^4.7.3",
-    "request": "^2.85.0",
+    "request": "^2.88.0",
     "request-promise-native": "^1.0.5",
     "statuses": "^1.5.0",
     "stream": "^0.0.2",
