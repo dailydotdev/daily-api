@@ -28,6 +28,7 @@ const input = [
     createdAt: now,
     promoted: false,
     views: 2,
+    tags: ['a'],
   },
   {
     id: '3',
@@ -37,7 +38,6 @@ const input = [
     createdAt: new Date(now - 1000),
     promoted: false,
     views: 3,
-    tags: ['a'],
   },
   {
     id: '4',
@@ -66,7 +66,7 @@ const output = [
       image: publications[1].image,
     },
     views: input[1].views,
-    tags: [],
+    tags: input[1].tags,
     readTime: null,
   },
   {
@@ -91,65 +91,26 @@ const output = [
 
 const pubsOutput = [
   {
-    id: input[3].id,
-    title: input[3].title,
-    url: input[3].url,
+    id: input[1].id,
+    title: input[1].title,
+    url: input[1].url,
     publishedAt: null,
-    createdAt: input[3].createdAt,
+    createdAt: input[1].createdAt,
     image: config.defaultImage.url[0],
     ratio: config.defaultImage.ratio,
     placeholder: config.defaultImage.placeholder,
     publication: {
-      id: publications[2].id,
-      name: publications[2].name,
-      image: publications[2].image,
+      id: publications[1].id,
+      name: publications[1].name,
+      image: publications[1].image,
     },
-    views: input[3].views,
-    tags: [],
-    readTime: null,
-  },
-  {
-    id: input[2].id,
-    title: input[2].title,
-    url: input[2].url,
-    publishedAt: null,
-    createdAt: input[2].createdAt,
-    image: config.defaultImage.url[0],
-    ratio: config.defaultImage.ratio,
-    placeholder: config.defaultImage.placeholder,
-    publication: {
-      id: publications[2].id,
-      name: publications[2].name,
-      image: publications[2].image,
-    },
-    views: input[2].views,
-    tags: input[2].tags,
+    views: input[1].views,
+    tags: input[1].tags,
     readTime: null,
   },
 ];
 
-const tagsOutput = [pubsOutput[1], output[1]];
-
-const promotedOutput = [
-  {
-    id: input[3].id,
-    title: input[3].title,
-    url: input[3].url,
-    publishedAt: null,
-    createdAt: input[3].createdAt,
-    image: config.defaultImage.url[0],
-    ratio: config.defaultImage.ratio,
-    placeholder: config.defaultImage.placeholder,
-    publication: {
-      id: publications[2].id,
-      name: publications[2].name,
-      image: publications[2].image,
-    },
-    views: input[3].views,
-    tags: [],
-    readTime: null,
-  },
-];
+const tagsOutput = output;
 
 const bookmarks = [
   { userId: 'user1', postId: input[1].id },
@@ -160,7 +121,6 @@ const bookmarks = [
 export default {
   input,
   output,
-  promotedOutput,
   pubsOutput,
   tagsOutput,
   bookmarks,

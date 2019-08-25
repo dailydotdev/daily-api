@@ -40,7 +40,7 @@ const input = [
     id: 't4',
     title: 'Post #4',
     url: 'https://myblog.com/post4.html',
-    publicationId: publications[2].id,
+    publicationId: publications[1].id,
     createdAt: new Date(2017, 10, 21, 15, 11, 10),
     promoted: true,
     views: 4,
@@ -65,6 +65,7 @@ const output = [
     views: input[1].views,
     tags: [],
     readTime: null,
+    bookmarked: false,
   },
   {
     id: input[0].id,
@@ -83,6 +84,7 @@ const output = [
     views: input[0].views,
     tags: input[0].tags,
     readTime: input[0].readTime,
+    bookmarked: false,
   },
 ];
 
