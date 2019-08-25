@@ -137,7 +137,8 @@ describe('posts routes', () => {
         })
         .expect(200);
 
-      expect(res.body).to.have.deep.members([fixture.output[1], fixture.output[0]].map(mapDate));
+      expect(res.body).to.have.deep.members([fixture.output[1], fixture.output[0]]
+        .map(mapDate).map(x => Object.assign({}, x, { bookmarked: true })));
     });
   });
 

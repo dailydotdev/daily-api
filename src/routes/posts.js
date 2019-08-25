@@ -12,6 +12,19 @@ const router = Router({
 
 const splitArrayStr = str => (str ? str.split(',') : null);
 
+const getFeedParams = (ctx, rankBy, filters = {}) => {
+  const { query } = ctx.request;
+  const userId = ctx.state.user ? ctx.state.user.userId : null;
+  return {
+    fields: userId ? post.defaultUserFields : post.defaultAnonymousFields,
+    filters: Object.assign({}, { before: query.latest }, filters),
+    rankBy,
+    userId,
+    page: query.page,
+    pageSize: query.pageSize,
+  };
+};
+
 router.get(
   '/latest',
   validator({
@@ -26,15 +39,15 @@ router.get(
   async (ctx) => {
     const { query } = ctx.request;
     ctx.status = 200;
+
+    const feedParams = getFeedParams(ctx, 'popularity');
     if (!ctx.state.user) {
-      ctx.body = await post.getLatest(
-        query.latest, query.page, query.pageSize,
-        splitArrayStr(query.pubs), splitArrayStr(query.tags),
-      );
-    } else {
-      ctx.body =
-        await post.getUserLatest(query.latest, query.page, query.pageSize, ctx.state.user.userId);
+      feedParams.filters = Object.assign({}, feedParams.filters, {
+        publications: { include: splitArrayStr(query.pubs) },
+        tags: { include: splitArrayStr(query.tags) },
+      });
     }
+    ctx.body = await post.generateFeed(feedParams);
   },
 );
 
@@ -51,10 +64,7 @@ router.get(
   async (ctx) => {
     const { query } = ctx.request;
     ctx.status = 200;
-    ctx.body = await post.getByTag(
-      query.latest, query.page, query.pageSize, query.tag,
-      ctx.state.user ? ctx.state.user.userId : null,
-    );
+    ctx.body = await post.generateFeed(getFeedParams(ctx, 'creation', { tags: { include: [query.tag] } }));
   },
 );
 
@@ -71,10 +81,7 @@ router.get(
   async (ctx) => {
     const { query } = ctx.request;
     ctx.status = 200;
-    ctx.body = await post.getByPublication(
-      query.latest, query.page, query.pageSize, query.pub,
-      ctx.state.user ? ctx.state.user.userId : null,
-    );
+    ctx.body = await post.generateFeed(getFeedParams(ctx, 'creation', { publications: { include: [query.pub] } }));
   },
 );
 
@@ -120,9 +127,10 @@ router.get(
     const { query } = ctx.request;
 
     const assignType = type => x => Object.assign({}, x, { type });
-
+    const after = new Date(query.latest.getTime() - (24 * 60 * 60 * 1000));
+    const feedParams = Object.assign({}, getFeedParams(ctx, 'creation', { after }), { pageSize: 8 });
     const [posts, ads] = await Promise.all([
-      post.getToilet(query.latest, query.page, 8, ctx.state.user.userId),
+      post.generateFeed(feedParams),
       query.page === 0 ? Promise.resolve([]) : fetchToiletAd(ctx),
     ]);
 
@@ -145,15 +153,8 @@ router.get(
       throw new ForbiddenError();
     }
 
-    const model = await post.getBookmarks(
-      ctx.query.latest,
-      ctx.query.page,
-      ctx.query.pageSize,
-      ctx.state.user.userId,
-    );
-
     ctx.status = 200;
-    ctx.body = model;
+    ctx.body = await post.generateFeed(getFeedParams(ctx, 'creation', { bookmarks: true }));
   },
 );
 
@@ -191,7 +192,13 @@ router.delete(
 router.get(
   '/:id',
   async (ctx) => {
-    const model = await post.get(ctx.params.id);
+    const res = await post.generateFeed({
+      fields: post.defaultAnonymousFields,
+      filters: { postId: ctx.params.id },
+      page: 0,
+      pageSize: 1,
+    });
+    const model = res.length ? res[0] : null;
     if (model) {
       ctx.status = 200;
       ctx.body = model;

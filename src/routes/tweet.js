@@ -15,12 +15,12 @@ const getSiteHandler = (model) => {
   return null;
 };
 
-const buildTweet = (model, tags) => {
+const buildTweet = (model) => {
   const link = `${config.urlPrefix}/r/${model.id}`;
   const siteHandler = getSiteHandler(model);
   const via = siteHandler ? ` via ${siteHandler}` : '';
   const by = model.creatorTwitter ? ` by ${model.creatorTwitter}` : '';
-  const hashtags = tags.map(tag => `#${tag.replace(/-| /g, '')}`).join(' ');
+  const hashtags = model.tags.map(tag => `#${tag.replace(/-| /g, '')}`).join(' ');
   return `${model.title}${via}${by}\n${hashtags}\n\n${link}`;
 };
 
@@ -31,12 +31,17 @@ const router = Router({
 router.get(
   '/trending',
   async (ctx) => {
-    const model = await post.getPostToTweet();
+    const res = await post.generateFeed({
+      fields: ['id', 'title', 'image', 'siteTwitter', 'creatorTwitter', 'publicationTwitter', 'tags'],
+      page: 0,
+      pageSize: 1,
+    }, query =>
+      query.where(`${post.table}.tweeted`, '=', 0).andWhere(`${post.table}.views`, '>=', 30).orderBy('created_at'));
+    const model = res.length ? res[0] : null;
     if (model) {
-      const tags = await post.getPostTags(model.id);
       ctx.log.info(`tweeting post ${model.id}`);
       await post.setPostsAsTweeted(model.id);
-      await tweet(buildTweet(model, tags));
+      await tweet(buildTweet(model));
     }
     ctx.status = 204;
   },

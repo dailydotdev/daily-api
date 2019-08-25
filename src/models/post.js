@@ -254,54 +254,6 @@ const generateFeed = async ({ fields, filters, rankBy, userId, page = 0, pageSiz
     .map(mapPost(fields));
 };
 
-const getLatest = (latest, page, pageSize, publications, tags) =>
-  generateFeed({
-    fields: defaultAnonymousFields,
-    filters: {
-      before: latest,
-      publications: { include: publications },
-      tags: { include: tags },
-    },
-    rankBy: 'popularity',
-    page,
-    pageSize,
-  });
-
-const getByPublication = (latest, page, pageSize, publication, userId) =>
-  generateFeed({
-    fields: userId ? defaultUserFields : defaultAnonymousFields,
-    filters: {
-      before: latest,
-      publications: { include: [publication] },
-    },
-    rankBy: 'creation',
-    userId,
-    page,
-    pageSize,
-  });
-
-const getByTag = (latest, page, pageSize, tagName, userId) =>
-  generateFeed({
-    fields: userId ? defaultUserFields : defaultAnonymousFields,
-    filters: {
-      before: latest,
-      tags: { include: [tagName] },
-    },
-    rankBy: 'creation',
-    userId,
-    page,
-    pageSize,
-  });
-
-const get = id =>
-  generateFeed({
-    fields: defaultAnonymousFields,
-    filters: { postId: id },
-    page: 0,
-    pageSize: 1,
-  })
-    .then(res => (res.length ? res[0] : null));
-
 /**
  * Add new post to database
  * @param {Object} obj - The post to add.
@@ -327,20 +279,6 @@ const add = obj =>
     return tag.addPostTags((obj.tags || []).map(t => ({ postId: obj.id, tag: t })), trx);
   }).then(() => obj);
 
-const getPostToTweet = () =>
-  generateFeed({
-    fields: ['id', 'title', 'image', 'siteTwitter', 'creatorTwitter', 'publicationTwitter'],
-    page: 0,
-    pageSize: 1,
-  }, query => query.where(`${table}.tweeted`, '=', 0).andWhere(`${table}.views`, '>=', 30).orderBy('created_at'))
-    .then(res => (res.length ? res[0] : null));
-
-const getPostTags = id =>
-  db.select('tag')
-    .from(tagsTable)
-    .where('post_id', '=', id)
-    .map(res => res.tag);
-
 const setPostsAsTweeted = id =>
   db(table).where('id', '=', id).update({ tweeted: 1 });
 
@@ -355,19 +293,6 @@ const updateViews = async () => {
   });
 };
 
-const getBookmarks = (latest, page, pageSize, userId) =>
-  generateFeed({
-    fields: defaultAnonymousFields,
-    filters: {
-      before: latest,
-      bookmarks: true,
-    },
-    rankBy: 'creation',
-    userId,
-    page,
-    pageSize,
-  });
-
 const bookmark = (bookmarks) => {
   const obj = bookmarks.map(b => toSnakeCase(Object.assign({ createdAt: new Date() }, b)));
 
@@ -375,48 +300,17 @@ const bookmark = (bookmarks) => {
     .into(bookmarksTable).then(() => bookmarks);
 };
 
-const getUserLatest = (latest, page, pageSize, userId) =>
-  generateFeed({
-    fields: defaultUserFields,
-    filters: {
-      before: latest,
-    },
-    rankBy: 'popularity',
-    userId,
-    page,
-    pageSize,
-  });
-
-const getToilet = (latest, page, pageSize, userId) =>
-  generateFeed({
-    fields: defaultUserFields,
-    filters: {
-      before: latest,
-      after: new Date(latest.getTime() - (24 * 60 * 60 * 1000)),
-    },
-    rankBy: 'creation',
-    userId,
-    page,
-    pageSize,
-  }, query => query.andWhereRaw(`${bookmarksTable}.post_id IS NULL`));
-
 const removeBookmark = (userId, postId) =>
   db(bookmarksTable).where(toSnakeCase({ userId, postId })).delete();
 
 export default {
-  getLatest,
-  getByPublication,
-  getByTag,
-  get,
   add,
-  getPostToTweet,
   setPostsAsTweeted,
   updateViews,
-  getBookmarks,
   bookmark,
   removeBookmark,
-  getUserLatest,
-  getPostTags,
-  getToilet,
+  defaultAnonymousFields,
+  defaultUserFields,
+  table,
   generateFeed,
 };
