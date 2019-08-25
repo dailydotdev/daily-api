@@ -154,7 +154,10 @@ router.get(
     }
 
     ctx.status = 200;
-    ctx.body = await post.generateFeed(getFeedParams(ctx, 'creation', { bookmarks: true }));
+    ctx.body = await post.generateFeed(
+      getFeedParams(ctx, { bookmarks: true }),
+      query => query.orderByRaw(`${post.bookmarksTable}.created_at DESC`),
+    );
   },
 );
 

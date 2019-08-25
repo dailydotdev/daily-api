@@ -219,17 +219,22 @@ const filtersToQuery = async (query, filters = {}, rankBy, userId) => {
  */
 // eslint-disable-next-line object-curly-newline
 const generateFeed = async ({ fields, filters, rankBy, userId, page = 0, pageSize = 20 }, hook) => {
+  let relevantFields = fields || Object.keys(singleFieldToQuery);
+  if (relevantFields.indexOf('bookmarked') > -1 && !userId) {
+    relevantFields = relevantFields.filter(f => f !== 'bookmarked');
+  }
+
   let query = db
-    .select(...fieldsToSelect(fields || Object.keys(singleFieldToQuery)))
+    .select(...fieldsToSelect(relevantFields))
     .from(table)
     .join('publications', `${table}.publication_id`, 'publications.id');
 
   // Join bookmarks table if needed
-  if (userId && (fields.indexOf('bookmarked') > -1 || filters.bookmarks)) {
+  if (userId && (relevantFields.indexOf('bookmarked') > -1 || (filters && filters.bookmarks))) {
     const args = [bookmarksTable, builder =>
       builder.on(`${bookmarksTable}.post_id`, '=', `${table}.id`)
         .andOn(`${bookmarksTable}.user_id`, '=', db.raw('?', [userId]))];
-    if (filters.bookmarks) {
+    if (filters && filters.bookmarks) {
       query = query.join(...args);
     } else {
       query = query.leftJoin(...args);
@@ -251,7 +256,7 @@ const generateFeed = async ({ fields, filters, rankBy, userId, page = 0, pageSiz
   query = query.offset(page * pageSize).limit(pageSize);
   return query
     .map(toCamelCase)
-    .map(mapPost(fields));
+    .map(mapPost(relevantFields));
 };
 
 /**
@@ -312,5 +317,6 @@ export default {
   defaultAnonymousFields,
   defaultUserFields,
   table,
+  bookmarksTable,
   generateFeed,
 };
