@@ -9,138 +9,297 @@ const table = 'posts';
 const tagsTable = 'tags';
 const bookmarksTable = 'bookmarks';
 
-const select = (...additional) =>
-  db.select(
-    `${table}.id`, `${table}.title`, `${table}.url`, `${table}.image`, `${table}.published_at`, `${table}.created_at`,
-    `${table}.ratio`, `${table}.placeholder`, `${table}.views`, `${table}.read_time`,
-    'publications.id as pub_id', 'publications.image as pub_image', 'publications.name as pub_name', ...additional,
-    db.select(db.raw(`GROUP_CONCAT(${tagsTable}.tag ORDER BY tags_count.count DESC SEPARATOR ',')`))
-      .from(tagsTable)
-      .join('tags_count', `${tagsTable}.tag`, 'tags_count.tag')
-      .where(`${tagsTable}.post_id`, '=', db.raw(`\`${table}\`.\`id\``))
-      .groupBy(`${tagsTable}.post_id`)
-      .as('tags'),
-  )
-    .from(table)
-    .join('publications', `${table}.publication_id`, 'publications.id');
-
-const mapImage = (post) => {
-  if (post.image) {
-    return {
-      image: post.image,
-      ratio: post.ratio,
-      placeholder: post.placeholder,
-    };
-  }
-
-  const index = Math.floor(post.createdAt.getTime() / 1000) % config.defaultImage.url.length;
-
-  return {
-    image: config.defaultImage.url[index],
-    ratio: config.defaultImage.ratio,
-    placeholder: config.defaultImage.placeholder,
-  };
-};
+const nonEmptyArray = array => array && array.length;
 
 const getTimeLowerBounds = latest => new Date(latest - (10 * 24 * 60 * 60 * 1000));
 
-const mapBookmark = (post) => {
-  if (post.bookmarked) {
-    return { bookmarked: post.bookmarked === 1 };
+const mapPost = fields => (post) => {
+  let newPost = _.omit(post, ['tags', 'pubId', 'pubName', 'pubImage', 'bookmarked', 'image', 'ratio', 'placeholder']);
+
+  if (fields.indexOf('views') > -1 && !post.views) {
+    newPost.views = 0;
+  }
+  if (fields.indexOf('tags') > -1) {
+    newPost.tags = post.tags ? post.tags.split(',') : [];
   }
 
-  return {};
+  if (fields.indexOf('publication') > -1) {
+    newPost = Object.assign({}, newPost, {
+      publication: {
+        id: post.pubId,
+        name: post.pubName,
+        image: post.pubImage,
+      },
+    });
+  }
+
+  if (fields.indexOf('bookmarked') > -1) {
+    newPost.bookmarked = post.bookmarked === 1;
+  }
+
+  if (fields.indexOf('image') > -1) {
+    if (post.image) {
+      newPost = Object.assign({}, newPost, {
+        image: post.image,
+        ratio: post.ratio,
+        placeholder: post.placeholder,
+      });
+    } else {
+      // Set default image
+      const index = Math.floor(post.createdAt.getTime() / 1000) % config.defaultImage.url.length;
+      newPost = Object.assign({}, newPost, {
+        image: config.defaultImage.url[index],
+        ratio: config.defaultImage.ratio,
+        placeholder: config.defaultImage.placeholder,
+      });
+    }
+  }
+
+  return newPost;
 };
 
-const mapPost = post =>
-  Object.assign({}, {
-    id: post.id,
-    title: post.title,
-    url: post.url,
-    publishedAt: post.publishedAt,
-    createdAt: post.createdAt,
-    publication: {
-      id: post.pubId,
-      name: post.pubName,
-      image: post.pubImage,
-    },
-    views: post.views || 0,
-    tags: post.tags ? post.tags.split(',') : [],
-    readTime: post.readTime,
-  }, mapImage(post), mapBookmark(post));
+/**
+ * Generate select tags query
+ * @returns Knex query object
+ */
+const getTags = () => db.select(db.raw(`GROUP_CONCAT(${tagsTable}.tag ORDER BY tags_count.count DESC SEPARATOR ',')`))
+  .from(tagsTable)
+  .join('tags_count', `${tagsTable}.tag`, 'tags_count.tag')
+  .where(`${tagsTable}.post_id`, '=', db.raw(`\`${table}\`.\`id\``))
+  .groupBy(`${tagsTable}.post_id`)
+  .as('tags');
 
-const whereByPublications = (publications) => {
-  if (publications && publications.length > 0) {
-    return ['publications.id', 'in', publications];
-  }
-
-  return ['publications.enabled', '=', 1];
+/**
+ * Dictionary which maps a single field to a query
+ * A query can be a string, array of strings or a function
+ */
+const singleFieldToQuery = {
+  id: `${table}.id`,
+  title: `${table}.title`,
+  url: `${table}.url`,
+  image: [`${table}.image`, `${table}.ratio`, `${table}.placeholder`],
+  publishedAt: `${table}.published_at`,
+  createdAt: `${table}.created_at`,
+  views: `${table}.views`,
+  readTime: `${table}.read_time`,
+  publication: ['publications.id as pub_id', 'publications.image as pub_image', 'publications.name as pub_name'],
+  siteTwitter: `${table}.site_twitter`,
+  creatorTwitter: `${table}.creator_twitter`,
+  publicationTwitter: 'publications.twitter',
+  tags: getTags,
+  bookmarked: () => db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`),
 };
 
-const filterByTags = (query, tags) => {
-  if (tags && tags.length > 0) {
-    const tagsQuery = db.select(db.raw('1'))
-      .from(tagsTable)
-      .where('tag', 'in', tags)
-      .andWhere('post_id', '=', db.raw(`${table}.id`));
-    return query.whereExists(tagsQuery);
+const defaultAnonymousFields = [
+  'id', 'title', 'url', 'publishedAt', 'createdAt', 'image',
+  'views', 'readTime', 'publication', 'tags',
+];
+const defaultUserFields = [...defaultAnonymousFields, 'bookmarked'];
+
+/**
+ * Converts an array of fields to an array of parameters to knex select
+ * @param {String[]} fields Fields to include in the response
+ * @returns {Object[]} Array of select parameters
+ */
+const fieldsToSelect = fields => fields.reduce((acc, field) => {
+  const query = singleFieldToQuery[field];
+  if (query) {
+    let toAdd;
+    if (_.isFunction(query)) {
+      toAdd = query();
+    } else {
+      toAdd = query;
+    }
+    if (_.isArray(toAdd)) {
+      return acc.concat(toAdd);
+    }
+    acc.push(toAdd);
+  }
+  return acc;
+}, []);
+
+/**
+ * Adds the given filters to the query as a where statement
+ * @param query Knex query object
+ * @param {Object} filters Object containing the filters to apply
+ * @param {String} rankBy Order criteria
+ * @param {String} userId Id of the user who requested the feed
+ * @returns * Knex query object
+ */
+const filtersToQuery = async (query, filters = {}, rankBy, userId) => {
+  let newQuery = query;
+
+  if (filters.postId) {
+    newQuery = newQuery.where(`${table}.id`, '=', filters.postId);
+  } else {
+    const where = [
+      ['publications.enabled', '=', 1],
+    ];
+
+    if (filters.before) {
+      where.push([`${table}.created_at`, '<', filters.before]);
+    }
+
+    if (filters.after || rankBy === 'popularity') {
+      // in case we rank by popularity we must set lower bounds for better performance
+      const after = rankBy === 'popularity' ?
+        getTimeLowerBounds(filters.before || new Date()) : filters.after;
+      where.push([`${table}.created_at`, '>', after]);
+    }
+
+    if (filters.publications) {
+      if (nonEmptyArray(filters.publications.include)) {
+        where.push(['publications.id', 'in', filters.publications.include]);
+      }
+      if (nonEmptyArray(filters.publications.exclude)) {
+        where.push(['publications.id', 'not in', filters.publications.exclude]);
+      }
+    } else if (userId) {
+      // Filter by the publication preferences of the user
+      newQuery = newQuery.leftJoin('feeds', builder =>
+        builder.on('feeds.publication_id', '=', `${table}.publication_id`)
+          .andOn('feeds.user_id', '=', db.raw('?', [userId])));
+
+      where.push([builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
+        builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1))]);
+    }
+
+    newQuery = where.reduce((q, filter, index) => {
+      if (index === 0) {
+        return q.where(...filter);
+      }
+      return q.andWhere(...filter);
+    }, newQuery);
+
+    let { tags } = filters;
+    if (!tags && userId) {
+      // Fetch user tags
+      tags = { include: (await feed.getUserTags(userId)).map(t => t.tag) };
+    }
+
+    if (tags) {
+      if (nonEmptyArray(tags.include)) {
+        const tagsQuery = db.select(db.raw('1'))
+          .from(tagsTable)
+          .where('tag', 'in', tags.include)
+          .andWhere('post_id', '=', db.raw(`${table}.id`));
+        newQuery = newQuery.whereExists(tagsQuery);
+      }
+      if (nonEmptyArray(tags.exclude)) {
+        const tagsQuery = db.select(db.raw('1'))
+          .from(tagsTable)
+          .where('tag', 'in', tags.exclude)
+          .andWhere('post_id', '=', db.raw(`${table}.id`));
+        newQuery = newQuery.whereNotExists(tagsQuery);
+      }
+    }
+  }
+  // Workaround to return the query without invoking it
+  return [newQuery];
+};
+
+/**
+ * Generates a complete query for retrieving the requested feed
+ * @param {?String[]} fields Fields to include in the response
+ * @param {?Object} filters Object containing the filters to apply
+ * @param {?Date} filters.before Retrieve posts which created before this time
+ * @param {?Date} filters.after Retrieve posts which created after this time
+ * @param {?String[]} filters.publications.include Retrieve posts from the list
+ * @param {?String[]} filters.publications.exclude Retrieve posts which aren't from the list
+ * @param {?String[]} filters.tags.include Retrieve posts with these tags
+ * @param {?String[]} filters.tags.exclude Retrieve posts without these tags
+ * @param {?String} filters.postId Retrieve a specific post by id
+ * @param {?Boolean} filters.bookmarks Whether to retrieve only bookmarked posts
+ * @param {?'popularity'|'creation'} rankBy Order criteria
+ * @param {?String} userId Id of the user who requested the feed
+ * @param {?Number} page Page number
+ * @param {?Number} pageSize Number of posts per page
+ * @param {Function} hook Gets the query as a parameter and should return a new query
+ * @returns Knex query object
+ */
+// eslint-disable-next-line object-curly-newline
+const generateFeed = async ({ fields, filters, rankBy, userId, page = 0, pageSize = 20 }, hook) => {
+  let query = db
+    .select(...fieldsToSelect(fields || Object.keys(singleFieldToQuery)))
+    .from(table)
+    .join('publications', `${table}.publication_id`, 'publications.id');
+
+  // Join bookmarks table if needed
+  if (userId && (fields.indexOf('bookmarked') > -1 || filters.bookmarks)) {
+    const args = [bookmarksTable, builder =>
+      builder.on(`${bookmarksTable}.post_id`, '=', `${table}.id`)
+        .andOn(`${bookmarksTable}.user_id`, '=', db.raw('?', [userId]))];
+    if (filters.bookmarks) {
+      query = query.join(...args);
+    } else {
+      query = query.leftJoin(...args);
+    }
   }
 
-  return query;
+  [query] = await filtersToQuery(query, filters, rankBy, userId);
+
+  if (rankBy === 'popularity') {
+    query = query.orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`);
+  } else if (rankBy === 'creation') {
+    query = query.orderBy(`${table}.created_at`, 'DESC');
+  }
+
+  if (hook) {
+    query = hook(query);
+  }
+
+  query = query.offset(page * pageSize).limit(pageSize);
+  return query
+    .map(toCamelCase)
+    .map(mapPost(fields));
 };
 
 const getLatest = (latest, page, pageSize, publications, tags) =>
-  filterByTags(
-    select()
-      .where(`${table}.created_at`, '<=', latest)
-      .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
-      .andWhere(...whereByPublications(publications))
-      .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`)
-      .offset(page * pageSize)
-      .limit(pageSize),
-    tags,
-  )
-    .map(toCamelCase)
-    .map(mapPost);
-
-const selectWithBookmarked = userId =>
-  select(db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`))
-    .leftJoin(bookmarksTable, builder =>
-      builder.on(`${bookmarksTable}.post_id`, '=', `${table}.id`).andOn(`${bookmarksTable}.user_id`, '=', db.raw('?', [userId])));
-
-const getFeed = (latest, page, pageSize, userId) =>
-  (userId ? selectWithBookmarked(userId) : select())
-    .where(`${table}.created_at`, '<=', latest)
-    .offset(page * pageSize)
-    .limit(pageSize);
+  generateFeed({
+    fields: defaultAnonymousFields,
+    filters: {
+      before: latest,
+      publications: { include: publications },
+      tags: { include: tags },
+    },
+    rankBy: 'popularity',
+    page,
+    pageSize,
+  });
 
 const getByPublication = (latest, page, pageSize, publication, userId) =>
-  getFeed(latest, page, pageSize, userId)
-    .andWhere('publications.id', '=', publication)
-    .orderBy(`${table}.created_at`, 'DESC')
-    .map(toCamelCase)
-    .map(mapPost);
+  generateFeed({
+    fields: userId ? defaultUserFields : defaultAnonymousFields,
+    filters: {
+      before: latest,
+      publications: { include: [publication] },
+    },
+    rankBy: 'creation',
+    userId,
+    page,
+    pageSize,
+  });
 
 const getByTag = (latest, page, pageSize, tagName, userId) =>
-  getFeed(latest, page, pageSize, userId)
-    .join(tagsTable, `${tagsTable}.post_id`, `${table}.id`)
-    .andWhere(`${tagsTable}.tag`, '=', tagName)
-    .orderBy(`${table}.created_at`, 'DESC')
-    .map(toCamelCase)
-    .map(mapPost);
-
-const getPromoted = () =>
-  select()
-    .where(`${table}.promoted`, '=', 1)
-    .map(toCamelCase)
-    .map(mapPost);
+  generateFeed({
+    fields: userId ? defaultUserFields : defaultAnonymousFields,
+    filters: {
+      before: latest,
+      tags: { include: [tagName] },
+    },
+    rankBy: 'creation',
+    userId,
+    page,
+    pageSize,
+  });
 
 const get = id =>
-  select()
-    .where(`${table}.id`, '=', id)
-    .limit(1)
-    .map(toCamelCase)
-    .map(mapPost)
+  generateFeed({
+    fields: defaultAnonymousFields,
+    filters: { postId: id },
+    page: 0,
+    pageSize: 1,
+  })
     .then(res => (res.length ? res[0] : null));
 
 /**
@@ -168,17 +327,13 @@ const add = obj =>
     return tag.addPostTags((obj.tags || []).map(t => ({ postId: obj.id, tag: t })), trx);
   }).then(() => obj);
 
-const getPostToTweet = async () => {
-  const res = await db.select(`${table}.id`, `${table}.title`, `${table}.image`, `${table}.site_twitter`, `${table}.creator_twitter`, 'publications.twitter')
-    .from(table)
-    .join('publications', `${table}.publication_id`, 'publications.id')
-    .where(`${table}.tweeted`, '=', 0)
-    .andWhere(`${table}.views`, '>=', 30)
-    .orderBy('created_at')
-    .limit(1)
-    .map(toCamelCase);
-  return res.length ? res[0] : null;
-};
+const getPostToTweet = () =>
+  generateFeed({
+    fields: ['id', 'title', 'image', 'siteTwitter', 'creatorTwitter', 'publicationTwitter'],
+    page: 0,
+    pageSize: 1,
+  }, query => query.where(`${table}.tweeted`, '=', 0).andWhere(`${table}.views`, '>=', 30).orderBy('created_at'))
+    .then(res => (res.length ? res[0] : null));
 
 const getPostTags = id =>
   db.select('tag')
@@ -201,15 +356,17 @@ const updateViews = async () => {
 };
 
 const getBookmarks = (latest, page, pageSize, userId) =>
-  select()
-    .join(bookmarksTable, `${table}.id`, `${bookmarksTable}.post_id`)
-    .where(`${bookmarksTable}.created_at`, '<=', latest)
-    .andWhere(`${bookmarksTable}.user_id`, '=', userId)
-    .orderByRaw(`${bookmarksTable}.created_at DESC`)
-    .offset(page * pageSize)
-    .limit(pageSize)
-    .map(toCamelCase)
-    .map(mapPost);
+  generateFeed({
+    fields: defaultAnonymousFields,
+    filters: {
+      before: latest,
+      bookmarks: true,
+    },
+    rankBy: 'creation',
+    userId,
+    page,
+    pageSize,
+  });
 
 const bookmark = (bookmarks) => {
   const obj = bookmarks.map(b => toSnakeCase(Object.assign({ createdAt: new Date() }, b)));
@@ -218,34 +375,30 @@ const bookmark = (bookmarks) => {
     .into(bookmarksTable).then(() => bookmarks);
 };
 
-const getUserLatest = async (latest, page, pageSize, userId) => {
-  const tags = (await feed.getUserTags(userId)).map(t => t.tag);
-  return filterByTags(
-    getFeed(latest, page, pageSize, userId)
-      .leftJoin('feeds', builder =>
-        builder.on('feeds.publication_id', '=', `${table}.publication_id`).andOn('feeds.user_id', '=', db.raw('?', [userId])))
-      .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
-      .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
-        builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
-      .orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`),
-    tags,
-  )
-    .map(toCamelCase)
-    .map(mapPost);
-};
+const getUserLatest = (latest, page, pageSize, userId) =>
+  generateFeed({
+    fields: defaultUserFields,
+    filters: {
+      before: latest,
+    },
+    rankBy: 'popularity',
+    userId,
+    page,
+    pageSize,
+  });
 
 const getToilet = (latest, page, pageSize, userId) =>
-  getFeed(latest, page, pageSize, userId)
-    .leftJoin('feeds', builder =>
-      builder.on('feeds.publication_id', '=', `${table}.publication_id`).andOn('feeds.user_id', '=', db.raw('?', [userId])))
-    .andWhere(`${table}.created_at`, '>', getTimeLowerBounds(latest))
-    .andWhereRaw(`timestampdiff(hour, ${table}.created_at, current_timestamp()) <= 24`)
-    .andWhere(builder => builder.where('feeds.enabled', '=', 1).orWhere(builder2 =>
-      builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1)))
-    .andWhereRaw(`${bookmarksTable}.post_id IS NULL`)
-    .orderBy(`${table}.created_at`, 'DESC')
-    .map(toCamelCase)
-    .map(mapPost);
+  generateFeed({
+    fields: defaultUserFields,
+    filters: {
+      before: latest,
+      after: new Date(latest.getTime() - (24 * 60 * 60 * 1000)),
+    },
+    rankBy: 'creation',
+    userId,
+    page,
+    pageSize,
+  }, query => query.andWhereRaw(`${bookmarksTable}.post_id IS NULL`));
 
 const removeBookmark = (userId, postId) =>
   db(bookmarksTable).where(toSnakeCase({ userId, postId })).delete();
@@ -254,7 +407,6 @@ export default {
   getLatest,
   getByPublication,
   getByTag,
-  getPromoted,
   get,
   add,
   getPostToTweet,
@@ -266,4 +418,5 @@ export default {
   getUserLatest,
   getPostTags,
   getToilet,
+  generateFeed,
 };

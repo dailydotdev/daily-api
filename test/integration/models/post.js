@@ -10,6 +10,8 @@ import fixture from '../../fixtures/posts';
 import fixtureToilet from '../../fixtures/toilet';
 
 describe('post model', () => {
+  const latestDate = new Date(fixture.input[1].createdAt.getTime() + 1000);
+
   beforeEach(async () => {
     await knexCleaner.clean(db, { ignoreTables: ['knex_migrations', 'knex_migrations_lock'] });
     await migrate();
@@ -28,7 +30,7 @@ describe('post model', () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
     await tag.updateTagsCount();
 
-    const models = await post.getLatest(fixture.input[1].createdAt, 0, 20);
+    const models = await post.getLatest(latestDate, 0, 20);
     expect(models).to.deep.equal(fixture.output);
   });
 
@@ -36,38 +38,33 @@ describe('post model', () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
     await tag.updateTagsCount();
 
-    const models = await post.getLatest(fixture.input[1].createdAt, 0, 20, null, ['a']);
-    expect(models).to.deep.equal([fixture.output[1]]);
+    const models = await post.getLatest(latestDate, 0, 20, null, ['a']);
+    expect(models).to.deep.equal(fixture.output);
   });
 
   it('should fetch posts by pages sorted by score', async () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
     await tag.updateTagsCount();
 
-    const page1 = await post.getLatest(fixture.input[1].createdAt, 0, 1);
+    const page1 = await post.getLatest(latestDate, 0, 1);
     expect(page1).to.deep.equal([fixture.output[0]]);
 
-    const page2 = await post.getLatest(fixture.input[1].createdAt, 1, 1);
+    const page2 = await post.getLatest(latestDate, 1, 1);
     expect(page2).to.deep.equal([fixture.output[1]]);
   });
 
   it('should fetch posts only from given publications', async () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
+    await tag.updateTagsCount();
 
     const models =
-      await post.getLatest(fixture.input[1].createdAt, 0, 20, [fixture.input[1].publicationId]);
+      await post.getLatest(latestDate, 0, 20, [fixture.input[1].publicationId]);
     expect(models).to.deep.equal([fixture.output[0]]);
-  });
-
-  it('should fetch all promoted posts', async () => {
-    await Promise.all(fixture.input.map(p => post.add(p)));
-
-    const models = await post.getPromoted();
-    expect(models).to.deep.equal(fixture.promotedOutput);
   });
 
   it('should fetch post by id', async () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
+    await tag.updateTagsCount();
 
     const model = await post.get(fixture.output[0].id);
     expect(model).to.deep.equal(fixture.output[0]);
@@ -88,6 +85,8 @@ describe('post model', () => {
       id: fixture.input[0].id,
       title: fixture.input[0].title,
       image: fixture.input[0].image,
+      placeholder: fixture.input[0].placeholder,
+      ratio: fixture.input[0].ratio,
       twitter: fixturePubs[0].twitter,
       siteTwitter: null,
       creatorTwitter: null,
@@ -110,7 +109,7 @@ describe('post model', () => {
     expect(models).to.deep.equal(fixture.bookmarks);
   });
 
-  it('should get bookmarks sorted by time', async () => {
+  it('should get bookmarks', async () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
     await tag.updateTagsCount();
 
@@ -118,11 +117,8 @@ describe('post model', () => {
 
     const latest = new Date(Date.now() + (60 * 60 * 1000));
 
-    const page1 = await post.getBookmarks(latest, 0, 1, fixture.bookmarks[0].userId);
-    expect(page1).to.deep.equal([fixture.output[1]]);
-
-    const page2 = await post.getBookmarks(latest, 1, 1, fixture.bookmarks[0].userId);
-    expect(page2).to.deep.equal([fixture.output[0]]);
+    const page1 = await post.getBookmarks(latest, 0, 20, fixture.bookmarks[0].userId);
+    expect(page1).to.have.deep.members([fixture.output[0], fixture.output[1]]);
   });
 
   it('should remove bookmark', async () => {
@@ -143,7 +139,11 @@ describe('post model', () => {
     await tag.updateTagsCount();
 
     await post.bookmark([{ userId: 'user1', postId: fixture.input[0].id }]);
-    await feed.upsertUserPublications([{ userId: 'user1', publicationId: fixture.input[1].publicationId, enabled: false }]);
+    await feed.upsertUserPublications([{
+      userId: 'user1',
+      publicationId: fixture.input[1].publicationId,
+      enabled: false,
+    }]);
 
     const models = await post.getUserLatest(fixture.input[1].createdAt, 0, 20, 'user1');
     expect(models).to.deep.equal([Object.assign({ bookmarked: true }, fixture.output[1])]);
@@ -173,10 +173,10 @@ describe('post model', () => {
     await tag.updateTagsCount();
 
     const models = await post.getByPublication(
-      fixture.input[3].createdAt,
+      latestDate,
       0,
       20,
-      fixture.input[3].publicationId,
+      fixture.input[1].publicationId,
     );
     expect(models).to.deep.equal(fixture.pubsOutput);
   });
@@ -185,7 +185,7 @@ describe('post model', () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
     await tag.updateTagsCount();
 
-    const models = await post.getByTag(fixture.input[3].createdAt, 0, 20, 'a');
+    const models = await post.getByTag(latestDate, 0, 20, 'a');
     expect(models).to.deep.equal(fixture.tagsOutput);
   });
 });

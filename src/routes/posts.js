@@ -79,14 +79,6 @@ router.get(
 );
 
 router.get(
-  '/promoted',
-  async (ctx) => {
-    ctx.status = 200;
-    ctx.body = await post.getPromoted();
-  },
-);
-
-router.get(
   '/views',
   async (ctx) => {
     ctx.log.info('updating views');
