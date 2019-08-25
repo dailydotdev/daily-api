@@ -14,6 +14,8 @@ describe('posts routes', () => {
   let request;
   let server;
 
+  const latestDate = new Date(fixture.input[1].createdAt.getTime() + 1000).toISOString();
+
   beforeEach(async () => {
     await knexCleaner.clean(db, { ignoreTables: ['knex_migrations', 'knex_migrations_lock'] });
     await migrate();
@@ -40,7 +42,7 @@ describe('posts routes', () => {
 
     const result = await request
       .get('/v1/posts/latest')
-      .query({ latest: fixture.input[1].createdAt.toISOString(), page: 0, pageSize: 20 })
+      .query({ latest: latestDate, page: 0, pageSize: 20 })
       .expect(200);
 
     expect(result.body).to.deep.equal(fixture.output.map(mapDate));
@@ -65,11 +67,12 @@ describe('posts routes', () => {
 
   it('should fetch latest posts by given publications', async () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
+    await request.post('/v1/tags/updateCount');
 
     const result = await request
       .get('/v1/posts/latest')
       .query({
-        latest: fixture.input[1].createdAt.toISOString(),
+        latest: latestDate,
         page: 0,
         pageSize: 20,
         pubs: [fixture.input[1].publicationId].join(','),
@@ -79,19 +82,10 @@ describe('posts routes', () => {
     expect(result.body).to.deep.equal([fixture.output[0]].map(mapDate));
   });
 
-  it('should fetch promoted posts', async () => {
-    await Promise.all(fixture.input.map(p => post.add(p)));
-
-    const result = await request
-      .get('/v1/posts/promoted')
-      .expect(200);
-
-    expect(result.body).to.deep.equal(fixture.promotedOutput.map(mapDate));
-  });
-
   describe('get by id endpoint', () => {
     it('should fetch post', async () => {
       await Promise.all(fixture.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
 
       const result = await request
         .get(`/v1/posts/${fixture.output[0].id}`)
@@ -101,6 +95,8 @@ describe('posts routes', () => {
     });
 
     it('should return not found when post doesn\'t exist', async () => {
+      await request.post('/v1/tags/updateCount');
+
       const result = await request
         .get('/v1/posts/1234')
         .expect(404);
@@ -141,7 +137,7 @@ describe('posts routes', () => {
         })
         .expect(200);
 
-      expect(res.body).to.deep.equal([fixture.output[1], fixture.output[0]].map(mapDate));
+      expect(res.body).to.have.deep.members([fixture.output[1], fixture.output[0]].map(mapDate));
     });
   });
 
@@ -223,39 +219,39 @@ describe('posts routes', () => {
 
       expect(res.body).to.deep.equal(fixtureToilet.output.map(mapDate).map(x => Object.assign({}, x, { type: 'post' })));
     });
+  });
 
-    it('should fetch posts by publication', async () => {
-      await Promise.all(fixture.input.map(p => post.add(p)));
-      await request.post('/v1/tags/updateCount');
+  it('should fetch posts by publication', async () => {
+    await Promise.all(fixture.input.map(p => post.add(p)));
+    await request.post('/v1/tags/updateCount');
 
-      const result = await request
-        .get('/v1/posts/publication')
-        .query({
-          latest: fixture.input[3].createdAt.toISOString(),
-          page: 0,
-          pageSize: 20,
-          pub: fixture.input[3].publicationId,
-        })
-        .expect(200);
+    const result = await request
+      .get('/v1/posts/publication')
+      .query({
+        latest: latestDate,
+        page: 0,
+        pageSize: 20,
+        pub: fixture.input[1].publicationId,
+      })
+      .expect(200);
 
-      expect(result.body).to.deep.equal(fixture.pubsOutput.map(mapDate));
-    });
+    expect(result.body).to.deep.equal(fixture.pubsOutput.map(mapDate));
+  });
 
-    it('should fetch posts by tag', async () => {
-      await Promise.all(fixture.input.map(p => post.add(p)));
-      await request.post('/v1/tags/updateCount');
+  it('should fetch posts by tag', async () => {
+    await Promise.all(fixture.input.map(p => post.add(p)));
+    await request.post('/v1/tags/updateCount');
 
-      const result = await request
-        .get('/v1/posts/tag')
-        .query({
-          latest: fixture.input[3].createdAt.toISOString(),
-          page: 0,
-          pageSize: 20,
-          tag: 'a',
-        })
-        .expect(200);
+    const result = await request
+      .get('/v1/posts/tag')
+      .query({
+        latest: latestDate,
+        page: 0,
+        pageSize: 20,
+        tag: 'a',
+      })
+      .expect(200);
 
-      expect(result.body).to.deep.equal(fixture.tagsOutput.map(mapDate));
-    });
+    expect(result.body).to.deep.equal(fixture.tagsOutput.map(mapDate));
   });
 });
