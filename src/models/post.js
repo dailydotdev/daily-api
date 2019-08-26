@@ -8,6 +8,7 @@ import feed from './feed';
 const table = 'posts';
 const tagsTable = 'tags';
 const bookmarksTable = 'bookmarks';
+const eventsTable = 'events';
 
 const nonEmptyArray = array => array && array.length;
 
@@ -35,6 +36,9 @@ const mapPost = fields => (post) => {
 
   if (fields.indexOf('bookmarked') > -1) {
     newPost.bookmarked = post.bookmarked === 1;
+  }
+  if (fields.indexOf('read') > -1) {
+    newPost.read = post.read === 1;
   }
 
   if (fields.indexOf('image') > -1) {
@@ -69,6 +73,13 @@ const getTags = () => db.select(db.raw(`GROUP_CONCAT(${tagsTable}.tag ORDER BY t
   .groupBy(`${tagsTable}.post_id`)
   .as('tags');
 
+const didRead = userId => db(eventsTable)
+  .count('*')
+  .where(`${eventsTable}.type`, '=', 'view')
+  .andWhere(`${eventsTable}.user_id`, '=', userId)
+  .andWhere(`${eventsTable}.post_id`, '=', db.raw(`\`${table}\`.\`id\``))
+  .as('read');
+
 /**
  * Dictionary which maps a single field to a query
  * A query can be a string, array of strings or a function
@@ -88,6 +99,7 @@ const singleFieldToQuery = {
   publicationTwitter: 'publications.twitter',
   tags: getTags,
   bookmarked: () => db.raw(`${bookmarksTable}.post_id IS NOT NULL as bookmarked`),
+  read: didRead,
 };
 
 const defaultAnonymousFields = [
@@ -99,14 +111,15 @@ const defaultUserFields = [...defaultAnonymousFields, 'bookmarked'];
 /**
  * Converts an array of fields to an array of parameters to knex select
  * @param {String[]} fields Fields to include in the response
+ * @param {?String} userId Id of the user who requested the feed
  * @returns {Object[]} Array of select parameters
  */
-const fieldsToSelect = fields => fields.reduce((acc, field) => {
+const fieldsToSelect = (fields, userId) => fields.reduce((acc, field) => {
   const query = singleFieldToQuery[field];
   if (query) {
     let toAdd;
     if (_.isFunction(query)) {
-      toAdd = query();
+      toAdd = query(userId);
     } else {
       toAdd = query;
     }
@@ -122,8 +135,8 @@ const fieldsToSelect = fields => fields.reduce((acc, field) => {
  * Adds the given filters to the query as a where statement
  * @param query Knex query object
  * @param {Object} filters Object containing the filters to apply
- * @param {String} rankBy Order criteria
- * @param {String} userId Id of the user who requested the feed
+ * @param {?String} rankBy Order criteria
+ * @param {?String} userId Id of the user who requested the feed
  * @returns * Knex query object
  */
 const filtersToQuery = async (query, filters = {}, rankBy, userId) => {
@@ -225,7 +238,7 @@ const generateFeed = async ({ fields, filters, rankBy, userId, page = 0, pageSiz
   }
 
   let query = db
-    .select(...fieldsToSelect(relevantFields))
+    .select(...fieldsToSelect(relevantFields, userId))
     .from(table)
     .join('publications', `${table}.publication_id`, 'publications.id');
 
