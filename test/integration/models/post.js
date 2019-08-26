@@ -6,6 +6,7 @@ import publication from '../../../src/models/publication';
 import post from '../../../src/models/post';
 import tag from '../../../src/models/tag';
 import feed from '../../../src/models/feed';
+import event from '../../../src/models/event';
 import fixturePubs from '../../fixtures/publications';
 import fixture from '../../fixtures/posts';
 import feedFixture from '../../fixtures/feedGenerator';
@@ -93,6 +94,21 @@ describe('post model', () => {
       expected[2].bookmarked = true;
 
       const actual = await post.generateFeed({ fields: ['id', 'bookmarked'], rankBy: 'creation', userId: '1' });
+      expect(actual).to.deep.equal(expected);
+    });
+
+    it('should return posts with read field', async () => {
+      await Promise.all([
+        event.add('view', '1', feedFixture.posts[0].id),
+        event.add('view', '1', feedFixture.posts[2].id),
+        event.add('view', '2', feedFixture.posts[1].id),
+      ]);
+
+      const expected = feedFixture.posts.map(p => ({ id: p.id, read: false }));
+      expected[0].read = true;
+      expected[2].read = true;
+
+      const actual = await post.generateFeed({ fields: ['id', 'read'], rankBy: 'creation', userId: '1' });
       expect(actual).to.deep.equal(expected);
     });
 
