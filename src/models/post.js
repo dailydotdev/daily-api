@@ -331,7 +331,7 @@ const bookmark = (bookmarks) => {
 const removeBookmark = (userId, postId) =>
   db(bookmarksTable).where(toSnakeCase({ userId, postId })).delete();
 
-const hidePost = async (userId, postId) => {
+const hide = async (userId, postId) => {
   try {
     await db.insert(toSnakeCase({ userId, postId })).into(hideTable);
   } catch (err) {
@@ -339,6 +339,14 @@ const hidePost = async (userId, postId) => {
       throw err;
     }
   }
+};
+
+const get = async (id) => {
+  const res = await generateFeed({
+    fields: defaultAnonymousFields,
+    filters: { postId: id },
+  });
+  return res.length ? res[0] : null;
 };
 
 export default {
@@ -352,5 +360,6 @@ export default {
   table,
   bookmarksTable,
   generateFeed,
-  hidePost,
+  hide,
+  get,
 };

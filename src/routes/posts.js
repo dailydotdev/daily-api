@@ -232,7 +232,7 @@ router.post(
     if (model) {
       await Promise.all([
         notifyPostReport(ctx.state.user.userId, model, reason),
-        post.hidePost(ctx.state.user.userId, model.id),
+        post.hide(ctx.state.user.userId, model.id),
       ]);
       ctx.status = 204;
     } else {

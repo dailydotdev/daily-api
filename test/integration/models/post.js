@@ -43,13 +43,21 @@ describe('post model', () => {
 
   it('should hide post', async () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
-    await post.hidePost('1', fixture.input[0].id);
+    await post.hide('1', fixture.input[0].id);
   });
 
   it('should not throw exception if post is hidden already', async () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
-    await post.hidePost('1', fixture.input[0].id);
-    await post.hidePost('1', fixture.input[0].id);
+    await post.hide('1', fixture.input[0].id);
+    await post.hide('1', fixture.input[0].id);
+  });
+
+  it('should get post by id', async () => {
+    await Promise.all(fixture.input.map(p => post.add(p)));
+    await tag.updateTagsCount();
+
+    const model = await post.get(fixture.input[0].id);
+    expect(model).to.deep.equal(fixture.output[1]);
   });
 
   describe('feed generation', () => {
@@ -211,8 +219,8 @@ describe('post model', () => {
 
     it('should return posts which are not hidden', async () => {
       const hidden = [feedFixture.posts[0].id, feedFixture.posts[1].id];
-      await Promise.all(hidden.map(id => post.hidePost('2', id)));
-      await post.hidePost('1', feedFixture.posts[2].id);
+      await Promise.all(hidden.map(id => post.hide('2', id)));
+      await post.hide('1', feedFixture.posts[2].id);
 
       const actual = await post.generateFeed({
         fields: ['id'],
