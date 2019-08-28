@@ -230,7 +230,10 @@ router.post(
     const reason = reasons[body.reason];
     const model = await post.get(ctx.params.id);
     if (model) {
-      await notifyPostReport(ctx.state.user.userId, model, reason);
+      await Promise.all([
+        notifyPostReport(ctx.state.user.userId, model, reason),
+        post.hidePost(ctx.state.user.userId, model.id),
+      ]);
       ctx.status = 204;
     } else {
       throw new EntityNotFoundError('post', 'id', ctx.params.id);
