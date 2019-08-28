@@ -9,6 +9,7 @@ const table = 'posts';
 const tagsTable = 'tags';
 const bookmarksTable = 'bookmarks';
 const eventsTable = 'events';
+const hideTable = 'hidden_posts';
 
 const nonEmptyArray = array => array && array.length;
 
@@ -177,6 +178,15 @@ const filtersToQuery = async (query, filters = {}, rankBy, userId) => {
         builder2.whereNull('feeds.enabled').andWhere('publications.enabled', '=', 1))]);
     }
 
+    if (userId) {
+      // Remove hidden posts from feed
+      newQuery = newQuery.leftJoin(hideTable, builder =>
+        builder.on(`${hideTable}.post_id`, '=', `${table}.id`)
+          .andOn(`${hideTable}.user_id`, '=', db.raw('?', [userId])));
+
+      where.push([db.raw(`${hideTable}.post_id IS NULL`)]);
+    }
+
     newQuery = where.reduce((q, filter, index) => {
       if (index === 0) {
         return q.where(...filter);
@@ -321,6 +331,16 @@ const bookmark = (bookmarks) => {
 const removeBookmark = (userId, postId) =>
   db(bookmarksTable).where(toSnakeCase({ userId, postId })).delete();
 
+const hidePost = async (userId, postId) => {
+  try {
+    await db.insert(toSnakeCase({ userId, postId })).into(hideTable);
+  } catch (err) {
+    if (err.code !== 'ER_DUP_ENTRY') {
+      throw err;
+    }
+  }
+};
+
 export default {
   add,
   setPostsAsTweeted,
@@ -332,4 +352,5 @@ export default {
   table,
   bookmarksTable,
   generateFeed,
+  hidePost,
 };

@@ -41,6 +41,17 @@ describe('post model', () => {
     await post.removeBookmark(fixture.bookmarks[0].userId, fixture.bookmarks[0].postId);
   });
 
+  it('should hide post', async () => {
+    await Promise.all(fixture.input.map(p => post.add(p)));
+    await post.hidePost('1', fixture.input[0].id);
+  });
+
+  it('should not throw exception if post is hidden already', async () => {
+    await Promise.all(fixture.input.map(p => post.add(p)));
+    await post.hidePost('1', fixture.input[0].id);
+    await post.hidePost('1', fixture.input[0].id);
+  });
+
   describe('feed generation', () => {
     beforeEach(async () => {
       await knexCleaner.clean(db, { ignoreTables: ['knex_migrations', 'knex_migrations_lock'] });
@@ -196,6 +207,19 @@ describe('post model', () => {
       });
       expect(actual).to.deep.equal([feedFixture.posts[1], feedFixture.posts[3]]
         .map(p => ({ id: p.id })));
+    });
+
+    it('should return posts which are not hidden', async () => {
+      const hidden = [feedFixture.posts[0].id, feedFixture.posts[1].id];
+      await Promise.all(hidden.map(id => post.hidePost('2', id)));
+      await post.hidePost('1', feedFixture.posts[2].id);
+
+      const actual = await post.generateFeed({
+        fields: ['id'],
+        rankBy: 'creation',
+        userId: '2',
+      });
+      expect(actual).to.deep.equal(feedFixture.posts.slice(2).map(p => ({ id: p.id })));
     });
   });
 });
