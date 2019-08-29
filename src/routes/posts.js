@@ -241,4 +241,17 @@ router.post(
   },
 );
 
+router.post(
+  '/:id/hide',
+  async (ctx) => {
+    const model = await post.get(ctx.params.id);
+    if (model) {
+      await post.hide(ctx.state.user.userId, model.id);
+      ctx.status = 204;
+    } else {
+      throw new EntityNotFoundError('post', 'id', ctx.params.id);
+    }
+  },
+);
+
 export default router;

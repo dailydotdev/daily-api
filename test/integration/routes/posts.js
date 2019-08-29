@@ -255,4 +255,15 @@ describe('posts routes', () => {
 
     expect(result.body).to.deep.equal(fixture.tagsOutput.map(mapDate));
   });
+
+  it('should hide post', async () => {
+    await Promise.all(fixture.input.map(p => post.add(p)));
+
+    await request
+      .post(`/v1/posts/${fixture.input[0].id}/hide`)
+      .set('Authorization', `Service ${config.accessSecret}`)
+      .set('User-Id', '1')
+      .set('Logged-In', true)
+      .expect(204);
+  });
 });
