@@ -4,6 +4,8 @@ import KoaPinoLogger from 'koa-pino-logger';
 import Router from 'koa-router';
 import etag from 'koa-etag';
 
+import { ApolloServer, gql } from 'apollo-server-koa';
+import graphqlHTTP from 'koa-graphql';
 
 import config from './config';
 // import compress from './middlewares/compress';
@@ -19,7 +21,25 @@ import feeds from './routes/feeds';
 import notifications from './routes/notifications';
 import tags from './routes/tags';
 
+const typeDefs = gql`
+  type Query {
+    hello: String
+  }
+`;
+
+const resolvers = {
+  Query: {
+    hello() {
+      return 'andrei';
+    },
+  },
+};
+
+const server = new ApolloServer({ typeDefs, resolvers });
+
 const app = new Koa();
+
+server.applyMiddleware({ app });
 
 app.proxy = true;
 
@@ -52,6 +72,11 @@ app.use((ctx, next) => {
 const router = new Router({
   prefix: '/v1',
 });
+
+router.all('graphql', graphqlHTTP({
+  // schema,
+  graphiql: true,
+}));
 
 router.use(feeds.routes(), feeds.allowedMethods());
 router.use(posts.routes(), posts.allowedMethods());
