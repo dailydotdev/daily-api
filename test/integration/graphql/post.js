@@ -141,3 +141,48 @@ describe('Query', () => {
     });
   });
 
+  describe('get by id endpoint', () => {
+    const NOT_FOUND_MESSAGE = id => `No post found that matches id: ${id}`;
+
+    const GET_POST_BY_ID = id => `
+      {
+        post(id: ${id}) {
+          ${POST_FIELDS}
+        }
+      }
+    `;
+
+    it('should fetch post', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
+
+      const postId = fixture.output[0].id;
+
+      const result = await request
+        .get('/graphql')
+        .query({
+          query: GET_POST_BY_ID(postId)
+        })
+        .expect(200);
+
+      expect(result.body.data.post).to.deep.equal(mapDate(fixture.output[0]));
+    });
+
+    it('should return not found when post doesn\'t exist', async () => {
+      await request.post('/v1/tags/updateCount');
+
+      const postId = 1234;
+
+      const result = await request
+        .get('/graphql')
+        .query({
+          query: GET_POST_BY_ID(postId)
+        });
+
+      const [error] = result.body.errors;
+
+      expect(error.message).to.be.equal(NOT_FOUND_MESSAGE(postId));
+      expect(error.code).to.be.equal(404);
+    });
+  });
+

@@ -7,6 +7,7 @@ export class EntityNotFoundError extends Error {
     this.entityName = entityName;
     this.fieldName = fieldName;
     this.fieldValue = fieldValue;
+    this.code = 404;
   }
 }
 

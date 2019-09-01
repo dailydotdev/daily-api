@@ -1,5 +1,6 @@
 
 import helpers from '../helpers/post';
+import { EntityNotFoundError, ForbiddenError } from '../../errors';
 
 export default {
   Query: {
@@ -16,6 +17,34 @@ export default {
       }
 
       return await post.generateFeed(feedParams);
+    },
+
+    async post(parent, args, { models, user }) {
+      const result = await models.post.generateFeed({
+        fields: models.post.defaultAnonymousFields,
+        filters: { postId: args.id },
+        page: 0,
+        pageSize: 1,
+      });
+
+      if (result.length) {
+        return result[0];
+      }
+
+      throw new EntityNotFoundError('post', 'id', args.id);
+    },
+
+  Post: {
+    created_at(parent) {
+      return parent.createdAt && parent.createdAt.toISOString();
+    },
+
+    read_time(parent) {
+      return parent.readTime;
+    },
+
+    published_at(parent) {
+      return parent.publishedAt && parent.publishedAt.toISOString();
     },
   },
 };
