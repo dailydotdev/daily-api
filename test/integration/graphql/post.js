@@ -32,6 +32,7 @@ after(() => {
 });
 
 beforeEach(async () => {
+  // console.log('before each')
   await knexCleaner.clean(db, {
     ignoreTables: ['knex_migrations', 'knex_migrations_lock']
   });
@@ -186,3 +187,61 @@ describe('Query', () => {
     });
   });
 
+  describe('get bookmarks endpoint', () => {
+    const FORBIDDEN_MESSAGE = 'Method is forbidden';
+
+    const GET_BOOKMARKS = (p) => `
+      {
+        bookmarks(params: ${p}) {
+          ${POST_FIELDS}
+          bookmarked
+        }
+      }
+    `;
+
+    it('should throw forbidden without authorization', async () => {
+      const result = await request
+        .get('/graphql')
+        .query({
+          query: GET_BOOKMARKS()
+        });
+
+      const error = result.body.errors[0];
+
+      expect(error.message).to.be.equal(FORBIDDEN_MESSAGE);
+      expect(error.code).to.be.equal(403);
+    });
+
+    it('should get bookmarks sorted by time', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
+
+      await post.bookmark(fixture.bookmarks);
+
+      const latest = (new Date(Date.now() + (60 * 60 * 1000))).toISOString();
+
+      const params = `{
+        latest: ${JSON.stringify(latest)}
+        page: 0,
+        pageSize: 20,
+      }`;
+
+      const result = await request
+        .get('/graphql')
+        .set('Authorization', `Service ${config.accessSecret}`)
+        .set('User-Id', fixture.bookmarks[0].userId)
+        .set('Logged-In', true)
+        .query({
+          query: GET_BOOKMARKS(params),
+        });
+
+      const bookmarks = result.body.data.bookmarks;
+
+      expect(bookmarks).to.have.deep.members(
+        [fixture.output[1], fixture.output[0]]
+          .map(mapDate)
+          .map(x => Object.assign({}, x, { bookmarked: true }))
+      );
+    });
+  });
+});

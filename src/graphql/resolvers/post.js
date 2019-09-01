@@ -1,3 +1,4 @@
+/* eslint-disable */
 
 import helpers from '../helpers/post';
 import { EntityNotFoundError, ForbiddenError } from '../../errors';
@@ -33,6 +34,22 @@ export default {
 
       throw new EntityNotFoundError('post', 'id', args.id);
     },
+
+    async bookmarks(parent, { params: args }, { user, models: { post } }) {
+      if (!user) {
+        throw new ForbiddenError();
+      }
+
+
+      args.latest = args.latest ? new Date(args.latest) : null;
+
+
+      return await post.generateFeed(
+        helpers.getFeedParams({ post, user }, args, null, { bookmarks: true }),
+        query => query.orderByRaw(`${post.bookmarksTable}.created_at DESC`),
+      );
+    }
+  },
 
   Post: {
     created_at(parent) {

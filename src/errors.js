@@ -40,5 +40,6 @@ export class ForbiddenError extends Error {
     Error.captureStackTrace(this, this.constructor);
 
     this.name = this.constructor.name;
+    this.code = 403;
   }
 }
