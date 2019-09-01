@@ -32,7 +32,7 @@ router.get(
   '/trending',
   async (ctx) => {
     const res = await post.generateFeed({
-      fields: ['id', 'title', 'image', 'siteTwitter', 'creatorTwitter', 'publicationTwitter', 'tags'],
+      fields: ['id', 'title', 'image', 'createdAt', 'siteTwitter', 'creatorTwitter', 'publicationTwitter', 'tags'],
       page: 0,
       pageSize: 1,
     }, query =>
