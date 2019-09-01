@@ -39,3 +39,105 @@ beforeEach(async () => {
   return Promise.all(fixturePubs.map(pub => publication.add(pub.name, pub.image, pub.enabled)));
 });
 
+describe('Query', () => {
+  const POST_FIELDS = `
+    id
+    title
+    url
+    publishedAt: published_at
+    createdAt: created_at
+    image
+    ratio
+    placeholder
+    views
+    readTime: read_time
+    publication {
+      id
+      name
+      image
+    }
+    tags
+  `;
+
+  // TODO: mutations for `await request.post('/v1/tags/updateCount');`
+  describe('latest', () => {
+
+    const GET_LATEST = p => `
+    {
+      latest(params: ${p}) {
+        ${POST_FIELDS}
+      }
+    }
+  `;
+
+    it('should fetch latest posts by given publications', async () => {
+      expect(true).to.be.equal(true);
+
+      await Promise.all(fixture.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
+
+      const params = `{
+        latest: ${JSON.stringify(latestDate)}
+        page: 0,
+        pageSize: 20,
+        pubs: ${JSON.stringify([fixture.input[1].publicationId].join(','))},
+      }`
+
+      const result = await request
+        .get('/graphql')
+        .query({
+          query: GET_LATEST(params)
+        })
+        .expect(200);
+
+      const latest = result.body.data.latest;
+
+      expect(latest.length).to.equal(1);
+      expect(latest).to.deep.equal([fixture.output[0]].map(mapDate));
+    });
+
+    it('should fetch latest posts', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
+
+      const params = `{
+        latest: ${JSON.stringify(latestDate)}
+        page: 0,
+        pageSize: 20,
+      }`
+
+      const result = await request
+        .get('/graphql')
+        .query({
+          query: GET_LATEST(params)
+        })
+        .expect(200);
+
+      const latest = result.body.data.latest;
+
+      expect(latest).to.deep.equal(fixture.output.map(mapDate));
+    });
+
+    it('should fetch latest posts by given tags', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
+
+      const params = `{
+        latest: ${JSON.stringify(fixture.input[1].createdAt.toISOString())}
+        page: 0,
+        pageSize: 20,
+        tags: "a",
+      }`;
+
+      const result = await request
+        .get('/graphql')
+        .query({
+          query: GET_LATEST(params)
+        })
+        .expect(200);
+
+      const latest = result.body.data.latest;
+      expect(latest).to.deep.equal([fixture.output[1]].map(mapDate));
+    });
+  });
+
