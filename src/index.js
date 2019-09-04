@@ -70,6 +70,10 @@ const server = new ApolloServer({
         publication
       },
       user,
+      meta: {
+        ip: ctx.request.ip,
+      },
+      config,
     };
   },
   formatError: err => {
