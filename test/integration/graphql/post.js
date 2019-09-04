@@ -201,10 +201,16 @@ describe('Query', () => {
     `;
 
     it('should throw forbidden without authorization', async () => {
+      const params = `{
+        latest: ${JSON.stringify((new Date()).toISOString())}
+        page: 0,
+        pageSize: 20,
+      }`;
+
       const result = await request
         .get('/graphql')
         .query({
-          query: GET_BOOKMARKS()
+          query: GET_BOOKMARKS(params)
         });
 
       const error = result.body.errors[0];
