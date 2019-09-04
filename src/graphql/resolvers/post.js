@@ -51,6 +51,23 @@ export default {
     }
   },
 
+  Mutation: {
+    async SetBookmarks(parent, { ids: postIds }, { user, models: { post } }, info) {
+      if (!user) {
+        throw new ForbiddenError();
+      }
+
+      const bookmarks = postIds.map(postId => ({
+        userId: user.userId,
+        postId,
+      }));
+
+      await post.bookmark(bookmarks);
+
+      return postIds;
+    }
+  },
+
   Post: {
     created_at(parent) {
       return parent.createdAt && parent.createdAt.toISOString();

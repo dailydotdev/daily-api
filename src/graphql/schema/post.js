@@ -41,6 +41,10 @@ export default `
     post(id: ID!): Post!
     bookmarks(params: QueryPostInput): [Post!] !
   }
+
+  type Mutation {
+    SetBookmarks(ids: [String!]!): [String!]!
+  }
 `;
 
 

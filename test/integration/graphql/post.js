@@ -22,6 +22,8 @@ const mapDate = p => Object.assign({}, p, {
 
 const latestDate = new Date(fixture.input[1].createdAt.getTime() + 1000).toISOString();
 
+const FORBIDDEN_MESSAGE = 'Method is forbidden';
+
 before(() => {
   server = app.listen();
   request = supertest(server);
@@ -188,8 +190,6 @@ describe('Query', () => {
   });
 
   describe('get bookmarks endpoint', () => {
-    const FORBIDDEN_MESSAGE = 'Method is forbidden';
-
     const GET_BOOKMARKS = (p) => `
       {
         bookmarks(params: ${p}) {
@@ -242,6 +242,50 @@ describe('Query', () => {
           .map(mapDate)
           .map(x => Object.assign({}, x, { bookmarked: true }))
       );
+    });
+  });
+
+  describe('set bookmarks endpoint', () => {
+      const SET_BOOKMARK = (params) => `
+        mutation {
+          SetBookmarks(ids: ${params})
+        }
+      `;
+
+    it('should throw forbidden without authorization', async () => {
+      const param = 'foo-id';
+
+      const result = await request
+        .post('/graphql')
+        .send({
+          query: SET_BOOKMARK(JSON.stringify(param)),
+        });
+
+      const error = result.body.errors[0];
+
+      expect(error.message).to.be.equal(FORBIDDEN_MESSAGE);
+      expect(error.code).to.be.equal(403);
+    });
+
+    it('should set bookmarks', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+
+      const postsIds = fixture.bookmarks
+        .filter(b => b.userId === fixture.bookmarks[0].userId)
+        .map(b => b.postId);
+
+      const result = await request
+        .post('/graphql')
+        .set('Authorization', `Service ${config.accessSecret}`)
+        .set('User-Id', fixture.bookmarks[0].userId)
+        .set('Logged-In', true)
+        .send({
+          query: SET_BOOKMARK(JSON.stringify(postsIds)),
+        });
+
+      const returnedIds = result.body.data.SetBookmarks;
+
+      expect(returnedIds).to.deep.equal(postsIds);
     });
   });
 });
