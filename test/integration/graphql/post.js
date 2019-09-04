@@ -6,6 +6,7 @@ import knexCleaner from 'knex-cleaner';
 
 import fixture from '../../fixtures/posts';
 import fixturePubs from '../../fixtures/publications';
+import fixtureToilet from '../../fixtures/toilet';
 import publication from '../../../src/models/publication';
 import post from '../../../src/models/post';
 import config from '../../../src/config';
@@ -330,6 +331,66 @@ describe('Query', () => {
       const returnedId = result.body.data.RemoveBookmark;
 
       expect(returnedId).to.be.equal(deletedBookmarkId);
+    });
+  });
+
+  describe('toilet endpoint', () => {
+    const GET_TOILET = (params) => `
+      {
+        toilet(params: ${params}) {
+          ${POST_FIELDS}
+          type
+          bookmarked
+        }
+      }
+    `;
+
+    it('should throw forbidden without authorization', async () => {
+      const params = `
+        {
+          latest: ${JSON.stringify(new Date(Date.now() + (60 * 60 * 1000)))}
+          page: 0
+        }
+      `;
+
+      const result = await request
+        .get('/graphql')
+        .query({
+          query: GET_TOILET(params),
+        })
+
+      const error = result.body.errors[0];
+
+      expect(error.message).to.be.equal(FORBIDDEN_MESSAGE);
+      expect(error.code).to.be.equal(403);
+    });
+
+    it('should get toilet', async () => {
+      await Promise.all(fixtureToilet.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
+      await post.bookmark(fixtureToilet.bookmarks);
+
+      const params = `
+        {
+          latest: ${JSON.stringify(new Date(Date.now() + (60 * 60 * 1000)))}
+          page: 0
+        }
+      `;
+
+      const result = await request
+        .get('/graphql')
+        .query({
+          query: GET_TOILET(params)
+        })
+        .set('Authorization', `Service ${config.accessSecret}`)
+        .set('User-Id', fixtureToilet.bookmarks[0].userId)
+        .set('Logged-In', true);
+
+      const data = result.body.data.toilet;
+
+      expect(data).to.deep.equal(
+        fixtureToilet.output.map(mapDate).map(x => Object.assign({}, x, { type: 'post' }))
+      );
     });
   });
 });

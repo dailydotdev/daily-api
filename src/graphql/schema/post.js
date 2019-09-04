@@ -16,6 +16,14 @@ export default `
     bookmarked: Boolean
   }
 
+  # Fields added on the fly
+  extend type Post {
+    """
+    In the 'toilet' context
+    """
+    type: String
+  }
+
   extend type Post {
     """
     Get the publication fields for a post
@@ -36,10 +44,16 @@ export default `
     tags: String
   }
 
+  input ToiletInput {
+    latest: String!
+    page: Int
+  }
+
   type Query {
     latest(params: QueryPostInput): [Post!]!
     post(id: ID!): Post!
     bookmarks(params: QueryPostInput): [Post!] !
+    toilet(params: ToiletInput): [Post!]!
   }
 
   type Mutation {

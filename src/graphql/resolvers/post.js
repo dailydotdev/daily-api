@@ -48,6 +48,27 @@ export default {
         helpers.getFeedParams({ post, user }, args, null, { bookmarks: true }),
         query => query.orderByRaw(`${post.bookmarksTable}.created_at DESC`),
       );
+    },
+
+    async toilet(parent, { params }, { user, models: { post }, config, meta }, info) {
+      if (!user) {
+        throw new ForbiddenError();
+      }
+
+      params.latest = new Date(params.latest);
+
+      const after = new Date(params.latest.getTime() - (24 * 60 * 60 * 1000));
+      const feedParams = Object.assign(
+        {},
+        helpers.getFeedParams({ post, user }, params, 'creation', { after }),
+        { pageSize: 8 }
+      );
+      const [posts, ads] = await Promise.all([
+        post.generateFeed(feedParams),
+        params.page === 0 ? Promise.resolve([]) : helpers.fetchToiletAd(meta.ip, config),
+      ]);
+
+      return [...ads.map(helpers.assignType('ad')), ...posts.map(helpers.assignType('post'))];
     }
   },
 
