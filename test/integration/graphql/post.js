@@ -288,4 +288,48 @@ describe('Query', () => {
       expect(returnedIds).to.deep.equal(postsIds);
     });
   });
+
+  describe('remove bookmark endpoint', () => {
+    const DELETE_BOOKMARK = (id) => `
+      mutation {
+        RemoveBookmark(id: ${id})
+      }
+    `;
+
+    it('should throw forbidden without authorization', async () => {
+      const param = 'foo-id';
+
+      const result = await request
+        .post('/graphql')
+        .send({
+          query: DELETE_BOOKMARK(JSON.stringify(param)),
+        });
+
+      const error = result.body.errors[0];
+
+      expect(error.message).to.be.equal(FORBIDDEN_MESSAGE);
+      expect(error.code).to.be.equal(403);
+    });
+
+    it('should remove bookmark', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+
+      await post.bookmark(fixture.bookmarks);
+
+      const deletedBookmarkId = fixture.bookmarks[0].postId;
+
+      const result = await request
+        .post('/graphql')
+        .set('Authorization', `Service ${config.accessSecret}`)
+        .set('User-Id', fixture.bookmarks[0].userId)
+        .set('Logged-In', true)
+        .send({
+          query: DELETE_BOOKMARK(JSON.stringify(deletedBookmarkId)),
+        })
+
+      const returnedId = result.body.data.RemoveBookmark;
+
+      expect(returnedId).to.be.equal(deletedBookmarkId);
+    });
+  });
 });

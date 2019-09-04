@@ -65,6 +65,16 @@ export default {
       await post.bookmark(bookmarks);
 
       return postIds;
+    },
+
+    async RemoveBookmark(parent, { id }, { user, models: { post } }, info) {
+      if (!user) {
+        throw new ForbiddenError();
+      }
+
+      await post.removeBookmark(user.userId, id);
+
+      return id;
     }
   },
 

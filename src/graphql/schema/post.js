@@ -44,6 +44,7 @@ export default `
 
   type Mutation {
     SetBookmarks(ids: [String!]!): [String!]!
+    RemoveBookmark(id: String!): String!
   }
 `;
 
