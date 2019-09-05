@@ -1,6 +1,3 @@
-/* eslint-disable */
-
-
 import path from 'path';
 import Koa from 'koa';
 import bodyParser from 'koa-bodyparser';
@@ -8,7 +5,7 @@ import KoaPinoLogger from 'koa-pino-logger';
 import Router from 'koa-router';
 import etag from 'koa-etag';
 
-import { ApolloServer, gql } from 'apollo-server-koa';
+import { ApolloServer } from 'apollo-server-koa';
 import graphqlHTTP from 'koa-graphql';
 import { mergeTypes, mergeResolvers, fileLoader } from 'merge-graphql-schemas';
 import { makeExecutableSchema } from 'graphql-tools';
@@ -40,8 +37,6 @@ const schema = makeExecutableSchema({
   resolvers,
 });
 
-const u = {};
-
 const server = new ApolloServer({
   schema,
   context: ({ ctx }) => {
@@ -57,7 +52,7 @@ const server = new ApolloServer({
       //   service: true,
       // };
       user = {
-        userId: ctx.request.get('user-id')
+        userId: ctx.request.get('user-id'),
       };
     } else {
       delete ctx.request.headers['user-id'];
@@ -67,7 +62,7 @@ const server = new ApolloServer({
     return {
       models: {
         post,
-        publication
+        publication,
       },
       user,
       meta: {
@@ -76,7 +71,8 @@ const server = new ApolloServer({
       config,
     };
   },
-  formatError: err => {
+  formatError: (err) => {
+    // eslint-disable-next-line
     console.log(err);
 
     return {
