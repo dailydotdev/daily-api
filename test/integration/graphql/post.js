@@ -24,6 +24,7 @@ const mapDate = p => Object.assign({}, p, {
 const latestDate = new Date(fixture.input[1].createdAt.getTime() + 1000).toISOString();
 
 const FORBIDDEN_MESSAGE = 'Method is forbidden';
+const NOT_FOUND_MESSAGE = id => `No post found that matches id: ${id}`;
 
 before(() => {
   server = app.listen();
@@ -147,8 +148,6 @@ describe('Query', () => {
   });
 
   describe('get by id endpoint', () => {
-    const NOT_FOUND_MESSAGE = id => `No post found that matches id: ${id}`;
-
     const GET_POST_BY_ID = id => `
       {
         post(id: ${id}) {
@@ -466,6 +465,53 @@ describe('Query', () => {
       const returnedPosts = result.body.data.tag;
 
       expect(returnedPosts).to.deep.equal(fixture.tagsOutput.map(mapDate));
+    });
+  });
+
+  describe('post endpoint', () => {
+    const HIDE_POST = (id) => `
+      mutation {
+        HidePost(id: ${id})
+      }
+    `;
+
+    it('should hide post', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+
+      const hiddenPostId = fixture.input[0].id;
+
+      const result = await request
+        .post('/graphql')
+        .set('Authorization', `Service ${config.accessSecret}`)
+        .set('User-Id', '1')
+        .set('Logged-In', true)
+        .send({
+          query: HIDE_POST(hiddenPostId)
+        })
+
+      const returnedPostId = result.body.data.HidePost;
+
+      expect(returnedPostId).to.be.equal(hiddenPostId);
+    });
+
+    it('should return not found when post doesn\'t exist', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+
+      const nonExistentPostId = '3123112';
+
+      const result = await request
+        .post('/graphql')
+        .set('Authorization', `Service ${config.accessSecret}`)
+        .set('User-Id', '1')
+        .set('Logged-In', true)
+        .send({
+          query: HIDE_POST(nonExistentPostId)
+        });
+
+      const [error] = result.body.errors;
+
+      expect(error.message).to.be.equal(NOT_FOUND_MESSAGE(nonExistentPostId));
+      expect(error.code).to.be.equal(404);
     });
   });
 });

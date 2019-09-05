@@ -122,7 +122,19 @@ export default {
       await post.removeBookmark(user.userId, id);
 
       return id;
-    }
+    },
+
+    async HidePost(parent, { id }, { models: { post }, user }, info) {
+      const model = await post.get(id);
+
+      if (!model) {
+        throw new EntityNotFoundError('post', 'id', id);
+      }
+
+      await post.hide(user.userId, model.id);
+
+      return id;
+    },
   },
 
   Post: {
