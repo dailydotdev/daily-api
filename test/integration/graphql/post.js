@@ -43,6 +43,7 @@ beforeEach(async () => {
   return Promise.all(fixturePubs.map(pub => publication.add(pub.name, pub.image, pub.enabled)));
 });
 
+// TODO: Change `Query` to `Post`
 describe('Query', () => {
   const POST_FIELDS = `
     id
@@ -431,6 +432,40 @@ describe('Query', () => {
       const returnedPosts = result.body.data.publication;
 
       expect(returnedPosts).to.deep.equal(fixture.pubsOutput.map(mapDate));
+    });
+  });
+
+  describe('tag endpoint', () => {
+    const FETCH_POSTS_BY_TAG = (params) => `
+      {
+        tag(params: ${params}) {
+          ${POST_FIELDS}
+        }
+      }
+    `;
+
+    it('should fetch posts by tag', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
+
+      const params = `
+        {
+          latest: ${JSON.stringify(latestDate)},
+          page: 0
+          pageSize: 20
+          tag: "a"
+        }
+      `;
+
+      const result = await request
+        .get('/graphql')
+        .query({
+          query: FETCH_POSTS_BY_TAG(params)
+        })
+
+      const returnedPosts = result.body.data.tag;
+
+      expect(returnedPosts).to.deep.equal(fixture.tagsOutput.map(mapDate));
     });
   });
 });

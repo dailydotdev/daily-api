@@ -82,7 +82,20 @@ export default {
           { publications: { include: [params.pub] } }
         ),
       );
-    }
+    },
+
+    async tag(parent, { params }, { models: { post } }, info) {
+      params.latest = new Date(params.latest);
+
+      return await post.generateFeed(
+        helpers.getFeedParams(
+          { post },
+          params,
+          'creation',
+          { tags: { include: [params.tag] } }
+        ),
+      );
+    },
   },
 
   Mutation: {

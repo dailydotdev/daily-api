@@ -1,3 +1,9 @@
+const sharedPostInputFields = `
+  latest: String!
+  page: Int!
+  pageSize: Int!
+`;
+
 export default `
   type Post {
     id: ID!
@@ -50,10 +56,13 @@ export default `
   }
 
   input PostByPublicationInput {
-    latest: String!
-    page: Int!
-    pageSize: Int!
+    ${sharedPostInputFields}
     pub: String!
+  }
+
+  input PostByTagInput {
+    ${sharedPostInputFields}
+    tag: String!
   }
 
   type Query {
@@ -62,6 +71,7 @@ export default `
     bookmarks(params: QueryPostInput): [Post!] !
     toilet(params: ToiletInput): [Post!]!
     publication(params: PostByPublicationInput): [Post!]!
+    tag(params: PostByTagInput): [Post!]!
   }
 
   type Mutation {
