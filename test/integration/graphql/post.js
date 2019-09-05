@@ -1,5 +1,3 @@
-/* eslint-disable */
-
 import { expect } from 'chai';
 import supertest from 'supertest';
 import knexCleaner from 'knex-cleaner';
@@ -36,16 +34,16 @@ after(() => {
 });
 
 beforeEach(async () => {
-  // console.log('before each')
   await knexCleaner.clean(db, {
-    ignoreTables: ['knex_migrations', 'knex_migrations_lock']
+    ignoreTables: ['knex_migrations', 'knex_migrations_lock'],
   });
   await migrate();
   return Promise.all(fixturePubs.map(pub => publication.add(pub.name, pub.image, pub.enabled)));
 });
 
-// TODO: Change `Query` to `Post`
-describe('Query', () => {
+// TODO: mutations for `await request.post('/v1/tags/updateCount');`
+
+describe('Post', () => {
   const POST_FIELDS = `
     id
     title
@@ -65,9 +63,7 @@ describe('Query', () => {
     tags
   `;
 
-  // TODO: mutations for `await request.post('/v1/tags/updateCount');`
   describe('latest', () => {
-
     const GET_LATEST = p => `
     {
       latest(params: ${p}) {
@@ -87,16 +83,16 @@ describe('Query', () => {
         page: 0,
         pageSize: 20,
         pubs: ${JSON.stringify([fixture.input[1].publicationId].join(','))},
-      }`
+      }`;
 
       const result = await request
         .get('/graphql')
         .query({
-          query: GET_LATEST(params)
+          query: GET_LATEST(params),
         })
         .expect(200);
 
-      const latest = result.body.data.latest;
+      const { latest } = result.body.data;
 
       expect(latest.length).to.equal(1);
       expect(latest).to.deep.equal([fixture.output[0]].map(mapDate));
@@ -110,16 +106,16 @@ describe('Query', () => {
         latest: ${JSON.stringify(latestDate)}
         page: 0,
         pageSize: 20,
-      }`
+      }`;
 
       const result = await request
         .get('/graphql')
         .query({
-          query: GET_LATEST(params)
+          query: GET_LATEST(params),
         })
         .expect(200);
 
-      const latest = result.body.data.latest;
+      const { latest } = result.body.data;
 
       expect(latest).to.deep.equal(fixture.output.map(mapDate));
     });
@@ -138,11 +134,11 @@ describe('Query', () => {
       const result = await request
         .get('/graphql')
         .query({
-          query: GET_LATEST(params)
+          query: GET_LATEST(params),
         })
         .expect(200);
 
-      const latest = result.body.data.latest;
+      const { latest } = result.body.data;
       expect(latest).to.deep.equal([fixture.output[1]].map(mapDate));
     });
   });
@@ -165,7 +161,7 @@ describe('Query', () => {
       const result = await request
         .get('/graphql')
         .query({
-          query: GET_POST_BY_ID(postId)
+          query: GET_POST_BY_ID(postId),
         })
         .expect(200);
 
@@ -180,7 +176,7 @@ describe('Query', () => {
       const result = await request
         .get('/graphql')
         .query({
-          query: GET_POST_BY_ID(postId)
+          query: GET_POST_BY_ID(postId),
         });
 
       const [error] = result.body.errors;
@@ -191,7 +187,7 @@ describe('Query', () => {
   });
 
   describe('get bookmarks endpoint', () => {
-    const GET_BOOKMARKS = (p) => `
+    const GET_BOOKMARKS = p => `
       {
         bookmarks(params: ${p}) {
           ${POST_FIELDS}
@@ -210,7 +206,7 @@ describe('Query', () => {
       const result = await request
         .get('/graphql')
         .query({
-          query: GET_BOOKMARKS(params)
+          query: GET_BOOKMARKS(params),
         });
 
       const error = result.body.errors[0];
@@ -242,18 +238,16 @@ describe('Query', () => {
           query: GET_BOOKMARKS(params),
         });
 
-      const bookmarks = result.body.data.bookmarks;
+      const { bookmarks } = result.body.data;
 
-      expect(bookmarks).to.have.deep.members(
-        [fixture.output[1], fixture.output[0]]
-          .map(mapDate)
-          .map(x => Object.assign({}, x, { bookmarked: true }))
-      );
+      expect(bookmarks).to.have.deep.members([fixture.output[1], fixture.output[0]]
+        .map(mapDate)
+        .map(x => Object.assign({}, x, { bookmarked: true })));
     });
   });
 
   describe('set bookmarks endpoint', () => {
-      const SET_BOOKMARK = (params) => `
+    const SET_BOOKMARK = params => `
         mutation {
           SetBookmarks(ids: ${params})
         }
@@ -297,7 +291,7 @@ describe('Query', () => {
   });
 
   describe('remove bookmark endpoint', () => {
-    const DELETE_BOOKMARK = (id) => `
+    const DELETE_BOOKMARK = id => `
       mutation {
         RemoveBookmark(id: ${id})
       }
@@ -332,7 +326,7 @@ describe('Query', () => {
         .set('Logged-In', true)
         .send({
           query: DELETE_BOOKMARK(JSON.stringify(deletedBookmarkId)),
-        })
+        });
 
       const returnedId = result.body.data.RemoveBookmark;
 
@@ -341,7 +335,7 @@ describe('Query', () => {
   });
 
   describe('toilet endpoint', () => {
-    const GET_TOILET = (params) => `
+    const GET_TOILET = params => `
       {
         toilet(params: ${params}) {
           ${POST_FIELDS}
@@ -363,7 +357,7 @@ describe('Query', () => {
         .get('/graphql')
         .query({
           query: GET_TOILET(params),
-        })
+        });
 
       const error = result.body.errors[0];
 
@@ -386,7 +380,7 @@ describe('Query', () => {
       const result = await request
         .get('/graphql')
         .query({
-          query: GET_TOILET(params)
+          query: GET_TOILET(params),
         })
         .set('Authorization', `Service ${config.accessSecret}`)
         .set('User-Id', fixtureToilet.bookmarks[0].userId)
@@ -394,14 +388,12 @@ describe('Query', () => {
 
       const data = result.body.data.toilet;
 
-      expect(data).to.deep.equal(
-        fixtureToilet.output.map(mapDate).map(x => Object.assign({}, x, { type: 'post' }))
-      );
+      expect(data).to.deep.equal(fixtureToilet.output.map(mapDate).map(x => Object.assign({}, x, { type: 'post' })));
     });
   });
 
   describe('publication endpoint', () => {
-    const FETCH_POST_BY_PUBLICATION = (params) => `
+    const FETCH_POST_BY_PUBLICATION = params => `
       {
         publication(params: ${params}) {
           ${POST_FIELDS}
@@ -426,7 +418,7 @@ describe('Query', () => {
         .get('/graphql')
         .query({
           query: FETCH_POST_BY_PUBLICATION(params),
-        })
+        });
 
       const returnedPosts = result.body.data.publication;
 
@@ -435,7 +427,7 @@ describe('Query', () => {
   });
 
   describe('tag endpoint', () => {
-    const FETCH_POSTS_BY_TAG = (params) => `
+    const FETCH_POSTS_BY_TAG = params => `
       {
         tag(params: ${params}) {
           ${POST_FIELDS}
@@ -459,8 +451,8 @@ describe('Query', () => {
       const result = await request
         .get('/graphql')
         .query({
-          query: FETCH_POSTS_BY_TAG(params)
-        })
+          query: FETCH_POSTS_BY_TAG(params),
+        });
 
       const returnedPosts = result.body.data.tag;
 
@@ -469,7 +461,7 @@ describe('Query', () => {
   });
 
   describe('post endpoint', () => {
-    const HIDE_POST = (id) => `
+    const HIDE_POST = id => `
       mutation {
         HidePost(id: ${id})
       }
@@ -486,8 +478,8 @@ describe('Query', () => {
         .set('User-Id', '1')
         .set('Logged-In', true)
         .send({
-          query: HIDE_POST(hiddenPostId)
-        })
+          query: HIDE_POST(hiddenPostId),
+        });
 
       const returnedPostId = result.body.data.HidePost;
 
@@ -505,7 +497,7 @@ describe('Query', () => {
         .set('User-Id', '1')
         .set('Logged-In', true)
         .send({
-          query: HIDE_POST(nonExistentPostId)
+          query: HIDE_POST(nonExistentPostId),
         });
 
       const [error] = result.body.errors;
