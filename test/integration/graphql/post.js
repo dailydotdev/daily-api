@@ -399,4 +399,38 @@ describe('Query', () => {
       );
     });
   });
+
+  describe('publication endpoint', () => {
+    const FETCH_POST_BY_PUBLICATION = (params) => `
+      {
+        publication(params: ${params}) {
+          ${POST_FIELDS}
+        }
+      }
+    `;
+
+    it('should fetch posts by publication', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
+
+      const params = `
+        {
+          latest: ${JSON.stringify(latestDate)},
+          page: 0
+          pageSize: 20
+          pub: ${JSON.stringify(fixture.input[1].publicationId)}
+        }
+      `;
+
+      const result = await request
+        .get('/graphql')
+        .query({
+          query: FETCH_POST_BY_PUBLICATION(params),
+        })
+
+      const returnedPosts = result.body.data.publication;
+
+      expect(returnedPosts).to.deep.equal(fixture.pubsOutput.map(mapDate));
+    });
+  });
 });

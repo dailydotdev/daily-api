@@ -49,11 +49,19 @@ export default `
     page: Int
   }
 
+  input PostByPublicationInput {
+    latest: String!
+    page: Int!
+    pageSize: Int!
+    pub: String!
+  }
+
   type Query {
     latest(params: QueryPostInput): [Post!]!
     post(id: ID!): Post!
     bookmarks(params: QueryPostInput): [Post!] !
     toilet(params: ToiletInput): [Post!]!
+    publication(params: PostByPublicationInput): [Post!]!
   }
 
   type Mutation {

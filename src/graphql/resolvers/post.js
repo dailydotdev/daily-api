@@ -69,6 +69,19 @@ export default {
       ]);
 
       return [...ads.map(helpers.assignType('ad')), ...posts.map(helpers.assignType('post'))];
+    },
+
+    async publication(parent, { params }, { models: { post } }, info) {
+      params.latest = new Date(params.latest);
+
+      return await post.generateFeed(
+        helpers.getFeedParams(
+          { post },
+          params,
+          'creation',
+          { publications: { include: [params.pub] } }
+        ),
+      );
     }
   },
 
