@@ -75,10 +75,8 @@ export default `
   }
 
   type Mutation {
-    SetBookmarks(ids: [String!]!): [String!]!
-    RemoveBookmark(id: String!): String!
+    SetBookmarks(ids: [ID!]!): [ID!]!
+    RemoveBookmark(id: ID!): ID!
     HidePost(id: ID!): ID!
   }
 `;
-
-
