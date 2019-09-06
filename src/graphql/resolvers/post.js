@@ -1,6 +1,7 @@
 /* eslint-disable */
 
 import helpers from '../helpers/post';
+import utils from '../../utils';
 import { EntityNotFoundError, ForbiddenError } from '../../errors';
 
 export default {
@@ -12,17 +13,17 @@ export default {
 
       if (!user) {
         feedParams.filters = Object.assign({}, feedParams.filters, {
-          publications: { include: helpers.splitArrayStr(args.pubs) },
-          tags: { include: helpers.splitArrayStr(args.tags) },
+          publications: { include: utils.splitArrayStr(args.pubs) },
+          tags: { include: utils.splitArrayStr(args.tags) },
         });
       }
 
       return await post.generateFeed(feedParams);
     },
 
-    async post(parent, args, { models, user }) {
-      const result = await models.post.generateFeed({
-        fields: models.post.defaultAnonymousFields,
+    async post(parent, args, { models: { post } , user }) {
+      const result = await post.generateFeed({
+        fields: post.defaultAnonymousFields,
         filters: { postId: args.id },
         page: 0,
         pageSize: 1,
@@ -40,9 +41,7 @@ export default {
         throw new ForbiddenError();
       }
 
-
       args.latest = args.latest ? new Date(args.latest) : null;
-
 
       return await post.generateFeed(
         helpers.getFeedParams({ post, user }, args, null, { bookmarks: true }),
@@ -65,7 +64,7 @@ export default {
       );
       const [posts, ads] = await Promise.all([
         post.generateFeed(feedParams),
-        params.page === 0 ? Promise.resolve([]) : helpers.fetchToiletAd(meta.ip, config),
+        params.page === 0 ? Promise.resolve([]) : utils.fetchToiletAd(meta.ip, config),
       ]);
 
       return [...ads.map(helpers.assignType('ad')), ...posts.map(helpers.assignType('post'))];
@@ -138,15 +137,11 @@ export default {
   },
 
   Post: {
-    created_at(parent) {
+    createdAt(parent) {
       return parent.createdAt && parent.createdAt.toISOString();
     },
 
-    read_time(parent) {
-      return parent.readTime;
-    },
-
-    published_at(parent) {
+    publishedAt(parent) {
       return parent.publishedAt && parent.publishedAt.toISOString();
     },
   },
