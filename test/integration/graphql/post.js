@@ -48,13 +48,13 @@ describe('Post', () => {
     id
     title
     url
-    publishedAt: published_at
-    createdAt: created_at
+    publishedAt
+    createdAt
     image
     ratio
     placeholder
     views
-    readTime: read_time
+    readTime
     publication {
       id
       name

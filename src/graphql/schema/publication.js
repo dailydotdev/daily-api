@@ -3,7 +3,5 @@ export default `
     id: ID!
     name: String!
     image: String!
-    enabled: Boolean
-    twitter: String
   }
 `;

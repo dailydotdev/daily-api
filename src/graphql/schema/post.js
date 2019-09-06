@@ -12,13 +12,12 @@ export default `
     image: String
     ratio: Float
     placeholder: String
-    publication_id: ID!
-    published_at: String
-    created_at: String
+    publishedAt: String
+    createdAt: String
     tweeted: Boolean
     views: Int
     promoted: Boolean
-    read_time: Int
+    readTime: Int
     bookmarked: Boolean
   }
 
