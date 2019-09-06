@@ -7,6 +7,7 @@ export class EntityNotFoundError extends Error {
     this.entityName = entityName;
     this.fieldName = fieldName;
     this.fieldValue = fieldValue;
+    this.code = 404;
   }
 }
 
@@ -39,5 +40,6 @@ export class ForbiddenError extends Error {
     Error.captureStackTrace(this, this.constructor);
 
     this.name = this.constructor.name;
+    this.code = 403;
   }
 }
