@@ -95,6 +95,9 @@ workflows:
           requires:
             - build
           context: GCR
+          filters:
+            branches:
+              ignore: /pull\/[0-9]+/
       - deploy_helm:
           requires:
             - build_and_push_docker
