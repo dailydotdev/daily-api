@@ -1,16 +1,14 @@
-import rp from 'request-promise-native';
 import Router from 'koa-router';
 import validator, { array, date, number, object, string } from 'koa-context-validator';
 import config from '../config';
 import post from '../models/post';
 import { EntityNotFoundError, ForbiddenError } from '../errors';
 import { notifyPostReport } from '../slack';
+import utils from '../utils';
 
 const router = Router({
   prefix: '/posts',
 });
-
-const splitArrayStr = str => (str ? str.split(',') : null);
 
 const getFeedParams = (ctx, rankBy, filters = {}) => {
   const { query } = ctx.request;
@@ -43,8 +41,8 @@ router.get(
     const feedParams = getFeedParams(ctx, 'popularity');
     if (!ctx.state.user) {
       feedParams.filters = Object.assign({}, feedParams.filters, {
-        publications: { include: splitArrayStr(query.pubs) },
-        tags: { include: splitArrayStr(query.tags) },
+        publications: { include: utils.splitArrayStr(query.pubs) },
+        tags: { include: utils.splitArrayStr(query.tags) },
       });
     }
     ctx.body = await post.generateFeed(feedParams);
@@ -94,23 +92,6 @@ router.get(
   },
 );
 
-const fetchToiletAd = async (ctx) => {
-  try {
-    const { ip } = ctx.request;
-    const res = await rp({
-      url: `${config.monetizationUrl}/a/toilet`,
-      method: 'GET',
-      headers: {
-        'x-forwarded-for': ip,
-      },
-    });
-    return JSON.parse(res);
-  } catch (err) {
-    ctx.log.warn('failed to fetch ad from monetization service', { err });
-    return [];
-  }
-};
-
 router.get(
   '/toilet',
   validator({
@@ -131,7 +112,7 @@ router.get(
     const feedParams = Object.assign({}, getFeedParams(ctx, 'creation', { after }), { pageSize: 8 });
     const [posts, ads] = await Promise.all([
       post.generateFeed(feedParams),
-      query.page === 0 ? Promise.resolve([]) : fetchToiletAd(ctx),
+      query.page === 0 ? Promise.resolve([]) : utils.fetchToiletAd(ctx.request.ip, config),
     ]);
 
     ctx.status = 200;
