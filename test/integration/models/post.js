@@ -112,7 +112,11 @@ describe('post model', () => {
       expected[0].bookmarked = true;
       expected[2].bookmarked = true;
 
-      const actual = await post.generateFeed({ fields: ['id', 'bookmarked'], rankBy: 'creation', userId: '1' });
+      const actual = await post.generateFeed({
+        fields: ['id', 'bookmarked'],
+        rankBy: 'creation',
+        userId: '1',
+      });
       expect(actual).to.deep.equal(expected);
     });
 
@@ -127,7 +131,11 @@ describe('post model', () => {
       expected[0].read = true;
       expected[2].read = true;
 
-      const actual = await post.generateFeed({ fields: ['id', 'read'], rankBy: 'creation', userId: '1' });
+      const actual = await post.generateFeed({
+        fields: ['id', 'read'],
+        rankBy: 'creation',
+        userId: '1',
+      });
       expect(actual).to.deep.equal(expected);
     });
 
@@ -165,7 +173,12 @@ describe('post model', () => {
       const actual = await post.generateFeed({
         fields: ['id'],
         rankBy: 'creation',
-        filters: { tags: { include: ['javascript', 'webdev', 'react'], exclude: ['nodejs', 'deployment'] } },
+        filters: {
+          tags: {
+            include: ['javascript', 'webdev', 'react'],
+            exclude: ['nodejs', 'deployment'],
+          },
+        },
       });
       expect(actual).to.deep.equal([feedFixture.posts[1], feedFixture.posts[3]]
         .map(p => ({ id: p.id })));
@@ -215,6 +228,27 @@ describe('post model', () => {
       });
       expect(actual).to.deep.equal([feedFixture.posts[1], feedFixture.posts[3]]
         .map(p => ({ id: p.id })));
+    });
+
+    it('should ignore user preferences', async () => {
+      await feed.addUserTags([
+        { userId: '1', tag: 'javascript' },
+        { userId: '1', tag: 'webdev' },
+        { userId: '1', tag: 'react' },
+      ]);
+      await feed.upsertUserPublications([
+        { userId: '1', publicationId: 'itnext', enabled: false },
+        { userId: '1', publicationId: 'medium_js', enabled: false },
+      ]);
+
+      const actual = await post.generateFeed({
+        fields: ['id'],
+        rankBy: 'creation',
+        filters: { tags: { include: ['javascript', 'webdev', 'react'], exclude: ['nodejs'] } },
+      });
+      expect(actual).to
+        .deep.equal([feedFixture.posts[1], feedFixture.posts[2], feedFixture.posts[3]]
+          .map(p => ({ id: p.id })));
     });
 
     it('should return posts which are not hidden', async () => {

@@ -1,4 +1,4 @@
-const getFeedParams = ({ user, post }, args, rankBy, filters = {}) => {
+const getFeedParams = ({ user, post }, args, rankBy, filters = {}, ignoreUserFilters = false) => {
   const userId = user ? user.userId : null;
 
   return {
@@ -6,6 +6,7 @@ const getFeedParams = ({ user, post }, args, rankBy, filters = {}) => {
     filters: Object.assign({}, { before: args.latest }, filters),
     rankBy,
     userId,
+    ignoreUserFilters,
     page: args.page,
     pageSize: args.pageSize,
   };
