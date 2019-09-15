@@ -10,7 +10,7 @@ const router = Router({
   prefix: '/posts',
 });
 
-const getFeedParams = (ctx, rankBy, filters = {}) => {
+const getFeedParams = (ctx, rankBy, filters = {}, ignoreUserFilters = false) => {
   const { query } = ctx.request;
   const userId = ctx.state.user ? ctx.state.user.userId : null;
   return {
@@ -18,6 +18,7 @@ const getFeedParams = (ctx, rankBy, filters = {}) => {
     filters: Object.assign({}, { before: query.latest }, filters),
     rankBy,
     userId,
+    ignoreUserFilters,
     page: query.page,
     pageSize: query.pageSize,
   };
@@ -62,7 +63,7 @@ router.get(
   async (ctx) => {
     const { query } = ctx.request;
     ctx.status = 200;
-    ctx.body = await post.generateFeed(getFeedParams(ctx, 'creation', { tags: { include: [query.tag] } }));
+    ctx.body = await post.generateFeed(getFeedParams(ctx, 'creation', { tags: { include: [query.tag] } }, true));
   },
 );
 
@@ -79,7 +80,7 @@ router.get(
   async (ctx) => {
     const { query } = ctx.request;
     ctx.status = 200;
-    ctx.body = await post.generateFeed(getFeedParams(ctx, 'creation', { publications: { include: [query.pub] } }));
+    ctx.body = await post.generateFeed(getFeedParams(ctx, 'creation', { publications: { include: [query.pub] } }, true));
   },
 );
 
@@ -136,7 +137,7 @@ router.get(
 
     ctx.status = 200;
     ctx.body = await post.generateFeed(
-      getFeedParams(ctx, null, { bookmarks: true }),
+      getFeedParams(ctx, null, { bookmarks: true }, true),
       query => query.orderByRaw(`${post.bookmarksTable}.created_at DESC`),
     );
   },

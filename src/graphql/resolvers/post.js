@@ -44,7 +44,7 @@ export default {
       args.latest = args.latest ? new Date(args.latest) : null;
 
       return await post.generateFeed(
-        helpers.getFeedParams({ post, user }, args, null, { bookmarks: true }),
+        helpers.getFeedParams({ post, user }, args, null, { bookmarks: true }, true),
         query => query.orderByRaw(`${post.bookmarksTable}.created_at DESC`),
       );
     },
@@ -78,7 +78,8 @@ export default {
           { post },
           params,
           'creation',
-          { publications: { include: [params.pub] } }
+          { publications: { include: [params.pub] } },
+          true,
         ),
       );
     },
@@ -91,7 +92,8 @@ export default {
           { post },
           params,
           'creation',
-          { tags: { include: [params.tag] } }
+          { tags: { include: [params.tag] } },
+          true
         ),
       );
     },

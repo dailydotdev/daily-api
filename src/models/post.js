@@ -138,9 +138,10 @@ const fieldsToSelect = (fields, userId) => fields.reduce((acc, field) => {
  * @param {Object} filters Object containing the filters to apply
  * @param {?String} rankBy Order criteria
  * @param {?String} userId Id of the user who requested the feed
+ * @param {?Boolean} ignoreUserFilters Whether to ignore the user's preferences
  * @returns * Knex query object
  */
-const filtersToQuery = async (query, filters = {}, rankBy, userId) => {
+const filtersToQuery = async (query, filters = {}, rankBy, userId, ignoreUserFilters) => {
   let newQuery = query;
 
   if (filters.postId) {
@@ -168,7 +169,7 @@ const filtersToQuery = async (query, filters = {}, rankBy, userId) => {
       if (nonEmptyArray(filters.publications.exclude)) {
         where.push(['publications.id', 'not in', filters.publications.exclude]);
       }
-    } else if (userId) {
+    } else if (userId && !ignoreUserFilters) {
       // Filter by the publication preferences of the user
       newQuery = newQuery.leftJoin('feeds', builder =>
         builder.on('feeds.publication_id', '=', `${table}.publication_id`)
@@ -195,7 +196,7 @@ const filtersToQuery = async (query, filters = {}, rankBy, userId) => {
     }, newQuery);
 
     let { tags } = filters;
-    if (!tags && userId) {
+    if (!tags && userId && !ignoreUserFilters) {
       // Fetch user tags
       tags = { include: (await feed.getUserTags(userId)).map(t => t.tag) };
     }
@@ -235,13 +236,16 @@ const filtersToQuery = async (query, filters = {}, rankBy, userId) => {
  * @param {?Boolean} filters.bookmarks Whether to retrieve only bookmarked posts
  * @param {?'popularity'|'creation'} rankBy Order criteria
  * @param {?String} userId Id of the user who requested the feed
+ * @param {?Boolean} ignoreUserFilters Whether to ignore the user's preferences
  * @param {?Number} page Page number
  * @param {?Number} pageSize Number of posts per page
- * @param {Function} hook Gets the query as a parameter and should return a new query
+ * @param {?Function} hook Gets the query as a parameter and should return a new query
  * @returns Knex query object
  */
 // eslint-disable-next-line object-curly-newline
-const generateFeed = async ({ fields, filters, rankBy, userId, page = 0, pageSize = 20 }, hook) => {
+const generateFeed = async ({
+  fields, filters, rankBy, userId, ignoreUserFilters = false, page = 0, pageSize = 20,
+}, hook) => {
   let relevantFields = fields || Object.keys(singleFieldToQuery);
   if (relevantFields.indexOf('bookmarked') > -1 && !userId) {
     relevantFields = relevantFields.filter(f => f !== 'bookmarked');
@@ -264,7 +268,7 @@ const generateFeed = async ({ fields, filters, rankBy, userId, page = 0, pageSiz
     }
   }
 
-  [query] = await filtersToQuery(query, filters, rankBy, userId);
+  [query] = await filtersToQuery(query, filters, rankBy, userId, ignoreUserFilters);
 
   if (rankBy === 'popularity') {
     query = query.orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`);
