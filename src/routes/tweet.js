@@ -36,7 +36,7 @@ router.get(
       page: 0,
       pageSize: 1,
     }, query =>
-      query.where(`${post.table}.tweeted`, '=', 0).andWhere(`${post.table}.views`, '>=', 30).orderBy('created_at'));
+      query.where(`${post.table}.tweeted`, '=', 0).andWhere(`${post.table}.views`, '>=', 70).orderBy('created_at'));
     const model = res.length ? res[0] : null;
     if (model) {
       ctx.log.info(`tweeting post ${model.id}`);
