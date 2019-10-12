@@ -69,8 +69,8 @@ export default `
     post(id: ID!): Post!
     bookmarks(params: QueryPostInput): [Post!] !
     toilet(params: ToiletInput): [Post!]!
-    publication(params: PostByPublicationInput): [Post!]!
-    tag(params: PostByTagInput): [Post!]!
+    postsByPublication(params: PostByPublicationInput): [Post!]!
+    postsByTag(params: PostByTagInput): [Post!]!
   }
 
   type Mutation {

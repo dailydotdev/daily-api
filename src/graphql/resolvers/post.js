@@ -6,7 +6,7 @@ import { EntityNotFoundError, ForbiddenError } from '../../errors';
 
 export default {
   Query: {
-    async latest(parent, { params: args = {} }, { models: { post }, user }, info) {
+    latest(parent, { params: args = {} }, { models: { post }, user }, info) {
       args.latest = args.latest ? new Date(args.latest) : null;
 
       const feedParams = helpers.getFeedParams({ post, user }, args, 'popularity');
@@ -18,7 +18,7 @@ export default {
         });
       }
 
-      return await post.generateFeed(feedParams);
+      return post.generateFeed(feedParams);
     },
 
     async post(parent, args, { models: { post } , user }) {
@@ -36,14 +36,14 @@ export default {
       throw new EntityNotFoundError('post', 'id', args.id);
     },
 
-    async bookmarks(parent, { params: args }, { user, models: { post } }) {
+    bookmarks(parent, { params: args }, { user, models: { post } }) {
       if (!user) {
         throw new ForbiddenError();
       }
 
       args.latest = args.latest ? new Date(args.latest) : null;
 
-      return await post.generateFeed(
+      return post.generateFeed(
         helpers.getFeedParams({ post, user }, args, null, { bookmarks: true }, true),
         query => query.orderByRaw(`${post.bookmarksTable}.created_at DESC`),
       );
@@ -70,10 +70,10 @@ export default {
       return [...ads.map(helpers.assignType('ad')), ...posts.map(helpers.assignType('post'))];
     },
 
-    async publication(parent, { params }, { models: { post } }, info) {
+    postsByPublication(parent, { params }, { models: { post } }, info) {
       params.latest = new Date(params.latest);
 
-      return await post.generateFeed(
+      return post.generateFeed(
         helpers.getFeedParams(
           { post },
           params,
@@ -84,10 +84,10 @@ export default {
       );
     },
 
-    async tag(parent, { params }, { models: { post } }, info) {
+    postsByTag(parent, { params }, { models: { post } }, info) {
       params.latest = new Date(params.latest);
 
-      return await post.generateFeed(
+      return post.generateFeed(
         helpers.getFeedParams(
           { post },
           params,
