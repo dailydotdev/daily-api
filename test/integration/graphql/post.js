@@ -24,26 +24,9 @@ const latestDate = new Date(fixture.input[1].createdAt.getTime() + 1000).toISOSt
 const FORBIDDEN_MESSAGE = 'Method is forbidden';
 const NOT_FOUND_MESSAGE = id => `No post found that matches id: ${id}`;
 
-before(() => {
-  server = app.listen();
-  request = supertest(server);
-});
-
-after(() => {
-  server.close();
-});
-
-beforeEach(async () => {
-  await knexCleaner.clean(db, {
-    ignoreTables: ['knex_migrations', 'knex_migrations_lock'],
-  });
-  await migrate();
-  return Promise.all(fixturePubs.map(pub => publication.add(pub.name, pub.image, pub.enabled)));
-});
-
 // TODO: mutations for `await request.post('/v1/tags/updateCount');`
 
-describe('Post', () => {
+describe('graphql post', () => {
   const POST_FIELDS = `
     id
     title
@@ -63,7 +46,24 @@ describe('Post', () => {
     tags
   `;
 
-  describe('latest', () => {
+  before(() => {
+    server = app.listen();
+    request = supertest(server);
+  });
+
+  after(() => {
+    server.close();
+  });
+
+  beforeEach(async () => {
+    await knexCleaner.clean(db, {
+      ignoreTables: ['knex_migrations', 'knex_migrations_lock'],
+    });
+    await migrate();
+    return Promise.all(fixturePubs.map(pub => publication.add(pub.name, pub.image, pub.enabled)));
+  });
+
+  describe('latest query', () => {
     const GET_LATEST = p => `
     {
       latest(params: ${p}) {
@@ -143,7 +143,7 @@ describe('Post', () => {
     });
   });
 
-  describe('get by id endpoint', () => {
+  describe('get post query', () => {
     const GET_POST_BY_ID = id => `
       {
         post(id: ${id}) {
@@ -186,7 +186,7 @@ describe('Post', () => {
     });
   });
 
-  describe('get bookmarks endpoint', () => {
+  describe('bookmarks query', () => {
     const GET_BOOKMARKS = p => `
       {
         bookmarks(params: ${p}) {
@@ -246,7 +246,7 @@ describe('Post', () => {
     });
   });
 
-  describe('set bookmarks endpoint', () => {
+  describe('set bookmarks mutation', () => {
     const SET_BOOKMARK = params => `
         mutation {
           SetBookmarks(ids: ${params})
@@ -290,7 +290,7 @@ describe('Post', () => {
     });
   });
 
-  describe('remove bookmark endpoint', () => {
+  describe('remove bookmark mutation', () => {
     const DELETE_BOOKMARK = id => `
       mutation {
         RemoveBookmark(id: ${id})
@@ -334,7 +334,7 @@ describe('Post', () => {
     });
   });
 
-  describe('toilet endpoint', () => {
+  describe('toilet query', () => {
     const GET_TOILET = params => `
       {
         toilet(params: ${params}) {
@@ -392,10 +392,10 @@ describe('Post', () => {
     });
   });
 
-  describe('publication endpoint', () => {
+  describe('posts by publication query', () => {
     const FETCH_POST_BY_PUBLICATION = params => `
       {
-        publication(params: ${params}) {
+        postsByPublication(params: ${params}) {
           ${POST_FIELDS}
         }
       }
@@ -420,16 +420,16 @@ describe('Post', () => {
           query: FETCH_POST_BY_PUBLICATION(params),
         });
 
-      const returnedPosts = result.body.data.publication;
+      const returnedPosts = result.body.data.postsByPublication;
 
       expect(returnedPosts).to.deep.equal(fixture.pubsOutput.map(mapDate));
     });
   });
 
-  describe('tag endpoint', () => {
+  describe('posts by tag query', () => {
     const FETCH_POSTS_BY_TAG = params => `
       {
-        tag(params: ${params}) {
+        postsByTag(params: ${params}) {
           ${POST_FIELDS}
         }
       }
@@ -454,13 +454,13 @@ describe('Post', () => {
           query: FETCH_POSTS_BY_TAG(params),
         });
 
-      const returnedPosts = result.body.data.tag;
+      const returnedPosts = result.body.data.postsByTag;
 
       expect(returnedPosts).to.deep.equal(fixture.tagsOutput.map(mapDate));
     });
   });
 
-  describe('post endpoint', () => {
+  describe('hide post mutation', () => {
     const HIDE_POST = id => `
       mutation {
         HidePost(id: ${id})
