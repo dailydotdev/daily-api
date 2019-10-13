@@ -19,6 +19,7 @@ export default `
     promoted: Boolean
     readTime: Int
     bookmarked: Boolean
+    read: Boolean
   }
 
   # Fields added on the fly
