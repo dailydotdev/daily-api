@@ -30,6 +30,7 @@ router.post(
       enableCardAnimations: boolean(),
       insaneMode: boolean(),
       appInsaneMode: boolean(),
+      spaciness: string(),
     }),
   }, {
     stripUnknown: true,

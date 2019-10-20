@@ -10,6 +10,7 @@ const input = [
     theme: 'darcula',
     showTopSites: true,
     enableCardAnimations: false,
+    spaciness: 'roomy',
   },
 ];
 
@@ -21,6 +22,7 @@ const output = [
     enableCardAnimations: false,
     insaneMode: false,
     appInsaneMode: true,
+    spaciness: 'eco',
   },
   {
     userId: 'user2',
@@ -29,6 +31,7 @@ const output = [
     enableCardAnimations: false,
     insaneMode: false,
     appInsaneMode: true,
+    spaciness: 'roomy',
   },
 ];
 
