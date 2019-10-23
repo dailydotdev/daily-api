@@ -36,7 +36,7 @@
     "graphql": "^14.5.4",
     "graphql-tools": "^4.0.5",
     "iltorb": "^2.4.2",
-    "knex": "^0.15.2",
+    "knex": "^0.19.5",
     "koa": "^2.7.0",
     "koa-bodyparser": "^4.2.1",
     "koa-context-validator": "^0.4.1",
