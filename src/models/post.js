@@ -258,7 +258,7 @@ const filtersToQuery = async (query, filters = {}, rankBy, userId, ignoreUserFil
  * @returns Knex query object
  */
 const generateFeed = async ({
-  fields, filters, rankBy, userId, ignoreUserFilters = false, page = 0, pageSize = 20, ip,
+  fields, filters = {}, rankBy, userId, ignoreUserFilters = false, page = 0, pageSize = 20, ip,
 }, hook) => {
   let relevantFields = fields || Object.keys(singleFieldToQuery);
   if (relevantFields.indexOf('bookmarked') > -1 && !userId) {
@@ -275,7 +275,7 @@ const generateFeed = async ({
     if (newFilters.after) {
       searchFilters.push(`createdAt > ${newFilters.after.getTime()}`);
     }
-    newFilters.postIds = (await searchPosts(filters.search, {
+    newFilters.postIds = (await searchPosts(newFilters.search, {
       filters: searchFilters.join(' AND '),
       page,
       hitsPerPage: pageSize,

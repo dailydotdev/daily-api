@@ -284,7 +284,7 @@ describe('post model', () => {
         feedFixture.posts[2],
       ];
 
-      sinon.stub(algolia, 'initAlgolia').returns({
+      const stub = sinon.stub(algolia, 'initAlgolia').returns({
         index: {
           search: () => ({ hits: selectedPosts.map(p => ({ objectID: p.id })) }),
         },
@@ -294,11 +294,12 @@ describe('post model', () => {
         fields: ['id'],
         filters: { search: 'post' },
       });
+      stub.restore();
       expect(actual).to.deep.equal(selectedPosts.map(p => ({ id: p.id })));
     });
 
     it('should return no posts when search is empty', async () => {
-      sinon.stub(algolia, 'initAlgolia').returns({
+      const stub = sinon.stub(algolia, 'initAlgolia').returns({
         index: {
           search: () => ({ hits: [] }),
         },
@@ -308,6 +309,7 @@ describe('post model', () => {
         fields: ['id'],
         filters: { search: 'no such post' },
       });
+      stub.restore();
       expect(actual).to.deep.equal([]);
     });
   });

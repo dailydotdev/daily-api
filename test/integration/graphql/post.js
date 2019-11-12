@@ -475,7 +475,7 @@ describe('graphql post', () => {
       await Promise.all(fixture.input.map(p => post.add(p)));
       await request.post('/v1/tags/updateCount');
 
-      sinon.stub(algolia, 'initAlgolia').returns({
+      const stub = sinon.stub(algolia, 'initAlgolia').returns({
         index: {
           search: () => ({ hits: fixture.searchOutput.map(p => ({ objectID: p.id })) }),
         },
@@ -497,7 +497,7 @@ describe('graphql post', () => {
         });
 
       const returnedPosts = result.body.data.search;
-
+      stub.restore();
       expect(returnedPosts).to.deep.equal(fixture.searchOutput.map(mapDate));
     });
   });
@@ -512,7 +512,7 @@ describe('graphql post', () => {
     `;
 
     it('should fetch search suggestions', async () => {
-      sinon.stub(algolia, 'initAlgolia').returns({
+      const stub = sinon.stub(algolia, 'initAlgolia').returns({
         index: {
           search: () => ({
             hits: fixture.searchOutput.map(p => ({
@@ -536,7 +536,7 @@ describe('graphql post', () => {
         });
 
       const returnedPosts = result.body.data.searchSuggestion;
-
+      stub.restore();
       expect(returnedPosts).to.deep.equal(fixture.searchOutput.map(p => ({ title: p.title })));
     });
   });
