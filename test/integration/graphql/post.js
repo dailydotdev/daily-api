@@ -1,10 +1,12 @@
 import { expect } from 'chai';
+import sinon from 'sinon';
 import supertest from 'supertest';
 import knexCleaner from 'knex-cleaner';
 
 import fixture from '../../fixtures/posts';
 import fixturePubs from '../../fixtures/publications';
 import fixtureToilet from '../../fixtures/toilet';
+import * as algolia from '../../../src/algolia';
 import publication from '../../../src/models/publication';
 import post from '../../../src/models/post';
 import config from '../../../src/config';
@@ -457,6 +459,85 @@ describe('graphql post', () => {
       const returnedPosts = result.body.data.postsByTag;
 
       expect(returnedPosts).to.deep.equal(fixture.tagsOutput.map(mapDate));
+    });
+  });
+
+  describe('posts search query', () => {
+    const FETCH_POSTS_BY_QUERY = params => `
+      {
+        search(params: ${params}) {
+          ${POST_FIELDS}
+        }
+      }
+    `;
+
+    it('should fetch posts by text query', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
+
+      sinon.stub(algolia, 'initAlgolia').returns({
+        index: {
+          search: () => ({ hits: fixture.searchOutput.map(p => ({ objectID: p.id })) }),
+        },
+      });
+
+      const params = `
+        {
+          latest: ${JSON.stringify(latestDate)},
+          page: 0
+          pageSize: 20
+          query: "text"
+        }
+      `;
+
+      const result = await request
+        .get('/graphql')
+        .query({
+          query: FETCH_POSTS_BY_QUERY(params),
+        });
+
+      const returnedPosts = result.body.data.search;
+
+      expect(returnedPosts).to.deep.equal(fixture.searchOutput.map(mapDate));
+    });
+  });
+
+  describe('search suggestions query', () => {
+    const FETCH_SEARCH_SUGGESTIONS_QUERY = params => `
+      {
+        searchSuggestion(params: ${params}) {
+          title
+        }
+      }
+    `;
+
+    it('should fetch search suggestions', async () => {
+      sinon.stub(algolia, 'initAlgolia').returns({
+        index: {
+          search: () => ({
+            hits: fixture.searchOutput.map(p => ({
+              objectID: p.id,
+              title: p.title,
+            })),
+          }),
+        },
+      });
+
+      const params = `
+        {
+          query: "text"
+        }
+      `;
+
+      const result = await request
+        .get('/graphql')
+        .query({
+          query: FETCH_SEARCH_SUGGESTIONS_QUERY(params),
+        });
+
+      const returnedPosts = result.body.data.searchSuggestion;
+
+      expect(returnedPosts).to.deep.equal(fixture.searchOutput.map(p => ({ title: p.title })));
     });
   });
 

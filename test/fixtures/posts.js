@@ -111,6 +111,7 @@ const pubsOutput = [
 ];
 
 const tagsOutput = output;
+const searchOutput = output;
 
 const bookmarks = [
   { userId: 'user1', postId: input[1].id },
@@ -123,5 +124,6 @@ export default {
   output,
   pubsOutput,
   tagsOutput,
+  searchOutput,
   bookmarks,
 };

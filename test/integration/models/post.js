@@ -1,8 +1,10 @@
 import { expect } from 'chai';
+import sinon from 'sinon';
 import knexCleaner from 'knex-cleaner';
 import _ from 'lodash';
 import db, { migrate } from '../../../src/db';
 import publication from '../../../src/models/publication';
+import * as algolia from '../../../src/algolia';
 import post from '../../../src/models/post';
 import tag from '../../../src/models/tag';
 import feed from '../../../src/models/feed';
@@ -194,6 +196,18 @@ describe('post model', () => {
         .map(p => ({ id: p.id })));
     });
 
+    it('should return posts with given ids', async () => {
+      const actual = await post.generateFeed({
+        fields: ['id'],
+        rankBy: 'creation',
+        filters: {
+          postIds: [feedFixture.posts[2].id, feedFixture.posts[0].id, feedFixture.posts[1].id],
+        },
+      });
+      expect(actual).to.deep.equal(feedFixture.posts.slice(0, 3)
+        .map(p => ({ id: p.id })));
+    });
+
     it('should return only bookmarks', async () => {
       await post.bookmark([
         { userId: '1', postId: feedFixture.posts[0].id },
@@ -246,9 +260,8 @@ describe('post model', () => {
         rankBy: 'creation',
         filters: { tags: { include: ['javascript', 'webdev', 'react'], exclude: ['nodejs'] } },
       });
-      expect(actual).to
-        .deep.equal([feedFixture.posts[1], feedFixture.posts[2], feedFixture.posts[3]]
-          .map(p => ({ id: p.id })));
+      expect(actual).to.deep.equal(feedFixture.posts.slice(1, 4)
+        .map(p => ({ id: p.id })));
     });
 
     it('should return posts which are not hidden', async () => {
@@ -262,6 +275,40 @@ describe('post model', () => {
         userId: '2',
       });
       expect(actual).to.deep.equal(feedFixture.posts.slice(2).map(p => ({ id: p.id })));
+    });
+
+    it('should return search results', async () => {
+      const selectedPosts = [
+        feedFixture.posts[3],
+        feedFixture.posts[0],
+        feedFixture.posts[2],
+      ];
+
+      sinon.stub(algolia, 'initAlgolia').returns({
+        index: {
+          search: () => ({ hits: selectedPosts.map(p => ({ objectID: p.id })) }),
+        },
+      });
+
+      const actual = await post.generateFeed({
+        fields: ['id'],
+        filters: { search: 'post' },
+      });
+      expect(actual).to.deep.equal(selectedPosts.map(p => ({ id: p.id })));
+    });
+
+    it('should return no posts when search is empty', async () => {
+      sinon.stub(algolia, 'initAlgolia').returns({
+        index: {
+          search: () => ({ hits: [] }),
+        },
+      });
+
+      const actual = await post.generateFeed({
+        fields: ['id'],
+        filters: { search: 'no such post' },
+      });
+      expect(actual).to.deep.equal([]);
     });
   });
 });

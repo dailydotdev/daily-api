@@ -50,6 +50,11 @@ const config = {
     url: process.env.WEBHOOK_URL,
     secret: process.env.WEBHOOK_SECRET,
   },
+  algolia: {
+    app: process.env.ALGOLIA_APP,
+    key: process.env.ALGOLIA_KEY,
+    indexPrefix: env === 'production' ? 'prod' : 'dev',
+  },
 };
 
 export default config;

@@ -28,6 +28,7 @@
     "@google-cloud/trace-agent": "^3.6.1",
     "@koa/cors": "2",
     "@slack/client": "^4.3.1",
+    "algoliasearch": "^3.35.1",
     "apollo-server-koa": "^2.9.1",
     "busboy": "^0.3.1",
     "bytes": "^3.1.0",

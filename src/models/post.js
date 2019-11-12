@@ -2,6 +2,7 @@ import _ from 'lodash';
 
 import db, { toCamelCase, toSnakeCase } from '../db';
 import config from '../config';
+import { initAlgolia } from '../algolia';
 import tag from './tag';
 import feed from './feed';
 
@@ -61,6 +62,15 @@ const mapPost = fields => (post) => {
   }
 
   return newPost;
+};
+
+const renameKey = (obj, oldKey, newKey) =>
+  _.assign(_.omit(obj, [oldKey]), { [newKey]: obj[oldKey] });
+
+const searchPosts = async (query, opts, trackingId, ip) => {
+  const { index } = initAlgolia('posts', trackingId, ip);
+  const res = await index.search(Object.assign({}, { query }, opts));
+  return res.hits.map(obj => _.pick(renameKey(obj, 'objectID', 'id'), ['id', 'title']));
 };
 
 /**
@@ -146,6 +156,8 @@ const filtersToQuery = async (query, filters = {}, rankBy, userId, ignoreUserFil
 
   if (filters.postId) {
     newQuery = newQuery.where(`${table}.id`, '=', filters.postId);
+  } else if (filters.postIds) {
+    newQuery = newQuery.whereIn(`${table}.id`, filters.postIds);
   } else {
     const where = [
       ['publications.enabled', '=', 1],
@@ -233,22 +245,41 @@ const filtersToQuery = async (query, filters = {}, rankBy, userId, ignoreUserFil
  * @param {?String[]} filters.tags.include Retrieve posts with these tags
  * @param {?String[]} filters.tags.exclude Retrieve posts without these tags
  * @param {?String} filters.postId Retrieve a specific post by id
+ * @param {?String[]} filters.postIds Retrieve a set of posts by id
  * @param {?Boolean} filters.bookmarks Whether to retrieve only bookmarked posts
+ * @param {?String} filters.search Text query to filter posts
  * @param {?'popularity'|'creation'} rankBy Order criteria
  * @param {?String} userId Id of the user who requested the feed
  * @param {?Boolean} ignoreUserFilters Whether to ignore the user's preferences
  * @param {?Number} page Page number
  * @param {?Number} pageSize Number of posts per page
+ * @param {?String} ip Request IP for search analytics
  * @param {?Function} hook Gets the query as a parameter and should return a new query
  * @returns Knex query object
  */
-// eslint-disable-next-line object-curly-newline
 const generateFeed = async ({
-  fields, filters, rankBy, userId, ignoreUserFilters = false, page = 0, pageSize = 20,
-}, hook) => {
+                              fields, filters, rankBy, userId, ignoreUserFilters = false, page = 0, pageSize = 20, ip,
+                            }, hook) => {
   let relevantFields = fields || Object.keys(singleFieldToQuery);
   if (relevantFields.indexOf('bookmarked') > -1 && !userId) {
     relevantFields = relevantFields.filter(f => f !== 'bookmarked');
+  }
+
+  const newFilters = filters;
+  // fetch search results and then filter by their id
+  if (newFilters.search) {
+    const searchFilters = [];
+    if (newFilters.before) {
+      searchFilters.push(`createdAt < ${newFilters.before.getTime()}`);
+    }
+    if (newFilters.after) {
+      searchFilters.push(`createdAt > ${newFilters.after.getTime()}`);
+    }
+    newFilters.postIds = (await searchPosts(filters.search, {
+      filters: searchFilters.join(' AND '),
+      page,
+      hitsPerPage: pageSize,
+    }, userId, ip)).map(p => p.id);
   }
 
   let query = db
@@ -257,23 +288,25 @@ const generateFeed = async ({
     .join('publications', `${table}.publication_id`, 'publications.id');
 
   // Join bookmarks table if needed
-  if (userId && (relevantFields.indexOf('bookmarked') > -1 || (filters && filters.bookmarks))) {
+  if (userId && (relevantFields.indexOf('bookmarked') > -1 || (newFilters && newFilters.bookmarks))) {
     const args = [bookmarksTable, builder =>
       builder.on(`${bookmarksTable}.post_id`, '=', `${table}.id`)
         .andOn(`${bookmarksTable}.user_id`, '=', db.raw('?', [userId]))];
-    if (filters && filters.bookmarks) {
+    if (newFilters && newFilters.bookmarks) {
       query = query.join(...args);
     } else {
       query = query.leftJoin(...args);
     }
   }
 
-  [query] = await filtersToQuery(query, filters, rankBy, userId, ignoreUserFilters);
+  [query] = await filtersToQuery(query, newFilters, rankBy, userId, ignoreUserFilters);
 
-  if (rankBy === 'popularity') {
-    query = query.orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`);
-  } else if (rankBy === 'creation') {
-    query = query.orderBy(`${table}.created_at`, 'DESC');
+  if (!newFilters.search) {
+    if (rankBy === 'popularity') {
+      query = query.orderByRaw(`timestampdiff(minute, ${table}.created_at, current_timestamp()) - POW(LOG(${table}.views * 0.55 + 1), 2) * 60 ASC`);
+    } else if (rankBy === 'creation') {
+      query = query.orderBy(`${table}.created_at`, 'DESC');
+    }
   }
 
   if (hook) {
@@ -281,9 +314,16 @@ const generateFeed = async ({
   }
 
   query = query.offset(page * pageSize).limit(pageSize);
-  return query
+  const posts = await query
     .map(toCamelCase)
     .map(mapPost(relevantFields));
+
+  if (!newFilters.search) {
+    return posts;
+  }
+
+  // sort by search ranking
+  return posts.sort((a, b) => newFilters.postIds.indexOf(a.id) - newFilters.postIds.indexOf(b.id));
 };
 
 /**
@@ -316,13 +356,17 @@ const setPostsAsTweeted = id =>
 
 const updateViews = async () => {
   const before = new Date();
+  const res = await db.select('timestamp').from('config').where('key', '=', 'last_views_update');
+  const after = res.length ? res[0].timestamp : new Date(0);
 
-  return db.transaction(async (trx) => {
-    const res = await trx.select('timestamp').from('config').where('key', '=', 'last_views_update');
-    const after = res.length ? res[0].timestamp : new Date(0);
+  await db.transaction(async (trx) => {
     await trx.raw('UPDATE posts p INNER JOIN (SELECT COUNT(DISTINCT user_id) count, post_id FROM events WHERE type = "view" AND timestamp >= ? AND timestamp < ? GROUP BY post_id) AS e ON p.id = e.post_id SET p.views = p.views + e.count', [after, before]);
     return trx.raw('INSERT INTO config (`key`, `timestamp`) VALUES (\'last_views_update\', ?) ON DUPLICATE KEY UPDATE timestamp = ?', [before, before]);
   });
+
+  const updatedPosts = await db.raw('SELECT p.id objectID, p.views views FROM posts p INNER JOIN (SELECT post_id FROM events WHERE type = "view" AND timestamp >= ? AND timestamp < ? GROUP BY post_id) AS e ON p.id = e.post_id', [after, before]);
+  const { index } = initAlgolia('posts');
+  return index.partialUpdateObjects(updatedPosts[0]);
 };
 
 const bookmark = (bookmarks) => {
@@ -353,6 +397,20 @@ const get = async (id) => {
   return res.length ? res[0] : null;
 };
 
+const convertToAlgolia = obj =>
+  renameKey(
+    renameKey(
+      renameKey(_.pick(obj, ['id', 'title', 'createdAt', 'views', 'readTime', 'publicationId', 'tags']), 'id', 'objectID'),
+      'tags', '_tags',
+    ),
+    'publicationId', 'pubId',
+  );
+
+const addToAlgolia = (obj) => {
+  const { index } = initAlgolia('posts');
+  return index.addObject(convertToAlgolia(obj));
+};
+
 export default {
   add,
   setPostsAsTweeted,
@@ -363,7 +421,9 @@ export default {
   defaultUserFields,
   table,
   bookmarksTable,
+  searchPosts,
   generateFeed,
   hide,
   get,
+  addToAlgolia,
 };
