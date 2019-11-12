@@ -41,7 +41,11 @@ export default `
     """
     tags: [String]
   }
-
+  
+  type SearchSuggestion {
+    title: String
+  }
+  
   input QueryPostInput {
     latest: String
     page: Int
@@ -65,6 +69,15 @@ export default `
     tag: String!
   }
 
+  input PostSearchInput {
+    ${sharedPostInputFields}
+    query: String!
+  }
+  
+  input PostSearchSuggestionInput {
+    query: String!
+  }
+  
   type Query {
     latest(params: QueryPostInput): [Post!]!
     post(id: ID!): Post!
@@ -72,6 +85,8 @@ export default `
     toilet(params: ToiletInput): [Post!]!
     postsByPublication(params: PostByPublicationInput): [Post!]!
     postsByTag(params: PostByTagInput): [Post!]!
+    search(params: PostSearchInput): [Post!]!
+    searchSuggestion(params: PostSearchSuggestionInput): [SearchSuggestion!]!
   }
 
   type Mutation {

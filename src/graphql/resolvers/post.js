@@ -21,7 +21,7 @@ export default {
       return post.generateFeed(feedParams);
     },
 
-    async post(parent, args, { models: { post } , user }) {
+    async post(parent, args, { models: { post }, user }) {
       const result = await post.generateFeed({
         fields: post.defaultAnonymousFields,
         filters: { postId: args.id },
@@ -60,7 +60,7 @@ export default {
       const feedParams = Object.assign(
         {},
         helpers.getFeedParams({ post, user }, params, 'creation', { after }),
-        { pageSize: 8 }
+        { pageSize: 8 },
       );
       const [posts, ads] = await Promise.all([
         post.generateFeed(feedParams),
@@ -93,9 +93,31 @@ export default {
           params,
           'creation',
           { tags: { include: [params.tag] } },
-          true
+          true,
         ),
       );
+    },
+
+    search(parent, { params }, { user, models: { post }, meta }, info) {
+      params.latest = new Date(params.latest);
+
+      return post.generateFeed(
+        helpers.getFeedParams(
+          { post, user },
+          params,
+          'creation',
+          { search: params.query },
+          true,
+          meta.ip,
+        ),
+      );
+    },
+
+    async searchSuggestion(parent, { params }, { user, models: { post }, meta }, info) {
+      const suggestions = await post.searchPosts(params.query, { hitsPerPage: 5 }, user && user.userId, meta.ip);
+      return suggestions.map(s => ({
+        title: s.title,
+      }));
     },
   },
 

@@ -71,6 +71,8 @@ Finally run `yarn watch` to run the service and listen to port `5000`.
 We use `husky` for setting pre-commit git hooks to encrypt helm values.
 For those without access to our Google Cloud project it will throw an exception so you can simply comment it out from `package.json`.
 
+Currently, there is no staging environment for Algolia so there is no search functionality for local development.
+
 
 ## Want to Help?
 
