@@ -62,7 +62,7 @@ describe('posts routes', () => {
       })
       .expect(200);
 
-    expect(result.body).to.deep.equal([fixture.output[1]].map(mapDate));
+    expect(result.body).to.deep.equal([fixture.output[2]].map(mapDate));
   });
 
   it('should fetch latest posts by given publications', async () => {
@@ -79,7 +79,7 @@ describe('posts routes', () => {
       })
       .expect(200);
 
-    expect(result.body).to.deep.equal([fixture.output[0]].map(mapDate));
+    expect(result.body).to.deep.equal([fixture.output[1]].map(mapDate));
   });
 
   describe('get by id endpoint', () => {
@@ -137,7 +137,7 @@ describe('posts routes', () => {
         })
         .expect(200);
 
-      expect(res.body).to.have.deep.members([fixture.output[1], fixture.output[0]]
+      expect(res.body).to.have.deep.members([fixture.output[2], fixture.output[1]]
         .map(mapDate).map(x => Object.assign({}, x, { bookmarked: true })));
     });
   });

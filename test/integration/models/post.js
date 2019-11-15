@@ -59,7 +59,7 @@ describe('post model', () => {
     await tag.updateTagsCount();
 
     const model = await post.get(fixture.input[0].id);
-    expect(model).to.deep.equal(fixture.output[1]);
+    expect(model).to.deep.equal(fixture.output[2]);
   });
 
   describe('feed generation', () => {
