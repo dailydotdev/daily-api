@@ -56,7 +56,7 @@ const input = [
     createdAt: new Date(now - 1000),
     promoted: false,
     views: 10,
-    tags: ['a'],
+    tags: ['c'],
   },
 ];
 
@@ -138,7 +138,7 @@ const pubsOutput = [
   },
 ];
 
-const tagsOutput = output;
+const tagsOutput = [output[1], output[2]];
 const searchOutput = output;
 const outputByCreation = [
   output[1],
