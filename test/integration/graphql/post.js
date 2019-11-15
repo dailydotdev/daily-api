@@ -143,6 +143,29 @@ describe('graphql post', () => {
       const { latest } = result.body.data;
       expect(latest).to.deep.equal([fixture.output[1]].map(mapDate));
     });
+
+    it('should fetch latest posts sorted by creation time', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
+
+      const params = `{
+        latest: ${JSON.stringify(latestDate)}
+        page: 0,
+        pageSize: 20,
+        sortBy: "creation",
+      }`;
+
+      const result = await request
+        .get('/graphql')
+        .query({
+          query: GET_LATEST(params),
+        })
+        .expect(200);
+
+      const { latest } = result.body.data;
+
+      expect(latest).to.deep.equal(fixture.outputByCreation.map(mapDate));
+    });
   });
 
   describe('get post query', () => {
