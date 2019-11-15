@@ -466,7 +466,10 @@ describe('graphql post', () => {
     const FETCH_POSTS_BY_QUERY = params => `
       {
         search(params: ${params}) {
-          ${POST_FIELDS}
+          query
+          hits {
+            ${POST_FIELDS}
+          }
         }
       }
     `;
@@ -498,7 +501,10 @@ describe('graphql post', () => {
 
       const returnedPosts = result.body.data.search;
       stub.restore();
-      expect(returnedPosts).to.deep.equal(fixture.searchOutput.map(mapDate));
+      expect(returnedPosts).to.deep.equal({
+        query: 'text',
+        hits: fixture.searchOutput.map(mapDate),
+      });
     });
   });
 

@@ -98,10 +98,9 @@ export default {
       );
     },
 
-    search(parent, { params }, { user, models: { post }, meta }, info) {
+    async search(parent, { params }, { user, models: { post }, meta }, info) {
       params.latest = new Date(params.latest);
-
-      return post.generateFeed(
+      const hits = await post.generateFeed(
         helpers.getFeedParams(
           { post, user },
           params,
@@ -111,6 +110,8 @@ export default {
           meta.ip,
         ),
       );
+
+      return { hits, query: params.query };
     },
 
     async searchSuggestion(parent, { params }, { user, models: { post }, meta }, info) {
