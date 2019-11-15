@@ -46,6 +46,11 @@ export default `
     title: String
   }
   
+  type PostSearchResults {
+    query: String
+    hits: [Post]
+  }
+  
   input QueryPostInput {
     latest: String
     page: Int
@@ -85,7 +90,7 @@ export default `
     toilet(params: ToiletInput): [Post!]!
     postsByPublication(params: PostByPublicationInput): [Post!]!
     postsByTag(params: PostByTagInput): [Post!]!
-    search(params: PostSearchInput): [Post!]!
+    search(params: PostSearchInput): PostSearchResults!
     searchSuggestion(params: PostSearchSuggestionInput): [SearchSuggestion!]!
   }
 
