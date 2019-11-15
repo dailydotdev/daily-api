@@ -97,7 +97,7 @@ describe('graphql post', () => {
       const { latest } = result.body.data;
 
       expect(latest.length).to.equal(1);
-      expect(latest).to.deep.equal([fixture.output[0]].map(mapDate));
+      expect(latest).to.deep.equal([fixture.output[1]].map(mapDate));
     });
 
     it('should fetch latest posts', async () => {
@@ -141,7 +141,30 @@ describe('graphql post', () => {
         .expect(200);
 
       const { latest } = result.body.data;
-      expect(latest).to.deep.equal([fixture.output[1]].map(mapDate));
+      expect(latest).to.deep.equal([fixture.output[2]].map(mapDate));
+    });
+
+    it('should fetch latest posts sorted by creation time', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+      await request.post('/v1/tags/updateCount');
+
+      const params = `{
+        latest: ${JSON.stringify(latestDate)}
+        page: 0,
+        pageSize: 20,
+        sortBy: "creation",
+      }`;
+
+      const result = await request
+        .get('/graphql')
+        .query({
+          query: GET_LATEST(params),
+        })
+        .expect(200);
+
+      const { latest } = result.body.data;
+
+      expect(latest).to.deep.equal(fixture.outputByCreation.map(mapDate));
     });
   });
 
@@ -242,7 +265,7 @@ describe('graphql post', () => {
 
       const { bookmarks } = result.body.data;
 
-      expect(bookmarks).to.have.deep.members([fixture.output[1], fixture.output[0]]
+      expect(bookmarks).to.have.deep.members([fixture.output[2], fixture.output[1]]
         .map(mapDate)
         .map(x => Object.assign({}, x, { bookmarked: true })));
     });

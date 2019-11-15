@@ -48,9 +48,37 @@ const input = [
     promoted: true,
     views: 4,
   },
+  {
+    id: '5',
+    title: 'Another blog post',
+    url: 'https://myblog.com/post5.html',
+    publicationId: publications[0].id,
+    createdAt: new Date(now - 1000),
+    promoted: false,
+    views: 10,
+    tags: ['c'],
+  },
 ];
 
 const output = [
+  {
+    id: input[4].id,
+    title: input[4].title,
+    url: input[4].url,
+    publishedAt: null,
+    createdAt: input[4].createdAt,
+    image: config.defaultImage.url[0],
+    ratio: config.defaultImage.ratio,
+    placeholder: config.defaultImage.placeholder,
+    publication: {
+      id: publications[0].id,
+      name: publications[0].name,
+      image: publications[0].image,
+    },
+    views: input[4].views,
+    tags: input[4].tags,
+    readTime: null,
+  },
   {
     id: input[1].id,
     title: input[1].title,
@@ -110,8 +138,13 @@ const pubsOutput = [
   },
 ];
 
-const tagsOutput = output;
+const tagsOutput = [output[1], output[2]];
 const searchOutput = output;
+const outputByCreation = [
+  output[1],
+  output[0],
+  output[2],
+];
 
 const bookmarks = [
   { userId: 'user1', postId: input[1].id },
@@ -125,5 +158,6 @@ export default {
   pubsOutput,
   tagsOutput,
   searchOutput,
+  outputByCreation,
   bookmarks,
 };

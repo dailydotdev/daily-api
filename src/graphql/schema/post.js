@@ -57,6 +57,7 @@ export default `
     pageSize: Int
     pubs: String
     tags: String
+    sortBy: String
   }
 
   input ToiletInput {
