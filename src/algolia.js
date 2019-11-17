@@ -1,16 +1,24 @@
 import algoliasearch from 'algoliasearch';
 import config from './config';
 
-// eslint-disable-next-line import/prefer-default-export
-export const initAlgolia = (indexName, trackingId, ip) => {
-  // TODO: init client according to user token and ip
-  const client = algoliasearch(config.algolia.app, config.algolia.key);
-  if (trackingId) {
-    client.setExtraHeader('X-Algolia-UserToken', trackingId);
+let client;
+let index;
+
+const initAlgolia = (indexName) => {
+  client = algoliasearch(config.algolia.app, config.algolia.key);
+  index = client.initIndex(`${config.algolia.indexPrefix}_${indexName}`);
+};
+
+export const getPostsIndex = () => {
+  if (!index) {
+    initAlgolia('posts');
   }
-  if (ip) {
+  return index;
+};
+
+export const trackSearch = (trackingId, ip) => {
+  if (client) {
+    client.setExtraHeader('X-Algolia-UserToken', trackingId);
     client.setExtraHeader('X-Forwarded-For', ip);
   }
-  const index = client.initIndex(`${config.algolia.indexPrefix}_${indexName}`);
-  return { client, index };
 };

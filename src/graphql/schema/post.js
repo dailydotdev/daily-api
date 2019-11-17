@@ -46,6 +46,11 @@ export default `
     title: String
   }
   
+  type SearchSuggestionResults {
+    query: String
+    hits: [Post]
+  }
+  
   type PostSearchResults {
     query: String
     hits: [Post]
@@ -92,7 +97,7 @@ export default `
     postsByPublication(params: PostByPublicationInput): [Post!]!
     postsByTag(params: PostByTagInput): [Post!]!
     search(params: PostSearchInput): PostSearchResults!
-    searchSuggestion(params: PostSearchSuggestionInput): [SearchSuggestion!]!
+    searchSuggestion(params: PostSearchSuggestionInput): SearchSuggestionResults!
   }
 
   type Mutation {
