@@ -501,10 +501,8 @@ describe('graphql post', () => {
       await Promise.all(fixture.input.map(p => post.add(p)));
       await request.post('/v1/tags/updateCount');
 
-      const stub = sinon.stub(algolia, 'initAlgolia').returns({
-        index: {
-          search: () => ({ hits: fixture.searchOutput.map(p => ({ objectID: p.id })) }),
-        },
+      const stub = sinon.stub(algolia, 'getPostsIndex').returns({
+        search: () => ({ hits: fixture.searchOutput.map(p => ({ objectID: p.id })) }),
       });
 
       const params = `
@@ -535,21 +533,21 @@ describe('graphql post', () => {
     const FETCH_SEARCH_SUGGESTIONS_QUERY = params => `
       {
         searchSuggestion(params: ${params}) {
-          title
+          query
+          hits { title }
         }
       }
     `;
 
     it('should fetch search suggestions', async () => {
-      const stub = sinon.stub(algolia, 'initAlgolia').returns({
-        index: {
-          search: () => ({
-            hits: fixture.searchOutput.map(p => ({
-              objectID: p.id,
-              title: p.title,
-            })),
-          }),
-        },
+      const stub = sinon.stub(algolia, 'getPostsIndex').returns({
+        search: () => ({
+          hits: fixture.searchOutput.map(p => ({
+            objectID: p.id,
+            title: p.title,
+            _highlightResult: { title: { value: p.title } },
+          })),
+        }),
       });
 
       const params = `
@@ -566,7 +564,10 @@ describe('graphql post', () => {
 
       const returnedPosts = result.body.data.searchSuggestion;
       stub.restore();
-      expect(returnedPosts).to.deep.equal(fixture.searchOutput.map(p => ({ title: p.title })));
+      expect(returnedPosts).to.deep.equal({
+        query: 'text',
+        hits: fixture.searchOutput.map(p => ({ title: p.title })),
+      });
     });
   });
 

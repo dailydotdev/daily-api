@@ -115,10 +115,19 @@ export default {
     },
 
     async searchSuggestion(parent, { params }, { user, models: { post }, meta }, info) {
-      const suggestions = await post.searchPosts(params.query, { hitsPerPage: 5 }, user && user.userId, meta.ip);
-      return suggestions.map(s => ({
-        title: s.title,
-      }));
+      const suggestions = await post.searchPosts(params.query, {
+        hitsPerPage: 5,
+        attributesToRetrieve: ['objectID', 'title'],
+        attributesToHighlight: ['title'],
+        highlightPreTag: '<strong>',
+        highlightPostTag: '</strong>',
+      }, user && user.userId, meta.ip);
+      return {
+        query: params.query,
+        hits: suggestions.map(s => ({
+          title: s.highlight,
+        })),
+      };
     },
   },
 

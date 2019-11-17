@@ -284,10 +284,8 @@ describe('post model', () => {
         feedFixture.posts[2],
       ];
 
-      const stub = sinon.stub(algolia, 'initAlgolia').returns({
-        index: {
-          search: () => ({ hits: selectedPosts.map(p => ({ objectID: p.id })) }),
-        },
+      const stub = sinon.stub(algolia, 'getPostsIndex').returns({
+        search: () => ({ hits: selectedPosts.map(p => ({ objectID: p.id })) }),
       });
 
       const actual = await post.generateFeed({
@@ -299,10 +297,8 @@ describe('post model', () => {
     });
 
     it('should return no posts when search is empty', async () => {
-      const stub = sinon.stub(algolia, 'initAlgolia').returns({
-        index: {
-          search: () => ({ hits: [] }),
-        },
+      const stub = sinon.stub(algolia, 'getPostsIndex').returns({
+        search: () => ({ hits: [] }),
       });
 
       const actual = await post.generateFeed({

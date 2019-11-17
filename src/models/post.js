@@ -2,7 +2,7 @@ import _ from 'lodash';
 
 import db, { toCamelCase, toSnakeCase } from '../db';
 import config from '../config';
-import { initAlgolia } from '../algolia';
+import { getPostsIndex, trackSearch } from '../algolia';
 import tag from './tag';
 import feed from './feed';
 
@@ -65,12 +65,13 @@ const mapPost = fields => (post) => {
 };
 
 const renameKey = (obj, oldKey, newKey) =>
-  _.assign(_.omit(obj, [oldKey]), { [newKey]: obj[oldKey] });
+  (obj[oldKey] ? _.assign(_.omit(obj, [oldKey]), { [newKey]: obj[oldKey] }) : obj);
 
 const searchPosts = async (query, opts, trackingId, ip) => {
-  const { index } = initAlgolia('posts', trackingId, ip);
-  const res = await index.search(Object.assign({}, { query }, opts));
-  return res.hits.map(obj => _.pick(renameKey(obj, 'objectID', 'id'), ['id', 'title']));
+  trackSearch(trackingId, ip);
+  const res = await getPostsIndex().search(Object.assign({}, { query }, opts));
+  // eslint-disable-next-line no-underscore-dangle
+  return res.hits.map(obj => Object.assign({}, _.pick(renameKey(obj, 'objectID', 'id'), ['id', 'title']), obj._highlightResult ? { highlight: obj._highlightResult.title.value } : {}));
 };
 
 /**
@@ -279,6 +280,7 @@ const generateFeed = async ({
       filters: searchFilters.join(' AND '),
       page,
       hitsPerPage: pageSize,
+      attributesToRetrieve: ['objectID'],
     }, userId, ip)).map(p => p.id);
   }
 
@@ -313,7 +315,9 @@ const generateFeed = async ({
     query = hook(query);
   }
 
-  query = query.offset(page * pageSize).limit(pageSize);
+  if (!newFilters.search) {
+    query = query.offset(page * pageSize).limit(pageSize);
+  }
   const posts = await query
     .map(toCamelCase)
     .map(mapPost(relevantFields));
@@ -365,8 +369,8 @@ const updateViews = async () => {
   });
 
   const updatedPosts = await db.raw('SELECT p.id objectID, p.views views FROM posts p INNER JOIN (SELECT post_id FROM events WHERE type = "view" AND timestamp >= ? AND timestamp < ? GROUP BY post_id) AS e ON p.id = e.post_id', [after, before]);
-  const { index } = initAlgolia('posts');
-  return index.partialUpdateObjects(updatedPosts[0]);
+  trackSearch(null, null);
+  return getPostsIndex().partialUpdateObjects(updatedPosts[0]);
 };
 
 const bookmark = (bookmarks) => {
@@ -407,8 +411,8 @@ const convertToAlgolia = obj =>
   );
 
 const addToAlgolia = (obj) => {
-  const { index } = initAlgolia('posts');
-  return index.addObject(convertToAlgolia(obj));
+  trackSearch(null, null);
+  return getPostsIndex().addObject(convertToAlgolia(obj));
 };
 
 export default {
