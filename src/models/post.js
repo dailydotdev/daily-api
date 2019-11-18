@@ -14,7 +14,7 @@ const hideTable = 'hidden_posts';
 
 const nonEmptyArray = array => array && array.length;
 
-const getTimeLowerBounds = latest => new Date(latest - (10 * 24 * 60 * 60 * 1000));
+const getTimeLowerBounds = latest => new Date(latest - (20 * 24 * 60 * 60 * 1000));
 
 const mapPost = fields => (post) => {
   let newPost = _.omit(post, ['tags', 'pubId', 'pubName', 'pubImage', 'bookmarked', 'image', 'ratio', 'placeholder']);
@@ -168,10 +168,10 @@ const filtersToQuery = async (query, filters = {}, rankBy, userId, ignoreUserFil
       where.push([`${table}.created_at`, '<', filters.before]);
     }
 
-    if (filters.after || rankBy === 'popularity') {
+    if (filters.after || rankBy === 'popularity' || (userId && !ignoreUserFilters)) {
       // in case we rank by popularity we must set lower bounds for better performance
-      const after = rankBy === 'popularity' ?
-        getTimeLowerBounds(filters.before || new Date()) : filters.after;
+      const after = filters.after ?
+        filters.after : getTimeLowerBounds(filters.before || new Date());
       where.push([`${table}.created_at`, '>', after]);
     }
 
@@ -259,8 +259,8 @@ const filtersToQuery = async (query, filters = {}, rankBy, userId, ignoreUserFil
  * @returns Knex query object
  */
 const generateFeed = async ({
-  fields, filters = {}, rankBy, userId, ignoreUserFilters = false, page = 0, pageSize = 20, ip,
-}, hook) => {
+                              fields, filters = {}, rankBy, userId, ignoreUserFilters = false, page = 0, pageSize = 20, ip,
+                            }, hook) => {
   let relevantFields = fields || Object.keys(singleFieldToQuery);
   if (relevantFields.indexOf('bookmarked') > -1 && !userId) {
     relevantFields = relevantFields.filter(f => f !== 'bookmarked');
