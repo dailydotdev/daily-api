@@ -259,8 +259,8 @@ const filtersToQuery = async (query, filters = {}, rankBy, userId, ignoreUserFil
  * @returns Knex query object
  */
 const generateFeed = async ({
-                              fields, filters = {}, rankBy, userId, ignoreUserFilters = false, page = 0, pageSize = 20, ip,
-                            }, hook) => {
+  fields, filters = {}, rankBy, userId, ignoreUserFilters = false, page = 0, pageSize = 20, ip,
+}, hook) => {
   let relevantFields = fields || Object.keys(singleFieldToQuery);
   if (relevantFields.indexOf('bookmarked') > -1 && !userId) {
     relevantFields = relevantFields.filter(f => f !== 'bookmarked');
