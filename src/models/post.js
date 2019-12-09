@@ -402,13 +402,13 @@ const get = async (id) => {
 };
 
 const convertToAlgolia = obj =>
-  renameKey(
+  Object.assign({}, renameKey(
     renameKey(
       renameKey(_.pick(obj, ['id', 'title', 'createdAt', 'views', 'readTime', 'publicationId', 'tags']), 'id', 'objectID'),
       'tags', '_tags',
     ),
     'publicationId', 'pubId',
-  );
+  ), { createdAt: obj.createdAt.getTime() });
 
 const addToAlgolia = (obj) => {
   trackSearch(null, null);
