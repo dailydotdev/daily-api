@@ -376,8 +376,8 @@ const updateViews = async () => {
 const bookmark = (bookmarks) => {
   const obj = bookmarks.map(b => toSnakeCase(Object.assign({ createdAt: new Date() }, b)));
 
-  return db.insert(obj)
-    .into(bookmarksTable).then(() => bookmarks);
+  const insert = db.insert(obj).into(bookmarksTable).toString();
+  return db.raw(`${insert} on duplicate key update created_at=created_at`).then(() => bookmarks);
 };
 
 const removeBookmark = (userId, postId) =>

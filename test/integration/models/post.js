@@ -35,6 +35,14 @@ describe('post model', () => {
     expect(models).to.deep.equal(fixture.bookmarks);
   });
 
+  it('should ignore duplicate bookmarks', async () => {
+    await Promise.all(fixture.input.map(p => post.add(p)));
+
+    await post.bookmark(fixture.bookmarks);
+    const models = await post.bookmark(fixture.bookmarks);
+    expect(models).to.deep.equal(fixture.bookmarks);
+  });
+
   it('should remove bookmark', async () => {
     await Promise.all(fixture.input.map(p => post.add(p)));
     await tag.updateTagsCount();
