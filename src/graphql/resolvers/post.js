@@ -70,12 +70,12 @@ export default {
       return [...ads.map(helpers.assignType('ad')), ...posts.map(helpers.assignType('post'))];
     },
 
-    postsByPublication(parent, { params }, { models: { post } }, info) {
+    postsByPublication(parent, { params }, { user, models: { post } }, info) {
       params.latest = new Date(params.latest);
 
       return post.generateFeed(
         helpers.getFeedParams(
-          { post },
+          { post, user },
           params,
           'creation',
           { publications: { include: [params.pub] } },
@@ -84,12 +84,12 @@ export default {
       );
     },
 
-    postsByTag(parent, { params }, { models: { post } }, info) {
+    postsByTag(parent, { params }, { user, models: { post } }, info) {
       params.latest = new Date(params.latest);
 
       return post.generateFeed(
         helpers.getFeedParams(
-          { post },
+          { post, user },
           params,
           'creation',
           { tags: { include: [params.tag] } },
