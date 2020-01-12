@@ -17,6 +17,7 @@ const addItems = (wf, collectionId, items) =>
   })));
 
 const clearAndNewItems = async (wf, collectionId) => {
+  const maxLength = 80;
   const [existingItems, newItems] = await Promise.all([
     wf.items({ collectionId }),
     db.select('title as name', 'image as cover')
@@ -24,11 +25,11 @@ const clearAndNewItems = async (wf, collectionId) => {
       .where('created_at', '>=', db.raw('SUBDATE(NOW(), 1) '))
       .orderBy('views', 'desc')
       .limit(8)
-      .map(items => Object.assign(
-        {},
-        items,
-        { cover: items.cover || config.defaultImage.url[0] },
-      )),
+      .map(item => ({
+        name: item.name.length > maxLength ?
+          `${item.name.substr(0, maxLength - 3)}...` : item.name,
+        cover: item.cover || config.defaultImage.url[0],
+      })),
   ]);
   await addItems(wf, collectionId, newItems);
   await removeItems(wf, collectionId, existingItems.items);
