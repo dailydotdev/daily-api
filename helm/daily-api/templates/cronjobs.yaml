@@ -14,10 +14,57 @@ spec:
       template:
         spec:
           containers:
-          - name: job
-            image: byrnedo/alpine-curl
-            args:
-            - http://{{ template "daily-api.fullname" . }}/v1/tweet/trending
+            - name: job
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              command: ["node", "bin/tweet-trending.js"]
+              env:
+                - name: NODE_ENV
+                  value: production
+                - name: MYSQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_USER
+                - name: MYSQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_PASSWORD
+                - name: MYSQL_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_DATABASE
+                - name: MYSQL_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_HOST
+                - name: TWITTER_CONSUMER_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: TWITTER_CONSUMER_KEY
+                - name: TWITTER_CONSUMER_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: TWITTER_CONSUMER_SECRET
+                - name: TWITTER_ACCESS_TOKEN_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: TWITTER_ACCESS_TOKEN_KEY
+                - name: TWITTER_ACCESS_TOKEN_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: TWITTER_ACCESS_TOKEN_SECRET
+                - name: URL_PREFIX
+                  valueFrom:
+                    configMapKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: URL_PREFIX
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1beta1
@@ -36,10 +83,10 @@ spec:
       template:
         spec:
           containers:
-          - name: job
-            image: byrnedo/alpine-curl
-            args:
-            - http://{{ template "daily-api.fullname" . }}/v1/posts/views
+            - name: job
+              image: byrnedo/alpine-curl
+              args:
+                - http://{{ template "daily-api.fullname" . }}/v1/posts/views
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1beta1
@@ -59,9 +106,31 @@ spec:
         spec:
           containers:
             - name: job
-              image: byrnedo/alpine-curl
-              args:
-                - http://{{ template "daily-api.fullname" . }}/v1/tags/updateCount
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              command: ["node", "bin/update-tags.js"]
+              env:
+                - name: NODE_ENV
+                  value: production
+                - name: MYSQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_USER
+                - name: MYSQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_PASSWORD
+                - name: MYSQL_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_DATABASE
+                - name: MYSQL_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_HOST
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1beta1
@@ -84,51 +153,51 @@ spec:
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               command: ["node", "bin/update-webflow.js"]
               env:
-              - name: NODE_ENV
-                value: production
-              - name: MYSQL_USER
-                valueFrom:
-                  secretKeyRef:
-                    name: {{ template "daily-api.fullname" . }}
-                    key: MYSQL_USER
-              - name: MYSQL_PASSWORD
-                valueFrom:
-                  secretKeyRef:
-                    name: {{ template "daily-api.fullname" . }}
-                    key: MYSQL_PASSWORD
-              - name: MYSQL_DATABASE
-                valueFrom:
-                  secretKeyRef:
-                    name: {{ template "daily-api.fullname" . }}
-                    key: MYSQL_DATABASE
-              - name: MYSQL_HOST
-                valueFrom:
-                  secretKeyRef:
-                    name: {{ template "daily-api.fullname" . }}
-                    key: MYSQL_HOST
-              - name: URL_PREFIX
-                valueFrom:
-                  configMapKeyRef:
-                    name: {{ template "daily-api.fullname" . }}
-                    key: URL_PREFIX
-              - name: DEFAULT_IMAGE_URL
-                valueFrom:
-                  configMapKeyRef:
-                    name: {{ template "daily-api.fullname" . }}
-                    key: DEFAULT_IMAGE_URL
-              - name: DEFAULT_IMAGE_PLACEHOLDER
-                valueFrom:
-                  configMapKeyRef:
-                    name: {{ template "daily-api.fullname" . }}
-                    key: DEFAULT_IMAGE_PLACEHOLDER
-              - name: DEFAULT_IMAGE_RATIO
-                valueFrom:
-                  configMapKeyRef:
-                    name: {{ template "daily-api.fullname" . }}
-                    key: DEFAULT_IMAGE_RATIO
-              - name: WEBFLOW_TOKEN
-                valueFrom:
-                  secretKeyRef:
-                    name: {{ template "daily-api.fullname" . }}
-                    key: WEBFLOW_TOKEN
+                - name: NODE_ENV
+                  value: production
+                - name: MYSQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_USER
+                - name: MYSQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_PASSWORD
+                - name: MYSQL_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_DATABASE
+                - name: MYSQL_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_HOST
+                - name: URL_PREFIX
+                  valueFrom:
+                    configMapKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: URL_PREFIX
+                - name: DEFAULT_IMAGE_URL
+                  valueFrom:
+                    configMapKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: DEFAULT_IMAGE_URL
+                - name: DEFAULT_IMAGE_PLACEHOLDER
+                  valueFrom:
+                    configMapKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: DEFAULT_IMAGE_PLACEHOLDER
+                - name: DEFAULT_IMAGE_RATIO
+                  valueFrom:
+                    configMapKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: DEFAULT_IMAGE_RATIO
+                - name: WEBFLOW_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: WEBFLOW_TOKEN
           restartPolicy: OnFailure

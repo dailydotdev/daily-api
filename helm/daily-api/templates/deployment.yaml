@@ -71,26 +71,6 @@ spec:
               secretKeyRef:
                 name: {{ template "daily-api.fullname" . }}
                 key: MYSQL_HOST
-          - name: TWITTER_CONSUMER_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: TWITTER_CONSUMER_KEY
-          - name: TWITTER_CONSUMER_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: TWITTER_CONSUMER_SECRET
-          - name: TWITTER_ACCESS_TOKEN_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: TWITTER_ACCESS_TOKEN_KEY
-          - name: TWITTER_ACCESS_TOKEN_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: TWITTER_ACCESS_TOKEN_SECRET
           - name: URL_PREFIX
             valueFrom:
               configMapKeyRef:

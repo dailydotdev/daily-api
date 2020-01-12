@@ -18,7 +18,6 @@ import logger from './logger';
 import health from './routes/health';
 import posts from './routes/posts';
 import publications from './routes/publications';
-import tweet from './routes/tweet';
 import settings from './routes/settings';
 import feeds from './routes/feeds';
 
@@ -126,7 +125,6 @@ router.all('graphql', graphqlHTTP({
 router.use(feeds.routes(), feeds.allowedMethods());
 router.use(posts.routes(), posts.allowedMethods());
 router.use(publications.routes(), publications.allowedMethods());
-router.use(tweet.routes(), tweet.allowedMethods());
 router.use(settings.routes(), settings.allowedMethods());
 router.use(notifications.routes(), notifications.allowedMethods());
 router.use(tags.routes(), tags.allowedMethods());

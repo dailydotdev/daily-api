@@ -8,20 +8,10 @@ const client = new Twitter({
   access_token_secret: config.twitter.accessTokenSecret,
 });
 
+// eslint-disable-next-line import/prefer-default-export
 export const tweet = (status, mediaIds = []) =>
   new Promise((resolve, reject) => {
     client.post('statuses/update', { status, media_ids: mediaIds.join(',') }, (err, res) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(res);
-      }
-    });
-  });
-
-export const uploadImage = data =>
-  new Promise((resolve, reject) => {
-    client.post('media/upload', { media: data }, (err, res) => {
       if (err) {
         reject(err);
       } else {
