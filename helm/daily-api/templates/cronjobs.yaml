@@ -84,9 +84,31 @@ spec:
         spec:
           containers:
             - name: job
-              image: byrnedo/alpine-curl
-              args:
-                - http://{{ template "daily-api.fullname" . }}/v1/posts/views
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              command: ["node", "bin/update-views.js"]
+              env:
+                - name: NODE_ENV
+                  value: production
+                - name: MYSQL_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_USER
+                - name: MYSQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_PASSWORD
+                - name: MYSQL_DATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_DATABASE
+                - name: MYSQL_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: MYSQL_HOST
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1beta1
