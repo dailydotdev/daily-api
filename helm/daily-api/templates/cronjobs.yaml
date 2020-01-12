@@ -109,6 +109,16 @@ spec:
                     secretKeyRef:
                       name: {{ template "daily-api.fullname" . }}
                       key: MYSQL_HOST
+                - name: ALGOLIA_APP
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: ALGOLIA_APP
+                - name: ALGOLIA_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ template "daily-api.fullname" . }}
+                      key: ALGOLIA_KEY
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1beta1
