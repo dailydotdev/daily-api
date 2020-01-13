@@ -16,7 +16,7 @@ const addItems = (wf, collectionId, items) =>
     }),
   })));
 
-const clearAndNewItems = async (wf, collectionId) => {
+const clearAndNewItems = async (wf, collectionId, limit) => {
   const maxLength = 80;
   const [existingItems, newItems] = await Promise.all([
     wf.items({ collectionId }),
@@ -24,7 +24,7 @@ const clearAndNewItems = async (wf, collectionId) => {
       .from('posts')
       .where('created_at', '>=', db.raw('SUBDATE(NOW(), 1) '))
       .orderBy('views', 'desc')
-      .limit(8)
+      .limit(limit)
       .map(item => ({
         name: item.name.length > maxLength ?
           `${item.name.substr(0, maxLength - 3)}...` : item.name,
@@ -38,8 +38,10 @@ const clearAndNewItems = async (wf, collectionId) => {
 // eslint-disable-next-line no-console
 console.log('updating webflow');
 const wf = new Webflow({ token: process.env.WEBFLOW_TOKEN });
-const collectionId = '5e0f1144f72aff36b8494404';
-clearAndNewItems(wf, collectionId)
+Promise.all([
+  clearAndNewItems(wf, '5e0f1144f72aff36b8494404', 8),
+  clearAndNewItems(wf, '5e1c2119db4d521aba00a685', 4),
+])
   .then(() => {
     // eslint-disable-next-line no-console
     console.log('done');
