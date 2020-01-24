@@ -23,7 +23,7 @@ along with other very useful endpoints.
 ## Technology
 
 * Yarn for managing dependencies.
-* Node v10.12.0 (a `.nvmrc` is presented for [nvm](https://github.com/nvm-sh/nvm) users).
+* Node v12.14.1 (a `.nvmrc` is presented for [nvm](https://github.com/nvm-sh/nvm) users).
 * Koa as the web framework
 
 ## Project structure
@@ -35,7 +35,7 @@ The project was bootstrapped with vue cli so it is very much like any other vue 
 * `src` - This is obviously the place where you can find the source files.
   * `src/middlewares` - Koa custom middlewares.
   * `src/models` - Modules for interacting with the database.
-  * `src/routes` - Endpoints of the server 
+  * `src/routes` - Endpoints of the server
   * `src/workers` - Background workers which listens to pub/sub messages.
 * `test` - There you can find all the tests and fixtures. Tests are written using `mocha` and `chai`.
 
