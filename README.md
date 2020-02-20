@@ -4,11 +4,11 @@
 </div>
 <br>
 <p align="center">
-  <a href="https://circleci.com/gh/dailynowco/daily-api">
-    <img src="https://img.shields.io/circleci/build/github/dailynowco/daily-api/master.svg" alt="Build Status">
+  <a href="https://circleci.com/gh/dailydotdev/daily-api">
+    <img src="https://img.shields.io/circleci/build/github/dailydotdev/daily-api/master.svg" alt="Build Status">
   </a>
-  <a href="https://github.com/dailynowco/daily-api/blob/master/LICENSE">
-    <img src="https://img.shields.io/github/license/dailynowco/daily-api.svg" alt="License">
+  <a href="https://github.com/dailydotdev/daily-api/blob/master/LICENSE">
+    <img src="https://img.shields.io/github/license/dailydotdev/daily-api.svg" alt="License">
   </a>
   <a href="https://stackshare.io/daily/daily">
     <img src="http://img.shields.io/badge/tech-stack-0690fa.svg?style=flat" alt="StackShare">
@@ -42,7 +42,7 @@ The project was bootstrapped with vue cli so it is very much like any other vue 
 ## Local environment
 
 Daily API requires a running instance of MySQL, you can easily set it up using docker.
-[Check out this guide](https://github.com/dailynowco/daily#setting-up-local-environment) of how to setup Daily services, you need only MySQL (step 2).
+[Check out this guide](https://github.com/dailydotdev/daily#setting-up-local-environment) of how to setup Daily services, you need only MySQL (step 2).
 
 When running locally the service, you will also have to set some environment variables:
 ```bash
@@ -80,4 +80,4 @@ So you want to contribute to Daily API and make an impact, we are glad to hear i
 
 Before you proceed we have a few guidelines for contribution that will make everything much easier.
 We would appreciate if you dedicate the time and read them carefully:
-https://github.com/dailynowco/.github/blob/master/CONTRIBUTING.md
+https://github.com/dailydotdev/.github/blob/master/CONTRIBUTING.md
