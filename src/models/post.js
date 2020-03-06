@@ -291,7 +291,17 @@ const generateFeed = async ({
     .join('publications', `${table}.publication_id`, 'publications.id');
 
   if (typeof newFilters.read === 'boolean') {
-    query.where('read', '=', `${newFilters.read}`);
+    const args = [eventsTable, builder =>
+      builder.on(`${eventsTable}.post_id`, '=', `${table}.id`)
+        .andOn(`${eventsTable}.user_id`, '=', db.raw('?', [userId])),
+    ];
+    if (newFilters.read) {
+      query = query.join(...args);
+      query.where(`${eventsTable}.type`, '=', 'view');
+    } else {
+      query = query.leftJoin(...args);
+      query = query.whereNull(`${eventsTable}.type`);
+    }
   }
 
   // Join bookmarks table if needed
