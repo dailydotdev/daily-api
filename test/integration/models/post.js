@@ -133,13 +133,16 @@ describe('post model', () => {
     it('should return posts with read field', async () => {
       await Promise.all([
         event.add('view', '1', feedFixture.posts[0].id),
-        event.add('view', '1', feedFixture.posts[2].id),
+        event.add('view', '2', feedFixture.posts[2].id),
         event.add('view', '2', feedFixture.posts[1].id),
+        event.add('view', '1', feedFixture.posts[3].id),
+        event.add('view', '1', feedFixture.posts[4].id),
       ]);
 
       const expected = feedFixture.posts.map(p => ({ id: p.id, read: false }));
       expected[0].read = true;
-      expected[2].read = true;
+      expected[3].read = true;
+      expected[4].read = true;
 
       const actual = await post.generateFeed({
         fields: ['id', 'read'],
