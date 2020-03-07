@@ -63,6 +63,7 @@ export default `
     pubs: String
     tags: String
     sortBy: String
+    read: Boolean
   }
 
   input ToiletInput {
