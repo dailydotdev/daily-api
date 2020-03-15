@@ -9,6 +9,7 @@ import fixtureToilet from '../../fixtures/toilet';
 import * as algolia from '../../../src/algolia';
 import publication from '../../../src/models/publication';
 import post from '../../../src/models/post';
+import event from '../../../src/models/event';
 import config from '../../../src/config';
 import db, { migrate } from '../../../src/db';
 import app from '../../../src';
@@ -165,6 +166,70 @@ describe('graphql post', () => {
       const { latest } = result.body.data;
 
       expect(latest).to.deep.equal(fixture.outputByCreation.map(mapDate));
+    });
+
+    it('should fetch latest not read posts', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+      await Promise.all(fixture.readInput.map(p => event.view(p.userId, p.id)));
+      await request.post('/v1/tags/updateCount');
+
+      const params = `{
+        latest: ${JSON.stringify(latestDate)}
+        page: 0,
+        pageSize: 20,
+        read: false,
+      }`;
+
+      const result = await request
+        .get('/graphql')
+        .set('Authorization', `Service ${config.accessSecret}`)
+        .set('User-Id', fixture.readInput[0].userId)
+        .set('Logged-In', true)
+        .query({
+          query: `{
+            latest(params: ${params}) {
+              id
+              read
+            }
+          }`,
+        })
+        .expect(200);
+
+      const { latest } = result.body.data;
+
+      expect(latest).to.deep.equal(fixture.notReadOutput);
+    });
+
+    it('should fetch latest read posts', async () => {
+      await Promise.all(fixture.input.map(p => post.add(p)));
+      await Promise.all(fixture.readInput.map(p => event.view(p.userId, p.id)));
+      await request.post('/v1/tags/updateCount');
+
+      const params = `{
+        latest: ${JSON.stringify(latestDate)}
+        page: 0,
+        pageSize: 20,
+        read: true,
+      }`;
+
+      const result = await request
+        .get('/graphql')
+        .set('Authorization', `Service ${config.accessSecret}`)
+        .set('User-Id', fixture.readInput[0].userId)
+        .set('Logged-In', true)
+        .query({
+          query: `{
+            latest(params: ${params}) {
+              id
+              read
+            }
+          }`,
+        })
+        .expect(200);
+
+      const { latest } = result.body.data;
+
+      expect(latest).to.deep.equal(fixture.readOutput);
     });
   });
 

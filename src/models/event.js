@@ -12,4 +12,10 @@ const add = (type, userId, postId, referer, agent, ip, timestamp = new Date()) =
     .then(() => obj);
 };
 
-export default { getAll, add };
+const view = (userId, postId) => {
+  const obj = { type: 'view', userId, postId };
+  return db.insert(toSnakeCase(obj)).into(table)
+    .then(() => obj);
+};
+
+export default { getAll, add, view };
