@@ -297,7 +297,7 @@ const generateFeed = async ({
     ];
     if (newFilters.read) {
       query = query.join(...args);
-      query.where(`${eventsTable}.type`, '=', 'view');
+      query = query.where(`${eventsTable}.type`, '=', 'view');
     } else {
       query = query.leftJoin(...args);
       query = query.whereNull(`${eventsTable}.type`);
