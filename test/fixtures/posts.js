@@ -60,7 +60,9 @@ const input = [
   },
 ];
 
-const readInput = [{ ...input[2], userId: 'user1' }, { ...input[3], userId: 'user1' }, { ...input[4], userId: 'user2' }];
+const notReadInput = [{ ...input[2], userId: 'user1' }, { ...input[3], userId: 'user1' }, { ...input[4], userId: 'user2' }];
+
+const readInput = [{ ...input[0], userId: 'user1' }, { ...input[3], userId: 'user2' }, { ...input[4], userId: 'user1' }];
 
 const output = [
   {
@@ -150,11 +152,11 @@ const outputByCreation = [
 
 const readOutput = [
   {
-    id: input[2].id,
+    id: input[4].id,
     read: true,
   },
   {
-    id: input[3].id,
+    id: input[0].id,
     read: true,
   },
 ];
@@ -183,6 +185,7 @@ const bookmarks = [
 export default {
   input,
   readInput,
+  notReadInput,
   output,
   pubsOutput,
   tagsOutput,

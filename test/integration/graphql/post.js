@@ -170,7 +170,7 @@ describe('graphql post', () => {
 
     it('should fetch latest not read posts', async () => {
       await Promise.all(fixture.input.map(p => post.add(p)));
-      await Promise.all(fixture.readInput.map(p => event.view(p.userId, p.id)));
+      await Promise.all(fixture.notReadInput.map(p => event.view(p.userId, p.id)));
       await request.post('/v1/tags/updateCount');
 
       const params = `{
@@ -183,7 +183,7 @@ describe('graphql post', () => {
       const result = await request
         .get('/graphql')
         .set('Authorization', `Service ${config.accessSecret}`)
-        .set('User-Id', fixture.readInput[0].userId)
+        .set('User-Id', fixture.notReadInput[0].userId)
         .set('Logged-In', true)
         .query({
           query: `{
