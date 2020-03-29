@@ -4,6 +4,7 @@ const input = [
     theme: 'darcula',
     showTopSites: false,
     enableCardAnimations: false,
+    showOnlyNotReadPosts: true,
   },
   {
     userId: 'user2',
@@ -23,6 +24,7 @@ const output = [
     insaneMode: false,
     appInsaneMode: true,
     spaciness: 'eco',
+    showOnlyNotReadPosts: true,
   },
   {
     userId: 'user2',
@@ -32,6 +34,7 @@ const output = [
     insaneMode: false,
     appInsaneMode: true,
     spaciness: 'roomy',
+    showOnlyNotReadPosts: false,
   },
 ];
 
