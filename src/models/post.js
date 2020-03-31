@@ -249,6 +249,7 @@ const filtersToQuery = async (query, filters = {}, rankBy, userId, ignoreUserFil
  * @param {?String[]} filters.postIds Retrieve a set of posts by id
  * @param {?Boolean} filters.bookmarks Whether to retrieve only bookmarked posts
  * @param {?String} filters.search Text query to filter posts
+ * @param {?Boolean} filters.read Whether to retrieve only read posts
  * @param {?'popularity'|'creation'} rankBy Order criteria
  * @param {?String} userId Id of the user who requested the feed
  * @param {?Boolean} ignoreUserFilters Whether to ignore the user's preferences
@@ -288,6 +289,20 @@ const generateFeed = async ({
     .select(...fieldsToSelect(relevantFields, userId))
     .from(table)
     .join('publications', `${table}.publication_id`, 'publications.id');
+
+  if (typeof newFilters.read === 'boolean') {
+    const args = [eventsTable, builder =>
+      builder.on(`${eventsTable}.post_id`, '=', `${table}.id`)
+        .andOn(`${eventsTable}.user_id`, '=', db.raw('?', [userId])),
+    ];
+    if (newFilters.read) {
+      query = query.join(...args);
+      query = query.where(`${eventsTable}.type`, '=', 'view');
+    } else {
+      query = query.leftJoin(...args);
+      query = query.whereNull(`${eventsTable}.type`);
+    }
+  }
 
   // Join bookmarks table if needed
   if (userId && (relevantFields.indexOf('bookmarked') > -1 || (newFilters && newFilters.bookmarks))) {

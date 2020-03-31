@@ -133,18 +133,60 @@ describe('post model', () => {
     it('should return posts with read field', async () => {
       await Promise.all([
         event.add('view', '1', feedFixture.posts[0].id),
-        event.add('view', '1', feedFixture.posts[2].id),
+        event.add('view', '2', feedFixture.posts[2].id),
         event.add('view', '2', feedFixture.posts[1].id),
+        event.add('view', '1', feedFixture.posts[3].id),
+        event.add('view', '1', feedFixture.posts[4].id),
       ]);
 
       const expected = feedFixture.posts.map(p => ({ id: p.id, read: false }));
       expected[0].read = true;
-      expected[2].read = true;
+      expected[3].read = true;
+      expected[4].read = true;
 
       const actual = await post.generateFeed({
         fields: ['id', 'read'],
         rankBy: 'creation',
         userId: '1',
+      });
+      expect(actual).to.deep.equal(expected);
+    });
+
+    it('should return only read posts', async () => {
+      await Promise.all([
+        event.add('view', '1', feedFixture.posts[0].id),
+        event.add('view', '1', feedFixture.posts[2].id),
+        event.add('view', '2', feedFixture.posts[1].id),
+      ]);
+
+      const expected = [feedFixture.posts[0], feedFixture.posts[2]].map(p => ({ id: p.id }));
+
+      const actual = await post.generateFeed({
+        fields: ['id'],
+        rankBy: 'creation',
+        userId: '1',
+        filters: { read: true },
+      });
+      expect(actual).to.deep.equal(expected);
+    });
+
+    it('should return only not read posts', async () => {
+      await Promise.all([
+        event.add('view', '1', feedFixture.posts[0].id),
+        event.add('view', '1', feedFixture.posts[2].id),
+        event.add('view', '2', feedFixture.posts[1].id),
+      ]);
+
+      const readPosts = [feedFixture.posts[0].id, feedFixture.posts[2].id];
+      const expected = feedFixture.posts
+        .map(p => ({ id: p.id }))
+        .filter(({ id }) => !readPosts.includes(id));
+
+      const actual = await post.generateFeed({
+        fields: ['id'],
+        rankBy: 'creation',
+        userId: '1',
+        filters: { read: false },
       });
       expect(actual).to.deep.equal(expected);
     });

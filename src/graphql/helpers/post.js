@@ -4,7 +4,7 @@ const getFeedParams =
 
     return {
       fields: userId ? [...post.defaultUserFields, 'read'] : post.defaultAnonymousFields,
-      filters: Object.assign({}, { before: args.latest }, filters),
+      filters: Object.assign({}, { before: args.latest }, filters, typeof args.read === 'boolean' && userId && { read: args.read }),
       rankBy,
       userId,
       ignoreUserFilters,

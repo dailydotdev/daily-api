@@ -13,6 +13,7 @@ const getByUserId = userId =>
       showTopSites: row.showTopSites === 1,
       insaneMode: row.insaneMode === 1,
       appInsaneMode: row.appInsaneMode === 1,
+      showOnlyNotReadPosts: row.showOnlyNotReadPosts === 1,
     }))
     .then((res) => {
       if (res.length) {
