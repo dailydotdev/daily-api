@@ -4,7 +4,7 @@ import validator, { object, string } from 'koa-context-validator';
 import cloudinary from 'cloudinary';
 import Busboy from 'busboy';
 import rp from 'request-promise-native';
-import PubSub from '@google-cloud/pubsub';
+import { PubSub } from '@google-cloud/pubsub';
 import config from '../config';
 import publication from '../models/publication';
 import pubsRequest from '../models/pubsRequest';
@@ -25,7 +25,10 @@ const notifyPubRequest = (type, req) => {
 
 const uploadLogo = (name, stream) =>
   new Promise((resolve, reject) => {
-    const outStream = cloudinary.v2.uploader.upload_stream({ public_id: name, folder: 'logos' }, (err) => {
+    const outStream = cloudinary.v2.uploader.upload_stream({
+      public_id: name,
+      folder: 'logos',
+    }, (err) => {
       if (err) {
         reject(err);
       } else {
