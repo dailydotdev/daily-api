@@ -1,4 +1,4 @@
-import PubSub from '@google-cloud/pubsub';
+import { PubSub } from '@google-cloud/pubsub';
 import _ from 'lodash';
 import config from '../config';
 import logger from '../logger';
