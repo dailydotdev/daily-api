@@ -1,11 +1,12 @@
 import 'reflect-metadata';
 import * as fastify from 'fastify';
-import * as helmet from 'fastify-helmet';
 import { FastifyInstance } from 'fastify';
+import * as helmet from 'fastify-helmet';
 import * as fastJson from 'fast-json-stringify';
 import { createConnection, getConnection, getConnectionManager } from 'typeorm';
 
 import trace from './trace';
+import auth from './auth';
 
 import './config';
 // import { Context } from './Context';
@@ -36,6 +37,7 @@ export default async function app(): Promise<FastifyInstance> {
 
   app.register(helmet);
   app.register(trace, { enabled: isProd });
+  app.register(auth, { secret: process.env.ACCESS_SECRET });
 
   app.get('/health', (req, res) => {
     res.type('application/health+json');
