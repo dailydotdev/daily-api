@@ -7,52 +7,44 @@ orbs:
 jobs:
   build:
     docker:
-      - image: circleci/node:12.14.1
-      - image: mysql:5.7
+      - image: circleci/node:12.16.2
+      - image: postgres:11.6-alpine
         environment:
-          MYSQL_DATABASE: test
-          MYSQL_ROOT_PASSWORD: 12345
+          POSTGRES_DB=api_test
+          POSTGRES_PASSWORD=12345
     steps:
       - checkout
       - restore_cache:
-          key: dependency-cache-{{ checksum "yarn.lock" }}
+          key: dependency-cache-{{ checksum "package-lock.json" }}
       - run:
           name: Install dependencies
-          command: yarn install
+          command: npm install
       - save_cache:
-          key: dependency-cache-{{ checksum "yarn.lock" }}
+          key: dependency-cache-{{ checksum "package-lock.json" }}
           paths:
             - ./node_modules
       - run:
-          name: Wait for MySQL
+          name: Wait for PostgreSQL
           command: |
             for i in `seq 1 10`;
             do
-            nc -z localhost 3306 && echo Success && exit 0
+            nc -z localhost 5432 && echo Success && exit 0
             echo -n .
             sleep 1
             done
             echo Failed waiting for Postgress && exit 1
       - run:
           name: Test
-          command: yarn test --reporter mocha-junit-reporter
+          command: npm run test --ci --reporters=default --reporters=jest-junit
           environment:
-            MOCHA_FILE: ./test-results/mocha/results.xml
-            MYSQL_HOST: localhost
-            MYSQL_USER: root
-            MYSQL_PASSWORD: 12345
-            MYSQL_DATABASE: test
-            NODE_ENV: test
-            DEFAULT_IMAGE_URL: https://cdn.com/image
-            DEFAULT_IMAGE_RATIO: 1.2
-            DEFAULT_IMAGE_PLACEHOLDER: data:image/png;base64,asddasdqw
+            - JEST_JUNIT_OUTPUT_DIR: ./test-results
       - store_test_results:
           path: ./test-results
       - store_artifacts:
           path: ./test-results
       - run:
           name: Build
-          command: yarn build
+          command: npm run build
       - persist_to_workspace:
           root: .
           paths:

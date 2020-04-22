@@ -1,19 +1,20 @@
-version: "3"
+# Usage example:
+#
+#   docker-compose up
+#
+version: "3.1"
+
+volumes:
+  db:
+
 services:
-  mysql:
-    image: mysql:5.7
+  db:
+    image: postgres:11.6-alpine
+    environment:
+      - POSTGRES_MULTIPLE_DATABASES=api,api_test
+      - POSTGRES_PASSWORD=12345
+    volumes:
+      - ./pg-init-scripts:/docker-entrypoint-initdb.d
+      - db:/var/lib/postgresql/data
     ports:
-    - "3306:3306"
-    environment:
-      MYSQL_DATABASE: test
-      MYSQL_ROOT_PASSWORD: 12345
-  wait:
-    image: waisbrot/wait
-    links:
-    - mysql
-    environment:
-    - TARGETS=mysql:3306
-networks:
-  default:
-    external:
-      name: cloudbuild
+      - "5432:5432"
