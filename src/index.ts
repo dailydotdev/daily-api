@@ -7,11 +7,11 @@ import { createConnection, getConnection, getConnectionManager } from 'typeorm';
 
 import trace from './trace';
 import auth from './auth';
+import compatibility from './compatibility';
 
 import './config';
-// import { Context } from './Context';
-// import { Request } from './Request';
-// import createApolloServer from './apollo';
+import { Context } from './Context';
+import createApolloServer from './apollo';
 
 const stringifyHealthCheck = fastJson({
   type: 'object',
@@ -44,13 +44,15 @@ export default async function app(): Promise<FastifyInstance> {
     res.send(stringifyHealthCheck({ status: 'ok' }));
   });
 
-  // const server = await createApolloServer({
-  //   context: (ctx): Context => new Context(ctx.req as Request, connection),
-  //   playground: isProd
-  //     ? false
-  //     : { settings: { 'request.credentials': 'include' } },
-  // });
-  // app.register(server.createHandler({ disableHealthCheck: true }));
+  const server = await createApolloServer({
+    context: (ctx): Context => new Context(ctx.req, connection),
+    playground: isProd
+      ? false
+      : { settings: { 'request.credentials': 'include' } },
+  });
+  app.register(server.createHandler({ disableHealthCheck: true }));
+
+  app.register(compatibility, { prefix: '/v1' });
 
   return app;
 }
