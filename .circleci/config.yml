@@ -10,8 +10,8 @@ jobs:
       - image: circleci/node:12.16.2
       - image: postgres:11.6-alpine
         environment:
-          POSTGRES_DB=api_test
-          POSTGRES_PASSWORD=12345
+          - POSTGRES_DB: api_test
+          - POSTGRES_PASSWORD: 12345
     steps:
       - checkout
       - restore_cache:
