@@ -1,5 +1,6 @@
 import { ApolloServer, Config } from 'apollo-server-fastify';
 import { buildSchema } from 'type-graphql';
+import { NotificationResolver } from './resolver';
 
 // import { Context } from './Context';
 
@@ -9,7 +10,7 @@ import { buildSchema } from 'type-graphql';
 
 export default async function (config: Config): Promise<ApolloServer> {
   const schema = await buildSchema({
-    resolvers: [],
+    resolvers: [NotificationResolver],
     emitSchemaFile: !process.env.NODE_ENV,
   });
   return new ApolloServer({
