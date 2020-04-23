@@ -1,7 +1,10 @@
 import { mock, MockProxy } from 'jest-mock-extended';
 import { FastifyRequest } from 'fastify';
 import { Connection } from 'typeorm';
-import { RootSpan, Span } from '@google-cloud/trace-agent/build/src/plugin-types';
+import {
+  RootSpan,
+  Span,
+} from '@google-cloud/trace-agent/build/src/plugin-types';
 import { Context } from '../src/Context';
 
 export class MockContext extends Context {

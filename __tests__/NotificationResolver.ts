@@ -70,9 +70,6 @@ describe('compatibility route /notifications', () => {
       .slice(0, 5)
       .map((n) => ({ html: n.html, timestamp: n.timestamp.toISOString() }));
 
-    request(app.server)
-      .get('/v1/notifications')
-      .expect('content-type', 'application/health+json')
-      .expect(200, expected);
+    return request(app.server).get('/v1/notifications').expect(200, expected);
   });
 });
