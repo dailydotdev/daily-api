@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import * as fastify from 'fastify';
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest } from 'fastify';
 import * as helmet from 'fastify-helmet';
 import * as fastJson from 'fast-json-stringify';
 import { createConnection, getConnection, getConnectionManager } from 'typeorm';
@@ -45,7 +45,7 @@ export default async function app(): Promise<FastifyInstance> {
   });
 
   const server = await createApolloServer({
-    context: (ctx): Context => new Context(ctx.req, connection),
+    context: (req: FastifyRequest): Context => new Context(req, connection),
     playground: isProd
       ? false
       : { settings: { 'request.credentials': 'include' } },
