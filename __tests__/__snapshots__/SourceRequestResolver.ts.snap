@@ -1,0 +1,141 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`compatibility routes GET /publications/requests/open should return pending source requests 1`] = `
+Array [
+  Object {
+    "approved": null,
+    "closed": false,
+    "pubId": null,
+    "pubImage": null,
+    "pubName": null,
+    "pubRss": null,
+    "pubTwitter": null,
+    "url": "http://1.com",
+    "userEmail": null,
+    "userId": "1",
+    "userName": null,
+  },
+  Object {
+    "approved": true,
+    "closed": false,
+    "pubId": "a",
+    "pubImage": "http://a.com",
+    "pubName": "A",
+    "pubRss": "http://a.com/feed",
+    "pubTwitter": "a",
+    "url": "http://3.com",
+    "userEmail": null,
+    "userId": "2",
+    "userName": null,
+  },
+]
+`;
+
+exports[`mutation requestSource should add new source request 1`] = `
+Object {
+  "requestSource": Object {
+    "sourceUrl": "http://source.com",
+    "userEmail": "ido@daily.dev",
+    "userId": "1",
+    "userName": "Ido",
+  },
+}
+`;
+
+exports[`mutation requestSource should not authorize when not logged in 1`] = `
+Array [
+  Object {
+    "extensions": Object {
+      "code": "UNAUTHORIZED_ERROR",
+    },
+    "locations": Array [
+      Object {
+        "column": 3,
+        "line": 3,
+      },
+    ],
+    "message": "Access denied! You need to be authorized to perform this action!",
+    "path": Array [
+      "requestSource",
+    ],
+  },
+]
+`;
+
+exports[`mutation requestSource should return bad request when url is not valid 1`] = `
+Array [
+  Object {
+    "extensions": Object {
+      "code": "VALIDATION_ERROR",
+      "exception": Object {
+        "validationErrors": Array [
+          ValidationError {
+            "children": Array [],
+            "constraints": Object {
+              "isUrl": "Must be a valid URL",
+            },
+            "property": "sourceUrl",
+            "target": RequestSourceInput {
+              "sourceUrl": "invalid",
+            },
+            "value": "invalid",
+          },
+        ],
+      },
+    },
+    "locations": Array [
+      Object {
+        "column": 3,
+        "line": 3,
+      },
+    ],
+    "message": "Argument Validation Error",
+    "path": Array [
+      "requestSource",
+    ],
+  },
+]
+`;
+
+exports[`query pendingSourceRequests should not authorize when not moderator 1`] = `
+Array [
+  Object {
+    "extensions": Object {
+      "code": "UNAUTHORIZED_ERROR",
+    },
+    "locations": Array [
+      Object {
+        "column": 3,
+        "line": 2,
+      },
+    ],
+    "message": "Access denied! You don't have permission for this action!",
+    "path": Array [
+      "pendingSourceRequests",
+    ],
+  },
+]
+`;
+
+exports[`query pendingSourceRequests should return pending source requests 1`] = `
+Object {
+  "pendingSourceRequests": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "sourceUrl": "http://1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "sourceUrl": "http://3.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;

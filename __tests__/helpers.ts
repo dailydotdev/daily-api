@@ -1,6 +1,7 @@
 import { mock, MockProxy } from 'jest-mock-extended';
 import { FastifyRequest } from 'fastify';
 import { Connection } from 'typeorm';
+import * as request from 'supertest';
 import {
   RootSpan,
   Span,
@@ -26,3 +27,12 @@ export class MockContext extends Context {
     return this.mockUserId;
   }
 }
+
+export const authorizeRequest = (
+  req: request.Test,
+  userId = '1',
+): request.Test =>
+  req
+    .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+    .set('user-id', userId)
+    .set('logged-in', 'true');
