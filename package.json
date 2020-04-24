@@ -8,7 +8,7 @@
       "build": "tsc",
       "prebuild": "rm -rf build",
       "postbuild": "cp ormconfig.js package.json package-lock.json ./build",
-      "test": "jest --testEnvironment=node",
+      "test": "jest --testEnvironment=node --runInBand",
       "pretest": "npm run lint && cross-env NODE_ENV=test npm run db:migrate:reset",
       "typeorm": "ts-node ./node_modules/typeorm/cli.js",
       "db:schema:sync": "npm run typeorm -- schema:sync",

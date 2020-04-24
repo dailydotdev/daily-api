@@ -5,6 +5,6 @@ module.exports = {
   testPathIgnorePatterns: [
     '<rootDir>/__tests__/setup.ts',
     '<rootDir>/__tests__/helpers.ts',
-    '<rootDir>/__tests__/fixture/*.ts',
+    '<rootDir>/__tests__/fixture/',
   ],
 };
