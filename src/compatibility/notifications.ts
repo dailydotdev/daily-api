@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { injectGraphqlQuery } from './utils';
+import { injectGraphql } from './utils';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/', async (req, res) => {
@@ -9,9 +9,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     html
   }
 }`;
-    return injectGraphqlQuery(
+    return injectGraphql(
       fastify,
-      query,
+      { query },
       (obj) => obj['data']['latestNotifications'],
       req,
       res,
