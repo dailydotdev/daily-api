@@ -1,6 +1,6 @@
 import { AuthChecker } from 'type-graphql';
 import { Context } from './Context';
-import { fetchUserRoles } from './users';
+import { fetchUserRoles } from './common';
 
 export enum Roles {
   Moderator = 'moderator',

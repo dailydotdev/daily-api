@@ -32,6 +32,8 @@ export default async function (config: Config): Promise<ApolloServer> {
         } else if (error.extensions?.exception?.validationErrors) {
           error.extensions.code = 'VALIDATION_ERROR';
         }
+      } else if (error.originalError.name === 'EntityNotFound') {
+        error.extensions.code = 'NOT_FOUND_ERROR';
       } else {
         error.extensions.code = snakeCase(
           error.originalError.name,

@@ -31,6 +31,15 @@ Array [
 ]
 `;
 
+exports[`compatibility routes PUT /publications/requests/:id should update an existing source request 1`] = `
+SourceRequest {
+  "sourceImage": "http://image.com",
+  "sourceName": "A",
+  "sourceTwitter": "a",
+  "sourceUrl": "http://source.com",
+}
+`;
+
 exports[`mutation requestSource should add new source request 1`] = `
 Object {
   "requestSource": Object {
@@ -92,6 +101,71 @@ Array [
     "message": "Argument Validation Error",
     "path": Array [
       "requestSource",
+    ],
+  },
+]
+`;
+
+exports[`mutation updateRequestSource should not authorize when not moderator 1`] = `
+Array [
+  Object {
+    "extensions": Object {
+      "code": "UNAUTHORIZED_ERROR",
+    },
+    "locations": Array [
+      Object {
+        "column": 3,
+        "line": 3,
+      },
+    ],
+    "message": "Access denied! You don't have permission for this action!",
+    "path": Array [
+      "updateRequestSource",
+    ],
+  },
+]
+`;
+
+exports[`mutation updateRequestSource should partially update existing request 1`] = `
+Object {
+  "updateRequestSource": Object {
+    "sourceFeed": "http://a.com/feed",
+    "sourceId": "a",
+    "sourceImage": "http://image.com",
+    "sourceName": "A",
+    "sourceTwitter": "a",
+    "sourceUrl": "http://source.com",
+  },
+}
+`;
+
+exports[`mutation updateRequestSource should throw not found when source request does not exist 1`] = `
+Array [
+  Object {
+    "extensions": Object {
+      "code": "NOT_FOUND_ERROR",
+      "exception": Object {
+        "message": "Could not find any entity of type \\"SourceRequest\\" matching: {
+    \\"where\\": {
+        \\"id\\": \\"451fe7e3-4d18-490c-986a-98862b7c7ea1\\"
+    }
+}",
+        "name": "EntityNotFound",
+      },
+    },
+    "locations": Array [
+      Object {
+        "column": 3,
+        "line": 3,
+      },
+    ],
+    "message": "Could not find any entity of type \\"SourceRequest\\" matching: {
+    \\"where\\": {
+        \\"id\\": \\"451fe7e3-4d18-490c-986a-98862b7c7ea1\\"
+    }
+}",
+    "path": Array [
+      "updateRequestSource",
     ],
   },
 ]
