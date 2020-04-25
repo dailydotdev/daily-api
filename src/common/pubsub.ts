@@ -1,5 +1,5 @@
 import { PubSub } from '@google-cloud/pubsub';
-import { SourceRequest } from './entity';
+import { SourceRequest } from '../entity';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');

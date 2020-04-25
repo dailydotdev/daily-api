@@ -1,10 +1,10 @@
 import { Connection, getConnection } from 'typeorm';
 
-import { notifySourceRequest } from '../src/pubsub';
+import { notifySourceRequest } from '../src/common';
 import { SourceRequest } from '../src/entity';
 
-jest.mock('../src/pubsub', () => ({
-  ...jest.requireActual('../src/pubsub'),
+jest.mock('../src/common', () => ({
+  ...jest.requireActual('../src/common'),
   notifySourceRequest: jest.fn(),
 }));
 

@@ -99,4 +99,33 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       res,
     );
   });
+
+  fastify.put('/requests/:id', async (req, res) => {
+    const query = `
+  mutation UpdateRequestSource($data: UpdateRequestSourceInput!) {
+  updateRequestSource(id: "${req.params.id}", data: $data) {
+    id
+  }
+}`;
+
+    return injectGraphql(
+      fastify,
+      {
+        query,
+        variables: {
+          data: {
+            sourceUrl: req.body.url,
+            sourceId: req.body.pubId,
+            sourceName: req.body.pubName,
+            sourceImage: req.body.pubImage,
+            sourceTwitter: req.body.pubTwitter,
+            sourceFeed: req.body.pubRss,
+          },
+        },
+      },
+      () => undefined,
+      req,
+      res,
+    );
+  });
 }

@@ -31,6 +31,15 @@ Array [
 ]
 `;
 
+exports[`compatibility routes PUT /publications/requests/:id should update an existing source request 1`] = `
+SourceRequest {
+  "sourceImage": "http://image.com",
+  "sourceName": "A",
+  "sourceTwitter": "a",
+  "sourceUrl": "http://source.com",
+}
+`;
+
 exports[`mutation requestSource should add new source request 1`] = `
 Object {
   "requestSource": Object {
@@ -95,6 +104,39 @@ Array [
     ],
   },
 ]
+`;
+
+exports[`mutation updateRequestSource should not authorize when not moderator 1`] = `
+Array [
+  Object {
+    "extensions": Object {
+      "code": "UNAUTHORIZED_ERROR",
+    },
+    "locations": Array [
+      Object {
+        "column": 3,
+        "line": 3,
+      },
+    ],
+    "message": "Access denied! You don't have permission for this action!",
+    "path": Array [
+      "updateRequestSource",
+    ],
+  },
+]
+`;
+
+exports[`mutation updateRequestSource should partially update existing request 1`] = `
+Object {
+  "updateRequestSource": Object {
+    "sourceFeed": "http://a.com/feed",
+    "sourceId": "a",
+    "sourceImage": "http://image.com",
+    "sourceName": "A",
+    "sourceTwitter": "a",
+    "sourceUrl": "http://source.com",
+  },
+}
 `;
 
 exports[`query pendingSourceRequests should not authorize when not moderator 1`] = `

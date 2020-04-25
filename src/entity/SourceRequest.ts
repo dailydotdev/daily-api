@@ -8,7 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Field, ObjectType } from 'type-graphql';
-import { notifySourceRequest } from '../pubsub';
+import { notifySourceRequest } from '../common';
 
 @Entity()
 @ObjectType({ description: 'Community request for a new source' })

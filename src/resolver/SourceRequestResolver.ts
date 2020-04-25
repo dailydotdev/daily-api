@@ -9,23 +9,66 @@ import {
   Resolver,
 } from 'type-graphql';
 import { SourceRequest } from '../entity';
-import { Context } from '../Context';
 import { IsUrl } from 'class-validator';
-import { fetchUserInfo } from '../users';
+import { GraphQLResolveInfo } from 'graphql';
+import { Column } from 'typeorm';
 import {
   RelayedQuery,
   RelayLimitOffset,
   RelayLimitOffsetArgs,
 } from 'auto-relay';
+import { fetchUserInfo, getRelayNodeInfo, partialUpdate } from '../common';
+import { Context } from '../Context';
 import { Roles } from '../authChecker';
-import { GraphQLResolveInfo } from 'graphql';
-import { getRelayNodeInfo } from '../pagination';
 
 @InputType()
 export class RequestSourceInput implements Partial<SourceRequest> {
   @Field({ description: 'URL to the source website' })
   @IsUrl({}, { message: 'Must be a valid URL' })
   sourceUrl: string;
+}
+
+@InputType()
+export class UpdateRequestSourceInput implements Partial<SourceRequest> {
+  @Field({ description: 'URL to the source website' })
+  @IsUrl({}, { message: 'Must be a valid URL' })
+  sourceUrl?: string;
+
+  @Field({
+    description: 'Id for the future source',
+    nullable: true,
+  })
+  sourceId?: string;
+
+  @Column({ type: 'text', nullable: true })
+  @Field({
+    description: 'Name of the future source',
+    nullable: true,
+  })
+  sourceName?: string;
+
+  @Column({ type: 'text', nullable: true })
+  @Field({
+    description: 'URL for thumbnail image of the future source',
+    nullable: true,
+  })
+  @IsUrl({}, { message: 'Must be a valid URL' })
+  sourceImage?: string;
+
+  @Column({ type: 'text', nullable: true })
+  @Field({
+    description: 'Twitter handle of the future source',
+    nullable: true,
+  })
+  sourceTwitter?: string;
+
+  @Column({ type: 'text', nullable: true })
+  @Field({
+    description: 'Feed (RSS/Atom) of the future source',
+    nullable: true,
+  })
+  @IsUrl({}, { message: 'Must be a valid URL' })
+  sourceFeed?: string;
 }
 
 @Resolver()
@@ -43,6 +86,18 @@ export class SourceRequestResolver {
     sourceReq.userName = info.name;
     sourceReq.userEmail = info.email;
     return ctx.getRepository(SourceRequest).save(sourceReq);
+  }
+
+  @Mutation(() => SourceRequest)
+  @Authorized(Roles.Moderator)
+  async updateRequestSource(
+    @Arg('id') id: string,
+    @Arg('data') data: UpdateRequestSourceInput,
+    @Ctx() ctx: Context,
+  ): Promise<SourceRequest> {
+    const req = await ctx.getRepository(SourceRequest).findOneOrFail(id);
+    partialUpdate(req, data);
+    return ctx.getRepository(SourceRequest).save(req);
   }
 
   @RelayedQuery(() => SourceRequest, {
