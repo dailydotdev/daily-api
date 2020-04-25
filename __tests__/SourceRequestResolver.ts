@@ -127,7 +127,9 @@ describe('mutation updateRequestSource', () => {
       mutation: MUTATION(uuidv4()),
       variables: { data },
     });
-    expect(res.errors).toMatchSnapshot();
+    // The entity id changes every time, can't use snapshot
+    expect(res.errors.length).toEqual(1);
+    expect(res.errors[0].extensions.code).toEqual('NOT_FOUND_ERROR');
   });
 
   it('should partially update existing request', async () => {

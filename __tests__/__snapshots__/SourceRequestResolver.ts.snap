@@ -139,38 +139,6 @@ Object {
 }
 `;
 
-exports[`mutation updateRequestSource should throw not found when source request does not exist 1`] = `
-Array [
-  Object {
-    "extensions": Object {
-      "code": "NOT_FOUND_ERROR",
-      "exception": Object {
-        "message": "Could not find any entity of type \\"SourceRequest\\" matching: {
-    \\"where\\": {
-        \\"id\\": \\"451fe7e3-4d18-490c-986a-98862b7c7ea1\\"
-    }
-}",
-        "name": "EntityNotFound",
-      },
-    },
-    "locations": Array [
-      Object {
-        "column": 3,
-        "line": 3,
-      },
-    ],
-    "message": "Could not find any entity of type \\"SourceRequest\\" matching: {
-    \\"where\\": {
-        \\"id\\": \\"451fe7e3-4d18-490c-986a-98862b7c7ea1\\"
-    }
-}",
-    "path": Array [
-      "updateRequestSource",
-    ],
-  },
-]
-`;
-
 exports[`query pendingSourceRequests should not authorize when not moderator 1`] = `
 Array [
   Object {
