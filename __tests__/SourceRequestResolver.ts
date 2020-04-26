@@ -10,6 +10,7 @@ import { FastifyInstance } from 'fastify';
 import * as request from 'supertest';
 import * as _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
+import { mocked } from 'ts-jest/utils';
 
 import { Context } from '../src/Context';
 import createApolloServer from '../src/apollo';
@@ -31,7 +32,6 @@ import { Roles } from '../src/authChecker';
 import { SourceRequest } from '../src/entity';
 import { sourceRequestFixture } from './fixture/sourceRequest';
 import { uploadLogo } from '../src/common';
-import { mocked } from 'ts-jest';
 
 let app: FastifyInstance;
 let con: Connection;
