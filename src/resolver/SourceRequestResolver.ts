@@ -17,7 +17,14 @@ import {
   RelayLimitOffset,
   RelayLimitOffsetArgs,
 } from 'auto-relay';
-import { fetchUserInfo, getRelayNodeInfo, partialUpdate } from '../common';
+import { GraphQLUpload, FileUpload } from 'graphql-upload';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  fetchUserInfo,
+  getRelayNodeInfo,
+  partialUpdate,
+  uploadLogo,
+} from '../common';
 import { Context } from '../Context';
 import { Roles } from '../authChecker';
 
@@ -143,6 +150,31 @@ export class SourceRequestResolver {
     return this.partialUpdateSourceRequest(ctx, id, {
       approved: true,
     });
+  }
+
+  @Mutation(() => SourceRequest, {
+    description: 'Upload a logo to a source request',
+  })
+  @Authorized(Roles.Moderator)
+  async uploadSourceRequestLogo(
+    @Arg('id') id: string,
+    @Arg('file', () => GraphQLUpload) file: FileUpload,
+    @Ctx() ctx: Context,
+  ): Promise<SourceRequest> {
+    const req = await ctx.getRepository(SourceRequest).findOneOrFail(id);
+    const { createReadStream } = await file;
+    const stream = createReadStream();
+    const name = uuidv4().replace(/-/g, '');
+    const img = await uploadLogo(name, stream);
+    ctx.log.info(
+      {
+        sourceRequest: req,
+        img,
+      },
+      'uploaded image for source request',
+    );
+    req.sourceImage = img;
+    return ctx.getRepository(SourceRequest).save(req);
   }
 
   @RelayedQuery(() => SourceRequest, {

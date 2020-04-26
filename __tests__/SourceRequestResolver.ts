@@ -3,12 +3,14 @@ import {
   ApolloServerTestClient,
   createTestClient,
 } from 'apollo-server-testing';
+import { GraphQLResponse } from 'apollo-server-types';
 import { Connection, getConnection } from 'typeorm';
 import * as nock from 'nock';
 import { FastifyInstance } from 'fastify';
 import * as request from 'supertest';
 import * as _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
+import { mocked } from 'ts-jest/utils';
 
 import { Context } from '../src/Context';
 import createApolloServer from '../src/apollo';
@@ -29,11 +31,18 @@ import {
 import { Roles } from '../src/authChecker';
 import { SourceRequest } from '../src/entity';
 import { sourceRequestFixture } from './fixture/sourceRequest';
+import { uploadLogo } from '../src/common';
 
+let app: FastifyInstance;
 let con: Connection;
 let server: ApolloServer;
 let client: ApolloServerTestClient;
 let loggedUser: string = null;
+
+jest.mock('../src/common', () => ({
+  ...jest.requireActual('../src/common'),
+  uploadLogo: jest.fn(),
+}));
 
 const mockInfo = (): nock.Scope =>
   nock(process.env.GATEWAY_URL)
@@ -70,11 +79,15 @@ beforeAll(async () => {
     playground: false,
   });
   client = createTestClient(server);
+  app = await appFunc();
+  return app.ready();
 });
 
 beforeEach(async () => {
   loggedUser = null;
 });
+
+afterAll(() => app.close());
 
 describe('mutation requestSource', () => {
   const MUTATION = `
@@ -234,6 +247,59 @@ describe('mutation approveSourceRequest', () => {
   });
 });
 
+describe('mutation uploadSourceRequestLogo', () => {
+  const MUTATION = (id: string): string => `
+  mutation UploadSourceRequestLogo($file: Upload!) {
+  uploadSourceRequestLogo(id: "${id}", file: $file) {
+    sourceImage
+  }
+}`;
+
+  it('should not authorize when not moderator', async () => {
+    mockRoles();
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION('1'),
+            variables: { file: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.file'] }))
+        .attach('0', './__tests__/fixture/happy_card.png'),
+    ).expect(200);
+    const body = res.body as GraphQLResponse;
+    expect(body.errors.length).toEqual(1);
+    expect(body.errors[0].extensions.code).toEqual('UNAUTHORIZED_ERROR');
+  });
+
+  it('should upload new logo for source request', async () => {
+    mockRoles([Roles.Moderator]);
+    loggedUser = '1';
+    const req = await con
+      .getRepository(SourceRequest)
+      .save(sourceRequestFixture[2]);
+    mocked(uploadLogo).mockResolvedValue('http://image.com');
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION(req.id),
+            variables: { file: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.file'] }))
+        .attach('0', './__tests__/fixture/happy_card.png'),
+    ).expect(200);
+    const body = res.body as GraphQLResponse;
+    expect(body.data).toMatchSnapshot();
+  });
+});
+
 describe('query pendingSourceRequests', () => {
   const QUERY = (first = 10): string => `{
   pendingSourceRequests(first: ${first}) {
@@ -269,15 +335,6 @@ describe('query pendingSourceRequests', () => {
 });
 
 describe('compatibility routes', () => {
-  let app: FastifyInstance;
-
-  beforeAll(async () => {
-    app = await appFunc();
-    return app.ready();
-  });
-
-  afterAll(() => app.close());
-
   describe('POST /publications/request', () => {
     it('should not authorize when not logged in', () => {
       return request(app.server)

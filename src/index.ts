@@ -4,6 +4,7 @@ import { FastifyInstance, FastifyRequest } from 'fastify';
 import * as helmet from 'fastify-helmet';
 import * as fastJson from 'fast-json-stringify';
 import { createConnection, getConnection, getConnectionManager } from 'typeorm';
+import * as gqlUpload from 'fastify-gql-upload';
 
 import trace from './trace';
 import auth from './auth';
@@ -43,6 +44,8 @@ export default async function app(): Promise<FastifyInstance> {
     res.type('application/health+json');
     res.send(stringifyHealthCheck({ status: 'ok' }));
   });
+
+  app.register(gqlUpload);
 
   const server = await createApolloServer({
     context: (req: FastifyRequest): Context => new Context(req, connection),
