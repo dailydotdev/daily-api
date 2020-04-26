@@ -1,5 +1,6 @@
 import { PubSub } from '@google-cloud/pubsub';
 import { SourceRequest } from '../entity';
+import { toLegacySourceRequest } from '../compatibility/entity';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
@@ -13,12 +14,7 @@ export const notifySourceRequest = async (
   if (process.env.NODE_ENV === 'production') {
     await sourceRequestTopic.publishJSON({
       type: reason,
-      pubRequest: {
-        url: sourceReq.sourceUrl,
-        userId: sourceReq.userId,
-        userName: sourceReq.userName,
-        userEmail: sourceReq.userEmail,
-      },
+      pubRequest: toLegacySourceRequest(sourceReq),
     });
   }
 };

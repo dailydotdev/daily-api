@@ -6,6 +6,8 @@ import {
   RootSpan,
   Span,
 } from '@google-cloud/trace-agent/build/src/plugin-types';
+import { GraphQLFormattedError } from 'graphql';
+import { ApolloServerTestClient } from 'apollo-server-testing';
 import { Context } from '../src/Context';
 
 export class MockContext extends Context {
@@ -36,3 +38,51 @@ export const authorizeRequest = (
     .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
     .set('user-id', userId)
     .set('logged-in', 'true');
+
+export type Mutation = {
+  mutation: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  variables?: { [name: string]: any };
+};
+
+export const testMutationError = async (
+  client: ApolloServerTestClient,
+  mutation: Mutation,
+  callback: (errors: readonly GraphQLFormattedError[]) => void | Promise<void>,
+): Promise<void> => {
+  const res = await client.mutate(mutation);
+  expect(res.data).toEqual(null);
+  return callback(res.errors);
+};
+
+export const testMutationErrorCode = async (
+  client: ApolloServerTestClient,
+  mutation: Mutation,
+  code: string,
+): Promise<void> =>
+  testMutationError(client, mutation, (errors) => {
+    expect(errors.length).toEqual(1);
+    expect(errors[0].extensions.code).toEqual(code);
+  });
+
+export type Query = { query: string };
+
+export const testQueryError = async (
+  client: ApolloServerTestClient,
+  query: Query,
+  callback: (errors: readonly GraphQLFormattedError[]) => void | Promise<void>,
+): Promise<void> => {
+  const res = await client.query(query);
+  expect(res.data).toEqual(null);
+  return callback(res.errors);
+};
+
+export const testQueryErrorCode = async (
+  client: ApolloServerTestClient,
+  query: Query,
+  code: string,
+): Promise<void> =>
+  testQueryError(client, query, (errors) => {
+    expect(errors.length).toEqual(1);
+    expect(errors[0].extensions.code).toEqual(code);
+  });

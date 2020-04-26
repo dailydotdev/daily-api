@@ -29,7 +29,7 @@ export class RequestSourceInput implements Partial<SourceRequest> {
 }
 
 @InputType()
-export class UpdateRequestSourceInput implements Partial<SourceRequest> {
+export class UpdateSourceRequestInput implements Partial<SourceRequest> {
   @Field({ description: 'URL to the source website' })
   @IsUrl({}, { message: 'Must be a valid URL' })
   sourceUrl?: string;
@@ -71,9 +71,25 @@ export class UpdateRequestSourceInput implements Partial<SourceRequest> {
   sourceFeed?: string;
 }
 
+@InputType()
+export class DeclineSourceRequestInput implements Partial<SourceRequest> {
+  @Field({ description: 'Reason for not accepting this request' })
+  reason: string;
+}
+
 @Resolver()
 export class SourceRequestResolver {
-  @Mutation(() => SourceRequest)
+  async partialUpdateSourceRequest(
+    ctx: Context,
+    id: string,
+    data: Partial<SourceRequest>,
+  ): Promise<SourceRequest> {
+    const req = await ctx.getRepository(SourceRequest).findOneOrFail(id);
+    partialUpdate(req, data);
+    return ctx.getRepository(SourceRequest).save(req);
+  }
+
+  @Mutation(() => SourceRequest, { description: 'Request a new source' })
   @Authorized()
   async requestSource(
     @Arg('data') data: RequestSourceInput,
@@ -88,16 +104,45 @@ export class SourceRequestResolver {
     return ctx.getRepository(SourceRequest).save(sourceReq);
   }
 
-  @Mutation(() => SourceRequest)
+  @Mutation(() => SourceRequest, {
+    description: 'Update the information of a source request',
+  })
   @Authorized(Roles.Moderator)
-  async updateRequestSource(
+  async updateSourceRequest(
     @Arg('id') id: string,
-    @Arg('data') data: UpdateRequestSourceInput,
+    @Arg('data') data: UpdateSourceRequestInput,
     @Ctx() ctx: Context,
   ): Promise<SourceRequest> {
-    const req = await ctx.getRepository(SourceRequest).findOneOrFail(id);
-    partialUpdate(req, data);
-    return ctx.getRepository(SourceRequest).save(req);
+    return this.partialUpdateSourceRequest(ctx, id, data);
+  }
+
+  @Mutation(() => SourceRequest, {
+    description: 'Decline a source request',
+  })
+  @Authorized(Roles.Moderator)
+  async declineSourceRequest(
+    @Arg('id') id: string,
+    @Arg('data') data: DeclineSourceRequestInput,
+    @Ctx() ctx: Context,
+  ): Promise<SourceRequest> {
+    return this.partialUpdateSourceRequest(ctx, id, {
+      approved: false,
+      closed: true,
+      ...data,
+    });
+  }
+
+  @Mutation(() => SourceRequest, {
+    description: "Approve a source request (but doesn't publish it)",
+  })
+  @Authorized(Roles.Moderator)
+  async approveSourceRequest(
+    @Arg('id') id: string,
+    @Ctx() ctx: Context,
+  ): Promise<SourceRequest> {
+    return this.partialUpdateSourceRequest(ctx, id, {
+      approved: true,
+    });
   }
 
   @RelayedQuery(() => SourceRequest, {

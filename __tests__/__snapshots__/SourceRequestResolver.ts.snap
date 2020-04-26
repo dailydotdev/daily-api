@@ -31,12 +31,48 @@ Array [
 ]
 `;
 
+exports[`compatibility routes POST /publications/requests/:id/approve should approve a source request 1`] = `
+SourceRequest {
+  "approved": true,
+  "closed": false,
+  "reason": null,
+}
+`;
+
+exports[`compatibility routes POST /publications/requests/:id/decline should decline a source request 1`] = `
+SourceRequest {
+  "approved": false,
+  "closed": true,
+  "reason": "not-active",
+}
+`;
+
 exports[`compatibility routes PUT /publications/requests/:id should update an existing source request 1`] = `
 SourceRequest {
   "sourceImage": "http://image.com",
   "sourceName": "A",
   "sourceTwitter": "a",
   "sourceUrl": "http://source.com",
+}
+`;
+
+exports[`mutation approveSourceRequest should approve a source request 1`] = `
+Object {
+  "approveSourceRequest": Object {
+    "approved": true,
+    "closed": false,
+    "reason": null,
+  },
+}
+`;
+
+exports[`mutation declineSourceRequest should decline a source request 1`] = `
+Object {
+  "declineSourceRequest": Object {
+    "approved": false,
+    "closed": true,
+    "reason": "not-active",
+  },
 }
 `;
 
@@ -49,26 +85,6 @@ Object {
     "userName": "Ido",
   },
 }
-`;
-
-exports[`mutation requestSource should not authorize when not logged in 1`] = `
-Array [
-  Object {
-    "extensions": Object {
-      "code": "UNAUTHORIZED_ERROR",
-    },
-    "locations": Array [
-      Object {
-        "column": 3,
-        "line": 3,
-      },
-    ],
-    "message": "Access denied! You need to be authorized to perform this action!",
-    "path": Array [
-      "requestSource",
-    ],
-  },
-]
 `;
 
 exports[`mutation requestSource should return bad request when url is not valid 1`] = `
@@ -106,29 +122,9 @@ Array [
 ]
 `;
 
-exports[`mutation updateRequestSource should not authorize when not moderator 1`] = `
-Array [
-  Object {
-    "extensions": Object {
-      "code": "UNAUTHORIZED_ERROR",
-    },
-    "locations": Array [
-      Object {
-        "column": 3,
-        "line": 3,
-      },
-    ],
-    "message": "Access denied! You don't have permission for this action!",
-    "path": Array [
-      "updateRequestSource",
-    ],
-  },
-]
-`;
-
-exports[`mutation updateRequestSource should partially update existing request 1`] = `
+exports[`mutation updateSourceRequest should partially update existing request 1`] = `
 Object {
-  "updateRequestSource": Object {
+  "updateSourceRequest": Object {
     "sourceFeed": "http://a.com/feed",
     "sourceId": "a",
     "sourceImage": "http://image.com",
@@ -137,26 +133,6 @@ Object {
     "sourceUrl": "http://source.com",
   },
 }
-`;
-
-exports[`query pendingSourceRequests should not authorize when not moderator 1`] = `
-Array [
-  Object {
-    "extensions": Object {
-      "code": "UNAUTHORIZED_ERROR",
-    },
-    "locations": Array [
-      Object {
-        "column": 3,
-        "line": 2,
-      },
-    ],
-    "message": "Access denied! You don't have permission for this action!",
-    "path": Array [
-      "pendingSourceRequests",
-    ],
-  },
-]
 `;
 
 exports[`query pendingSourceRequests should return pending source requests 1`] = `

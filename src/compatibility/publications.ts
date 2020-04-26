@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { injectGraphql } from './utils';
 import { ServerResponse } from 'http';
 import { SourceRequest } from '../entity';
+import { toLegacySourceRequest } from './entity';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/', async (req, res) => {
@@ -77,24 +78,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       fastify,
       { query },
       (obj) =>
-        obj['data']['pendingSourceRequests']['edges'].map((e) => {
-          const node = e['node'] as Partial<SourceRequest>;
-          return {
-            id: node.id,
-            url: node.sourceUrl,
-            userId: node.userId,
-            userName: node.userName,
-            userEmail: node.userEmail,
-            approved: node.approved,
-            closed: node.closed,
-            pubId: node.sourceId,
-            pubName: node.sourceName,
-            pubImage: node.sourceImage,
-            pubTwitter: node.sourceTwitter,
-            pubRss: node.sourceFeed,
-            createdAt: node.createdAt,
-          };
-        }),
+        obj['data']['pendingSourceRequests']['edges'].map((e) =>
+          toLegacySourceRequest(e['node'] as SourceRequest),
+        ),
       req,
       res,
     );
@@ -102,8 +88,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   fastify.put('/requests/:id', async (req, res) => {
     const query = `
-  mutation UpdateRequestSource($data: UpdateRequestSourceInput!) {
-  updateRequestSource(id: "${req.params.id}", data: $data) {
+  mutation UpdateSourceRequest($data: UpdateSourceRequestInput!) {
+  updateSourceRequest(id: "${req.params.id}", data: $data) {
     id
   }
 }`;
@@ -122,6 +108,47 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             sourceFeed: req.body.pubRss,
           },
         },
+      },
+      () => undefined,
+      req,
+      res,
+    );
+  });
+
+  fastify.post('/requests/:id/decline', async (req, res) => {
+    const query = `
+  mutation DeclineSourceRequest($data: DeclineSourceRequestInput!) {
+  declineSourceRequest(id: "${req.params.id}", data: $data) {
+    id
+  }
+}`;
+
+    return injectGraphql(
+      fastify,
+      {
+        query,
+        variables: {
+          data: { reason: req.body.reason },
+        },
+      },
+      () => undefined,
+      req,
+      res,
+    );
+  });
+
+  fastify.post('/requests/:id/approve', async (req, res) => {
+    const query = `
+  mutation ApproveSourceRequest {
+  approveSourceRequest(id: "${req.params.id}") {
+    id
+  }
+}`;
+
+    return injectGraphql(
+      fastify,
+      {
+        query,
       },
       () => undefined,
       req,
