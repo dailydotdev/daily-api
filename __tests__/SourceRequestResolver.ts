@@ -33,6 +33,7 @@ import { sourceRequestFixture } from './fixture/sourceRequest';
 import { uploadLogo } from '../src/common';
 import { mocked } from 'ts-jest';
 
+let app: FastifyInstance;
 let con: Connection;
 let server: ApolloServer;
 let client: ApolloServerTestClient;
@@ -78,11 +79,15 @@ beforeAll(async () => {
     playground: false,
   });
   client = createTestClient(server);
+  app = await appFunc();
+  return app.ready();
 });
 
 beforeEach(async () => {
   loggedUser = null;
 });
+
+afterAll(() => app.close());
 
 describe('mutation requestSource', () => {
   const MUTATION = `
@@ -250,15 +255,6 @@ describe('mutation uploadSourceRequestLogo', () => {
   }
 }`;
 
-  let app: FastifyInstance;
-
-  beforeAll(async () => {
-    app = await appFunc();
-    return app.ready();
-  });
-
-  afterAll(() => app.close());
-
   it('should not authorize when not moderator', async () => {
     mockRoles();
     const res = await authorizeRequest(
@@ -339,15 +335,6 @@ describe('query pendingSourceRequests', () => {
 });
 
 describe('compatibility routes', () => {
-  let app: FastifyInstance;
-
-  beforeAll(async () => {
-    app = await appFunc();
-    return app.ready();
-  });
-
-  afterAll(() => app.close());
-
   describe('POST /publications/request', () => {
     it('should not authorize when not logged in', () => {
       return request(app.server)
