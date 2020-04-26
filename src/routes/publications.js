@@ -17,7 +17,7 @@ const pubsubTopic = pubsub.topic('pub-request');
 
 const notifyPubRequest = (type, req) => {
   if (config.env === 'production') {
-    return pubsubTopic.publisher().publish(Buffer.from(JSON.stringify({ type, pubRequest: req })));
+    return pubsubTopic.publishJSON({ type, pubRequest: req });
   }
 
   return Promise.resolve();
