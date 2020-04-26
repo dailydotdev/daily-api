@@ -20,6 +20,7 @@ export default async function (config: Config): Promise<ApolloServer> {
   return new ApolloServer({
     schema,
     ...config,
+    uploads: false,
     formatError: (error): GraphQLFormattedError => {
       if (error.originalError.name === 'Error') {
         if (

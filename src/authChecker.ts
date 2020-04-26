@@ -1,6 +1,5 @@
 import { AuthChecker } from 'type-graphql';
 import { Context } from './Context';
-import { fetchUserRoles } from './common';
 
 export enum Roles {
   Moderator = 'moderator',
@@ -17,6 +16,6 @@ export const authChecker: AuthChecker<Context, Roles> = async (
     return true;
   }
 
-  const userRoles = await fetchUserRoles(context.userId);
+  const userRoles = await context.getRoles();
   return roles.findIndex((r) => userRoles.indexOf(r) > -1) > -1;
 };
