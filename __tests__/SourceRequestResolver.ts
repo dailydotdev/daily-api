@@ -12,9 +12,20 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { Context } from '../src/Context';
 import createApolloServer from '../src/apollo';
-import { authorizeRequest, MockContext } from './helpers';
+import {
+  authorizeRequest,
+  MockContext,
+  Mutation,
+  testMutationError,
+  testMutationErrorCode,
+  testQueryErrorCode,
+} from './helpers';
 import appFunc from '../src';
-import { RequestSourceInput, UpdateRequestSourceInput } from '../src/resolver';
+import {
+  DeclineSourceRequestInput,
+  RequestSourceInput,
+  UpdateSourceRequestInput,
+} from '../src/resolver';
 import { Roles } from '../src/authChecker';
 import { SourceRequest } from '../src/entity';
 import { sourceRequestFixture } from './fixture/sourceRequest';
@@ -40,6 +51,18 @@ const mockRoles = (roles: Roles[] = []): nock.Scope =>
     .matchHeader('logged-in', 'true')
     .reply(200, roles);
 
+const testModeratorAuthorization = (mutation: Mutation): Promise<void> => {
+  mockRoles();
+  loggedUser = '1';
+  return testMutationErrorCode(client, mutation, 'UNAUTHORIZED_ERROR');
+};
+
+const testNotFound = (mutation: Mutation): Promise<void> => {
+  mockRoles([Roles.Moderator]);
+  loggedUser = '1';
+  return testMutationErrorCode(client, mutation, 'NOT_FOUND_ERROR');
+};
+
 beforeAll(async () => {
   con = await getConnection();
   server = await createApolloServer({
@@ -64,23 +87,26 @@ describe('mutation requestSource', () => {
   }
 }`;
 
-  it('should not authorize when not logged in', async () => {
-    const data: RequestSourceInput = { sourceUrl: 'http://source.com' };
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { data },
-    });
-    expect(res.errors).toMatchSnapshot();
-  });
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { data: { sourceUrl: 'http://source.com' } },
+      },
+      'UNAUTHORIZED_ERROR',
+    ));
 
   it('should return bad request when url is not valid', async () => {
     loggedUser = '1';
-    const data: RequestSourceInput = { sourceUrl: 'invalid' };
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { data },
-    });
-    expect(res.errors).toMatchSnapshot();
+    return testMutationError(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { data: { sourceUrl: 'invalid' } },
+      },
+      (errors) => expect(errors).toMatchSnapshot(),
+    );
   });
 
   it('should add new source request', async () => {
@@ -95,10 +121,10 @@ describe('mutation requestSource', () => {
   });
 });
 
-describe('mutation updateRequestSource', () => {
+describe('mutation updateSourceRequest', () => {
   const MUTATION = (id: string): string => `
-  mutation UpdateRequestSource($data: UpdateRequestSourceInput!) {
-  updateRequestSource(id: "${id}", data: $data) {
+  mutation UpdateSourceRequest($data: UpdateSourceRequestInput!) {
+  updateSourceRequest(id: "${id}", data: $data) {
     sourceUrl
     sourceId
     sourceName
@@ -108,29 +134,17 @@ describe('mutation updateRequestSource', () => {
   }
 }`;
 
-  it('should not authorize when not moderator', async () => {
-    mockRoles();
-    loggedUser = '1';
-    const data: UpdateRequestSourceInput = { sourceUrl: 'http://new.com' };
-    const res = await client.mutate({
+  it('should not authorize when not moderator', () =>
+    testModeratorAuthorization({
       mutation: MUTATION('1'),
-      variables: { data },
-    });
-    expect(res.errors).toMatchSnapshot();
-  });
+      variables: { data: { sourceUrl: 'http://new.com' } },
+    }));
 
-  it('should throw not found when source request does not exist', async () => {
-    mockRoles([Roles.Moderator]);
-    loggedUser = '1';
-    const data: UpdateRequestSourceInput = { sourceUrl: 'http://new.com' };
-    const res = await client.mutate({
+  it('should throw not found when source request does not exist', () =>
+    testNotFound({
       mutation: MUTATION(uuidv4()),
-      variables: { data },
-    });
-    // The entity id changes every time, can't use snapshot
-    expect(res.errors.length).toEqual(1);
-    expect(res.errors[0].extensions.code).toEqual('NOT_FOUND_ERROR');
-  });
+      variables: { data: { sourceUrl: 'http://new.com' } },
+    }));
 
   it('should partially update existing request', async () => {
     mockRoles([Roles.Moderator]);
@@ -138,13 +152,83 @@ describe('mutation updateRequestSource', () => {
     const req = await con
       .getRepository(SourceRequest)
       .save(sourceRequestFixture[2]);
-    const data: UpdateRequestSourceInput = {
+    const data: UpdateSourceRequestInput = {
       sourceUrl: 'http://source.com',
       sourceImage: 'http://image.com',
     };
     const res = await client.mutate({
       mutation: MUTATION(req.id),
       variables: { data },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('mutation declineSourceRequest', () => {
+  const MUTATION = (id: string): string => `
+  mutation DeclineSourceRequest($data: DeclineSourceRequestInput!) {
+  declineSourceRequest(id: "${id}", data: $data) {
+    approved
+    closed
+    reason
+  }
+}`;
+
+  it('should not authorize when not moderator', () =>
+    testModeratorAuthorization({
+      mutation: MUTATION('1'),
+      variables: { data: { reason: 'not-active' } },
+    }));
+
+  it('should throw not found when source request does not exist', () =>
+    testNotFound({
+      mutation: MUTATION(uuidv4()),
+      variables: { data: { reason: 'not-active' } },
+    }));
+
+  it('should decline a source request', async () => {
+    mockRoles([Roles.Moderator]);
+    loggedUser = '1';
+    const req = await con
+      .getRepository(SourceRequest)
+      .save(sourceRequestFixture[2]);
+    const data: DeclineSourceRequestInput = { reason: 'not-active' };
+    const res = await client.mutate({
+      mutation: MUTATION(req.id),
+      variables: { data },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('mutation approveSourceRequest', () => {
+  const MUTATION = (id: string): string => `
+  mutation ApproveSourceRequest {
+  approveSourceRequest(id: "${id}") {
+    approved
+    closed
+    reason
+  }
+}`;
+
+  it('should not authorize when not moderator', () =>
+    testModeratorAuthorization({
+      mutation: MUTATION('1'),
+    }));
+
+  it('should throw not found when source request does not exist', () =>
+    testNotFound({
+      mutation: MUTATION(uuidv4()),
+    }));
+
+  it('should approve a source request', async () => {
+    mockRoles([Roles.Moderator]);
+    loggedUser = '1';
+    const req = await con
+      .getRepository(SourceRequest)
+      .save(sourceRequestFixture[2]);
+    const res = await client.mutate({
+      mutation: MUTATION(req.id),
     });
     expect(res.data).toMatchSnapshot();
   });
@@ -168,8 +252,7 @@ describe('query pendingSourceRequests', () => {
   it('should not authorize when not moderator', async () => {
     mockRoles();
     loggedUser = '1';
-    const res = await client.query({ query: QUERY() });
-    expect(res.errors).toMatchSnapshot();
+    return testQueryErrorCode(client, { query: QUERY() }, 'UNAUTHORIZED_ERROR');
   });
 
   it('should return pending source requests', async () => {
@@ -261,6 +344,46 @@ describe('compatibility routes', () => {
       expect(
         await con.getRepository(SourceRequest).findOne(req.id, {
           select: ['sourceUrl', 'sourceImage', 'sourceName', 'sourceTwitter'],
+        }),
+      ).toMatchSnapshot();
+    });
+  });
+
+  describe('POST /publications/requests/:id/decline', () => {
+    it('should decline a source request', async () => {
+      mockRoles([Roles.Moderator]);
+      loggedUser = '1';
+      const req = await con
+        .getRepository(SourceRequest)
+        .save(sourceRequestFixture[2]);
+      await authorizeRequest(
+        request(app.server).post(`/v1/publications/requests/${req.id}/decline`),
+      )
+        .send({ reason: 'not-active' })
+        .expect(204);
+      expect(
+        await con.getRepository(SourceRequest).findOne(req.id, {
+          select: ['approved', 'closed', 'reason'],
+        }),
+      ).toMatchSnapshot();
+    });
+  });
+
+  describe('POST /publications/requests/:id/approve', () => {
+    it('should approve a source request', async () => {
+      mockRoles([Roles.Moderator]);
+      loggedUser = '1';
+      const req = await con
+        .getRepository(SourceRequest)
+        .save(sourceRequestFixture[2]);
+      await authorizeRequest(
+        request(app.server).post(`/v1/publications/requests/${req.id}/approve`),
+      )
+        .send()
+        .expect(204);
+      expect(
+        await con.getRepository(SourceRequest).findOne(req.id, {
+          select: ['approved', 'closed', 'reason'],
         }),
       ).toMatchSnapshot();
     });
