@@ -1,5 +1,6 @@
 import '../src/config';
-import { Connection, createConnection } from 'typeorm';
+import { Connection } from 'typeorm';
+import { createOrGetConnection } from '../src/db';
 
 let con: Connection;
 
@@ -12,7 +13,7 @@ const cleanDatabase = async (): Promise<void> => {
 };
 
 beforeAll(async () => {
-  con = await createConnection();
+  con = await createOrGetConnection();
 });
 
 afterEach(() => cleanDatabase());

@@ -5,7 +5,7 @@ import { toLegacySourceRequest } from '../compatibility/entity';
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
 
-type NotificationReason = 'new';
+type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 
 export const notifySourceRequest = async (
   reason: NotificationReason,

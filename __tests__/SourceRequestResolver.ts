@@ -29,9 +29,13 @@ import {
   UpdateSourceRequestInput,
 } from '../src/resolver';
 import { Roles } from '../src/authChecker';
-import { SourceRequest } from '../src/entity';
+import { Source, SourceRequest } from '../src/entity';
 import { sourceRequestFixture } from './fixture/sourceRequest';
-import { uploadLogo } from '../src/common';
+import {
+  addOrRemoveSuperfeedrSubscription,
+  notifySourceRequest,
+  uploadLogo,
+} from '../src/common';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -41,7 +45,9 @@ let loggedUser: string = null;
 
 jest.mock('../src/common', () => ({
   ...jest.requireActual('../src/common'),
+  notifySourceRequest: jest.fn(),
   uploadLogo: jest.fn(),
+  addOrRemoveSuperfeedrSubscription: jest.fn(),
 }));
 
 const mockInfo = (): nock.Scope =>
@@ -131,6 +137,8 @@ describe('mutation requestSource', () => {
       variables: { data },
     });
     expect(res.data).toMatchSnapshot();
+    const newReq = await con.getRepository(SourceRequest).findOne();
+    expect(notifySourceRequest).toBeCalledWith('new', newReq);
   });
 });
 
@@ -211,6 +219,8 @@ describe('mutation declineSourceRequest', () => {
       variables: { data },
     });
     expect(res.data).toMatchSnapshot();
+    const newReq = await con.getRepository(SourceRequest).findOne(req.id);
+    expect(notifySourceRequest).toBeCalledWith('decline', newReq);
   });
 });
 
@@ -244,6 +254,8 @@ describe('mutation approveSourceRequest', () => {
       mutation: MUTATION(req.id),
     });
     expect(res.data).toMatchSnapshot();
+    const newReq = await con.getRepository(SourceRequest).findOne(req.id);
+    expect(notifySourceRequest).toBeCalledWith('approve', newReq);
   });
 });
 
@@ -297,6 +309,52 @@ describe('mutation uploadSourceRequestLogo', () => {
     ).expect(200);
     const body = res.body as GraphQLResponse;
     expect(body.data).toMatchSnapshot();
+  });
+});
+
+describe('mutation publishSourceRequest', () => {
+  const MUTATION = (id: string): string => `
+  mutation PublishSourceRequest {
+  publishSourceRequest(id: "${id}") {
+    approved
+    closed
+  }
+}`;
+
+  it('should not authorize when not moderator', () =>
+    testModeratorAuthorization({
+      mutation: MUTATION('1'),
+    }));
+
+  it('should throw not found when source request does not exist', () =>
+    testNotFound({
+      mutation: MUTATION(uuidv4()),
+    }));
+
+  it('should publish a source request', async () => {
+    mockRoles([Roles.Moderator]);
+    loggedUser = '1';
+    mocked(addOrRemoveSuperfeedrSubscription).mockResolvedValue();
+    const req = await con
+      .getRepository(SourceRequest)
+      .save(sourceRequestFixture[2]);
+    const res = await client.mutate({
+      mutation: MUTATION(req.id),
+    });
+    expect(res.data).toMatchSnapshot();
+    expect(addOrRemoveSuperfeedrSubscription).toBeCalledWith(
+      req.sourceFeed,
+      req.sourceId,
+      'subscribe',
+    );
+    const newReq = await con.getRepository(SourceRequest).findOne(req.id);
+    expect(notifySourceRequest).toBeCalledWith('publish', newReq);
+    const source = await con.getRepository(Source).findOneOrFail(req.sourceId);
+    expect(source).toMatchSnapshot();
+    expect(await source.feeds).toMatchSnapshot();
+    expect((await source.displays)[0]).toMatchSnapshot({
+      id: expect.any(String),
+    });
   });
 });
 
@@ -441,6 +499,26 @@ describe('compatibility routes', () => {
       expect(
         await con.getRepository(SourceRequest).findOne(req.id, {
           select: ['approved', 'closed', 'reason'],
+        }),
+      ).toMatchSnapshot();
+    });
+  });
+
+  describe('POST /publications/requests/:id/publish', () => {
+    it('should publish a source request', async () => {
+      mockRoles([Roles.Moderator]);
+      loggedUser = '1';
+      const req = await con
+        .getRepository(SourceRequest)
+        .save(sourceRequestFixture[2]);
+      await authorizeRequest(
+        request(app.server).post(`/v1/publications/requests/${req.id}/publish`),
+      )
+        .send()
+        .expect(204);
+      expect(
+        await con.getRepository(SourceRequest).findOne(req.id, {
+          select: ['approved', 'closed'],
         }),
       ).toMatchSnapshot();
     });

@@ -1,5 +1,4 @@
 import {
-  AfterInsert,
   Column,
   CreateDateColumn,
   Entity,
@@ -8,7 +7,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Field, ObjectType } from 'type-graphql';
-import { notifySourceRequest } from '../common';
 
 @Entity()
 @ObjectType({ description: 'Community request for a new source' })
@@ -101,9 +99,4 @@ export class SourceRequest {
   @UpdateDateColumn()
   @Field({ description: 'Time of last update' })
   updatedAt: Date;
-
-  @AfterInsert()
-  notifyNewSourceRequest(): Promise<void> {
-    return notifySourceRequest('new', this);
-  }
 }

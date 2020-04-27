@@ -3,12 +3,13 @@ import {
   Authorized,
   Ctx,
   Field,
+  ForbiddenError,
   Info,
   InputType,
   Mutation,
   Resolver,
 } from 'type-graphql';
-import { SourceRequest } from '../entity';
+import { Source, SourceDisplay, SourceFeed, SourceRequest } from '../entity';
 import { IsUrl } from 'class-validator';
 import { GraphQLResolveInfo } from 'graphql';
 import { Column } from 'typeorm';
@@ -20,8 +21,10 @@ import {
 import { GraphQLUpload, FileUpload } from 'graphql-upload';
 import { v4 as uuidv4 } from 'uuid';
 import {
+  addOrRemoveSuperfeedrSubscription,
   fetchUserInfo,
   getRelayNodeInfo,
+  notifySourceRequest,
   partialUpdate,
   uploadLogo,
 } from '../common';
@@ -84,18 +87,56 @@ export class DeclineSourceRequestInput implements Partial<SourceRequest> {
   reason: string;
 }
 
+const findOrFail = async (ctx: Context, id: string): Promise<SourceRequest> => {
+  const req = await ctx.getRepository(SourceRequest).findOneOrFail(id);
+  if (req.closed) {
+    throw new ForbiddenError();
+  }
+  return req;
+};
+
+const partialUpdateSourceRequest = async (
+  ctx: Context,
+  id: string,
+  data: Partial<SourceRequest>,
+): Promise<SourceRequest> => {
+  const req = await findOrFail(ctx, id);
+  partialUpdate(req, data);
+  return ctx.getRepository(SourceRequest).save(req);
+};
+
+const createSourceFromRequest = (
+  ctx: Context,
+  req: SourceRequest,
+): Promise<Source> =>
+  ctx.con.manager.transaction(
+    async (entityManager): Promise<Source> => {
+      const source = new Source();
+      source.id = req.sourceId;
+      source.twitter = req.sourceTwitter;
+      source.website = req.sourceUrl;
+      await entityManager.save(source);
+
+      const display = new SourceDisplay();
+      display.name = req.sourceName;
+      display.image = req.sourceImage;
+      display.sourceId = source.id;
+
+      const feed = new SourceFeed();
+      feed.feed = req.sourceFeed;
+      feed.sourceId = source.id;
+
+      await Promise.all([
+        entityManager.save(display),
+        entityManager.save(feed),
+      ]);
+
+      return source;
+    },
+  );
+
 @Resolver()
 export class SourceRequestResolver {
-  async partialUpdateSourceRequest(
-    ctx: Context,
-    id: string,
-    data: Partial<SourceRequest>,
-  ): Promise<SourceRequest> {
-    const req = await ctx.getRepository(SourceRequest).findOneOrFail(id);
-    partialUpdate(req, data);
-    return ctx.getRepository(SourceRequest).save(req);
-  }
-
   @Mutation(() => SourceRequest, { description: 'Request a new source' })
   @Authorized()
   async requestSource(
@@ -108,7 +149,9 @@ export class SourceRequestResolver {
     sourceReq.userId = ctx.userId;
     sourceReq.userName = info.name;
     sourceReq.userEmail = info.email;
-    return ctx.getRepository(SourceRequest).save(sourceReq);
+    await ctx.getRepository(SourceRequest).save(sourceReq);
+    await notifySourceRequest('new', sourceReq);
+    return sourceReq;
   }
 
   @Mutation(() => SourceRequest, {
@@ -120,7 +163,7 @@ export class SourceRequestResolver {
     @Arg('data') data: UpdateSourceRequestInput,
     @Ctx() ctx: Context,
   ): Promise<SourceRequest> {
-    return this.partialUpdateSourceRequest(ctx, id, data);
+    return partialUpdateSourceRequest(ctx, id, data);
   }
 
   @Mutation(() => SourceRequest, {
@@ -132,11 +175,13 @@ export class SourceRequestResolver {
     @Arg('data') data: DeclineSourceRequestInput,
     @Ctx() ctx: Context,
   ): Promise<SourceRequest> {
-    return this.partialUpdateSourceRequest(ctx, id, {
+    const req = await partialUpdateSourceRequest(ctx, id, {
       approved: false,
       closed: true,
       ...data,
     });
+    await notifySourceRequest('decline', req);
+    return req;
   }
 
   @Mutation(() => SourceRequest, {
@@ -147,9 +192,47 @@ export class SourceRequestResolver {
     @Arg('id') id: string,
     @Ctx() ctx: Context,
   ): Promise<SourceRequest> {
-    return this.partialUpdateSourceRequest(ctx, id, {
+    const req = await partialUpdateSourceRequest(ctx, id, {
       approved: true,
     });
+    await notifySourceRequest('approve', req);
+    return req;
+  }
+
+  @Mutation(() => SourceRequest, {
+    description: 'Publish a source request and turn it into a source',
+  })
+  @Authorized(Roles.Moderator)
+  async publishSourceRequest(
+    @Arg('id') id: string,
+    @Ctx() ctx: Context,
+  ): Promise<SourceRequest> {
+    const req = await findOrFail(ctx, id);
+    if (
+      !req.sourceId ||
+      !req.sourceName ||
+      !req.sourceImage ||
+      !req.sourceFeed ||
+      !req.approved
+    ) {
+      throw new ForbiddenError();
+    }
+    await createSourceFromRequest(ctx, req);
+    req.closed = true;
+    await ctx.getRepository(SourceRequest).save(req);
+    await notifySourceRequest('publish', req);
+    await addOrRemoveSuperfeedrSubscription(
+      req.sourceFeed,
+      req.sourceId,
+      'subscribe',
+    );
+    ctx.log.info(
+      {
+        sourceRequest: req,
+      },
+      `published new source ${req.id}`,
+    );
+    return req;
   }
 
   @Mutation(() => SourceRequest, {
@@ -161,7 +244,7 @@ export class SourceRequestResolver {
     @Arg('file', () => GraphQLUpload) file: FileUpload,
     @Ctx() ctx: Context,
   ): Promise<SourceRequest> {
-    const req = await ctx.getRepository(SourceRequest).findOneOrFail(id);
+    const req = await findOrFail(ctx, id);
     const { createReadStream } = await file;
     const stream = createReadStream();
     const name = uuidv4().replace(/-/g, '');

@@ -3,7 +3,6 @@ import * as fastify from 'fastify';
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import * as helmet from 'fastify-helmet';
 import * as fastJson from 'fast-json-stringify';
-import { createConnection, getConnection, getConnectionManager } from 'typeorm';
 import * as gqlUpload from 'fastify-gql-upload';
 
 import trace from './trace';
@@ -13,6 +12,7 @@ import compatibility from './compatibility';
 import './config';
 import { Context } from './Context';
 import createApolloServer from './apollo';
+import { createOrGetConnection } from './db';
 
 const stringifyHealthCheck = fastJson({
   type: 'object',
@@ -25,10 +25,7 @@ const stringifyHealthCheck = fastJson({
 
 export default async function app(): Promise<FastifyInstance> {
   const isProd = process.env.NODE_ENV === 'production';
-  // eslint-disable-next-line
-  const connection = getConnectionManager().has('default')
-    ? getConnection()
-    : await createConnection();
+  const connection = await createOrGetConnection();
 
   const app = fastify({
     logger: true,
