@@ -47,6 +47,13 @@ SourceRequest {
 }
 `;
 
+exports[`compatibility routes POST /publications/requests/:id/publish should publish a source request 1`] = `
+SourceRequest {
+  "approved": true,
+  "closed": true,
+}
+`;
+
 exports[`compatibility routes PUT /publications/requests/:id should update an existing source request 1`] = `
 SourceRequest {
   "sourceImage": "http://image.com",
@@ -73,6 +80,43 @@ Object {
     "closed": true,
     "reason": "not-active",
   },
+}
+`;
+
+exports[`mutation publishSourceRequest should publish a source request 1`] = `
+Object {
+  "publishSourceRequest": Object {
+    "approved": true,
+    "closed": true,
+  },
+}
+`;
+
+exports[`mutation publishSourceRequest should publish a source request 2`] = `
+Source {
+  "id": "a",
+  "twitter": "a",
+  "website": "http://3.com",
+}
+`;
+
+exports[`mutation publishSourceRequest should publish a source request 3`] = `
+Array [
+  SourceFeed {
+    "feed": "http://a.com/feed",
+    "sourceId": "a",
+  },
+]
+`;
+
+exports[`mutation publishSourceRequest should publish a source request 4`] = `
+Object {
+  "enabled": true,
+  "id": Any<String>,
+  "image": "http://a.com",
+  "name": "A",
+  "sourceId": "a",
+  "userId": null,
 }
 `;
 

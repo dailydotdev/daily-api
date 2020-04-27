@@ -1,5 +1,5 @@
 import { mock, MockProxy } from 'jest-mock-extended';
-import { FastifyRequest } from 'fastify';
+import { FastifyRequest, Logger } from 'fastify';
 import { Connection } from 'typeorm';
 import * as request from 'supertest';
 import {
@@ -13,12 +13,14 @@ import { Context } from '../src/Context';
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
   mockUserId?: string = null;
+  logger: Logger;
 
   constructor(con: Connection, userId: string = null) {
     super(mock<FastifyRequest>(), con);
     this.mockSpan = mock<RootSpan>();
     this.mockSpan.createChildSpan.mockImplementation(() => mock<Span>());
     this.mockUserId = userId;
+    this.logger = mock<Logger>();
   }
 
   get span(): RootSpan {
@@ -27,6 +29,10 @@ export class MockContext extends Context {
 
   get userId(): string | null {
     return this.mockUserId;
+  }
+
+  get log(): Logger {
+    return this.logger;
   }
 }
 
