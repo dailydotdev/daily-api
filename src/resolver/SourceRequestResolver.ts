@@ -40,7 +40,7 @@ export class RequestSourceInput implements Partial<SourceRequest> {
 
 @InputType()
 export class UpdateSourceRequestInput implements Partial<SourceRequest> {
-  @Field({ description: 'URL to the source website' })
+  @Field({ description: 'URL to the source website', nullable: true })
   @IsUrl({}, { message: 'Must be a valid URL' })
   sourceUrl?: string;
 
