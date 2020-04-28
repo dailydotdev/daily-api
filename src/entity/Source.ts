@@ -2,6 +2,7 @@ import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
 import { Field, ObjectType } from 'type-graphql';
 import { SourceDisplay } from './SourceDisplay';
 import { SourceFeed } from './SourceFeed';
+import { PostDisplay } from './PostDisplay';
 
 @Entity()
 @ObjectType({ description: 'Source to discover posts from (usually blogs)' })
@@ -30,4 +31,7 @@ export class Source {
 
   @OneToMany(() => SourceFeed, (feed) => feed.source, { lazy: true })
   feeds: Promise<SourceFeed[]>;
+
+  @OneToMany(() => PostDisplay, (post) => post.source, { lazy: true })
+  posts: Promise<PostDisplay[]>;
 }
