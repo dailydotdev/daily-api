@@ -1,13 +1,24 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`compatibility routes GET /posts/bookmarks should return bookmarks ordered by time 1`] = `
+Array [
+  Object {
+    "id": "p3",
+  },
+  Object {
+    "id": "p1",
+  },
+]
+`;
+
 exports[`compatibility routes POST /posts/bookmarks should add new bookmarks 1`] = `
 Array [
   Bookmark {
-    "postId": "0",
+    "postId": "p1",
     "userId": "1",
   },
   Bookmark {
-    "postId": "2",
+    "postId": "p3",
     "userId": "1",
   },
 ]
@@ -16,11 +27,11 @@ Array [
 exports[`mutation addBookmarks should add new bookmarks 1`] = `
 Array [
   Bookmark {
-    "postId": "0",
+    "postId": "p1",
     "userId": "1",
   },
   Bookmark {
-    "postId": "2",
+    "postId": "p3",
     "userId": "1",
   },
 ]
@@ -29,12 +40,35 @@ Array [
 exports[`mutation addBookmarks should ignore conflicts 1`] = `
 Array [
   Bookmark {
-    "postId": "2",
+    "postId": "p1",
     "userId": "1",
   },
   Bookmark {
-    "postId": "0",
+    "postId": "p3",
     "userId": "1",
   },
 ]
+`;
+
+exports[`query bookmarks should return bookmarks ordered by time 1`] = `
+Object {
+  "bookmarks": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p3",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p1",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "hasNextPage": true,
+    },
+  },
+}
 `;

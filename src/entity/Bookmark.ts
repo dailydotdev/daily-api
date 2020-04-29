@@ -1,10 +1,4 @@
-import {
-  CreateDateColumn,
-  Entity,
-  Index,
-  ManyToOne,
-  PrimaryColumn,
-} from 'typeorm';
+import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Post } from './Post';
 
 @Entity()
@@ -24,6 +18,6 @@ export class Bookmark {
   })
   post: Promise<Post>;
 
-  @CreateDateColumn()
+  @Column({ default: () => 'now()' })
   createdAt: Date;
 }

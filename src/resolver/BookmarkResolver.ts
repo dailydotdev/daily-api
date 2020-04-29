@@ -9,7 +9,13 @@ import {
   Resolver,
 } from 'type-graphql';
 import { Context } from '../Context';
-import { Bookmark, EmptyResponse } from '../entity';
+import { Bookmark, EmptyResponse, Post } from '../entity';
+import {
+  RelayedQuery,
+  RelayLimitOffset,
+  RelayLimitOffsetArgs,
+} from 'auto-relay';
+import { SelectQueryBuilder } from 'typeorm';
 
 @InputType()
 export class AddBookmarkInput {
@@ -53,5 +59,45 @@ export class BookmarkResolver {
       userId: ctx.userId,
     });
     return new EmptyResponse();
+  }
+
+  @RelayedQuery(() => Post, {
+    description: 'Get the user bookmarks feed',
+  })
+  @Authorized()
+  async bookmarks(
+    @Ctx() ctx: Context,
+    @Arg('now') now: Date,
+    @RelayLimitOffset() { limit, offset }: RelayLimitOffsetArgs,
+  ): Promise<[number, Post[]]> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const from = (builder: SelectQueryBuilder<any>): SelectQueryBuilder<any> =>
+      builder
+        .select(['"postId"', '"createdAt"'])
+        .addSelect('count(*) OVER() AS count')
+        .from(Bookmark, 'bookmark')
+        .orderBy('"createdAt"', 'DESC')
+        .where('"userId" = :userId')
+        .andWhere('"createdAt" <= :now')
+        .limit(limit)
+        .offset(offset);
+
+    const res = await ctx.con
+      .createQueryBuilder()
+      .select(['post.*', 'res.count'])
+      .from(from, 'res')
+      .innerJoin(Post, 'post', 'post.id = res."postId"')
+      .setParameters({ userId: ctx.userId, now })
+      .orderBy('res."createdAt"', 'DESC')
+      .getRawMany();
+
+    if (!res.length) {
+      return [0, []];
+    }
+
+    return [
+      parseInt(res[0].count),
+      res.map((x: object) => ctx.getRepository(Post).create(x)),
+    ];
   }
 }

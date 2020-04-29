@@ -38,6 +38,7 @@ export class Post {
   source: Promise<Source>;
 
   @Column({ type: 'text' })
+  @Field({ description: 'URL to the post' })
   @Index()
   url: string;
 
@@ -46,15 +47,19 @@ export class Post {
   canonicalUrl?: string;
 
   @Column({ type: 'text' })
+  @Field({ description: 'Title of the post' })
   title: string;
 
   @Column({ type: 'text', nullable: true })
+  @Field({ description: 'URL to the image of post', nullable: true })
   image?: string;
 
   @Column({ type: 'float', nullable: true })
+  @Field({ description: 'Aspect ratio of the image', nullable: true })
   ratio?: number;
 
   @Column({ type: 'text', nullable: true })
+  @Field({ description: 'Tiny version of the image in base64', nullable: true })
   placeholder?: string;
 
   @Column({ default: false })
