@@ -4,6 +4,7 @@ import {
   Ctx,
   Field,
   ForbiddenError,
+  ID,
   Info,
   InputType,
   Mutation,
@@ -44,7 +45,7 @@ export class UpdateSourceRequestInput implements Partial<SourceRequest> {
   @IsUrl({}, { message: 'Must be a valid URL' })
   sourceUrl?: string;
 
-  @Field({
+  @Field(() => ID, {
     description: 'Id for the future source',
     nullable: true,
   })

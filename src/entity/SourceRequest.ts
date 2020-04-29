@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Field, ObjectType } from 'type-graphql';
+import { Field, ID, ObjectType } from 'type-graphql';
 
 @Entity()
 @ObjectType({ description: 'Community request for a new source' })
@@ -14,7 +14,7 @@ import { Field, ObjectType } from 'type-graphql';
 @Index(['createdAt', 'closed', 'approved'])
 export class SourceRequest {
   @PrimaryGeneratedColumn('uuid')
-  @Field({ description: 'Unique identifier' })
+  @Field(() => ID, { description: 'Unique identifier' })
   id: string;
 
   @Column({ type: 'text' })
@@ -22,7 +22,7 @@ export class SourceRequest {
   sourceUrl: string;
 
   @Column({ type: 'text' })
-  @Field({ description: 'Id of the user who requested this source' })
+  @Field(() => ID, { description: 'Id of the user who requested this source' })
   userId: string;
 
   @Column({ type: 'text', nullable: true })
@@ -51,7 +51,7 @@ export class SourceRequest {
   closed: boolean;
 
   @Column({ type: 'text', nullable: true })
-  @Field({
+  @Field(() => ID, {
     description: 'Id for the future source',
     nullable: true,
   })

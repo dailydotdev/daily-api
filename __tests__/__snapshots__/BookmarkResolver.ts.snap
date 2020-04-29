@@ -1,0 +1,40 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`compatibility routes POST /posts/bookmarks should add new bookmarks 1`] = `
+Array [
+  Bookmark {
+    "postId": "0",
+    "userId": "1",
+  },
+  Bookmark {
+    "postId": "2",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`mutation addBookmarks should add new bookmarks 1`] = `
+Array [
+  Bookmark {
+    "postId": "0",
+    "userId": "1",
+  },
+  Bookmark {
+    "postId": "2",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`mutation addBookmarks should ignore conflicts 1`] = `
+Array [
+  Bookmark {
+    "postId": "2",
+    "userId": "1",
+  },
+  Bookmark {
+    "postId": "0",
+    "userId": "1",
+  },
+]
+`;

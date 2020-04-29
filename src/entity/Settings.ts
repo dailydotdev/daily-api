@@ -1,11 +1,11 @@
 import { Column, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
-import { Field, ObjectType } from 'type-graphql';
+import { Field, ID, ObjectType } from 'type-graphql';
 
 @Entity()
 @ObjectType({ description: 'User personal preferences' })
 export class Settings {
   @PrimaryColumn({ type: 'text' })
-  @Field({ description: 'Id of the user who requested this source' })
+  @Field(() => ID, { description: 'Id of the user who requested this source' })
   userId: string;
 
   @Column({ type: 'text', default: 'darcula' })
