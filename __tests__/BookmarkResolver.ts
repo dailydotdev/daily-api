@@ -13,7 +13,7 @@ import {
   testMutationErrorCode,
 } from './helpers';
 import appFunc from '../src';
-import { Bookmark, Post } from '../src/entity';
+import { Bookmark, Post, Source } from '../src/entity';
 import * as request from 'supertest';
 
 let app: FastifyInstance;
@@ -36,11 +36,16 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
 
-  const repo = con.getRepository(Post);
-  await repo.save(
+  await con
+    .getRepository(Source)
+    .save(con.getRepository(Source).create({ id: 's' }));
+  await con.getRepository(Post).save(
     Array.from(new Array(3), (_, i) =>
-      repo.create({
+      con.getRepository(Post).create({
         id: i.toString(),
+        sourceId: 's',
+        title: 'title',
+        url: 'http://post.com',
         timeDecay: 0,
         score: 0,
       }),

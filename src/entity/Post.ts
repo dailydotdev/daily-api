@@ -3,12 +3,13 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  ManyToOne,
   OneToMany,
   PrimaryColumn,
 } from 'typeorm';
 import { Field, ID, ObjectType } from 'type-graphql';
-import { PostDisplay } from './PostDisplay';
 import { PostTag } from './PostTag';
+import { Source } from './Source';
 
 @Entity()
 @ObjectType({ description: 'Entity for saving reference to blog posts' })
@@ -25,6 +26,36 @@ export class Post {
   @Field({ description: 'Time the post was added to the database' })
   @Index()
   createdAt: Date;
+
+  @Column({ type: 'text' })
+  @Index()
+  sourceId: string;
+
+  @ManyToOne(() => Source, (source) => source.posts, {
+    lazy: true,
+    onDelete: 'CASCADE',
+  })
+  source: Promise<Source>;
+
+  @Column({ type: 'text' })
+  @Index()
+  url: string;
+
+  @Column({ type: 'text', nullable: true })
+  @Index()
+  canonicalUrl?: string;
+
+  @Column({ type: 'text' })
+  title: string;
+
+  @Column({ type: 'text', nullable: true })
+  image?: string;
+
+  @Column({ type: 'float', nullable: true })
+  ratio?: number;
+
+  @Column({ type: 'text', nullable: true })
+  placeholder?: string;
 
   @Column({ default: false })
   tweeted: boolean;
@@ -52,9 +83,6 @@ export class Post {
     nullable: true,
   })
   readTime?: number;
-
-  @OneToMany(() => PostDisplay, (display) => display.post, { lazy: true })
-  displays: Promise<PostDisplay[]>;
 
   @OneToMany(() => PostTag, (tag) => tag.post, { lazy: true })
   tags: Promise<PostTag[]>;
