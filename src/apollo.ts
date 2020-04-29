@@ -3,7 +3,9 @@ import { ApolloServer, Config } from 'apollo-server-fastify';
 import { buildSchema } from 'type-graphql';
 import { snakeCase } from 'snake-case';
 import {
+  BookmarkResolver,
   NotificationResolver,
+  SettingsResolver,
   SourceRequestResolver,
   SourceResolver,
 } from './resolver';
@@ -12,7 +14,13 @@ import { authChecker } from './authChecker';
 
 export default async function (config: Config): Promise<ApolloServer> {
   const schema = await buildSchema({
-    resolvers: [NotificationResolver, SourceResolver, SourceRequestResolver],
+    resolvers: [
+      BookmarkResolver,
+      NotificationResolver,
+      SourceResolver,
+      SourceRequestResolver,
+      SettingsResolver,
+    ],
     emitSchemaFile: !process.env.NODE_ENV,
     globalMiddlewares: [ResolverTracing],
     authChecker,

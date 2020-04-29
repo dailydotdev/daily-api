@@ -6,7 +6,7 @@ import {
   OneToMany,
   PrimaryColumn,
 } from 'typeorm';
-import { Field, ObjectType } from 'type-graphql';
+import { Field, ID, ObjectType } from 'type-graphql';
 import { PostDisplay } from './PostDisplay';
 import { PostTag } from './PostTag';
 
@@ -14,12 +14,12 @@ import { PostTag } from './PostTag';
 @ObjectType({ description: 'Entity for saving reference to blog posts' })
 export class Post {
   @PrimaryColumn({ type: 'text' })
-  @Field({ description: 'Unique identifier' })
+  @Field(() => ID, { description: 'Unique identifier' })
   id: string;
 
-  @Column()
-  @Field({ description: 'Time the post was published' })
-  publishedAt: Date;
+  @Column({ nullable: true })
+  @Field({ description: 'Time the post was published', nullable: true })
+  publishedAt?: Date;
 
   @CreateDateColumn()
   @Field({ description: 'Time the post was added to the database' })

@@ -1,5 +1,5 @@
 import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
-import { Field, ObjectType } from 'type-graphql';
+import { Field, ID, ObjectType } from 'type-graphql';
 import { SourceDisplay } from './SourceDisplay';
 import { SourceFeed } from './SourceFeed';
 import { PostDisplay } from './PostDisplay';
@@ -8,7 +8,9 @@ import { PostDisplay } from './PostDisplay';
 @ObjectType({ description: 'Source to discover posts from (usually blogs)' })
 export class Source {
   @PrimaryColumn({ type: 'text' })
-  @Field({ description: 'Short unique string to identify the source' })
+  @Field(() => ID, {
+    description: 'Short unique string to identify the source',
+  })
   id: string;
 
   @Column({ type: 'text', nullable: true })
