@@ -9,6 +9,7 @@ import {
   InputType,
   Mutation,
   Resolver,
+  UseMiddleware,
 } from 'type-graphql';
 import { Source, SourceDisplay, SourceFeed, SourceRequest } from '../entity';
 import { IsUrl } from 'class-validator';
@@ -31,6 +32,7 @@ import {
 } from '../common';
 import { Context } from '../Context';
 import { Roles } from '../authChecker';
+import { ResolverTracing } from '../middleware';
 
 @InputType()
 export class RequestSourceInput implements Partial<SourceRequest> {
@@ -140,6 +142,7 @@ const createSourceFromRequest = (
 export class SourceRequestResolver {
   @Mutation(() => SourceRequest, { description: 'Request a new source' })
   @Authorized()
+  @UseMiddleware(ResolverTracing)
   async requestSource(
     @Arg('data') data: RequestSourceInput,
     @Ctx() ctx: Context,
@@ -159,6 +162,7 @@ export class SourceRequestResolver {
     description: 'Update the information of a source request',
   })
   @Authorized(Roles.Moderator)
+  @UseMiddleware(ResolverTracing)
   async updateSourceRequest(
     @Arg('id') id: string,
     @Arg('data') data: UpdateSourceRequestInput,
@@ -171,6 +175,7 @@ export class SourceRequestResolver {
     description: 'Decline a source request',
   })
   @Authorized(Roles.Moderator)
+  @UseMiddleware(ResolverTracing)
   async declineSourceRequest(
     @Arg('id') id: string,
     @Arg('data') data: DeclineSourceRequestInput,
@@ -189,6 +194,7 @@ export class SourceRequestResolver {
     description: "Approve a source request (but doesn't publish it)",
   })
   @Authorized(Roles.Moderator)
+  @UseMiddleware(ResolverTracing)
   async approveSourceRequest(
     @Arg('id') id: string,
     @Ctx() ctx: Context,
@@ -204,6 +210,7 @@ export class SourceRequestResolver {
     description: 'Publish a source request and turn it into a source',
   })
   @Authorized(Roles.Moderator)
+  @UseMiddleware(ResolverTracing)
   async publishSourceRequest(
     @Arg('id') id: string,
     @Ctx() ctx: Context,
@@ -240,6 +247,7 @@ export class SourceRequestResolver {
     description: 'Upload a logo to a source request',
   })
   @Authorized(Roles.Moderator)
+  @UseMiddleware(ResolverTracing)
   async uploadSourceRequestLogo(
     @Arg('id') id: string,
     @Arg('file', () => GraphQLUpload) file: FileUpload,
@@ -265,6 +273,7 @@ export class SourceRequestResolver {
     description: 'Get all pending source requests',
   })
   @Authorized(Roles.Moderator)
+  @UseMiddleware(ResolverTracing)
   async pendingSourceRequests(
     @Ctx() ctx: Context,
     @RelayLimitOffset() { limit, offset }: RelayLimitOffsetArgs,

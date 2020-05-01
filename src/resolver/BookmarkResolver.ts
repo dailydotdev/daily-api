@@ -7,6 +7,7 @@ import {
   InputType,
   Mutation,
   Resolver,
+  UseMiddleware,
 } from 'type-graphql';
 import { Context } from '../Context';
 import { Bookmark, EmptyResponse, Post } from '../entity';
@@ -16,6 +17,7 @@ import {
   RelayLimitOffsetArgs,
 } from 'auto-relay';
 import { SelectQueryBuilder } from 'typeorm';
+import { ResolverTracing } from '../middleware';
 
 @InputType()
 export class AddBookmarkInput {
@@ -27,6 +29,7 @@ export class AddBookmarkInput {
 export class BookmarkResolver {
   @Mutation(() => EmptyResponse, { description: 'Add new bookmarks' })
   @Authorized()
+  @UseMiddleware(ResolverTracing)
   async addBookmarks(
     @Arg('data') data: AddBookmarkInput,
     @Ctx() ctx: Context,
@@ -50,6 +53,7 @@ export class BookmarkResolver {
 
   @Mutation(() => EmptyResponse, { description: 'Remove an existing bookmark' })
   @Authorized()
+  @UseMiddleware(ResolverTracing)
   async removeBookmark(
     @Arg('id', () => ID) id: string,
     @Ctx() ctx: Context,
@@ -65,6 +69,7 @@ export class BookmarkResolver {
     description: 'Get the user bookmarks feed',
   })
   @Authorized()
+  @UseMiddleware(ResolverTracing)
   async bookmarks(
     @Ctx() ctx: Context,
     @Arg('now') now: Date,

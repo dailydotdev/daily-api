@@ -7,9 +7,11 @@ import {
   Mutation,
   Query,
   Resolver,
+  UseMiddleware,
 } from 'type-graphql';
 import { Context } from '../Context';
 import { Settings } from '../entity';
+import { ResolverTracing } from '../middleware';
 
 @InputType()
 export class UpdateSettingsInput implements Partial<Settings> {
@@ -60,12 +62,14 @@ export class UpdateSettingsInput implements Partial<Settings> {
 export class SettingsResolver {
   @Query(() => Settings, { description: 'Get the user settings' })
   @Authorized()
+  @UseMiddleware(ResolverTracing)
   async userSettings(@Ctx() ctx: Context): Promise<Settings> {
     return ctx.getRepository(Settings).findOneOrFail(ctx.userId);
   }
 
   @Mutation(() => Settings, { description: 'Update the user settings' })
   @Authorized()
+  @UseMiddleware(ResolverTracing)
   async updateUserSettings(
     @Arg('data') data: UpdateSettingsInput,
     @Ctx() ctx: Context,

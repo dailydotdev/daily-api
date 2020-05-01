@@ -9,7 +9,6 @@ import {
   SourceRequestResolver,
   SourceResolver,
 } from './resolver';
-import { ResolverTracing } from './middleware';
 import { authChecker } from './authChecker';
 
 export default async function (config: Config): Promise<ApolloServer> {
@@ -22,7 +21,6 @@ export default async function (config: Config): Promise<ApolloServer> {
       SettingsResolver,
     ],
     emitSchemaFile: !process.env.NODE_ENV,
-    globalMiddlewares: [ResolverTracing],
     authChecker,
   });
   return new ApolloServer({

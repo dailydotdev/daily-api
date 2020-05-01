@@ -1,4 +1,4 @@
-import { Ctx, Resolver } from 'type-graphql';
+import { Ctx, Resolver, UseMiddleware } from 'type-graphql';
 import {
   RelayedQuery,
   RelayLimitOffset,
@@ -7,6 +7,7 @@ import {
 import { Source, SourceDisplay } from '../entity';
 import { Context } from '../Context';
 import { SelectQueryBuilder } from 'typeorm';
+import { ResolverTracing } from '../middleware';
 
 const sourceFromDisplay = (display: SourceDisplay): Source => {
   const source = new Source();
@@ -20,6 +21,7 @@ const sourceFromDisplay = (display: SourceDisplay): Source => {
 @Resolver()
 export class SourceResolver {
   @RelayedQuery(() => Source, { description: 'Get all available sources' })
+  @UseMiddleware(ResolverTracing)
   async sources(
     @Ctx() ctx: Context,
     @RelayLimitOffset() { limit, offset }: RelayLimitOffsetArgs,
