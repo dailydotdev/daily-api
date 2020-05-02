@@ -224,19 +224,19 @@ export const typeDefs = gql`
     Approve a source request (but doesn't publish it)
     """
     approveSourceRequest(id: String!): SourceRequest!
-    @auth(requires: [MODERATOR])
+      @auth(requires: [MODERATOR])
 
     """
     Publish a source request and turn it into a source
     """
     publishSourceRequest(id: String!): SourceRequest!
-    @auth(requires: [MODERATOR])
+      @auth(requires: [MODERATOR])
 
     """
     Upload a logo to a source request
     """
     uploadSourceRequestLogo(file: Upload!, id: String!): SourceRequest!
-    @auth(requires: [MODERATOR])
+      @auth(requires: [MODERATOR])
   }
 
   extend type Query {
@@ -434,7 +434,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         { limit, offset },
         info: GraphQLResolveInfo,
       ): Promise<PaginationResponse<GQLSourceRequest>> => {
-        const [ rows, total ] = await ctx.loader.loadManyPaginated<SourceRequest>(
+        const [rows, total] = await ctx.loader.loadManyPaginated<SourceRequest>(
           SourceRequest,
           { closed: false },
           getRelayNodeInfo(info),
