@@ -137,31 +137,19 @@ Array [
     "extensions": Object {
       "code": "VALIDATION_ERROR",
       "exception": Object {
-        "validationErrors": Array [
-          ValidationError {
-            "children": Array [],
-            "constraints": Object {
-              "isUrl": "Must be a valid URL",
-            },
-            "property": "sourceUrl",
-            "target": RequestSourceInput {
-              "sourceUrl": "invalid",
-            },
-            "value": "invalid",
-          },
+        "errors": Array [
+          "is not a valid url",
         ],
+        "name": "ValidationError",
       },
     },
     "locations": Array [
       Object {
-        "column": 3,
-        "line": 3,
+        "column": 26,
+        "line": 2,
       },
     ],
-    "message": "Argument Validation Error",
-    "path": Array [
-      "requestSource",
-    ],
+    "message": "Variable \\"$data\\" got invalid value \\"invalid\\" at \\"data.sourceUrl\\"; Expected type URL. Field validation failed",
   },
 ]
 `;
