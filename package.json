@@ -35,7 +35,6 @@
       "cloudinary": "^1.21.0",
       "fast-json-stringify": "^2.0.0",
       "fastify": "^2.13.1",
-      "fastify-gql-upload": "^1.0.0",
       "fastify-helmet": "^3.0.2",
       "fastify-plugin": "^1.6.1",
       "graphql": "^14.6.0",

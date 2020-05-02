@@ -16,9 +16,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
-        checksum/files: {{ include (print $.Template.BasePath "/secret-files.yaml") . | sha256sum }}
-        checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+{{- include "daily-api.checksum" . | indent 8 }}
       labels:
         app: {{ template "daily-api.name" . }}-bg
         release: {{ .Release.Name }}
@@ -42,111 +40,11 @@ spec:
               path: /health
               port: http
           env:
-          - name: NODE_ENV
-            value: production
           - name: PORT
             value: "3000"
-          - name: GCLOUD_TRACE_NEW_CONTEXT
-            value: "1"
-          - name: KEEP_ALIVE_TIMEOUT
-            value: "620000"
           - name: GOOGLE_APPLICATION_CREDENTIALS
             value: "/etc/config/serviceAccount.json"
-          - name: MYSQL_USER
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: MYSQL_USER
-          - name: MYSQL_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: MYSQL_PASSWORD
-          - name: MYSQL_DATABASE
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: MYSQL_DATABASE
-          - name: MYSQL_HOST
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: MYSQL_HOST
-          - name: URL_PREFIX
-            valueFrom:
-              configMapKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: URL_PREFIX
-          - name: SLACK_WEBHOOK
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: SLACK_WEBHOOK
-          - name: DEFAULT_IMAGE_URL
-            valueFrom:
-              configMapKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: DEFAULT_IMAGE_URL
-          - name: DEFAULT_IMAGE_PLACEHOLDER
-            valueFrom:
-              configMapKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: DEFAULT_IMAGE_PLACEHOLDER
-          - name: DEFAULT_IMAGE_RATIO
-            valueFrom:
-              configMapKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: DEFAULT_IMAGE_RATIO
-          - name: ACCESS_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: ACCESS_SECRET
-          - name: GATEWAY_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: GATEWAY_SECRET
-          - name: GATEWAY_URL
-            valueFrom:
-              configMapKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: GATEWAY_URL
-          - name: CLOUDINARY_URL
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: CLOUDINARY_URL
-          - name: SUPERFEEDR_USER
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: SUPERFEEDR_USER
-          - name: SUPERFEEDR_PASS
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: SUPERFEEDR_PASS
-          - name: WEBHOOK_URL
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: WEBHOOK_URL
-          - name: WEBHOOK_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: WEBHOOK_SECRET
-          - name: ALGOLIA_APP
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: ALGOLIA_APP
-          - name: ALGOLIA_KEY
-            valueFrom:
-              secretKeyRef:
-                name: {{ template "daily-api.fullname" . }}
-                key: ALGOLIA_KEY
+{{ include "daily-api.config" . | indent 10 }}
           volumeMounts:
           - name: config
             mountPath: "/etc/config"
