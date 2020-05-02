@@ -23,12 +23,7 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import appFunc from '../src';
-import {
-  DeclineSourceRequestInput,
-  RequestSourceInput,
-  UpdateSourceRequestInput,
-} from '../src/resolver';
-import { Roles } from '../src/authChecker';
+import { Roles } from '../src/roles';
 import { Source, SourceRequest } from '../src/entity';
 import { sourceRequestFixture } from './fixture/sourceRequest';
 import {
@@ -36,6 +31,11 @@ import {
   notifySourceRequest,
   uploadLogo,
 } from '../src/common';
+import {
+  GQLDeclineSourceRequestInput,
+  GQLRequestSourceInput,
+  GQLUpdateSourceRequestInput,
+} from '../src/schema/sourceRequests';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -69,7 +69,7 @@ const mockRoles = (roles: Roles[] = []): nock.Scope =>
 const testModeratorAuthorization = (mutation: Mutation): Promise<void> => {
   mockRoles();
   loggedUser = '1';
-  return testMutationErrorCode(client, mutation, 'UNAUTHORIZED_ERROR');
+  return testMutationErrorCode(client, mutation, 'FORBIDDEN_ERROR');
 };
 
 const testNotFound = (mutation: Mutation): Promise<void> => {
@@ -131,7 +131,7 @@ describe('mutation requestSource', () => {
   it('should add new source request', async () => {
     mockInfo();
     loggedUser = '1';
-    const data: RequestSourceInput = { sourceUrl: 'http://source.com' };
+    const data: GQLRequestSourceInput = { sourceUrl: 'http://source.com' };
     const res = await client.mutate({
       mutation: MUTATION,
       variables: { data },
@@ -173,7 +173,7 @@ describe('mutation updateSourceRequest', () => {
     const req = await con
       .getRepository(SourceRequest)
       .save(sourceRequestFixture[2]);
-    const data: UpdateSourceRequestInput = {
+    const data: GQLUpdateSourceRequestInput = {
       sourceUrl: 'http://source.com',
       sourceImage: 'http://image.com',
     };
@@ -213,7 +213,7 @@ describe('mutation declineSourceRequest', () => {
     const req = await con
       .getRepository(SourceRequest)
       .save(sourceRequestFixture[2]);
-    const data: DeclineSourceRequestInput = { reason: 'not-active' };
+    const data: GQLDeclineSourceRequestInput = { reason: 'not-active' };
     const res = await client.mutate({
       mutation: MUTATION(req.id),
       variables: { data },
@@ -284,7 +284,7 @@ describe('mutation uploadSourceRequestLogo', () => {
     ).expect(200);
     const body = res.body as GraphQLResponse;
     expect(body.errors.length).toEqual(1);
-    expect(body.errors[0].extensions.code).toEqual('UNAUTHORIZED_ERROR');
+    expect(body.errors[0].extensions.code).toEqual('FORBIDDEN_ERROR');
   });
 
   it('should upload new logo for source request', async () => {
@@ -376,7 +376,7 @@ describe('query pendingSourceRequests', () => {
   it('should not authorize when not moderator', async () => {
     mockRoles();
     loggedUser = '1';
-    return testQueryErrorCode(client, { query: QUERY() }, 'UNAUTHORIZED_ERROR');
+    return testQueryErrorCode(client, { query: QUERY() }, 'FORBIDDEN_ERROR');
   });
 
   it('should return pending source requests', async () => {
@@ -402,6 +402,7 @@ describe('compatibility routes', () => {
     });
 
     it('should return bad request when url is not valid', () => {
+      mockInfo();
       return authorizeRequest(
         request(app.server).post('/v1/publications/request'),
       )

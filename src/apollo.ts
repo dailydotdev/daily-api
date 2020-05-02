@@ -1,45 +1,45 @@
+import { merge } from 'lodash';
 import { GraphQLFormattedError } from 'graphql';
 import { ApolloServer, Config } from 'apollo-server-fastify';
-import { buildSchema } from 'type-graphql';
 import { snakeCase } from 'snake-case';
-import {
-  BookmarkResolver,
-  NotificationResolver,
-  SettingsResolver,
-  SourceRequestResolver,
-  SourceResolver,
-} from './resolver';
-import { authChecker } from './authChecker';
+
+import * as common from './schema/common';
+import * as bookmarks from './schema/bookmarks';
+import * as notifications from './schema/notifications';
+import * as posts from './schema/posts';
+import * as settings from './schema/settings';
+import * as sourceRequests from './schema/sourceRequests';
+import * as sources from './schema/sources';
+import { AuthDirective } from './directive';
+import { UrlDirective } from './directive/UrlDirective';
 
 export default async function (config: Config): Promise<ApolloServer> {
-  const schema = await buildSchema({
-    resolvers: [
-      BookmarkResolver,
-      NotificationResolver,
-      SourceResolver,
-      SourceRequestResolver,
-      SettingsResolver,
-    ],
-    emitSchemaFile: !process.env.NODE_ENV,
-    authChecker,
-  });
   return new ApolloServer({
-    schema,
+    typeDefs: [
+      common.typeDefs,
+      bookmarks.typeDefs,
+      notifications.typeDefs,
+      posts.typeDefs,
+      settings.typeDefs,
+      sourceRequests.typeDefs,
+      sources.typeDefs,
+    ],
+    resolvers: merge(
+      common.resolvers,
+      bookmarks.resolvers,
+      notifications.resolvers,
+      settings.resolvers,
+      sourceRequests.resolvers,
+      sources.resolvers,
+    ),
+    schemaDirectives: {
+      auth: AuthDirective,
+      url: UrlDirective,
+    },
     ...config,
-    uploads: false,
+    uploads: true,
     formatError: (error): GraphQLFormattedError => {
-      if (error.originalError.name === 'Error') {
-        if (
-          error.originalError.message ===
-            'Access denied! You need to be authorized to perform this action!' ||
-          error.originalError.message ===
-            "Access denied! You don't have permission for this action!"
-        ) {
-          error.extensions.code = 'UNAUTHORIZED_ERROR';
-        } else if (error.extensions?.exception?.validationErrors) {
-          error.extensions.code = 'VALIDATION_ERROR';
-        }
-      } else if (error.originalError.name === 'EntityNotFound') {
+      if (error.originalError.name === 'EntityNotFound') {
         error.extensions.code = 'NOT_FOUND_ERROR';
       } else {
         error.extensions.code = snakeCase(
