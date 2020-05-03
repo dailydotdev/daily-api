@@ -36,7 +36,7 @@ export function traceResolver<TSource, TArgs, TReturn>(
   };
 }
 
-function traceResolverObject<TSource, TArgs>(
+export function traceResolverObject<TSource, TArgs>(
   object: IResolverObject<TSource, Context, TArgs>,
 ): IResolverObject<TSource, Context, TArgs> {
   for (const prop in object) {

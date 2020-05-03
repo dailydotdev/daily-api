@@ -41,7 +41,7 @@ export default async function (config: Config): Promise<ApolloServer> {
     formatError: (error): GraphQLFormattedError => {
       if (error.originalError.name === 'EntityNotFound') {
         error.extensions.code = 'NOT_FOUND_ERROR';
-      } else {
+      } else if (error.originalError.name) {
         error.extensions.code = snakeCase(
           error.originalError.name,
         ).toUpperCase();
