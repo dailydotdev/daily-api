@@ -1,6 +1,5 @@
 import {
   Column,
-  CreateDateColumn,
   Entity,
   Index,
   ManyToOne,
@@ -18,7 +17,7 @@ export class Post {
   @Column({ nullable: true })
   publishedAt?: Date;
 
-  @CreateDateColumn()
+  @Column({ default: () => 'now()' })
   @Index()
   createdAt: Date;
 

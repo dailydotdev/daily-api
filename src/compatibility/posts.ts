@@ -1,6 +1,28 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest } from 'fastify';
 import { offsetToCursor } from 'graphql-relay';
 import { injectGraphql } from './utils';
+
+const getPaginationParams = (req: FastifyRequest): string => {
+  const pageSize = Math.min(req.query.pageSize || 30, 40);
+  const offset = pageSize * (req.query.page || 0);
+  const after = offset ? `, after: "${offsetToCursor(offset)}"` : '';
+  const now = new Date(req.query.latest).toISOString();
+  return `now: "${now}", first: ${pageSize}${after}`;
+};
+
+// TODO: add missing fields bookmarked, read, tags, publication
+const postFields = `
+id
+publishedAt
+createdAt
+url
+title
+image
+ratio
+placeholder
+readTime
+tags
+`;
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.post('/bookmarks', async (req, res) => {
@@ -45,24 +67,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.get('/bookmarks', async (req, res) => {
-    const pageSize = Math.min(req.query.pageSize || 30, 40);
-    const offset = pageSize * (req.query.page || 0);
-    const after = offset ? `, after: "${offsetToCursor(offset)}"` : '';
-    const now = new Date(req.query.latest).toISOString();
-    // TODO: add missing fields bookmarked, read, tags, publication
     const query = `{
-  bookmarks(now: "${now}", first: ${pageSize}${after}) {
+  bookmarks(${getPaginationParams(req)}) {
     edges {
       node {
-        id
-        publishedAt
-        createdAt
-        url
-        title
-        image
-        ratio
-        placeholder
-        readTime
+        ${postFields}
       }
     }
   }
@@ -71,6 +80,34 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       fastify,
       { query },
       (obj) => obj['data']['bookmarks']['edges'].map((e) => e['node']),
+      req,
+      res,
+    );
+  });
+
+  fastify.get('/latest', async (req, res) => {
+    const pageParams = getPaginationParams(req);
+    const query = `query AnonymousFeed($filters: FiltersInput) {
+  anonymousFeed(filters: $filters, ${pageParams}) {
+    edges {
+      node {
+        ${postFields}
+      }
+    }
+  }
+}`;
+    return injectGraphql(
+      fastify,
+      {
+        query,
+        variables: {
+          filters: {
+            includeSources: req.query.sources,
+            includeTags: req.query.tags,
+          },
+        },
+      },
+      (obj) => obj['data']['anonymousFeed']['edges'].map((e) => e['node']),
       req,
       res,
     );

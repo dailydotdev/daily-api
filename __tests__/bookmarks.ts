@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { Connection, DeepPartial, getConnection, ObjectType } from 'typeorm';
+import { Connection, getConnection } from 'typeorm';
 import { ApolloServer } from 'apollo-server-fastify';
 import {
   ApolloServerTestClient,
@@ -13,6 +13,7 @@ import { Context } from '../src/Context';
 import {
   authorizeRequest,
   MockContext,
+  saveFixtures,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
@@ -58,22 +59,13 @@ beforeAll(async () => {
   return app.ready();
 });
 
-async function saveFixtures<Entity>(
-  target: ObjectType<Entity>,
-  entities: DeepPartial<Entity>[],
-): Promise<void> {
-  await con
-    .getRepository(target)
-    .save(entities.map((e) => con.getRepository(target).create(e)));
-}
-
 beforeEach(async () => {
   loggedUser = null;
 
-  await saveFixtures(Source, sourcesFixture);
-  await saveFixtures(SourceDisplay, sourceDisplaysFixture);
-  await saveFixtures(Post, postsFixture);
-  await saveFixtures(PostTag, postTagsFixture);
+  await saveFixtures(con, Source, sourcesFixture);
+  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
+  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, PostTag, postTagsFixture);
 });
 
 afterAll(() => app.close());
@@ -206,7 +198,7 @@ describe('query bookmarks', () => {
 
   it('should return bookmarks ordered by time', async () => {
     loggedUser = '1';
-    await saveFixtures(Bookmark, bookmarksFixture);
+    await saveFixtures(con, Bookmark, bookmarksFixture);
     const res = await client.query({ query: QUERY(now, 2) });
     expect(res.data).toMatchSnapshot();
   });
@@ -250,14 +242,14 @@ describe('compatibility routes', () => {
 
   describe('GET /posts/bookmarks', () => {
     it('should return bookmarks ordered by time', async () => {
-      await saveFixtures(Bookmark, bookmarksFixture);
+      await saveFixtures(con, Bookmark, bookmarksFixture);
       const res = await authorizeRequest(
         request(app.server).get('/v1/posts/bookmarks'),
       )
         .query({ latest: now, pageSize: 2, page: 0 })
         .send()
         .expect(200);
-      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
+      expect(res.body.map((x) => _.omit(x, ['createdAt']))).toMatchSnapshot();
     });
   });
 });

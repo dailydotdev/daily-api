@@ -1,0 +1,694 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`compatibility routes GET /posts/latest should return anonymous feed filtered by sources 1`] = `
+Array [
+  Object {
+    "id": "p5",
+    "image": null,
+    "placeholder": null,
+    "publishedAt": null,
+    "ratio": null,
+    "readTime": null,
+    "tags": Array [
+      "html",
+      "javascript",
+    ],
+    "title": "P5",
+    "url": "http://p5.com",
+  },
+  Object {
+    "id": "p2",
+    "image": null,
+    "placeholder": null,
+    "publishedAt": null,
+    "ratio": null,
+    "readTime": null,
+    "tags": Array [],
+    "title": "P2",
+    "url": "http://p2.com",
+  },
+  Object {
+    "id": "p4",
+    "image": null,
+    "placeholder": null,
+    "publishedAt": null,
+    "ratio": null,
+    "readTime": null,
+    "tags": Array [
+      "backend",
+      "data",
+      "javascript",
+    ],
+    "title": "P4",
+    "url": "http://p4.com",
+  },
+  Object {
+    "id": "p1",
+    "image": null,
+    "placeholder": null,
+    "publishedAt": null,
+    "ratio": null,
+    "readTime": null,
+    "tags": Array [
+      "javascript",
+      "webdev",
+    ],
+    "title": "P1",
+    "url": "http://p1.com",
+  },
+]
+`;
+
+exports[`compatibility routes GET /posts/latest should return anonymous feed filtered by tags 1`] = `
+Array [
+  Object {
+    "id": "p5",
+    "image": null,
+    "placeholder": null,
+    "publishedAt": null,
+    "ratio": null,
+    "readTime": null,
+    "tags": Array [
+      "html",
+      "javascript",
+    ],
+    "title": "P5",
+    "url": "http://p5.com",
+  },
+  Object {
+    "id": "p1",
+    "image": null,
+    "placeholder": null,
+    "publishedAt": null,
+    "ratio": null,
+    "readTime": null,
+    "tags": Array [
+      "javascript",
+      "webdev",
+    ],
+    "title": "P1",
+    "url": "http://p1.com",
+  },
+]
+`;
+
+exports[`compatibility routes GET /posts/latest should return anonymous feed filtered by tags and sources 1`] = `
+Array [
+  Object {
+    "id": "p5",
+    "image": null,
+    "placeholder": null,
+    "publishedAt": null,
+    "ratio": null,
+    "readTime": null,
+    "tags": Array [
+      "html",
+      "javascript",
+    ],
+    "title": "P5",
+    "url": "http://p5.com",
+  },
+  Object {
+    "id": "p4",
+    "image": null,
+    "placeholder": null,
+    "publishedAt": null,
+    "ratio": null,
+    "readTime": null,
+    "tags": Array [
+      "backend",
+      "data",
+      "javascript",
+    ],
+    "title": "P4",
+    "url": "http://p4.com",
+  },
+  Object {
+    "id": "p1",
+    "image": null,
+    "placeholder": null,
+    "publishedAt": null,
+    "ratio": null,
+    "readTime": null,
+    "tags": Array [
+      "javascript",
+      "webdev",
+    ],
+    "title": "P1",
+    "url": "http://p1.com",
+  },
+]
+`;
+
+exports[`compatibility routes GET /posts/latest should return anonymous feed with no filters ordered by popularity 1`] = `
+Array [
+  Object {
+    "id": "p5",
+    "image": null,
+    "placeholder": null,
+    "publishedAt": null,
+    "ratio": null,
+    "readTime": null,
+    "tags": Array [
+      "html",
+      "javascript",
+    ],
+    "title": "P5",
+    "url": "http://p5.com",
+  },
+  Object {
+    "id": "p2",
+    "image": null,
+    "placeholder": null,
+    "publishedAt": null,
+    "ratio": null,
+    "readTime": null,
+    "tags": Array [],
+    "title": "P2",
+    "url": "http://p2.com",
+  },
+]
+`;
+
+exports[`query anonymousFeed should return anonymous feed filtered by sources 1`] = `
+Object {
+  "anonymousFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p5",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [
+            "html",
+            "javascript",
+          ],
+          "title": "P5",
+          "url": "http://p5.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p2",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P2",
+          "url": "http://p2.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p4",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "backend",
+            "data",
+            "javascript",
+          ],
+          "title": "P4",
+          "url": "http://p4.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p1",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjM=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query anonymousFeed should return anonymous feed filtered by tags 1`] = `
+Object {
+  "anonymousFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p5",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [
+            "html",
+            "javascript",
+          ],
+          "title": "P5",
+          "url": "http://p5.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p1",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query anonymousFeed should return anonymous feed filtered by tags and sources 1`] = `
+Object {
+  "anonymousFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p5",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [
+            "html",
+            "javascript",
+          ],
+          "title": "P5",
+          "url": "http://p5.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p4",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "backend",
+            "data",
+            "javascript",
+          ],
+          "title": "P4",
+          "url": "http://p4.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p1",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjI=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query anonymousFeed should return anonymous feed while excluding sources 1`] = `
+Object {
+  "anonymousFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p5",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [
+            "html",
+            "javascript",
+          ],
+          "title": "P5",
+          "url": "http://p5.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p2",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P2",
+          "url": "http://p2.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p3",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "c",
+            "image": "http://image.com/c",
+            "name": "C",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P3",
+          "url": "http://p3.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjI=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query anonymousFeed should return anonymous feed with no filters ordered by popularity 1`] = `
+Object {
+  "anonymousFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p5",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [
+            "html",
+            "javascript",
+          ],
+          "title": "P5",
+          "url": "http://p5.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p2",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P2",
+          "url": "http://p2.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p3",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "c",
+            "image": "http://image.com/c",
+            "name": "C",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P3",
+          "url": "http://p3.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p4",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "backend",
+            "data",
+            "javascript",
+          ],
+          "title": "P4",
+          "url": "http://p4.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p1",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjQ=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query anonymousFeed should return anonymous feed with no filters ordered by time 1`] = `
+Object {
+  "anonymousFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p1",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p2",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P2",
+          "url": "http://p2.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p3",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "c",
+            "image": "http://image.com/c",
+            "name": "C",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P3",
+          "url": "http://p3.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p4",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "backend",
+            "data",
+            "javascript",
+          ],
+          "title": "P4",
+          "url": "http://p4.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p5",
+          "image": null,
+          "placeholder": null,
+          "ratio": null,
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [
+            "html",
+            "javascript",
+          ],
+          "title": "P5",
+          "url": "http://p5.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjQ=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;

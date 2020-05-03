@@ -5,6 +5,7 @@ import { snakeCase } from 'snake-case';
 
 import * as common from './schema/common';
 import * as bookmarks from './schema/bookmarks';
+import * as feed from './schema/feed';
 import * as notifications from './schema/notifications';
 import * as posts from './schema/posts';
 import * as settings from './schema/settings';
@@ -18,6 +19,7 @@ export default async function (config: Config): Promise<ApolloServer> {
     typeDefs: [
       common.typeDefs,
       bookmarks.typeDefs,
+      feed.typeDefs,
       notifications.typeDefs,
       posts.typeDefs,
       settings.typeDefs,
@@ -27,6 +29,7 @@ export default async function (config: Config): Promise<ApolloServer> {
     resolvers: merge(
       common.resolvers,
       bookmarks.resolvers,
+      feed.resolvers,
       notifications.resolvers,
       settings.resolvers,
       sourceRequests.resolvers,
