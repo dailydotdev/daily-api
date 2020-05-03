@@ -1,6 +1,6 @@
 import { mock, MockProxy } from 'jest-mock-extended';
 import { FastifyRequest, Logger } from 'fastify';
-import { Connection } from 'typeorm';
+import { Connection, DeepPartial, ObjectType } from 'typeorm';
 import * as request from 'supertest';
 import {
   RootSpan,
@@ -92,3 +92,13 @@ export const testQueryErrorCode = async (
     expect(errors.length).toEqual(1);
     expect(errors[0].extensions.code).toEqual(code);
   });
+
+export async function saveFixtures<Entity>(
+  con: Connection,
+  target: ObjectType<Entity>,
+  entities: DeepPartial<Entity>[],
+): Promise<void> {
+  await con
+    .getRepository(target)
+    .save(entities.map((e) => con.getRepository(target).create(e)));
+}
