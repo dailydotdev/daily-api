@@ -1,5 +1,5 @@
 import { DeepPartial } from 'typeorm';
-import { Post } from '../../src/entity';
+import { Post, PostTag } from '../../src/entity';
 
 export const postsFixture: DeepPartial<Post>[] = [
   {
@@ -41,5 +41,16 @@ export const postsFixture: DeepPartial<Post>[] = [
     timeDecay: 0,
     score: 0,
     sourceId: 'b',
+  },
+];
+
+export const postTagsFixture: DeepPartial<PostTag>[] = [
+  {
+    postId: postsFixture[0].id,
+    tag: 'webdev',
+  },
+  {
+    postId: postsFixture[0].id,
+    tag: 'javascript',
   },
 ];

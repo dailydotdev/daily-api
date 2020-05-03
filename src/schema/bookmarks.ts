@@ -1,15 +1,10 @@
 import { gql, IResolvers } from 'apollo-server-fastify';
 import { ConnectionArguments } from 'graphql-relay';
-import { SelectQueryBuilder } from 'typeorm';
-import {
-  forwardPagination,
-  PaginationResponse,
-  GQLEmptyResponse,
-} from './common';
+import { GQLEmptyResponse } from './common';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { Bookmark, Post } from '../entity';
-import { GQLPost } from './posts';
+import { Bookmark } from '../entity';
+import { feedResolver } from '../common';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -99,41 +94,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
   },
   Query: {
-    bookmarks: forwardPagination(
-      async (
-        source,
-        { now }: BookmarksArgs,
-        ctx,
-        { limit, offset },
-      ): Promise<PaginationResponse<GQLPost>> => {
-        const from = (
-          builder: SelectQueryBuilder<Bookmark>,
-        ): SelectQueryBuilder<Bookmark> =>
-          builder
-            .select(['"postId"', '"createdAt"'])
-            .addSelect('count(*) OVER() AS count')
-            .from(Bookmark, 'bookmark')
-            .orderBy('"createdAt"', 'DESC')
-            .where('"userId" = :userId')
-            .andWhere('"createdAt" <= :now')
-            .limit(limit)
-            .offset(offset);
-
-        const res = await ctx.con
-          .createQueryBuilder()
-          .select(['post.*', 'res.count'])
-          .from(from, 'res')
-          .innerJoin(Post, 'post', 'post.id = res."postId"')
-          .setParameters({ userId: ctx.userId, now })
-          .orderBy('res."createdAt"', 'DESC')
-          .getRawMany();
-
-        return {
-          count: parseInt(res[0]?.count || 0),
-          nodes: res,
-        };
-      },
-      30,
+    bookmarks: feedResolver((ctx, { now }: BookmarksArgs, builder) =>
+      builder
+        .innerJoin(Bookmark, 'bookmark', 'bookmark.postId = post.id')
+        .where('bookmark.userId = :userId', { userId: ctx.userId })
+        .andWhere('bookmark.createdAt <= :now', { now })
+        .orderBy('bookmark.createdAt', 'DESC'),
     ),
   },
 });

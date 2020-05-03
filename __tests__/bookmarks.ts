@@ -17,9 +17,10 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import appFunc from '../src';
-import { Bookmark, Post, Source } from '../src/entity';
+import { Bookmark, Post, PostTag, Source, SourceDisplay } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
-import { postsFixture } from './fixture/post';
+import { postsFixture, postTagsFixture } from './fixture/post';
+import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -70,7 +71,9 @@ beforeEach(async () => {
   loggedUser = null;
 
   await saveFixtures(Source, sourcesFixture);
+  await saveFixtures(SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(Post, postsFixture);
+  await saveFixtures(PostTag, postTagsFixture);
 });
 
 afterAll(() => app.close());
@@ -180,6 +183,13 @@ describe('query bookmarks', () => {
     edges {
       node {
         id
+        source {
+          id
+          name
+          image
+          public
+        }
+        tags
       }
     }
   }

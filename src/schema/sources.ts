@@ -111,7 +111,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           .getRawMany();
 
         return {
-          count: parseInt(res?.[0].count || 0),
+          count: parseInt(res?.[0]?.count || 0),
           nodes: res.map(sourceFromDisplay),
         };
       },

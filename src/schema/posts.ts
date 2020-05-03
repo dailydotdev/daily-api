@@ -1,4 +1,5 @@
 import { gql } from 'apollo-server-fastify';
+import { GQLSource } from './sources';
 
 export interface GQLPost {
   id: string;
@@ -10,6 +11,8 @@ export interface GQLPost {
   ratio?: number;
   placeholder?: string;
   readTime?: number;
+  source?: GQLSource;
+  tags?: string[];
 }
 
 export const typeDefs = gql`
@@ -61,6 +64,10 @@ export const typeDefs = gql`
     Estimation of time to read the article (in minutes)
     """
     readTime: Float
+
+    source: Source
+
+    tags: [String]
   }
 
   type PostConnection {
