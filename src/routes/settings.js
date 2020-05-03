@@ -31,6 +31,7 @@ router.post(
       insaneMode: boolean(),
       appInsaneMode: boolean(),
       spaciness: string(),
+      showOnlyNotReadPosts: boolean(),
     }),
   }, {
     stripUnknown: true,
