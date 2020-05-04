@@ -89,7 +89,8 @@ export const resolvers: IResolvers<any, Context> = {
 };
 
 export interface PaginationResponse<TReturn> {
-  count: number;
+  count?: number;
+  hasNextPage?: boolean;
   nodes: TReturn[];
 }
 
@@ -117,7 +118,13 @@ export function forwardPagination<TSource, TReturn>(
       limit: args.first || defaultLimit,
       offset: getOffsetWithDefault(args.after, -1) + 1,
     };
-    const { count, nodes } = await resolver(source, args, context, page, info);
+    const { count, hasNextPage, nodes } = await resolver(
+      source,
+      args,
+      context,
+      page,
+      info,
+    );
 
     if (!nodes.length) {
       return {
@@ -141,7 +148,10 @@ export function forwardPagination<TSource, TReturn>(
       pageInfo: {
         startCursor: edges[0].cursor,
         endCursor: edges[edges.length - 1].cursor,
-        hasNextPage: page.offset + nodes.length < count,
+        hasNextPage:
+          count === undefined
+            ? hasNextPage
+            : page.offset + nodes.length < count,
         hasPreviousPage: page.offset > 0,
       },
       edges,
