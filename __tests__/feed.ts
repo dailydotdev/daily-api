@@ -46,6 +46,30 @@ beforeEach(async () => {
 
 afterAll(() => app.close());
 
+const feedFields = `
+pageInfo {
+  endCursor
+  hasNextPage
+}
+edges {
+  node {
+    id
+    url
+    title
+    image
+    ratio
+    placeholder
+    readTime
+    tags
+    source {
+      id
+      name
+      image
+      public
+    }
+  }
+}`;
+
 describe('query anonymousFeed', () => {
   const QUERY = (
     ranking: Ranking = Ranking.POPULARITY,
@@ -54,28 +78,7 @@ describe('query anonymousFeed', () => {
   ): string => `
   query AnonymousFeed($filters: FiltersInput) {
     anonymousFeed(filters: $filters, ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}) {
-      pageInfo {
-        endCursor
-        hasNextPage
-      }
-      edges {
-        node {
-          id
-          url
-          title
-          image
-          ratio
-          placeholder
-          readTime
-          tags
-          source {
-            id
-            name
-            image
-            public
-          }
-        }
-      }
+      ${feedFields}
     }
   }
 `;
@@ -128,6 +131,24 @@ describe('query anonymousFeed', () => {
   });
 });
 
+describe('query sourceFeed', () => {
+  const QUERY = (
+    source: string,
+    ranking: Ranking = Ranking.POPULARITY,
+    now = new Date(),
+    first = 10,
+  ): string => `{
+    sourceFeed(source: "${source}", ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}) {
+      ${feedFields}
+    }
+  }`;
+
+  it('should return a single source feed', async () => {
+    const res = await client.query({ query: QUERY('b') });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('compatibility routes', () => {
   describe('GET /posts/latest', () => {
     it('should return anonymous feed with no filters ordered by popularity', async () => {
@@ -165,6 +186,17 @@ describe('compatibility routes', () => {
           tags: ['javascript'],
           sources: ['a', 'b'],
         })
+        .send()
+        .expect(200);
+      expect(res.body.map((x) => _.omit(x, ['createdAt']))).toMatchSnapshot();
+    });
+  });
+
+  describe('GET /posts/publication', () => {
+    it('should return single source feed', async () => {
+      const res = await request(app.server)
+        .get('/v1/posts/publication')
+        .query({ latest: new Date(), pub: 'b' })
         .send()
         .expect(200);
       expect(res.body.map((x) => _.omit(x, ['createdAt']))).toMatchSnapshot();

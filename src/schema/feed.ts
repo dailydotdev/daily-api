@@ -3,6 +3,8 @@ import { ConnectionArguments } from 'graphql-relay';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import { feedResolver, whereTags } from '../common';
+import { SelectQueryBuilder } from 'typeorm';
+import { Post } from '../entity';
 
 export const typeDefs = gql`
   enum Ranking {
@@ -20,12 +22,12 @@ export const typeDefs = gql`
     """
     Include posts of these sources
     """
-    includeSources: [String!]
+    includeSources: [ID!]
 
     """
     Exclude posts of these sources
     """
-    excludeSources: [String!]
+    excludeSources: [ID!]
 
     """
     Posts must include at least one tag from this list
@@ -34,6 +36,9 @@ export const typeDefs = gql`
   }
 
   extend type Query {
+    """
+    Get an ad-hoc feed based on sources and tags filters
+    """
     anonymousFeed(
       """
       Time the pagination started to ignore new items
@@ -55,7 +60,40 @@ export const typeDefs = gql`
       """
       ranking: Ranking = POPULARITY
 
+      """
+      Filters to apply to the feed
+      """
       filters: FiltersInput
+    ): PostConnection!
+
+    """
+    Get a single source feed
+    """
+    sourceFeed(
+      """
+      Id of the source
+      """
+      source: ID!
+
+      """
+      Time the pagination started to ignore new items
+      """
+      now: DateTime!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Ranking criteria for the feed
+      """
+      ranking: Ranking = POPULARITY
     ): PostConnection!
   }
 `;
@@ -71,23 +109,36 @@ interface FiltersInput {
   includeTags?: string[];
 }
 
-interface AnonymousFeedArgs extends ConnectionArguments {
+interface FeedArgs extends ConnectionArguments {
   now: Date;
   ranking: Ranking;
+}
+
+interface AnonymousFeedArgs extends FeedArgs {
   filters?: FiltersInput;
 }
+
+interface SourceFeedArgs extends FeedArgs {
+  source: string;
+}
+
+const applyFeedArgs = (
+  builder: SelectQueryBuilder<Post>,
+  { now, ranking }: FeedArgs,
+): SelectQueryBuilder<Post> =>
+  builder
+    .where('post.createdAt < :now', { now })
+    .orderBy(
+      ranking === Ranking.POPULARITY ? 'post.score' : 'post.createdAt',
+      'DESC',
+    );
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     anonymousFeed: feedResolver(
       (ctx, { now, filters, ranking }: AnonymousFeedArgs, builder) => {
-        let newBuilder = builder
-          .where('post.createdAt < :now', { now })
-          .orderBy(
-            ranking === Ranking.POPULARITY ? 'post.score' : 'post.createdAt',
-            'DESC',
-          );
+        let newBuilder = applyFeedArgs(builder, { now, ranking });
         if (filters?.includeSources?.length) {
           newBuilder = newBuilder.andWhere(`post.sourceId IN (:...sources)`, {
             sources: filters.includeSources,
@@ -105,6 +156,13 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         }
         return newBuilder;
       },
+    ),
+    sourceFeed: feedResolver(
+      (ctx, { now, ranking, source }: SourceFeedArgs, builder) =>
+        applyFeedArgs(builder, {
+          now,
+          ranking,
+        }).andWhere(`post.sourceId = :source`, { source }),
     ),
   },
 });

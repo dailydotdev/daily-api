@@ -112,4 +112,24 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       res,
     );
   });
+
+  fastify.get('/publication', async (req, res) => {
+    const pageParams = getPaginationParams(req);
+    const query = `{
+  sourceFeed(source: "${req.query.pub}", ${pageParams}) {
+    edges {
+      node {
+        ${postFields}
+      }
+    }
+  }
+}`;
+    return injectGraphql(
+      fastify,
+      { query },
+      (obj) => obj['data']['sourceFeed']['edges'].map((e) => e['node']),
+      req,
+      res,
+    );
+  });
 }
