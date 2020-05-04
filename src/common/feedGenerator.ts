@@ -84,7 +84,6 @@ export const generateFeed = async (
       .createQueryBuilder()
       .select('post.*')
       .addSelect('source.*')
-      .addSelect('count(*) OVER() AS count')
       .addSelect(selectTags)
       .from(Post, 'post')
       .leftJoin(
@@ -98,7 +97,7 @@ export const generateFeed = async (
   const res = await builder.getRawMany();
 
   return {
-    count: parseInt(res?.[0]?.count || 0),
+    hasNextPage: res.length === limit,
     nodes: res.map(mapRawPost),
   };
 };
