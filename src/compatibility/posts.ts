@@ -132,4 +132,24 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       res,
     );
   });
+
+  fastify.get('/tag', async (req, res) => {
+    const pageParams = getPaginationParams(req);
+    const query = `{
+  tagFeed(tag: "${req.query.tag}", ${pageParams}) {
+    edges {
+      node {
+        ${postFields}
+      }
+    }
+  }
+}`;
+    return injectGraphql(
+      fastify,
+      { query },
+      (obj) => obj['data']['tagFeed']['edges'].map((e) => e['node']),
+      req,
+      res,
+    );
+  });
 }
