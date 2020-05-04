@@ -11,6 +11,7 @@ import * as posts from './schema/posts';
 import * as settings from './schema/settings';
 import * as sourceRequests from './schema/sourceRequests';
 import * as sources from './schema/sources';
+import * as tags from './schema/tags';
 import { AuthDirective } from './directive';
 import { UrlDirective } from './directive/UrlDirective';
 
@@ -25,6 +26,7 @@ export default async function (config: Config): Promise<ApolloServer> {
       settings.typeDefs,
       sourceRequests.typeDefs,
       sources.typeDefs,
+      tags.typeDefs,
     ],
     resolvers: merge(
       common.resolvers,
@@ -34,6 +36,7 @@ export default async function (config: Config): Promise<ApolloServer> {
       settings.resolvers,
       sourceRequests.resolvers,
       sources.resolvers,
+      tags.resolvers,
     ),
     schemaDirectives: {
       auth: AuthDirective,
