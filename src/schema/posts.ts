@@ -17,7 +17,7 @@ export interface GQLPost {
 
 export const typeDefs = gql`
   """
-  Entity for saving reference to blog posts
+  Blog post
   """
   type Post {
     """

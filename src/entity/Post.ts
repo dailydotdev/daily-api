@@ -18,7 +18,7 @@ export class Post {
   publishedAt?: Date;
 
   @Column({ default: () => 'now()' })
-  @Index('ignored_index', { synchronize: false })
+  @Index('IDX_post_createdAt', { synchronize: false })
   createdAt: Date;
 
   @Column({ type: 'text' })
@@ -62,7 +62,7 @@ export class Post {
   timeDecay: number;
 
   @Column({ type: 'float' })
-  @Index('ignored_index', { synchronize: false })
+  @Index('IDX_post_score', { synchronize: false })
   score: number;
 
   @Column({ type: 'text', nullable: true })

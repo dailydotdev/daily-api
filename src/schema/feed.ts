@@ -133,7 +133,7 @@ export enum Ranking {
   TIME = 'TIME',
 }
 
-interface FiltersInput {
+interface GQLFiltersInput {
   includeSources?: string[];
   excludeSources?: string[];
   includeTags?: string[];
@@ -145,7 +145,7 @@ interface FeedArgs extends ConnectionArguments {
 }
 
 interface AnonymousFeedArgs extends FeedArgs {
-  filters?: FiltersInput;
+  filters?: GQLFiltersInput;
 }
 
 interface SourceFeedArgs extends FeedArgs {
