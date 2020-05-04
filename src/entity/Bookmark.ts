@@ -2,7 +2,7 @@ import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Post } from './Post';
 
 @Entity()
-@Index(['userId', 'createdAt'])
+@Index('ignored_index', { synchronize: false })
 export class Bookmark {
   @PrimaryColumn({ type: 'text' })
   @Index()
