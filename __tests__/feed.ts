@@ -149,6 +149,24 @@ describe('query sourceFeed', () => {
   });
 });
 
+describe('query tagFeed', () => {
+  const QUERY = (
+    tag: string,
+    ranking: Ranking = Ranking.POPULARITY,
+    now = new Date(),
+    first = 10,
+  ): string => `{
+    tagFeed(tag: "${tag}", ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}) {
+      ${feedFields}
+    }
+  }`;
+
+  it('should return a single tag feed', async () => {
+    const res = await client.query({ query: QUERY('javascript') });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('compatibility routes', () => {
   describe('GET /posts/latest', () => {
     it('should return anonymous feed with no filters ordered by popularity', async () => {
@@ -197,6 +215,17 @@ describe('compatibility routes', () => {
       const res = await request(app.server)
         .get('/v1/posts/publication')
         .query({ latest: new Date(), pub: 'b' })
+        .send()
+        .expect(200);
+      expect(res.body.map((x) => _.omit(x, ['createdAt']))).toMatchSnapshot();
+    });
+  });
+
+  describe('GET /posts/tag', () => {
+    it('should return single tag feed', async () => {
+      const res = await request(app.server)
+        .get('/v1/posts/tag')
+        .query({ latest: new Date(), tag: 'javascript' })
         .send()
         .expect(200);
       expect(res.body.map((x) => _.omit(x, ['createdAt']))).toMatchSnapshot();

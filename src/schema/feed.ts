@@ -95,6 +95,36 @@ export const typeDefs = gql`
       """
       ranking: Ranking = POPULARITY
     ): PostConnection!
+
+    """
+    Get a single tag feed
+    """
+    tagFeed(
+      """
+      The tag to fetch
+      """
+      tag: String!
+
+      """
+      Time the pagination started to ignore new items
+      """
+      now: DateTime!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Ranking criteria for the feed
+      """
+      ranking: Ranking = POPULARITY
+    ): PostConnection!
   }
 `;
 
@@ -120,6 +150,10 @@ interface AnonymousFeedArgs extends FeedArgs {
 
 interface SourceFeedArgs extends FeedArgs {
   source: string;
+}
+
+interface TagFeedArgs extends FeedArgs {
+  tag: string;
 }
 
 const applyFeedArgs = (
@@ -163,6 +197,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           now,
           ranking,
         }).andWhere(`post.sourceId = :source`, { source }),
+    ),
+    tagFeed: feedResolver((ctx, { now, ranking, tag }: TagFeedArgs, builder) =>
+      applyFeedArgs(builder, {
+        now,
+        ranking,
+      }).andWhere((subBuilder) => whereTags([tag], subBuilder)),
     ),
   },
 });
