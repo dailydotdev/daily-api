@@ -92,6 +92,7 @@ describe('source field', () => {
         sourceId: 'a',
         name: 'Private A',
         image: 'https://private.com/a',
+        userId: loggedUser,
       }),
     );
     const res = await client.query({ query: QUERY });

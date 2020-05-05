@@ -102,7 +102,7 @@ Object {
       "id": "a",
       "image": "https://private.com/a",
       "name": "Private A",
-      "public": true,
+      "public": false,
     },
   },
 }

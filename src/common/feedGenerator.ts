@@ -62,7 +62,7 @@ export const selectSource = (
     .addSelect('sd.sourceId', 'sourceId')
     .addSelect('sd.name', 'sourceName')
     .addSelect('sd.image', 'sourceImage')
-    .addSelect('sd.userId', 'sourcePublic')
+    .addSelect('sd.userId', 'sourceUserId')
     .from(SourceDisplay, 'sd')
     .orderBy('sd.sourceId')
     .addOrderBy('sd.userId', 'ASC', 'NULLS LAST')
