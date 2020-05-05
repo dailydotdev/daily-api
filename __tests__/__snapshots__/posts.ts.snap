@@ -2,7 +2,6 @@
 
 exports[`compatibility routes GET /posts/:id should return post by id 1`] = `
 Object {
-  "createdAt": "2020-05-05T07:01:31.730Z",
   "id": "p1",
   "image": null,
   "placeholder": null,

@@ -6,6 +6,7 @@ import {
   createTestClient,
 } from 'apollo-server-testing';
 import * as request from 'supertest';
+import * as _ from 'lodash';
 
 import createApolloServer from '../src/apollo';
 import { Context } from '../src/Context';
@@ -87,7 +88,7 @@ describe('compatibility routes', () => {
         .get('/v1/posts/p1')
         .send()
         .expect(200);
-      expect(res.body).toMatchSnapshot();
+      expect(_.omit(res.body, ['createdAt'])).toMatchSnapshot();
     });
   });
 });
