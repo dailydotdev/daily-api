@@ -1,0 +1,43 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`compatibility routes GET /posts/:id should return post by id 1`] = `
+Object {
+  "createdAt": "2020-05-05T07:01:31.730Z",
+  "id": "p1",
+  "image": null,
+  "placeholder": null,
+  "publishedAt": null,
+  "ratio": null,
+  "readTime": null,
+  "tags": Array [
+    "javascript",
+    "webdev",
+  ],
+  "title": "P1",
+  "url": "http://p1.com",
+}
+`;
+
+exports[`query post should return post by id 1`] = `
+Object {
+  "post": Object {
+    "id": "p1",
+    "image": null,
+    "placeholder": null,
+    "ratio": null,
+    "readTime": null,
+    "source": Object {
+      "id": "a",
+      "image": "http://image.com/a",
+      "name": "A",
+      "public": true,
+    },
+    "tags": Array [
+      "javascript",
+      "webdev",
+    ],
+    "title": "P1",
+    "url": "http://p1.com",
+  },
+}
+`;

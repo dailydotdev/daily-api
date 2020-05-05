@@ -1,5 +1,9 @@
-import { gql } from 'apollo-server-fastify';
+import { gql, IResolvers } from 'apollo-server-fastify';
 import { GQLSource } from './sources';
+import { Context } from '../Context';
+import { traceResolvers } from './trace';
+import { generateFeed } from '../common';
+import { NotFound } from '../errors';
 
 export interface GQLPost {
   id: string;
@@ -83,4 +87,35 @@ export const typeDefs = gql`
     """
     cursor: String!
   }
+
+  extend type Query {
+    """
+    Get post by id
+    """
+    post(
+      """
+      Id of the requested post
+      """
+      id: ID
+    ): Post!
+  }
 `;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const resolvers: IResolvers<any, Context> = traceResolvers({
+  Query: {
+    post: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLPost> => {
+      const feed = await generateFeed(ctx, 1, 0, (builder) =>
+        builder.where('post.id = :id', { id }),
+      );
+      if (feed.nodes.length) {
+        return feed.nodes[0];
+      }
+      throw new NotFound();
+    },
+  },
+});

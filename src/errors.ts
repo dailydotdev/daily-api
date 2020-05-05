@@ -24,3 +24,11 @@ export class ValidationError extends Error {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 }
+
+export class NotFound extends Error {
+  constructor() {
+    super('Requested entity could not be found');
+    this.name = 'NotFoundError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}

@@ -152,4 +152,19 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       res,
     );
   });
+
+  fastify.get('/:id', async (req, res) => {
+    const query = `{
+  post(id: "${req.params.id}") {
+    ${postFields}
+  }
+}`;
+    return injectGraphql(
+      fastify,
+      { query },
+      (obj) => obj['data']['post'],
+      req,
+      res,
+    );
+  });
 }

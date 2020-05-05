@@ -33,6 +33,7 @@ export default async function (config: Config): Promise<ApolloServer> {
       bookmarks.resolvers,
       feed.resolvers,
       notifications.resolvers,
+      posts.resolvers,
       settings.resolvers,
       sourceRequests.resolvers,
       sources.resolvers,
