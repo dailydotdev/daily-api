@@ -19,5 +19,6 @@ export class Bookmark {
   post: Promise<Post>;
 
   @Column({ default: () => 'now()' })
+  @Index('IDX_bookmark_createdAt', { synchronize: false })
   createdAt: Date;
 }

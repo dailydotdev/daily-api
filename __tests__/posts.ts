@@ -20,11 +20,13 @@ import {
 } from './helpers';
 import appFunc from '../src';
 import {
+  Bookmark,
   HiddenPost,
   Post,
   PostTag,
   Source,
   SourceDisplay,
+  View,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
@@ -64,6 +66,103 @@ beforeEach(async () => {
 });
 
 afterAll(() => app.close());
+
+describe('source field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      source {
+        id
+        name
+        image
+        public
+      }
+    }
+  }`;
+
+  it('should return the public representation', async () => {
+    const res = await client.query({ query: QUERY });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return the private representation', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(SourceDisplay);
+    await repo.save(
+      repo.create({
+        sourceId: 'a',
+        name: 'Private A',
+        image: 'https://private.com/a',
+        userId: loggedUser,
+      }),
+    );
+    const res = await client.query({ query: QUERY });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('read field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      read
+    }
+  }`;
+
+  it('should return null when user is not logged in', async () => {
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.read).toEqual(null);
+  });
+
+  it('should return false when user did not read the post', async () => {
+    loggedUser = '1';
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.read).toEqual(false);
+  });
+
+  it('should return true when user did read the post', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(View);
+    await repo.save(
+      repo.create({
+        postId: 'p1',
+        userId: loggedUser,
+      }),
+    );
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.read).toEqual(true);
+  });
+});
+
+describe('bookmarked field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      bookmarked
+    }
+  }`;
+
+  it('should return null when user is not logged in', async () => {
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.bookmarked).toEqual(null);
+  });
+
+  it('should return false when user did not bookmark the post', async () => {
+    loggedUser = '1';
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.bookmarked).toEqual(false);
+  });
+
+  it('should return true when user did bookmark the post', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Bookmark);
+    await repo.save(
+      repo.create({
+        postId: 'p1',
+        userId: loggedUser,
+      }),
+    );
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.bookmarked).toEqual(true);
+  });
+});
 
 describe('query post', () => {
   const QUERY = (id: string): string => `{

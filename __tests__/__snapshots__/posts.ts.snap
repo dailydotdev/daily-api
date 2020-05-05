@@ -94,3 +94,29 @@ Object {
   },
 }
 `;
+
+exports[`source field should return the private representation 1`] = `
+Object {
+  "post": Object {
+    "source": Object {
+      "id": "a",
+      "image": "https://private.com/a",
+      "name": "Private A",
+      "public": false,
+    },
+  },
+}
+`;
+
+exports[`source field should return the public representation 1`] = `
+Object {
+  "post": Object {
+    "source": Object {
+      "id": "a",
+      "image": "http://image.com/a",
+      "name": "A",
+      "public": true,
+    },
+  },
+}
+`;

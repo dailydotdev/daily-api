@@ -1,6 +1,13 @@
 import { SelectQueryBuilder } from 'typeorm';
 import { lowerFirst } from 'lodash';
-import { Post, PostTag, SourceDisplay, TagCount } from '../entity';
+import {
+  Bookmark,
+  Post,
+  PostTag,
+  SourceDisplay,
+  TagCount,
+  View,
+} from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
 import { forwardPagination, PaginationResponse } from '../schema/common';
@@ -49,19 +56,50 @@ export const selectTags = (
 export const selectSource = (
   userId: string,
   builder: SelectQueryBuilder<Post>,
-): SelectQueryBuilder<SourceDisplay> =>
-  builder
+): SelectQueryBuilder<SourceDisplay> => {
+  let newBuilder = builder
     .distinctOn(['sd.sourceId'])
     .addSelect('sd.sourceId', 'sourceId')
     .addSelect('sd.name', 'sourceName')
     .addSelect('sd.image', 'sourceImage')
-    .addSelect('sd.userId', 'sourcePublic')
+    .addSelect('sd.userId', 'sourceUserId')
     .from(SourceDisplay, 'sd')
     .orderBy('sd.sourceId')
     .addOrderBy('sd.userId', 'ASC', 'NULLS LAST')
-    .where('sd.userId IS NULL OR sd.userId = :userId', {
+    .where('sd.userId IS NULL');
+  if (userId) {
+    newBuilder = newBuilder.orWhere('sd.userId = :userId', {
       userId,
     });
+  }
+  return newBuilder;
+};
+
+export const selectRead = (
+  userId: string,
+  builder: SelectQueryBuilder<Post>,
+): string => {
+  const query = builder
+    .select('1')
+    .from(View, 'view')
+    .where(`view.userId = :userId`, { userId })
+    .andWhere('view.postId = post.id')
+    .getQuery();
+  return `EXISTS${query}`;
+};
+
+export const selectBookmarked = (
+  userId: string,
+  builder: SelectQueryBuilder<Post>,
+): string => {
+  const query = builder
+    .select('1')
+    .from(Bookmark, 'bookmark')
+    .where(`bookmark.userId = :userId`, { userId })
+    .andWhere('bookmark.postId = post.id')
+    .getQuery();
+  return `EXISTS${query}`;
+};
 
 export const mapRawPost = (post: object): GQLPost => {
   post = nestChild(post, 'source');
@@ -79,7 +117,7 @@ export const generateFeed = async (
   offset: number,
   query: (builder: SelectQueryBuilder<Post>) => SelectQueryBuilder<Post>,
 ): Promise<PaginationResponse<GQLPost>> => {
-  const builder = query(
+  let builder = query(
     ctx.con
       .createQueryBuilder()
       .select('post.*')
@@ -94,6 +132,14 @@ export const generateFeed = async (
       .limit(limit)
       .offset(offset),
   );
+  if (ctx.userId) {
+    builder = builder
+      .addSelect(selectRead(ctx.userId, builder.subQuery()), 'read')
+      .addSelect(
+        selectBookmarked(ctx.userId, builder.subQuery()),
+        'bookmarked',
+      );
+  }
   const res = await builder.getRawMany();
 
   return {

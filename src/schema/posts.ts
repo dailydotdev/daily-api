@@ -20,6 +20,8 @@ export interface GQLPost {
   readTime?: number;
   source?: GQLSource;
   tags?: string[];
+  read?: boolean;
+  bookmarked?: boolean;
 }
 
 export const typeDefs = gql`
@@ -72,9 +74,25 @@ export const typeDefs = gql`
     """
     readTime: Float
 
-    source: Source
+    """
+    Source of the post
+    """
+    source: Source!
 
-    tags: [String]
+    """
+    Tags of the post
+    """
+    tags: [String!]
+
+    """
+    Whether the user has read this post
+    """
+    read: Boolean @auth
+
+    """
+    Whether the user bookmarked this post
+    """
+    bookmarked: Boolean @auth
   }
 
   type PostConnection {
