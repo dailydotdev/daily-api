@@ -7,6 +7,7 @@ import {
 } from 'apollo-server-testing';
 import * as request from 'supertest';
 import * as _ from 'lodash';
+import { mocked } from 'ts-jest/utils';
 
 import createApolloServer from '../src/apollo';
 import { Context } from '../src/Context';
@@ -54,6 +55,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   loggedUser = null;
+  mocked(notifyPostReport).mockClear();
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
