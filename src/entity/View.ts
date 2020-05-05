@@ -28,8 +28,7 @@ export class View {
   @Column({ type: 'text', nullable: true })
   ip?: string;
 
-  @Column({ default: () => 'now()' })
-  @PrimaryColumn()
+  @PrimaryColumn({ default: () => 'now()' })
   @Index()
   timestamp: Date;
 }
