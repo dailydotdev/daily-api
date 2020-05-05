@@ -249,7 +249,7 @@ describe('compatibility routes', () => {
         .query({ latest: now, pageSize: 2, page: 0 })
         .send()
         .expect(200);
-      expect(res.body.map((x) => _.omit(x, ['createdAt']))).toMatchSnapshot();
+      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
     });
   });
 });

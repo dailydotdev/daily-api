@@ -1,7 +1,7 @@
 import { gql, IResolvers } from 'apollo-server-fastify';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
-import { traceResolvers } from './trace';
+import { traceResolverObject } from './trace';
 import { generateFeed, notifyPostReport } from '../common';
 import { NotFound, ValidationError } from '../errors';
 import { HiddenPost, Post } from '../entity';
@@ -188,9 +188,20 @@ const reportReasons = new Map([
   ['NSFW', 'Post is NSFW'],
 ]);
 
+const defaultImage = {
+  urls: process.env.DEFAULT_IMAGE_URL.split(','),
+  ratio: parseFloat(process.env.DEFAULT_IMAGE_RATIO),
+  placeholder: process.env.DEFAULT_IMAGE_PLACEHOLDER,
+};
+
+const pickImageUrl = (post: GQLPost): string =>
+  defaultImage.urls[
+    Math.floor(post.createdAt.getTime() / 1000) % defaultImage.urls.length
+  ];
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = traceResolvers({
-  Query: {
+export const resolvers: IResolvers<any, Context> = {
+  Query: traceResolverObject({
     post: async (
       source,
       { id }: { id: string },
@@ -204,8 +215,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       }
       throw new NotFound();
     },
-  },
-  Mutation: {
+  }),
+  Mutation: traceResolverObject({
     hidePost: async (
       source,
       { id }: { id: string },
@@ -232,5 +243,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       }
       return { _: true };
     },
+  }),
+  Post: {
+    image: (post: GQLPost): string => post.image || pickImageUrl(post),
+    placeholder: (post: GQLPost): string =>
+      post.image ? post.placeholder : defaultImage.placeholder,
+    ratio: (post: GQLPost): number =>
+      post.image ? post.ratio : defaultImage.ratio,
   },
-});
+};

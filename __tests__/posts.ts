@@ -67,6 +67,53 @@ beforeEach(async () => {
 
 afterAll(() => app.close());
 
+describe('image fields', () => {
+  const QUERY = `{
+    post(id: "image") {
+      image
+      placeholder
+      ratio
+    }
+  }`;
+
+  it('should return default image when no image exists', async () => {
+    const repo = con.getRepository(Post);
+    await repo.save(
+      repo.create({
+        id: 'image',
+        title: 'No image',
+        url: 'http://noimage.com',
+        timeDecay: 0,
+        score: 0,
+        sourceId: 'a',
+        createdAt: new Date(2020, 4, 4, 19, 35),
+      }),
+    );
+    const res = await client.query({ query: QUERY });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return post image when exists', async () => {
+    const repo = con.getRepository(Post);
+    await repo.save(
+      repo.create({
+        id: 'image',
+        title: 'Image',
+        url: 'http://post.com',
+        timeDecay: 0,
+        score: 0,
+        sourceId: 'a',
+        createdAt: new Date(2020, 4, 4, 19, 35),
+        image: 'http://image.com',
+        placeholder: 'data:image/jpeg;base64,placeholder',
+        ratio: 0.5,
+      }),
+    );
+    const res = await client.query({ query: QUERY });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('source field', () => {
   const QUERY = `{
     post(id: "p1") {
@@ -170,9 +217,6 @@ describe('query post', () => {
       id
       url
       title
-      image
-      ratio
-      placeholder
       readTime
       tags
       source {
@@ -330,7 +374,7 @@ describe('compatibility routes', () => {
         .get('/v1/posts/p1')
         .send()
         .expect(200);
-      expect(_.omit(res.body, ['createdAt'])).toMatchSnapshot();
+      expect(_.pick(res.body, ['id'])).toMatchSnapshot();
     });
   });
 

@@ -4,57 +4,15 @@ exports[`compatibility routes GET /posts/latest should return anonymous feed fil
 Array [
   Object {
     "id": "p5",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [
-      "html",
-      "javascript",
-    ],
-    "title": "P5",
-    "url": "http://p5.com",
   },
   Object {
     "id": "p2",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [],
-    "title": "P2",
-    "url": "http://p2.com",
   },
   Object {
     "id": "p4",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [
-      "backend",
-      "data",
-      "javascript",
-    ],
-    "title": "P4",
-    "url": "http://p4.com",
   },
   Object {
     "id": "p1",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [
-      "javascript",
-      "webdev",
-    ],
-    "title": "P1",
-    "url": "http://p1.com",
   },
 ]
 `;
@@ -63,31 +21,9 @@ exports[`compatibility routes GET /posts/latest should return anonymous feed fil
 Array [
   Object {
     "id": "p5",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [
-      "html",
-      "javascript",
-    ],
-    "title": "P5",
-    "url": "http://p5.com",
   },
   Object {
     "id": "p1",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [
-      "javascript",
-      "webdev",
-    ],
-    "title": "P1",
-    "url": "http://p1.com",
   },
 ]
 `;
@@ -96,46 +32,12 @@ exports[`compatibility routes GET /posts/latest should return anonymous feed fil
 Array [
   Object {
     "id": "p5",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [
-      "html",
-      "javascript",
-    ],
-    "title": "P5",
-    "url": "http://p5.com",
   },
   Object {
     "id": "p4",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [
-      "backend",
-      "data",
-      "javascript",
-    ],
-    "title": "P4",
-    "url": "http://p4.com",
   },
   Object {
     "id": "p1",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [
-      "javascript",
-      "webdev",
-    ],
-    "title": "P1",
-    "url": "http://p1.com",
   },
 ]
 `;
@@ -144,28 +46,9 @@ exports[`compatibility routes GET /posts/latest should return anonymous feed wit
 Array [
   Object {
     "id": "p5",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [
-      "html",
-      "javascript",
-    ],
-    "title": "P5",
-    "url": "http://p5.com",
   },
   Object {
     "id": "p2",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [],
-    "title": "P2",
-    "url": "http://p2.com",
   },
 ]
 `;
@@ -174,28 +57,9 @@ exports[`compatibility routes GET /posts/publication should return single source
 Array [
   Object {
     "id": "p5",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [
-      "html",
-      "javascript",
-    ],
-    "title": "P5",
-    "url": "http://p5.com",
   },
   Object {
     "id": "p2",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [],
-    "title": "P2",
-    "url": "http://p2.com",
   },
 ]
 `;
@@ -204,46 +68,12 @@ exports[`compatibility routes GET /posts/tag should return single tag feed 1`] =
 Array [
   Object {
     "id": "p5",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [
-      "html",
-      "javascript",
-    ],
-    "title": "P5",
-    "url": "http://p5.com",
   },
   Object {
     "id": "p4",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [
-      "backend",
-      "data",
-      "javascript",
-    ],
-    "title": "P4",
-    "url": "http://p4.com",
   },
   Object {
     "id": "p1",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [
-      "javascript",
-      "webdev",
-    ],
-    "title": "P1",
-    "url": "http://p1.com",
   },
 ]
 `;
@@ -255,9 +85,6 @@ Object {
       Object {
         "node": Object {
           "id": "p5",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "b",
@@ -276,9 +103,6 @@ Object {
       Object {
         "node": Object {
           "id": "p2",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "b",
@@ -294,9 +118,6 @@ Object {
       Object {
         "node": Object {
           "id": "p4",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "a",
@@ -316,9 +137,6 @@ Object {
       Object {
         "node": Object {
           "id": "p1",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "a",
@@ -350,9 +168,6 @@ Object {
       Object {
         "node": Object {
           "id": "p5",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "b",
@@ -371,9 +186,6 @@ Object {
       Object {
         "node": Object {
           "id": "p1",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "a",
@@ -405,9 +217,6 @@ Object {
       Object {
         "node": Object {
           "id": "p5",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "b",
@@ -426,9 +235,6 @@ Object {
       Object {
         "node": Object {
           "id": "p4",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "a",
@@ -448,9 +254,6 @@ Object {
       Object {
         "node": Object {
           "id": "p1",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "a",
@@ -482,9 +285,6 @@ Object {
       Object {
         "node": Object {
           "id": "p5",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "b",
@@ -503,9 +303,6 @@ Object {
       Object {
         "node": Object {
           "id": "p2",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "b",
@@ -521,9 +318,6 @@ Object {
       Object {
         "node": Object {
           "id": "p3",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "c",
@@ -552,9 +346,6 @@ Object {
       Object {
         "node": Object {
           "id": "p5",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "b",
@@ -573,9 +364,6 @@ Object {
       Object {
         "node": Object {
           "id": "p2",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "b",
@@ -591,9 +379,6 @@ Object {
       Object {
         "node": Object {
           "id": "p3",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "c",
@@ -609,9 +394,6 @@ Object {
       Object {
         "node": Object {
           "id": "p4",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "a",
@@ -631,9 +413,6 @@ Object {
       Object {
         "node": Object {
           "id": "p1",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "a",
@@ -665,9 +444,6 @@ Object {
       Object {
         "node": Object {
           "id": "p1",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "a",
@@ -686,9 +462,6 @@ Object {
       Object {
         "node": Object {
           "id": "p2",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "b",
@@ -704,9 +477,6 @@ Object {
       Object {
         "node": Object {
           "id": "p3",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "c",
@@ -722,9 +492,6 @@ Object {
       Object {
         "node": Object {
           "id": "p4",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "a",
@@ -744,9 +511,6 @@ Object {
       Object {
         "node": Object {
           "id": "p5",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "b",
@@ -778,9 +542,6 @@ Object {
       Object {
         "node": Object {
           "id": "p5",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "b",
@@ -799,9 +560,6 @@ Object {
       Object {
         "node": Object {
           "id": "p2",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "b",
@@ -830,9 +588,6 @@ Object {
       Object {
         "node": Object {
           "id": "p5",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "b",
@@ -851,9 +606,6 @@ Object {
       Object {
         "node": Object {
           "id": "p4",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "a",
@@ -873,9 +625,6 @@ Object {
       Object {
         "node": Object {
           "id": "p1",
-          "image": null,
-          "placeholder": null,
-          "ratio": null,
           "readTime": null,
           "source": Object {
             "id": "a",

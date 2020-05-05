@@ -4,28 +4,9 @@ exports[`compatibility routes GET /posts/bookmarks should return bookmarks order
 Array [
   Object {
     "id": "p3",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [],
-    "title": "P3",
-    "url": "http://p3.com",
   },
   Object {
     "id": "p1",
-    "image": null,
-    "placeholder": null,
-    "publishedAt": null,
-    "ratio": null,
-    "readTime": null,
-    "tags": Array [
-      "javascript",
-      "webdev",
-    ],
-    "title": "P1",
-    "url": "http://p1.com",
   },
 ]
 `;
