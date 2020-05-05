@@ -4,14 +4,17 @@ import {
   isScalarType,
   GraphQLNonNull,
   GraphQLScalarType,
+  isWrappingType,
+  isNamedType,
 } from 'graphql';
 import * as validate from 'validate.js';
 import { ValidationError } from '../errors';
 
-class UrlType extends GraphQLScalarType {
+export class UrlType extends GraphQLScalarType {
   constructor(type) {
     super({
       name: 'URL',
+      description: 'Enforces a URL valid format',
       serialize(value) {
         return type.serialize(value);
       },
@@ -44,6 +47,16 @@ export class UrlDirective extends SchemaDirectiveVisitor {
       field.type = new UrlType(field.type);
     } else {
       throw new Error(`Not a scalar type: ${field.type}`);
+    }
+
+    // Workaround to make schema introspection work
+    const typeMap = this.schema.getTypeMap();
+    let type = field.type;
+    if (isWrappingType(type)) {
+      type = type.ofType;
+    }
+    if (isNamedType(type) && !typeMap[type.name]) {
+      typeMap[type.name] = type;
     }
   }
 }

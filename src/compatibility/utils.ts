@@ -42,6 +42,8 @@ export const injectGraphql = async (
     return res.status(401).send();
   } else if (code === 'VALIDATION_ERROR') {
     return res.status(400).send();
+  } else if (code === 'NOT_FOUND_ERROR') {
+    return res.status(404).send();
   } else if (code) {
     return res.status(500).send();
   }
