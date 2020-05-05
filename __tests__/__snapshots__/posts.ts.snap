@@ -17,6 +17,60 @@ Object {
 }
 `;
 
+exports[`compatibility routes POST /posts/:id/hide should hide the post 1`] = `
+Array [
+  HiddenPost {
+    "postId": "p1",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`compatibility routes POST /posts/:id/report should report the post 1`] = `
+Array [
+  HiddenPost {
+    "postId": "p1",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`mutation hidePost should hide the post 1`] = `
+Array [
+  HiddenPost {
+    "postId": "p1",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`mutation hidePost should ignore conflicts 1`] = `
+Array [
+  HiddenPost {
+    "postId": "p1",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`mutation reportPost should ignore conflicts 1`] = `
+Array [
+  HiddenPost {
+    "postId": "p1",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`mutation reportPost should report post 1`] = `
+Array [
+  HiddenPost {
+    "postId": "p1",
+    "userId": "1",
+  },
+]
+`;
+
 exports[`query post should return post by id 1`] = `
 Object {
   "post": Object {

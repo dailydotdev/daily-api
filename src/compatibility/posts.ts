@@ -167,4 +167,43 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       res,
     );
   });
+
+  fastify.post('/:id/hide', async (req, res) => {
+    const query = `
+  mutation HidePost {
+  hidePost(id: "${req.params.id}") {
+    _
+  }
+}`;
+
+    return injectGraphql(
+      fastify,
+      {
+        query,
+      },
+      () => undefined,
+      req,
+      res,
+    );
+  });
+
+  fastify.post('/:id/report', async (req, res) => {
+    const reason = req?.body?.reason.toUpperCase();
+    const query = `
+  mutation ReportPost {
+  reportPost(id: "${req.params.id}", reason: ${reason}) {
+    _
+  }
+}`;
+
+    return injectGraphql(
+      fastify,
+      {
+        query,
+      },
+      () => undefined,
+      req,
+      res,
+    );
+  });
 }

@@ -2,8 +2,11 @@ import { gql, IResolvers } from 'apollo-server-fastify';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
-import { generateFeed } from '../common';
-import { NotFound } from '../errors';
+import { generateFeed, notifyPostReport } from '../common';
+import { NotFound, ValidationError } from '../errors';
+import { HiddenPost, Post } from '../entity';
+import { GQLEmptyResponse } from './common';
+import { Connection, DeepPartial } from 'typeorm';
 
 export interface GQLPost {
   id: string;
@@ -88,6 +91,20 @@ export const typeDefs = gql`
     cursor: String!
   }
 
+  """
+  Enum of the possible reasons to report a post
+  """
+  enum ReportReason {
+    """
+    The post's link is broken
+    """
+    BROKEN
+    """
+    The post is not safe for work (NSFW), for any reason
+    """
+    NSFW
+  }
+
   extend type Query {
     """
     Get post by id
@@ -99,7 +116,59 @@ export const typeDefs = gql`
       id: ID
     ): Post!
   }
+
+  extend type Mutation {
+    """
+    Hide a post from all the user feeds
+    """
+    hidePost(
+      """
+      Id of the post to hide
+      """
+      id: ID
+    ): EmptyResponse @auth
+
+    """
+    Report a post and hide it from all the user feeds
+    """
+    reportPost(
+      """
+      Id of the post to report
+      """
+      id: ID
+      """
+      Reason the user would like to report
+      """
+      reason: ReportReason
+    ): EmptyResponse @auth
+  }
 `;
+
+const saveHiddenPost = async (
+  con: Connection,
+  hiddenPost: DeepPartial<HiddenPost>,
+): Promise<boolean> => {
+  try {
+    const repo = con.getRepository(HiddenPost);
+    await repo.insert(repo.create(hiddenPost));
+  } catch (err) {
+    // Foreign key violation
+    if (err?.code === '23503') {
+      throw new NotFound();
+    }
+    // Unique violation
+    if (err?.code !== '23505') {
+      throw err;
+    }
+    return false;
+  }
+  return true;
+};
+
+const reportReasons = new Map([
+  ['BROKEN', 'Link is broken'],
+  ['NSFW', 'Post is NSFW'],
+]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
@@ -116,6 +185,34 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         return feed.nodes[0];
       }
       throw new NotFound();
+    },
+  },
+  Mutation: {
+    hidePost: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await saveHiddenPost(ctx.con, { userId: ctx.userId, postId: id });
+      return { _: true };
+    },
+    reportPost: async (
+      source,
+      { id, reason }: { id: string; reason: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      if (!reportReasons.has(reason)) {
+        throw new ValidationError();
+      }
+      const added = await saveHiddenPost(ctx.con, {
+        userId: ctx.userId,
+        postId: id,
+      });
+      if (added) {
+        const post = await ctx.getRepository(Post).findOneOrFail(id);
+        await notifyPostReport(ctx.userId, post, reportReasons.get(reason));
+      }
+      return { _: true };
     },
   },
 });

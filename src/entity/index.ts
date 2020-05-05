@@ -1,4 +1,5 @@
 export * from './Bookmark';
+export * from './HiddenPost';
 export * from './Notification';
 export * from './Post';
 export * from './PostTag';

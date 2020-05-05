@@ -57,7 +57,6 @@ export const testMutationError = async (
   callback: (errors: readonly GraphQLFormattedError[]) => void | Promise<void>,
 ): Promise<void> => {
   const res = await client.mutate(mutation);
-  expect(res.data).toBeFalsy();
   return callback(res.errors);
 };
 

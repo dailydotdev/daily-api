@@ -10,18 +10,36 @@ import * as _ from 'lodash';
 
 import createApolloServer from '../src/apollo';
 import { Context } from '../src/Context';
-import { MockContext, saveFixtures, testQueryErrorCode } from './helpers';
+import {
+  authorizeRequest,
+  MockContext,
+  saveFixtures,
+  testMutationErrorCode,
+  testQueryErrorCode,
+} from './helpers';
 import appFunc from '../src';
-import { Post, PostTag, Source, SourceDisplay } from '../src/entity';
+import {
+  HiddenPost,
+  Post,
+  PostTag,
+  Source,
+  SourceDisplay,
+} from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 import { postsFixture, postTagsFixture } from './fixture/post';
+import { notifyPostReport } from '../src/common';
 
 let app: FastifyInstance;
 let con: Connection;
 let server: ApolloServer;
 let client: ApolloServerTestClient;
 let loggedUser: string = null;
+
+jest.mock('../src/common', () => ({
+  ...jest.requireActual('../src/common'),
+  notifyPostReport: jest.fn(),
+}));
 
 beforeAll(async () => {
   con = await getConnection();
@@ -78,6 +96,129 @@ describe('query post', () => {
   });
 });
 
+describe('mutation hidePost', () => {
+  const MUTATION = `
+  mutation HidePost($id: ID!) {
+  hidePost(id: $id) {
+    _
+  }
+}`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'UNAUTHORIZED_ERROR',
+    ));
+
+  it('should throw not found when cannot find post', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'invalid' },
+      },
+      'NOT_FOUND_ERROR',
+    );
+  });
+
+  it('should hide the post', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con
+      .getRepository(HiddenPost)
+      .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
+    expect(actual).toMatchSnapshot();
+  });
+
+  it('should ignore conflicts', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(HiddenPost);
+    await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await repo.find({
+      where: { userId: loggedUser },
+      select: ['postId', 'userId'],
+    });
+    expect(actual).toMatchSnapshot();
+  });
+});
+
+describe('mutation reportPost', () => {
+  const MUTATION = `
+  mutation ReportPost($id: ID!, $reason: ReportReason) {
+  reportPost(id: $id, reason: $reason) {
+    _
+  }
+}`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1', reason: 'BROKEN' },
+      },
+      'UNAUTHORIZED_ERROR',
+    ));
+
+  it('should throw not found when cannot find post', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'invalid', reason: 'BROKEN' },
+      },
+      'NOT_FOUND_ERROR',
+    );
+  });
+
+  it('should report post', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'p1', reason: 'BROKEN' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con
+      .getRepository(HiddenPost)
+      .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
+    expect(actual).toMatchSnapshot();
+    const post = await con.getRepository(Post).findOne('p1');
+    expect(notifyPostReport).toBeCalledWith(loggedUser, post, 'Link is broken');
+  });
+
+  it('should ignore conflicts', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(HiddenPost);
+    await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'p1', reason: 'BROKEN' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await repo.find({
+      where: { userId: loggedUser },
+      select: ['postId', 'userId'],
+    });
+    expect(actual).toMatchSnapshot();
+    expect(notifyPostReport).toBeCalledTimes(0);
+  });
+});
+
 describe('compatibility routes', () => {
   describe('GET /posts/:id', () => {
     it('should throw not found when cannot find post', () =>
@@ -89,6 +230,37 @@ describe('compatibility routes', () => {
         .send()
         .expect(200);
       expect(_.omit(res.body, ['createdAt'])).toMatchSnapshot();
+    });
+  });
+
+  describe('POST /posts/:id/hide', () => {
+    it('should hide the post', async () => {
+      await authorizeRequest(request(app.server).post('/v1/posts/p1/hide'))
+        .send()
+        .expect(204);
+      const actual = await con
+        .getRepository(HiddenPost)
+        .find({ where: { userId: '1' }, select: ['postId', 'userId'] });
+      expect(actual).toMatchSnapshot();
+    });
+  });
+
+  describe('POST /posts/:id/report', () => {
+    it('should return bad request when no body is provided', () =>
+      authorizeRequest(request(app.server).post('/v1/posts/p1/report')).expect(
+        400,
+      ));
+
+    it('should report the post', async () => {
+      await authorizeRequest(request(app.server).post('/v1/posts/p1/report'))
+        .send({ reason: 'broken' })
+        .expect(204);
+      const actual = await con
+        .getRepository(HiddenPost)
+        .find({ where: { userId: '1' }, select: ['postId', 'userId'] });
+      expect(actual).toMatchSnapshot();
+      const post = await con.getRepository(Post).findOne('p1');
+      expect(notifyPostReport).toBeCalledWith('1', post, 'Link is broken');
     });
   });
 });
