@@ -17,7 +17,7 @@ export class ForbiddenError extends Error {
 export class ValidationError extends Error {
   errors: string[];
 
-  constructor(errors) {
+  constructor(errors: string[] = []) {
     super('Field validation failed');
     this.name = 'ValidationError';
     this.errors = errors;
