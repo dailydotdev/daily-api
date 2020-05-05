@@ -3,17 +3,6 @@
 exports[`compatibility routes GET /posts/:id should return post by id 1`] = `
 Object {
   "id": "p1",
-  "image": null,
-  "placeholder": null,
-  "publishedAt": null,
-  "ratio": null,
-  "readTime": null,
-  "tags": Array [
-    "javascript",
-    "webdev",
-  ],
-  "title": "P1",
-  "url": "http://p1.com",
 }
 `;
 
@@ -33,6 +22,26 @@ Array [
     "userId": "1",
   },
 ]
+`;
+
+exports[`image fields should return default image when no image exists 1`] = `
+Object {
+  "post": Object {
+    "image": "https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/5",
+    "placeholder": "data:image/jpeg;base64,/9j/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAKAAoDASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAABAUGB//EACYQAAIABAQGAwAAAAAAAAAAAAECAAMEBRESE0IGByExQVFScZH/xAAVAQEBAAAAAAAAAAAAAAAAAAABA//EABURAQEAAAAAAAAAAAAAAAAAAAAR/9oADAMBAAIRAxEAPwCgPMKtsdvWjpamiGsuCBVZzn3NmOAB+wYUni23kkz71OM09XObd5jBKufNagklprk4jux9QBqP82/YpQ//2Q==",
+    "ratio": 1,
+  },
+}
+`;
+
+exports[`image fields should return post image when exists 1`] = `
+Object {
+  "post": Object {
+    "image": "http://image.com",
+    "placeholder": "data:image/jpeg;base64,placeholder",
+    "ratio": 0.5,
+  },
+}
 `;
 
 exports[`mutation hidePost should hide the post 1`] = `
@@ -75,9 +84,6 @@ exports[`query post should return post by id 1`] = `
 Object {
   "post": Object {
     "id": "p1",
-    "image": null,
-    "placeholder": null,
-    "ratio": null,
     "readTime": null,
     "source": Object {
       "id": "a",

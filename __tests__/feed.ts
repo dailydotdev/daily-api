@@ -56,9 +56,6 @@ edges {
     id
     url
     title
-    image
-    ratio
-    placeholder
     readTime
     tags
     source {
@@ -175,7 +172,7 @@ describe('compatibility routes', () => {
         .query({ latest: new Date(), pageSize: 2, page: 0 })
         .send()
         .expect(200);
-      expect(res.body.map((x) => _.omit(x, ['createdAt']))).toMatchSnapshot();
+      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
     });
 
     it('should return anonymous feed filtered by sources', async () => {
@@ -184,7 +181,7 @@ describe('compatibility routes', () => {
         .query({ latest: new Date(), sources: ['a', 'b'] })
         .send()
         .expect(200);
-      expect(res.body.map((x) => _.omit(x, ['createdAt']))).toMatchSnapshot();
+      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
     });
 
     it('should return anonymous feed filtered by tags', async () => {
@@ -193,7 +190,7 @@ describe('compatibility routes', () => {
         .query({ latest: new Date(), tags: ['html', 'webdev'] })
         .send()
         .expect(200);
-      expect(res.body.map((x) => _.omit(x, ['createdAt']))).toMatchSnapshot();
+      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
     });
 
     it('should return anonymous feed filtered by tags and sources', async () => {
@@ -206,7 +203,7 @@ describe('compatibility routes', () => {
         })
         .send()
         .expect(200);
-      expect(res.body.map((x) => _.omit(x, ['createdAt']))).toMatchSnapshot();
+      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
     });
   });
 
@@ -217,7 +214,7 @@ describe('compatibility routes', () => {
         .query({ latest: new Date(), pub: 'b' })
         .send()
         .expect(200);
-      expect(res.body.map((x) => _.omit(x, ['createdAt']))).toMatchSnapshot();
+      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
     });
   });
 
@@ -228,7 +225,7 @@ describe('compatibility routes', () => {
         .query({ latest: new Date(), tag: 'javascript' })
         .send()
         .expect(200);
-      expect(res.body.map((x) => _.omit(x, ['createdAt']))).toMatchSnapshot();
+      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
     });
   });
 });

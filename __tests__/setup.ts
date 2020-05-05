@@ -5,11 +5,10 @@ import { createOrGetConnection } from '../src/db';
 let con: Connection;
 
 const cleanDatabase = async (): Promise<void> => {
-  await Promise.all(
-    con.entityMetadatas.map((entity) =>
-      con.getRepository(entity.name).delete({}),
-    ),
-  );
+  for (const entity of con.entityMetadatas) {
+    const repository = await con.getRepository(entity.name);
+    await repository.query(`TRUNCATE TABLE "${entity.tableName}" CASCADE;`);
+  }
 };
 
 beforeAll(async () => {
