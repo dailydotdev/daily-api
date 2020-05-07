@@ -14,7 +14,7 @@ import { forwardPagination, PaginationResponse } from '../schema/common';
 import { ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from 'apollo-server-fastify';
 
-const nestChild = (obj: object, prefix: string): object => {
+export const nestChild = (obj: object, prefix: string): object => {
   obj[prefix] = Object.keys(obj).reduce((acc, key) => {
     if (key.startsWith(prefix)) {
       const value = obj[key];
@@ -55,14 +55,15 @@ export const selectTags = (
 
 export const selectSource = (
   userId: string,
-  builder: SelectQueryBuilder<Post>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  builder: SelectQueryBuilder<any>,
 ): SelectQueryBuilder<SourceDisplay> => {
   let newBuilder = builder
     .distinctOn(['sd.sourceId'])
     .addSelect('sd.sourceId', 'sourceId')
     .addSelect('sd.name', 'sourceName')
     .addSelect('sd.image', 'sourceImage')
-    .addSelect('sd.userId', 'sourceUserId')
+    .addSelect('sd.userId IS NULL', 'sourcePublic')
     .from(SourceDisplay, 'sd')
     .orderBy('sd.sourceId')
     .addOrderBy('sd.userId', 'ASC', 'NULLS LAST')
@@ -103,10 +104,6 @@ export const selectBookmarked = (
 
 export const mapRawPost = (post: object): GQLPost => {
   post = nestChild(post, 'source');
-  if (post['source']) {
-    post['source']['public'] = !post['source']['userId'];
-    delete post['source']['userId'];
-  }
   post['tags'] = post['tags'] ? post['tags'].split(',') : [];
   return post as GQLPost;
 };

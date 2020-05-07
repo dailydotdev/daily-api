@@ -535,6 +535,33 @@ Object {
 }
 `;
 
+exports[`query feedSettings should return the feed settings 1`] = `
+Object {
+  "feedSettings": Object {
+    "excludeSources": Array [
+      Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+        "public": true,
+      },
+      Object {
+        "id": "c",
+        "image": "http://image.com/c",
+        "name": "C",
+        "public": true,
+      },
+    ],
+    "id": "1",
+    "includeTags": Array [
+      "javascript",
+      "webdev",
+    ],
+    "userId": "1",
+  },
+}
+`;
+
 exports[`query sourceFeed should return a single source feed 1`] = `
 Object {
   "sourceFeed": Object {

@@ -10,13 +10,21 @@ import * as _ from 'lodash';
 
 import createApolloServer from '../src/apollo';
 import { Context } from '../src/Context';
-import { MockContext, saveFixtures } from './helpers';
+import { MockContext, saveFixtures, testQueryErrorCode } from './helpers';
 import appFunc from '../src';
-import { Post, PostTag, Source, SourceDisplay } from '../src/entity';
+import {
+  Feed,
+  FeedTag,
+  Post,
+  PostTag,
+  Source,
+  SourceDisplay,
+} from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 import { Ranking } from '../src/schema/feed';
+import { FeedSource } from '../src/entity/FeedSource';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -160,6 +168,40 @@ describe('query tagFeed', () => {
 
   it('should return a single tag feed', async () => {
     const res = await client.query({ query: QUERY('javascript') });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query feedSettings', () => {
+  const QUERY = `{
+    feedSettings {
+      id
+      userId
+      includeTags
+      excludeSources {
+        id
+        name
+        image
+        public
+      }
+    }
+  }`;
+
+  it('should not authorize when not logged-in', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHORIZED_ERROR'));
+
+  it('should return the feed settings', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await saveFixtures(con, FeedTag, [
+      { feedId: '1', tag: 'webdev' },
+      { feedId: '1', tag: 'javascript' },
+    ]);
+    await saveFixtures(con, FeedSource, [
+      { feedId: '1', sourceId: 'b' },
+      { feedId: '1', sourceId: 'c' },
+    ]);
+    const res = await client.query({ query: QUERY });
     expect(res.data).toMatchSnapshot();
   });
 });
