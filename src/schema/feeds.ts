@@ -3,7 +3,7 @@ import { ConnectionArguments } from 'graphql-relay';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import { feedResolver, nestChild, selectSource, whereTags } from '../common';
-import { SelectQueryBuilder } from 'typeorm';
+import { In, SelectQueryBuilder } from 'typeorm';
 import { Feed, FeedTag, Post } from '../entity';
 import { GQLSource } from './sources';
 import { FeedSource } from '../entity/FeedSource';
@@ -140,14 +140,43 @@ export const typeDefs = gql`
     """
     feedSettings: FeedSettings @auth
   }
+
+  extend type Mutation {
+    """
+    Add new filters to the user's feed
+    """
+    addFiltersToFeed(
+      """
+      The filters to add to the feed
+      """
+      filters: FiltersInput!
+    ): FeedSettings @auth
+
+    """
+    Remove filters from the user's feed
+    """
+    removeFiltersFromFeed(
+      """
+      The filters to remove from the feed
+      """
+      filters: FiltersInput!
+    ): FeedSettings @auth
+  }
 `;
+
+export interface GQLFeedSettings {
+  id: string;
+  userId: string;
+  includeTags: string[];
+  excludeSources: GQLSource[];
+}
 
 export enum Ranking {
   POPULARITY = 'POPULARITY',
   TIME = 'TIME',
 }
 
-interface GQLFiltersInput {
+export interface GQLFiltersInput {
   includeSources?: string[];
   excludeSources?: string[];
   includeTags?: string[];
@@ -226,6 +255,63 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
       }),
   },
+  Mutation: {
+    addFiltersToFeed: async (
+      source,
+      { filters }: { filters: GQLFiltersInput },
+      ctx,
+    ): Promise<Feed> =>
+      ctx.con.transaction(
+        async (manager): Promise<Feed> => {
+          const feedId = ctx.userId;
+          const feed = await manager.getRepository(Feed).save({
+            userId: ctx.userId,
+            id: feedId,
+          });
+          if (filters?.excludeSources?.length) {
+            await manager.getRepository(FeedSource).save(
+              filters.excludeSources.map((s) => ({
+                feedId,
+                sourceId: s,
+              })),
+            );
+          }
+          if (filters?.includeTags?.length) {
+            await manager.getRepository(FeedTag).save(
+              filters.includeTags.map((s) => ({
+                feedId,
+                tag: s,
+              })),
+            );
+          }
+          return feed;
+        },
+      ),
+    removeFiltersFromFeed: async (
+      source,
+      { filters }: { filters: GQLFiltersInput },
+      ctx,
+    ): Promise<Feed> =>
+      ctx.con.transaction(
+        async (manager): Promise<Feed> => {
+          const feedId = ctx.userId;
+          const feed = await ctx.getRepository(Feed).findOneOrFail(feedId);
+          if (filters?.excludeSources?.length) {
+            await manager.getRepository(FeedSource).delete({
+              feedId,
+              sourceId: In(filters.excludeSources),
+            });
+          }
+          if (filters?.includeTags?.length) {
+            await manager.getRepository(FeedTag).delete({
+              feedId,
+              tag: In(filters.includeTags),
+            });
+          }
+          return feed;
+        },
+      ),
+  },
   FeedSettings: {
     includeTags: async (source: Feed, args, ctx): Promise<string[]> => {
       const tags = await ctx.getRepository(FeedTag).find({
@@ -247,8 +333,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         )
         .orderBy('source."sourceName"')
         .getRawMany();
-      const sources = displays.map((d) => nestChild(d, 'source')['source']);
-      return sources;
+      return displays.map((d) => nestChild(d, 'source')['source']);
     },
   },
 });
