@@ -2,11 +2,20 @@ import { gql, IResolvers } from 'apollo-server-fastify';
 import { ConnectionArguments } from 'graphql-relay';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
-import { feedResolver, whereTags } from '../common';
+import { feedResolver, nestChild, selectSource, whereTags } from '../common';
 import { SelectQueryBuilder } from 'typeorm';
-import { Post } from '../entity';
+import { Feed, FeedTag, Post } from '../entity';
+import { GQLSource } from './sources';
+import { FeedSource } from '../entity/FeedSource';
 
 export const typeDefs = gql`
+  type FeedSettings {
+    id: String
+    userId: String
+    includeTags: [String]
+    excludeSources: [Source]
+  }
+
   enum Ranking {
     """
     Rank by a combination of time and views
@@ -125,6 +134,11 @@ export const typeDefs = gql`
       """
       ranking: Ranking = POPULARITY
     ): PostConnection!
+
+    """
+    Get the user's default feed settings
+    """
+    feedSettings: FeedSettings @auth
   }
 `;
 
@@ -204,5 +218,37 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         ranking,
       }).andWhere((subBuilder) => whereTags([tag], subBuilder)),
     ),
+    feedSettings: (source, args, ctx): Promise<Feed> =>
+      ctx.getRepository(Feed).findOneOrFail({
+        where: {
+          id: ctx.userId,
+          userId: ctx.userId,
+        },
+      }),
+  },
+  FeedSettings: {
+    includeTags: async (source: Feed, args, ctx): Promise<string[]> => {
+      const tags = await ctx.getRepository(FeedTag).find({
+        select: ['tag'],
+        where: { feedId: source.id },
+        order: { tag: 'ASC' },
+      });
+      return tags.map((t) => t.tag);
+    },
+    excludeSources: async (source: Feed, args, ctx): Promise<GQLSource[]> => {
+      const displays = await ctx.con
+        .createQueryBuilder()
+        .select('source.*')
+        .from(FeedSource, 'feed')
+        .leftJoin(
+          (subBuilder) => selectSource(ctx.userId, subBuilder),
+          'source',
+          'source."sourceId" = feed."sourceId"',
+        )
+        .orderBy('source."sourceName"')
+        .getRawMany();
+      const sources = displays.map((d) => nestChild(d, 'source')['source']);
+      return sources;
+    },
   },
 });

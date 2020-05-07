@@ -78,7 +78,6 @@ export const testQueryError = async (
   callback: (errors: readonly GraphQLFormattedError[]) => void | Promise<void>,
 ): Promise<void> => {
   const res = await client.query(query);
-  expect(res.data).toEqual(null);
   return callback(res.errors);
 };
 
