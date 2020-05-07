@@ -5,7 +5,7 @@ import { snakeCase } from 'snake-case';
 
 import * as common from './schema/common';
 import * as bookmarks from './schema/bookmarks';
-import * as feed from './schema/feed';
+import * as feed from './schema/feeds';
 import * as notifications from './schema/notifications';
 import * as posts from './schema/posts';
 import * as settings from './schema/settings';

@@ -1,5 +1,42 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`compatibility routes DELETE /feeds/tags should remove existing feed tags filters 1`] = `
+Array [
+  Object {
+    "tag": "html",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`compatibility routes GET /feeds/publications should return feed publications filters 1`] = `
+Array [
+  Object {
+    "enabled": false,
+    "publicationId": "b",
+    "userId": "1",
+  },
+  Object {
+    "enabled": false,
+    "publicationId": "c",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`compatibility routes GET /feeds/tags should return feed tags filters 1`] = `
+Array [
+  Object {
+    "tag": "html",
+    "userId": "1",
+  },
+  Object {
+    "tag": "javascript",
+    "userId": "1",
+  },
+]
+`;
+
 exports[`compatibility routes GET /posts/latest should return anonymous feed filtered by sources 1`] = `
 Array [
   Object {
@@ -76,6 +113,125 @@ Array [
     "id": "p1",
   },
 ]
+`;
+
+exports[`compatibility routes POST /feeds/publications should add new feed publications filters 1`] = `
+Array [
+  Object {
+    "enabled": false,
+    "publicationId": "a",
+    "userId": "1",
+  },
+  Object {
+    "enabled": false,
+    "publicationId": "b",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`compatibility routes POST /feeds/publications should remove existing feed publications filters 1`] = `
+Array [
+  Object {
+    "enabled": false,
+    "publicationId": "c",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`compatibility routes POST /feeds/tags should add new feed tags filters 1`] = `
+Array [
+  Object {
+    "tag": "html",
+    "userId": "1",
+  },
+  Object {
+    "tag": "javascript",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`mutation addFiltersToFeed should add the new feed settings 1`] = `
+Object {
+  "addFiltersToFeed": Object {
+    "excludeSources": Array [
+      Object {
+        "id": "a",
+        "image": "http://image.com/a",
+        "name": "A",
+        "public": true,
+      },
+      Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+        "public": true,
+      },
+    ],
+    "id": "1",
+    "includeTags": Array [
+      "javascript",
+      "webdev",
+    ],
+    "userId": "1",
+  },
+}
+`;
+
+exports[`mutation addFiltersToFeed should ignore duplicates 1`] = `
+Object {
+  "addFiltersToFeed": Object {
+    "excludeSources": Array [
+      Object {
+        "id": "a",
+        "image": "http://image.com/a",
+        "name": "A",
+        "public": true,
+      },
+      Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+        "public": true,
+      },
+      Object {
+        "id": "c",
+        "image": "http://image.com/c",
+        "name": "C",
+        "public": true,
+      },
+    ],
+    "id": "1",
+    "includeTags": Array [
+      "html",
+      "javascript",
+      "webdev",
+    ],
+    "userId": "1",
+  },
+}
+`;
+
+exports[`mutation removeFiltersFromFeed should remove existing filters 1`] = `
+Object {
+  "removeFiltersFromFeed": Object {
+    "excludeSources": Array [
+      Object {
+        "id": "c",
+        "image": "http://image.com/c",
+        "name": "C",
+        "public": true,
+      },
+    ],
+    "id": "1",
+    "includeTags": Array [
+      "html",
+    ],
+    "userId": "1",
+  },
+}
 `;
 
 exports[`query anonymousFeed should return anonymous feed filtered by sources 1`] = `
@@ -554,8 +710,8 @@ Object {
     ],
     "id": "1",
     "includeTags": Array [
+      "html",
       "javascript",
-      "webdev",
     ],
     "userId": "1",
   },

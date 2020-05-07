@@ -10,7 +10,13 @@ import * as _ from 'lodash';
 
 import createApolloServer from '../src/apollo';
 import { Context } from '../src/Context';
-import { MockContext, saveFixtures, testQueryErrorCode } from './helpers';
+import {
+  authorizeRequest,
+  MockContext,
+  saveFixtures,
+  testMutationErrorCode,
+  testQueryErrorCode,
+} from './helpers';
 import appFunc from '../src';
 import {
   Feed,
@@ -23,7 +29,7 @@ import {
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
-import { Ranking } from '../src/schema/feed';
+import { Ranking } from '../src/schema/feeds';
 import { FeedSource } from '../src/entity/FeedSource';
 
 let app: FastifyInstance;
@@ -53,6 +59,18 @@ beforeEach(async () => {
 });
 
 afterAll(() => app.close());
+
+const saveFeedFixtures = async (): Promise<void> => {
+  await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+  await saveFixtures(con, FeedTag, [
+    { feedId: '1', tag: 'html' },
+    { feedId: '1', tag: 'javascript' },
+  ]);
+  await saveFixtures(con, FeedSource, [
+    { feedId: '1', sourceId: 'b' },
+    { feedId: '1', sourceId: 'c' },
+  ]);
+};
 
 const feedFields = `
 pageInfo {
@@ -192,16 +210,106 @@ describe('query feedSettings', () => {
 
   it('should return the feed settings', async () => {
     loggedUser = '1';
-    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-    await saveFixtures(con, FeedTag, [
-      { feedId: '1', tag: 'webdev' },
-      { feedId: '1', tag: 'javascript' },
-    ]);
-    await saveFixtures(con, FeedSource, [
-      { feedId: '1', sourceId: 'b' },
-      { feedId: '1', sourceId: 'c' },
-    ]);
+    await saveFeedFixtures();
     const res = await client.query({ query: QUERY });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('mutation addFiltersToFeed', () => {
+  const MUTATION = `
+  mutation AddFiltersToFeed($filters: FiltersInput!) {
+    addFiltersToFeed(filters: $filters) {
+      id
+      userId
+      includeTags
+      excludeSources {
+        id
+        name
+        image
+        public
+      }
+    }
+  }`;
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { filters: { excludeSources: ['a'] } },
+      },
+      'UNAUTHORIZED_ERROR',
+    ));
+
+  it('should add the new feed settings', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: {
+        filters: {
+          includeTags: ['webdev', 'javascript'],
+          excludeSources: ['a', 'b'],
+        },
+      },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should ignore duplicates', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: {
+        filters: {
+          includeTags: ['webdev', 'javascript'],
+          excludeSources: ['a', 'b'],
+        },
+      },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('mutation removeFiltersFromFeed', () => {
+  const MUTATION = `
+  mutation RemoveFiltersFromFeed($filters: FiltersInput!) {
+    removeFiltersFromFeed(filters: $filters) {
+      id
+      userId
+      includeTags
+      excludeSources {
+        id
+        name
+        image
+        public
+      }
+    }
+  }`;
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { filters: { excludeSources: ['a'] } },
+      },
+      'UNAUTHORIZED_ERROR',
+    ));
+
+  it('should remove existing filters', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: {
+        filters: {
+          includeTags: ['webdev', 'javascript'],
+          excludeSources: ['a', 'b'],
+        },
+      },
+    });
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -268,6 +376,72 @@ describe('compatibility routes', () => {
         .send()
         .expect(200);
       expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
+    });
+  });
+
+  describe('GET /feeds/publications', () => {
+    it('should return feed publications filters', async () => {
+      await saveFeedFixtures();
+      const res = await authorizeRequest(
+        request(app.server).get('/v1/feeds/publications'),
+      ).expect(200);
+      expect(res.body).toMatchSnapshot();
+    });
+  });
+
+  describe('POST /feeds/publications', () => {
+    it('should add new feed publications filters', async () => {
+      const res = await authorizeRequest(
+        request(app.server).post('/v1/feeds/publications'),
+      )
+        .send([
+          { publicationId: 'a', enabled: false },
+          { publicationId: 'b', enabled: false },
+        ])
+        .expect(200);
+      expect(res.body).toMatchSnapshot();
+    });
+
+    it('should remove existing feed publications filters', async () => {
+      await saveFeedFixtures();
+      const res = await authorizeRequest(
+        request(app.server).post('/v1/feeds/publications'),
+      )
+        .send([{ publicationId: 'b', enabled: true }])
+        .expect(200);
+      expect(res.body).toMatchSnapshot();
+    });
+  });
+
+  describe('GET /feeds/tags', () => {
+    it('should return feed tags filters', async () => {
+      await saveFeedFixtures();
+      const res = await authorizeRequest(
+        request(app.server).get('/v1/feeds/tags'),
+      ).expect(200);
+      expect(res.body).toMatchSnapshot();
+    });
+  });
+
+  describe('POST /feeds/tags', () => {
+    it('should add new feed tags filters', async () => {
+      const res = await authorizeRequest(
+        request(app.server).post('/v1/feeds/tags'),
+      )
+        .send([{ tag: 'html' }, { tag: 'javascript' }])
+        .expect(200);
+      expect(res.body).toMatchSnapshot();
+    });
+  });
+  describe('DELETE /feeds/tags', () => {
+    it('should remove existing feed tags filters', async () => {
+      await saveFeedFixtures();
+      const res = await authorizeRequest(
+        request(app.server).delete('/v1/feeds/tags'),
+      )
+        .send([{ tag: 'javascript' }])
+        .expect(200);
+      expect(res.body).toMatchSnapshot();
     });
   });
 });
