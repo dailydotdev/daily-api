@@ -7,7 +7,7 @@ let con: Connection;
 const cleanDatabase = async (): Promise<void> => {
   for (const entity of con.entityMetadatas) {
     const repository = await con.getRepository(entity.name);
-    await repository.query(`TRUNCATE TABLE "${entity.tableName}" CASCADE;`);
+    await repository.query(`DELETE FROM "${entity.tableName}";`);
   }
 };
 
