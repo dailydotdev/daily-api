@@ -2,6 +2,7 @@ import { SelectQueryBuilder } from 'typeorm';
 import { lowerFirst } from 'lodash';
 import {
   Bookmark,
+  HiddenPost,
   Post,
   PostTag,
   SourceDisplay,
@@ -132,10 +133,14 @@ export const generateFeed = async (
   if (ctx.userId) {
     builder = builder
       .addSelect(selectRead(ctx.userId, builder.subQuery()), 'read')
-      .addSelect(
-        selectBookmarked(ctx.userId, builder.subQuery()),
-        'bookmarked',
-      );
+      .addSelect(selectBookmarked(ctx.userId, builder.subQuery()), 'bookmarked')
+      .leftJoin(
+        HiddenPost,
+        'hidden',
+        'hidden.postId = post.id AND hidden.userId = :userId',
+        { userId: ctx.userId },
+      )
+      .andWhere('hidden.postId IS NULL');
   }
   const res = await builder.getRawMany();
 
