@@ -1051,7 +1051,7 @@ Object {
 
 exports[`query searchPostSuggestions should return search suggestions 1`] = `
 Object {
-  "searchPostSuggestion": Object {
+  "searchPostSuggestions": Object {
     "hits": Array [
       Object {
         "title": "<strong>t</strong>itle",
