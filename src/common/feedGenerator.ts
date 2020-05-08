@@ -2,6 +2,7 @@ import { SelectQueryBuilder } from 'typeorm';
 import { lowerFirst } from 'lodash';
 import {
   Bookmark,
+  FeedTag,
   HiddenPost,
   Post,
   PostTag,
@@ -14,6 +15,7 @@ import { Context } from '../Context';
 import { forwardPagination, PaginationResponse } from '../schema/common';
 import { ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from 'apollo-server-fastify';
+import { FeedSource } from '../entity/FeedSource';
 
 export const nestChild = (obj: object, prefix: string): object => {
   obj[prefix] = Object.keys(obj).reduce((acc, key) => {
@@ -40,6 +42,59 @@ export const whereTags = (
     .getQuery();
   return `EXISTS${query}`;
 };
+
+export const whereTagsInFeed = (
+  feedId: string,
+  builder: SelectQueryBuilder<Post>,
+): string => {
+  const feedTag = builder
+    .subQuery()
+    .select('feed.tag')
+    .from(FeedTag, 'feed')
+    .where('feed.feedId = :feedId', { feedId })
+    .getQuery();
+
+  const query = builder
+    .subQuery()
+    .select('1')
+    .from(PostTag, 't')
+    .where(`t.tag IN ${feedTag}`)
+    .andWhere('t.postId = post.id')
+    .getQuery();
+
+  return `(NOT EXISTS${feedTag} OR EXISTS${query})`;
+};
+
+export const whereSourcesInFeed = (
+  feedId: string,
+  builder: SelectQueryBuilder<Post>,
+): string => {
+  const query = builder
+    .subQuery()
+    .select('feed.sourceId')
+    .from(FeedSource, 'feed')
+    .where('feed.feedId = :feedId', { feedId })
+    .getQuery();
+  return `post.sourceId NOT IN${query}`;
+};
+
+export const selectRead = (
+  userId: string,
+  builder: SelectQueryBuilder<Post>,
+): string => {
+  const query = builder
+    .select('1')
+    .from(View, 'view')
+    .where(`view.userId = :userId`, { userId })
+    .andWhere('view.postId = post.id')
+    .getQuery();
+  return `EXISTS${query}`;
+};
+
+export const whereUnread = (
+  userId: string,
+  builder: SelectQueryBuilder<Post>,
+): string => `NOT ${selectRead(userId, builder.subQuery())}`;
 
 export const selectTags = (
   builder: SelectQueryBuilder<Post>,
@@ -75,19 +130,6 @@ export const selectSource = (
     });
   }
   return newBuilder;
-};
-
-export const selectRead = (
-  userId: string,
-  builder: SelectQueryBuilder<Post>,
-): string => {
-  const query = builder
-    .select('1')
-    .from(View, 'view')
-    .where(`view.userId = :userId`, { userId })
-    .andWhere('view.postId = post.id')
-    .getQuery();
-  return `EXISTS${query}`;
 };
 
 export const selectBookmarked = (

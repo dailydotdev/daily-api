@@ -4,7 +4,7 @@ import { ServerResponse } from 'http';
 import { generateTraceContext } from '@google-cloud/trace-agent/build/src/util';
 import { Constants } from '@google-cloud/trace-agent/build/src/constants';
 
-interface GraphqlPayload {
+export interface GraphqlPayload {
   query: string;
   operationName?: string;
   variables?: object;

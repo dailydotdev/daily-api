@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { offsetToCursor } from 'graphql-relay';
-import { injectGraphql } from './utils';
+import { GraphqlPayload, injectGraphql } from './utils';
 
 const getPaginationParams = (req: FastifyRequest): string => {
   const pageSize = Math.min(req.query.pageSize || 30, 40);
@@ -87,7 +87,12 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   fastify.get('/latest', async (req, res) => {
     const pageParams = getPaginationParams(req);
-    const query = `query AnonymousFeed($filters: FiltersInput) {
+    let name: string;
+    let query: GraphqlPayload;
+    if (!req.userId) {
+      name = 'anonymousFeed';
+      query = {
+        query: `query AnonymousFeed($filters: FiltersInput) {
   anonymousFeed(filters: $filters, ${pageParams}) {
     edges {
       node {
@@ -95,19 +100,32 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       }
     }
   }
-}`;
-    return injectGraphql(
-      fastify,
-      {
-        query,
+}`,
         variables: {
           filters: {
             includeSources: req.query.sources,
             includeTags: req.query.tags,
           },
         },
-      },
-      (obj) => obj['data']['anonymousFeed']['edges'].map((e) => e['node']),
+      };
+    } else {
+      name = 'feed';
+      query = {
+        query: `{
+  feed(${pageParams}) {
+    edges {
+      node {
+        ${postFields}
+      }
+    }
+  }
+}`,
+      };
+    }
+    return injectGraphql(
+      fastify,
+      query,
+      (obj) => obj['data'][name]['edges'].map((e) => e['node']),
       req,
       res,
     );

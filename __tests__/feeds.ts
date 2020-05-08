@@ -25,6 +25,7 @@ import {
   PostTag,
   Source,
   SourceDisplay,
+  View,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
@@ -150,6 +151,63 @@ describe('query anonymousFeed', () => {
         },
       },
     });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query feed', () => {
+  const QUERY = (
+    unreadOnly?: boolean,
+    ranking: Ranking = Ranking.POPULARITY,
+    now = new Date(),
+    first = 10,
+  ): string => `{
+    feed(ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}${
+    unreadOnly ? ', unreadOnly: true' : ''
+  }) {
+      ${feedFields}
+    }
+  }
+`;
+
+  it('should not authorize when not logged-in', () =>
+    testQueryErrorCode(client, { query: QUERY() }, 'UNAUTHORIZED_ERROR'));
+
+  it('should return feed with preconfigured filters', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    const res = await client.query({ query: QUERY() });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return preconfigured feed with tags filters only', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await saveFixtures(con, FeedTag, [{ feedId: '1', tag: 'html' }]);
+    const res = await client.query({ query: QUERY() });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return preconfigured feed with sources filters only', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await saveFixtures(con, FeedSource, [{ feedId: '1', sourceId: 'a' }]);
+    const res = await client.query({ query: QUERY() });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return preconfigured feed with no filters', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    const res = await client.query({ query: QUERY() });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return unread posts from preconfigured feed', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await con.getRepository(View).save([{ userId: '1', postId: 'p1' }]);
+    const res = await client.query({ query: QUERY(true) });
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -351,6 +409,18 @@ describe('compatibility routes', () => {
           tags: ['javascript'],
           sources: ['a', 'b'],
         })
+        .send()
+        .expect(200);
+      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
+    });
+
+    it('should return preconfigured feed when logged-in', async () => {
+      await saveFeedFixtures();
+      const res = await authorizeRequest(
+        request(app.server)
+          .get('/v1/posts/latest')
+          .query({ latest: new Date() }),
+      )
         .send()
         .expect(200);
       expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();

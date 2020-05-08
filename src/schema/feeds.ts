@@ -2,7 +2,15 @@ import { gql, IResolvers } from 'apollo-server-fastify';
 import { ConnectionArguments } from 'graphql-relay';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
-import { feedResolver, nestChild, selectSource, whereTags } from '../common';
+import {
+  feedResolver,
+  nestChild,
+  selectSource,
+  whereSourcesInFeed,
+  whereTags,
+  whereTagsInFeed,
+  whereUnread,
+} from '../common';
 import { In, SelectQueryBuilder } from 'typeorm';
 import { Feed, FeedTag, Post } from '../entity';
 import { GQLSource } from './sources';
@@ -74,6 +82,36 @@ export const typeDefs = gql`
       """
       filters: FiltersInput
     ): PostConnection!
+
+    """
+    Get a configured feed
+    """
+    feed(
+      """
+      Time the pagination started to ignore new items
+      """
+      now: DateTime!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Ranking criteria for the feed
+      """
+      ranking: Ranking = POPULARITY
+
+      """
+      Return only unread posts
+      """
+      unreadOnly: Boolean = false
+    ): PostConnection! @auth
 
     """
     Get a single source feed
@@ -191,6 +229,10 @@ interface AnonymousFeedArgs extends FeedArgs {
   filters?: GQLFiltersInput;
 }
 
+interface ConfiguredFeedArgs extends FeedArgs {
+  unreadOnly: boolean;
+}
+
 interface SourceFeedArgs extends FeedArgs {
   source: string;
 }
@@ -229,6 +271,21 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         if (filters?.includeTags?.length) {
           newBuilder = newBuilder.andWhere((builder) =>
             whereTags(filters.includeTags, builder),
+          );
+        }
+        return newBuilder;
+      },
+    ),
+    feed: feedResolver(
+      (ctx, { now, ranking, unreadOnly }: ConfiguredFeedArgs, builder) => {
+        const feedId = ctx.userId;
+        let newBuilder = applyFeedArgs(builder, { now, ranking });
+        newBuilder = newBuilder
+          .andWhere((subBuilder) => whereSourcesInFeed(feedId, subBuilder))
+          .andWhere((subBuilder) => whereTagsInFeed(feedId, subBuilder));
+        if (unreadOnly) {
+          newBuilder = newBuilder.andWhere((subBuilder) =>
+            whereUnread(ctx.userId, subBuilder),
           );
         }
         return newBuilder;
