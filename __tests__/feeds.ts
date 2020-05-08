@@ -7,6 +7,8 @@ import {
 } from 'apollo-server-testing';
 import * as request from 'supertest';
 import * as _ from 'lodash';
+import { mocked } from 'ts-jest/utils';
+import { SearchIndex } from 'algoliasearch';
 
 import createApolloServer from '../src/apollo';
 import { Context } from '../src/Context';
@@ -32,12 +34,18 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 import { Ranking } from '../src/schema/feeds';
 import { FeedSource } from '../src/entity/FeedSource';
+import { getPostsIndex } from '../src/common';
 
 let app: FastifyInstance;
 let con: Connection;
 let server: ApolloServer;
 let client: ApolloServerTestClient;
 let loggedUser: string = null;
+
+jest.mock('../src/common', () => ({
+  ...jest.requireActual('../src/common'),
+  getPostsIndex: jest.fn(),
+}));
 
 beforeAll(async () => {
   con = await getConnection();
@@ -270,6 +278,60 @@ describe('query feedSettings', () => {
     loggedUser = '1';
     await saveFeedFixtures();
     const res = await client.query({ query: QUERY });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query searchPostSuggestions', () => {
+  const QUERY = (query: string): string => `{
+    searchPostSuggestions(query: "${query}") {
+      query
+      hits {
+        title
+      }
+    }
+  }
+`;
+
+  it('should return search suggestions', async () => {
+    const searchMock = jest.fn();
+    mocked(getPostsIndex).mockReturnValue(({
+      search: searchMock,
+    } as unknown) as SearchIndex);
+    searchMock.mockResolvedValue({
+      hits: [
+        {
+          objectID: '1',
+          title: 'title',
+          _highlightResult: { title: { value: '<strong>t</strong>itle' } },
+        },
+      ],
+    });
+    const res = await client.query({ query: QUERY('text') });
+    expect(searchMock).toBeCalledWith('text', expect.anything());
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query searchPosts', () => {
+  const QUERY = (query: string, now = new Date(), first = 10): string => `{
+    searchPosts(query: "${query}", now: "${now.toISOString()}", first: ${first}) {
+      query
+      ${feedFields}
+    }
+  }
+`;
+
+  it('should return search feed', async () => {
+    const searchMock = jest.fn();
+    mocked(getPostsIndex).mockReturnValue(({
+      search: searchMock,
+    } as unknown) as SearchIndex);
+    searchMock.mockResolvedValue({
+      hits: [{ objectID: 'p3' }, { objectID: 'p1' }],
+    });
+    const res = await client.query({ query: QUERY('text') });
+    expect(searchMock).toBeCalledWith('text', expect.anything());
     expect(res.data).toMatchSnapshot();
   });
 });

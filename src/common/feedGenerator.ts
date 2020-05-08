@@ -157,6 +157,7 @@ export const generateFeed = async (
   offset: number,
   query: (builder: SelectQueryBuilder<Post>) => SelectQueryBuilder<Post>,
 ): Promise<PaginationResponse<GQLPost>> => {
+  const clampLimit = Math.min(limit, 50);
   let builder = query(
     ctx.con
       .createQueryBuilder()
@@ -169,7 +170,7 @@ export const generateFeed = async (
         'source',
         'source."sourceId" = post."sourceId"',
       )
-      .limit(limit)
+      .limit(clampLimit)
       .offset(offset),
   );
   if (ctx.userId) {
@@ -187,7 +188,7 @@ export const generateFeed = async (
   const res = await builder.getRawMany();
 
   return {
-    hasNextPage: res.length === limit,
+    hasNextPage: res.length === clampLimit,
     nodes: res.map(mapRawPost),
   };
 };

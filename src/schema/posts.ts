@@ -98,6 +98,10 @@ export const typeDefs = gql`
   type PostConnection {
     pageInfo: PageInfo!
     edges: [PostEdge!]!
+    """
+    The original query in case of a search operation
+    """
+    query: String
   }
 
   type PostEdge {

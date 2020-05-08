@@ -88,10 +88,11 @@ export const resolvers: IResolvers<any, Context> = {
   DateTime: GraphQLDateTime,
 };
 
-export interface PaginationResponse<TReturn> {
+export interface PaginationResponse<TReturn, TExtra = {}> {
   count?: number;
   hasNextPage?: boolean;
   nodes: TReturn[];
+  extra?: TExtra;
 }
 
 interface Page {
@@ -99,7 +100,7 @@ interface Page {
   offset: number;
 }
 
-type PaginationResolver<TSource, TReturn> = (
+type PaginationResolver<TSource, TReturn, TExtra = {}> = (
   source: TSource,
   args: ConnectionArguments,
   context: Context,
@@ -107,18 +108,23 @@ type PaginationResolver<TSource, TReturn> = (
   info: GraphQLResolveInfo & {
     mergeInfo: MergeInfo;
   },
-) => Promise<PaginationResponse<TReturn>>;
+) => Promise<PaginationResponse<TReturn, TExtra>>;
 
-export function forwardPagination<TSource, TReturn>(
-  resolver: PaginationResolver<TSource, TReturn>,
+export function forwardPagination<TSource, TReturn, TExtra = {}>(
+  resolver: PaginationResolver<TSource, TReturn, TExtra>,
   defaultLimit: number,
 ): IFieldResolver<TSource, Context, ConnectionArguments> {
-  return async (source, args, context, info): Promise<Connection<TReturn>> => {
+  return async (
+    source,
+    args,
+    context,
+    info,
+  ): Promise<Connection<TReturn> & TExtra> => {
     const page = {
       limit: args.first || defaultLimit,
       offset: getOffsetWithDefault(args.after, -1) + 1,
     };
-    const { count, hasNextPage, nodes } = await resolver(
+    const { count, hasNextPage, nodes, extra = null } = await resolver(
       source,
       args,
       context,
@@ -135,6 +141,7 @@ export function forwardPagination<TSource, TReturn>(
           hasPreviousPage: false,
         },
         edges: [],
+        ...extra,
       };
     }
 
@@ -155,6 +162,7 @@ export function forwardPagination<TSource, TReturn>(
         hasPreviousPage: page.offset > 0,
       },
       edges,
+      ...extra,
     };
   };
 }
