@@ -1049,6 +1049,66 @@ Object {
 }
 `;
 
+exports[`query searchPostSuggestions should return search suggestions 1`] = `
+Object {
+  "searchPostSuggestion": Object {
+    "hits": Array [
+      Object {
+        "title": "<strong>t</strong>itle",
+      },
+    ],
+    "query": "text",
+  },
+}
+`;
+
+exports[`query searchPosts should return search feed 1`] = `
+Object {
+  "searchPosts": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p3",
+          "readTime": null,
+          "source": Object {
+            "id": "c",
+            "image": "http://image.com/c",
+            "name": "C",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P3",
+          "url": "http://p3.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "hasNextPage": false,
+    },
+    "query": "text",
+  },
+}
+`;
+
 exports[`query sourceFeed should return a single source feed 1`] = `
 Object {
   "sourceFeed": Object {

@@ -4,6 +4,7 @@ import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
   feedResolver,
+  generateFeed,
   nestChild,
   selectSource,
   whereSourcesInFeed,
@@ -12,9 +13,11 @@ import {
   whereUnread,
 } from '../common';
 import { In, SelectQueryBuilder } from 'typeorm';
-import { Feed, FeedTag, Post } from '../entity';
+import { Feed, FeedTag, Post, searchPosts } from '../entity';
 import { GQLSource } from './sources';
 import { FeedSource } from '../entity/FeedSource';
+import { forwardPagination, PaginationResponse } from './common';
+import { GQLPost } from './posts';
 
 export const typeDefs = gql`
   type FeedSettings {
@@ -22,6 +25,15 @@ export const typeDefs = gql`
     userId: String
     includeTags: [String]
     excludeSources: [Source]
+  }
+
+  type SearchPostSuggestion {
+    title: String!
+  }
+
+  type SearchPostSuggestionsResults {
+    query: String!
+    hits: [SearchPostSuggestion!]!
   }
 
   enum Ranking {
@@ -177,6 +189,41 @@ export const typeDefs = gql`
     Get the user's default feed settings
     """
     feedSettings: FeedSettings @auth
+
+    """
+    Get suggestions for search post query
+    """
+    searchPostSuggestions(
+      """
+      The query to search for
+      """
+      query: String!
+    ): SearchPostSuggestionsResults
+
+    """
+    Get a posts feed of a search query
+    """
+    searchPosts(
+      """
+      The query to search for
+      """
+      query: String!
+
+      """
+      Time the pagination started to ignore new items
+      """
+      now: DateTime!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): PostConnection!
   }
 
   extend type Mutation {
@@ -218,6 +265,15 @@ export interface GQLFiltersInput {
   includeSources?: string[];
   excludeSources?: string[];
   includeTags?: string[];
+}
+
+interface GQLSearchPostSuggestion {
+  title: string;
+}
+
+interface GQLSearchPostSuggestionsResults {
+  query: string;
+  hits: GQLSearchPostSuggestion[];
 }
 
 interface FeedArgs extends ConnectionArguments {
@@ -311,6 +367,62 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           userId: ctx.userId,
         },
       }),
+    searchPostSuggestions: async (
+      source,
+      { query }: { query: string },
+      ctx,
+    ): Promise<GQLSearchPostSuggestionsResults> => {
+      const suggestions = await searchPosts(
+        query,
+        {
+          hitsPerPage: 5,
+          attributesToRetrieve: ['objectID', 'title'],
+          attributesToHighlight: ['title'],
+          highlightPreTag: '<strong>',
+          highlightPostTag: '</strong>',
+        },
+        ctx.userId,
+        ctx.req.ip,
+      );
+      return {
+        query,
+        hits: suggestions.map((s) => ({ title: s.highlight })),
+      };
+    },
+    searchPosts: forwardPagination(
+      async (
+        source,
+        { query, now }: FeedArgs & { query: string },
+        ctx,
+        { limit, offset },
+      ): Promise<PaginationResponse<GQLPost, { query: string }>> => {
+        const clampedLimit = Math.min(limit, 50);
+        const hits = await searchPosts(
+          query,
+          {
+            filters: `createdAt < ${now.getTime()}`,
+            offset,
+            hitsPerPage: clampedLimit,
+            attributesToRetrieve: ['objectID'],
+          },
+          ctx.userId,
+          ctx.req.ip,
+        );
+        const postIds = hits.map((h) => h.id);
+        const res = await generateFeed(ctx, clampedLimit, 0, (builder) =>
+          builder.where('post.id IN (:...postIds)', { postIds }),
+        );
+        const sorted = res.nodes.sort(
+          (a, b) => postIds.indexOf(a.id) - postIds.indexOf(b.id),
+        );
+        return {
+          nodes: sorted,
+          hasNextPage: res.hasNextPage,
+          extra: { query },
+        };
+      },
+      30,
+    ),
   },
   Mutation: {
     addFiltersToFeed: async (
