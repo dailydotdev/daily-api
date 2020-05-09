@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { offsetToCursor } from 'graphql-relay';
-import { GraphqlPayload, injectGraphql } from './utils';
+import { GraphqlPayload, injectGraphql, postFields } from './utils';
 
 const getPaginationParams = (req: FastifyRequest): string => {
   const pageSize = Math.min(req.query.pageSize || 30, 40);
@@ -9,20 +9,6 @@ const getPaginationParams = (req: FastifyRequest): string => {
   const now = new Date(req.query.latest).toISOString();
   return `now: "${now}", first: ${pageSize}${after}`;
 };
-
-// TODO: add missing fields bookmarked, read, tags, publication
-const postFields = `
-id
-publishedAt
-createdAt
-url
-title
-image
-ratio
-placeholder
-readTime
-tags
-`;
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.post('/bookmarks', async (req, res) => {
@@ -71,7 +57,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   bookmarksFeed(${getPaginationParams(req)}) {
     edges {
       node {
-        ${postFields}
+        ${postFields(req.userId)}
       }
     }
   }
@@ -96,7 +82,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   anonymousFeed(filters: $filters, ${pageParams}) {
     edges {
       node {
-        ${postFields}
+        ${postFields(req.userId)}
       }
     }
   }
@@ -115,7 +101,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   feed(${pageParams}) {
     edges {
       node {
-        ${postFields}
+        ${postFields(req.userId)}
       }
     }
   }
@@ -137,7 +123,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   sourceFeed(source: "${req.query.pub}", ${pageParams}) {
     edges {
       node {
-        ${postFields}
+        ${postFields(req.userId)}
       }
     }
   }
@@ -157,7 +143,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   tagFeed(tag: "${req.query.tag}", ${pageParams}) {
     edges {
       node {
-        ${postFields}
+        ${postFields(req.userId)}
       }
     }
   }
@@ -174,7 +160,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/:id', async (req, res) => {
     const query = `{
   post(id: "${req.params.id}") {
-    ${postFields}
+    ${postFields(req.userId)}
   }
 }`;
     return injectGraphql(

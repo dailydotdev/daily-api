@@ -10,6 +10,15 @@ export interface GraphqlPayload {
   variables?: object;
 }
 
+export const postFields = (userId?: string): string => {
+  const base =
+    'id,title,url,publishedAt,createdAt,image,ratio,placeholder,readTime,publication { id, name, image },tags';
+  if (userId) {
+    return `${base},bookmarked,read`;
+  }
+  return base;
+};
+
 export const injectGraphql = async (
   fastify: FastifyInstance,
   payload: GraphqlPayload,
