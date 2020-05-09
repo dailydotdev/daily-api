@@ -1,12 +1,12 @@
-import { gql, IResolvers } from 'apollo-server-fastify';
+import { gql, IResolvers, ValidationError } from 'apollo-server-fastify';
+import { Connection, DeepPartial } from 'typeorm';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { generateFeed, notifyPostReport } from '../common';
-import { NotFound, ValidationError } from '../errors';
 import { HiddenPost, Post } from '../entity';
 import { GQLEmptyResponse } from './common';
-import { Connection, DeepPartial } from 'typeorm';
+import { NotFoundError } from '../errors';
 
 export interface GQLPost {
   id: string;
@@ -176,7 +176,7 @@ const saveHiddenPost = async (
   } catch (err) {
     // Foreign key violation
     if (err?.code === '23503') {
-      throw new NotFound();
+      throw new NotFoundError('Post not found');
     }
     // Unique violation
     if (err?.code !== '23505') {
@@ -217,7 +217,7 @@ export const resolvers: IResolvers<any, Context> = {
       if (feed.nodes.length) {
         return feed.nodes[0];
       }
-      throw new NotFound();
+      throw new NotFoundError('Post not found');
     },
   }),
   Mutation: traceResolverObject({
@@ -235,7 +235,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       if (!reportReasons.has(reason)) {
-        throw new ValidationError();
+        throw new ValidationError('Reason is invalid');
       }
       const added = await saveHiddenPost(ctx.con, {
         userId: ctx.userId,

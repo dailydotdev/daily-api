@@ -1,4 +1,4 @@
-import { SchemaDirectiveVisitor } from 'apollo-server-fastify';
+import { SchemaDirectiveVisitor, ValidationError } from 'apollo-server-fastify';
 import {
   isNonNullType,
   isScalarType,
@@ -8,7 +8,6 @@ import {
   isNamedType,
 } from 'graphql';
 import * as validate from 'validate.js';
-import { ValidationError } from '../errors';
 
 export class UrlType extends GraphQLScalarType {
   constructor(type) {
@@ -23,7 +22,7 @@ export class UrlType extends GraphQLScalarType {
         const parsed = type.parseValue(value);
         const msg = validate.single(parsed, { url: true });
         if (msg) {
-          throw new ValidationError(msg);
+          throw new ValidationError('Field validation failed');
         }
         return parsed;
       },

@@ -178,7 +178,7 @@ describe('query feed', () => {
 `;
 
   it('should not authorize when not logged-in', () =>
-    testQueryErrorCode(client, { query: QUERY() }, 'UNAUTHORIZED_ERROR'));
+    testQueryErrorCode(client, { query: QUERY() }, 'UNAUTHENTICATED'));
 
   it('should return feed with preconfigured filters', async () => {
     loggedUser = '1';
@@ -271,7 +271,7 @@ describe('query feedSettings', () => {
   }`;
 
   it('should not authorize when not logged-in', () =>
-    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHORIZED_ERROR'));
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
 
   it('should return the feed settings', async () => {
     loggedUser = '1';
@@ -358,7 +358,7 @@ describe('mutation addFiltersToFeed', () => {
         mutation: MUTATION,
         variables: { filters: { excludeSources: ['a'] } },
       },
-      'UNAUTHORIZED_ERROR',
+      'UNAUTHENTICATED',
     ));
 
   it('should add the new feed settings', async () => {
@@ -414,7 +414,7 @@ describe('mutation removeFiltersFromFeed', () => {
         mutation: MUTATION,
         variables: { filters: { excludeSources: ['a'] } },
       },
-      'UNAUTHORIZED_ERROR',
+      'UNAUTHENTICATED',
     ));
 
   it('should remove existing filters', async () => {

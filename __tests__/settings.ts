@@ -57,7 +57,7 @@ describe('query pendingSourceRequests', () => {
 }`;
 
   it('should not authorize when not logged-in', () =>
-    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHORIZED_ERROR'));
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
 
   it('should return user settings', async () => {
     loggedUser = '1';
@@ -98,7 +98,7 @@ describe('mutation updateUserSettings', () => {
         mutation: MUTATION,
         variables: { data: { theme: 'bright', insaneMode: true } },
       },
-      'UNAUTHORIZED_ERROR',
+      'UNAUTHENTICATED',
     ));
 
   it('should create user settings when does not exist', async () => {

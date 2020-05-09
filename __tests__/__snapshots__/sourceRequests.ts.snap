@@ -135,13 +135,7 @@ exports[`mutation requestSource should return bad request when url is not valid 
 Array [
   Object {
     "extensions": Object {
-      "code": "VALIDATION_ERROR",
-      "exception": Object {
-        "errors": Array [
-          "is not a valid url",
-        ],
-        "name": "ValidationError",
-      },
+      "code": "GRAPHQL_VALIDATION_FAILED",
     },
     "locations": Array [
       Object {

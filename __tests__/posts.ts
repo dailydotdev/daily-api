@@ -229,11 +229,7 @@ describe('query post', () => {
   }`;
 
   it('should throw not found when cannot find post', () =>
-    testQueryErrorCode(
-      client,
-      { query: QUERY('notfound') },
-      'NOT_FOUND_ERROR',
-    ));
+    testQueryErrorCode(client, { query: QUERY('notfound') }, 'NOT_FOUND'));
 
   it('should return post by id', async () => {
     const res = await client.query({ query: QUERY('p1') });
@@ -246,11 +242,7 @@ describe('query post', () => {
       postId: 'p1',
       userId: loggedUser,
     });
-    return testQueryErrorCode(
-      client,
-      { query: QUERY('p1') },
-      'NOT_FOUND_ERROR',
-    );
+    return testQueryErrorCode(client, { query: QUERY('p1') }, 'NOT_FOUND');
   });
 });
 
@@ -269,7 +261,7 @@ describe('mutation hidePost', () => {
         mutation: MUTATION,
         variables: { id: 'p1' },
       },
-      'UNAUTHORIZED_ERROR',
+      'UNAUTHENTICATED',
     ));
 
   it('should throw not found when cannot find post', () => {
@@ -280,7 +272,7 @@ describe('mutation hidePost', () => {
         mutation: MUTATION,
         variables: { id: 'invalid' },
       },
-      'NOT_FOUND_ERROR',
+      'NOT_FOUND',
     );
   });
 
@@ -329,7 +321,7 @@ describe('mutation reportPost', () => {
         mutation: MUTATION,
         variables: { id: 'p1', reason: 'BROKEN' },
       },
-      'UNAUTHORIZED_ERROR',
+      'UNAUTHENTICATED',
     ));
 
   it('should throw not found when cannot find post', () => {
@@ -340,7 +332,7 @@ describe('mutation reportPost', () => {
         mutation: MUTATION,
         variables: { id: 'invalid', reason: 'BROKEN' },
       },
-      'NOT_FOUND_ERROR',
+      'NOT_FOUND',
     );
   });
 

@@ -85,7 +85,7 @@ describe('mutation addBookmarks', () => {
         mutation: MUTATION,
         variables: { data: { postIds: [] } },
       },
-      'UNAUTHORIZED_ERROR',
+      'UNAUTHENTICATED',
     ));
 
   it('should add new bookmarks', async () => {
@@ -132,7 +132,7 @@ describe('mutation removeBookmark', () => {
       {
         mutation: MUTATION('2'),
       },
-      'UNAUTHORIZED_ERROR',
+      'UNAUTHENTICATED',
     ));
 
   it('should remove existing bookmark', async () => {
@@ -193,7 +193,7 @@ describe('query bookmarks', () => {
       {
         query: QUERY(),
       },
-      'UNAUTHORIZED_ERROR',
+      'UNAUTHENTICATED',
     ));
 
   it('should return bookmarks ordered by time', async () => {

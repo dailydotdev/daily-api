@@ -1,7 +1,10 @@
-import { SchemaDirectiveVisitor } from 'apollo-server-fastify';
+import {
+  SchemaDirectiveVisitor,
+  AuthenticationError,
+  ForbiddenError,
+} from 'apollo-server-fastify';
 import { defaultFieldResolver } from 'graphql';
 import { Context } from '../Context';
-import { ForbiddenError, UnauthorizedError } from '../errors';
 
 export class AuthDirective extends SchemaDirectiveVisitor {
   visitObject(type): void {
@@ -40,14 +43,18 @@ export class AuthDirective extends SchemaDirectiveVisitor {
 
         const ctx = args[2] as Context;
         if (!ctx.userId) {
-          throw new UnauthorizedError();
+          throw new AuthenticationError(
+            'Access denied! You need to be authorized to perform this action!',
+          );
         }
         if (required.length > 0) {
           const roles = await ctx.getRoles();
           const authorized =
             roles.findIndex((r) => required.indexOf(r.toUpperCase()) > -1) > -1;
           if (!authorized) {
-            throw new ForbiddenError();
+            throw new ForbiddenError(
+              'Access denied! You do not have permission for this action!',
+            );
           }
         }
         return resolve.apply(this, args);

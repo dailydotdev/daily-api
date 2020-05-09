@@ -69,13 +69,13 @@ const mockRoles = (roles: Roles[] = []): nock.Scope =>
 const testModeratorAuthorization = (mutation: Mutation): Promise<void> => {
   mockRoles();
   loggedUser = '1';
-  return testMutationErrorCode(client, mutation, 'FORBIDDEN_ERROR');
+  return testMutationErrorCode(client, mutation, 'FORBIDDEN');
 };
 
 const testNotFound = (mutation: Mutation): Promise<void> => {
   mockRoles([Roles.Moderator]);
   loggedUser = '1';
-  return testMutationErrorCode(client, mutation, 'NOT_FOUND_ERROR');
+  return testMutationErrorCode(client, mutation, 'NOT_FOUND');
 };
 
 beforeAll(async () => {
@@ -113,7 +113,7 @@ describe('mutation requestSource', () => {
         mutation: MUTATION,
         variables: { data: { sourceUrl: 'http://source.com' } },
       },
-      'UNAUTHORIZED_ERROR',
+      'UNAUTHENTICATED',
     ));
 
   it('should return bad request when url is not valid', async () => {
@@ -284,7 +284,7 @@ describe('mutation uploadSourceRequestLogo', () => {
     ).expect(200);
     const body = res.body as GraphQLResponse;
     expect(body.errors.length).toEqual(1);
-    expect(body.errors[0].extensions.code).toEqual('FORBIDDEN_ERROR');
+    expect(body.errors[0].extensions.code).toEqual('FORBIDDEN');
   });
 
   it('should upload new logo for source request', async () => {
@@ -376,7 +376,7 @@ describe('query pendingSourceRequests', () => {
   it('should not authorize when not moderator', async () => {
     mockRoles();
     loggedUser = '1';
-    return testQueryErrorCode(client, { query: QUERY() }, 'FORBIDDEN_ERROR');
+    return testQueryErrorCode(client, { query: QUERY() }, 'FORBIDDEN');
   });
 
   it('should return pending source requests', async () => {
