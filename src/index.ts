@@ -13,7 +13,7 @@ import { Context } from './Context';
 import createApolloServer from './apollo';
 import { createOrGetConnection } from './db';
 
-const stringifyHealthCheck = fastJson({
+export const stringifyHealthCheck = fastJson({
   type: 'object',
   properties: {
     status: {
