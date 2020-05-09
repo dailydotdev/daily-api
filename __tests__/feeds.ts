@@ -32,9 +32,8 @@ import {
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
-import { Ranking } from '../src/schema/feeds';
 import { FeedSource } from '../src/entity/FeedSource';
-import { getPostsIndex } from '../src/common';
+import { getPostsIndex, Ranking } from '../src/common';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -42,8 +41,8 @@ let server: ApolloServer;
 let client: ApolloServerTestClient;
 let loggedUser: string = null;
 
-jest.mock('../src/common', () => ({
-  ...jest.requireActual('../src/common'),
+jest.mock('../src/common/algolia', () => ({
+  ...jest.requireActual('../src/common/algolia'),
   getPostsIndex: jest.fn(),
 }));
 

@@ -167,7 +167,7 @@ describe('mutation removeBookmark', () => {
 
 describe('query bookmarks', () => {
   const QUERY = (now = new Date(), first = 10): string => `{
-  bookmarks(now: "${now.toISOString()}", first: ${first}) {
+  bookmarksFeed(now: "${now.toISOString()}", first: ${first}) {
     pageInfo {
       endCursor
       hasNextPage

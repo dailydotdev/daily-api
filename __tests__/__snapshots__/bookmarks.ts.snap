@@ -52,7 +52,7 @@ Array [
 
 exports[`query bookmarks should return bookmarks ordered by time 1`] = `
 Object {
-  "bookmarks": Object {
+  "bookmarksFeed": Object {
     "edges": Array [
       Object {
         "node": Object {

@@ -4,6 +4,7 @@ import { ApolloServer, Config } from 'apollo-server-fastify';
 import { snakeCase } from 'snake-case';
 
 import * as common from './schema/common';
+import * as compatibility from './schema/compatibility';
 import * as bookmarks from './schema/bookmarks';
 import * as feed from './schema/feeds';
 import * as notifications from './schema/notifications';
@@ -19,6 +20,7 @@ export default async function (config: Config): Promise<ApolloServer> {
   return new ApolloServer({
     typeDefs: [
       common.typeDefs,
+      compatibility.typeDefs,
       bookmarks.typeDefs,
       feed.typeDefs,
       notifications.typeDefs,
@@ -30,6 +32,7 @@ export default async function (config: Config): Promise<ApolloServer> {
     ],
     resolvers: merge(
       common.resolvers,
+      compatibility.resolvers,
       bookmarks.resolvers,
       feed.resolvers,
       notifications.resolvers,

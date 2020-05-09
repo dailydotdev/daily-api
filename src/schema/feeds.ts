@@ -1,23 +1,23 @@
 import { gql, IResolvers } from 'apollo-server-fastify';
-import { ConnectionArguments } from 'graphql-relay';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
+  anonymousFeedBuilder,
+  AnonymousFeedFilters,
+  configuredFeedBuilder,
+  FeedArgs,
   feedResolver,
-  generateFeed,
   nestChild,
+  searchPostFeedBuilder,
   selectSource,
-  whereSourcesInFeed,
-  whereTags,
-  whereTagsInFeed,
-  whereUnread,
+  sourceFeedBuilder,
+  tagFeedBuilder,
 } from '../common';
-import { In, SelectQueryBuilder } from 'typeorm';
-import { Feed, FeedTag, Post, searchPosts } from '../entity';
+import { In } from 'typeorm';
+import { Feed, FeedTag, searchPosts } from '../entity';
 import { GQLSource } from './sources';
 import { FeedSource } from '../entity/FeedSource';
-import { forwardPagination, PaginationResponse } from './common';
-import { GQLPost } from './posts';
+import { forwardPagination } from './common';
 
 export const typeDefs = gql`
   type FeedSettings {
@@ -188,7 +188,7 @@ export const typeDefs = gql`
     """
     Get the user's default feed settings
     """
-    feedSettings: FeedSettings @auth
+    feedSettings: FeedSettings! @auth
 
     """
     Get suggestions for search post query
@@ -198,7 +198,7 @@ export const typeDefs = gql`
       The query to search for
       """
       query: String!
-    ): SearchPostSuggestionsResults
+    ): SearchPostSuggestionsResults!
 
     """
     Get a posts feed of a search query
@@ -256,29 +256,15 @@ export interface GQLFeedSettings {
   excludeSources: GQLSource[];
 }
 
-export enum Ranking {
-  POPULARITY = 'POPULARITY',
-  TIME = 'TIME',
-}
-
-export interface GQLFiltersInput {
-  includeSources?: string[];
-  excludeSources?: string[];
-  includeTags?: string[];
-}
+export type GQLFiltersInput = AnonymousFeedFilters;
 
 interface GQLSearchPostSuggestion {
   title: string;
 }
 
-interface GQLSearchPostSuggestionsResults {
+export interface GQLSearchPostSuggestionsResults {
   query: string;
   hits: GQLSearchPostSuggestion[];
-}
-
-interface FeedArgs extends ConnectionArguments {
-  now: Date;
-  ranking: Ranking;
 }
 
 interface AnonymousFeedArgs extends FeedArgs {
@@ -297,68 +283,32 @@ interface TagFeedArgs extends FeedArgs {
   tag: string;
 }
 
-const applyFeedArgs = (
-  builder: SelectQueryBuilder<Post>,
-  { now, ranking }: FeedArgs,
-): SelectQueryBuilder<Post> =>
-  builder
-    .where('post.createdAt < :now', { now })
-    .orderBy(
-      ranking === Ranking.POPULARITY ? 'post.score' : 'post.createdAt',
-      'DESC',
-    );
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     anonymousFeed: feedResolver(
-      (ctx, { now, filters, ranking }: AnonymousFeedArgs, builder) => {
-        let newBuilder = applyFeedArgs(builder, { now, ranking });
-        if (filters?.includeSources?.length) {
-          newBuilder = newBuilder.andWhere(`post.sourceId IN (:...sources)`, {
-            sources: filters.includeSources,
-          });
-        } else if (filters?.excludeSources?.length) {
-          newBuilder = newBuilder.andWhere(
-            `post.sourceId NOT IN (:...sources)`,
-            { sources: filters.excludeSources },
-          );
-        }
-        if (filters?.includeTags?.length) {
-          newBuilder = newBuilder.andWhere((builder) =>
-            whereTags(filters.includeTags, builder),
-          );
-        }
-        return newBuilder;
-      },
+      (ctx, { now, ranking, filters }: AnonymousFeedArgs, builder) =>
+        anonymousFeedBuilder(ctx, { now, ranking }, filters, builder),
     ),
     feed: feedResolver(
-      (ctx, { now, ranking, unreadOnly }: ConfiguredFeedArgs, builder) => {
-        const feedId = ctx.userId;
-        let newBuilder = applyFeedArgs(builder, { now, ranking });
-        newBuilder = newBuilder
-          .andWhere((subBuilder) => whereSourcesInFeed(feedId, subBuilder))
-          .andWhere((subBuilder) => whereTagsInFeed(feedId, subBuilder));
-        if (unreadOnly) {
-          newBuilder = newBuilder.andWhere((subBuilder) =>
-            whereUnread(ctx.userId, subBuilder),
-          );
-        }
-        return newBuilder;
-      },
+      (ctx, { now, ranking, unreadOnly }: ConfiguredFeedArgs, builder) =>
+        configuredFeedBuilder(
+          ctx,
+          {
+            now,
+            ranking,
+          },
+          ctx.userId,
+          unreadOnly,
+          builder,
+        ),
     ),
     sourceFeed: feedResolver(
       (ctx, { now, ranking, source }: SourceFeedArgs, builder) =>
-        applyFeedArgs(builder, {
-          now,
-          ranking,
-        }).andWhere(`post.sourceId = :source`, { source }),
+        sourceFeedBuilder(ctx, { now, ranking }, source, builder),
     ),
     tagFeed: feedResolver((ctx, { now, ranking, tag }: TagFeedArgs, builder) =>
-      applyFeedArgs(builder, {
-        now,
-        ranking,
-      }).andWhere((subBuilder) => whereTags([tag], subBuilder)),
+      tagFeedBuilder(ctx, { now, ranking }, tag, builder),
     ),
     feedSettings: (source, args, ctx): Promise<Feed> =>
       ctx.getRepository(Feed).findOneOrFail({
@@ -389,40 +339,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         hits: suggestions.map((s) => ({ title: s.highlight })),
       };
     },
-    searchPosts: forwardPagination(
-      async (
-        source,
-        { query, now }: FeedArgs & { query: string },
-        ctx,
-        { limit, offset },
-      ): Promise<PaginationResponse<GQLPost, { query: string }>> => {
-        const clampedLimit = Math.min(limit, 50);
-        const hits = await searchPosts(
-          query,
-          {
-            filters: `createdAt < ${now.getTime()}`,
-            offset,
-            hitsPerPage: clampedLimit,
-            attributesToRetrieve: ['objectID'],
-          },
-          ctx.userId,
-          ctx.req.ip,
-        );
-        const postIds = hits.map((h) => h.id);
-        const res = await generateFeed(ctx, clampedLimit, 0, (builder) =>
-          builder.where('post.id IN (:...postIds)', { postIds }),
-        );
-        const sorted = res.nodes.sort(
-          (a, b) => postIds.indexOf(a.id) - postIds.indexOf(b.id),
-        );
-        return {
-          nodes: sorted,
-          hasNextPage: res.hasNextPage,
-          extra: { query },
-        };
-      },
-      30,
-    ),
+    searchPosts: forwardPagination(searchPostFeedBuilder, 30),
   },
   Mutation: {
     addFiltersToFeed: async (
