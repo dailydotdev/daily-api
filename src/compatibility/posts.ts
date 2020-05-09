@@ -68,7 +68,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   fastify.get('/bookmarks', async (req, res) => {
     const query = `{
-  bookmarks(${getPaginationParams(req)}) {
+  bookmarksFeed(${getPaginationParams(req)}) {
     edges {
       node {
         ${postFields}
@@ -79,7 +79,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     return injectGraphql(
       fastify,
       { query },
-      (obj) => obj['data']['bookmarks']['edges'].map((e) => e['node']),
+      (obj) => obj['data']['bookmarksFeed']['edges'].map((e) => e['node']),
       req,
       res,
     );

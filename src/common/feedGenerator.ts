@@ -6,6 +6,7 @@ import {
   HiddenPost,
   Post,
   PostTag,
+  searchPosts,
   SourceDisplay,
   TagCount,
   View,
@@ -151,6 +152,29 @@ export const mapRawPost = (post: object): GQLPost => {
   return post as GQLPost;
 };
 
+export enum Ranking {
+  POPULARITY = 'POPULARITY',
+  TIME = 'TIME',
+}
+
+export interface FeedOptions {
+  now: Date;
+  ranking: Ranking;
+}
+
+export type FeedArgs = ConnectionArguments & FeedOptions;
+
+export const applyFeedOptions = (
+  builder: SelectQueryBuilder<Post>,
+  { now, ranking }: FeedOptions,
+): SelectQueryBuilder<Post> =>
+  builder
+    .where('post.createdAt < :now', { now })
+    .orderBy(
+      ranking === Ranking.POPULARITY ? 'post.score' : 'post.createdAt',
+      'DESC',
+    );
+
 export const generateFeed = async (
   ctx: Context,
   limit: number,
@@ -214,3 +238,121 @@ export function feedResolver<TSource, TArgs extends ConnectionArguments>(
     30,
   );
 }
+
+/**
+ * Feeds builders and resolvers
+ */
+
+export interface AnonymousFeedFilters {
+  includeSources?: string[];
+  excludeSources?: string[];
+  includeTags?: string[];
+}
+
+export const anonymousFeedBuilder = (
+  ctx: Context,
+  { now, ranking }: FeedOptions,
+  filters: AnonymousFeedFilters,
+  builder: SelectQueryBuilder<Post>,
+): SelectQueryBuilder<Post> => {
+  let newBuilder = applyFeedOptions(builder, { now, ranking });
+  if (filters?.includeSources?.length) {
+    newBuilder = newBuilder.andWhere(`post.sourceId IN (:...sources)`, {
+      sources: filters.includeSources,
+    });
+  } else if (filters?.excludeSources?.length) {
+    newBuilder = newBuilder.andWhere(`post.sourceId NOT IN (:...sources)`, {
+      sources: filters.excludeSources,
+    });
+  }
+  if (filters?.includeTags?.length) {
+    newBuilder = newBuilder.andWhere((builder) =>
+      whereTags(filters.includeTags, builder),
+    );
+  }
+  return newBuilder;
+};
+
+export const configuredFeedBuilder = (
+  ctx: Context,
+  { now, ranking }: FeedOptions,
+  feedId: string,
+  unreadOnly: boolean,
+  builder: SelectQueryBuilder<Post>,
+): SelectQueryBuilder<Post> => {
+  let newBuilder = applyFeedOptions(builder, { now, ranking });
+  newBuilder = newBuilder
+    .andWhere((subBuilder) => whereSourcesInFeed(feedId, subBuilder))
+    .andWhere((subBuilder) => whereTagsInFeed(feedId, subBuilder));
+  if (unreadOnly) {
+    newBuilder = newBuilder.andWhere((subBuilder) =>
+      whereUnread(ctx.userId, subBuilder),
+    );
+  }
+  return newBuilder;
+};
+
+export const bookmarksFeedBuilder = (
+  ctx: Context,
+  now: Date,
+  builder: SelectQueryBuilder<Post>,
+): SelectQueryBuilder<Post> =>
+  builder
+    .innerJoin(Bookmark, 'bookmark', 'bookmark.postId = post.id')
+    .where('bookmark.userId = :userId', { userId: ctx.userId })
+    .andWhere('bookmark.createdAt <= :now', { now })
+    .orderBy('bookmark.createdAt', 'DESC');
+
+export const sourceFeedBuilder = (
+  ctx: Context,
+  { now, ranking }: FeedOptions,
+  sourceId: string,
+  builder: SelectQueryBuilder<Post>,
+): SelectQueryBuilder<Post> =>
+  applyFeedOptions(builder, {
+    now,
+    ranking,
+  }).andWhere(`post.sourceId = :sourceId`, { sourceId });
+
+export const tagFeedBuilder = (
+  ctx: Context,
+  { now, ranking }: FeedOptions,
+  tag: string,
+  builder: SelectQueryBuilder<Post>,
+): SelectQueryBuilder<Post> =>
+  applyFeedOptions(builder, {
+    now,
+    ranking,
+  }).andWhere((subBuilder) => whereTags([tag], subBuilder));
+
+export const searchPostFeedBuilder = async (
+  source,
+  { query, now }: FeedArgs & { query: string },
+  ctx,
+  { limit, offset },
+): Promise<PaginationResponse<GQLPost, { query: string }>> => {
+  const clampedLimit = Math.min(limit, 50);
+  const hits = await searchPosts(
+    query,
+    {
+      filters: `createdAt < ${now.getTime()}`,
+      offset,
+      hitsPerPage: clampedLimit,
+      attributesToRetrieve: ['objectID'],
+    },
+    ctx.userId,
+    ctx.req.ip,
+  );
+  const postIds = hits.map((h) => h.id);
+  const res = await generateFeed(ctx, clampedLimit, 0, (builder) =>
+    builder.where('post.id IN (:...postIds)', { postIds }),
+  );
+  const sorted = res.nodes.sort(
+    (a, b) => postIds.indexOf(a.id) - postIds.indexOf(b.id),
+  );
+  return {
+    nodes: sorted,
+    hasNextPage: res.hasNextPage,
+    extra: { query },
+  };
+};

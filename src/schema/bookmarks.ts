@@ -4,7 +4,7 @@ import { GQLEmptyResponse } from './common';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { Bookmark } from '../entity';
-import { feedResolver } from '../common';
+import { bookmarksFeedBuilder, feedResolver } from '../common';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
@@ -34,7 +34,7 @@ export const typeDefs = gql`
     """
     Get the user bookmarks feed
     """
-    bookmarks(
+    bookmarksFeed(
       """
       Time the pagination started to ignore new items
       """
@@ -94,12 +94,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
   },
   Query: {
-    bookmarks: feedResolver((ctx, { now }: BookmarksArgs, builder) =>
-      builder
-        .innerJoin(Bookmark, 'bookmark', 'bookmark.postId = post.id')
-        .where('bookmark.userId = :userId', { userId: ctx.userId })
-        .andWhere('bookmark.createdAt <= :now', { now })
-        .orderBy('bookmark.createdAt', 'DESC'),
+    bookmarksFeed: feedResolver((ctx, { now }: BookmarksArgs, builder) =>
+      bookmarksFeedBuilder(ctx, now, builder),
     ),
   },
 });
