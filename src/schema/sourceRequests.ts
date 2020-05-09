@@ -1,4 +1,4 @@
-import { gql, IResolvers } from 'apollo-server-fastify';
+import { gql, IResolvers, ForbiddenError } from 'apollo-server-fastify';
 import { v4 as uuidv4 } from 'uuid';
 import {
   forwardPagination,
@@ -17,7 +17,6 @@ import {
   notifySourceRequest,
   uploadLogo,
 } from '../common';
-import { ForbiddenError } from '../errors';
 import { GraphQLResolveInfo } from 'graphql';
 import { FileUpload } from 'graphql-upload';
 
@@ -273,7 +272,9 @@ const findOrFail = async (
 ): Promise<GQLSourceRequest> => {
   const req = await ctx.getRepository(SourceRequest).findOneOrFail(id);
   if (req.closed) {
-    throw new ForbiddenError();
+    throw new ForbiddenError(
+      'Access denied! Source request is already closed!',
+    );
   }
   return req;
 };
@@ -385,7 +386,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         !req.sourceFeed ||
         !req.approved
       ) {
-        throw new ForbiddenError();
+        throw new ForbiddenError(
+          'Access denied! Source request cannot be published!',
+        );
       }
       await createSourceFromRequest(ctx, req);
       req.closed = true;

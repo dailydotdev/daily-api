@@ -1,7 +1,6 @@
 import { merge } from 'lodash';
-import { GraphQLFormattedError } from 'graphql';
 import { ApolloServer, Config } from 'apollo-server-fastify';
-import { snakeCase } from 'snake-case';
+import { ApolloErrorConverter } from 'apollo-error-converter';
 
 import * as common from './schema/common';
 import * as compatibility from './schema/compatibility';
@@ -13,8 +12,7 @@ import * as settings from './schema/settings';
 import * as sourceRequests from './schema/sourceRequests';
 import * as sources from './schema/sources';
 import * as tags from './schema/tags';
-import { AuthDirective } from './directive';
-import { UrlDirective } from './directive/UrlDirective';
+import { AuthDirective, UrlDirective } from './directive';
 
 export default async function (config: Config): Promise<ApolloServer> {
   return new ApolloServer({
@@ -48,15 +46,13 @@ export default async function (config: Config): Promise<ApolloServer> {
     },
     ...config,
     uploads: true,
-    formatError: (error): GraphQLFormattedError => {
-      if (error.originalError.name === 'EntityNotFound') {
-        error.extensions.code = 'NOT_FOUND_ERROR';
-      } else if (error.originalError.name) {
-        error.extensions.code = snakeCase(
-          error.originalError.name,
-        ).toUpperCase();
-      }
-      return error;
-    },
+    formatError: new ApolloErrorConverter({
+      errorMap: {
+        EntityNotFound: {
+          code: 'NOT_FOUND',
+          message: 'Entity not found',
+        },
+      },
+    }),
   });
 }

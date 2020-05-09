@@ -46,6 +46,7 @@ export default async function app(): Promise<FastifyInstance> {
     playground: isProd
       ? false
       : { settings: { 'request.credentials': 'include' } },
+    logger: app.log,
   });
   app.register(server.createHandler({ disableHealthCheck: true }));
 
