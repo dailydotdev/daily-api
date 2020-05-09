@@ -1,6 +1,7 @@
-import { FastifyInstance, FastifyRequest } from 'fastify';
+import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { offsetToCursor } from 'graphql-relay';
 import { GraphqlPayload, injectGraphql, postFields } from './utils';
+import { ServerResponse } from 'http';
 
 const getPaginationParams = (req: FastifyRequest): string => {
   const pageSize = Math.min(req.query.pageSize || 30, 40);
@@ -71,7 +72,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     );
   });
 
-  fastify.get('/latest', async (req, res) => {
+  const latestHandler = async (
+    req: FastifyRequest,
+    res: FastifyReply<ServerResponse>,
+  ): Promise<FastifyReply<ServerResponse>> => {
     const pageParams = getPaginationParams(req);
     let name: string;
     let query: GraphqlPayload;
@@ -115,7 +119,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       req,
       res,
     );
-  });
+  };
+
+  fastify.get('/latest', latestHandler);
+  fastify.get('/toilet', latestHandler);
 
   fastify.get('/publication', async (req, res) => {
     const pageParams = getPaginationParams(req);
