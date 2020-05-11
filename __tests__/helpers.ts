@@ -9,6 +9,8 @@ import {
 import { GraphQLFormattedError } from 'graphql';
 import { ApolloServerTestClient } from 'apollo-server-testing';
 import { Context } from '../src/Context';
+import { Message } from '@google-cloud/pubsub';
+import { base64 } from '../src/common';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -100,3 +102,14 @@ export async function saveFixtures<Entity>(
     .getRepository(target)
     .save(entities.map((e) => con.getRepository(target).create(e)));
 }
+
+export const mockMessage = (data: object): Message => {
+  const message = new Message(null, {
+    message: {
+      data: Buffer.from(base64(JSON.stringify(data)), 'base64'),
+    },
+  });
+  message.ack = jest.fn();
+  message.nack = jest.fn();
+  return message;
+};

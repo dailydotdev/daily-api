@@ -1,9 +1,29 @@
 import '../src/config';
 import * as fastify from 'fastify';
-import { PubSub } from '@google-cloud/pubsub';
-import { newViewWorker } from '../src/workers';
+import { Message, PubSub } from '@google-cloud/pubsub';
 import { stringifyHealthCheck } from '../src';
 import { createOrGetConnection } from '../src/db';
+import { Worker, workers } from '../src/workers';
+import { Connection } from 'typeorm';
+import { Logger } from 'fastify';
+
+const initializeWorker = async (
+  pubsub: PubSub,
+  worker: Worker,
+  con: Connection,
+  logger: Logger,
+): Promise<void> => {
+  const topic = pubsub.topic(worker.topic);
+  const subscription = topic.subscription(worker.subscription);
+  if (subscription.get) {
+    await subscription.get({ autoCreate: true });
+  }
+  logger.info(`waiting for messages in ${topic.name}`);
+  subscription.on(
+    'message',
+    (message: Message): Promise<void> => worker.handler(message, con, logger),
+  );
+};
 
 // TODO: must add integration tests with google pub/sub
 const start = async (): Promise<void> => {
@@ -22,7 +42,11 @@ const start = async (): Promise<void> => {
   const con = await createOrGetConnection();
 
   const pubsub = new PubSub();
-  await newViewWorker(pubsub, con, app.log);
+  await Promise.all(
+    workers.map(
+      (worker): Promise<void> => initializeWorker(pubsub, worker, con, app.log),
+    ),
+  );
 
   await app.listen(parseInt(process.env.PORT) || 3000, '0.0.0.0');
 };
