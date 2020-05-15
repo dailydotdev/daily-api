@@ -1,6 +1,7 @@
 import { Worker } from './worker';
 import newView from './newView';
+import newPost from './newPost';
 
 export { Worker } from './worker';
 
-export const workers: Worker[] = [newView];
+export const workers: Worker[] = [newView, newPost];
