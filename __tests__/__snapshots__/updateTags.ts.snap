@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`should tweet the latest post over the views threshold 1`] = `
+exports[`should update tags count of posts from the last 30 days 1`] = `
 Array [
   TagCount {
     "count": 1,

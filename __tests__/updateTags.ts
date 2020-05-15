@@ -18,7 +18,7 @@ beforeEach(async () => {
   await saveFixtures(con, PostTag, postTagsFixture);
 });
 
-it('should tweet the latest post over the views threshold', async () => {
+it('should update tags count of posts from the last 30 days', async () => {
   const now = new Date();
   await saveFixtures(con, Post, [
     {
