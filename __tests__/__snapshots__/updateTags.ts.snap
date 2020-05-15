@@ -1,0 +1,26 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`should tweet the latest post over the views threshold 1`] = `
+Array [
+  TagCount {
+    "count": 1,
+    "tag": "backend",
+  },
+  TagCount {
+    "count": 1,
+    "tag": "data",
+  },
+  TagCount {
+    "count": 1,
+    "tag": "html",
+  },
+  TagCount {
+    "count": 3,
+    "tag": "javascript",
+  },
+  TagCount {
+    "count": 1,
+    "tag": "webdev",
+  },
+]
+`;

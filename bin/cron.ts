@@ -9,6 +9,7 @@ if (!selected) {
   process.exit(-1);
 }
 
+console.log(`starting ${key}`);
 createOrGetConnection()
   .then(selected.handler)
   .then(() => {
