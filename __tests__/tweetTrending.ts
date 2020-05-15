@@ -1,9 +1,9 @@
 import { Connection, getConnection } from 'typeorm';
+import { mocked } from 'ts-jest/utils';
 
 import cron from '../src/cron/tweetTrending';
 import { saveFixtures } from './helpers';
 import { Post, PostTag, Source } from '../src/entity';
-import { mocked } from 'ts-jest/utils';
 import { tweet } from '../src/common';
 
 let con: Connection;
@@ -15,6 +15,10 @@ jest.mock('../src/common/twitter', () => ({
 
 beforeAll(async () => {
   con = await getConnection();
+});
+
+beforeEach(() => {
+  mocked(tweet).mockClear();
 });
 
 it('should tweet the latest post over the views threshold', async () => {
