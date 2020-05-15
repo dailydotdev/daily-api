@@ -6,4 +6,5 @@ export * from './pagination';
 export * from './pubsub';
 export * from './slack';
 export * from './superfeedr';
+export * from './twitter';
 export * from './users';
