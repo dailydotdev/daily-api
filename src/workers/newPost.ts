@@ -61,7 +61,7 @@ const addPost = async (con: Connection, data: AddPostData): Promise<void> =>
         creatorTwitter: data.creatorTwitter,
         readTime: data.readTime,
       });
-      if (data.tags) {
+      if (data.tags?.length) {
         await entityManager.getRepository(PostTag).insert(
           data.tags.map((t) => ({
             tag: t,

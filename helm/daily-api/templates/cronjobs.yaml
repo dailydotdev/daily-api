@@ -21,7 +21,7 @@ spec:
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               command: ["node", "bin/cron.js", "tweetTrending"]
               env:
-{{ include "daily-api.config" . | indent 10 }}
+{{ include "daily-api.config" . | indent 14 }}
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1beta1
@@ -47,7 +47,7 @@ spec:
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               command: ["node", "bin/cron.js", "updateViews"]
               env:
-{{ include "daily-api.config" . | indent 10 }}
+{{ include "daily-api.config" . | indent 14 }}
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1beta1
@@ -73,5 +73,5 @@ spec:
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               command: ["node", "bin/cron.js", "updateTags"]
               env:
-{{ include "daily-api.config" . | indent 10 }}
+{{ include "daily-api.config" . | indent 14 }}
           restartPolicy: OnFailure

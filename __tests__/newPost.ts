@@ -103,6 +103,32 @@ it('should save a new post with full information', async () => {
   expect(tags).toMatchSnapshot();
 });
 
+it('should handle empty tags array', async () => {
+  const message = mockMessage({
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.com',
+    publicationId: 'a',
+    tags: [],
+  });
+
+  await worker.handler(message, con, app.log);
+  expect(message.ack).toBeCalledTimes(1);
+  expect(saveObjectMock).toBeCalledWith({
+    objectID: 'p1',
+    title: 'Title',
+    createdAt: expect.any(Number),
+    views: 0,
+    readTime: undefined,
+    pubId: 'a',
+    _tags: [],
+  });
+  const posts = await con.getRepository(Post).find();
+  const tags = await con.getRepository(PostTag).find();
+  expect(posts.length).toEqual(1);
+  expect(tags.length).toEqual(0);
+});
+
 it('should ignore duplicate post', async () => {
   await saveFixtures(con, Post, [postsFixture[0]]);
 
