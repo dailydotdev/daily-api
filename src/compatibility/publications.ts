@@ -20,7 +20,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     return injectGraphql(
       fastify,
       { query },
-      (obj) => obj['data']['sources']['edges'].map((e) => e['node']),
+      (obj) =>
+        obj['data']['sources']['edges'].map((e) => ({
+          ...e['node'],
+          enabled: true,
+        })),
       req,
       res,
     );

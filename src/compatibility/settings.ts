@@ -1,6 +1,13 @@
 import { FastifyInstance } from 'fastify';
 import { injectGraphql } from './utils';
 
+const renameKey = (obj: object, oldKey: string, newKey: string): object => {
+  const newObj = { ...obj };
+  newObj[newKey] = obj[oldKey];
+  delete newObj[oldKey];
+  return newObj;
+};
+
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/', async (req, res) => {
     const query = `{
@@ -18,7 +25,12 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     return injectGraphql(
       fastify,
       { query },
-      (obj) => obj['data']['userSettings'],
+      (obj) =>
+        renameKey(
+          obj['data']['userSettings'],
+          'showOnlyUnreadPosts',
+          'showOnlyNotReadPosts',
+        ),
       req,
       res,
     );
@@ -37,7 +49,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       {
         query,
         variables: {
-          data: req.body,
+          data: renameKey(
+            req.body,
+            'showOnlyNotReadPosts',
+            'showOnlyUnreadPosts',
+          ),
         },
       },
       () => undefined,

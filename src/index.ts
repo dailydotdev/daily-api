@@ -48,7 +48,7 @@ export default async function app(): Promise<FastifyInstance> {
       : { settings: { 'request.credentials': 'include' } },
     logger: app.log,
   });
-  app.register(server.createHandler({ disableHealthCheck: true }));
+  app.register(server.createHandler({ disableHealthCheck: true, cors: false }));
 
   app.register(compatibility, { prefix: '/v1' });
 

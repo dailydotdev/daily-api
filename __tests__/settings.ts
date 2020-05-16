@@ -140,7 +140,9 @@ describe('compatibility routes', () => {
         insaneMode: true,
       });
       const expected = classToPlain(await repo.save(settings));
+      expected['showOnlyNotReadPosts'] = expected['showOnlyUnreadPosts'];
       delete expected['updatedAt'];
+      delete expected['showOnlyUnreadPosts'];
 
       const res = await authorizeRequest(
         request(app.server).get('/v1/settings'),

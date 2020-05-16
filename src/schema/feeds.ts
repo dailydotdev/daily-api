@@ -310,12 +310,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     tagFeed: feedResolver((ctx, { now, ranking, tag }: TagFeedArgs, builder) =>
       tagFeedBuilder(ctx, { now, ranking }, tag, builder),
     ),
-    feedSettings: (source, args, ctx): Promise<Feed> =>
-      ctx.getRepository(Feed).findOneOrFail({
-        where: {
-          id: ctx.userId,
-          userId: ctx.userId,
-        },
+    feedSettings: (source, args, ctx): Feed =>
+      ctx.getRepository(Feed).create({
+        id: ctx.userId,
+        userId: ctx.userId,
       }),
     searchPostSuggestions: async (
       source,

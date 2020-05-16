@@ -71,6 +71,7 @@ export const typeDefs = gql`
     Publication of the post
     """
     publication: Publication! @deprecated(reason: "Please use source instead")
+    views: Int @deprecated(reason: "No longer available")
   }
 
   extend type Query {
@@ -197,8 +198,12 @@ export const resolvers: IResolvers<any, Context> = {
           );
         } else {
           const filters: AnonymousFeedFilters = {
-            includeSources: params?.pubs?.split(','),
-            includeTags: params?.tags?.split(','),
+            includeSources: params?.pubs?.length
+              ? params?.pubs?.split(',')
+              : undefined,
+            includeTags: params?.tags?.length
+              ? params?.tags?.split(',')
+              : undefined,
           };
           return anonymousFeedBuilder(ctx, opts, filters, builder);
         }
@@ -270,5 +275,6 @@ export const resolvers: IResolvers<any, Context> = {
   }),
   Post: {
     publication: (source: GQLPost): GQLPublication => source.source,
+    views: (): number => 0,
   },
 };
