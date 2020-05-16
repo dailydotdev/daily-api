@@ -167,15 +167,13 @@ export type FeedArgs = ConnectionArguments & FeedOptions;
 export const applyFeedOptions = (
   builder: SelectQueryBuilder<Post>,
   { now, ranking }: FeedOptions,
-): SelectQueryBuilder<Post> => {
-  const newBuilder = builder.where('post.createdAt < :now', { now });
-  if (ranking === Ranking.POPULARITY) {
-    return newBuilder
-      .orderBy('post.score', 'DESC')
-      .addOrderBy('post.createdAt', 'DESC');
-  }
-  return newBuilder.orderBy('post.createdAt', 'DESC');
-};
+): SelectQueryBuilder<Post> =>
+  builder
+    .where('post.createdAt < :now', { now })
+    .orderBy(
+      ranking === Ranking.POPULARITY ? 'post.score' : 'post.createdAt',
+      'DESC',
+    );
 
 export const generateFeed = async (
   ctx: Context,
