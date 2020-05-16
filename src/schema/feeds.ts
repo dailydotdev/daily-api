@@ -415,6 +415,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           'source',
           'source."sourceId" = feed."sourceId"',
         )
+        .where('feed.feedId = :feedId', { feedId: source.id })
         .orderBy('source."sourceName"')
         .getRawMany();
       return displays.map((d) => nestChild(d, 'source')['source']);
