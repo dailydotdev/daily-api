@@ -59,11 +59,7 @@ export class Post {
   @Column({ default: 0 })
   views: number;
 
-  @Column({ type: 'float' })
-  @Index()
-  timeDecay: number;
-
-  @Column({ type: 'float' })
+  @Column({ type: 'integer', default: 0 })
   @Index('IDX_post_score', { synchronize: false })
   score: number;
 

@@ -25,7 +25,6 @@ it('should update tags count of posts from the last 30 days', async () => {
       id: 'p100',
       title: 'P100',
       url: 'http://p100.com',
-      timeDecay: 0,
       score: 0,
       sourceId: 'a',
       createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 50),

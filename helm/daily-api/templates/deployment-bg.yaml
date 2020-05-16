@@ -25,7 +25,7 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["node", "bin/background-processor.js"]
+          command: ["node", "bin/background.js"]
           ports:
             - name: http
               containerPort: 3000
