@@ -18,7 +18,6 @@ import {
 } from './helpers';
 import appFunc from '../src';
 import { Settings } from '../src/entity';
-import exp = require('constants');
 
 let app: FastifyInstance;
 let con: Connection;
