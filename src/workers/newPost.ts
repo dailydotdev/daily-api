@@ -56,10 +56,7 @@ const addPost = async (con: Connection, data: AddPostData): Promise<void> =>
         image: data.image,
         ratio: data.ratio,
         placeholder: data.placeholder,
-        //TODO: make sure it should be set to zero by default
-        timeDecay: 0,
-        //TODO: make sure it should be set to zero by default
-        score: 0,
+        score: Math.floor(data.createdAt.getTime() / (1000 * 60)),
         siteTwitter: data.siteTwitter,
         creatorTwitter: data.creatorTwitter,
         readTime: data.readTime,

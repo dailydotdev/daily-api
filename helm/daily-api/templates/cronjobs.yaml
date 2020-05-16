@@ -19,7 +19,7 @@ spec:
           containers:
             - name: job
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-              command: ["node", "bin/tweet-trending.js"]
+              command: ["node", "bin/cron.js", "tweetTrending"]
               env:
 {{ include "daily-api.config" . | indent 10 }}
           restartPolicy: OnFailure
@@ -45,7 +45,7 @@ spec:
           containers:
             - name: job
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-              command: ["node", "bin/update-views.js"]
+              command: ["node", "bin/cron.js", "updateViews"]
               env:
 {{ include "daily-api.config" . | indent 10 }}
           restartPolicy: OnFailure
@@ -71,33 +71,7 @@ spec:
           containers:
             - name: job
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-              command: ["node", "bin/update-tags.js"]
-              env:
-{{ include "daily-api.config" . | indent 10 }}
-          restartPolicy: OnFailure
----
-apiVersion: batch/v1beta1
-kind: CronJob
-metadata:
-  name: {{ template "daily-api.fullname" . }}-webflow
-  labels:
-    app: {{ template "daily-api.name" . }}
-    chart: {{ template "daily-api.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
-spec:
-  schedule: "3 0 * * *"
-  jobTemplate:
-    spec:
-      template:
-        metadata:
-          annotations:
-{{- include "daily-api.checksum" . | indent 12 }}
-        spec:
-          containers:
-            - name: job
-              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-              command: ["node", "bin/update-webflow.js"]
+              command: ["node", "bin/cron.js", "updateTags"]
               env:
 {{ include "daily-api.config" . | indent 10 }}
           restartPolicy: OnFailure

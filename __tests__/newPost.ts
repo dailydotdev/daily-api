@@ -1,15 +1,15 @@
 import { Connection, getConnection } from 'typeorm';
 import { FastifyInstance } from 'fastify';
+import { SearchIndex } from 'algoliasearch';
+import { mocked } from 'ts-jest/utils';
+import Mock = jest.Mock;
 
 import appFunc from '../src';
 import worker from '../src/workers/newPost';
 import { mockMessage, saveFixtures } from './helpers';
 import { Post, PostTag, Source } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
-import { mocked } from 'ts-jest/utils';
 import { getPostsIndex } from '../src/common';
-import { SearchIndex } from 'algoliasearch';
-import Mock = jest.Mock;
 import { postsFixture } from './fixture/post';
 
 let con: Connection;
@@ -61,6 +61,7 @@ it('should save a new post with basic information', async () => {
   expect(tags.length).toEqual(0);
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
+    score: expect.any(Number),
   });
 });
 
@@ -97,6 +98,7 @@ it('should save a new post with full information', async () => {
   expect(posts.length).toEqual(1);
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
+    score: expect.any(Number),
   });
   expect(tags).toMatchSnapshot();
 });
