@@ -79,7 +79,7 @@ it('should save a new post with full information', async () => {
     tags: ['webdev', 'javascript', 'html'],
     siteTwitter: 'site',
     creatorTwitter: 'creator',
-    readTime: 5,
+    readTime: '5.123',
   });
 
   await worker.handler(message, con, app.log);

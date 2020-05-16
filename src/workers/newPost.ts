@@ -72,12 +72,25 @@ const addPost = async (con: Connection, data: AddPostData): Promise<void> =>
     },
   );
 
+const parseReadTime = (
+  readTime: number | string | undefined,
+): number | undefined => {
+  if (!readTime) {
+    return undefined;
+  }
+  if (typeof readTime == 'number') {
+    return Math.floor(readTime);
+  }
+  return Math.floor(parseInt(readTime));
+};
+
 const worker: Worker = {
   topic: 'post-image-processed',
   subscription: envBasedName('add-posts-v2'),
   handler: async (message, con, logger): Promise<void> => {
     const data: AddPostData = messageToJson(message);
     data.createdAt = new Date();
+    data.readTime = parseReadTime(data.readTime);
     try {
       await addPost(con, data);
       await addToAlgolia(data);
