@@ -131,13 +131,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       includeTags
     }
   }`;
-    const tags = req.body as Tag[];
+    const tag = req.body as Tag;
     return injectGraphql(
       fastify,
       {
         query,
         variables: {
-          filters: { includeTags: tags.map((t) => t.tag) },
+          filters: { includeTags: [tag.tag] },
         },
       },
       (obj) => mapFeedToTags(obj['data']['removeFiltersFromFeed']),

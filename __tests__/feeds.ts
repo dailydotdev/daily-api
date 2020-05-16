@@ -570,7 +570,7 @@ describe('compatibility routes', () => {
       const res = await authorizeRequest(
         request(app.server).delete('/v1/feeds/tags'),
       )
-        .send([{ tag: 'javascript' }])
+        .send({ tag: 'javascript' })
         .expect(200);
       expect(res.body).toMatchSnapshot();
     });
