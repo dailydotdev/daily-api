@@ -3,11 +3,13 @@
 exports[`compatibility route /publications should return only public sources 1`] = `
 Array [
   Object {
+    "enabled": true,
     "id": "a",
     "image": "http://a.com",
     "name": "A",
   },
   Object {
+    "enabled": true,
     "id": "b",
     "image": "http://b.com",
     "name": "B",

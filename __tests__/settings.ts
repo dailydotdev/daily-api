@@ -18,6 +18,7 @@ import {
 } from './helpers';
 import appFunc from '../src';
 import { Settings } from '../src/entity';
+import exp = require('constants');
 
 let app: FastifyInstance;
 let con: Connection;
@@ -140,7 +141,9 @@ describe('compatibility routes', () => {
         insaneMode: true,
       });
       const expected = classToPlain(await repo.save(settings));
+      expected['showOnlyNotReadPosts'] = expected['showOnlyUnreadPosts'];
       delete expected['updatedAt'];
+      delete expected['showOnlyUnreadPosts'];
 
       const res = await authorizeRequest(
         request(app.server).get('/v1/settings'),

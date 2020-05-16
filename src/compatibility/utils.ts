@@ -61,10 +61,5 @@ export const injectGraphql = async (
   }
 
   const resBody = extractResponse(json);
-  const resHeaders = { ...graphqlRes.headers };
-  delete resHeaders['content-length'];
-  return res
-    .status(resBody ? 200 : 204)
-    .headers(resHeaders)
-    .send(resBody);
+  return res.status(resBody ? 200 : 204).send(resBody);
 };
