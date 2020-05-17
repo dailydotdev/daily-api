@@ -397,7 +397,7 @@ describe('compatibility routes', () => {
     it('should not authorize when not logged in', () => {
       return request(app.server)
         .post('/v1/publications/request')
-        .send({ url: 'http://source.com' })
+        .send({ source: 'http://source.com' })
         .expect(401);
     });
 
@@ -406,7 +406,7 @@ describe('compatibility routes', () => {
       return authorizeRequest(
         request(app.server).post('/v1/publications/request'),
       )
-        .send({ url: 'invalid' })
+        .send({ source: 'invalid' })
         .expect(400);
     });
 
@@ -415,7 +415,7 @@ describe('compatibility routes', () => {
       return authorizeRequest(
         request(app.server).post('/v1/publications/request'),
       )
-        .send({ url: 'http://source.com' })
+        .send({ source: 'http://source.com' })
         .expect(204);
     });
 
@@ -424,7 +424,7 @@ describe('compatibility routes', () => {
       return authorizeRequest(
         request(app.server).post('/v1/publications/requests'),
       )
-        .send({ url: 'http://source.com' })
+        .send({ source: 'http://source.com' })
         .expect(204);
     });
   });

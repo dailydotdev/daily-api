@@ -46,7 +46,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
     return injectGraphql(
       fastify,
-      { query, variables: { data: { sourceUrl: req.body.url } } },
+      { query, variables: { data: { sourceUrl: req.body.source } } },
       () => undefined,
       req,
       res,
