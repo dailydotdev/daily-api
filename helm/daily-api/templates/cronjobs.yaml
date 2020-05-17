@@ -12,59 +12,16 @@ spec:
   jobTemplate:
     spec:
       template:
+        metadata:
+          annotations:
+{{- include "daily-api.checksum" . | indent 12 }}
         spec:
           containers:
             - name: job
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-              command: ["node", "bin/tweet-trending.js"]
+              command: ["node", "bin/cron.js", "tweetTrending"]
               env:
-                - name: NODE_ENV
-                  value: production
-                - name: MYSQL_USER
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_USER
-                - name: MYSQL_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_PASSWORD
-                - name: MYSQL_DATABASE
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_DATABASE
-                - name: MYSQL_HOST
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_HOST
-                - name: TWITTER_CONSUMER_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: TWITTER_CONSUMER_KEY
-                - name: TWITTER_CONSUMER_SECRET
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: TWITTER_CONSUMER_SECRET
-                - name: TWITTER_ACCESS_TOKEN_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: TWITTER_ACCESS_TOKEN_KEY
-                - name: TWITTER_ACCESS_TOKEN_SECRET
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: TWITTER_ACCESS_TOKEN_SECRET
-                - name: URL_PREFIX
-                  valueFrom:
-                    configMapKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: URL_PREFIX
+{{ include "daily-api.config" . | indent 14 }}
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1beta1
@@ -81,44 +38,16 @@ spec:
   jobTemplate:
     spec:
       template:
+        metadata:
+          annotations:
+{{- include "daily-api.checksum" . | indent 12 }}
         spec:
           containers:
             - name: job
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-              command: ["node", "bin/update-views.js"]
+              command: ["node", "bin/cron.js", "updateViews"]
               env:
-                - name: NODE_ENV
-                  value: production
-                - name: MYSQL_USER
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_USER
-                - name: MYSQL_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_PASSWORD
-                - name: MYSQL_DATABASE
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_DATABASE
-                - name: MYSQL_HOST
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_HOST
-                - name: ALGOLIA_APP
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: ALGOLIA_APP
-                - name: ALGOLIA_KEY
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: ALGOLIA_KEY
+{{ include "daily-api.config" . | indent 14 }}
           restartPolicy: OnFailure
 ---
 apiVersion: batch/v1beta1
@@ -135,101 +64,14 @@ spec:
   jobTemplate:
     spec:
       template:
+        metadata:
+          annotations:
+{{- include "daily-api.checksum" . | indent 12 }}
         spec:
           containers:
             - name: job
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-              command: ["node", "bin/update-tags.js"]
+              command: ["node", "bin/cron.js", "updateTags"]
               env:
-                - name: NODE_ENV
-                  value: production
-                - name: MYSQL_USER
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_USER
-                - name: MYSQL_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_PASSWORD
-                - name: MYSQL_DATABASE
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_DATABASE
-                - name: MYSQL_HOST
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_HOST
-          restartPolicy: OnFailure
----
-apiVersion: batch/v1beta1
-kind: CronJob
-metadata:
-  name: {{ template "daily-api.fullname" . }}-webflow
-  labels:
-    app: {{ template "daily-api.name" . }}
-    chart: {{ template "daily-api.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
-spec:
-  schedule: "3 0 * * *"
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          containers:
-            - name: job
-              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-              command: ["node", "bin/update-webflow.js"]
-              env:
-                - name: NODE_ENV
-                  value: production
-                - name: MYSQL_USER
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_USER
-                - name: MYSQL_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_PASSWORD
-                - name: MYSQL_DATABASE
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_DATABASE
-                - name: MYSQL_HOST
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: MYSQL_HOST
-                - name: URL_PREFIX
-                  valueFrom:
-                    configMapKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: URL_PREFIX
-                - name: DEFAULT_IMAGE_URL
-                  valueFrom:
-                    configMapKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: DEFAULT_IMAGE_URL
-                - name: DEFAULT_IMAGE_PLACEHOLDER
-                  valueFrom:
-                    configMapKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: DEFAULT_IMAGE_PLACEHOLDER
-                - name: DEFAULT_IMAGE_RATIO
-                  valueFrom:
-                    configMapKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: DEFAULT_IMAGE_RATIO
-                - name: WEBFLOW_TOKEN
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ template "daily-api.fullname" . }}
-                      key: WEBFLOW_TOKEN
+{{ include "daily-api.config" . | indent 14 }}
           restartPolicy: OnFailure

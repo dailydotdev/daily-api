@@ -1,0 +1,91 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`compatibility routes GET /posts/bookmarks should return bookmarks ordered by time 1`] = `
+Array [
+  Object {
+    "id": "p3",
+  },
+  Object {
+    "id": "p1",
+  },
+]
+`;
+
+exports[`compatibility routes POST /posts/bookmarks should add new bookmarks 1`] = `
+Array [
+  Bookmark {
+    "postId": "p1",
+    "userId": "1",
+  },
+  Bookmark {
+    "postId": "p3",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`mutation addBookmarks should add new bookmarks 1`] = `
+Array [
+  Bookmark {
+    "postId": "p1",
+    "userId": "1",
+  },
+  Bookmark {
+    "postId": "p3",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`mutation addBookmarks should ignore conflicts 1`] = `
+Array [
+  Bookmark {
+    "postId": "p1",
+    "userId": "1",
+  },
+  Bookmark {
+    "postId": "p3",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`query bookmarks should return bookmarks ordered by time 1`] = `
+Object {
+  "bookmarksFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p3",
+          "source": Object {
+            "id": "c",
+            "image": "http://image.com/c",
+            "name": "C",
+            "public": true,
+          },
+          "tags": Array [],
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p1",
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "hasNextPage": true,
+    },
+  },
+}
+`;

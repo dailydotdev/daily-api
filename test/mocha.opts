@@ -1,7 +1,0 @@
---require @babel/register
---ui bdd
---recursive test/integration
---recursive test/unit
---timeout 5000
---require test/setup
---exit

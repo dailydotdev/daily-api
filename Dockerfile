@@ -1,16 +1,15 @@
-FROM node:12.14.1-alpine
+FROM node:12.16.2-alpine
 
-EXPOSE 3000
+COPY package.json .
+COPY package-lock.json .
 
 RUN \
   apk --no-cache add \
   libc6-compat
 
-COPY package.json .
-COPY yarn.lock .
-
-RUN yarn install --prod
+RUN npm i --only=prod
 
 COPY build .
 
-CMD ["yarn", "start"]
+CMD ["npm", "run", "start"]
+
