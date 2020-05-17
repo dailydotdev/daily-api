@@ -11,7 +11,7 @@ const getPaginationParams = (req: FastifyRequest): string => {
   return `now: "${now}", first: ${pageSize}${after}`;
 };
 
-export default async function(fastify: FastifyInstance): Promise<void> {
+export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.post('/bookmarks', async (req, res) => {
     const query = `
   mutation AddBookmarks($data: AddBookmarkInput!) {
