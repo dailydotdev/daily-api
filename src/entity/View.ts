@@ -4,7 +4,7 @@ import { Post } from './Post';
 @Entity()
 @Index(['postId', 'userId'])
 export class View {
-  @Column({ type: 'text' })
+  @PrimaryColumn({ type: 'text' })
   @Index()
   postId: string;
 
@@ -14,8 +14,7 @@ export class View {
   })
   post: Promise<Post>;
 
-  @Column({ type: 'text' })
-  @PrimaryColumn()
+  @PrimaryColumn({ type: 'text' })
   @Index()
   userId: string;
 
