@@ -6,7 +6,6 @@ import {
 import { Connection, getConnection } from 'typeorm';
 import { FastifyInstance } from 'fastify';
 import * as request from 'supertest';
-import { classToPlain } from 'class-transformer';
 
 import { Context } from '../src/Context';
 import createApolloServer from '../src/apollo';
@@ -68,7 +67,7 @@ describe('query pendingSourceRequests', () => {
       theme: 'bright',
       insaneMode: true,
     });
-    const expected = classToPlain(await repo.save(settings));
+    const expected = new Object(await repo.save(settings));
     delete expected['updatedAt'];
 
     const res = await client.query({ query: QUERY });
@@ -139,7 +138,7 @@ describe('compatibility routes', () => {
         theme: 'bright',
         insaneMode: true,
       });
-      const expected = classToPlain(await repo.save(settings));
+      const expected = new Object(await repo.save(settings));
       expected['showOnlyNotReadPosts'] = expected['showOnlyUnreadPosts'];
       delete expected['updatedAt'];
       delete expected['showOnlyUnreadPosts'];
