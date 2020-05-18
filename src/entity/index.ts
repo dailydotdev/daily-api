@@ -1,3 +1,4 @@
+export * from './Banner';
 export * from './Bookmark';
 export * from './Feed';
 export * from './FeedTag';
