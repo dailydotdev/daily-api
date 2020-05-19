@@ -2,7 +2,6 @@ import { gql, IResolvers } from 'apollo-server-fastify';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { Banner, Notification } from '../entity';
-import { Between } from 'typeorm';
 
 interface GQLNotification {
   timestamp: Date;
@@ -82,7 +81,7 @@ export const typeDefs = gql`
       The last time the user seen a banner
       """
       lastSeen: DateTime
-    ): Banner
+    ): Banner @cacheControl(maxAge: 600)
   }
 `;
 
@@ -102,9 +101,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { lastSeen }: { lastSeen: Date },
       ctx,
     ): Promise<GQLBanner | null> =>
-      ctx.getRepository(Banner).findOne({
-        where: { timestamp: Between(lastSeen, new Date()) },
-        order: { timestamp: 'DESC' },
-      }),
+      ctx
+        .getRepository(Banner)
+        .createQueryBuilder()
+        .where('timestamp > :last AND timestamp <= now()', { last: lastSeen })
+        .orderBy('timestamp', 'DESC')
+        .getOne(),
   },
 });
