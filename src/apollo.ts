@@ -1,6 +1,8 @@
 import { merge } from 'lodash';
+import { GraphQLFormattedError } from 'graphql';
 import { ApolloServer, Config } from 'apollo-server-fastify';
 import { ApolloErrorConverter } from 'apollo-error-converter';
+import * as responseCachePlugin from 'apollo-server-plugin-response-cache';
 
 import * as common from './schema/common';
 import * as compatibility from './schema/compatibility';
@@ -13,6 +15,15 @@ import * as sourceRequests from './schema/sourceRequests';
 import * as sources from './schema/sources';
 import * as tags from './schema/tags';
 import { AuthDirective, UrlDirective } from './directive';
+
+const errorConverter = new ApolloErrorConverter({
+  errorMap: {
+    EntityNotFound: {
+      code: 'NOT_FOUND',
+      message: 'Entity not found',
+    },
+  },
+});
 
 export default async function (config: Config): Promise<ApolloServer> {
   return new ApolloServer({
@@ -44,15 +55,16 @@ export default async function (config: Config): Promise<ApolloServer> {
       auth: AuthDirective,
       url: UrlDirective,
     },
-    ...config,
+    // Workaround due to wrong typing
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    plugins: [(responseCachePlugin as any)()],
     uploads: true,
-    formatError: new ApolloErrorConverter({
-      errorMap: {
-        EntityNotFound: {
-          code: 'NOT_FOUND',
-          message: 'Entity not found',
-        },
-      },
-    }),
+    formatError: (error): GraphQLFormattedError => {
+      if (error?.message === 'PersistedQueryNotFound') {
+        return error;
+      }
+      return errorConverter(error);
+    },
+    ...config,
   });
 }
