@@ -7,7 +7,7 @@
       "lint": "eslint . --ext .js,.ts --max-warnings 0",
       "build": "tsc",
       "prebuild": "rm -rf build",
-      "postbuild": "cp ormconfig.js package.json package-lock.json ./build",
+      "postbuild": "cp -R ormconfig.js package.json package-lock.json seeds ./build",
       "test": "jest --testEnvironment=node --runInBand",
       "pretest": "npm run lint && cross-env NODE_ENV=test npm run db:migrate:reset",
       "typeorm": "ts-node ./node_modules/typeorm/cli.js",
