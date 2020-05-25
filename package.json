@@ -18,11 +18,7 @@
       "db:migrate:rollback": "npm run typeorm -- migration:revert",
       "db:migrate:reset": "npm run db:schema:drop && npm run db:migrate:latest",
       "db:seed:import": "ts-node bin/import.ts",
-      "db:seed:export": "ts-node bin/export.ts",
-      "decrypt": "gcloud --project daily-ops kms decrypt --plaintext-file=${FILE} --ciphertext-file=${FILE}.enc --location=global --keyring=daily-ci --key=${KEY}",
-      "decrypt:prod": "FILE=./helm/values/prod.yaml KEY=daily-api-ci npm run decrypt",
-      "encrypt": "gcloud --project daily-ops kms encrypt --plaintext-file=${FILE} --ciphertext-file=${FILE}.enc --location=global --keyring=daily-ci --key=${KEY}",
-      "encrypt:prod": "FILE=./helm/values/prod.yaml KEY=daily-api-ci npm run encrypt"
+      "db:seed:export": "ts-node bin/export.ts"
    },
    "dependencies": {
       "@algolia/client-search": "^4.2.0",
