@@ -89,10 +89,9 @@ jobs:
       - image: google/cloud-sdk
     steps:
       - checkout
+      - attach_workspace:
+          at: .
       - gcp-cli/initialize
-      - run:
-          name: Decrypt variables
-          command: gcloud kms decrypt --ciphertext-file=./helm/values/prod.yaml.enc --plaintext-file=./helm/values/prod.yaml --location=global --keyring=daily-ci --key=daily-api-ci --project daily-ops
       - run:
           name: Get cluster credentials
           command: gcloud container clusters get-credentials prod
