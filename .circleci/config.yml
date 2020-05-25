@@ -60,6 +60,30 @@ jobs:
       - gcp-gcr/push-image:
           image: $CIRCLE_PROJECT_REPONAME
           tag: $CIRCLE_SHA1
+  secrets:
+    docker:
+      - image: ubuntu:20.04
+    steps:
+      - checkout
+      - run:
+          name: Install git-crypt
+          command: apt-get update -y && apt-get install -y git-crypt
+      - run:
+          name: Import GPG key
+          command: echo $GPG_KEY | base64 -d > key.gpg && gpg --pinentry-mode loopback --passphrase $GPG_PASSPHRASE --allow-secret-key-import --import key.gpg && rm key.gpg
+      - run:
+          name: Trust ultimately key
+          command: echo -e "5\ny\n" | gpg --command-fd 0 --expert --edit-key $GPG_FINGERPRINT trust;
+      - run:
+          name: Decrypt manually git-crypt key
+          command: gpg --pinentry-mode loopback --passphrase $GPG_PASSPHRASE --decrypt ./.git-crypt/keys/default/0/$GPG_FINGERPRINT.gpg > ./.git-crypt/keys/default/0/decrypted.gpg
+      - run:
+          name: Unlock the secrets
+          command: git-crypt unlock .git-crypt/keys/default/0/decrypted.gpg
+      - persist_to_workspace:
+          root: .
+          paths:
+            - helm/values
   deploy_helm:
     docker:
       - image: google/cloud-sdk
@@ -88,8 +112,15 @@ workflows:
           filters:
             branches:
               ignore: /pull\/[0-9]+/
+      - secrets:
+          context: GPG
+          filters:
+            branches:
+              only:
+                - master
       - deploy_helm:
           requires:
+            - secrets
             - build_and_push_docker
           context: PROD
           filters:
