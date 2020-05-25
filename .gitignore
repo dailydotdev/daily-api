@@ -1,6 +1,7 @@
 .idea/
 build/
 node_modules/
-helm/values/*.yaml
 .env.development
 .env.production
+local.sh
+prod.sh
