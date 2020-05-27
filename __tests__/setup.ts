@@ -6,7 +6,7 @@ let con: Connection;
 
 const cleanDatabase = async (): Promise<void> => {
   for (const entity of con.entityMetadatas) {
-    const repository = await con.getRepository(entity.name);
+    const repository = con.getRepository(entity.name);
     await repository.query(`DELETE FROM "${entity.tableName}";`);
   }
 };

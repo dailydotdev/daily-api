@@ -49,12 +49,18 @@ export const typeDefs = gql`
       Paginate first
       """
       first: Int
+
+      """
+      Return only unread posts
+      """
+      unreadOnly: Boolean = false
     ): PostConnection! @auth
   }
 `;
 
 interface BookmarksArgs extends ConnectionArguments {
   now: Date;
+  unreadOnly: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,8 +100,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
   },
   Query: {
-    bookmarksFeed: feedResolver((ctx, { now }: BookmarksArgs, builder) =>
-      bookmarksFeedBuilder(ctx, now, builder),
+    bookmarksFeed: feedResolver(
+      (ctx, { now, unreadOnly }: BookmarksArgs, builder) =>
+        bookmarksFeedBuilder(ctx, now, unreadOnly, builder),
     ),
   },
 });
