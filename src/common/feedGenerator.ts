@@ -337,7 +337,7 @@ export const searchPostFeedBuilder = async (
     {
       filters: `createdAt < ${now.getTime()}`,
       offset,
-      hitsPerPage: clampedLimit,
+      length: clampedLimit,
       attributesToRetrieve: ['objectID'],
     },
     ctx.userId,
