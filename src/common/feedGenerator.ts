@@ -295,13 +295,21 @@ export const configuredFeedBuilder = (
 export const bookmarksFeedBuilder = (
   ctx: Context,
   now: Date,
+  unreadOnly: boolean,
   builder: SelectQueryBuilder<Post>,
-): SelectQueryBuilder<Post> =>
-  builder
+): SelectQueryBuilder<Post> => {
+  let newBuilder = builder
     .innerJoin(Bookmark, 'bookmark', 'bookmark.postId = post.id')
     .where('bookmark.userId = :userId', { userId: ctx.userId })
     .andWhere('bookmark.createdAt <= :now', { now })
     .orderBy('bookmark.createdAt', 'DESC');
+  if (unreadOnly) {
+    newBuilder = newBuilder.andWhere((subBuilder) =>
+      whereUnread(ctx.userId, subBuilder),
+    );
+  }
+  return newBuilder;
+};
 
 export const sourceFeedBuilder = (
   ctx: Context,

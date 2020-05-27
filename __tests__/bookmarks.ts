@@ -18,7 +18,14 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import appFunc from '../src';
-import { Bookmark, Post, PostTag, Source, SourceDisplay } from '../src/entity';
+import {
+  Bookmark,
+  Post,
+  PostTag,
+  Source,
+  SourceDisplay,
+  View,
+} from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
@@ -166,8 +173,14 @@ describe('mutation removeBookmark', () => {
 });
 
 describe('query bookmarks', () => {
-  const QUERY = (now = new Date(), first = 10): string => `{
-  bookmarksFeed(now: "${now.toISOString()}", first: ${first}) {
+  const QUERY = (
+    unreadOnly?: boolean,
+    now = new Date(),
+    first = 10,
+  ): string => `{
+  bookmarksFeed(now: "${now.toISOString()}", first: ${first}${
+    unreadOnly ? ', unreadOnly: true' : ''
+  }) {
     pageInfo {
       endCursor
       hasNextPage
@@ -199,7 +212,15 @@ describe('query bookmarks', () => {
   it('should return bookmarks ordered by time', async () => {
     loggedUser = '1';
     await saveFixtures(con, Bookmark, bookmarksFixture);
-    const res = await client.query({ query: QUERY(now, 2) });
+    const res = await client.query({ query: QUERY(false, now, 2) });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return unread bookmarks only', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Bookmark, bookmarksFixture);
+    await con.getRepository(View).save([{ userId: '1', postId: 'p3' }]);
+    const res = await client.query({ query: QUERY(true, now, 2) });
     expect(res.data).toMatchSnapshot();
   });
 });
