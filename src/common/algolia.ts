@@ -18,9 +18,9 @@ export const getPostsIndex = (): SearchIndex => {
 };
 
 export const trackSearch = (
-  trackingId: string,
+  trackingId: string | undefined,
   ip: string,
 ): Readonly<Record<string, string>> => ({
-  'X-Algolia-UserToken': trackingId,
   'X-Forwarded-For': ip,
+  ...(trackingId ? { 'X-Algolia-UserToken': trackingId } : {}),
 });
