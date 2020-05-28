@@ -296,6 +296,7 @@ export const bookmarksFeedBuilder = (
   ctx: Context,
   now: Date,
   unreadOnly: boolean,
+  listId: string | null,
   builder: SelectQueryBuilder<Post>,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder
@@ -307,6 +308,9 @@ export const bookmarksFeedBuilder = (
     newBuilder = newBuilder.andWhere((subBuilder) =>
       whereUnread(ctx.userId, subBuilder),
     );
+  }
+  if (listId && ctx.premium) {
+    newBuilder = newBuilder.andWhere('bookmark.listId = :listId', { listId });
   }
   return newBuilder;
 };

@@ -10,6 +10,7 @@ export class AuthDirective extends SchemaDirectiveVisitor {
   visitObject(type): void {
     this.ensureFieldsWrapped(type);
     type._requiredAuthRole = this.args.requires;
+    type._premiumAuthRole = this.args.premium;
   }
 
   // Visitor methods for nested types like fields and arguments
@@ -18,6 +19,7 @@ export class AuthDirective extends SchemaDirectiveVisitor {
   visitFieldDefinition(field, details): void {
     this.ensureFieldsWrapped(details.objectType);
     field._requiredAuthRole = this.args.requires;
+    field._premiumAuthRole = this.args.premium;
   }
 
   ensureFieldsWrapped(objectType): void {
@@ -37,7 +39,10 @@ export class AuthDirective extends SchemaDirectiveVisitor {
         const required: string[] | undefined =
           field._requiredAuthRole || objectType._requiredAuthRole;
 
-        if (!required) {
+        const premium: boolean | undefined =
+          field._premiumAuthRole || objectType._premiumAuthRole;
+
+        if (!required && !premium) {
           return resolve.apply(this, args);
         }
 
@@ -47,10 +52,16 @@ export class AuthDirective extends SchemaDirectiveVisitor {
             'Access denied! You need to be authorized to perform this action!',
           );
         }
-        if (required.length > 0) {
-          const roles = await ctx.getRoles();
-          const authorized =
-            roles.findIndex((r) => required.indexOf(r.toUpperCase()) > -1) > -1;
+        if (required.length > 0 || premium) {
+          let authorized: boolean;
+          if (premium) {
+            authorized = ctx.premium;
+          } else {
+            const roles = await ctx.getRoles();
+            authorized =
+              roles.findIndex((r) => required.indexOf(r.toUpperCase()) > -1) >
+              -1;
+          }
           if (!authorized) {
             throw new ForbiddenError(
               'Access denied! You do not have permission for this action!',

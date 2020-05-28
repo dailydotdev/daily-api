@@ -1,5 +1,6 @@
 export * from './Banner';
 export * from './Bookmark';
+export * from './BookmarkList';
 export * from './Feed';
 export * from './FeedTag';
 export * from './HiddenPost';
