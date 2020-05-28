@@ -21,6 +21,10 @@ export class Context {
     return this.req.userId;
   }
 
+  get premium(): boolean {
+    return this.req.premium;
+  }
+
   get log(): Logger {
     return this.req.log;
   }

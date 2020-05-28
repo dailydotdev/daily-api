@@ -17,6 +17,7 @@ declare module 'fastify' {
     Body = any
   > {
     userId?: string;
+    premium?: boolean;
   }
 }
 
@@ -36,6 +37,7 @@ const plugin = async (
       req.headers['logged-in'] === 'true'
     ) {
       req.userId = req.headers['user-id'];
+      req.premium = req.headers.premium === 'true';
     } else {
       delete req.headers['user-id'];
       delete req.headers['logged-in'];

@@ -74,7 +74,17 @@ export const typeDefs = gql`
     _: Boolean
   }
 
-  directive @auth(requires: [Role] = []) on OBJECT | FIELD_DEFINITION
+  directive @auth(
+    """
+    Roles required for the operation (at least one)
+    """
+    requires: [Role] = []
+
+    """
+    Whether premium subscription is required
+    """
+    premium: Boolean = false
+  ) on OBJECT | FIELD_DEFINITION
 
   enum Role {
     MODERATOR

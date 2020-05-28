@@ -14,14 +14,16 @@ import { base64 } from '../src/common';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
-  mockUserId?: string = null;
+  mockUserId: string | null;
+  mockPremium: boolean;
   logger: Logger;
 
-  constructor(con: Connection, userId: string = null) {
+  constructor(con: Connection, userId: string = null, premium = false) {
     super(mock<FastifyRequest>(), con);
     this.mockSpan = mock<RootSpan>();
     this.mockSpan.createChildSpan.mockImplementation(() => mock<Span>());
     this.mockUserId = userId;
+    this.mockPremium = premium;
     this.logger = mock<Logger>();
   }
 
@@ -31,6 +33,10 @@ export class MockContext extends Context {
 
   get userId(): string | null {
     return this.mockUserId;
+  }
+
+  get premium(): boolean | null {
+    return this.mockPremium;
   }
 
   get log(): Logger {

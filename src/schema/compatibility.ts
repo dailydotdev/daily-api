@@ -210,7 +210,7 @@ export const resolvers: IResolvers<any, Context> = {
       },
     ),
     bookmarks: compatFeedResolver((ctx, args, opts, builder) =>
-      bookmarksFeedBuilder(ctx, opts.now, false, builder),
+      bookmarksFeedBuilder(ctx, opts.now, false, null, builder),
     ),
     postsByPublication: compatFeedResolver(
       (
