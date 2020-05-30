@@ -72,7 +72,7 @@ export const typeDefs = gql`
     """
     Get up to 5 latest notifications
     """
-    latestNotifications: [Notification!]!
+    latestNotifications: [Notification!]! @cacheControl(maxAge: 600)
     """
     Get a banner to show, if any
     """
