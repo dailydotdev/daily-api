@@ -23,7 +23,7 @@ export function traceResolver<TSource, TArgs, TReturn>(
     const childSpan = context.span.createChildSpan({ name });
     childSpan.addLabel('/graphql/parent', info.parentType.name);
     childSpan.addLabel('/graphql/field', info.fieldName);
-    childSpan.addLabel('/graphql/operation/name', info.operation.name);
+    childSpan.addLabel('/graphql/operation/name', info.operation.name.value);
     childSpan.addLabel('/graphql/operation/type', info.operation.operation);
     try {
       const res = await next(source, args, context, info);
