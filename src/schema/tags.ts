@@ -42,9 +42,9 @@ export const typeDefs = gql`
     """
     Get the most popular tags
     """
-    popularTags: [Tag]
+    popularTags: [Tag] @cacheControl(maxAge: 600)
 
-    searchTags(query: String!): TagSearchResults
+    searchTags(query: String!): TagSearchResults @cacheControl(maxAge: 600)
   }
 `;
 

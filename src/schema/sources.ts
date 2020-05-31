@@ -67,7 +67,7 @@ export const typeDefs = gql`
       Paginate first
       """
       first: Int
-    ): SourceConnection!
+    ): SourceConnection! @cacheControl(maxAge: 600)
   }
 `;
 
