@@ -16,7 +16,7 @@ const cron: Cron = {
           `UPDATE "public"."post" p
              SET views = p.views + v.count,
                  score = EXTRACT(EPOCH FROM p."createdAt") / 60 +
-                         POW(LN((p.views + v.count) + 1), 2) * 60
+                         POW(LOG(5, (p.views + v.count) + 1), 2) * 60
              FROM (SELECT COUNT(*) count, "postId"
                    FROM "public"."view"
                    WHERE timestamp >= $1
