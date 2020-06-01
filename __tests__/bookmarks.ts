@@ -475,6 +475,45 @@ describe('query bookmarks', () => {
   });
 });
 
+describe('query bookmarksLists', () => {
+  const QUERY = `{
+    bookmarkLists {
+      id, name
+    }
+  }`;
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not authorize when not logged in', () => {
+    loggedUser = '1';
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return bookmark lists', async () => {
+    loggedUser = '1';
+    premiumUser = true;
+    const list = await con
+      .getRepository(BookmarkList)
+      .save({ userId: loggedUser, name: 'list' });
+    const res = await client.query({ query: QUERY });
+    delete list.userId;
+    expect(res.data.bookmarkLists).toEqual([list]);
+  });
+});
+
 describe('compatibility routes', () => {
   describe('POST /posts/bookmarks', () => {
     it('should return bad request when no body is provided', () =>

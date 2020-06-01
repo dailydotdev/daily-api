@@ -98,6 +98,11 @@ export const typeDefs = gql`
       """
       listId: ID
     ): PostConnection! @auth
+
+    """
+    Get all the bookmark lists of the user
+    """
+    bookmarkLists: [BookmarkList!]! @auth(premium: true)
   }
 `;
 
@@ -198,5 +203,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       (ctx, { now, unreadOnly, listId = null }: BookmarksArgs, builder) =>
         bookmarksFeedBuilder(ctx, now, unreadOnly, listId, builder),
     ),
+    bookmarkLists: (source, args, ctx, info): Promise<GQLBookmarkList[]> =>
+      ctx.loader.loadMany<BookmarkList>(
+        BookmarkList,
+        { userId: ctx.userId },
+        info,
+        {
+          order: { name: 'ASC' },
+        },
+      ),
   },
 });
