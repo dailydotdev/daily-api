@@ -97,7 +97,7 @@ export const typeDefs = gql`
     """
     If bookmarked, this is the list where it is saved
     """
-    bookmarkList: BookmarkList @auth(premium: true)
+    bookmarkList: BookmarkList
   }
 
   type PostConnection {
