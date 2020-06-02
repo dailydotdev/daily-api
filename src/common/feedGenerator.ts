@@ -10,6 +10,7 @@ import {
   SourceDisplay,
   TagCount,
   View,
+  BookmarkList,
 } from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
@@ -133,21 +134,11 @@ export const selectSource = (
   return newBuilder;
 };
 
-export const selectBookmarked = (
-  userId: string,
-  builder: SelectQueryBuilder<Post>,
-): string => {
-  const query = builder
-    .select('1')
-    .from(Bookmark, 'bookmark')
-    .where(`bookmark.userId = :userId`, { userId })
-    .andWhere('bookmark.postId = post.id')
-    .getQuery();
-  return `EXISTS${query}`;
-};
-
 export const mapRawPost = (post: object): GQLPost => {
-  post = nestChild(post, 'source');
+  post = nestChild(nestChild(post, 'source'), 'bookmarkList');
+  if (!post['bookmarkList'].id) {
+    delete post['bookmarkList'];
+  }
   post['tags'] = post['tags'] ? post['tags'].split(',') : [];
   return post as GQLPost;
 };
@@ -200,7 +191,13 @@ export const generateFeed = async (
   if (ctx.userId) {
     builder = builder
       .addSelect(selectRead(ctx.userId, builder.subQuery()), 'read')
-      .addSelect(selectBookmarked(ctx.userId, builder.subQuery()), 'bookmarked')
+      .addSelect('bookmark.postId IS NOT NULL', 'bookmarked')
+      .leftJoin(
+        Bookmark,
+        'bookmark',
+        'bookmark.postId = post.id AND bookmark.userId = :userId',
+        { userId: ctx.userId },
+      )
       .leftJoin(
         HiddenPost,
         'hidden',
@@ -208,6 +205,16 @@ export const generateFeed = async (
         { userId: ctx.userId },
       )
       .andWhere('hidden.postId IS NULL');
+    if (ctx.premium) {
+      builder = builder
+        .addSelect('bookmarkList.id', 'bookmarkListId')
+        .addSelect('bookmarkList.name', 'bookmarkListName')
+        .leftJoin(
+          BookmarkList,
+          'bookmarkList',
+          'bookmarkList.id = bookmark.listId',
+        );
+    }
   }
   const res = await builder.getRawMany();
 
@@ -300,8 +307,7 @@ export const bookmarksFeedBuilder = (
   builder: SelectQueryBuilder<Post>,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder
-    .innerJoin(Bookmark, 'bookmark', 'bookmark.postId = post.id')
-    .where('bookmark.userId = :userId', { userId: ctx.userId })
+    .where('bookmark.postId IS NOT NULL')
     .andWhere('bookmark.createdAt <= :now', { now })
     .orderBy('bookmark.createdAt', 'DESC');
   if (unreadOnly) {

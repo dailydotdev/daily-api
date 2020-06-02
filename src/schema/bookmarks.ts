@@ -44,7 +44,7 @@ export const typeDefs = gql`
     """
     Add or move bookmark to list
     """
-    addBookmarkToList(id: ID!, listId: ID!): EmptyResponse! @auth(premium: true)
+    addBookmarkToList(id: ID!, listId: ID): EmptyResponse! @auth(premium: true)
 
     """
     Remove an existing bookmark
@@ -138,12 +138,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     addBookmarkToList: async (
       source,
-      { id, listId }: { id: string; listId: string },
+      { id, listId = null }: { id: string; listId?: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await ctx.con
-        .getRepository(BookmarkList)
-        .findOneOrFail({ userId: ctx.userId, id: listId });
+      if (listId) {
+        await ctx.con
+          .getRepository(BookmarkList)
+          .findOneOrFail({ userId: ctx.userId, id: listId });
+      }
       await ctx.con
         .getRepository(Bookmark)
         .createQueryBuilder()
@@ -151,7 +153,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         .into(Bookmark)
         .values([{ userId: ctx.userId, postId: id, listId }])
         .onConflict(
-          `("postId", "userId") DO UPDATE SET "listId" = EXCLUDED."listId"`,
+          `("postId", "userId") DO UPDATE SET "listId" = EXCLUDED."listId", "createdAt" = now()`,
         )
         .execute();
       return { _: true };

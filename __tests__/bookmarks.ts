@@ -335,9 +335,9 @@ describe('mutation renameBookmarkList', () => {
 });
 
 describe('mutation addBookmarkToList', () => {
-  const MUTATION = (id: string, listId: string): string => `
+  const MUTATION = (id: string, listId?: string): string => `
   mutation AddBookmarkToList {
-  addBookmarkToList(id: "${id}", listId: "${listId}") {
+  addBookmarkToList(id: "${id}"${listId ? `, listId: "${listId}"` : ''}) {
     _
   }
 }`;
@@ -398,6 +398,30 @@ describe('mutation addBookmarkToList', () => {
     expect(actual[0].postId).toEqual('p1');
     expect(actual[0].userId).toEqual('1');
     expect(actual[0].listId).toEqual(list.id);
+  });
+
+  it('should set list id to null', async () => {
+    loggedUser = '1';
+    premiumUser = true;
+    const list = await con
+      .getRepository(BookmarkList)
+      .save({ userId: loggedUser, name: 'list' });
+    const repo = con.getRepository(Bookmark);
+    await repo.save(
+      repo.create({ postId: 'p1', userId: loggedUser, listId: list.id }),
+    );
+    const res = await client.mutate({
+      mutation: MUTATION('p1'),
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await repo.find({
+      where: { userId: loggedUser },
+      select: ['postId', 'userId', 'listId'],
+    });
+    expect(actual.length).toEqual(1);
+    expect(actual[0].postId).toEqual('p1');
+    expect(actual[0].userId).toEqual('1');
+    expect(actual[0].listId).toEqual(null);
   });
 });
 

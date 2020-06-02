@@ -93,6 +93,11 @@ export const typeDefs = gql`
     Whether the user bookmarked this post
     """
     bookmarked: Boolean @auth
+
+    """
+    If bookmarked, this is the list where it is saved
+    """
+    bookmarkList: BookmarkList @auth(premium: true)
   }
 
   type PostConnection {

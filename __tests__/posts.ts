@@ -27,6 +27,7 @@ import {
   Source,
   SourceDisplay,
   View,
+  BookmarkList,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
@@ -38,6 +39,7 @@ let con: Connection;
 let server: ApolloServer;
 let client: ApolloServerTestClient;
 let loggedUser: string = null;
+let premiumUser = false;
 
 jest.mock('../src/common', () => ({
   ...jest.requireActual('../src/common'),
@@ -47,7 +49,7 @@ jest.mock('../src/common', () => ({
 beforeAll(async () => {
   con = await getConnection();
   server = await createApolloServer({
-    context: (): Context => new MockContext(con, loggedUser),
+    context: (): Context => new MockContext(con, loggedUser, premiumUser),
     playground: false,
   });
   client = createTestClient(server);
@@ -57,6 +59,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   loggedUser = null;
+  premiumUser = false;
   mocked(notifyPostReport).mockClear();
 
   await saveFixtures(con, Source, sourcesFixture);
@@ -206,6 +209,67 @@ describe('bookmarked field', () => {
     );
     const res = await client.query({ query: QUERY });
     expect(res.data.post.bookmarked).toEqual(true);
+  });
+});
+
+describe('bookmarkList field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      bookmarkList {
+        id
+        name
+      }
+    }
+  }`;
+
+  let list;
+
+  beforeEach(async () => {
+    list = await con
+      .getRepository(BookmarkList)
+      .save({ name: 'my list', userId: '1' });
+  });
+
+  it('should return null when user is not logged in', async () => {
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.bookmarkList).toEqual(null);
+  });
+
+  it('should return null when user is not premium', async () => {
+    loggedUser = '1';
+    await con.getRepository(Bookmark).save({
+      postId: 'p1',
+      userId: loggedUser,
+      listId: list.id,
+    });
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.bookmarkList).toEqual(null);
+  });
+
+  it('should return null when bookmark does not belong to a list', async () => {
+    loggedUser = '1';
+    premiumUser = true;
+    await con.getRepository(Bookmark).save({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.bookmarkList).toEqual(null);
+  });
+
+  it('should return the bookmark list', async () => {
+    loggedUser = '1';
+    premiumUser = true;
+    await con.getRepository(Bookmark).save({
+      postId: 'p1',
+      userId: loggedUser,
+      listId: list.id,
+    });
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.bookmarkList).toEqual({
+      id: list.id,
+      name: list.name,
+    });
   });
 });
 
