@@ -7,6 +7,7 @@ import * as fastJson from 'fast-json-stringify';
 import trace from './trace';
 import auth from './auth';
 import compatibility from './compatibility';
+import routes from './routes';
 
 import './config';
 import { Context } from './Context';
@@ -51,6 +52,7 @@ export default async function app(): Promise<FastifyInstance> {
   app.register(server.createHandler({ disableHealthCheck: true, cors: false }));
 
   app.register(compatibility, { prefix: '/v1' });
+  app.register(routes, { prefix: '/' });
 
   return app;
 }
