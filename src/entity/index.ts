@@ -2,6 +2,7 @@ export * from './Banner';
 export * from './Bookmark';
 export * from './BookmarkList';
 export * from './Feed';
+export * from './FeedSource';
 export * from './FeedTag';
 export * from './HiddenPost';
 export * from './Notification';
