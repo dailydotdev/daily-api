@@ -1,16 +1,25 @@
-import { gql, IResolvers } from 'apollo-server-fastify';
+import { gql, IResolvers, ForbiddenError } from 'apollo-server-fastify';
 import { ConnectionArguments } from 'graphql-relay';
 import { SelectQueryBuilder } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { SourceDisplay } from '../entity';
-import { forwardPagination, PaginationResponse } from './common';
+import { SourceDisplay, Source, SourceFeed } from '../entity';
+import { forwardPagination, PaginationResponse, GQLDataInput } from './common';
+import { addOrRemoveSuperfeedrSubscription } from '../common';
 
 export interface GQLSource {
   id: string;
   name: string;
   image: string;
   public: boolean;
+}
+
+export interface GQLAddPrivateSourceInput {
+  rss: string[];
+  name: string;
+  image: string;
+  website?: string;
 }
 
 export const typeDefs = gql`
@@ -53,6 +62,25 @@ export const typeDefs = gql`
     cursor: String!
   }
 
+  input AddPrivateSourceInput {
+    """
+    Array of RSS feeds
+    """
+    rss: [String!]!
+    """
+    Name of the new source
+    """
+    name: String!
+    """
+    Thumbnail image of the source logo
+    """
+    image: String!
+    """
+    Url to the landing page of the source
+    """
+    website: String
+  }
+
   extend type Query {
     """
     Get all available sources
@@ -67,7 +95,19 @@ export const typeDefs = gql`
       Paginate first
       """
       first: Int
-    ): SourceConnection! @cacheControl(maxAge: 600)
+    ): SourceConnection!
+
+    """
+    Get the source that matches to at least one of the feeds
+    """
+    sourceByFeeds(feeds: [String!]!): Source @auth
+  }
+
+  extend type Mutation {
+    """
+    Add a new private source
+    """
+    addPrivateSource(data: AddPrivateSourceInput!): Source! @auth(premium: true)
   }
 `;
 
@@ -77,6 +117,34 @@ const sourceFromDisplay = (display: SourceDisplay): GQLSource => ({
   image: display.image,
   public: !display.userId,
 });
+
+const fromSourceDisplay = (
+  builder: SelectQueryBuilder<SourceDisplay>,
+): SelectQueryBuilder<SourceDisplay> =>
+  builder
+    .distinctOn(['sd.sourceId'])
+    .addSelect('sd.*')
+    .from(SourceDisplay, 'sd')
+    .orderBy('sd.sourceId')
+    .addOrderBy('sd.userId', 'ASC', 'NULLS LAST')
+    .where('"sd"."userId" IS NULL OR "sd"."userId" = :userId')
+    .andWhere('"sd"."enabled" = :enabled');
+
+const sourceByFeeds = async (
+  feeds: string[],
+  ctx: Context,
+): Promise<GQLSource> => {
+  const res = await ctx.con
+    .createQueryBuilder()
+    .select('sd.*')
+    .from(fromSourceDisplay, 'sd')
+    .innerJoin(SourceFeed, 'sf', 'sd."sourceId" = sf."sourceId"')
+    .where('sf.feed IN (:...feeds)', { feeds })
+    .setParameters({ userId: ctx.userId, enabled: true })
+    .getRawOne();
+  return res ? sourceFromDisplay(res) : null;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
@@ -87,23 +155,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         ctx,
         { limit, offset },
       ): Promise<PaginationResponse<GQLSource>> => {
-        const from = (
-          builder: SelectQueryBuilder<SourceDisplay>,
-        ): SelectQueryBuilder<SourceDisplay> =>
-          builder
-            .distinctOn(['sd.sourceId'])
-            .addSelect('sd.*')
-            .from(SourceDisplay, 'sd')
-            .orderBy('sd.sourceId')
-            .addOrderBy('sd.userId', 'ASC', 'NULLS LAST')
-            .where('"sd"."userId" IS NULL OR "sd"."userId" = :userId')
-            .andWhere('"sd"."enabled" = :enabled');
-
         const res = await ctx.con
           .createQueryBuilder()
           .select('sd.*')
-          .addSelect('count(*) OVER() AS count')
-          .from(from, 'sd')
+          .from(fromSourceDisplay, 'sd')
           .setParameters({ userId: ctx.userId, enabled: true })
           .orderBy('sd.name', 'ASC')
           .limit(limit)
@@ -111,11 +166,55 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           .getRawMany();
 
         return {
-          count: parseInt(res?.[0]?.count || 0),
+          hasNextPage: res.length === limit,
           nodes: res.map(sourceFromDisplay),
         };
       },
       100,
     ),
+    sourceByFeeds: async (
+      _,
+      { feeds }: { feeds: string[] },
+      ctx,
+    ): Promise<GQLSource> => sourceByFeeds(feeds, ctx),
+  },
+  Mutation: {
+    addPrivateSource: async (
+      _,
+      { data }: GQLDataInput<GQLAddPrivateSourceInput>,
+      ctx,
+    ): Promise<GQLSource> => {
+      const privateCount = await ctx
+        .getRepository(SourceDisplay)
+        .count({ userId: ctx.userId });
+      if (privateCount >= 20) {
+        throw new ForbiddenError('Private sources cap reached');
+      }
+      let display = await sourceByFeeds(data.rss, ctx);
+      if (display) {
+        return display;
+      }
+      const id = uuidv4().replace(/-/g, '');
+      display = await ctx.con.transaction(async (manager) => {
+        await manager.getRepository(Source).save({ id, website: data.website });
+        const display = await manager.getRepository(SourceDisplay).save({
+          sourceId: id,
+          image: data.image,
+          name: data.name,
+          userId: ctx.userId,
+        });
+        await manager
+          .getRepository(SourceFeed)
+          .save(data.rss.map((feed) => ({ sourceId: id, feed })));
+        return sourceFromDisplay(display);
+      });
+      await Promise.all(
+        data.rss.map((feed) =>
+          addOrRemoveSuperfeedrSubscription(feed, id, 'subscribe'),
+        ),
+      );
+      ctx.log.info({ data }, 'new private source added');
+      return display;
+    },
   },
 });

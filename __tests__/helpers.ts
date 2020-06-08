@@ -78,7 +78,11 @@ export const testMutationErrorCode = async (
     expect(errors[0].extensions.code).toEqual(code);
   });
 
-export type Query = { query: string };
+export type Query = {
+  query: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  variables?: { [name: string]: any };
+};
 
 export const testQueryError = async (
   client: ApolloServerTestClient,
