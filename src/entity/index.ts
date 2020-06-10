@@ -5,6 +5,7 @@ export * from './Feed';
 export * from './FeedSource';
 export * from './FeedTag';
 export * from './HiddenPost';
+export * from './Integration';
 export * from './Notification';
 export * from './Post';
 export * from './PostTag';

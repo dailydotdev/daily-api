@@ -28,6 +28,7 @@ import {
   Source,
   SourceDisplay,
   View,
+  BookmarkList,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
@@ -332,6 +333,33 @@ describe('query searchPosts', () => {
     const res = await client.query({ query: QUERY('text') });
     expect(searchMock).toBeCalledWith('text', expect.anything());
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query rssFeeds', () => {
+  const QUERY = `{
+    rssFeeds {
+      name, url
+    }
+  }`;
+
+  it('should not authorize when not logged-in', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it('should return rss feeds', async () => {
+    loggedUser = '1';
+    const list = await con
+      .getRepository(BookmarkList)
+      .save({ userId: loggedUser, name: 'list' });
+    const res = await client.query({ query: QUERY });
+    expect(res.data.rssFeeds).toEqual([
+      { name: 'News feed', url: 'http://localhost:4000/rss/f/1' },
+      { name: 'Bookmarks', url: 'http://localhost:4000/rss/b/1' },
+      {
+        name: 'list',
+        url: `http://localhost:4000/rss/b/l/${list.id.replace(/-/g, '')}`,
+      },
+    ]);
   });
 });
 

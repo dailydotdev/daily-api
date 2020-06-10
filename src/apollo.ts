@@ -8,6 +8,7 @@ import * as common from './schema/common';
 import * as compatibility from './schema/compatibility';
 import * as bookmarks from './schema/bookmarks';
 import * as feed from './schema/feeds';
+import * as integrations from './schema/integrations';
 import * as notifications from './schema/notifications';
 import * as posts from './schema/posts';
 import * as settings from './schema/settings';
@@ -32,6 +33,7 @@ export default async function (config: Config): Promise<ApolloServer> {
       compatibility.typeDefs,
       bookmarks.typeDefs,
       feed.typeDefs,
+      integrations.typeDefs,
       notifications.typeDefs,
       posts.typeDefs,
       settings.typeDefs,
@@ -44,6 +46,7 @@ export default async function (config: Config): Promise<ApolloServer> {
       compatibility.resolvers,
       bookmarks.resolvers,
       feed.resolvers,
+      integrations.resolvers,
       notifications.resolvers,
       posts.resolvers,
       settings.resolvers,
