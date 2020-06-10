@@ -46,7 +46,7 @@ const generateRSS = <State>(
   }
   /* eslint-disable @typescript-eslint/camelcase */
   const feed = new RSS({
-    title: title(user, state),
+    title: `${title(user, state)} by daily.dev`,
     generator: 'Daily Premium RSS',
     feed_url: `${process.env.URL_PREFIX}${req.raw.url}`,
     site_url: 'https://daily.dev',

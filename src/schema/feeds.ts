@@ -14,7 +14,7 @@ import {
   tagFeedBuilder,
 } from '../common';
 import { In } from 'typeorm';
-import { Feed, FeedTag, searchPosts } from '../entity';
+import { Feed, FeedTag, searchPosts, BookmarkList } from '../entity';
 import { GQLSource } from './sources';
 import { FeedSource } from '../entity/FeedSource';
 import { forwardPagination } from './common';
@@ -34,6 +34,11 @@ export const typeDefs = gql`
   type SearchPostSuggestionsResults {
     query: String!
     hits: [SearchPostSuggestion!]!
+  }
+
+  type RSSFeed {
+    name: String!
+    url: String!
   }
 
   enum Ranking {
@@ -224,6 +229,11 @@ export const typeDefs = gql`
       """
       first: Int
     ): PostConnection!
+
+    """
+    Returns the user's RSS feeds
+    """
+    rssFeeds: [RSSFeed!]! @auth
   }
 
   extend type Mutation {
@@ -248,6 +258,11 @@ export const typeDefs = gql`
     ): FeedSettings @auth
   }
 `;
+
+export interface GQLRSSFeed {
+  name: string;
+  url: string;
+}
 
 export interface GQLFeedSettings {
   id: string;
@@ -338,6 +353,22 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       };
     },
     searchPosts: forwardPagination(searchPostFeedBuilder, 30),
+    rssFeeds: async (source, args, ctx): Promise<GQLRSSFeed[]> => {
+      const urlPrefix = `${process.env.URL_PREFIX}/rss`;
+      const lists = await ctx.getRepository(BookmarkList).find({
+        where: { userId: ctx.userId },
+        select: ['id', 'name'],
+        order: { name: 'ASC' },
+      });
+      return [
+        { name: 'News feed', url: `${urlPrefix}/f/${ctx.userId}` },
+        { name: 'Bookmarks', url: `${urlPrefix}/b/${ctx.userId}` },
+        ...lists.map((l) => ({
+          name: l.name,
+          url: `${urlPrefix}/b/l/${l.id.replace(/-/g, '')}`,
+        })),
+      ];
+    },
   },
   Mutation: {
     addFiltersToFeed: async (
