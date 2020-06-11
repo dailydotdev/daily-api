@@ -57,7 +57,7 @@ const generateRSS = <State>(
     user,
     con
       .createQueryBuilder()
-      .select(['post."id"', 'post."title"', 'post."url"'])
+      .select(['post."id"', 'post."title"'])
       .from(Post, 'post')
       .orderBy(orderBy, 'DESC')
       .limit(20),
@@ -66,7 +66,7 @@ const generateRSS = <State>(
   items.forEach((x) =>
     feed.item({
       title: x.title,
-      url: x.url,
+      url: `${process.env.URL_PREFIX}/r/${x.id}`,
       date: x.publishedAt,
       guid: x.id,
       description: '',
