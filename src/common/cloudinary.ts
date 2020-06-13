@@ -1,4 +1,4 @@
-import * as cloudinary from 'cloudinary';
+import cloudinary from 'cloudinary';
 import { Readable } from 'stream';
 
 export const uploadLogo = (name: string, stream: Readable): Promise<string> =>

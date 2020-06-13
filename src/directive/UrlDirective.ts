@@ -7,7 +7,7 @@ import {
   isWrappingType,
   isNamedType,
 } from 'graphql';
-import * as validate from 'validate.js';
+import validate from 'validate.js';
 
 export class UrlType extends GraphQLScalarType {
   constructor(type) {

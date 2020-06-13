@@ -5,8 +5,8 @@ import {
   ApolloServerTestClient,
   createTestClient,
 } from 'apollo-server-testing';
-import * as request from 'supertest';
-import * as _ from 'lodash';
+import request from 'supertest';
+import _ from 'lodash';
 import { mocked } from 'ts-jest/utils';
 
 import createApolloServer from '../src/apollo';

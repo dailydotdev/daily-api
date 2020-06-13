@@ -4,8 +4,8 @@ import {
   createTestClient,
 } from 'apollo-server-testing';
 import { Connection, getConnection } from 'typeorm';
-import * as faker from 'faker';
-import * as _ from 'lodash';
+import faker from 'faker';
+import _ from 'lodash';
 
 import { Context } from '../src/Context';
 import createApolloServer from '../src/apollo';

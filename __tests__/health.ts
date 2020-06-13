@@ -1,4 +1,4 @@
-import * as request from 'supertest';
+import request from 'supertest';
 
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';

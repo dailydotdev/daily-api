@@ -2,7 +2,7 @@ import { merge } from 'lodash';
 import { GraphQLFormattedError } from 'graphql';
 import { ApolloServer, Config } from 'apollo-server-fastify';
 import { ApolloErrorConverter } from 'apollo-error-converter';
-import * as responseCachePlugin from 'apollo-server-plugin-response-cache';
+import responseCachePlugin from 'apollo-server-plugin-response-cache';
 
 import * as common from './schema/common';
 import * as compatibility from './schema/compatibility';
@@ -62,6 +62,7 @@ export default async function (config: Config): Promise<ApolloServer> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     plugins: [(responseCachePlugin as any)()],
     uploads: true,
+    subscriptions: false,
     formatError: (error): GraphQLFormattedError => {
       if (error?.message === 'PersistedQueryNotFound') {
         return error;

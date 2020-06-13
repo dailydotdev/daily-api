@@ -1,8 +1,8 @@
 import 'reflect-metadata';
-import * as fastify from 'fastify';
+import fastify from 'fastify';
 import { FastifyInstance, FastifyRequest } from 'fastify';
-import * as helmet from 'fastify-helmet';
-import * as fastJson from 'fast-json-stringify';
+import helmet from 'fastify-helmet';
+import fastJson from 'fast-json-stringify';
 
 import './config';
 import './profiler';

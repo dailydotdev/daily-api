@@ -4,7 +4,7 @@ import {
   createTestClient,
 } from 'apollo-server-testing';
 import { Connection, getConnection } from 'typeorm';
-import * as faker from 'faker';
+import faker from 'faker';
 
 import { Context } from '../src/Context';
 import createApolloServer from '../src/apollo';
@@ -12,7 +12,7 @@ import { MockContext } from './helpers';
 import { Banner, Notification } from '../src/entity';
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
-import * as request from 'supertest';
+import request from 'supertest';
 
 let con: Connection;
 let server: ApolloServer;

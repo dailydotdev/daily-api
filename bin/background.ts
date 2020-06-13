@@ -1,5 +1,5 @@
 import '../src/config';
-import * as fastify from 'fastify';
+import fastify from 'fastify';
 import { Message, PubSub } from '@google-cloud/pubsub';
 import { stringifyHealthCheck } from '../src';
 import { createOrGetConnection } from '../src/db';
