@@ -5,7 +5,7 @@ import {
 } from 'apollo-server-testing';
 import { Connection, getConnection } from 'typeorm';
 import { FastifyInstance } from 'fastify';
-import * as request from 'supertest';
+import request from 'supertest';
 
 import { Context } from '../src/Context';
 import createApolloServer from '../src/apollo';

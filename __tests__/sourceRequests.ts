@@ -5,10 +5,10 @@ import {
 } from 'apollo-server-testing';
 import { GraphQLResponse } from 'apollo-server-types';
 import { Connection, getConnection } from 'typeorm';
-import * as nock from 'nock';
+import nock from 'nock';
 import { FastifyInstance } from 'fastify';
-import * as request from 'supertest';
-import * as _ from 'lodash';
+import request from 'supertest';
+import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { mocked } from 'ts-jest/utils';
 

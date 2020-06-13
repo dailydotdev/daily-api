@@ -6,8 +6,8 @@ import {
   FastifyRequest,
 } from 'fastify';
 import { getConnection, SelectQueryBuilder, Connection } from 'typeorm';
-import * as rateLimit from 'fastify-rate-limit';
-import * as RSS from 'rss';
+import rateLimit from 'fastify-rate-limit';
+import RSS from 'rss';
 import {
   fetchUser,
   User,

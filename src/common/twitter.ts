@@ -1,4 +1,4 @@
-import * as Twit from 'twit';
+import Twit from 'twit';
 
 export const tweet = async (status: string): Promise<void> => {
   /* eslint-disable @typescript-eslint/camelcase */

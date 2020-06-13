@@ -5,7 +5,7 @@ import {
   ApolloServerTestClient,
   createTestClient,
 } from 'apollo-server-testing';
-import * as request from 'supertest';
+import request from 'supertest';
 
 import createApolloServer from '../src/apollo';
 import { Context } from '../src/Context';

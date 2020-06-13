@@ -17,7 +17,7 @@ import { Source, SourceDisplay, SourceFeed } from '../src/entity';
 import { addOrRemoveSuperfeedrSubscription } from '../src/common';
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
-import * as request from 'supertest';
+import request from 'supertest';
 
 jest.mock('../src/common', () => ({
   ...jest.requireActual('../src/common'),

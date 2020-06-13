@@ -1,4 +1,4 @@
-import * as http from 'http';
+import http from 'http';
 import { ServerResponse } from 'http';
 import {
   FastifyInstance,
@@ -8,7 +8,7 @@ import {
   DefaultHeaders,
   FastifyReply,
 } from 'fastify';
-import * as fp from 'fastify-plugin';
+import fp from 'fastify-plugin';
 import * as traceAgent from '@google-cloud/trace-agent';
 import {
   parseContextFromHeader,

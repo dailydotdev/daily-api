@@ -1,7 +1,7 @@
 import { mock, MockProxy } from 'jest-mock-extended';
 import { FastifyRequest, Logger } from 'fastify';
 import { Connection, DeepPartial, ObjectType } from 'typeorm';
-import * as request from 'supertest';
+import request from 'supertest';
 import {
   RootSpan,
   Span,

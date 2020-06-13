@@ -5,7 +5,7 @@ import {
   DefaultParams,
   DefaultHeaders,
 } from 'fastify';
-import * as fp from 'fastify-plugin';
+import fp from 'fastify-plugin';
 
 declare module 'fastify' {
   interface FastifyRequest<

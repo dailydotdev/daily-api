@@ -1,7 +1,7 @@
 import { Connection, getConnection, DeepPartial, In } from 'typeorm';
-import * as nock from 'nock';
+import nock from 'nock';
 import { FastifyInstance } from 'fastify';
-import * as request from 'supertest';
+import request from 'supertest';
 import appFunc from '../src';
 import {
   Bookmark,
