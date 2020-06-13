@@ -180,11 +180,11 @@ export const generateFeed = async (
       .addSelect('source.*')
       .addSelect(selectTags)
       .from(Post, 'post')
-      .leftJoin(
+      .innerJoin(
         (subBuilder) => selectSource(ctx.userId, subBuilder),
         'source',
         // TODO: add test case with private source that not belongs to the user
-        'source."sourceId" = post."sourceId" AND source."sourceId" IS NOT NULL',
+        'source."sourceId" = post."sourceId"',
       )
       .limit(clampLimit)
       .offset(offset),
