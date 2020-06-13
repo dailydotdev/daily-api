@@ -441,11 +441,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         .createQueryBuilder()
         .select('source.*')
         .from(FeedSource, 'feed')
-        .leftJoin(
+        .innerJoin(
           (subBuilder) => selectSource(ctx.userId, subBuilder),
           'source',
           // TODO: add test case with private source that not belongs to the user
-          'source."sourceId" = feed."sourceId" AND source."sourceId" IS NOT NULL',
+          'source."sourceId" = feed."sourceId"',
         )
         .where('feed.feedId = :feedId', { feedId: source.id })
         .orderBy('source."sourceName"')
