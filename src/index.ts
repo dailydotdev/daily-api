@@ -4,12 +4,14 @@ import { FastifyInstance, FastifyRequest } from 'fastify';
 import * as helmet from 'fastify-helmet';
 import * as fastJson from 'fast-json-stringify';
 
+import './config';
+import './profiler';
+
 import trace from './trace';
 import auth from './auth';
 import compatibility from './compatibility';
 import routes from './routes';
 
-import './config';
 import { Context } from './Context';
 import createApolloServer from './apollo';
 import { createOrGetConnection } from './db';
