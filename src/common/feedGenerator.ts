@@ -183,7 +183,8 @@ export const generateFeed = async (
       .leftJoin(
         (subBuilder) => selectSource(ctx.userId, subBuilder),
         'source',
-        'source."sourceId" = post."sourceId"',
+        // TODO: add test case with private source that not belongs to the user
+        'source."sourceId" = post."sourceId" AND source."sourceId" IS NOT NULL',
       )
       .limit(clampLimit)
       .offset(offset),
