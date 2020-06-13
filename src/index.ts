@@ -2,7 +2,6 @@ import 'reflect-metadata';
 import fastify from 'fastify';
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import helmet from 'fastify-helmet';
-import fastJson from 'fast-json-stringify';
 
 import './config';
 import './profiler';
@@ -15,15 +14,7 @@ import routes from './routes';
 import { Context } from './Context';
 import createApolloServer from './apollo';
 import { createOrGetConnection } from './db';
-
-export const stringifyHealthCheck = fastJson({
-  type: 'object',
-  properties: {
-    status: {
-      type: 'string',
-    },
-  },
-});
+import { stringifyHealthCheck } from './common';
 
 export default async function app(): Promise<FastifyInstance> {
   const isProd = process.env.NODE_ENV === 'production';

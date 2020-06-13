@@ -1,7 +1,7 @@
 import '../src/config';
 import fastify from 'fastify';
 import { Message, PubSub } from '@google-cloud/pubsub';
-import { stringifyHealthCheck } from '../src';
+import { stringifyHealthCheck } from '../src/common';
 import { createOrGetConnection } from '../src/db';
 import { Worker, workers } from '../src/workers';
 import { Connection } from 'typeorm';
