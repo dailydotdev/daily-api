@@ -2,6 +2,7 @@ import { gql, IResolvers, ForbiddenError } from 'apollo-server-fastify';
 import { ConnectionArguments } from 'graphql-relay';
 import { SelectQueryBuilder } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
+import pRetry from 'p-retry';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { SourceDisplay, Source, SourceFeed } from '../entity';
@@ -210,7 +211,15 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       });
       await Promise.all(
         data.rss.map((feed) =>
-          addOrRemoveSuperfeedrSubscription(feed, id, 'subscribe'),
+          pRetry(
+            () => addOrRemoveSuperfeedrSubscription(feed, id, 'subscribe'),
+            { retries: 2 },
+          ).catch((err) =>
+            ctx.log.error(
+              { err, data: { feed, id } },
+              'failed to add rss to superfeedr',
+            ),
+          ),
         ),
       );
       ctx.log.info({ data }, 'new private source added');
