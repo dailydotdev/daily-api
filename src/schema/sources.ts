@@ -17,7 +17,7 @@ export interface GQLSource {
 }
 
 export interface GQLAddPrivateSourceInput {
-  rss: string[];
+  rss: string;
   name: string;
   image: string;
   website?: string;
@@ -65,9 +65,9 @@ export const typeDefs = gql`
 
   input AddPrivateSourceInput {
     """
-    Array of RSS feeds
+    RSS feed url
     """
-    rss: [String!]!
+    rss: String!
     """
     Name of the new source
     """
@@ -99,9 +99,9 @@ export const typeDefs = gql`
     ): SourceConnection!
 
     """
-    Get the source that matches to at least one of the feeds
+    Get the source that matches the feed
     """
-    sourceByFeeds(feeds: [String!]!): Source @auth
+    sourceByFeed(feed: String!): Source @auth
   }
 
   extend type Mutation {
@@ -131,16 +131,13 @@ const fromSourceDisplay = (
     .where('"sd"."userId" IS NULL OR "sd"."userId" = :userId')
     .andWhere('"sd"."enabled" = :enabled');
 
-const sourceByFeeds = async (
-  feeds: string[],
-  ctx: Context,
-): Promise<GQLSource> => {
+const sourceByFeed = async (feed: string, ctx: Context): Promise<GQLSource> => {
   const res = await ctx.con
     .createQueryBuilder()
     .select('sd.*')
     .from(fromSourceDisplay, 'sd')
     .innerJoin(SourceFeed, 'sf', 'sd."sourceId" = sf."sourceId"')
-    .where('sf.feed IN (:...feeds)', { feeds })
+    .where('sf.feed = :feed', { feed })
     .setParameters({ userId: ctx.userId, enabled: true })
     .getRawOne();
   return res ? sourceFromDisplay(res) : null;
@@ -173,11 +170,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       },
       100,
     ),
-    sourceByFeeds: async (
+    sourceByFeed: async (
       _,
-      { feeds }: { feeds: string[] },
+      { feed }: { feed: string },
       ctx,
-    ): Promise<GQLSource> => sourceByFeeds(feeds, ctx),
+    ): Promise<GQLSource> => sourceByFeed(feed, ctx),
   },
   Mutation: {
     addPrivateSource: async (
@@ -191,37 +188,45 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       if (privateCount >= 20) {
         throw new ForbiddenError('Private sources cap reached');
       }
-      let display = await sourceByFeeds(data.rss, ctx);
+      let display = await sourceByFeed(data.rss, ctx);
       if (display) {
         return display;
       }
-      const id = uuidv4().replace(/-/g, '');
+      const feed = data.rss;
+      const existingFeed = await ctx
+        .getRepository(SourceFeed)
+        .findOne({ select: ['sourceId'], where: { feed } });
+      const id = existingFeed
+        ? existingFeed.sourceId
+        : uuidv4().replace(/-/g, '');
       display = await ctx.con.transaction(async (manager) => {
-        await manager.getRepository(Source).save({ id, website: data.website });
+        if (!existingFeed) {
+          await manager
+            .getRepository(Source)
+            .save({ id, website: data.website });
+          await manager.getRepository(SourceFeed).save({ sourceId: id, feed });
+        } else {
+          ctx.log.info({ data: { id } }, 'using existing private source');
+        }
         const display = await manager.getRepository(SourceDisplay).save({
           sourceId: id,
           image: data.image,
           name: data.name,
           userId: ctx.userId,
         });
-        await manager
-          .getRepository(SourceFeed)
-          .save(data.rss.map((feed) => ({ sourceId: id, feed })));
         return sourceFromDisplay(display);
       });
-      await Promise.all(
-        data.rss.map((feed) =>
-          pRetry(
-            () => addOrRemoveSuperfeedrSubscription(feed, id, 'subscribe'),
-            { retries: 2 },
-          ).catch((err) =>
-            ctx.log.error(
-              { err, data: { feed, id } },
-              'failed to add rss to superfeedr',
-            ),
+      if (!existingFeed) {
+        await pRetry(
+          () => addOrRemoveSuperfeedrSubscription(feed, id, 'subscribe'),
+          { retries: 2 },
+        ).catch((err) =>
+          ctx.log.error(
+            { err, data: { feed, id } },
+            'failed to add rss to superfeedr',
           ),
-        ),
-      );
+        );
+      }
       ctx.log.info({ data }, 'new private source added');
       return display;
     },
