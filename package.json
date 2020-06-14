@@ -43,6 +43,7 @@
       "graphql-upload": "^10.0.0",
       "lodash": "^4.17.15",
       "node-fetch": "^2.6.0",
+      "p-retry": "^4.2.0",
       "pg": "^8.0.2",
       "reflect-metadata": "^0.1.13",
       "rss": "^1.2.2",
