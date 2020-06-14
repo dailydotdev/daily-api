@@ -5,4 +5,5 @@ export const sourcesFixture: DeepPartial<Source>[] = [
   { id: 'a' },
   { id: 'b' },
   { id: 'c' },
+  { id: 'p' },
 ];

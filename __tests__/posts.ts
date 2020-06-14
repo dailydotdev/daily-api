@@ -443,6 +443,14 @@ describe('compatibility routes', () => {
         .expect(200);
       expect(_.pick(res.body, ['id'])).toMatchSnapshot();
     });
+
+    it('should return private post by id', async () => {
+      const res = await request(app.server)
+        .get('/v1/posts/p6')
+        .send()
+        .expect(200);
+      expect(_.pick(res.body, ['id'])).toMatchSnapshot();
+    });
   });
 
   describe('POST /posts/:id/hide', () => {

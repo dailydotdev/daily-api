@@ -6,6 +6,12 @@ Object {
 }
 `;
 
+exports[`compatibility routes GET /posts/:id should return private post by id 1`] = `
+Object {
+  "id": "p6",
+}
+`;
+
 exports[`compatibility routes POST /posts/:id/hide should hide the post 1`] = `
 Array [
   HiddenPost {

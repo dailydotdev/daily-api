@@ -1,7 +1,9 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { offsetToCursor } from 'graphql-relay';
-import { GraphqlPayload, injectGraphql, postFields } from './utils';
 import { ServerResponse } from 'http';
+import { getConnection } from 'typeorm';
+import { GraphqlPayload, injectGraphql, postFields } from './utils';
+import { Post } from '../entity';
 
 const getPaginationParams = (req: FastifyRequest): string => {
   const pageSize = Math.min(req.query.pageSize || 30, 40);
@@ -169,18 +171,15 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.get('/:id', async (req, res) => {
-    const query = `{
-  post(id: "${req.params.id}") {
-    ${postFields(req.userId)}
-  }
-}`;
-    return injectGraphql(
-      fastify,
-      { query },
-      (obj) => obj['data']['post'],
-      req,
-      res,
-    );
+    const con = getConnection();
+    const post = await con.getRepository(Post).findOne({
+      select: ['id', 'title', 'url'],
+      where: { id: req.params.id },
+    });
+    if (!post) {
+      return res.status(404).send();
+    }
+    return res.send(post);
   });
 
   fastify.post('/:id/hide', async (req, res) => {

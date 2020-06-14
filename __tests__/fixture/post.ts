@@ -44,6 +44,14 @@ export const postsFixture: DeepPartial<Post>[] = [
     sourceId: 'b',
     createdAt: new Date(now.getTime() - 4000),
   },
+  {
+    id: 'p6',
+    title: 'P6',
+    url: 'http://p6.com',
+    score: 10,
+    sourceId: 'p',
+    createdAt: new Date(now.getTime() - 5000),
+  },
 ];
 
 export const postTagsFixture: DeepPartial<PostTag>[] = [
