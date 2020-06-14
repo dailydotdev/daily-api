@@ -121,10 +121,10 @@ describe('query sources', () => {
   });
 });
 
-describe('query sourceByFeeds', () => {
+describe('query sourceByFeed', () => {
   const QUERY = `
-query SourceByFeeds($data: [String!]!) {
-  sourceByFeeds(feeds: $data) {
+query SourceByFeed($data: String!) {
+  sourceByFeed(feed: $data) {
     id
     name
     image
@@ -135,7 +135,7 @@ query SourceByFeeds($data: [String!]!) {
   it('should not authorize when not logged in', () =>
     testQueryErrorCode(
       client,
-      { query: QUERY, variables: { data: ['https://a.com/feed'] } },
+      { query: QUERY, variables: { data: 'https://a.com/feed' } },
       'UNAUTHENTICATED',
     ));
 
@@ -143,10 +143,10 @@ query SourceByFeeds($data: [String!]!) {
     loggedUser = '1';
     const res = await client.query({
       query: QUERY,
-      variables: { data: ['https://a.com/feed'] },
+      variables: { data: 'https://a.com/feed' },
     });
     expect(res.errors).toBeFalsy();
-    expect(res.data.sourceByFeeds).toEqual(null);
+    expect(res.data.sourceByFeed).toEqual(null);
   });
 
   it('should return the source', async () => {
@@ -157,10 +157,10 @@ query SourceByFeeds($data: [String!]!) {
     });
     const res = await client.query({
       query: QUERY,
-      variables: { data: ['https://a.com/feed'] },
+      variables: { data: 'https://a.com/feed' },
     });
     expect(res.errors).toBeFalsy();
-    expect(res.data.sourceByFeeds).toEqual({
+    expect(res.data.sourceByFeed).toEqual({
       id: 'a',
       name: 'Private A 1',
       image: 'http://privatea1.com',
@@ -186,7 +186,7 @@ describe('mutation addPrivateSource', () => {
           data: {
             name: 'Example',
             image: 'https://example.com',
-            rss: ['https://example.com/feed'],
+            rss: 'https://example.com/feed',
           },
         },
       },
@@ -203,7 +203,7 @@ describe('mutation addPrivateSource', () => {
           data: {
             name: 'Example',
             image: 'https://example.com',
-            rss: ['https://example.com/feed'],
+            rss: 'https://example.com/feed',
           },
         },
       },
@@ -225,7 +225,7 @@ describe('mutation addPrivateSource', () => {
         data: {
           name: 'Example',
           image: 'https://example.com',
-          rss: ['https://example.com/feed', 'https://a.com/feed'],
+          rss: 'https://a.com/feed',
         },
       },
     });
@@ -248,7 +248,7 @@ describe('mutation addPrivateSource', () => {
         data: {
           name: 'Example',
           image: 'https://example.com',
-          rss: ['https://example.com/feed'],
+          rss: 'https://example.com/feed',
         },
       },
     });
@@ -288,6 +288,46 @@ describe('mutation addPrivateSource', () => {
     });
   });
 
+  it('should create new source display and merge with existing private source', async () => {
+    loggedUser = '1';
+    premiumUser = true;
+    mocked(addOrRemoveSuperfeedrSubscription).mockResolvedValue();
+    await con.getRepository(SourceFeed).save({
+      feed: 'https://c.com/feed',
+      sourceId: 'c',
+    });
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: {
+        data: {
+          name: 'Example',
+          image: 'https://example.com',
+          rss: 'https://c.com/feed',
+        },
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(addOrRemoveSuperfeedrSubscription).toBeCalledTimes(0);
+    expect(
+      await con
+        .getRepository(SourceDisplay)
+        .findOne({ sourceId: 'c', userId: loggedUser }),
+    ).toEqual({
+      id: expect.anything(),
+      sourceId: 'c',
+      name: 'Example',
+      image: 'https://example.com',
+      enabled: true,
+      userId: loggedUser,
+    });
+    expect(res.data.addPrivateSource).toEqual({
+      id: 'c',
+      name: 'Example',
+      image: 'https://example.com',
+      public: false,
+    });
+  });
+
   it('should create new source even if superfeedr fails', async () => {
     loggedUser = '1';
     premiumUser = true;
@@ -298,7 +338,7 @@ describe('mutation addPrivateSource', () => {
         data: {
           name: 'Example',
           image: 'https://example.com',
-          rss: ['https://example.com/feed'],
+          rss: 'https://example.com/feed',
         },
       },
     });
