@@ -183,7 +183,6 @@ export const generateFeed = async (
       .innerJoin(
         (subBuilder) => selectSource(ctx.userId, subBuilder),
         'source',
-        // TODO: add test case with private source that not belongs to the user
         'source."sourceId" = post."sourceId"',
       )
       .limit(clampLimit)

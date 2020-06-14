@@ -444,7 +444,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         .innerJoin(
           (subBuilder) => selectSource(ctx.userId, subBuilder),
           'source',
-          // TODO: add test case with private source that not belongs to the user
           'source."sourceId" = feed."sourceId"',
         )
         .where('feed.feedId = :feedId', { feedId: source.id })
