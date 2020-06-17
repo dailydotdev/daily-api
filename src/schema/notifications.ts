@@ -104,7 +104,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx
         .getRepository(Banner)
         .createQueryBuilder()
-        .where('timestamp > :last AND timestamp <= now()', { last: lastSeen })
+        .where('timestamp > :last', { last: lastSeen })
         .orderBy('timestamp', 'DESC')
         .getOne(),
   },
