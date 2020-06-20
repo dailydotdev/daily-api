@@ -111,8 +111,12 @@ const worker: Worker = {
         },
         'failed to add post to db',
       );
-      // Foreign / unique violation
-      if (err?.code === '23503' || err?.code === '23505') {
+      // Foreign / unique / null violation
+      if (
+        err?.code === '23502' ||
+        err?.code === '23503' ||
+        err?.code === '23505'
+      ) {
         message.ack();
       } else {
         message.nack();

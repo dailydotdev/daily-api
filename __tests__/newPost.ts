@@ -148,3 +148,18 @@ it('should ignore duplicate post', async () => {
     createdAt: expect.any(Date),
   });
 });
+
+it('should ignore null value violation', async () => {
+  const message = mockMessage({
+    id: 'p1',
+    title: 'Title',
+    url: null,
+    publicationId: 'a',
+  });
+
+  await worker.handler(message, con, app.log);
+  expect(message.ack).toBeCalledTimes(1);
+  expect(saveObjectMock).toBeCalledTimes(0);
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(0);
+});
