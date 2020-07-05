@@ -75,3 +75,29 @@ spec:
               env:
 {{ include "daily-api.config" . | indent 14 }}
           restartPolicy: OnFailure
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ template "daily-api.fullname" . }}-segment
+  labels:
+    app: {{ template "daily-api.name" . }}
+    chart: {{ template "daily-api.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  schedule: "4 1 * * 0"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          annotations:
+  {{- include "daily-api.checksum" . | indent 12 }}
+spec:
+  containers:
+    - name: job
+      image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+      command: ["node", "bin/cron.js", "segmentUsers"]
+      env:
+  {{ include "daily-api.config" . | indent 14 }}
+restartPolicy: OnFailure

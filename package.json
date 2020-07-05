@@ -45,6 +45,7 @@
       "node-fetch": "^2.6.0",
       "p-retry": "^4.2.0",
       "pg": "^8.0.2",
+      "pg-query-stream": "^3.1.1",
       "reflect-metadata": "^0.1.13",
       "rss": "^1.2.2",
       "twit": "^2.2.11",
