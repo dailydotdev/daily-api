@@ -15,4 +15,5 @@ export * from './SourceDisplay';
 export * from './SourceFeed';
 export * from './SourceRequest';
 export * from './TagCount';
+export * from './TagSegment';
 export * from './View';
