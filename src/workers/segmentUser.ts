@@ -11,7 +11,10 @@ interface SegmentRow {
   segment: string;
 }
 
-const findSegment = async (userId: string, con: Connection): Promise<string | null> => {
+const findSegment = async (
+  userId: string,
+  con: Connection,
+): Promise<string | null> => {
   const res: SegmentRow = await con
     .createQueryBuilder()
     .select('ts.segment', 'segment')

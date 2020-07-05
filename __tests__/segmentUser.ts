@@ -24,7 +24,7 @@ jest.mock('@google-cloud/pubsub', () => {
 });
 
 beforeAll(async () => {
-  mockTopic = mocked((new PubSub()).topic);
+  mockTopic = mocked(new PubSub().topic);
   jest.clearAllMocks();
   con = await getConnection();
   app = await appFunc();

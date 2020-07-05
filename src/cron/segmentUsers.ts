@@ -20,7 +20,9 @@ const cron: Cron = {
       .groupBy('"userId"')
       .stream();
     resStream.on('data', (data: Row) => {
-      topic.publishJSON(data).catch((err) => console.error('failed to dispatch find-segment', err));
+      topic
+        .publishJSON(data)
+        .catch((err) => console.error('failed to dispatch find-segment', err));
     });
     return new Promise((resolve, reject) => {
       resStream.on('error', reject);
