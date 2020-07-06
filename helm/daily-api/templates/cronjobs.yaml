@@ -99,5 +99,15 @@ spec:
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               command: ["node", "bin/cron.js", "segmentUsers"]
               env:
+              - name: GOOGLE_APPLICATION_CREDENTIALS
+                value: "/etc/config/serviceAccount.json"
 {{ include "daily-api.config" . | indent 14 }}
+              volumeMounts:
+              - name: config
+                mountPath: "/etc/config"
+                readOnly: true
+          volumes:
+          - name: config
+            secret:
+              secretName: {{ template "daily-api.fullname" . }}-files
           restartPolicy: OnFailure
