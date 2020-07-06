@@ -92,12 +92,12 @@ spec:
       template:
         metadata:
           annotations:
-  {{- include "daily-api.checksum" . | indent 12 }}
-spec:
-  containers:
-    - name: job
-      image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-      command: ["node", "bin/cron.js", "segmentUsers"]
-      env:
-  {{ include "daily-api.config" . | indent 14 }}
-restartPolicy: OnFailure
+{{- include "daily-api.checksum" . | indent 12 }}
+        spec:
+          containers:
+            - name: job
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              command: ["node", "bin/cron.js", "segmentUsers"]
+              env:
+{{ include "daily-api.config" . | indent 14 }}
+          restartPolicy: OnFailure
