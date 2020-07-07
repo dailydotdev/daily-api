@@ -54,7 +54,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     popularTags: async (source, args, ctx): Promise<GQLTag[]> => {
       const hits = await ctx.getRepository(TagCount).find({
         select: ['tag'],
-        where: { count: MoreThan(50) },
         order: { count: 'DESC' },
         take: 50,
       });
@@ -68,11 +67,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const hits = await ctx.getRepository(TagCount).find({
         select: ['tag'],
         where: {
-          count: MoreThan(50),
+          count: MoreThan(10),
           tag: Raw((alias) => `${alias} ILIKE '%${query}%'`),
         },
         order: { count: 'DESC' },
-        take: 10,
+        take: 50,
       });
       return {
         query,

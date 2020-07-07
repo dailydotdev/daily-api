@@ -11,6 +11,12 @@ Array [
   Object {
     "name": "webdev",
   },
+  Object {
+    "name": "golang",
+  },
+  Object {
+    "name": "rust",
+  },
 ]
 `;
 
@@ -39,6 +45,12 @@ Object {
     },
     Object {
       "name": "webdev",
+    },
+    Object {
+      "name": "golang",
+    },
+    Object {
+      "name": "rust",
     },
   ],
 }

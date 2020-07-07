@@ -60,7 +60,7 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
-  schedule: "7 1 * * *"
+  schedule: "33 3 * * 0"
   jobTemplate:
     spec:
       template:

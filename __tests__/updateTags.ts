@@ -18,7 +18,7 @@ beforeEach(async () => {
   await saveFixtures(con, PostTag, postTagsFixture);
 });
 
-it('should update tags count of posts from the last 30 days', async () => {
+it('should update tags count of posts from the last 180 days', async () => {
   const now = new Date();
   await saveFixtures(con, Post, [
     {
@@ -27,7 +27,7 @@ it('should update tags count of posts from the last 30 days', async () => {
       url: 'http://p100.com',
       score: 0,
       sourceId: 'a',
-      createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 50),
+      createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 200),
     },
   ]);
   await saveFixtures(con, PostTag, [

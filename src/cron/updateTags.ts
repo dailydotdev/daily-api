@@ -9,7 +9,7 @@ const cron: Cron = {
                                  SELECT t.tag tag, COUNT(*) count
                                  FROM "post_tag" t
                                         JOIN post p on t."postId" = p.id
-                                 WHERE EXTRACT(EPOCH FROM now() - p."createdAt")/86400 < 30
+                                 WHERE EXTRACT(EPOCH FROM now() - p."createdAt")/86400 < 180
                                  GROUP BY t.tag`);
     }),
 };
