@@ -153,7 +153,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         .into(Bookmark)
         .values([{ userId: ctx.userId, postId: id, listId }])
         .onConflict(
-          `("postId", "userId") DO UPDATE SET "listId" = EXCLUDED."listId", "createdAt" = now()`,
+          `("postId", "userId") DO UPDATE SET "listId" = EXCLUDED."listId"`,
         )
         .execute();
       return { _: true };
