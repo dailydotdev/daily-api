@@ -90,12 +90,15 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: AddPostData = messageToJson(message);
 
-    const p = await con.getRepository(Post).findOne({url: data.url});
+    const p = await con.getRepository(Post).findOne({ url: data.url });
     if (p) {
-      logger.info({
-        post: data,
-        messageId: message.id,
-      }, 'post url already exists');
+      logger.info(
+        {
+          post: data,
+          messageId: message.id,
+        },
+        'post url already exists',
+      );
       message.ack();
       return;
     }
