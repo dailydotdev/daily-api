@@ -89,6 +89,20 @@ const worker: Worker = {
   subscription: envBasedName('add-posts-v2'),
   handler: async (message, con, logger): Promise<void> => {
     const data: AddPostData = messageToJson(message);
+
+    const p = await con.getRepository(Post).findOne({ url: data.url });
+    if (p) {
+      logger.info(
+        {
+          post: data,
+          messageId: message.id,
+        },
+        'post url already exists',
+      );
+      message.ack();
+      return;
+    }
+
     data.createdAt = new Date();
     data.readTime = parseReadTime(data.readTime);
     try {
