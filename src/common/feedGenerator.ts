@@ -10,7 +10,6 @@ import {
   PostTag,
   searchPosts,
   SourceDisplay,
-  TagCount,
   View,
   BookmarkList,
   FeedSource,
@@ -98,19 +97,6 @@ export const whereUnread = (
   builder: SelectQueryBuilder<Post>,
 ): string => `NOT ${selectRead(userId, builder.subQuery())}`;
 
-export const selectTags = (
-  builder: SelectQueryBuilder<Post>,
-): SelectQueryBuilder<PostTag> =>
-  builder
-    .select(
-      "array_to_string(array_agg(tag.tag order by tcount.count DESC NULLS LAST, tag.tag ASC), ',')",
-      'tags',
-    )
-    .from(PostTag, 'tag')
-    .leftJoin(TagCount, 'tcount', 'tag.tag = tcount.tag')
-    .where('post.id = tag.postId')
-    .groupBy('tag.postId');
-
 export const selectSource = (
   userId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -139,7 +125,8 @@ export const mapRawPost = (post: object): GQLPost => {
   if (!post['bookmarkList'].id) {
     delete post['bookmarkList'];
   }
-  post['tags'] = post['tags'] ? post['tags'].split(',') : [];
+  post['tags'] = post['tagsStr'] ? post['tagsStr'].split(',') : [];
+  delete post['tagsStr'];
   return post as GQLPost;
 };
 
@@ -178,7 +165,6 @@ export const generateFeed = async (
       .createQueryBuilder()
       .select('post.*')
       .addSelect('source.*')
-      .addSelect(selectTags)
       .from(Post, 'post')
       .innerJoin(
         (subBuilder) => selectSource(ctx.userId, subBuilder),

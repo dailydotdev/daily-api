@@ -11,6 +11,7 @@ export const postsFixture: DeepPartial<Post>[] = [
     score: 0,
     sourceId: 'a',
     createdAt: now,
+    tagsStr: 'javascript,webdev',
   },
   {
     id: 'p2',
@@ -35,6 +36,7 @@ export const postsFixture: DeepPartial<Post>[] = [
     score: 3,
     sourceId: 'a',
     createdAt: new Date(now.getTime() - 3000),
+    tagsStr: 'backend,data,javascript',
   },
   {
     id: 'p5',
@@ -43,6 +45,7 @@ export const postsFixture: DeepPartial<Post>[] = [
     score: 10,
     sourceId: 'b',
     createdAt: new Date(now.getTime() - 4000),
+    tagsStr: 'html,javascript',
   },
   {
     id: 'p6',

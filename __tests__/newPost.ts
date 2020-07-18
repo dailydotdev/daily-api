@@ -7,7 +7,7 @@ import Mock = jest.Mock;
 import appFunc from '../src';
 import worker from '../src/workers/newPost';
 import { mockMessage, saveFixtures } from './helpers';
-import { Post, PostTag, Source } from '../src/entity';
+import { Post, PostTag, Source, TagCount } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getPostsIndex } from '../src/common';
 import { postsFixture } from './fixture/post';
@@ -82,6 +82,11 @@ it('should save a new post with full information', async () => {
     readTime: '5.123',
   });
 
+  await con.getRepository(TagCount).save([
+    { tag: 'javascript', count: 20 },
+    { tag: 'html', count: 15 },
+    { tag: 'webdev', count: 5 },
+  ]);
   await worker.handler(message, con, app.log);
   expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledWith({
