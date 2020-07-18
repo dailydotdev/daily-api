@@ -26,6 +26,9 @@ export class Settings {
   @Column({ default: false })
   showOnlyUnreadPosts: boolean;
 
+  @Column({ default: true })
+  openNewTab: boolean;
+
   @UpdateDateColumn()
   updatedAt: Date;
 }
