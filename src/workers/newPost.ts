@@ -1,5 +1,5 @@
-import { Connection } from 'typeorm';
-import { Post, PostTag } from '../entity';
+import { Connection, In, MoreThan } from 'typeorm';
+import { Post, PostTag, TagCount } from '../entity';
 import { envBasedName, messageToJson, Worker } from './worker';
 import { getPostsIndex } from '../common';
 
@@ -46,6 +46,14 @@ const addToAlgolia = async (data: AddPostData): Promise<void> => {
 const addPost = async (con: Connection, data: AddPostData): Promise<void> =>
   con.transaction(
     async (entityManager): Promise<void> => {
+      const tags = data.tags?.length > 0 ? await entityManager.getRepository(TagCount).find({
+        where: {
+          count: MoreThan(10),
+          tag: In(data.tags),
+        },
+        order: { count: 'DESC' },
+        take: 5,
+      }) : null;
       await entityManager.getRepository(Post).insert({
         id: data.id,
         publishedAt: data.publishedAt && new Date(data.publishedAt),
@@ -60,6 +68,7 @@ const addPost = async (con: Connection, data: AddPostData): Promise<void> =>
         siteTwitter: data.siteTwitter,
         creatorTwitter: data.creatorTwitter,
         readTime: data.readTime,
+        tagsStr: tags?.map((t) => t.tag).join(','),
       });
       if (data.tags?.length) {
         await entityManager.getRepository(PostTag).insert(

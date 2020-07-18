@@ -74,6 +74,10 @@ export class Post {
 
   @OneToMany(() => PostTag, (tag) => tag.post, { lazy: true })
   tags: Promise<PostTag[]>;
+
+  @Column({ type: 'text', nullable: true })
+  @Index('IDX_tags')
+  tagsStr: string;
 }
 
 export interface SearchPostsResult {
