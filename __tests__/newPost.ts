@@ -86,7 +86,7 @@ it('should save a new post with full information', async () => {
     { tag: 'javascript', count: 20 },
     { tag: 'html', count: 15 },
     { tag: 'webdev', count: 5 },
-  ])
+  ]);
   await worker.handler(message, con, app.log);
   expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledWith({

@@ -46,14 +46,17 @@ const addToAlgolia = async (data: AddPostData): Promise<void> => {
 const addPost = async (con: Connection, data: AddPostData): Promise<void> =>
   con.transaction(
     async (entityManager): Promise<void> => {
-      const tags = data.tags?.length > 0 ? await entityManager.getRepository(TagCount).find({
-        where: {
-          count: MoreThan(10),
-          tag: In(data.tags),
-        },
-        order: { count: 'DESC' },
-        take: 5,
-      }) : null;
+      const tags =
+        data.tags?.length > 0
+          ? await entityManager.getRepository(TagCount).find({
+              where: {
+                count: MoreThan(10),
+                tag: In(data.tags),
+              },
+              order: { count: 'DESC' },
+              take: 5,
+            })
+          : null;
       await entityManager.getRepository(Post).insert({
         id: data.id,
         publishedAt: data.publishedAt && new Date(data.publishedAt),
