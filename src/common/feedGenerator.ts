@@ -1,5 +1,7 @@
 import { SelectQueryBuilder } from 'typeorm';
 import { lowerFirst } from 'lodash';
+import { ConnectionArguments } from 'graphql-relay';
+import { IFieldResolver } from 'apollo-server-fastify';
 import {
   Bookmark,
   FeedTag,
@@ -11,13 +13,11 @@ import {
   TagCount,
   View,
   BookmarkList,
+  FeedSource,
 } from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
 import { forwardPagination, PaginationResponse } from '../schema/common';
-import { ConnectionArguments } from 'graphql-relay';
-import { IFieldResolver } from 'apollo-server-fastify';
-import { FeedSource } from '../entity/FeedSource';
 
 export const nestChild = (obj: object, prefix: string): object => {
   obj[prefix] = Object.keys(obj).reduce((acc, key) => {

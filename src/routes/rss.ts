@@ -10,6 +10,7 @@ import rateLimit from 'fastify-rate-limit';
 import RSS from 'rss';
 import {
   fetchUser,
+  selectSource,
   User,
   whereSourcesInFeed,
   whereTagsInFeed,
@@ -125,6 +126,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       (req, user, builder) =>
         builder
           .addSelect('post."createdAt"', 'publishedAt')
+          .innerJoin(
+            (subBuilder) => selectSource(user.id, subBuilder),
+            'source',
+            'source."sourceId" = post."sourceId"',
+          )
           .where((subBuilder) =>
             whereSourcesInFeed(req.params.feedId, subBuilder),
           )

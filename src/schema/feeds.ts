@@ -361,7 +361,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         order: { name: 'ASC' },
       });
       return [
-        { name: 'News feed', url: `${urlPrefix}/f/${ctx.userId}` },
+        { name: 'Recent news feed', url: `${urlPrefix}/f/${ctx.userId}` },
         { name: 'Bookmarks', url: `${urlPrefix}/b/${ctx.userId}` },
         ...lists.map((l) => ({
           name: l.name,

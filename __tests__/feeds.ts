@@ -353,7 +353,7 @@ describe('query rssFeeds', () => {
       .save({ userId: loggedUser, name: 'list' });
     const res = await client.query({ query: QUERY });
     expect(res.data.rssFeeds).toEqual([
-      { name: 'News feed', url: 'http://localhost:4000/rss/f/1' },
+      { name: 'Recent news feed', url: 'http://localhost:4000/rss/f/1' },
       { name: 'Bookmarks', url: 'http://localhost:4000/rss/b/1' },
       {
         name: 'list',
