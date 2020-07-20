@@ -1,3 +1,4 @@
+import shortid from 'shortid';
 import { Connection, In, MoreThan } from 'typeorm';
 import { Post, PostTag, TagCount } from '../entity';
 import { envBasedName, messageToJson, Worker } from './worker';
@@ -59,6 +60,7 @@ const addPost = async (con: Connection, data: AddPostData): Promise<void> =>
           : null;
       await entityManager.getRepository(Post).insert({
         id: data.id,
+        shortId: shortid.generate(),
         publishedAt: data.publishedAt && new Date(data.publishedAt),
         createdAt: data.createdAt,
         sourceId: data.publicationId,
