@@ -148,7 +148,7 @@ async function compatGenerateFeed<
     opts: FeedOptions,
   ) => Promise<PaginationResponse<GQLPost>>,
 ): Promise<GQLPost[]> {
-  const limit = args.params?.pageSize || 30;
+  const limit = Math.min(args.params?.pageSize || 30, 50);
   const offset = (args.params?.page || 0) * limit;
   const opts = {
     now: new Date(args.params?.latest),
