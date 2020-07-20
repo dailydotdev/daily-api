@@ -7,6 +7,7 @@ import { generateFeed, notifyPostReport } from '../common';
 import { HiddenPost, Post } from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError } from '../errors';
+import { GQLBookmarkList } from './bookmarks';
 
 export interface GQLPost {
   id: string;
@@ -22,6 +23,10 @@ export interface GQLPost {
   tags?: string[];
   read?: boolean;
   bookmarked?: boolean;
+  bookmarkList?: GQLBookmarkList;
+  // Used only for pagination (not part of the schema)
+  score: number;
+  bookmarkedAt: Date;
 }
 
 export const typeDefs = gql`
@@ -216,8 +221,8 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLPost> => {
-      const feed = await generateFeed(ctx, 1, 0, (builder) =>
-        builder.where('post.id = :id', { id }),
+      const feed = await generateFeed(ctx, (builder) =>
+        builder.where('post.id = :id', { id }).limit(1),
       );
       if (feed.nodes.length) {
         return feed.nodes[0];
