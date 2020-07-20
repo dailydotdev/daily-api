@@ -174,6 +174,7 @@ it('should ignore null value violation', async () => {
 it('should not save post with existing url', async () => {
   await con.getRepository(Post).save({
     id: 'p2',
+    shortId: 'p2',
     title: 'Title 2',
     url: 'https://post.com',
     sourceId: 'b',

@@ -84,6 +84,7 @@ describe('image fields', () => {
     await repo.save(
       repo.create({
         id: 'image',
+        shortId: 'image',
         title: 'No image',
         url: 'http://noimage.com',
         score: 0,
@@ -100,6 +101,7 @@ describe('image fields', () => {
     await repo.save(
       repo.create({
         id: 'image',
+        shortId: 'image',
         title: 'Image',
         url: 'http://post.com',
         score: 0,

@@ -23,6 +23,7 @@ it('should update tags count of posts from the last 180 days', async () => {
   await saveFixtures(con, Post, [
     {
       id: 'p100',
+      shortId: 'p100',
       title: 'P100',
       url: 'http://p100.com',
       score: 0,
