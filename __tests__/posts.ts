@@ -275,6 +275,19 @@ describe('bookmarkList field', () => {
   });
 });
 
+describe('permalink field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      permalink
+    }
+  }`;
+
+  it('should return permalink of the post', async () => {
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.permalink).toEqual('http://localhost:4000/r/sp1');
+  });
+});
+
 describe('query post', () => {
   const QUERY = (id: string): string => `{
     post(id: "${id}") {

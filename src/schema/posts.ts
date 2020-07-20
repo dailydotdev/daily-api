@@ -11,6 +11,7 @@ import { GQLBookmarkList } from './bookmarks';
 
 export interface GQLPost {
   id: string;
+  shortId: string;
   publishedAt?: Date;
   createdAt: Date;
   url: string;
@@ -108,6 +109,11 @@ export const typeDefs = gql`
     If bookmarked, this is the list where it is saved
     """
     bookmarkList: BookmarkList
+
+    """
+    Permanent link to the post
+    """
+    permalink: String
   }
 
   type PostConnection {
@@ -269,5 +275,7 @@ export const resolvers: IResolvers<any, Context> = {
       post.image ? post.placeholder : defaultImage.placeholder,
     ratio: (post: GQLPost): number =>
       post.image ? post.ratio : defaultImage.ratio,
+    permalink: (post: GQLPost): string =>
+      `${process.env.URL_PREFIX}/r/${post.shortId}`,
   },
 };

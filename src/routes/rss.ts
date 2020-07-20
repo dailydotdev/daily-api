@@ -19,9 +19,11 @@ import { Post, Bookmark, BookmarkList, Feed } from '../entity';
 
 interface RssItem {
   id: string;
+  shortId: string;
   title: string;
   url: string;
   publishedAt: Date;
+  tagsStr?: string;
 }
 
 const generateRSS = <State>(
@@ -58,7 +60,7 @@ const generateRSS = <State>(
     user,
     con
       .createQueryBuilder()
-      .select(['post."id"', 'post."title"'])
+      .select(['post."id"', 'post."shortId"', 'post."title"', 'post."tagsStr"'])
       .from(Post, 'post')
       .orderBy(orderBy, 'DESC')
       .limit(20),
@@ -67,10 +69,11 @@ const generateRSS = <State>(
   items.forEach((x) =>
     feed.item({
       title: x.title,
-      url: `${process.env.URL_PREFIX}/r/${x.id}`,
+      url: `${process.env.URL_PREFIX}/r/${x.shortId}`,
       date: x.publishedAt,
       guid: x.id,
       description: '',
+      categories: x.tagsStr?.split(','),
     }),
   );
   return res.type('application/rss+xml').send(feed.xml());

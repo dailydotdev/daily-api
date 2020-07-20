@@ -20,7 +20,7 @@ const getUserHandler = (post: Post): string =>
   post.creatorTwitter?.length > 1 && post.creatorTwitter;
 
 const buildTweet = async (post: Post): Promise<string> => {
-  const link = `${process.env.URL_PREFIX}/r/${post.id}`;
+  const link = `${process.env.URL_PREFIX}/r/${post.shortId}`;
   const siteHandler = await getSiteHandler(post);
   const via = siteHandler ? ` via ${siteHandler}` : '';
   const userHandler = getUserHandler(post);
