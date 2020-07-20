@@ -1,5 +1,6 @@
 import { GraphQLResolveInfo, SelectionNode, FieldNode } from 'graphql';
 import { FieldNodeInfo } from '@mando75/typeorm-graphql-loader/dist/types';
+import { unbase64 } from './base64';
 
 /**
  * Finds a single node in the GraphQL AST to return the feed info for
@@ -25,3 +26,10 @@ export const getFieldNodeInfo = (
 
 export const getRelayNodeInfo = (info: GraphQLResolveInfo): FieldNodeInfo =>
   getFieldNodeInfo(getFieldNodeInfo(info, 'edges'), 'node');
+
+export const getCursorFromAfter = (after?: string): string => {
+  if (!after) {
+    return null;
+  }
+  return unbase64(after).split(':')[1];
+};

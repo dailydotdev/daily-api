@@ -6,6 +6,7 @@ import {
   GQLDataInput,
   GQLDataIdInput,
   GQLIdInput,
+  offsetPageGenerator,
 } from './common';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
@@ -448,11 +449,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           { order: { '"createdAt"': 'ASC' } },
         );
         return {
-          count: total,
+          total,
           nodes: rows,
         };
       },
-      100,
+      offsetPageGenerator(100, 500),
     ),
   },
 });

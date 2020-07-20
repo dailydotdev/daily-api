@@ -83,7 +83,6 @@ Object {
       },
     ],
     "pageInfo": Object {
-      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
       "hasNextPage": true,
     },
   },
@@ -123,7 +122,6 @@ Object {
       },
     ],
     "pageInfo": Object {
-      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
       "hasNextPage": true,
     },
   },
@@ -166,7 +164,6 @@ Object {
       },
     ],
     "pageInfo": Object {
-      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
       "hasNextPage": true,
     },
   },

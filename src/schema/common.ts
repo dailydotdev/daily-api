@@ -99,42 +99,78 @@ export const resolvers: IResolvers<any, Context> = {
 };
 
 export interface PaginationResponse<TReturn, TExtra = {}> {
-  count?: number;
-  hasNextPage?: boolean;
   nodes: TReturn[];
   extra?: TExtra;
+  total?: number;
 }
 
-interface Page {
+export interface Page {
   limit: number;
+}
+
+interface OffsetPage extends Page {
   offset: number;
 }
 
-type PaginationResolver<TSource, TReturn, TExtra = {}> = (
+export interface PageGenerator<
+  TReturn,
+  TArgs extends ConnectionArguments,
+  TPage extends Page
+> {
+  connArgsToPage: (args: TArgs) => TPage;
+  nodeToCursor: (
+    page: TPage,
+    args: TArgs,
+    node: TReturn,
+    index: number,
+  ) => string;
+  hasNextPage: (page: TPage, nodesSize: number, total?: number) => boolean;
+  hasPreviousPage: (page: TPage, nodesSize: number, total?: number) => boolean;
+}
+
+export const offsetPageGenerator = <TReturn>(
+  defaultLimit: number,
+  maxLimit: number,
+): PageGenerator<TReturn, ConnectionArguments, OffsetPage> => ({
+  connArgsToPage: (args: ConnectionArguments): OffsetPage => ({
+    limit: Math.min(args.first || defaultLimit, maxLimit),
+    offset: getOffsetWithDefault(args.after, -1) + 1,
+  }),
+  nodeToCursor: (page, args, node, i): string =>
+    offsetToCursor(page.offset + i),
+  hasNextPage: (page, nodesSize, total): boolean =>
+    total ? page.offset + nodesSize < total : page.limit === nodesSize,
+  hasPreviousPage: (page): boolean => page.offset > 0,
+});
+
+type PaginationResolver<TSource, TReturn, TPage extends Page, TExtra = {}> = (
   source: TSource,
   args: ConnectionArguments,
   context: Context,
-  page: Page,
+  page: TPage,
   info: GraphQLResolveInfo & {
     mergeInfo: MergeInfo;
   },
 ) => Promise<PaginationResponse<TReturn, TExtra>>;
 
-export function forwardPagination<TSource, TReturn, TExtra = {}>(
-  resolver: PaginationResolver<TSource, TReturn, TExtra>,
-  defaultLimit: number,
-): IFieldResolver<TSource, Context, ConnectionArguments> {
+export function forwardPagination<
+  TSource,
+  TReturn,
+  TArgs extends ConnectionArguments,
+  TPage extends Page,
+  TExtra = {}
+>(
+  resolver: PaginationResolver<TSource, TReturn, TPage, TExtra>,
+  pageGenerator: PageGenerator<TReturn, TArgs, TPage>,
+): IFieldResolver<TSource, Context, TArgs> {
   return async (
     source,
     args,
     context,
     info,
   ): Promise<Connection<TReturn> & TExtra> => {
-    const page = {
-      limit: args.first || defaultLimit,
-      offset: getOffsetWithDefault(args.after, -1) + 1,
-    };
-    const { count, hasNextPage, nodes, extra = null } = await resolver(
+    const page = pageGenerator.connArgsToPage(args);
+    const { total, nodes, extra = null } = await resolver(
       source,
       args,
       context,
@@ -158,18 +194,19 @@ export function forwardPagination<TSource, TReturn, TExtra = {}>(
     const edges = nodes.map(
       (n, i): Edge<TReturn> => ({
         node: n,
-        cursor: offsetToCursor(page.offset + i),
+        cursor: pageGenerator.nodeToCursor(page, args, n, i),
       }),
     );
     return {
       pageInfo: {
         startCursor: edges[0].cursor,
         endCursor: edges[edges.length - 1].cursor,
-        hasNextPage:
-          count === undefined
-            ? hasNextPage
-            : page.offset + nodes.length < count,
-        hasPreviousPage: page.offset > 0,
+        hasNextPage: pageGenerator.hasNextPage(page, nodes.length, total),
+        hasPreviousPage: pageGenerator.hasPreviousPage(
+          page,
+          nodes.length,
+          total,
+        ),
       },
       edges,
       ...extra,

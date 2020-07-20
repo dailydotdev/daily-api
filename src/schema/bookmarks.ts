@@ -1,16 +1,24 @@
 import { gql, IResolvers } from 'apollo-server-fastify';
 import { ConnectionArguments } from 'graphql-relay';
-import { GQLEmptyResponse } from './common';
+import { GQLEmptyResponse, Page, PageGenerator } from './common';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { Bookmark, BookmarkList } from '../entity';
-import { bookmarksFeedBuilder, feedResolver } from '../common';
+import { Bookmark, BookmarkList, Post } from '../entity';
+import {
+  base64,
+  bookmarksFeedBuilder,
+  FeedArgs,
+  feedResolver,
+  getCursorFromAfter,
+} from '../common';
+import { GQLPost } from './posts';
+import { SelectQueryBuilder } from 'typeorm';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
 }
 
-interface GQLBookmarkList {
+export interface GQLBookmarkList {
   id: string;
   name: string;
 }
@@ -76,7 +84,7 @@ export const typeDefs = gql`
       """
       Time the pagination started to ignore new items
       """
-      now: DateTime!
+      now: DateTime
 
       """
       Paginate after opaque cursor
@@ -111,6 +119,48 @@ interface BookmarksArgs extends ConnectionArguments {
   unreadOnly: boolean;
   listId: string;
 }
+
+interface BookmarkPage extends Page {
+  limit: number;
+  timestamp?: Date;
+}
+
+const bookmarkPageGenerator: PageGenerator<
+  GQLPost,
+  ConnectionArguments,
+  BookmarkPage
+> = {
+  connArgsToPage: ({ first, after }: FeedArgs) => {
+    const cursor = getCursorFromAfter(after);
+    const limit = Math.min(first || 30, 50);
+    if (cursor) {
+      return { limit, timestamp: new Date(parseInt(cursor)) };
+    }
+    return { limit };
+  },
+  nodeToCursor: (page, args, node) => {
+    return base64(`time:${node.bookmarkedAt.getTime()}`);
+  },
+  hasNextPage: (page, nodesSize) => page.limit === nodesSize,
+  hasPreviousPage: (page) => !!page.timestamp,
+};
+
+const applyBookmarkPaging = (
+  ctx: Context,
+  args,
+  page: BookmarkPage,
+  builder: SelectQueryBuilder<Post>,
+): SelectQueryBuilder<Post> => {
+  let newBuilder = builder
+    .limit(page.limit)
+    .orderBy('bookmark.createdAt', 'DESC');
+  if (page.timestamp) {
+    newBuilder = newBuilder.andWhere('bookmark."createdAt" < :timestamp', {
+      timestamp: page.timestamp,
+    });
+  }
+  return newBuilder;
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
@@ -202,8 +252,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   },
   Query: {
     bookmarksFeed: feedResolver(
-      (ctx, { now, unreadOnly, listId = null }: BookmarksArgs, builder) =>
-        bookmarksFeedBuilder(ctx, now, unreadOnly, listId, builder),
+      (ctx, { unreadOnly, listId = null }: BookmarksArgs, builder) =>
+        bookmarksFeedBuilder(ctx, unreadOnly, listId, builder),
+      bookmarkPageGenerator,
+      applyBookmarkPaging,
     ),
     bookmarkLists: (source, args, ctx, info): Promise<GQLBookmarkList[]> =>
       ctx.loader.loadMany<BookmarkList>(

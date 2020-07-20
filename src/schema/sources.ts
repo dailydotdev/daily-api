@@ -6,7 +6,12 @@ import pRetry from 'p-retry';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { SourceDisplay, Source, SourceFeed } from '../entity';
-import { forwardPagination, PaginationResponse, GQLDataInput } from './common';
+import {
+  forwardPagination,
+  PaginationResponse,
+  GQLDataInput,
+  offsetPageGenerator,
+} from './common';
 import { addOrRemoveSuperfeedrSubscription } from '../common';
 
 export interface GQLSource {
@@ -164,11 +169,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           .getRawMany();
 
         return {
-          hasNextPage: res.length === limit,
           nodes: res.map(sourceFromDisplay),
         };
       },
-      100,
+      offsetPageGenerator(100, 500),
     ),
     sourceByFeed: async (
       _,

@@ -177,24 +177,33 @@ function compatFeedResolver<
     ctx: Context,
   ): Promise<GQLPost[]> =>
     compatGenerateFeed(source, args, ctx, (_, limit, offset, opts) =>
-      generateFeed(ctx, limit, offset, (builder) =>
-        query(ctx, args, opts, builder),
+      generateFeed(ctx, (builder) =>
+        query(ctx, args, opts, builder.limit(limit).offset(offset)),
       ),
     );
 }
+
+const orderFeed = (
+  ranking: Ranking,
+  builder: SelectQueryBuilder<Post>,
+): SelectQueryBuilder<Post> =>
+  builder.orderBy(
+    ranking === Ranking.POPULARITY ? 'post.score' : 'post.createdAt',
+    'DESC',
+  );
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   Query: traceResolverObject({
     latest: compatFeedResolver(
       (ctx, { params }: CompatFeedArgs<GQLQueryPostInput>, opts, builder) => {
+        const newBuilder = orderFeed(opts.ranking, builder);
         if (ctx.userId) {
           return configuredFeedBuilder(
             ctx,
-            opts,
             ctx.userId,
             params.read === false,
-            builder,
+            newBuilder,
           );
         } else {
           const filters: AnonymousFeedFilters = {
@@ -205,12 +214,17 @@ export const resolvers: IResolvers<any, Context> = {
               ? params?.tags?.split(',')
               : undefined,
           };
-          return anonymousFeedBuilder(ctx, opts, filters, builder);
+          return anonymousFeedBuilder(ctx, filters, newBuilder);
         }
       },
     ),
     bookmarks: compatFeedResolver((ctx, args, opts, builder) =>
-      bookmarksFeedBuilder(ctx, opts.now, false, null, builder),
+      bookmarksFeedBuilder(
+        ctx,
+        false,
+        null,
+        builder.orderBy('bookmark.createdAt', 'DESC'),
+      ),
     ),
     postsByPublication: compatFeedResolver(
       (
@@ -218,11 +232,11 @@ export const resolvers: IResolvers<any, Context> = {
         { params }: CompatFeedArgs<GQLPostByPublicationInput>,
         opts,
         builder,
-      ) => sourceFeedBuilder(ctx, opts, params.pub, builder),
+      ) => orderFeed(opts.ranking, sourceFeedBuilder(ctx, params.pub, builder)),
     ),
     postsByTag: compatFeedResolver(
       (ctx, { params }: CompatFeedArgs<GQLPostByTagInput>, opts, builder) =>
-        tagFeedBuilder(ctx, opts, params.tag, builder),
+        orderFeed(opts.ranking, tagFeedBuilder(ctx, params.tag, builder)),
     ),
     search: async (
       source,
@@ -233,12 +247,11 @@ export const resolvers: IResolvers<any, Context> = {
         source,
         args,
         ctx,
-        (_, limit, offset, opts) =>
+        (_, limit, offset) =>
           searchPostFeedBuilder(
             source,
             {
               query: args.params.query,
-              now: opts.now,
               ranking: Ranking.POPULARITY,
             },
             ctx,

@@ -122,6 +122,7 @@ describe('query anonymousFeed', () => {
 
   it('should return anonymous feed with no filters ordered by time', async () => {
     const res = await client.query({ query: QUERY(Ranking.TIME) });
+    delete res.data.anonymousFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
   });
 
