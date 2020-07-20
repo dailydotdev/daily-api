@@ -453,6 +453,14 @@ describe('compatibility routes', () => {
         .expect(200);
       expect(_.pick(res.body, ['id'])).toMatchSnapshot();
     });
+
+    it('should return post by short id', async () => {
+      const res = await request(app.server)
+        .get('/v1/posts/sp1')
+        .send()
+        .expect(200);
+      expect(_.pick(res.body, ['id'])).toMatchSnapshot();
+    });
   });
 
   describe('POST /posts/:id/hide', () => {

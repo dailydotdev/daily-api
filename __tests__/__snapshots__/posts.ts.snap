@@ -6,6 +6,12 @@ Object {
 }
 `;
 
+exports[`compatibility routes GET /posts/:id should return post by short id 1`] = `
+Object {
+  "id": "p1",
+}
+`;
+
 exports[`compatibility routes GET /posts/:id should return private post by id 1`] = `
 Object {
   "id": "p6",
