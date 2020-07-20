@@ -16,6 +16,10 @@ export class Post {
   @PrimaryColumn({ type: 'text' })
   id: string;
 
+  @Column({ length: 14, nullable: true })
+  @Index('IDX_post_permalink')
+  shortId: string;
+
   @Column({ nullable: true })
   publishedAt?: Date;
 

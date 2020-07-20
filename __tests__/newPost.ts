@@ -62,6 +62,7 @@ it('should save a new post with basic information', async () => {
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
     score: expect.any(Number),
+    shortId: expect.any(String),
   });
 });
 
@@ -104,6 +105,7 @@ it('should save a new post with full information', async () => {
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
     score: expect.any(Number),
+    shortId: expect.any(String),
   });
   expect(tags).toMatchSnapshot();
 });
