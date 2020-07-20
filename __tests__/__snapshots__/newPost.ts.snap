@@ -12,7 +12,7 @@ Object {
   "ratio": null,
   "readTime": null,
   "score": 0,
-  "shortId": null,
+  "shortId": "p1",
   "siteTwitter": null,
   "sourceId": "a",
   "tagsStr": "javascript,webdev",

@@ -40,6 +40,11 @@ export const typeDefs = gql`
     id: ID!
 
     """
+    Unique URL friendly short identifier
+    """
+    shortId: String
+
+    """
     Time the post was published
     """
     publishedAt: DateTime

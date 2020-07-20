@@ -15,7 +15,7 @@ interface Row {
     .select('id')
     .from(Post, 'p')
     .where('p."shortId" is NULL')
-    .limit(10000)
+    .limit(50000)
     .stream();
 
   let index = 0;

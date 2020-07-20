@@ -16,8 +16,8 @@ export class Post {
   @PrimaryColumn({ type: 'text' })
   id: string;
 
-  @Column({ length: 14, nullable: true })
-  @Index('IDX_post_permalink')
+  @Column({ length: 14 })
+  @Index('IDX_post_shortid', { unique: true })
   shortId: string;
 
   @Column({ nullable: true })

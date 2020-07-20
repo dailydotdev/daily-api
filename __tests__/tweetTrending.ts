@@ -27,6 +27,7 @@ it('should tweet the latest post over the views threshold', async () => {
   await saveFixtures(con, Post, [
     {
       id: 'p1',
+      shortId: 'p1',
       title: 'P1',
       url: 'http://p1.com',
       score: 0,
@@ -35,6 +36,7 @@ it('should tweet the latest post over the views threshold', async () => {
     },
     {
       id: 'p2',
+      shortId: 'p2',
       title: 'P2',
       url: 'http://p2.com',
       score: 0,
@@ -44,6 +46,7 @@ it('should tweet the latest post over the views threshold', async () => {
     },
     {
       id: 'p3',
+      shortId: 'p3',
       title: 'P3',
       url: 'http://p3.com',
       score: 0,
@@ -65,6 +68,7 @@ it('should tag the author and site and add hashtags', async () => {
   await saveFixtures(con, Post, [
     {
       id: 'p1',
+      shortId: 'p1',
       title: 'P1',
       url: 'http://p1.com',
       score: 0,
@@ -98,6 +102,7 @@ it('should fallback to source twitter', async () => {
   await saveFixtures(con, Post, [
     {
       id: 'p1',
+      shortId: 'p1',
       title: 'P1',
       url: 'http://p1.com',
       score: 0,

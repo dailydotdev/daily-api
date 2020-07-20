@@ -33,6 +33,7 @@ it('should update views and scores', async () => {
   await saveFixtures(con, Post, [
     {
       id: 'p1',
+      shortId: 'p1',
       title: 'P1',
       url: 'http://p1.com',
       score: 0,
@@ -41,6 +42,7 @@ it('should update views and scores', async () => {
     },
     {
       id: 'p2',
+      shortId: 'p2',
       title: 'P2',
       url: 'http://p2.com',
       score: 0,
@@ -49,6 +51,7 @@ it('should update views and scores', async () => {
     },
     {
       id: 'p3',
+      shortId: 'p3',
       title: 'P3',
       url: 'http://p3.com',
       score: 0,
