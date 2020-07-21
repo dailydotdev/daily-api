@@ -17,3 +17,4 @@ export * from './SourceRequest';
 export * from './TagCount';
 export * from './TagSegment';
 export * from './View';
+export * from './User';
