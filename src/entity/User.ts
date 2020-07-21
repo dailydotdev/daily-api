@@ -5,9 +5,9 @@ export class User {
   @PrimaryColumn({ length: 36 })
   id: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', nullable: true })
   name: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', nullable: true })
   image: string;
 }
