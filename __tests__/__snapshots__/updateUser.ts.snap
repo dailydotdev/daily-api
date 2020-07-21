@@ -1,0 +1,9 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`should update an existing user 1`] = `
+User {
+  "id": "abc",
+  "image": "https://daily.dev/image.jpg",
+  "name": "Ido",
+}
+`;
