@@ -18,6 +18,7 @@ Object {
   "tagsStr": "javascript,webdev",
   "title": "P1",
   "tweeted": false,
+  "upvotes": 0,
   "url": "http://p1.com",
   "views": 0,
 }
@@ -41,6 +42,7 @@ Object {
   "tagsStr": null,
   "title": "Title",
   "tweeted": false,
+  "upvotes": 0,
   "url": "https://post.com",
   "views": 0,
 }
@@ -64,6 +66,7 @@ Object {
   "tagsStr": "javascript,html",
   "title": "Title",
   "tweeted": false,
+  "upvotes": 0,
   "url": "https://post.com",
   "views": 0,
 }

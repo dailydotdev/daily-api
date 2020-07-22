@@ -91,6 +91,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   loggedUser = null;
+  mocked(notifySourceRequest).mockClear();
 });
 
 afterAll(() => app.close());
@@ -137,8 +138,7 @@ describe('mutation requestSource', () => {
       variables: { data },
     });
     expect(res.data).toMatchSnapshot();
-    const newReq = await con.getRepository(SourceRequest).findOne();
-    expect(notifySourceRequest).toBeCalledWith('new', newReq);
+    expect(notifySourceRequest).toBeCalledTimes(1);
   });
 });
 
@@ -219,8 +219,7 @@ describe('mutation declineSourceRequest', () => {
       variables: { data },
     });
     expect(res.data).toMatchSnapshot();
-    const newReq = await con.getRepository(SourceRequest).findOne(req.id);
-    expect(notifySourceRequest).toBeCalledWith('decline', newReq);
+    expect(notifySourceRequest).toBeCalledTimes(1);
   });
 });
 
@@ -254,8 +253,7 @@ describe('mutation approveSourceRequest', () => {
       mutation: MUTATION(req.id),
     });
     expect(res.data).toMatchSnapshot();
-    const newReq = await con.getRepository(SourceRequest).findOne(req.id);
-    expect(notifySourceRequest).toBeCalledWith('approve', newReq);
+    expect(notifySourceRequest).toBeCalledTimes(1);
   });
 });
 
@@ -347,8 +345,7 @@ describe('mutation publishSourceRequest', () => {
       req.sourceId,
       'subscribe',
     );
-    const newReq = await con.getRepository(SourceRequest).findOne(req.id);
-    expect(notifySourceRequest).toBeCalledWith('publish', newReq);
+    expect(notifySourceRequest).toBeCalledTimes(1);
     const source = await con.getRepository(Source).findOneOrFail(req.sourceId);
     expect(source).toMatchSnapshot();
     expect(await source.feeds).toMatchSnapshot();
