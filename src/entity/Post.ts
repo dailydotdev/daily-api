@@ -82,6 +82,10 @@ export class Post {
   @Column({ type: 'text', nullable: true })
   @Index('IDX_tags')
   tagsStr: string;
+
+  @Column({ type: 'integer', default: 0 })
+  @Index('IDX_post_upvotes')
+  upvotes: number;
 }
 
 export interface SearchPostsResult {

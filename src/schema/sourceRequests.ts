@@ -340,7 +340,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         userEmail: info.email,
       });
       await repo.save(sourceReq);
-      await notifySourceRequest('new', sourceReq);
+      await notifySourceRequest(ctx.log, 'new', sourceReq);
       return sourceReq;
     },
     updateSourceRequest: async (
@@ -360,7 +360,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         closed: true,
         ...data,
       });
-      await notifySourceRequest('decline', req);
+      await notifySourceRequest(ctx.log, 'decline', req);
       return req;
     },
     approveSourceRequest: async (
@@ -371,7 +371,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const req = await partialUpdateSourceRequest(ctx, id, {
         approved: true,
       });
-      await notifySourceRequest('approve', req);
+      await notifySourceRequest(ctx.log, 'approve', req);
       return req;
     },
     publishSourceRequest: async (
@@ -394,7 +394,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       await createSourceFromRequest(ctx, req);
       req.closed = true;
       await ctx.getRepository(SourceRequest).save(req);
-      await notifySourceRequest('publish', req);
+      await notifySourceRequest(ctx.log, 'publish', req);
       await addOrRemoveSuperfeedrSubscription(
         req.sourceFeed,
         req.sourceId,

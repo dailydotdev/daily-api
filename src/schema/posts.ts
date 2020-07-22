@@ -3,8 +3,8 @@ import { Connection, DeepPartial } from 'typeorm';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { generateFeed, notifyPostReport } from '../common';
-import { HiddenPost, Post } from '../entity';
+import { generateFeed, notifyPostReport, notifyPostUpvoted } from '../common';
+import { HiddenPost, Post, Upvote } from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
@@ -25,6 +25,7 @@ export interface GQLPost {
   read?: boolean;
   bookmarked?: boolean;
   bookmarkList?: GQLBookmarkList;
+  upvotes: number;
   // Used only for pagination (not part of the schema)
   score: number;
   bookmarkedAt: Date;
@@ -114,6 +115,11 @@ export const typeDefs = gql`
     Permanent link to the post
     """
     permalink: String
+
+    """
+    Total number of upvotes
+    """
+    upvotes: Int
   }
 
   type PostConnection {
@@ -183,6 +189,26 @@ export const typeDefs = gql`
       Reason the user would like to report
       """
       reason: ReportReason
+    ): EmptyResponse @auth
+
+    """
+    Upvote to the post
+    """
+    upvote(
+      """
+      Id of the post to upvote
+      """
+      id: ID
+    ): EmptyResponse @auth
+
+    """
+    Cancel an upvote of a post
+    """
+    cancelUpvote(
+      """
+      Id of the post
+      """
+      id: ID
     ): EmptyResponse @auth
   }
 `;
@@ -266,6 +292,56 @@ export const resolvers: IResolvers<any, Context> = {
         const post = await ctx.getRepository(Post).findOneOrFail(id);
         await notifyPostReport(ctx.userId, post, reportReasons.get(reason));
       }
+      return { _: true };
+    },
+    upvote: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      try {
+        await ctx.con.transaction(async (entityManager) => {
+          await entityManager.getRepository(Upvote).insert({
+            postId: id,
+            userId: ctx.userId,
+          });
+          await entityManager
+            .getRepository(Post)
+            .increment({ id }, 'upvotes', 1);
+        });
+        await notifyPostUpvoted(ctx.log, id, ctx.userId);
+      } catch (err) {
+        // Foreign key violation
+        if (err?.code === '23503') {
+          throw new NotFoundError('Post or user not found');
+        }
+        // Unique violation
+        if (err?.code !== '23505') {
+          throw err;
+        }
+      }
+      return { _: true };
+    },
+    cancelUpvote: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.transaction(async (entityManager) => {
+        const upvote = await entityManager.getRepository(Upvote).findOne({
+          postId: id,
+          userId: ctx.userId,
+        });
+        if (upvote) {
+          await entityManager.getRepository(Upvote).delete({
+            postId: id,
+            userId: ctx.userId,
+          });
+          await entityManager
+            .getRepository(Post)
+            .decrement({ id }, 'upvotes', 1);
+        }
+      });
       return { _: true };
     },
   }),
