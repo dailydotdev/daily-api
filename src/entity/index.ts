@@ -18,3 +18,4 @@ export * from './TagCount';
 export * from './TagSegment';
 export * from './View';
 export * from './User';
+export * from './Upvote';

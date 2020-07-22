@@ -48,6 +48,7 @@ it('should update views and scores', async () => {
       score: 0,
       sourceId: 'b',
       createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 7),
+      upvotes: 5,
     },
     {
       id: 'p3',
@@ -80,7 +81,7 @@ it('should update views and scores', async () => {
   expect(posts[1].score).toEqual(
     Math.round(
       posts[1].createdAt.getTime() / (1000 * 60) +
-        Math.pow(Math.log(2 + 1) / Math.log(5), 2) * 60,
+        Math.pow(Math.log(2 + 5 * 2 + 1) / Math.log(5), 2) * 60,
     ),
   );
   expect(posts[2].views).toEqual(5);
