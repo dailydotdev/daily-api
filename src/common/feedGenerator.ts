@@ -13,6 +13,8 @@ import {
   View,
   BookmarkList,
   FeedSource,
+  Upvote,
+  Comment,
 } from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
@@ -97,6 +99,32 @@ export const selectRead = (
   return `EXISTS${query}`;
 };
 
+export const selectUpvoted = (
+  userId: string,
+  builder: SelectQueryBuilder<Post>,
+): string => {
+  const query = builder
+    .select('1')
+    .from(Upvote, 'upvote')
+    .where(`upvote.userId = :userId`, { userId })
+    .andWhere('upvote.postId = post.id')
+    .getQuery();
+  return `EXISTS${query}`;
+};
+
+export const selectCommented = (
+  userId: string,
+  builder: SelectQueryBuilder<Post>,
+): string => {
+  const query = builder
+    .select('1')
+    .from(Comment, 'comment')
+    .where(`comment.userId = :userId`, { userId })
+    .andWhere('comment.postId = post.id')
+    .getQuery();
+  return `EXISTS${query}`;
+};
+
 export const whereUnread = (
   userId: string,
   builder: SelectQueryBuilder<Post>,
@@ -168,6 +196,8 @@ export const generateFeed = async <TPage extends Page>(
   if (ctx.userId) {
     builder = builder
       .addSelect(selectRead(ctx.userId, builder.subQuery()), 'read')
+      .addSelect(selectUpvoted(ctx.userId, builder.subQuery()), 'upvoted')
+      .addSelect(selectCommented(ctx.userId, builder.subQuery()), 'commented')
       .addSelect('bookmark.postId IS NOT NULL', 'bookmarked')
       .leftJoin(
         Bookmark,

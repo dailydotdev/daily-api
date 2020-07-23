@@ -24,6 +24,8 @@ export interface GQLPost {
   tags?: string[];
   read?: boolean;
   bookmarked?: boolean;
+  upvoted?: boolean;
+  commented?: boolean;
   bookmarkList?: GQLBookmarkList;
   numUpvotes: number;
   numComments: number;
@@ -106,6 +108,16 @@ export const typeDefs = gql`
     Whether the user bookmarked this post
     """
     bookmarked: Boolean @auth
+
+    """
+    Whether the user upvoted this post
+    """
+    upvoted: Boolean @auth
+
+    """
+    Whether the user commented this post
+    """
+    commented: Boolean @auth
 
     """
     If bookmarked, this is the list where it is saved

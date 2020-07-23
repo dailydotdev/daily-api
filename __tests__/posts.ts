@@ -30,6 +30,7 @@ import {
   BookmarkList,
   User,
   Upvote,
+  Comment,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
@@ -292,6 +293,72 @@ describe('permalink field', () => {
   it('should return permalink of the post', async () => {
     const res = await client.query({ query: QUERY });
     expect(res.data.post.permalink).toEqual('http://localhost:4000/r/sp1');
+  });
+});
+
+describe('upvoted field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      upvoted
+    }
+  }`;
+
+  it('should return null when user is not logged in', async () => {
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.upvoted).toEqual(null);
+  });
+
+  it('should return false when user did not upvoted the post', async () => {
+    loggedUser = '1';
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.upvoted).toEqual(false);
+  });
+
+  it('should return true when user did upvoted the post', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Upvote);
+    await repo.save(
+      repo.create({
+        postId: 'p1',
+        userId: loggedUser,
+      }),
+    );
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.upvoted).toEqual(true);
+  });
+});
+
+describe('commented field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      commented
+    }
+  }`;
+
+  it('should return null when user is not logged in', async () => {
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.commented).toEqual(null);
+  });
+
+  it('should return false when user did not commented the post', async () => {
+    loggedUser = '1';
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.commented).toEqual(false);
+  });
+
+  it('should return true when user did commented the post', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Comment);
+    await repo.save(
+      repo.create({
+        id: 'c1',
+        postId: 'p1',
+        userId: loggedUser,
+        content: 'My comment',
+      }),
+    );
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.commented).toEqual(true);
   });
 });
 
