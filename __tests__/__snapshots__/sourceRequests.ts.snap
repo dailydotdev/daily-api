@@ -83,14 +83,7 @@ Object {
 }
 `;
 
-exports[`mutation publishSourceRequest should publish a source request 1`] = `
-Object {
-  "publishSourceRequest": Object {
-    "approved": true,
-    "closed": true,
-  },
-}
-`;
+exports[`mutation publishSourceRequest should publish a source request 1`] = `null`;
 
 exports[`mutation publishSourceRequest should publish a source request 2`] = `
 Source {
