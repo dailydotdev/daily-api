@@ -10,7 +10,11 @@ import { Context } from '../src/Context';
 import { MockContext, saveFixtures, testMutationErrorCode } from './helpers';
 import appFunc from '../src';
 import { mocked } from 'ts-jest/utils';
-import { notifyPostCommented, notifyCommentCommented } from '../src/common';
+import {
+  notifyPostCommented,
+  notifyCommentCommented,
+  notifyCommentUpvoted,
+} from '../src/common';
 import {
   Post,
   PostTag,
@@ -18,6 +22,7 @@ import {
   SourceDisplay,
   Comment,
   User,
+  CommentUpvote,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
@@ -33,6 +38,7 @@ jest.mock('../src/common', () => ({
   ...jest.requireActual('../src/common'),
   notifyPostCommented: jest.fn(),
   notifyCommentCommented: jest.fn(),
+  notifyCommentUpvoted: jest.fn(),
 }));
 
 beforeAll(async () => {
@@ -50,6 +56,7 @@ beforeEach(async () => {
   loggedUser = null;
   mocked(notifyPostCommented).mockClear();
   mocked(notifyCommentCommented).mockClear();
+  mocked(notifyCommentUpvoted).mockClear();
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
@@ -289,5 +296,133 @@ describe('mutation deleteComment', () => {
     expect(actual.length).toEqual(0);
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.comments).toEqual(-2);
+  });
+});
+
+describe('mutation upvoteComment', () => {
+  const MUTATION = `
+  mutation Upvote($id: ID!) {
+  upvoteComment(id: $id) {
+    _
+  }
+}`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'c1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw not found when cannot find comment', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'invalid' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw not found when cannot find user', () => {
+    loggedUser = '2';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'c1' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should upvote comment', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'c1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con
+      .getRepository(CommentUpvote)
+      .find({ select: ['commentId', 'userId'] });
+    expect(actual).toMatchSnapshot();
+    const comment = await con.getRepository(Comment).findOne('c1');
+    expect(comment.upvotes).toEqual(1);
+    // Cannot use toBeCalledWith for because of logger for some reason
+    expect(mocked(notifyCommentUpvoted).mock.calls[0].slice(1)).toEqual([
+      'c1',
+      '1',
+    ]);
+  });
+
+  it('should ignore conflicts', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(CommentUpvote);
+    await repo.save({ commentId: 'c1', userId: loggedUser });
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'c1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await repo.find({
+      select: ['commentId', 'userId'],
+    });
+    expect(actual).toMatchSnapshot();
+    const comment = await con.getRepository(Comment).findOne('c1');
+    expect(comment.upvotes).toEqual(0);
+    expect(notifyCommentUpvoted).toBeCalledTimes(0);
+  });
+});
+
+describe('mutation cancelCommentUpvote', () => {
+  const MUTATION = `
+  mutation CancelUpvote($id: ID!) {
+  cancelCommentUpvote(id: $id) {
+    _
+  }
+}`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'c1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should cancel comment upvote', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(CommentUpvote);
+    await repo.save({ commentId: 'c1', userId: loggedUser });
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'c1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(CommentUpvote).find();
+    expect(actual).toEqual([]);
+    const comment = await con.getRepository(Comment).findOne('c1');
+    expect(comment.upvotes).toEqual(-1);
+  });
+
+  it('should ignore if no upvotes', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'c1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(CommentUpvote).find();
+    expect(actual).toEqual([]);
+    const comment = await con.getRepository(Comment).findOne('c1');
+    expect(comment.upvotes).toEqual(0);
   });
 });

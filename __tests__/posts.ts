@@ -567,7 +567,7 @@ describe('mutation cancelUpvote', () => {
     expect(post.upvotes).toEqual(-1);
   });
 
-  it('should ignore if no upvote', async () => {
+  it('should ignore if no upvotes', async () => {
     loggedUser = '1';
     const res = await client.mutate({
       mutation: MUTATION,
