@@ -122,7 +122,7 @@ export const typeDefs = gql`
     """
     Whether to open articles on new tab
     """
-    openNewTab: Boolean!
+    openNewTab: Boolean
   }
 
   extend type Mutation {
