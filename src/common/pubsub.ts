@@ -6,6 +6,7 @@ import { toLegacySourceRequest } from '../compatibility/entity';
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
 const postUpvotedTopic = pubsub.topic('post-upvoted');
+const commentUpvotedTopic = pubsub.topic('comment-upvoted');
 const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-upvoted');
 
@@ -45,6 +46,16 @@ export const notifyPostUpvoted = async (
 ): Promise<void> =>
   publishEvent(log, postUpvotedTopic, {
     postId,
+    userId,
+  });
+
+export const notifyCommentUpvoted = async (
+  log: Logger,
+  commentId: string,
+  userId: string,
+): Promise<void> =>
+  publishEvent(log, commentUpvotedTopic, {
+    commentId,
     userId,
   });
 

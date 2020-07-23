@@ -17,3 +17,21 @@ Object {
   "parentId": null,
 }
 `;
+
+exports[`mutation upvoteComment should ignore conflicts 1`] = `
+Array [
+  CommentUpvote {
+    "commentId": "c1",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`mutation upvoteComment should upvote comment 1`] = `
+Array [
+  CommentUpvote {
+    "commentId": "c1",
+    "userId": "1",
+  },
+]
+`;
