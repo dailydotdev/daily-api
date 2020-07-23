@@ -1,0 +1,19 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`mutation commentOnComment should comment on a comment 1`] = `
+Object {
+  "comments": 0,
+  "content": "my comment",
+  "id": Any<String>,
+  "parentId": "c1",
+  "postId": "p1",
+}
+`;
+
+exports[`mutation commentOnPost should comment on a post 1`] = `
+Object {
+  "content": "my comment",
+  "id": Any<String>,
+  "parentId": null,
+}
+`;

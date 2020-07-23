@@ -28,11 +28,13 @@ import {
   SourceDisplay,
   View,
   BookmarkList,
+  User,
+  Upvote,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 import { postsFixture, postTagsFixture } from './fixture/post';
-import { notifyPostReport } from '../src/common';
+import { notifyPostReport, notifyPostUpvoted } from '../src/common';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -44,6 +46,7 @@ let premiumUser = false;
 jest.mock('../src/common', () => ({
   ...jest.requireActual('../src/common'),
   notifyPostReport: jest.fn(),
+  notifyPostUpvoted: jest.fn(),
 }));
 
 beforeAll(async () => {
@@ -61,11 +64,15 @@ beforeEach(async () => {
   loggedUser = null;
   premiumUser = false;
   mocked(notifyPostReport).mockClear();
+  mocked(notifyPostUpvoted).mockClear();
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
+  await con
+    .getRepository(User)
+    .save({ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' });
 });
 
 afterAll(() => app.close());
@@ -84,6 +91,7 @@ describe('image fields', () => {
     await repo.save(
       repo.create({
         id: 'image',
+        shortId: 'image',
         title: 'No image',
         url: 'http://noimage.com',
         score: 0,
@@ -100,6 +108,7 @@ describe('image fields', () => {
     await repo.save(
       repo.create({
         id: 'image',
+        shortId: 'image',
         title: 'Image',
         url: 'http://post.com',
         score: 0,
@@ -273,6 +282,19 @@ describe('bookmarkList field', () => {
   });
 });
 
+describe('permalink field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      permalink
+    }
+  }`;
+
+  it('should return permalink of the post', async () => {
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.permalink).toEqual('http://localhost:4000/r/sp1');
+  });
+});
+
 describe('query post', () => {
   const QUERY = (id: string): string => `{
     post(id: "${id}") {
@@ -431,6 +453,134 @@ describe('mutation reportPost', () => {
   });
 });
 
+describe('mutation upvote', () => {
+  const MUTATION = `
+  mutation Upvote($id: ID!) {
+  upvote(id: $id) {
+    _
+  }
+}`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw not found when cannot find post', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'invalid' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw not found when cannot find user', () => {
+    loggedUser = '2';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should upvote post', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con
+      .getRepository(Upvote)
+      .find({ select: ['postId', 'userId'] });
+    expect(actual).toMatchSnapshot();
+    const post = await con.getRepository(Post).findOne('p1');
+    expect(post.upvotes).toEqual(1);
+    // Cannot use toBeCalledWith for because of logger for some reason
+    expect(mocked(notifyPostUpvoted).mock.calls[0].slice(1)).toEqual([
+      'p1',
+      '1',
+    ]);
+  });
+
+  it('should ignore conflicts', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Upvote);
+    await repo.save({ postId: 'p1', userId: loggedUser });
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await repo.find({
+      select: ['postId', 'userId'],
+    });
+    expect(actual).toMatchSnapshot();
+    const post = await con.getRepository(Post).findOne('p1');
+    expect(post.upvotes).toEqual(0);
+    expect(notifyPostUpvoted).toBeCalledTimes(0);
+  });
+});
+
+describe('mutation cancelUpvote', () => {
+  const MUTATION = `
+  mutation CancelUpvote($id: ID!) {
+  cancelUpvote(id: $id) {
+    _
+  }
+}`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should cancel post upvote', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Upvote);
+    await repo.save({ postId: 'p1', userId: loggedUser });
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Upvote).find();
+    expect(actual).toEqual([]);
+    const post = await con.getRepository(Post).findOne('p1');
+    expect(post.upvotes).toEqual(-1);
+  });
+
+  it('should ignore if no upvote', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Upvote).find();
+    expect(actual).toEqual([]);
+    const post = await con.getRepository(Post).findOne('p1');
+    expect(post.upvotes).toEqual(0);
+  });
+});
+
 describe('compatibility routes', () => {
   describe('GET /posts/:id', () => {
     it('should throw not found when cannot find post', () =>
@@ -447,6 +597,14 @@ describe('compatibility routes', () => {
     it('should return private post by id', async () => {
       const res = await request(app.server)
         .get('/v1/posts/p6')
+        .send()
+        .expect(200);
+      expect(_.pick(res.body, ['id'])).toMatchSnapshot();
+    });
+
+    it('should return post by short id', async () => {
+      const res = await request(app.server)
+        .get('/v1/posts/sp1')
         .send()
         .expect(200);
       expect(_.pick(res.body, ['id'])).toMatchSnapshot();

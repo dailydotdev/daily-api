@@ -26,6 +26,7 @@ const now = new Date(1591192264260);
 export const postsFixture: DeepPartial<Post>[] = [
   {
     id: 'p1',
+    shortId: 'p1',
     title: 'P1',
     url: 'http://p1.com',
     score: 0,
@@ -34,6 +35,7 @@ export const postsFixture: DeepPartial<Post>[] = [
   },
   {
     id: 'p2',
+    shortId: 'p2',
     title: 'P2',
     url: 'http://p2.com',
     score: 7,
@@ -42,6 +44,7 @@ export const postsFixture: DeepPartial<Post>[] = [
   },
   {
     id: 'p3',
+    shortId: 'p3',
     title: 'P3',
     url: 'http://p3.com',
     score: 4,
@@ -50,6 +53,7 @@ export const postsFixture: DeepPartial<Post>[] = [
   },
   {
     id: 'p4',
+    shortId: 'p4',
     title: 'P4',
     url: 'http://p4.com',
     score: 3,
@@ -58,6 +62,7 @@ export const postsFixture: DeepPartial<Post>[] = [
   },
   {
     id: 'p5',
+    shortId: 'p5',
     title: 'P5',
     url: 'http://p5.com',
     score: 10,

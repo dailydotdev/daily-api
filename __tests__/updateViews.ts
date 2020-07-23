@@ -33,6 +33,7 @@ it('should update views and scores', async () => {
   await saveFixtures(con, Post, [
     {
       id: 'p1',
+      shortId: 'p1',
       title: 'P1',
       url: 'http://p1.com',
       score: 0,
@@ -41,14 +42,17 @@ it('should update views and scores', async () => {
     },
     {
       id: 'p2',
+      shortId: 'p2',
       title: 'P2',
       url: 'http://p2.com',
       score: 0,
       sourceId: 'b',
       createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 7),
+      upvotes: 5,
     },
     {
       id: 'p3',
+      shortId: 'p3',
       title: 'P3',
       url: 'http://p3.com',
       score: 0,
@@ -77,7 +81,7 @@ it('should update views and scores', async () => {
   expect(posts[1].score).toEqual(
     Math.round(
       posts[1].createdAt.getTime() / (1000 * 60) +
-        Math.pow(Math.log(2 + 1) / Math.log(5), 2) * 60,
+        Math.pow(Math.log(2 + 5 * 2 + 1) / Math.log(5), 2) * 60,
     ),
   );
   expect(posts[2].views).toEqual(5);

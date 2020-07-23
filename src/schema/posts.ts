@@ -3,13 +3,15 @@ import { Connection, DeepPartial } from 'typeorm';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { generateFeed, notifyPostReport } from '../common';
-import { HiddenPost, Post } from '../entity';
+import { generateFeed, notifyPostReport, notifyPostUpvoted } from '../common';
+import { HiddenPost, Post, Upvote } from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError } from '../errors';
+import { GQLBookmarkList } from './bookmarks';
 
 export interface GQLPost {
   id: string;
+  shortId: string;
   publishedAt?: Date;
   createdAt: Date;
   url: string;
@@ -22,6 +24,12 @@ export interface GQLPost {
   tags?: string[];
   read?: boolean;
   bookmarked?: boolean;
+  bookmarkList?: GQLBookmarkList;
+  numUpvotes: number;
+  numComments: number;
+  // Used only for pagination (not part of the schema)
+  score: number;
+  bookmarkedAt: Date;
 }
 
 export const typeDefs = gql`
@@ -33,6 +41,11 @@ export const typeDefs = gql`
     Unique identifier
     """
     id: ID!
+
+    """
+    Unique URL friendly short identifier
+    """
+    shortId: String
 
     """
     Time the post was published
@@ -98,6 +111,21 @@ export const typeDefs = gql`
     If bookmarked, this is the list where it is saved
     """
     bookmarkList: BookmarkList
+
+    """
+    Permanent link to the post
+    """
+    permalink: String!
+
+    """
+    Total number of upvotes
+    """
+    numUpvotes: Int!
+
+    """
+    Total number of comments
+    """
+    numComments: Int!
   }
 
   type PostConnection {
@@ -168,6 +196,26 @@ export const typeDefs = gql`
       """
       reason: ReportReason
     ): EmptyResponse @auth
+
+    """
+    Upvote to the post
+    """
+    upvote(
+      """
+      Id of the post to upvote
+      """
+      id: ID!
+    ): EmptyResponse @auth
+
+    """
+    Cancel an upvote of a post
+    """
+    cancelUpvote(
+      """
+      Id of the post
+      """
+      id: ID!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -216,8 +264,8 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLPost> => {
-      const feed = await generateFeed(ctx, 1, 0, (builder) =>
-        builder.where('post.id = :id', { id }),
+      const feed = await generateFeed(ctx, (builder) =>
+        builder.where('post.id = :id', { id }).limit(1),
       );
       if (feed.nodes.length) {
         return feed.nodes[0];
@@ -252,6 +300,56 @@ export const resolvers: IResolvers<any, Context> = {
       }
       return { _: true };
     },
+    upvote: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      try {
+        await ctx.con.transaction(async (entityManager) => {
+          await entityManager.getRepository(Upvote).insert({
+            postId: id,
+            userId: ctx.userId,
+          });
+          await entityManager
+            .getRepository(Post)
+            .increment({ id }, 'upvotes', 1);
+        });
+        await notifyPostUpvoted(ctx.log, id, ctx.userId);
+      } catch (err) {
+        // Foreign key violation
+        if (err?.code === '23503') {
+          throw new NotFoundError('Post or user not found');
+        }
+        // Unique violation
+        if (err?.code !== '23505') {
+          throw err;
+        }
+      }
+      return { _: true };
+    },
+    cancelUpvote: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.transaction(async (entityManager) => {
+        const upvote = await entityManager.getRepository(Upvote).findOne({
+          postId: id,
+          userId: ctx.userId,
+        });
+        if (upvote) {
+          await entityManager.getRepository(Upvote).delete({
+            postId: id,
+            userId: ctx.userId,
+          });
+          await entityManager
+            .getRepository(Post)
+            .decrement({ id }, 'upvotes', 1);
+        }
+      });
+      return { _: true };
+    },
   }),
   Post: {
     image: (post: GQLPost): string => post.image || pickImageUrl(post),
@@ -259,5 +357,7 @@ export const resolvers: IResolvers<any, Context> = {
       post.image ? post.placeholder : defaultImage.placeholder,
     ratio: (post: GQLPost): number =>
       post.image ? post.ratio : defaultImage.ratio,
+    permalink: (post: GQLPost): string =>
+      `${process.env.URL_PREFIX}/r/${post.shortId}`,
   },
 };

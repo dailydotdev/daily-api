@@ -174,7 +174,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const con = getConnection();
     const post = await con.getRepository(Post).findOne({
       select: ['id', 'title', 'url'],
-      where: { id: req.params.id },
+      where: [{ id: req.params.id }, { shortId: req.params.id }],
     });
     if (!post) {
       return res.status(404).send();

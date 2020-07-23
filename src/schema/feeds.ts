@@ -4,20 +4,35 @@ import { traceResolvers } from './trace';
 import {
   anonymousFeedBuilder,
   AnonymousFeedFilters,
+  base64,
   configuredFeedBuilder,
   FeedArgs,
   feedResolver,
+  getCursorFromAfter,
   nestChild,
+  Ranking,
   searchPostFeedBuilder,
   selectSource,
   sourceFeedBuilder,
   tagFeedBuilder,
 } from '../common';
-import { In } from 'typeorm';
-import { Feed, FeedTag, searchPosts, BookmarkList } from '../entity';
+import { In, SelectQueryBuilder } from 'typeorm';
+import {
+  BookmarkList,
+  Feed,
+  FeedSource,
+  FeedTag,
+  Post,
+  searchPosts,
+} from '../entity';
 import { GQLSource } from './sources';
-import { FeedSource } from '../entity/FeedSource';
-import { forwardPagination } from './common';
+import {
+  forwardPagination,
+  offsetPageGenerator,
+  Page,
+  PageGenerator,
+} from './common';
+import { GQLPost } from './posts';
 
 export const typeDefs = gql`
   type FeedSettings {
@@ -77,7 +92,7 @@ export const typeDefs = gql`
       """
       Time the pagination started to ignore new items
       """
-      now: DateTime!
+      now: DateTime
 
       """
       Paginate after opaque cursor
@@ -107,7 +122,7 @@ export const typeDefs = gql`
       """
       Time the pagination started to ignore new items
       """
-      now: DateTime!
+      now: DateTime
 
       """
       Paginate after opaque cursor
@@ -142,7 +157,7 @@ export const typeDefs = gql`
       """
       Time the pagination started to ignore new items
       """
-      now: DateTime!
+      now: DateTime
 
       """
       Paginate after opaque cursor
@@ -172,7 +187,7 @@ export const typeDefs = gql`
       """
       Time the pagination started to ignore new items
       """
-      now: DateTime!
+      now: DateTime
 
       """
       Paginate after opaque cursor
@@ -217,7 +232,7 @@ export const typeDefs = gql`
       """
       Time the pagination started to ignore new items
       """
-      now: DateTime!
+      now: DateTime
 
       """
       Paginate after opaque cursor
@@ -298,32 +313,83 @@ interface TagFeedArgs extends FeedArgs {
   tag: string;
 }
 
+interface FeedPage extends Page {
+  limit: number;
+  timestamp?: Date;
+  score?: number;
+}
+
+const feedPageGenerator: PageGenerator<GQLPost, FeedArgs, FeedPage> = {
+  connArgsToPage: ({ ranking, first, after }: FeedArgs) => {
+    const cursor = getCursorFromAfter(after);
+    const limit = Math.min(first || 30, 50);
+    if (cursor) {
+      if (ranking === Ranking.POPULARITY) {
+        return { limit, score: parseInt(cursor) };
+      }
+      return { limit, timestamp: new Date(parseInt(cursor)) };
+    }
+    return { limit };
+  },
+  nodeToCursor: (page, { ranking }, node) => {
+    if (ranking === Ranking.POPULARITY) {
+      return base64(`score:${node.score}`);
+    }
+    return base64(`time:${node.createdAt.getTime()}`);
+  },
+  hasNextPage: (page, nodesSize) => page.limit === nodesSize,
+  hasPreviousPage: (page) => !!(page.score || page.timestamp),
+};
+
+const applyFeedPaging = (
+  ctx: Context,
+  { ranking }: FeedArgs,
+  page: FeedPage,
+  builder: SelectQueryBuilder<Post>,
+): SelectQueryBuilder<Post> => {
+  let newBuilder = builder
+    .limit(page.limit)
+    .orderBy(
+      ranking === Ranking.POPULARITY ? 'post.score' : 'post.createdAt',
+      'DESC',
+    );
+  if (page.score) {
+    newBuilder = newBuilder.andWhere('post.score < :score', {
+      score: page.score,
+    });
+  } else if (page.timestamp) {
+    newBuilder = newBuilder.andWhere('post."createdAt" < :timestamp', {
+      timestamp: page.timestamp,
+    });
+  }
+  return newBuilder;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     anonymousFeed: feedResolver(
-      (ctx, { now, ranking, filters }: AnonymousFeedArgs, builder) =>
-        anonymousFeedBuilder(ctx, { now, ranking }, filters, builder),
+      (ctx, { filters }: AnonymousFeedArgs, builder) =>
+        anonymousFeedBuilder(ctx, filters, builder),
+      feedPageGenerator,
+      applyFeedPaging,
     ),
     feed: feedResolver(
-      (ctx, { now, ranking, unreadOnly }: ConfiguredFeedArgs, builder) =>
-        configuredFeedBuilder(
-          ctx,
-          {
-            now,
-            ranking,
-          },
-          ctx.userId,
-          unreadOnly,
-          builder,
-        ),
+      (ctx, { unreadOnly }: ConfiguredFeedArgs, builder) =>
+        configuredFeedBuilder(ctx, ctx.userId, unreadOnly, builder),
+      feedPageGenerator,
+      applyFeedPaging,
     ),
     sourceFeed: feedResolver(
-      (ctx, { now, ranking, source }: SourceFeedArgs, builder) =>
-        sourceFeedBuilder(ctx, { now, ranking }, source, builder),
+      (ctx, { source }: SourceFeedArgs, builder) =>
+        sourceFeedBuilder(ctx, source, builder),
+      feedPageGenerator,
+      applyFeedPaging,
     ),
-    tagFeed: feedResolver((ctx, { now, ranking, tag }: TagFeedArgs, builder) =>
-      tagFeedBuilder(ctx, { now, ranking }, tag, builder),
+    tagFeed: feedResolver(
+      (ctx, { tag }: TagFeedArgs, builder) => tagFeedBuilder(ctx, tag, builder),
+      feedPageGenerator,
+      applyFeedPaging,
     ),
     feedSettings: (source, args, ctx): Feed =>
       ctx.getRepository(Feed).create({
@@ -352,7 +418,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         hits: suggestions.map((s) => ({ title: s.highlight })),
       };
     },
-    searchPosts: forwardPagination(searchPostFeedBuilder, 30),
+    searchPosts: forwardPagination(
+      searchPostFeedBuilder,
+      offsetPageGenerator(30, 50),
+    ),
     rssFeeds: async (source, args, ctx): Promise<GQLRSSFeed[]> => {
       const urlPrefix = `${process.env.URL_PREFIX}/rss`;
       const lists = await ctx.getRepository(BookmarkList).find({

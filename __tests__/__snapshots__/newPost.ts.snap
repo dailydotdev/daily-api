@@ -3,6 +3,7 @@
 exports[`should ignore duplicate post 1`] = `
 Object {
   "canonicalUrl": null,
+  "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": null,
   "id": "p1",
@@ -12,11 +13,13 @@ Object {
   "ratio": null,
   "readTime": null,
   "score": 0,
+  "shortId": "sp1",
   "siteTwitter": null,
   "sourceId": "a",
   "tagsStr": "javascript,webdev",
   "title": "P1",
   "tweeted": false,
+  "upvotes": 0,
   "url": "http://p1.com",
   "views": 0,
 }
@@ -25,6 +28,7 @@ Object {
 exports[`should save a new post with basic information 1`] = `
 Object {
   "canonicalUrl": null,
+  "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": null,
   "id": "p1",
@@ -34,11 +38,13 @@ Object {
   "ratio": null,
   "readTime": null,
   "score": Any<Number>,
+  "shortId": Any<String>,
   "siteTwitter": null,
   "sourceId": "a",
   "tagsStr": null,
   "title": "Title",
   "tweeted": false,
+  "upvotes": 0,
   "url": "https://post.com",
   "views": 0,
 }
@@ -47,6 +53,7 @@ Object {
 exports[`should save a new post with full information 1`] = `
 Object {
   "canonicalUrl": null,
+  "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": "creator",
   "id": "p1",
@@ -56,11 +63,13 @@ Object {
   "ratio": 2,
   "readTime": 5,
   "score": Any<Number>,
+  "shortId": Any<String>,
   "siteTwitter": "site",
   "sourceId": "a",
   "tagsStr": "javascript,html",
   "title": "Title",
   "tweeted": false,
+  "upvotes": 0,
   "url": "https://post.com",
   "views": 0,
 }

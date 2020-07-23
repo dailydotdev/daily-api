@@ -467,6 +467,7 @@ describe('query bookmarks', () => {
     loggedUser = '1';
     await saveFixtures(con, Bookmark, bookmarksFixture);
     const res = await client.query({ query: QUERY(false, null, now, 2) });
+    delete res.data.bookmarksFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
   });
 
@@ -475,6 +476,7 @@ describe('query bookmarks', () => {
     await saveFixtures(con, Bookmark, bookmarksFixture);
     await con.getRepository(View).save([{ userId: '1', postId: 'p3' }]);
     const res = await client.query({ query: QUERY(true, null, now, 2) });
+    delete res.data.bookmarksFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
   });
 
@@ -495,6 +497,7 @@ describe('query bookmarks', () => {
       { listId: list.id },
     );
     const res = await client.query({ query: QUERY(false, list.id, now, 2) });
+    delete res.data.bookmarksFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
   });
 });

@@ -16,6 +16,10 @@ export class Post {
   @PrimaryColumn({ type: 'text' })
   id: string;
 
+  @Column({ length: 14 })
+  @Index('IDX_post_shortid', { unique: true })
+  shortId: string;
+
   @Column({ nullable: true })
   publishedAt?: Date;
 
@@ -78,6 +82,14 @@ export class Post {
   @Column({ type: 'text', nullable: true })
   @Index('IDX_tags')
   tagsStr: string;
+
+  @Column({ type: 'integer', default: 0 })
+  @Index('IDX_post_upvotes')
+  upvotes: number;
+
+  @Column({ type: 'integer', default: 0 })
+  @Index('IDX_post_comments')
+  comments: number;
 }
 
 export interface SearchPostsResult {

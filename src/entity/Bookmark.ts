@@ -17,7 +17,7 @@ export class Bookmark {
   @Index()
   listId: string;
 
-  @ManyToOne(() => Post, (post) => post.tags, {
+  @ManyToOne(() => Post, {
     lazy: true,
     onDelete: 'CASCADE',
   })

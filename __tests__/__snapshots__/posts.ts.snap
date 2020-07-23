@@ -6,6 +6,12 @@ Object {
 }
 `;
 
+exports[`compatibility routes GET /posts/:id should return post by short id 1`] = `
+Object {
+  "id": "p1",
+}
+`;
+
 exports[`compatibility routes GET /posts/:id should return private post by id 1`] = `
 Object {
   "id": "p6",
@@ -80,6 +86,24 @@ Array [
 exports[`mutation reportPost should report post 1`] = `
 Array [
   HiddenPost {
+    "postId": "p1",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`mutation upvote should ignore conflicts 1`] = `
+Array [
+  Upvote {
+    "postId": "p1",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`mutation upvote should upvote post 1`] = `
+Array [
+  Upvote {
     "postId": "p1",
     "userId": "1",
   },
