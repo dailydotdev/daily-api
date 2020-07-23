@@ -508,7 +508,11 @@ describe('mutation upvote', () => {
     expect(actual).toMatchSnapshot();
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.upvotes).toEqual(1);
-    expect(notifyPostUpvoted).toBeCalledTimes(1);
+    // Cannot use toBeCalledWith for because of logger for some reason
+    expect(mocked(notifyPostUpvoted).mock.calls[0].slice(1)).toEqual([
+      'p1',
+      '1',
+    ]);
   });
 
   it('should ignore conflicts', async () => {
