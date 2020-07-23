@@ -3,6 +3,7 @@
 exports[`should ignore duplicate post 1`] = `
 Object {
   "canonicalUrl": null,
+  "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": null,
   "id": "p1",
@@ -27,6 +28,7 @@ Object {
 exports[`should save a new post with basic information 1`] = `
 Object {
   "canonicalUrl": null,
+  "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": null,
   "id": "p1",
@@ -51,6 +53,7 @@ Object {
 exports[`should save a new post with full information 1`] = `
 Object {
   "canonicalUrl": null,
+  "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": "creator",
   "id": "p1",

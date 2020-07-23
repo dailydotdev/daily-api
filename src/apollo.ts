@@ -5,6 +5,7 @@ import { ApolloErrorConverter } from 'apollo-error-converter';
 import responseCachePlugin from 'apollo-server-plugin-response-cache';
 
 import * as common from './schema/common';
+import * as comments from './schema/comments';
 import * as compatibility from './schema/compatibility';
 import * as bookmarks from './schema/bookmarks';
 import * as feed from './schema/feeds';
@@ -30,6 +31,7 @@ export default async function (config: Config): Promise<ApolloServer> {
   return new ApolloServer({
     typeDefs: [
       common.typeDefs,
+      comments.typeDefs,
       compatibility.typeDefs,
       bookmarks.typeDefs,
       feed.typeDefs,
@@ -43,6 +45,7 @@ export default async function (config: Config): Promise<ApolloServer> {
     ],
     resolvers: merge(
       common.resolvers,
+      comments.resolvers,
       compatibility.resolvers,
       bookmarks.resolvers,
       feed.resolvers,

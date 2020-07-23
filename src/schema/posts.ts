@@ -25,7 +25,8 @@ export interface GQLPost {
   read?: boolean;
   bookmarked?: boolean;
   bookmarkList?: GQLBookmarkList;
-  upvotes: number;
+  numUpvotes: number;
+  numComments: number;
   // Used only for pagination (not part of the schema)
   score: number;
   bookmarkedAt: Date;
@@ -114,12 +115,17 @@ export const typeDefs = gql`
     """
     Permanent link to the post
     """
-    permalink: String
+    permalink: String!
 
     """
     Total number of upvotes
     """
-    upvotes: Int
+    numUpvotes: Int!
+
+    """
+    Total number of comments
+    """
+    numComments: Int!
   }
 
   type PostConnection {
@@ -198,7 +204,7 @@ export const typeDefs = gql`
       """
       Id of the post to upvote
       """
-      id: ID
+      id: ID!
     ): EmptyResponse @auth
 
     """
@@ -208,7 +214,7 @@ export const typeDefs = gql`
       """
       Id of the post
       """
-      id: ID
+      id: ID!
     ): EmptyResponse @auth
   }
 `;

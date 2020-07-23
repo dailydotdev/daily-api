@@ -86,6 +86,10 @@ export class Post {
   @Column({ type: 'integer', default: 0 })
   @Index('IDX_post_upvotes')
   upvotes: number;
+
+  @Column({ type: 'integer', default: 0 })
+  @Index('IDX_post_comments')
+  comments: number;
 }
 
 export interface SearchPostsResult {

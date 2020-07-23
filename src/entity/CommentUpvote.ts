@@ -1,12 +1,12 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { Post } from './Post';
+import { Comment } from './Comment';
 import { User } from './User';
 
 @Entity()
-export class Upvote {
-  @PrimaryColumn({ type: 'text' })
+export class CommentUpvote {
+  @PrimaryColumn({ length: 14 })
   @Index()
-  postId: string;
+  commentId: string;
 
   @PrimaryColumn({ length: 36 })
   @Index()
@@ -15,11 +15,11 @@ export class Upvote {
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
-  @ManyToOne(() => Post, {
+  @ManyToOne(() => Comment, {
     lazy: true,
     onDelete: 'CASCADE',
   })
-  post: Promise<Post>;
+  comment: Promise<Comment>;
 
   @ManyToOne(() => User, {
     lazy: true,

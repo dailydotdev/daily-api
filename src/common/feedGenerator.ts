@@ -131,7 +131,11 @@ export const mapRawPost = (post: object): GQLPost => {
     delete post['bookmarkList'];
   }
   post['tags'] = post['tagsStr'] ? post['tagsStr'].split(',') : [];
-  delete post['tagsStr'];
+  post['tagsStr'] = undefined;
+  post['numUpvotes'] = post['upvotes'];
+  post['upvotes'] = undefined;
+  post['numComments'] = post['comments'];
+  post['comments'] = undefined;
   return post as GQLPost;
 };
 
