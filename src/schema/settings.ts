@@ -12,6 +12,7 @@ interface GQLSettings {
   appInsaneMode: boolean;
   spaciness: string;
   showOnlyUnreadPosts: boolean;
+  openNewTab: boolean;
   updatedAt: Date;
 }
 
@@ -23,6 +24,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   appInsaneMode?: boolean;
   spaciness?: string;
   showOnlyUnreadPosts?: boolean;
+  openNewTab?: boolean;
 }
 
 export const typeDefs = gql`
@@ -71,6 +73,11 @@ export const typeDefs = gql`
     showOnlyUnreadPosts: Boolean!
 
     """
+    Whether to open articles on new tab
+    """
+    openNewTab: Boolean!
+
+    """
     Time of last update
     """
     updatedAt: DateTime!
@@ -111,6 +118,11 @@ export const typeDefs = gql`
     Whether to show unread posts only
     """
     showOnlyUnreadPosts: Boolean
+
+    """
+    Whether to open articles on new tab
+    """
+    openNewTab: Boolean
   }
 
   extend type Mutation {

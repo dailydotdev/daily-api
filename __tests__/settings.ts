@@ -52,6 +52,7 @@ describe('query pendingSourceRequests', () => {
     appInsaneMode
     spaciness
     showOnlyUnreadPosts
+    openNewTab
   }
 }`;
 
@@ -87,6 +88,7 @@ describe('mutation updateUserSettings', () => {
     appInsaneMode
     spaciness
     showOnlyUnreadPosts
+    openNewTab
   }
 }`;
 
