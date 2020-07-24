@@ -2,8 +2,12 @@ import shortid from 'shortid';
 import { gql, IResolvers, ForbiddenError } from 'apollo-server-fastify';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { notifyCommentCommented, notifyPostCommented } from '../common';
-import { Post, Comment } from '../entity';
+import {
+  notifyCommentCommented,
+  notifyCommentUpvoted,
+  notifyPostCommented,
+} from '../common';
+import { Post, Comment, CommentUpvote } from '../entity';
 import { NotFoundError } from '../errors';
 import { GQLEmptyResponse } from './common';
 
@@ -74,6 +78,26 @@ export const typeDefs = gql`
     Delete a comment
     """
     deleteComment(
+      """
+      Id of the comment
+      """
+      id: ID!
+    ): EmptyResponse @auth
+
+    """
+    Upvote to a comment
+    """
+    upvoteComment(
+      """
+      Id of the comment to upvote
+      """
+      id: ID!
+    ): EmptyResponse @auth
+
+    """
+    Cancel an upvote of a comment
+    """
+    cancelCommentUpvote(
       """
       Id of the comment
       """
@@ -179,6 +203,58 @@ export const resolvers: IResolvers<any, Context> = {
           .getRepository(Post)
           .decrement({ id: comment.postId }, 'comments', 1 + childComments);
         await repo.delete({ id: comment.id });
+      });
+      return { _: true };
+    },
+    upvoteComment: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      try {
+        await ctx.con.transaction(async (entityManager) => {
+          await entityManager.getRepository(CommentUpvote).insert({
+            commentId: id,
+            userId: ctx.userId,
+          });
+          await entityManager
+            .getRepository(Comment)
+            .increment({ id }, 'upvotes', 1);
+        });
+        await notifyCommentUpvoted(ctx.log, id, ctx.userId);
+      } catch (err) {
+        // Foreign key violation
+        if (err?.code === '23503') {
+          throw new NotFoundError('Comment or user not found');
+        }
+        // Unique violation
+        if (err?.code !== '23505') {
+          throw err;
+        }
+      }
+      return { _: true };
+    },
+    cancelCommentUpvote: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.transaction(async (entityManager) => {
+        const upvote = await entityManager
+          .getRepository(CommentUpvote)
+          .findOne({
+            commentId: id,
+            userId: ctx.userId,
+          });
+        if (upvote) {
+          await entityManager.getRepository(CommentUpvote).delete({
+            commentId: id,
+            userId: ctx.userId,
+          });
+          await entityManager
+            .getRepository(Comment)
+            .decrement({ id }, 'upvotes', 1);
+        }
       });
       return { _: true };
     },
