@@ -156,7 +156,7 @@ export const selectSource = (
 export const mapRawPost = (post: object): GQLPost => {
   post = nestChild(nestChild(post, 'source'), 'bookmarkList');
   if (!post['bookmarkList'].id) {
-    delete post['bookmarkList'];
+    post['bookmarkList'] = undefined;
   }
   post['tags'] = post['tagsStr'] ? post['tagsStr'].split(',') : [];
   post['tagsStr'] = undefined;

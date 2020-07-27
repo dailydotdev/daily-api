@@ -189,7 +189,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const privateCount = await ctx
         .getRepository(SourceDisplay)
         .count({ userId: ctx.userId });
-      if (privateCount >= 20) {
+      if (privateCount >= 40) {
         throw new ForbiddenError('Private sources cap reached');
       }
       let display = await sourceByFeed(data.rss, ctx);
