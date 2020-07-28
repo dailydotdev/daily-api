@@ -1,37 +1,12 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`should ignore duplicate post 1`] = `
-Object {
-  "canonicalUrl": null,
-  "comments": 0,
-  "createdAt": Any<Date>,
-  "creatorTwitter": null,
-  "id": "p1",
-  "image": null,
-  "placeholder": null,
-  "publishedAt": null,
-  "ratio": null,
-  "readTime": null,
-  "score": 0,
-  "shortId": "sp1",
-  "siteTwitter": null,
-  "sourceId": "a",
-  "tagsStr": "javascript,webdev",
-  "title": "P1",
-  "tweeted": false,
-  "upvotes": 0,
-  "url": "http://p1.com",
-  "views": 0,
-}
-`;
-
 exports[`should save a new post with basic information 1`] = `
 Object {
   "canonicalUrl": null,
   "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": null,
-  "id": "p1",
+  "id": Any<String>,
   "image": null,
   "placeholder": null,
   "publishedAt": null,
@@ -56,7 +31,7 @@ Object {
   "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": "creator",
-  "id": "p1",
+  "id": Any<String>,
   "image": "https://image.com",
   "placeholder": "data:image/jpeg;base64,placeholder",
   "publishedAt": 2020-06-11T01:17:00.000Z,
@@ -78,15 +53,15 @@ Object {
 exports[`should save a new post with full information 2`] = `
 Array [
   PostTag {
-    "postId": "p1",
+    "postId": "dJw_Sp3Cr",
     "tag": "webdev",
   },
   PostTag {
-    "postId": "p1",
+    "postId": "dJw_Sp3Cr",
     "tag": "javascript",
   },
   PostTag {
-    "postId": "p1",
+    "postId": "dJw_Sp3Cr",
     "tag": "html",
   },
 ]

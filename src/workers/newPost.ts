@@ -60,7 +60,7 @@ const addPost = async (con: Connection, data: AddPostData): Promise<void> =>
           : null;
       await entityManager.getRepository(Post).insert({
         id: data.id,
-        shortId: shortid.generate(),
+        shortId: data.id,
         publishedAt: data.publishedAt && new Date(data.publishedAt),
         createdAt: data.createdAt,
         sourceId: data.publicationId,
@@ -117,6 +117,7 @@ const worker: Worker = {
       return;
     }
 
+    data.id = shortid.generate();
     data.createdAt = new Date();
     data.readTime = parseReadTime(data.readTime);
     try {

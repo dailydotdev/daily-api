@@ -13,4 +13,5 @@ data:
   DEFAULT_IMAGE_RATIO: {{ .Values.appConfig.defaultImage.ratio | quote }}
   URL_PREFIX: {{ .Values.appConfig.urlPrefix }}
   GATEWAY_URL: {{ .Values.appConfig.gatewayUrl }}
+  COMMENTS_PREFIX: {{ .Values.appConfig.commentsPrefix }}
 
