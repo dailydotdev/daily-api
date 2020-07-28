@@ -161,4 +161,9 @@ checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . |
     secretKeyRef:
       name: {{  $fullName }}
       key: WEBFLOW_TOKEN
+- name: COMMENTS_PREFIX
+  valueFrom:
+    configMapKeyRef:
+      name: {{ $fullName }}
+      key: COMMENTS_PREFIX
 {{- end }}

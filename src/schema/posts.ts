@@ -138,6 +138,11 @@ export const typeDefs = gql`
     Total number of comments
     """
     numComments: Int!
+
+    """
+    Permanent link to the comments of the post
+    """
+    commentsPermalink: String!
   }
 
   type PostConnection {
@@ -371,5 +376,7 @@ export const resolvers: IResolvers<any, Context> = {
       post.image ? post.ratio : defaultImage.ratio,
     permalink: (post: GQLPost): string =>
       `${process.env.URL_PREFIX}/r/${post.shortId}`,
+    commentsPermalink: (post: GQLPost): string =>
+      `${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
   },
 };

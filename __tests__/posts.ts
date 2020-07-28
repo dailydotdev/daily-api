@@ -296,6 +296,21 @@ describe('permalink field', () => {
   });
 });
 
+describe('permalink field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      commentsPermalink
+    }
+  }`;
+
+  it('should return permalink of the post', async () => {
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.commentsPermalink).toEqual(
+      'http://localhost:6000/posts/p1',
+    );
+  });
+});
+
 describe('upvoted field', () => {
   const QUERY = `{
     post(id: "p1") {

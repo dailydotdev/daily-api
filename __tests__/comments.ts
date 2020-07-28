@@ -426,3 +426,24 @@ describe('mutation cancelCommentUpvote', () => {
     expect(comment.upvotes).toEqual(0);
   });
 });
+
+describe('permalink field', () => {
+  const MUTATION = `
+  mutation CommentOnPost($postId: ID!, $content: String!) {
+  commentOnPost(postId: $postId, content: $content) {
+    id, permalink
+  }
+}`;
+
+  it('should return permalink', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { postId: 'p1', content: 'my comment' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.commentOnPost.permalink).toEqual(
+      'http://localhost:6000/posts/p1',
+    );
+  });
+});

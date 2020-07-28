@@ -13,6 +13,7 @@ import { GQLEmptyResponse } from './common';
 
 export interface GQLComment {
   id: string;
+  postId: string;
   content: string;
   createdAt: Date;
 }
@@ -43,6 +44,11 @@ export const typeDefs = gql`
     Time when comment was created
     """
     createdAt: DateTime!
+
+    """
+    Permanent link to the comment
+    """
+    permalink: String!
   }
 
   extend type Mutation {
@@ -259,4 +265,8 @@ export const resolvers: IResolvers<any, Context> = {
       return { _: true };
     },
   }),
+  Comment: {
+    permalink: (comment: GQLComment): string =>
+      `${process.env.COMMENTS_PREFIX}/posts/${comment.postId}`,
+  },
 };

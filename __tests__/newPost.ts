@@ -10,7 +10,6 @@ import { mockMessage, saveFixtures } from './helpers';
 import { Post, PostTag, Source, TagCount } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getPostsIndex } from '../src/common';
-import { postsFixture } from './fixture/post';
 
 let con: Connection;
 let app: FastifyInstance;
@@ -46,8 +45,10 @@ it('should save a new post with basic information', async () => {
 
   await worker.handler(message, con, app.log);
   expect(message.ack).toBeCalledTimes(1);
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(1);
   expect(saveObjectMock).toBeCalledWith({
-    objectID: 'p1',
+    objectID: posts[0].id,
     title: 'Title',
     createdAt: expect.any(Number),
     views: 0,
@@ -55,13 +56,12 @@ it('should save a new post with basic information', async () => {
     pubId: 'a',
     _tags: undefined,
   });
-  const posts = await con.getRepository(Post).find();
   const tags = await con.getRepository(PostTag).find();
-  expect(posts.length).toEqual(1);
   expect(tags.length).toEqual(0);
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
     score: expect.any(Number),
+    id: expect.any(String),
     shortId: expect.any(String),
   });
 });
@@ -91,7 +91,7 @@ it('should save a new post with full information', async () => {
   await worker.handler(message, con, app.log);
   expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledWith({
-    objectID: 'p1',
+    objectID: expect.any(String),
     title: 'Title',
     createdAt: expect.any(Number),
     views: 0,
@@ -100,11 +100,12 @@ it('should save a new post with full information', async () => {
     _tags: ['webdev', 'javascript', 'html'],
   });
   const posts = await con.getRepository(Post).find();
-  const tags = await con.getRepository(PostTag).find();
+  const tags = await con.getRepository(PostTag).find({ select: ['tag'] });
   expect(posts.length).toEqual(1);
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
     score: expect.any(Number),
+    id: expect.any(String),
     shortId: expect.any(String),
   });
   expect(tags).toMatchSnapshot();
@@ -122,7 +123,7 @@ it('should handle empty tags array', async () => {
   await worker.handler(message, con, app.log);
   expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledWith({
-    objectID: 'p1',
+    objectID: expect.any(String),
     title: 'Title',
     createdAt: expect.any(Number),
     views: 0,
@@ -134,26 +135,6 @@ it('should handle empty tags array', async () => {
   const tags = await con.getRepository(PostTag).find();
   expect(posts.length).toEqual(1);
   expect(tags.length).toEqual(0);
-});
-
-it('should ignore duplicate post', async () => {
-  await saveFixtures(con, Post, [postsFixture[0]]);
-
-  const message = mockMessage({
-    id: 'p1',
-    title: 'Title',
-    url: 'https://post.com',
-    publicationId: 'a',
-  });
-
-  await worker.handler(message, con, app.log);
-  expect(message.ack).toBeCalledTimes(1);
-  expect(saveObjectMock).toBeCalledTimes(0);
-  const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(1);
-  expect(posts[0]).toMatchSnapshot({
-    createdAt: expect.any(Date),
-  });
 });
 
 it('should ignore null value violation', async () => {
