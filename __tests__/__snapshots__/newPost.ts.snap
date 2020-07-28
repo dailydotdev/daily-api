@@ -53,15 +53,12 @@ Object {
 exports[`should save a new post with full information 2`] = `
 Array [
   PostTag {
-    "postId": "dJw_Sp3Cr",
     "tag": "webdev",
   },
   PostTag {
-    "postId": "dJw_Sp3Cr",
     "tag": "javascript",
   },
   PostTag {
-    "postId": "dJw_Sp3Cr",
     "tag": "html",
   },
 ]

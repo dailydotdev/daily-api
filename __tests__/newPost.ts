@@ -100,7 +100,7 @@ it('should save a new post with full information', async () => {
     _tags: ['webdev', 'javascript', 'html'],
   });
   const posts = await con.getRepository(Post).find();
-  const tags = await con.getRepository(PostTag).find();
+  const tags = await con.getRepository(PostTag).find({ select: ['tag'] });
   expect(posts.length).toEqual(1);
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
