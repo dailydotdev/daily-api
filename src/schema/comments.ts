@@ -10,12 +10,14 @@ import {
 import { Post, Comment, CommentUpvote } from '../entity';
 import { NotFoundError } from '../errors';
 import { GQLEmptyResponse } from './common';
+import { GQLUser } from './users';
 
 export interface GQLComment {
   id: string;
   postId: string;
   content: string;
   createdAt: Date;
+  author?: GQLUser;
 }
 
 interface GQLPostCommentArgs {
@@ -49,6 +51,11 @@ export const typeDefs = gql`
     Permanent link to the comment
     """
     permalink: String!
+
+    """
+    Author of this comment
+    """
+    author: User!
   }
 
   extend type Mutation {

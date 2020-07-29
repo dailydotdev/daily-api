@@ -16,6 +16,7 @@ import * as settings from './schema/settings';
 import * as sourceRequests from './schema/sourceRequests';
 import * as sources from './schema/sources';
 import * as tags from './schema/tags';
+import * as users from './schema/users';
 import { AuthDirective, UrlDirective } from './directive';
 
 const errorConverter = new ApolloErrorConverter({
@@ -42,6 +43,7 @@ export default async function (config: Config): Promise<ApolloServer> {
       sourceRequests.typeDefs,
       sources.typeDefs,
       tags.typeDefs,
+      users.typeDefs,
     ],
     resolvers: merge(
       common.resolvers,
