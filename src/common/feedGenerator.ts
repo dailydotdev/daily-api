@@ -15,6 +15,7 @@ import {
   FeedSource,
   Upvote,
   Comment,
+  User,
 } from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
@@ -125,6 +126,25 @@ export const selectCommented = (
   return `EXISTS${query}`;
 };
 
+export const selectFeaturedComments = (
+  builder: SelectQueryBuilder<Post>,
+): SelectQueryBuilder<Post> =>
+  builder
+    .select(`coalesce(jsonb_agg(res), '[]'::jsonb)`, 'featuredComments')
+    .from(
+      (builder) =>
+        builder
+          .select('c.id', 'id')
+          .addSelect('c.content', 'content')
+          .addSelect('c.postId', 'postId')
+          .addSelect('to_jsonb(u)', 'author')
+          .from(Comment, 'c')
+          .innerJoin(User, 'u', 'u.id = c."userId"')
+          .where('c.featured is true')
+          .andWhere('c.postId = post.id'),
+      'res',
+    );
+
 export const whereUnread = (
   userId: string,
   builder: SelectQueryBuilder<Post>,
@@ -186,6 +206,7 @@ export const generateFeed = async <TPage extends Page>(
     .createQueryBuilder()
     .select('post.*')
     .addSelect('source.*')
+    .addSelect(selectFeaturedComments)
     .from(Post, 'post')
     .innerJoin(
       (subBuilder) => selectSource(ctx.userId, subBuilder),

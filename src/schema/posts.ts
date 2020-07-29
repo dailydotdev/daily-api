@@ -8,6 +8,7 @@ import { HiddenPost, Post, Upvote } from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
+import { GQLComment } from './comments';
 
 export interface GQLPost {
   id: string;
@@ -29,6 +30,7 @@ export interface GQLPost {
   bookmarkList?: GQLBookmarkList;
   numUpvotes: number;
   numComments: number;
+  featuredComments?: GQLComment[];
   // Used only for pagination (not part of the schema)
   score: number;
   bookmarkedAt: Date;
@@ -143,6 +145,11 @@ export const typeDefs = gql`
     Permanent link to the comments of the post
     """
     commentsPermalink: String!
+
+    """
+    Featured comments for the post
+    """
+    featuredComments: [Comment!]
   }
 
   type PostConnection {

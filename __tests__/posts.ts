@@ -296,7 +296,7 @@ describe('permalink field', () => {
   });
 });
 
-describe('permalink field', () => {
+describe('commentsPermalink field', () => {
   const QUERY = `{
     post(id: "p1") {
       commentsPermalink
@@ -374,6 +374,39 @@ describe('commented field', () => {
     );
     const res = await client.query({ query: QUERY });
     expect(res.data.post.commented).toEqual(true);
+  });
+});
+
+describe('featuredComments field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      featuredComments { content, permalink, author { name, image } }
+    }
+  }`;
+
+  it('should return empty array when no featured comments', async () => {
+    const res = await client.query({ query: QUERY });
+    const repo = con.getRepository(Comment);
+    await repo.save({
+      id: 'c1',
+      postId: 'p1',
+      userId: '1',
+      content: 'My comment',
+    });
+    expect(res.data.post.featuredComments).toEqual([]);
+  });
+
+  it('should return array with the featured comments', async () => {
+    const repo = con.getRepository(Comment);
+    await repo.save({
+      id: 'c1',
+      postId: 'p1',
+      userId: '1',
+      content: 'My comment',
+      featured: true,
+    });
+    const res = await client.query({ query: QUERY });
+    expect(res.data.post.featuredComments).toMatchSnapshot();
   });
 });
 
