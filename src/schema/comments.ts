@@ -141,7 +141,7 @@ export const resolvers: IResolvers<any, Context> = {
             .increment({ id: postId }, 'comments', 1);
           return comment;
         });
-        await notifyPostCommented(ctx.log, postId, ctx.userId, comment.id);
+        notifyPostCommented(ctx.log, postId, ctx.userId, comment.id);
         return comment;
       } catch (err) {
         // Foreign key violation
@@ -179,7 +179,7 @@ export const resolvers: IResolvers<any, Context> = {
             .increment({ id: commentId }, 'comments', 1);
           return comment;
         });
-        await notifyCommentCommented(
+        notifyCommentCommented(
           ctx.log,
           comment.postId,
           ctx.userId,
@@ -234,7 +234,7 @@ export const resolvers: IResolvers<any, Context> = {
             .getRepository(Comment)
             .increment({ id }, 'upvotes', 1);
         });
-        await notifyCommentUpvoted(ctx.log, id, ctx.userId);
+        notifyCommentUpvoted(ctx.log, id, ctx.userId);
       } catch (err) {
         // Foreign key violation
         if (err?.code === '23503') {

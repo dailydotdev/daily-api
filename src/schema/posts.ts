@@ -339,7 +339,7 @@ export const resolvers: IResolvers<any, Context> = {
             .getRepository(Post)
             .increment({ id }, 'upvotes', 1);
         });
-        await notifyPostUpvoted(ctx.log, id, ctx.userId);
+        notifyPostUpvoted(ctx.log, id, ctx.userId);
       } catch (err) {
         // Foreign key violation
         if (err?.code === '23503') {
