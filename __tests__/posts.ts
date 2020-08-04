@@ -306,7 +306,7 @@ describe('commentsPermalink field', () => {
   it('should return permalink of the post', async () => {
     const res = await client.query({ query: QUERY });
     expect(res.data.post.commentsPermalink).toEqual(
-      'http://localhost:6000/posts/p1',
+      'http://localhost:5002/posts/p1',
     );
   });
 });

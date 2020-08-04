@@ -44,7 +44,7 @@ Array [
       "name": "Ido",
     },
     "content": "My comment",
-    "permalink": "http://localhost:6000/posts/p1",
+    "permalink": "http://localhost:5002/posts/p1",
   },
 ]
 `;
