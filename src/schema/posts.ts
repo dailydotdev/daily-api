@@ -104,22 +104,22 @@ export const typeDefs = gql`
     """
     Whether the user has read this post
     """
-    read: Boolean @auth
+    read: Boolean
 
     """
     Whether the user bookmarked this post
     """
-    bookmarked: Boolean @auth
+    bookmarked: Boolean
 
     """
     Whether the user upvoted this post
     """
-    upvoted: Boolean @auth
+    upvoted: Boolean
 
     """
     Whether the user commented this post
     """
-    commented: Boolean @auth
+    commented: Boolean
 
     """
     If bookmarked, this is the list where it is saved
