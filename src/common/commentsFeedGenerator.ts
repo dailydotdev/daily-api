@@ -22,23 +22,25 @@ export const selectUpvoted = (
 
 export const selectAuthor = (
   builder: SelectQueryBuilder<Comment>,
+  alias = 'comment',
 ): SelectQueryBuilder<User> =>
   builder
     .select(`to_jsonb(u)`, 'author')
     .from(User, 'u')
-    .where('u.id = comment.userId')
+    .where(`u.id = ${alias}.userId`)
     .limit(1);
 
 export const selectChildren = (
   builder: SelectQueryBuilder<Comment>,
   limit: number,
   userId?: string,
+  alias = 'comment',
 ): SelectQueryBuilder<Comment> =>
   builder.select(`coalesce(jsonb_agg(res), '[]'::jsonb)`, 'children').from(
     (builder) =>
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
       selectComments(builder, 0, userId, 'child')
-        .where('child.parentId = comment.id')
+        .where(`child.parentId = ${alias}.id`)
         .limit(limit),
     'res',
   );
@@ -55,8 +57,8 @@ export const selectComments = (
     .addSelect(`${alias}.content`, 'content')
     .addSelect(`${alias}.postId`, 'postId')
     .addSelect(`${alias}.createdAt`, 'createdAt')
-    .addSelect(selectAuthor)
-    .orderBy(`${alias}.createdAt`, 'DESC');
+    .addSelect((builder) => selectAuthor(builder, alias))
+    .orderBy(`${alias}.createdAt`);
   if (userId) {
     newBuilder = newBuilder.addSelect(
       selectUpvoted(userId, newBuilder.subQuery(), alias),
@@ -65,7 +67,7 @@ export const selectComments = (
   }
   if (limitChildren) {
     newBuilder = newBuilder.addSelect((builder) =>
-      selectChildren(builder, limitChildren, userId),
+      selectChildren(builder, limitChildren, userId, alias),
     );
   }
   return newBuilder;

@@ -43,63 +43,6 @@ Object {
       Object {
         "node": Object {
           "author": Object {
-            "id": "3",
-            "image": "https://daily.dev/nimrod.jpg",
-            "name": "Nimrod",
-          },
-          "children": Object {
-            "edges": Array [
-              Object {
-                "node": Object {
-                  "author": Object {
-                    "id": "3",
-                    "image": "https://daily.dev/nimrod.jpg",
-                    "name": "Nimrod",
-                  },
-                  "content": "child comment #3",
-                  "createdAt": "2020-02-10T00:00:00.000Z",
-                  "id": "c7",
-                  "permalink": "http://localhost:5002/posts/p1",
-                  "upvoted": null,
-                },
-              },
-            ],
-            "pageInfo": Object {
-              "endCursor": "dGltZToxNTgxMjkyODAwMDAw",
-              "hasNextPage": false,
-            },
-          },
-          "content": "parent comment #4",
-          "createdAt": "2020-02-09T00:00:00.000Z",
-          "id": "c6",
-          "permalink": "http://localhost:5002/posts/p1",
-          "upvoted": null,
-        },
-      },
-      Object {
-        "node": Object {
-          "author": Object {
-            "id": "2",
-            "image": "https://daily.dev/tsahi.jpg",
-            "name": "Tsahi",
-          },
-          "children": Object {
-            "edges": Array [],
-            "pageInfo": Object {
-              "endCursor": null,
-              "hasNextPage": false,
-            },
-          },
-          "content": "parent comment #2",
-          "createdAt": "2020-02-08T00:00:00.000Z",
-          "id": "c3",
-          "permalink": "http://localhost:5002/posts/p1",
-          "upvoted": null,
-        },
-      },
-      Object {
-        "node": Object {
-          "author": Object {
             "id": "1",
             "image": "https://daily.dev/ido.jpg",
             "name": "Ido",
@@ -133,55 +76,6 @@ Object {
           "upvoted": null,
         },
       },
-    ],
-    "pageInfo": Object {
-      "endCursor": "dGltZToxNTgwOTQ3MjAwMDAw",
-      "hasNextPage": false,
-    },
-  },
-}
-`;
-
-exports[`query postComments should fetch comments and sub-comments of a post with upvoted 1`] = `
-Object {
-  "postComments": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "author": Object {
-            "id": "3",
-            "image": "https://daily.dev/nimrod.jpg",
-            "name": "Nimrod",
-          },
-          "children": Object {
-            "edges": Array [
-              Object {
-                "node": Object {
-                  "author": Object {
-                    "id": "3",
-                    "image": "https://daily.dev/nimrod.jpg",
-                    "name": "Nimrod",
-                  },
-                  "content": "child comment #3",
-                  "createdAt": "2020-02-10T00:00:00.000Z",
-                  "id": "c7",
-                  "permalink": "http://localhost:5002/posts/p1",
-                  "upvoted": true,
-                },
-              },
-            ],
-            "pageInfo": Object {
-              "endCursor": "dGltZToxNTgxMjkyODAwMDAw",
-              "hasNextPage": false,
-            },
-          },
-          "content": "parent comment #4",
-          "createdAt": "2020-02-09T00:00:00.000Z",
-          "id": "c6",
-          "permalink": "http://localhost:5002/posts/p1",
-          "upvoted": false,
-        },
-      },
       Object {
         "node": Object {
           "author": Object {
@@ -200,9 +94,58 @@ Object {
           "createdAt": "2020-02-08T00:00:00.000Z",
           "id": "c3",
           "permalink": "http://localhost:5002/posts/p1",
-          "upvoted": false,
+          "upvoted": null,
         },
       },
+      Object {
+        "node": Object {
+          "author": Object {
+            "id": "3",
+            "image": "https://daily.dev/nimrod.jpg",
+            "name": "Nimrod",
+          },
+          "children": Object {
+            "edges": Array [
+              Object {
+                "node": Object {
+                  "author": Object {
+                    "id": "2",
+                    "image": "https://daily.dev/tsahi.jpg",
+                    "name": "Tsahi",
+                  },
+                  "content": "child comment #3",
+                  "createdAt": "2020-02-10T00:00:00.000Z",
+                  "id": "c7",
+                  "permalink": "http://localhost:5002/posts/p1",
+                  "upvoted": null,
+                },
+              },
+            ],
+            "pageInfo": Object {
+              "endCursor": "dGltZToxNTgxMjkyODAwMDAw",
+              "hasNextPage": false,
+            },
+          },
+          "content": "parent comment #4",
+          "createdAt": "2020-02-09T00:00:00.000Z",
+          "id": "c6",
+          "permalink": "http://localhost:5002/posts/p1",
+          "upvoted": null,
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNTgxMjA2NDAwMDAw",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query postComments should fetch comments and sub-comments of a post with upvoted 1`] = `
+Object {
+  "postComments": Object {
+    "edges": Array [
       Object {
         "node": Object {
           "author": Object {
@@ -239,9 +182,66 @@ Object {
           "upvoted": true,
         },
       },
+      Object {
+        "node": Object {
+          "author": Object {
+            "id": "2",
+            "image": "https://daily.dev/tsahi.jpg",
+            "name": "Tsahi",
+          },
+          "children": Object {
+            "edges": Array [],
+            "pageInfo": Object {
+              "endCursor": null,
+              "hasNextPage": false,
+            },
+          },
+          "content": "parent comment #2",
+          "createdAt": "2020-02-08T00:00:00.000Z",
+          "id": "c3",
+          "permalink": "http://localhost:5002/posts/p1",
+          "upvoted": false,
+        },
+      },
+      Object {
+        "node": Object {
+          "author": Object {
+            "id": "3",
+            "image": "https://daily.dev/nimrod.jpg",
+            "name": "Nimrod",
+          },
+          "children": Object {
+            "edges": Array [
+              Object {
+                "node": Object {
+                  "author": Object {
+                    "id": "2",
+                    "image": "https://daily.dev/tsahi.jpg",
+                    "name": "Tsahi",
+                  },
+                  "content": "child comment #3",
+                  "createdAt": "2020-02-10T00:00:00.000Z",
+                  "id": "c7",
+                  "permalink": "http://localhost:5002/posts/p1",
+                  "upvoted": true,
+                },
+              },
+            ],
+            "pageInfo": Object {
+              "endCursor": "dGltZToxNTgxMjkyODAwMDAw",
+              "hasNextPage": false,
+            },
+          },
+          "content": "parent comment #4",
+          "createdAt": "2020-02-09T00:00:00.000Z",
+          "id": "c6",
+          "permalink": "http://localhost:5002/posts/p1",
+          "upvoted": false,
+        },
+      },
     ],
     "pageInfo": Object {
-      "endCursor": "dGltZToxNTgwOTQ3MjAwMDAw",
+      "endCursor": "dGltZToxNTgxMjA2NDAwMDAw",
       "hasNextPage": false,
     },
   },
