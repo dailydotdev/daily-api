@@ -121,11 +121,6 @@ beforeEach(async () => {
       createdAt: new Date(2020, 1, 10, 0, 0),
     },
   ]);
-  await con.getRepository(CommentUpvote).save([
-    { commentId: 'c1', userId: '1' },
-    { commentId: 'c7', userId: '1' },
-    { commentId: 'c2', userId: '2' },
-  ]);
 });
 
 afterAll(() => app.close());
@@ -146,6 +141,14 @@ describe('query postComments', () => {
     } }
   }
   }`;
+
+  beforeEach(async () => {
+    await con.getRepository(CommentUpvote).save([
+      { commentId: 'c1', userId: '1' },
+      { commentId: 'c7', userId: '1' },
+      { commentId: 'c2', userId: '2' },
+    ]);
+  });
 
   it('should fetch comments and sub-comments of a post', async () => {
     const res = await client.query({
