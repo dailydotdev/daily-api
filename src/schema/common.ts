@@ -153,6 +153,51 @@ type PaginationResolver<TSource, TReturn, TPage extends Page, TExtra = {}> = (
   },
 ) => Promise<PaginationResponse<TReturn, TExtra>>;
 
+export function connectionFromNodes<
+  TSource,
+  TReturn,
+  TArgs extends ConnectionArguments,
+  TPage extends Page,
+  TExtra = {}
+>(
+  args: TArgs,
+  nodes: TReturn[],
+  extra: TExtra,
+  page: TPage,
+  pageGenerator: PageGenerator<TReturn, TArgs, TPage>,
+  total?: number,
+): Connection<TReturn> & TExtra {
+  if (!nodes.length) {
+    return {
+      pageInfo: {
+        startCursor: null,
+        endCursor: null,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+      edges: [],
+      ...extra,
+    };
+  }
+
+  const edges = nodes.map(
+    (n, i): Edge<TReturn> => ({
+      node: n,
+      cursor: pageGenerator.nodeToCursor(page, args, n, i),
+    }),
+  );
+  return {
+    pageInfo: {
+      startCursor: edges[0].cursor,
+      endCursor: edges[edges.length - 1].cursor,
+      hasNextPage: pageGenerator.hasNextPage(page, nodes.length, total),
+      hasPreviousPage: pageGenerator.hasPreviousPage(page, nodes.length, total),
+    },
+    edges,
+    ...extra,
+  };
+}
+
 export function forwardPagination<
   TSource,
   TReturn,
@@ -177,39 +222,6 @@ export function forwardPagination<
       page,
       info,
     );
-
-    if (!nodes.length) {
-      return {
-        pageInfo: {
-          startCursor: null,
-          endCursor: null,
-          hasNextPage: false,
-          hasPreviousPage: false,
-        },
-        edges: [],
-        ...extra,
-      };
-    }
-
-    const edges = nodes.map(
-      (n, i): Edge<TReturn> => ({
-        node: n,
-        cursor: pageGenerator.nodeToCursor(page, args, n, i),
-      }),
-    );
-    return {
-      pageInfo: {
-        startCursor: edges[0].cursor,
-        endCursor: edges[edges.length - 1].cursor,
-        hasNextPage: pageGenerator.hasNextPage(page, nodes.length, total),
-        hasPreviousPage: pageGenerator.hasPreviousPage(
-          page,
-          nodes.length,
-          total,
-        ),
-      },
-      edges,
-      ...extra,
-    };
+    return connectionFromNodes(args, nodes, extra, page, pageGenerator, total);
   };
 }

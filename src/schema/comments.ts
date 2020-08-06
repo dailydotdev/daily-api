@@ -9,8 +9,18 @@ import {
 } from '../common';
 import { Post, Comment, CommentUpvote } from '../entity';
 import { NotFoundError } from '../errors';
-import { GQLEmptyResponse } from './common';
+import {
+  forwardPagination,
+  GQLEmptyResponse,
+  PaginationResponse,
+} from './common';
 import { GQLUser } from './users';
+import { Connection, ConnectionArguments } from 'graphql-relay';
+import {
+  commentsPageGenerator,
+  mapRawComment,
+  selectComments,
+} from '../common/commentsFeedGenerator';
 
 export interface GQLComment {
   id: string;
@@ -18,6 +28,8 @@ export interface GQLComment {
   content: string;
   createdAt: Date;
   author?: GQLUser;
+  upvoted?: boolean;
+  children?: Connection<GQLComment>;
 }
 
 interface GQLPostCommentArgs {
@@ -56,6 +68,52 @@ export const typeDefs = gql`
     Author of this comment
     """
     author: User!
+
+    """
+    Whether the user upvoted this comment
+    """
+    upvoted: Boolean
+
+    """
+    Sub comments of this comment
+    """
+    children: CommentConnection
+  }
+
+  type CommentEdge {
+    node: Comment!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type CommentConnection {
+    pageInfo: PageInfo!
+    edges: [CommentEdge!]!
+  }
+
+  extend type Query {
+    """
+    Get the comments of a post
+    """
+    postComments(
+      """
+      Post id
+      """
+      postId: ID!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): CommentConnection!
   }
 
   extend type Mutation {
@@ -119,8 +177,36 @@ export const typeDefs = gql`
   }
 `;
 
+export interface GQLPostCommentsArgs extends ConnectionArguments {
+  postId: string;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Query: traceResolverObject<any, any>({
+    postComments: forwardPagination(
+      async (
+        source,
+        { postId }: GQLPostCommentsArgs,
+        ctx,
+      ): Promise<PaginationResponse<GQLComment>> => {
+        const limitChildren = 10;
+        const res = await selectComments(
+          ctx.con.createQueryBuilder(),
+          limitChildren,
+          ctx.userId,
+        )
+          .where('comment.postId = :postId', { postId })
+          .andWhere('comment.parentId is null')
+          .getRawMany();
+        return {
+          nodes: res.map((comment) => mapRawComment(comment, limitChildren)),
+        };
+      },
+      commentsPageGenerator,
+    ),
+  }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
     commentOnPost: async (
