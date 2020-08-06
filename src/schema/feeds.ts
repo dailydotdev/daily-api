@@ -314,7 +314,6 @@ interface TagFeedArgs extends FeedArgs {
 }
 
 interface FeedPage extends Page {
-  limit: number;
   timestamp?: Date;
   score?: number;
 }

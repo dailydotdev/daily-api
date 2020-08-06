@@ -62,22 +62,110 @@ beforeEach(async () => {
   await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
-  await con
-    .getRepository(User)
-    .save({ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' });
+  await con.getRepository(User).save([
+    { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
+    { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
+    { id: '3', name: 'Nimrod', image: 'https://daily.dev/nimrod.jpg' },
+  ]);
   await con.getRepository(Comment).save([
-    { id: 'c1', postId: 'p1', userId: '1', content: 'parent comment' },
+    {
+      id: 'c1',
+      postId: 'p1',
+      userId: '1',
+      content: 'parent comment',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+    },
     {
       id: 'c2',
       parentId: 'c1',
       postId: 'p1',
       userId: '1',
       content: 'child comment',
+      createdAt: new Date(2020, 1, 7, 0, 0),
     },
+    {
+      id: 'c3',
+      postId: 'p1',
+      userId: '2',
+      content: 'parent comment #2',
+      createdAt: new Date(2020, 1, 8, 0, 0),
+    },
+    {
+      id: 'c4',
+      postId: 'p2',
+      userId: '3',
+      content: 'parent comment #3',
+      createdAt: new Date(2020, 1, 9, 0, 0),
+    },
+    {
+      id: 'c5',
+      postId: 'p2',
+      parentId: 'c4',
+      userId: '1',
+      content: 'child comment #2',
+      createdAt: new Date(2020, 1, 10, 0, 0),
+    },
+    {
+      id: 'c6',
+      postId: 'p1',
+      userId: '3',
+      content: 'parent comment #4',
+      createdAt: new Date(2020, 1, 9, 0, 0),
+    },
+    {
+      id: 'c7',
+      postId: 'p1',
+      parentId: 'c6',
+      userId: '2',
+      content: 'child comment #3',
+      createdAt: new Date(2020, 1, 10, 0, 0),
+    },
+  ]);
+  await con.getRepository(CommentUpvote).save([
+    { commentId: 'c1', userId: '1' },
+    { commentId: 'c7', userId: '1' },
+    { commentId: 'c2', userId: '2' },
   ]);
 });
 
 afterAll(() => app.close());
+
+const commentFields =
+  'id, content, createdAt, permalink, upvoted, author { id, name, image }';
+
+describe('query postComments', () => {
+  const QUERY = `query PostComments($postId: ID!, $after: String, $first: Int) {
+  postComments(postId: $postId, after: $after, first: $first) {
+    pageInfo { endCursor, hasNextPage }
+    edges { node {
+      ${commentFields}
+      children {
+        pageInfo { endCursor, hasNextPage }
+        edges { node { ${commentFields} } }
+      }
+    } }
+  }
+  }`;
+
+  it('should fetch comments and sub-comments of a post', async () => {
+    const res = await client.query({
+      query: QUERY,
+      variables: { postId: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should fetch comments and sub-comments of a post with upvoted', async () => {
+    loggedUser = '1';
+    const res = await client.query({
+      query: QUERY,
+      variables: { postId: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+});
 
 describe('mutation commentOnPost', () => {
   const MUTATION = `
@@ -110,7 +198,7 @@ describe('mutation commentOnPost', () => {
   });
 
   it('should throw not found when cannot find user', () => {
-    loggedUser = '2';
+    loggedUser = '10';
     return testMutationErrorCode(
       client,
       {
@@ -131,8 +219,9 @@ describe('mutation commentOnPost', () => {
     const actual = await con.getRepository(Comment).find({
       select: ['id', 'content', 'parentId'],
       order: { createdAt: 'DESC' },
+      where: { postId: 'p1' },
     });
-    expect(actual.length).toEqual(3);
+    expect(actual.length).toEqual(6);
     expect(actual[0]).toMatchSnapshot({ id: expect.any(String) });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOne('p1');
@@ -177,7 +266,7 @@ describe('mutation commentOnComment', () => {
   });
 
   it('should throw not found when cannot find user', () => {
-    loggedUser = '2';
+    loggedUser = '10';
     return testMutationErrorCode(
       client,
       {
@@ -210,13 +299,14 @@ describe('mutation commentOnComment', () => {
     const actual = await con.getRepository(Comment).find({
       select: ['id', 'content', 'parentId', 'postId', 'comments'],
       order: { createdAt: 'DESC' },
+      where: { postId: 'p1' },
     });
-    expect(actual.length).toEqual(3);
+    expect(actual.length).toEqual(6);
     expect(actual[0]).toMatchSnapshot({ id: expect.any(String) });
     expect(res.data.commentOnComment.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.comments).toEqual(1);
-    expect(actual[2].comments).toEqual(1);
+    expect(actual.find((c) => c.id === 'c1').comments).toEqual(1);
     // Cannot use toBeCalledWith for because of logger for some reason
     expect(mocked(notifyCommentCommented).mock.calls[0].slice(1)).toEqual([
       'p1',
@@ -278,9 +368,9 @@ describe('mutation deleteComment', () => {
     expect(res.errors).toBeFalsy();
     const actual = await con
       .getRepository(Comment)
-      .find({ select: ['id', 'comments'] });
-    expect(actual.length).toEqual(1);
-    expect(actual[0].comments).toEqual(-1);
+      .find({ select: ['id', 'comments'], where: { postId: 'p1' } });
+    expect(actual.length).toEqual(4);
+    expect(actual.find((c) => c.id === 'c1').comments).toEqual(-1);
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.comments).toEqual(-1);
   });
@@ -292,8 +382,8 @@ describe('mutation deleteComment', () => {
       variables: { id: 'c1' },
     });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Comment).find();
-    expect(actual.length).toEqual(0);
+    const actual = await con.getRepository(Comment).find({ postId: 'p1' });
+    expect(actual.length).toEqual(3);
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.comments).toEqual(-2);
   });
@@ -330,7 +420,7 @@ describe('mutation upvoteComment', () => {
   });
 
   it('should throw not found when cannot find user', () => {
-    loggedUser = '2';
+    loggedUser = '10';
     return testMutationErrorCode(
       client,
       {
