@@ -16,6 +16,6 @@ describe('health check', () => {
   it('should return status code 200', () =>
     request(app.server)
       .get('/health')
-      .expect('content-type', 'application/health+json')
+      .expect('content-type', 'application/health+json; charset=utf-8')
       .expect(200, { status: 'ok' }));
 });
