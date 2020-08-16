@@ -19,7 +19,7 @@ const publishEvent = async (
 ): Promise<void> => {
   if (process.env.NODE_ENV === 'production') {
     try {
-      await sourceRequestTopic.publishJSON(payload);
+      await topic.publishJSON(payload);
     } catch (err) {
       log.error(
         { err, topic: topic.name, payload },
