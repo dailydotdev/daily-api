@@ -33,8 +33,7 @@ const cron: Cron = {
                 SELECT (
                     SELECT c.id
                     FROM "comment" c
-                    WHERE c."parentId" IS NULL
-                        AND c."postId" = p."postId"
+                    WHERE c."postId" = p."postId"
                         AND c.upvotes >= 3
                     ORDER BY c.upvotes DESC
                     LIMIT 1

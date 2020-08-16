@@ -7,11 +7,11 @@ Array [
     "id": "c1",
   },
   Comment {
-    "featured": true,
+    "featured": false,
     "id": "c2",
   },
   Comment {
-    "featured": false,
+    "featured": true,
     "id": "c3",
   },
   Comment {

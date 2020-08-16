@@ -166,4 +166,9 @@ checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . |
     configMapKeyRef:
       name: {{ $fullName }}
       key: COMMENTS_PREFIX
+- name: SENDGRID_API_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{  $fullName }}
+      key: SENDGRID_API_KEY
 {{- end }}
