@@ -1,0 +1,33 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`should send mail to author 1`] = `
+Array [
+  Object {
+    "asm": Object {
+      "groupId": 15003,
+    },
+    "dynamicTemplateData": Object {
+      "discussion_link": "http://localhost:5002/posts/p1",
+      "main_comment": "parent comment",
+      "post_title": "P1",
+      "profile_image": "https://daily.dev/ido.jpg",
+      "upvote_title": "Congrats! You just earned your first upvote 🎉",
+    },
+    "from": Object {
+      "email": "informer@daily.dev",
+      "name": "daily.dev",
+    },
+    "replyTo": Object {
+      "email": "hi@daily.dev",
+      "name": "daily.dev",
+    },
+    "templateId": "d-92bca6102e3a4b41b6fc3f532f050429",
+    "to": "ido@daily.dev",
+    "trackingSettings": Object {
+      "openTracking": Object {
+        "enable": true,
+      },
+    },
+  },
+]
+`;

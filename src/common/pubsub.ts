@@ -8,7 +8,7 @@ const sourceRequestTopic = pubsub.topic('pub-request');
 const postUpvotedTopic = pubsub.topic('post-upvoted');
 const commentUpvotedTopic = pubsub.topic('comment-upvoted');
 const postCommentedTopic = pubsub.topic('post-commented');
-const commentCommentedTopic = pubsub.topic('comment-upvoted');
+const commentCommentedTopic = pubsub.topic('comment-commented');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 
