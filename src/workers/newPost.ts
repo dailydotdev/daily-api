@@ -18,6 +18,7 @@ interface AddPostData {
   siteTwitter?: string;
   creatorTwitter?: string;
   readTime?: number;
+  canonicalUrl?: string;
 }
 
 interface AlgoliaPost {
@@ -74,6 +75,7 @@ const addPost = async (con: Connection, data: AddPostData): Promise<void> =>
         creatorTwitter: data.creatorTwitter,
         readTime: data.readTime,
         tagsStr: tags?.map((t) => t.tag).join(','),
+        canonicalUrl: data.canonicalUrl,
       });
       if (data.tags?.length) {
         await entityManager.getRepository(PostTag).insert(
@@ -104,7 +106,15 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: AddPostData = messageToJson(message);
 
-    const p = await con.getRepository(Post).findOne({ url: data.url });
+    const p = await con
+      .getRepository(Post)
+      .createQueryBuilder()
+      .select('id')
+      .where(
+        'url = :url or url = :canonicalUrl or "canonicalUrl" = :url or "canonicalUrl" = :canonicalUrl',
+        { url: data.url, canonicalUrl: data.canonicalUrl },
+      )
+      .getRawOne();
     if (p) {
       logger.info(
         {

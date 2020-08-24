@@ -174,3 +174,77 @@ it('should not save post with existing url', async () => {
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
 });
+
+it('should not save post when url matches existing canonical url', async () => {
+  await con.getRepository(Post).save({
+    id: 'p2',
+    shortId: 'p2',
+    title: 'Title 2',
+    url: 'https://post.com',
+    canonicalUrl: 'https://post.dev',
+    sourceId: 'b',
+  });
+
+  const message = mockMessage({
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.dev',
+    publicationId: 'a',
+  });
+
+  await worker.handler(message, con, app.log);
+  expect(message.ack).toBeCalledTimes(1);
+  expect(saveObjectMock).toBeCalledTimes(0);
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(1);
+});
+
+it('should not save post when canonical url matches existing url', async () => {
+  await con.getRepository(Post).save({
+    id: 'p2',
+    shortId: 'p2',
+    title: 'Title 2',
+    url: 'https://post.com',
+    canonicalUrl: 'https://post.dev',
+    sourceId: 'b',
+  });
+
+  const message = mockMessage({
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.io',
+    canonicalUrl: 'https://post.com',
+    publicationId: 'a',
+  });
+
+  await worker.handler(message, con, app.log);
+  expect(message.ack).toBeCalledTimes(1);
+  expect(saveObjectMock).toBeCalledTimes(0);
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(1);
+});
+
+it('should not save post when canonical url matches existing canonical url', async () => {
+  await con.getRepository(Post).save({
+    id: 'p2',
+    shortId: 'p2',
+    title: 'Title 2',
+    url: 'https://post.com',
+    canonicalUrl: 'https://post.dev',
+    sourceId: 'b',
+  });
+
+  const message = mockMessage({
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.io',
+    canonicalUrl: 'https://post.dev',
+    publicationId: 'a',
+  });
+
+  await worker.handler(message, con, app.log);
+  expect(message.ack).toBeCalledTimes(1);
+  expect(saveObjectMock).toBeCalledTimes(0);
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(1);
+});
