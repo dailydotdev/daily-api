@@ -45,8 +45,6 @@ const cron: Cron = {
     const repo = con.getRepository(SourceFeed);
     const sourceFeed = await repo.findOne({ feed: sourceFeedId });
     const lastFetched = sourceFeed.lastFetched ?? new Date(0);
-    sourceFeed.lastFetched = new Date();
-
     const stream = await fetchRss(sourceFeed.feed);
     const items = await parseRss(stream);
     const filteredItems = items.filter((item) => item.date > lastFetched);
@@ -69,9 +67,9 @@ const cron: Cron = {
           }),
         ),
       );
+      sourceFeed.lastFetched = filteredItems[0].pubdate;
+      await repo.save(sourceFeed);
     }
-
-    await repo.save(sourceFeed);
   },
 };
 

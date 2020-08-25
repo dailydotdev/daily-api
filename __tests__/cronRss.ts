@@ -45,4 +45,8 @@ it('should dispatch message for every new article', async () => {
   mockTopic.mockImplementation(() => ({ publishJSON: mockPublish }));
   await cron.handler(con, 'http://localhost:6789/rss.xml');
   expect(mockPublish.mock.calls).toMatchSnapshot();
+  const feed = await con
+    .getRepository(SourceFeed)
+    .findOne({ feed: 'http://localhost:6789/rss.xml' });
+  expect(feed.lastFetched).toEqual(new Date('Mon, 24 Aug 2020 20:49:54 +0000'));
 });
