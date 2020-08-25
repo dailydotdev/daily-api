@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import fastify from 'fastify';
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import helmet from 'fastify-helmet';
+import cookie from 'fastify-cookie';
 
 import './config';
 import './profiler';
@@ -27,6 +28,7 @@ export default async function app(): Promise<FastifyInstance> {
   });
 
   app.register(helmet);
+  app.register(cookie, { secret: process.env.COOKIES_KEY });
   app.register(trace, { enabled: isProd });
   app.register(auth, { secret: process.env.ACCESS_SECRET });
 

@@ -171,4 +171,24 @@ checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . |
     secretKeyRef:
       name: {{  $fullName }}
       key: SENDGRID_API_KEY
+- name: COOKIES_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{  $fullName }}
+      key: COOKIES_KEY
+- name: JWT_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: {{  $fullName }}
+      key: JWT_SECRET
+- name: JWT_AUDIENCE
+  valueFrom:
+    secretKeyRef:
+      name: {{  $fullName }}
+      key: JWT_AUDIENCE
+- name: JWT_ISSUER
+  valueFrom:
+    secretKeyRef:
+      name: {{  $fullName }}
+      key: JWT_ISSUER
 {{- end }}
