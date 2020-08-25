@@ -190,16 +190,16 @@ spec:
       template:
         metadata:
           annotations:
-        {{- include "daily-api.checksum" . | indent 12 }}
+{{- include "daily-api.checksum" . | indent 12 }}
         spec:
           containers:
             - name: job
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               command: ["node", "bin/cron.js", "rss", "https://daily.dev/posts/rss.xml"]
               env:
-                - name: GOOGLE_APPLICATION_CREDENTIALS
-                  value: "/etc/config/serviceAccount.json"
-              {{ include "daily-api.config" . | indent 14 }}
+              - name: GOOGLE_APPLICATION_CREDENTIALS
+                value: "/etc/config/serviceAccount.json"
+{{ include "daily-api.config" . | indent 14 }}
               volumeMounts:
                 - name: config
                   mountPath: "/etc/config"
