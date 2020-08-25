@@ -1,5 +1,6 @@
 import { mock, MockProxy } from 'jest-mock-extended';
-import { FastifyRequest, Logger } from 'fastify';
+import fastify, { FastifyRequest, Logger } from 'fastify';
+import fastifyStatic from 'fastify-static';
 import { Connection, DeepPartial, ObjectType } from 'typeorm';
 import request from 'supertest';
 import {
@@ -11,6 +12,8 @@ import { ApolloServerTestClient } from 'apollo-server-testing';
 import { Context } from '../src/Context';
 import { Message } from '@google-cloud/pubsub';
 import { base64 } from '../src/common';
+import { join } from 'path';
+import http from 'http';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -122,4 +125,26 @@ export const mockMessage = (data: object): Message => {
   message.ack = jest.fn();
   message.nack = jest.fn();
   return message;
+};
+
+export const setupStaticServer = async (
+  rss?: string,
+): Promise<fastify.FastifyInstance> => {
+  const app = fastify({ logger: false });
+  app.register(fastifyStatic, {
+    root: join(__dirname, 'fixture'),
+    prefix: '/',
+    setHeaders(res: http.ServerResponse, path: string): void {
+      if (rss && path.indexOf(rss) > -1) {
+        res.setHeader('content-type', 'application/rss+xml');
+      }
+    },
+  });
+  if (rss) {
+    app.get('/rss.xml', (req, res) => {
+      res.sendFile(rss);
+    });
+  }
+  await app.listen(6789);
+  return app;
 };

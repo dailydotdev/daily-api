@@ -279,6 +279,7 @@ describe('mutation addPrivateSource', () => {
     ).toEqual({
       sourceId: expect.anything(),
       feed: 'https://example.com/feed',
+      lastFetched: null,
     });
     expect(res.data.addPrivateSource).toEqual({
       id: expect.anything(),
@@ -365,6 +366,7 @@ describe('mutation addPrivateSource', () => {
     ).toEqual({
       sourceId: expect.anything(),
       feed: 'https://example.com/feed',
+      lastFetched: null,
     });
     expect(res.data.addPrivateSource).toEqual({
       id: expect.anything(),

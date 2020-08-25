@@ -104,6 +104,7 @@ exports[`mutation publishSourceRequest should publish a source request 3`] = `
 Array [
   SourceFeed {
     "feed": "http://a.com/feed",
+    "lastFetched": null,
     "sourceId": "a",
   },
 ]

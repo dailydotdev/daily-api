@@ -16,4 +16,7 @@ export class SourceFeed {
 
   @PrimaryColumn({ type: 'text' })
   feed: string;
+
+  @Column({ nullable: true })
+  lastFetched: Date;
 }
