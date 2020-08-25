@@ -6,6 +6,7 @@ import {
   DefaultHeaders,
 } from 'fastify';
 import fp from 'fastify-plugin';
+import jwt from 'jsonwebtoken';
 
 declare module 'fastify' {
   interface FastifyRequest<
@@ -25,6 +26,29 @@ interface Options {
   secret: string;
 }
 
+interface AuthPayload {
+  userId: string;
+  premium: boolean;
+}
+
+const verifyJwt = (token: string): Promise<AuthPayload | null> =>
+  new Promise((resolve, reject) => {
+    jwt.verify(
+      token,
+      process.env.JWT_SECRET,
+      {
+        audience: process.env.JWT_AUDIENCE,
+        issuer: process.env.JWT_ISSUER,
+      },
+      (err, payload) => {
+        if (err) {
+          return reject(err);
+        }
+        return resolve(payload as AuthPayload | null);
+      },
+    );
+  });
+
 const plugin = async (
   fastify: FastifyInstance,
   opts: Options,
@@ -41,6 +65,13 @@ const plugin = async (
     } else {
       delete req.headers['user-id'];
       delete req.headers['logged-in'];
+    }
+    if (!req.userId && req.cookies.da3) {
+      const payload = await verifyJwt(req.cookies.da3);
+      if (payload) {
+        req.userId = payload.userId;
+        req.premium = payload.premium;
+      }
     }
   });
 };
