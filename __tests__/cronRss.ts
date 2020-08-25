@@ -43,6 +43,6 @@ afterAll(async () => {
 it('should dispatch message for every new article', async () => {
   const mockPublish = jest.fn().mockResolvedValue('');
   mockTopic.mockImplementation(() => ({ publishJSON: mockPublish }));
-  await cron.handler(con);
+  await cron.handler(con, 'http://localhost:6789/rss.xml');
   expect(mockPublish.mock.calls).toMatchSnapshot();
 });

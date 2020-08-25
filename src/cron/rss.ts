@@ -43,7 +43,7 @@ const cron: Cron = {
     const pubsub = new PubSub();
     const topic = pubsub.topic('post-fetched');
     const repo = con.getRepository(SourceFeed);
-    const sourceFeed = await repo.findOne(sourceFeedId);
+    const sourceFeed = await repo.findOne({ feed: sourceFeedId });
     const lastFetched = sourceFeed.lastFetched ?? new Date(0);
     sourceFeed.lastFetched = new Date();
 
