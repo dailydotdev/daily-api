@@ -39,6 +39,7 @@ const parseRss = async (stream: ReadableStream): Promise<FeedParser.Item[]> => {
 const cron: Cron = {
   name: 'rss',
   handler: async (con, sourceFeedId) => {
+    console.log(`[${sourceFeedId}] fetching rss`);
     const pubsub = new PubSub();
     const topic = pubsub.topic('post-fetched');
     const repo = con.getRepository(SourceFeed);
@@ -48,10 +49,13 @@ const cron: Cron = {
 
     const stream = await fetchRss(sourceFeed.feed);
     const items = await parseRss(stream);
-    await Promise.all(
-      items
-        .filter((item) => item.date > lastFetched)
-        .map((item) =>
+    const filteredItems = items.filter((item) => item.date > lastFetched);
+    if (filteredItems.length) {
+      console.log(
+        `[${sourceFeedId}] publishing ${filteredItems.length} new articles`,
+      );
+      await Promise.all(
+        filteredItems.map((item) =>
           topic.publishJSON({
             id: item.guid,
             title: item.title,
@@ -64,7 +68,8 @@ const cron: Cron = {
             url: item.link,
           }),
         ),
-    );
+      );
+    }
 
     await repo.save(sourceFeed);
   },

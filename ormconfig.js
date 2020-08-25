@@ -1,3 +1,6 @@
+// const dotenv = require('dotenv');
+// dotenv.config({ path: `.env.production` });
+
 module.exports = {
   type: 'postgres',
   host: process.env.TYPEORM_HOST || 'localhost',

@@ -159,7 +159,8 @@ spec:
           containers:
             - name: job
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-              command: ["node", "bin/cron.js", "rss", "devto"]
+              command: ["node", "bin/cron.js"]
+              args: ["rss", "devto"]
               env:
 {{ include "daily-api.config" . | indent 14 }}
           restartPolicy: OnFailure
