@@ -2,5 +2,5 @@ import { Connection } from 'typeorm';
 
 export interface Cron {
   name: string;
-  handler: (con: Connection) => Promise<void>;
+  handler: (con: Connection, ...args: string[]) => Promise<void>;
 }

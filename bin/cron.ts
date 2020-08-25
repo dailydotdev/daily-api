@@ -11,7 +11,7 @@ if (!selected) {
 
 console.log(`starting ${key}`);
 createOrGetConnection()
-  .then(selected.handler)
+  .then((con) => selected.handler(con, ...process.argv.slice(3)))
   .then(() => {
     console.log('done');
     process.exit();

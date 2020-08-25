@@ -4,6 +4,7 @@ import tweetTrending from './tweetTrending';
 import updateTags from './updateTags';
 import updateViews from './updateViews';
 import updateFeaturedComments from './updateFeaturedComments';
+import rss from './rss';
 
 const crons: Map<string, Cron> = new Map<string, Cron>([
   [segmentUsers.name, segmentUsers],
@@ -11,6 +12,7 @@ const crons: Map<string, Cron> = new Map<string, Cron>([
   [updateTags.name, updateTags],
   [updateViews.name, updateViews],
   [updateFeaturedComments.name, updateFeaturedComments],
+  [rss.name, rss],
 ]);
 
 export default crons;

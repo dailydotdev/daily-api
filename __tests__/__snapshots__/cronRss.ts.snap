@@ -1,0 +1,110 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`should dispatch message for every new article 1`] = `
+Array [
+  Array [
+    Object {
+      "id": "https://dev.to/mongodb/mongodb-weeklyupdate-1-guess-who-s-back-1kf0",
+      "publicationId": "a",
+      "publishedAt": 2020-08-24T20:49:54.000Z,
+      "tags": Array [
+        "mongodb",
+        "programming",
+        "database",
+      ],
+      "title": "MongoDB $weeklyUpdate #1: Guess Who's Back?",
+      "updatedAt": 2020-08-24T20:49:54.000Z,
+      "url": "https://dev.to/mongodb/mongodb-weeklyupdate-1-guess-who-s-back-1kf0",
+    },
+  ],
+  Array [
+    Object {
+      "id": "https://dev.to/bistaastha/gsoc-with-chaoss-final-three-weeks-gj3",
+      "publicationId": "a",
+      "publishedAt": 2020-08-24T19:35:38.000Z,
+      "tags": Array [],
+      "title": "GSoC with CHAOSS - Final three weeks!",
+      "updatedAt": 2020-08-24T19:35:38.000Z,
+      "url": "https://dev.to/bistaastha/gsoc-with-chaoss-final-three-weeks-gj3",
+    },
+  ],
+  Array [
+    Object {
+      "id": "https://dev.to/jamesncox/flexbox-rocks-2bf9",
+      "publicationId": "a",
+      "publishedAt": 2020-08-24T19:17:21.000Z,
+      "tags": Array [
+        "css",
+        "beginners",
+        "webdev",
+        "tutorial",
+      ],
+      "title": "Flexbox Rocks!",
+      "updatedAt": 2020-08-24T19:17:21.000Z,
+      "url": "https://dev.to/jamesncox/flexbox-rocks-2bf9",
+    },
+  ],
+  Array [
+    Object {
+      "id": "https://dev.to/freddilynne/finally-understanding-javascript-50hb",
+      "publicationId": "a",
+      "publishedAt": 2020-08-24T19:01:20.000Z,
+      "tags": Array [
+        "codenewbie",
+        "javascript",
+        "beginners",
+        "books",
+      ],
+      "title": "Finally Understanding JavaScript",
+      "updatedAt": 2020-08-24T19:01:20.000Z,
+      "url": "https://dev.to/freddilynne/finally-understanding-javascript-50hb",
+    },
+  ],
+  Array [
+    Object {
+      "id": "https://dev.to/fimrandev/things-i-wish-i-knew-when-i-started-programming-361e",
+      "publicationId": "a",
+      "publishedAt": 2020-08-24T18:38:36.000Z,
+      "tags": Array [
+        "computerscience",
+        "beginners",
+        "codenewbie",
+        "programming",
+      ],
+      "title": "🕔 Things I Wish I Knew When I Started Programming",
+      "updatedAt": 2020-08-24T18:38:36.000Z,
+      "url": "https://dev.to/fimrandev/things-i-wish-i-knew-when-i-started-programming-361e",
+    },
+  ],
+  Array [
+    Object {
+      "id": "https://dev.to/valentinaperic/writing-if-statements-with-the-ternary-operator-37j",
+      "publicationId": "a",
+      "publishedAt": 2020-08-24T16:47:10.000Z,
+      "tags": Array [
+        "javascript",
+        "tutorial",
+        "webdev",
+        "refactorit",
+      ],
+      "title": "Writing If Statements with the Ternary Operator",
+      "updatedAt": 2020-08-24T16:47:10.000Z,
+      "url": "https://dev.to/valentinaperic/writing-if-statements-with-the-ternary-operator-37j",
+    },
+  ],
+  Array [
+    Object {
+      "id": "https://dev.to/sarthology/what-are-you-planning-to-make-for-hacktober-fest-2020-4bk8",
+      "publicationId": "a",
+      "publishedAt": 2020-08-24T15:23:08.000Z,
+      "tags": Array [
+        "watercooler",
+        "discuss",
+      ],
+      "title": "What are you planning to make for \\"Hacktober Fest 2020\\"? 👩🏻‍💻🚀",
+      "updatedAt": 2020-08-24T15:23:08.000Z,
+      "url": "https://dev.to/sarthology/what-are-you-planning-to-make-for-hacktober-fest-2020-4bk8",
+    },
+  ],
+]
+`;
