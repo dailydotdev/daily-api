@@ -66,7 +66,7 @@ const plugin = async (
       delete req.headers['user-id'];
       delete req.headers['logged-in'];
     }
-    if (!req.userId) {
+    if (!req.userId && req.cookies.da3) {
       const payload = await verifyJwt(req.cookies.da3);
       if (payload) {
         req.userId = payload.userId;
