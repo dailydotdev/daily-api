@@ -1,3 +1,4 @@
+import { GraphQLResolveInfo } from 'graphql';
 import { gql, IResolvers } from 'apollo-server-fastify';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
@@ -9,10 +10,8 @@ import {
   FeedArgs,
   feedResolver,
   getCursorFromAfter,
-  nestChild,
   Ranking,
   searchPostsForFeed,
-  selectSource,
   sourceFeedBuilder,
   tagFeedBuilder,
 } from '../common';
@@ -369,6 +368,28 @@ const applyFeedPaging = (
   return newBuilder;
 };
 
+const getFeedSettings = async (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+): Promise<GQLFeedSettings> => {
+  const res = await graphorm.query<GQLFeedSettings>(ctx, info, (builder) => {
+    builder.queryBuilder = builder.queryBuilder.andWhere(
+      `"${builder.alias}".id = :userId AND "${builder.alias}"."userId" = :userId`,
+      { userId: ctx.userId },
+    );
+    return builder;
+  });
+  if (res.length) {
+    return res[0];
+  }
+  return {
+    id: ctx.userId,
+    userId: ctx.userId,
+    excludeSources: [],
+    includeTags: [],
+  };
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
@@ -396,11 +417,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       feedPageGenerator,
       applyFeedPaging,
     ),
-    feedSettings: (source, args, ctx): Feed =>
-      ctx.getRepository(Feed).create({
-        id: ctx.userId,
-        userId: ctx.userId,
-      }),
+    feedSettings: (source, args, ctx, info): Promise<GQLFeedSettings> =>
+      getFeedSettings(ctx, info),
     searchPostSuggestions: async (
       source,
       { query }: { query: string },
@@ -453,10 +471,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         query: args.query,
       };
     },
-    // searchPosts: forwardPagination(
-    //   searchPostFeedBuilder,
-    //   offsetPageGenerator(30, 50),
-    // ),
     rssFeeds: async (source, args, ctx): Promise<GQLRSSFeed[]> => {
       const urlPrefix = `${process.env.URL_PREFIX}/rss`;
       const lists = await ctx.getRepository(BookmarkList).find({
@@ -479,11 +493,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       source,
       { filters }: { filters: GQLFiltersInput },
       ctx,
-    ): Promise<Feed> =>
-      ctx.con.transaction(
-        async (manager): Promise<Feed> => {
+      info,
+    ): Promise<GQLFeedSettings> => {
+      await ctx.con.transaction(
+        async (manager): Promise<void> => {
           const feedId = ctx.userId;
-          const feed = await manager.getRepository(Feed).save({
+          await manager.getRepository(Feed).save({
             userId: ctx.userId,
             id: feedId,
           });
@@ -503,18 +518,20 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
               })),
             );
           }
-          return feed;
         },
-      ),
+      );
+      return getFeedSettings(ctx, info);
+    },
     removeFiltersFromFeed: async (
       source,
       { filters }: { filters: GQLFiltersInput },
       ctx,
-    ): Promise<Feed> =>
-      ctx.con.transaction(
-        async (manager): Promise<Feed> => {
+      info,
+    ): Promise<GQLFeedSettings> => {
+      await ctx.con.transaction(
+        async (manager): Promise<void> => {
           const feedId = ctx.userId;
-          const feed = await ctx.getRepository(Feed).findOneOrFail(feedId);
+          await ctx.getRepository(Feed).findOneOrFail(feedId);
           if (filters?.excludeSources?.length) {
             await manager.getRepository(FeedSource).delete({
               feedId,
@@ -527,33 +544,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
               tag: In(filters.includeTags),
             });
           }
-          return feed;
         },
-      ),
-  },
-  FeedSettings: {
-    includeTags: async (source: Feed, args, ctx): Promise<string[]> => {
-      const tags = await ctx.getRepository(FeedTag).find({
-        select: ['tag'],
-        where: { feedId: source.id },
-        order: { tag: 'ASC' },
-      });
-      return tags.map((t) => t.tag);
-    },
-    excludeSources: async (source: Feed, args, ctx): Promise<GQLSource[]> => {
-      const displays = await ctx.con
-        .createQueryBuilder()
-        .select('source.*')
-        .from(FeedSource, 'feed')
-        .innerJoin(
-          (subBuilder) => selectSource(ctx.userId, subBuilder),
-          'source',
-          'source."sourceId" = feed."sourceId"',
-        )
-        .where('feed.feedId = :feedId', { feedId: source.id })
-        .orderBy('source."sourceName"')
-        .getRawMany();
-      return displays.map((d) => nestChild(d, 'source')['source']);
+      );
+      return getFeedSettings(ctx, info);
     },
   },
 });

@@ -1,5 +1,5 @@
 import { GraphORM, QueryBuilder } from './graphorm';
-import { Bookmark } from '../entity';
+import { Bookmark, FeedSource, FeedTag } from '../entity';
 import { Context } from '../Context';
 import { GQLBookmarkList } from '../schema/bookmarks';
 
@@ -40,7 +40,7 @@ const obj = new GraphORM({
         },
       },
       tags: {
-        select: '"tagsStr"',
+        select: 'tagsStr',
         transform: (value: string): string[] => value?.split(',') ?? [],
       },
       read: {
@@ -93,12 +93,42 @@ const obj = new GraphORM({
   Source: {
     from: 'SourceDisplay',
     fields: {
-      id: { select: '"sourceId"' },
-      public: { select: '"userId" IS NULL' },
+      id: { select: 'sourceId' },
+      public: {
+        select: 'userId',
+        transform: (value: string): boolean => !value,
+      },
     },
   },
   Comment: {
     requiredColumns: ['id', 'postId'],
+  },
+  FeedSettings: {
+    from: 'Feed',
+    fields: {
+      includeTags: {
+        select: (ctx, alias, qb): QueryBuilder =>
+          qb
+            .select(`string_agg(tag, ',' order by tag)`)
+            .from(FeedTag, 'ft')
+            .where(`ft."feedId" = "${alias}".id`),
+        transform: (value: string): string[] => value?.split(',') ?? [],
+      },
+      excludeSources: {
+        relation: {
+          isMany: true,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .innerJoin(
+                FeedSource,
+                'fs',
+                `"${childAlias}"."sourceId" = fs."sourceId"`,
+              )
+              .where(`fs."feedId" = "${parentAlias}".id`)
+              .orderBy(`"${childAlias}".name`),
+        },
+      },
+    },
   },
 });
 

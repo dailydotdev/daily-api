@@ -1,5 +1,4 @@
 import { SelectQueryBuilder } from 'typeorm';
-import { lowerFirst } from 'lodash';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from 'apollo-server-fastify';
 import {
@@ -17,41 +16,6 @@ import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
 import { Page, PageGenerator } from '../schema/common';
 import graphorm from '../graphorm';
-
-export const nestChild = (obj: object, prefix: string): object => {
-  obj[prefix] = Object.keys(obj).reduce((acc, key) => {
-    if (key.startsWith(prefix)) {
-      const value = obj[key];
-      delete obj[key];
-      return { [lowerFirst(key.substr(prefix.length))]: value, ...acc };
-    }
-    return acc;
-  }, {});
-  return obj;
-};
-
-export const selectSource = (
-  userId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  builder: SelectQueryBuilder<any>,
-): SelectQueryBuilder<SourceDisplay> => {
-  let newBuilder = builder
-    .distinctOn(['sd.sourceId'])
-    .addSelect('sd.sourceId', 'sourceId')
-    .addSelect('sd.name', 'sourceName')
-    .addSelect('sd.image', 'sourceImage')
-    .addSelect('sd.userId IS NULL', 'sourcePublic')
-    .from(SourceDisplay, 'sd')
-    .orderBy('sd.sourceId')
-    .addOrderBy('sd.userId', 'ASC', 'NULLS LAST')
-    .where('sd.userId IS NULL');
-  if (userId) {
-    newBuilder = newBuilder.orWhere('sd.userId = :userId', {
-      userId,
-    });
-  }
-  return newBuilder;
-};
 
 export const whereTags = (
   tags: string[],
