@@ -1,7 +1,9 @@
 import { GraphORM, QueryBuilder } from './graphorm';
-import { Bookmark, FeedSource, FeedTag } from '../entity';
+import { Bookmark, CommentUpvote, FeedSource, FeedTag } from '../entity';
 import { Context } from '../Context';
 import { GQLBookmarkList } from '../schema/bookmarks';
+import { base64 } from '../common';
+import { GQLComment } from '../schema/comments';
 
 const existsByUserAndPost = (entity: string) => (
   ctx: Context,
@@ -101,7 +103,38 @@ const obj = new GraphORM({
     },
   },
   Comment: {
-    requiredColumns: ['id', 'postId'],
+    requiredColumns: ['id', 'postId', 'createdAt'],
+    fields: {
+      createdAt: {
+        transform: (value: string | Date): Date => new Date(value),
+      },
+      upvoted: {
+        select: (ctx: Context, alias: string, qb: QueryBuilder): QueryBuilder =>
+          qb
+            .select('count(*) > 0')
+            .from(CommentUpvote, 'cu')
+            .where(`cu."userId" = :userId`, { userId: ctx.userId })
+            .andWhere(`cu."commentId" = ${alias}.id`)
+            .limit(1),
+        transform: nullIfNotLoggedIn,
+      },
+      children: {
+        relation: {
+          isMany: true,
+          childColumn: 'parentId',
+          parentColumn: 'id',
+        },
+        pagination: {
+          order: 'ASC',
+          sort: 'createdAt',
+          limit: 15,
+          hasNextPage: (size): boolean => size === 15,
+          hasPreviousPage: (): boolean => false,
+          nodeToCursor: (node: GQLComment): string =>
+            base64(`time:${new Date(node.createdAt).getTime()}`),
+        },
+      },
+    },
   },
   FeedSettings: {
     from: 'Feed',

@@ -20,7 +20,7 @@ import graphorm from '../graphorm';
 export const whereTags = (
   tags: string[],
   builder: SelectQueryBuilder<Post>,
-  alias = 'post',
+  alias,
 ): string => {
   const query = builder
     .subQuery()
@@ -35,7 +35,7 @@ export const whereTags = (
 export const whereTagsInFeed = (
   feedId: string,
   builder: SelectQueryBuilder<Post>,
-  alias = 'post',
+  alias,
 ): string => {
   const feedTag = builder
     .subQuery()
@@ -58,7 +58,7 @@ export const whereTagsInFeed = (
 export const whereSourcesInFeed = (
   feedId: string,
   builder: SelectQueryBuilder<Post>,
-  alias = 'post',
+  alias,
 ): string => {
   const query = builder
     .subQuery()
@@ -72,7 +72,7 @@ export const whereSourcesInFeed = (
 export const selectRead = (
   userId: string,
   builder: SelectQueryBuilder<Post>,
-  alias = 'post',
+  alias,
 ): string => {
   const query = builder
     .select('1')
@@ -86,7 +86,7 @@ export const selectRead = (
 export const whereUnread = (
   userId: string,
   builder: SelectQueryBuilder<Post>,
-  alias = 'post',
+  alias,
 ): string => `NOT ${selectRead(userId, builder.subQuery(), alias)}`;
 
 export enum Ranking {
@@ -184,7 +184,7 @@ export const anonymousFeedBuilder = (
   ctx: Context,
   filters: AnonymousFeedFilters,
   builder: SelectQueryBuilder<Post>,
-  alias = 'post',
+  alias,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder;
   if (filters?.includeSources?.length) {
@@ -212,7 +212,7 @@ export const configuredFeedBuilder = (
   feedId: string,
   unreadOnly: boolean,
   builder: SelectQueryBuilder<Post>,
-  alias = 'post',
+  alias,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder;
   newBuilder = newBuilder
@@ -231,7 +231,7 @@ export const bookmarksFeedBuilder = (
   unreadOnly: boolean,
   listId: string | null,
   builder: SelectQueryBuilder<Post>,
-  alias = 'post',
+  alias,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder
     .addSelect('bookmark.createdAt', 'bookmarkedAt')
@@ -243,7 +243,7 @@ export const bookmarksFeedBuilder = (
     );
   if (unreadOnly) {
     newBuilder = newBuilder.andWhere((subBuilder) =>
-      whereUnread(ctx.userId, subBuilder),
+      whereUnread(ctx.userId, subBuilder, alias),
     );
   }
   if (listId && ctx.premium) {
@@ -256,7 +256,7 @@ export const sourceFeedBuilder = (
   ctx: Context,
   sourceId: string,
   builder: SelectQueryBuilder<Post>,
-  alias = 'post',
+  alias,
 ): SelectQueryBuilder<Post> =>
   builder.andWhere(`${alias}.sourceId = :sourceId`, {
     sourceId,
@@ -266,7 +266,7 @@ export const tagFeedBuilder = (
   ctx: Context,
   tag: string,
   builder: SelectQueryBuilder<Post>,
-  alias = 'post',
+  alias,
 ): SelectQueryBuilder<Post> =>
   builder.andWhere((subBuilder) => whereTags([tag], subBuilder, alias));
 

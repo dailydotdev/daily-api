@@ -291,7 +291,10 @@ export const resolvers: IResolvers<any, Context> = {
       info,
     ): Promise<GQLPost> => {
       const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
-        queryBuilder: builder.queryBuilder.where(`"post"."id" = :id`, { id }),
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."id" = :id`,
+          { id },
+        ),
         ...builder,
       }));
       if (res.length) {
