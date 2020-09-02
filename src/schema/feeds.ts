@@ -11,7 +11,7 @@ import {
   getCursorFromAfter,
   nestChild,
   Ranking,
-  searchPostFeedBuilder,
+  searchPostsForFeed,
   selectSource,
   sourceFeedBuilder,
   tagFeedBuilder,
@@ -26,13 +26,10 @@ import {
   searchPosts,
 } from '../entity';
 import { GQLSource } from './sources';
-import {
-  forwardPagination,
-  offsetPageGenerator,
-  Page,
-  PageGenerator,
-} from './common';
+import { offsetPageGenerator, Page, PageGenerator } from './common';
 import { GQLPost } from './posts';
+import { Connection } from 'graphql-relay';
+import graphorm from '../graphorm';
 
 export const typeDefs = gql`
   type FeedSettings {
@@ -345,19 +342,27 @@ const applyFeedPaging = (
   { ranking }: FeedArgs,
   page: FeedPage,
   builder: SelectQueryBuilder<Post>,
+  alias = 'post',
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder
+    .addSelect(
+      ranking === Ranking.POPULARITY
+        ? `${alias}.score as score`
+        : `${alias}."createdAt" as "createdAt"`,
+    )
     .limit(page.limit)
     .orderBy(
-      ranking === Ranking.POPULARITY ? 'post.score' : 'post.createdAt',
+      ranking === Ranking.POPULARITY
+        ? `${alias}.score`
+        : `${alias}."createdAt"`,
       'DESC',
     );
   if (page.score) {
-    newBuilder = newBuilder.andWhere('post.score < :score', {
+    newBuilder = newBuilder.andWhere(`${alias}.score < :score`, {
       score: page.score,
     });
   } else if (page.timestamp) {
-    newBuilder = newBuilder.andWhere('post."createdAt" < :timestamp', {
+    newBuilder = newBuilder.andWhere(`${alias}."createdAt" < :timestamp`, {
       timestamp: page.timestamp,
     });
   }
@@ -368,25 +373,26 @@ const applyFeedPaging = (
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     anonymousFeed: feedResolver(
-      (ctx, { filters }: AnonymousFeedArgs, builder) =>
-        anonymousFeedBuilder(ctx, filters, builder),
+      (ctx, { filters }: AnonymousFeedArgs, builder, alias) =>
+        anonymousFeedBuilder(ctx, filters, builder, alias),
       feedPageGenerator,
       applyFeedPaging,
     ),
     feed: feedResolver(
-      (ctx, { unreadOnly }: ConfiguredFeedArgs, builder) =>
-        configuredFeedBuilder(ctx, ctx.userId, unreadOnly, builder),
+      (ctx, { unreadOnly }: ConfiguredFeedArgs, builder, alias) =>
+        configuredFeedBuilder(ctx, ctx.userId, unreadOnly, builder, alias),
       feedPageGenerator,
       applyFeedPaging,
     ),
     sourceFeed: feedResolver(
-      (ctx, { source }: SourceFeedArgs, builder) =>
-        sourceFeedBuilder(ctx, source, builder),
+      (ctx, { source }: SourceFeedArgs, builder, alias) =>
+        sourceFeedBuilder(ctx, source, builder, alias),
       feedPageGenerator,
       applyFeedPaging,
     ),
     tagFeed: feedResolver(
-      (ctx, { tag }: TagFeedArgs, builder) => tagFeedBuilder(ctx, tag, builder),
+      (ctx, { tag }: TagFeedArgs, builder, alias) =>
+        tagFeedBuilder(ctx, tag, builder, alias),
       feedPageGenerator,
       applyFeedPaging,
     ),
@@ -417,10 +423,40 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         hits: suggestions.map((s) => ({ title: s.highlight })),
       };
     },
-    searchPosts: forwardPagination(
-      searchPostFeedBuilder,
-      offsetPageGenerator(30, 50),
-    ),
+    searchPosts: async (
+      source,
+      args: FeedArgs & { query: string },
+      ctx,
+      info,
+    ): Promise<Connection<GQLPost> & { query: string }> => {
+      const pageGenerator = offsetPageGenerator(30, 50);
+      const page = pageGenerator.connArgsToPage(args);
+      const postIds = await searchPostsForFeed(args, ctx, page);
+      const res = await graphorm.queryPaginated<GQLPost>(
+        ctx,
+        info,
+        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+        (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.where(
+            `${builder.alias}.id IN (:...postIds)`,
+            { postIds },
+          );
+          return builder;
+        },
+        (nodes) =>
+          nodes.sort((a, b) => postIds.indexOf(a.id) - postIds.indexOf(b.id)),
+      );
+      return {
+        ...res,
+        query: args.query,
+      };
+    },
+    // searchPosts: forwardPagination(
+    //   searchPostFeedBuilder,
+    //   offsetPageGenerator(30, 50),
+    // ),
     rssFeeds: async (source, args, ctx): Promise<GQLRSSFeed[]> => {
       const urlPrefix = `${process.env.URL_PREFIX}/rss`;
       const lists = await ctx.getRepository(BookmarkList).find({

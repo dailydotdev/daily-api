@@ -434,15 +434,6 @@ describe('query post', () => {
     const res = await client.query({ query: QUERY('p1') });
     expect(res.data).toMatchSnapshot();
   });
-
-  it('should hide post and not found', async () => {
-    loggedUser = '1';
-    await con.getRepository(HiddenPost).save({
-      postId: 'p1',
-      userId: loggedUser,
-    });
-    return testQueryErrorCode(client, { query: QUERY('p1') }, 'NOT_FOUND');
-  });
 });
 
 describe('mutation hidePost', () => {

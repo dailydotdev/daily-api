@@ -5,19 +5,20 @@ import { GQLPost } from './posts';
 import {
   anonymousFeedBuilder,
   AnonymousFeedFilters,
+  applyFeedWhere,
   bookmarksFeedBuilder,
   configuredFeedBuilder,
   FeedOptions,
-  generateFeed,
   Ranking,
-  searchPostFeedBuilder,
+  searchPostsForFeed,
   sourceFeedBuilder,
   tagFeedBuilder,
 } from '../common';
 import { SelectQueryBuilder } from 'typeorm';
 import { Post, searchPosts } from '../entity';
-import { PaginationResponse } from './common';
 import { GQLSearchPostSuggestionsResults } from './feeds';
+import graphorm from '../graphorm';
+import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 
 export const typeDefs = gql`
   type Publication {
@@ -146,7 +147,7 @@ async function compatGenerateFeed<
     limit: number,
     offset: number,
     opts: FeedOptions,
-  ) => Promise<PaginationResponse<GQLPost>>,
+  ) => Promise<GQLPost[]>,
 ): Promise<GQLPost[]> {
   const limit = Math.min(args.params?.pageSize || 30, 50);
   const offset = (args.params?.page || 0) * limit;
@@ -155,8 +156,7 @@ async function compatGenerateFeed<
     ranking:
       args.params?.sortBy === 'creation' ? Ranking.TIME : Ranking.POPULARITY,
   };
-  const feed = await generate(ctx, limit, offset, opts);
-  return feed.nodes;
+  return generate(ctx, limit, offset, opts);
 }
 
 function compatFeedResolver<
@@ -169,26 +169,36 @@ function compatFeedResolver<
     args: TArgs,
     opts: FeedOptions,
     builder: SelectQueryBuilder<Post>,
+    alias: string,
   ) => SelectQueryBuilder<Post>,
 ): IFieldResolver<TSource, Context, TArgs> {
   return async (
     source: TSource,
     args: TArgs,
     ctx: Context,
+    info,
   ): Promise<GQLPost[]> =>
     compatGenerateFeed(source, args, ctx, (_, limit, offset, opts) =>
-      generateFeed(ctx, (builder) =>
-        query(ctx, args, opts, builder.limit(limit).offset(offset)),
-      ),
+      graphorm.query(ctx, info, (builder) => {
+        builder.queryBuilder = applyFeedWhere(
+          ctx,
+          query(ctx, args, opts, builder.queryBuilder, builder.alias),
+          builder.alias,
+        )
+          .limit(limit)
+          .offset(offset);
+        return builder;
+      }),
     );
 }
 
 const orderFeed = (
   ranking: Ranking,
   builder: SelectQueryBuilder<Post>,
+  alias = 'post',
 ): SelectQueryBuilder<Post> =>
   builder.orderBy(
-    ranking === Ranking.POPULARITY ? 'post.score' : 'post.createdAt',
+    ranking === Ranking.POPULARITY ? `${alias}.score` : `${alias}.createdAt`,
     'DESC',
   );
 
@@ -196,14 +206,21 @@ const orderFeed = (
 export const resolvers: IResolvers<any, Context> = {
   Query: traceResolverObject({
     latest: compatFeedResolver(
-      (ctx, { params }: CompatFeedArgs<GQLQueryPostInput>, opts, builder) => {
-        const newBuilder = orderFeed(opts.ranking, builder);
+      (
+        ctx,
+        { params }: CompatFeedArgs<GQLQueryPostInput>,
+        opts,
+        builder,
+        alias,
+      ) => {
+        const newBuilder = orderFeed(opts.ranking, builder, alias);
         if (ctx.userId) {
           return configuredFeedBuilder(
             ctx,
             ctx.userId,
             params.read === false,
             newBuilder,
+            alias,
           );
         } else {
           const filters: AnonymousFeedFilters = {
@@ -214,16 +231,17 @@ export const resolvers: IResolvers<any, Context> = {
               ? params?.tags?.split(',')
               : undefined,
           };
-          return anonymousFeedBuilder(ctx, filters, newBuilder);
+          return anonymousFeedBuilder(ctx, filters, newBuilder, alias);
         }
       },
     ),
-    bookmarks: compatFeedResolver((ctx, args, opts, builder) =>
+    bookmarks: compatFeedResolver((ctx, args, opts, builder, alias) =>
       bookmarksFeedBuilder(
         ctx,
         false,
         null,
         builder.orderBy('bookmark.createdAt', 'DESC'),
+        alias,
       ),
     ),
     postsByPublication: compatFeedResolver(
@@ -232,34 +250,61 @@ export const resolvers: IResolvers<any, Context> = {
         { params }: CompatFeedArgs<GQLPostByPublicationInput>,
         opts,
         builder,
-      ) => orderFeed(opts.ranking, sourceFeedBuilder(ctx, params.pub, builder)),
+        alias,
+      ) =>
+        orderFeed(
+          opts.ranking,
+          sourceFeedBuilder(ctx, params.pub, builder, alias),
+          alias,
+        ),
     ),
     postsByTag: compatFeedResolver(
-      (ctx, { params }: CompatFeedArgs<GQLPostByTagInput>, opts, builder) =>
-        orderFeed(opts.ranking, tagFeedBuilder(ctx, params.tag, builder)),
+      (
+        ctx,
+        { params }: CompatFeedArgs<GQLPostByTagInput>,
+        opts,
+        builder,
+        alias,
+      ) =>
+        orderFeed(
+          opts.ranking,
+          tagFeedBuilder(ctx, params.tag, builder, alias),
+          alias,
+        ),
     ),
     search: async (
       source,
       args: CompatFeedArgs<GQLPostSearchInput>,
       ctx,
+      info,
     ): Promise<GQLPostSearchResults> => {
-      const posts = await compatGenerateFeed(
-        source,
-        args,
+      const limit = Math.min(args.params?.pageSize || 30, 50);
+      const offset = (args.params?.page || 0) * limit;
+      const postIds = await searchPostsForFeed(
+        {
+          query: args.params.query,
+          ranking: Ranking.POPULARITY,
+        },
         ctx,
-        (_, limit, offset) =>
-          searchPostFeedBuilder(
-            source,
-            {
-              query: args.params.query,
-              ranking: Ranking.POPULARITY,
-            },
-            ctx,
-            { limit, offset },
-          ),
+        { limit, offset },
+      );
+      const parsedInfo = parseResolveInfo(info) as ResolveTree;
+      let nodes = await graphorm.queryResolveTree<GQLPost>(
+        ctx,
+        graphorm.getFieldByHierarchy(parsedInfo, ['hits']),
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.where(
+            `${builder.alias}.id IN (:...postIds)`,
+            { postIds },
+          );
+          return builder;
+        },
+      );
+      nodes = nodes.sort(
+        (a, b) => postIds.indexOf(a.id) - postIds.indexOf(b.id),
       );
       return {
-        hits: posts,
+        hits: nodes,
         query: args.params.query,
       };
     },

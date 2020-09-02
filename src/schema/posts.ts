@@ -3,12 +3,13 @@ import { Connection, DeepPartial } from 'typeorm';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { generateFeed, notifyPostReport, notifyPostUpvoted } from '../common';
+import { notifyPostReport, notifyPostUpvoted } from '../common';
 import { HiddenPost, Post, Upvote } from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
 import { GQLComment } from './comments';
+import graphorm from '../graphorm';
 
 export interface GQLPost {
   id: string;
@@ -287,12 +288,14 @@ export const resolvers: IResolvers<any, Context> = {
       source,
       { id }: { id: string },
       ctx: Context,
+      info,
     ): Promise<GQLPost> => {
-      const feed = await generateFeed(ctx, (builder) =>
-        builder.where('post.id = :id', { id }).limit(1),
-      );
-      if (feed.nodes.length) {
-        return feed.nodes[0];
+      const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
+        queryBuilder: builder.queryBuilder.where(`"post"."id" = :id`, { id }),
+        ...builder,
+      }));
+      if (res.length) {
+        return res[0];
       }
       throw new NotFoundError('Post not found');
     },

@@ -1,30 +1,22 @@
 import { SelectQueryBuilder } from 'typeorm';
 import { lowerFirst } from 'lodash';
-import { ConnectionArguments } from 'graphql-relay';
+import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from 'apollo-server-fastify';
 import {
   Bookmark,
   FeedTag,
-  HiddenPost,
   Post,
   PostTag,
   searchPosts,
-  SourceDisplay,
   View,
-  BookmarkList,
   FeedSource,
-  Upvote,
-  Comment,
-  User,
+  SourceDisplay,
+  HiddenPost,
 } from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
-import {
-  forwardPagination,
-  Page,
-  PageGenerator,
-  PaginationResponse,
-} from '../schema/common';
+import { Page, PageGenerator } from '../schema/common';
+import graphorm from '../graphorm';
 
 export const nestChild = (obj: object, prefix: string): object => {
   obj[prefix] = Object.keys(obj).reduce((acc, key) => {
@@ -37,118 +29,6 @@ export const nestChild = (obj: object, prefix: string): object => {
   }, {});
   return obj;
 };
-
-export const whereTags = (
-  tags: string[],
-  builder: SelectQueryBuilder<Post>,
-): string => {
-  const query = builder
-    .subQuery()
-    .select('1')
-    .from(PostTag, 't')
-    .where(`t.tag IN (:...tags)`, { tags })
-    .andWhere('t.postId = post.id')
-    .getQuery();
-  return `EXISTS${query}`;
-};
-
-export const whereTagsInFeed = (
-  feedId: string,
-  builder: SelectQueryBuilder<Post>,
-): string => {
-  const feedTag = builder
-    .subQuery()
-    .select('feed.tag')
-    .from(FeedTag, 'feed')
-    .where('feed.feedId = :feedId', { feedId })
-    .getQuery();
-
-  const query = builder
-    .subQuery()
-    .select('1')
-    .from(PostTag, 't')
-    .where(`t.tag IN ${feedTag}`)
-    .andWhere('t.postId = post.id')
-    .getQuery();
-
-  return `(NOT EXISTS${feedTag} OR EXISTS${query})`;
-};
-
-export const whereSourcesInFeed = (
-  feedId: string,
-  builder: SelectQueryBuilder<Post>,
-): string => {
-  const query = builder
-    .subQuery()
-    .select('feed.sourceId')
-    .from(FeedSource, 'feed')
-    .where('feed.feedId = :feedId', { feedId })
-    .getQuery();
-  return `post.sourceId NOT IN${query}`;
-};
-
-export const selectRead = (
-  userId: string,
-  builder: SelectQueryBuilder<Post>,
-): string => {
-  const query = builder
-    .select('1')
-    .from(View, 'view')
-    .where(`view.userId = :userId`, { userId })
-    .andWhere('view.postId = post.id')
-    .getQuery();
-  return `EXISTS${query}`;
-};
-
-export const selectUpvoted = (
-  userId: string,
-  builder: SelectQueryBuilder<Post>,
-): string => {
-  const query = builder
-    .select('1')
-    .from(Upvote, 'upvote')
-    .where(`upvote.userId = :userId`, { userId })
-    .andWhere('upvote.postId = post.id')
-    .getQuery();
-  return `EXISTS${query}`;
-};
-
-export const selectCommented = (
-  userId: string,
-  builder: SelectQueryBuilder<Post>,
-): string => {
-  const query = builder
-    .select('1')
-    .from(Comment, 'comment')
-    .where(`comment.userId = :userId`, { userId })
-    .andWhere('comment.postId = post.id')
-    .getQuery();
-  return `EXISTS${query}`;
-};
-
-export const selectFeaturedComments = (
-  builder: SelectQueryBuilder<Post>,
-): SelectQueryBuilder<Post> =>
-  builder
-    .select(`coalesce(jsonb_agg(res), '[]'::jsonb)`, 'featuredComments')
-    .from(
-      (builder) =>
-        builder
-          .select('c.id', 'id')
-          .addSelect('c.content', 'content')
-          .addSelect('c.postId', 'postId')
-          .addSelect('to_jsonb(u)', 'author')
-          .from(Comment, 'c')
-          .innerJoin(User, 'u', 'u.id = c."userId"')
-          .where('c.featured is true')
-          .andWhere('c.postId = post.id'),
-      'res',
-    );
-
-export const whereUnread = (
-  userId: string,
-  builder: SelectQueryBuilder<Post>,
-): string => `NOT ${selectRead(userId, builder.subQuery())}`;
 
 export const selectSource = (
   userId: string,
@@ -173,19 +53,77 @@ export const selectSource = (
   return newBuilder;
 };
 
-export const mapRawPost = (post: object): GQLPost => {
-  post = nestChild(nestChild(post, 'source'), 'bookmarkList');
-  if (!post['bookmarkList'].id) {
-    post['bookmarkList'] = undefined;
-  }
-  post['tags'] = post['tagsStr'] ? post['tagsStr'].split(',') : [];
-  post['tagsStr'] = undefined;
-  post['numUpvotes'] = post['upvotes'];
-  post['upvotes'] = undefined;
-  post['numComments'] = post['comments'];
-  post['comments'] = undefined;
-  return post as GQLPost;
+export const whereTags = (
+  tags: string[],
+  builder: SelectQueryBuilder<Post>,
+  alias = 'post',
+): string => {
+  const query = builder
+    .subQuery()
+    .select('1')
+    .from(PostTag, 't')
+    .where(`t.tag IN (:...tags)`, { tags })
+    .andWhere(`t.postId = ${alias}.id`)
+    .getQuery();
+  return `EXISTS${query}`;
 };
+
+export const whereTagsInFeed = (
+  feedId: string,
+  builder: SelectQueryBuilder<Post>,
+  alias = 'post',
+): string => {
+  const feedTag = builder
+    .subQuery()
+    .select('feed.tag')
+    .from(FeedTag, 'feed')
+    .where('feed.feedId = :feedId', { feedId })
+    .getQuery();
+
+  const query = builder
+    .subQuery()
+    .select('1')
+    .from(PostTag, 't')
+    .where(`t.tag IN ${feedTag}`)
+    .andWhere(`t.postId = ${alias}.id`)
+    .getQuery();
+
+  return `(NOT EXISTS${feedTag} OR EXISTS${query})`;
+};
+
+export const whereSourcesInFeed = (
+  feedId: string,
+  builder: SelectQueryBuilder<Post>,
+  alias = 'post',
+): string => {
+  const query = builder
+    .subQuery()
+    .select('feed.sourceId')
+    .from(FeedSource, 'feed')
+    .where('feed.feedId = :feedId', { feedId })
+    .getQuery();
+  return `${alias}.sourceId NOT IN${query}`;
+};
+
+export const selectRead = (
+  userId: string,
+  builder: SelectQueryBuilder<Post>,
+  alias = 'post',
+): string => {
+  const query = builder
+    .select('1')
+    .from(View, 'view')
+    .where(`view.userId = :userId`, { userId })
+    .andWhere(`view.postId = ${alias}.id`)
+    .getQuery();
+  return `EXISTS${query}`;
+};
+
+export const whereUnread = (
+  userId: string,
+  builder: SelectQueryBuilder<Post>,
+  alias = 'post',
+): string => `NOT ${selectRead(userId, builder.subQuery(), alias)}`;
 
 export enum Ranking {
   POPULARITY = 'POPULARITY',
@@ -198,55 +136,28 @@ export interface FeedOptions {
 
 export type FeedArgs = ConnectionArguments & FeedOptions;
 
-export const generateFeed = async <TPage extends Page>(
+export const applyFeedWhere = (
   ctx: Context,
-  query: (builder: SelectQueryBuilder<Post>) => SelectQueryBuilder<Post>,
-): Promise<PaginationResponse<GQLPost>> => {
-  let builder = ctx.con
-    .createQueryBuilder()
-    .select('post.*')
-    .addSelect('source.*')
-    .addSelect(selectFeaturedComments)
-    .from(Post, 'post')
-    .innerJoin(
-      (subBuilder) => selectSource(ctx.userId, subBuilder),
-      'source',
-      'source."sourceId" = post."sourceId"',
-    );
-  builder = query(builder);
+  builder: SelectQueryBuilder<Post>,
+  alias: string,
+): SelectQueryBuilder<Post> => {
+  const whereSource = ctx.userId ? 'sd."userId" = :userId OR ' : '';
+  let newBuilder = builder
+    .innerJoin(SourceDisplay, 'sd', `${alias}."sourceId" = sd."sourceId"`)
+    .andWhere(`(${whereSource}sd."userId" IS NULL)`, {
+      userId: ctx.userId,
+    });
   if (ctx.userId) {
-    builder = builder
-      .addSelect(selectRead(ctx.userId, builder.subQuery()), 'read')
-      .addSelect(selectUpvoted(ctx.userId, builder.subQuery()), 'upvoted')
-      .addSelect(selectCommented(ctx.userId, builder.subQuery()), 'commented')
-      .addSelect('bookmark.postId IS NOT NULL', 'bookmarked')
-      .leftJoin(
-        Bookmark,
-        'bookmark',
-        'bookmark.postId = post.id AND bookmark.userId = :userId',
-        { userId: ctx.userId },
-      )
+    newBuilder = newBuilder
       .leftJoin(
         HiddenPost,
         'hidden',
-        'hidden.postId = post.id AND hidden.userId = :userId',
+        `hidden.postId = "${alias}".id AND hidden.userId = :userId`,
         { userId: ctx.userId },
       )
       .andWhere('hidden.postId IS NULL');
-    if (ctx.premium) {
-      builder = builder
-        .addSelect('bookmarkList.id', 'bookmarkListId')
-        .addSelect('bookmarkList.name', 'bookmarkListName')
-        .leftJoin(
-          BookmarkList,
-          'bookmarkList',
-          'bookmarkList.id = bookmark.listId',
-        );
-    }
   }
-  const res = await builder.getRawMany();
-
-  return { nodes: res.map(mapRawPost) };
+  return newBuilder;
 };
 
 export function feedResolver<
@@ -258,6 +169,7 @@ export function feedResolver<
     ctx: Context,
     args: TArgs,
     builder: SelectQueryBuilder<Post>,
+    alias: string,
   ) => SelectQueryBuilder<Post>,
   pageGenerator: PageGenerator<GQLPost, TArgs, TPage>,
   applyPaging: (
@@ -265,20 +177,33 @@ export function feedResolver<
     args: TArgs,
     page: TPage,
     builder: SelectQueryBuilder<Post>,
+    alias: string,
   ) => SelectQueryBuilder<Post>,
 ): IFieldResolver<TSource, Context, TArgs> {
-  return forwardPagination(
-    async (
-      source,
-      args: TArgs,
-      ctx,
-      page,
-    ): Promise<PaginationResponse<GQLPost>> =>
-      generateFeed(ctx, (builder) =>
-        applyPaging(ctx, args, page, query(ctx, args, builder)),
-      ),
-    pageGenerator,
-  );
+  return async (source, args, context, info): Promise<Connection<GQLPost>> => {
+    const page = pageGenerator.connArgsToPage(args);
+    return graphorm.queryPaginated(
+      context,
+      info,
+      (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+      (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+      (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+      (builder) => {
+        builder.queryBuilder = applyFeedWhere(
+          context,
+          applyPaging(
+            context,
+            args,
+            page,
+            query(context, args, builder.queryBuilder, builder.alias),
+            builder.alias,
+          ),
+          builder.alias,
+        );
+        return builder;
+      },
+    );
+  };
 }
 
 /**
@@ -295,20 +220,24 @@ export const anonymousFeedBuilder = (
   ctx: Context,
   filters: AnonymousFeedFilters,
   builder: SelectQueryBuilder<Post>,
+  alias = 'post',
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder;
   if (filters?.includeSources?.length) {
-    newBuilder = newBuilder.andWhere(`post.sourceId IN (:...sources)`, {
+    newBuilder = newBuilder.andWhere(`${alias}."sourceId" IN (:...sources)`, {
       sources: filters.includeSources,
     });
   } else if (filters?.excludeSources?.length) {
-    newBuilder = newBuilder.andWhere(`post.sourceId NOT IN (:...sources)`, {
-      sources: filters.excludeSources,
-    });
+    newBuilder = newBuilder.andWhere(
+      `${alias}."sourceId" NOT IN (:...sources)`,
+      {
+        sources: filters.excludeSources,
+      },
+    );
   }
   if (filters?.includeTags?.length) {
     newBuilder = newBuilder.andWhere((builder) =>
-      whereTags(filters.includeTags, builder),
+      whereTags(filters.includeTags, builder, alias),
     );
   }
   return newBuilder;
@@ -319,14 +248,15 @@ export const configuredFeedBuilder = (
   feedId: string,
   unreadOnly: boolean,
   builder: SelectQueryBuilder<Post>,
+  alias = 'post',
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder;
   newBuilder = newBuilder
-    .andWhere((subBuilder) => whereSourcesInFeed(feedId, subBuilder))
-    .andWhere((subBuilder) => whereTagsInFeed(feedId, subBuilder));
+    .andWhere((subBuilder) => whereSourcesInFeed(feedId, subBuilder, alias))
+    .andWhere((subBuilder) => whereTagsInFeed(feedId, subBuilder, alias));
   if (unreadOnly) {
     newBuilder = newBuilder.andWhere((subBuilder) =>
-      whereUnread(ctx.userId, subBuilder),
+      whereUnread(ctx.userId, subBuilder, alias),
     );
   }
   return newBuilder;
@@ -337,10 +267,16 @@ export const bookmarksFeedBuilder = (
   unreadOnly: boolean,
   listId: string | null,
   builder: SelectQueryBuilder<Post>,
+  alias = 'post',
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder
     .addSelect('bookmark.createdAt', 'bookmarkedAt')
-    .where('bookmark.postId IS NOT NULL');
+    .innerJoin(
+      Bookmark,
+      'bookmark',
+      `bookmark."postId" = ${alias}.id AND bookmark."userId" = :userId`,
+      { userId: ctx.userId },
+    );
   if (unreadOnly) {
     newBuilder = newBuilder.andWhere((subBuilder) =>
       whereUnread(ctx.userId, subBuilder),
@@ -356,8 +292,9 @@ export const sourceFeedBuilder = (
   ctx: Context,
   sourceId: string,
   builder: SelectQueryBuilder<Post>,
+  alias = 'post',
 ): SelectQueryBuilder<Post> =>
-  builder.andWhere(`post.sourceId = :sourceId`, {
+  builder.andWhere(`${alias}.sourceId = :sourceId`, {
     sourceId,
   });
 
@@ -365,15 +302,15 @@ export const tagFeedBuilder = (
   ctx: Context,
   tag: string,
   builder: SelectQueryBuilder<Post>,
+  alias = 'post',
 ): SelectQueryBuilder<Post> =>
-  builder.andWhere((subBuilder) => whereTags([tag], subBuilder));
+  builder.andWhere((subBuilder) => whereTags([tag], subBuilder, alias));
 
-export const searchPostFeedBuilder = async (
-  source,
+export const searchPostsForFeed = async (
   { query }: FeedArgs & { query: string },
   ctx,
   { limit, offset },
-): Promise<PaginationResponse<GQLPost, { query: string }>> => {
+): Promise<string[]> => {
   const hits = await searchPosts(
     query,
     {
@@ -384,15 +321,5 @@ export const searchPostFeedBuilder = async (
     ctx.userId,
     ctx.req.ip,
   );
-  const postIds = hits.map((h) => h.id);
-  const res = await generateFeed(ctx, (builder) =>
-    builder.where('post.id IN (:...postIds)', { postIds }),
-  );
-  const sorted = res.nodes.sort(
-    (a, b) => postIds.indexOf(a.id) - postIds.indexOf(b.id),
-  );
-  return {
-    nodes: sorted,
-    extra: { query },
-  };
+  return hits.map((h) => h.id);
 };

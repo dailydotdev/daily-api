@@ -20,7 +20,7 @@ import { sourcesFixture } from './fixture/source';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { ApolloServer } from 'apollo-server-fastify';
-import { FeedSource } from '../src/entity/FeedSource';
+import { FeedSource } from '../src/entity';
 import { mocked } from 'ts-jest/utils';
 import { getPostsIndex } from '../src/common';
 import { SearchIndex } from 'algoliasearch';

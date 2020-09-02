@@ -252,8 +252,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   },
   Query: {
     bookmarksFeed: feedResolver(
-      (ctx, { unreadOnly, listId = null }: BookmarksArgs, builder) =>
-        bookmarksFeedBuilder(ctx, unreadOnly, listId, builder),
+      (ctx, { unreadOnly, listId = null }: BookmarksArgs, builder, alias) =>
+        bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias),
       bookmarkPageGenerator,
       applyBookmarkPaging,
     ),
