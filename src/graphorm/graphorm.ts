@@ -114,7 +114,7 @@ export class GraphORM {
       this.mappings?.[type]?.fields?.[field.name]?.relation ||
       this.findRelation(metadata, ctx.con.getMetadata(childType));
     if (!relation) {
-      throw new Error('Could not find relation');
+      throw new Error(`Could not find relation ${type}.${field.name}`);
     }
     const select = relation.isMany
       ? `coalesce(jsonb_agg(res), '[]'::jsonb)`
@@ -208,7 +208,7 @@ export class GraphORM {
       const { select } = mapping;
       if (select) {
         if (typeof select === 'string') {
-          return builder.addSelect(select, field.alias);
+          return builder.addSelect(`"${alias}"."${select}"`, field.alias);
         }
         return builder.addSelect(
           (subBuilder) => select(ctx, alias, subBuilder),
