@@ -1,3 +1,4 @@
+import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
 import { gql, IResolvers, ForbiddenError } from 'apollo-server-fastify';
 import { Context } from '../Context';
@@ -9,18 +10,12 @@ import {
 } from '../common';
 import { Post, Comment, CommentUpvote } from '../entity';
 import { NotFoundError } from '../errors';
-import {
-  forwardPagination,
-  GQLEmptyResponse,
-  PaginationResponse,
-} from './common';
+import { GQLEmptyResponse } from './common';
 import { GQLUser } from './users';
 import { Connection, ConnectionArguments } from 'graphql-relay';
-import {
-  commentsPageGenerator,
-  mapRawComment,
-  selectComments,
-} from '../common/commentsFeedGenerator';
+import { commentsPageGenerator } from '../common/commentsFeedGenerator';
+import graphorm from '../graphorm';
+import { GQLPost } from './posts';
 
 export interface GQLComment {
   id: string;
@@ -30,6 +25,7 @@ export interface GQLComment {
   author?: GQLUser;
   upvoted?: boolean;
   children?: Connection<GQLComment>;
+  post: GQLPost;
 }
 
 interface GQLPostCommentArgs {
@@ -78,6 +74,11 @@ export const typeDefs = gql`
     Sub comments of this comment
     """
     children: CommentConnection
+
+    """
+    The post that was commented
+    """
+    post: Post!
   }
 
   type CommentEdge {
@@ -181,31 +182,56 @@ export interface GQLPostCommentsArgs extends ConnectionArguments {
   postId: string;
 }
 
+const getCommentById = async (
+  id: string,
+  ctx: Context,
+  info: GraphQLResolveInfo,
+): Promise<GQLComment> => {
+  const res = await graphorm.query<GQLComment>(ctx, info, (builder) => {
+    builder.queryBuilder = builder.queryBuilder
+      .andWhere(`${builder.alias}.id = :id`, { id })
+      .limit(1);
+    return builder;
+  });
+  return res[0];
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Query: traceResolverObject<any, any>({
-    postComments: forwardPagination(
-      async (
-        source,
-        { postId }: GQLPostCommentsArgs,
+    postComments: async (
+      source,
+      args: GQLPostCommentsArgs,
+      ctx,
+      info,
+    ): Promise<Connection<GQLComment>> => {
+      const page = commentsPageGenerator.connArgsToPage(args);
+      return graphorm.queryPaginated(
         ctx,
-      ): Promise<PaginationResponse<GQLComment>> => {
-        const limitChildren = 10;
-        const res = await selectComments(
-          ctx.con.createQueryBuilder(),
-          limitChildren,
-          ctx.userId,
-        )
-          .where('comment.postId = :postId', { postId })
-          .andWhere('comment.parentId is null')
-          .getRawMany();
-        return {
-          nodes: res.map((comment) => mapRawComment(comment, limitChildren)),
-        };
-      },
-      commentsPageGenerator,
-    ),
+        info,
+        (nodeSize) => commentsPageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => commentsPageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          commentsPageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}.postId = :postId`, {
+              postId: args.postId,
+            })
+            .andWhere(`${builder.alias}.parentId is null`)
+            .orderBy(`${builder.alias}."createdAt"`)
+            .limit(page.limit);
+          if (page.timestamp) {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}."createdAt" > :timestamp`,
+              { timestamp: page.timestamp },
+            );
+          }
+          return builder;
+        },
+      );
+    },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
@@ -213,6 +239,7 @@ export const resolvers: IResolvers<any, Context> = {
       source,
       { postId, content }: GQLPostCommentArgs,
       ctx: Context,
+      info,
     ): Promise<GQLComment> => {
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
@@ -228,7 +255,7 @@ export const resolvers: IResolvers<any, Context> = {
           return comment;
         });
         notifyPostCommented(ctx.log, postId, ctx.userId, comment.id);
-        return comment;
+        return getCommentById(comment.id, ctx, info);
       } catch (err) {
         // Foreign key violation
         if (err?.code === '23503') {
@@ -241,6 +268,7 @@ export const resolvers: IResolvers<any, Context> = {
       source,
       { commentId, content }: GQLCommentCommentArgs,
       ctx: Context,
+      info,
     ): Promise<GQLComment> => {
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
@@ -272,7 +300,7 @@ export const resolvers: IResolvers<any, Context> = {
           comment.parentId,
           comment.id,
         );
-        return comment;
+        return getCommentById(comment.id, ctx, info);
       } catch (err) {
         // Foreign key violation
         if (err?.code === '23503') {

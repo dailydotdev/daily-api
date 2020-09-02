@@ -330,7 +330,7 @@ const feedPageGenerator: PageGenerator<GQLPost, FeedArgs, FeedPage> = {
     if (ranking === Ranking.POPULARITY) {
       return base64(`score:${node.score}`);
     }
-    return base64(`time:${node.createdAt.getTime()}`);
+    return base64(`time:${new Date(node.createdAt).getTime()}`);
   },
   hasNextPage: (page, nodesSize) => page.limit === nodesSize,
   hasPreviousPage: (page) => !!(page.score || page.timestamp),
@@ -341,7 +341,7 @@ const applyFeedPaging = (
   { ranking }: FeedArgs,
   page: FeedPage,
   builder: SelectQueryBuilder<Post>,
-  alias = 'post',
+  alias,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder
     .addSelect(

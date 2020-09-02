@@ -129,10 +129,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         builder
           .addSelect('post."createdAt"', 'publishedAt')
           .where((subBuilder) =>
-            whereSourcesInFeed(req.params.feedId, subBuilder),
+            whereSourcesInFeed(req.params.feedId, subBuilder, 'post'),
           )
           .andWhere((subBuilder) =>
-            whereTagsInFeed(req.params.feedId, subBuilder),
+            whereTagsInFeed(req.params.feedId, subBuilder, 'post'),
           ),
       (req, con) => con.getRepository(Feed).findOne(req.params.feedId),
     ),

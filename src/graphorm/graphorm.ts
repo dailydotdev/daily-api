@@ -9,6 +9,16 @@ import { Connection, Edge } from 'graphql-relay';
 export type QueryBuilder = SelectQueryBuilder<any>;
 
 export type GraphORMBuilder = { queryBuilder: QueryBuilder; alias: string };
+
+export interface GraphORMPagination {
+  limit: number;
+  sort: string;
+  order: 'ASC' | 'DESC';
+  hasPreviousPage: (nodeSize: number) => boolean;
+  hasNextPage: (nodeSize: number) => boolean;
+  nodeToCursor: (node: any, index: number) => string;
+}
+
 export interface GraphORMRelation {
   isMany: boolean;
   parentColumn?: string;
@@ -34,6 +44,8 @@ export interface GraphORMField {
   transform?: (value: any, ctx: Context) => any;
   // Specify if this field is an alias to another field
   alias?: { field: string; type: string };
+  // Settings for pagination
+  pagination?: GraphORMPagination;
 }
 
 export interface GraphORMType {
@@ -110,9 +122,15 @@ export class GraphORM {
     field: ResolveTree,
     childType: string,
   ): QueryBuilder {
+    const mapping = this.mappings?.[type]?.fields?.[field.name];
+    const pagination = mapping?.pagination;
+    const paginatedField = pagination ? this.getPaginatedField(field) : field;
+    const paginatedType = pagination
+      ? Object.keys(paginatedField.fieldsByTypeName)[0]
+      : childType;
     const relation =
-      this.mappings?.[type]?.fields?.[field.name]?.relation ||
-      this.findRelation(metadata, ctx.con.getMetadata(childType));
+      mapping?.relation ||
+      this.findRelation(metadata, ctx.con.getMetadata(paginatedType));
     if (!relation) {
       throw new Error(`Could not find relation ${type}.${field.name}`);
     }
@@ -125,8 +143,8 @@ export class GraphORM {
       const childBuilder = this.selectType(
         ctx,
         subBuilder,
-        childType,
-        field.fieldsByTypeName[childType],
+        paginatedType,
+        paginatedField.fieldsByTypeName[paginatedType],
       );
       if (relation.customRelation) {
         childBuilder.queryBuilder = relation.customRelation(
@@ -144,6 +162,16 @@ export class GraphORM {
       if (!relation.isMany) {
         childBuilder.queryBuilder = childBuilder.queryBuilder.limit(1);
       }
+
+      if (pagination) {
+        childBuilder.queryBuilder = childBuilder.queryBuilder
+          .limit(pagination.limit)
+          .orderBy(
+            `"${childBuilder.alias}"."${pagination.sort}"`,
+            pagination.order,
+          );
+      }
+
       // Apply custom query if any
       const customQuery = this.mappings?.[type]?.fields?.[field.name]
         ?.customQuery;
@@ -239,7 +267,9 @@ export class GraphORM {
     const entityMetadata = ctx.con.getMetadata(
       this.mappings?.[type]?.from || type,
     );
-    const alias = entityMetadata.tableName.toLowerCase();
+    // Used to make sure no conflicts in aliasing
+    const randomStr = Math.random().toString(36).substring(2, 5);
+    const alias = `${entityMetadata.tableName.toLowerCase()}_${randomStr}`;
     let newBuilder = builder.from(entityMetadata.tableName, alias).select([]);
     fields.forEach((field) => {
       newBuilder = this.selectField(
@@ -270,8 +300,9 @@ export class GraphORM {
     field: ResolveTree,
     value: any,
   ): any {
-    if (this.mappings?.[parentType]?.fields?.[field.name]?.transform) {
-      return this.mappings[parentType].fields[field.name].transform(value, ctx);
+    const mapping = this.mappings?.[parentType]?.fields?.[field.name];
+    if (mapping?.transform) {
+      return mapping.transform(value, ctx);
     }
     if (value === null || value === undefined) {
       return value;
@@ -281,14 +312,32 @@ export class GraphORM {
       // If current field is a of custom type
       if (Array.isArray(value)) {
         // If value is an array
-        return value.map((element) =>
+
+        const pagination = mapping?.pagination;
+        const paginatedField = pagination
+          ? this.getPaginatedField(field)
+          : field;
+        const paginatedType = pagination
+          ? Object.keys(paginatedField.fieldsByTypeName)[0]
+          : childType;
+
+        const nodes = value.map((element) =>
           this.transformType(
             ctx,
             element,
-            childType,
-            field.fieldsByTypeName[childType],
+            paginatedType,
+            paginatedField.fieldsByTypeName[paginatedType],
           ),
         );
+        if (pagination) {
+          return this.nodesToConnection(
+            nodes,
+            pagination.hasPreviousPage,
+            pagination.hasNextPage,
+            pagination.nodeToCursor,
+          );
+        }
+        return nodes;
       }
       return this.transformType(
         ctx,
@@ -350,6 +399,40 @@ export class GraphORM {
    */
   getPaginatedField(info: ResolveTree): ResolveTree {
     return this.getFieldByHierarchy(info, ['edges', 'node']);
+  }
+
+  nodesToConnection<T>(
+    nodes: T[],
+    hasPreviousPage: (nodeSize: number) => boolean,
+    hasNextPage: (nodeSize: number) => boolean,
+    nodeToCursor: (node: T, index: number) => string,
+  ): Connection<T> {
+    if (!nodes.length) {
+      return {
+        pageInfo: {
+          startCursor: null,
+          endCursor: null,
+          hasNextPage: hasNextPage(nodes.length),
+          hasPreviousPage: hasPreviousPage(nodes.length),
+        },
+        edges: [],
+      };
+    }
+    const edges = nodes.map(
+      (n, i): Edge<T> => ({
+        node: n,
+        cursor: nodeToCursor(n, i),
+      }),
+    );
+    return {
+      pageInfo: {
+        startCursor: edges[0].cursor,
+        endCursor: edges[edges.length - 1].cursor,
+        hasNextPage: hasNextPage(nodes.length),
+        hasPreviousPage: hasPreviousPage(nodes.length),
+      },
+      edges,
+    };
   }
 
   async queryResolveTree<T>(
@@ -419,32 +502,12 @@ export class GraphORM {
       if (transformNodes) {
         nodes = transformNodes(nodes);
       }
-      if (!nodes.length) {
-        return {
-          pageInfo: {
-            startCursor: null,
-            endCursor: null,
-            hasNextPage: hasNextPage(nodes.length),
-            hasPreviousPage: hasPreviousPage(nodes.length),
-          },
-          edges: [],
-        };
-      }
-      const edges = nodes.map(
-        (n, i): Edge<T> => ({
-          node: n,
-          cursor: nodeToCursor(n, i),
-        }),
+      return this.nodesToConnection(
+        nodes,
+        hasPreviousPage,
+        hasNextPage,
+        nodeToCursor,
       );
-      return {
-        pageInfo: {
-          startCursor: edges[0].cursor,
-          endCursor: edges[edges.length - 1].cursor,
-          hasNextPage: hasNextPage(nodes.length),
-          hasPreviousPage: hasPreviousPage(nodes.length),
-        },
-        edges,
-      };
     }
     throw new Error('Resolve info is empty');
   }
