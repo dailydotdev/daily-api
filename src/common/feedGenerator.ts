@@ -105,12 +105,13 @@ export const applyFeedWhere = (
   builder: SelectQueryBuilder<Post>,
   alias: string,
 ): SelectQueryBuilder<Post> => {
-  const whereSource = ctx.userId ? 'sd."userId" = :userId OR ' : '';
-  let newBuilder = builder
-    .innerJoin(SourceDisplay, 'sd', `${alias}."sourceId" = sd."sourceId"`)
-    .andWhere(`(${whereSource}sd."userId" IS NULL)`, {
-      userId: ctx.userId,
-    });
+  const selectSource = graphorm.mappings.Post.fields.source
+    .customQuery(ctx, 'sd', builder.subQuery())
+    .from(SourceDisplay, 'sd')
+    .andWhere(`sd."sourceId" = "${alias}"."sourceId"`);
+  let newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`, {
+    userId: ctx.userId,
+  });
   if (ctx.userId) {
     newBuilder = newBuilder
       .leftJoin(
