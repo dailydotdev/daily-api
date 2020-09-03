@@ -438,26 +438,6 @@ export class GraphORM {
     };
   }
 
-  runInSpan<T>(ctx: Context, name: string, callback: () => T): T {
-    const span = ctx.span.createChildSpan({ name });
-    span.addLabel('/graphorm', 'true');
-    const res = callback();
-    span.endSpan();
-    return res;
-  }
-
-  async runInSpanAsync<T>(
-    ctx: Context,
-    name: string,
-    callback: () => Promise<T>,
-  ): Promise<T> {
-    const span = ctx.span.createChildSpan({ name });
-    span.addLabel('/graphorm', 'true');
-    const res = await callback();
-    span.endSpan();
-    return res;
-  }
-
   async queryResolveTree<T>(
     ctx: Context,
     resolveTree: ResolveTree,
@@ -466,25 +446,19 @@ export class GraphORM {
     const rootType = Object.keys(resolveTree.fieldsByTypeName)[0];
     const fieldsByTypeName = resolveTree.fieldsByTypeName[rootType];
 
-    const builder = this.runInSpan(ctx, 'GraphORM.Plan', () => {
-      let builder = this.selectType(
-        ctx,
-        ctx.con.createQueryBuilder(),
-        rootType,
-        fieldsByTypeName,
-      );
-      if (beforeQuery) {
-        builder = beforeQuery(builder);
-      }
-      return builder;
-    });
-    const res = await this.runInSpanAsync(ctx, 'GraphORM.Query', () =>
-      builder.queryBuilder.getRawMany(),
+    let builder = this.selectType(
+      ctx,
+      ctx.con.createQueryBuilder(),
+      rootType,
+      fieldsByTypeName,
     );
-    return this.runInSpan(ctx, 'GraphORM.Transform', () =>
-      res.map((value) =>
-        this.transformType(ctx, value, rootType, fieldsByTypeName),
-      ),
+    if (beforeQuery) {
+      builder = beforeQuery(builder);
+    }
+
+    const res = await builder.queryBuilder.getRawMany();
+    return res.map((value) =>
+      this.transformType(ctx, value, rootType, fieldsByTypeName),
     );
   }
 
