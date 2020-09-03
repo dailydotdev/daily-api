@@ -30,11 +30,9 @@ const obj = new GraphORM({
           const selectByUserId = ctx.userId
             ? `"${alias}"."userId" = :userId OR `
             : '';
-          return qb
-            .andWhere(`(${selectByUserId}"${alias}"."userId" IS NULL)`, {
-              userId: ctx.userId,
-            })
-            .orderBy(`"${alias}"."userId"`, 'DESC', 'NULLS LAST');
+          return qb.andWhere(`(${selectByUserId}"${alias}"."userId" IS NULL)`, {
+            userId: ctx.userId,
+          });
         },
         relation: {
           parentColumn: 'sourceId',

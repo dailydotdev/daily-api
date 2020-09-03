@@ -145,14 +145,13 @@ describe('source field', () => {
   it('should return the private representation', async () => {
     loggedUser = '1';
     const repo = con.getRepository(SourceDisplay);
-    await repo.save(
-      repo.create({
-        sourceId: 'a',
-        name: 'Private A',
-        image: 'https://private.com/a',
-        userId: loggedUser,
-      }),
-    );
+    await repo.delete({ sourceId: 'a' });
+    await repo.save({
+      sourceId: 'a',
+      name: 'Private A',
+      image: 'https://private.com/a',
+      userId: loggedUser,
+    });
     const res = await client.query({ query: QUERY });
     expect(res.data).toMatchSnapshot();
   });
