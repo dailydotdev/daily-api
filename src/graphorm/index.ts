@@ -9,13 +9,14 @@ const existsByUserAndPost = (entity: string) => (
   ctx: Context,
   alias: string,
   qb: QueryBuilder,
-): QueryBuilder =>
-  qb
-    .select('count(*) > 0')
+): string => {
+  const query = qb
+    .select('1')
     .from(entity, 'a')
     .where(`a."userId" = :userId`, { userId: ctx.userId })
-    .andWhere(`a."postId" = ${alias}.id`)
-    .limit(1);
+    .andWhere(`a."postId" = ${alias}.id`);
+  return `EXISTS${query.getQuery()}`;
+};
 
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;
@@ -109,13 +110,14 @@ const obj = new GraphORM({
         transform: (value: string | Date): Date => new Date(value),
       },
       upvoted: {
-        select: (ctx: Context, alias: string, qb: QueryBuilder): QueryBuilder =>
-          qb
-            .select('count(*) > 0')
+        select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
+          const query = qb
+            .select('1')
             .from(CommentUpvote, 'cu')
             .where(`cu."userId" = :userId`, { userId: ctx.userId })
-            .andWhere(`cu."commentId" = ${alias}.id`)
-            .limit(1),
+            .andWhere(`cu."commentId" = ${alias}.id`);
+          return `EXISTS${query.getQuery()}`;
+        },
         transform: nullIfNotLoggedIn,
       },
       children: {
