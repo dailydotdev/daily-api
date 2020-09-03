@@ -35,7 +35,11 @@ export interface GraphORMField {
   // Define the column to select or provide a custom function
   select?:
     | string
-    | ((ctx: Context, alias: string, qb: QueryBuilder) => QueryBuilder);
+    | ((
+        ctx: Context,
+        alias: string,
+        qb: QueryBuilder,
+      ) => QueryBuilder | string);
   // Add custom settings to the query (should be used for complex types only!)
   customQuery?: (ctx: Context, alias: string, qb: QueryBuilder) => QueryBuilder;
   // Need to provide relation information if it doesn't exist
@@ -238,10 +242,9 @@ export class GraphORM {
         if (typeof select === 'string') {
           return builder.addSelect(`"${alias}"."${select}"`, field.alias);
         }
-        return builder.addSelect(
-          (subBuilder) => select(ctx, alias, subBuilder),
-          field.alias,
-        );
+        const res = select(ctx, alias, builder.subQuery());
+        const subQuery = typeof res === 'string' ? res : res.getQuery();
+        return builder.addSelect(subQuery, field.alias);
       }
     }
     if (metadata.findColumnWithPropertyName(field.name)) {
@@ -467,6 +470,7 @@ export class GraphORM {
       }
       return builder;
     });
+    console.log(builder.queryBuilder.getQuery());
     const res = await this.runInSpan(ctx, 'GraphORM.Query', () =>
       builder.queryBuilder.getRawMany(),
     );
