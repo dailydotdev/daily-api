@@ -45,7 +45,7 @@ spec:
             mountPath: "/etc/config"
             readOnly: true
           resources:
-{{ toYaml .Values.resources | indent 12 }}
+{{ toYaml .Values.bgResources | indent 12 }}
       volumes:
       - name: config
         secret:
