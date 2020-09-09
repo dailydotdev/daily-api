@@ -8,7 +8,7 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.bgReplicaCount }}
   selector:
     matchLabels:
       app: {{ template "daily-api.name" . }}-bg
@@ -54,20 +54,6 @@ spec:
       nodeSelector:
 {{ toYaml . | indent 8 }}
     {{- end }}
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                  - key: app
-                    operator: In
-                    values:
-                    - {{ template "daily-api.name" . }}-bg
-                  - key: release
-                    operator: In
-                    values:
-                    - {{ .Release.Name }}
-              topologyKey: "kubernetes.io/hostname"
     {{- with .Values.tolerations }}
       tolerations:
 {{ toYaml . | indent 8 }}
