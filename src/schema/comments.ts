@@ -319,7 +319,7 @@ export const resolvers: IResolvers<any, Context> = {
         const repo = entityManager.getRepository(Comment);
         const comment = await repo.findOneOrFail({ id });
         if (
-          comment.userId !== ctx.userId ||
+          comment.userId !== ctx.userId &&
           ctx.roles.indexOf(Roles.Moderator) < 0
         ) {
           throw new ForbiddenError("Cannot delete someone else's comment");
