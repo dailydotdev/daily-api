@@ -2,11 +2,9 @@ import { Connection, EntitySchema, ObjectType, Repository } from 'typeorm';
 import { FastifyRequest, Logger } from 'fastify';
 import { RootSpan } from '@google-cloud/trace-agent/build/src/plugin-types';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
-import { fetchUserRoles } from './common';
+import { Roles } from './roles';
 
 export class Context {
-  private roles?: string[];
-
   req: FastifyRequest;
   con: Connection;
   loader: GraphQLDatabaseLoader;
@@ -25,6 +23,10 @@ export class Context {
     return this.req.premium;
   }
 
+  get roles(): Roles[] {
+    return this.req.roles ?? [];
+  }
+
   get log(): Logger {
     return this.req.log;
   }
@@ -37,12 +39,5 @@ export class Context {
     target: ObjectType<Entity> | EntitySchema<Entity> | string,
   ): Repository<Entity> {
     return this.con.getRepository(target);
-  }
-
-  async getRoles(): Promise<string[]> {
-    if (!this.roles) {
-      this.roles = await fetchUserRoles(this.userId);
-    }
-    return this.roles;
   }
 }

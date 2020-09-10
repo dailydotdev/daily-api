@@ -14,19 +14,27 @@ import { Message } from '@google-cloud/pubsub';
 import { base64 } from '../src/common';
 import { join } from 'path';
 import http from 'http';
+import { Roles } from '../src/roles';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
   mockUserId: string | null;
   mockPremium: boolean;
+  mockRoles: Roles[];
   logger: Logger;
 
-  constructor(con: Connection, userId: string = null, premium = false) {
+  constructor(
+    con: Connection,
+    userId: string = null,
+    premium = false,
+    roles = [],
+  ) {
     super(mock<FastifyRequest>(), con);
     this.mockSpan = mock<RootSpan>();
     this.mockSpan.createChildSpan.mockImplementation(() => mock<Span>());
     this.mockUserId = userId;
     this.mockPremium = premium;
+    this.mockRoles = roles;
     this.logger = mock<Logger>();
   }
 
@@ -42,6 +50,10 @@ export class MockContext extends Context {
     return this.mockPremium;
   }
 
+  get roles(): Roles[] {
+    return this.mockRoles;
+  }
+
   get log(): Logger {
     return this.logger;
   }
@@ -50,11 +62,13 @@ export class MockContext extends Context {
 export const authorizeRequest = (
   req: request.Test,
   userId = '1',
+  roles: Roles[] = [],
 ): request.Test =>
   req
     .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
     .set('user-id', userId)
-    .set('logged-in', 'true');
+    .set('logged-in', 'true')
+    .set('roles', roles.join(','));
 
 export type Mutation = {
   mutation: string;

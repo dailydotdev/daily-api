@@ -42,6 +42,7 @@ let con: Connection;
 let server: ApolloServer;
 let client: ApolloServerTestClient;
 let loggedUser: string = null;
+let roles: Roles[] = [];
 
 jest.mock('../src/common', () => ({
   ...jest.requireActual('../src/common'),
@@ -58,22 +59,14 @@ const mockInfo = (): nock.Scope =>
     .matchHeader('logged-in', 'true')
     .reply(200, { email: 'ido@daily.dev', name: 'Ido' });
 
-const mockRoles = (roles: Roles[] = []): nock.Scope =>
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me/roles')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, roles);
-
 const testModeratorAuthorization = (mutation: Mutation): Promise<void> => {
-  mockRoles();
+  roles = [];
   loggedUser = '1';
   return testMutationErrorCode(client, mutation, 'FORBIDDEN');
 };
 
 const testNotFound = (mutation: Mutation): Promise<void> => {
-  mockRoles([Roles.Moderator]);
+  roles = [Roles.Moderator];
   loggedUser = '1';
   return testMutationErrorCode(client, mutation, 'NOT_FOUND');
 };
@@ -81,7 +74,7 @@ const testNotFound = (mutation: Mutation): Promise<void> => {
 beforeAll(async () => {
   con = await getConnection();
   server = await createApolloServer({
-    context: (): Context => new MockContext(con, loggedUser),
+    context: (): Context => new MockContext(con, loggedUser, false, roles),
     playground: false,
   });
   client = createTestClient(server);
@@ -91,6 +84,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   loggedUser = null;
+  roles = [];
   mocked(notifySourceRequest).mockClear();
 });
 
@@ -168,7 +162,7 @@ describe('mutation updateSourceRequest', () => {
     }));
 
   it('should partially update existing request', async () => {
-    mockRoles([Roles.Moderator]);
+    roles = [Roles.Moderator];
     loggedUser = '1';
     const req = await con
       .getRepository(SourceRequest)
@@ -208,7 +202,7 @@ describe('mutation declineSourceRequest', () => {
     }));
 
   it('should decline a source request', async () => {
-    mockRoles([Roles.Moderator]);
+    roles = [Roles.Moderator];
     loggedUser = '1';
     const req = await con
       .getRepository(SourceRequest)
@@ -244,7 +238,7 @@ describe('mutation approveSourceRequest', () => {
     }));
 
   it('should approve a source request', async () => {
-    mockRoles([Roles.Moderator]);
+    roles = [Roles.Moderator];
     loggedUser = '1';
     const req = await con
       .getRepository(SourceRequest)
@@ -266,7 +260,7 @@ describe('mutation uploadSourceRequestLogo', () => {
 }`;
 
   it('should not authorize when not moderator', async () => {
-    mockRoles();
+    roles = [];
     const res = await authorizeRequest(
       request(app.server)
         .post('/graphql')
@@ -286,7 +280,6 @@ describe('mutation uploadSourceRequestLogo', () => {
   });
 
   it('should upload new logo for source request', async () => {
-    mockRoles([Roles.Moderator]);
     loggedUser = '1';
     const req = await con
       .getRepository(SourceRequest)
@@ -304,6 +297,8 @@ describe('mutation uploadSourceRequestLogo', () => {
         )
         .field('map', JSON.stringify({ '0': ['variables.file'] }))
         .attach('0', './__tests__/fixture/happy_card.png'),
+      loggedUser,
+      [Roles.Moderator],
     ).expect(200);
     const body = res.body as GraphQLResponse;
     expect(body.data).toMatchSnapshot();
@@ -330,7 +325,7 @@ describe('mutation publishSourceRequest', () => {
     }));
 
   it('should publish a source request', async () => {
-    mockRoles([Roles.Moderator]);
+    roles = [Roles.Moderator];
     loggedUser = '1';
     mocked(addOrRemoveSuperfeedrSubscription).mockResolvedValue();
     const req = await con
@@ -371,13 +366,13 @@ describe('query pendingSourceRequests', () => {
 }`;
 
   it('should not authorize when not moderator', async () => {
-    mockRoles();
+    roles = [];
     loggedUser = '1';
     return testQueryErrorCode(client, { query: QUERY() }, 'FORBIDDEN');
   });
 
   it('should return pending source requests', async () => {
-    mockRoles([Roles.Moderator]);
+    roles = [Roles.Moderator];
     loggedUser = '1';
 
     for (const req of sourceRequestFixture) {
@@ -428,14 +423,14 @@ describe('compatibility routes', () => {
 
   describe('GET /publications/requests/open', () => {
     it('should return pending source requests', async () => {
-      mockRoles([Roles.Moderator]);
-
       for (const req of sourceRequestFixture) {
         await con.getRepository(SourceRequest).save(req);
       }
 
       const res = await authorizeRequest(
         request(app.server).get('/v1/publications/requests/open'),
+        loggedUser,
+        [Roles.Moderator],
       ).expect(200);
       const actual = res.body.map((x) => _.omit(x, ['id', 'createdAt']));
       expect(actual).toMatchSnapshot();
@@ -444,13 +439,14 @@ describe('compatibility routes', () => {
 
   describe('PUT /publications/requests/:id', () => {
     it('should update an existing source request', async () => {
-      mockRoles([Roles.Moderator]);
       loggedUser = '1';
       const req = await con
         .getRepository(SourceRequest)
         .save(sourceRequestFixture[2]);
       await authorizeRequest(
         request(app.server).put(`/v1/publications/requests/${req.id}`),
+        loggedUser,
+        [Roles.Moderator],
       )
         .send({ url: 'http://source.com', pubImage: 'http://image.com' })
         .expect(204);
@@ -464,13 +460,14 @@ describe('compatibility routes', () => {
 
   describe('POST /publications/requests/:id/decline', () => {
     it('should decline a source request', async () => {
-      mockRoles([Roles.Moderator]);
       loggedUser = '1';
       const req = await con
         .getRepository(SourceRequest)
         .save(sourceRequestFixture[2]);
       await authorizeRequest(
         request(app.server).post(`/v1/publications/requests/${req.id}/decline`),
+        loggedUser,
+        [Roles.Moderator],
       )
         .send({ reason: 'not-active' })
         .expect(204);
@@ -484,13 +481,14 @@ describe('compatibility routes', () => {
 
   describe('POST /publications/requests/:id/approve', () => {
     it('should approve a source request', async () => {
-      mockRoles([Roles.Moderator]);
       loggedUser = '1';
       const req = await con
         .getRepository(SourceRequest)
         .save(sourceRequestFixture[2]);
       await authorizeRequest(
         request(app.server).post(`/v1/publications/requests/${req.id}/approve`),
+        loggedUser,
+        [Roles.Moderator],
       )
         .send()
         .expect(204);
@@ -504,13 +502,14 @@ describe('compatibility routes', () => {
 
   describe('POST /publications/requests/:id/publish', () => {
     it('should publish a source request', async () => {
-      mockRoles([Roles.Moderator]);
       loggedUser = '1';
       const req = await con
         .getRepository(SourceRequest)
         .save(sourceRequestFixture[2]);
       await authorizeRequest(
         request(app.server).post(`/v1/publications/requests/${req.id}/publish`),
+        loggedUser,
+        [Roles.Moderator],
       )
         .send()
         .expect(204);
