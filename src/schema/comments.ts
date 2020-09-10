@@ -1,6 +1,6 @@
 import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
-import { gql, IResolvers, ForbiddenError } from 'apollo-server-fastify';
+import { ForbiddenError, gql, IResolvers } from 'apollo-server-fastify';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
@@ -8,7 +8,7 @@ import {
   notifyCommentUpvoted,
   notifyPostCommented,
 } from '../common';
-import { Post, Comment, CommentUpvote } from '../entity';
+import { Comment, CommentUpvote, Post } from '../entity';
 import { NotFoundError } from '../errors';
 import { GQLEmptyResponse } from './common';
 import { GQLUser } from './users';
@@ -16,6 +16,7 @@ import { Connection, ConnectionArguments } from 'graphql-relay';
 import { commentsPageGenerator } from '../common/commentsFeedGenerator';
 import graphorm from '../graphorm';
 import { GQLPost } from './posts';
+import { Roles } from '../roles';
 
 export interface GQLComment {
   id: string;
@@ -317,7 +318,10 @@ export const resolvers: IResolvers<any, Context> = {
       await ctx.con.transaction(async (entityManager) => {
         const repo = entityManager.getRepository(Comment);
         const comment = await repo.findOneOrFail({ id });
-        if (comment.userId !== ctx.userId) {
+        if (
+          comment.userId !== ctx.userId &&
+          ctx.roles.indexOf(Roles.Moderator) < 0
+        ) {
           throw new ForbiddenError("Cannot delete someone else's comment");
         }
         if (comment.parentId) {
