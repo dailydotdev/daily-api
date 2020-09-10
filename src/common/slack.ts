@@ -16,7 +16,7 @@ export const notifyPostReport = async (
       {
         title: post.title,
         // eslint-disable-next-line @typescript-eslint/camelcase
-        title_link: post.url,
+        title_link: `${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
         fields: [
           {
             title: 'User',

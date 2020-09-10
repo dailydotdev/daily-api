@@ -3,7 +3,7 @@ import { Connection, DeepPartial } from 'typeorm';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { notifyPostReport, notifyPostUpvoted } from '../common';
+import { getPostsIndex, notifyPostReport, notifyPostUpvoted } from '../common';
 import { HiddenPost, Post, Upvote } from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError } from '../errors';
@@ -223,6 +223,16 @@ export const typeDefs = gql`
     ): EmptyResponse @auth
 
     """
+    Delete a post permanently
+    """
+    deletePost(
+      """
+      Id of the post to delete
+      """
+      id: ID
+    ): EmptyResponse @auth(requires: [MODERATOR])
+
+    """
     Upvote to the post
     """
     upvote(
@@ -328,6 +338,15 @@ export const resolvers: IResolvers<any, Context> = {
         const post = await ctx.getRepository(Post).findOneOrFail(id);
         await notifyPostReport(ctx.userId, post, reportReasons.get(reason));
       }
+      return { _: true };
+    },
+    deletePost: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.getRepository(Post).delete({ id });
+      await getPostsIndex().deleteObject(id);
       return { _: true };
     },
     upvote: async (

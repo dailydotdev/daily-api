@@ -21,21 +21,25 @@ import {
 import appFunc from '../src';
 import {
   Bookmark,
+  BookmarkList,
+  Comment,
   HiddenPost,
   Post,
   PostTag,
   Source,
   SourceDisplay,
-  View,
-  BookmarkList,
-  User,
   Upvote,
-  Comment,
+  User,
+  View,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { notifyPostReport, notifyPostUpvoted } from '../src/common';
+import { Roles } from '../src/roles';
+import { getPostsIndex } from '../src/common';
+import Mock = jest.Mock;
+import { SearchIndex } from 'algoliasearch';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -43,6 +47,8 @@ let server: ApolloServer;
 let client: ApolloServerTestClient;
 let loggedUser: string = null;
 let premiumUser = false;
+let roles: Roles[] = [];
+let deleteObjectMock: Mock;
 
 jest.mock('../src/common', () => ({
   ...jest.requireActual('../src/common'),
@@ -50,10 +56,16 @@ jest.mock('../src/common', () => ({
   notifyPostUpvoted: jest.fn(),
 }));
 
+jest.mock('../src/common/algolia', () => ({
+  ...jest.requireActual('../src/common/algolia'),
+  getPostsIndex: jest.fn(),
+}));
+
 beforeAll(async () => {
   con = await getConnection();
   server = await createApolloServer({
-    context: (): Context => new MockContext(con, loggedUser, premiumUser),
+    context: (): Context =>
+      new MockContext(con, loggedUser, premiumUser, roles),
     playground: false,
   });
   client = createTestClient(server);
@@ -64,8 +76,14 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
   premiumUser = false;
+  roles = [];
   mocked(notifyPostReport).mockClear();
   mocked(notifyPostUpvoted).mockClear();
+
+  deleteObjectMock = jest.fn();
+  mocked(getPostsIndex).mockReturnValue(({
+    deleteObject: deleteObjectMock,
+  } as unknown) as SearchIndex);
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
@@ -492,6 +510,51 @@ describe('mutation hidePost', () => {
       select: ['postId', 'userId'],
     });
     expect(actual).toMatchSnapshot();
+  });
+});
+
+describe('mutation deletePost', () => {
+  const MUTATION = `
+  mutation DeletePost($id: ID!) {
+  deletePost(id: $id) {
+    _
+  }
+}`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not authorize when not moderator', () => {
+    loggedUser = '1';
+    roles = [];
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should delete the post', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Post).findOne('p1');
+    expect(actual).toBeFalsy();
+    expect(deleteObjectMock).toBeCalledWith('p1');
   });
 });
 
