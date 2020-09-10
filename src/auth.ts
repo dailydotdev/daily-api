@@ -7,6 +7,7 @@ import {
 } from 'fastify';
 import fp from 'fastify-plugin';
 import jwt from 'jsonwebtoken';
+import { Roles } from './roles';
 
 declare module 'fastify' {
   interface FastifyRequest<
@@ -19,6 +20,7 @@ declare module 'fastify' {
   > {
     userId?: string;
     premium?: boolean;
+    roles?: Roles[];
   }
 }
 
@@ -29,6 +31,7 @@ interface Options {
 interface AuthPayload {
   userId: string;
   premium: boolean;
+  roles?: Roles[];
 }
 
 const verifyJwt = (token: string): Promise<AuthPayload | null> =>
@@ -62,6 +65,7 @@ const plugin = async (
     ) {
       req.userId = req.headers['user-id'];
       req.premium = req.headers.premium === 'true';
+      req.roles = req.headers['roles']?.split(',') ?? [];
     } else {
       delete req.headers['user-id'];
       delete req.headers['logged-in'];
@@ -71,6 +75,7 @@ const plugin = async (
       if (payload) {
         req.userId = payload.userId;
         req.premium = payload.premium;
+        req.roles = payload.roles;
       }
     }
   });

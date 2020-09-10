@@ -33,7 +33,7 @@ export class AuthDirective extends SchemaDirectiveVisitor {
       const field = fields[fieldName];
       const { resolve = defaultFieldResolver } = field;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      field.resolve = async (...args): Promise<any> => {
+      field.resolve = (...args): any => {
         // Get the required Role from the field first, falling back
         // to the objectType if no Role is required by the field:
         const required: string[] | undefined =
@@ -57,7 +57,7 @@ export class AuthDirective extends SchemaDirectiveVisitor {
           if (premium) {
             authorized = ctx.premium;
           } else {
-            const roles = await ctx.getRoles();
+            const roles = ctx.roles;
             authorized =
               roles.findIndex((r) => required.indexOf(r.toUpperCase()) > -1) >
               -1;
