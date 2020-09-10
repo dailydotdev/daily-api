@@ -556,22 +556,6 @@ describe('mutation deletePost', () => {
     expect(actual).toBeFalsy();
     expect(deleteObjectMock).toBeCalledWith('p1');
   });
-
-  it('should ignore conflicts', async () => {
-    loggedUser = '1';
-    const repo = con.getRepository(HiddenPost);
-    await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'p1' },
-    });
-    expect(res.errors).toBeFalsy();
-    const actual = await repo.find({
-      where: { userId: loggedUser },
-      select: ['postId', 'userId'],
-    });
-    expect(actual).toMatchSnapshot();
-  });
 });
 
 describe('mutation reportPost', () => {
