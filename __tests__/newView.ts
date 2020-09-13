@@ -1,5 +1,6 @@
 import { Connection, getConnection } from 'typeorm';
 import { FastifyInstance } from 'fastify';
+import { PubSub } from '@google-cloud/pubsub';
 
 import appFunc from '../src';
 import worker from '../src/workers/newView';
@@ -33,7 +34,7 @@ it('should save a new view without timestamp', async () => {
     ip: '127.0.0.1',
   });
 
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   const views = await con.getRepository(View).find();
   expect(views.length).toEqual(1);
@@ -53,7 +54,7 @@ it('should save a new view with the provided timestamp', async () => {
     timestamp: timestamp.toISOString(),
   });
 
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   const views = await con.getRepository(View).find();
   expect(views.length).toEqual(1);
@@ -70,14 +71,14 @@ it('should not save a new view within a week since the last view', async () => {
     timestamp: new Date(2020, 5, 11, 1, 17).toISOString(),
   };
   const message1 = mockMessage(data);
-  await worker.handler(message1, con, app.log);
+  await worker.handler(message1, con, app.log, new PubSub());
   expect(message1.ack).toBeCalledTimes(1);
 
   const message2 = mockMessage({
     ...data,
     timestamp: new Date(2020, 5, 13, 1, 17).toISOString(),
   });
-  await worker.handler(message2, con, app.log);
+  await worker.handler(message2, con, app.log, new PubSub());
   expect(message2.ack).toBeCalledTimes(1);
 
   const views = await con.getRepository(View).find();
@@ -95,14 +96,14 @@ it('should save a new view after a week since the last view', async () => {
     timestamp: new Date(2020, 5, 11, 1, 17).toISOString(),
   };
   const message1 = mockMessage(data);
-  await worker.handler(message1, con, app.log);
+  await worker.handler(message1, con, app.log, new PubSub());
   expect(message1.ack).toBeCalledTimes(1);
 
   const message2 = mockMessage({
     ...data,
     timestamp: new Date(2020, 5, 19, 1, 17).toISOString(),
   });
-  await worker.handler(message2, con, app.log);
+  await worker.handler(message2, con, app.log, new PubSub());
   expect(message2.ack).toBeCalledTimes(1);
 
   const views = await con.getRepository(View).find();

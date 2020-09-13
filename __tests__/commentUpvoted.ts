@@ -1,5 +1,6 @@
 import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
+import { PubSub } from '@google-cloud/pubsub';
 import { FastifyInstance } from 'fastify';
 import { mocked } from 'ts-jest/utils';
 
@@ -71,7 +72,7 @@ it('should send mail to author', async () => {
     commentId: 'c1',
   });
 
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(1);
   expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
@@ -95,7 +96,7 @@ it('should not send mail when the author is the upvote user', async () => {
     commentId: 'c1',
   });
 
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(0);
 });
@@ -118,7 +119,7 @@ it('should not send mail when number of upvotes is not a defined trigger', async
     commentId: 'c2',
   });
 
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(0);
 });

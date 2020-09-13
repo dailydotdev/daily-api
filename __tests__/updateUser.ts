@@ -1,5 +1,7 @@
 import { Connection, getConnection } from 'typeorm';
 import { FastifyInstance } from 'fastify';
+import { PubSub } from '@google-cloud/pubsub';
+
 import appFunc from '../src';
 import { mockMessage } from './helpers';
 import worker from '../src/workers/updateUser';
@@ -33,7 +35,7 @@ it('should update an existing user', async () => {
     },
   });
 
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   const users = await con.getRepository(User).find();
   expect(users.length).toEqual(1);
@@ -53,7 +55,7 @@ it('should ack message if user does not exist', async () => {
     },
   });
 
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   const users = await con.getRepository(User).find();
   expect(users.length).toEqual(0);

@@ -1,7 +1,6 @@
 import { Connection } from 'typeorm';
 import { View, TagSegment, PostTag } from '../entity';
 import { envBasedName, messageToJson, Worker } from './worker';
-import { PubSub } from '@google-cloud/pubsub';
 
 interface Data {
   userId: string;
@@ -32,12 +31,11 @@ const findSegment = async (
 const worker: Worker = {
   topic: 'find-segment',
   subscription: envBasedName('daily-api-v2'),
-  handler: async (message, con, logger): Promise<void> => {
+  handler: async (message, con, logger, pubsub): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
       const segment = await findSegment(data.userId, con);
       if (segment) {
-        const pubsub = new PubSub();
         await pubsub.topic('segment-found').publishJSON({
           userId: data.userId,
           segment,
