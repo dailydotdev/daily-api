@@ -1,4 +1,5 @@
 import { Connection, getConnection } from 'typeorm';
+import { PubSub } from '@google-cloud/pubsub';
 import { FastifyInstance } from 'fastify';
 import { SearchIndex } from 'algoliasearch';
 import { mocked } from 'ts-jest/utils';
@@ -43,7 +44,7 @@ it('should save a new post with basic information', async () => {
     publicationId: 'a',
   });
 
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
@@ -88,7 +89,7 @@ it('should save a new post with full information', async () => {
     { tag: 'html', count: 15 },
     { tag: 'webdev', count: 5 },
   ]);
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledWith({
     objectID: expect.any(String),
@@ -120,7 +121,7 @@ it('should handle empty tags array', async () => {
     tags: [],
   });
 
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledWith({
     objectID: expect.any(String),
@@ -145,7 +146,7 @@ it('should ignore null value violation', async () => {
     publicationId: 'a',
   });
 
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
@@ -168,7 +169,7 @@ it('should not save post with existing url', async () => {
     publicationId: 'a',
   });
 
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
@@ -192,7 +193,7 @@ it('should not save post when url matches existing canonical url', async () => {
     publicationId: 'a',
   });
 
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
@@ -217,7 +218,7 @@ it('should not save post when canonical url matches existing url', async () => {
     publicationId: 'a',
   });
 
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
@@ -242,7 +243,7 @@ it('should not save post when canonical url matches existing canonical url', asy
     publicationId: 'a',
   });
 
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();

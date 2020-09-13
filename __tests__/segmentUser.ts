@@ -72,7 +72,7 @@ it('should dispatch message with the right segment', async () => {
   mockTopic.mockImplementation(() => ({ publishJSON: mockPublish }));
 
   const message = mockMessage({ userId: '1' });
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(mockPublish).toBeCalledTimes(1);
   expect(mockPublish).toBeCalledWith({ userId: '1', segment: 'frontend' });
@@ -83,7 +83,7 @@ it('should not dispatch message when no segment found', async () => {
   mockTopic.mockImplementation(() => ({ publishJSON: mockPublish }));
 
   const message = mockMessage({ userId: '3' });
-  await worker.handler(message, con, app.log);
+  await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(mockPublish).toBeCalledTimes(0);
 });
