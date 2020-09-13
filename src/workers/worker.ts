@@ -1,6 +1,6 @@
 import { Connection } from 'typeorm';
 import { Logger } from 'fastify';
-import { Message } from '@google-cloud/pubsub';
+import { Message, PubSub } from '@google-cloud/pubsub';
 
 const env = process.env.NODE_ENV || 'development';
 
@@ -13,5 +13,5 @@ export const envBasedName = (name: string): string =>
 export interface Worker {
   topic: string;
   subscription: string;
-  handler: (message: Message, con: Connection, logger: Logger) => Promise<void>;
+  handler: (message: Message, con: Connection, logger: Logger, pubsub: PubSub) => Promise<void>;
 }

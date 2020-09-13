@@ -21,7 +21,7 @@ const initializeWorker = async (
   logger.info(`waiting for messages in ${topic.name}`);
   subscription.on(
     'message',
-    (message: Message): Promise<void> => worker.handler(message, con, logger),
+    (message: Message): Promise<void> => worker.handler(message, con, logger, pubsub),
   );
 };
 
