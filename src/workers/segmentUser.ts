@@ -1,7 +1,6 @@
 import { Connection } from 'typeorm';
 import { View, TagSegment, PostTag } from '../entity';
 import { envBasedName, messageToJson, Worker } from './worker';
-import { PubSub } from '@google-cloud/pubsub';
 
 interface Data {
   userId: string;

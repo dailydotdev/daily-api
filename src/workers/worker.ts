@@ -13,5 +13,10 @@ export const envBasedName = (name: string): string =>
 export interface Worker {
   topic: string;
   subscription: string;
-  handler: (message: Message, con: Connection, logger: Logger, pubsub: PubSub) => Promise<void>;
+  handler: (
+    message: Message,
+    con: Connection,
+    logger: Logger,
+    pubsub: PubSub,
+  ) => Promise<void>;
 }
