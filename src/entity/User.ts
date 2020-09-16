@@ -10,4 +10,7 @@ export class User {
 
   @Column({ type: 'text', nullable: true })
   image: string;
+
+  @Column({ default: 0 })
+  reputation: number;
 }
