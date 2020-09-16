@@ -1,5 +1,10 @@
 import { Cron } from './cron';
 import { Checkpoint } from '../entity/Checkpoint';
+import { notifyCommentFeatured } from '../common';
+
+const FEATURED_LIMIT = 3;
+
+type UpdateResult = [{ id: string }[]];
 
 const cron: Cron = {
   name: 'updateFeaturedComments',
@@ -9,8 +14,8 @@ const cron: Cron = {
     let checkpoint = await con.getRepository(Checkpoint).findOne(checkpointKey);
     const after = checkpoint?.timestamp || new Date(0);
 
-    await con.transaction(
-      async (entityManager): Promise<void> => {
+    const newFeatured = await con.transaction(
+      async (entityManager): Promise<string[]> => {
         const postsQuery = `SELECT c."postId"
                   FROM "comment_upvote" cu
                   INNER JOIN "comment" c ON c."id" = cu."commentId"
@@ -18,29 +23,30 @@ const cron: Cron = {
                     AND cu."createdAt" < $2
                     AND c."parentId" IS NULL
                   GROUP BY "postId"`;
-        await entityManager.query(
+        const [oldFeatured]: UpdateResult = await entityManager.query(
           `UPDATE "comment" c
             SET featured = FALSE
             FROM (${postsQuery}) res
             WHERE c."postId" = res."postId"
-                AND c.featured = TRUE`,
+                AND c.featured = TRUE
+            RETURNING id`,
           [after, before],
         );
-        await entityManager.query(
+        const [newFeatured]: UpdateResult = await entityManager.query(
           `UPDATE "comment" c
              SET featured = TRUE
              FROM (
-                SELECT (
-                    SELECT c.id
-                    FROM "comment" c
-                    WHERE c."postId" = p."postId"
-                        AND c.upvotes >= 3
-                    ORDER BY c.upvotes DESC
-                    LIMIT 1
-                ) "commentId"
+                SELECT c.id "commentId"
                 FROM (${postsQuery}) p
+                INNER JOIN (
+                  SELECT c.id, c."postId", ROW_NUMBER() OVER (PARTITION BY c."postId" ORDER BY c.upvotes DESC) r
+                  FROM "comment" c
+                  WHERE c.upvotes >= 3
+                ) c ON c."postId" = p."postId"
+                WHERE c.r <= ${FEATURED_LIMIT}
              ) res
-             WHERE c."id" = res."commentId"`,
+             WHERE c."id" = res."commentId"
+             RETURNING id`,
           [after, before],
         );
         if (!checkpoint) {
@@ -49,8 +55,17 @@ const cron: Cron = {
         }
         checkpoint.timestamp = before;
         await entityManager.getRepository(Checkpoint).save(checkpoint);
+        return newFeatured
+          .filter(({ id }) => oldFeatured.findIndex((old) => old.id === id) < 0)
+          .map(({ id }) => id);
       },
     );
+    if (newFeatured.length) {
+      console.log('new featured comments');
+      await Promise.all(
+        newFeatured.map((id) => notifyCommentFeatured(console, id)),
+      );
+    }
   },
 };
 
