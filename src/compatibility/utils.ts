@@ -49,14 +49,17 @@ export const injectGraphql = async (
   const code = errors?.[0]?.extensions?.code;
   if (code === 'UNAUTHENTICATED') {
     return res.status(401).send();
-  } else if (
-    code === 'VALIDATION_ERROR' ||
-    code === 'GRAPHQL_VALIDATION_FAILED'
-  ) {
+  }
+  if (code === 'FORBIDDEN') {
+    return res.status(403).send();
+  }
+  if (code === 'VALIDATION_ERROR' || code === 'GRAPHQL_VALIDATION_FAILED') {
     return res.status(400).send();
-  } else if (code === 'NOT_FOUND') {
+  }
+  if (code === 'NOT_FOUND') {
     return res.status(404).send();
-  } else if (code) {
+  }
+  if (code) {
     return res.status(500).send();
   }
 

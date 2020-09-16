@@ -9,11 +9,14 @@ const postUpvotedTopic = pubsub.topic('post-upvoted');
 const commentUpvotedTopic = pubsub.topic('comment-upvoted');
 const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-commented');
+const commentFeaturedTopic = pubsub.topic('comment-featured');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
+// Need to support console as well
+type EventLogger = Omit<Logger, 'fatal'>;
 
 const publishEvent = async (
-  log: Logger,
+  log: EventLogger,
   topic: Topic,
   payload: object,
 ): Promise<void> => {
@@ -30,7 +33,7 @@ const publishEvent = async (
 };
 
 export const notifySourceRequest = async (
-  log: Logger,
+  log: EventLogger,
   reason: NotificationReason,
   sourceReq: SourceRequest,
 ): Promise<void> =>
@@ -40,7 +43,7 @@ export const notifySourceRequest = async (
   });
 
 export const notifyPostUpvoted = async (
-  log: Logger,
+  log: EventLogger,
   postId: string,
   userId: string,
 ): Promise<void> =>
@@ -50,7 +53,7 @@ export const notifyPostUpvoted = async (
   });
 
 export const notifyCommentUpvoted = async (
-  log: Logger,
+  log: EventLogger,
   commentId: string,
   userId: string,
 ): Promise<void> =>
@@ -60,7 +63,7 @@ export const notifyCommentUpvoted = async (
   });
 
 export const notifyPostCommented = async (
-  log: Logger,
+  log: EventLogger,
   postId: string,
   userId: string,
   commentId: string,
@@ -72,7 +75,7 @@ export const notifyPostCommented = async (
   });
 
 export const notifyCommentCommented = async (
-  log: Logger,
+  log: EventLogger,
   postId: string,
   userId: string,
   parentCommentId: string,
@@ -83,4 +86,12 @@ export const notifyCommentCommented = async (
     userId,
     parentCommentId,
     childCommentId,
+  });
+
+export const notifyCommentFeatured = async (
+  log: EventLogger,
+  commentId: string,
+): Promise<void> =>
+  publishEvent(log, commentFeaturedTopic, {
+    commentId,
   });

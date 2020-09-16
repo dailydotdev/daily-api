@@ -6,14 +6,22 @@ import { Post, Source, User, Comment, CommentUpvote } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture } from './fixture/post';
 import { Checkpoint } from '../src/entity/Checkpoint';
+import { notifyCommentFeatured } from '../src/common';
+import { mocked } from 'ts-jest/utils';
 
 let con: Connection;
+
+jest.mock('../src/common', () => ({
+  ...jest.requireActual('../src/common'),
+  notifyCommentFeatured: jest.fn(),
+}));
 
 beforeAll(async () => {
   con = await getConnection();
 });
 
 beforeEach(async () => {
+  jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
   await con.getRepository(User).save([
@@ -38,7 +46,7 @@ it('should update featured comments', async () => {
       userId: '1',
       content: 'Comment',
       featured: true,
-      upvotes: 3,
+      upvotes: 4,
     },
     { id: 'c2', postId: 'p1', userId: '2', content: 'Comment', upvotes: 5 },
     {
@@ -58,6 +66,14 @@ it('should update featured comments', async () => {
       featured: true,
       upvotes: 1,
     },
+    {
+      id: 'c6',
+      postId: 'p1',
+      userId: '3',
+      content: 'Comment',
+      featured: true,
+      upvotes: 3,
+    },
   ]);
   await con.getRepository(CommentUpvote).save([
     { commentId: 'c2', userId: '3', createdAt: now },
@@ -71,4 +87,7 @@ it('should update featured comments', async () => {
     order: { id: 'ASC' },
   });
   expect(comments).toMatchSnapshot();
+  expect(
+    mocked(notifyCommentFeatured).mock.calls.map((call) => call[1]),
+  ).toMatchSnapshot();
 });
