@@ -10,10 +10,11 @@ const commentUpvotedTopic = pubsub.topic('comment-upvoted');
 const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-commented');
 const commentFeaturedTopic = pubsub.topic('comment-featured');
+const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
-type EventLogger = Omit<Logger, 'fatal'>;
+export type EventLogger = Omit<Logger, 'fatal'>;
 
 const publishEvent = async (
   log: EventLogger,
@@ -94,4 +95,14 @@ export const notifyCommentFeatured = async (
 ): Promise<void> =>
   publishEvent(log, commentFeaturedTopic, {
     commentId,
+  });
+
+export const notifyUserReputationUpdated = async (
+  log: EventLogger,
+  userId: string,
+  reputation: number,
+): Promise<void> =>
+  publishEvent(log, userReputationUpdatedTopic, {
+    userId,
+    reputation,
   });

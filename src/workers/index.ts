@@ -6,6 +6,8 @@ import newUser from './newUser';
 import updateUser from './updateUser';
 import commentUpvoted from './commentUpvoted';
 import commentCommented from './commentCommented';
+import commentUpvotedRep from './commentUpvotedRep';
+import commentFeaturedRep from './commentFeaturedRep';
 
 export { Worker } from './worker';
 
@@ -17,4 +19,6 @@ export const workers: Worker[] = [
   updateUser,
   commentUpvoted,
   commentCommented,
+  commentUpvotedRep,
+  commentFeaturedRep,
 ];
