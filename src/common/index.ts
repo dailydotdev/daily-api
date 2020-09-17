@@ -6,6 +6,7 @@ export * from './feedGenerator';
 export * from './healthCheck';
 export * from './pagination';
 export * from './pubsub';
+export * from './reputation';
 export * from './slack';
 export * from './superfeedr';
 export * from './twitter';
