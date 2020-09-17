@@ -5,6 +5,7 @@ import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
   notifyCommentCommented,
+  notifyCommentUpvoteCanceled,
   notifyCommentUpvoted,
   notifyPostCommented,
 } from '../common';
@@ -370,23 +371,30 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      await ctx.con.transaction(async (entityManager) => {
-        const upvote = await entityManager
-          .getRepository(CommentUpvote)
-          .findOne({
-            commentId: id,
-            userId: ctx.userId,
-          });
-        if (upvote) {
-          await entityManager.getRepository(CommentUpvote).delete({
-            commentId: id,
-            userId: ctx.userId,
-          });
-          await entityManager
-            .getRepository(Comment)
-            .decrement({ id }, 'upvotes', 1);
-        }
-      });
+      const didCancel = await ctx.con.transaction(
+        async (entityManager): Promise<boolean> => {
+          const upvote = await entityManager
+            .getRepository(CommentUpvote)
+            .findOne({
+              commentId: id,
+              userId: ctx.userId,
+            });
+          if (upvote) {
+            await entityManager.getRepository(CommentUpvote).delete({
+              commentId: id,
+              userId: ctx.userId,
+            });
+            await entityManager
+              .getRepository(Comment)
+              .decrement({ id }, 'upvotes', 1);
+            return true;
+          }
+          return false;
+        },
+      );
+      if (didCancel) {
+        notifyCommentUpvoteCanceled(ctx.log, id, ctx.userId);
+      }
       return { _: true };
     },
   }),
