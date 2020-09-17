@@ -5,7 +5,7 @@ import { mocked } from 'ts-jest/utils';
 
 import appFunc from '../src';
 import { mockMessage, saveFixtures } from './helpers';
-import worker from '../src/workers/commentUpvotedRep';
+import worker from '../src/workers/commentUpvoteCanceledRep';
 import { Comment, Post, Source, User } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture } from './fixture/post';
@@ -58,14 +58,14 @@ it('should increase reputation and notify', async () => {
   await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   const user = await con.getRepository(User).findOne('1');
-  expect(user.reputation).toEqual(4);
+  expect(user.reputation).toEqual(2);
   expect(mocked(notifyUserReputationUpdated).mock.calls[0].slice(1)).toEqual([
     '1',
-    4,
+    2,
   ]);
 });
 
-it('should not increase reputation when the author is the upvote user', async () => {
+it('should not decrease reputation when the author is the upvote user', async () => {
   const message = mockMessage({
     userId: '1',
     commentId: 'c1',

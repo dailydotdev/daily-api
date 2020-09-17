@@ -14,6 +14,7 @@ import {
   notifyPostCommented,
   notifyCommentCommented,
   notifyCommentUpvoted,
+  notifyCommentUpvoteCanceled,
 } from '../src/common';
 import {
   Post,
@@ -39,6 +40,7 @@ jest.mock('../src/common', () => ({
   notifyPostCommented: jest.fn(),
   notifyCommentCommented: jest.fn(),
   notifyCommentUpvoted: jest.fn(),
+  notifyCommentUpvoteCanceled: jest.fn(),
 }));
 
 beforeAll(async () => {
@@ -54,9 +56,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   loggedUser = null;
-  mocked(notifyPostCommented).mockClear();
-  mocked(notifyCommentCommented).mockClear();
-  mocked(notifyCommentUpvoted).mockClear();
+  jest.resetAllMocks();
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
@@ -504,6 +504,10 @@ describe('mutation cancelCommentUpvote', () => {
     expect(actual).toEqual([]);
     const comment = await con.getRepository(Comment).findOne('c1');
     expect(comment.upvotes).toEqual(-1);
+    expect(mocked(notifyCommentUpvoteCanceled).mock.calls[0].slice(1)).toEqual([
+      'c1',
+      '1',
+    ]);
   });
 
   it('should ignore if no upvotes', async () => {
@@ -517,6 +521,7 @@ describe('mutation cancelCommentUpvote', () => {
     expect(actual).toEqual([]);
     const comment = await con.getRepository(Comment).findOne('c1');
     expect(comment.upvotes).toEqual(0);
+    expect(notifyCommentUpvoteCanceled).toBeCalledTimes(0);
   });
 });
 
