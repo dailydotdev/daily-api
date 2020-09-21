@@ -6,18 +6,27 @@ interface UserData {
   name: string;
   email: string;
   image: string;
-  company: string;
-  title: string;
+  company?: string;
+  title?: string;
   infoConfirmed: boolean;
   premium: boolean;
+  username?: string;
+  bio?: string;
+  twitter?: string;
+  github?: string;
 }
 
 interface ProfileData {
   name: string;
   email: string;
-  company: string;
-  title: string;
+  image: string;
+  company?: string;
+  title?: string;
   infoConfirmed: boolean;
+  username?: string;
+  bio?: string;
+  twitter?: string;
+  github?: string;
 }
 
 interface Data {
@@ -35,6 +44,9 @@ const worker: Worker = {
         { id: data.user.id },
         {
           name: data.newProfile.name,
+          image: data.newProfile.image,
+          username: data.newProfile.username,
+          twitter: data.newProfile.twitter,
         },
       );
       logger.info(
