@@ -6,5 +6,7 @@ User {
   "image": "https://daily.dev/image.jpg",
   "name": "Ido",
   "reputation": 0,
+  "twitter": null,
+  "username": null,
 }
 `;

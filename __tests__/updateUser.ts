@@ -32,6 +32,10 @@ it('should update an existing user', async () => {
     },
     newProfile: {
       name: 'Ido',
+      image: 'https://daily.dev/image.jpg',
+      username: 'idoshamun',
+      twitter: 'idoshamun',
+      github: 'idoshamun',
     },
   });
 
