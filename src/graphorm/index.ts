@@ -118,6 +118,9 @@ const obj = new GraphORM({
         },
         transform: nullIfNotLoggedIn,
       },
+      numUpvotes: {
+        select: 'upvotes',
+      },
       children: {
         relation: {
           isMany: true,

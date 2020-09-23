@@ -28,6 +28,7 @@ export interface GQLComment {
   upvoted?: boolean;
   children?: Connection<GQLComment>;
   post: GQLPost;
+  numUpvotes: number;
 }
 
 interface GQLPostCommentArgs {
@@ -81,6 +82,11 @@ export const typeDefs = gql`
     The post that was commented
     """
     post: Post!
+
+    """
+    Total number of upvotes
+    """
+    numUpvotes: Int!
   }
 
   type CommentEdge {
