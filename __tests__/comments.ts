@@ -170,6 +170,26 @@ describe('query postComments', () => {
   });
 });
 
+describe('query userComments', () => {
+  const QUERY = `query UserComments($userId: ID!, $after: String, $first: Int) {
+  userComments(userId: $userId, after: $after, first: $first) {
+    pageInfo { endCursor, hasNextPage }
+    edges { node {
+      ${commentFields}
+    } }
+  }
+  }`;
+
+  it('should fetch comments by user id', async () => {
+    const res = await client.query({
+      query: QUERY,
+      variables: { userId: '1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('mutation commentOnPost', () => {
   const MUTATION = `
   mutation CommentOnPost($postId: ID!, $content: String!) {

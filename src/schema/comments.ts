@@ -123,6 +123,26 @@ export const typeDefs = gql`
       """
       first: Int
     ): CommentConnection!
+
+    """
+    Get the comments of a user
+    """
+    userComments(
+      """
+      User id (author)
+      """
+      userId: ID!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): CommentConnection!
   }
 
   extend type Mutation {
@@ -190,6 +210,10 @@ export interface GQLPostCommentsArgs extends ConnectionArguments {
   postId: string;
 }
 
+export interface GQLUserCommentsArgs extends ConnectionArguments {
+  userId: string;
+}
+
 const getCommentById = async (
   id: string,
   ctx: Context,
@@ -233,6 +257,37 @@ export const resolvers: IResolvers<any, Context> = {
           if (page.timestamp) {
             builder.queryBuilder = builder.queryBuilder.andWhere(
               `${builder.alias}."createdAt" > :timestamp`,
+              { timestamp: page.timestamp },
+            );
+          }
+          return builder;
+        },
+      );
+    },
+    userComments: async (
+      source,
+      args: GQLUserCommentsArgs,
+      ctx,
+      info,
+    ): Promise<Connection<GQLComment>> => {
+      const page = commentsPageGenerator.connArgsToPage(args);
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => commentsPageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => commentsPageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          commentsPageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}."userId" = :userId`, {
+              userId: args.userId,
+            })
+            .orderBy(`${builder.alias}."createdAt"`, 'DESC')
+            .limit(page.limit);
+          if (page.timestamp) {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}."createdAt" < :timestamp`,
               { timestamp: page.timestamp },
             );
           }
