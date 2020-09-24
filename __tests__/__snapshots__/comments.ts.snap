@@ -247,3 +247,58 @@ Object {
   },
 }
 `;
+
+exports[`query userComments should fetch comments by user id 1`] = `
+Object {
+  "userComments": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "author": Object {
+            "id": "1",
+            "image": "https://daily.dev/ido.jpg",
+            "name": "Ido",
+          },
+          "content": "child comment #2",
+          "createdAt": "2020-02-10T00:00:00.000Z",
+          "id": "c5",
+          "permalink": "http://localhost:5002/posts/p2",
+          "upvoted": null,
+        },
+      },
+      Object {
+        "node": Object {
+          "author": Object {
+            "id": "1",
+            "image": "https://daily.dev/ido.jpg",
+            "name": "Ido",
+          },
+          "content": "child comment",
+          "createdAt": "2020-02-07T00:00:00.000Z",
+          "id": "c2",
+          "permalink": "http://localhost:5002/posts/p1",
+          "upvoted": null,
+        },
+      },
+      Object {
+        "node": Object {
+          "author": Object {
+            "id": "1",
+            "image": "https://daily.dev/ido.jpg",
+            "name": "Ido",
+          },
+          "content": "parent comment",
+          "createdAt": "2020-02-06T00:00:00.000Z",
+          "id": "c1",
+          "permalink": "http://localhost:5002/posts/p1",
+          "upvoted": null,
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNTgwOTQ3MjAwMDAw",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
