@@ -58,6 +58,7 @@ export default async function (config: Config): Promise<ApolloServer> {
       sourceRequests.resolvers,
       sources.resolvers,
       tags.resolvers,
+      users.resolvers,
     ),
     schemaDirectives: {
       auth: AuthDirective,
