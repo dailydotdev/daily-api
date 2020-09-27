@@ -22,6 +22,9 @@ const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;
 
 const obj = new GraphORM({
+  User: {
+    requiredColumns: ['id', 'username'],
+  },
   Post: {
     requiredColumns: ['id', 'shortId', 'createdAt'],
     fields: {
