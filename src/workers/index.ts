@@ -9,6 +9,7 @@ import commentCommented from './commentCommented';
 import commentUpvotedRep from './commentUpvotedRep';
 import commentFeaturedRep from './commentFeaturedRep';
 import commentUpvoteCanceledRep from './commentUpvoteCanceledRep';
+import commentCommentedThread from './commentCommentedThread';
 
 export { Worker } from './worker';
 
@@ -23,4 +24,5 @@ export const workers: Worker[] = [
   commentUpvotedRep,
   commentFeaturedRep,
   commentUpvoteCanceledRep,
+  commentCommentedThread,
 ];
