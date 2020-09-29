@@ -3,7 +3,13 @@ import { Connection, DeepPartial } from 'typeorm';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { getPostsIndex, notifyPostReport, notifyPostUpvoted } from '../common';
+import {
+  defaultImage,
+  getPostsIndex,
+  notifyPostReport,
+  notifyPostUpvoted,
+  pickImageUrl,
+} from '../common';
 import { HiddenPost, Post, Upvote } from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError } from '../errors';
@@ -279,17 +285,6 @@ const reportReasons = new Map([
   ['BROKEN', 'Link is broken'],
   ['NSFW', 'Post is NSFW'],
 ]);
-
-const defaultImage = {
-  urls: process.env.DEFAULT_IMAGE_URL.split(','),
-  ratio: parseFloat(process.env.DEFAULT_IMAGE_RATIO),
-  placeholder: process.env.DEFAULT_IMAGE_PLACEHOLDER,
-};
-
-const pickImageUrl = (post: GQLPost): string =>
-  defaultImage.urls[
-    Math.floor(post.createdAt.getTime() / 1000) % defaultImage.urls.length
-  ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {

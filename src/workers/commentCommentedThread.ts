@@ -76,7 +76,7 @@ const worker: Worker = {
           messageId: message.id,
           err,
         },
-        'failed to send comment email',
+        'failed to send thread email',
       );
       if (err.name === 'QueryFailedError') {
         message.ack();
