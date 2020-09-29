@@ -14,6 +14,7 @@ Array [
       "new_comment": "sub comment",
       "post_title": "P1",
       "profile_image": "https://daily.dev/tsahi.jpg",
+      "user_reputation": 3,
     },
     "from": Object {
       "email": "informer@daily.dev",

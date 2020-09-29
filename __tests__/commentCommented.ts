@@ -73,6 +73,7 @@ it('should send mail to author', async () => {
       email: 'ido@daily.dev',
       name: 'Ido',
       image: 'https://daily.dev/ido.jpg',
+      reputation: 5,
     });
 
   nock(process.env.GATEWAY_URL)
@@ -85,6 +86,7 @@ it('should send mail to author', async () => {
       email: 'tsahi@daily.dev',
       name: 'Tsahi',
       image: 'https://daily.dev/tsahi.jpg',
+      reputation: 3,
     });
 
   const message = mockMessage({

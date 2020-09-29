@@ -6,11 +6,11 @@ import { mocked } from 'ts-jest/utils';
 
 import appFunc from '../src';
 import { mockMessage, saveFixtures } from './helpers';
-import { sendEmail } from '../src/common/mailing';
-import worker from '../src/workers/commentUpvoted';
-import { Comment, Post, Source, User } from '../src/entity';
+import { sendEmail, User as GatewayUser } from '../src/common';
+import worker from '../src/workers/commentFeaturedMail';
+import { Comment, Post, Source, SourceDisplay, User } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
-import { postsFixture } from './fixture/post';
+import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 
 jest.mock('../src/common/mailing', () => ({
   ...jest.requireActual('../src/common/mailing'),
@@ -29,7 +29,19 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
+  await saveFixtures(con, Post, [
+    {
+      id: 'p1',
+      shortId: 'sp1',
+      title: 'P1',
+      url: 'http://p1.com',
+      score: 0,
+      sourceId: 'a',
+      createdAt: new Date(2020, 8, 27),
+      image: 'https://daily.dev/image.jpg',
+    },
+  ]);
   await con.getRepository(User).save([
     { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
     { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
@@ -46,30 +58,36 @@ beforeEach(async () => {
     {
       id: 'c2',
       postId: 'p1',
-      userId: '1',
-      content: 'parent comment',
+      userId: '2',
+      content: 'sub comment',
       createdAt: new Date(2020, 1, 6, 0, 0),
-      upvotes: 2,
+      parentId: 'c1',
     },
   ]);
 });
 
-it('should send mail to author', async () => {
+const mockUsersMe = (user: GatewayUser): nock.Scope =>
   nock(process.env.GATEWAY_URL)
     .get('/v1/users/me')
     .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
+    .matchHeader('user-id', user.id)
     .matchHeader('logged-in', 'true')
-    .reply(200, {
+    .reply(200, user);
+
+it('should send featured comment mail', async () => {
+  const mockedUsers: GatewayUser[] = [
+    {
       id: '1',
-      email: 'ido@daily.dev',
+      email: 'ido@acme.com',
       name: 'Ido',
       image: 'https://daily.dev/ido.jpg',
+      reputation: 5,
       permalink: 'https://daily.dev/ido',
-    });
+    },
+  ];
+  mockedUsers.forEach(mockUsersMe);
 
   const message = mockMessage({
-    userId: '2',
     commentId: 'c1',
   });
 
@@ -77,50 +95,4 @@ it('should send mail to author', async () => {
   expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(1);
   expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
-});
-
-it('should not send mail when the author is the upvote user', async () => {
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '1',
-      email: 'ido@daily.dev',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-    });
-
-  const message = mockMessage({
-    userId: '1',
-    commentId: 'c1',
-  });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
-  expect(sendEmail).toBeCalledTimes(0);
-});
-
-it('should not send mail when number of upvotes is not a defined trigger', async () => {
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '1',
-      email: 'ido@daily.dev',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-    });
-
-  const message = mockMessage({
-    userId: '1',
-    commentId: 'c2',
-  });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
-  expect(sendEmail).toBeCalledTimes(0);
 });

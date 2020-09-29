@@ -11,6 +11,8 @@ export interface User {
   name: string;
   image: string;
   premium?: boolean;
+  reputation: number;
+  permalink: string;
 }
 
 const authorizedHeaders = (userId: string): { [key: string]: string } => ({

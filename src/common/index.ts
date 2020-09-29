@@ -11,3 +11,5 @@ export * from './slack';
 export * from './superfeedr';
 export * from './twitter';
 export * from './users';
+export * from './mailing';
+export * from './post';
