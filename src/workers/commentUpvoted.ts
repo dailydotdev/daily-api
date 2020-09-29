@@ -48,6 +48,7 @@ const worker: Worker = {
             post_title: post.title,
             discussion_link: `${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
             profile_image: author.image,
+            profile_link: author.permalink,
             /* eslint-enable @typescript-eslint/camelcase */
           },
         });
