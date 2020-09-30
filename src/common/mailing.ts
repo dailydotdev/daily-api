@@ -16,7 +16,7 @@ export const truncateComment = (comment: Comment): string =>
 
 export const baseNotificationEmailData: Pick<
   MailDataRequired,
-  'from' | 'replyTo' | 'trackingSettings' | 'asm'
+  'from' | 'replyTo' | 'trackingSettings' | 'asm' | 'category'
 > = {
   from: {
     email: 'informer@daily.dev',
@@ -32,6 +32,7 @@ export const baseNotificationEmailData: Pick<
   asm: {
     groupId: 15003,
   },
+  category: 'Notification',
 };
 
 export const sendEmail = async (data: MailDataRequired): Promise<void> => {
