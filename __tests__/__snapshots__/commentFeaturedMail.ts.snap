@@ -6,6 +6,7 @@ Array [
     "asm": Object {
       "groupId": 15003,
     },
+    "category": "Notification",
     "dynamicTemplateData": Object {
       "post_image": "https://daily.dev/image.jpg",
       "post_title": "P1",

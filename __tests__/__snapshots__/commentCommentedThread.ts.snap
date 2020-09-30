@@ -6,6 +6,7 @@ Array [
     "asm": Object {
       "groupId": 15003,
     },
+    "category": "Notification",
     "dynamicTemplateData": Object {
       "discussion_link": "http://localhost:5002/posts/p1",
       "full_name_commenter": "Ido",
