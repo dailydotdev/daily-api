@@ -13,7 +13,7 @@ Array [
       "post_title": "P1",
       "profile_image": "https://daily.dev/ido.jpg",
       "profile_link": "https://daily.dev/ido",
-      "upvote_title": "Congrats! You just earned your first upvote 🎉",
+      "upvote_title": "Congrats! You just earned one upvote 🎉",
     },
     "from": Object {
       "email": "informer@daily.dev",

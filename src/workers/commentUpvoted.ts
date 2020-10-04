@@ -9,9 +9,9 @@ interface Data {
 }
 
 const upvoteTitles = {
-  1: 'Congrats! You just earned your first upvote 🎉',
-  5: 'Well done! You just earned 5 upvotes  🙌',
-  10: 'You rock! You just earned 10 upvotes 🎸',
+  1: 'Congrats! You just earned one upvote 🎉',
+  5: 'You rock! You just earned 5 upvotes  🎸',
+  10: 'Well done! You just earned 10 upvotes 🙌',
   25: 'Brilliant! You just earned 25 upvotes 🥳',
   50: 'Good job! You just earned 50 upvotes 🚴‍♀️',
   100: 'Excellent! You just earned 100 upvotes ⚡️',
