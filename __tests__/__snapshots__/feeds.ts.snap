@@ -1061,6 +1061,19 @@ Object {
 }
 `;
 
+exports[`query searchPosts should return search empty feed 1`] = `
+Object {
+  "searchPosts": Object {
+    "edges": Array [],
+    "pageInfo": Object {
+      "endCursor": null,
+      "hasNextPage": false,
+    },
+    "query": "text",
+  },
+}
+`;
+
 exports[`query searchPosts should return search feed 1`] = `
 Object {
   "searchPosts": Object {

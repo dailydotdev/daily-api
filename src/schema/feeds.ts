@@ -451,29 +451,38 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const pageGenerator = offsetPageGenerator(30, 50);
       const page = pageGenerator.connArgsToPage(args);
       const postIds = await searchPostsForFeed(args, ctx, page);
-      const res = await graphorm.queryPaginated<GQLPost>(
-        ctx,
-        info,
-        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
-        (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
-        (builder) => {
-          const selectSource = graphorm.mappings.Post.fields.source
-            .customQuery(ctx, 'sd', builder.queryBuilder.subQuery())
-            .from(SourceDisplay, 'sd')
-            .andWhere(`sd."sourceId" = "${builder.alias}"."sourceId"`);
-          builder.queryBuilder = builder.queryBuilder
-            .where(`${builder.alias}.id IN (:...postIds)`, { postIds })
-            .andWhere(`EXISTS${selectSource.getQuery()}`, {
-              userId: ctx.userId,
-            });
-          return builder;
-        },
-        (nodes) =>
-          nodes.sort((a, b) => postIds.indexOf(a.id) - postIds.indexOf(b.id)),
-      );
+      if (postIds.length) {
+        const res = await graphorm.queryPaginated<GQLPost>(
+          ctx,
+          info,
+          (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+          (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+          (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+          (builder) => {
+            const selectSource = graphorm.mappings.Post.fields.source
+              .customQuery(ctx, 'sd', builder.queryBuilder.subQuery())
+              .from(SourceDisplay, 'sd')
+              .andWhere(`sd."sourceId" = "${builder.alias}"."sourceId"`);
+            builder.queryBuilder = builder.queryBuilder
+              .where(`${builder.alias}.id IN (:...postIds)`, { postIds })
+              .andWhere(`EXISTS${selectSource.getQuery()}`, {
+                userId: ctx.userId,
+              });
+            return builder;
+          },
+          (nodes) =>
+            nodes.sort((a, b) => postIds.indexOf(a.id) - postIds.indexOf(b.id)),
+        );
+        return {
+          ...res,
+          query: args.query,
+        };
+      }
       return {
-        ...res,
+        pageInfo: {
+          hasNextPage: false,
+        },
+        edges: [],
         query: args.query,
       };
     },
