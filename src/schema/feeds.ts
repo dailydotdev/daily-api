@@ -23,6 +23,7 @@ import {
   FeedTag,
   Post,
   searchPosts,
+  SourceDisplay,
 } from '../entity';
 import { GQLSource } from './sources';
 import { offsetPageGenerator, Page, PageGenerator } from './common';
@@ -457,10 +458,15 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
         (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
-          builder.queryBuilder = builder.queryBuilder.where(
-            `${builder.alias}.id IN (:...postIds)`,
-            { postIds },
-          );
+          const selectSource = graphorm.mappings.Post.fields.source
+            .customQuery(ctx, 'sd', builder.queryBuilder.subQuery())
+            .from(SourceDisplay, 'sd')
+            .andWhere(`sd."sourceId" = "${builder.alias}"."sourceId"`);
+          builder.queryBuilder = builder.queryBuilder
+            .where(`${builder.alias}.id IN (:...postIds)`, { postIds })
+            .andWhere(`EXISTS${selectSource.getQuery()}`, {
+              userId: ctx.userId,
+            });
           return builder;
         },
         (nodes) =>
