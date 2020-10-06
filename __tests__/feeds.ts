@@ -335,6 +335,19 @@ describe('query searchPosts', () => {
     expect(searchMock).toBeCalledWith('text', expect.anything());
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should return search empty feed', async () => {
+    const searchMock = jest.fn();
+    mocked(getPostsIndex).mockReturnValue(({
+      search: searchMock,
+    } as unknown) as SearchIndex);
+    searchMock.mockResolvedValue({
+      hits: [],
+    });
+    const res = await client.query({ query: QUERY('text') });
+    expect(searchMock).toBeCalledWith('text', expect.anything());
+    expect(res.data).toMatchSnapshot();
+  });
 });
 
 describe('query rssFeeds', () => {
