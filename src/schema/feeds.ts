@@ -484,7 +484,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
         edges: [],
         query: args.query,
-      }
+      };
     },
     rssFeeds: async (source, args, ctx): Promise<GQLRSSFeed[]> => {
       const urlPrefix = `${process.env.URL_PREFIX}/rss`;
