@@ -8,7 +8,7 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
-  schedule: "0 6,13,18 * * *"
+  schedule: "0 7,12,15,19,22 * * *"
   jobTemplate:
     spec:
       template:
