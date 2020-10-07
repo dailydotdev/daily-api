@@ -58,7 +58,7 @@ it('should tweet the latest post over the views threshold', async () => {
   mocked(tweet).mockResolvedValue();
   await cron.handler(con);
   expect(tweet).toBeCalledTimes(1);
-  expect(tweet).toBeCalledWith('P2\n\n\nhttp://localhost:4000/r/p2');
+  expect(tweet).toBeCalledWith('P2\n\n\nhttp://localhost:5002/posts/p2');
   const post = await con.getRepository(Post).findOne('p2');
   expect(post.tweeted).toEqual(true);
 });
@@ -93,7 +93,7 @@ it('should tag the author and site and add hashtags', async () => {
   await cron.handler(con);
   expect(tweet).toBeCalledTimes(1);
   expect(tweet).toBeCalledWith(
-    'P1 by @creator via @site\n#webdev #javascript\n\nhttp://localhost:4000/r/p1',
+    'P1 by @creator via @site\n#webdev #javascript\n\nhttp://localhost:5002/posts/p1',
   );
 });
 
@@ -116,6 +116,6 @@ it('should fallback to source twitter', async () => {
   await cron.handler(con);
   expect(tweet).toBeCalledTimes(1);
   expect(tweet).toBeCalledWith(
-    'P1 by @creator via @source\n\n\nhttp://localhost:4000/r/p1',
+    'P1 by @creator via @source\n\n\nhttp://localhost:5002/posts/p1',
   );
 });
