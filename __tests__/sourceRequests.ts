@@ -375,7 +375,7 @@ describe('query pendingSourceRequests', () => {
     roles = [Roles.Moderator];
     loggedUser = '1';
 
-    for (const req of sourceRequestFixture) {
+    for await (const req of sourceRequestFixture) {
       await con.getRepository(SourceRequest).save(req);
     }
 
@@ -423,7 +423,7 @@ describe('compatibility routes', () => {
 
   describe('GET /publications/requests/open', () => {
     it('should return pending source requests', async () => {
-      for (const req of sourceRequestFixture) {
+      for await (const req of sourceRequestFixture) {
         await con.getRepository(SourceRequest).save(req);
       }
 
