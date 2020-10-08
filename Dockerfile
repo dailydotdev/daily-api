@@ -1,4 +1,4 @@
-FROM node:12.16.2-alpine
+FROM node:14.13.1-alpine
 
 RUN mkdir -p /opt/app
 WORKDIR /opt/app
