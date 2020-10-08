@@ -1,6 +1,5 @@
 import {
   Column,
-  CreateDateColumn,
   Entity,
   Index,
   PrimaryGeneratedColumn,
@@ -50,7 +49,7 @@ export class SourceRequest {
   @Column({ type: 'text', nullable: true })
   reason?: string;
 
-  @CreateDateColumn()
+  @Column({ default: () => 'now()' })
   createdAt: Date;
 
   @UpdateDateColumn()

@@ -17,4 +17,4 @@ beforeAll(async () => {
 
 afterEach(() => cleanDatabase());
 
-afterAll(() => con.close());
+// afterAll(() => con.close());
