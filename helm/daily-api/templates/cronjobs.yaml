@@ -220,3 +220,39 @@ spec:
                 secretName: {{ template "daily-api.fullname" . }}-files
           restartPolicy: OnFailure
 ---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ template "daily-api.fullname" . }}-hashnode-badge
+  labels:
+    app: {{ template "daily-api.name" . }}
+    chart: {{ template "daily-api.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  schedule: "0 7 * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          annotations:
+        {{- include "daily-api.checksum" . | indent 12 }}
+        spec:
+          containers:
+            - name: job
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              command: ["node", "bin/cron.js", "hashnodeBadge"]
+              env:
+                - name: GOOGLE_APPLICATION_CREDENTIALS
+                  value: "/etc/config/serviceAccount.json"
+              {{ include "daily-api.config" . | indent 14 }}
+              volumeMounts:
+                - name: config
+                  mountPath: "/etc/config"
+                  readOnly: true
+          volumes:
+            - name: config
+              secret:
+                secretName: {{ template "daily-api.fullname" . }}-files
+          restartPolicy: OnFailure
+---
