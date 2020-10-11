@@ -119,6 +119,15 @@ describe('query sources', () => {
     const res = await client.query({ query: QUERY(1) });
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should return only active sources', async () => {
+    await con.getRepository(Source).save([{ id: 'd', active: false }]);
+    await con
+      .getRepository(SourceDisplay)
+      .save([createSourceDisplay('d', 'D', 'http://d.com')]);
+    const res = await client.query({ query: QUERY() });
+    expect(res.data).toMatchSnapshot();
+  });
 });
 
 describe('query sourceByFeed', () => {
@@ -263,6 +272,7 @@ describe('mutation addPrivateSource', () => {
       id: expect.anything(),
       twitter: null,
       website: null,
+      active: true,
     });
     expect(
       await con.getRepository(SourceDisplay).findOne({ sourceId: id }),
@@ -350,6 +360,7 @@ describe('mutation addPrivateSource', () => {
       id: expect.anything(),
       twitter: null,
       website: null,
+      active: true,
     });
     expect(
       await con.getRepository(SourceDisplay).findOne({ sourceId: id }),

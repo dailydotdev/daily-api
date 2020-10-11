@@ -162,6 +162,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           .createQueryBuilder()
           .select('sd.*')
           .from(fromSourceDisplay, 'sd')
+          .innerJoin(
+            Source,
+            'source',
+            'sd."sourceId" = source.id AND source.active = true',
+          )
           .setParameters({ userId: ctx.userId, enabled: true })
           .orderBy('sd.name', 'ASC')
           .limit(limit)

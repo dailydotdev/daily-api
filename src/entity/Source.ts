@@ -1,4 +1,4 @@
-import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
+import { Column, Entity, Index, OneToMany, PrimaryColumn } from 'typeorm';
 import { SourceDisplay } from './SourceDisplay';
 import { SourceFeed } from './SourceFeed';
 import { Post } from './Post';
@@ -13,6 +13,10 @@ export class Source {
 
   @Column({ type: 'text', nullable: true })
   website?: string;
+
+  @Column({ default: true })
+  @Index()
+  active: boolean;
 
   @OneToMany(() => SourceDisplay, (display) => display.source, { lazy: true })
   displays: Promise<SourceDisplay[]>;
