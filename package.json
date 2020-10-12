@@ -51,7 +51,7 @@
     "graphql-relay": "^0.6.0",
     "graphql-upload": "^10.0.0",
     "jsonwebtoken": "^8.5.1",
-    "lodash": "^4.17.19",
+    "lodash": "^4.17.20",
     "node-fetch": "^2.6.1",
     "p-retry": "^4.2.0",
     "pg": "^8.4.0",
