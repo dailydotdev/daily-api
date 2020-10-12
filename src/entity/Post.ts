@@ -61,6 +61,7 @@ export class Post {
   tweeted: boolean;
 
   @Column({ default: 0 })
+  @Index('IDX_post_views')
   views: number;
 
   @Column({ type: 'integer', default: 0 })
