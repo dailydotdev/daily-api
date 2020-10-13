@@ -1,5 +1,5 @@
 import { GraphORM, QueryBuilder } from './graphorm';
-import { Bookmark, CommentUpvote, FeedSource, FeedTag } from '../entity';
+import { Bookmark, CommentUpvote, FeedSource, FeedTag, Post } from '../entity';
 import { Context } from '../Context';
 import { GQLBookmarkList } from '../schema/bookmarks';
 import { base64 } from '../common';
@@ -26,7 +26,7 @@ const obj = new GraphORM({
     requiredColumns: ['id', 'username'],
   },
   Post: {
-    requiredColumns: ['id', 'shortId', 'createdAt'],
+    requiredColumns: ['id', 'shortId', 'createdAt', 'authorId'],
     fields: {
       source: {
         customQuery: (ctx, alias, qb): QueryBuilder => {
@@ -62,6 +62,10 @@ const obj = new GraphORM({
       commented: {
         select: existsByUserAndPost('Comment'),
         transform: nullIfNotLoggedIn,
+      },
+      views: {
+        transform: (value: number, ctx, parent: Post): number | null =>
+          parent?.authorId && ctx.userId === parent.authorId ? value : null,
       },
       bookmarkList: {
         relation: {

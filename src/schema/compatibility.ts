@@ -72,7 +72,6 @@ export const typeDefs = gql`
     Publication of the post
     """
     publication: Publication! @deprecated(reason: "Please use source instead")
-    views: Int @deprecated(reason: "No longer available")
   }
 
   extend type Query {
@@ -333,6 +332,5 @@ export const resolvers: IResolvers<any, Context> = {
   }),
   Post: {
     publication: (source: GQLPost): GQLPublication => source.source,
-    views: (): number => 0,
   },
 };

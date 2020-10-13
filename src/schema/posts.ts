@@ -43,6 +43,7 @@ export interface GQLPost {
   score: number;
   bookmarkedAt: Date;
   author?: GQLUser;
+  views?: number;
 }
 
 export const typeDefs = gql`
@@ -164,6 +165,11 @@ export const typeDefs = gql`
     Author of the post (if they have a daily.dev account)
     """
     author: User
+
+    """
+    Number of times the article has been viewed (unique readers)
+    """
+    views: Int
   }
 
   type PostConnection {
