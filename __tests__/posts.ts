@@ -452,6 +452,31 @@ describe('author field', () => {
   });
 });
 
+describe('views field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      views
+    }
+  }`;
+
+  it('should return null when the user is not the author', async () => {
+    const res = await client.query({ query: QUERY });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.views).toEqual(null);
+  });
+
+  it('should return views when the user is the author', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(User)
+      .save([{ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' }]);
+    await con.getRepository(Post).update('p1', { authorId: '1', views: 200 });
+    const res = await client.query({ query: QUERY });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.views).toEqual(200);
+  });
+});
+
 describe('query post', () => {
   const QUERY = (id: string): string => `{
     post(id: "${id}") {
