@@ -191,4 +191,9 @@ checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . |
     secretKeyRef:
       name: {{  $fullName }}
       key: JWT_ISSUER
+- name: HASHNODE_WEBHOOK
+  valueFrom:
+    secretKeyRef:
+      name: {{  $fullName }}
+      key: HASHNODE_WEBHOOK
 {{- end }}
