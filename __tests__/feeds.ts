@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { Connection, getConnection } from 'typeorm';
+import { Connection, getConnection, In } from 'typeorm';
 import { ApolloServer } from 'apollo-server-fastify';
 import {
   ApolloServerTestClient,
@@ -22,6 +22,7 @@ import {
 import appFunc from '../src';
 import {
   Feed,
+  FeedSource,
   FeedTag,
   Post,
   PostTag,
@@ -29,11 +30,11 @@ import {
   SourceDisplay,
   View,
   BookmarkList,
+  User,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
-import { FeedSource } from '../src/entity/FeedSource';
 import { getPostsIndex, Ranking } from '../src/common';
 
 let app: FastifyInstance;
@@ -374,6 +375,36 @@ describe('query rssFeeds', () => {
         url: `http://localhost:4000/rss/b/l/${list.id.replace(/-/g, '')}`,
       },
     ]);
+  });
+});
+
+describe('query authorFeed', () => {
+  const QUERY = (
+    author: string,
+    ranking: Ranking = Ranking.POPULARITY,
+    first = 10,
+  ): string => `{
+    authorFeed(author: "${author}", ranking: ${ranking}, first: ${first}) {
+      ${feedFields}
+    }
+  }`;
+
+  it('should return a single author feed', async () => {
+    await con.getRepository(User).save([
+      {
+        id: '1',
+        name: 'Ido',
+        image: 'https://daily.dev/ido.jpg',
+        twitter: 'idoshamun',
+      },
+    ]);
+    await con
+      .getRepository(Post)
+      .update({ id: In(['p1', 'p3']) }, { authorId: '1' });
+
+    const res = await client.query({ query: QUERY('1') });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
   });
 });
 
