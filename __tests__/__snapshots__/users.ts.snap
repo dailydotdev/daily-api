@@ -1,0 +1,25 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`query userStats should return partial user stats when no posts or no comments 1`] = `
+Object {
+  "userStats": Object {
+    "numCommentUpvotes": 2,
+    "numComments": 1,
+    "numPostUpvotes": 0,
+    "numPostViews": 0,
+    "numPosts": 0,
+  },
+}
+`;
+
+exports[`query userStats should return the user stats 1`] = `
+Object {
+  "userStats": Object {
+    "numCommentUpvotes": 15,
+    "numComments": 2,
+    "numPostUpvotes": 20,
+    "numPostViews": 100,
+    "numPosts": 3,
+  },
+}
+`;
