@@ -68,9 +68,13 @@ const addPost = async (
           : null;
       let authorId = null;
       if (data.creatorTwitter) {
+        const twitter =
+          data.creatorTwitter[0] === '@'
+            ? data.creatorTwitter.substr(1)
+            : data.creatorTwitter;
         const author = await entityManager
           .getRepository(User)
-          .findOne({ twitter: data.creatorTwitter });
+          .findOne({ twitter });
         if (author) {
           authorId = author.id;
         }
