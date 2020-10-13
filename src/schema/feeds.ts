@@ -246,6 +246,31 @@ export const typeDefs = gql`
     Returns the user's RSS feeds
     """
     rssFeeds: [RSSFeed!]! @auth
+
+    """
+    Get a single author feed
+    """
+    authorFeed(
+      """
+      Id of the author
+      """
+      author: ID!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Ranking criteria for the feed
+      """
+      ranking: Ranking = POPULARITY
+    ): PostConnection!
   }
 
   extend type Mutation {
@@ -308,6 +333,10 @@ interface SourceFeedArgs extends FeedArgs {
 
 interface TagFeedArgs extends FeedArgs {
   tag: string;
+}
+
+interface AuthorFeedArgs extends FeedArgs {
+  author: string;
 }
 
 interface FeedPage extends Page {
@@ -502,6 +531,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         })),
       ];
     },
+    authorFeed: feedResolver(
+      (ctx, { author }: AuthorFeedArgs, builder, alias) =>
+        builder.andWhere(`${alias}.authorId = :author`, {
+          author,
+        }),
+      feedPageGenerator,
+      applyFeedPaging,
+    ),
   },
   Mutation: {
     addFiltersToFeed: async (
