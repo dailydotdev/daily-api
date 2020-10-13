@@ -21,6 +21,7 @@ it('should update an existing user', async () => {
     id: 'abc',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
+    profileConfirmed: true,
   });
 
   const message = mockMessage({

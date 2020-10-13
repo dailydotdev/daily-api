@@ -1,4 +1,5 @@
-import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { Column, Entity, Index, OneToMany, PrimaryColumn } from 'typeorm';
+import { Post } from './Post';
 
 @Entity()
 export class User {
@@ -21,4 +22,11 @@ export class User {
   @Column({ length: 15, nullable: true })
   @Index()
   twitter: string | null;
+
+  @Column({ default: false })
+  @Index('IDX_user_profileConfirmed')
+  profileConfirmed: boolean | null;
+
+  @OneToMany(() => Post, (post) => post.author, { lazy: true })
+  posts: Promise<Post[]>;
 }

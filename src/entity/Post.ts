@@ -10,6 +10,7 @@ import { SearchOptions } from '@algolia/client-search';
 import { PostTag } from './PostTag';
 import { Source } from './Source';
 import { getPostsIndex, trackSearch } from '../common';
+import { User } from './User';
 
 @Entity()
 export class Post {
@@ -91,6 +92,16 @@ export class Post {
   @Column({ type: 'integer', default: 0 })
   @Index('IDX_post_comments')
   comments: number;
+
+  @Column({ length: 36, nullable: true })
+  @Index('IDX_post_author')
+  authorId: string | null;
+
+  @ManyToOne(() => User, {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  author: Promise<User>;
 }
 
 export interface SearchPostsResult {

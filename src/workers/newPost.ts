@@ -1,8 +1,9 @@
 import shortid from 'shortid';
 import { Connection, In, MoreThan } from 'typeorm';
-import { Post, PostTag, TagCount } from '../entity';
+import { Post, PostTag, TagCount, User } from '../entity';
 import { envBasedName, messageToJson, Worker } from './worker';
-import { getPostsIndex } from '../common';
+import { getPostsIndex, notifyPostAuthorMatched } from '../common';
+import { Logger } from 'fastify';
 
 interface AddPostData {
   id: string;
@@ -45,9 +46,15 @@ const addToAlgolia = async (data: AddPostData): Promise<void> => {
   await getPostsIndex().saveObject(convertToAlgolia(data));
 };
 
-const addPost = async (con: Connection, data: AddPostData): Promise<void> =>
-  con.transaction(
-    async (entityManager): Promise<void> => {
+type Result = { postId: string; authorId?: string };
+
+const addPost = async (
+  con: Connection,
+  data: AddPostData,
+  logger: Logger,
+): Promise<void> => {
+  const res = await con.transaction(
+    async (entityManager): Promise<Result> => {
       const tags =
         data.tags?.length > 0
           ? await entityManager.getRepository(TagCount).find({
@@ -59,6 +66,15 @@ const addPost = async (con: Connection, data: AddPostData): Promise<void> =>
               take: 5,
             })
           : null;
+      let authorId = null;
+      if (data.creatorTwitter) {
+        const author = await entityManager
+          .getRepository(User)
+          .findOne({ twitter: data.creatorTwitter });
+        if (author) {
+          authorId = author.id;
+        }
+      }
       await entityManager.getRepository(Post).insert({
         id: data.id,
         shortId: data.id,
@@ -76,6 +92,7 @@ const addPost = async (con: Connection, data: AddPostData): Promise<void> =>
         readTime: data.readTime,
         tagsStr: tags?.map((t) => t.tag).join(','),
         canonicalUrl: data.canonicalUrl,
+        authorId,
       });
       if (data.tags?.length) {
         await entityManager.getRepository(PostTag).insert(
@@ -85,8 +102,17 @@ const addPost = async (con: Connection, data: AddPostData): Promise<void> =>
           })),
         );
       }
+      return {
+        postId: data.id,
+        authorId,
+      };
     },
   );
+  if (res.authorId) {
+    logger.info(res, 'matched author to post');
+    await notifyPostAuthorMatched(logger, res.postId, res.authorId);
+  }
+};
 
 const parseReadTime = (
   readTime: number | string | undefined,
@@ -131,7 +157,7 @@ const worker: Worker = {
     data.createdAt = new Date();
     data.readTime = parseReadTime(data.readTime);
     try {
-      await addPost(con, data);
+      await addPost(con, data, logger);
       await addToAlgolia(data);
       logger.info(
         {
