@@ -270,7 +270,7 @@ it('should match post to author', async () => {
     title: 'Title',
     url: 'https://post.com',
     publicationId: 'a',
-    creatorTwitter: 'idoshamun',
+    creatorTwitter: '@idoshamun',
   });
 
   await worker.handler(message, con, app.log, new PubSub());
@@ -304,7 +304,7 @@ it('should not match post to author', async () => {
     title: 'Title',
     url: 'https://post.com',
     publicationId: 'a',
-    creatorTwitter: 'nouser',
+    creatorTwitter: '@nouser',
   });
 
   await worker.handler(message, con, app.log, new PubSub());
