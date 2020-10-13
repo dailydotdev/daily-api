@@ -14,7 +14,6 @@ const cron: Cron = {
       .andWhere('post."createdAt" < now()::date')
       .andWhere(`post."sourceId" = 'hashnode'`)
       .orderBy('post.upvotes', 'DESC')
-      .addOrderBy('post.views', 'DESC')
       .limit(1)
       .getRawOne<Post>();
     const res = await fetch(process.env.HASHNODE_WEBHOOK, {
