@@ -85,7 +85,7 @@ export class GraphORM {
     const relation = childMetadata.relations.find(
       (rel) => rel.inverseEntityMetadata.name === parentMetadata.name,
     );
-    if (relation) {
+    if (relation?.foreignKeys?.[0]) {
       const fk = relation.foreignKeys[0];
       return {
         isMany: relation.relationType === 'many-to-one',

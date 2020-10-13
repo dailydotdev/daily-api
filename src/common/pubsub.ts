@@ -12,6 +12,7 @@ const commentCommentedTopic = pubsub.topic('comment-commented');
 const commentFeaturedTopic = pubsub.topic('comment-featured');
 const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
+const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
@@ -116,4 +117,14 @@ export const notifyCommentUpvoteCanceled = async (
   publishEvent(log, commentUpvoteCanceledTopic, {
     commentId,
     userId,
+  });
+
+export const notifyPostAuthorMatched = async (
+  log: EventLogger,
+  postId: string,
+  authorId: string,
+): Promise<void> =>
+  publishEvent(log, postAuthorMatchedTopic, {
+    postId,
+    authorId,
   });

@@ -427,6 +427,31 @@ describe('featuredComments field', () => {
   });
 });
 
+describe('author field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      author {
+        id
+        name
+      }
+    }
+  }`;
+
+  it('should return null when author is not set', async () => {
+    const res = await client.query({ query: QUERY });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return the author when set', async () => {
+    await con
+      .getRepository(User)
+      .save([{ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' }]);
+    await con.getRepository(Post).update('p1', { authorId: '1' });
+    const res = await client.query({ query: QUERY });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('query post', () => {
   const QUERY = (id: string): string => `{
     post(id: "${id}") {

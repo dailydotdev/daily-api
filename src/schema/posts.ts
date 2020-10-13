@@ -16,6 +16,7 @@ import { NotFoundError } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
 import { GQLComment } from './comments';
 import graphorm from '../graphorm';
+import { GQLUser } from './users';
 
 export interface GQLPost {
   id: string;
@@ -41,6 +42,7 @@ export interface GQLPost {
   // Used only for pagination (not part of the schema)
   score: number;
   bookmarkedAt: Date;
+  author?: GQLUser;
 }
 
 export const typeDefs = gql`
@@ -157,6 +159,11 @@ export const typeDefs = gql`
     Featured comments for the post
     """
     featuredComments: [Comment!]
+
+    """
+    Author of the post (if they have a daily.dev account)
+    """
+    author: User
   }
 
   type PostConnection {

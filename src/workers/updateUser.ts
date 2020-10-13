@@ -47,6 +47,7 @@ const worker: Worker = {
           image: data.newProfile.image,
           username: data.newProfile.username,
           twitter: data.newProfile.twitter,
+          profileConfirmed: false,
         },
       );
       logger.info(

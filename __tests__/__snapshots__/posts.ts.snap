@@ -1,5 +1,24 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`author field should return null when author is not set 1`] = `
+Object {
+  "post": Object {
+    "author": null,
+  },
+}
+`;
+
+exports[`author field should return the author when set 1`] = `
+Object {
+  "post": Object {
+    "author": Object {
+      "id": "1",
+      "name": "Ido",
+    },
+  },
+}
+`;
+
 exports[`compatibility routes GET /posts/:id should return post by id 1`] = `
 Object {
   "id": "p1",

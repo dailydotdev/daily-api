@@ -8,9 +8,9 @@ import Mock = jest.Mock;
 import appFunc from '../src';
 import worker from '../src/workers/newPost';
 import { mockMessage, saveFixtures } from './helpers';
-import { Post, PostTag, Source, TagCount } from '../src/entity';
+import { Post, PostTag, Source, TagCount, User } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
-import { getPostsIndex } from '../src/common';
+import { getPostsIndex, notifyPostAuthorMatched } from '../src/common';
 
 let con: Connection;
 let app: FastifyInstance;
@@ -21,6 +21,11 @@ jest.mock('../src/common/algolia', () => ({
   getPostsIndex: jest.fn(),
 }));
 
+jest.mock('../src/common', () => ({
+  ...jest.requireActual('../src/common'),
+  notifyPostAuthorMatched: jest.fn(),
+}));
+
 beforeAll(async () => {
   con = await getConnection();
   app = await appFunc();
@@ -28,6 +33,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  jest.resetAllMocks();
   saveObjectMock = jest.fn();
   mocked(getPostsIndex).mockReturnValue(({
     saveObject: saveObjectMock,
@@ -248,4 +254,77 @@ it('should not save post when canonical url matches existing canonical url', asy
   expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
+});
+
+it('should match post to author', async () => {
+  await con.getRepository(User).save([
+    {
+      id: '1',
+      name: 'Ido',
+      image: 'https://daily.dev/ido.jpg',
+      twitter: 'idoshamun',
+    },
+  ]);
+  const message = mockMessage({
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.com',
+    publicationId: 'a',
+    creatorTwitter: 'idoshamun',
+  });
+
+  await worker.handler(message, con, app.log, new PubSub());
+  expect(message.ack).toBeCalledTimes(1);
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(1);
+  expect(saveObjectMock).toBeCalledWith({
+    objectID: posts[0].id,
+    title: 'Title',
+    createdAt: expect.any(Number),
+    views: 0,
+    readTime: undefined,
+    pubId: 'a',
+    _tags: undefined,
+  });
+  expect(posts[0]).toMatchSnapshot({
+    createdAt: expect.any(Date),
+    score: expect.any(Number),
+    id: expect.any(String),
+    shortId: expect.any(String),
+  });
+  expect(mocked(notifyPostAuthorMatched).mock.calls[0].slice(1)).toEqual([
+    posts[0].id,
+    '1',
+  ]);
+});
+
+it('should not match post to author', async () => {
+  const message = mockMessage({
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.com',
+    publicationId: 'a',
+    creatorTwitter: 'nouser',
+  });
+
+  await worker.handler(message, con, app.log, new PubSub());
+  expect(message.ack).toBeCalledTimes(1);
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(1);
+  expect(saveObjectMock).toBeCalledWith({
+    objectID: posts[0].id,
+    title: 'Title',
+    createdAt: expect.any(Number),
+    views: 0,
+    readTime: undefined,
+    pubId: 'a',
+    _tags: undefined,
+  });
+  expect(posts[0]).toMatchSnapshot({
+    createdAt: expect.any(Date),
+    score: expect.any(Number),
+    id: expect.any(String),
+    shortId: expect.any(String),
+  });
+  expect(notifyPostAuthorMatched).toBeCalledTimes(0);
 });
