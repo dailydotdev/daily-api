@@ -23,7 +23,7 @@ const worker: Worker = {
         .getRepository(Comment)
         .findOne(data.childCommentId, { relations: ['post'] });
       const post = await comment.post;
-      if (post.authorId !== data.userId) {
+      if (post.authorId && post.authorId !== data.userId) {
         const [author, commenter] = await Promise.all([
           fetchUser(post.authorId),
           fetchUser(data.userId),
