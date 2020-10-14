@@ -6,7 +6,7 @@ import { mocked } from 'ts-jest/utils';
 
 import appFunc from '../src';
 import { mockMessage, saveFixtures } from './helpers';
-import { sendEmail } from '../src/common/mailing';
+import { sendEmail } from '../src/common';
 import { User as GatewayUser } from '../src/common/users';
 import worker from '../src/workers/commentCommentedThread';
 import { Comment, Post, Source, User } from '../src/entity';
@@ -133,6 +133,57 @@ it('should send mail to the thread followers', async () => {
     parentCommentId: 'c1',
   });
 
+  await worker.handler(message, con, app.log, new PubSub());
+  expect(message.ack).toBeCalledTimes(1);
+  expect(sendEmail).toBeCalledTimes(1);
+  expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
+});
+
+it('should send mail to the thread followers without the post author', async () => {
+  const mockedUsers: GatewayUser[] = [
+    {
+      id: '1',
+      email: 'ido@acme.com',
+      name: 'Ido',
+      image: 'https://daily.dev/ido.jpg',
+      reputation: 5,
+      permalink: 'https://daily.dev/ido',
+    },
+    {
+      id: '2',
+      email: 'tsahi@acme.com',
+      name: 'Tsahi',
+      image: 'https://daily.dev/tsahi.jpg',
+      reputation: 3,
+      permalink: 'https://daily.dev/tsahi',
+    },
+    {
+      id: '3',
+      email: 'nimrod@acme.com',
+      name: 'Nimrod',
+      image: 'https://daily.dev/nimrod.jpg',
+      reputation: 1,
+      permalink: 'https://daily.dev/nimrod',
+    },
+    {
+      id: '4',
+      email: 'john@acme.com',
+      name: 'John',
+      image: 'https://daily.dev/john.jpg',
+      reputation: 0,
+      permalink: 'https://daily.dev/john',
+    },
+  ];
+  mockedUsers.forEach(mockUsersMe);
+
+  const message = mockMessage({
+    postId: 'p1',
+    userId: '4',
+    childCommentId: 'c5',
+    parentCommentId: 'c1',
+  });
+
+  await con.getRepository(Post).update('p1', { authorId: '2' });
   await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(1);

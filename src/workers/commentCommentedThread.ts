@@ -23,6 +23,7 @@ const worker: Worker = {
         .getRepository(Comment)
         .findOne(data.childCommentId, { relations: ['post', 'parent'] });
       const parent = await comment.parent;
+      const post = await comment.post;
       const threadFollowers = await con
         .getRepository(Comment)
         .createQueryBuilder()
@@ -31,13 +32,15 @@ const worker: Worker = {
         .where('"parentId" = :parentId', { parentId: parent.id })
         .andWhere('"userId" != :authorId', { authorId: parent.userId })
         .andWhere('"userId" != :commenterId', { commenterId: comment.userId })
+        .andWhere('"userId" != :postAuthorId', {
+          postAuthorId: post.authorId ?? '',
+        })
         .getRawMany();
       const [author, commenter, ...followers] = await Promise.all([
         fetchUser(parent.userId),
         fetchUser(data.userId),
         ...threadFollowers.map(({ userId }) => fetchUser(userId)),
       ]);
-      const post = await comment.post;
       if (followers.length) {
         const link = getDiscussionLink(post.id);
         await sendEmail({

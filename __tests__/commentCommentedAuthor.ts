@@ -7,7 +7,7 @@ import { mocked } from 'ts-jest/utils';
 import appFunc from '../src';
 import { mockMessage, saveFixtures } from './helpers';
 import { sendEmail } from '../src/common';
-import worker from '../src/workers/commentCommented';
+import worker from '../src/workers/commentCommentedAuthor';
 import { Comment, Post, Source, User } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture } from './fixture/post';
@@ -33,6 +33,7 @@ beforeEach(async () => {
   await con.getRepository(User).save([
     { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
     { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
+    { id: '3', name: 'Nimrod', image: 'https://daily.dev/nimrod.jpg' },
   ]);
   await con.getRepository(Comment).save([
     {
@@ -62,17 +63,17 @@ beforeEach(async () => {
   ]);
 });
 
-it('should send mail to author', async () => {
+it('should send mail to the post author', async () => {
   nock(process.env.GATEWAY_URL)
     .get('/v1/users/me')
     .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
+    .matchHeader('user-id', '3')
     .matchHeader('logged-in', 'true')
     .reply(200, {
-      id: '1',
-      email: 'ido@daily.dev',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
+      id: '3',
+      email: 'nimrod@daily.dev',
+      name: 'Nimrod',
+      image: 'https://daily.dev/nimrod.jpg',
       reputation: 5,
     });
 
@@ -96,37 +97,16 @@ it('should send mail to author', async () => {
     parentCommentId: 'c1',
   });
 
+  await con
+    .getRepository(Post)
+    .update('p1', { authorId: '3', image: 'https://daily.dev/image.jpg' });
   await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(1);
   expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
 });
 
-it('should not send mail when the author is the commenter user', async () => {
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '1',
-      email: 'ido@daily.dev',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-    });
-
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '1',
-      email: 'ido@daily.dev',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-    });
-
+it('should not send mail when no post author', async () => {
   const message = mockMessage({
     postId: 'p1',
     userId: '1',
@@ -134,46 +114,6 @@ it('should not send mail when the author is the commenter user', async () => {
     parentCommentId: 'c1',
   });
 
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
-  expect(sendEmail).toBeCalledTimes(0);
-});
-
-it('should not send mail when the author is the post author', async () => {
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '1',
-      email: 'ido@daily.dev',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-      reputation: 5,
-    });
-
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '2')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '2',
-      email: 'tsahi@daily.dev',
-      name: 'Tsahi',
-      image: 'https://daily.dev/tsahi.jpg',
-      reputation: 3,
-    });
-
-  const message = mockMessage({
-    postId: 'p1',
-    userId: '2',
-    childCommentId: 'c2',
-    parentCommentId: 'c1',
-  });
-
-  await con.getRepository(Post).update('p1', { authorId: '1' });
   await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(0);
