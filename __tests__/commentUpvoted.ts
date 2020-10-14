@@ -6,7 +6,7 @@ import { mocked } from 'ts-jest/utils';
 
 import appFunc from '../src';
 import { mockMessage, saveFixtures } from './helpers';
-import { sendEmail } from '../src/common/mailing';
+import { sendEmail } from '../src/common';
 import worker from '../src/workers/commentUpvoted';
 import { Comment, Post, Source, User } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
