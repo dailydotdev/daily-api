@@ -118,3 +118,19 @@ it('should not send mail when no post author', async () => {
   expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(0);
 });
+
+it('should not send mail when the commenter is the post author', async () => {
+  const message = mockMessage({
+    postId: 'p1',
+    userId: '1',
+    childCommentId: 'c3',
+    parentCommentId: 'c1',
+  });
+
+  await con
+    .getRepository(Post)
+    .update('p1', { authorId: '1', image: 'https://daily.dev/image.jpg' });
+  await worker.handler(message, con, app.log, new PubSub());
+  expect(message.ack).toBeCalledTimes(1);
+  expect(sendEmail).toBeCalledTimes(0);
+});
