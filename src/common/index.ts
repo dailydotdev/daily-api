@@ -13,3 +13,4 @@ export * from './twitter';
 export * from './users';
 export * from './mailing';
 export * from './post';
+export * from './links';

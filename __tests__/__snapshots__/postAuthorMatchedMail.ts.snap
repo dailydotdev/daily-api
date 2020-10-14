@@ -1,0 +1,34 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`should send post author matched mail 1`] = `
+Array [
+  Object {
+    "asm": Object {
+      "groupId": 15003,
+    },
+    "category": "Notification",
+    "dynamicTemplateData": Object {
+      "discussion_link": "http://localhost:5002/posts/p1",
+      "post_image": "https://daily.dev/image.jpg",
+      "post_title": "P1",
+      "published_at": "Sep 27, 2020",
+      "source_image": "http://image.com/a",
+    },
+    "from": Object {
+      "email": "informer@daily.dev",
+      "name": "daily.dev",
+    },
+    "replyTo": Object {
+      "email": "hi@daily.dev",
+      "name": "daily.dev",
+    },
+    "templateId": "d-3d3402ec873640e788f549a0680c40bb",
+    "to": "ido@acme.com",
+    "trackingSettings": Object {
+      "openTracking": Object {
+        "enable": true,
+      },
+    },
+  },
+]
+`;

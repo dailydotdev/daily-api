@@ -9,6 +9,13 @@ if (process.env.SENDGRID_API_KEY) {
 export const truncatePost = (post: Post): string =>
   post.title.length <= 80 ? post.title : `${post.title.substr(0, 77)}...`;
 
+export const formatPostCreatedAt = (post: Post): string =>
+  post.createdAt.toLocaleString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  });
+
 export const truncateComment = (comment: Comment): string =>
   comment.content.length <= 85
     ? comment.content

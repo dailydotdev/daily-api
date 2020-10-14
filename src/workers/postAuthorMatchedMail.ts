@@ -1,42 +1,40 @@
 import { envBasedName, messageToJson, Worker } from './worker';
-import { Comment, SourceDisplay } from '../entity';
-import { fetchUser, formatPostCreatedAt, pickImageUrl } from '../common';
+import { Post, SourceDisplay } from '../entity';
 import {
-  baseNotificationEmailData,
-  sendEmail,
-  truncatePost,
-} from '../common/mailing';
+  fetchUser,
+  formatPostCreatedAt,
+  getDiscussionLink,
+  pickImageUrl,
+} from '../common';
+import { baseNotificationEmailData, sendEmail, truncatePost } from '../common';
 
 interface Data {
-  commentId: string;
+  postId: string;
+  authorId: string;
 }
 
 const worker: Worker = {
-  topic: 'comment-featured',
-  subscription: envBasedName('comment-featured-mail'),
+  topic: 'post-author-matched',
+  subscription: envBasedName('post-author-matched-mail'),
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      const comment = await con
-        .getRepository(Comment)
-        .findOne(data.commentId, { relations: ['post'] });
-      const user = await fetchUser(comment.userId);
-      const post = await comment.post;
+      const user = await fetchUser(data.authorId);
+      const post = await con.getRepository(Post).findOne(data.postId);
       const display = await con
         .getRepository(SourceDisplay)
         .findOne({ sourceId: post.sourceId });
       await sendEmail({
         ...baseNotificationEmailData,
         to: user.email,
-        templateId: 'd-5888ea6c1baf482b9373fba25f0363ea',
+        templateId: 'd-3d3402ec873640e788f549a0680c40bb',
         dynamicTemplateData: {
           /* eslint-disable @typescript-eslint/camelcase */
           post_title: truncatePost(post),
           published_at: formatPostCreatedAt(post),
-          profile_image: user.image,
           source_image: display.image,
           post_image: post.image || pickImageUrl(post),
-          profile_link: user.permalink,
+          discussion_link: getDiscussionLink(post.id),
           /* eslint-enable @typescript-eslint/camelcase */
         },
       });
@@ -45,7 +43,7 @@ const worker: Worker = {
           data,
           messageId: message.id,
         },
-        'featured email sent',
+        'post author matched email sent',
       );
       message.ack();
     } catch (err) {
@@ -55,7 +53,7 @@ const worker: Worker = {
           messageId: message.id,
           err,
         },
-        'failed to send featured mail',
+        'failed to send post author matched mail',
       );
       message.ack();
     }

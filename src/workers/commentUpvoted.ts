@@ -1,7 +1,7 @@
 import { envBasedName, messageToJson, Worker } from './worker';
 import { Comment } from '../entity';
 import { baseNotificationEmailData, sendEmail } from '../common/mailing';
-import { fetchUser } from '../common';
+import { fetchUser, getDiscussionLink } from '../common';
 
 interface Data {
   userId: string;
@@ -46,7 +46,7 @@ const worker: Worker = {
             upvote_title: title,
             main_comment: commentTruncated,
             post_title: post.title,
-            discussion_link: `${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
+            discussion_link: getDiscussionLink(post.id),
             profile_image: author.image,
             profile_link: author.permalink,
             /* eslint-enable @typescript-eslint/camelcase */

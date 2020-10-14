@@ -1,5 +1,6 @@
 import { IncomingWebhook } from '@slack/client';
 import { Post } from '../entity';
+import { getDiscussionLink } from './links';
 
 const webhook = process.env.SLACK_WEBHOOK
   ? new IncomingWebhook(process.env.SLACK_WEBHOOK)
@@ -16,7 +17,7 @@ export const notifyPostReport = async (
       {
         title: post.title,
         // eslint-disable-next-line @typescript-eslint/camelcase
-        title_link: `${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
+        title_link: getDiscussionLink(post.id),
         fields: [
           {
             title: 'User',
