@@ -11,7 +11,7 @@ Array [
       "discussion_link": "http://localhost:5002/posts/p1",
       "full_name": "Tsahi",
       "new_comment": "sub comment",
-      "post_image": "https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/7",
+      "post_image": "https://daily.dev/image.jpg",
       "post_title": "P1",
       "profile_image": "https://daily.dev/tsahi.jpg",
       "user_reputation": 3,
