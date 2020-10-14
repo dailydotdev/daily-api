@@ -45,7 +45,7 @@
     "fastify-plugin": "^1.6.1",
     "fastify-rate-limit": "^3.0.1",
     "feedparser": "^2.2.10",
-    "graphql": "^14.6.0",
+    "graphql": "^14.7.0",
     "graphql-iso-date": "^3.6.1",
     "graphql-parse-resolve-info": "^4.8.0-rc.0",
     "graphql-relay": "^0.6.0",
