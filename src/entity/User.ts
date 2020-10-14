@@ -12,7 +12,7 @@ export class User {
   @Column({ type: 'text', nullable: true })
   image: string | null;
 
-  @Column({ default: 0 })
+  @Column({ default: 1 })
   reputation: number;
 
   @Column({ length: 15, nullable: true })
