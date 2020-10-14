@@ -32,7 +32,7 @@
     "@sendgrid/mail": "^7.2.3",
     "@slack/client": "^5.0.2",
     "@types/shortid": "0.0.29",
-    "algoliasearch": "^4.2.0",
+    "algoliasearch": "^4.5.1",
     "apollo-error-converter": "^1.1.1",
     "apollo-server-fastify": "^2.14.4",
     "apollo-server-plugin-response-cache": "^0.5.0",
