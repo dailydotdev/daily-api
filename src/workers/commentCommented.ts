@@ -5,7 +5,7 @@ import {
   sendEmail,
   truncateComment,
 } from '../common/mailing';
-import { fetchUser } from '../common';
+import { fetchUser, getDiscussionLink } from '../common';
 
 interface Data {
   userId: string;
@@ -29,7 +29,7 @@ const worker: Worker = {
       ]);
       const post = await comment.post;
       if (parent && parent.userId !== data.userId) {
-        const link = `${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
+        const link = getDiscussionLink(post.id);
         await sendEmail({
           ...baseNotificationEmailData,
           to: author.email,

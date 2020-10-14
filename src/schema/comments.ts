@@ -4,6 +4,7 @@ import { ForbiddenError, gql, IResolvers } from 'apollo-server-fastify';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
+  getDiscussionLink,
   notifyCommentCommented,
   notifyCommentUpvoteCanceled,
   notifyCommentUpvoted,
@@ -461,6 +462,6 @@ export const resolvers: IResolvers<any, Context> = {
   }),
   Comment: {
     permalink: (comment: GQLComment): string =>
-      `${process.env.COMMENTS_PREFIX}/posts/${comment.postId}`,
+      getDiscussionLink(comment.postId),
   },
 };

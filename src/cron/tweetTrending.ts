@@ -1,5 +1,5 @@
 import { MoreThanOrEqual } from 'typeorm';
-import { tweet } from '../common';
+import { getDiscussionLink, tweet } from '../common';
 import { Post } from '../entity';
 import { Cron } from './cron';
 
@@ -20,7 +20,7 @@ const getUserHandler = (post: Post): string =>
   post.creatorTwitter?.length > 1 && post.creatorTwitter;
 
 const buildTweet = async (post: Post): Promise<string> => {
-  const link = `${process.env.COMMENTS_PREFIX}/posts/${post.id}`;
+  const link = getDiscussionLink(post.id);
   const siteHandler = await getSiteHandler(post);
   const via = siteHandler ? ` via ${siteHandler}` : '';
   const userHandler = getUserHandler(post);

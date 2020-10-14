@@ -5,6 +5,7 @@ import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
   defaultImage,
+  getDiscussionLink,
   getPostsIndex,
   notifyPostReport,
   notifyPostUpvoted,
@@ -416,7 +417,6 @@ export const resolvers: IResolvers<any, Context> = {
       post.image ? post.ratio : defaultImage.ratio,
     permalink: (post: GQLPost): string =>
       `${process.env.URL_PREFIX}/r/${post.shortId}`,
-    commentsPermalink: (post: GQLPost): string =>
-      `${process.env.COMMENTS_PREFIX}/posts/${post.id}`,
+    commentsPermalink: (post: GQLPost): string => getDiscussionLink(post.id),
   },
 };
