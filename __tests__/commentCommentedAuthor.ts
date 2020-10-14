@@ -97,7 +97,9 @@ it('should send mail to the post author', async () => {
     parentCommentId: 'c1',
   });
 
-  await con.getRepository(Post).update('p1', { authorId: '3', image: 'https://daily.dev/image.jpg', });
+  await con
+    .getRepository(Post)
+    .update('p1', { authorId: '3', image: 'https://daily.dev/image.jpg' });
   await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(1);

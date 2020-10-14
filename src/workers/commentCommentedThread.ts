@@ -32,7 +32,9 @@ const worker: Worker = {
         .where('"parentId" = :parentId', { parentId: parent.id })
         .andWhere('"userId" != :authorId', { authorId: parent.userId })
         .andWhere('"userId" != :commenterId', { commenterId: comment.userId })
-        .andWhere('"userId" != :postAuthorId', { postAuthorId: post.authorId ?? '' })
+        .andWhere('"userId" != :postAuthorId', {
+          postAuthorId: post.authorId ?? '',
+        })
         .getRawMany();
       const [author, commenter, ...followers] = await Promise.all([
         fetchUser(parent.userId),
