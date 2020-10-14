@@ -6,7 +6,7 @@ User {
   "image": "https://daily.dev/image.jpg",
   "name": "Ido",
   "profileConfirmed": false,
-  "reputation": 0,
+  "reputation": 1,
   "twitter": null,
   "username": null,
 }
