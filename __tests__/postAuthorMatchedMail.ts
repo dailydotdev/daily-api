@@ -8,7 +8,7 @@ import appFunc from '../src';
 import { mockMessage, saveFixtures } from './helpers';
 import { sendEmail, User as GatewayUser } from '../src/common';
 import worker from '../src/workers/postAuthorMatchedMail';
-import { Comment, Post, Source, SourceDisplay, User } from '../src/entity';
+import { Post, Source, SourceDisplay } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 
