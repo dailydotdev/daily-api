@@ -5,19 +5,19 @@ import { fetchUser } from '../common';
 
 interface Data {
   userId: string;
-  childCommentId: string;
+  commentId: string;
   postId: string;
 }
 
 const worker: Worker = {
-  topic: 'comment-commented',
-  subscription: envBasedName('comment-commented-author-mail'),
+  topic: 'post-commented',
+  subscription: envBasedName('post-commented-author-mail'),
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
       const comment = await con
         .getRepository(Comment)
-        .findOne(data.childCommentId, { relations: ['post'] });
+        .findOne(data.commentId, { relations: ['post'] });
       const post = await comment.post;
       if (post.authorId && post.authorId !== data.userId) {
         const [author, commenter] = await Promise.all([
@@ -32,7 +32,7 @@ const worker: Worker = {
             data,
             messageId: message.id,
           },
-          'comment commented author email sent',
+          'post commented author email sent',
         );
       }
       message.ack();
@@ -43,7 +43,7 @@ const worker: Worker = {
           messageId: message.id,
           err,
         },
-        'failed to send comment commented author email',
+        'failed to send post commented author email',
       );
       if (err.name === 'QueryFailedError') {
         message.ack();

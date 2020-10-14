@@ -1,6 +1,9 @@
 import sgMail from '@sendgrid/mail';
 import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { Comment, Post } from '../entity';
+import { getDiscussionLink } from './links';
+import { pickImageUrl } from './post';
+import { User } from './users';
 
 if (process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -46,4 +49,29 @@ export const sendEmail = async (data: MailDataRequired): Promise<void> => {
   if (process.env.SENDGRID_API_KEY) {
     await sgMail.send(data);
   }
+};
+
+export const getCommentedAuthorMailParams = (
+  post: Post,
+  comment: Comment,
+  author: User,
+  commenter: User,
+): MailDataRequired => {
+  const link = getDiscussionLink(post.id);
+  return {
+    ...baseNotificationEmailData,
+    to: author.email,
+    templateId: 'd-aba78d1947b14307892713ad6c2cafc5',
+    dynamicTemplateData: {
+      /* eslint-disable @typescript-eslint/camelcase */
+      profile_image: commenter.image,
+      full_name: commenter.name,
+      post_title: post.title,
+      post_image: post.image || pickImageUrl(post),
+      new_comment: truncateComment(comment),
+      discussion_link: link,
+      user_reputation: commenter.reputation,
+      /* eslint-enable @typescript-eslint/camelcase */
+    },
+  };
 };
