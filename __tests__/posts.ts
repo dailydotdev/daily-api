@@ -35,7 +35,11 @@ import {
 import { sourcesFixture } from './fixture/source';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 import { postsFixture, postTagsFixture } from './fixture/post';
-import { notifyPostReport, notifyPostUpvoted } from '../src/common';
+import {
+  notifyPostReport,
+  notifyPostUpvoted,
+  notifyPostUpvotedCanceled,
+} from '../src/common';
 import { Roles } from '../src/roles';
 import { getPostsIndex } from '../src/common';
 import Mock = jest.Mock;
@@ -54,6 +58,7 @@ jest.mock('../src/common', () => ({
   ...jest.requireActual('../src/common'),
   notifyPostReport: jest.fn(),
   notifyPostUpvoted: jest.fn(),
+  notifyPostUpvotedCanceled: jest.fn(),
 }));
 
 jest.mock('../src/common/algolia', () => ({
@@ -77,8 +82,7 @@ beforeEach(async () => {
   loggedUser = null;
   premiumUser = false;
   roles = [];
-  mocked(notifyPostReport).mockClear();
-  mocked(notifyPostUpvoted).mockClear();
+  jest.resetAllMocks();
 
   deleteObjectMock = jest.fn();
   mocked(getPostsIndex).mockReturnValue(({
@@ -783,6 +787,10 @@ describe('mutation cancelUpvote', () => {
     expect(actual).toEqual([]);
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.upvotes).toEqual(-1);
+    expect(mocked(notifyPostUpvotedCanceled).mock.calls[0].slice(1)).toEqual([
+      'p1',
+      '1',
+    ]);
   });
 
   it('should ignore if no upvotes', async () => {
@@ -796,6 +804,7 @@ describe('mutation cancelUpvote', () => {
     expect(actual).toEqual([]);
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.upvotes).toEqual(0);
+    expect(notifyPostUpvotedCanceled).toBeCalledTimes(0);
   });
 });
 

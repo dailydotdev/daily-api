@@ -9,6 +9,7 @@ import {
   getPostsIndex,
   notifyPostReport,
   notifyPostUpvoted,
+  notifyPostUpvotedCanceled,
   pickImageUrl,
 } from '../common';
 import { HiddenPost, Post, Upvote } from '../entity';
@@ -391,7 +392,7 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      await ctx.con.transaction(async (entityManager) => {
+      const exists = await ctx.con.transaction(async (entityManager) => {
         const upvote = await entityManager.getRepository(Upvote).findOne({
           postId: id,
           userId: ctx.userId,
@@ -404,8 +405,13 @@ export const resolvers: IResolvers<any, Context> = {
           await entityManager
             .getRepository(Post)
             .decrement({ id }, 'upvotes', 1);
+          return true;
         }
+        return false;
       });
+      if (exists) {
+        notifyPostUpvotedCanceled(ctx.log, id, ctx.userId);
+      }
       return { _: true };
     },
   }),
