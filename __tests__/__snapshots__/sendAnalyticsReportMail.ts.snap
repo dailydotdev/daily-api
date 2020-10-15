@@ -1,0 +1,44 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`should send analytics reports 1`] = `
+Array [
+  Object {
+    "asm": Object {
+      "groupId": 15003,
+    },
+    "category": "Notification",
+    "dynamicTemplateData": Object {
+      "first_name": "Ido",
+      "full_name": "Ido Shamun",
+      "live_hours": 10,
+      "post_comments": 2,
+      "post_image": "http://image.com/p",
+      "post_title": "P1",
+      "post_upvotes": 6,
+      "post_upvotes_total": "11",
+      "post_views": 11,
+      "post_views_total": "21",
+      "profile_image": "https://daily.dev/ido.jpg",
+      "profile_link": "https://daily.dev/ido",
+      "source_image": "http://image.com/a",
+      "user_handle": "idoshamun",
+      "user_reputation": 5,
+    },
+    "from": Object {
+      "email": "informer@daily.dev",
+      "name": "daily.dev",
+    },
+    "replyTo": Object {
+      "email": "hi@daily.dev",
+      "name": "daily.dev",
+    },
+    "templateId": "d-97c75b0e2cf847399d20233455736ba0",
+    "to": "ido@acme.com",
+    "trackingSettings": Object {
+      "openTracking": Object {
+        "enable": true,
+      },
+    },
+  },
+]
+`;

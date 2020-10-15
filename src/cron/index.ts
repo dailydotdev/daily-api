@@ -6,6 +6,7 @@ import updateViews from './updateViews';
 import updateFeaturedComments from './updateFeaturedComments';
 import rss from './rss';
 import hashnodeBadge from './hashnodeBadge';
+import checkAnalyticsReport from './checkAnalyticsReport';
 
 const crons: Map<string, Cron> = new Map<string, Cron>([
   [segmentUsers.name, segmentUsers],
@@ -15,6 +16,7 @@ const crons: Map<string, Cron> = new Map<string, Cron>([
   [updateFeaturedComments.name, updateFeaturedComments],
   [rss.name, rss],
   [hashnodeBadge.name, hashnodeBadge],
+  [checkAnalyticsReport.name, checkAnalyticsReport],
 ]);
 
 export default crons;
