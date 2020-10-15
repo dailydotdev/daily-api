@@ -31,6 +31,7 @@ export default async function app(): Promise<FastifyInstance> {
   app.register(helmet);
   app.register(cors, {
     origin: process.env.NODE_ENV === 'production' ? /daily\.dev$/ : true,
+    credentials: true,
   });
   app.register(cookie, { secret: process.env.COOKIES_KEY });
   app.register(trace, { enabled: isProd });
