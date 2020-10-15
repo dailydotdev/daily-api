@@ -1,4 +1,4 @@
-FROM node:14.13-alpine
+FROM node:12.19-alpine
 RUN apk add g++ make python
 
 RUN mkdir -p /opt/app

@@ -1,8 +1,4 @@
-import {
-  SchemaDirectiveVisitor,
-  AuthenticationError,
-  ForbiddenError,
-} from 'apollo-server-fastify';
+import { SchemaDirectiveVisitor, ForbiddenError } from 'apollo-server-fastify';
 import { defaultFieldResolver } from 'graphql';
 import { Context } from '../Context';
 
@@ -48,7 +44,7 @@ export class AuthDirective extends SchemaDirectiveVisitor {
 
         const ctx = args[2] as Context;
         if (!ctx.userId) {
-          throw new AuthenticationError(
+          throw new ForbiddenError(
             'Access denied! You need to be authorized to perform this action!',
           );
         }
