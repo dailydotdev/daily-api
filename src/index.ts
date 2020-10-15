@@ -43,7 +43,8 @@ export default async function app(): Promise<FastifyInstance> {
   });
 
   const server = await createApolloServer({
-    context: (req: FastifyRequest): Context => new Context(req, connection),
+    context: ({ request }: { request: FastifyRequest }): Context =>
+      new Context(request, connection),
     playground: isProd
       ? false
       : { settings: { 'request.credentials': 'include' } },

@@ -1,7 +1,7 @@
 import {
   SchemaDirectiveVisitor,
-  AuthenticationError,
   ForbiddenError,
+  AuthenticationError,
 } from 'apollo-server-fastify';
 import { defaultFieldResolver } from 'graphql';
 import { Context } from '../Context';
