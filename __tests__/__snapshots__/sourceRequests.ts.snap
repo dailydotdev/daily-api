@@ -163,6 +163,14 @@ Object {
 }
 `;
 
+exports[`mutation uploadSourceRequestLogo should upload new logo for source request 1`] = `
+Object {
+  "uploadSourceRequestLogo": Object {
+    "sourceImage": "http://image.com",
+  },
+}
+`;
+
 exports[`query pendingSourceRequests should return pending source requests 1`] = `
 Object {
   "pendingSourceRequests": Object {
