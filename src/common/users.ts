@@ -13,6 +13,7 @@ export interface User {
   premium?: boolean;
   reputation: number;
   permalink: string;
+  username?: string;
 }
 
 const authorizedHeaders = (userId: string): { [key: string]: string } => ({

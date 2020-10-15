@@ -97,6 +97,7 @@ const addPost = async (
         tagsStr: tags?.map((t) => t.tag).join(','),
         canonicalUrl: data.canonicalUrl,
         authorId,
+        sentAnalyticsReport: !authorId,
       });
       if (data.tags?.length) {
         await entityManager.getRepository(PostTag).insert(

@@ -1,5 +1,6 @@
 import {
   Column,
+  Connection,
   Entity,
   Index,
   ManyToOne,
@@ -102,6 +103,10 @@ export class Post {
     onDelete: 'SET NULL',
   })
   author: Promise<User>;
+
+  @Column({ default: true })
+  @Index('IDX_user_sentAnalyticsReport')
+  sentAnalyticsReport: boolean;
 }
 
 export interface SearchPostsResult {
@@ -133,3 +138,22 @@ export const searchPosts = async (
     }),
   );
 };
+
+export type PostStats = {
+  numPosts: number;
+  numPostViews: number;
+  numPostUpvotes: number;
+};
+
+export const getAuthorPostStats = (
+  con: Connection,
+  authorId: string,
+): Promise<PostStats> =>
+  con
+    .createQueryBuilder()
+    .select('count(*)', 'numPosts')
+    .addSelect('sum(post.views)', 'numPostViews')
+    .addSelect('sum(post.upvotes)', 'numPostUpvotes')
+    .from(Post, 'post')
+    .where({ authorId })
+    .getRawOne<PostStats>();

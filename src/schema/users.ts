@@ -1,7 +1,7 @@
 import { gql, IResolvers } from 'apollo-server-fastify';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { Comment, Post } from '../entity';
+import { Comment, getAuthorPostStats, PostStats } from '../entity';
 
 export interface GQLUser {
   id: string;
@@ -10,11 +10,6 @@ export interface GQLUser {
   username?: string;
 }
 
-type PostStats = {
-  numPosts: number;
-  numPostViews: number;
-  numPostUpvotes: number;
-};
 type CommentStats = { numComments: number; numCommentUpvotes: number };
 
 export type GQLUserStats = PostStats & CommentStats;
@@ -74,14 +69,7 @@ export const resolvers: IResolvers<any, Context> = {
         return null;
       }
       const [postStats, commentStats] = await Promise.all([
-        ctx.con
-          .createQueryBuilder()
-          .select('count(*)', 'numPosts')
-          .addSelect('sum(post.views)', 'numPostViews')
-          .addSelect('sum(post.upvotes)', 'numPostUpvotes')
-          .from(Post, 'post')
-          .where({ authorId: id })
-          .getRawOne<PostStats>(),
+        getAuthorPostStats(ctx.con, id),
         ctx.con
           .createQueryBuilder()
           .select('count(*)', 'numComments')

@@ -14,6 +14,7 @@ const commentFeaturedTopic = pubsub.topic('comment-featured');
 const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
+const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
@@ -138,4 +139,12 @@ export const notifyPostAuthorMatched = async (
   publishEvent(log, postAuthorMatchedTopic, {
     postId,
     authorId,
+  });
+
+export const notifySendAnalyticsReport = async (
+  log: EventLogger,
+  postId: string,
+): Promise<void> =>
+  publishEvent(log, sendAnalyticsReportTopic, {
+    postId,
   });
