@@ -56,6 +56,9 @@ const plugin = async (
   fastify: FastifyInstance,
   opts: Options,
 ): Promise<void> => {
+  fastify.decorateRequest('userId', null);
+  fastify.decorateRequest('premium', null);
+  fastify.decorateRequest('roles', null);
   // Machine-to-machine authentication
   fastify.addHook('preHandler', async (req) => {
     if (

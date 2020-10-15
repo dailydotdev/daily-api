@@ -3,6 +3,7 @@ import fastify from 'fastify';
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import helmet from 'fastify-helmet';
 import cookie from 'fastify-cookie';
+import cors from 'fastify-cors';
 
 import './config';
 import './profiler';
@@ -28,6 +29,10 @@ export default async function app(): Promise<FastifyInstance> {
   });
 
   app.register(helmet);
+  app.register(cors, {
+    origin: process.env.NODE_ENV === 'production' ? /daily\.dev$/ : true,
+    credentials: true,
+  });
   app.register(cookie, { secret: process.env.COOKIES_KEY });
   app.register(trace, { enabled: isProd });
   app.register(auth, { secret: process.env.ACCESS_SECRET });
@@ -38,7 +43,8 @@ export default async function app(): Promise<FastifyInstance> {
   });
 
   const server = await createApolloServer({
-    context: (req: FastifyRequest): Context => new Context(req, connection),
+    context: ({ request }: { request: FastifyRequest }): Context =>
+      new Context(request, connection),
     playground: isProd
       ? false
       : { settings: { 'request.credentials': 'include' } },
