@@ -9,21 +9,17 @@ interface Row {
 const cron: Cron = {
   name: 'checkAnalyticsReport',
   handler: async (con) => {
-    const resStream = await con
+    const rows = await con
       .createQueryBuilder()
       .select('id')
       .from(Post, 'post')
       .where(`"createdAt" <= now() - interval '20 hour'`)
       .andWhere('"sentAnalyticsReport" = false')
       .andWhere('"authorId" is not null')
-      .stream();
-    resStream.on('data', async (data: Row) => {
-      await notifySendAnalyticsReport(console, data.id);
-    });
-    return new Promise((resolve, reject) => {
-      resStream.on('error', reject);
-      resStream.on('end', resolve);
-    });
+      .getRawMany<Row>();
+    await Promise.all(
+      rows.map((data) => notifySendAnalyticsReport(console, data.id)),
+    );
   },
 };
 

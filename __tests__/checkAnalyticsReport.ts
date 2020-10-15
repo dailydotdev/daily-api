@@ -80,7 +80,8 @@ beforeEach(async () => {
 
 it('should publish message for every post that needs analytics report', async () => {
   await cron.handler(con);
+  expect(notifySendAnalyticsReport).toBeCalledTimes(2);
   expect(
     mocked(notifySendAnalyticsReport).mock.calls.map((call) => call.slice(1)),
-  ).toEqual([['p3'], ['p4']]);
+  ).toEqual(expect.arrayContaining([['p3'], ['p4']]));
 });
