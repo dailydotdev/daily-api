@@ -38,7 +38,7 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 import {
   notifyPostReport,
   notifyPostUpvoted,
-  notifyPostUpvotedCanceled,
+  notifyPostUpvoteCanceled,
 } from '../src/common';
 import { Roles } from '../src/roles';
 import { getPostsIndex } from '../src/common';
@@ -787,7 +787,7 @@ describe('mutation cancelUpvote', () => {
     expect(actual).toEqual([]);
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.upvotes).toEqual(-1);
-    expect(mocked(notifyPostUpvotedCanceled).mock.calls[0].slice(1)).toEqual([
+    expect(mocked(notifyPostUpvoteCanceled).mock.calls[0].slice(1)).toEqual([
       'p1',
       '1',
     ]);
@@ -804,7 +804,7 @@ describe('mutation cancelUpvote', () => {
     expect(actual).toEqual([]);
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.upvotes).toEqual(0);
-    expect(notifyPostUpvotedCanceled).toBeCalledTimes(0);
+    expect(notifyPostUpvoteCanceled).toBeCalledTimes(0);
   });
 });
 

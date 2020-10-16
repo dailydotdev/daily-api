@@ -6,7 +6,7 @@ import { toLegacySourceRequest } from '../compatibility/entity';
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
 const postUpvotedTopic = pubsub.topic('post-upvoted');
-const postUpvotedCanceledTopic = pubsub.topic('post-upvoted-canceled');
+const postUpvoteCanceledTopic = pubsub.topic('post-upvote-canceled');
 const commentUpvotedTopic = pubsub.topic('comment-upvoted');
 const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-commented');
@@ -57,12 +57,12 @@ export const notifyPostUpvoted = async (
     userId,
   });
 
-export const notifyPostUpvotedCanceled = async (
+export const notifyPostUpvoteCanceled = async (
   log: EventLogger,
   postId: string,
   userId: string,
 ): Promise<void> =>
-  publishEvent(log, postUpvotedCanceledTopic, {
+  publishEvent(log, postUpvoteCanceledTopic, {
     postId,
     userId,
   });

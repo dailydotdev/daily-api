@@ -9,7 +9,7 @@ import {
   getPostsIndex,
   notifyPostReport,
   notifyPostUpvoted,
-  notifyPostUpvotedCanceled,
+  notifyPostUpvoteCanceled,
   pickImageUrl,
 } from '../common';
 import { HiddenPost, Post, Upvote } from '../entity';
@@ -410,7 +410,7 @@ export const resolvers: IResolvers<any, Context> = {
         return false;
       });
       if (exists) {
-        notifyPostUpvotedCanceled(ctx.log, id, ctx.userId);
+        notifyPostUpvoteCanceled(ctx.log, id, ctx.userId);
       }
       return { _: true };
     },
