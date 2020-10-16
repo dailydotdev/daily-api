@@ -58,7 +58,7 @@ jest.mock('../src/common', () => ({
   ...jest.requireActual('../src/common'),
   notifyPostReport: jest.fn(),
   notifyPostUpvoted: jest.fn(),
-  notifyPostUpvotedCanceled: jest.fn(),
+  notifyPostUpvoteCanceled: jest.fn(),
 }));
 
 jest.mock('../src/common/algolia', () => ({

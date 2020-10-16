@@ -5,7 +5,6 @@
     "node": "^12.19.0"
   },
   "scripts": {
-    "preinstall": "npx npm-force-resolutions",
     "start": "node ./node_modules/typeorm/cli.js migration:run && node index.js",
     "dev": "nodemon ./index.ts | pino-pretty",
     "lint": "eslint . --ext .js,.ts --max-warnings 0",
