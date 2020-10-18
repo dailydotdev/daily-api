@@ -39,7 +39,7 @@
     "cloudinary": "^1.23.0",
     "date-fns": "^2.16.1",
     "fast-json-stringify": "^2.0.0",
-    "fastify": "^2.15.1",
+    "fastify": "^3.6.0",
     "fastify-cookie": "^3.6.1",
     "fastify-cors": "^3.0.3",
     "fastify-helmet": "^3.0.2",
