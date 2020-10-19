@@ -43,7 +43,7 @@
     "fastify-cookie": "^3.6.1",
     "fastify-cors": "^3.0.3",
     "fastify-helmet": "^3.0.2",
-    "fastify-plugin": "^1.6.1",
+    "fastify-plugin": "^2.3.4",
     "fastify-rate-limit": "^3.0.1",
     "feedparser": "^2.2.10",
     "graphql": "^14.7.0",
