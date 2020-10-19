@@ -146,11 +146,11 @@ describe('query userStats', () => {
     }
   }`;
 
-  it('should return null when the user is not the stats owner', async () => {
+  it('should return partially null result when the user is not the stats owner', async () => {
     loggedUser = '1';
     const res = await client.query({ query: QUERY, variables: { id: '2' } });
     expect(res.errors).toBeFalsy();
-    expect(res.data.userStats).toEqual(null);
+    expect(res.data.userStats).toMatchSnapshot();
   });
 
   it('should return the user stats', async () => {

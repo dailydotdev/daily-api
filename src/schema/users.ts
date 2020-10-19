@@ -44,9 +44,9 @@ export const typeDefs = gql`
   type UserStats {
     numPosts: Int!
     numComments: Int!
-    numPostViews: Int!
-    numPostUpvotes: Int!
-    numCommentUpvotes: Int!
+    numPostViews: Int
+    numPostUpvotes: Int
+    numCommentUpvotes: Int
   }
 
   extend type Query {
@@ -65,9 +65,7 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLUserStats | null> => {
-      if (ctx.userId != id) {
-        return null;
-      }
+      const isSameUser = ctx.userId === id;
       const [postStats, commentStats] = await Promise.all([
         getAuthorPostStats(ctx.con, id),
         ctx.con
@@ -81,9 +79,11 @@ export const resolvers: IResolvers<any, Context> = {
       return {
         numPosts: postStats?.numPosts ?? 0,
         numComments: commentStats?.numComments ?? 0,
-        numPostViews: postStats?.numPostViews ?? 0,
-        numPostUpvotes: postStats?.numPostUpvotes ?? 0,
-        numCommentUpvotes: commentStats?.numCommentUpvotes ?? 0,
+        numPostViews: isSameUser ? postStats?.numPostViews ?? 0 : null,
+        numPostUpvotes: isSameUser ? postStats?.numPostUpvotes ?? 0 : null,
+        numCommentUpvotes: isSameUser
+          ? commentStats?.numCommentUpvotes ?? 0
+          : null,
       };
     },
   }),
