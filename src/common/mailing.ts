@@ -63,7 +63,6 @@ export const getCommentedAuthorMailParams = (
     to: author.email,
     templateId: 'd-aba78d1947b14307892713ad6c2cafc5',
     dynamicTemplateData: {
-      /* eslint-disable @typescript-eslint/camelcase */
       profile_image: commenter.image,
       full_name: commenter.name,
       post_title: post.title,
@@ -71,7 +70,6 @@ export const getCommentedAuthorMailParams = (
       new_comment: truncateComment(comment),
       discussion_link: link,
       user_reputation: commenter.reputation,
-      /* eslint-enable @typescript-eslint/camelcase */
     },
   };
 };

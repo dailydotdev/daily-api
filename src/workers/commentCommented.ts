@@ -39,7 +39,6 @@ const worker: Worker = {
           to: author.email,
           templateId: 'd-90c229bde4af427c8708a7615bfd85b4',
           dynamicTemplateData: {
-            /* eslint-disable @typescript-eslint/camelcase */
             profile_image: commenter.image,
             full_name: commenter.name,
             main_comment: truncateComment(parent),
@@ -48,7 +47,6 @@ const worker: Worker = {
             post_title: post.title,
             discussion_link: link,
             user_reputation: commenter.reputation,
-            /* eslint-enable @typescript-eslint/camelcase */
           },
         });
         logger.info(

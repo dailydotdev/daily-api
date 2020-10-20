@@ -14,13 +14,13 @@ import {
 } from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
-import { Page, PageGenerator } from '../schema/common';
+import { OffsetPage, Page, PageGenerator } from '../schema/common';
 import graphorm from '../graphorm';
 
 export const whereTags = (
   tags: string[],
   builder: SelectQueryBuilder<Post>,
-  alias,
+  alias: string,
 ): string => {
   const query = builder
     .subQuery()
@@ -35,7 +35,7 @@ export const whereTags = (
 export const whereTagsInFeed = (
   feedId: string,
   builder: SelectQueryBuilder<Post>,
-  alias,
+  alias: string,
 ): string => {
   const feedTag = builder
     .subQuery()
@@ -58,7 +58,7 @@ export const whereTagsInFeed = (
 export const whereSourcesInFeed = (
   feedId: string,
   builder: SelectQueryBuilder<Post>,
-  alias,
+  alias: string,
 ): string => {
   const query = builder
     .subQuery()
@@ -72,7 +72,7 @@ export const whereSourcesInFeed = (
 export const selectRead = (
   userId: string,
   builder: SelectQueryBuilder<Post>,
-  alias,
+  alias: string,
 ): string => {
   const query = builder
     .select('1')
@@ -86,7 +86,7 @@ export const selectRead = (
 export const whereUnread = (
   userId: string,
   builder: SelectQueryBuilder<Post>,
-  alias,
+  alias: string,
 ): string => `NOT ${selectRead(userId, builder.subQuery(), alias)}`;
 
 export enum Ranking {
@@ -185,7 +185,7 @@ export const anonymousFeedBuilder = (
   ctx: Context,
   filters: AnonymousFeedFilters,
   builder: SelectQueryBuilder<Post>,
-  alias,
+  alias: string,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder;
   if (filters?.includeSources?.length) {
@@ -213,7 +213,7 @@ export const configuredFeedBuilder = (
   feedId: string,
   unreadOnly: boolean,
   builder: SelectQueryBuilder<Post>,
-  alias,
+  alias: string,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder;
   newBuilder = newBuilder
@@ -232,7 +232,7 @@ export const bookmarksFeedBuilder = (
   unreadOnly: boolean,
   listId: string | null,
   builder: SelectQueryBuilder<Post>,
-  alias,
+  alias: string,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder
     .addSelect('bookmark.createdAt', 'bookmarkedAt')
@@ -257,7 +257,7 @@ export const sourceFeedBuilder = (
   ctx: Context,
   sourceId: string,
   builder: SelectQueryBuilder<Post>,
-  alias,
+  alias: string,
 ): SelectQueryBuilder<Post> =>
   builder.andWhere(`${alias}.sourceId = :sourceId`, {
     sourceId,
@@ -267,14 +267,14 @@ export const tagFeedBuilder = (
   ctx: Context,
   tag: string,
   builder: SelectQueryBuilder<Post>,
-  alias,
+  alias: string,
 ): SelectQueryBuilder<Post> =>
   builder.andWhere((subBuilder) => whereTags([tag], subBuilder, alias));
 
 export const searchPostsForFeed = async (
   { query }: FeedArgs & { query: string },
-  ctx,
-  { limit, offset },
+  ctx: Context,
+  { limit, offset }: OffsetPage,
 ): Promise<string[]> => {
   const hits = await searchPosts(
     query,

@@ -48,7 +48,6 @@ const worker: Worker = {
           to: followers.filter((user) => user?.email).map((user) => user.email),
           templateId: 'd-62cb8a27d08a4951a49aade3b292c1ed',
           dynamicTemplateData: {
-            /* eslint-disable @typescript-eslint/camelcase */
             profile_image_commenter: author.image,
             profile_image_replier: commenter.image,
             full_name_commenter: author.name,
@@ -60,7 +59,6 @@ const worker: Worker = {
             discussion_link: link,
             user_reputation_commenter: author.reputation,
             user_reputation_replier: commenter.reputation,
-            /* eslint-enable @typescript-eslint/camelcase */
           },
         });
         logger.info(

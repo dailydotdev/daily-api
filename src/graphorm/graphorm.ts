@@ -45,7 +45,7 @@ export interface GraphORMField {
   // Need to provide relation information if it doesn't exist
   relation?: GraphORMRelation;
   // Apply this function on the value after querying the database
-  transform?: (value: any, ctx: Context, parent: object) => any;
+  transform?: (value: any, ctx: Context, parent: unknown) => any;
   // Specify if this field is an alias to another field
   alias?: { field: string; type: string };
   // Settings for pagination
@@ -302,8 +302,8 @@ export class GraphORM {
     ctx: Context,
     parentType: string,
     field: ResolveTree,
-    value: any,
-    parent: object,
+    value: unknown,
+    parent: Record<string, unknown>,
   ): any {
     const mapping = this.mappings?.[parentType]?.fields?.[field.name];
     if (mapping?.transform) {
@@ -346,7 +346,7 @@ export class GraphORM {
       }
       return this.transformType(
         ctx,
-        value,
+        value as Record<string, unknown>,
         childType,
         field.fieldsByTypeName[childType],
       );
@@ -363,7 +363,7 @@ export class GraphORM {
    */
   transformType<T>(
     ctx: Context,
-    value: object,
+    value: Record<string, unknown>,
     type: string,
     fieldsByTypeName: ResolveTree | { [p: string]: ResolveTree },
   ): T {
