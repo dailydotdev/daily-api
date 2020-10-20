@@ -1,7 +1,11 @@
 import { FastifyInstance } from 'fastify';
 import { injectGraphql } from './utils';
 
-const renameKey = (obj: object, oldKey: string, newKey: string): object => {
+const renameKey = (
+  obj: Record<string, unknown>,
+  oldKey: string,
+  newKey: string,
+): Record<string, unknown> => {
   const newObj = { ...obj };
   newObj[newKey] = obj[oldKey];
   delete newObj[oldKey];

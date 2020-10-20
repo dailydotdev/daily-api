@@ -23,7 +23,7 @@ export type EventLogger = Omit<Logger, 'fatal'>;
 const publishEvent = async (
   log: EventLogger,
   topic: Topic,
-  payload: object,
+  payload: Record<string, unknown>,
 ): Promise<void> => {
   if (process.env.NODE_ENV === 'production') {
     try {

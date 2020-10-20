@@ -42,14 +42,12 @@ const worker: Worker = {
           to: author.email,
           templateId: 'd-92bca6102e3a4b41b6fc3f532f050429',
           dynamicTemplateData: {
-            /* eslint-disable @typescript-eslint/camelcase */
             upvote_title: title,
             main_comment: commentTruncated,
             post_title: post.title,
             discussion_link: getDiscussionLink(post.id),
             profile_image: author.image,
             profile_link: author.permalink,
-            /* eslint-enable @typescript-eslint/camelcase */
           },
         });
         logger.info(

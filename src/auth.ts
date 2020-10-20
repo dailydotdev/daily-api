@@ -1,5 +1,6 @@
 import {
   FastifyInstance,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   FastifyRequest,
   DefaultQuery,
   DefaultParams,
@@ -10,6 +11,7 @@ import jwt from 'jsonwebtoken';
 import { Roles } from './roles';
 
 declare module 'fastify' {
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   interface FastifyRequest<
     HttpRequest,
     Query = DefaultQuery,
@@ -22,6 +24,7 @@ declare module 'fastify' {
     premium?: boolean;
     roles?: Roles[];
   }
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
 interface Options {

@@ -29,13 +29,11 @@ const worker: Worker = {
         to: user.email,
         templateId: 'd-3d3402ec873640e788f549a0680c40bb',
         dynamicTemplateData: {
-          /* eslint-disable @typescript-eslint/camelcase */
           post_title: truncatePost(post),
           published_at: formatPostCreatedAt(post),
           source_image: display.image,
           post_image: post.image || pickImageUrl(post),
           discussion_link: getDiscussionLink(post.id),
-          /* eslint-enable @typescript-eslint/camelcase */
         },
       });
       logger.info(

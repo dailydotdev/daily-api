@@ -26,7 +26,6 @@ const worker: Worker = {
           to: user.email,
           templateId: 'd-97c75b0e2cf847399d20233455736ba0',
           dynamicTemplateData: {
-            /* eslint-disable @typescript-eslint/camelcase */
             first_name: user.name.split(' ')[0],
             source_image: display.image,
             post_image: post.image || pickImageUrl(post),
@@ -42,7 +41,6 @@ const worker: Worker = {
             full_name: user.name,
             user_handle: user.username,
             profile_link: user.permalink,
-            /* eslint-enable @typescript-eslint/camelcase */
           },
         });
         await con

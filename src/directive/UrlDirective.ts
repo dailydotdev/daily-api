@@ -6,11 +6,12 @@ import {
   GraphQLScalarType,
   isWrappingType,
   isNamedType,
+  GraphQLInputField,
 } from 'graphql';
 import validate from 'validate.js';
 
 export class UrlType extends GraphQLScalarType {
-  constructor(type) {
+  constructor(type: GraphQLScalarType) {
     super({
       name: 'URL',
       description: 'Enforces a URL valid format',
@@ -28,18 +29,18 @@ export class UrlType extends GraphQLScalarType {
       },
 
       parseLiteral(ast) {
-        return type.parseLiteral(ast);
+        return type.parseLiteral(ast, undefined);
       },
     });
   }
 }
 
 export class UrlDirective extends SchemaDirectiveVisitor {
-  visitInputFieldDefinition(field): void {
+  visitInputFieldDefinition(field: GraphQLInputField): void {
     this.wrapType(field);
   }
 
-  wrapType(field): void {
+  wrapType(field: GraphQLInputField): void {
     if (isNonNullType(field.type) && isScalarType(field.type.ofType)) {
       field.type = new GraphQLNonNull(new UrlType(field.type.ofType));
     } else if (isScalarType(field.type)) {

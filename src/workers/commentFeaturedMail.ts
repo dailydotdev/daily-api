@@ -30,14 +30,12 @@ const worker: Worker = {
         to: user.email,
         templateId: 'd-5888ea6c1baf482b9373fba25f0363ea',
         dynamicTemplateData: {
-          /* eslint-disable @typescript-eslint/camelcase */
           post_title: truncatePost(post),
           published_at: formatPostCreatedAt(post),
           profile_image: user.image,
           source_image: display.image,
           post_image: post.image || pickImageUrl(post),
           profile_link: user.permalink,
-          /* eslint-enable @typescript-eslint/camelcase */
         },
       });
       logger.info(

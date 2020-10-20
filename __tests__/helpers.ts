@@ -130,7 +130,7 @@ export async function saveFixtures<Entity>(
     .save(entities.map((e) => con.getRepository(target).create(e)));
 }
 
-export const mockMessage = (data: object): Message => {
+export const mockMessage = (data: Record<string, unknown>): Message => {
   const message = new Message(null, {
     message: {
       data: Buffer.from(base64(JSON.stringify(data)), 'base64'),

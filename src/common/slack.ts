@@ -16,7 +16,6 @@ export const notifyPostReport = async (
     attachments: [
       {
         title: post.title,
-        // eslint-disable-next-line @typescript-eslint/camelcase
         title_link: getDiscussionLink(post.id),
         fields: [
           {

@@ -98,7 +98,7 @@ export const resolvers: IResolvers<any, Context> = {
   DateTime: GraphQLDateTime,
 };
 
-export interface PaginationResponse<TReturn, TExtra = {}> {
+export interface PaginationResponse<TReturn, TExtra = undefined> {
   nodes: TReturn[];
   extra?: TExtra;
   total?: number;
@@ -108,7 +108,7 @@ export interface Page {
   limit: number;
 }
 
-interface OffsetPage extends Page {
+export interface OffsetPage extends Page {
   offset: number;
 }
 
@@ -143,7 +143,12 @@ export const offsetPageGenerator = <TReturn>(
   hasPreviousPage: (page): boolean => page.offset > 0,
 });
 
-type PaginationResolver<TSource, TReturn, TPage extends Page, TExtra = {}> = (
+type PaginationResolver<
+  TSource,
+  TReturn,
+  TPage extends Page,
+  TExtra = undefined
+> = (
   source: TSource,
   args: ConnectionArguments,
   context: Context,
@@ -154,11 +159,10 @@ type PaginationResolver<TSource, TReturn, TPage extends Page, TExtra = {}> = (
 ) => Promise<PaginationResponse<TReturn, TExtra>>;
 
 export function connectionFromNodes<
-  TSource,
   TReturn,
   TArgs extends ConnectionArguments,
   TPage extends Page,
-  TExtra = {}
+  TExtra = undefined
 >(
   args: TArgs,
   nodes: TReturn[],
@@ -203,7 +207,7 @@ export function forwardPagination<
   TReturn,
   TArgs extends ConnectionArguments,
   TPage extends Page,
-  TExtra = {}
+  TExtra = undefined
 >(
   resolver: PaginationResolver<TSource, TReturn, TPage, TExtra>,
   pageGenerator: PageGenerator<TReturn, TArgs, TPage>,

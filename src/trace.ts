@@ -2,6 +2,7 @@ import http from 'http';
 import { ServerResponse } from 'http';
 import {
   FastifyInstance,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   FastifyRequest,
   DefaultQuery,
   DefaultParams,
@@ -17,6 +18,7 @@ import {
 import { Constants } from '@google-cloud/trace-agent/build/src/constants';
 
 declare module 'fastify' {
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   interface FastifyRequest<
     HttpRequest,
     Query = DefaultQuery,
@@ -35,6 +37,7 @@ declare module 'fastify' {
   > {
     tracer: traceAgent.PluginTypes.Tracer;
   }
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
 const getTraceContext = (req: FastifyRequest): TraceContext | null =>

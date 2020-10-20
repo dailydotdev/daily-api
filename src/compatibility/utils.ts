@@ -7,7 +7,7 @@ import { Constants } from '@google-cloud/trace-agent/build/src/constants';
 export interface GraphqlPayload {
   query: string;
   operationName?: string;
-  variables?: object;
+  variables?: Record<string, unknown>;
 }
 
 export const postFields = (userId?: string): string => {
@@ -23,7 +23,7 @@ export const injectGraphql = async (
   fastify: FastifyInstance,
   payload: GraphqlPayload,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  extractResponse: (obj: object) => any,
+  extractResponse: (obj: Record<string, unknown>) => any,
   req: FastifyRequest,
   res: FastifyReply<ServerResponse>,
 ): Promise<FastifyReply<ServerResponse>> => {

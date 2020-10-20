@@ -5,7 +5,6 @@ export const uploadLogo = (name: string, stream: Readable): Promise<string> =>
   new Promise((resolve, reject) => {
     const outStream = cloudinary.v2.uploader.upload_stream(
       {
-        // eslint-disable-next-line @typescript-eslint/camelcase
         public_id: name,
         folder: 'logos',
       },
