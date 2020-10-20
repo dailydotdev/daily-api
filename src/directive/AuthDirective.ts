@@ -23,17 +23,17 @@ declare module 'graphql' {
     _authFieldsWrapped: boolean;
   }
 
-  class GraphQLInterfaceType {
-    _requiredAuthRole: string[];
-    _premiumAuthRole: boolean;
-    _authFieldsWrapped: boolean;
-  }
-
   interface GraphQLField<TSource, TContext, TArgs = { [key: string]: any }> {
     _requiredAuthRole: string[];
     _premiumAuthRole: boolean;
   }
   /* eslint-enable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
+}
+
+class ExtendedGraphQLInterfaceType extends GraphQLInterfaceType {
+  _requiredAuthRole: string[];
+  _premiumAuthRole: boolean;
+  _authFieldsWrapped: boolean;
 }
 
 export class AuthDirective extends SchemaDirectiveVisitor {
@@ -48,7 +48,7 @@ export class AuthDirective extends SchemaDirectiveVisitor {
   // the parent and grandparent types.
   visitFieldDefinition(
     field: GraphQLField<unknown, unknown>,
-    details: { objectType: GraphQLObjectType | GraphQLInterfaceType },
+    details: { objectType: GraphQLObjectType | ExtendedGraphQLInterfaceType },
   ): void {
     this.ensureFieldsWrapped(details.objectType);
     field._requiredAuthRole = this.args.requires;
@@ -56,7 +56,7 @@ export class AuthDirective extends SchemaDirectiveVisitor {
   }
 
   ensureFieldsWrapped(
-    objectType: GraphQLObjectType | GraphQLInterfaceType,
+    objectType: GraphQLObjectType | ExtendedGraphQLInterfaceType,
   ): void {
     // Mark the GraphQLObjectType object to avoid re-wrapping:
     if (objectType._authFieldsWrapped) return;
