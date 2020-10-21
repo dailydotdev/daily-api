@@ -48,7 +48,7 @@
     "feedparser": "^2.2.10",
     "graphql": "^14.7.0",
     "graphql-iso-date": "^3.6.1",
-    "graphql-parse-resolve-info": "^4.8.0-rc.0",
+    "graphql-parse-resolve-info": "^4.9.0",
     "graphql-relay": "^0.6.0",
     "graphql-upload": "^11.0.0",
     "jsonwebtoken": "^8.5.1",
