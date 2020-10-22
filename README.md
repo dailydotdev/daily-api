@@ -20,10 +20,10 @@ Safely and slowly it was tore apart to other services to make every service has 
 The so called Daily API kept to itself the content domain. The feed you know very well is delivered from here,
 along with other very useful endpoints.
 
-## Technology
+## Stack
 
+* Node v12.19.0 (a `.nvmrc` is presented for [nvm](https://github.com/nvm-sh/nvm) users).
 * NPM for managing dependencies.
-* Node v12.16.2 (a `.nvmrc` is presented for [nvm](https://github.com/nvm-sh/nvm) users).
 * Fastify as the web framework
 * Apollo for GraphQL
 * Typeorm as a database layer
@@ -34,7 +34,6 @@ along with other very useful endpoints.
 * `bin` - Folder with utilities and executables.
 * `helm` - The home of the service helm chart for easily deploying it to kubernetes.
 * `seeds` - JSON files with seed data for local development.
-* `migrations` - Knex migrations folder.
 * `src` - This is obviously the place where you can find the source files.
   * `common` - Utility functions that are used across the project.
   * `compatibility` - Fastify routes to keep backwards compatibility with API v1.
@@ -61,9 +60,6 @@ If you want some seed data you can run:
 Finally run `npm run dev` to run the service and listen to port `5000`.
 
 ### Caveat
-
-We use `husky` for setting pre-commit git hooks to encrypt helm values.
-For those without access to our Google Cloud project it will throw an exception so you can simply comment it out from `package.json`.
 
 Currently, there is no staging environment for Algolia so there is no search functionality for local development.
 
