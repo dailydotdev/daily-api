@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Daily API V2</h1>
-  <strong>Service for delivering and managing Daily content</strong>
+  <strong>Provide the daily.dev feed and engagement layer</strong>
 </div>
 <br>
 <p align="center">
