@@ -408,6 +408,24 @@ describe('query authorFeed', () => {
   });
 });
 
+describe('query mostUpvotedFeed', () => {
+  const QUERY = (first = 10): string => `{
+    mostUpvotedFeed(first: ${first}) {
+      ${feedFields}
+    }
+  }`;
+
+  it('should return a most upvoted feed', async () => {
+    const repo = con.getRepository(Post);
+    await repo.update({ id: 'p1' }, { upvotes: 20 });
+    await repo.update({ id: 'p3' }, { upvotes: 15 });
+
+    const res = await client.query({ query: QUERY() });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('mutation addFiltersToFeed', () => {
   const MUTATION = `
   mutation AddFiltersToFeed($filters: FiltersInput!) {

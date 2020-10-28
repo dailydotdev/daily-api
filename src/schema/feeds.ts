@@ -271,6 +271,21 @@ export const typeDefs = gql`
       """
       ranking: Ranking = POPULARITY
     ): PostConnection!
+
+    """
+    Get the most upvoted articles in the past 7 days feed
+    """
+    mostUpvotedFeed(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): PostConnection!
   }
 
   extend type Mutation {
@@ -538,6 +553,18 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         }),
       feedPageGenerator,
       applyFeedPaging,
+      false,
+    ),
+    mostUpvotedFeed: feedResolver(
+      (ctx, args, builder, alias) =>
+        builder
+          .andWhere(`${alias}."createdAt" > now() - interval '7 days'`)
+          .andWhere(`${alias}."upvotes" >= 10`)
+          .orderBy(`${alias}."upvotes"`, 'DESC'),
+      offsetPageGenerator(30, 50),
+      (ctx, args, { limit, offset }, builder) =>
+        builder.limit(limit).offset(offset),
+      true,
     ),
   },
   Mutation: {
