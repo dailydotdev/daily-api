@@ -104,6 +104,7 @@ export const applyFeedWhere = (
   ctx: Context,
   builder: SelectQueryBuilder<Post>,
   alias: string,
+  removeHiddenPosts = true,
 ): SelectQueryBuilder<Post> => {
   const selectSource = graphorm.mappings.Post.fields.source
     .customQuery(ctx, 'sd', builder.subQuery())
@@ -112,7 +113,7 @@ export const applyFeedWhere = (
   let newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`, {
     userId: ctx.userId,
   });
-  if (ctx.userId) {
+  if (ctx.userId && removeHiddenPosts) {
     newBuilder = newBuilder
       .leftJoin(
         HiddenPost,
@@ -144,6 +145,7 @@ export function feedResolver<
     builder: SelectQueryBuilder<Post>,
     alias: string,
   ) => SelectQueryBuilder<Post>,
+  removeHiddenPosts = true,
 ): IFieldResolver<TSource, Context, TArgs> {
   return async (source, args, context, info): Promise<Connection<GQLPost>> => {
     const page = pageGenerator.connArgsToPage(args);
@@ -164,6 +166,7 @@ export function feedResolver<
             builder.alias,
           ),
           builder.alias,
+          removeHiddenPosts,
         );
         return builder;
       },
