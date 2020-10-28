@@ -20,10 +20,13 @@ const cron: Cron = {
              FROM (
                 select v.*, s."rankBoost"
                 from (
-                 select count(*) count, "postId"
-                   from "public"."view"
-                   where timestamp >= $1 and timestamp < $2
-                   group by "postId"
+                  select count(*) count, "view"."postId"
+                  from "view"
+                  inner join "post" on "post".id = "view"."postId"
+                  where
+                    ("view".timestamp >= $1 and "view".timestamp < $2) or
+                    ("post"."createdAt" >= $1 and "post"."createdAt" < $2)
+                  group by "view"."postId"
                 ) v
                 inner join "post" p on p.id = v."postId"
                 inner join "source" s on s.id = p."sourceId"
