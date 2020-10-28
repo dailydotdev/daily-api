@@ -161,6 +161,9 @@ const worker: Worker = {
     data.id = shortid.generate();
     data.createdAt = new Date();
     data.readTime = parseReadTime(data.readTime);
+    if (data.creatorTwitter === '' || data.creatorTwitter === '@') {
+      data.creatorTwitter = null;
+    }
     try {
       await addPost(con, data, logger);
       await addToAlgolia(data);
