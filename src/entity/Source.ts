@@ -18,6 +18,9 @@ export class Source {
   @Index()
   active: boolean;
 
+  @Column({ default: 0 })
+  rankBoost: number;
+
   @OneToMany(() => SourceDisplay, (display) => display.source, { lazy: true })
   displays: Promise<SourceDisplay[]>;
 

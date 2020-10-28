@@ -273,6 +273,7 @@ describe('mutation addPrivateSource', () => {
       twitter: null,
       website: null,
       active: true,
+      rankBoost: 0,
     });
     expect(
       await con.getRepository(SourceDisplay).findOne({ sourceId: id }),
@@ -361,6 +362,7 @@ describe('mutation addPrivateSource', () => {
       twitter: null,
       website: null,
       active: true,
+      rankBoost: 0,
     });
     expect(
       await con.getRepository(SourceDisplay).findOne({ sourceId: id }),

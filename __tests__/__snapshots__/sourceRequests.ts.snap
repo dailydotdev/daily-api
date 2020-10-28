@@ -96,6 +96,7 @@ exports[`mutation publishSourceRequest should publish a source request 2`] = `
 Source {
   "active": true,
   "id": "a",
+  "rankBoost": 0,
   "twitter": "a",
   "website": "http://3.com",
 }

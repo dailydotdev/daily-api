@@ -13,15 +13,21 @@ const cron: Cron = {
     await con.transaction(
       async (entityManager): Promise<void> => {
         await entityManager.query(
-          `UPDATE "public"."post" p
-             SET views = p.views + v.count,
-                 score = EXTRACT(EPOCH FROM p."createdAt") / 60 +
-                         POW(LOG(5, (p.views + p.upvotes * 2 + v.count) + 1), 2) * 60
-             FROM (SELECT COUNT(*) count, "postId"
-                   FROM "public"."view"
-                   WHERE timestamp >= $1
-                     AND timestamp < $2
-                   GROUP BY "postId") v
+          `update "public"."post" p
+             set views = p.views + v.count,
+                 score = extract(EPOCH FROM p."createdAt") / 60 +
+                         POW(LOG(5, (p.views + p.upvotes * 2 + v.count + v."rankBoost") + 1), 2) * 60
+             FROM (
+                select v.*, s."rankBoost"
+                from (
+                 select count(*) count, "postId"
+                   from "public"."view"
+                   where timestamp >= $1 and timestamp < $2
+                   group by "postId"
+                ) v
+                inner join "post" p on p.id = v."postId"
+                inner join "source" s on s.id = p."sourceId"
+             ) v
              WHERE p.id = v."postId"`,
           [after, before],
         );
