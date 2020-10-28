@@ -328,3 +328,37 @@ it('should not match post to author', async () => {
   });
   expect(notifyPostAuthorMatched).toBeCalledTimes(0);
 });
+
+it('should clear empty creator twitter', async () => {
+  const message = mockMessage({
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.com',
+    publicationId: 'a',
+    creatorTwitter: '',
+  });
+
+  await worker.handler(message, con, app.log, new PubSub());
+  expect(message.ack).toBeCalledTimes(1);
+  expect(saveObjectMock).toBeCalledTimes(1);
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(1);
+  expect(posts[0].creatorTwitter).toBeNull();
+});
+
+it('should clear invalid creator twitter', async () => {
+  const message = mockMessage({
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.com',
+    publicationId: 'a',
+    creatorTwitter: '@',
+  });
+
+  await worker.handler(message, con, app.log, new PubSub());
+  expect(message.ack).toBeCalledTimes(1);
+  expect(saveObjectMock).toBeCalledTimes(1);
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(1);
+  expect(posts[0].creatorTwitter).toBeNull();
+});
