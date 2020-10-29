@@ -1,7 +1,6 @@
 version: 2.1
 orbs:
   gcp-gcr: circleci/gcp-gcr@0.6.0
-  helm: circleci/helm@0.1.2
   gcp-cli: circleci/gcp-cli@1.8.1
 
 jobs:
@@ -95,8 +94,9 @@ jobs:
       - run:
           name: Get cluster credentials
           command: gcloud container clusters get-credentials prod
-      - helm/install-helm-client:
-          version: v2.9.1
+      - run:
+          name: Install Helm
+          command: curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
       - run:
           name: Update Helm release
           command: helm upgrade daily-api-v2 ./helm/$CIRCLE_PROJECT_REPONAME --namespace daily -f ./helm/values/prod.yaml --set-string image.tag=$CIRCLE_SHA1 -i
