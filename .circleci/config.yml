@@ -7,6 +7,27 @@ jobs:
   build:
     docker:
       - image: circleci/node:12.19.0
+    steps:
+      - checkout
+      - restore_cache:
+          key: dependency-cache-{{ checksum "package-lock.json" }}
+      - run:
+          name: Install dependencies
+          command: npm install
+      - run:
+          name: Build
+          command: npm run build
+      - save_cache:
+          key: dependency-cache-{{ checksum "package-lock.json" }}
+          paths:
+            - ./node_modules
+      - persist_to_workspace:
+          root: .
+          paths:
+            - build
+  test:
+    docker:
+      - image: circleci/node:12.19.0
       - image: postgres:11.6-alpine
         environment:
           - POSTGRES_DB: api_test
@@ -15,13 +36,6 @@ jobs:
       - checkout
       - restore_cache:
           key: dependency-cache-{{ checksum "package-lock.json" }}
-      - run:
-          name: Install dependencies
-          command: npm install
-      - save_cache:
-          key: dependency-cache-{{ checksum "package-lock.json" }}
-          paths:
-            - ./node_modules
       - run:
           name: Wait for PostgreSQL
           command: |
@@ -39,13 +53,6 @@ jobs:
             - JEST_JUNIT_OUTPUT_DIR: ./test-results
       - store_test_results:
           path: ./test-results
-      - run:
-          name: Build
-          command: npm run build
-      - persist_to_workspace:
-          root: .
-          paths:
-            - build
   build_and_push_docker:
     machine: true
     steps:
@@ -104,6 +111,12 @@ workflows:
   build:
     jobs:
       - build
+      - test:
+          requires:
+            - build
+          filters:
+            branches:
+              ignore: master
       - build_and_push_docker:
           requires:
             - build
