@@ -48,7 +48,8 @@ const worker: Worker = {
         },
         'failed to tweet about the new post comment',
       );
-      if (err.name === 'QueryFailedError') {
+      // Query failed or status is duplicate
+      if (err.name === 'QueryFailedError' || err.code === 187) {
         message.ack();
       } else {
         message.nack();
