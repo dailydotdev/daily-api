@@ -6,7 +6,11 @@ import {
   getDiscussionLink,
   pickImageUrl,
 } from '../common';
-import { baseNotificationEmailData, sendEmail, truncatePost } from '../common';
+import {
+  baseNotificationEmailData,
+  sendEmail,
+  truncatePostToTweet,
+} from '../common';
 
 interface Data {
   postId: string;
@@ -29,7 +33,7 @@ const worker: Worker = {
         to: user.email,
         templateId: 'd-3d3402ec873640e788f549a0680c40bb',
         dynamicTemplateData: {
-          post_title: truncatePost(post),
+          post_title: truncatePostToTweet(post),
           published_at: formatPostCreatedAt(post),
           source_image: display.image,
           post_image: post.image || pickImageUrl(post),

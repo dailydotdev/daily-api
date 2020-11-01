@@ -156,6 +156,26 @@ checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . |
     secretKeyRef:
       name: {{  $fullName }}
       key: TWITTER_ACCESS_TOKEN_SECRET
+- name: AUTHOR_TWITTER_CONSUMER_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{  $fullName }}
+      key: AUTHOR_TWITTER_CONSUMER_KEY
+- name: AUTHOR_TWITTER_CONSUMER_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: {{  $fullName }}
+      key: AUTHOR_TWITTER_CONSUMER_SECRET
+- name: AUTHOR_TWITTER_ACCESS_TOKEN_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{  $fullName }}
+      key: AUTHOR_TWITTER_ACCESS_TOKEN_KEY
+- name: AUTHOR_TWITTER_ACCESS_TOKEN_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: {{  $fullName }}
+      key: AUTHOR_TWITTER_ACCESS_TOKEN_SECRET
 - name: WEBFLOW_TOKEN
   valueFrom:
     secretKeyRef:
