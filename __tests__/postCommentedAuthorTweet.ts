@@ -47,7 +47,7 @@ it('should tweet about the new comment', async () => {
   expect(tweet).toBeCalledTimes(1);
   expect(mocked(tweet).mock.calls[0][0]).toContain('@idoshamun');
   expect(mocked(tweet).mock.calls[0][0]).toContain(
-    'http://localhost:5002/posts/p1',
+    'http://localhost:5002/posts/p1?author=true',
   );
   expect(mocked(tweet).mock.calls[0][1]).toEqual('AUTHOR_TWITTER');
 });

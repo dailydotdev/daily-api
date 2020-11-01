@@ -17,7 +17,7 @@ const worker: Worker = {
       const post = await con.getRepository(Post).findOne(data.postId);
       if (post.creatorTwitter && !post.authorId) {
         const title = truncatePostToTweet(post);
-        const link = getDiscussionLink(post.id);
+        const link = `${getDiscussionLink(post.id)}?author=true`;
         const handle = post.creatorTwitter;
         const version = Math.floor(Math.random() * 3);
         let status = `${handle} `;
