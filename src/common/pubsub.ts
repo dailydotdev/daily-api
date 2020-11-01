@@ -15,6 +15,7 @@ const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
+const postReachedViewsThreshold = pubsub.topic('post-reached-views-threshold');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
@@ -147,4 +148,14 @@ export const notifySendAnalyticsReport = async (
 ): Promise<void> =>
   publishEvent(log, sendAnalyticsReportTopic, {
     postId,
+  });
+
+export const notifyPostReachedViewsThreshold = async (
+  log: EventLogger,
+  postId: string,
+  threshold: number,
+): Promise<void> =>
+  publishEvent(log, postReachedViewsThreshold, {
+    postId,
+    threshold,
   });

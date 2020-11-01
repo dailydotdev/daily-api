@@ -107,6 +107,10 @@ export class Post {
   @Column({ default: true })
   @Index('IDX_user_sentAnalyticsReport')
   sentAnalyticsReport: boolean;
+
+  @Column({ default: 0 })
+  @Index('IDX_post_viewsThreshold')
+  viewsThreshold: number;
 }
 
 export interface SearchPostsResult {
