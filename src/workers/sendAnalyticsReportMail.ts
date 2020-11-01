@@ -2,7 +2,11 @@ import { differenceInHours } from 'date-fns';
 import { envBasedName, messageToJson, Worker } from './worker';
 import { getAuthorPostStats, Post, SourceDisplay } from '../entity';
 import { fetchUser, pickImageUrl } from '../common';
-import { baseNotificationEmailData, sendEmail, truncatePost } from '../common';
+import {
+  baseNotificationEmailData,
+  sendEmail,
+  truncatePostToTweet,
+} from '../common';
 
 interface Data {
   postId: string;
@@ -29,7 +33,7 @@ const worker: Worker = {
             first_name: user.name.split(' ')[0],
             source_image: display.image,
             post_image: post.image || pickImageUrl(post),
-            post_title: truncatePost(post),
+            post_title: truncatePostToTweet(post),
             live_hours: differenceInHours(new Date(), post.createdAt),
             post_views: post.views?.toLocaleString() ?? 0,
             post_views_total: stats.numPostViews?.toLocaleString() ?? 0,
