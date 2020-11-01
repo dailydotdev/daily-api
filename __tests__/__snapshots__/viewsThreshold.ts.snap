@@ -61,16 +61,16 @@ Array [
 exports[`should update 3 posts that reached views threshold 2`] = `
 Array [
   Array [
-    "p3",
-    500,
-  ],
-  Array [
     "p1",
     250,
   ],
   Array [
     "p2",
     250,
+  ],
+  Array [
+    "p3",
+    500,
   ],
 ]
 `;

@@ -60,6 +60,14 @@ it('should update 3 posts that reached views threshold', async () => {
   expect(
     mocked(notifyPostReachedViewsThreshold).mock.calls.map((call) =>
       call.slice(1),
-    ),
+    ).sort(([id1], [id2]) => {
+      if (id1 < id2) {
+        return -1;
+      }
+      if (id1 > id2) {
+        return 1;
+      }
+      return 0;
+    }),
   ).toMatchSnapshot();
 });

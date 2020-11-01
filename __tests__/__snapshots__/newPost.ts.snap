@@ -24,6 +24,7 @@ Object {
   "upvotes": 0,
   "url": "https://post.com",
   "views": 0,
+  "viewsThreshold": 0,
 }
 `;
 
@@ -51,6 +52,7 @@ Object {
   "upvotes": 0,
   "url": "https://post.com",
   "views": 0,
+  "viewsThreshold": 0,
 }
 `;
 
@@ -78,6 +80,7 @@ Object {
   "upvotes": 0,
   "url": "https://post.com",
   "views": 0,
+  "viewsThreshold": 0,
 }
 `;
 
@@ -105,6 +108,7 @@ Object {
   "upvotes": 0,
   "url": "https://post.com",
   "views": 0,
+  "viewsThreshold": 0,
 }
 `;
 
