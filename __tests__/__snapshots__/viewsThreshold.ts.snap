@@ -1,0 +1,76 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`should not update anything 1`] = `
+Array [
+  Post {
+    "id": "p1",
+    "viewsThreshold": 1,
+  },
+  Post {
+    "id": "p2",
+    "viewsThreshold": 2,
+  },
+  Post {
+    "id": "p3",
+    "viewsThreshold": 0,
+  },
+  Post {
+    "id": "p4",
+    "viewsThreshold": 0,
+  },
+  Post {
+    "id": "p5",
+    "viewsThreshold": 0,
+  },
+  Post {
+    "id": "p6",
+    "viewsThreshold": 0,
+  },
+]
+`;
+
+exports[`should update 3 posts that reached views threshold 1`] = `
+Array [
+  Post {
+    "id": "p1",
+    "viewsThreshold": 1,
+  },
+  Post {
+    "id": "p2",
+    "viewsThreshold": 1,
+  },
+  Post {
+    "id": "p3",
+    "viewsThreshold": 2,
+  },
+  Post {
+    "id": "p4",
+    "viewsThreshold": 0,
+  },
+  Post {
+    "id": "p5",
+    "viewsThreshold": 0,
+  },
+  Post {
+    "id": "p6",
+    "viewsThreshold": 0,
+  },
+]
+`;
+
+exports[`should update 3 posts that reached views threshold 2`] = `
+Array [
+  Array [
+    "p1",
+    250,
+  ],
+  Array [
+    "p2",
+    250,
+  ],
+  Array [
+    "p3",
+    500,
+  ],
+]
+`;
