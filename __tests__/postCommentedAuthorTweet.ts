@@ -41,7 +41,9 @@ it('should tweet about the new comment', async () => {
     commentId: 'c1',
   });
 
-  await con.getRepository(Post).update('p1', { creatorTwitter: '@idoshamun', comments: 23 });
+  await con
+    .getRepository(Post)
+    .update('p1', { creatorTwitter: '@idoshamun', comments: 23 });
   await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(tweet).toBeCalledTimes(1);
