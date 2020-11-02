@@ -74,7 +74,7 @@ const addPost = async (
             : data.creatorTwitter;
         const author = await entityManager
           .getRepository(User)
-          .findOne({ twitter });
+          .findOne({ where: [{ twitter }, { username: twitter }] });
         if (author) {
           authorId = author.id;
         }

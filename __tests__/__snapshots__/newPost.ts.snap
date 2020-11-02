@@ -28,6 +28,34 @@ Object {
 }
 `;
 
+exports[`should match post to author based on username 1`] = `
+Object {
+  "authorId": "1",
+  "canonicalUrl": null,
+  "comments": 0,
+  "createdAt": Any<Date>,
+  "creatorTwitter": "@idoshamun",
+  "id": Any<String>,
+  "image": null,
+  "placeholder": null,
+  "publishedAt": null,
+  "ratio": null,
+  "readTime": null,
+  "score": Any<Number>,
+  "sentAnalyticsReport": false,
+  "shortId": Any<String>,
+  "siteTwitter": null,
+  "sourceId": "a",
+  "tagsStr": null,
+  "title": "Title",
+  "tweeted": false,
+  "upvotes": 0,
+  "url": "https://post.com",
+  "views": 0,
+  "viewsThreshold": 0,
+}
+`;
+
 exports[`should not match post to author 1`] = `
 Object {
   "authorId": null,
