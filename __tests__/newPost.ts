@@ -298,6 +298,48 @@ it('should match post to author', async () => {
   ]);
 });
 
+it('should match post to author based on username', async () => {
+  await con.getRepository(User).save([
+    {
+      id: '1',
+      name: 'Ido',
+      image: 'https://daily.dev/ido.jpg',
+      username: 'idoshamun',
+    },
+  ]);
+  const message = mockMessage({
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.com',
+    publicationId: 'a',
+    creatorTwitter: '@idoshamun',
+  });
+
+  await worker.handler(message, con, app.log, new PubSub());
+  expect(message.ack).toBeCalledTimes(1);
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(1);
+  expect(saveObjectMock).toBeCalledWith({
+    objectID: posts[0].id,
+    title: 'Title',
+    createdAt: expect.any(Number),
+    views: 0,
+    readTime: undefined,
+    pubId: 'a',
+    _tags: undefined,
+  });
+  expect(posts[0]).toMatchSnapshot({
+    createdAt: expect.any(Date),
+    score: expect.any(Number),
+    id: expect.any(String),
+    shortId: expect.any(String),
+  });
+  expect(mocked(notifyPostAuthorMatched).mock.calls[0].slice(1)).toEqual([
+    posts[0].id,
+    '1',
+  ]);
+});
+
 it('should not match post to author', async () => {
   const message = mockMessage({
     id: 'p1',
