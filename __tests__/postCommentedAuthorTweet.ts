@@ -41,7 +41,7 @@ it('should tweet about the new comment', async () => {
     commentId: 'c1',
   });
 
-  await con.getRepository(Post).update('p1', { creatorTwitter: '@idoshamun' });
+  await con.getRepository(Post).update('p1', { creatorTwitter: '@idoshamun', comments: 23 });
   await worker.handler(message, con, app.log, new PubSub());
   expect(message.ack).toBeCalledTimes(1);
   expect(tweet).toBeCalledTimes(1);
@@ -49,6 +49,7 @@ it('should tweet about the new comment', async () => {
   expect(mocked(tweet).mock.calls[0][0]).toContain(
     'http://localhost:5002/posts/p1?author=true',
   );
+  expect(mocked(tweet).mock.calls[0][0]).toContain('23');
   expect(mocked(tweet).mock.calls[0][1]).toEqual('AUTHOR_TWITTER');
 });
 

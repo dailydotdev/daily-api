@@ -20,13 +20,16 @@ const worker: Worker = {
         const link = `${getDiscussionLink(post.id)}?author=true`;
         const handle = post.creatorTwitter;
         const version = Math.floor(Math.random() * 3);
+        const plural = post.comments > 1;
+        const comments = `comment${plural ? 's' : ''}`;
+        const are = plural ? 'are' : 'is';
         let status = `${handle} `;
         if (version === 0) {
-          status += `You have a new comment on “${title}” ✏️`;
+          status += `You have ${post.comments} new ${comments} on “${title}” ✏️`;
         } else if (version === 1) {
-          status += `A new comment on “${title}” is waiting for you 🤓`;
+          status += `${post.comments} new ${comments} on “${title}” ${are} waiting for you 🤓`;
         } else {
-          status += `There’s a new comment on your article “${title}” 🎉`;
+          status += `There ${are} ${post.comments} new ${comments} on your article “${title}” 🎉`;
         }
         status += `\n\nLet your readers know you’re there: ${link}`;
         await tweet(status, 'AUTHOR_TWITTER');
