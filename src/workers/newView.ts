@@ -24,7 +24,6 @@ const addView = async (con: Connection, entity: View): Promise<boolean> => {
 };
 
 const worker: Worker = {
-  topic: 'views',
   subscription: 'add-views-v2',
   handler: async (message, con, logger): Promise<void> => {
     const data: DeepPartial<View> = messageToJson(message);

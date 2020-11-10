@@ -10,7 +10,6 @@ interface Data {
 }
 
 const worker: Worker = {
-  topic: 'comment-commented',
   subscription: 'comment-commented-author-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);

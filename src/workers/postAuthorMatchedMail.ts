@@ -18,7 +18,6 @@ interface Data {
 }
 
 const worker: Worker = {
-  topic: 'post-author-matched',
   subscription: 'post-author-matched-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);

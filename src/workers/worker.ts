@@ -11,7 +11,6 @@ export const messageToJson = <T>(message: Message): T =>
   JSON.parse(Buffer.from(message.data, 'base64').toString('utf-8').trim());
 
 export interface Worker {
-  topic: string;
   subscription: string;
   handler: (
     message: Message,

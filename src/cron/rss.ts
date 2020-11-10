@@ -1,4 +1,3 @@
-import { PubSub } from '@google-cloud/pubsub';
 import { Cron } from './cron';
 import { SourceFeed } from '../entity';
 import fetch from 'node-fetch';
@@ -38,20 +37,17 @@ const parseRss = async (stream: ReadableStream): Promise<FeedParser.Item[]> => {
 
 const cron: Cron = {
   name: 'rss',
-  handler: async (con, sourceFeedId) => {
-    console.log(`[${sourceFeedId}] fetching rss`);
-    const pubsub = new PubSub();
+  handler: async (con, logger, pubsub, { feed }) => {
+    logger.info(`[${feed}] fetching rss`);
     const topic = pubsub.topic('post-fetched');
     const repo = con.getRepository(SourceFeed);
-    const sourceFeed = await repo.findOne({ feed: sourceFeedId });
+    const sourceFeed = await repo.findOne({ feed });
     const lastFetched = sourceFeed.lastFetched ?? new Date(0);
     const stream = await fetchRss(sourceFeed.feed);
     const items = await parseRss(stream);
     const filteredItems = items.filter((item) => item.date > lastFetched);
     if (filteredItems.length) {
-      console.log(
-        `[${sourceFeedId}] publishing ${filteredItems.length} new articles`,
-      );
+      logger.info(`[${feed}] publishing ${filteredItems.length} new articles`);
       await Promise.all(
         filteredItems.map((item) =>
           topic.publishJSON({

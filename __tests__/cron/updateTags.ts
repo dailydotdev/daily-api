@@ -1,15 +1,20 @@
 import { Connection, getConnection } from 'typeorm';
 
-import cron from '../src/cron/updateTags';
-import { saveFixtures } from './helpers';
-import { Post, PostTag, Source, TagCount } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
-import { postsFixture, postTagsFixture } from './fixture/post';
+import cron from '../../src/cron/updateTags';
+import { expectSuccessfulCron, saveFixtures } from '../helpers';
+import { Post, PostTag, Source, TagCount } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
+import { postsFixture, postTagsFixture } from '../fixture/post';
+import { FastifyInstance } from 'fastify';
+import appFunc from '../../src/background';
 
 let con: Connection;
+let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
+  app = await appFunc();
+  return app.ready();
 });
 
 beforeEach(async () => {
@@ -41,7 +46,7 @@ it('should update tags count of posts from the last 180 days', async () => {
       tag: 'javascript',
     },
   ]);
-  await cron.handler(con);
+  await expectSuccessfulCron(app, cron);
   const counts = await con
     .getRepository(TagCount)
     .find({ order: { tag: 'ASC' } });

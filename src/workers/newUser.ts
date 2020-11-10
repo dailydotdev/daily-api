@@ -10,7 +10,6 @@ interface Data {
 }
 
 const worker: Worker = {
-  topic: 'user-registered',
   subscription: 'user-registered-api',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);

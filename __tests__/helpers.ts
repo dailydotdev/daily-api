@@ -15,6 +15,7 @@ import { base64 } from '../src/common';
 import { join } from 'path';
 import http from 'http';
 import { Roles } from '../src/roles';
+import { Cron } from '../src/cron/cron';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -153,11 +154,17 @@ export const expectSuccessfulBackground = (
   data: Record<string, unknown>,
 ): Test => invokeBackground(app, worker, data).expect(204);
 
-export const expectFailBackground = (
+export const invokeCron = (
   app: FastifyInstance,
-  worker: Worker,
-  data: Record<string, unknown>,
-): Test => invokeBackground(app, worker, data).expect(500);
+  cron: Cron,
+  data: Record<string, unknown> = undefined,
+): Test => request(app.server).post(`/${cron.name}`).send(data);
+
+export const expectSuccessfulCron = (
+  app: FastifyInstance,
+  cron: Cron,
+  data: Record<string, unknown> = undefined,
+): Test => invokeCron(app, cron, data).expect(204);
 
 export const setupStaticServer = async (
   rss?: string,

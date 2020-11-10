@@ -1,22 +1,27 @@
 import { Connection, getConnection } from 'typeorm';
 
-import cron from '../src/cron/viewsThreshold';
-import { saveFixtures } from './helpers';
-import { Post, Source } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
-import { postsFixture } from './fixture/post';
-import { notifyPostReachedViewsThreshold } from '../src/common';
+import cron from '../../src/cron/viewsThreshold';
+import { expectSuccessfulCron, saveFixtures } from '../helpers';
+import { Post, Source } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
+import { postsFixture } from '../fixture/post';
+import { notifyPostReachedViewsThreshold } from '../../src/common';
 import { mocked } from 'ts-jest/utils';
+import { FastifyInstance } from 'fastify';
+import appFunc from '../../src/background';
 
 let con: Connection;
+let app: FastifyInstance;
 
-jest.mock('../src/common', () => ({
-  ...jest.requireActual('../src/common'),
+jest.mock('../../src/common', () => ({
+  ...jest.requireActual('../../src/common'),
   notifyPostReachedViewsThreshold: jest.fn(),
 }));
 
 beforeAll(async () => {
   con = await getConnection();
+  app = await appFunc();
+  return app.ready();
 });
 
 beforeEach(async () => {
@@ -32,7 +37,7 @@ it('should not update anything', async () => {
   await con
     .getRepository(Post)
     .update({ id: 'p2' }, { views: 600, viewsThreshold: 2 });
-  await cron.handler(con);
+  await expectSuccessfulCron(app, cron);
   const posts = await con.getRepository(Post).find({
     select: ['id', 'viewsThreshold'],
     order: { id: 'ASC' },
@@ -51,7 +56,7 @@ it('should update 3 posts that reached views threshold', async () => {
   await con
     .getRepository(Post)
     .update({ id: 'p3' }, { views: 600, viewsThreshold: 1 });
-  await cron.handler(con);
+  await expectSuccessfulCron(app, cron);
   const posts = await con.getRepository(Post).find({
     select: ['id', 'viewsThreshold'],
     order: { id: 'ASC' },

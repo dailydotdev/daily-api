@@ -8,7 +8,6 @@ interface Data {
 }
 
 const worker: Worker = {
-  topic: 'post-reached-views-threshold',
   subscription: 'post-reached-views-threshold-tweet',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);

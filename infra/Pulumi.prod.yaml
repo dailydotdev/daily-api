@@ -71,5 +71,6 @@ config:
       secure: AAABAMKT6wx502Nz24Oo7QyLHvLlkR+7ejsoo/4w8NkDiOYfQkhsrQq3YlWLdE78DkuzPA==
     webhookUrl:
       secure: AAABAINtY3LR2ciIEW/VPIBq7aqGyNJ5bjMKBi9GdN1ggEIIYWp4DA6HoWmCXQAgh2L845rO9NjEjbFK7XCV+fjQCU1lY2CjVcIXxDhIEYBjMf+wC+vP7nLt
+  api:tag: 523e57202bc28ad99d70e113832fdd31450cabc5
   gcp:project: devkit-prod
   gcp:region: us-central1

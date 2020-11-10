@@ -1,23 +1,28 @@
 import { Connection, getConnection } from 'typeorm';
 import { sub } from 'date-fns';
 
-import cron from '../src/cron/checkAnalyticsReport';
-import { saveFixtures } from './helpers';
-import { Post, Source, User } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
-import { notifySendAnalyticsReport } from '../src/common';
+import cron from '../../src/cron/checkAnalyticsReport';
+import { expectSuccessfulCron, saveFixtures } from '../helpers';
+import { Post, Source, User } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
+import { notifySendAnalyticsReport } from '../../src/common';
 import { mocked } from 'ts-jest/utils';
+import { FastifyInstance } from 'fastify';
+import appFunc from '../../src/background';
 
 let con: Connection;
+let app: FastifyInstance;
 const now = new Date();
 
-jest.mock('../src/common', () => ({
-  ...jest.requireActual('../src/common'),
+jest.mock('../../src/common', () => ({
+  ...jest.requireActual('../../src/common'),
   notifySendAnalyticsReport: jest.fn(),
 }));
 
 beforeAll(async () => {
   con = await getConnection();
+  app = await appFunc();
+  return app.ready();
 });
 
 beforeEach(async () => {
@@ -79,7 +84,7 @@ beforeEach(async () => {
 });
 
 it('should publish message for every post that needs analytics report', async () => {
-  await cron.handler(con);
+  await expectSuccessfulCron(app, cron);
   expect(notifySendAnalyticsReport).toBeCalledTimes(2);
   expect(
     mocked(notifySendAnalyticsReport).mock.calls.map((call) => call.slice(1)),

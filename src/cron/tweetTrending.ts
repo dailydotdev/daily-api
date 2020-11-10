@@ -33,7 +33,7 @@ const buildTweet = async (post: Post): Promise<string> => {
 };
 
 const cron: Cron = {
-  name: 'tweetTrending',
+  name: 'tweet-trending',
   handler: async (con) => {
     const repo = con.getRepository(Post);
     const post = await repo.findOne({

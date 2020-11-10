@@ -1,7 +1,7 @@
 import { Cron } from './cron';
 
 const cron: Cron = {
-  name: 'updateTags',
+  name: 'update-tags',
   handler: (con) =>
     con.transaction(async (entityManager) => {
       await entityManager.query(`TRUNCATE TABLE "tag_count";`);

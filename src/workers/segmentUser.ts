@@ -29,7 +29,6 @@ const findSegment = async (
 };
 
 const worker: Worker = {
-  topic: 'find-segment',
   subscription: 'daily-api-v2',
   handler: async (message, con, logger, pubsub): Promise<void> => {
     const data: Data = messageToJson(message);

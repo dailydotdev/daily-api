@@ -1,22 +1,27 @@
 import { Connection, getConnection } from 'typeorm';
 
-import cron from '../src/cron/updateViews';
-import { saveFixtures } from './helpers';
-import { Post, Source, View } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
+import cron from '../../src/cron/updateViews';
+import { expectSuccessfulCron, saveFixtures } from '../helpers';
+import { Post, Source, View } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
 import { mocked } from 'ts-jest/utils';
-import { getPostsIndex } from '../src/common';
+import { getPostsIndex } from '../../src/common';
 import { SearchIndex } from 'algoliasearch';
+import { FastifyInstance } from 'fastify';
+import appFunc from '../../src/background';
 
 let con: Connection;
+let app: FastifyInstance;
 
-jest.mock('../src/common/algolia', () => ({
-  ...jest.requireActual('../src/common/algolia'),
+jest.mock('../../src/common/algolia', () => ({
+  ...jest.requireActual('../../src/common/algolia'),
   getPostsIndex: jest.fn(),
 }));
 
 beforeAll(async () => {
   con = await getConnection();
+  app = await appFunc();
+  return app.ready();
 });
 
 beforeEach(async () => {
@@ -70,7 +75,7 @@ it('should update views and scores', async () => {
     { postId: 'p2', userId: 'u5', timestamp: new Date(now.getTime() - 6) },
   ]);
 
-  await cron.handler(con);
+  await expectSuccessfulCron(app, cron);
   const posts = await con.getRepository(Post).find({
     select: ['id', 'views', 'score', 'createdAt'],
     order: { createdAt: 'ASC' },

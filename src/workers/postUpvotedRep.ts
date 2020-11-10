@@ -8,7 +8,6 @@ interface Data {
 }
 
 const worker: Worker = {
-  topic: 'post-upvoted',
   subscription: 'post-upvoted-rep',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);

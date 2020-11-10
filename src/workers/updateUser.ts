@@ -35,7 +35,6 @@ interface Data {
 }
 
 const worker: Worker = {
-  topic: 'user-updated',
   subscription: 'user-updated-api',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);

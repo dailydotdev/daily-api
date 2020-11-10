@@ -3,8 +3,8 @@ import { Cron } from './cron';
 import { Post } from '../entity';
 
 const cron: Cron = {
-  name: 'hashnodeBadge',
-  handler: async (con) => {
+  name: 'hashnode-badge',
+  handler: async (con, logger) => {
     const post = await con
       .getRepository(Post)
       .createQueryBuilder()
@@ -24,9 +24,9 @@ const cron: Cron = {
       body: JSON.stringify({ url: post.url }),
     });
     if (res.status >= 200 && res.status < 300) {
-      console.info(`[${post.id}] rewarded a new post on hashnode`);
+      logger.info(`[${post.id}] rewarded a new post on hashnode`);
     } else {
-      console.error(
+      logger.error(
         `[${post.id}] failed to send request to hashnode webhook`,
         await res.text(),
       );

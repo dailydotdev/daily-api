@@ -1,23 +1,28 @@
 import { Connection, getConnection } from 'typeorm';
 
-import cron from '../src/cron/updateFeaturedComments';
-import { saveFixtures } from './helpers';
-import { Post, Source, User, Comment, CommentUpvote } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
-import { postsFixture } from './fixture/post';
-import { Checkpoint } from '../src/entity/Checkpoint';
-import { notifyCommentFeatured } from '../src/common';
+import cron from '../../src/cron/updateFeaturedComments';
+import { expectSuccessfulCron, saveFixtures } from '../helpers';
+import { Post, Source, User, Comment, CommentUpvote } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
+import { postsFixture } from '../fixture/post';
+import { Checkpoint } from '../../src/entity/Checkpoint';
+import { notifyCommentFeatured } from '../../src/common';
 import { mocked } from 'ts-jest/utils';
+import { FastifyInstance } from 'fastify';
+import appFunc from '../../src/background';
 
 let con: Connection;
+let app: FastifyInstance;
 
-jest.mock('../src/common', () => ({
-  ...jest.requireActual('../src/common'),
+jest.mock('../../src/common', () => ({
+  ...jest.requireActual('../../src/common'),
   notifyCommentFeatured: jest.fn(),
 }));
 
 beforeAll(async () => {
   con = await getConnection();
+  app = await appFunc();
+  return app.ready();
 });
 
 beforeEach(async () => {
@@ -81,7 +86,7 @@ it('should update featured comments', async () => {
     { commentId: 'c4', userId: '1', createdAt: now },
     { commentId: 'c5', userId: '2', createdAt: before },
   ]);
-  await cron.handler(con);
+  await expectSuccessfulCron(app, cron);
   const comments = await con.getRepository(Comment).find({
     select: ['id', 'featured'],
     order: { id: 'ASC' },

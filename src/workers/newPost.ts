@@ -132,7 +132,6 @@ const parseReadTime = (
 };
 
 const worker: Worker = {
-  topic: 'post-image-processed',
   subscription: 'add-posts-v2',
   handler: async (message, con, logger): Promise<void> => {
     const data: AddPostData = messageToJson(message);

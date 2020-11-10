@@ -1,4 +1,5 @@
 import * as gcp from '@pulumi/gcp';
+import { Output } from '@pulumi/pulumi';
 import {
   addIAMRolesToServiceAccount,
   createEnvVarsFromSecret,
@@ -8,8 +9,7 @@ import {
   serviceAccountToMember,
   config,
 } from './helpers';
-import { Output } from '@pulumi/pulumi';
-import { workers } from '../src/workers';
+import { workers } from './workers';
 
 const name = 'api';
 
@@ -106,22 +106,30 @@ new gcp.cloudrun.IamMember(`${name}-pubsub-invoker`, {
 
 workers.map(
   (worker) =>
-    new gcp.pubsub.Subscription(
-      `${name}-sub-${worker.subscription}`,
-      {
-        topic: worker.topic,
-        name: worker.subscription,
-        // pushConfig: {
-        //   pushEndpoint: bgServiceUrl.apply((url) => `${url}/${worker.subscription}`),
-        //   oidcToken: {
-        //     serviceAccountEmail: cloudRunPubSubInvoker.email,
-        //   }
-        // },
-        // retryPolicy: {
-        //   minimumBackoff: '10s',
-        //   maximumBackoff: '600s',
-        // }
+    new gcp.pubsub.Subscription(`${name}-sub-${worker.subscription}`, {
+      topic: worker.topic,
+      name: worker.subscription,
+      pushConfig: {
+        pushEndpoint: bgServiceUrl.apply(
+          (url) => `${url}/${worker.subscription}`,
+        ),
+        oidcToken: {
+          serviceAccountEmail: cloudRunPubSubInvoker.email,
+        },
       },
-      { import: worker.subscription },
-    ),
+      retryPolicy: {
+        minimumBackoff: '10s',
+        maximumBackoff: '600s',
+      },
+    }),
 );
+
+new gcp.cloudscheduler.Job(`${name}-job-`, {
+  httpTarget: {
+    uri: '',
+    oidcToken: {
+      serviceAccountEmail: cloudRunPubSubInvoker.email,
+      audience: '',
+    },
+  },
+});

@@ -3,7 +3,7 @@ import { Checkpoint } from '../entity/Checkpoint';
 import { getPostsIndex } from '../common';
 
 const cron: Cron = {
-  name: 'updateViews',
+  name: 'update-views',
   handler: async (con) => {
     const checkpointKey = 'last_views_update';
     const before = new Date();

@@ -2,13 +2,16 @@ import { Connection, getConnection } from 'typeorm';
 import { PubSub } from '@google-cloud/pubsub';
 import { mocked } from 'ts-jest/utils';
 
-import cron from '../src/cron/segmentUsers';
-import { saveFixtures } from './helpers';
-import { Post, Source, View } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
-import { postsFixture } from './fixture/post';
+import cron from '../../src/cron/segmentUsers';
+import { expectSuccessfulCron, saveFixtures } from '../helpers';
+import { Post, Source, View } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
+import { postsFixture } from '../fixture/post';
+import { FastifyInstance } from 'fastify';
+import appFunc from '../../src/background';
 
 let con: Connection;
+let app: FastifyInstance;
 
 let mockTopic: jest.Mock;
 
@@ -23,6 +26,8 @@ beforeAll(async () => {
   mockTopic = mocked(new PubSub().topic);
   jest.clearAllMocks();
   con = await getConnection();
+  app = await appFunc();
+  return app.ready();
 });
 
 const now = new Date();
@@ -53,7 +58,7 @@ beforeEach(async () => {
 it('should dispatch message for every user who read an article', async () => {
   const mockPublish = jest.fn().mockResolvedValue('');
   mockTopic.mockImplementation(() => ({ publishJSON: mockPublish }));
-  await cron.handler(con);
+  await expectSuccessfulCron(app, cron);
   expect(mockPublish).toBeCalledTimes(2);
   expect(mockPublish).toBeCalledWith({ userId: '1' });
   expect(mockPublish).toBeCalledWith({ userId: '2' });

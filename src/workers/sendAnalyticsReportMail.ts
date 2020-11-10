@@ -13,7 +13,6 @@ interface Data {
 }
 
 const worker: Worker = {
-  topic: 'send-analytics-report',
   subscription: 'send-analytics-report-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
