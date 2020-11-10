@@ -10,6 +10,7 @@ import {
   config,
 } from './helpers';
 import { workers } from './workers';
+import { crons } from './crons';
 
 const name = 'api';
 
@@ -124,12 +125,24 @@ workers.map(
     }),
 );
 
-new gcp.cloudscheduler.Job(`${name}-job-`, {
-  httpTarget: {
-    uri: '',
-    oidcToken: {
-      serviceAccountEmail: cloudRunPubSubInvoker.email,
-      audience: '',
+crons.map((cron) => {
+  const uri = bgServiceUrl.apply(
+    (url) => `${url}/${cron.endpoint ?? cron.name}`,
+  );
+  return new gcp.cloudscheduler.Job(`${name}-job-${cron.name}`, {
+    name: `${name}-${cron.name}`,
+    schedule: cron.schedule,
+    httpTarget: {
+      uri,
+      httpMethod: 'POST',
+      oidcToken: {
+        serviceAccountEmail: cloudRunPubSubInvoker.email,
+        audience: uri,
+      },
+      headers: cron.headers,
+      body: cron.body
+        ? Buffer.from(cron.body, 'utf8').toString('base64')
+        : undefined,
     },
-  },
+  });
 });

@@ -1,4 +1,9 @@
-export const workers = [
+interface Worker {
+  topic: string;
+  subscription: string;
+}
+
+export const workers: Worker[] = [
   {
     topic: 'views',
     subscription: 'add-views-v2',
