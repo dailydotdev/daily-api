@@ -7,8 +7,8 @@ interface Row {
 }
 
 const cron: Cron = {
-  name: 'segmentUsers',
-  handler: async (con) => {
+  name: 'segment-users',
+  handler: async (con, logger) => {
     const pubsub = new PubSub();
     const topic = pubsub.topic('find-segment');
 
@@ -22,7 +22,7 @@ const cron: Cron = {
     resStream.on('data', (data: Row) => {
       topic
         .publishJSON(data)
-        .catch((err) => console.error('failed to dispatch find-segment', err));
+        .catch((err) => logger.error('failed to dispatch find-segment', err));
     });
     return new Promise((resolve, reject) => {
       resStream.on('error', reject);

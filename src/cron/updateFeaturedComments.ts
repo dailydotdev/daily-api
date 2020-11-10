@@ -7,8 +7,8 @@ const FEATURED_LIMIT = 3;
 type UpdateResult = [{ id: string }[]];
 
 const cron: Cron = {
-  name: 'updateFeaturedComments',
-  handler: async (con) => {
+  name: 'update-featured-comments',
+  handler: async (con, logger) => {
     const checkpointKey = 'last_featured_comments_update';
     const before = new Date();
     let checkpoint = await con.getRepository(Checkpoint).findOne(checkpointKey);
@@ -61,9 +61,9 @@ const cron: Cron = {
       },
     );
     if (newFeatured.length) {
-      console.log('new featured comments');
+      logger.info('new featured comments');
       await Promise.all(
-        newFeatured.map((id) => notifyCommentFeatured(console, id)),
+        newFeatured.map((id) => notifyCommentFeatured(logger, id)),
       );
     }
   },

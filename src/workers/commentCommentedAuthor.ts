@@ -1,4 +1,4 @@
-import { envBasedName, messageToJson, Worker } from './worker';
+import { messageToJson, Worker } from './worker';
 import { Comment } from '../entity';
 import { getCommentedAuthorMailParams, sendEmail } from '../common';
 import { fetchUser } from '../common';
@@ -10,8 +10,7 @@ interface Data {
 }
 
 const worker: Worker = {
-  topic: 'comment-commented',
-  subscription: envBasedName('comment-commented-author-mail'),
+  subscription: 'comment-commented-author-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
@@ -35,7 +34,6 @@ const worker: Worker = {
           'comment commented author email sent',
         );
       }
-      message.ack();
     } catch (err) {
       logger.error(
         {
@@ -46,10 +44,9 @@ const worker: Worker = {
         'failed to send comment commented author email',
       );
       if (err.name === 'QueryFailedError') {
-        message.ack();
-      } else {
-        message.nack();
+        return;
       }
+      throw err;
     }
   },
 };

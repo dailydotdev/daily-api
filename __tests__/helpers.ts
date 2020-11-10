@@ -1,8 +1,8 @@
 import { mock, MockProxy } from 'jest-mock-extended';
-import fastify, { FastifyRequest, Logger } from 'fastify';
+import fastify, { FastifyInstance, FastifyRequest, Logger } from 'fastify';
 import fastifyStatic from 'fastify-static';
 import { Connection, DeepPartial, ObjectType } from 'typeorm';
-import request from 'supertest';
+import request, { Test } from 'supertest';
 import {
   RootSpan,
   Span,
@@ -10,11 +10,12 @@ import {
 import { GraphQLFormattedError } from 'graphql';
 import { ApolloServerTestClient } from 'apollo-server-testing';
 import { Context } from '../src/Context';
-import { Message } from '@google-cloud/pubsub';
+import { Message, Worker } from '../src/workers/worker';
 import { base64 } from '../src/common';
 import { join } from 'path';
 import http from 'http';
 import { Roles } from '../src/roles';
+import { Cron } from '../src/cron/cron';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -130,16 +131,40 @@ export async function saveFixtures<Entity>(
     .save(entities.map((e) => con.getRepository(target).create(e)));
 }
 
-export const mockMessage = (data: Record<string, unknown>): Message => {
-  const message = new Message(null, {
-    message: {
-      data: Buffer.from(base64(JSON.stringify(data)), 'base64'),
-    },
-  });
-  message.ack = jest.fn();
-  message.nack = jest.fn();
-  return message;
+export const mockMessage = (
+  data: Record<string, unknown>,
+): { message: Message } => {
+  const message: Message = {
+    data: base64(JSON.stringify(data)),
+    id: '1',
+  };
+  return { message };
 };
+
+export const invokeBackground = (
+  app: FastifyInstance,
+  worker: Worker,
+  data: Record<string, unknown>,
+): Test =>
+  request(app.server).post(`/${worker.subscription}`).send(mockMessage(data));
+
+export const expectSuccessfulBackground = (
+  app: FastifyInstance,
+  worker: Worker,
+  data: Record<string, unknown>,
+): Test => invokeBackground(app, worker, data).expect(204);
+
+export const invokeCron = (
+  app: FastifyInstance,
+  cron: Cron,
+  data: Record<string, unknown> = undefined,
+): Test => request(app.server).post(`/${cron.name}`).send(data);
+
+export const expectSuccessfulCron = (
+  app: FastifyInstance,
+  cron: Cron,
+  data: Record<string, unknown> = undefined,
+): Test => invokeCron(app, cron, data).expect(204);
 
 export const setupStaticServer = async (
   rss?: string,

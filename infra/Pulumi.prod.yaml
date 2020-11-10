@@ -1,0 +1,75 @@
+config:
+  api:env:
+    accessSecret:
+      secure: AAABALdzzBMEk2sKYDjFrWsbsdYJDOvfDfmnOmaj6lvRkds8E6SYw1RNgQ/hpCky9W8BeJXFzu2b0W6jD30KkA==
+    algoliaApp:
+      secure: AAABAL5qiFJLFYiP0HSlNEX/cakMT+FFwUXOVSyim56JDgGrTLrkYtkB
+    algoliaKey:
+      secure: AAABAGn2bvhAkQJ6kvEVRaS8pTG3B51Wspk8XUlHtyUSpfM3km2D9hEgN/rB3oED7W1/IjmCuSnfFMBDG4hl2g==
+    authorTwitterAccessTokenKey:
+      secure: AAABADnvoAQhCnUKTmRoO0HRTKYMHDy5NbVP0QyGhMwAWVn7QlxCyBqW3FxugkakzUxaOhL/kQu2IkGRVQgEXceLYgcEcKhzrCLowUh3quyQdg==
+    authorTwitterAccessTokenSecret:
+      secure: AAABAGQx0Biouoe4UBS/LL/o/t03bqxgClcnQou/rmWYBh3PPxLBs3SM4XzH6yScXyIfhop2D+r+Os+I2ved+lI4r+T0bA/j+LBKYHE=
+    authorTwitterConsumerKey:
+      secure: AAABAAhNlDbsmMbZIM69Qsp42iiO391hkGUPpk4UOKinybiblWU61Vjl8+5NrdQm7w0hW61f1bRQ
+    authorTwitterConsumerSecret:
+      secure: AAABAJaYEBcPVRfyNM1u62z/5oG+4dmHzyyHXf0PsGjVyIZBlWvYCcm6vCC6h9/8CVTpc+CTkw6AIKTlokU4Lgx2KLxFj4l9J37YYHWdED0LDQ==
+    cloudinaryUrl:
+      secure: AAABANjdKplLPf64fvQRXN0mUtB6I7yh0lG44SsBC6BcKsH3MulzTCJ8adEN4BQYlytY0otXJOJL+fqNjzgYG+WIXO2GPecSvPeFem5ZyFVrbfxX42wyb2iwVHDyegOb5cY=
+    commentsPrefix:
+      secure: AAABAJ7Jk53r5WDxsb0uZdBWXc0zOIS1dcouubBhEvf8bBldy9MIFShdpBiivpHtQjXIaJA=
+    cookiesKkey:
+      secure: AAABAI6r/VqBFrSL3TkFzy1JF7INkGFPmakbJr72jjDGmYUqoJV4t6ha1yDoYaA97MIcFHmW4t1+cRKQcHTwy7vUYCCaf9gLSvrb1ax1cA==
+    defaultImagePlaceholder:
+      secure: AAABAOQNYFNuzG8Edm+piAfzNWlRMc1c1kcDbHHJBpD1UIsHEGRiK+SVQkk5gO9j4MaI8jBJg/RejKM0nhlNOoFSLk063UOC2h+Vr/bts+N0pa1+Qe4xShBOQplWi0KEdJ4U3XFMChcGpcqzYavAcZpU3zsrpkRusXgNI54+ua9KOYBJjtofLcaaHQVIlsuf6hhxlCUO71z7luKpqKJQWWG5mn135f62ZGrN7A1M5z0pjpesj2baQakfwnIeOTGqWfm60E8AVUU9C3i2vW43E2Arq2OLS0Kbo6Umar02RkfJuwQ5eWX4XyS6uBf75dijzAiJQqv0q6UyV4TLZCchJbPENtfwW0UnPSkBeaSgPWfD/sdjISYXgy2U4qVjyokdP1ui+iQV1SlPXYJxW/5n9RQLCrnWC3mil6gQTMwnyMDrKJ1nwDkkfdN2qKm6dKrWnyXKUB1LDqcMrbhceqkraXO++sioF0lBRxI6Cgp4CrtQ4iS2k7IqpSdKEZlJBbMa5qnXgHz819NAUDDce2aZL9zYbDa/sJKS1gD6QzgXC69xm+QfKsMVLnN37/U8PAmKRj+px56VBKUcrmAKSDRWI0rNt7t87Q/89zqdFIOenJRcJ4Nmn7pZg9t+Mbx+78zdxcfG6L4AbL8+iYOBAjbWqkavI/Rilp2gSpDdtskUboW9SiIOJ+y7
+    defaultImageRatio:
+      secure: AAABAHpff5rGIhX2EmH5QBZx1br4VVzK+JHKbbAUjYRT
+    defaultImageUrl:
+      secure: AAABAKp3/LfYHhnzhQxriGmUaylvjnk9iSyKy+FEFfdZs2hWBVjVN4DkW0samRYP+yDoT53+8/EmwSLzeWOWSP+Ap0A5N/llgF3uV+pw7Z6bVjFDYuyG7yl1I7CzXIehjMtDEA0/s2NqFEm6R7uHNcDuoeQgkVwDITmm/1uvxqvdfc5wsn2VrCPXrXMF1FaoefwRB5A6X6S+V+H74QfSB41i0ZkXd1EkGzy8fBIeCePCq8K7xMhzeMJLOCoZ7z4SYknmOY2QlyPyyyCX+NGIlwnClZgwJ+rBdS/OdXF2vbPZZAZMmJd56uutyF+Tc3czHwA87A1M9SAK+1B2TXbFi+CA6Q/V2soLabNzCMR/76LgsWxSDCrT1ZxmLKud8HZrpxcSCxY2dw+aJ5Sve0OfEr7f0FMvBwRzkGObJ1xa68TqbrWAX42tF1c24YoSJ9+1uEB/8V/axg5EbuqlsZ4ZAvhbLp8th17nnePn0vbWLprZ2Zkkf0z+yb8xruS3QDR6g1Hsj2qTE2hPUuFxvBinSdDyEYUdTJpNMYPdlWAZ3AqVReNuMTI1cpvuwsr/sDHck4kWpp1Ia+cKsGFtHK7BECXt0OFAfo0qtcvABLA/01feFJGXzxWPvpMq2TUikTPPkZNoAyN8TQVjAj7oTGQx5UVCQlGAql19s9scK4/YHg9A2Q9TK8swr5gJ3A7ehbF6uBINNRNT4Do620xp1kH1k0e7D6bE0YDfDcBVaeWHYm87dowZyUZEm1hThFjoeMoZq8Ug5WnyKUdGDC7qy5GBGxTQbF3jUbsTJGXla5LsUcoZcoDe4iS01mz5oObvuEK5/e3kWP4ZxQ==
+    gatewaySecret:
+      secure: AAABACgM6N0HfKt6/HQzr01X9LYAC4a0DGq2Lxougs1EuwhUlcDjyYH5Qraum+eTBAoa2+IDbmGnZ59wkLmcdg==
+    gatewayUrl:
+      secure: AAABAMTGi64o790oKvE42K5TaxouX15sEVdWQP6YbzEQ+gx4Oq833+aU0sbW5pDtHGRsLcbf41UU0XN5LZVm+bpS2l3PT20=
+    hashnodeWebhook:
+      secure: AAABAKzPgckVKQYS/8TUyknOtW9gknSaYdZSEh+50+IGHe+u9AyZA5hXHCroH32XhjUPnrLjihrno9Yc/PgrN4p9OmE9mHj/GUCgzJMmjAjJ0Kg/wBXuT+BEsYbio3NEDcQ9kp36Ag9rXp0Y0ZHlF3SLy27cbf/rOmG9ag==
+    jwtAudience:
+      secure: AAABABYdafVA0XsTaLOHd1ROWJc6ggvXKA+e+lOjg3jduCMeGQ==
+    jwtIssuer:
+      secure: AAABAG0AuSVweFAmuLEMRDzVrVKMoXasHIRf0Md6aIyBlqTbvvCWDzU=
+    jwtSecret:
+      secure: AAABAFUcG4T/DgIjrCzR9Ka+aUJ5cMeKCm9jCAvWVdLKqFMj4voiYjva1Lrny+7A67xRYg==
+    nodeEnv: production
+    sendgridApiKey:
+      secure: AAABANVhXyHAWBYvw2hOFkRdQaqiW2hBtoAc/iqxhUpi/dTEZFjrg1neXRyrs+fNnE5RYeDKy3vyjzDWAPe6ZWtamz46cTyBkcDpFIoqsrGn5CvltYd6O/CautVQQ2+oqUVECQA=
+    slackWebhook:
+      secure: AAABANMRr419hiCx/eBF5NJvKB8LDGb8GffeQzg5PxXoD5A9iQn7cPM30aB0jl3cWTKX65VrDShNl+GO86zvRIq4nXvwpjSdi/ToCHDBxyg7sIIQvngrlJuPQ9da+fj426VWkg5fFnwg02QuxMoHqrM=
+    superfeedrPass:
+      secure: AAABAJwPYRU11H3rzyBBw/SejgxYXAax/0qA9Pmqh+9DyCzZlNb8gIk5gaDRj4ILG3xTE7w9Nb1GUlu5TDJ9ug==
+    superfeedrUser:
+      secure: AAABADKUZKSoWAtFvFpES4O5CWtdc2/SyNQu/MFEeJ+tBRnK/kzjdDg=
+    twitterAccessTokenKey:
+      secure: AAABAM4p+Bnbw3S7QDYqNNSFJzbPMsD8TQbvhNGr2Y9nU+lM1bFrLCB1Ra/NEG5YzHpVINf4/4PPMBhNJk85hK0CZ7fcS23t02CZgoJeJO6CsQ==
+    twitterAccessTokenSecret:
+      secure: AAABAGdxJxYu7dpp2jOkZR4yE/f+AqKsy4B5MfD3Gww2tUe7n+gjRQctJWQyWdiZZk9Go/q4aTwi8if3Om4wzeH+2aL7mIA4VMZSPTk=
+    twitterConsumerKey:
+      secure: AAABAFLzaaPRw69UbvfnYCNwmNtxsp7nFrCgpX8xVe7dx+67WrCqeVC+NcyfT2fY8hoPtF5UQsGK
+    twitterConsumerSecret:
+      secure: AAABABIwfoBaRMGAfzJa9RlcMJCbp3U5wb0LBBV7CtvcySdynrrzWnOLUxu/tha0Gcy0uTgH3V2aDp6u9shRO5O40omnBy03MFbtyK9mExgzNw==
+    typeormDatabase:
+      secure: AAABAIwaYMFs/kC9fR6W23I2JUWA+LiDx9HS+qzYhKjCQmg=
+    typeormHost:
+      secure: AAABAMnI31uXJoOSIhdcx9uwiUH+TRhcOUConE8glOTD3hEN/Vd8tqQ=
+    typeormPassword:
+      secure: AAABAIDcvbMrri+S0XpnfUrMB78Lr5OkBOqmXxShF+bJXrJWmGkyd2w25ldajimawv7tKHrJjK33VbMKvdQJ12nRyZ5M/YvFUW7o7pfkGiY4PunbS/qgkGZuPp97/es=
+    typeormUsername:
+      secure: AAABAAUY1umWmVMVzZ6t6TePAAmqCFeED54L8NvlKSfBfHAyvz3vQQ==
+    urlPrefix:
+      secure: AAABADJrOx1jlyXkz+WbN5zL/iPmvpqaVVV2bBaBt/uY36W3kv6wgiJeF4b1EXF8Hk1HzCM=
+    webflowToken:
+      secure: AAABAEGzQasDisCZXKxcKbA7RJ/+nJLyzh6hNUcRCeBx3727YfGxBF8IUhJiDNK9ibava+80BbSSM2+zQxm020TtaQc3uUmVih19EXTVd6cP9YvRC9JorQKwvH9rSZSy
+    webhookSecret:
+      secure: AAABAMKT6wx502Nz24Oo7QyLHvLlkR+7ejsoo/4w8NkDiOYfQkhsrQq3YlWLdE78DkuzPA==
+    webhookUrl:
+      secure: AAABAINtY3LR2ciIEW/VPIBq7aqGyNJ5bjMKBi9GdN1ggEIIYWp4DA6HoWmCXQAgh2L845rO9NjEjbFK7XCV+fjQCU1lY2CjVcIXxDhIEYBjMf+wC+vP7nLt
+  gcp:project: devkit-prod
+  gcp:region: us-central1

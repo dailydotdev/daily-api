@@ -1,19 +1,14 @@
-import { envBasedName, messageToJson, Worker } from './worker';
+import { messageToJson, Worker } from './worker';
 import { Comment, SourceDisplay } from '../entity';
 import { fetchUser, formatPostCreatedAt, pickImageUrl } from '../common';
-import {
-  baseNotificationEmailData,
-  sendEmail,
-  truncatePost,
-} from '../common/mailing';
+import { baseNotificationEmailData, sendEmail, truncatePost } from '../common';
 
 interface Data {
   commentId: string;
 }
 
 const worker: Worker = {
-  topic: 'comment-featured',
-  subscription: envBasedName('comment-featured-mail'),
+  subscription: 'comment-featured-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
@@ -45,7 +40,6 @@ const worker: Worker = {
         },
         'featured email sent',
       );
-      message.ack();
     } catch (err) {
       logger.error(
         {
@@ -55,7 +49,6 @@ const worker: Worker = {
         },
         'failed to send featured mail',
       );
-      message.ack();
     }
   },
 };

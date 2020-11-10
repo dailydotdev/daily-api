@@ -9,16 +9,14 @@ import hashnodeBadge from './hashnodeBadge';
 import checkAnalyticsReport from './checkAnalyticsReport';
 import viewsThreshold from './viewsThreshold';
 
-const crons: Map<string, Cron> = new Map<string, Cron>([
-  [segmentUsers.name, segmentUsers],
-  [tweetTrending.name, tweetTrending],
-  [updateTags.name, updateTags],
-  [updateViews.name, updateViews],
-  [updateFeaturedComments.name, updateFeaturedComments],
-  [rss.name, rss],
-  [hashnodeBadge.name, hashnodeBadge],
-  [checkAnalyticsReport.name, checkAnalyticsReport],
-  [viewsThreshold.name, viewsThreshold],
-]);
-
-export default crons;
+export const crons: Cron[] = [
+  segmentUsers,
+  tweetTrending,
+  updateTags,
+  updateViews,
+  updateFeaturedComments,
+  rss,
+  hashnodeBadge,
+  checkAnalyticsReport,
+  viewsThreshold,
+];

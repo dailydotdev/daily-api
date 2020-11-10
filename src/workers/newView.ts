@@ -1,6 +1,6 @@
 import { Connection, DeepPartial } from 'typeorm';
 import { View } from '../entity';
-import { envBasedName, messageToJson, Worker } from './worker';
+import { messageToJson, Worker } from './worker';
 
 const ONE_WEEK = 604800000;
 
@@ -24,8 +24,7 @@ const addView = async (con: Connection, entity: View): Promise<boolean> => {
 };
 
 const worker: Worker = {
-  topic: 'views',
-  subscription: envBasedName('add-views-v2'),
+  subscription: 'add-views-v2',
   handler: async (message, con, logger): Promise<void> => {
     const data: DeepPartial<View> = messageToJson(message);
     try {
@@ -53,7 +52,6 @@ const worker: Worker = {
           'ignored view event',
         );
       }
-      message.ack();
     } catch (err) {
       logger.error(
         {
@@ -64,10 +62,9 @@ const worker: Worker = {
         'failed to add view event to db',
       );
       if (err.name === 'QueryFailedError') {
-        message.ack();
-      } else {
-        message.nack();
+        return;
       }
+      throw err;
     }
   },
 };

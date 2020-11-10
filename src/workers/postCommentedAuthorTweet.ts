@@ -1,4 +1,4 @@
-import { envBasedName, messageToJson, Worker } from './worker';
+import { messageToJson, Worker } from './worker';
 import { Post } from '../entity';
 import { getDiscussionLink, truncatePostToTweet, tweet } from '../common';
 
@@ -9,8 +9,7 @@ interface Data {
 }
 
 const worker: Worker = {
-  topic: 'post-commented',
-  subscription: envBasedName('post-commented-author-tweet'),
+  subscription: 'post-commented-author-tweet',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
@@ -41,7 +40,6 @@ const worker: Worker = {
           'tweeted about the new post comment',
         );
       }
-      message.ack();
     } catch (err) {
       logger.error(
         {
@@ -53,10 +51,9 @@ const worker: Worker = {
       );
       // Query failed or status is duplicate
       if (err.name === 'QueryFailedError' || err.code === 187) {
-        message.ack();
-      } else {
-        message.nack();
+        return;
       }
+      throw err;
     }
   },
 };

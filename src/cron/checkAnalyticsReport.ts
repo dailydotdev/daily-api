@@ -7,8 +7,8 @@ interface Row {
 }
 
 const cron: Cron = {
-  name: 'checkAnalyticsReport',
-  handler: async (con) => {
+  name: 'check-analytics-report',
+  handler: async (con, logger) => {
     const rows = await con
       .createQueryBuilder()
       .select('id')
@@ -18,7 +18,7 @@ const cron: Cron = {
       .andWhere('"authorId" is not null')
       .getRawMany<Row>();
     await Promise.all(
-      rows.map((data) => notifySendAnalyticsReport(console, data.id)),
+      rows.map((data) => notifySendAnalyticsReport(logger, data.id)),
     );
   },
 };

@@ -4,8 +4,8 @@ import { notifyPostReachedViewsThreshold } from '../common';
 type UpdateResult = { id: string }[];
 
 const cron: Cron = {
-  name: 'viewsThreshold',
-  handler: async (con) => {
+  name: 'views-threshold',
+  handler: async (con, logger) => {
     const thresholds = [250, 500].reverse();
 
     const updatedIds = await con.transaction(
@@ -30,7 +30,7 @@ const cron: Cron = {
       updatedIds.map((ids, index) =>
         Promise.all(
           ids.map(({ id }) =>
-            notifyPostReachedViewsThreshold(console, id, thresholds[index]),
+            notifyPostReachedViewsThreshold(logger, id, thresholds[index]),
           ),
         ),
       ),

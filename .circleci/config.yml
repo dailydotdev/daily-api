@@ -1,8 +1,7 @@
 version: 2.1
 orbs:
   gcp-gcr: circleci/gcp-gcr@0.6.0
-  gcp-cli: circleci/gcp-cli@1.8.1
-
+  pulumi: pulumi/pulumi@2.0.0
 jobs:
   build:
     docker:
@@ -66,47 +65,38 @@ jobs:
       - gcp-gcr/push-image:
           image: $CIRCLE_PROJECT_REPONAME
           tag: $CIRCLE_SHA1
-  secrets:
+  pulumi_preview:
     docker:
-      - image: ubuntu:20.04
+      - image: circleci/node:12.19.0
     steps:
       - checkout
+      - pulumi/login
       - run:
-          name: Install git-crypt
-          command: apt-get update -y && apt-get install -y git-crypt
+          name: Install dependencies
+          command: npm i
+          working_directory: infra
       - run:
-          name: Import GPG key
-          command: echo $GPG_KEY | base64 -d > key.gpg && gpg --pinentry-mode loopback --passphrase $GPG_PASSPHRASE --allow-secret-key-import --import key.gpg && rm key.gpg
-      - run:
-          name: Trust ultimately key
-          command: echo -e "5\ny\n" | gpg --command-fd 0 --expert --edit-key $GPG_FINGERPRINT trust;
-      - run:
-          name: Decrypt manually git-crypt key
-          command: gpg --pinentry-mode loopback --passphrase $GPG_PASSPHRASE --decrypt ./.git-crypt/keys/default/0/$GPG_FINGERPRINT.gpg > ./.git-crypt/keys/default/0/decrypted.gpg
-      - run:
-          name: Unlock the secrets
-          command: git-crypt unlock .git-crypt/keys/default/0/decrypted.gpg
-      - persist_to_workspace:
-          root: .
-          paths:
-            - helm/values
-  deploy_helm:
+          name: Pulumi preview
+          command: pulumi preview --suppress-outputs --stack prod -c tag=$CIRCLE_SHA1
+          working_directory: infra
+  pulumi_up:
     docker:
-      - image: google/cloud-sdk
+      - image: circleci/node:12.19.0
     steps:
       - checkout
-      - attach_workspace:
-          at: .
-      - gcp-cli/initialize
+      - pulumi/login
       - run:
-          name: Get cluster credentials
-          command: gcloud container clusters get-credentials prod
+          name: Install dependencies
+          command: npm i
+          working_directory: infra
       - run:
-          name: Install Helm
-          command: curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+          name: Pulumi refresh
+          command: pulumi refresh -y --suppress-outputs --stack prod
+          working_directory: infra
       - run:
-          name: Update Helm release
-          command: helm upgrade daily-api-v2 ./helm/$CIRCLE_PROJECT_REPONAME --namespace daily -f ./helm/values/prod.yaml --set-string image.tag=$CIRCLE_SHA1 -i
+          name: Pulumi up
+          command: pulumi up -y --suppress-outputs --stack prod -c tag=$CIRCLE_SHA1
+          working_directory: infra
 workflows:
   build:
     jobs:
@@ -124,15 +114,15 @@ workflows:
           filters:
             branches:
               ignore: /pull\/[0-9]+/
-      - secrets:
-          context: GPG
+      - pulumi_preview:
+          context: PROD
           filters:
             branches:
-              only:
+              ignore:
+                - /pull\/[0-9]+/
                 - master
-      - deploy_helm:
+      - pulumi_up:
           requires:
-            - secrets
             - build_and_push_docker
           context: PROD
           filters:
