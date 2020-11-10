@@ -1,4 +1,4 @@
-import { envBasedName, messageToJson, Worker } from './worker';
+import { messageToJson, Worker } from './worker';
 import { Comment } from '../entity';
 import {
   baseNotificationEmailData,
@@ -15,7 +15,7 @@ interface Data {
 
 const worker: Worker = {
   topic: 'comment-commented',
-  subscription: envBasedName('comment-commented-mail'),
+  subscription: 'comment-commented-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
@@ -57,7 +57,6 @@ const worker: Worker = {
           'comment email sent',
         );
       }
-      message.ack();
     } catch (err) {
       logger.error(
         {
@@ -68,10 +67,9 @@ const worker: Worker = {
         'failed to send comment email',
       );
       if (err.name === 'QueryFailedError') {
-        message.ack();
-      } else {
-        message.nack();
+        return;
       }
+      throw err;
     }
   },
 };

@@ -2,12 +2,12 @@ import { Connection, getConnection } from 'typeorm';
 import { PubSub } from '@google-cloud/pubsub';
 import { mocked } from 'ts-jest/utils';
 
-import appFunc from '../src';
-import worker from '../src/workers/segmentUser';
-import { mockMessage, saveFixtures } from './helpers';
-import { Post, PostTag, Source, TagSegment, View } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
-import { postsFixture, postTagsFixture } from './fixture/post';
+import appFunc from '../../src/background';
+import worker from '../../src/workers/segmentUser';
+import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import { Post, PostTag, Source, TagSegment, View } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
+import { postsFixture, postTagsFixture } from '../fixture/post';
 import { FastifyInstance } from 'fastify';
 
 let con: Connection;
@@ -71,9 +71,7 @@ it('should dispatch message with the right segment', async () => {
   const mockPublish = jest.fn().mockResolvedValue('');
   mockTopic.mockImplementation(() => ({ publishJSON: mockPublish }));
 
-  const message = mockMessage({ userId: '1' });
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
+  await expectSuccessfulBackground(app, worker, { userId: '1' });
   expect(mockPublish).toBeCalledTimes(1);
   expect(mockPublish).toBeCalledWith({ userId: '1', segment: 'frontend' });
 });
@@ -82,8 +80,6 @@ it('should not dispatch message when no segment found', async () => {
   const mockPublish = jest.fn().mockResolvedValue('');
   mockTopic.mockImplementation(() => ({ publishJSON: mockPublish }));
 
-  const message = mockMessage({ userId: '3' });
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
+  await expectSuccessfulBackground(app, worker, { userId: '3' });
   expect(mockPublish).toBeCalledTimes(0);
 });

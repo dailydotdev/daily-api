@@ -1,20 +1,19 @@
 import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
-import { PubSub } from '@google-cloud/pubsub';
 import { FastifyInstance } from 'fastify';
 import { mocked } from 'ts-jest/utils';
 
-import appFunc from '../src';
-import { mockMessage, saveFixtures } from './helpers';
-import { sendEmail } from '../src/common';
-import { User as GatewayUser } from '../src/common/users';
-import worker from '../src/workers/commentCommentedThread';
-import { Comment, Post, Source, User } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
-import { postsFixture } from './fixture/post';
+import appFunc from '../../src/background';
+import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import { sendEmail } from '../../src/common';
+import { User as GatewayUser } from '../../src/common/users';
+import worker from '../../src/workers/commentCommentedThread';
+import { Comment, Post, Source, User } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
+import { postsFixture } from '../fixture/post';
 
-jest.mock('../src/common/mailing', () => ({
-  ...jest.requireActual('../src/common/mailing'),
+jest.mock('../../src/common/mailing', () => ({
+  ...jest.requireActual('../../src/common/mailing'),
   sendEmail: jest.fn(),
 }));
 
@@ -126,15 +125,12 @@ it('should send mail to the thread followers', async () => {
   ];
   mockedUsers.forEach(mockUsersMe);
 
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     postId: 'p1',
     userId: '4',
     childCommentId: 'c5',
     parentCommentId: 'c1',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(1);
   expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
 });
@@ -176,16 +172,13 @@ it('should send mail to the thread followers without the post author', async () 
   ];
   mockedUsers.forEach(mockUsersMe);
 
-  const message = mockMessage({
+  await con.getRepository(Post).update('p1', { authorId: '2' });
+  await expectSuccessfulBackground(app, worker, {
     postId: 'p1',
     userId: '4',
     childCommentId: 'c5',
     parentCommentId: 'c1',
   });
-
-  await con.getRepository(Post).update('p1', { authorId: '2' });
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(1);
   expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
 });

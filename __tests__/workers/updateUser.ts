@@ -1,11 +1,10 @@
 import { Connection, getConnection } from 'typeorm';
 import { FastifyInstance } from 'fastify';
-import { PubSub } from '@google-cloud/pubsub';
 
-import appFunc from '../src';
-import { mockMessage } from './helpers';
-import worker from '../src/workers/updateUser';
-import { User } from '../src/entity';
+import appFunc from '../../src/background';
+import { expectSuccessfulBackground } from '../helpers';
+import worker from '../../src/workers/updateUser';
+import { User } from '../../src/entity';
 
 let con: Connection;
 let app: FastifyInstance;
@@ -24,7 +23,7 @@ it('should update an existing user', async () => {
     profileConfirmed: true,
   });
 
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     user: {
       id: 'abc',
       name: 'ido',
@@ -39,16 +38,13 @@ it('should update an existing user', async () => {
       github: 'idoshamun',
     },
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   const users = await con.getRepository(User).find();
   expect(users.length).toEqual(1);
   expect(users[0]).toMatchSnapshot();
 });
 
 it('should ack message if user does not exist', async () => {
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     user: {
       id: 'abc',
       name: 'ido',
@@ -59,9 +55,6 @@ it('should ack message if user does not exist', async () => {
       name: 'Ido',
     },
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   const users = await con.getRepository(User).find();
   expect(users.length).toEqual(0);
 });

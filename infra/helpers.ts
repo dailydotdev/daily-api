@@ -1,6 +1,7 @@
 import * as pulumi from '@pulumi/pulumi';
 import * as gcp from '@pulumi/gcp';
 import * as inputs from '@pulumi/gcp/types/input';
+import { Output } from '@pulumi/pulumi';
 
 function camelToUnderscore(key: string): string {
   const result = key.replace(/([A-Z])/g, ' $1');
@@ -46,8 +47,10 @@ export function createEnvVarsFromSecret(
 }
 
 export function serviceAccountToMember(
-  serviceAccount: gcp.serviceaccount.Account,
-): pulumi.Output<string> {
+  serviceAccount:
+    | gcp.serviceaccount.Account
+    | Output<gcp.serviceaccount.Account>,
+): Output<string> {
   return serviceAccount.email.apply((email) => `serviceAccount:${email}`);
 }
 
@@ -66,4 +69,10 @@ export function addIAMRolesToServiceAccount(
         member,
       }),
   );
+}
+
+export function getCloudRunPubSubInvoker(): Output<gcp.serviceaccount.Account> {
+  return infra.getOutput('cloudRunPubSubInvoker') as Output<
+    gcp.serviceaccount.Account
+  >;
 }

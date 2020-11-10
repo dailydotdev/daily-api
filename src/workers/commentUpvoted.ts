@@ -1,6 +1,6 @@
-import { envBasedName, messageToJson, Worker } from './worker';
+import { messageToJson, Worker } from './worker';
 import { Comment } from '../entity';
-import { baseNotificationEmailData, sendEmail } from '../common/mailing';
+import { baseNotificationEmailData, sendEmail } from '../common';
 import { fetchUser, getDiscussionLink } from '../common';
 
 interface Data {
@@ -22,7 +22,7 @@ const upvoteTitles = {
 
 const worker: Worker = {
   topic: 'comment-upvoted',
-  subscription: envBasedName('comment-upvoted-mail'),
+  subscription: 'comment-upvoted-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
@@ -58,7 +58,6 @@ const worker: Worker = {
           'upvote email sent',
         );
       }
-      message.ack();
     } catch (err) {
       logger.error(
         {
@@ -69,10 +68,9 @@ const worker: Worker = {
         'failed to send upvote email',
       );
       if (err.name === 'QueryFailedError') {
-        message.ack();
-      } else {
-        message.nack();
+        return;
       }
+      throw err;
     }
   },
 };

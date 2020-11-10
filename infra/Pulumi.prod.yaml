@@ -29,7 +29,7 @@ config:
     gatewaySecret:
       secure: AAABACgM6N0HfKt6/HQzr01X9LYAC4a0DGq2Lxougs1EuwhUlcDjyYH5Qraum+eTBAoa2+IDbmGnZ59wkLmcdg==
     gatewayUrl:
-      secure: AAABAHfhmFAN1C9Ah7NoSGzJ3VShA1ba7AoxNCxFDYNZ1AupAWZMZIqKXVxrpp6hAUyvHA==
+      secure: AAABAMTGi64o790oKvE42K5TaxouX15sEVdWQP6YbzEQ+gx4Oq833+aU0sbW5pDtHGRsLcbf41UU0XN5LZVm+bpS2l3PT20=
     hashnodeWebhook:
       secure: AAABAKzPgckVKQYS/8TUyknOtW9gknSaYdZSEh+50+IGHe+u9AyZA5hXHCroH32XhjUPnrLjihrno9Yc/PgrN4p9OmE9mHj/GUCgzJMmjAjJ0Kg/wBXuT+BEsYbio3NEDcQ9kp36Ag9rXp0Y0ZHlF3SLy27cbf/rOmG9ag==
     jwtAudience:
@@ -38,6 +38,7 @@ config:
       secure: AAABAG0AuSVweFAmuLEMRDzVrVKMoXasHIRf0Md6aIyBlqTbvvCWDzU=
     jwtSecret:
       secure: AAABAFUcG4T/DgIjrCzR9Ka+aUJ5cMeKCm9jCAvWVdLKqFMj4voiYjva1Lrny+7A67xRYg==
+    nodeEnv: production
     sendgridApiKey:
       secure: AAABANVhXyHAWBYvw2hOFkRdQaqiW2hBtoAc/iqxhUpi/dTEZFjrg1neXRyrs+fNnE5RYeDKy3vyjzDWAPe6ZWtamz46cTyBkcDpFIoqsrGn5CvltYd6O/CautVQQ2+oqUVECQA=
     slackWebhook:

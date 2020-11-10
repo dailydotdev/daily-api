@@ -1,5 +1,5 @@
 import { differenceInHours } from 'date-fns';
-import { envBasedName, messageToJson, Worker } from './worker';
+import { messageToJson, Worker } from './worker';
 import { getAuthorPostStats, Post, SourceDisplay } from '../entity';
 import { fetchUser, pickImageUrl } from '../common';
 import {
@@ -14,7 +14,7 @@ interface Data {
 
 const worker: Worker = {
   topic: 'send-analytics-report',
-  subscription: envBasedName('send-analytics-report-mail'),
+  subscription: 'send-analytics-report-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
@@ -58,7 +58,6 @@ const worker: Worker = {
           'analytics report sent',
         );
       }
-      message.ack();
     } catch (err) {
       logger.error(
         {
@@ -68,7 +67,6 @@ const worker: Worker = {
         },
         'failed to send analytics report',
       );
-      message.ack();
     }
   },
 };

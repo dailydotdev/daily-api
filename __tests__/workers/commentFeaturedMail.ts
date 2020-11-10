@@ -1,19 +1,18 @@
 import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
-import { PubSub } from '@google-cloud/pubsub';
 import { FastifyInstance } from 'fastify';
 import { mocked } from 'ts-jest/utils';
 
-import appFunc from '../src';
-import { mockMessage, saveFixtures } from './helpers';
-import { sendEmail, User as GatewayUser } from '../src/common';
-import worker from '../src/workers/commentFeaturedMail';
-import { Comment, Post, Source, SourceDisplay, User } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
-import { sourceDisplaysFixture } from './fixture/sourceDisplay';
+import appFunc from '../../src/background';
+import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import { sendEmail, User as GatewayUser } from '../../src/common';
+import worker from '../../src/workers/commentFeaturedMail';
+import { Comment, Post, Source, SourceDisplay, User } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
+import { sourceDisplaysFixture } from '../fixture/sourceDisplay';
 
-jest.mock('../src/common/mailing', () => ({
-  ...jest.requireActual('../src/common/mailing'),
+jest.mock('../../src/common/mailing', () => ({
+  ...jest.requireActual('../../src/common/mailing'),
   sendEmail: jest.fn(),
 }));
 
@@ -87,12 +86,9 @@ it('should send featured comment mail', async () => {
   ];
   mockedUsers.forEach(mockUsersMe);
 
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     commentId: 'c1',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(1);
   expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
 });

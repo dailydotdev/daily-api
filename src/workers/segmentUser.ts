@@ -1,6 +1,6 @@
 import { Connection } from 'typeorm';
 import { View, TagSegment, PostTag } from '../entity';
-import { envBasedName, messageToJson, Worker } from './worker';
+import { messageToJson, Worker } from './worker';
 
 interface Data {
   userId: string;
@@ -30,7 +30,7 @@ const findSegment = async (
 
 const worker: Worker = {
   topic: 'find-segment',
-  subscription: envBasedName('daily-api-v2'),
+  subscription: 'daily-api-v2',
   handler: async (message, con, logger, pubsub): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
@@ -49,7 +49,6 @@ const worker: Worker = {
         },
         'find successfully segment for user',
       );
-      message.ack();
     } catch (err) {
       logger.error(
         {
@@ -59,7 +58,7 @@ const worker: Worker = {
         },
         'failed to find segment for user',
       );
-      message.nack();
+      throw err;
     }
   },
 };

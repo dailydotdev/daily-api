@@ -1,4 +1,4 @@
-import { envBasedName, messageToJson, Worker } from './worker';
+import { messageToJson, Worker } from './worker';
 import { Post, SourceDisplay } from '../entity';
 import {
   fetchUser,
@@ -19,7 +19,7 @@ interface Data {
 
 const worker: Worker = {
   topic: 'post-author-matched',
-  subscription: envBasedName('post-author-matched-mail'),
+  subscription: 'post-author-matched-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
@@ -47,7 +47,6 @@ const worker: Worker = {
         },
         'post author matched email sent',
       );
-      message.ack();
     } catch (err) {
       logger.error(
         {
@@ -57,7 +56,6 @@ const worker: Worker = {
         },
         'failed to send post author matched mail',
       );
-      message.ack();
     }
   },
 };

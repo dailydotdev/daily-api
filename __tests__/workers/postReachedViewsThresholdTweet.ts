@@ -1,18 +1,17 @@
 import { Connection, getConnection } from 'typeorm';
-import { PubSub } from '@google-cloud/pubsub';
 import { FastifyInstance } from 'fastify';
 
-import appFunc from '../src';
-import { mockMessage, saveFixtures } from './helpers';
-import { tweet } from '../src/common';
-import worker from '../src/workers/postReachedViewsThresholdTweet';
-import { Post, Source, User } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
-import { postsFixture } from './fixture/post';
+import appFunc from '../../src/background';
+import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import { tweet } from '../../src/common';
+import worker from '../../src/workers/postReachedViewsThresholdTweet';
+import { Post, Source, User } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
+import { postsFixture } from '../fixture/post';
 import { mocked } from 'ts-jest/utils';
 
-jest.mock('../src/common/twitter', () => ({
-  ...jest.requireActual('../src/common/twitter'),
+jest.mock('../../src/common/twitter', () => ({
+  ...jest.requireActual('../../src/common/twitter'),
   tweet: jest.fn(),
 }));
 
@@ -35,14 +34,11 @@ beforeEach(async () => {
 });
 
 it('should tweet about the trending post', async () => {
-  const message = mockMessage({
+  await con.getRepository(Post).update('p1', { creatorTwitter: '@idoshamun' });
+  await expectSuccessfulBackground(app, worker, {
     postId: 'p1',
     threshold: 250,
   });
-
-  await con.getRepository(Post).update('p1', { creatorTwitter: '@idoshamun' });
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(tweet).toBeCalledTimes(1);
   expect(mocked(tweet).mock.calls[0][0]).toContain('@idoshamun');
   expect(mocked(tweet).mock.calls[0][0]).toContain(
@@ -52,27 +48,21 @@ it('should tweet about the trending post', async () => {
 });
 
 it('should not tweet when no creator twitter', async () => {
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     postId: 'p1',
     threshold: 250,
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(tweet).toBeCalledTimes(0);
 });
 
 it('should not tweet when author is matched', async () => {
-  const message = mockMessage({
+  await con
+    .getRepository(Post)
+    .update('p1', { authorId: '1', creatorTwitter: '@idoshamun' });
+  await expectSuccessfulBackground(app, worker, {
     postId: 'p1',
     userId: '1',
     commentId: 'c1',
   });
-
-  await con
-    .getRepository(Post)
-    .update('p1', { authorId: '1', creatorTwitter: '@idoshamun' });
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(tweet).toBeCalledTimes(0);
 });

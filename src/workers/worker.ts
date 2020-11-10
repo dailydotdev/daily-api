@@ -1,14 +1,14 @@
 import { Connection } from 'typeorm';
 import { Logger } from 'fastify';
-import { Message, PubSub } from '@google-cloud/pubsub';
+import { PubSub } from '@google-cloud/pubsub';
 
-const env = process.env.NODE_ENV || 'development';
+export interface Message {
+  id: string;
+  data: string;
+}
 
 export const messageToJson = <T>(message: Message): T =>
-  JSON.parse(message.data.toString('utf8'));
-
-export const envBasedName = (name: string): string =>
-  `${name}${env === 'production' ? '' : `-${env}`}`;
+  JSON.parse(Buffer.from(message.data, 'base64').toString('utf-8').trim());
 
 export interface Worker {
   topic: string;

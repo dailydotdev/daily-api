@@ -1,4 +1,4 @@
-import { envBasedName, messageToJson, Worker } from './worker';
+import { messageToJson, Worker } from './worker';
 import { User } from '../entity';
 
 interface Data {
@@ -11,7 +11,7 @@ interface Data {
 
 const worker: Worker = {
   topic: 'user-registered',
-  subscription: envBasedName('user-registered-api'),
+  subscription: 'user-registered-api',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
@@ -27,7 +27,6 @@ const worker: Worker = {
         },
         'added new user',
       );
-      message.ack();
     } catch (err) {
       logger.error(
         {
@@ -38,10 +37,9 @@ const worker: Worker = {
         'failed to add new user',
       );
       if (err.name === 'QueryFailedError') {
-        message.ack();
-      } else {
-        message.nack();
+        return;
       }
+      throw err;
     }
   },
 };

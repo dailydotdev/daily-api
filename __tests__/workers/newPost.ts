@@ -1,28 +1,27 @@
 import { Connection, getConnection } from 'typeorm';
-import { PubSub } from '@google-cloud/pubsub';
 import { FastifyInstance } from 'fastify';
 import { SearchIndex } from 'algoliasearch';
 import { mocked } from 'ts-jest/utils';
 import Mock = jest.Mock;
 
-import appFunc from '../src';
-import worker from '../src/workers/newPost';
-import { mockMessage, saveFixtures } from './helpers';
-import { Post, PostTag, Source, TagCount, User } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
-import { getPostsIndex, notifyPostAuthorMatched } from '../src/common';
+import appFunc from '../../src/background';
+import worker from '../../src/workers/newPost';
+import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import { Post, PostTag, Source, TagCount, User } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
+import { getPostsIndex, notifyPostAuthorMatched } from '../../src/common';
 
 let con: Connection;
 let app: FastifyInstance;
 let saveObjectMock: Mock;
 
-jest.mock('../src/common/algolia', () => ({
-  ...jest.requireActual('../src/common/algolia'),
+jest.mock('../../src/common/algolia', () => ({
+  ...jest.requireActual('../../src/common/algolia'),
   getPostsIndex: jest.fn(),
 }));
 
-jest.mock('../src/common', () => ({
-  ...jest.requireActual('../src/common'),
+jest.mock('../../src/common', () => ({
+  ...jest.requireActual('../../src/common'),
   notifyPostAuthorMatched: jest.fn(),
 }));
 
@@ -43,15 +42,12 @@ beforeEach(async () => {
 });
 
 it('should save a new post with basic information', async () => {
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
     publicationId: 'a',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
   expect(saveObjectMock).toBeCalledWith({
@@ -75,7 +71,13 @@ it('should save a new post with basic information', async () => {
 
 it('should save a new post with full information', async () => {
   const timestamp = new Date(2020, 5, 11, 1, 17);
-  const message = mockMessage({
+
+  await con.getRepository(TagCount).save([
+    { tag: 'javascript', count: 20 },
+    { tag: 'html', count: 15 },
+    { tag: 'webdev', count: 5 },
+  ]);
+  await expectSuccessfulBackground(app, worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -89,14 +91,6 @@ it('should save a new post with full information', async () => {
     creatorTwitter: 'creator',
     readTime: '5.123',
   });
-
-  await con.getRepository(TagCount).save([
-    { tag: 'javascript', count: 20 },
-    { tag: 'html', count: 15 },
-    { tag: 'webdev', count: 5 },
-  ]);
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledWith({
     objectID: expect.any(String),
     title: 'Title',
@@ -119,16 +113,13 @@ it('should save a new post with full information', async () => {
 });
 
 it('should handle empty tags array', async () => {
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
     publicationId: 'a',
     tags: [],
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledWith({
     objectID: expect.any(String),
     title: 'Title',
@@ -145,15 +136,12 @@ it('should handle empty tags array', async () => {
 });
 
 it('should ignore null value violation', async () => {
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     id: 'p1',
     title: 'Title',
     url: null,
     publicationId: 'a',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(0);
@@ -168,15 +156,12 @@ it('should not save post with existing url', async () => {
     sourceId: 'b',
   });
 
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
     publicationId: 'a',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
@@ -192,15 +177,12 @@ it('should not save post when url matches existing canonical url', async () => {
     sourceId: 'b',
   });
 
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.dev',
     publicationId: 'a',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
@@ -216,16 +198,13 @@ it('should not save post when canonical url matches existing url', async () => {
     sourceId: 'b',
   });
 
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.io',
     canonicalUrl: 'https://post.com',
     publicationId: 'a',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
@@ -241,16 +220,13 @@ it('should not save post when canonical url matches existing canonical url', asy
     sourceId: 'b',
   });
 
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.io',
     canonicalUrl: 'https://post.dev',
     publicationId: 'a',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
@@ -265,16 +241,14 @@ it('should match post to author', async () => {
       twitter: 'idoshamun',
     },
   ]);
-  const message = mockMessage({
+
+  await expectSuccessfulBackground(app, worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
     publicationId: 'a',
     creatorTwitter: '@idoshamun',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
   expect(saveObjectMock).toBeCalledWith({
@@ -307,16 +281,13 @@ it('should match post to author based on username', async () => {
       username: 'idoshamun',
     },
   ]);
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
     publicationId: 'a',
     creatorTwitter: '@idoshamun',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
   expect(saveObjectMock).toBeCalledWith({
@@ -341,16 +312,13 @@ it('should match post to author based on username', async () => {
 });
 
 it('should not match post to author', async () => {
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
     publicationId: 'a',
     creatorTwitter: '@nouser',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
   expect(saveObjectMock).toBeCalledWith({
@@ -372,16 +340,13 @@ it('should not match post to author', async () => {
 });
 
 it('should clear empty creator twitter', async () => {
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
     publicationId: 'a',
     creatorTwitter: '',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
@@ -389,16 +354,13 @@ it('should clear empty creator twitter', async () => {
 });
 
 it('should clear invalid creator twitter', async () => {
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
     publicationId: 'a',
     creatorTwitter: '@',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(saveObjectMock).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);

@@ -1,19 +1,18 @@
 import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
-import { PubSub } from '@google-cloud/pubsub';
 import { FastifyInstance } from 'fastify';
 import { mocked } from 'ts-jest/utils';
 
-import appFunc from '../src';
-import { mockMessage, saveFixtures } from './helpers';
-import { sendEmail } from '../src/common';
-import worker from '../src/workers/commentUpvoted';
-import { Comment, Post, Source, User } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
-import { postsFixture } from './fixture/post';
+import appFunc from '../../src/background';
+import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import { sendEmail } from '../../src/common';
+import worker from '../../src/workers/commentUpvoted';
+import { Comment, Post, Source, User } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
+import { postsFixture } from '../fixture/post';
 
-jest.mock('../src/common/mailing', () => ({
-  ...jest.requireActual('../src/common/mailing'),
+jest.mock('../../src/common/mailing', () => ({
+  ...jest.requireActual('../../src/common/mailing'),
   sendEmail: jest.fn(),
 }));
 
@@ -68,13 +67,10 @@ it('should send mail to author', async () => {
       permalink: 'https://daily.dev/ido',
     });
 
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     userId: '2',
     commentId: 'c1',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(1);
   expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
 });
@@ -92,13 +88,10 @@ it('should not send mail when the author is the upvote user', async () => {
       image: 'https://daily.dev/ido.jpg',
     });
 
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     userId: '1',
     commentId: 'c1',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(0);
 });
 
@@ -115,12 +108,9 @@ it('should not send mail when number of upvotes is not a defined trigger', async
       image: 'https://daily.dev/ido.jpg',
     });
 
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     userId: '1',
     commentId: 'c2',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   expect(sendEmail).toBeCalledTimes(0);
 });

@@ -1,4 +1,4 @@
-import { envBasedName, messageToJson, Worker } from './worker';
+import { messageToJson, Worker } from './worker';
 import { Comment } from '../entity';
 import { increaseReputation } from '../common';
 
@@ -9,7 +9,7 @@ interface Data {
 
 const worker: Worker = {
   topic: 'comment-upvote-canceled',
-  subscription: envBasedName('comment-upvote-canceled-rep'),
+  subscription: 'comment-upvote-canceled-rep',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
@@ -24,7 +24,6 @@ const worker: Worker = {
           'decreased reputation due to upvote cancellation',
         );
       }
-      message.ack();
     } catch (err) {
       logger.error(
         {
@@ -34,7 +33,6 @@ const worker: Worker = {
         },
         'failed to increase reputation due to upvote cancellation',
       );
-      message.ack();
     }
   },
 };

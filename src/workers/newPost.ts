@@ -1,7 +1,7 @@
 import shortid from 'shortid';
 import { Connection, In, MoreThan } from 'typeorm';
 import { Post, PostTag, TagCount, User } from '../entity';
-import { envBasedName, messageToJson, Worker } from './worker';
+import { messageToJson, Worker } from './worker';
 import { getPostsIndex, notifyPostAuthorMatched } from '../common';
 import { Logger } from 'fastify';
 
@@ -133,7 +133,7 @@ const parseReadTime = (
 
 const worker: Worker = {
   topic: 'post-image-processed',
-  subscription: envBasedName('add-posts-v2'),
+  subscription: 'add-posts-v2',
   handler: async (message, con, logger): Promise<void> => {
     const data: AddPostData = messageToJson(message);
 
@@ -154,7 +154,6 @@ const worker: Worker = {
         },
         'post url already exists',
       );
-      message.ack();
       return;
     }
 
@@ -174,7 +173,6 @@ const worker: Worker = {
         },
         'added successfully post',
       );
-      message.ack();
     } catch (err) {
       logger.error(
         {
@@ -190,10 +188,9 @@ const worker: Worker = {
         err?.code === '23503' ||
         err?.code === '23505'
       ) {
-        message.ack();
-      } else {
-        message.nack();
+        return;
       }
+      throw err;
     }
   },
 };

@@ -1,18 +1,17 @@
 import { Connection, getConnection } from 'typeorm';
-import { PubSub } from '@google-cloud/pubsub';
 import { FastifyInstance } from 'fastify';
 import { mocked } from 'ts-jest/utils';
 
-import appFunc from '../src';
-import { mockMessage, saveFixtures } from './helpers';
-import worker from '../src/workers/commentFeaturedRep';
-import { Comment, Post, Source, User } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
-import { postsFixture } from './fixture/post';
-import { notifyUserReputationUpdated } from '../src/common';
+import appFunc from '../../src/background';
+import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import worker from '../../src/workers/commentFeaturedRep';
+import { Comment, Post, Source, User } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
+import { postsFixture } from '../fixture/post';
+import { notifyUserReputationUpdated } from '../../src/common';
 
-jest.mock('../src/common/pubsub', () => ({
-  ...jest.requireActual('../src/common/pubsub'),
+jest.mock('../../src/common/pubsub', () => ({
+  ...jest.requireActual('../../src/common/pubsub'),
   notifyUserReputationUpdated: jest.fn(),
 }));
 
@@ -50,12 +49,9 @@ beforeEach(async () => {
 });
 
 it('should increase reputation and notify', async () => {
-  const message = mockMessage({
+  await expectSuccessfulBackground(app, worker, {
     commentId: 'c1',
   });
-
-  await worker.handler(message, con, app.log, new PubSub());
-  expect(message.ack).toBeCalledTimes(1);
   const user = await con.getRepository(User).findOne('1');
   expect(user.reputation).toEqual(5);
   expect(mocked(notifyUserReputationUpdated).mock.calls[0].slice(1)).toEqual([
