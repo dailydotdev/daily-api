@@ -37,9 +37,7 @@ export default async function app(): Promise<FastifyInstance> {
     credentials: true,
   });
   app.register(cookie, { secret: process.env.COOKIES_KEY });
-  if (isProd) {
-    app.register(trace, { enabled: isProd });
-  }
+  app.register(trace, { enabled: isProd });
   app.register(auth, { secret: process.env.ACCESS_SECRET });
 
   app.get('/health', (req, res) => {

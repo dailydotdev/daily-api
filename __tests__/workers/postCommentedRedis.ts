@@ -24,11 +24,6 @@ beforeEach(async () => {
   await saveFixtures(con, Post, postsFixture);
 });
 
-afterAll(() => {
-  redisPubSub.getPublisher().disconnect();
-  redisPubSub.getSubscriber().disconnect();
-});
-
 it('should publish an event to redis', async (done) => {
   const subId = await redisPubSub.subscribe(
     'events.posts.commented',

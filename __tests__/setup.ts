@@ -1,6 +1,7 @@
 import '../src/config';
 import { Connection } from 'typeorm';
 import { createOrGetConnection } from '../src/db';
+import { redisPubSub } from '../src/redis';
 
 let con: Connection;
 
@@ -17,4 +18,8 @@ beforeAll(async () => {
 
 afterEach(() => cleanDatabase());
 
-afterAll(() => con.close());
+afterAll(async () => {
+  await con.close();
+  redisPubSub.getPublisher().disconnect();
+  redisPubSub.getSubscriber().disconnect();
+});
