@@ -24,7 +24,7 @@
     "db:seed:export": "ts-node bin/export.ts"
   },
   "dependencies": {
-    "@algolia/client-search": "^4.5.1",
+    "@algolia/client-search": "^4.6.0",
     "@google-cloud/profiler": "^4.0.3",
     "@google-cloud/pubsub": "^2.6.0",
     "@google-cloud/trace-agent": "^5.1.1",
@@ -97,7 +97,7 @@
     "nodemon": "^2.0.6",
     "pino-pretty": "^4.3.0",
     "prettier": "^2.1.2",
-    "supertest": "^6.0.0",
+    "supertest": "^6.0.1",
     "ts-jest": "^26.4.1",
     "ts-node": "^9.0.0",
     "typescript": "4.0.5"
