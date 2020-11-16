@@ -19,6 +19,8 @@ import postUpvoteCanceledRep from './postUpvoteCanceledRep';
 import sendAnalyticsReportMail from './sendAnalyticsReportMail';
 import postCommentedAuthorTweet from './postCommentedAuthorTweet';
 import postReachedViewsThresholdTweet from './postReachedViewsThresholdTweet';
+import postCommentedRedis from './postCommentedRedis';
+import postUpvotedRedis from './postUpvotedRedis';
 
 export { Worker } from './worker';
 
@@ -43,4 +45,6 @@ export const workers: Worker[] = [
   sendAnalyticsReportMail,
   postCommentedAuthorTweet,
   postReachedViewsThresholdTweet,
+  postCommentedRedis,
+  postUpvotedRedis,
 ];
