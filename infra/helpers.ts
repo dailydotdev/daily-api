@@ -1,7 +1,7 @@
 import * as pulumi from '@pulumi/pulumi';
 import * as gcp from '@pulumi/gcp';
-import * as inputs from '@pulumi/gcp/types/input';
 import { Output } from '@pulumi/pulumi';
+import * as k8s from '@pulumi/kubernetes';
 
 function camelToUnderscore(key: string): string {
   const result = key.replace(/([A-Z])/g, ' $1');
@@ -14,12 +14,14 @@ export const location = gcp.config.region || 'us-central1';
 
 export const infra = new pulumi.StackReference(`idoshamun/infra/${stack}`);
 
+export type Secret = { name: string; value: string | Output<string> };
+
 export function createEnvVarsFromSecret(
   prefix: string,
-): pulumi.Input<inputs.cloudrun.ServiceTemplateSpecContainerEnv>[] {
+): pulumi.Input<Secret>[] {
   const envVars = config.requireObject<Record<string, string>>('env');
   return Object.keys(envVars).map(
-    (key): pulumi.Input<inputs.cloudrun.ServiceTemplateSpecContainerEnv> => {
+    (key): pulumi.Input<Secret> => {
       const secret = new gcp.secretmanager.Secret(`${prefix}-secret-${key}`, {
         secretId: `${prefix}-secret-${key}`,
         replication: { automatic: true },
@@ -60,9 +62,9 @@ export function addIAMRolesToServiceAccount(
   prefix: string,
   roles: IAMRole[],
   serviceAccount: gcp.serviceaccount.Account,
-): void {
+): gcp.projects.IAMMember[] {
   const member = serviceAccountToMember(serviceAccount);
-  roles.forEach(
+  return roles.map(
     (role) =>
       new gcp.projects.IAMMember(`${prefix}-iam-${role.name}`, {
         role: role.role,
@@ -75,4 +77,13 @@ export function getCloudRunPubSubInvoker(): Output<gcp.serviceaccount.Account> {
   return infra.getOutput('cloudRunPubSubInvoker') as Output<
     gcp.serviceaccount.Account
   >;
+}
+
+export function k8sServiceAccountToIdentity(
+  serviceAccount: k8s.core.v1.ServiceAccount,
+): Output<string> {
+  return serviceAccount.metadata.apply(
+    (metadata) =>
+      `serviceAccount:${gcp.config.project}.svc.id.goog[${metadata.namespace}/${metadata.name}]`,
+  );
 }

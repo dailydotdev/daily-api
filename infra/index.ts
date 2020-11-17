@@ -1,5 +1,6 @@
 import * as gcp from '@pulumi/gcp';
-import { Output } from '@pulumi/pulumi';
+import * as k8s from '@pulumi/kubernetes';
+import { Input, Output } from '@pulumi/pulumi';
 import {
   addIAMRolesToServiceAccount,
   createEnvVarsFromSecret,
@@ -8,9 +9,12 @@ import {
   location,
   serviceAccountToMember,
   config,
+  k8sServiceAccountToIdentity,
+  Secret,
 } from './helpers';
 import { workers } from './workers';
 import { crons } from './crons';
+import * as pulumi from '@pulumi/pulumi';
 
 const name = 'api';
 
@@ -20,12 +24,13 @@ const vpcConnector = infra.getOutput('serverlessVPC') as Output<
   gcp.vpcaccess.Connector
 >;
 
+// Create service account and grant permissions
 const serviceAccount = new gcp.serviceaccount.Account(`${name}-sa`, {
   accountId: `daily-${name}`,
   displayName: `daily-${name}`,
 });
 
-addIAMRolesToServiceAccount(
+const iamMembers = addIAMRolesToServiceAccount(
   name,
   [
     { name: 'profiler', role: 'roles/cloudprofiler.agent' },
@@ -36,56 +41,82 @@ addIAMRolesToServiceAccount(
   serviceAccount,
 );
 
-const secrets = createEnvVarsFromSecret(name);
+// Provision Redis (Memorystore)
+const redis = new gcp.redis.Instance(`${name}-redis`, {
+  name: `${name}-redis`,
+  tier: 'STANDARD_HA',
+  memorySizeGb: 1,
+  region: location,
+  authEnabled: true,
+  redisVersion: 'REDIS_5_0',
+});
 
+export const redisHost = redis.host;
+
+const secrets: Input<Secret>[] = [
+  ...createEnvVarsFromSecret(name),
+  { name: 'REDIS_HOST', value: redisHost },
+];
+
+// Deploy to Cloud Run (foreground & background)
 const image = `gcr.io/daily-ops/daily-${name}:${imageTag}`;
 
-const service = new gcp.cloudrun.Service(name, {
+const service = new gcp.cloudrun.Service(
   name,
-  location,
-  template: {
-    metadata: {
-      annotations: {
-        'autoscaling.knative.dev/maxScale': '20',
-        'run.googleapis.com/vpc-access-connector': vpcConnector.name,
+  {
+    name,
+    location,
+    template: {
+      metadata: {
+        annotations: {
+          'autoscaling.knative.dev/maxScale': '20',
+          'run.googleapis.com/vpc-access-connector': vpcConnector.name,
+          'run.googleapis.com/vpc-access-egress': 'private-ranges-only',
+        },
+      },
+      spec: {
+        serviceAccountName: serviceAccount.email,
+        containers: [
+          {
+            image,
+            resources: { limits: { cpu: '1', memory: '512Mi' } },
+            envs: secrets,
+          },
+        ],
       },
     },
-    spec: {
-      serviceAccountName: serviceAccount.email,
-      containers: [
-        {
-          image,
-          resources: { limits: { cpu: '1', memory: '512Mi' } },
-          envs: secrets,
-        },
-      ],
-    },
   },
-});
+  { dependsOn: [...iamMembers, redis] },
+);
 
-const bgService = new gcp.cloudrun.Service(`${name}-background`, {
-  name: `${name}-background`,
-  location,
-  template: {
-    metadata: {
-      annotations: {
-        'autoscaling.knative.dev/maxScale': '20',
-        'run.googleapis.com/vpc-access-connector': vpcConnector.name,
+const bgService = new gcp.cloudrun.Service(
+  `${name}-background`,
+  {
+    name: `${name}-background`,
+    location,
+    template: {
+      metadata: {
+        annotations: {
+          'autoscaling.knative.dev/maxScale': '20',
+          'run.googleapis.com/vpc-access-connector': vpcConnector.name,
+          'run.googleapis.com/vpc-access-egress': 'private-ranges-only',
+        },
+      },
+      spec: {
+        serviceAccountName: serviceAccount.email,
+        containers: [
+          {
+            image,
+            resources: { limits: { cpu: '1', memory: '256Mi' } },
+            envs: secrets,
+            args: ['background'],
+          },
+        ],
       },
     },
-    spec: {
-      serviceAccountName: serviceAccount.email,
-      containers: [
-        {
-          image,
-          resources: { limits: { cpu: '1', memory: '256Mi' } },
-          envs: secrets,
-          args: ['background'],
-        },
-      ],
-    },
   },
-});
+  { dependsOn: [...iamMembers, redis] },
+);
 
 export const serviceUrl = service.statuses[0].url;
 export const bgServiceUrl = bgService.statuses[0].url;
@@ -105,6 +136,7 @@ new gcp.cloudrun.IamMember(`${name}-pubsub-invoker`, {
   member: serviceAccountToMember(cloudRunPubSubInvoker),
 });
 
+// Create Pub/Sub subscriptions
 workers.map(
   (worker) =>
     new gcp.pubsub.Subscription(`${name}-sub-${worker.subscription}`, {
@@ -125,6 +157,7 @@ workers.map(
     }),
 );
 
+// Create Cloud Scheduler tasks
 crons.map((cron) => {
   const uri = bgServiceUrl.apply(
     (url) => `${url}/${cron.endpoint ?? cron.name}`,
@@ -145,4 +178,162 @@ crons.map((cron) => {
         : undefined,
     },
   });
+});
+
+const { namespace, host: subsHost } = config.requireObject<{
+  namespace: string;
+  host: string;
+}>('k8s');
+
+// Create K8S service account and assign it to a GCP service account
+const k8sServiceAccount = new k8s.core.v1.ServiceAccount(`${name}-k8s-sa`, {
+  metadata: {
+    namespace,
+    name,
+    annotations: {
+      'iam.gke.io/gcp-service-account': serviceAccount.email,
+    },
+  },
+});
+
+new gcp.serviceaccount.IAMBinding(`${name}-k8s-iam-binding`, {
+  role: 'roles/iam.workloadIdentityUser',
+  serviceAccountId: serviceAccount.id,
+  members: [k8sServiceAccountToIdentity(k8sServiceAccount)],
+});
+
+// Subscriptions server deployment
+
+const labels: pulumi.Input<{
+  [key: string]: pulumi.Input<string>;
+}> = {
+  app: name,
+};
+
+const limits: pulumi.Input<{
+  [key: string]: pulumi.Input<string>;
+}> = {
+  cpu: '500m',
+  memory: '512Mi',
+};
+
+new k8s.policy.v1beta1.PodDisruptionBudget(`${name}-k8s-pdb`, {
+  metadata: {
+    name: `${name}-pdb`,
+    namespace,
+  },
+  spec: {
+    minAvailable: 1,
+    selector: {
+      matchLabels: labels,
+    },
+  },
+});
+
+new k8s.apps.v1.Deployment(`${name}-k8s-deployment`, {
+  metadata: {
+    name,
+    namespace,
+    labels,
+  },
+  spec: {
+    replicas: 2,
+    selector: { matchLabels: labels },
+    template: {
+      metadata: { labels },
+      spec: {
+        containers: [
+          {
+            name: 'app',
+            image,
+            ports: [{ name: 'http', containerPort: 3000, protocol: 'TCP' }],
+            readinessProbe: {
+              httpGet: { path: '/health', port: 'http' },
+            },
+            env: [...secrets, { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' }],
+            resources: {
+              requests: limits,
+              limits,
+            },
+          },
+        ],
+        serviceAccountName: k8sServiceAccount.metadata.name,
+        affinity: {
+          podAntiAffinity: {
+            requiredDuringSchedulingIgnoredDuringExecution: [
+              {
+                labelSelector: {
+                  matchExpressions: Object.keys(labels).map((key) => ({
+                    key,
+                    operator: 'In',
+                    values: [labels[key]],
+                  })),
+                },
+                topologyKey: 'kubernetes.io/hostname',
+              },
+            ],
+          },
+        },
+      },
+    },
+  },
+});
+
+const k8sService = new k8s.core.v1.Service(`${name}-k8s-service`, {
+  metadata: {
+    name,
+    namespace,
+    labels,
+  },
+  spec: {
+    type: 'NodePort',
+    ports: [{ port: 80, targetPort: 'http', protocol: 'TCP', name: 'http' }],
+    selector: labels,
+  },
+});
+
+const k8sManagedCert = new k8s.apiextensions.CustomResource(
+  `${name}-k8s-managed-cert`,
+  {
+    apiVersion: 'networking.gke.io/v1beta2',
+    kind: 'ManagedCertificate',
+    metadata: {
+      name: `${name}-subs`,
+      namespace,
+      labels,
+    },
+    spec: {
+      domains: [subsHost],
+    },
+  },
+);
+
+new k8s.networking.v1beta1.Ingress(`${name}-k8s-ingress`, {
+  metadata: {
+    name,
+    namespace,
+    labels,
+    annotations: {
+      'kubernetes.io/ingress.global-static-ip-name': 'api-subscriptions',
+      'networking.gke.io/managed-certificates': k8sManagedCert.metadata.name,
+    },
+  },
+  spec: {
+    rules: [
+      {
+        host: subsHost,
+        http: {
+          paths: [
+            {
+              path: '/*',
+              backend: {
+                serviceName: k8sService.metadata.name,
+                servicePort: 'http',
+              },
+            },
+          ],
+        },
+      },
+    ],
+  },
 });
