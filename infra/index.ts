@@ -210,6 +210,13 @@ const labels: pulumi.Input<{
   app: name,
 };
 
+const versionLabels: pulumi.Input<{
+  [key: string]: pulumi.Input<string>;
+}> = {
+  ...labels,
+  version: imageTag,
+};
+
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
@@ -234,7 +241,7 @@ new k8s.apps.v1.Deployment(`${name}-k8s-deployment`, {
   metadata: {
     name,
     namespace,
-    labels,
+    labels: versionLabels,
   },
   spec: {
     replicas: 2,
@@ -263,10 +270,10 @@ new k8s.apps.v1.Deployment(`${name}-k8s-deployment`, {
             requiredDuringSchedulingIgnoredDuringExecution: [
               {
                 labelSelector: {
-                  matchExpressions: Object.keys(labels).map((key) => ({
+                  matchExpressions: Object.keys(versionLabels).map((key) => ({
                     key,
                     operator: 'In',
-                    values: [labels[key]],
+                    values: [versionLabels[key]],
                   })),
                 },
                 topologyKey: 'kubernetes.io/hostname',
