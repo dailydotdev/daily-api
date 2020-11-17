@@ -78,6 +78,5 @@ config:
   api:k8s:
     host: subs.daily.dev
     namespace: daily
-  api:tag: 2fc27ad717f6067b0b608602531d869c3f98c0bd
   gcp:project: devkit-prod
   gcp:region: us-central1
