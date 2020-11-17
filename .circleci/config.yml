@@ -1,6 +1,7 @@
 version: 2.1
 orbs:
   gcp-gcr: circleci/gcp-gcr@0.6.0
+  gcp-cli: circleci/gcp-cli@1.8.1
   pulumi: pulumi/pulumi@2.0.0
 jobs:
   build:
@@ -95,6 +96,8 @@ jobs:
       - image: circleci/node:12.19.0
     steps:
       - checkout
+      - attach_workspace:
+          at: ~/
       - pulumi/login
       - run:
           name: Install dependencies
@@ -108,6 +111,18 @@ jobs:
           name: Pulumi up
           command: pulumi up -y --suppress-outputs --stack prod -c tag=$CIRCLE_SHA1
           working_directory: infra
+  k8s_credentials:
+    docker:
+      - image: google/cloud-sdk
+    steps:
+      - gcp-cli/initialize
+      - run:
+          name: Get cluster credentials
+          command: gcloud container clusters get-credentials prod
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - .kube
 workflows:
   build:
     jobs:
@@ -125,6 +140,12 @@ workflows:
           filters:
             branches:
               ignore: /pull\/[0-9]+/
+      - k8s_credentials:
+          context: PROD
+          filters:
+            branches:
+              only:
+                - master
       - pulumi_preview:
           context: PROD
           filters:
@@ -135,6 +156,7 @@ workflows:
       - pulumi_up:
           requires:
             - build_and_push_docker
+            - k8s_credentials
           context: PROD
           filters:
             branches:
