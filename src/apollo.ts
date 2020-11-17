@@ -68,7 +68,14 @@ export default async function (config: Config): Promise<ApolloServer> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     plugins: [(responseCachePlugin as any)()],
     uploads: true,
-    subscriptions: false,
+    subscriptions:
+      process.env.ENABLE_SUBSCRIPTIONS === 'true'
+        ? {
+            onConnect: (connectionParams, websocket) => ({
+              req: (websocket as Record<string, unknown>).upgradeReq,
+            }),
+          }
+        : false,
     formatError: (error): GraphQLFormattedError => {
       if (error?.message === 'PersistedQueryNotFound') {
         return error;

@@ -31,6 +31,7 @@ jobs:
         environment:
           - POSTGRES_DB: api_test
           - POSTGRES_PASSWORD: 12345
+      - image: redis:5.0.10
     steps:
       - checkout
       - restore_cache:
@@ -45,6 +46,16 @@ jobs:
             sleep 1
             done
             echo Failed waiting for Postgress && exit 1
+      - run:
+          name: Wait for Redis
+          command: |
+            for i in `seq 1 10`;
+            do
+            nc -z localhost 6379 && echo Success && exit 0
+            echo -n .
+            sleep 1
+            done
+            echo Failed waiting for Redis && exit 1
       - run:
           name: Test
           command: npm run test -- --ci --reporters=default --reporters=jest-junit

@@ -4,6 +4,7 @@ import { FastifyInstance, FastifyRequest } from 'fastify';
 import helmet from 'fastify-helmet';
 import cookie from 'fastify-cookie';
 import cors from 'fastify-cors';
+import { ExecutionParams } from 'subscriptions-transport-ws';
 
 import './config';
 import './profiler';
@@ -17,6 +18,8 @@ import { Context } from './Context';
 import createApolloServer from './apollo';
 import { createOrGetConnection } from './db';
 import { stringifyHealthCheck } from './common';
+
+type ContextParams = { request: FastifyRequest; connection: ExecutionParams };
 
 export default async function app(): Promise<FastifyInstance> {
   const isProd = process.env.NODE_ENV === 'production';
@@ -43,14 +46,21 @@ export default async function app(): Promise<FastifyInstance> {
   });
 
   const server = await createApolloServer({
-    context: ({ request }: { request: FastifyRequest }): Context =>
-      new Context(request, connection),
+    context: ({
+      request,
+      connection: wsConnection,
+    }: ContextParams): Context => {
+      return new Context(request ?? wsConnection?.context?.req, connection);
+    },
     playground: isProd
       ? false
       : { settings: { 'request.credentials': 'include' } },
     logger: app.log,
   });
   app.register(server.createHandler({ disableHealthCheck: true, cors: false }));
+  if (process.env.ENABLE_SUBSCRIPTIONS === 'true') {
+    server.installSubscriptionHandlers(app.server);
+  }
 
   app.register(compatibility, { prefix: '/v1' });
   app.register(routes, { prefix: '/' });

@@ -1,5 +1,6 @@
 import { gql, IResolvers, ValidationError } from 'apollo-server-fastify';
 import { Connection, DeepPartial } from 'typeorm';
+import { GraphQLResolveInfo } from 'graphql';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
@@ -19,6 +20,7 @@ import { GQLBookmarkList } from './bookmarks';
 import { GQLComment } from './comments';
 import graphorm from '../graphorm';
 import { GQLUser } from './users';
+import { redisPubSub } from '../redis';
 
 export interface GQLPost {
   id: string;
@@ -273,6 +275,18 @@ export const typeDefs = gql`
       id: ID!
     ): EmptyResponse @auth
   }
+
+  type Subscription {
+    """
+    Get notified when one of the given posts is upvoted or comments
+    """
+    postsEngaged(
+      """
+      IDs of the posts
+      """
+      ids: [ID]!
+    ): Post
+  }
 `;
 
 const saveHiddenPost = async (
@@ -415,6 +429,38 @@ export const resolvers: IResolvers<any, Context> = {
       return { _: true };
     },
   }),
+  Subscription: {
+    postsEngaged: {
+      subscribe: async (
+        source: unknown,
+        { ids }: { ids: string[] },
+        ctx: Context,
+        info: GraphQLResolveInfo,
+      ): Promise<AsyncIterator<{ postsEngaged: GQLPost }>> => {
+        const it = {
+          [Symbol.asyncIterator]: () =>
+            redisPubSub.asyncIterator<{ postId: string }>(
+              'events.posts.upvoted',
+            ),
+        };
+        return (async function* () {
+          for await (const value of it) {
+            if (ids.indexOf(value.postId) < 0) {
+              continue;
+            }
+            const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
+              queryBuilder: builder.queryBuilder.where(
+                `"${builder.alias}"."id" = :id`,
+                { id: value.postId },
+              ),
+              ...builder,
+            }));
+            yield { postsEngaged: res[0] };
+          }
+        })();
+      },
+    },
+  },
   Post: {
     image: (post: GQLPost): string => post.image || pickImageUrl(post),
     placeholder: (post: GQLPost): string =>
