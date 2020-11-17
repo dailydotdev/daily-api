@@ -58,7 +58,7 @@
     "lodash": "^4.17.20",
     "node-fetch": "^2.6.1",
     "p-retry": "^4.2.0",
-    "pg": "^8.4.2",
+    "pg": "^8.5.1",
     "pg-query-stream": "^3.4.1",
     "reflect-metadata": "^0.1.13",
     "rss": "^1.2.2",
