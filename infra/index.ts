@@ -221,7 +221,7 @@ const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
   cpu: '500m',
-  memory: '512Mi',
+  memory: '1024Mi',
 };
 
 new k8s.policy.v1beta1.PodDisruptionBudget(`${name}-k8s-pdb`, {
