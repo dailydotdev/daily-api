@@ -20,9 +20,7 @@ const name = 'api';
 
 const imageTag = config.require('tag');
 
-const vpcConnector = infra.getOutput('serverlessVPC') as Output<
-  gcp.vpcaccess.Connector
->;
+const vpcConnector = infra.getOutput('serverlessVPC') as Output<gcp.vpcaccess.Connector>;
 
 // Create service account and grant permissions
 const serviceAccount = new gcp.serviceaccount.Account(`${name}-sa`, {
@@ -220,7 +218,7 @@ const versionLabels: pulumi.Input<{
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
-  cpu: '500m',
+  cpu: '1',
   memory: '1024Mi',
 };
 
@@ -286,11 +284,31 @@ new k8s.apps.v1.Deployment(`${name}-k8s-deployment`, {
   },
 });
 
+const k8sBackendConfig = new k8s.apiextensions.CustomResource(`${name}-k8s-backend-config`, {
+  apiVersion: 'cloud.google.com/v1beta1',
+  kind: 'BackendConfig',
+  metadata: {
+    name: `${name}-backend-config`,
+    namespace,
+    labels,
+  },
+  spec: {
+    sessionAffinity: {
+      affinityType: 'CLIENT_IP',
+    },
+    timeoutSec: 300,
+    connectionDraining: { drainingTimeoutSec: 600 },
+  },
+});
+
 const k8sService = new k8s.core.v1.Service(`${name}-k8s-service`, {
   metadata: {
     name,
     namespace,
     labels,
+    annotations: {
+      'cloud.google.com/backend-config': k8sBackendConfig.metadata.name.apply((name) => `{"default": "${name}"}`),
+    },
   },
   spec: {
     type: 'NodePort',
