@@ -439,9 +439,10 @@ export const resolvers: IResolvers<any, Context> = {
       ): Promise<AsyncIterator<{ postsEngaged: GQLPost }>> => {
         const it = {
           [Symbol.asyncIterator]: () =>
-            redisPubSub.asyncIterator<{ postId: string }>(
+            redisPubSub.asyncIterator<{ postId: string }>([
               'events.posts.upvoted',
-            ),
+              'events.posts.commented',
+            ]),
         };
         return (async function* () {
           for await (const value of it) {
