@@ -220,7 +220,7 @@ const versionLabels: pulumi.Input<{
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
-  cpu: '1',
+  cpu: '2',
   memory: '1024Mi',
 };
 
