@@ -171,8 +171,10 @@ export function feedResolver<
         return builder;
       },
     );
+    // TODO: find a proper way in GraphORM to overcome this issue
     if (pageGenerator.transformEdges) {
       res.edges = pageGenerator.transformEdges(page, res.edges);
+      res.pageInfo.endCursor = res.edges[res.edges.length - 1].cursor;
     }
     return res;
   };
