@@ -149,7 +149,7 @@ export function feedResolver<
 ): IFieldResolver<TSource, Context, TArgs> {
   return async (source, args, context, info): Promise<Connection<GQLPost>> => {
     const page = pageGenerator.connArgsToPage(args);
-    return graphorm.queryPaginated(
+    const res = await graphorm.queryPaginated<GQLPost>(
       context,
       info,
       (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
@@ -171,6 +171,10 @@ export function feedResolver<
         return builder;
       },
     );
+    if (pageGenerator.transformEdges) {
+      res.edges = pageGenerator.transformEdges(page, res.edges);
+    }
+    return res;
   };
 }
 
