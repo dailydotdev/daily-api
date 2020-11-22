@@ -362,7 +362,8 @@ interface FeedPage extends Page {
 const feedPageGenerator: PageGenerator<GQLPost, FeedArgs, FeedPage> = {
   connArgsToPage: ({ ranking, first, after }: FeedArgs) => {
     const cursor = getCursorFromAfter(after);
-    const limit = Math.min(first || 30, 50);
+    // Increment by one to determine if there's one more page
+    const limit = Math.min(first || 30, 50) + 1;
     if (cursor) {
       if (ranking === Ranking.POPULARITY) {
         return { limit, score: parseInt(cursor) };
@@ -379,6 +380,7 @@ const feedPageGenerator: PageGenerator<GQLPost, FeedArgs, FeedPage> = {
   },
   hasNextPage: (page, nodesSize) => page.limit === nodesSize,
   hasPreviousPage: (page) => !!(page.score || page.timestamp),
+  transformEdges: (page, edges) => edges.slice(0, page.limit - 1),
 };
 
 const applyFeedPaging = (

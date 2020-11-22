@@ -126,6 +126,7 @@ export interface PageGenerator<
   ) => string;
   hasNextPage: (page: TPage, nodesSize: number, total?: number) => boolean;
   hasPreviousPage: (page: TPage, nodesSize: number, total?: number) => boolean;
+  transformEdges?: (page: TPage, edges: Edge<TReturn>[]) => Edge<TReturn>[];
 }
 
 export const offsetPageGenerator = <TReturn>(
