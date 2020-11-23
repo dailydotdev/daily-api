@@ -172,7 +172,7 @@ export function feedResolver<
       },
     );
     // TODO: find a proper way in GraphORM to overcome this issue
-    if (pageGenerator.transformEdges) {
+    if (pageGenerator.transformEdges && res.edges?.length) {
       res.edges = pageGenerator.transformEdges(page, res.edges);
       res.pageInfo.endCursor = res.edges[res.edges.length - 1].cursor;
     }
