@@ -5,18 +5,18 @@ const cron: Cron = {
   handler: (con) =>
     con.transaction(async (entityManager) => {
       await entityManager.query(`
-update "post" set "trending" = res."views", "lastTrending" = now()
+update "post" set "trending" = res."total", "lastTrending" = now()
 from (
-    select "postId", count(distinct "userId") as "views"
+    select "postId", count(*) total, count(*) filter(where "timestamp" >= timezone('utc', now()) - interval '30 minutes') as "partial"
     from "view"
-    where "timestamp" >= now() - interval '1 hour'
+    where "timestamp" >= timezone('utc', now()) - interval '1 hour'
     group by "postId"
 ) as res
-where "post".id = res."postId" and res."views" >= 100
+where "post".id = res."postId" and res."partial" != res."total" and res."total" >= 30 and (res."partial" * 1.0 / res."total") >= 0.6
 `);
       await entityManager.query(`
 update "post" set "trending" = null
-where "lastTrending" <= now() - interval '30 minutes' and "trending" is not null
+where "lastTrending" <= now() - interval '15 minutes' and "trending" is not null
 `);
     }),
 };
