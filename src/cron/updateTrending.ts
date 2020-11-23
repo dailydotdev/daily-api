@@ -16,7 +16,7 @@ where "post".id = res."postId" and res."views" >= 100
 `);
       await entityManager.query(`
 update "post" set "trending" = null
-where "lastTrending" <= now() - interval '30 minutes'
+where "lastTrending" <= now() - interval '30 minutes' and "trending" is not null
 `);
     }),
 };
