@@ -111,6 +111,14 @@ export class Post {
   @Column({ default: 0 })
   @Index('IDX_post_viewsThreshold')
   viewsThreshold: number;
+
+  @Column({ nullable: true })
+  @Index('IDX_post_trending')
+  trending?: number;
+
+  @Column({ nullable: true })
+  @Index('IDX_post_last_trending')
+  lastTrending?: Date;
 }
 
 export interface SearchPostsResult {

@@ -53,4 +53,8 @@ export const crons: Cron[] = [
     name: 'views-threshold',
     schedule: '*/10 * * * *',
   },
+  {
+    name: 'update-trending',
+    schedule: '*/3 * * * *',
+  },
 ];

@@ -8,6 +8,7 @@ import rss from './rss';
 import hashnodeBadge from './hashnodeBadge';
 import checkAnalyticsReport from './checkAnalyticsReport';
 import viewsThreshold from './viewsThreshold';
+import updateTrending from './updateTrending';
 
 export const crons: Cron[] = [
   segmentUsers,
@@ -19,4 +20,5 @@ export const crons: Cron[] = [
   hashnodeBadge,
   checkAnalyticsReport,
   viewsThreshold,
+  updateTrending,
 ];
