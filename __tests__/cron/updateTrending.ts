@@ -34,7 +34,7 @@ const addViewsToPost = async (
       (): DeepPartial<View> => ({
         postId,
         userId: shortid.generate(),
-        timestamp: new Date(now.getTime() - Math.random() * 50 * 60 * 1000),
+        timestamp: new Date(now.getTime() - Math.random() * 20 * 60 * 1000),
       }),
     ),
   );
@@ -42,10 +42,14 @@ const addViewsToPost = async (
 
 it('should update the trending score of the relevant articles', async () => {
   const now = new Date();
+  const halfHour = new Date(now.getTime() - 30 * 60 * 1000);
   await Promise.all([
-    addViewsToPost(postsFixture[0].id, 100, now),
-    addViewsToPost(postsFixture[1].id, 50, now),
-    addViewsToPost(postsFixture[2].id, 200, now),
+    addViewsToPost(postsFixture[0].id, 60, now),
+    addViewsToPost(postsFixture[0].id, 40, halfHour),
+    addViewsToPost(postsFixture[1].id, 10, now),
+    addViewsToPost(postsFixture[1].id, 3, halfHour),
+    addViewsToPost(postsFixture[2].id, 150, now),
+    addViewsToPost(postsFixture[2].id, 50, halfHour),
   ]);
   await expectSuccessfulCron(app, cron);
   const posts = await con
