@@ -20,9 +20,9 @@ const name = 'api';
 
 const imageTag = config.require('tag');
 
-const vpcConnector = infra.getOutput('serverlessVPC') as Output<
-  gcp.vpcaccess.Connector
->;
+const vpcConnector = infra.getOutput(
+  'serverlessVPC',
+) as Output<gcp.vpcaccess.Connector>;
 
 // Create service account and grant permissions
 const serviceAccount = new gcp.serviceaccount.Account(`${name}-sa`, {

@@ -74,9 +74,9 @@ export function addIAMRolesToServiceAccount(
 }
 
 export function getCloudRunPubSubInvoker(): Output<gcp.serviceaccount.Account> {
-  return infra.getOutput('cloudRunPubSubInvoker') as Output<
-    gcp.serviceaccount.Account
-  >;
+  return infra.getOutput(
+    'cloudRunPubSubInvoker',
+  ) as Output<gcp.serviceaccount.Account>;
 }
 
 export function k8sServiceAccountToIdentity(
