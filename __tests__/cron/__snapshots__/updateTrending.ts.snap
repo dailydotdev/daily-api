@@ -1,0 +1,30 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`should update the trending score of the relevant articles 1`] = `
+Array [
+  Post {
+    "id": "p1",
+    "trending": 100,
+  },
+  Post {
+    "id": "p2",
+    "trending": null,
+  },
+  Post {
+    "id": "p3",
+    "trending": 200,
+  },
+  Post {
+    "id": "p4",
+    "trending": null,
+  },
+  Post {
+    "id": "p5",
+    "trending": null,
+  },
+  Post {
+    "id": "p6",
+    "trending": null,
+  },
+]
+`;

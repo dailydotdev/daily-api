@@ -174,6 +174,11 @@ export const typeDefs = gql`
     Number of times the article has been viewed (unique readers)
     """
     views: Int
+
+    """
+    Trending score of the post
+    """
+    trending: Int
   }
 
   type PostConnection {
