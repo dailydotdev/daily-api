@@ -39,9 +39,9 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      await con.getRepository(User).update(
-        { id: data.user.id },
+      await con.getRepository(User).save(
         {
+          id: data.user.id,
           name: data.newProfile.name,
           image: data.newProfile.image,
           username: data.newProfile.username,
