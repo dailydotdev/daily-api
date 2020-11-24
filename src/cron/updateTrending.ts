@@ -16,7 +16,7 @@ from (
     where "timestamp" >= timezone('utc', now()) - interval '1 hour'
     group by "postId"
 ) as res
-where "post".id = res."postId" and res."partial" != res."total" and res."total" >= 30 and (res."partial" * 1.0 / res."total") >= 0.6
+where "post".id = res."postId" and post."createdAt" <= timezone('utc', now()) - interval '30 minutes' and res."partial" != res."total" and res."total" >= 30 and (res."partial" * 1.0 / res."total") >= 0.65
 `);
     }),
 };
