@@ -43,13 +43,16 @@ const addViewsToPost = async (
 it('should update the trending score of the relevant articles', async () => {
   const now = new Date();
   const halfHour = new Date(now.getTime() - 30 * 60 * 1000);
+  const hour = new Date(now.getTime() - 60 * 60 * 1000);
   await Promise.all([
-    addViewsToPost(postsFixture[0].id, 60, now),
-    addViewsToPost(postsFixture[0].id, 40, halfHour),
+    con.getRepository(Post).update(postsFixture[0].id, { createdAt: hour }),
+    con.getRepository(Post).update(postsFixture[2].id, { createdAt: hour }),
+    addViewsToPost(postsFixture[0].id, 80, now),
+    addViewsToPost(postsFixture[0].id, 20, halfHour),
     addViewsToPost(postsFixture[1].id, 10, now),
     addViewsToPost(postsFixture[1].id, 3, halfHour),
-    addViewsToPost(postsFixture[2].id, 150, now),
-    addViewsToPost(postsFixture[2].id, 50, halfHour),
+    addViewsToPost(postsFixture[2].id, 170, now),
+    addViewsToPost(postsFixture[2].id, 30, halfHour),
   ]);
   await expectSuccessfulCron(app, cron);
   const posts = await con
