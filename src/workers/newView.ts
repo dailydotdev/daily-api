@@ -35,7 +35,7 @@ const worker: Worker = {
           timestamp: data.timestamp && new Date(data.timestamp as string),
         }),
       );
-      if (!didSave)  {
+      if (!didSave) {
         logger.debug(
           {
             view: data,

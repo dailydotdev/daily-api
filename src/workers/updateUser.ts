@@ -39,16 +39,14 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      await con.getRepository(User).save(
-        {
-          id: data.user.id,
-          name: data.newProfile.name,
-          image: data.newProfile.image,
-          username: data.newProfile.username,
-          twitter: data.newProfile.twitter,
-          profileConfirmed: false,
-        },
-      );
+      await con.getRepository(User).save({
+        id: data.user.id,
+        name: data.newProfile.name,
+        image: data.newProfile.image,
+        username: data.newProfile.username,
+        twitter: data.newProfile.twitter,
+        profileConfirmed: false,
+      });
       logger.info(
         {
           userId: data.user.id,
