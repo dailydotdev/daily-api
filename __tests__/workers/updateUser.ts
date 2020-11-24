@@ -43,7 +43,7 @@ it('should update an existing user', async () => {
   expect(users[0]).toMatchSnapshot();
 });
 
-it('should ack message if user does not exist', async () => {
+it('should create user if does not exist', async () => {
   await expectSuccessfulBackground(app, worker, {
     user: {
       id: 'abc',
@@ -53,8 +53,13 @@ it('should ack message if user does not exist', async () => {
     },
     newProfile: {
       name: 'Ido',
+      image: 'https://daily.dev/image.jpg',
+      username: 'idoshamun',
+      twitter: 'idoshamun',
+      github: 'idoshamun',
     },
   });
   const users = await con.getRepository(User).find();
-  expect(users.length).toEqual(0);
+  expect(users.length).toEqual(1);
+  expect(users[0]).toMatchSnapshot();
 });

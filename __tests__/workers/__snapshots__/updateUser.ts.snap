@@ -1,5 +1,17 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`should create user if does not exist 1`] = `
+User {
+  "id": "abc",
+  "image": "https://daily.dev/image.jpg",
+  "name": "Ido",
+  "profileConfirmed": false,
+  "reputation": 1,
+  "twitter": "idoshamun",
+  "username": "idoshamun",
+}
+`;
+
 exports[`should update an existing user 1`] = `
 User {
   "id": "abc",

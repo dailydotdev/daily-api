@@ -35,15 +35,7 @@ const worker: Worker = {
           timestamp: data.timestamp && new Date(data.timestamp as string),
         }),
       );
-      if (didSave) {
-        logger.info(
-          {
-            view: data,
-            messageId: message.id,
-          },
-          'added successfully view event',
-        );
-      } else {
+      if (!didSave) {
         logger.debug(
           {
             view: data,
