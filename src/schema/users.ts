@@ -1,7 +1,7 @@
 import { gql, IResolvers } from 'apollo-server-fastify';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { Comment, getAuthorPostStats, PostStats } from '../entity';
+import { Comment, getAuthorPostStats, PostStats, View } from '../entity';
 
 export interface GQLUser {
   id: string;
@@ -13,6 +13,14 @@ export interface GQLUser {
 type CommentStats = { numComments: number; numCommentUpvotes: number };
 
 export type GQLUserStats = PostStats & CommentStats;
+
+export interface GQLReadingRank {
+  rankThisWeek?: number;
+  rankLastWeek?: number;
+  currentRank: number;
+  progressThisWeek?: number;
+  readToday?: boolean;
+}
 
 export const typeDefs = gql`
   """
@@ -49,13 +57,44 @@ export const typeDefs = gql`
     numCommentUpvotes: Int
   }
 
+  type ReadingRank {
+    rankThisWeek: Int
+    rankLastWeek: Int
+    currentRank: Int!
+    progressThisWeek: Int
+    readToday: Boolean
+  }
+
   extend type Query {
     """
     Get the statistics of the user
     """
     userStats(id: ID!): UserStats
+    """
+    Get the reading rank of the user
+    """
+    userReadingRank(id: ID!): ReadingRank
   }
 `;
+
+interface ReadingRankQueryResult {
+  thisWeek: number;
+  lastWeek: number;
+  today: number;
+}
+
+const STEPS_PER_RANK = [3, 4, 5, 6, 7];
+const STEPS_PER_RANK_REVERSE = STEPS_PER_RANK.reverse();
+
+const rankFromProgress = (progress: number) => {
+  const reverseRank = STEPS_PER_RANK_REVERSE.findIndex(
+    (threshold) => progress >= threshold,
+  );
+  if (reverseRank > -1) {
+    return STEPS_PER_RANK.length - reverseRank;
+  }
+  return 0;
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
@@ -84,6 +123,40 @@ export const resolvers: IResolvers<any, Context> = {
         numCommentUpvotes: isSameUser
           ? commentStats?.numCommentUpvotes ?? 0
           : null,
+      };
+    },
+    userReadingRank: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLReadingRank> => {
+      const isSameUser = ctx.userId === id;
+      const now = `timezone('utc', now())`;
+      const res = await ctx.con
+        .createQueryBuilder()
+        .select(
+          `count(distinct date_trunc('day', "timestamp")) filter(where "timestamp" >= date_trunc('week', ${now}))`,
+          'thisWeek',
+        )
+        .addSelect(
+          `count(distinct date_trunc('day', "timestamp")) filter(where "timestamp" < date_trunc('week', ${now}) and "timestamp" >= date_trunc('week', ${now} - interval '7 days'))`,
+          'lastWeek',
+        )
+        .addSelect(
+          `count(*) filter(where "timestamp" >= date_trunc('day', ${now}))`,
+          'today',
+        )
+        .from(View, 'view')
+        .where('"userId" = :id', { id })
+        .getRawOne<ReadingRankQueryResult>();
+      const rankThisWeek = rankFromProgress(res.thisWeek);
+      const rankLastWeek = rankFromProgress(res.lastWeek);
+      return {
+        currentRank: rankThisWeek > rankLastWeek ? rankThisWeek : rankLastWeek,
+        progressThisWeek: isSameUser ? res.thisWeek : null,
+        rankLastWeek: isSameUser ? rankLastWeek : null,
+        rankThisWeek: isSameUser ? rankThisWeek : null,
+        readToday: isSameUser ? res.today > 0 : null,
       };
     },
   }),
