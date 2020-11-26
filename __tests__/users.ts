@@ -276,9 +276,9 @@ describe('query userReadingRank', () => {
 
   it('should set readToday to true', async () => {
     loggedUser = '1';
-    await con.getRepository(View).save([
-      { userId: loggedUser, postId: 'p4', timestamp: dayStart },
-    ]);
+    await con
+      .getRepository(View)
+      .save([{ userId: loggedUser, postId: 'p4', timestamp: dayStart }]);
     const res = await client.query({ query: QUERY, variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRank.readToday).toEqual(true);
