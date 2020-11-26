@@ -1,5 +1,25 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`query userReadingRank should return partially null result when the user asks for someone else 1`] = `
+Object {
+  "currentRank": 0,
+  "progressThisWeek": null,
+  "rankLastWeek": null,
+  "rankThisWeek": null,
+  "readToday": null,
+}
+`;
+
+exports[`query userReadingRank should return the reading rank 1`] = `
+Object {
+  "currentRank": 2,
+  "progressThisWeek": 4,
+  "rankLastWeek": 1,
+  "rankThisWeek": 2,
+  "readToday": Anything,
+}
+`;
+
 exports[`query userStats should return partial user stats when no posts or no comments 1`] = `
 Object {
   "userStats": Object {

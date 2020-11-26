@@ -5,11 +5,18 @@ import {
   ApolloServerTestClient,
   createTestClient,
 } from 'apollo-server-testing';
+import {
+  addDays,
+  addHours,
+  startOfDay,
+  startOfISOWeek,
+  subDays,
+} from 'date-fns';
 import createApolloServer from '../src/apollo';
 import { Context } from '../src/Context';
 import { MockContext, saveFixtures } from './helpers';
 import appFunc from '../src';
-import { Comment, Post, Source, User } from '../src/entity';
+import { Comment, Post, Source, User, View } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 
 let app: FastifyInstance;
@@ -103,6 +110,15 @@ beforeEach(async () => {
       createdAt: new Date(now.getTime() - 5000),
       views: 40,
     },
+    {
+      id: 'p7',
+      shortId: 'sp7',
+      title: 'P7',
+      url: 'http://p7.com',
+      sourceId: 'p',
+      createdAt: new Date(now.getTime() - 6000),
+      views: 10,
+    },
   ]);
   await con.getRepository(Comment).save([
     {
@@ -165,5 +181,126 @@ describe('query userStats', () => {
     const res = await client.query({ query: QUERY, variables: { id: '2' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query userReadingRank', () => {
+  const QUERY = `query UserReadingRank($id: ID!){
+    userReadingRank(id: $id) {
+      rankThisWeek
+      rankLastWeek
+      currentRank
+      progressThisWeek
+      readToday
+    }
+  }`;
+
+  const now = new Date();
+  const thisWeekStart = startOfISOWeek(now);
+  const lastWeekStart = startOfISOWeek(subDays(now, 7));
+  const dayStart = startOfDay(now);
+
+  it('should return partially null result when the user asks for someone else', async () => {
+    loggedUser = '1';
+    const res = await client.query({ query: QUERY, variables: { id: '2' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadingRank).toMatchSnapshot();
+  });
+
+  it('should return the reading rank', async () => {
+    loggedUser = '1';
+    await con.getRepository(View).save([
+      { userId: loggedUser, postId: 'p1', timestamp: lastWeekStart },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addDays(lastWeekStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastWeekStart, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p4',
+        timestamp: addDays(thisWeekStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p5',
+        timestamp: addDays(thisWeekStart, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p6',
+        timestamp: addDays(thisWeekStart, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p7',
+        timestamp: addDays(thisWeekStart, 4),
+      },
+    ]);
+    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadingRank).toMatchSnapshot({
+      readToday: expect.anything(),
+    });
+  });
+
+  it('should return last week rank as current rank', async () => {
+    loggedUser = '1';
+    await con.getRepository(View).save([
+      { userId: loggedUser, postId: 'p1', timestamp: lastWeekStart },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addDays(lastWeekStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastWeekStart, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p4',
+        timestamp: addDays(thisWeekStart, 1),
+      },
+    ]);
+    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadingRank.currentRank).toEqual(1);
+  });
+
+  it('should set readToday to true', async () => {
+    loggedUser = '1';
+    await con.getRepository(View).save([
+      { userId: loggedUser, postId: 'p4', timestamp: dayStart },
+    ]);
+    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadingRank.readToday).toEqual(true);
+  });
+
+  it('should group progress by day', async () => {
+    loggedUser = '1';
+    await con.getRepository(View).save([
+      { userId: loggedUser, postId: 'p1', timestamp: thisWeekStart },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addHours(thisWeekStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addHours(thisWeekStart, 3),
+      },
+    ]);
+    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadingRank.progressThisWeek).toEqual(1);
   });
 });
