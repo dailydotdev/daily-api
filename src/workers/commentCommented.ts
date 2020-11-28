@@ -65,7 +65,7 @@ const worker: Worker = {
         },
         'failed to send comment email',
       );
-      if (err.name === 'QueryFailedError') {
+      if (err.name === 'QueryFailedError' || err?.code === 400) {
         return;
       }
       throw err;
