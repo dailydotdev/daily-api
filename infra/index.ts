@@ -108,8 +108,7 @@ const bgService = new gcp.cloudrun.Service(
           {
             image,
             resources: { limits: { cpu: '1', memory: '256Mi' } },
-            envs: secrets,
-            args: ['background'],
+            envs: [...secrets, { name: 'MODE', value: 'background' }],
           },
         ],
       },

@@ -1,7 +1,7 @@
 import foregroundFunc from './src';
 import backgroundFunc from './src/background';
 
-const isBackground = process.argv.reverse()[0] === 'background';
+const isBackground = process.env.MODE === 'background';
 const appFunc = isBackground ? backgroundFunc : foregroundFunc;
 
 appFunc()
