@@ -5,7 +5,7 @@
     "node": "^12.19.0"
   },
   "scripts": {
-    "start": "node ./node_modules/typeorm/cli.js migration:run && node index.js",
+    "start": "node ./node_modules/typeorm/cli.js migration:run && node index.js | pino-stackdriver",
     "dev": "nodemon ./index.ts | pino-pretty",
     "lint": "eslint . --ext .js,.ts --max-warnings 0",
     "build": "tsc",
@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@algolia/client-search": "^4.8.2",
+    "@binxhealth/pino-stackdriver": "^3.0.0",
     "@google-cloud/profiler": "^4.1.0",
     "@google-cloud/pubsub": "^2.6.0",
     "@google-cloud/trace-agent": "^5.1.1",
