@@ -45,6 +45,11 @@ const worker: Worker = {
         );
       }
     } catch (err) {
+      // Foreign / unique
+      if (err?.code === '23502' || err?.code === '23503') {
+        return;
+      }
+
       logger.error(
         {
           view: data,
