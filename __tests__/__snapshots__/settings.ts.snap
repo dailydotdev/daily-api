@@ -48,7 +48,7 @@ Object {
   "openNewTab": true,
   "showOnlyUnreadPosts": false,
   "showTopSites": true,
-  "spaciness": "eco",
+  "spaciness": "roomy",
   "theme": "darcula",
   "userId": "1",
 }
