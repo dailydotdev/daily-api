@@ -39,3 +39,17 @@ Object {
   },
 }
 `;
+
+exports[`query userSettings should create default settings if not exist 1`] = `
+Object {
+  "appInsaneMode": true,
+  "enableCardAnimations": true,
+  "insaneMode": false,
+  "openNewTab": true,
+  "showOnlyUnreadPosts": false,
+  "showTopSites": true,
+  "spaciness": "eco",
+  "theme": "darcula",
+  "userId": "1",
+}
+`;

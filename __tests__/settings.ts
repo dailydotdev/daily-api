@@ -41,7 +41,7 @@ beforeEach(async () => {
 
 afterAll(() => app.close());
 
-describe('query pendingSourceRequests', () => {
+describe('query userSettings', () => {
   const QUERY = `{
   userSettings {
     userId
@@ -73,6 +73,12 @@ describe('query pendingSourceRequests', () => {
 
     const res = await client.query({ query: QUERY });
     expect(res.data.userSettings).toEqual(expected);
+  });
+
+  it('should create default settings if not exist', async () => {
+    loggedUser = '1';
+    const res = await client.query({ query: QUERY });
+    expect(res.data.userSettings).toMatchSnapshot();
   });
 });
 
