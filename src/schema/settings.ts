@@ -158,7 +158,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   },
   Query: {
     userSettings: async (source, args, ctx): Promise<GQLSettings> => {
-      return ctx.getRepository(Settings).findOneOrFail(ctx.userId);
+      const repo = ctx.getRepository(Settings);
+      const settings = await repo.findOne(ctx.userId);
+      // TODO: need to come up with a better solution for non existing settings
+      if (!settings) {
+        await repo.insert({ userId: ctx.userId });
+        return repo.findOne(ctx.userId);
+      }
+      return settings;
     },
   },
 });
