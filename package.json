@@ -87,7 +87,7 @@
     "apollo-server-testing": "^2.19.0",
     "cross-env": "^7.0.3",
     "eslint": "^7.14.0",
-    "eslint-config-prettier": "^6.15.0",
+    "eslint-config-prettier": "^7.0.0",
     "eslint-plugin-prettier": "^3.2.0",
     "faker": "^5.1.0",
     "fastify-static": "^2.7.0",
