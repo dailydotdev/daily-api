@@ -54,7 +54,7 @@
     "graphql-relay": "^0.6.0",
     "graphql-subscriptions": "^1.1.0",
     "graphql-upload": "^11.0.0",
-    "ioredis": "^4.19.2",
+    "ioredis": "^4.19.4",
     "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.20",
     "node-fetch": "^2.6.1",
