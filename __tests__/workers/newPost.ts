@@ -366,3 +366,16 @@ it('should clear invalid creator twitter', async () => {
   expect(posts.length).toEqual(1);
   expect(posts[0].creatorTwitter).toBeNull();
 });
+
+it('should not save post when author is banned', async () => {
+  await expectSuccessfulBackground(app, worker, {
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.io',
+    publicationId: 'a',
+    creatorTwitter: '@NewGenDeveloper',
+  });
+  expect(saveObjectMock).toBeCalledTimes(0);
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(0);
+});

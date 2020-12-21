@@ -155,6 +155,16 @@ const worker: Worker = {
       );
       return;
     }
+    if (data.creatorTwitter === '@NewGenDeveloper') {
+      logger.info(
+        {
+          post: data,
+          messageId: message.id,
+        },
+        'author is banned',
+      );
+      return;
+    }
 
     data.id = shortid.generate();
     data.createdAt = new Date();
