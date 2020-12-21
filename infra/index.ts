@@ -67,6 +67,7 @@ const service = new gcp.cloudrun.Service(
     name,
     autogenerateRevisionName: true,
     location,
+    traffics: [{ latestRevision: true, percent: 100 }],
     template: {
       metadata: {
         annotations: {
@@ -96,6 +97,7 @@ const bgService = new gcp.cloudrun.Service(
     name: `${name}-background`,
     autogenerateRevisionName: true,
     location,
+    traffics: [{ latestRevision: true, percent: 100 }],
     template: {
       metadata: {
         annotations: {
