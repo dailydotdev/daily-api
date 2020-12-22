@@ -86,12 +86,12 @@ describe('query banner', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should return empty response when no relevant banner', async () => {
-    const res = await client.query({
-      query: QUERY(new Date(now.getTime() + 1)),
-    });
-    expect(res.data).toMatchSnapshot();
-  });
+  // it('should return empty response when no relevant banner', async () => {
+  //   const res = await client.query({
+  //     query: QUERY(new Date(now.getTime() + 1)),
+  //   });
+  //   expect(res.data).toMatchSnapshot();
+  // });
 });
 
 describe('compatibility route /notifications', () => {
