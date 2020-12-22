@@ -185,12 +185,15 @@ export function connectionFromNodes<
     };
   }
 
-  const edges = nodes.map(
+  let edges = nodes.map(
     (n, i): Edge<TReturn> => ({
       node: n,
       cursor: pageGenerator.nodeToCursor(page, args, n, i),
     }),
   );
+  if (pageGenerator.transformEdges) {
+    edges = pageGenerator.transformEdges(page, edges);
+  }
   return {
     pageInfo: {
       startCursor: edges[0].cursor,

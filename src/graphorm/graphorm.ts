@@ -337,6 +337,7 @@ export class GraphORM {
         if (pagination) {
           return this.nodesToConnection(
             nodes,
+            nodes.length,
             pagination.hasPreviousPage,
             pagination.hasNextPage,
             pagination.nodeToCursor,
@@ -409,6 +410,7 @@ export class GraphORM {
 
   nodesToConnection<T>(
     nodes: T[],
+    pretransformNodeSize: number,
     hasPreviousPage: (nodeSize: number) => boolean,
     hasNextPage: (nodeSize: number) => boolean,
     nodeToCursor: (node: T, index: number) => string,
@@ -418,8 +420,8 @@ export class GraphORM {
         pageInfo: {
           startCursor: null,
           endCursor: null,
-          hasNextPage: hasNextPage(nodes.length),
-          hasPreviousPage: hasPreviousPage(nodes.length),
+          hasNextPage: hasNextPage(pretransformNodeSize),
+          hasPreviousPage: hasPreviousPage(pretransformNodeSize),
         },
         edges: [],
       };
@@ -434,8 +436,8 @@ export class GraphORM {
       pageInfo: {
         startCursor: edges[0].cursor,
         endCursor: edges[edges.length - 1].cursor,
-        hasNextPage: hasNextPage(nodes.length),
-        hasPreviousPage: hasPreviousPage(nodes.length),
+        hasNextPage: hasNextPage(pretransformNodeSize),
+        hasPreviousPage: hasPreviousPage(pretransformNodeSize),
       },
       edges,
     };
@@ -507,11 +509,13 @@ export class GraphORM {
     if (parsedInfo) {
       const resolveTree = this.getPaginatedField(parsedInfo);
       let nodes = await this.queryResolveTree<T>(ctx, resolveTree, beforeQuery);
+      const nodesSize = nodes.length;
       if (transformNodes) {
         nodes = transformNodes(nodes);
       }
       return this.nodesToConnection(
         nodes,
+        nodesSize,
         hasPreviousPage,
         hasNextPage,
         nodeToCursor,

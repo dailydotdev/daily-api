@@ -149,7 +149,7 @@ export function feedResolver<
 ): IFieldResolver<TSource, Context, TArgs> {
   return async (source, args, context, info): Promise<Connection<GQLPost>> => {
     const page = pageGenerator.connArgsToPage(args);
-    const res = await graphorm.queryPaginated<GQLPost>(
+    return graphorm.queryPaginated<GQLPost>(
       context,
       info,
       (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
@@ -171,12 +171,6 @@ export function feedResolver<
         return builder;
       },
     );
-    // TODO: find a proper way in GraphORM to overcome this issue
-    if (pageGenerator.transformEdges && res.edges?.length) {
-      res.edges = pageGenerator.transformEdges(page, res.edges);
-      res.pageInfo.endCursor = res.edges[res.edges.length - 1].cursor;
-    }
-    return res;
   };
 }
 
