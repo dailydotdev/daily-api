@@ -170,6 +170,7 @@ export function feedResolver<
         );
         return builder;
       },
+      (nodes) => pageGenerator.transformNodes?.(page, nodes) ?? nodes,
     );
   };
 }

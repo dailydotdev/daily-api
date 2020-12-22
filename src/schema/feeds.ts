@@ -380,7 +380,7 @@ const feedPageGenerator: PageGenerator<GQLPost, FeedArgs, FeedPage> = {
   },
   hasNextPage: (page, nodesSize) => page.limit === nodesSize,
   hasPreviousPage: (page) => !!(page.score || page.timestamp),
-  transformEdges: (page, edges) => edges.slice(0, page.limit - 1),
+  transformNodes: (page, nodes) => nodes.slice(0, page.limit - 1),
 };
 
 const applyFeedPaging = (
