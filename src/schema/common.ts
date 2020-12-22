@@ -126,7 +126,7 @@ export interface PageGenerator<
   ) => string;
   hasNextPage: (page: TPage, nodesSize: number, total?: number) => boolean;
   hasPreviousPage: (page: TPage, nodesSize: number, total?: number) => boolean;
-  transformEdges?: (page: TPage, edges: Edge<TReturn>[]) => Edge<TReturn>[];
+  transformNodes?: (page: TPage, nodes: TReturn[]) => TReturn[];
 }
 
 export const offsetPageGenerator = <TReturn>(
@@ -172,7 +172,8 @@ export function connectionFromNodes<
   pageGenerator: PageGenerator<TReturn, TArgs, TPage>,
   total?: number,
 ): Connection<TReturn> & TExtra {
-  if (!nodes.length) {
+  const transformedNodes = pageGenerator.transformNodes?.(page, nodes) ?? nodes;
+  if (!transformedNodes.length) {
     return {
       pageInfo: {
         startCursor: null,
@@ -185,7 +186,7 @@ export function connectionFromNodes<
     };
   }
 
-  const edges = nodes.map(
+  const edges = transformedNodes.map(
     (n, i): Edge<TReturn> => ({
       node: n,
       cursor: pageGenerator.nodeToCursor(page, args, n, i),
