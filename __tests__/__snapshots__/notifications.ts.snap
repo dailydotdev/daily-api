@@ -1,5 +1,11 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`query banner should return empty response when no relevant banner 1`] = `
+Object {
+  "banner": null,
+}
+`;
+
 exports[`query banner should return the banner 1`] = `
 Object {
   "banner": Object {

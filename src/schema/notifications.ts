@@ -96,10 +96,15 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx
         .getRepository(Notification)
         .find({ order: { timestamp: 'DESC' }, take: 5 }),
-    banner: async (source, args, ctx): Promise<GQLBanner | null> =>
+    banner: async (
+      source,
+      { lastSeen }: { lastSeen: Date },
+      ctx,
+    ): Promise<GQLBanner | null> =>
       ctx
         .getRepository(Banner)
         .createQueryBuilder()
+        .where('timestamp > :last', { last: lastSeen })
         .orderBy('timestamp', 'DESC')
         .getOne(),
   },
