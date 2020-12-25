@@ -74,7 +74,7 @@
     "@types/feedparser": "^2.2.3",
     "@types/graphql": "^14.5.0",
     "@types/graphql-relay": "^0.6.0",
-    "@types/ioredis": "^4.17.9",
+    "@types/ioredis": "^4.17.10",
     "@types/jest": "^26.0.19",
     "@types/jsonwebtoken": "^8.5.0",
     "@types/lodash": "^4.14.166",
