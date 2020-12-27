@@ -77,11 +77,15 @@ const plugin = async (
       delete req.headers['logged-in'];
     }
     if (!req.userId && req.cookies.da3) {
-      const payload = await verifyJwt(req.cookies.da3);
-      if (payload) {
-        req.userId = payload.userId;
-        req.premium = payload.premium;
-        req.roles = payload.roles;
+      try {
+        const payload = await verifyJwt(req.cookies.da3);
+        if (payload) {
+          req.userId = payload.userId;
+          req.premium = payload.premium;
+          req.roles = payload.roles;
+        }
+      } catch (err) {
+        // JWT is invalid - no need to do anything just not authorize
       }
     }
   });
