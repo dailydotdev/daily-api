@@ -7,7 +7,14 @@ import Mock = jest.Mock;
 import appFunc from '../../src/background';
 import worker from '../../src/workers/newPost';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
-import { Post, PostTag, Source, TagCount, User } from '../../src/entity';
+import {
+  Post,
+  PostKeyword,
+  PostTag,
+  Source,
+  TagCount,
+  User,
+} from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { getPostsIndex, notifyPostAuthorMatched } from '../../src/common';
 
@@ -133,6 +140,38 @@ it('should handle empty tags array', async () => {
   const tags = await con.getRepository(PostTag).find();
   expect(posts.length).toEqual(1);
   expect(tags.length).toEqual(0);
+});
+
+it('should save keywords', async () => {
+  await expectSuccessfulBackground(app, worker, {
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.com',
+    publicationId: 'a',
+    keywords: ['vue', 'nodejs'],
+  });
+  expect(saveObjectMock).toBeCalledTimes(1);
+  const posts = await con.getRepository(Post).find();
+  const keywords = await con
+    .getRepository(PostKeyword)
+    .find({ select: ['keyword'], order: { keyword: 'ASC' } });
+  expect(posts.length).toEqual(1);
+  expect(keywords).toMatchSnapshot();
+});
+
+it('should handle empty keywords array', async () => {
+  await expectSuccessfulBackground(app, worker, {
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.com',
+    publicationId: 'a',
+    keywords: [],
+  });
+  expect(saveObjectMock).toBeCalledTimes(1);
+  const posts = await con.getRepository(Post).find();
+  const keywords = await con.getRepository(PostKeyword).find();
+  expect(posts.length).toEqual(1);
+  expect(keywords.length).toEqual(0);
 });
 
 it('should ignore null value violation', async () => {
