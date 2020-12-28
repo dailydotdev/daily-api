@@ -163,3 +163,14 @@ Array [
   },
 ]
 `;
+
+exports[`should save keywords 1`] = `
+Array [
+  PostKeyword {
+    "keyword": "nodejs",
+  },
+  PostKeyword {
+    "keyword": "vue",
+  },
+]
+`;

@@ -12,6 +12,7 @@ import { PostTag } from './PostTag';
 import { Source } from './Source';
 import { getPostsIndex, trackSearch } from '../common';
 import { User } from './User';
+import { PostKeyword } from './PostKeyword';
 
 @Entity()
 export class Post {
@@ -81,6 +82,9 @@ export class Post {
 
   @OneToMany(() => PostTag, (tag) => tag.post, { lazy: true })
   tags: Promise<PostTag[]>;
+
+  @OneToMany(() => PostKeyword, (keyword) => keyword.post, { lazy: true })
+  keywords: Promise<PostKeyword[]>;
 
   @Column({ type: 'text', nullable: true })
   @Index('IDX_tags')

@@ -1,6 +1,6 @@
 import shortid from 'shortid';
 import { Connection, In, MoreThan } from 'typeorm';
-import { Post, PostTag, TagCount, User } from '../entity';
+import { Post, PostKeyword, PostTag, TagCount, User } from '../entity';
 import { messageToJson, Worker } from './worker';
 import { getPostsIndex, notifyPostAuthorMatched } from '../common';
 import { Logger } from 'fastify';
@@ -20,6 +20,7 @@ interface AddPostData {
   creatorTwitter?: string;
   readTime?: number;
   canonicalUrl?: string;
+  keywords?: string[];
 }
 
 interface AlgoliaPost {
@@ -103,6 +104,14 @@ const addPost = async (
         await entityManager.getRepository(PostTag).insert(
           data.tags.map((t) => ({
             tag: t,
+            postId: data.id,
+          })),
+        );
+      }
+      if (data.keywords?.length) {
+        await entityManager.getRepository(PostKeyword).insert(
+          data.keywords.map((keyword) => ({
+            keyword,
             postId: data.id,
           })),
         );
