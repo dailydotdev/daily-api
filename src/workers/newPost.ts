@@ -200,11 +200,12 @@ const worker: Worker = {
         },
         'failed to add post to db',
       );
-      // Foreign / unique / null violation
+      // Foreign / unique / null violation / index row size
       if (
         err?.code === '23502' ||
         err?.code === '23503' ||
-        err?.code === '23505'
+        err?.code === '23505' ||
+        err?.code === '54000'
       ) {
         return;
       }
