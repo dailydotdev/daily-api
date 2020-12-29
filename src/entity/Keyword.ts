@@ -29,4 +29,8 @@ export class Keyword {
   @UpdateDateColumn()
   @Index('IDX_keyword_updatedAt')
   updatedAt: Date;
+
+  @Column({ default: 0 })
+  @Index('IDX_keyword_occurrences')
+  occurrences: number;
 }
