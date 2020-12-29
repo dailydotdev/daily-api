@@ -164,7 +164,7 @@ it('should save keywords', async () => {
   expect(keywords).toMatchSnapshot();
 });
 
-it('should do nothing if keyword already exists', async () => {
+it('should increase occurrences by one when keyword exists', async () => {
   await con.getRepository(Keyword).save([{ value: 'nodejs', status: 'allow' }]);
   await expectSuccessfulBackground(app, worker, {
     id: 'p1',
@@ -178,9 +178,10 @@ it('should do nothing if keyword already exists', async () => {
   const postKeywords = await con
     .getRepository(PostKeyword)
     .find({ select: ['keyword'], order: { keyword: 'ASC' } });
-  const keywords = await con
-    .getRepository(Keyword)
-    .find({ select: ['value', 'status'], order: { value: 'ASC' } });
+  const keywords = await con.getRepository(Keyword).find({
+    select: ['value', 'status', 'occurrences'],
+    order: { value: 'ASC' },
+  });
   expect(posts.length).toEqual(1);
   expect(postKeywords).toMatchSnapshot();
   expect(keywords).toMatchSnapshot();

@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`should do nothing if keyword already exists 1`] = `
+exports[`should increase occurrences by one when keyword exists 1`] = `
 Array [
   PostKeyword {
     "keyword": "nodejs",
@@ -11,13 +11,15 @@ Array [
 ]
 `;
 
-exports[`should do nothing if keyword already exists 2`] = `
+exports[`should increase occurrences by one when keyword exists 2`] = `
 Array [
   Keyword {
+    "occurrences": 1,
     "status": "allow",
     "value": "nodejs",
   },
   Keyword {
+    "occurrences": 0,
     "status": "pending",
     "value": "vue",
   },
