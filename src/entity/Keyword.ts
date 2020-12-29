@@ -30,7 +30,7 @@ export class Keyword {
   @Index('IDX_keyword_updatedAt')
   updatedAt: Date;
 
-  @Column({ default: 0 })
+  @Column({ default: 1 })
   @Index('IDX_keyword_occurrences')
   occurrences: number;
 }

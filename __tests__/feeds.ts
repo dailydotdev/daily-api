@@ -31,6 +31,7 @@ import {
   View,
   BookmarkList,
   User,
+  PostKeyword,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
@@ -253,6 +254,29 @@ describe('query tagFeed', () => {
   }`;
 
   it('should return a single tag feed', async () => {
+    const res = await client.query({ query: QUERY('javascript') });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query keywordFeed', () => {
+  const QUERY = (
+    keyword: string,
+    ranking: Ranking = Ranking.POPULARITY,
+    first = 10,
+  ): string => `{
+    keywordFeed(keyword: "${keyword}", ranking: ${ranking}, first: ${first}) {
+      ${feedFields}
+    }
+  }`;
+
+  it('should return a single keyword feed', async () => {
+    await con.getRepository(PostKeyword).save(
+      postTagsFixture.map((postTag) => ({
+        keyword: postTag.tag,
+        postId: postTag.postId,
+      })),
+    );
     const res = await client.query({ query: QUERY('javascript') });
     expect(res.data).toMatchSnapshot();
   });

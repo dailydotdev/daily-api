@@ -14,6 +14,7 @@ import {
   searchPostsForFeed,
   sourceFeedBuilder,
   tagFeedBuilder,
+  whereKeyword,
 } from '../common';
 import { In, SelectQueryBuilder } from 'typeorm';
 import {
@@ -203,6 +204,31 @@ export const typeDefs = gql`
     ): PostConnection!
 
     """
+    Get a single keyword feed
+    """
+    keywordFeed(
+      """
+      The keyword to fetch
+      """
+      keyword: String!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Ranking criteria for the feed
+      """
+      ranking: Ranking = POPULARITY
+    ): PostConnection!
+
+    """
     Get the user's default feed settings
     """
     feedSettings: FeedSettings! @auth
@@ -350,6 +376,10 @@ interface TagFeedArgs extends FeedArgs {
   tag: string;
 }
 
+interface KeywordFeedArgs extends FeedArgs {
+  keyword: string;
+}
+
 interface AuthorFeedArgs extends FeedArgs {
   author: string;
 }
@@ -461,6 +491,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     tagFeed: feedResolver(
       (ctx, { tag }: TagFeedArgs, builder, alias) =>
         tagFeedBuilder(ctx, tag, builder, alias),
+      feedPageGenerator,
+      applyFeedPaging,
+    ),
+    keywordFeed: feedResolver(
+      (ctx, { keyword }: KeywordFeedArgs, builder, alias) =>
+        builder.andWhere((subBuilder) =>
+          whereKeyword(keyword, subBuilder, alias),
+        ),
       feedPageGenerator,
       applyFeedPaging,
     ),
