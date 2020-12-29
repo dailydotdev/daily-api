@@ -11,6 +11,7 @@ import {
   FeedSource,
   SourceDisplay,
   HiddenPost,
+  PostKeyword,
 } from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
@@ -28,6 +29,21 @@ export const whereTags = (
     .from(PostTag, 't')
     .where(`t.tag IN (:...tags)`, { tags })
     .andWhere(`t.postId = ${alias}.id`)
+    .getQuery();
+  return `EXISTS${query}`;
+};
+
+export const whereKeyword = (
+  keyword: string,
+  builder: SelectQueryBuilder<Post>,
+  alias: string,
+): string => {
+  const query = builder
+    .subQuery()
+    .select('1')
+    .from(PostKeyword, 'pk')
+    .where(`pk.keyword = :keyword`, { keyword })
+    .andWhere(`pk."postId" = ${alias}.id`)
     .getQuery();
   return `EXISTS${query}`;
 };

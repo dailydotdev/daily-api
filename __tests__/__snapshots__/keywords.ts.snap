@@ -1,0 +1,176 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`mutation allowKeyword should allow existing keyword 1`] = `
+Array [
+  Keyword {
+    "occurrences": 20,
+    "status": "allow",
+    "value": "java",
+  },
+]
+`;
+
+exports[`mutation allowKeyword should create a new keyword and allow it 1`] = `
+Array [
+  Keyword {
+    "occurrences": 1,
+    "status": "allow",
+    "value": "java",
+  },
+]
+`;
+
+exports[`mutation denyKeyword should create a new keyword and deny it 1`] = `
+Array [
+  Keyword {
+    "occurrences": 1,
+    "status": "deny",
+    "value": "java",
+  },
+]
+`;
+
+exports[`mutation denyKeyword should deny existing keyword 1`] = `
+Array [
+  Keyword {
+    "occurrences": 20,
+    "status": "deny",
+    "value": "java",
+  },
+]
+`;
+
+exports[`mutation setKeywordAsSynonym should create keywords if they do not exist 1`] = `
+Array [
+  Keyword {
+    "occurrences": 1,
+    "status": "synonym",
+    "value": "react",
+  },
+  Keyword {
+    "occurrences": 1,
+    "status": "allow",
+    "value": "reactjs",
+  },
+]
+`;
+
+exports[`mutation setKeywordAsSynonym should create keywords if they do not exist 2`] = `
+Array [
+  PostKeyword {
+    "keyword": "javascript",
+    "postId": "p1",
+  },
+  PostKeyword {
+    "keyword": "reactjs",
+    "postId": "p1",
+  },
+  PostKeyword {
+    "keyword": "reactjs",
+    "postId": "p2",
+  },
+  PostKeyword {
+    "keyword": "typescript",
+    "postId": "p2",
+  },
+  PostKeyword {
+    "keyword": "reactjs",
+    "postId": "p3",
+  },
+]
+`;
+
+exports[`mutation setKeywordAsSynonym should ignore duplicates keywords when renaming 1`] = `
+Array [
+  PostKeyword {
+    "keyword": "javascript",
+    "postId": "p1",
+  },
+  PostKeyword {
+    "keyword": "reactjs",
+    "postId": "p1",
+  },
+  PostKeyword {
+    "keyword": "reactjs",
+    "postId": "p2",
+  },
+  PostKeyword {
+    "keyword": "typescript",
+    "postId": "p2",
+  },
+  PostKeyword {
+    "keyword": "reactjs",
+    "postId": "p3",
+  },
+]
+`;
+
+exports[`mutation setKeywordAsSynonym should set keyword as synonym and rename existing occurrences 1`] = `
+Array [
+  Keyword {
+    "occurrences": 100,
+    "status": "synonym",
+    "value": "react",
+  },
+  Keyword {
+    "occurrences": 20,
+    "status": "allow",
+    "value": "reactjs",
+  },
+]
+`;
+
+exports[`mutation setKeywordAsSynonym should set keyword as synonym and rename existing occurrences 2`] = `
+Array [
+  PostKeyword {
+    "keyword": "javascript",
+    "postId": "p1",
+  },
+  PostKeyword {
+    "keyword": "reactjs",
+    "postId": "p1",
+  },
+  PostKeyword {
+    "keyword": "reactjs",
+    "postId": "p2",
+  },
+  PostKeyword {
+    "keyword": "typescript",
+    "postId": "p2",
+  },
+  PostKeyword {
+    "keyword": "reactjs",
+    "postId": "p3",
+  },
+]
+`;
+
+exports[`query randomPendingKeyword should return an eligible pending keyword 1`] = `
+Object {
+  "randomPendingKeyword": Object {
+    "occurrences": 100,
+    "status": "pending",
+    "value": "go",
+  },
+}
+`;
+
+exports[`query searchKeywords should return search results 1`] = `
+Object {
+  "searchKeywords": Object {
+    "hits": Array [
+      Object {
+        "occurrences": 80,
+        "status": "allow",
+        "value": "nativescript",
+      },
+      Object {
+        "occurrences": 20,
+        "status": "allow",
+        "value": "javascript",
+      },
+    ],
+    "query": "script",
+  },
+}
+`;
