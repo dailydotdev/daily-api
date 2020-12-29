@@ -20,7 +20,7 @@ export class Settings {
   @Column({ default: true })
   appInsaneMode: boolean;
 
-  @Column({ type: 'text', default: 'roomy' })
+  @Column({ type: 'text', default: 'eco' })
   spaciness: string;
 
   @Column({ default: false })

@@ -8,6 +8,7 @@ import appFunc from '../../src/background';
 import worker from '../../src/workers/newPost';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import {
+  Keyword,
   Post,
   PostKeyword,
   PostTag,
@@ -152,10 +153,61 @@ it('should save keywords', async () => {
   });
   expect(saveObjectMock).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
-  const keywords = await con
+  const postKeywords = await con
     .getRepository(PostKeyword)
     .find({ select: ['keyword'], order: { keyword: 'ASC' } });
+  const keywords = await con
+    .getRepository(Keyword)
+    .find({ select: ['value', 'status'], order: { value: 'ASC' } });
   expect(posts.length).toEqual(1);
+  expect(postKeywords).toMatchSnapshot();
+  expect(keywords).toMatchSnapshot();
+});
+
+it('should do nothing if keyword already exists', async () => {
+  await con.getRepository(Keyword).save([{ value: 'nodejs', status: 'allow' }]);
+  await expectSuccessfulBackground(app, worker, {
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.com',
+    publicationId: 'a',
+    keywords: ['vue', 'nodejs'],
+  });
+  expect(saveObjectMock).toBeCalledTimes(1);
+  const posts = await con.getRepository(Post).find();
+  const postKeywords = await con
+    .getRepository(PostKeyword)
+    .find({ select: ['keyword'], order: { keyword: 'ASC' } });
+  const keywords = await con
+    .getRepository(Keyword)
+    .find({ select: ['value', 'status'], order: { value: 'ASC' } });
+  expect(posts.length).toEqual(1);
+  expect(postKeywords).toMatchSnapshot();
+  expect(keywords).toMatchSnapshot();
+});
+
+it('should replace synonym keywords', async () => {
+  await con.getRepository(Keyword).save([
+    { value: 'node', status: 'synonym', synonym: 'nodejs' },
+    { value: 'nodejs', status: 'allow' },
+  ]);
+  await expectSuccessfulBackground(app, worker, {
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.com',
+    publicationId: 'a',
+    keywords: ['vue', 'node'],
+  });
+  expect(saveObjectMock).toBeCalledTimes(1);
+  const posts = await con.getRepository(Post).find();
+  const postKeywords = await con
+    .getRepository(PostKeyword)
+    .find({ select: ['keyword'], order: { keyword: 'ASC' } });
+  const keywords = await con
+    .getRepository(Keyword)
+    .find({ select: ['value', 'status'], order: { value: 'ASC' } });
+  expect(posts.length).toEqual(1);
+  expect(postKeywords).toMatchSnapshot();
   expect(keywords).toMatchSnapshot();
 });
 
@@ -169,8 +221,10 @@ it('should handle empty keywords array', async () => {
   });
   expect(saveObjectMock).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
-  const keywords = await con.getRepository(PostKeyword).find();
+  const postKeywords = await con.getRepository(PostKeyword).find();
+  const keywords = await con.getRepository(Keyword).find();
   expect(posts.length).toEqual(1);
+  expect(postKeywords.length).toEqual(0);
   expect(keywords.length).toEqual(0);
 });
 

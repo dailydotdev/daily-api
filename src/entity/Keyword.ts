@@ -1,10 +1,12 @@
-import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  PrimaryColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
-export enum KeywordStatus {
-  PENDING = 'pending',
-  ALLOW = 'allow',
-  DENY = 'deny',
-}
+export type KeywordStatus = 'pending' | 'allow' | 'deny' | 'synonym';
 
 @Entity()
 export class Keyword {
@@ -13,14 +15,18 @@ export class Keyword {
   value: string;
 
   @Column({
-    type: 'enum',
-    enum: KeywordStatus,
-    default: KeywordStatus.PENDING,
+    default: 'pending',
   })
   @Index('IDX_keyword_status')
   status: KeywordStatus;
 
   @Column({ default: () => 'now()' })
-  @Index('IDX_keyword_createdAt')
   createdAt: Date;
+
+  @Column({ type: 'text', nullable: true })
+  synonym?: string;
+
+  @UpdateDateColumn()
+  @Index('IDX_keyword_updatedAt')
+  updatedAt: Date;
 }

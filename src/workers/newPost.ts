@@ -1,6 +1,6 @@
 import shortid from 'shortid';
 import { Connection, In, MoreThan } from 'typeorm';
-import { Post, PostKeyword, PostTag, TagCount, User } from '../entity';
+import { Keyword, Post, PostKeyword, PostTag, TagCount, User } from '../entity';
 import { messageToJson, Worker } from './worker';
 import { getPostsIndex, notifyPostAuthorMatched } from '../common';
 import { Logger } from 'fastify';
@@ -109,8 +109,29 @@ const addPost = async (
         );
       }
       if (data.keywords?.length) {
+        const synonymKeywords = await entityManager
+          .getRepository(Keyword)
+          .find({
+            where: {
+              status: 'synonym',
+              value: In(data.keywords),
+            },
+          });
+        const keywords = data.keywords.map((keyword) => {
+          const synonym = synonymKeywords.find(
+            (synonym) => synonym.value === keyword && synonym.synonym,
+          );
+          return synonym?.synonym ?? keyword;
+        });
+        await entityManager
+          .createQueryBuilder()
+          .insert()
+          .into(Keyword)
+          .values(keywords.map((keyword) => ({ value: keyword })))
+          .onConflict(`("value") DO NOTHING`)
+          .execute();
         await entityManager.getRepository(PostKeyword).insert(
-          data.keywords.map((keyword) => ({
+          keywords.map((keyword) => ({
             keyword,
             postId: data.id,
           })),

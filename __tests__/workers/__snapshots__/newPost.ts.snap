@@ -1,5 +1,29 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`should do nothing if keyword already exists 1`] = `
+Array [
+  PostKeyword {
+    "keyword": "nodejs",
+  },
+  PostKeyword {
+    "keyword": "vue",
+  },
+]
+`;
+
+exports[`should do nothing if keyword already exists 2`] = `
+Array [
+  Keyword {
+    "status": "allow",
+    "value": "nodejs",
+  },
+  Keyword {
+    "status": "pending",
+    "value": "vue",
+  },
+]
+`;
+
 exports[`should match post to author 1`] = `
 Object {
   "authorId": "1",
@@ -90,6 +114,34 @@ Object {
 }
 `;
 
+exports[`should replace synonym keywords 1`] = `
+Array [
+  PostKeyword {
+    "keyword": "nodejs",
+  },
+  PostKeyword {
+    "keyword": "vue",
+  },
+]
+`;
+
+exports[`should replace synonym keywords 2`] = `
+Array [
+  Keyword {
+    "status": "synonym",
+    "value": "node",
+  },
+  Keyword {
+    "status": "allow",
+    "value": "nodejs",
+  },
+  Keyword {
+    "status": "pending",
+    "value": "vue",
+  },
+]
+`;
+
 exports[`should save a new post with basic information 1`] = `
 Object {
   "authorId": null,
@@ -171,6 +223,19 @@ Array [
   },
   PostKeyword {
     "keyword": "vue",
+  },
+]
+`;
+
+exports[`should save keywords 2`] = `
+Array [
+  Keyword {
+    "status": "pending",
+    "value": "nodejs",
+  },
+  Keyword {
+    "status": "pending",
+    "value": "vue",
   },
 ]
 `;
