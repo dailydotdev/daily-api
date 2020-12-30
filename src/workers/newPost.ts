@@ -59,13 +59,13 @@ const addPost = async (
       const tags =
         data.tags?.length > 0
           ? await entityManager.getRepository(TagCount).find({
-              where: {
-                count: MoreThan(10),
-                tag: In(data.tags),
-              },
-              order: { count: 'DESC' },
-              take: 5,
-            })
+            where: {
+              count: MoreThan(10),
+              tag: In(data.tags),
+            },
+            order: { count: 'DESC' },
+            take: 5,
+          })
           : null;
       let authorId = null;
       if (data.creatorTwitter) {
@@ -117,19 +117,19 @@ const addPost = async (
               value: In(data.keywords),
             },
           });
-        const keywords = data.keywords.map((keyword) => {
+        const keywords = Array.from(new Set(data.keywords.map((keyword) => {
           const synonym = synonymKeywords.find(
             (synonym) => synonym.value === keyword && synonym.synonym,
           );
           return synonym?.synonym ?? keyword;
-        });
+        })));
         await entityManager
           .createQueryBuilder()
           .insert()
           .into(Keyword)
           .values(keywords.map((keyword) => ({ value: keyword })))
           .onConflict(
-            `("value") DO NOTHING`,
+            `("value") DO UPDATE SET occurrences = keyword.occurrences + 1`,
           )
           .execute();
         await entityManager.getRepository(PostKeyword).insert(

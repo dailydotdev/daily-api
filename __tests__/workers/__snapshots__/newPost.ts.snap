@@ -1,5 +1,29 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`should handle duplicate keywords 1`] = `
+Array [
+  PostKeyword {
+    "keyword": "nodejs",
+  },
+  PostKeyword {
+    "keyword": "vue",
+  },
+]
+`;
+
+exports[`should handle duplicate keywords 2`] = `
+Array [
+  Keyword {
+    "status": "pending",
+    "value": "nodejs",
+  },
+  Keyword {
+    "status": "pending",
+    "value": "vue",
+  },
+]
+`;
+
 exports[`should increase occurrences by one when keyword exists 1`] = `
 Array [
   PostKeyword {

@@ -187,6 +187,27 @@ it('should increase occurrences by one when keyword exists', async () => {
   expect(keywords).toMatchSnapshot();
 });
 
+it('should handle duplicate keywords', async () => {
+  await expectSuccessfulBackground(app, worker, {
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.com',
+    publicationId: 'a',
+    keywords: ['vue', 'nodejs', 'vue'],
+  });
+  expect(saveObjectMock).toBeCalledTimes(1);
+  const posts = await con.getRepository(Post).find();
+  const postKeywords = await con
+    .getRepository(PostKeyword)
+    .find({ select: ['keyword'], order: { keyword: 'ASC' } });
+  const keywords = await con
+    .getRepository(Keyword)
+    .find({ select: ['value', 'status'], order: { value: 'ASC' } });
+  expect(posts.length).toEqual(1);
+  expect(postKeywords).toMatchSnapshot();
+  expect(keywords).toMatchSnapshot();
+});
+
 it('should replace synonym keywords', async () => {
   await con.getRepository(Keyword).save([
     { value: 'node', status: 'synonym', synonym: 'nodejs' },
