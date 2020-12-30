@@ -129,7 +129,7 @@ const addPost = async (
           .into(Keyword)
           .values(keywords.map((keyword) => ({ value: keyword })))
           .onConflict(
-            `("value") DO UPDATE SET occurrences = keyword.occurrences + 1`,
+            `("value") DO NOTHING`,
           )
           .execute();
         await entityManager.getRepository(PostKeyword).insert(
