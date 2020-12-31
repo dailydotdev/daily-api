@@ -129,7 +129,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
               query: `%${query}%`,
             })
             .orderBy(`${builder.alias}.occurrences`, 'DESC')
-            .limit(50);
+            .limit(100);
           return builder;
         },
       );
