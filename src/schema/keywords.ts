@@ -73,7 +73,7 @@ export const typeDefs = gql`
     Search in the allowed keywords list
     """
     searchKeywords(query: String!): KeywordSearchResults
-    @auth(requires: [MODERATOR])
+      @auth(requires: [MODERATOR])
     """
     Get a keyword
     """
@@ -123,11 +123,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       }
       return null;
     },
-    countPendingKeywords: async (
-      source,
-      args,
-      ctx,
-    ): Promise<Number> => {
+    countPendingKeywords: async (source, args, ctx): Promise<number> => {
       return ctx.con.getRepository(Keyword).count({
         occurrences: MoreThanOrEqual(PENDING_THRESHOLD),
         status: 'pending',
@@ -167,7 +163,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ): Promise<GQLKeyword | null> => {
       const res = await graphorm.query<GQLKeyword>(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder
-          .andWhere(`${builder.alias}.value = :value`, {value})
+          .andWhere(`${builder.alias}.value = :value`, { value })
           .limit(1);
         return builder;
       });

@@ -170,12 +170,10 @@ describe('query keyword', () => {
   it('should return keyword', async () => {
     roles = [Roles.Moderator];
     loggedUser = '1';
-    await con
-      .getRepository(Keyword)
-      .save([
-        { value: 'nodejs', status: 'allow', occurrences: 200 },
-        { value: 'react', occurrences: 300 },
-      ]);
+    await con.getRepository(Keyword).save([
+      { value: 'nodejs', status: 'allow', occurrences: 200 },
+      { value: 'react', occurrences: 300 },
+    ]);
     const res = await client.query({
       query: QUERY,
       variables: { value: 'nodejs' },
@@ -187,12 +185,10 @@ describe('query keyword', () => {
   it('should return null when keyword does not exist', async () => {
     roles = [Roles.Moderator];
     loggedUser = '1';
-    await con
-      .getRepository(Keyword)
-      .save([
-        { value: 'nodejs', status: 'allow', occurrences: 200 },
-        { value: 'react', occurrences: 300 },
-      ]);
+    await con.getRepository(Keyword).save([
+      { value: 'nodejs', status: 'allow', occurrences: 200 },
+      { value: 'react', occurrences: 300 },
+    ]);
     const res = await client.query({
       query: QUERY,
       variables: { value: 'go' },
