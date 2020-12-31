@@ -5,6 +5,7 @@ import { Keyword, KeywordStatus, PostKeyword } from '../entity';
 import graphorm from '../graphorm';
 import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 import { GQLEmptyResponse } from './common';
+import { MoreThanOrEqual } from 'typeorm';
 
 interface GQLKeyword {
   value: string;
@@ -65,10 +66,18 @@ export const typeDefs = gql`
     """
     randomPendingKeyword: Keyword @auth(requires: [MODERATOR])
     """
+    Count the number of pending keywords
+    """
+    countPendingKeywords: Int @auth(requires: [MODERATOR])
+    """
     Search in the allowed keywords list
     """
     searchKeywords(query: String!): KeywordSearchResults
       @auth(requires: [MODERATOR])
+    """
+    Get a keyword
+    """
+    keyword(value: String!): Keyword @auth(requires: [MODERATOR])
   }
 
   extend type Mutation {
@@ -90,6 +99,8 @@ export const typeDefs = gql`
   }
 `;
 
+const PENDING_THRESHOLD = 10;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
@@ -101,7 +112,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ): Promise<GQLKeyword | null> => {
       const res = await graphorm.query<GQLKeyword>(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder
-          .andWhere(`${builder.alias}.occurrences >= 10`)
+          .andWhere(`${builder.alias}.occurrences >= ${PENDING_THRESHOLD}`)
           .andWhere(`${builder.alias}.status = 'pending'`)
           .orderBy(`${builder.alias}.occurrences`, 'DESC')
           .limit(30);
@@ -111,6 +122,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         return res[Math.floor(Math.random() * res.length)];
       }
       return null;
+    },
+    countPendingKeywords: async (source, args, ctx): Promise<number> => {
+      return ctx.con.getRepository(Keyword).count({
+        occurrences: MoreThanOrEqual(PENDING_THRESHOLD),
+        status: 'pending',
+      });
     },
     searchKeywords: async (
       source,
@@ -137,6 +154,20 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         query,
         hits,
       };
+    },
+    keyword: async (
+      source,
+      { value }: { value: string },
+      ctx,
+      info,
+    ): Promise<GQLKeyword | null> => {
+      const res = await graphorm.query<GQLKeyword>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`${builder.alias}.value = :value`, { value })
+          .limit(1);
+        return builder;
+      });
+      return res?.[0] ?? null;
     },
   },
   Mutation: {
@@ -180,10 +211,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         });
         await entityManager.query(
           `insert into post_keyword
-                                   select "postId", $1 as keyword
-                                   from post_keyword
-                                   where keyword = $2
-                                   on conflict ("postId", "keyword") do nothing`,
+           select "postId", $1 as keyword
+           from post_keyword
+           where keyword = $2
+           on conflict ("postId", "keyword") do nothing`,
           [originalKeyword, keywordToUpdate],
         );
         await entityManager.delete(PostKeyword, { keyword: keywordToUpdate });
