@@ -96,6 +96,31 @@ describe('query randomPendingKeyword', () => {
   });
 });
 
+describe('query countPendingKeywords', () => {
+  const QUERY = `{ countPendingKeywords }`;
+
+  it('should not authorize when not moderator', () =>
+    testModeratorQueryAuthorization({
+      query: QUERY,
+    }));
+
+  it('should return the number of pending keywords', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    await con
+      .getRepository(Keyword)
+      .save([
+        { value: 'nodejs', status: 'allow', occurrences: 200 },
+        { value: 'react', occurrences: 300 },
+        { value: 'go', occurrences: 100 },
+        { value: 'vuejs' },
+      ]);
+    const res = await client.query({ query: QUERY });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.countPendingKeywords).toEqual(2);
+  });
+});
+
 describe('query searchKeywords', () => {
   const QUERY = `
   query SearchKeywords($query: String!) {
@@ -122,6 +147,55 @@ describe('query searchKeywords', () => {
     const res = await client.query({
       query: QUERY,
       variables: { query: 'script' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query keyword', () => {
+  const QUERY = `
+  query Keyword($value: String!) {
+    keyword(value: $value) {
+      value, status, occurrences
+    }
+  }`;
+
+  it('should not authorize when not moderator', () =>
+    testModeratorQueryAuthorization({
+      query: QUERY,
+      variables: { value: 'nodejs' },
+    }));
+
+  it('should return keyword', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    await con
+      .getRepository(Keyword)
+      .save([
+        { value: 'nodejs', status: 'allow', occurrences: 200 },
+        { value: 'react', occurrences: 300 },
+      ]);
+    const res = await client.query({
+      query: QUERY,
+      variables: { value: 'nodejs' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return null when keyword does not exist', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    await con
+      .getRepository(Keyword)
+      .save([
+        { value: 'nodejs', status: 'allow', occurrences: 200 },
+        { value: 'react', occurrences: 300 },
+      ]);
+    const res = await client.query({
+      query: QUERY,
+      variables: { value: 'go' },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();

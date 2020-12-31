@@ -145,6 +145,22 @@ Array [
 ]
 `;
 
+exports[`query keyword should return keyword 1`] = `
+Object {
+  "keyword": Object {
+    "occurrences": 200,
+    "status": "allow",
+    "value": "nodejs",
+  },
+}
+`;
+
+exports[`query keyword should return null when keyword does not exist 1`] = `
+Object {
+  "keyword": null,
+}
+`;
+
 exports[`query randomPendingKeyword should return an eligible pending keyword 1`] = `
 Object {
   "randomPendingKeyword": Object {
