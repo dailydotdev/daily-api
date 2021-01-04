@@ -77,7 +77,7 @@
     "@types/ioredis": "^4.17.10",
     "@types/jest": "^26.0.19",
     "@types/jsonwebtoken": "^8.5.0",
-    "@types/lodash": "^4.14.166",
+    "@types/lodash": "^4.14.167",
     "@types/node": "^14.14.19",
     "@types/rss": "0.0.28",
     "@types/supertest": "^2.0.10",
