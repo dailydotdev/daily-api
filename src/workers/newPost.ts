@@ -1,5 +1,6 @@
 import shortid from 'shortid';
 import { Connection, In, MoreThan } from 'typeorm';
+import * as he from 'he';
 import { Keyword, Post, PostKeyword, PostTag, TagCount, User } from '../entity';
 import { messageToJson, Worker } from './worker';
 import { getPostsIndex, notifyPostAuthorMatched } from '../common';
@@ -119,12 +120,14 @@ const addPost = async (
           });
         const keywords = Array.from(
           new Set(
-            data.keywords.map((keyword) => {
-              const synonym = synonymKeywords.find(
-                (synonym) => synonym.value === keyword && synonym.synonym,
-              );
-              return synonym?.synonym ?? keyword;
-            }),
+            data.keywords
+              .map((keyword) => {
+                const synonym = synonymKeywords.find(
+                  (synonym) => synonym.value === keyword && synonym.synonym,
+                );
+                return synonym?.synonym ?? keyword;
+              })
+              .filter((keyword) => !keyword.match(/^\d+$/)),
           ),
         );
         await entityManager
@@ -203,6 +206,7 @@ const worker: Worker = {
     }
 
     data.id = shortid.generate();
+    data.title = he.decode(data.title);
     data.createdAt = new Date();
     data.readTime = parseReadTime(data.readTime);
     if (data.creatorTwitter === '' || data.creatorTwitter === '@') {

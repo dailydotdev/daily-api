@@ -24,6 +24,30 @@ Array [
 ]
 `;
 
+exports[`should ignore numerical only keywords 1`] = `
+Array [
+  PostKeyword {
+    "keyword": "nodejs",
+  },
+  PostKeyword {
+    "keyword": "vue",
+  },
+]
+`;
+
+exports[`should ignore numerical only keywords 2`] = `
+Array [
+  Keyword {
+    "status": "pending",
+    "value": "nodejs",
+  },
+  Keyword {
+    "status": "pending",
+    "value": "vue",
+  },
+]
+`;
+
 exports[`should increase occurrences by one when keyword exists 1`] = `
 Array [
   PostKeyword {
@@ -48,6 +72,36 @@ Array [
     "value": "vue",
   },
 ]
+`;
+
+exports[`should keep html-like text 1`] = `
+Object {
+  "authorId": null,
+  "canonicalUrl": null,
+  "comments": 0,
+  "createdAt": Any<Date>,
+  "creatorTwitter": null,
+  "id": Any<String>,
+  "image": null,
+  "lastTrending": null,
+  "placeholder": null,
+  "publishedAt": null,
+  "ratio": null,
+  "readTime": null,
+  "score": Any<Number>,
+  "sentAnalyticsReport": true,
+  "shortId": Any<String>,
+  "siteTwitter": null,
+  "sourceId": "a",
+  "tagsStr": null,
+  "title": "Here is my <progress> element",
+  "trending": null,
+  "tweeted": false,
+  "upvotes": 0,
+  "url": "https://post.com",
+  "views": 0,
+  "viewsThreshold": 0,
+}
 `;
 
 exports[`should match post to author 1`] = `
@@ -264,4 +318,34 @@ Array [
     "value": "vue",
   },
 ]
+`;
+
+exports[`should unescape html text 1`] = `
+Object {
+  "authorId": null,
+  "canonicalUrl": null,
+  "comments": 0,
+  "createdAt": Any<Date>,
+  "creatorTwitter": null,
+  "id": Any<String>,
+  "image": null,
+  "lastTrending": null,
+  "placeholder": null,
+  "publishedAt": null,
+  "ratio": null,
+  "readTime": null,
+  "score": Any<Number>,
+  "sentAnalyticsReport": true,
+  "shortId": Any<String>,
+  "siteTwitter": null,
+  "sourceId": "a",
+  "tagsStr": null,
+  "title": "It's ok jQuery, I still love you",
+  "trending": null,
+  "tweeted": false,
+  "upvotes": 0,
+  "url": "https://post.com",
+  "views": 0,
+  "viewsThreshold": 0,
+}
 `;
