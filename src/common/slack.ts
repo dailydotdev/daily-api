@@ -1,4 +1,4 @@
-import { IncomingWebhook } from '@slack/client';
+import { IncomingWebhook } from '@slack/webhook';
 import { Post } from '../entity';
 import { getDiscussionLink } from './links';
 
