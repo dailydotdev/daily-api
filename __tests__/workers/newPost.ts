@@ -164,6 +164,27 @@ it('should save keywords', async () => {
   expect(keywords).toMatchSnapshot();
 });
 
+it('should ignore numerical only keywords', async () => {
+  await expectSuccessfulBackground(app, worker, {
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.com',
+    publicationId: 'a',
+    keywords: ['vue', 'nodejs', '123'],
+  });
+  expect(saveObjectMock).toBeCalledTimes(1);
+  const posts = await con.getRepository(Post).find();
+  const postKeywords = await con
+    .getRepository(PostKeyword)
+    .find({ select: ['keyword'], order: { keyword: 'ASC' } });
+  const keywords = await con
+    .getRepository(Keyword)
+    .find({ select: ['value', 'status'], order: { value: 'ASC' } });
+  expect(posts.length).toEqual(1);
+  expect(postKeywords).toMatchSnapshot();
+  expect(keywords).toMatchSnapshot();
+});
+
 it('should increase occurrences by one when keyword exists', async () => {
   await con.getRepository(Keyword).save([{ value: 'nodejs', status: 'allow' }]);
   await expectSuccessfulBackground(app, worker, {
@@ -493,4 +514,60 @@ it('should not save post when author is banned', async () => {
   expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(0);
+});
+
+it('should unescape html text', async () => {
+  await expectSuccessfulBackground(app, worker, {
+    id: 'p1',
+    title: 'It&#039;s ok jQuery, I still love you',
+    url: 'https://post.com',
+    publicationId: 'a',
+  });
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(1);
+  expect(saveObjectMock).toBeCalledWith({
+    objectID: posts[0].id,
+    title: `It's ok jQuery, I still love you`,
+    createdAt: expect.any(Number),
+    views: 0,
+    readTime: undefined,
+    pubId: 'a',
+    _tags: undefined,
+  });
+  const tags = await con.getRepository(PostTag).find();
+  expect(tags.length).toEqual(0);
+  expect(posts[0]).toMatchSnapshot({
+    createdAt: expect.any(Date),
+    score: expect.any(Number),
+    id: expect.any(String),
+    shortId: expect.any(String),
+  });
+});
+
+it('should keep html-like text', async () => {
+  await expectSuccessfulBackground(app, worker, {
+    id: 'p1',
+    title: 'Here is my <progress> element',
+    url: 'https://post.com',
+    publicationId: 'a',
+  });
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(1);
+  expect(saveObjectMock).toBeCalledWith({
+    objectID: posts[0].id,
+    title: 'Here is my <progress> element',
+    createdAt: expect.any(Number),
+    views: 0,
+    readTime: undefined,
+    pubId: 'a',
+    _tags: undefined,
+  });
+  const tags = await con.getRepository(PostTag).find();
+  expect(tags.length).toEqual(0);
+  expect(posts[0]).toMatchSnapshot({
+    createdAt: expect.any(Date),
+    score: expect.any(Number),
+    id: expect.any(String),
+    shortId: expect.any(String),
+  });
 });
