@@ -28,6 +28,16 @@ const worker: Worker = {
       const comment = await con
         .getRepository(Comment)
         .findOne(data.commentId, { relations: ['post'] });
+      if (!comment) {
+        logger.info(
+          {
+            data,
+            messageId: message.id,
+          },
+          'comment does not exist',
+        );
+        return;
+      }
       const author = await fetchUser(comment.userId);
       const post = await comment.post;
       const title = upvoteTitles[comment.upvotes];

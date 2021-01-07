@@ -13,6 +13,16 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     try {
       const comment = await con.getRepository(Comment).findOne(data.commentId);
+      if (!comment) {
+        logger.info(
+          {
+            data,
+            messageId: message.id,
+          },
+          'comment does not exist',
+        );
+        return;
+      }
       if (comment.userId !== data.userId) {
         await increaseReputation(con, logger, comment.userId, 1);
         logger.info(
