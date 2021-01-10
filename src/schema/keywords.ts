@@ -99,7 +99,7 @@ export const typeDefs = gql`
   }
 `;
 
-const PENDING_THRESHOLD = 10;
+const PENDING_THRESHOLD = 25;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
