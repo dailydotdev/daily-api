@@ -5,7 +5,6 @@ import {
   Bookmark,
   FeedTag,
   Post,
-  PostTag,
   searchPosts,
   View,
   FeedSource,
@@ -26,9 +25,9 @@ export const whereTags = (
   const query = builder
     .subQuery()
     .select('1')
-    .from(PostTag, 't')
-    .where(`t.tag IN (:...tags)`, { tags })
-    .andWhere(`t.postId = ${alias}.id`)
+    .from(PostKeyword, 'pk')
+    .where(`pk.keyword IN (:...tags)`, { tags })
+    .andWhere(`pk.postId = ${alias}.id`)
     .getQuery();
   return `EXISTS${query}`;
 };
@@ -63,9 +62,9 @@ export const whereTagsInFeed = (
   const query = builder
     .subQuery()
     .select('1')
-    .from(PostTag, 't')
-    .where(`t.tag IN ${feedTag}`)
-    .andWhere(`t.postId = ${alias}.id`)
+    .from(PostKeyword, 'pk')
+    .where(`pk.keyword IN ${feedTag}`)
+    .andWhere(`pk.postId = ${alias}.id`)
     .getQuery();
 
   return `(NOT EXISTS${feedTag} OR EXISTS${query})`;

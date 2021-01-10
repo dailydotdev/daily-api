@@ -10,15 +10,17 @@ import {
   Bookmark,
   Feed,
   FeedTag,
-  Post,
-  PostTag,
+  Post, PostKeyword,
   Source,
   SourceDisplay,
   View,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
-import { postsFixture, postTagsFixture } from './fixture/post';
+import {
+  postKeywordsFixture,
+  postsFixture,
+} from './fixture/post';
 import { ApolloServer } from 'apollo-server-fastify';
 import { FeedSource } from '../src/entity';
 import { mocked } from 'ts-jest/utils';
@@ -50,7 +52,7 @@ beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
-  await saveFixtures(con, PostTag, postTagsFixture);
+  await saveFixtures(con, PostKeyword, postKeywordsFixture);
 });
 
 const saveFeedFixtures = async (): Promise<void> => {

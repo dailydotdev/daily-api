@@ -5,7 +5,7 @@ import { Keyword, KeywordStatus, PostKeyword } from '../entity';
 import graphorm from '../graphorm';
 import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 import { GQLEmptyResponse } from './common';
-import { MoreThanOrEqual } from 'typeorm';
+import { EntityManager, MoreThanOrEqual } from 'typeorm';
 
 interface GQLKeyword {
   value: string;
@@ -101,6 +101,23 @@ export const typeDefs = gql`
 
 const PENDING_THRESHOLD = 25;
 
+const updateTagsStrByKeyword = (
+  entityManager: EntityManager,
+  keyword: string,
+): Promise<void> =>
+  entityManager.query(
+    `update post
+          set "tagsStr" = res.tags
+          from (
+             select pk."postId", array_to_string((array_agg(pk.keyword order by k.occurrences desc, pk.keyword)), ',') as tags
+             from post_keyword pk
+             inner join keyword k on pk.keyword = k.value and k.status = 'allow'
+             group by pk."postId"
+          ) as res
+          where post.id = res."postId" and exists(select * from post_keyword pk where pk."postId" = post.id and pk.keyword = $1)`,
+    [keyword],
+  );
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
@@ -176,9 +193,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { keyword }: GQLKeywordArgs,
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await ctx.con.getRepository(Keyword).save({
-        value: keyword,
-        status: 'allow',
+      await ctx.con.transaction(async (entityManager) => {
+        await entityManager.getRepository(Keyword).save({
+          value: keyword,
+          status: 'allow',
+        });
+        await updateTagsStrByKeyword(entityManager, keyword);
       });
       return { _: true };
     },
@@ -187,9 +207,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { keyword }: GQLKeywordArgs,
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await ctx.con.getRepository(Keyword).save({
-        value: keyword,
-        status: 'deny',
+      await ctx.con.transaction(async (entityManager) => {
+        await entityManager.getRepository(Keyword).save({
+          value: keyword,
+          status: 'deny',
+        });
+        await updateTagsStrByKeyword(entityManager, keyword);
       });
       return { _: true };
     },
@@ -218,6 +241,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           [originalKeyword, keywordToUpdate],
         );
         await entityManager.delete(PostKeyword, { keyword: keywordToUpdate });
+        await updateTagsStrByKeyword(entityManager, originalKeyword);
       });
       return { _: true };
     },

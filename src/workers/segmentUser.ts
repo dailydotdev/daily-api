@@ -1,5 +1,5 @@
 import { Connection } from 'typeorm';
-import { View, TagSegment, PostTag } from '../entity';
+import { View, TagSegment, PostKeyword } from '../entity';
 import { messageToJson, Worker } from './worker';
 
 interface Data {
@@ -18,8 +18,8 @@ const findSegment = async (
     .createQueryBuilder()
     .select('ts.segment', 'segment')
     .from(View, 'v')
-    .innerJoin(PostTag, 'pt', 'v."postId" = pt."postId"')
-    .innerJoin(TagSegment, 'ts', 'ts.tag = pt.tag')
+    .innerJoin(PostKeyword, 'pk', 'v."postId" = pk."postId"')
+    .innerJoin(TagSegment, 'ts', 'ts.tag = pk.keyword')
     .where('extract(epoch from now() - v."timestamp")/86400 < 30')
     .andWhere('v."userId" = :userId', { userId })
     .groupBy('ts.segment')

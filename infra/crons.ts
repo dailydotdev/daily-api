@@ -42,10 +42,6 @@ export const crons: Cron[] = [
     schedule: '*/10 * * * *',
   },
   {
-    name: 'update-tags',
-    schedule: '33 3 * * 0',
-  },
-  {
     name: 'update-views',
     schedule: '*/10 * * * *',
   },

@@ -13,7 +13,6 @@ import {
   PostKeyword,
   PostTag,
   Source,
-  TagCount,
   User,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
@@ -80,10 +79,12 @@ it('should save a new post with basic information', async () => {
 it('should save a new post with full information', async () => {
   const timestamp = new Date(2020, 5, 11, 1, 17);
 
-  await con.getRepository(TagCount).save([
-    { tag: 'javascript', count: 20 },
-    { tag: 'html', count: 15 },
-    { tag: 'webdev', count: 5 },
+  await con.getRepository(Keyword).save([
+    { value: 'javascript', occurrences: 20, status: 'allow' },
+    { value: 'html', occurrences: 15, status: 'allow' },
+    { value: 'webdev', occurrences: 5 },
+    { value: 'js', occurrences: 5, status: 'synonym', synonym: 'javascript' },
+    { value: 'nodejs', occurrences: 5, status: 'deny' },
   ]);
   await expectSuccessfulBackground(app, worker, {
     id: 'p1',
@@ -95,6 +96,7 @@ it('should save a new post with full information', async () => {
     ratio: 2,
     placeholder: 'data:image/jpeg;base64,placeholder',
     tags: ['webdev', 'javascript', 'html'],
+    keywords: ['webdev', 'javascript', 'html', 'js', 'nodejs'],
     siteTwitter: 'site',
     creatorTwitter: 'creator',
     readTime: '5.123',

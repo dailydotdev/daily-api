@@ -5,9 +5,9 @@ import { mocked } from 'ts-jest/utils';
 import appFunc from '../../src/background';
 import worker from '../../src/workers/segmentUser';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
-import { Post, PostTag, Source, TagSegment, View } from '../../src/entity';
+import { Post, PostKeyword, Source, TagSegment, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { postsFixture, postTagsFixture } from '../fixture/post';
+import { postKeywordsFixture, postsFixture } from '../fixture/post';
 import { FastifyInstance } from 'fastify';
 
 let con: Connection;
@@ -36,7 +36,7 @@ const now = new Date();
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
-  await saveFixtures(con, PostTag, postTagsFixture);
+  await saveFixtures(con, PostKeyword, postKeywordsFixture);
   await con.getRepository(View).save([
     { userId: '1', timestamp: now, postId: postsFixture[0].id },
     {
