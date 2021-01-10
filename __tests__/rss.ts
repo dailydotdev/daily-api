@@ -11,7 +11,8 @@ import {
   FeedSource,
   Post,
   Source,
-  SourceDisplay, PostKeyword,
+  SourceDisplay,
+  PostKeyword,
 } from '../src/entity';
 import { saveFixtures } from './helpers';
 import { sourcesFixture } from './fixture/source';

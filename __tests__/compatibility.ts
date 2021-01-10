@@ -10,17 +10,15 @@ import {
   Bookmark,
   Feed,
   FeedTag,
-  Post, PostKeyword,
+  Post,
+  PostKeyword,
   Source,
   SourceDisplay,
   View,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
-import {
-  postKeywordsFixture,
-  postsFixture,
-} from './fixture/post';
+import { postKeywordsFixture, postsFixture } from './fixture/post';
 import { ApolloServer } from 'apollo-server-fastify';
 import { FeedSource } from '../src/entity';
 import { mocked } from 'ts-jest/utils';
