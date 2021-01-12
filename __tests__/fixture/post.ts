@@ -1,5 +1,5 @@
 import { DeepPartial } from 'typeorm';
-import { Post, PostTag } from '../../src/entity';
+import { Post, PostKeyword, PostTag } from '../../src/entity';
 
 const now = new Date();
 
@@ -91,5 +91,36 @@ export const postTagsFixture: DeepPartial<PostTag>[] = [
   {
     postId: postsFixture[4].id,
     tag: 'javascript',
+  },
+];
+
+export const postKeywordsFixture: DeepPartial<PostKeyword>[] = [
+  {
+    postId: postsFixture[0].id,
+    keyword: 'webdev',
+  },
+  {
+    postId: postsFixture[0].id,
+    keyword: 'javascript',
+  },
+  {
+    postId: postsFixture[3].id,
+    keyword: 'backend',
+  },
+  {
+    postId: postsFixture[3].id,
+    keyword: 'javascript',
+  },
+  {
+    postId: postsFixture[3].id,
+    keyword: 'data',
+  },
+  {
+    postId: postsFixture[4].id,
+    keyword: 'html',
+  },
+  {
+    postId: postsFixture[4].id,
+    keyword: 'javascript',
   },
 ];

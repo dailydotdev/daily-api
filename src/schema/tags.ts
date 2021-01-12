@@ -1,8 +1,7 @@
 import { gql, IResolvers } from 'apollo-server-fastify';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
-import { TagCount } from '../entity';
-import { MoreThan, Raw } from 'typeorm';
+import { Keyword } from '../entity';
 
 interface GQLTag {
   name: string;
@@ -52,30 +51,36 @@ export const typeDefs = gql`
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     popularTags: async (source, args, ctx): Promise<GQLTag[]> => {
-      const hits = await ctx.getRepository(TagCount).find({
-        select: ['tag'],
-        order: { count: 'DESC' },
-        take: 50,
+      const hits = await ctx.getRepository(Keyword).find({
+        select: ['value'],
+        order: { occurrences: 'DESC' },
+        where: { status: 'allow' },
+        take: 100,
       });
-      return hits.map((x) => ({ name: x.tag }));
+      return hits.map((x) => ({ name: x.value }));
     },
     searchTags: async (
       source,
       { query }: { query: string },
       ctx,
     ): Promise<GQLTagSearchResults> => {
-      const hits = await ctx.getRepository(TagCount).find({
-        select: ['tag'],
-        where: {
-          count: MoreThan(10),
-          tag: Raw((alias) => `${alias} ILIKE '%${query}%'`),
-        },
-        order: { count: 'DESC' },
-        take: 50,
-      });
+      const hits = await ctx
+        .getRepository(Keyword)
+        .createQueryBuilder()
+        .select('value')
+        .where(`status = 'allow'`)
+        .andWhere(
+          `value ilike :query or exists (select k2.value from keyword k2 where k2.status = 'synonym' and k2.synonym = "Keyword".value and k2.value ilike :query)`,
+          {
+            query: `%${query}%`,
+          },
+        )
+        .orderBy('occurrences', 'DESC')
+        .limit(100)
+        .getRawMany();
       return {
         query,
-        hits: hits.map((x) => ({ name: x.tag })),
+        hits: hits.map((x) => ({ name: x.value })),
       };
     },
   },

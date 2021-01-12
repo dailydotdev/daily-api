@@ -11,8 +11,8 @@ import createApolloServer from '../src/apollo';
 import { Context } from '../src/Context';
 import { MockContext, saveFixtures } from './helpers';
 import appFunc from '../src';
-import { TagCount } from '../src/entity';
-import { tagCountsFixture } from './fixture/tagCount';
+import { Keyword } from '../src/entity';
+import { keywordsFixture } from './fixture/keywords';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -34,7 +34,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
 
-  await saveFixtures(con, TagCount, tagCountsFixture);
+  await saveFixtures(con, Keyword, keywordsFixture);
 });
 
 afterAll(() => app.close());
@@ -64,6 +64,11 @@ describe('query searchTags', () => {
 
   it('should search for tags and order by count', async () => {
     const res = await client.query({ query: QUERY('dev') });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should take into account keyword synonyms', async () => {
+    const res = await client.query({ query: QUERY('web-dev') });
     expect(res.data).toMatchSnapshot();
   });
 });

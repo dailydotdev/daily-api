@@ -1,7 +1,7 @@
 import shortid from 'shortid';
-import { Connection, In, MoreThan } from 'typeorm';
+import { Connection, In } from 'typeorm';
 import * as he from 'he';
-import { Keyword, Post, PostKeyword, PostTag, TagCount, User } from '../entity';
+import { Keyword, Post, PostKeyword, PostTag, User } from '../entity';
 import { messageToJson, Worker } from './worker';
 import { getPostsIndex, notifyPostAuthorMatched } from '../common';
 import { Logger } from 'fastify';
@@ -57,15 +57,37 @@ const addPost = async (
 ): Promise<void> => {
   const res = await con.transaction(
     async (entityManager): Promise<Result> => {
+      let keywords: string[] = null;
+      if (data.keywords?.length > 0) {
+        const synonymKeywords = await entityManager
+          .getRepository(Keyword)
+          .find({
+            where: {
+              status: 'synonym',
+              value: In(data.keywords),
+            },
+          });
+        keywords = Array.from(
+          new Set(
+            data.keywords
+              .map((keyword) => {
+                const synonym = synonymKeywords.find(
+                  (synonym) => synonym.value === keyword && synonym.synonym,
+                );
+                return synonym?.synonym ?? keyword;
+              })
+              .filter((keyword) => !keyword.match(/^\d+$/)),
+          ),
+        );
+      }
       const tags =
-        data.tags?.length > 0
-          ? await entityManager.getRepository(TagCount).find({
+        keywords?.length > 0
+          ? await entityManager.getRepository(Keyword).find({
               where: {
-                count: MoreThan(10),
-                tag: In(data.tags),
+                status: 'allow',
+                value: In(keywords),
               },
-              order: { count: 'DESC' },
-              take: 5,
+              order: { occurrences: 'DESC' },
             })
           : null;
       let authorId = null;
@@ -96,7 +118,7 @@ const addPost = async (
         siteTwitter: data.siteTwitter,
         creatorTwitter: data.creatorTwitter,
         readTime: data.readTime,
-        tagsStr: tags?.map((t) => t.tag).join(','),
+        tagsStr: tags?.map((t) => t.value).join(','),
         canonicalUrl: data.canonicalUrl,
         authorId,
         sentAnalyticsReport: !authorId,
@@ -109,27 +131,7 @@ const addPost = async (
           })),
         );
       }
-      if (data.keywords?.length) {
-        const synonymKeywords = await entityManager
-          .getRepository(Keyword)
-          .find({
-            where: {
-              status: 'synonym',
-              value: In(data.keywords),
-            },
-          });
-        const keywords = Array.from(
-          new Set(
-            data.keywords
-              .map((keyword) => {
-                const synonym = synonymKeywords.find(
-                  (synonym) => synonym.value === keyword && synonym.synonym,
-                );
-                return synonym?.synonym ?? keyword;
-              })
-              .filter((keyword) => !keyword.match(/^\d+$/)),
-          ),
-        );
+      if (keywords?.length) {
         await entityManager
           .createQueryBuilder()
           .insert()

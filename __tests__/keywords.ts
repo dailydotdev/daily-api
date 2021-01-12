@@ -50,6 +50,10 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
   roles = [];
+
+  await saveFixtures(con, Source, sourcesFixture);
+  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
+  await saveFixtures(con, Post, postsFixture);
 });
 
 afterAll(() => app.close());
@@ -215,7 +219,18 @@ describe('mutation allowKeyword', () => {
   it('should allow existing keyword', async () => {
     roles = [Roles.Moderator];
     loggedUser = '1';
-    await con.getRepository(Keyword).save([{ value: 'java', occurrences: 20 }]);
+    await con.getRepository(Keyword).save([
+      { value: 'java', occurrences: 20 },
+      { value: 'javascript', occurrences: 10, status: 'allow' },
+      { value: 'nodejs', status: 'deny' },
+    ]);
+    await con.getRepository(PostKeyword).save([
+      { keyword: 'java', postId: 'p1' },
+      { keyword: 'javascript', postId: 'p1' },
+      { keyword: 'nodejs', postId: 'p1' },
+      { keyword: 'java', postId: 'p2' },
+      { keyword: 'javascript', postId: 'p3' },
+    ]);
     const res = await client.mutate({
       mutation: MUTATION,
       variables: { keyword: 'java' },
@@ -225,7 +240,12 @@ describe('mutation allowKeyword', () => {
       select: ['value', 'status', 'occurrences'],
       order: { value: 'ASC' },
     });
+    const posts = await con.getRepository(Post).find({
+      select: ['id', 'tagsStr'],
+      order: { id: 'ASC' },
+    });
     expect(keywords).toMatchSnapshot();
+    expect(posts).toMatchSnapshot();
   });
 
   it('should create a new keyword and allow it', async () => {
@@ -261,6 +281,18 @@ describe('mutation denyKeyword', () => {
   it('should deny existing keyword', async () => {
     roles = [Roles.Moderator];
     loggedUser = '1';
+    await con.getRepository(Keyword).save([
+      { value: 'java', occurrences: 20 },
+      { value: 'javascript', occurrences: 10, status: 'allow' },
+      { value: 'nodejs', status: 'deny' },
+    ]);
+    await con.getRepository(PostKeyword).save([
+      { keyword: 'java', postId: 'p1' },
+      { keyword: 'javascript', postId: 'p1' },
+      { keyword: 'nodejs', postId: 'p1' },
+      { keyword: 'java', postId: 'p2' },
+      { keyword: 'javascript', postId: 'p3' },
+    ]);
     await con.getRepository(Keyword).save([{ value: 'java', occurrences: 20 }]);
     const res = await client.mutate({
       mutation: MUTATION,
@@ -271,7 +303,12 @@ describe('mutation denyKeyword', () => {
       select: ['value', 'status', 'occurrences'],
       order: { value: 'ASC' },
     });
+    const posts = await con.getRepository(Post).find({
+      select: ['id', 'tagsStr'],
+      order: { id: 'ASC' },
+    });
     expect(keywords).toMatchSnapshot();
+    expect(posts).toMatchSnapshot();
   });
 
   it('should create a new keyword and deny it', async () => {
@@ -297,12 +334,6 @@ describe('mutation setKeywordAsSynonym', () => {
       _
     }
   }`;
-
-  beforeEach(async () => {
-    await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
-    await saveFixtures(con, Post, postsFixture);
-  });
 
   it('should not authorize when not moderator', () =>
     testModeratorMutationAuthorization({
@@ -339,8 +370,13 @@ describe('mutation setKeywordAsSynonym', () => {
         keyword: 'ASC',
       },
     });
+    const posts = await con.getRepository(Post).find({
+      select: ['id', 'tagsStr'],
+      order: { id: 'ASC' },
+    });
     expect(keywords).toMatchSnapshot();
     expect(postKeywords).toMatchSnapshot();
+    expect(posts).toMatchSnapshot();
   });
 
   it('should create keywords if they do not exist', async () => {

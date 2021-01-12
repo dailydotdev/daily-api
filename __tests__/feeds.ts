@@ -34,7 +34,11 @@ import {
   PostKeyword,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
-import { postsFixture, postTagsFixture } from './fixture/post';
+import {
+  postKeywordsFixture,
+  postsFixture,
+  postTagsFixture,
+} from './fixture/post';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 import { getPostsIndex, Ranking } from '../src/common';
 
@@ -67,6 +71,7 @@ beforeEach(async () => {
   await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
+  await saveFixtures(con, PostKeyword, postKeywordsFixture);
 });
 
 afterAll(() => app.close());
