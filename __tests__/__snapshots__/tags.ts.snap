@@ -75,11 +75,7 @@ Object {
 exports[`query searchTags should take into account keyword synonyms 1`] = `
 Object {
   "searchTags": Object {
-    "hits": Array [
-      Object {
-        "name": "webdev",
-      },
-    ],
+    "hits": Array [],
     "query": "web-dev",
   },
 }
