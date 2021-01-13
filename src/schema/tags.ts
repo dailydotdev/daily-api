@@ -55,7 +55,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         select: ['value'],
         order: { occurrences: 'DESC' },
         where: { status: 'allow' },
-        take: 100,
+        take: 300,
       });
       return hits.map((x) => ({ name: x.value }));
     },
@@ -69,14 +69,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         .createQueryBuilder()
         .select('value')
         .where(`status = 'allow'`)
-        .andWhere(
-          `value ilike :query or exists (select k2.value from keyword k2 where k2.status = 'synonym' and k2.synonym = "Keyword".value and k2.value ilike :query)`,
-          {
-            query: `%${query}%`,
-          },
-        )
+        .andWhere(`value ilike :query`, { query: `%${query}%` })
         .orderBy('occurrences', 'DESC')
-        .limit(100)
+        .limit(200)
         .getRawMany();
       return {
         query,
