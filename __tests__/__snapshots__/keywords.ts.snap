@@ -7,45 +7,6 @@ Array [
     "status": "allow",
     "value": "java",
   },
-  Keyword {
-    "occurrences": 10,
-    "status": "allow",
-    "value": "javascript",
-  },
-  Keyword {
-    "occurrences": 1,
-    "status": "deny",
-    "value": "nodejs",
-  },
-]
-`;
-
-exports[`mutation allowKeyword should allow existing keyword 2`] = `
-Array [
-  Post {
-    "id": "p1",
-    "tagsStr": "java,javascript",
-  },
-  Post {
-    "id": "p2",
-    "tagsStr": "java",
-  },
-  Post {
-    "id": "p3",
-    "tagsStr": null,
-  },
-  Post {
-    "id": "p4",
-    "tagsStr": "backend,data,javascript",
-  },
-  Post {
-    "id": "p5",
-    "tagsStr": "html,javascript",
-  },
-  Post {
-    "id": "p6",
-    "tagsStr": null,
-  },
 ]
 `;
 
@@ -75,45 +36,6 @@ Array [
     "occurrences": 20,
     "status": "deny",
     "value": "java",
-  },
-  Keyword {
-    "occurrences": 10,
-    "status": "allow",
-    "value": "javascript",
-  },
-  Keyword {
-    "occurrences": 1,
-    "status": "deny",
-    "value": "nodejs",
-  },
-]
-`;
-
-exports[`mutation denyKeyword should deny existing keyword 2`] = `
-Array [
-  Post {
-    "id": "p1",
-    "tagsStr": "javascript",
-  },
-  Post {
-    "id": "p2",
-    "tagsStr": null,
-  },
-  Post {
-    "id": "p3",
-    "tagsStr": null,
-  },
-  Post {
-    "id": "p4",
-    "tagsStr": "backend,data,javascript",
-  },
-  Post {
-    "id": "p5",
-    "tagsStr": "html,javascript",
-  },
-  Post {
-    "id": "p6",
-    "tagsStr": null,
   },
 ]
 `;

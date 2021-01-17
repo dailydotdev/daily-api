@@ -1,0 +1,30 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`should update post tagsStr when keyword status changes 1`] = `
+Array [
+  Post {
+    "id": "p1",
+    "tagsStr": "javascript",
+  },
+  Post {
+    "id": "p2",
+    "tagsStr": null,
+  },
+  Post {
+    "id": "p3",
+    "tagsStr": null,
+  },
+  Post {
+    "id": "p4",
+    "tagsStr": "backend,data,javascript",
+  },
+  Post {
+    "id": "p5",
+    "tagsStr": "html,javascript",
+  },
+  Post {
+    "id": "p6",
+    "tagsStr": null,
+  },
+]
+`;
