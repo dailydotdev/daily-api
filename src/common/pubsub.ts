@@ -15,7 +15,10 @@ const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
-const postReachedViewsThreshold = pubsub.topic('post-reached-views-threshold');
+const postReachedViewsThresholdTopic = pubsub.topic(
+  'post-reached-views-threshold',
+);
+const keywordUpdated = pubsub.topic('keyword-updated');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
@@ -155,7 +158,15 @@ export const notifyPostReachedViewsThreshold = async (
   postId: string,
   threshold: number,
 ): Promise<void> =>
-  publishEvent(log, postReachedViewsThreshold, {
+  publishEvent(log, postReachedViewsThresholdTopic, {
     postId,
     threshold,
+  });
+
+export const notifyKeywordUpdated = async (
+  log: EventLogger,
+  keyword: string,
+): Promise<void> =>
+  publishEvent(log, keywordUpdated, {
+    keyword,
   });

@@ -25,9 +25,16 @@ import {
   Source,
   SourceDisplay,
 } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
+import { mocked } from 'ts-jest/utils';
+import { notifyKeywordUpdated } from '../src/common';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
+import { sourcesFixture } from './fixture/source';
 import { postsFixture } from './fixture/post';
+
+jest.mock('../src/common/pubsub', () => ({
+  ...jest.requireActual('../src/common/pubsub'),
+  notifyKeywordUpdated: jest.fn(),
+}));
 
 let app: FastifyInstance;
 let con: Connection;
@@ -48,6 +55,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  jest.resetAllMocks();
   loggedUser = null;
   roles = [];
 
@@ -219,18 +227,7 @@ describe('mutation allowKeyword', () => {
   it('should allow existing keyword', async () => {
     roles = [Roles.Moderator];
     loggedUser = '1';
-    await con.getRepository(Keyword).save([
-      { value: 'java', occurrences: 20 },
-      { value: 'javascript', occurrences: 10, status: 'allow' },
-      { value: 'nodejs', status: 'deny' },
-    ]);
-    await con.getRepository(PostKeyword).save([
-      { keyword: 'java', postId: 'p1' },
-      { keyword: 'javascript', postId: 'p1' },
-      { keyword: 'nodejs', postId: 'p1' },
-      { keyword: 'java', postId: 'p2' },
-      { keyword: 'javascript', postId: 'p3' },
-    ]);
+    await con.getRepository(Keyword).save([{ value: 'java', occurrences: 20 }]);
     const res = await client.mutate({
       mutation: MUTATION,
       variables: { keyword: 'java' },
@@ -240,12 +237,10 @@ describe('mutation allowKeyword', () => {
       select: ['value', 'status', 'occurrences'],
       order: { value: 'ASC' },
     });
-    const posts = await con.getRepository(Post).find({
-      select: ['id', 'tagsStr'],
-      order: { id: 'ASC' },
-    });
     expect(keywords).toMatchSnapshot();
-    expect(posts).toMatchSnapshot();
+    expect(mocked(notifyKeywordUpdated).mock.calls[0].slice(1)).toEqual([
+      'java',
+    ]);
   });
 
   it('should create a new keyword and allow it', async () => {
@@ -261,6 +256,9 @@ describe('mutation allowKeyword', () => {
       order: { value: 'ASC' },
     });
     expect(keywords).toMatchSnapshot();
+    expect(mocked(notifyKeywordUpdated).mock.calls[0].slice(1)).toEqual([
+      'java',
+    ]);
   });
 });
 
@@ -281,18 +279,6 @@ describe('mutation denyKeyword', () => {
   it('should deny existing keyword', async () => {
     roles = [Roles.Moderator];
     loggedUser = '1';
-    await con.getRepository(Keyword).save([
-      { value: 'java', occurrences: 20 },
-      { value: 'javascript', occurrences: 10, status: 'allow' },
-      { value: 'nodejs', status: 'deny' },
-    ]);
-    await con.getRepository(PostKeyword).save([
-      { keyword: 'java', postId: 'p1' },
-      { keyword: 'javascript', postId: 'p1' },
-      { keyword: 'nodejs', postId: 'p1' },
-      { keyword: 'java', postId: 'p2' },
-      { keyword: 'javascript', postId: 'p3' },
-    ]);
     await con.getRepository(Keyword).save([{ value: 'java', occurrences: 20 }]);
     const res = await client.mutate({
       mutation: MUTATION,
@@ -303,12 +289,10 @@ describe('mutation denyKeyword', () => {
       select: ['value', 'status', 'occurrences'],
       order: { value: 'ASC' },
     });
-    const posts = await con.getRepository(Post).find({
-      select: ['id', 'tagsStr'],
-      order: { id: 'ASC' },
-    });
     expect(keywords).toMatchSnapshot();
-    expect(posts).toMatchSnapshot();
+    expect(mocked(notifyKeywordUpdated).mock.calls[0].slice(1)).toEqual([
+      'java',
+    ]);
   });
 
   it('should create a new keyword and deny it', async () => {
@@ -324,6 +308,9 @@ describe('mutation denyKeyword', () => {
       order: { value: 'ASC' },
     });
     expect(keywords).toMatchSnapshot();
+    expect(mocked(notifyKeywordUpdated).mock.calls[0].slice(1)).toEqual([
+      'java',
+    ]);
   });
 });
 
@@ -370,13 +357,11 @@ describe('mutation setKeywordAsSynonym', () => {
         keyword: 'ASC',
       },
     });
-    const posts = await con.getRepository(Post).find({
-      select: ['id', 'tagsStr'],
-      order: { id: 'ASC' },
-    });
     expect(keywords).toMatchSnapshot();
     expect(postKeywords).toMatchSnapshot();
-    expect(posts).toMatchSnapshot();
+    expect(mocked(notifyKeywordUpdated).mock.calls[0].slice(1)).toEqual([
+      'reactjs',
+    ]);
   });
 
   it('should create keywords if they do not exist', async () => {
@@ -406,6 +391,9 @@ describe('mutation setKeywordAsSynonym', () => {
     });
     expect(keywords).toMatchSnapshot();
     expect(postKeywords).toMatchSnapshot();
+    expect(mocked(notifyKeywordUpdated).mock.calls[0].slice(1)).toEqual([
+      'reactjs',
+    ]);
   });
 
   it('should ignore duplicates keywords when renaming', async () => {
@@ -431,5 +419,8 @@ describe('mutation setKeywordAsSynonym', () => {
       },
     });
     expect(postKeywords).toMatchSnapshot();
+    expect(mocked(notifyKeywordUpdated).mock.calls[0].slice(1)).toEqual([
+      'reactjs',
+    ]);
   });
 });
