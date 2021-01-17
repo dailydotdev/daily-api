@@ -376,7 +376,7 @@ it('should match post to author', async () => {
       id: '1',
       name: 'Ido',
       image: 'https://daily.dev/ido.jpg',
-      twitter: 'idoshamun',
+      twitter: 'IdoShamun',
     },
   ]);
 
@@ -385,7 +385,7 @@ it('should match post to author', async () => {
     title: 'Title',
     url: 'https://post.com',
     publicationId: 'a',
-    creatorTwitter: '@idoshamun',
+    creatorTwitter: '@Idoshamun',
   });
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
