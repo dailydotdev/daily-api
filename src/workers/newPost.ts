@@ -92,13 +92,18 @@ const addPost = async (
           : null;
       let authorId = null;
       if (data.creatorTwitter) {
-        const twitter =
-          data.creatorTwitter[0] === '@'
-            ? data.creatorTwitter.substr(1)
-            : data.creatorTwitter;
+        const twitter = (data.creatorTwitter[0] === '@'
+          ? data.creatorTwitter.substr(1)
+          : data.creatorTwitter
+        ).toLowerCase();
         const author = await entityManager
           .getRepository(User)
-          .findOne({ where: [{ twitter }, { username: twitter }] });
+          .createQueryBuilder()
+          .select('id')
+          .where(`lower(twitter) = :twitter or lower(username) = :twitter`, {
+            twitter,
+          })
+          .getRawOne();
         if (author) {
           authorId = author.id;
         }

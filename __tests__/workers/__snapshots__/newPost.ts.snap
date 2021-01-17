@@ -110,7 +110,7 @@ Object {
   "canonicalUrl": null,
   "comments": 0,
   "createdAt": Any<Date>,
-  "creatorTwitter": "@idoshamun",
+  "creatorTwitter": "@Idoshamun",
   "id": Any<String>,
   "image": null,
   "lastTrending": null,
