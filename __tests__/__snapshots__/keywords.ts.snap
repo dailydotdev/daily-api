@@ -145,35 +145,6 @@ Array [
 ]
 `;
 
-exports[`mutation setKeywordAsSynonym should set keyword as synonym and rename existing occurrences 3`] = `
-Array [
-  Post {
-    "id": "p1",
-    "tagsStr": "reactjs",
-  },
-  Post {
-    "id": "p2",
-    "tagsStr": "reactjs",
-  },
-  Post {
-    "id": "p3",
-    "tagsStr": "reactjs",
-  },
-  Post {
-    "id": "p4",
-    "tagsStr": "backend,data,javascript",
-  },
-  Post {
-    "id": "p5",
-    "tagsStr": "html,javascript",
-  },
-  Post {
-    "id": "p6",
-    "tagsStr": null,
-  },
-]
-`;
-
 exports[`query keyword should return keyword 1`] = `
 Object {
   "keyword": Object {
