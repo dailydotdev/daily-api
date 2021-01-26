@@ -53,4 +53,8 @@ export const crons: Cron[] = [
     name: 'update-trending',
     schedule: '*/30 * * * *',
   },
+  {
+    name: 'update-tags-str',
+    schedule: '12 2 * * *',
+  },
 ];

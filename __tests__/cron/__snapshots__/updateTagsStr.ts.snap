@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`should update post tagsStr when keyword status changes 1`] = `
+exports[`should update post tagsStr with the all recently updated keywords 1`] = `
 Array [
   Post {
     "id": "p1",
@@ -12,7 +12,7 @@ Array [
   },
   Post {
     "id": "p3",
-    "tagsStr": null,
+    "tagsStr": "javascript",
   },
   Post {
     "id": "p4",
