@@ -6,7 +6,6 @@ import graphorm from '../graphorm';
 import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 import { GQLEmptyResponse } from './common';
 import { MoreThanOrEqual } from 'typeorm';
-import { notifyKeywordUpdated } from '../common';
 
 interface GQLKeyword {
   value: string;
@@ -183,7 +182,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           status: 'allow',
         });
       });
-      notifyKeywordUpdated(ctx.log, keyword);
       return { _: true };
     },
     denyKeyword: async (
@@ -197,7 +195,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           status: 'deny',
         });
       });
-      notifyKeywordUpdated(ctx.log, keyword);
       return { _: true };
     },
     setKeywordAsSynonym: async (
@@ -226,7 +223,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         );
         await entityManager.delete(PostKeyword, { keyword: keywordToUpdate });
       });
-      await notifyKeywordUpdated(ctx.log, originalKeyword);
       return { _: true };
     },
   },

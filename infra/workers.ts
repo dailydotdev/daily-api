@@ -92,8 +92,4 @@ export const workers: Worker[] = [
     topic: 'post-upvoted',
     subscription: 'post-upvoted-redis',
   },
-  {
-    topic: 'keyword-updated',
-    subscription: 'keyword-updated-tags-str',
-  },
 ];

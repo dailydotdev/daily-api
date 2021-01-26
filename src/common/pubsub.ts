@@ -18,7 +18,6 @@ const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
 const postReachedViewsThresholdTopic = pubsub.topic(
   'post-reached-views-threshold',
 );
-const keywordUpdated = pubsub.topic('keyword-updated');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
@@ -161,12 +160,4 @@ export const notifyPostReachedViewsThreshold = async (
   publishEvent(log, postReachedViewsThresholdTopic, {
     postId,
     threshold,
-  });
-
-export const notifyKeywordUpdated = async (
-  log: EventLogger,
-  keyword: string,
-): Promise<void> =>
-  publishEvent(log, keywordUpdated, {
-    keyword,
   });

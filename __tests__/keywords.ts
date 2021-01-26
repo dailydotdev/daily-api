@@ -25,16 +25,9 @@ import {
   Source,
   SourceDisplay,
 } from '../src/entity';
-import { mocked } from 'ts-jest/utils';
-import { notifyKeywordUpdated } from '../src/common';
 import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture } from './fixture/post';
-
-jest.mock('../src/common/pubsub', () => ({
-  ...jest.requireActual('../src/common/pubsub'),
-  notifyKeywordUpdated: jest.fn(),
-}));
 
 let app: FastifyInstance;
 let con: Connection;
@@ -238,9 +231,6 @@ describe('mutation allowKeyword', () => {
       order: { value: 'ASC' },
     });
     expect(keywords).toMatchSnapshot();
-    expect(mocked(notifyKeywordUpdated).mock.calls[0].slice(1)).toEqual([
-      'java',
-    ]);
   });
 
   it('should create a new keyword and allow it', async () => {
@@ -256,9 +246,6 @@ describe('mutation allowKeyword', () => {
       order: { value: 'ASC' },
     });
     expect(keywords).toMatchSnapshot();
-    expect(mocked(notifyKeywordUpdated).mock.calls[0].slice(1)).toEqual([
-      'java',
-    ]);
   });
 });
 
@@ -290,9 +277,6 @@ describe('mutation denyKeyword', () => {
       order: { value: 'ASC' },
     });
     expect(keywords).toMatchSnapshot();
-    expect(mocked(notifyKeywordUpdated).mock.calls[0].slice(1)).toEqual([
-      'java',
-    ]);
   });
 
   it('should create a new keyword and deny it', async () => {
@@ -308,9 +292,6 @@ describe('mutation denyKeyword', () => {
       order: { value: 'ASC' },
     });
     expect(keywords).toMatchSnapshot();
-    expect(mocked(notifyKeywordUpdated).mock.calls[0].slice(1)).toEqual([
-      'java',
-    ]);
   });
 });
 
@@ -359,9 +340,6 @@ describe('mutation setKeywordAsSynonym', () => {
     });
     expect(keywords).toMatchSnapshot();
     expect(postKeywords).toMatchSnapshot();
-    expect(mocked(notifyKeywordUpdated).mock.calls[0].slice(1)).toEqual([
-      'reactjs',
-    ]);
   });
 
   it('should create keywords if they do not exist', async () => {
@@ -391,9 +369,6 @@ describe('mutation setKeywordAsSynonym', () => {
     });
     expect(keywords).toMatchSnapshot();
     expect(postKeywords).toMatchSnapshot();
-    expect(mocked(notifyKeywordUpdated).mock.calls[0].slice(1)).toEqual([
-      'reactjs',
-    ]);
   });
 
   it('should ignore duplicates keywords when renaming', async () => {
@@ -419,8 +394,5 @@ describe('mutation setKeywordAsSynonym', () => {
       },
     });
     expect(postKeywords).toMatchSnapshot();
-    expect(mocked(notifyKeywordUpdated).mock.calls[0].slice(1)).toEqual([
-      'reactjs',
-    ]);
   });
 });
