@@ -82,16 +82,7 @@ it('should tag the author and site and add hashtags', async () => {
       views: 3000,
       siteTwitter: '@site',
       creatorTwitter: '@creator',
-    },
-  ]);
-  await saveFixtures(con, PostTag, [
-    {
-      postId: 'p1',
-      tag: 'webdev',
-    },
-    {
-      postId: 'p1',
-      tag: 'javascript',
+      tagsStr: 'webdev,javascript',
     },
   ]);
   mocked(tweet).mockResolvedValue();

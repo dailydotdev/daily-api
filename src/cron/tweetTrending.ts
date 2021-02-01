@@ -25,9 +25,9 @@ const buildTweet = async (post: Post): Promise<string> => {
   const via = siteHandler ? ` via ${siteHandler}` : '';
   const userHandler = getUserHandler(post);
   const by = userHandler ? ` by ${userHandler}` : '';
-  const tags = await post.tags;
+  const tags = post.tagsStr?.split(',') ?? [];
   const hashtags = tags
-    .map((tag) => `#${tag.tag.replace(/-| /g, '')}`)
+    .map((tag) => `#${tag.replace(/-| /g, '')}`)
     .join(' ');
   return `${post.title}${by}${via}\n${hashtags}\n\n${link}`;
 };
@@ -39,7 +39,7 @@ const cron: Cron = {
     const post = await repo.findOne({
       where: { tweeted: false, views: MoreThanOrEqual(200) },
       order: { createdAt: 'DESC' },
-      relations: ['tags', 'source'],
+      relations: ['source'],
     });
     if (post) {
       await repo.update({ id: post.id }, { tweeted: true });
