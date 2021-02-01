@@ -26,9 +26,7 @@ const buildTweet = async (post: Post): Promise<string> => {
   const userHandler = getUserHandler(post);
   const by = userHandler ? ` by ${userHandler}` : '';
   const tags = post.tagsStr?.split(',') ?? [];
-  const hashtags = tags
-    .map((tag) => `#${tag.replace(/-| /g, '')}`)
-    .join(' ');
+  const hashtags = tags.map((tag) => `#${tag.replace(/-| /g, '')}`).join(' ');
   return `${post.title}${by}${via}\n${hashtags}\n\n${link}`;
 };
 

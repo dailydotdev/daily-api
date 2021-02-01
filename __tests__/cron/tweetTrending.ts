@@ -3,7 +3,7 @@ import { mocked } from 'ts-jest/utils';
 
 import cron from '../../src/cron/tweetTrending';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
-import { Post, PostTag, Source } from '../../src/entity';
+import { Post, Source } from '../../src/entity';
 import { tweet } from '../../src/common';
 import { FastifyInstance } from 'fastify';
 import appFunc from '../../src/background';
