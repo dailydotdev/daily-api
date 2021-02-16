@@ -40,7 +40,7 @@ export const baseNotificationEmailData: Pick<
     openTracking: { enable: true },
   },
   asm: {
-    groupId: 15003,
+    groupId: 12850,
   },
   category: 'Notification',
 };
