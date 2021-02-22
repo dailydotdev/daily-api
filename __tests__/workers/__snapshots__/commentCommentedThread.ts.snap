@@ -4,7 +4,7 @@ exports[`should send mail to the thread followers 1`] = `
 Array [
   Object {
     "asm": Object {
-      "groupId": 15003,
+      "groupId": 12850,
     },
     "category": "Notification",
     "dynamicTemplateData": Object {
@@ -46,7 +46,7 @@ exports[`should send mail to the thread followers without the post author 1`] = 
 Array [
   Object {
     "asm": Object {
-      "groupId": 15003,
+      "groupId": 12850,
     },
     "category": "Notification",
     "dynamicTemplateData": Object {
