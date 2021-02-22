@@ -4,7 +4,7 @@ exports[`should send analytics reports 1`] = `
 Array [
   Object {
     "asm": Object {
-      "groupId": 15003,
+      "groupId": 12850,
     },
     "category": "Notification",
     "dynamicTemplateData": Object {
