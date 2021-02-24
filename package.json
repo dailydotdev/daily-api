@@ -24,7 +24,7 @@
     "db:seed:export": "ts-node bin/export.ts"
   },
   "dependencies": {
-    "@algolia/client-search": "^4.8.4",
+    "@algolia/client-search": "^4.8.5",
     "@binxhealth/pino-stackdriver": "^3.0.0",
     "@google-cloud/profiler": "^4.1.0",
     "@google-cloud/pubsub": "^2.8.0",
