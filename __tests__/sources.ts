@@ -178,6 +178,31 @@ query SourceByFeed($data: String!) {
   });
 });
 
+describe('query source', () => {
+  const QUERY = `
+query Source($id: ID!) {
+  source(id: $id) {
+    id
+    name
+    image
+    public
+  }
+}
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'notexist' } },
+      'NOT_FOUND',
+    ));
+
+  it('should return source by', async () => {
+    const res = await client.query({ query: QUERY, variables: { id: 'a' } });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('mutation addPrivateSource', () => {
   const MUTATION = `
   mutation AddPrivateSource($data: AddPrivateSourceInput!) {

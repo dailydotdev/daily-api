@@ -17,6 +17,17 @@ Array [
 ]
 `;
 
+exports[`query source should return source by 1`] = `
+Object {
+  "source": Object {
+    "id": "a",
+    "image": "http://a.com",
+    "name": "A",
+    "public": true,
+  },
+}
+`;
+
 exports[`query sources should flag that more pages available 1`] = `
 Object {
   "sources": Object {
