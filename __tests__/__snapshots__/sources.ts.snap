@@ -20,10 +20,10 @@ Array [
 exports[`query source should return source by 1`] = `
 Object {
   "source": Object {
-    "id": "e50780aa-bb09-4dfa-8a26-89528ee1e840",
+    "id": "a",
     "image": "http://a.com",
     "name": "A",
-    "public": null,
+    "public": true,
   },
 }
 `;

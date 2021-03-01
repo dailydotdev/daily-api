@@ -203,7 +203,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         throw new EntityNotFoundError(SourceDisplay, `sourceId = ${id}`);
       }
 
-      return res;
+      return sourceFromDisplay(res);
     },
   },
   Mutation: {
