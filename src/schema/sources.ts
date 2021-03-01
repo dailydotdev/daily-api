@@ -13,6 +13,7 @@ import {
   offsetPageGenerator,
 } from './common';
 import { addOrRemoveSuperfeedrSubscription } from '../common';
+import { EntityNotFoundError } from 'typeorm/error/EntityNotFoundError';
 
 export interface GQLSource {
   id: string;
@@ -107,6 +108,11 @@ export const typeDefs = gql`
     Get the source that matches the feed
     """
     sourceByFeed(feed: String!): Source @auth
+
+    """
+    Get source by ID
+    """
+    source(id: ID!): Source
   }
 
   extend type Mutation {
@@ -184,6 +190,21 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { feed }: { feed: string },
       ctx,
     ): Promise<GQLSource> => sourceByFeed(feed, ctx),
+    source: async (_, { id }: { id: string }, ctx): Promise<GQLSource> => {
+      const res = await ctx.con
+        .createQueryBuilder()
+        .select('sd.*')
+        .from(fromSourceDisplay, 'sd')
+        .setParameters({ userId: ctx.userId, enabled: true })
+        .where('sd."sourceId" = :id', { id })
+        .getRawOne();
+
+      if (!res) {
+        throw new EntityNotFoundError(SourceDisplay, `sourceId = ${id}`);
+      }
+
+      return res;
+    },
   },
   Mutation: {
     addPrivateSource: async (
