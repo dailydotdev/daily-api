@@ -1254,6 +1254,67 @@ Object {
 }
 `;
 
+exports[`query mostUpvotedFeed should return a most upvoted feed of the month 1`] = `
+Object {
+  "mostUpvotedFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p2",
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P2",
+          "url": "http://p2.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p3",
+          "readTime": null,
+          "source": Object {
+            "id": "c",
+            "image": "http://image.com/c",
+            "name": "C",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P3",
+          "url": "http://p3.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjI=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
 exports[`query searchPostSuggestions should return search suggestions 1`] = `
 Object {
   "searchPostSuggestions": Object {
