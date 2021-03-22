@@ -132,15 +132,24 @@ export interface PageGenerator<
 export const offsetPageGenerator = <TReturn>(
   defaultLimit: number,
   maxLimit: number,
+  totalLimit?: number,
 ): PageGenerator<TReturn, ConnectionArguments, OffsetPage> => ({
-  connArgsToPage: (args: ConnectionArguments): OffsetPage => ({
-    limit: Math.min(args.first || defaultLimit, maxLimit),
-    offset: getOffsetWithDefault(args.after, -1) + 1,
-  }),
+  connArgsToPage: (args: ConnectionArguments): OffsetPage => {
+    const limit = Math.min(args.first || defaultLimit, maxLimit);
+    const offset = getOffsetWithDefault(args.after, -1) + 1;
+    return {
+      limit: totalLimit ? Math.min(limit, totalLimit - offset) : limit,
+      offset,
+    };
+  },
   nodeToCursor: (page, args, node, i): string =>
     offsetToCursor(page.offset + i),
   hasNextPage: (page, nodesSize, total): boolean =>
-    total ? page.offset + nodesSize < total : page.limit === nodesSize,
+    total
+      ? page.offset + nodesSize < total
+      : totalLimit
+      ? page.offset + nodesSize < totalLimit
+      : page.limit === nodesSize,
   hasPreviousPage: (page): boolean => page.offset > 0,
 });
 

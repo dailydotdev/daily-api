@@ -438,18 +438,44 @@ describe('query authorFeed', () => {
 });
 
 describe('query mostUpvotedFeed', () => {
-  const QUERY = (first = 10): string => `{
-    mostUpvotedFeed(first: ${first}) {
+  const QUERY = (period = 7, first = 10): string => `{
+    mostUpvotedFeed(first: ${first}, period: ${period}) {
       ${feedFields}
     }
   }`;
 
   it('should return a most upvoted feed', async () => {
     const repo = con.getRepository(Post);
+    const now = new Date();
     await repo.update({ id: 'p1' }, { upvotes: 20 });
     await repo.update({ id: 'p3' }, { upvotes: 15 });
+    await repo.update(
+      { id: 'p2' },
+      {
+        upvotes: 30,
+        createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 10),
+      },
+    );
 
     const res = await client.query({ query: QUERY() });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return a most upvoted feed of the month', async () => {
+    const repo = con.getRepository(Post);
+    const now = new Date();
+    await repo.update({ id: 'p1' }, { upvotes: 20 });
+    await repo.update({ id: 'p3' }, { upvotes: 15 });
+    await repo.update(
+      { id: 'p2' },
+      {
+        upvotes: 30,
+        createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 10),
+      },
+    );
+
+    const res = await client.query({ query: QUERY(30) });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
