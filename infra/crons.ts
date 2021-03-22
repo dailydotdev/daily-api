@@ -57,4 +57,8 @@ export const crons: Cron[] = [
     name: 'update-tags-str',
     schedule: '12 2 * * *',
   },
+  {
+    name: 'update-discussion-score',
+    schedule: '23 */1 * * *',
+  },
 ];

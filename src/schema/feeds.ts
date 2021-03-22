@@ -29,7 +29,7 @@ import {
 import { GQLSource } from './sources';
 import { offsetPageGenerator, Page, PageGenerator } from './common';
 import { GQLPost } from './posts';
-import { Connection } from 'graphql-relay';
+import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
 
 export const typeDefs = gql`
@@ -312,6 +312,21 @@ export const typeDefs = gql`
       """
       first: Int
     ): PostConnection!
+
+    """
+    Get the most discussed articles
+    """
+    mostDiscussedFeed(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): PostConnection!
   }
 
   extend type Mutation {
@@ -440,6 +455,45 @@ const applyFeedPaging = (
   } else if (page.timestamp) {
     newBuilder = newBuilder.andWhere(`${alias}."createdAt" < :timestamp`, {
       timestamp: page.timestamp,
+    });
+  }
+  return newBuilder;
+};
+
+const discussedPageGenerator: PageGenerator<
+  GQLPost,
+  ConnectionArguments,
+  FeedPage
+> = {
+  connArgsToPage: ({ first, after }: FeedArgs) => {
+    const cursor = getCursorFromAfter(after);
+    // Increment by one to determine if there's one more page
+    const limit = Math.min(first || 30, 50) + 1;
+    if (cursor) {
+      return { limit, score: parseInt(cursor) };
+    }
+    return { limit };
+  },
+  nodeToCursor: (page, args, node) => base64(`score:${node.discussionScore}`),
+  hasNextPage: (page, nodesSize) => page.limit === nodesSize,
+  hasPreviousPage: (page) => !!page.score,
+  transformNodes: (page, nodes) => nodes.slice(0, page.limit - 1),
+};
+
+const applyDiscussedPaging = (
+  ctx: Context,
+  args: ConnectionArguments,
+  page: FeedPage,
+  builder: SelectQueryBuilder<Post>,
+  alias,
+): SelectQueryBuilder<Post> => {
+  let newBuilder = builder
+    .addSelect(`${alias}."discussionScore"`)
+    .limit(page.limit)
+    .orderBy(`${alias}."discussionScore"`, 'DESC');
+  if (page.score) {
+    newBuilder = newBuilder.andWhere(`${alias}."discussionScore" < :score`, {
+      score: page.score,
     });
   }
   return newBuilder;
@@ -604,6 +658,15 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       offsetPageGenerator(30, 50),
       (ctx, args, { limit, offset }, builder) =>
         builder.limit(limit).offset(offset),
+      true,
+    ),
+    mostDiscussedFeed: feedResolver(
+      (ctx, args, builder, alias) =>
+        builder
+          .andWhere(`${alias}."discussionScore" > 0`)
+          .orderBy(`${alias}."discussionScore"`, 'DESC'),
+      discussedPageGenerator,
+      applyDiscussedPaging,
       true,
     ),
   },

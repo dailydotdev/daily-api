@@ -48,6 +48,7 @@ export interface GQLPost {
   bookmarkedAt: Date;
   author?: GQLUser;
   views?: number;
+  discussionScore?: number;
 }
 
 export const typeDefs = gql`

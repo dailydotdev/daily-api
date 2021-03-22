@@ -9,6 +9,7 @@ import checkAnalyticsReport from './checkAnalyticsReport';
 import viewsThreshold from './viewsThreshold';
 import updateTrending from './updateTrending';
 import updateTagsStr from './updateTagsStr';
+import updateDiscussionScore from './updateDiscussionScore';
 
 export const crons: Cron[] = [
   segmentUsers,
@@ -21,4 +22,5 @@ export const crons: Cron[] = [
   viewsThreshold,
   updateTrending,
   updateTagsStr,
+  updateDiscussionScore,
 ];
