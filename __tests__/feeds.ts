@@ -455,6 +455,24 @@ describe('query mostUpvotedFeed', () => {
   });
 });
 
+describe('query mostDiscussedFeed', () => {
+  const QUERY = (first = 10): string => `{
+    mostDiscussedFeed(first: ${first}) {
+      ${feedFields}
+    }
+  }`;
+
+  it('should return a most discussed feed', async () => {
+    const repo = con.getRepository(Post);
+    await repo.update({ id: 'p1' }, { discussionScore: 20 });
+    await repo.update({ id: 'p3' }, { discussionScore: 15 });
+
+    const res = await client.query({ query: QUERY() });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('mutation addFiltersToFeed', () => {
   const MUTATION = `
   mutation AddFiltersToFeed($filters: FiltersInput!) {

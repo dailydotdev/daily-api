@@ -123,6 +123,10 @@ export class Post {
   @Column({ nullable: true })
   @Index('IDX_post_last_trending')
   lastTrending?: Date;
+
+  @Column({ type: 'integer', nullable: true })
+  @Index('IDX_post_discussion_score')
+  discussionScore?: number;
 }
 
 export interface SearchPostsResult {
