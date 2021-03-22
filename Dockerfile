@@ -1,6 +1,6 @@
 FROM binxio/gcp-get-secret
 
-FROM node:12.19-alpine
+FROM node:12.21-alpine
 RUN apk add g++ make python
 
 RUN mkdir -p /opt/app
