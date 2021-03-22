@@ -669,7 +669,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           .andWhere(`${alias}."upvotes" >= 10`)
           .orderBy(`${alias}."upvotes"`, 'DESC');
       },
-      offsetPageGenerator(30, 50),
+      offsetPageGenerator(30, 50, 100),
       (ctx, args, { limit, offset }, builder) =>
         builder.limit(limit).offset(offset),
       true,

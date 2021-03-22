@@ -147,9 +147,8 @@ export const offsetPageGenerator = <TReturn>(
   hasNextPage: (page, nodesSize, total): boolean =>
     total
       ? page.offset + nodesSize < total
-      : totalLimit
-      ? page.offset + nodesSize < totalLimit
-      : page.limit === nodesSize,
+      : (page.offset + nodesSize < totalLimit || !totalLimit) &&
+        page.limit === nodesSize,
   hasPreviousPage: (page): boolean => page.offset > 0,
 });
 
