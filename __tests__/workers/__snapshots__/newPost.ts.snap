@@ -112,6 +112,7 @@ Object {
   "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": "@Idoshamun",
+  "discussionScore": null,
   "id": Any<String>,
   "image": null,
   "lastTrending": null,
