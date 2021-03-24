@@ -753,6 +753,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                                    ) k on k."postId" = post.id
                                    where post.id != :postId
                                      and post."createdAt" >= now() - interval '6 month'
+                                     and post."upvotes" > 0
                                    order by (pow(post.upvotes, k.similar) * 1000 / k.occurrences) desc
                                    limit 25`;
         return builder.andWhere(`${alias}."id" in (${similarPostsQuery})`, {

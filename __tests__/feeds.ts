@@ -543,6 +543,7 @@ describe('query randomSimilarPosts', () => {
 
   it('should return random similar posts', async () => {
     const repo = con.getRepository(Post);
+    await repo.update({}, { upvotes: 5 });
     const now = new Date();
     await con.getRepository(Keyword).save([
       { value: 'javascript', status: 'allow' },
