@@ -339,6 +339,11 @@ export const typeDefs = gql`
     """
     randomTrendingPosts(
       """
+      Post ID to filter out
+      """
+      post: ID
+
+      """
       Paginate first
       """
       first: Int
@@ -710,8 +715,20 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       true,
     ),
     randomTrendingPosts: randomPostsResolver(
-      (ctx, args, builder, alias) =>
-        builder.andWhere(`${alias}."trending" > 0`),
+      (
+        ctx,
+        { post }: { post: string; first: number | null },
+        builder,
+        alias,
+      ) => {
+        let newBuilder = builder.andWhere(`${alias}."trending" > 0`);
+        if (post) {
+          newBuilder = newBuilder.andWhere(`${alias}."id" != :postId`, {
+            postId: post,
+          });
+        }
+        return newBuilder;
+      },
       3,
     ),
     randomSimilarPosts: randomPostsResolver(

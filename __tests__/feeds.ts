@@ -501,21 +501,34 @@ describe('query mostDiscussedFeed', () => {
 });
 
 describe('query randomTrendingPosts', () => {
-  const QUERY = (first = 10): string => `{
-    randomTrendingPosts(first: ${first}) {
+  const QUERY = `query RandomTrendingPosts($first: Int, $post: ID) {
+    randomTrendingPosts(first: $first, post: $post) {
       id
     }
   }`;
 
-  it('should return random trending posts', async () => {
+  beforeEach(async () => {
     const repo = con.getRepository(Post);
     await repo.update({ id: 'p1' }, { trending: 20 });
     await repo.update({ id: 'p3' }, { trending: 50 });
+  });
 
-    const res = await client.query({ query: QUERY() });
+  it('should return random trending posts', async () => {
+    const res = await client.query({ query: QUERY, variables: { first: 10 } });
     expect(res.errors).toBeFalsy();
     expect(res.data.randomTrendingPosts.map((post) => post.id).sort()).toEqual([
       'p1',
+      'p3',
+    ]);
+  });
+
+  it('should filter out the given post', async () => {
+    const res = await client.query({
+      query: QUERY,
+      variables: { first: 10, post: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.randomTrendingPosts.map((post) => post.id).sort()).toEqual([
       'p3',
     ]);
   });
