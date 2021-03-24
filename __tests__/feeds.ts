@@ -32,6 +32,7 @@ import {
   BookmarkList,
   User,
   PostKeyword,
+  Keyword,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import {
@@ -496,6 +497,62 @@ describe('query mostDiscussedFeed', () => {
     const res = await client.query({ query: QUERY() });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query randomTrendingPosts', () => {
+  const QUERY = (first = 10): string => `{
+    randomTrendingPosts(first: ${first}) {
+      id
+    }
+  }`;
+
+  it('should return random trending posts', async () => {
+    const repo = con.getRepository(Post);
+    await repo.update({ id: 'p1' }, { trending: 20 });
+    await repo.update({ id: 'p3' }, { trending: 50 });
+
+    const res = await client.query({ query: QUERY() });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.randomTrendingPosts.map((post) => post.id).sort()).toEqual([
+      'p1',
+      'p3',
+    ]);
+  });
+});
+
+describe('query randomSimilarPosts', () => {
+  const QUERY = (first = 10): string => `{
+    randomSimilarPosts(post: "p1", first: ${first}) {
+      id
+    }
+  }`;
+
+  it('should return random similar posts', async () => {
+    const repo = con.getRepository(Post);
+    const now = new Date();
+    await con.getRepository(Keyword).save([
+      { value: 'javascript', status: 'allow' },
+      { value: 'webdev', status: 'deny' },
+      { value: 'backend', status: 'allow' },
+    ]);
+    await con.getRepository(PostKeyword).save([
+      { keyword: 'backend', postId: 'p2' },
+      { keyword: 'javascript', postId: 'p3' },
+    ]);
+    await repo.update(
+      { id: 'p4' },
+      {
+        createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 30 * 8),
+      },
+    );
+
+    const res = await client.query({ query: QUERY() });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.randomSimilarPosts.map((post) => post.id).sort()).toEqual([
+      'p3',
+      'p5',
+    ]);
   });
 });
 

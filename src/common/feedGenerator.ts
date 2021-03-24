@@ -190,6 +190,34 @@ export function feedResolver<
   };
 }
 
+export function randomPostsResolver<
+  TSource,
+  TArgs extends { first?: number | null }
+>(
+  query: (
+    ctx: Context,
+    args: TArgs,
+    builder: SelectQueryBuilder<Post>,
+    alias: string,
+  ) => SelectQueryBuilder<Post>,
+  defaultPageSize: number,
+): IFieldResolver<TSource, Context, TArgs> {
+  return async (source, args, context, info): Promise<GQLPost[]> => {
+    const pageSize = args.first ?? defaultPageSize;
+    return graphorm.query(context, info, (builder) => {
+      builder.queryBuilder = applyFeedWhere(
+        context,
+        query(context, args, builder.queryBuilder, builder.alias),
+        builder.alias,
+        true,
+      )
+        .orderBy('random()')
+        .limit(pageSize);
+      return builder;
+    });
+  };
+}
+
 /**
  * Feeds builders and resolvers
  */
