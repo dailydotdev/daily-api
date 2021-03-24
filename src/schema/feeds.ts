@@ -10,6 +10,7 @@ import {
   FeedArgs,
   feedResolver,
   getCursorFromAfter,
+  randomPostsResolver,
   Ranking,
   searchPostsForFeed,
   sourceFeedBuilder,
@@ -332,6 +333,31 @@ export const typeDefs = gql`
       """
       first: Int
     ): PostConnection!
+
+    """
+    Get random trending posts
+    """
+    randomTrendingPosts(
+      """
+      Paginate first
+      """
+      first: Int
+    ): [Post]!
+
+    """
+    Get random similar posts to a given post
+    """
+    randomSimilarPosts(
+      """
+      Post ID
+      """
+      post: ID!
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): [Post]!
   }
 
   extend type Mutation {
@@ -682,6 +708,41 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       discussedPageGenerator,
       applyDiscussedPaging,
       true,
+    ),
+    randomTrendingPosts: randomPostsResolver(
+      (ctx, args, builder, alias) =>
+        builder.andWhere(`${alias}."trending" > 0`),
+      3,
+    ),
+    randomSimilarPosts: randomPostsResolver(
+      (
+        ctx,
+        { post }: { post: string; first: number | null },
+        builder,
+        alias,
+      ) => {
+        const similarPostsQuery = `select post.id
+                                   from post
+                                          inner join (
+                                     select count(*)           as similar,
+                                            min(k.occurrences) as occurrences,
+                                            pk."postId"
+                                     from post_keyword pk
+                                            inner join post_keyword pk2 on pk.keyword = pk2.keyword
+                                            inner join keyword k on pk.keyword = k.value
+                                     where pk2."postId" = :postId
+                                       and k.status = 'allow'
+                                     group by pk."postId"
+                                   ) k on k."postId" = post.id
+                                   where post.id != :postId
+                                     and post."createdAt" >= now() - interval '6 month'
+                                   order by (pow(post.upvotes, k.similar) * 1000 / k.occurrences) desc
+                                   limit 25`;
+        return builder.andWhere(`${alias}."id" in (${similarPostsQuery})`, {
+          postId: post,
+        });
+      },
+      3,
     ),
   },
   Mutation: {
