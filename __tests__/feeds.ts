@@ -623,10 +623,9 @@ describe('query randomDiscussedPosts', () => {
   it('should return random discussed posts', async () => {
     const res = await client.query({ query: QUERY, variables: { first: 10 } });
     expect(res.errors).toBeFalsy();
-    expect(res.data.randomDiscussedPosts.map((post) => post.id).sort()).toEqual([
-      'p1',
-      'p3',
-    ]);
+    expect(
+      res.data.randomDiscussedPosts.map((post) => post.id).sort(),
+    ).toEqual(['p1', 'p3']);
   });
 
   it('should filter out the given post', async () => {
@@ -635,9 +634,9 @@ describe('query randomDiscussedPosts', () => {
       variables: { first: 10, post: 'p1' },
     });
     expect(res.errors).toBeFalsy();
-    expect(res.data.randomDiscussedPosts.map((post) => post.id).sort()).toEqual([
-      'p3',
-    ]);
+    expect(
+      res.data.randomDiscussedPosts.map((post) => post.id).sort(),
+    ).toEqual(['p3']);
   });
 });
 
