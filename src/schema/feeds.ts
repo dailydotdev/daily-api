@@ -383,6 +383,21 @@ export const typeDefs = gql`
       """
       first: Int
     ): [Post]!
+
+    """
+    Get random best discussion posts
+    """
+    randomDiscussedPosts(
+      """
+      Post ID to filter out
+      """
+      post: ID
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): [Post]!
   }
 
   extend type Mutation {
@@ -812,6 +827,25 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           postId: post,
           tags,
         });
+      },
+      3,
+    ),
+    randomDiscussedPosts: randomPostsResolver(
+      (
+        ctx,
+        { post }: { post: string | null; first: number | null },
+        builder,
+        alias,
+      ) => {
+        let newBuilder = builder
+          .andWhere(`${alias}."discussionScore" > 0`)
+          .andWhere(`${alias}."comments" >= 4`);
+        if (post) {
+          newBuilder = newBuilder.andWhere(`${alias}."id" != :postId`, {
+            postId: post,
+          });
+        }
+        return newBuilder;
       },
       3,
     ),
