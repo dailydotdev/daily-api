@@ -570,6 +570,43 @@ describe('query randomSimilarPosts', () => {
   });
 });
 
+describe('query randomSimilarPostsByTags', () => {
+  const QUERY = `query RandomSimilarPostsByTags($post: ID, $tags: [String]!, $first: Int) {
+    randomSimilarPostsByTags(post: $post, first: $first, tags: $tags) {
+      id
+    }
+  }`;
+
+  it('should return random similar posts by tags', async () => {
+    const repo = con.getRepository(Post);
+    const now = new Date();
+    await con.getRepository(Keyword).save([
+      { value: 'javascript', status: 'allow' },
+      { value: 'webdev', status: 'deny' },
+      { value: 'backend', status: 'allow' },
+    ]);
+    await con.getRepository(PostKeyword).save([
+      { keyword: 'backend', postId: 'p2' },
+      { keyword: 'javascript', postId: 'p3' },
+    ]);
+    await repo.update(
+      { id: 'p4' },
+      {
+        createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 30 * 8),
+      },
+    );
+
+    const res = await client.query({
+      query: QUERY,
+      variables: { post: 'p1', tags: ['webdev', 'javascript'] },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(
+      res.data.randomSimilarPostsByTags.map((post) => post.id).sort(),
+    ).toEqual(['p3', 'p5']);
+  });
+});
+
 describe('mutation addFiltersToFeed', () => {
   const MUTATION = `
   mutation AddFiltersToFeed($filters: FiltersInput!) {
