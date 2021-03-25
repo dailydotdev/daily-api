@@ -607,6 +607,40 @@ describe('query randomSimilarPostsByTags', () => {
   });
 });
 
+describe('query randomDiscussedPosts', () => {
+  const QUERY = `query RandomDiscussedPosts($first: Int, $post: ID) {
+    randomDiscussedPosts(first: $first, post: $post) {
+      id
+    }
+  }`;
+
+  beforeEach(async () => {
+    const repo = con.getRepository(Post);
+    await repo.update({ id: 'p1' }, { discussionScore: 20, comments: 10 });
+    await repo.update({ id: 'p3' }, { discussionScore: 50, comments: 15 });
+  });
+
+  it('should return random discussed posts', async () => {
+    const res = await client.query({ query: QUERY, variables: { first: 10 } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.randomDiscussedPosts.map((post) => post.id).sort()).toEqual([
+      'p1',
+      'p3',
+    ]);
+  });
+
+  it('should filter out the given post', async () => {
+    const res = await client.query({
+      query: QUERY,
+      variables: { first: 10, post: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.randomDiscussedPosts.map((post) => post.id).sort()).toEqual([
+      'p3',
+    ]);
+  });
+});
+
 describe('mutation addFiltersToFeed', () => {
   const MUTATION = `
   mutation AddFiltersToFeed($filters: FiltersInput!) {
