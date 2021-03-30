@@ -77,7 +77,7 @@
     "@types/graphql-relay": "^0.6.0",
     "@types/ioredis": "^4.22.0",
     "@types/jest": "^26.0.22",
-    "@types/jsonwebtoken": "^8.5.0",
+    "@types/jsonwebtoken": "^8.5.1",
     "@types/lodash": "^4.14.168",
     "@types/node": "^14.14.35",
     "@types/rss": "0.0.28",
