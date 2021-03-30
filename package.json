@@ -85,7 +85,7 @@
     "@types/twit": "^2.2.28",
     "@typescript-eslint/eslint-plugin": "^4.15.0",
     "@typescript-eslint/parser": "^4.19.0",
-    "apollo-server-testing": "^2.19.1",
+    "apollo-server-testing": "^2.22.2",
     "cross-env": "^7.0.3",
     "eslint": "^7.22.0",
     "eslint-config-prettier": "^8.1.0",
