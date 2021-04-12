@@ -38,7 +38,7 @@
     "apollo-server-fastify": "^2.22.2",
     "apollo-server-plugin-response-cache": "^0.7.0",
     "cloudinary": "^1.25.1",
-    "date-fns": "^2.20.0",
+    "date-fns": "^2.20.1",
     "fast-json-stringify": "^2.5.3",
     "fastify": "^2.15.3",
     "fastify-cookie": "^3.6.1",
