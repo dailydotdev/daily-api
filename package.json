@@ -71,7 +71,7 @@
     "validate.js": "^0.13.1"
   },
   "devDependencies": {
-    "@types/algoliasearch": "^3.34.11",
+    "@types/algoliasearch": "^4.0.0",
     "@types/feedparser": "^2.2.3",
     "@types/graphql": "^14.5.0",
     "@types/graphql-relay": "^0.6.0",
