@@ -1,5 +1,26 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`query userReadHistory should return the read history 1`] = `
+Array [
+  Object {
+    "date": "2021-04-14",
+    "reads": 2,
+  },
+  Object {
+    "date": "2021-04-23",
+    "reads": 1,
+  },
+  Object {
+    "date": "2021-04-24",
+    "reads": 1,
+  },
+  Object {
+    "date": "2021-04-26",
+    "reads": 3,
+  },
+]
+`;
+
 exports[`query userReadingRank should return partially null result when the user asks for someone else 1`] = `
 Object {
   "currentRank": 0,

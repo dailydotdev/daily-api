@@ -75,6 +75,11 @@ export const typeDefs = gql`
     count: Int!
   }
 
+  type ReadHistory {
+    date: String!
+    reads: Int!
+  }
+
   extend type Query {
     """
     Get the statistics of the user
@@ -89,6 +94,10 @@ export const typeDefs = gql`
     An aggregated count of all the ranks the user ever received.
     """
     userReadingRankHistory(id: ID!): [ReadingRankHistory]
+    """
+    Get a heatmap of reads per day in a given time frame.
+    """
+    userReadHistory(id: ID!, after: String!, before: String!): [ReadHistory]
   }
 `;
 
@@ -200,6 +209,24 @@ export const resolvers: IResolvers<any, Context> = {
         group by 1;
       `,
         [id],
+      );
+    },
+    userReadHistory: async (
+      source,
+      { id, after, before }: { id: string; after: string; before: string },
+      ctx: Context,
+    ): Promise<GQLReadingRankHistory[]> => {
+      return ctx.con.query(
+        `
+          select date_trunc('day', "timestamp")::date::text as "date", count(*) as "reads"
+          from "view"
+          where "userId" = $1
+            and "timestamp" >= $2
+            and "timestamp" < $3
+          group by 1
+          order by 1;
+      `,
+        [id, after, before],
       );
     },
   }),
