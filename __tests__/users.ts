@@ -439,3 +439,145 @@ describe('query userReadingRankHistory', () => {
     expect(res.data.userReadingRankHistory).toMatchSnapshot();
   });
 });
+
+describe('query userReadHistory', () => {
+  const QUERY = `query UserReadHistory($id: ID!, $after: String!, $before: String!){
+    userReadHistory(id: $id, after: $after, before: $before) {
+      date
+      reads
+    }
+  }`;
+
+  const now = new Date(2021, 4, 2);
+  const thisWeekStart = startOfISOWeek(now);
+  const lastWeekStart = startOfISOWeek(subDays(now, 7));
+  const lastTwoWeeksStart = startOfISOWeek(subDays(now, 14));
+  const lastThreeWeeksStart = startOfISOWeek(subDays(now, 21));
+
+  it('should return the read history', async () => {
+    loggedUser = '1';
+    await con.getRepository(View).save([
+      { userId: loggedUser, postId: 'p1', timestamp: thisWeekStart },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: thisWeekStart,
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: thisWeekStart,
+      },
+      {
+        userId: loggedUser,
+        postId: 'p4',
+        timestamp: addDays(lastTwoWeeksStart, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p5',
+        timestamp: addDays(lastTwoWeeksStart, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p6',
+        timestamp: addDays(lastWeekStart, 4),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p7',
+        timestamp: addDays(lastWeekStart, 5),
+      },
+    ]);
+    const res = await client.query({
+      query: QUERY,
+      variables: {
+        id: '1',
+        after: lastThreeWeeksStart.toISOString(),
+        before: now.toISOString(),
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadHistory).toMatchSnapshot();
+  });
+
+  it('should not count views in the same day multiple times', async () => {
+    loggedUser = '1';
+    await con.getRepository(View).save([
+      { userId: loggedUser, postId: 'p1', timestamp: lastThreeWeeksStart },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: lastTwoWeeksStart,
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addHours(lastTwoWeeksStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p4',
+        timestamp: addDays(lastTwoWeeksStart, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p5',
+        timestamp: addDays(lastWeekStart, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p6',
+        timestamp: addDays(lastWeekStart, 4),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p7',
+        timestamp: addDays(lastWeekStart, 5),
+      },
+    ]);
+    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadingRankHistory).toMatchSnapshot();
+  });
+
+  it('should ignore views during current week', async () => {
+    loggedUser = '1';
+    await con.getRepository(View).save([
+      { userId: loggedUser, postId: 'p1', timestamp: thisWeekStart },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addDays(thisWeekStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(thisWeekStart, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p4',
+        timestamp: addDays(lastWeekStart, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p5',
+        timestamp: addDays(lastWeekStart, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p6',
+        timestamp: addDays(lastWeekStart, 4),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p7',
+        timestamp: addDays(lastWeekStart, 5),
+      },
+    ]);
+    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadingRankHistory).toMatchSnapshot();
+  });
+});
