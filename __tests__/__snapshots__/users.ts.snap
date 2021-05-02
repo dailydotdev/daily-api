@@ -20,6 +20,41 @@ Object {
 }
 `;
 
+exports[`query userReadingRankHistory should ignore views during current week 1`] = `
+Array [
+  Object {
+    "count": 1,
+    "rank": 2,
+  },
+]
+`;
+
+exports[`query userReadingRankHistory should not count views in the same day multiple times 1`] = `
+Array [
+  Object {
+    "count": 2,
+    "rank": 0,
+  },
+  Object {
+    "count": 1,
+    "rank": 1,
+  },
+]
+`;
+
+exports[`query userReadingRankHistory should return the reading rank history 1`] = `
+Array [
+  Object {
+    "count": 1,
+    "rank": 0,
+  },
+  Object {
+    "count": 2,
+    "rank": 1,
+  },
+]
+`;
+
 exports[`query userStats should return partial user stats when no posts or no comments 1`] = `
 Object {
   "userStats": Object {

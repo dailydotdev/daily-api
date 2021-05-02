@@ -22,6 +22,11 @@ export interface GQLReadingRank {
   readToday?: boolean;
 }
 
+export interface GQLReadingRankHistory {
+  rank: number;
+  count: number;
+}
+
 export const typeDefs = gql`
   """
   Registered user
@@ -65,6 +70,11 @@ export const typeDefs = gql`
     readToday: Boolean
   }
 
+  type ReadingRankHistory {
+    rank: Int!
+    count: Int!
+  }
+
   extend type Query {
     """
     Get the statistics of the user
@@ -74,6 +84,11 @@ export const typeDefs = gql`
     Get the reading rank of the user
     """
     userReadingRank(id: ID!): ReadingRank
+    """
+    Get the reading rank history of the user.
+    An aggregated count of all the ranks the user ever received.
+    """
+    userReadingRankHistory(id: ID!): [ReadingRankHistory]
   }
 `;
 
@@ -158,6 +173,34 @@ export const resolvers: IResolvers<any, Context> = {
         rankThisWeek: isSameUser ? rankThisWeek : null,
         readToday: isSameUser ? res.today > 0 : null,
       };
+    },
+    userReadingRankHistory: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLReadingRankHistory[]> => {
+      return ctx.con.query(
+        `
+        select case when days < 3 then 0 else days - 2 end as "rank",
+               count(*)                                    as "count"
+        from (
+               select date_trunc('week', "timestamp") as "timestamp",
+                      count(*)                        as days
+               from (
+                      select date_trunc('day', "timestamp") as "timestamp"
+                      from "view"
+                      where "userId" = $1
+                        and "timestamp" >= '2020-12-14'
+                        and "timestamp" < date_trunc('week', timezone('utc', now()))
+                      group by 1
+                      having count(*) > 0
+                    ) as days
+               group by 1
+             ) as weeks
+        group by 1;
+      `,
+        [id],
+      );
     },
   }),
   User: {
