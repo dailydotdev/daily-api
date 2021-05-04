@@ -71,7 +71,6 @@ const service = new gcp.cloudrun.Service(
     template: {
       metadata: {
         annotations: {
-          'autoscaling.knative.dev/maxScale': '20',
           'run.googleapis.com/vpc-access-connector': vpcConnector.name,
           'run.googleapis.com/vpc-access-egress': 'private-ranges-only',
         },
