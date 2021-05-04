@@ -18,6 +18,7 @@ const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
 const postReachedViewsThresholdTopic = pubsub.topic(
   'post-reached-views-threshold',
 );
+const viewsTopic = pubsub.topic('views');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
@@ -160,4 +161,22 @@ export const notifyPostReachedViewsThreshold = async (
   publishEvent(log, postReachedViewsThresholdTopic, {
     postId,
     threshold,
+  });
+
+export const notifyView = (
+  log: EventLogger,
+  postId: string,
+  userId: string,
+  referer: string,
+  agent: string,
+  ip: string,
+  timestamp: Date,
+): Promise<void> =>
+  publishEvent(log, viewsTopic, {
+    postId,
+    userId,
+    referer,
+    agent,
+    ip,
+    timestamp,
   });
