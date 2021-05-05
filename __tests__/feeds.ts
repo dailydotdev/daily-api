@@ -170,6 +170,12 @@ describe('query anonymousFeed', () => {
     });
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should remove banned posts from the feed', async () => {
+    await con.getRepository(Post).update({ id: 'p5' }, { banned: true });
+    const res = await client.query({ query: QUERY() });
+    expect(res.data).toMatchSnapshot();
+  });
 });
 
 describe('query feed', () => {
@@ -225,6 +231,14 @@ describe('query feed', () => {
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await con.getRepository(View).save([{ userId: '1', postId: 'p1' }]);
     const res = await client.query({ query: QUERY(true) });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should remove banned posts from the feed', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con.getRepository(Post).update({ id: 'p4' }, { banned: true });
+    const res = await client.query({ query: QUERY() });
     expect(res.data).toMatchSnapshot();
   });
 });

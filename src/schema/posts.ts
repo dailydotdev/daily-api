@@ -262,6 +262,16 @@ export const typeDefs = gql`
     ): EmptyResponse @auth(requires: [MODERATOR])
 
     """
+    Bans a post (can be undone)
+    """
+    banPost(
+      """
+      Id of the post to ban
+      """
+      id: ID
+    ): EmptyResponse @auth(requires: [MODERATOR])
+
+    """
     Upvote to the post
     """
     upvote(
@@ -377,6 +387,14 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLEmptyResponse> => {
       await ctx.getRepository(Post).delete({ id });
       await getPostsIndex().deleteObject(id);
+      return { _: true };
+    },
+    banPost: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.getRepository(Post).update({ id }, { banned: true });
       return { _: true };
     },
     upvote: async (

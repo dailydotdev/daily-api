@@ -120,6 +120,7 @@ export const applyFeedWhere = (
   builder: SelectQueryBuilder<Post>,
   alias: string,
   removeHiddenPosts = true,
+  removeBannedPosts = true,
 ): SelectQueryBuilder<Post> => {
   const selectSource = graphorm.mappings.Post.fields.source
     .customQuery(ctx, 'sd', builder.subQuery())
@@ -137,6 +138,9 @@ export const applyFeedWhere = (
         { userId: ctx.userId },
       )
       .andWhere('hidden.postId IS NULL');
+  }
+  if (removeBannedPosts) {
+    newBuilder = newBuilder.andWhere(`"${alias}".banned = FALSE`);
   }
   return newBuilder;
 };
@@ -161,6 +165,7 @@ export function feedResolver<
     alias: string,
   ) => SelectQueryBuilder<Post>,
   removeHiddenPosts = true,
+  removeBannedPosts = true,
 ): IFieldResolver<TSource, Context, TArgs> {
   return async (source, args, context, info): Promise<Connection<GQLPost>> => {
     const page = pageGenerator.connArgsToPage(args);
@@ -182,6 +187,7 @@ export function feedResolver<
           ),
           builder.alias,
           removeHiddenPosts,
+          removeBannedPosts,
         );
         return builder;
       },
