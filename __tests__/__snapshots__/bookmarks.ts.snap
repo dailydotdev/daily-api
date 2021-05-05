@@ -50,6 +50,45 @@ Array [
 ]
 `;
 
+exports[`query bookmarks should include banned posts 1`] = `
+Object {
+  "bookmarksFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p3",
+          "source": Object {
+            "id": "c",
+            "image": "http://image.com/c",
+            "name": "C",
+            "public": true,
+          },
+          "tags": Array [],
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p1",
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "hasNextPage": true,
+    },
+  },
+}
+`;
+
 exports[`query bookmarks should return bookmarks from list 1`] = `
 Object {
   "bookmarksFeed": Object {

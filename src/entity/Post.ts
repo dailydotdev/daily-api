@@ -127,6 +127,10 @@ export class Post {
   @Column({ type: 'integer', nullable: true })
   @Index('IDX_post_discussion_score')
   discussionScore?: number;
+
+  @Column({ default: false })
+  @Index('IDX_post_banned')
+  banned: boolean;
 }
 
 export interface SearchPostsResult {

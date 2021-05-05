@@ -612,6 +612,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         sourceFeedBuilder(ctx, source, builder, alias),
       feedPageGenerator,
       applyFeedPaging,
+      true,
+      false,
     ),
     tagFeed: feedResolver(
       (ctx, { tag }: TagFeedArgs, builder, alias) =>
@@ -718,6 +720,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         }),
       feedPageGenerator,
       applyFeedPaging,
+      false,
       false,
     ),
     mostUpvotedFeed: feedResolver(

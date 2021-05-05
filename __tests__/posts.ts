@@ -612,6 +612,50 @@ describe('mutation deletePost', () => {
   });
 });
 
+describe('mutation banPost', () => {
+  const MUTATION = `
+  mutation BanPost($id: ID!) {
+  banPost(id: $id) {
+    _
+  }
+}`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not authorize when not moderator', () => {
+    loggedUser = '1';
+    roles = [];
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should ban the post', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOne('p1');
+    expect(post.banned).toEqual(true);
+  });
+});
+
 describe('mutation reportPost', () => {
   const MUTATION = `
   mutation ReportPost($id: ID!, $reason: ReportReason) {

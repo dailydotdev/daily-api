@@ -500,6 +500,15 @@ describe('query bookmarks', () => {
     delete res.data.bookmarksFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should include banned posts', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Bookmark, bookmarksFixture);
+    await con.getRepository(Post).update({ id: 'p3' }, { banned: true });
+    const res = await client.query({ query: QUERY(false, null, now, 2) });
+    delete res.data.bookmarksFeed.pageInfo.endCursor;
+    expect(res.data).toMatchSnapshot();
+  });
 });
 
 describe('query bookmarksLists', () => {
