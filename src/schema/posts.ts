@@ -327,8 +327,10 @@ const saveHiddenPost = async (
 };
 
 const reportReasons = new Map([
-  ['BROKEN', 'Link is broken'],
-  ['NSFW', 'Post is NSFW'],
+  ['BROKEN', '💔 Link is broken'],
+  ['NSFW', '🔞 Post is NSFW'],
+  ['CLICKBAIT', '🎣 Clickbait!!!'],
+  ['LOW', '💩 Low quality content'],
 ]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

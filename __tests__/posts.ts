@@ -698,7 +698,11 @@ describe('mutation reportPost', () => {
       .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
     expect(actual).toMatchSnapshot();
     const post = await con.getRepository(Post).findOne('p1');
-    expect(notifyPostReport).toBeCalledWith(loggedUser, post, 'Link is broken');
+    expect(notifyPostReport).toBeCalledWith(
+      loggedUser,
+      post,
+      '💔 Link is broken',
+    );
   });
 
   it('should ignore conflicts', async () => {
