@@ -62,7 +62,7 @@ export const typeDefs = gql`
     """
     Time when comment was last updated (edited)
     """
-    lastUpdatedAt: DateTime!
+    lastUpdatedAt: DateTime
 
     """
     Permanent link to the comment
