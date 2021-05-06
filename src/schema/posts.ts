@@ -209,6 +209,14 @@ export const typeDefs = gql`
     """
     BROKEN
     """
+    The post is a clickbait
+    """
+    CLICKBAIT
+    """
+    The post has low quality content
+    """
+    LOW
+    """
     The post is not safe for work (NSFW), for any reason
     """
     NSFW

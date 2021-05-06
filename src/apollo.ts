@@ -80,7 +80,10 @@ export default async function (config: Config): Promise<ApolloServer> {
           }
         : false,
     formatError: (error): GraphQLFormattedError => {
-      if (error?.message === 'PersistedQueryNotFound') {
+      if (
+        error?.message === 'PersistedQueryNotFound' ||
+        process.env.NODE_ENV !== 'production'
+      ) {
         return error;
       }
       return errorConverter(error);
