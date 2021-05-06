@@ -114,6 +114,10 @@ const obj = new GraphORM({
       createdAt: {
         transform: (value: string | Date): Date => new Date(value),
       },
+      lastUpdatedAt: {
+        transform: (value?: string | Date): Date =>
+          value ? new Date(value) : undefined,
+      },
       upvoted: {
         select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
           const query = qb
