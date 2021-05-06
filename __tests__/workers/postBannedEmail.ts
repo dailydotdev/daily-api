@@ -38,8 +38,18 @@ beforeEach(async () => {
     { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
   ]);
   await con.getRepository(PostReport).insert([
-    { postId: 'p1', userId: '1', reason: 'BROKEN' },
-    { postId: 'p1', userId: '2', reason: 'CLICKBAIT' },
+    {
+      postId: 'p1',
+      userId: '1',
+      reason: 'BROKEN',
+      createdAt: new Date(2021, 4, 6, 13, 36, 26),
+    },
+    {
+      postId: 'p1',
+      userId: '2',
+      reason: 'CLICKBAIT',
+      createdAt: new Date(2021, 4, 5, 12, 36, 26),
+    },
   ]);
 });
 
