@@ -92,4 +92,12 @@ export const workers: Worker[] = [
     topic: 'post-upvoted',
     subscription: 'post-upvoted-redis',
   },
+  {
+    topic: 'post-banned-or-removed',
+    subscription: 'post-banned-rep',
+  },
+  {
+    topic: 'post-banned-or-removed',
+    subscription: 'post-banned-email',
+  },
 ];

@@ -19,6 +19,7 @@ const postReachedViewsThresholdTopic = pubsub.topic(
   'post-reached-views-threshold',
 );
 const viewsTopic = pubsub.topic('views');
+const postBannedOrRemovedTopic = pubsub.topic('post-banned-or-removed');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
@@ -179,4 +180,12 @@ export const notifyView = (
     agent,
     ip,
     timestamp,
+  });
+
+export const notifyPostBannedOrRemoved = async (
+  log: EventLogger,
+  postId: string,
+): Promise<void> =>
+  publishEvent(log, postBannedOrRemovedTopic, {
+    postId,
   });
