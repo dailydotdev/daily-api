@@ -1,0 +1,25 @@
+import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
+import { User } from './User';
+
+@Entity()
+export class PostReport {
+  @PrimaryColumn({ type: 'text' })
+  @Index('IDX_post_report_post_id')
+  postId: string;
+
+  @PrimaryColumn({ length: 36 })
+  @Index('IDX_post_report_user_id')
+  userId: string;
+
+  @Column({ default: () => 'now()' })
+  createdAt: Date;
+
+  @Column({ length: 12 })
+  reason: string;
+
+  @ManyToOne(() => User, {
+    lazy: true,
+    onDelete: 'CASCADE',
+  })
+  user: Promise<User>;
+}

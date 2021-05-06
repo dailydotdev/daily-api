@@ -39,11 +39,13 @@ import {
   notifyPostReport,
   notifyPostUpvoted,
   notifyPostUpvoteCanceled,
+  notifyPostBannedOrRemoved,
 } from '../src/common';
 import { Roles } from '../src/roles';
 import { getPostsIndex } from '../src/common';
 import Mock = jest.Mock;
 import { SearchIndex } from 'algoliasearch';
+import { PostReport } from '../src/entity/PostReport';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -59,6 +61,7 @@ jest.mock('../src/common', () => ({
   notifyPostReport: jest.fn(),
   notifyPostUpvoted: jest.fn(),
   notifyPostUpvoteCanceled: jest.fn(),
+  notifyPostBannedOrRemoved: jest.fn(),
 }));
 
 jest.mock('../src/common/algolia', () => ({
@@ -609,6 +612,22 @@ describe('mutation deletePost', () => {
     const actual = await con.getRepository(Post).findOne('p1');
     expect(actual).toBeFalsy();
     expect(deleteObjectMock).toBeCalledWith('p1');
+    expect(mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1)).toEqual([
+      'p1',
+    ]);
+  });
+
+  it('should do nothing if post is already deleted', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+    await con.getRepository(Post).delete({ id: 'p1' });
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(deleteObjectMock).toBeCalledTimes(0);
+    expect(notifyPostBannedOrRemoved).toBeCalledTimes(0);
   });
 });
 
@@ -653,6 +672,21 @@ describe('mutation banPost', () => {
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.banned).toEqual(true);
+    expect(mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1)).toEqual([
+      'p1',
+    ]);
+  });
+
+  it('should do nothing if post is already banned', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+    await con.getRepository(Post).update({ id: 'p1' }, { banned: true });
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(notifyPostBannedOrRemoved).toBeCalledTimes(0);
   });
 });
 
@@ -703,6 +737,12 @@ describe('mutation reportPost', () => {
       post,
       '💔 Link is broken',
     );
+    expect(await con.getRepository(PostReport).findOne()).toEqual({
+      postId: 'p1',
+      userId: '1',
+      createdAt: expect.anything(),
+      reason: 'BROKEN',
+    });
   });
 
   it('should ignore conflicts', async () => {
@@ -913,7 +953,7 @@ describe('compatibility routes', () => {
         .find({ where: { userId: '1' }, select: ['postId', 'userId'] });
       expect(actual).toMatchSnapshot();
       const post = await con.getRepository(Post).findOne('p1');
-      expect(notifyPostReport).toBeCalledWith('1', post, 'Link is broken');
+      expect(notifyPostReport).toBeCalledWith('1', post, '💔 Link is broken');
     });
   });
 });

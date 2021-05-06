@@ -12,6 +12,7 @@ import {
   notifyPostUpvoted,
   notifyPostUpvoteCanceled,
   pickImageUrl,
+  notifyPostBannedOrRemoved,
 } from '../common';
 import { HiddenPost, Post, Upvote } from '../entity';
 import { GQLEmptyResponse } from './common';
@@ -21,6 +22,7 @@ import { GQLComment } from './comments';
 import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
+import { PostReport } from '../entity/PostReport';
 
 export interface GQLPost {
   id: string;
@@ -318,8 +320,7 @@ const saveHiddenPost = async (
   hiddenPost: DeepPartial<HiddenPost>,
 ): Promise<boolean> => {
   try {
-    const repo = con.getRepository(HiddenPost);
-    await repo.insert(repo.create(hiddenPost));
+    await con.getRepository(HiddenPost).insert(hiddenPost);
   } catch (err) {
     // Foreign key violation
     if (err?.code === '23503') {
@@ -386,7 +387,23 @@ export const resolvers: IResolvers<any, Context> = {
       });
       if (added) {
         const post = await ctx.getRepository(Post).findOneOrFail(id);
-        await notifyPostReport(ctx.userId, post, reportReasons.get(reason));
+        if (!post.banned) {
+          try {
+            await ctx
+              .getRepository(PostReport)
+              .insert({ postId: id, userId: ctx.userId, reason: reason });
+            await notifyPostReport(ctx.userId, post, reportReasons.get(reason));
+          } catch (err) {
+            if (err?.code !== '23505') {
+              ctx.log.error(
+                {
+                  err,
+                },
+                'failed to save report to database',
+              );
+            }
+          }
+        }
       }
       return { _: true };
     },
@@ -395,8 +412,11 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      await ctx.getRepository(Post).delete({ id });
-      await getPostsIndex().deleteObject(id);
+      const res = await ctx.getRepository(Post).delete({ id });
+      if (res.affected > 0) {
+        await getPostsIndex().deleteObject(id);
+        await notifyPostBannedOrRemoved(ctx.log, id);
+      }
       return { _: true };
     },
     banPost: async (
@@ -404,7 +424,11 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      await ctx.getRepository(Post).update({ id }, { banned: true });
+      const post = await ctx.getRepository(Post).findOneOrFail(id);
+      if (!post.banned) {
+        await ctx.getRepository(Post).update({ id }, { banned: true });
+        await notifyPostBannedOrRemoved(ctx.log, id);
+      }
       return { _: true };
     },
     upvote: async (
