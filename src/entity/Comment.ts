@@ -22,6 +22,9 @@ export class Comment {
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
+  @Column({ nullable: true })
+  lastUpdatedAt: Date;
+
   @Column({ type: 'text' })
   content: string;
 

@@ -565,3 +565,60 @@ describe('permalink field', () => {
     );
   });
 });
+
+describe('mutation editComment', () => {
+  const MUTATION = `
+  mutation EditComment($id: ID!, $content: String!) {
+  editComment(id: $id, content: $content) {
+    id, content, lastUpdatedAt
+  }
+}`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'c1', content: 'Edit' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw not found when cannot find comment', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'invalid', content: 'Edit' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should forbidden when user is not the author', () => {
+    loggedUser = '2';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'c1', content: 'Edit' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should edit a comment', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'c2', content: 'Edit' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editComment).toEqual({
+      id: 'c2',
+      lastUpdatedAt: expect.any(String),
+      content: 'Edit',
+    });
+  });
+});
