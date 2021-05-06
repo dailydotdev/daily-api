@@ -42,7 +42,7 @@
     "fast-json-stringify": "^2.7.1",
     "fastify": "^2.15.3",
     "fastify-cookie": "^3.6.1",
-    "fastify-cors": "^3.0.3",
+    "fastify-cors": "^6.0.0",
     "fastify-helmet": "^3.0.2",
     "fastify-plugin": "^1.6.1",
     "fastify-rate-limit": "^3.0.1",
