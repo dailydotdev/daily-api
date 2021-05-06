@@ -60,6 +60,11 @@ export const typeDefs = gql`
     createdAt: DateTime!
 
     """
+    Time when comment was last updated (edited)
+    """
+    lastUpdatedAt: DateTime!
+
+    """
     Permanent link to the comment
     """
     permalink: String!
@@ -171,6 +176,20 @@ export const typeDefs = gql`
       commentId: ID!
       """
       Content of the comment
+      """
+      content: String!
+    ): Comment @auth
+
+    """
+    Edit comment
+    """
+    editComment(
+      """
+      Id of the comment to edit
+      """
+      id: ID!
+      """
+      New content of the comment
       """
       content: String!
     ): Comment @auth
@@ -372,6 +391,25 @@ export const resolvers: IResolvers<any, Context> = {
         }
         throw err;
       }
+    },
+    editComment: async (
+      source,
+      { id, content }: { id: string; content: string },
+      ctx: Context,
+      info,
+    ): Promise<GQLComment> => {
+      await ctx.con.transaction(async (entityManager) => {
+        const repo = entityManager.getRepository(Comment);
+        const comment = await repo.findOneOrFail({ id });
+        if (comment.userId !== ctx.userId) {
+          throw new ForbiddenError("Cannot edit someone else's comment");
+        }
+        await repo.update(
+          { id: comment.id },
+          { content, lastUpdatedAt: new Date() },
+        );
+      });
+      return getCommentById(id, ctx, info);
     },
     deleteComment: async (
       source,
