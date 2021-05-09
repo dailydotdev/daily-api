@@ -1,6 +1,6 @@
 import { PubSub, Topic } from '@google-cloud/pubsub';
 import { Logger } from 'fastify';
-import { SourceRequest } from '../entity';
+import { Post, SourceRequest } from '../entity';
 import { toLegacySourceRequest } from '../compatibility/entity';
 
 const pubsub = new PubSub();
@@ -184,8 +184,8 @@ export const notifyView = (
 
 export const notifyPostBannedOrRemoved = async (
   log: EventLogger,
-  postId: string,
+  post: Post,
 ): Promise<void> =>
   publishEvent(log, postBannedOrRemovedTopic, {
-    postId,
+    post,
   });

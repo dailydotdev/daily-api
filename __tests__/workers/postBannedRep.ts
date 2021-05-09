@@ -50,8 +50,9 @@ beforeEach(async () => {
 });
 
 it('should increase reputation and notify', async () => {
+  const post = await con.getRepository(Post).findOne('p1');
   await expectSuccessfulBackground(app, worker, {
-    postId: 'p1',
+    post,
   });
   const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
   expect(users[0].reputation).toEqual(4);

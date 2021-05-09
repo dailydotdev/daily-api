@@ -82,8 +82,9 @@ it('should send mail to the reporters', async () => {
   ];
   mockedUsers.forEach(mockUsersMe);
 
+  const post = await con.getRepository(Post).findOne('p1');
   await expectSuccessfulBackground(app, worker, {
-    postId: 'p1',
+    post,
   });
   expect(sendEmail).toBeCalledTimes(1);
   expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();

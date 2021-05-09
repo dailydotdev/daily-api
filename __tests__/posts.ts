@@ -604,6 +604,7 @@ describe('mutation deletePost', () => {
   it('should delete the post', async () => {
     loggedUser = '1';
     roles = [Roles.Moderator];
+    const post = await con.getRepository(Post).findOne('p1');
     const res = await client.mutate({
       mutation: MUTATION,
       variables: { id: 'p1' },
@@ -613,7 +614,7 @@ describe('mutation deletePost', () => {
     expect(actual).toBeFalsy();
     expect(deleteObjectMock).toBeCalledWith('p1');
     expect(mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1)).toEqual([
-      'p1',
+      post,
     ]);
   });
 
@@ -673,7 +674,7 @@ describe('mutation banPost', () => {
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.banned).toEqual(true);
     expect(mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1)).toEqual([
-      'p1',
+      { ...post, banned: false },
     ]);
   });
 
