@@ -10,7 +10,7 @@ import { fetchUser } from '../common';
 import { PostReport } from '../entity/PostReport';
 
 interface Data {
-  postId: string;
+  post: Post;
 }
 
 const reportReasons = new Map([
@@ -24,10 +24,11 @@ const worker: Worker = {
   subscription: 'post-banned-email',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
+    const { post } = data;
     try {
       const reports = await con
         .getRepository(PostReport)
-        .find({ postId: data.postId });
+        .find({ postId: post.id });
       const reportsWithUser = await Promise.all(
         reports.map(async (report) => ({
           ...report,
@@ -35,7 +36,6 @@ const worker: Worker = {
         })),
       );
       if (reportsWithUser.length) {
-        const post = await con.getRepository(Post).findOne(data.postId);
         const display = await con
           .getRepository(SourceDisplay)
           .findOne({ sourceId: post.sourceId });

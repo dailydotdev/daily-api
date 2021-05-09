@@ -1,9 +1,10 @@
 import { messageToJson, Worker } from './worker';
 import { increaseReputation } from '../common';
 import { PostReport } from '../entity/PostReport';
+import { Post } from '../entity';
 
 interface Data {
-  postId: string;
+  post: Post;
 }
 
 const worker: Worker = {
@@ -13,7 +14,7 @@ const worker: Worker = {
     try {
       const reports = await con
         .getRepository(PostReport)
-        .find({ postId: data.postId });
+        .find({ postId: data.post.id });
       await Promise.all(
         reports.map((report) =>
           increaseReputation(con, logger, report.userId, 1),

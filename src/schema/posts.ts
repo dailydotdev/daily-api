@@ -412,10 +412,11 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      const res = await ctx.getRepository(Post).delete({ id });
-      if (res.affected > 0) {
+      const post = await ctx.getRepository(Post).findOne(id);
+      if (post) {
+        await ctx.getRepository(Post).delete({ id });
         await getPostsIndex().deleteObject(id);
-        await notifyPostBannedOrRemoved(ctx.log, id);
+        await notifyPostBannedOrRemoved(ctx.log, post);
       }
       return { _: true };
     },
@@ -427,7 +428,7 @@ export const resolvers: IResolvers<any, Context> = {
       const post = await ctx.getRepository(Post).findOneOrFail(id);
       if (!post.banned) {
         await ctx.getRepository(Post).update({ id }, { banned: true });
-        await notifyPostBannedOrRemoved(ctx.log, id);
+        await notifyPostBannedOrRemoved(ctx.log, post);
       }
       return { _: true };
     },
