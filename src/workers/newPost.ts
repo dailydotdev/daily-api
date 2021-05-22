@@ -100,9 +100,12 @@ const addPost = async (
           .getRepository(User)
           .createQueryBuilder()
           .select('id')
-          .where(`lower(twitter) = :twitter or lower(username) = :twitter`, {
-            twitter,
-          })
+          .where(
+            `lower(twitter) = :twitter or (lower(username) = :twitter and username = 'addyosmani')`,
+            {
+              twitter,
+            },
+          )
           .getRawOne();
         if (author) {
           authorId = author.id;
@@ -209,6 +212,10 @@ const worker: Worker = {
         },
         'author is banned',
       );
+      return;
+    }
+
+    if (!data.title) {
       return;
     }
 

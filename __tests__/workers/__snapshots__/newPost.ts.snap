@@ -138,14 +138,14 @@ Object {
 }
 `;
 
-exports[`should match post to author based on username 1`] = `
+exports[`should not match post to author 1`] = `
 Object {
-  "authorId": "1",
+  "authorId": null,
   "banned": false,
   "canonicalUrl": null,
   "comments": 0,
   "createdAt": Any<Date>,
-  "creatorTwitter": "@idoshamun",
+  "creatorTwitter": "@nouser",
   "discussionScore": null,
   "id": Any<String>,
   "image": null,
@@ -155,7 +155,7 @@ Object {
   "ratio": null,
   "readTime": null,
   "score": Any<Number>,
-  "sentAnalyticsReport": false,
+  "sentAnalyticsReport": true,
   "shortId": Any<String>,
   "siteTwitter": null,
   "sourceId": "a",
@@ -170,14 +170,14 @@ Object {
 }
 `;
 
-exports[`should not match post to author 1`] = `
+exports[`should not match post to author based on username 1`] = `
 Object {
   "authorId": null,
   "banned": false,
   "canonicalUrl": null,
   "comments": 0,
   "createdAt": Any<Date>,
-  "creatorTwitter": "@nouser",
+  "creatorTwitter": "@idoshamun",
   "discussionScore": null,
   "id": Any<String>,
   "image": null,
