@@ -410,7 +410,7 @@ it('should match post to author', async () => {
   ]);
 });
 
-it('should match post to author based on username', async () => {
+it('should not match post to author based on username', async () => {
   await con.getRepository(User).save([
     {
       id: '1',
@@ -443,10 +443,7 @@ it('should match post to author based on username', async () => {
     id: expect.any(String),
     shortId: expect.any(String),
   });
-  expect(mocked(notifyPostAuthorMatched).mock.calls[0].slice(1)).toEqual([
-    posts[0].id,
-    '1',
-  ]);
+  expect(notifyPostAuthorMatched).toBeCalledTimes(0);
 });
 
 it('should not match post to author', async () => {
@@ -572,4 +569,16 @@ it('should keep html-like text', async () => {
     id: expect.any(String),
     shortId: expect.any(String),
   });
+});
+
+it('should ignore message if title is empty', async () => {
+  await expectSuccessfulBackground(app, worker, {
+    id: 'p1',
+    url: 'https://post.io',
+    publicationId: 'a',
+    creatorTwitter: '@NewGenDeveloper',
+  });
+  expect(saveObjectMock).toBeCalledTimes(0);
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(0);
 });
