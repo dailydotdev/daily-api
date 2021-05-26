@@ -62,7 +62,7 @@
     "node-fetch": "^2.6.1",
     "p-retry": "^4.5.0",
     "pg": "^8.6.0",
-    "pg-query-stream": "^4.0.0",
+    "pg-query-stream": "^4.1.0",
     "reflect-metadata": "^0.1.13",
     "rss": "^1.2.2",
     "shortid": "^2.2.16",
