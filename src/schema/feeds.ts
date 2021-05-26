@@ -810,7 +810,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         builder,
         alias,
       ) => {
-        const similarPostsQuery = `select post.id
+        let similarPostsQuery;
+        if (tags?.length > 0) {
+          similarPostsQuery = `select post.id
                                    from post
                                           inner join (
                                      select count(*)           as similar,
@@ -826,6 +828,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                                      and post."createdAt" >= now() - interval '6 month'
                                    order by (pow(post.upvotes, k.similar) * 1000 / k.occurrences) desc
                                    limit 25`;
+        } else {
+          similarPostsQuery = `select post.id
+                                   from post
+                                   where post.id != :postId
+                                     and post."createdAt" >= now() - interval '6 month'
+                                   order by post.upvotes desc
+                                   limit 25`;
+        }
         return builder.andWhere(`${alias}."id" in (${similarPostsQuery})`, {
           postId: post,
           tags,

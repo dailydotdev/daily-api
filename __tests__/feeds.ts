@@ -619,6 +619,33 @@ describe('query randomSimilarPostsByTags', () => {
       res.data.randomSimilarPostsByTags.map((post) => post.id).sort(),
     ).toEqual(['p3', 'p5']);
   });
+
+  it('should return random similar posts even when tags not provided', async () => {
+    const repo = con.getRepository(Post);
+    const now = new Date();
+    await con.getRepository(Keyword).save([
+      { value: 'javascript', status: 'allow' },
+      { value: 'webdev', status: 'deny' },
+      { value: 'backend', status: 'allow' },
+    ]);
+    await con.getRepository(PostKeyword).save([
+      { keyword: 'backend', postId: 'p2' },
+      { keyword: 'javascript', postId: 'p3' },
+    ]);
+    await repo.update(
+      { id: 'p4' },
+      {
+        createdAt: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 30 * 8),
+      },
+    );
+
+    const res = await client.query({
+      query: QUERY,
+      variables: { post: 'p1', tags: [] },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.randomSimilarPostsByTags.length).toEqual(3);
+  });
 });
 
 describe('query randomDiscussedPosts', () => {
