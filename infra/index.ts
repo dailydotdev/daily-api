@@ -19,11 +19,21 @@ const name = 'api';
 
 const imageTag = config.require('tag');
 
-const vpcConnector = new gcp.vpcaccess.Connector(`${name}-vpc`, {
+const oldVpcConnector = new gcp.vpcaccess.Connector(`${name}-vpc`, {
   name: `${name}-vpc`,
   region: location,
   network: 'default',
   ipCidrRange: '10.7.0.0/28',
+});
+
+const vpcConnector = new gcp.vpcaccess.Connector(`${name}-vpc-e2`, {
+  name: `${name}-vpc-e2`,
+  region: location,
+  network: 'default',
+  ipCidrRange: '10.6.0.0/28',
+  minInstances: 2,
+  maxInstances: 10,
+  machineType: 'e2-standard-4',
 });
 
 // Create service account and grant permissions
