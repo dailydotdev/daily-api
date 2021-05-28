@@ -19,13 +19,6 @@ const name = 'api';
 
 const imageTag = config.require('tag');
 
-const oldVpcConnector = new gcp.vpcaccess.Connector(`${name}-vpc`, {
-  name: `${name}-vpc`,
-  region: location,
-  network: 'default',
-  ipCidrRange: '10.7.0.0/28',
-});
-
 const vpcConnector = new gcp.vpcaccess.Connector(`${name}-vpc-e2`, {
   name: `${name}-vpc-e2`,
   region: location,
