@@ -1,11 +1,10 @@
 import * as gcp from '@pulumi/gcp';
 import * as k8s from '@pulumi/kubernetes';
-import { Input, Output } from '@pulumi/pulumi';
+import { Input } from '@pulumi/pulumi';
 import {
   addIAMRolesToServiceAccount,
   createEnvVarsFromSecret,
   getCloudRunPubSubInvoker,
-  infra,
   location,
   serviceAccountToMember,
   config,
@@ -20,9 +19,12 @@ const name = 'api';
 
 const imageTag = config.require('tag');
 
-const vpcConnector = infra.getOutput(
-  'serverlessVPC',
-) as Output<gcp.vpcaccess.Connector>;
+const vpcConnector = new gcp.vpcaccess.Connector(`${name}-vpc`, {
+  name: `${name}-vpc`,
+  region: location,
+  network: 'default',
+  ipCidrRange: '10.7.0.0/28',
+});
 
 // Create service account and grant permissions
 const serviceAccount = new gcp.serviceaccount.Account(`${name}-sa`, {
