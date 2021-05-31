@@ -878,20 +878,32 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             id: feedId,
           });
           if (filters?.excludeSources?.length) {
-            await manager.getRepository(FeedSource).save(
-              filters.excludeSources.map((s) => ({
-                feedId,
-                sourceId: s,
-              })),
-            );
+            await manager
+              .createQueryBuilder()
+              .insert()
+              .into(FeedSource)
+              .values(
+                filters.excludeSources.map((s) => ({
+                  feedId,
+                  sourceId: s,
+                })),
+              )
+              .onConflict(`("feedId", "sourceId") DO NOTHING`)
+              .execute();
           }
           if (filters?.includeTags?.length) {
-            await manager.getRepository(FeedTag).save(
-              filters.includeTags.map((s) => ({
-                feedId,
-                tag: s,
-              })),
-            );
+            await manager
+              .createQueryBuilder()
+              .insert()
+              .into(FeedTag)
+              .values(
+                filters.includeTags.map((s) => ({
+                  feedId,
+                  tag: s,
+                })),
+              )
+              .onConflict(`("feedId", "tag") DO NOTHING`)
+              .execute();
           }
         },
       );

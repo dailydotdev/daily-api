@@ -291,12 +291,6 @@ describe('query keywordFeed', () => {
   }`;
 
   it('should return a single keyword feed', async () => {
-    await con.getRepository(PostKeyword).save(
-      postTagsFixture.map((postTag) => ({
-        keyword: postTag.tag,
-        postId: postTag.postId,
-      })),
-    );
     const res = await client.query({ query: QUERY('javascript') });
     expect(res.data).toMatchSnapshot();
   });
