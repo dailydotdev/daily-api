@@ -63,6 +63,19 @@ Array [
 ]
 `;
 
+exports[`mutation addBookmarks should ignore nulls 1`] = `
+Array [
+  Bookmark {
+    "postId": "p1",
+    "userId": "1",
+  },
+  Bookmark {
+    "postId": "p3",
+    "userId": "1",
+  },
+]
+`;
+
 exports[`query bookmarks should include banned posts 1`] = `
 Object {
   "bookmarksFeed": Object {

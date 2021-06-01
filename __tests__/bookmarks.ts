@@ -139,6 +139,19 @@ describe('mutation addBookmarks', () => {
       .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
     expect(actual).toMatchSnapshot();
   });
+
+  it('should ignore nulls', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { data: { postIds: ['p1', null, 'p3'] } },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con
+      .getRepository(Bookmark)
+      .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
+    expect(actual).toMatchSnapshot();
+  });
 });
 
 describe('mutation removeBookmark', () => {

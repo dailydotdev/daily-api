@@ -40,7 +40,7 @@ export const typeDefs = gql`
     """
     Post ids to bookmark
     """
-    postIds: [ID!]!
+    postIds: [ID]!
   }
 
   type Mutation {
