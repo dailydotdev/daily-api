@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { messageToJson, Worker } from './worker';
-import { Post, SourceDisplay } from '../entity';
+import { Post, Source } from '../entity';
 import {
   baseNotificationEmailData,
   sendEmail,
@@ -36,9 +36,7 @@ const worker: Worker = {
         })),
       );
       if (reportsWithUser.length) {
-        const display = await con
-          .getRepository(SourceDisplay)
-          .findOne({ sourceId: post.sourceId });
+        const source = await con.getRepository(Source).findOne(post.sourceId);
         await sendEmail({
           ...baseNotificationEmailData,
           templateId: 'd-dc6edf61c52442689e8870a434d8811d',
@@ -51,7 +49,7 @@ const worker: Worker = {
                 timestamp: format(report.createdAt, 'PPppp'),
                 report_type: reportReasons.get(report.reason),
                 article_title: truncatePostToTweet(post),
-                source_name: display.name,
+                source_name: source.name,
                 post_id: post.id,
               },
             })),

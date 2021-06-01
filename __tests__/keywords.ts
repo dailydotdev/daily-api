@@ -18,14 +18,7 @@ import {
 } from './helpers';
 import appFunc from '../src';
 import { Roles } from '../src/roles';
-import {
-  Keyword,
-  Post,
-  PostKeyword,
-  Source,
-  SourceDisplay,
-} from '../src/entity';
-import { sourceDisplaysFixture } from './fixture/sourceDisplay';
+import { Keyword, Post, PostKeyword, Source } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture } from './fixture/post';
 
@@ -53,7 +46,6 @@ beforeEach(async () => {
   roles = [];
 
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
 });
 

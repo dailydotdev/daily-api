@@ -20,13 +20,11 @@ import {
   Post,
   PostTag,
   Source,
-  SourceDisplay,
   Comment,
   User,
   CommentUpvote,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
-import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 import { postsFixture, postTagsFixture } from './fixture/post';
 
 let app: FastifyInstance;
@@ -59,7 +57,6 @@ beforeEach(async () => {
   jest.resetAllMocks();
 
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await con.getRepository(User).save([

@@ -1,19 +1,13 @@
 import { gql, IResolvers, ForbiddenError } from 'apollo-server-fastify';
 import { ConnectionArguments } from 'graphql-relay';
-import { SelectQueryBuilder } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
-import pRetry from 'p-retry';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { SourceDisplay, Source, SourceFeed } from '../entity';
+import { Source, SourceFeed } from '../entity';
 import {
   forwardPagination,
   PaginationResponse,
-  GQLDataInput,
   offsetPageGenerator,
 } from './common';
-import { addOrRemoveSuperfeedrSubscription } from '../common';
-import { EntityNotFoundError } from 'typeorm/error/EntityNotFoundError';
 
 export interface GQLSource {
   id: string;
@@ -123,35 +117,20 @@ export const typeDefs = gql`
   }
 `;
 
-const sourceFromDisplay = (display: SourceDisplay): GQLSource => ({
-  id: display.sourceId,
-  name: display.name,
-  image: display.image,
-  public: !display.userId,
+const sourceToGQL = (source: Source): GQLSource => ({
+  ...source,
+  public: !source.private,
 });
-
-const fromSourceDisplay = (
-  builder: SelectQueryBuilder<SourceDisplay>,
-): SelectQueryBuilder<SourceDisplay> =>
-  builder
-    .distinctOn(['sd.sourceId'])
-    .addSelect('sd.*')
-    .from(SourceDisplay, 'sd')
-    .orderBy('sd.sourceId')
-    .addOrderBy('sd.userId', 'ASC', 'NULLS LAST')
-    .where('"sd"."userId" IS NULL OR "sd"."userId" = :userId')
-    .andWhere('"sd"."enabled" = :enabled');
 
 const sourceByFeed = async (feed: string, ctx: Context): Promise<GQLSource> => {
   const res = await ctx.con
     .createQueryBuilder()
-    .select('sd.*')
-    .from(fromSourceDisplay, 'sd')
-    .innerJoin(SourceFeed, 'sf', 'sd."sourceId" = sf."sourceId"')
-    .where('sf.feed = :feed', { feed })
-    .setParameters({ userId: ctx.userId, enabled: true })
+    .select('source.*')
+    .from(Source, 'source')
+    .innerJoin(SourceFeed, 'sf', 'source.id = sf."sourceId"')
+    .where('sf.feed = :feed and source.private = false', { feed })
     .getRawOne();
-  return res ? sourceFromDisplay(res) : null;
+  return res ? sourceToGQL(res) : null;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -164,23 +143,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         ctx,
         { limit, offset },
       ): Promise<PaginationResponse<GQLSource>> => {
-        const res = await ctx.con
-          .createQueryBuilder()
-          .select('sd.*')
-          .from(fromSourceDisplay, 'sd')
-          .innerJoin(
-            Source,
-            'source',
-            'sd."sourceId" = source.id AND source.active = true',
-          )
-          .setParameters({ userId: ctx.userId, enabled: true })
-          .orderBy('sd.name', 'ASC')
-          .limit(limit)
-          .offset(offset)
-          .getRawMany();
-
+        const res = await ctx.con.getRepository(Source).find({
+          where: { active: true },
+          order: { name: 'ASC' },
+          take: limit,
+          skip: offset,
+        });
         return {
-          nodes: res.map(sourceFromDisplay),
+          nodes: res.map(sourceToGQL),
         };
       },
       offsetPageGenerator(100, 500),
@@ -192,73 +162,61 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ): Promise<GQLSource> => sourceByFeed(feed, ctx),
     source: async (_, { id }: { id: string }, ctx): Promise<GQLSource> => {
       const res = await ctx.con
-        .createQueryBuilder()
-        .select('sd.*')
-        .from(fromSourceDisplay, 'sd')
-        .setParameters({ userId: ctx.userId, enabled: true })
-        .where('sd."sourceId" = :id', { id })
-        .getRawOne();
-
-      if (!res) {
-        throw new EntityNotFoundError(SourceDisplay, `sourceId = ${id}`);
-      }
-
-      return sourceFromDisplay(res);
+        .getRepository(Source)
+        .findOneOrFail({ id, private: false });
+      return sourceToGQL(res);
     },
   },
   Mutation: {
-    addPrivateSource: async (
-      _,
-      { data }: GQLDataInput<GQLAddPrivateSourceInput>,
-      ctx,
-    ): Promise<GQLSource> => {
-      const privateCount = await ctx
-        .getRepository(SourceDisplay)
-        .count({ userId: ctx.userId });
-      if (privateCount >= 40) {
-        throw new ForbiddenError('Private sources cap reached');
-      }
-      let display = await sourceByFeed(data.rss, ctx);
-      if (display) {
-        return display;
-      }
-      const feed = data.rss;
-      const existingFeed = await ctx
-        .getRepository(SourceFeed)
-        .findOne({ select: ['sourceId'], where: { feed } });
-      const id = existingFeed
-        ? existingFeed.sourceId
-        : uuidv4().replace(/-/g, '');
-      display = await ctx.con.transaction(async (manager) => {
-        if (!existingFeed) {
-          await manager
-            .getRepository(Source)
-            .save({ id, website: data.website });
-          await manager.getRepository(SourceFeed).save({ sourceId: id, feed });
-        } else {
-          ctx.log.info({ data: { id } }, 'using existing private source');
-        }
-        const display = await manager.getRepository(SourceDisplay).save({
-          sourceId: id,
-          image: data.image,
-          name: data.name,
-          userId: ctx.userId,
-        });
-        return sourceFromDisplay(display);
-      });
-      if (!existingFeed) {
-        await pRetry(
-          () => addOrRemoveSuperfeedrSubscription(feed, id, 'subscribe'),
-          { retries: 2 },
-        ).catch((err) =>
-          ctx.log.error(
-            { err, data: { feed, id } },
-            'failed to add rss to superfeedr',
-          ),
-        );
-      }
-      ctx.log.info({ data }, 'new private source added');
-      return display;
+    addPrivateSource: async (): Promise<GQLSource> => {
+      throw new ForbiddenError('Not available');
+      // const privateCount = await ctx
+      //   .getRepository(SourceDisplay)
+      //   .count({ userId: ctx.userId });
+      // if (privateCount >= 40) {
+      //   throw new ForbiddenError('Private sources cap reached');
+      // }
+      // let display = await sourceByFeed(data.rss, ctx);
+      // if (display) {
+      //   return display;
+      // }
+      // const feed = data.rss;
+      // const existingFeed = await ctx
+      //   .getRepository(SourceFeed)
+      //   .findOne({ select: ['sourceId'], where: { feed } });
+      // const id = existingFeed
+      //   ? existingFeed.sourceId
+      //   : uuidv4().replace(/-/g, '');
+      // display = await ctx.con.transaction(async (manager) => {
+      //   if (!existingFeed) {
+      //     await manager
+      //       .getRepository(Source)
+      //       .save({ id, website: data.website });
+      //     await manager.getRepository(SourceFeed).save({ sourceId: id, feed });
+      //   } else {
+      //     ctx.log.info({ data: { id } }, 'using existing private source');
+      //   }
+      //   const display = await manager.getRepository(SourceDisplay).save({
+      //     sourceId: id,
+      //     image: data.image,
+      //     name: data.name,
+      //     userId: ctx.userId,
+      //   });
+      //   return sourceToGQL(display);
+      // });
+      // if (!existingFeed) {
+      //   await pRetry(
+      //     () => addOrRemoveSuperfeedrSubscription(feed, id, 'subscribe'),
+      //     { retries: 2 },
+      //   ).catch((err) =>
+      //     ctx.log.error(
+      //       { err, data: { feed, id } },
+      //       'failed to add rss to superfeedr',
+      //     ),
+      //   );
+      // }
+      // ctx.log.info({ data }, 'new private source added');
+      // return display;
     },
   },
 });

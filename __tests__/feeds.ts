@@ -27,7 +27,6 @@ import {
   Post,
   PostTag,
   Source,
-  SourceDisplay,
   View,
   BookmarkList,
   User,
@@ -40,7 +39,6 @@ import {
   postsFixture,
   postTagsFixture,
 } from './fixture/post';
-import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 import { getPostsIndex, Ranking } from '../src/common';
 
 let app: FastifyInstance;
@@ -69,7 +67,6 @@ beforeEach(async () => {
   loggedUser = null;
 
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);

@@ -21,6 +21,15 @@ export class Source {
   @Column({ default: 0 })
   rankBoost: number;
 
+  @Column({ type: 'text' })
+  name: string;
+
+  @Column({ type: 'text' })
+  image: string;
+
+  @Column({ default: false })
+  private: boolean;
+
   @OneToMany(() => SourceDisplay, (display) => display.source, { lazy: true })
   displays: Promise<SourceDisplay[]>;
 

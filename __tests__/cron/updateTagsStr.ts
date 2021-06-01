@@ -3,15 +3,8 @@ import { FastifyInstance } from 'fastify';
 import appFunc from '../../src/background';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import cron from '../../src/cron/updateTagsStr';
-import {
-  Keyword,
-  Post,
-  PostKeyword,
-  Source,
-  SourceDisplay,
-} from '../../src/entity';
+import { Keyword, Post, PostKeyword, Source } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { sourceDisplaysFixture } from '../fixture/sourceDisplay';
 import { postsFixture } from '../fixture/post';
 import { Checkpoint } from '../../src/entity/Checkpoint';
 
@@ -26,7 +19,6 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
 });
 

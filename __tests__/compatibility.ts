@@ -13,11 +13,9 @@ import {
   Post,
   PostKeyword,
   Source,
-  SourceDisplay,
   View,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
-import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 import { postKeywordsFixture, postsFixture } from './fixture/post';
 import { ApolloServer } from 'apollo-server-fastify';
 import { FeedSource } from '../src/entity';
@@ -48,7 +46,6 @@ beforeEach(async () => {
   loggedUser = null;
 
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
 });

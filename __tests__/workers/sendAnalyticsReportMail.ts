@@ -7,9 +7,8 @@ import appFunc from '../../src/background';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail, User as GatewayUser } from '../../src/common';
 import worker from '../../src/workers/sendAnalyticsReportMail';
-import { Post, Source, SourceDisplay, User } from '../../src/entity';
+import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { sourceDisplaysFixture } from '../fixture/sourceDisplay';
 import { sub } from 'date-fns';
 
 jest.mock('../../src/common/mailing', () => ({
@@ -33,7 +32,6 @@ beforeEach(async () => {
     .getRepository(User)
     .save([{ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' }]);
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, [
     {
       id: 'p1',

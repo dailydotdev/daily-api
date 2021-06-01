@@ -11,13 +11,11 @@ import {
   FeedSource,
   Post,
   Source,
-  SourceDisplay,
   PostKeyword,
 } from '../src/entity';
 import { saveFixtures } from './helpers';
 import { sourcesFixture } from './fixture/source';
 import { postKeywordsFixture } from './fixture/post';
-import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -111,7 +109,6 @@ afterAll(() => app.close());
 
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
   await saveFixtures(con, Bookmark, bookmarksFixture);

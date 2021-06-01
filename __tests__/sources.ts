@@ -8,12 +8,8 @@ import { mocked } from 'ts-jest/utils';
 
 import { Context } from '../src/Context';
 import createApolloServer from '../src/apollo';
-import {
-  MockContext,
-  testMutationErrorCode,
-  testQueryErrorCode,
-} from './helpers';
-import { Source, SourceDisplay, SourceFeed } from '../src/entity';
+import { MockContext, testQueryErrorCode } from './helpers';
+import { Source, SourceFeed } from '../src/entity';
 import { addOrRemoveSuperfeedrSubscription } from '../src/common';
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
@@ -30,26 +26,14 @@ let client: ApolloServerTestClient;
 let loggedUser: string = null;
 let premiumUser: boolean;
 
-const sourceFromId = (id: string): Source => {
+const createSource = (id: string, name: string, image: string): Source => {
   const source = new Source();
   source.id = id;
+  source.name = name;
+  source.image = image;
+  source.active = true;
+  source.private = false;
   return source;
-};
-
-const createSourceDisplay = (
-  sourceId: string,
-  name: string,
-  image: string,
-  userId?: string,
-  enabled = true,
-): SourceDisplay => {
-  const display = new SourceDisplay();
-  display.sourceId = sourceId;
-  display.name = name;
-  display.image = image;
-  display.enabled = enabled;
-  display.userId = userId;
-  return display;
 };
 
 beforeAll(async () => {
@@ -67,16 +51,9 @@ beforeEach(async () => {
   mocked(addOrRemoveSuperfeedrSubscription).mockReset();
   await con
     .getRepository(Source)
-    .save([sourceFromId('a'), sourceFromId('b'), sourceFromId('c')]);
-  await con
-    .getRepository(SourceDisplay)
     .save([
-      createSourceDisplay('a', 'A', 'http://a.com'),
-      createSourceDisplay('b', 'B', 'http://b.com'),
-      createSourceDisplay('a', 'Private A 1', 'http://privatea1.com', '1'),
-      createSourceDisplay('b', 'Private B 1', 'http://privateb1.com', '1'),
-      createSourceDisplay('b', 'Private B 2', 'http://privateb2.com', '2'),
-      createSourceDisplay('c', 'Private C 2', 'http://privatec2.com', '2'),
+      createSource('a', 'A', 'http://a.com'),
+      createSource('b', 'B', 'http://b.com'),
     ]);
 });
 
@@ -103,28 +80,15 @@ describe('query sources', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should return private display over public', async () => {
-    loggedUser = '1';
-    const res = await client.query({ query: QUERY() });
-    expect(res.data).toMatchSnapshot();
-  });
-
-  it('should return private source even without public', async () => {
-    loggedUser = '2';
-    const res = await client.query({ query: QUERY() });
-    expect(res.data).toMatchSnapshot();
-  });
-
   it('should flag that more pages available', async () => {
     const res = await client.query({ query: QUERY(1) });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return only active sources', async () => {
-    await con.getRepository(Source).save([{ id: 'd', active: false }]);
     await con
-      .getRepository(SourceDisplay)
-      .save([createSourceDisplay('d', 'D', 'http://d.com')]);
+      .getRepository(Source)
+      .save([{ id: 'd', active: false, name: 'D', image: 'http://d.com' }]);
     const res = await client.query({ query: QUERY() });
     expect(res.data).toMatchSnapshot();
   });
@@ -171,9 +135,9 @@ query SourceByFeed($data: String!) {
     expect(res.errors).toBeFalsy();
     expect(res.data.sourceByFeed).toEqual({
       id: 'a',
-      name: 'Private A 1',
-      image: 'http://privatea1.com',
-      public: false,
+      name: 'A',
+      image: 'http://a.com',
+      public: true,
     });
   });
 });
@@ -201,218 +165,6 @@ query Source($id: ID!) {
     const res = await client.query({ query: QUERY, variables: { id: 'a' } });
     expect(res.data).toMatchSnapshot();
   });
-});
-
-describe('mutation addPrivateSource', () => {
-  const MUTATION = `
-  mutation AddPrivateSource($data: AddPrivateSourceInput!) {
-  addPrivateSource(data: $data) {
-    id, name, image, public
-  }
-}`;
-
-  it('should not authorize when not logged in', () =>
-    testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          data: {
-            name: 'Example',
-            image: 'https://example.com',
-            rss: 'https://example.com/feed',
-          },
-        },
-      },
-      'UNAUTHENTICATED',
-    ));
-
-  it('should not authorize when not premium user', () => {
-    loggedUser = '1';
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          data: {
-            name: 'Example',
-            image: 'https://example.com',
-            rss: 'https://example.com/feed',
-          },
-        },
-      },
-      'FORBIDDEN',
-    );
-  });
-
-  it('should return existing source', async () => {
-    loggedUser = '1';
-    premiumUser = true;
-
-    await con.getRepository(SourceFeed).save({
-      feed: 'https://a.com/feed',
-      sourceId: 'a',
-    });
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: {
-        data: {
-          name: 'Example',
-          image: 'https://example.com',
-          rss: 'https://a.com/feed',
-        },
-      },
-    });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.addPrivateSource).toEqual({
-      id: 'a',
-      name: 'Private A 1',
-      image: 'http://privatea1.com',
-      public: false,
-    });
-  });
-
-  it('should create new source', async () => {
-    loggedUser = '1';
-    premiumUser = true;
-    mocked(addOrRemoveSuperfeedrSubscription).mockResolvedValue();
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: {
-        data: {
-          name: 'Example',
-          image: 'https://example.com',
-          rss: 'https://example.com/feed',
-        },
-      },
-    });
-    expect(res.errors).toBeFalsy();
-    expect(addOrRemoveSuperfeedrSubscription).toBeCalledWith(
-      'https://example.com/feed',
-      expect.anything(),
-      'subscribe',
-    );
-    const { id } = res.data.addPrivateSource;
-    expect(await con.getRepository(Source).findOne({ id })).toEqual({
-      id: expect.anything(),
-      twitter: null,
-      website: null,
-      active: true,
-      rankBoost: 0,
-    });
-    expect(
-      await con.getRepository(SourceDisplay).findOne({ sourceId: id }),
-    ).toEqual({
-      id: expect.anything(),
-      sourceId: expect.anything(),
-      name: 'Example',
-      image: 'https://example.com',
-      enabled: true,
-      userId: loggedUser,
-    });
-    expect(
-      await con.getRepository(SourceFeed).findOne({ sourceId: id }),
-    ).toEqual({
-      sourceId: expect.anything(),
-      feed: 'https://example.com/feed',
-      lastFetched: null,
-    });
-    expect(res.data.addPrivateSource).toEqual({
-      id: expect.anything(),
-      name: 'Example',
-      image: 'https://example.com',
-      public: false,
-    });
-  });
-
-  it('should create new source display and merge with existing private source', async () => {
-    loggedUser = '1';
-    premiumUser = true;
-    mocked(addOrRemoveSuperfeedrSubscription).mockResolvedValue();
-    await con.getRepository(SourceFeed).save({
-      feed: 'https://c.com/feed',
-      sourceId: 'c',
-    });
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: {
-        data: {
-          name: 'Example',
-          image: 'https://example.com',
-          rss: 'https://c.com/feed',
-        },
-      },
-    });
-    expect(res.errors).toBeFalsy();
-    expect(addOrRemoveSuperfeedrSubscription).toBeCalledTimes(0);
-    expect(
-      await con
-        .getRepository(SourceDisplay)
-        .findOne({ sourceId: 'c', userId: loggedUser }),
-    ).toEqual({
-      id: expect.anything(),
-      sourceId: 'c',
-      name: 'Example',
-      image: 'https://example.com',
-      enabled: true,
-      userId: loggedUser,
-    });
-    expect(res.data.addPrivateSource).toEqual({
-      id: 'c',
-      name: 'Example',
-      image: 'https://example.com',
-      public: false,
-    });
-  });
-
-  it('should create new source even if superfeedr fails', async () => {
-    loggedUser = '1';
-    premiumUser = true;
-    mocked(addOrRemoveSuperfeedrSubscription).mockRejectedValue(new Error());
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: {
-        data: {
-          name: 'Example',
-          image: 'https://example.com',
-          rss: 'https://example.com/feed',
-        },
-      },
-    });
-    expect(res.errors).toBeFalsy();
-    expect(addOrRemoveSuperfeedrSubscription).toBeCalledTimes(3);
-    const { id } = res.data.addPrivateSource;
-    expect(await con.getRepository(Source).findOne({ id })).toEqual({
-      id: expect.anything(),
-      twitter: null,
-      website: null,
-      active: true,
-      rankBoost: 0,
-    });
-    expect(
-      await con.getRepository(SourceDisplay).findOne({ sourceId: id }),
-    ).toEqual({
-      id: expect.anything(),
-      sourceId: expect.anything(),
-      name: 'Example',
-      image: 'https://example.com',
-      enabled: true,
-      userId: loggedUser,
-    });
-    expect(
-      await con.getRepository(SourceFeed).findOne({ sourceId: id }),
-    ).toEqual({
-      sourceId: expect.anything(),
-      feed: 'https://example.com/feed',
-      lastFetched: null,
-    });
-    expect(res.data.addPrivateSource).toEqual({
-      id: expect.anything(),
-      name: 'Example',
-      image: 'https://example.com',
-      public: false,
-    });
-  }, 10000);
 });
 
 describe('compatibility route /publications', () => {

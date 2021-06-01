@@ -1,5 +1,5 @@
 import { messageToJson, Worker } from './worker';
-import { Post, SourceDisplay } from '../entity';
+import { Post } from '../entity';
 import {
   fetchUser,
   formatPostCreatedAt,
@@ -24,9 +24,7 @@ const worker: Worker = {
     try {
       const user = await fetchUser(data.authorId);
       const post = await con.getRepository(Post).findOne(data.postId);
-      const display = await con
-        .getRepository(SourceDisplay)
-        .findOne({ sourceId: post.sourceId });
+      const source = await post.source;
       await sendEmail({
         ...baseNotificationEmailData,
         to: user.email,
@@ -34,7 +32,7 @@ const worker: Worker = {
         dynamicTemplateData: {
           post_title: truncatePostToTweet(post),
           published_at: formatPostCreatedAt(post),
-          source_image: display.image,
+          source_image: source.image,
           post_image: post.image || pickImageUrl(post),
           discussion_link: getDiscussionLink(post.id),
         },

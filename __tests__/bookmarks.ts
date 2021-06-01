@@ -23,13 +23,11 @@ import {
   Post,
   PostTag,
   Source,
-  SourceDisplay,
   View,
   BookmarkList,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
-import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -73,7 +71,6 @@ beforeEach(async () => {
   premiumUser = false;
 
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
 });

@@ -26,7 +26,6 @@ import {
   Post,
   searchPosts,
   Source,
-  SourceDisplay,
 } from '../entity';
 import { GQLSource } from './sources';
 import { offsetPageGenerator, Page, PageGenerator } from './common';
@@ -671,10 +670,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
           (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
           (builder) => {
-            const selectSource = graphorm.mappings.Post.fields.source
-              .customQuery(ctx, 'sd', builder.queryBuilder.subQuery())
-              .from(SourceDisplay, 'sd')
-              .andWhere(`sd."sourceId" = "${builder.alias}"."sourceId"`);
+            const selectSource = builder.queryBuilder
+              .subQuery()
+              .from(Source, 'source')
+              .where('source.active = true')
+              .andWhere(`source.id = "${builder.alias}"."sourceId"`);
             builder.queryBuilder = builder.queryBuilder
               .where(`${builder.alias}.id IN (:...postIds)`, { postIds })
               .andWhere(`EXISTS${selectSource.getQuery()}`, {
