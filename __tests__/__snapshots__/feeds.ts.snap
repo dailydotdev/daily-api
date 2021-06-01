@@ -225,6 +225,33 @@ Object {
 }
 `;
 
+exports[`mutation addFiltersToFeed should ignore non existing sources 1`] = `
+Object {
+  "addFiltersToFeed": Object {
+    "excludeSources": Array [
+      Object {
+        "id": "a",
+        "image": "http://image.com/a",
+        "name": "A",
+        "public": true,
+      },
+      Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+        "public": true,
+      },
+    ],
+    "id": "1",
+    "includeTags": Array [
+      "javascript",
+      "webdev",
+    ],
+    "userId": "1",
+  },
+}
+`;
+
 exports[`mutation removeFiltersFromFeed should remove existing filters 1`] = `
 Object {
   "removeFiltersFromFeed": Object {

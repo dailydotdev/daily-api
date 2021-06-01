@@ -25,6 +25,7 @@ import {
   FeedTag,
   Post,
   searchPosts,
+  Source,
   SourceDisplay,
 } from '../entity';
 import { GQLSource } from './sources';
@@ -878,18 +879,17 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             id: feedId,
           });
           if (filters?.excludeSources?.length) {
-            await manager
+            const [query, params] = ctx.con
               .createQueryBuilder()
-              .insert()
-              .into(FeedSource)
-              .values(
-                filters.excludeSources.map((s) => ({
-                  feedId,
-                  sourceId: s,
-                })),
-              )
-              .onConflict(`("feedId", "sourceId") DO NOTHING`)
-              .execute();
+              .select('id', 'sourceId')
+              .addSelect(`'${feedId}'`, 'feedId')
+              .from(Source, 'source')
+              .where('source.id IN (:...ids)', { ids: filters.excludeSources })
+              .getQueryAndParameters();
+            await manager.query(
+              `insert into feed_source("sourceId", "feedId") ${query} on conflict do nothing`,
+              params,
+            );
           }
           if (filters?.includeTags?.length) {
             await manager

@@ -729,6 +729,20 @@ describe('mutation addFiltersToFeed', () => {
     });
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should ignore non existing sources', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: {
+        filters: {
+          includeTags: ['webdev', 'javascript'],
+          excludeSources: ['a', 'b', 'deleted'],
+        },
+      },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
 });
 
 describe('mutation removeFiltersFromFeed', () => {
