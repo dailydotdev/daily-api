@@ -126,6 +126,19 @@ describe('mutation addBookmarks', () => {
     });
     expect(actual).toMatchSnapshot();
   });
+
+  it('should ignore bookmarks of deleted posts', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { data: { postIds: ['p1', 'p3', 'p100'] } },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con
+      .getRepository(Bookmark)
+      .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
+    expect(actual).toMatchSnapshot();
+  });
 });
 
 describe('mutation removeBookmark', () => {
