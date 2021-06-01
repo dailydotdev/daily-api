@@ -1,6 +1,6 @@
 import { differenceInHours } from 'date-fns';
 import { messageToJson, Worker } from './worker';
-import { getAuthorPostStats, Post, SourceDisplay } from '../entity';
+import { getAuthorPostStats, Post } from '../entity';
 import { fetchUser, pickImageUrl } from '../common';
 import {
   baseNotificationEmailData,
@@ -20,9 +20,7 @@ const worker: Worker = {
       const post = await con.getRepository(Post).findOne(data.postId);
       if (!post.sentAnalyticsReport && post.authorId) {
         const user = await fetchUser(post.authorId);
-        const display = await con
-          .getRepository(SourceDisplay)
-          .findOne({ sourceId: post.sourceId });
+        const source = await post.source;
         const stats = await getAuthorPostStats(con, user.id);
         await sendEmail({
           ...baseNotificationEmailData,
@@ -30,7 +28,7 @@ const worker: Worker = {
           templateId: 'd-97c75b0e2cf847399d20233455736ba0',
           dynamicTemplateData: {
             first_name: user.name.split(' ')[0],
-            source_image: display.image,
+            source_image: source.image,
             post_image: post.image || pickImageUrl(post),
             post_title: truncatePostToTweet(post),
             live_hours: differenceInHours(new Date(), post.createdAt),

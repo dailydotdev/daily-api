@@ -5,9 +5,8 @@ import appFunc from '../../src/background';
 import worker from '../../src/workers/newView';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { postsFixture } from '../fixture/post';
-import { Post, Source, SourceDisplay, View } from '../../src/entity';
+import { Post, Source, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { sourceDisplaysFixture } from '../fixture/sourceDisplay';
 
 let con: Connection;
 let app: FastifyInstance;
@@ -20,7 +19,6 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
 });
 

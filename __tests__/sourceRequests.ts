@@ -345,9 +345,6 @@ describe('mutation publishSourceRequest', () => {
     const source = await con.getRepository(Source).findOneOrFail(req.sourceId);
     expect(source).toMatchSnapshot();
     expect(await source.feeds).toMatchSnapshot();
-    expect((await source.displays)[0]).toMatchSnapshot({
-      id: expect.any(String),
-    });
   });
 });
 

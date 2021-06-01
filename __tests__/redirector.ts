@@ -2,10 +2,9 @@ import { Connection, getConnection } from 'typeorm';
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
 import { saveFixtures } from './helpers';
-import { Post, Source, SourceDisplay } from '../src/entity';
+import { Post, Source } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
-import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 import { postsFixture } from './fixture/post';
 import { notifyView } from '../src/common';
 
@@ -27,7 +26,6 @@ afterAll(() => app.close());
 
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
 });
 

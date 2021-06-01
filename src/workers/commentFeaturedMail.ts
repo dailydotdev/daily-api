@@ -1,5 +1,5 @@
 import { messageToJson, Worker } from './worker';
-import { Comment, SourceDisplay } from '../entity';
+import { Comment } from '../entity';
 import { fetchUser, formatPostCreatedAt, pickImageUrl } from '../common';
 import { baseNotificationEmailData, sendEmail, truncatePost } from '../common';
 
@@ -17,9 +17,7 @@ const worker: Worker = {
         .findOne(data.commentId, { relations: ['post'] });
       const user = await fetchUser(comment.userId);
       const post = await comment.post;
-      const display = await con
-        .getRepository(SourceDisplay)
-        .findOne({ sourceId: post.sourceId });
+      const source = await post.source;
       await sendEmail({
         ...baseNotificationEmailData,
         to: user.email,
@@ -28,7 +26,7 @@ const worker: Worker = {
           post_title: truncatePost(post),
           published_at: formatPostCreatedAt(post),
           profile_image: user.image,
-          source_image: display.image,
+          source_image: source.image,
           post_image: post.image || pickImageUrl(post),
           profile_link: user.permalink,
         },

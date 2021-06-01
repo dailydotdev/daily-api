@@ -28,21 +28,6 @@ const obj = new GraphORM({
   Post: {
     requiredColumns: ['id', 'shortId', 'createdAt', 'authorId'],
     fields: {
-      source: {
-        customQuery: (ctx, alias, qb): QueryBuilder => {
-          const selectByUserId = ctx.userId
-            ? `"${alias}"."userId" = :userId OR `
-            : '';
-          return qb.andWhere(`(${selectByUserId}"${alias}"."userId" IS NULL)`, {
-            userId: ctx.userId,
-          });
-        },
-        relation: {
-          parentColumn: 'sourceId',
-          childColumn: 'sourceId',
-          isMany: false,
-        },
-      },
       tags: {
         select: 'tagsStr',
         transform: (value: string): string[] => value?.split(',') ?? [],
@@ -99,12 +84,10 @@ const obj = new GraphORM({
     },
   },
   Source: {
-    from: 'SourceDisplay',
     fields: {
-      id: { select: 'sourceId' },
       public: {
-        select: 'userId',
-        transform: (value: string): boolean => !value,
+        select: 'private',
+        transform: (value: boolean): boolean => !value,
       },
     },
   },
@@ -169,7 +152,7 @@ const obj = new GraphORM({
               .innerJoin(
                 FeedSource,
                 'fs',
-                `"${childAlias}"."sourceId" = fs."sourceId"`,
+                `"${childAlias}"."id" = fs."sourceId"`,
               )
               .where(`fs."feedId" = "${parentAlias}".id`)
               .orderBy(`"${childAlias}".name`),

@@ -27,13 +27,11 @@ import {
   Post,
   PostTag,
   Source,
-  SourceDisplay,
   Upvote,
   User,
   View,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
-import { sourceDisplaysFixture } from './fixture/sourceDisplay';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import {
   notifyPostReport,
@@ -93,7 +91,6 @@ beforeEach(async () => {
   } as unknown) as SearchIndex);
 
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await con
@@ -167,19 +164,19 @@ describe('source field', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should return the private representation', async () => {
-    loggedUser = '1';
-    const repo = con.getRepository(SourceDisplay);
-    await repo.delete({ sourceId: 'a' });
-    await repo.save({
-      sourceId: 'a',
-      name: 'Private A',
-      image: 'https://private.com/a',
-      userId: loggedUser,
-    });
-    const res = await client.query({ query: QUERY });
-    expect(res.data).toMatchSnapshot();
-  });
+  // it('should return the private representation', async () => {
+  //   loggedUser = '1';
+  //   const repo = con.getRepository(SourceDisplay);
+  //   await repo.delete({ sourceId: 'a' });
+  //   await repo.save({
+  //     sourceId: 'a',
+  //     name: 'Private A',
+  //     image: 'https://private.com/a',
+  //     userId: loggedUser,
+  //   });
+  //   const res = await client.query({ query: QUERY });
+  //   expect(res.data).toMatchSnapshot();
+  // });
 });
 
 describe('read field', () => {

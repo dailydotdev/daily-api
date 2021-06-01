@@ -8,10 +8,9 @@ import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail } from '../../src/common';
 import { User as GatewayUser } from '../../src/common/users';
 import worker from '../../src/workers/postBannedEmail';
-import { Post, Source, SourceDisplay, User } from '../../src/entity';
+import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
-import { sourceDisplaysFixture } from '../fixture/sourceDisplay';
 import { PostReport } from '../../src/entity/PostReport';
 
 jest.mock('../../src/common/mailing', () => ({
@@ -31,7 +30,6 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, postsFixture);
   await con.getRepository(User).save([
     { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },

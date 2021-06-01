@@ -21,7 +21,10 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await saveFixtures(con, Source, [...sourcesFixture, { id: 'hashnode' }]);
+  await saveFixtures(con, Source, [
+    ...sourcesFixture,
+    { id: 'hashnode', name: 'Hashnode', image: 'https://hashnode.com' },
+  ]);
   await saveFixtures(con, Post, [
     {
       id: 'p1',

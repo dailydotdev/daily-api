@@ -28,7 +28,9 @@ beforeEach(() => {
 
 it('should tweet the latest post over the views threshold', async () => {
   const now = new Date();
-  await saveFixtures(con, Source, [{ id: 'a' }]);
+  await saveFixtures(con, Source, [
+    { id: 'a', name: 'A', image: 'http://a.com' },
+  ]);
   await saveFixtures(con, Post, [
     {
       id: 'p1',
@@ -69,7 +71,9 @@ it('should tweet the latest post over the views threshold', async () => {
 });
 
 it('should tag the author and site and add hashtags', async () => {
-  await saveFixtures(con, Source, [{ id: 'a', twitter: 'source' }]);
+  await saveFixtures(con, Source, [
+    { id: 'a', twitter: 'source', name: 'A', image: 'http://a.com' },
+  ]);
   await saveFixtures(con, Post, [
     {
       id: 'p1',
@@ -94,7 +98,9 @@ it('should tag the author and site and add hashtags', async () => {
 });
 
 it('should fallback to source twitter', async () => {
-  await saveFixtures(con, Source, [{ id: 'a', twitter: 'source' }]);
+  await saveFixtures(con, Source, [
+    { id: 'a', twitter: 'source', name: 'A', image: 'http://a.com' },
+  ]);
   await saveFixtures(con, Post, [
     {
       id: 'p1',

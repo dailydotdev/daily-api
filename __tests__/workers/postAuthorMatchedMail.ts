@@ -7,9 +7,8 @@ import appFunc from '../../src/background';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail, User as GatewayUser } from '../../src/common';
 import worker from '../../src/workers/postAuthorMatchedMail';
-import { Post, Source, SourceDisplay } from '../../src/entity';
+import { Post, Source } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { sourceDisplaysFixture } from '../fixture/sourceDisplay';
 
 jest.mock('../../src/common/mailing', () => ({
   ...jest.requireActual('../../src/common/mailing'),
@@ -28,7 +27,6 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, SourceDisplay, sourceDisplaysFixture);
   await saveFixtures(con, Post, [
     {
       id: 'p1',

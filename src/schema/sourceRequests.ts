@@ -10,7 +10,7 @@ import {
 } from './common';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { Source, SourceDisplay, SourceFeed, SourceRequest } from '../entity';
+import { Source, SourceFeed, SourceRequest } from '../entity';
 import {
   addOrRemoveSuperfeedrSubscription,
   fetchUserInfo,
@@ -300,24 +300,16 @@ const createSourceFromRequest = (
         id: req.sourceId,
         twitter: req.sourceTwitter,
         website: req.sourceUrl,
-      });
-      await entityManager.save(source);
-
-      const display = entityManager.create(SourceDisplay, {
         name: req.sourceName,
         image: req.sourceImage,
-        sourceId: source.id,
       });
+      await entityManager.save(source);
 
       const feed = entityManager.create(SourceFeed, {
         feed: req.sourceFeed,
         sourceId: source.id,
       });
-
-      await Promise.all([
-        entityManager.save(display),
-        entityManager.save(feed),
-      ]);
+      await entityManager.save(feed);
 
       return source;
     },

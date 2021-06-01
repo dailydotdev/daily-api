@@ -8,9 +8,9 @@ import {
   searchPosts,
   View,
   FeedSource,
-  SourceDisplay,
   HiddenPost,
   PostKeyword,
+  Source,
 } from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
@@ -122,10 +122,11 @@ export const applyFeedWhere = (
   removeHiddenPosts = true,
   removeBannedPosts = true,
 ): SelectQueryBuilder<Post> => {
-  const selectSource = graphorm.mappings.Post.fields.source
-    .customQuery(ctx, 'sd', builder.subQuery())
-    .from(SourceDisplay, 'sd')
-    .andWhere(`sd."sourceId" = "${alias}"."sourceId"`);
+  const selectSource = builder
+    .subQuery()
+    .from(Source, 'source')
+    .where('source.active = true')
+    .andWhere(`source.id = "${alias}"."sourceId"`);
   let newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`, {
     userId: ctx.userId,
   });

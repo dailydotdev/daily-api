@@ -96,6 +96,9 @@ exports[`mutation publishSourceRequest should publish a source request 2`] = `
 Source {
   "active": true,
   "id": "a",
+  "image": "http://a.com",
+  "name": "A",
+  "private": false,
   "rankBoost": 0,
   "twitter": "a",
   "website": "http://3.com",
@@ -110,17 +113,6 @@ Array [
     "sourceId": "a",
   },
 ]
-`;
-
-exports[`mutation publishSourceRequest should publish a source request 4`] = `
-Object {
-  "enabled": true,
-  "id": Any<String>,
-  "image": "http://a.com",
-  "name": "A",
-  "sourceId": "a",
-  "userId": null,
-}
 `;
 
 exports[`mutation requestSource should add new source request 1`] = `
