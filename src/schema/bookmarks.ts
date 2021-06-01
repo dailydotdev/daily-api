@@ -170,20 +170,17 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { data }: { data: GQLAddBookmarkInput },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      const repo = ctx.con.getRepository(Bookmark);
-      const values = data.postIds.map((id) =>
-        repo.create({
-          userId: ctx.userId,
-          postId: id,
-        }),
-      );
-      await ctx.con
+      const [query, params] = ctx.con
         .createQueryBuilder()
-        .insert()
-        .into(Bookmark)
-        .values(values)
-        .onConflict(`("postId", "userId") DO NOTHING`)
-        .execute();
+        .select('id', 'postId')
+        .addSelect(ctx.userId, 'userId')
+        .from(Post, 'post')
+        .where('post.id IN (:...postIds)', { postIds: data.postIds })
+        .getQueryAndParameters();
+      await ctx.con.query(
+        `insert into bookmark("postId", "userId") ${query} on conflict do nothing`,
+        params,
+      );
       return { _: true };
     },
     addBookmarkToList: async (
