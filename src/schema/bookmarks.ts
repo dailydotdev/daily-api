@@ -173,7 +173,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const [query, params] = ctx.con
         .createQueryBuilder()
         .select('id', 'postId')
-        .addSelect(ctx.userId, 'userId')
+        .addSelect(`'${ctx.userId}'`, 'userId')
         .from(Post, 'post')
         .where('post.id IN (:...postIds)', { postIds: data.postIds })
         .getQueryAndParameters();
