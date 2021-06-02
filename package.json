@@ -84,7 +84,7 @@
     "@types/rss": "0.0.28",
     "@types/supertest": "^2.0.11",
     "@types/twit": "^2.2.29",
-    "@typescript-eslint/eslint-plugin": "^4.25.0",
+    "@typescript-eslint/eslint-plugin": "^4.26.0",
     "@typescript-eslint/parser": "^4.26.0",
     "apollo-server-testing": "^2.22.2",
     "cross-env": "^7.0.3",
