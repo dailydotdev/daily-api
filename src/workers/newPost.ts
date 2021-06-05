@@ -91,7 +91,7 @@ const addPost = async (
             })
           : null;
       let authorId = null;
-      if (data.creatorTwitter) {
+      if (data.creatorTwitter && typeof data.creatorTwitter === 'string') {
         const twitter = (data.creatorTwitter[0] === '@'
           ? data.creatorTwitter.substr(1)
           : data.creatorTwitter
