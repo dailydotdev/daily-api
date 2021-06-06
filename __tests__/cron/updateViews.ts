@@ -30,9 +30,9 @@ beforeEach(async () => {
 
 it('should update views and scores', async () => {
   const updateMock = jest.fn();
-  mocked(getPostsIndex).mockReturnValue(({
+  mocked(getPostsIndex).mockReturnValue({
     partialUpdateObjects: updateMock,
-  } as unknown) as SearchIndex);
+  } as unknown as SearchIndex);
 
   const now = new Date();
   await saveFixtures(con, Post, [

@@ -86,9 +86,9 @@ beforeEach(async () => {
   jest.resetAllMocks();
 
   deleteObjectMock = jest.fn();
-  mocked(getPostsIndex).mockReturnValue(({
+  mocked(getPostsIndex).mockReturnValue({
     deleteObject: deleteObjectMock,
-  } as unknown) as SearchIndex);
+  } as unknown as SearchIndex);
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);

@@ -149,7 +149,7 @@ export const applyFeedWhere = (
 export function feedResolver<
   TSource,
   TArgs extends ConnectionArguments,
-  TPage extends Page
+  TPage extends Page,
 >(
   query: (
     ctx: Context,
@@ -199,7 +199,7 @@ export function feedResolver<
 
 export function randomPostsResolver<
   TSource,
-  TArgs extends { first?: number | null }
+  TArgs extends { first?: number | null },
 >(
   query: (
     ctx: Context,

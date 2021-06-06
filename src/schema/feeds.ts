@@ -871,42 +871,40 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
       info,
     ): Promise<GQLFeedSettings> => {
-      await ctx.con.transaction(
-        async (manager): Promise<void> => {
-          const feedId = ctx.userId;
-          await manager.getRepository(Feed).save({
-            userId: ctx.userId,
-            id: feedId,
-          });
-          if (filters?.excludeSources?.length) {
-            const [query, params] = ctx.con
-              .createQueryBuilder()
-              .select('id', 'sourceId')
-              .addSelect(`'${feedId}'`, 'feedId')
-              .from(Source, 'source')
-              .where('source.id IN (:...ids)', { ids: filters.excludeSources })
-              .getQueryAndParameters();
-            await manager.query(
-              `insert into feed_source("sourceId", "feedId") ${query} on conflict do nothing`,
-              params,
-            );
-          }
-          if (filters?.includeTags?.length) {
-            await manager
-              .createQueryBuilder()
-              .insert()
-              .into(FeedTag)
-              .values(
-                filters.includeTags.map((s) => ({
-                  feedId,
-                  tag: s,
-                })),
-              )
-              .onConflict(`("feedId", "tag") DO NOTHING`)
-              .execute();
-          }
-        },
-      );
+      await ctx.con.transaction(async (manager): Promise<void> => {
+        const feedId = ctx.userId;
+        await manager.getRepository(Feed).save({
+          userId: ctx.userId,
+          id: feedId,
+        });
+        if (filters?.excludeSources?.length) {
+          const [query, params] = ctx.con
+            .createQueryBuilder()
+            .select('id', 'sourceId')
+            .addSelect(`'${feedId}'`, 'feedId')
+            .from(Source, 'source')
+            .where('source.id IN (:...ids)', { ids: filters.excludeSources })
+            .getQueryAndParameters();
+          await manager.query(
+            `insert into feed_source("sourceId", "feedId") ${query} on conflict do nothing`,
+            params,
+          );
+        }
+        if (filters?.includeTags?.length) {
+          await manager
+            .createQueryBuilder()
+            .insert()
+            .into(FeedTag)
+            .values(
+              filters.includeTags.map((s) => ({
+                feedId,
+                tag: s,
+              })),
+            )
+            .onConflict(`("feedId", "tag") DO NOTHING`)
+            .execute();
+        }
+      });
       return getFeedSettings(ctx, info);
     },
     removeFiltersFromFeed: async (
@@ -915,24 +913,22 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
       info,
     ): Promise<GQLFeedSettings> => {
-      await ctx.con.transaction(
-        async (manager): Promise<void> => {
-          const feedId = ctx.userId;
-          await ctx.getRepository(Feed).findOneOrFail(feedId);
-          if (filters?.excludeSources?.length) {
-            await manager.getRepository(FeedSource).delete({
-              feedId,
-              sourceId: In(filters.excludeSources),
-            });
-          }
-          if (filters?.includeTags?.length) {
-            await manager.getRepository(FeedTag).delete({
-              feedId,
-              tag: In(filters.includeTags),
-            });
-          }
-        },
-      );
+      await ctx.con.transaction(async (manager): Promise<void> => {
+        const feedId = ctx.userId;
+        await ctx.getRepository(Feed).findOneOrFail(feedId);
+        if (filters?.excludeSources?.length) {
+          await manager.getRepository(FeedSource).delete({
+            feedId,
+            sourceId: In(filters.excludeSources),
+          });
+        }
+        if (filters?.includeTags?.length) {
+          await manager.getRepository(FeedTag).delete({
+            feedId,
+            tag: In(filters.includeTags),
+          });
+        }
+      });
       return getFeedSettings(ctx, info);
     },
   },

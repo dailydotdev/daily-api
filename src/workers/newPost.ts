@@ -55,113 +55,110 @@ const addPost = async (
   data: AddPostData,
   logger: Logger,
 ): Promise<void> => {
-  const res = await con.transaction(
-    async (entityManager): Promise<Result> => {
-      let keywords: string[] = null;
-      if (data.keywords?.length > 0) {
-        const synonymKeywords = await entityManager
-          .getRepository(Keyword)
-          .find({
-            where: {
-              status: 'synonym',
-              value: In(data.keywords),
-            },
-          });
-        keywords = Array.from(
-          new Set(
-            data.keywords
-              .map((keyword) => {
-                const synonym = synonymKeywords.find(
-                  (synonym) => synonym.value === keyword && synonym.synonym,
-                );
-                return synonym?.synonym ?? keyword;
-              })
-              .filter((keyword) => !keyword.match(/^\d+$/)),
-          ),
-        );
-      }
-      const tags =
-        keywords?.length > 0
-          ? await entityManager.getRepository(Keyword).find({
-              where: {
-                status: 'allow',
-                value: In(keywords),
-              },
-              order: { occurrences: 'DESC' },
+  const res = await con.transaction(async (entityManager): Promise<Result> => {
+    let keywords: string[] = null;
+    if (data.keywords?.length > 0) {
+      const synonymKeywords = await entityManager.getRepository(Keyword).find({
+        where: {
+          status: 'synonym',
+          value: In(data.keywords),
+        },
+      });
+      keywords = Array.from(
+        new Set(
+          data.keywords
+            .map((keyword) => {
+              const synonym = synonymKeywords.find(
+                (synonym) => synonym.value === keyword && synonym.synonym,
+              );
+              return synonym?.synonym ?? keyword;
             })
-          : null;
-      let authorId = null;
-      if (data.creatorTwitter && typeof data.creatorTwitter === 'string') {
-        const twitter = (data.creatorTwitter[0] === '@'
+            .filter((keyword) => !keyword.match(/^\d+$/)),
+        ),
+      );
+    }
+    const tags =
+      keywords?.length > 0
+        ? await entityManager.getRepository(Keyword).find({
+            where: {
+              status: 'allow',
+              value: In(keywords),
+            },
+            order: { occurrences: 'DESC' },
+          })
+        : null;
+    let authorId = null;
+    if (data.creatorTwitter && typeof data.creatorTwitter === 'string') {
+      const twitter = (
+        data.creatorTwitter[0] === '@'
           ? data.creatorTwitter.substr(1)
           : data.creatorTwitter
-        ).toLowerCase();
-        const author = await entityManager
-          .getRepository(User)
-          .createQueryBuilder()
-          .select('id')
-          .where(
-            `lower(twitter) = :twitter or (lower(username) = :twitter and username = 'addyosmani')`,
-            {
-              twitter,
-            },
-          )
-          .getRawOne();
-        if (author) {
-          authorId = author.id;
-        }
+      ).toLowerCase();
+      const author = await entityManager
+        .getRepository(User)
+        .createQueryBuilder()
+        .select('id')
+        .where(
+          `lower(twitter) = :twitter or (lower(username) = :twitter and username = 'addyosmani')`,
+          {
+            twitter,
+          },
+        )
+        .getRawOne();
+      if (author) {
+        authorId = author.id;
       }
-      await entityManager.getRepository(Post).insert({
-        id: data.id,
-        shortId: data.id,
-        publishedAt: data.publishedAt && new Date(data.publishedAt),
-        createdAt: data.createdAt,
-        sourceId: data.publicationId,
-        url: data.url,
-        title: data.title,
-        image: data.image,
-        ratio: data.ratio,
-        placeholder: data.placeholder,
-        score: Math.floor(data.createdAt.getTime() / (1000 * 60)),
-        siteTwitter: data.siteTwitter,
-        creatorTwitter: data.creatorTwitter,
-        readTime: data.readTime,
-        tagsStr: tags?.map((t) => t.value).join(','),
-        canonicalUrl: data.canonicalUrl,
-        authorId,
-        sentAnalyticsReport: !authorId,
-      });
-      if (data.tags?.length) {
-        await entityManager.getRepository(PostTag).insert(
-          data.tags.map((t) => ({
-            tag: t,
-            postId: data.id,
-          })),
-        );
-      }
-      if (keywords?.length) {
-        await entityManager
-          .createQueryBuilder()
-          .insert()
-          .into(Keyword)
-          .values(keywords.map((keyword) => ({ value: keyword })))
-          .onConflict(
-            `("value") DO UPDATE SET occurrences = keyword.occurrences + 1`,
-          )
-          .execute();
-        await entityManager.getRepository(PostKeyword).insert(
-          keywords.map((keyword) => ({
-            keyword,
-            postId: data.id,
-          })),
-        );
-      }
-      return {
-        postId: data.id,
-        authorId,
-      };
-    },
-  );
+    }
+    await entityManager.getRepository(Post).insert({
+      id: data.id,
+      shortId: data.id,
+      publishedAt: data.publishedAt && new Date(data.publishedAt),
+      createdAt: data.createdAt,
+      sourceId: data.publicationId,
+      url: data.url,
+      title: data.title,
+      image: data.image,
+      ratio: data.ratio,
+      placeholder: data.placeholder,
+      score: Math.floor(data.createdAt.getTime() / (1000 * 60)),
+      siteTwitter: data.siteTwitter,
+      creatorTwitter: data.creatorTwitter,
+      readTime: data.readTime,
+      tagsStr: tags?.map((t) => t.value).join(','),
+      canonicalUrl: data.canonicalUrl,
+      authorId,
+      sentAnalyticsReport: !authorId,
+    });
+    if (data.tags?.length) {
+      await entityManager.getRepository(PostTag).insert(
+        data.tags.map((t) => ({
+          tag: t,
+          postId: data.id,
+        })),
+      );
+    }
+    if (keywords?.length) {
+      await entityManager
+        .createQueryBuilder()
+        .insert()
+        .into(Keyword)
+        .values(keywords.map((keyword) => ({ value: keyword })))
+        .onConflict(
+          `("value") DO UPDATE SET occurrences = keyword.occurrences + 1`,
+        )
+        .execute();
+      await entityManager.getRepository(PostKeyword).insert(
+        keywords.map((keyword) => ({
+          keyword,
+          postId: data.id,
+        })),
+      );
+    }
+    return {
+      postId: data.id,
+      authorId,
+    };
+  });
   if (res.authorId) {
     logger.info(res, 'matched author to post');
     await notifyPostAuthorMatched(logger, res.postId, res.authorId);

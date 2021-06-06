@@ -5,18 +5,16 @@ import { GQLBookmarkList } from '../schema/bookmarks';
 import { base64 } from '../common';
 import { GQLComment } from '../schema/comments';
 
-const existsByUserAndPost = (entity: string) => (
-  ctx: Context,
-  alias: string,
-  qb: QueryBuilder,
-): string => {
-  const query = qb
-    .select('1')
-    .from(entity, 'a')
-    .where(`a."userId" = :userId`, { userId: ctx.userId })
-    .andWhere(`a."postId" = ${alias}.id`);
-  return `EXISTS${query.getQuery()}`;
-};
+const existsByUserAndPost =
+  (entity: string) =>
+  (ctx: Context, alias: string, qb: QueryBuilder): string => {
+    const query = qb
+      .select('1')
+      .from(entity, 'a')
+      .where(`a."userId" = :userId`, { userId: ctx.userId })
+      .andWhere(`a."postId" = ${alias}.id`);
+    return `EXISTS${query.getQuery()}`;
+  };
 
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;

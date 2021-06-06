@@ -3,10 +3,9 @@ import { Cron } from './cron';
 const cron: Cron = {
   name: 'update-discussion-score',
   handler: async (con) => {
-    await con.transaction(
-      async (entityManager): Promise<void> => {
-        await entityManager.query(
-          `update "public"."post" p
+    await con.transaction(async (entityManager): Promise<void> => {
+      await entityManager.query(
+        `update "public"."post" p
            set "discussionScore" = v.score
            FROM (
                   select
@@ -32,9 +31,9 @@ const cron: Cron = {
                     and comments > 0
                 ) v
            WHERE p.id = v.id`,
-        );
-        await entityManager.query(
-          `update "public"."post" p
+      );
+      await entityManager.query(
+        `update "public"."post" p
            set "discussionScore" = null
            FROM (
                   select res.id
@@ -48,9 +47,8 @@ const cron: Cron = {
                     and "discussionScore" > 0
                 ) v
            WHERE p.id = v.id`,
-        );
-      },
-    );
+      );
+    });
   },
 };
 

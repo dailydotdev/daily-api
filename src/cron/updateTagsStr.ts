@@ -9,10 +9,9 @@ const cron: Cron = {
     let checkpoint = await con.getRepository(Checkpoint).findOne(checkpointKey);
     const after = checkpoint?.timestamp || new Date();
 
-    await con.transaction(
-      async (entityManager): Promise<void> => {
-        await entityManager.query(
-          `update post
+    await con.transaction(async (entityManager): Promise<void> => {
+      await entityManager.query(
+        `update post
           set "tagsStr" = res.tags
           from (
              select pk."postId", array_to_string((array_agg(pk.keyword order by k.occurrences desc, pk.keyword)), ',') as tags
@@ -25,16 +24,15 @@ const cron: Cron = {
               inner join keyword k on pk.keyword = k.value and k.status != 'pending'
               where pk."postId" = post.id and k."updatedAt" >= $1
               )`,
-          [after],
-        );
-        if (!checkpoint) {
-          checkpoint = new Checkpoint();
-          checkpoint.key = checkpointKey;
-        }
-        checkpoint.timestamp = before;
-        await entityManager.getRepository(Checkpoint).save(checkpoint);
-      },
-    );
+        [after],
+      );
+      if (!checkpoint) {
+        checkpoint = new Checkpoint();
+        checkpoint.key = checkpointKey;
+      }
+      checkpoint.timestamp = before;
+      await entityManager.getRepository(Checkpoint).save(checkpoint);
+    });
   },
 };
 

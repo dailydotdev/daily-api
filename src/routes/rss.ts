@@ -25,56 +25,63 @@ interface RssItem {
   tagsStr?: string;
 }
 
-const generateRSS = <State>(
-  extractUserId: (req: FastifyRequest, state: State) => Promise<string | null>,
-  title: (user: User, state: State) => string,
-  orderBy: string,
-  query: (
-    req: FastifyRequest,
-    user: User,
-    builder: SelectQueryBuilder<Post>,
-  ) => SelectQueryBuilder<Post>,
-  stateFactory?: (req: FastifyRequest, con: Connection) => Promise<State>,
-): RequestHandler => async (
-  req,
-  res,
-): Promise<FastifyReply<ServerResponse>> => {
-  const con = getConnection();
-  const state = stateFactory ? await stateFactory(req, con) : null;
-  const userId = await extractUserId(req, state);
-  const user = userId && (await fetchUser(userId));
-  if (!user || !user.premium) {
-    return res.status(403).send();
-  }
-  const feed = new RSS({
-    title: `${title(user, state)} by daily.dev`,
-    generator: 'Daily Premium RSS',
-    feed_url: `${process.env.URL_PREFIX}${req.raw.url}`,
-    site_url: 'https://daily.dev',
-  });
-  const builder = query(
-    req,
-    user,
-    con
-      .createQueryBuilder()
-      .select(['post."id"', 'post."shortId"', 'post."title"', 'post."tagsStr"'])
-      .from(Post, 'post')
-      .orderBy(orderBy, 'DESC')
-      .limit(20),
-  );
-  const items = await builder.getRawMany<RssItem>();
-  items.forEach((x) =>
-    feed.item({
-      title: x.title,
-      url: `${process.env.URL_PREFIX}/r/${x.shortId}`,
-      date: x.publishedAt,
-      guid: x.id,
-      description: '',
-      categories: x.tagsStr?.split(','),
-    }),
-  );
-  return res.type('application/rss+xml').send(feed.xml());
-};
+const generateRSS =
+  <State>(
+    extractUserId: (
+      req: FastifyRequest,
+      state: State,
+    ) => Promise<string | null>,
+    title: (user: User, state: State) => string,
+    orderBy: string,
+    query: (
+      req: FastifyRequest,
+      user: User,
+      builder: SelectQueryBuilder<Post>,
+    ) => SelectQueryBuilder<Post>,
+    stateFactory?: (req: FastifyRequest, con: Connection) => Promise<State>,
+  ): RequestHandler =>
+  async (req, res): Promise<FastifyReply<ServerResponse>> => {
+    const con = getConnection();
+    const state = stateFactory ? await stateFactory(req, con) : null;
+    const userId = await extractUserId(req, state);
+    const user = userId && (await fetchUser(userId));
+    if (!user || !user.premium) {
+      return res.status(403).send();
+    }
+    const feed = new RSS({
+      title: `${title(user, state)} by daily.dev`,
+      generator: 'Daily Premium RSS',
+      feed_url: `${process.env.URL_PREFIX}${req.raw.url}`,
+      site_url: 'https://daily.dev',
+    });
+    const builder = query(
+      req,
+      user,
+      con
+        .createQueryBuilder()
+        .select([
+          'post."id"',
+          'post."shortId"',
+          'post."title"',
+          'post."tagsStr"',
+        ])
+        .from(Post, 'post')
+        .orderBy(orderBy, 'DESC')
+        .limit(20),
+    );
+    const items = await builder.getRawMany<RssItem>();
+    items.forEach((x) =>
+      feed.item({
+        title: x.title,
+        url: `${process.env.URL_PREFIX}/r/${x.shortId}`,
+        date: x.publishedAt,
+        guid: x.id,
+        description: '',
+        categories: x.tagsStr?.split(','),
+      }),
+    );
+    return res.type('application/rss+xml').send(feed.xml());
+  };
 
 const extractFirstName = (user: User): string => user.name.split(' ')[0];
 
