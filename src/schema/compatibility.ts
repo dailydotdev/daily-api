@@ -136,7 +136,7 @@ interface GQLPostSearchResults {
 async function compatGenerateFeed<
   TSource,
   TParams extends CompatFeedInput,
-  TArgs extends CompatFeedArgs<TParams>
+  TArgs extends CompatFeedArgs<TParams>,
 >(
   source: TSource,
   args: TArgs,
@@ -161,7 +161,7 @@ async function compatGenerateFeed<
 function compatFeedResolver<
   TSource,
   TParams extends CompatFeedInput,
-  TArgs extends CompatFeedArgs<TParams>
+  TArgs extends CompatFeedArgs<TParams>,
 >(
   query: (
     ctx: Context,

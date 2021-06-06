@@ -18,7 +18,7 @@ declare module 'fastify' {
     Params = DefaultParams,
     Headers = DefaultHeaders,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    Body = any
+    Body = any,
   > {
     userId?: string;
     premium?: boolean;

@@ -41,9 +41,9 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   saveObjectMock = jest.fn();
-  mocked(getPostsIndex).mockReturnValue(({
+  mocked(getPostsIndex).mockReturnValue({
     saveObject: saveObjectMock,
-  } as unknown) as SearchIndex);
+  } as unknown as SearchIndex);
 
   await saveFixtures(con, Source, sourcesFixture);
 });

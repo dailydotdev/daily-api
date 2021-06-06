@@ -294,26 +294,24 @@ const createSourceFromRequest = (
   ctx: Context,
   req: SourceRequest,
 ): Promise<Source> =>
-  ctx.con.manager.transaction(
-    async (entityManager): Promise<Source> => {
-      const source = entityManager.create(Source, {
-        id: req.sourceId,
-        twitter: req.sourceTwitter,
-        website: req.sourceUrl,
-        name: req.sourceName,
-        image: req.sourceImage,
-      });
-      await entityManager.save(source);
+  ctx.con.manager.transaction(async (entityManager): Promise<Source> => {
+    const source = entityManager.create(Source, {
+      id: req.sourceId,
+      twitter: req.sourceTwitter,
+      website: req.sourceUrl,
+      name: req.sourceName,
+      image: req.sourceImage,
+    });
+    await entityManager.save(source);
 
-      const feed = entityManager.create(SourceFeed, {
-        feed: req.sourceFeed,
-        sourceId: source.id,
-      });
-      await entityManager.save(feed);
+    const feed = entityManager.create(SourceFeed, {
+      feed: req.sourceFeed,
+      sourceId: source.id,
+    });
+    await entityManager.save(feed);
 
-      return source;
-    },
-  );
+    return source;
+  });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({

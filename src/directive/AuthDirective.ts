@@ -16,7 +16,7 @@ declare module 'graphql' {
   class GraphQLObjectType<
     TSource = any,
     TContext = any,
-    TArgs = { [key: string]: any }
+    TArgs = { [key: string]: any },
   > {
     _requiredAuthRole: string[];
     _premiumAuthRole: boolean;

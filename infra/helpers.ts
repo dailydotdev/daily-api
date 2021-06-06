@@ -20,32 +20,27 @@ export function createEnvVarsFromSecret(
   prefix: string,
 ): pulumi.Input<Secret>[] {
   const envVars = config.requireObject<Record<string, string>>('env');
-  return Object.keys(envVars).map(
-    (key): pulumi.Input<Secret> => {
-      const secret = new gcp.secretmanager.Secret(`${prefix}-secret-${key}`, {
-        secretId: `${prefix}-secret-${key}`,
-        replication: { automatic: true },
-      });
+  return Object.keys(envVars).map((key): pulumi.Input<Secret> => {
+    const secret = new gcp.secretmanager.Secret(`${prefix}-secret-${key}`, {
+      secretId: `${prefix}-secret-${key}`,
+      replication: { automatic: true },
+    });
 
-      const version = new gcp.secretmanager.SecretVersion(
-        `${prefix}-sv-${key}`,
-        {
-          enabled: true,
-          secret: secret.name,
-          secretData: envVars[key],
-        },
-      );
-      return {
-        name: camelToUnderscore(key),
-        value: pulumi
-          .all([secret.secretId, version.id])
-          .apply(
-            ([name, version]) =>
-              `gcp:///${name}/${version.split('/').reverse()[0]}`,
-          ),
-      };
-    },
-  );
+    const version = new gcp.secretmanager.SecretVersion(`${prefix}-sv-${key}`, {
+      enabled: true,
+      secret: secret.name,
+      secretData: envVars[key],
+    });
+    return {
+      name: camelToUnderscore(key),
+      value: pulumi
+        .all([secret.secretId, version.id])
+        .apply(
+          ([name, version]) =>
+            `gcp:///${name}/${version.split('/').reverse()[0]}`,
+        ),
+    };
+  });
 }
 
 export function serviceAccountToMember(

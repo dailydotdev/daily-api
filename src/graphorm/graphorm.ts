@@ -177,8 +177,8 @@ export class GraphORM {
       }
 
       // Apply custom query if any
-      const customQuery = this.mappings?.[type]?.fields?.[field.name]
-        ?.customQuery;
+      const customQuery =
+        this.mappings?.[type]?.fields?.[field.name]?.customQuery;
       if (customQuery) {
         return customQuery(ctx, childBuilder.alias, childBuilder.queryBuilder);
       }

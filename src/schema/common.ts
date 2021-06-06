@@ -115,7 +115,7 @@ export interface OffsetPage extends Page {
 export interface PageGenerator<
   TReturn,
   TArgs extends ConnectionArguments,
-  TPage extends Page
+  TPage extends Page,
 > {
   connArgsToPage: (args: TArgs) => TPage;
   nodeToCursor: (
@@ -156,7 +156,7 @@ type PaginationResolver<
   TSource,
   TReturn,
   TPage extends Page,
-  TExtra = undefined
+  TExtra = undefined,
 > = (
   source: TSource,
   args: ConnectionArguments,
@@ -171,7 +171,7 @@ export function connectionFromNodes<
   TReturn,
   TArgs extends ConnectionArguments,
   TPage extends Page,
-  TExtra = undefined
+  TExtra = undefined,
 >(
   args: TArgs,
   nodes: TReturn[],
@@ -217,7 +217,7 @@ export function forwardPagination<
   TReturn,
   TArgs extends ConnectionArguments,
   TPage extends Page,
-  TExtra = undefined
+  TExtra = undefined,
 >(
   resolver: PaginationResolver<TSource, TReturn, TPage, TExtra>,
   pageGenerator: PageGenerator<TReturn, TArgs, TPage>,
@@ -229,13 +229,11 @@ export function forwardPagination<
     info,
   ): Promise<Connection<TReturn> & TExtra> => {
     const page = pageGenerator.connArgsToPage(args);
-    const { total, nodes, extra = null } = await resolver(
-      source,
-      args,
-      context,
-      page,
-      info,
-    );
+    const {
+      total,
+      nodes,
+      extra = null,
+    } = await resolver(source, args, context, page, info);
     return connectionFromNodes(args, nodes, extra, page, pageGenerator, total);
   };
 }

@@ -231,9 +231,9 @@ describe('query search', () => {
 
   it('should return search feed', async () => {
     const searchMock = jest.fn();
-    mocked(getPostsIndex).mockReturnValue(({
+    mocked(getPostsIndex).mockReturnValue({
       search: searchMock,
-    } as unknown) as SearchIndex);
+    } as unknown as SearchIndex);
     searchMock.mockResolvedValue({
       hits: [{ objectID: 'p3' }, { objectID: 'p1' }],
     });
@@ -261,9 +261,9 @@ describe('query searchPostSuggestions', () => {
 
   it('should return search suggestions', async () => {
     const searchMock = jest.fn();
-    mocked(getPostsIndex).mockReturnValue(({
+    mocked(getPostsIndex).mockReturnValue({
       search: searchMock,
-    } as unknown) as SearchIndex);
+    } as unknown as SearchIndex);
     searchMock.mockResolvedValue({
       hits: [
         {
