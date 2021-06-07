@@ -5,7 +5,7 @@
     "node": "^12.19.0"
   },
   "scripts": {
-    "start": "node ./node_modules/typeorm/cli.js migration:run && node index.js | pino-stackdriver",
+    "start": "node index.js | pino-stackdriver",
     "dev": "nodemon ./index.ts | pino-pretty",
     "lint": "eslint . --ext .js,.ts --max-warnings 0",
     "build": "tsc",
