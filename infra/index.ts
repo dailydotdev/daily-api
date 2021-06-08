@@ -292,9 +292,9 @@ new k8s.apps.v1.Deployment(
               name: 'app',
               image,
               ports: [{ name: 'http', containerPort: 3000, protocol: 'TCP' }],
-              readinessProbe: {
-                httpGet: { path: '/health', port: 'http' },
-              },
+              // readinessProbe: {
+              //   httpGet: { path: '/health', port: 'http' },
+              // },
               env: [
                 ...secrets,
                 { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
