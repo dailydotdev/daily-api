@@ -1,7 +1,4 @@
-interface Worker {
-  topic: string;
-  subscription: string;
-}
+import { Worker } from '@dailydotdev/pulumi-common';
 
 export const workers: Worker[] = [
   {

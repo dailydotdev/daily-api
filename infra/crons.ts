@@ -1,10 +1,4 @@
-interface Cron {
-  name: string;
-  endpoint?: string;
-  schedule: string;
-  headers?: Record<string, string>;
-  body?: string;
-}
+import { Cron } from '@dailydotdev/pulumi-common';
 
 export const crons: Cron[] = [
   {
