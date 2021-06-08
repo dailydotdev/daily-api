@@ -78,6 +78,7 @@ const service = new gcp.cloudrun.Service(
         annotations: {
           'run.googleapis.com/vpc-access-connector': vpcConnector.name,
           'run.googleapis.com/vpc-access-egress': 'private-ranges-only',
+          'autoscaling.knative.dev/minScale': '1',
         },
       },
       spec: {
