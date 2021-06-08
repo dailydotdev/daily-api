@@ -1,6 +1,8 @@
 version: 2
 updates:
 - package-ecosystem: npm
+  directory: "/infra"
+- package-ecosystem: npm
   directory: "/"
   schedule:
     interval: daily
