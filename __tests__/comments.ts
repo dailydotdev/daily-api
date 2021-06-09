@@ -34,7 +34,7 @@ let client: ApolloServerTestClient;
 let loggedUser: string = null;
 
 jest.mock('../src/common', () => ({
-  ...jest.requireActual('../src/common'),
+  ...(jest.requireActual('../src/common') as object),
   notifyPostCommented: jest.fn(),
   notifyCommentCommented: jest.fn(),
   notifyCommentUpvoted: jest.fn(),

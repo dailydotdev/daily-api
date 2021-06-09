@@ -23,12 +23,12 @@ let app: FastifyInstance;
 let saveObjectMock: Mock;
 
 jest.mock('../../src/common/algolia', () => ({
-  ...jest.requireActual('../../src/common/algolia'),
+  ...(jest.requireActual('../../src/common/algolia') as object),
   getPostsIndex: jest.fn(),
 }));
 
 jest.mock('../../src/common', () => ({
-  ...jest.requireActual('../../src/common'),
+  ...(jest.requireActual('../../src/common') as object),
   notifyPostAuthorMatched: jest.fn(),
 }));
 

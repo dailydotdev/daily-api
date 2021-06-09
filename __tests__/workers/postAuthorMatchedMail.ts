@@ -11,7 +11,7 @@ import { Post, Source } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 
 jest.mock('../../src/common/mailing', () => ({
-  ...jest.requireActual('../../src/common/mailing'),
+  ...(jest.requireActual('../../src/common/mailing') as object),
   sendEmail: jest.fn(),
 }));
 

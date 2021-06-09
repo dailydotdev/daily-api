@@ -11,7 +11,7 @@ import { postsFixture } from '../fixture/post';
 import { notifyUserReputationUpdated } from '../../src/common';
 
 jest.mock('../../src/common/pubsub', () => ({
-  ...jest.requireActual('../../src/common/pubsub'),
+  ...(jest.requireActual('../../src/common/pubsub') as object),
   notifyUserReputationUpdated: jest.fn(),
 }));
 

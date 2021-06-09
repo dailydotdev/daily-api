@@ -45,7 +45,7 @@ let loggedUser: string = null;
 let roles: Roles[] = [];
 
 jest.mock('../src/common', () => ({
-  ...jest.requireActual('../src/common'),
+  ...(jest.requireActual('../src/common') as object),
   notifySourceRequest: jest.fn(),
   uploadLogo: jest.fn(),
   addOrRemoveSuperfeedrSubscription: jest.fn(),

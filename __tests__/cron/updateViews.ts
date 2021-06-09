@@ -14,7 +14,7 @@ let con: Connection;
 let app: FastifyInstance;
 
 jest.mock('../../src/common/algolia', () => ({
-  ...jest.requireActual('../../src/common/algolia'),
+  ...(jest.requireActual('../../src/common/algolia') as object),
   getPostsIndex: jest.fn(),
 }));
 

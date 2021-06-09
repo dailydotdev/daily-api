@@ -15,7 +15,7 @@ let con: Connection;
 let app: FastifyInstance;
 
 jest.mock('../../src/common', () => ({
-  ...jest.requireActual('../../src/common'),
+  ...(jest.requireActual('../../src/common') as object),
   notifyCommentFeatured: jest.fn(),
 }));
 

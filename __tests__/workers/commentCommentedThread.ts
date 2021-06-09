@@ -13,7 +13,7 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 
 jest.mock('../../src/common/mailing', () => ({
-  ...jest.requireActual('../../src/common/mailing'),
+  ...(jest.requireActual('../../src/common/mailing') as object),
   sendEmail: jest.fn(),
 }));
 

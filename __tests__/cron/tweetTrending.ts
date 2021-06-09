@@ -12,7 +12,7 @@ let con: Connection;
 let app: FastifyInstance;
 
 jest.mock('../../src/common/twitter', () => ({
-  ...jest.requireActual('../../src/common/twitter'),
+  ...(jest.requireActual('../../src/common/twitter') as object),
   tweet: jest.fn(),
 }));
 

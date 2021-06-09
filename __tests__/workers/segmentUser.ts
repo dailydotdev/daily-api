@@ -18,7 +18,7 @@ let mockTopic: jest.Mock;
 jest.mock('@google-cloud/pubsub', () => {
   const mockTopic = jest.fn();
   return {
-    ...jest.requireActual('@google-cloud/pubsub'),
+    ...(jest.requireActual('@google-cloud/pubsub') as object),
     PubSub: jest.fn().mockImplementation(() => ({ topic: mockTopic })),
   };
 });
