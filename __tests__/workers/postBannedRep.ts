@@ -12,7 +12,7 @@ import { notifyUserReputationUpdated } from '../../src/common';
 import { PostReport } from '../../src/entity/PostReport';
 
 jest.mock('../../src/common/pubsub', () => ({
-  ...jest.requireActual('../../src/common/pubsub'),
+  ...(jest.requireActual('../../src/common/pubsub') as Record<string, unknown>),
   notifyUserReputationUpdated: jest.fn(),
 }));
 

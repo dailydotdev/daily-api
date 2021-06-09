@@ -55,7 +55,7 @@ let roles: Roles[] = [];
 let deleteObjectMock: Mock;
 
 jest.mock('../src/common', () => ({
-  ...jest.requireActual('../src/common'),
+  ...(jest.requireActual('../src/common') as Record<string, unknown>),
   notifyPostReport: jest.fn(),
   notifyPostUpvoted: jest.fn(),
   notifyPostUpvoteCanceled: jest.fn(),
@@ -63,7 +63,7 @@ jest.mock('../src/common', () => ({
 }));
 
 jest.mock('../src/common/algolia', () => ({
-  ...jest.requireActual('../src/common/algolia'),
+  ...(jest.requireActual('../src/common/algolia') as Record<string, unknown>),
   getPostsIndex: jest.fn(),
 }));
 

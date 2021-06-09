@@ -9,7 +9,7 @@ import { postsFixture } from './fixture/post';
 import { notifyView } from '../src/common';
 
 jest.mock('../src/common', () => ({
-  ...jest.requireActual('../src/common'),
+  ...(jest.requireActual('../src/common') as Record<string, unknown>),
   notifyView: jest.fn(),
 }));
 

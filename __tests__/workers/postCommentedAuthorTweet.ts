@@ -11,7 +11,10 @@ import { postsFixture } from '../fixture/post';
 import { mocked } from 'ts-jest/utils';
 
 jest.mock('../../src/common/twitter', () => ({
-  ...jest.requireActual('../../src/common/twitter'),
+  ...(jest.requireActual('../../src/common/twitter') as Record<
+    string,
+    unknown
+  >),
   tweet: jest.fn(),
 }));
 

@@ -29,7 +29,7 @@ let client: ApolloServerTestClient;
 let loggedUser: string = null;
 
 jest.mock('../src/common/algolia', () => ({
-  ...jest.requireActual('../src/common/algolia'),
+  ...(jest.requireActual('../src/common/algolia') as Record<string, unknown>),
   getPostsIndex: jest.fn(),
 }));
 

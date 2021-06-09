@@ -14,7 +14,10 @@ import { postsFixture } from '../fixture/post';
 import { PostReport } from '../../src/entity/PostReport';
 
 jest.mock('../../src/common/mailing', () => ({
-  ...jest.requireActual('../../src/common/mailing'),
+  ...(jest.requireActual('../../src/common/mailing') as Record<
+    string,
+    unknown
+  >),
   sendEmail: jest.fn(),
 }));
 

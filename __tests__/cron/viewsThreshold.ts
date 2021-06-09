@@ -14,7 +14,7 @@ let con: Connection;
 let app: FastifyInstance;
 
 jest.mock('../../src/common', () => ({
-  ...jest.requireActual('../../src/common'),
+  ...(jest.requireActual('../../src/common') as Record<string, unknown>),
   notifyPostReachedViewsThreshold: jest.fn(),
 }));
 
