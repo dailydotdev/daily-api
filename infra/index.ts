@@ -88,6 +88,13 @@ const k8sServiceAccount = createK8sServiceAccountFromGCPServiceAccount(
   namespace,
   serviceAccount,
 );
+
+new gcp.serviceaccount.IAMBinding(`${name}-k8s-iam-binding`, {
+  role: 'roles/iam.workloadIdentityUser',
+  serviceAccountId: serviceAccount.id,
+  members: [k8sServiceAccountToIdentity(k8sServiceAccount)],
+});
+
 const migrationJob = createMigrationJob(
   `${name}-migration`,
   namespace,
@@ -133,12 +140,6 @@ export const bgServiceUrl = bgService.statuses[0].url;
 
 createSubscriptionsFromWorkers(name, workers, bgServiceUrl);
 createCronJobs(name, crons, bgServiceUrl);
-
-new gcp.serviceaccount.IAMBinding(`${name}-k8s-iam-binding`, {
-  role: 'roles/iam.workloadIdentityUser',
-  serviceAccountId: serviceAccount.id,
-  members: [k8sServiceAccountToIdentity(k8sServiceAccount)],
-});
 
 // Subscriptions server deployment
 
