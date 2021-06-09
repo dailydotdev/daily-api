@@ -16,7 +16,7 @@ import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 
 jest.mock('../src/common', () => ({
-  ...(jest.requireActual('../src/common') as object),
+  ...(jest.requireActual('../src/common') as Record<string, unknown>),
   addOrRemoveSuperfeedrSubscription: jest.fn(),
 }));
 

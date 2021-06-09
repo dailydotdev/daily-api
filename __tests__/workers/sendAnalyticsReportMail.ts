@@ -12,7 +12,10 @@ import { sourcesFixture } from '../fixture/source';
 import { sub } from 'date-fns';
 
 jest.mock('../../src/common/mailing', () => ({
-  ...(jest.requireActual('../../src/common/mailing') as object),
+  ...(jest.requireActual('../../src/common/mailing') as Record<
+    string,
+    unknown
+  >),
   sendEmail: jest.fn(),
 }));
 

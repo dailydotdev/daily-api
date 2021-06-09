@@ -15,7 +15,7 @@ let app: FastifyInstance;
 const now = new Date();
 
 jest.mock('../../src/common', () => ({
-  ...(jest.requireActual('../../src/common') as object),
+  ...(jest.requireActual('../../src/common') as Record<string, unknown>),
   notifySendAnalyticsReport: jest.fn(),
 }));
 
