@@ -10,15 +10,12 @@ import {
   configuredFeedBuilder,
   FeedOptions,
   Ranking,
-  searchPostsForFeed,
   sourceFeedBuilder,
   tagFeedBuilder,
 } from '../common';
 import { SelectQueryBuilder } from 'typeorm';
-import { Post, searchPosts } from '../entity';
-import { GQLSearchPostSuggestionsResults } from './feeds';
+import { Post } from '../entity';
 import graphorm from '../graphorm';
-import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 
 export const typeDefs = gql`
   type Publication {
@@ -84,12 +81,6 @@ export const typeDefs = gql`
       @deprecated(reason: "Please use sourceFeed")
     postsByTag(params: PostByTagInput): [Post!]!
       @deprecated(reason: "Please use tagFeed")
-    search(params: PostSearchInput): PostSearchResults!
-      @deprecated(reason: "Please use searchPosts")
-    searchSuggestion(
-      params: PostSearchSuggestionInput
-    ): SearchPostSuggestionsResults!
-      @deprecated(reason: "Please use searchPostSuggestions")
   }
 `;
 
@@ -120,17 +111,8 @@ interface GQLPostByTagInput extends CompatFeedInput {
   tag: string;
 }
 
-interface GQLPostSearchInput extends CompatFeedInput {
-  query: string;
-}
-
 interface CompatFeedArgs<TParams> {
   params: TParams;
-}
-
-interface GQLPostSearchResults {
-  query: string;
-  hits: GQLPost[];
 }
 
 async function compatGenerateFeed<
@@ -271,64 +253,6 @@ export const resolvers: IResolvers<any, Context> = {
           alias,
         ),
     ),
-    search: async (
-      source,
-      args: CompatFeedArgs<GQLPostSearchInput>,
-      ctx,
-      info,
-    ): Promise<GQLPostSearchResults> => {
-      const limit = Math.min(args.params?.pageSize || 30, 50);
-      const offset = (args.params?.page || 0) * limit;
-      const postIds = await searchPostsForFeed(
-        {
-          query: args.params.query,
-          ranking: Ranking.POPULARITY,
-        },
-        ctx,
-        { limit, offset },
-      );
-      const parsedInfo = parseResolveInfo(info) as ResolveTree;
-      let nodes = await graphorm.queryResolveTree<GQLPost>(
-        ctx,
-        graphorm.getFieldByHierarchy(parsedInfo, ['hits']),
-        (builder) => {
-          builder.queryBuilder = builder.queryBuilder.where(
-            `${builder.alias}.id IN (:...postIds)`,
-            { postIds },
-          );
-          return builder;
-        },
-      );
-      nodes = nodes.sort(
-        (a, b) => postIds.indexOf(a.id) - postIds.indexOf(b.id),
-      );
-      return {
-        hits: nodes,
-        query: args.params.query,
-      };
-    },
-    searchSuggestion: async (
-      source,
-      { params: { query } }: { params: { query: string } },
-      ctx,
-    ): Promise<GQLSearchPostSuggestionsResults> => {
-      const suggestions = await searchPosts(
-        query,
-        {
-          hitsPerPage: 5,
-          attributesToRetrieve: ['objectID', 'title'],
-          attributesToHighlight: ['title'],
-          highlightPreTag: '<strong>',
-          highlightPostTag: '</strong>',
-        },
-        ctx.userId,
-        ctx.req.ip,
-      );
-      return {
-        query,
-        hits: suggestions.map((s) => ({ title: s.highlight })),
-      };
-    },
   }),
   Post: {
     publication: (source: GQLPost): GQLPublication => source.source,

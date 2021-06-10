@@ -19,19 +19,11 @@ import { sourcesFixture } from './fixture/source';
 import { postKeywordsFixture, postsFixture } from './fixture/post';
 import { ApolloServer } from 'apollo-server-fastify';
 import { FeedSource } from '../src/entity';
-import { mocked } from 'ts-jest/utils';
-import { getPostsIndex } from '../src/common';
-import { SearchIndex } from 'algoliasearch';
 
 let con: Connection;
 let server: ApolloServer;
 let client: ApolloServerTestClient;
 let loggedUser: string = null;
-
-jest.mock('../src/common/algolia', () => ({
-  ...(jest.requireActual('../src/common/algolia') as Record<string, unknown>),
-  getPostsIndex: jest.fn(),
-}));
 
 beforeAll(async () => {
   con = await getConnection();
@@ -214,70 +206,6 @@ describe('query postsByTag', () => {
       query: QUERY,
       variables: { params: { latest, tag: 'javascript' } },
     });
-    expect(res.data).toMatchSnapshot();
-  });
-});
-
-describe('query search', () => {
-  const QUERY = `
-  query Search($params: PostSearchInput) {
-    search(params: $params) {
-      query
-      hits {
-        ${feedFields}
-      }
-    }
-  }`;
-
-  it('should return search feed', async () => {
-    const searchMock = jest.fn();
-    mocked(getPostsIndex).mockReturnValue({
-      search: searchMock,
-    } as unknown as SearchIndex);
-    searchMock.mockResolvedValue({
-      hits: [{ objectID: 'p3' }, { objectID: 'p1' }],
-    });
-    const latest = new Date().toISOString();
-    const res = await client.query({
-      query: QUERY,
-      variables: { params: { latest, query: 'text' } },
-    });
-    expect(searchMock).toBeCalledWith('text', expect.anything());
-    expect(res.data).toMatchSnapshot();
-  });
-});
-
-describe('query searchPostSuggestions', () => {
-  const QUERY = `
-  query SearchSuggestion($params: PostSearchSuggestionInput) {
-    searchSuggestion(params: $params) {
-      query
-      hits {
-        title
-      }
-    }
-  }
-`;
-
-  it('should return search suggestions', async () => {
-    const searchMock = jest.fn();
-    mocked(getPostsIndex).mockReturnValue({
-      search: searchMock,
-    } as unknown as SearchIndex);
-    searchMock.mockResolvedValue({
-      hits: [
-        {
-          objectID: '1',
-          title: 'title',
-          _highlightResult: { title: { value: '<strong>t</strong>itle' } },
-        },
-      ],
-    });
-    const res = await client.query({
-      query: QUERY,
-      variables: { params: { query: 'text' } },
-    });
-    expect(searchMock).toBeCalledWith('text', expect.anything());
     expect(res.data).toMatchSnapshot();
   });
 });

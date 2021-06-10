@@ -7,8 +7,6 @@ import {
 } from 'apollo-server-testing';
 import request from 'supertest';
 import _ from 'lodash';
-import { mocked } from 'ts-jest/utils';
-import { SearchIndex } from 'algoliasearch';
 
 import createApolloServer from '../src/apollo';
 import { Context } from '../src/Context';
@@ -39,18 +37,12 @@ import {
   postsFixture,
   postTagsFixture,
 } from './fixture/post';
-import { getPostsIndex, Ranking } from '../src/common';
 
 let app: FastifyInstance;
 let con: Connection;
 let server: ApolloServer;
 let client: ApolloServerTestClient;
 let loggedUser: string = null;
-
-jest.mock('../src/common/algolia', () => ({
-  ...(jest.requireActual('../src/common/algolia') as Record<string, unknown>),
-  getPostsIndex: jest.fn(),
-}));
 
 beforeAll(async () => {
   con = await getConnection();
@@ -331,21 +323,7 @@ describe('query searchPostSuggestions', () => {
 `;
 
   it('should return search suggestions', async () => {
-    const searchMock = jest.fn();
-    mocked(getPostsIndex).mockReturnValue({
-      search: searchMock,
-    } as unknown as SearchIndex);
-    searchMock.mockResolvedValue({
-      hits: [
-        {
-          objectID: '1',
-          title: 'title',
-          _highlightResult: { title: { value: '<strong>t</strong>itle' } },
-        },
-      ],
-    });
-    const res = await client.query({ query: QUERY('text') });
-    expect(searchMock).toBeCalledWith('text', expect.anything());
+    const res = await client.query({ query: QUERY('p1') });
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -360,28 +338,12 @@ describe('query searchPosts', () => {
 `;
 
   it('should return search feed', async () => {
-    const searchMock = jest.fn();
-    mocked(getPostsIndex).mockReturnValue({
-      search: searchMock,
-    } as unknown as SearchIndex);
-    searchMock.mockResolvedValue({
-      hits: [{ objectID: 'p3' }, { objectID: 'p1' }],
-    });
-    const res = await client.query({ query: QUERY('text') });
-    expect(searchMock).toBeCalledWith('text', expect.anything());
+    const res = await client.query({ query: QUERY('p1') });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return search empty feed', async () => {
-    const searchMock = jest.fn();
-    mocked(getPostsIndex).mockReturnValue({
-      search: searchMock,
-    } as unknown as SearchIndex);
-    searchMock.mockResolvedValue({
-      hits: [],
-    });
-    const res = await client.query({ query: QUERY('text') });
-    expect(searchMock).toBeCalledWith('text', expect.anything());
+    const res = await client.query({ query: QUERY('not found') });
     expect(res.data).toMatchSnapshot();
   });
 });

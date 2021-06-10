@@ -1458,10 +1458,10 @@ Object {
   "searchPostSuggestions": Object {
     "hits": Array [
       Object {
-        "title": "<strong>t</strong>itle",
+        "title": "<strong>P1</strong>",
       },
     ],
-    "query": "text",
+    "query": "p1",
   },
 }
 `;
@@ -1474,7 +1474,7 @@ Object {
       "endCursor": null,
       "hasNextPage": false,
     },
-    "query": "text",
+    "query": "not found",
   },
 }
 `;
@@ -1483,21 +1483,6 @@ exports[`query searchPosts should return search feed 1`] = `
 Object {
   "searchPosts": Object {
     "edges": Array [
-      Object {
-        "node": Object {
-          "id": "p3",
-          "readTime": null,
-          "source": Object {
-            "id": "c",
-            "image": "http://image.com/c",
-            "name": "C",
-            "public": true,
-          },
-          "tags": Array [],
-          "title": "P3",
-          "url": "http://p3.com",
-        },
-      },
       Object {
         "node": Object {
           "id": "p1",
@@ -1518,10 +1503,10 @@ Object {
       },
     ],
     "pageInfo": Object {
-      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjA=",
       "hasNextPage": false,
     },
-    "query": "text",
+    "query": "p1",
   },
 }
 `;

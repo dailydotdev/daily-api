@@ -12,7 +12,6 @@ import {
   getCursorFromAfter,
   randomPostsResolver,
   Ranking,
-  searchPostsForFeed,
   sourceFeedBuilder,
   tagFeedBuilder,
   whereKeyword,
@@ -24,7 +23,6 @@ import {
   FeedSource,
   FeedTag,
   Post,
-  searchPosts,
   Source,
 } from '../entity';
 import { GQLSource } from './sources';
@@ -592,6 +590,24 @@ const getFeedSettings = async (
   };
 };
 
+const getSearchQuery = (param: string) => `SELECT to_tsquery('english',
+                                                             string_agg(lexeme || ':*', ' & ' order by positions)) AS query
+                                           FROM unnest(to_tsvector('english', process_text(${param})))`;
+
+const searchResolver = feedResolver(
+  (ctx, { query }: FeedArgs & { query: string }, builder, alias) =>
+    builder
+      .andWhere(`${alias}.tsv @@ (${getSearchQuery(':query')})`, {
+        query,
+      })
+      .orderBy('upvotes', 'DESC')
+      .addOrderBy('views', 'DESC'),
+  offsetPageGenerator(30, 50),
+  (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
+  true,
+  false,
+);
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
@@ -636,21 +652,22 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { query }: { query: string },
       ctx,
     ): Promise<GQLSearchPostSuggestionsResults> => {
-      const suggestions = await searchPosts(
-        query,
-        {
-          hitsPerPage: 5,
-          attributesToRetrieve: ['objectID', 'title'],
-          attributesToHighlight: ['title'],
-          highlightPreTag: '<strong>',
-          highlightPostTag: '</strong>',
-        },
-        ctx.userId,
-        ctx.req.ip,
+      const hits: { title: string }[] = await ctx.con.query(
+        `
+          WITH search AS (${getSearchQuery('$1')})
+          select ts_headline(process_text(title), search.query,
+                             'StartSel = <strong>, StopSel = </strong>') as title
+          from post,
+               search
+          where tsv @@ search.query
+          order by upvotes desc, views desc
+          limit 5;
+        `,
+        [query],
       );
       return {
         query,
-        hits: suggestions.map((s) => ({ title: s.highlight })),
+        hits,
       };
     },
     searchPosts: async (
@@ -659,42 +676,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
       info,
     ): Promise<Connection<GQLPost> & { query: string }> => {
-      const pageGenerator = offsetPageGenerator(30, 50);
-      const page = pageGenerator.connArgsToPage(args);
-      const postIds = await searchPostsForFeed(args, ctx, page);
-      if (postIds.length) {
-        const res = await graphorm.queryPaginated<GQLPost>(
-          ctx,
-          info,
-          (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
-          (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
-          (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
-          (builder) => {
-            const selectSource = builder.queryBuilder
-              .subQuery()
-              .from(Source, 'source')
-              .where('source.active = true')
-              .andWhere(`source.id = "${builder.alias}"."sourceId"`);
-            builder.queryBuilder = builder.queryBuilder
-              .where(`${builder.alias}.id IN (:...postIds)`, { postIds })
-              .andWhere(`EXISTS${selectSource.getQuery()}`, {
-                userId: ctx.userId,
-              });
-            return builder;
-          },
-          (nodes) =>
-            nodes.sort((a, b) => postIds.indexOf(a.id) - postIds.indexOf(b.id)),
-        );
-        return {
-          ...res,
-          query: args.query,
-        };
-      }
+      const res = await searchResolver(source, args, ctx, info);
       return {
-        pageInfo: {
-          hasNextPage: false,
-        },
-        edges: [],
+        ...res,
         query: args.query,
       };
     },
@@ -814,28 +798,28 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         let similarPostsQuery;
         if (tags?.length > 0) {
           similarPostsQuery = `select post.id
-                                   from post
-                                          inner join (
-                                     select count(*)           as similar,
-                                            min(k.occurrences) as occurrences,
-                                            pk."postId"
-                                     from post_keyword pk
-                                            inner join keyword k on pk.keyword = k.value
-                                     where k.value in (:...tags)
-                                       and k.status = 'allow'
-                                     group by pk."postId"
-                                   ) k on k."postId" = post.id
-                                   where post.id != :postId
-                                     and post."createdAt" >= now() - interval '6 month'
-                                   order by (pow(post.upvotes, k.similar) * 1000 / k.occurrences) desc
-                                   limit 25`;
+                               from post
+                                      inner join (
+                                 select count(*)           as similar,
+                                        min(k.occurrences) as occurrences,
+                                        pk."postId"
+                                 from post_keyword pk
+                                        inner join keyword k on pk.keyword = k.value
+                                 where k.value in (:...tags)
+                                   and k.status = 'allow'
+                                 group by pk."postId"
+                               ) k on k."postId" = post.id
+                               where post.id != :postId
+                                 and post."createdAt" >= now() - interval '6 month'
+                               order by (pow(post.upvotes, k.similar) * 1000 / k.occurrences) desc
+                               limit 25`;
         } else {
           similarPostsQuery = `select post.id
-                                   from post
-                                   where post.id != :postId
-                                     and post."createdAt" >= now() - interval '6 month'
-                                   order by post.upvotes desc
-                                   limit 25`;
+                               from post
+                               where post.id != :postId
+                                 and post."createdAt" >= now() - interval '6 month'
+                               order by post.upvotes desc
+                               limit 25`;
         }
         return builder.andWhere(`${alias}."id" in (${similarPostsQuery})`, {
           postId: post,
@@ -886,7 +870,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .where('source.id IN (:...ids)', { ids: filters.excludeSources })
             .getQueryAndParameters();
           await manager.query(
-            `insert into feed_source("sourceId", "feedId") ${query} on conflict do nothing`,
+            `insert into feed_source("sourceId", "feedId") ${query}
+             on conflict
+            do nothing`,
             params,
           );
         }
