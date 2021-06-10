@@ -37,6 +37,7 @@ import {
   postsFixture,
   postTagsFixture,
 } from './fixture/post';
+import { Ranking } from '../src/common';
 
 let app: FastifyInstance;
 let con: Connection;
