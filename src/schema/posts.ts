@@ -7,7 +7,6 @@ import { traceResolverObject } from './trace';
 import {
   defaultImage,
   getDiscussionLink,
-  getPostsIndex,
   notifyPostReport,
   notifyPostUpvoted,
   notifyPostUpvoteCanceled,
@@ -415,7 +414,6 @@ export const resolvers: IResolvers<any, Context> = {
       const post = await ctx.getRepository(Post).findOne(id);
       if (post) {
         await ctx.getRepository(Post).delete({ id });
-        await getPostsIndex().deleteObject(id);
         await notifyPostBannedOrRemoved(ctx.log, post);
       }
       return { _: true };

@@ -40,9 +40,6 @@ import {
   notifyPostBannedOrRemoved,
 } from '../src/common';
 import { Roles } from '../src/roles';
-import { getPostsIndex } from '../src/common';
-import Mock = jest.Mock;
-import { SearchIndex } from 'algoliasearch';
 import { PostReport } from '../src/entity/PostReport';
 
 let app: FastifyInstance;
@@ -52,7 +49,6 @@ let client: ApolloServerTestClient;
 let loggedUser: string = null;
 let premiumUser = false;
 let roles: Roles[] = [];
-let deleteObjectMock: Mock;
 
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
@@ -60,11 +56,6 @@ jest.mock('../src/common', () => ({
   notifyPostUpvoted: jest.fn(),
   notifyPostUpvoteCanceled: jest.fn(),
   notifyPostBannedOrRemoved: jest.fn(),
-}));
-
-jest.mock('../src/common/algolia', () => ({
-  ...(jest.requireActual('../src/common/algolia') as Record<string, unknown>),
-  getPostsIndex: jest.fn(),
 }));
 
 beforeAll(async () => {
@@ -84,11 +75,6 @@ beforeEach(async () => {
   premiumUser = false;
   roles = [];
   jest.resetAllMocks();
-
-  deleteObjectMock = jest.fn();
-  mocked(getPostsIndex).mockReturnValue({
-    deleteObject: deleteObjectMock,
-  } as unknown as SearchIndex);
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
@@ -609,7 +595,6 @@ describe('mutation deletePost', () => {
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Post).findOne('p1');
     expect(actual).toBeFalsy();
-    expect(deleteObjectMock).toBeCalledWith('p1');
     expect(mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1)).toEqual([
       post,
     ]);
@@ -624,7 +609,6 @@ describe('mutation deletePost', () => {
       variables: { id: 'p1' },
     });
     expect(res.errors).toBeFalsy();
-    expect(deleteObjectMock).toBeCalledTimes(0);
     expect(notifyPostBannedOrRemoved).toBeCalledTimes(0);
   });
 });

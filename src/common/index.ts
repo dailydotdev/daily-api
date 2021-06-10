@@ -1,4 +1,3 @@
-export * from './algolia';
 export * from './base64';
 export * from './cloudinary';
 export * from './crypto';
