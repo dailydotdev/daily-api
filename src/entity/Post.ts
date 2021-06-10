@@ -7,10 +7,8 @@ import {
   OneToMany,
   PrimaryColumn,
 } from 'typeorm';
-import { SearchOptions } from '@algolia/client-search';
 import { PostTag } from './PostTag';
 import { Source } from './Source';
-import { getPostsIndex, trackSearch } from '../common';
 import { User } from './User';
 import { PostKeyword } from './PostKeyword';
 
@@ -131,6 +129,10 @@ export class Post {
   @Column({ default: false })
   @Index('IDX_post_banned')
   banned: boolean;
+
+  @Column({ nullable: true, type: 'tsvector', select: false })
+  @Index('IDX_post_tsv', { synchronize: false })
+  tsv: unknown;
 }
 
 export interface SearchPostsResult {
@@ -143,25 +145,6 @@ export interface AlgoliaSearchResult {
   title: string;
   _highlightResult?: { title: { value: string } };
 }
-
-export const searchPosts = async (
-  query: string,
-  opts: SearchOptions,
-  trackingId: string,
-  ip: string,
-): Promise<SearchPostsResult[]> => {
-  const res = await getPostsIndex().search<AlgoliaSearchResult>(query, {
-    headers: trackSearch(trackingId, ip),
-    ...opts,
-  });
-  return res.hits.map(
-    (hit): SearchPostsResult => ({
-      id: hit.objectID,
-      title: hit.title,
-      highlight: hit?._highlightResult?.title.value,
-    }),
-  );
-};
 
 export type PostStats = {
   numPosts: number;

@@ -5,7 +5,6 @@ import {
   Bookmark,
   FeedTag,
   Post,
-  searchPosts,
   View,
   FeedSource,
   HiddenPost,
@@ -14,7 +13,7 @@ import {
 } from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
-import { OffsetPage, Page, PageGenerator } from '../schema/common';
+import { Page, PageGenerator } from '../schema/common';
 import graphorm from '../graphorm';
 
 export const whereTags = (
@@ -324,21 +323,3 @@ export const tagFeedBuilder = (
   alias: string,
 ): SelectQueryBuilder<Post> =>
   builder.andWhere((subBuilder) => whereTags([tag], subBuilder, alias));
-
-export const searchPostsForFeed = async (
-  { query }: FeedArgs & { query: string },
-  ctx: Context,
-  { limit, offset }: OffsetPage,
-): Promise<string[]> => {
-  const hits = await searchPosts(
-    query,
-    {
-      offset,
-      length: limit,
-      attributesToRetrieve: ['objectID'],
-    },
-    ctx.userId,
-    ctx.req.ip,
-  );
-  return hits.map((h) => h.id);
-};
