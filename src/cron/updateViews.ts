@@ -1,6 +1,5 @@
 import { Cron } from './cron';
 import { Checkpoint } from '../entity/Checkpoint';
-import { getPostsIndex } from '../common';
 
 const cron: Cron = {
   name: 'update-views',
@@ -40,19 +39,6 @@ const cron: Cron = {
       checkpoint.timestamp = before;
       await entityManager.getRepository(Checkpoint).save(checkpoint);
     });
-
-    const updatedPosts = await con.query(
-      `SELECT p.id "objectID", p.views
-         FROM "public"."post" p
-                INNER JOIN (SELECT "postId"
-                            FROM "public"."view"
-                            WHERE "timestamp" >= $1
-                              AND "timestamp" < $2
-                            GROUP BY "postId") AS v
-                           ON p.id = v."postId"`,
-      [after, before],
-    );
-    await getPostsIndex().partialUpdateObjects(updatedPosts);
   },
 };
 

@@ -3,7 +3,7 @@ import { Connection, In } from 'typeorm';
 import * as he from 'he';
 import { Keyword, Post, PostKeyword, PostTag, User } from '../entity';
 import { messageToJson, Worker } from './worker';
-import { getPostsIndex, notifyPostAuthorMatched } from '../common';
+import { notifyPostAuthorMatched } from '../common';
 import { Logger } from 'fastify';
 
 interface AddPostData {
@@ -23,30 +23,6 @@ interface AddPostData {
   canonicalUrl?: string;
   keywords?: string[];
 }
-
-interface AlgoliaPost {
-  objectID: string;
-  title: string;
-  createdAt: number;
-  views: number;
-  readTime?: number;
-  pubId: string;
-  _tags: string[];
-}
-
-const convertToAlgolia = (data: AddPostData): AlgoliaPost => ({
-  objectID: data.id,
-  title: data.title,
-  createdAt: data.createdAt?.getTime(),
-  views: 0,
-  readTime: data.readTime,
-  pubId: data.publicationId,
-  _tags: data.tags,
-});
-
-const addToAlgolia = async (data: AddPostData): Promise<void> => {
-  await getPostsIndex().saveObject(convertToAlgolia(data));
-};
 
 type Result = { postId: string; authorId?: string };
 
@@ -225,7 +201,6 @@ const worker: Worker = {
     }
     try {
       await addPost(con, data, logger);
-      await addToAlgolia(data);
       logger.info(
         {
           post: data,

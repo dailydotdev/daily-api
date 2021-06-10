@@ -1,8 +1,6 @@
 import { Connection, getConnection } from 'typeorm';
 import { FastifyInstance } from 'fastify';
-import { SearchIndex } from 'algoliasearch';
 import { mocked } from 'ts-jest/utils';
-import Mock = jest.Mock;
 
 import appFunc from '../../src/background';
 import worker from '../../src/workers/newPost';
@@ -16,19 +14,10 @@ import {
   User,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { getPostsIndex, notifyPostAuthorMatched } from '../../src/common';
+import { notifyPostAuthorMatched } from '../../src/common';
 
 let con: Connection;
 let app: FastifyInstance;
-let saveObjectMock: Mock;
-
-jest.mock('../../src/common/algolia', () => ({
-  ...(jest.requireActual('../../src/common/algolia') as Record<
-    string,
-    unknown
-  >),
-  getPostsIndex: jest.fn(),
-}));
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -43,11 +32,6 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   jest.resetAllMocks();
-  saveObjectMock = jest.fn();
-  mocked(getPostsIndex).mockReturnValue({
-    saveObject: saveObjectMock,
-  } as unknown as SearchIndex);
-
   await saveFixtures(con, Source, sourcesFixture);
 });
 
@@ -60,15 +44,6 @@ it('should save a new post with basic information', async () => {
   });
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
-  expect(saveObjectMock).toBeCalledWith({
-    objectID: posts[0].id,
-    title: 'Title',
-    createdAt: expect.any(Number),
-    views: 0,
-    readTime: undefined,
-    pubId: 'a',
-    _tags: undefined,
-  });
   const tags = await con.getRepository(PostTag).find();
   expect(tags.length).toEqual(0);
   expect(posts[0]).toMatchSnapshot({
@@ -104,15 +79,6 @@ it('should save a new post with full information', async () => {
     creatorTwitter: 'creator',
     readTime: '5.123',
   });
-  expect(saveObjectMock).toBeCalledWith({
-    objectID: expect.any(String),
-    title: 'Title',
-    createdAt: expect.any(Number),
-    views: 0,
-    readTime: 5,
-    pubId: 'a',
-    _tags: ['webdev', 'javascript', 'html'],
-  });
   const posts = await con.getRepository(Post).find();
   const tags = await con.getRepository(PostTag).find({ select: ['tag'] });
   expect(posts.length).toEqual(1);
@@ -133,15 +99,6 @@ it('should handle empty tags array', async () => {
     publicationId: 'a',
     tags: [],
   });
-  expect(saveObjectMock).toBeCalledWith({
-    objectID: expect.any(String),
-    title: 'Title',
-    createdAt: expect.any(Number),
-    views: 0,
-    readTime: undefined,
-    pubId: 'a',
-    _tags: [],
-  });
   const posts = await con.getRepository(Post).find();
   const tags = await con.getRepository(PostTag).find();
   expect(posts.length).toEqual(1);
@@ -156,7 +113,6 @@ it('should save keywords', async () => {
     publicationId: 'a',
     keywords: ['vue', 'nodejs'],
   });
-  expect(saveObjectMock).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   const postKeywords = await con
     .getRepository(PostKeyword)
@@ -177,7 +133,6 @@ it('should ignore numerical only keywords', async () => {
     publicationId: 'a',
     keywords: ['vue', 'nodejs', '123'],
   });
-  expect(saveObjectMock).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   const postKeywords = await con
     .getRepository(PostKeyword)
@@ -199,7 +154,6 @@ it('should increase occurrences by one when keyword exists', async () => {
     publicationId: 'a',
     keywords: ['vue', 'nodejs'],
   });
-  expect(saveObjectMock).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   const postKeywords = await con
     .getRepository(PostKeyword)
@@ -221,7 +175,6 @@ it('should handle duplicate keywords', async () => {
     publicationId: 'a',
     keywords: ['vue', 'nodejs', 'vue'],
   });
-  expect(saveObjectMock).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   const postKeywords = await con
     .getRepository(PostKeyword)
@@ -246,7 +199,6 @@ it('should replace synonym keywords', async () => {
     publicationId: 'a',
     keywords: ['vue', 'node'],
   });
-  expect(saveObjectMock).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   const postKeywords = await con
     .getRepository(PostKeyword)
@@ -267,7 +219,6 @@ it('should handle empty keywords array', async () => {
     publicationId: 'a',
     keywords: [],
   });
-  expect(saveObjectMock).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   const postKeywords = await con.getRepository(PostKeyword).find();
   const keywords = await con.getRepository(Keyword).find();
@@ -283,7 +234,6 @@ it('should ignore null value violation', async () => {
     url: null,
     publicationId: 'a',
   });
-  expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(0);
 });
@@ -303,7 +253,6 @@ it('should not save post with existing url', async () => {
     url: 'https://post.com',
     publicationId: 'a',
   });
-  expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
 });
@@ -324,7 +273,6 @@ it('should not save post when url matches existing canonical url', async () => {
     url: 'https://post.dev',
     publicationId: 'a',
   });
-  expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
 });
@@ -346,7 +294,6 @@ it('should not save post when canonical url matches existing url', async () => {
     canonicalUrl: 'https://post.com',
     publicationId: 'a',
   });
-  expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
 });
@@ -368,7 +315,6 @@ it('should not save post when canonical url matches existing canonical url', asy
     canonicalUrl: 'https://post.dev',
     publicationId: 'a',
   });
-  expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
 });
@@ -392,15 +338,6 @@ it('should match post to author', async () => {
   });
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
-  expect(saveObjectMock).toBeCalledWith({
-    objectID: posts[0].id,
-    title: 'Title',
-    createdAt: expect.any(Number),
-    views: 0,
-    readTime: undefined,
-    pubId: 'a',
-    _tags: undefined,
-  });
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
     score: expect.any(Number),
@@ -431,15 +368,6 @@ it('should not match post to author based on username', async () => {
   });
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
-  expect(saveObjectMock).toBeCalledWith({
-    objectID: posts[0].id,
-    title: 'Title',
-    createdAt: expect.any(Number),
-    views: 0,
-    readTime: undefined,
-    pubId: 'a',
-    _tags: undefined,
-  });
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
     score: expect.any(Number),
@@ -459,15 +387,6 @@ it('should not match post to author', async () => {
   });
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
-  expect(saveObjectMock).toBeCalledWith({
-    objectID: posts[0].id,
-    title: 'Title',
-    createdAt: expect.any(Number),
-    views: 0,
-    readTime: undefined,
-    pubId: 'a',
-    _tags: undefined,
-  });
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
     score: expect.any(Number),
@@ -485,7 +404,6 @@ it('should clear empty creator twitter', async () => {
     publicationId: 'a',
     creatorTwitter: '',
   });
-  expect(saveObjectMock).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
   expect(posts[0].creatorTwitter).toBeNull();
@@ -499,7 +417,6 @@ it('should clear invalid creator twitter', async () => {
     publicationId: 'a',
     creatorTwitter: '@',
   });
-  expect(saveObjectMock).toBeCalledTimes(1);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
   expect(posts[0].creatorTwitter).toBeNull();
@@ -513,7 +430,6 @@ it('should not save post when author is banned', async () => {
     publicationId: 'a',
     creatorTwitter: '@NewGenDeveloper',
   });
-  expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(0);
 });
@@ -527,15 +443,6 @@ it('should unescape html text', async () => {
   });
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
-  expect(saveObjectMock).toBeCalledWith({
-    objectID: posts[0].id,
-    title: `It's ok jQuery, I still love you`,
-    createdAt: expect.any(Number),
-    views: 0,
-    readTime: undefined,
-    pubId: 'a',
-    _tags: undefined,
-  });
   const tags = await con.getRepository(PostTag).find();
   expect(tags.length).toEqual(0);
   expect(posts[0]).toMatchSnapshot({
@@ -555,15 +462,6 @@ it('should keep html-like text', async () => {
   });
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(1);
-  expect(saveObjectMock).toBeCalledWith({
-    objectID: posts[0].id,
-    title: 'Here is my <progress> element',
-    createdAt: expect.any(Number),
-    views: 0,
-    readTime: undefined,
-    pubId: 'a',
-    _tags: undefined,
-  });
   const tags = await con.getRepository(PostTag).find();
   expect(tags.length).toEqual(0);
   expect(posts[0]).toMatchSnapshot({
@@ -581,7 +479,6 @@ it('should ignore message if title is empty', async () => {
     publicationId: 'a',
     creatorTwitter: '@NewGenDeveloper',
   });
-  expect(saveObjectMock).toBeCalledTimes(0);
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(0);
 });

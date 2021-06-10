@@ -4,22 +4,11 @@ import cron from '../../src/cron/updateViews';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Post, Source, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { mocked } from 'ts-jest/utils';
-import { getPostsIndex } from '../../src/common';
-import { SearchIndex } from 'algoliasearch';
 import { FastifyInstance } from 'fastify';
 import appFunc from '../../src/background';
 
 let con: Connection;
 let app: FastifyInstance;
-
-jest.mock('../../src/common/algolia', () => ({
-  ...(jest.requireActual('../../src/common/algolia') as Record<
-    string,
-    unknown
-  >),
-  getPostsIndex: jest.fn(),
-}));
 
 beforeAll(async () => {
   con = await getConnection();
@@ -32,11 +21,6 @@ beforeEach(async () => {
 });
 
 it('should update views and scores', async () => {
-  const updateMock = jest.fn();
-  mocked(getPostsIndex).mockReturnValue({
-    partialUpdateObjects: updateMock,
-  } as unknown as SearchIndex);
-
   const now = new Date();
   await saveFixtures(con, Post, [
     {
@@ -99,8 +83,4 @@ it('should update views and scores', async () => {
         Math.pow(Math.log(5 + 1) / Math.log(5), 2) * 60,
     ),
   );
-  expect(updateMock).toBeCalledWith([
-    { objectID: 'p1', views: 5 },
-    { objectID: 'p2', views: 2 },
-  ]);
 });
