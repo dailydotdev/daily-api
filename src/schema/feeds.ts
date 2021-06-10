@@ -600,8 +600,7 @@ const searchResolver = feedResolver(
       .andWhere(`${alias}.tsv @@ (${getSearchQuery(':query')})`, {
         query,
       })
-      .orderBy('upvotes', 'DESC')
-      .addOrderBy('views', 'DESC'),
+      .orderBy('views', 'DESC'),
   offsetPageGenerator(30, 50),
   (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
   true,
@@ -660,7 +659,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           from post,
                search
           where tsv @@ search.query
-          order by upvotes desc, views desc
+          order by views desc
           limit 5;
         `,
         [query],
