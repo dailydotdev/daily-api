@@ -54,7 +54,7 @@
     "graphql-upload": "^12.0.0",
     "he": "^1.2.0",
     "ioredis": "^4.27.6",
-    "isbot": "^3.0.26",
+    "isbot": "^3.0.27",
     "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.21",
     "node-fetch": "^2.6.1",
