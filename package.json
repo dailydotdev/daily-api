@@ -16,6 +16,7 @@
     "typeorm": "ts-node ./node_modules/typeorm/cli.js",
     "db:schema:sync": "npm run typeorm -- schema:sync",
     "db:schema:drop": "npm run typeorm -- schema:drop",
+    "db:migrate:create": "npm run typeorm -- migration:create -n",
     "db:migrate:make": "npm run typeorm -- migration:generate -n",
     "db:migrate:latest": "npm run typeorm -- migration:run",
     "db:migrate:rollback": "npm run typeorm -- migration:revert",

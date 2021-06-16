@@ -32,7 +32,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     return res
       .type('text/html')
       .send(
-        `<html><head><meta http-equiv="refresh" content="0;URL=${post.url}"></head></html>`,
+        `<html><head><meta http-equiv="refresh" content="0;URL=${post.url}${
+          req.query.a ? `#${req.query.a}` : ''
+        }"></head></html>`,
       );
   });
 }

@@ -12,6 +12,9 @@ import { Source } from './Source';
 import { User } from './User';
 import { PostKeyword } from './PostKeyword';
 
+export type TocItem = { text: string; id?: string; children?: TocItem[] };
+export type Toc = TocItem[];
+
 @Entity()
 export class Post {
   @PrimaryColumn({ type: 'text' })
@@ -133,17 +136,18 @@ export class Post {
   @Column({ nullable: true, type: 'tsvector', select: false })
   @Index('IDX_post_tsv', { synchronize: false })
   tsv: unknown;
+
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  toc: Toc | null;
 }
 
 export interface SearchPostsResult {
   id: string;
   title: string;
   highlight?: string;
-}
-
-export interface AlgoliaSearchResult {
-  title: string;
-  _highlightResult?: { title: { value: string } };
 }
 
 export type PostStats = {

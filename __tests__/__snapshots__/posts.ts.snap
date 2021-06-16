@@ -175,3 +175,35 @@ Object {
   },
 }
 `;
+
+exports[`toc field should return null when toc is not set 1`] = `
+Object {
+  "post": Object {
+    "toc": null,
+  },
+}
+`;
+
+exports[`toc field should return the toc when set 1`] = `
+Object {
+  "post": Object {
+    "toc": Array [
+      Object {
+        "children": Array [
+          Object {
+            "id": "sub-1",
+            "text": "Sub 1",
+          },
+        ],
+        "id": "title-1",
+        "text": "Title 1",
+      },
+      Object {
+        "children": null,
+        "id": "title-2",
+        "text": "Title 2",
+      },
+    ],
+  },
+}
+`;

@@ -13,7 +13,7 @@ import {
   pickImageUrl,
   notifyPostBannedOrRemoved,
 } from '../common';
-import { HiddenPost, Post, Upvote } from '../entity';
+import { HiddenPost, Post, Toc, Upvote } from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
@@ -50,9 +50,28 @@ export interface GQLPost {
   author?: GQLUser;
   views?: number;
   discussionScore?: number;
+  description?: string;
+  toc?: Toc;
 }
 
 export const typeDefs = gql`
+  type TocItem {
+    """
+    Content of the toc item
+    """
+    text: String!
+
+    """
+    Id attribute of the Html element of the toc item
+    """
+    id: String
+
+    """
+    Children items of the toc item
+    """
+    children: [TocItem]
+  }
+
   """
   Blog post
   """
@@ -181,6 +200,16 @@ export const typeDefs = gql`
     Trending score of the post
     """
     trending: Int
+
+    """
+    Meta description of the post
+    """
+    description: String
+
+    """
+    Table of content of the post
+    """
+    toc: [TocItem]
   }
 
   type PostConnection {
