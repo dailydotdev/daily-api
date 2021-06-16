@@ -126,21 +126,21 @@ export class Post {
   lastTrending?: Date;
 
   @Column({ type: 'integer', nullable: true })
-  @Index"IDX_post_discussion_score"')
+  @Index('IDX_post_discussion_score')
   discussionScore?: number;
 
   @Column({ default: false })
-  @Index"IDX_post_banned"')
+  @Index('IDX_post_banned')
   banned: boolean;
 
-  @Column({ nullable: true, type:"tsvector"', select: false })
-  @Index"IDX_post_tsv"', { synchronize: false })
+  @Column({ nullable: true, type: 'tsvector', select: false })
+  @Index('IDX_post_tsv', { synchronize: false })
   tsv: unknown;
 
-  @Column({ type:"text"', nullable: true })
+  @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  @Column({ type:"jsonb"', nullable: true })
+  @Column({ type: 'jsonb', nullable: true })
   toc: Toc | null;
 }
 
