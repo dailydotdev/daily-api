@@ -1,7 +1,7 @@
 import shortid from 'shortid';
 import { Connection, In } from 'typeorm';
 import * as he from 'he';
-import { Keyword, Post, PostKeyword, PostTag, User } from '../entity';
+import { Keyword, Post, PostKeyword, PostTag, Toc, User } from '../entity';
 import { messageToJson, Worker } from './worker';
 import { notifyPostAuthorMatched } from '../common';
 import { Logger } from 'fastify';
@@ -22,6 +22,8 @@ interface AddPostData {
   readTime?: number;
   canonicalUrl?: string;
   keywords?: string[];
+  description?: string;
+  toc?: Toc;
 }
 
 type Result = { postId: string; authorId?: string };
@@ -104,6 +106,8 @@ const addPost = async (
       canonicalUrl: data.canonicalUrl,
       authorId,
       sentAnalyticsReport: !authorId,
+      description: data.description,
+      toc: data.toc,
     });
     if (data.tags?.length) {
       await entityManager.getRepository(PostTag).insert(

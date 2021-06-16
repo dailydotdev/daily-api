@@ -78,6 +78,15 @@ it('should save a new post with full information', async () => {
     siteTwitter: 'site',
     creatorTwitter: 'creator',
     readTime: '5.123',
+    description: 'This is my description',
+    toc: [
+      {
+        text: 'Title 1',
+        id: 'title-1',
+        children: [{ text: 'Sub 1', id: 'sub-1' }],
+      },
+      { text: 'Title 2', id: 'title-2' },
+    ],
   });
   const posts = await con.getRepository(Post).find();
   const tags = await con.getRepository(PostTag).find({ select: ['tag'] });

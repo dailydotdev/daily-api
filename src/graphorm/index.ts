@@ -79,6 +79,9 @@ const obj = new GraphORM({
       publication: {
         alias: { field: 'source', type: 'Source' },
       },
+      toc: {
+        jsonType: true,
+      },
     },
   },
   Source: {

@@ -50,6 +50,8 @@ export interface GraphORMField {
   alias?: { field: string; type: string };
   // Settings for pagination
   pagination?: GraphORMPagination;
+  // Whether this field is of JSON type
+  jsonType?: boolean;
 }
 
 export interface GraphORMType {
@@ -219,7 +221,7 @@ export class GraphORM {
       });
     }
 
-    if (childType) {
+    if (childType && !mapping?.jsonType) {
       // If current field is a of custom type
       return builder.addSelect(
         (subBuilder) =>

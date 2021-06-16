@@ -467,6 +467,36 @@ describe('views field', () => {
   });
 });
 
+describe('toc field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      toc { text, id, children { text, id } }
+    }
+  }`;
+
+  it('should return null when toc is not set', async () => {
+    const res = await client.query({ query: QUERY });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return the toc when set', async () => {
+    await con.getRepository(Post).update('p1', {
+      toc: [
+        {
+          text: 'Title 1',
+          id: 'title-1',
+          children: [{ text: 'Sub 1', id: 'sub-1' }],
+        },
+        { text: 'Title 2', id: 'title-2' },
+      ],
+    });
+    const res = await client.query({ query: QUERY });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('query post', () => {
   const QUERY = (id: string): string => `{
     post(id: "${id}") {

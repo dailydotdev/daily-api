@@ -25,6 +25,7 @@ beforeAll(async () => {
 afterAll(() => app.close());
 
 beforeEach(async () => {
+  jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
 });
@@ -76,5 +77,17 @@ describe('GET /r/:postId', () => {
       expect.anything(),
       expect.anything(),
     );
+  });
+
+  it('should render redirect html with hash value', async () => {
+    await request(app.server)
+      .get('/r/p1?a=id')
+      .set('user-agent', agent)
+      .expect(200)
+      .expect('content-type', 'text/html')
+      .expect(
+        '<html><head><meta http-equiv="refresh" content="0;URL=http://p1.com#id"></head></html>',
+      );
+    expect(notifyView).toBeCalledTimes(0);
   });
 });
