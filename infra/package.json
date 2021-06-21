@@ -1,7 +1,7 @@
 {
     "name": "api",
     "devDependencies": {
-        "@types/node": "^15.12.2"
+        "@types/node": "^15.12.4"
     },
     "dependencies": {
         "@dailydotdev/pulumi-common": "git+https://github.com/dailydotdev/pulumi-common.git#v1.0.2",
