@@ -5,7 +5,7 @@
     },
     "dependencies": {
         "@dailydotdev/pulumi-common": "git+https://github.com/dailydotdev/pulumi-common.git#v1.0.2",
-        "@pulumi/gcp": "^5.8.1",
+        "@pulumi/gcp": "^5.9.0",
         "@pulumi/kubernetes": "^3.3.1",
         "@pulumi/pulumi": "^3.4.0"
     }
