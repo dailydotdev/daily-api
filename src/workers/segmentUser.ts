@@ -14,7 +14,7 @@ const findSegment = async (
   userId: string,
   con: Connection,
 ): Promise<string | null> => {
-  const res: SegmentRow = await con
+  const rows: SegmentRow[] = await con
     .createQueryBuilder()
     .select('ts.segment', 'segment')
     .from(View, 'v')
@@ -24,8 +24,14 @@ const findSegment = async (
     .andWhere('v."userId" = :userId', { userId })
     .groupBy('ts.segment')
     .orderBy('count(*)', 'DESC')
-    .getRawOne();
-  return res?.segment;
+    .getRawMany();
+  if (rows.length) {
+    return (
+      rows.find((row) => row.segment === 'kubernetes')?.segment ??
+      rows[0].segment
+    );
+  }
+  return null;
 };
 
 const worker: Worker = {

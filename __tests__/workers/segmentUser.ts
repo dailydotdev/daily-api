@@ -64,6 +64,7 @@ beforeEach(async () => {
     { tag: 'html', segment: 'frontend' },
     { tag: 'javascript', segment: 'frontend' },
     { tag: 'backend', segment: 'backend' },
+    { tag: 'kubernetes', segment: 'kubernetes' },
   ]);
 });
 
@@ -82,4 +83,18 @@ it('should not dispatch message when no segment found', async () => {
 
   await expectSuccessfulBackground(app, worker, { userId: '3' });
   expect(mockPublish).toBeCalledTimes(0);
+});
+
+it('should prioritize kubernetes segment', async () => {
+  const mockPublish = jest.fn().mockResolvedValue('');
+  mockTopic.mockImplementation(() => ({ publishJSON: mockPublish }));
+
+  await con.getRepository(PostKeyword).save({
+    postId: postsFixture[3].id,
+    keyword: 'kubernetes',
+  });
+
+  await expectSuccessfulBackground(app, worker, { userId: '1' });
+  expect(mockPublish).toBeCalledTimes(1);
+  expect(mockPublish).toBeCalledWith({ userId: '1', segment: 'kubernetes' });
 });
