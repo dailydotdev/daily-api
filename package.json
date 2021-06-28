@@ -36,7 +36,7 @@
     "apollo-error-converter": "^1.1.1",
     "apollo-server-fastify": "^2.25.1",
     "apollo-server-plugin-response-cache": "^0.9.0",
-    "cloudinary": "^1.26.0",
+    "cloudinary": "^1.26.1",
     "date-fns": "^2.22.1",
     "fast-json-stringify": "^2.7.6",
     "fastify": "^2.15.3",
