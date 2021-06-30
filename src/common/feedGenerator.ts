@@ -297,10 +297,10 @@ export const configuredFeedBuilder = (
   let newBuilder = builder;
   newBuilder = newBuilder
     .andWhere((subBuilder) => whereSourcesInFeed(feedId, subBuilder, alias))
-    .andWhere((subBuilder) => whereTagsInFeed(feedId, subBuilder, alias))
-    .andWhere((subBuilder) =>
-      whereBlockedTagsNotInFeed(feedId, subBuilder, alias),
-    );
+    .andWhere((subBuilder) => whereTagsInFeed(feedId, subBuilder, alias));
+  // .andWhere((subBuilder) =>
+  //   whereBlockedTagsNotInFeed(feedId, subBuilder, alias),
+  // );
   if (unreadOnly) {
     newBuilder = newBuilder.andWhere((subBuilder) =>
       whereUnread(ctx.userId, subBuilder, alias),
