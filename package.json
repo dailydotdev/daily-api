@@ -34,7 +34,7 @@
     "@slack/webhook": "^6.0.0",
     "@types/shortid": "0.0.29",
     "apollo-error-converter": "^1.1.1",
-    "apollo-server-fastify": "^2.25.1",
+    "apollo-server-fastify": "^2.25.2",
     "apollo-server-plugin-response-cache": "^0.9.0",
     "cloudinary": "^1.26.1",
     "date-fns": "^2.22.1",
