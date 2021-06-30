@@ -7,14 +7,14 @@ export class FullTextSearch1623319349676 implements MigrationInterface {
       `CREATE INDEX IDX_post_tsv ON "public"."post" USING GIST (tsv)`,
     );
     await queryRunner.query(
-      `CREATE FUNCTION process_text(query text) RETURNS text AS $$
+      `CREATE OR REPLACE FUNCTION process_text(query text) RETURNS text AS $$
 begin
   return (select replace(regexp_replace(COALESCE(query, ''), '\\.|,', '', 'g'), '-', ' '));
 end
 $$ LANGUAGE plpgsql;`,
     );
     await queryRunner.query(
-      `CREATE FUNCTION post_tsv_trigger() RETURNS trigger AS $$
+      `CREATE OR REPLACE FUNCTION post_tsv_trigger() RETURNS trigger AS $$
 begin
   new.tsv := to_tsvector('english', process_text(new.title));
   return new;

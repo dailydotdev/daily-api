@@ -142,7 +142,17 @@ const obj = new GraphORM({
           qb
             .select(`string_agg(tag, ',' order by tag)`)
             .from(FeedTag, 'ft')
-            .where(`ft."feedId" = "${alias}".id`),
+            .where(`ft."feedId" = "${alias}".id`)
+            .andWhere('ft.blocked = false'),
+        transform: (value: string): string[] => value?.split(',') ?? [],
+      },
+      blockedTags: {
+        select: (ctx, alias, qb): QueryBuilder =>
+          qb
+            .select(`string_agg(tag, ',' order by tag)`)
+            .from(FeedTag, 'ft')
+            .where(`ft."feedId" = "${alias}".id`)
+            .andWhere('ft.blocked = true'),
         transform: (value: string): string[] => value?.split(',') ?? [],
       },
       excludeSources: {
