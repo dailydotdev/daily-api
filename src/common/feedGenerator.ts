@@ -56,7 +56,7 @@ export const whereTagsInFeed = (
     .select('feed.tag')
     .from(FeedTag, 'feed')
     .where('feed.feedId = :feedId', { feedId })
-    .andWhere('feed.blocked = false')
+    // .andWhere('feed.blocked = false')
     .getQuery();
 
   const query = builder
