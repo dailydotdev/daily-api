@@ -36,6 +36,7 @@ export const typeDefs = gql`
     id: String
     userId: String
     includeTags: [String]
+    blockedTags: [String]
     excludeSources: [Source]
   }
 
@@ -79,6 +80,11 @@ export const typeDefs = gql`
     Posts must include at least one tag from this list
     """
     includeTags: [String!]
+
+    """
+    Posts must not include even one tag from this list
+    """
+    blockedTags: [String!]
   }
 
   extend type Query {
@@ -430,6 +436,7 @@ export interface GQLFeedSettings {
   id: string;
   userId: string;
   includeTags: string[];
+  blockedTags: string[];
   excludeSources: GQLSource[];
 }
 
@@ -587,6 +594,7 @@ const getFeedSettings = async (
     userId: ctx.userId,
     excludeSources: [],
     includeTags: [],
+    blockedTags: [],
   };
 };
 
@@ -886,7 +894,22 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                 tag: s,
               })),
             )
-            .onConflict(`("feedId", "tag") DO NOTHING`)
+            .onConflict(`("feedId", "tag") DO UPDATE SET blocked = false`)
+            .execute();
+        }
+        if (filters?.blockedTags?.length) {
+          await manager
+            .createQueryBuilder()
+            .insert()
+            .into(FeedTag)
+            .values(
+              filters.blockedTags.map((s) => ({
+                feedId,
+                tag: s,
+                blocked: true,
+              })),
+            )
+            .onConflict(`("feedId", "tag") DO UPDATE SET blocked = true`)
             .execute();
         }
       });
@@ -911,6 +934,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           await manager.getRepository(FeedTag).delete({
             feedId,
             tag: In(filters.includeTags),
+          });
+        }
+        if (filters?.blockedTags?.length) {
+          await manager.getRepository(FeedTag).delete({
+            feedId,
+            tag: In(filters.blockedTags),
           });
         }
       });

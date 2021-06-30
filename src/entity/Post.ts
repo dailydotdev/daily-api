@@ -134,7 +134,7 @@ export class Post {
   banned: boolean;
 
   @Column({ nullable: true, type: 'tsvector', select: false })
-  @Index('IDX_post_tsv', { synchronize: false })
+  @Index('IDX_post_tsv')
   tsv: unknown;
 
   @Column({ type: 'text', nullable: true })

@@ -56,6 +56,7 @@ export const whereTagsInFeed = (
     .select('feed.tag')
     .from(FeedTag, 'feed')
     .where('feed.feedId = :feedId', { feedId })
+    .andWhere('feed.blocked = false')
     .getQuery();
 
   const query = builder
@@ -67,6 +68,30 @@ export const whereTagsInFeed = (
     .getQuery();
 
   return `(NOT EXISTS${feedTag} OR EXISTS${query})`;
+};
+
+export const whereBlockedTagsNotInFeed = (
+  feedId: string,
+  builder: SelectQueryBuilder<Post>,
+  alias: string,
+): string => {
+  const feedTag = builder
+    .subQuery()
+    .select('feed.tag')
+    .from(FeedTag, 'feed')
+    .where('feed.feedId = :feedId', { feedId })
+    .andWhere('feed.blocked = true')
+    .getQuery();
+
+  const query = builder
+    .subQuery()
+    .select('1')
+    .from(PostKeyword, 'pk')
+    .where(`pk.keyword IN ${feedTag}`)
+    .andWhere(`pk.postId = ${alias}.id`)
+    .getQuery();
+
+  return `(NOT EXISTS${feedTag} OR NOT EXISTS${query})`;
 };
 
 export const whereSourcesInFeed = (
@@ -232,6 +257,7 @@ export interface AnonymousFeedFilters {
   includeSources?: string[];
   excludeSources?: string[];
   includeTags?: string[];
+  blockedTags?: string[];
 }
 
 export const anonymousFeedBuilder = (
@@ -271,7 +297,10 @@ export const configuredFeedBuilder = (
   let newBuilder = builder;
   newBuilder = newBuilder
     .andWhere((subBuilder) => whereSourcesInFeed(feedId, subBuilder, alias))
-    .andWhere((subBuilder) => whereTagsInFeed(feedId, subBuilder, alias));
+    .andWhere((subBuilder) => whereTagsInFeed(feedId, subBuilder, alias))
+    .andWhere((subBuilder) =>
+      whereBlockedTagsNotInFeed(feedId, subBuilder, alias),
+    );
   if (unreadOnly) {
     newBuilder = newBuilder.andWhere((subBuilder) =>
       whereUnread(ctx.userId, subBuilder, alias),
