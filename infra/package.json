@@ -1,12 +1,12 @@
 {
     "name": "api",
     "devDependencies": {
-        "@types/node": "^15.12.4"
+        "@types/node": "^15.14.1"
     },
     "dependencies": {
-        "@dailydotdev/pulumi-common": "^1.0.3",
-        "@pulumi/gcp": "^5.9.0",
-        "@pulumi/kubernetes": "^3.4.0",
-        "@pulumi/pulumi": "^3.5.1"
+        "@dailydotdev/pulumi-common": "^1.1.1",
+        "@pulumi/gcp": "^5.11.0",
+        "@pulumi/kubernetes": "^3.5.0",
+        "@pulumi/pulumi": "^3.6.1"
     }
 }
