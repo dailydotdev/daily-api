@@ -73,7 +73,7 @@
   "devDependencies": {
     "@types/algoliasearch": "^4.0.0",
     "@types/express": "^4.17.13",
-    "@types/feedparser": "^2.2.3",
+    "@types/feedparser": "^2.2.4",
     "@types/graphql": "^14.5.0",
     "@types/graphql-relay": "^0.6.0",
     "@types/ioredis": "^4.26.5",
