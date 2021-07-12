@@ -11,9 +11,6 @@ export class PostKeywordStatus1626085244394 implements MigrationInterface {
       `CREATE INDEX "IDX_post_keyword_postId_status" ON "public"."post_keyword" ("postId", "status") `,
     );
     await queryRunner.query(
-      'UPDATE "public"."post_keyword" SET "status" = k."status" FROM keyword k WHERE k."value" = "post_keyword"."keyword"',
-    );
-    await queryRunner.query(
       `CREATE OR REPLACE FUNCTION keyword_trigger() RETURNS trigger AS $$
 begin
   if ((TG_OP = 'UPDATE' and new."status" <> old."status") or TG_OP = 'INSERT') then
