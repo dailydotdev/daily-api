@@ -1,7 +1,8 @@
-import { Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
+import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Post } from './Post';
 
 @Entity()
+@Index('IDX_post_keyword_postId_status', ['postId', 'status'])
 export class PostKeyword {
   @PrimaryColumn({ type: 'text' })
   @Index('IDX_post_keyword_postId')
@@ -10,6 +11,9 @@ export class PostKeyword {
   @PrimaryColumn({ type: 'text' })
   @Index('IDX_post_keyword_keyword')
   keyword: string;
+
+  @Column({ type: 'text', nullable: true })
+  status: string;
 
   @ManyToOne(() => Post, (post) => post.keywords, {
     lazy: true,
