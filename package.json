@@ -97,7 +97,7 @@
     "jest-junit": "^12.2.0",
     "jest-mock-extended": "^1.0.16",
     "nock": "^13.1.1",
-    "nodemon": "^2.0.9",
+    "nodemon": "^2.0.12",
     "pino-pretty": "^5.1.0",
     "prettier": "^2.3.2",
     "supertest": "^6.1.3",
