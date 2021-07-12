@@ -60,22 +60,27 @@ Array [
   PostKeyword {
     "keyword": "javascript",
     "postId": "p1",
+    "status": null,
   },
   PostKeyword {
     "keyword": "reactjs",
     "postId": "p1",
+    "status": "allow",
   },
   PostKeyword {
     "keyword": "reactjs",
     "postId": "p2",
+    "status": "allow",
   },
   PostKeyword {
     "keyword": "typescript",
     "postId": "p2",
+    "status": null,
   },
   PostKeyword {
     "keyword": "reactjs",
     "postId": "p3",
+    "status": "allow",
   },
 ]
 `;
@@ -85,22 +90,27 @@ Array [
   PostKeyword {
     "keyword": "javascript",
     "postId": "p1",
+    "status": null,
   },
   PostKeyword {
     "keyword": "reactjs",
     "postId": "p1",
+    "status": "allow",
   },
   PostKeyword {
     "keyword": "reactjs",
     "postId": "p2",
+    "status": "allow",
   },
   PostKeyword {
     "keyword": "typescript",
     "postId": "p2",
+    "status": null,
   },
   PostKeyword {
     "keyword": "reactjs",
     "postId": "p3",
+    "status": "allow",
   },
 ]
 `;
@@ -125,22 +135,27 @@ Array [
   PostKeyword {
     "keyword": "javascript",
     "postId": "p1",
+    "status": null,
   },
   PostKeyword {
     "keyword": "reactjs",
     "postId": "p1",
+    "status": "allow",
   },
   PostKeyword {
     "keyword": "reactjs",
     "postId": "p2",
+    "status": "allow",
   },
   PostKeyword {
     "keyword": "typescript",
     "postId": "p2",
+    "status": null,
   },
   PostKeyword {
     "keyword": "reactjs",
     "postId": "p3",
+    "status": "allow",
   },
 ]
 `;
