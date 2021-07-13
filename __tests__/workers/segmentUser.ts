@@ -56,7 +56,7 @@ beforeEach(async () => {
     },
     {
       userId: '1',
-      timestamp: new Date(now.getTime() - 65 * 24 * 60 * 60 * 1000),
+      timestamp: new Date(now.getTime() - 190 * 24 * 60 * 60 * 1000),
       postId: postsFixture[2].id,
     },
   ]);

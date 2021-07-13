@@ -20,7 +20,7 @@ const findSegment = async (
     .from(View, 'v')
     .innerJoin(PostKeyword, 'pk', 'v."postId" = pk."postId"')
     .innerJoin(TagSegment, 'ts', 'ts.tag = pk.keyword')
-    .where('extract(epoch from now() - v."timestamp")/86400 < 30')
+    .where('extract(epoch from now() - v."timestamp")/86400 < 180')
     .andWhere('v."userId" = :userId', { userId })
     .groupBy('ts.segment')
     .orderBy('count(*)', 'DESC')
