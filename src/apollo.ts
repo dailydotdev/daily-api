@@ -70,7 +70,9 @@ export default async function (config: Config): Promise<ApolloServer> {
     // Workaround due to wrong typing
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     plugins: [(responseCachePlugin as any)()],
-    uploads: true,
+    uploads: {
+      maxFileSize: 1024 * 1024 * 2,
+    },
     subscriptions:
       process.env.ENABLE_SUBSCRIPTIONS === 'true'
         ? {
