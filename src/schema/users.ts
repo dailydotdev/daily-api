@@ -150,7 +150,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLReadingRank> => {
       const isSameUser = ctx.userId === id;
-      const rank = await getUserReadingRank(ctx.con, ctx.userId);
+      const rank = await getUserReadingRank(ctx.con, id);
       if (isSameUser) {
         return rank;
       } else {
