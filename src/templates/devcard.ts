@@ -186,7 +186,7 @@ export function generateDevCard({
               <g id="bar" transform="translate(0.000000, 42.000000)">
                 <rect id="Bg" fill="#525866" x="0" y="0" width="320" height="4" rx="2"></rect>
                 <rect id="Fill" fill="#F5F8FC" x="0" y="0" width="${
-                  (tag.count * 320) / articlesRead
+                  (tag.count * 320) / tags[0].count
                 }" height="4" rx="2"></rect>
               </g>
               <text id="Javascript" font-family="system-ui,-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Ubuntu,Segoe UI,Arial,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol" font-size="24" font-weight="normal" line-spacing="30" fill="#FFFFFF">
@@ -215,7 +215,9 @@ export function generateDevCard({
             }
             <g id="header" mask="url(#mask-6)">
                 <g transform="translate(35.000000, 48.000000)">
-                    <g id="username" transform="translate(192.000000, 37.000000)" font-family="system-ui,-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Ubuntu,Segoe UI,Arial,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol" font-size="64" font-weight="bold" line-spacing="86">
+                    <g id="username" transform="translate(192.000000, 37.000000)" font-family="system-ui,-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Ubuntu,Segoe UI,Arial,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol" font-size="${
+                      username.length <= 10 ? 64 : 48
+                    }" font-weight="bold" line-spacing="86">
                         <text fill="#FFFFFF">
                             <tspan x="0" y="59">@${username}</tspan>
                         </text>
