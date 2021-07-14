@@ -1,7 +1,10 @@
 import { gql, IResolvers } from 'apollo-server-fastify';
+import { FileUpload } from 'graphql-upload';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { Comment, getAuthorPostStats, PostStats, View } from '../entity';
+import { Comment, getAuthorPostStats, PostStats } from '../entity';
+import { DevCard } from '../entity/DevCard';
+import { getUserReadingRank, uploadDevCardBackground } from '../common';
 
 export interface GQLUser {
   id: string;
@@ -80,6 +83,10 @@ export const typeDefs = gql`
     reads: Int!
   }
 
+  type DevCard {
+    imageUrl: String!
+  }
+
   extend type Query {
     """
     Get the statistics of the user
@@ -99,26 +106,14 @@ export const typeDefs = gql`
     """
     userReadHistory(id: ID!, after: String!, before: String!): [ReadHistory]
   }
-`;
 
-interface ReadingRankQueryResult {
-  thisWeek: number;
-  lastWeek: number;
-  today: number;
-}
-
-const STEPS_PER_RANK = [3, 4, 5, 6, 7];
-const STEPS_PER_RANK_REVERSE = STEPS_PER_RANK.reverse();
-
-const rankFromProgress = (progress: number) => {
-  const reverseRank = STEPS_PER_RANK_REVERSE.findIndex(
-    (threshold) => progress >= threshold,
-  );
-  if (reverseRank > -1) {
-    return STEPS_PER_RANK.length - reverseRank;
+  extend type Mutation {
+    """
+    Generates or updates the user's Dev Card preferences
+    """
+    generateDevCard(file: Upload): DevCard @auth
   }
-  return 0;
-};
+`;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
@@ -155,33 +150,14 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLReadingRank> => {
       const isSameUser = ctx.userId === id;
-      const now = `timezone('utc', now())`;
-      const res = await ctx.con
-        .createQueryBuilder()
-        .select(
-          `count(distinct date_trunc('day', "timestamp")) filter(where "timestamp" >= date_trunc('week', ${now}))`,
-          'thisWeek',
-        )
-        .addSelect(
-          `count(distinct date_trunc('day', "timestamp")) filter(where "timestamp" < date_trunc('week', ${now}) and "timestamp" >= date_trunc('week', ${now} - interval '7 days'))`,
-          'lastWeek',
-        )
-        .addSelect(
-          `count(*) filter(where "timestamp" >= date_trunc('day', ${now}))`,
-          'today',
-        )
-        .from(View, 'view')
-        .where('"userId" = :id', { id })
-        .getRawOne<ReadingRankQueryResult>();
-      const rankThisWeek = rankFromProgress(res.thisWeek);
-      const rankLastWeek = rankFromProgress(res.lastWeek);
-      return {
-        currentRank: rankThisWeek > rankLastWeek ? rankThisWeek : rankLastWeek,
-        progressThisWeek: isSameUser ? res.thisWeek : null,
-        rankLastWeek: isSameUser ? rankLastWeek : null,
-        rankThisWeek: isSameUser ? rankThisWeek : null,
-        readToday: isSameUser ? res.today > 0 : null,
-      };
+      const rank = await getUserReadingRank(ctx.con, ctx.userId);
+      if (isSameUser) {
+        return rank;
+      } else {
+        return {
+          currentRank: rank.currentRank,
+        };
+      }
     },
     userReadingRankHistory: async (
       source,
@@ -228,6 +204,36 @@ export const resolvers: IResolvers<any, Context> = {
       `,
         [id, after, before],
       );
+    },
+  }),
+  Mutation: traceResolverObject({
+    generateDevCard: async (
+      source,
+      { file }: { file?: FileUpload },
+      ctx: Context,
+    ): Promise<{ imageUrl: string }> => {
+      const repo = ctx.con.getRepository(DevCard);
+      let devCard: DevCard = await repo.findOne({ userId: ctx.userId });
+      if (!devCard) {
+        devCard = await repo.save({ userId: ctx.userId });
+      }
+      if (file) {
+        const { createReadStream } = await file;
+        const stream = createReadStream();
+        const backgroundImage = await uploadDevCardBackground(
+          devCard.id,
+          stream,
+        );
+        await repo.update(devCard.id, { background: backgroundImage });
+      }
+      // Avoid caching issues with the new version
+      const randomStr = Math.random().toString(36).substring(2, 5);
+      return {
+        imageUrl: `${process.env.URL_PREFIX}/devcard/${devCard.id.replace(
+          /-/g,
+          '',
+        )}.jpg?r=${randomStr}`,
+      };
     },
   }),
   User: {

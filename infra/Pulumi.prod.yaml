@@ -43,6 +43,8 @@ config:
       secure: AAABANFezuRPJ0g9WusbSHLxDXj8VAzDXUPHnQoMgn2bqt+Txwn/SfVvApyjx2lya+riz/+Ro31zCjlBwwj06S7LSi0=
     redisPort:
       secure: AAABABhjFqukaljivmDU5MmPI9UZr6axFjlVVldUV+XnpBWJ
+    scraperUrl:
+      secure: AAABAFJuIl4urAuU7QHuejylWDS+sf4Tn8toGJidcG0ImydPshyVE28DtBYvJDELmxbsgC9VzdU7czo9koSuTy4SxCUwwqQ=
     sendgridApiKey:
       secure: AAABANVhXyHAWBYvw2hOFkRdQaqiW2hBtoAc/iqxhUpi/dTEZFjrg1neXRyrs+fNnE5RYeDKy3vyjzDWAPe6ZWtamz46cTyBkcDpFIoqsrGn5CvltYd6O/CautVQQ2+oqUVECQA=
     slackWebhook:

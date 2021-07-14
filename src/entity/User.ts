@@ -1,5 +1,6 @@
 import { Column, Entity, Index, OneToMany, PrimaryColumn } from 'typeorm';
 import { Post } from './Post';
+import { DevCard } from './DevCard';
 
 @Entity()
 export class User {
@@ -29,4 +30,7 @@ export class User {
 
   @OneToMany(() => Post, (post) => post.author, { lazy: true })
   posts: Promise<Post[]>;
+
+  @OneToMany(() => DevCard, (devcard) => devcard.user, { lazy: true })
+  devCards: Promise<DevCard[]>;
 }

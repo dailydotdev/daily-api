@@ -19,3 +19,24 @@ export const uploadLogo = (name: string, stream: Readable): Promise<string> =>
     );
     stream.pipe(outStream);
   });
+
+export const uploadDevCardBackground = (
+  name: string,
+  stream: Readable,
+): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const outStream = cloudinary.v2.uploader.upload_stream(
+      {
+        public_id: name,
+        upload_preset: 'devcard',
+      },
+      (err, callResult) => {
+        if (err) {
+          return reject(err);
+        }
+
+        return resolve(callResult.secure_url);
+      },
+    );
+    stream.pipe(outStream);
+  });

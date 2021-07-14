@@ -1,4 +1,6 @@
 import fetch from 'node-fetch';
+import { Connection } from 'typeorm';
+import { View } from '../entity';
 
 interface UserInfo {
   name?: string;
@@ -47,4 +49,64 @@ export const fetchUserRoles = async (userId: string): Promise<string[]> => {
     headers: authorizedHeaders(userId),
   });
   return res.json();
+};
+
+export interface ReadingRank {
+  rankThisWeek: number;
+  rankLastWeek: number;
+  currentRank: number;
+  progressThisWeek: number;
+  readToday: boolean;
+}
+
+interface ReadingRankQueryResult {
+  thisWeek: number;
+  lastWeek: number;
+  today: number;
+}
+
+const STEPS_PER_RANK = [3, 4, 5, 6, 7];
+const STEPS_PER_RANK_REVERSE = STEPS_PER_RANK.reverse();
+
+const rankFromProgress = (progress: number) => {
+  const reverseRank = STEPS_PER_RANK_REVERSE.findIndex(
+    (threshold) => progress >= threshold,
+  );
+  if (reverseRank > -1) {
+    return STEPS_PER_RANK.length - reverseRank;
+  }
+  return 0;
+};
+
+export const getUserReadingRank = async (
+  con: Connection,
+  userId: string,
+): Promise<ReadingRank> => {
+  const now = `timezone('utc', now())`;
+  const res = await con
+    .createQueryBuilder()
+    .select(
+      `count(distinct date_trunc('day', "timestamp")) filter(where "timestamp" >= date_trunc('week', ${now}))`,
+      'thisWeek',
+    )
+    .addSelect(
+      `count(distinct date_trunc('day', "timestamp")) filter(where "timestamp" < date_trunc('week', ${now}) and "timestamp" >= date_trunc('week', ${now} - interval '7 days'))`,
+      'lastWeek',
+    )
+    .addSelect(
+      `count(*) filter(where "timestamp" >= date_trunc('day', ${now}))`,
+      'today',
+    )
+    .from(View, 'view')
+    .where('"userId" = :id', { id: userId })
+    .getRawOne<ReadingRankQueryResult>();
+  const rankThisWeek = rankFromProgress(res.thisWeek);
+  const rankLastWeek = rankFromProgress(res.lastWeek);
+  return {
+    currentRank: rankThisWeek > rankLastWeek ? rankThisWeek : rankLastWeek,
+    progressThisWeek: res.thisWeek,
+    rankLastWeek,
+    rankThisWeek,
+    readToday: res.today > 0,
+  };
 };

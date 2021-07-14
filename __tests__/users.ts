@@ -14,10 +14,11 @@ import {
 } from 'date-fns';
 import createApolloServer from '../src/apollo';
 import { Context } from '../src/Context';
-import { MockContext, saveFixtures } from './helpers';
+import { MockContext, saveFixtures, testMutationErrorCode } from './helpers';
 import appFunc from '../src';
 import { Comment, Post, Source, User, View } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
+import { DevCard } from '../src/entity/DevCard';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -499,5 +500,55 @@ describe('query userReadHistory', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadHistory).toMatchSnapshot();
+  });
+});
+
+describe('mutation generateDevCard', () => {
+  const MUTATION = `mutation GenerateDevCard($file: Upload){
+    generateDevCard(file: $file) {
+      imageUrl
+    }
+  }`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should generate new dev card', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({ mutation: MUTATION });
+    expect(res.errors).toBeFalsy();
+    const devCards = await con.getRepository(DevCard).find();
+    expect(devCards.length).toEqual(1);
+    expect(res.data.generateDevCard.imageUrl).toMatch(
+      new RegExp(
+        `http://localhost:4000/devcard/${devCards[0].id.replace(
+          /-/g,
+          '',
+        )}.jpg\\?r=.*`,
+      ),
+    );
+  });
+
+  it('should use an existing dev card entity', async () => {
+    loggedUser = '1';
+    await con.getRepository(DevCard).insert({ userId: '1' });
+    const res = await client.mutate({ mutation: MUTATION });
+    expect(res.errors).toBeFalsy();
+    const devCards = await con.getRepository(DevCard).find();
+    expect(devCards.length).toEqual(1);
+    expect(res.data.generateDevCard.imageUrl).toMatch(
+      new RegExp(
+        `http://localhost:4000/devcard/${devCards[0].id.replace(
+          /-/g,
+          '',
+        )}.jpg\\?r=.*`,
+      ),
+    );
   });
 });
