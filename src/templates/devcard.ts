@@ -142,7 +142,12 @@ export function generateDevCard({
             <mask id="mask-4" fill="white">
                 <use xlink:href="#path-1"></use>
             </mask>
+            <linearGradient x1="50%" y1="-2.48949813e-15%" x2="50%" y2="100%" id="linearGradient-5">
+                <stop stop-color="#FFFFFF" offset="0%"></stop>
+                <stop stop-color="#FFFFFF" stop-opacity="0" offset="100%"></stop>
+            </linearGradient>
             <use id="Rectangle" fill="url(#pattern-2)" xlink:href="#path-1"></use>
+            <path d="M812,0.5 C833.953319,0.5 853.828319,9.3983406 868.214989,23.7850109 C882.601659,38.1716812 891.5,58.0466812 891.5,80 L891.5,80 L891.5,1138 C891.5,1159.95332 882.601659,1179.82832 868.214989,1194.21499 C853.828319,1208.60166 833.953319,1217.5 812,1217.5 L812,1217.5 L80,1217.5 C58.0466812,1217.5 38.1716812,1208.60166 23.7850109,1194.21499 C9.3983406,1179.82832 0.5,1159.95332 0.5,1138 L0.5,1138 L0.5,80 C0.5,58.0466812 9.3983406,38.1716812 23.7850109,23.7850109 C38.1716812,9.3983406 58.0466812,0.5 80,0.5 L80,0.5 Z" id="Bazel" stroke="url(#linearGradient-5)" mask="url(#mask-4)"></path>
         </g>
         <g id="devcard" transform="translate(48.000000, 48.000000)">
             <mask id="mask-6" fill="white">
