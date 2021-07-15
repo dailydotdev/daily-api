@@ -231,10 +231,10 @@ export const resolvers: IResolvers<any, Context> = {
       // Avoid caching issues with the new version
       const randomStr = Math.random().toString(36).substring(2, 5);
       return {
-        imageUrl: `${process.env.URL_PREFIX}/devcard/${devCard.id.replace(
+        imageUrl: `${process.env.URL_PREFIX}/devcards/${devCard.id.replace(
           /-/g,
           '',
-        )}.jpg?r=${randomStr}`,
+        )}.png?r=${randomStr}`,
       };
     },
   }),

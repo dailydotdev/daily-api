@@ -527,10 +527,10 @@ describe('mutation generateDevCard', () => {
     expect(devCards.length).toEqual(1);
     expect(res.data.generateDevCard.imageUrl).toMatch(
       new RegExp(
-        `http://localhost:4000/devcard/${devCards[0].id.replace(
+        `http://localhost:4000/devcards/${devCards[0].id.replace(
           /-/g,
           '',
-        )}.jpg\\?r=.*`,
+        )}.png\\?r=.*`,
       ),
     );
   });
@@ -544,10 +544,10 @@ describe('mutation generateDevCard', () => {
     expect(devCards.length).toEqual(1);
     expect(res.data.generateDevCard.imageUrl).toMatch(
       new RegExp(
-        `http://localhost:4000/devcard/${devCards[0].id.replace(
+        `http://localhost:4000/devcards/${devCards[0].id.replace(
           /-/g,
           '',
-        )}.jpg\\?r=.*`,
+        )}.png\\?r=.*`,
       ),
     );
   });
