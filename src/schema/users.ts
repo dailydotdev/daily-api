@@ -216,6 +216,8 @@ export const resolvers: IResolvers<any, Context> = {
       let devCard: DevCard = await repo.findOne({ userId: ctx.userId });
       if (!devCard) {
         devCard = await repo.save({ userId: ctx.userId });
+      } else if (!file) {
+        await repo.update(devCard.id, { background: null });
       }
       if (file) {
         const { createReadStream } = await file;
