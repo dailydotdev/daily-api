@@ -17,13 +17,6 @@ export const crons: Cron[] = [
     body: JSON.stringify({ feed: 'https://daily.dev/posts/rss.xml' }),
   },
   {
-    name: 'rss-devto',
-    endpoint: 'rss',
-    schedule: '*/5 * * * *',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ feed: 'https://dev.to/feed' }),
-  },
-  {
     name: 'segment-users',
     schedule: '4 1 * * 0',
   },
