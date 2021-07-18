@@ -102,7 +102,7 @@ const addPost = async (
       siteTwitter: data.siteTwitter,
       creatorTwitter: data.creatorTwitter,
       readTime: data.readTime,
-      tagsStr: tags?.map((t) => t.value).join(','),
+      tagsStr: tags?.map((t) => t.value).join(',') || null,
       canonicalUrl: data.canonicalUrl,
       authorId,
       sentAnalyticsReport: !authorId,

@@ -247,6 +247,19 @@ it('should ignore null value violation', async () => {
   expect(posts.length).toEqual(0);
 });
 
+it('should set tagsStr to null when all keywords are not allowed', async () => {
+  await expectSuccessfulBackground(app, worker, {
+    id: 'p1',
+    title: 'Title',
+    url: 'https://post.com',
+    publicationId: 'a',
+    keywords: ['a', 'b'],
+  });
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(1);
+  expect(posts[0].tagsStr).toEqual(null);
+});
+
 it('should not save post with existing url', async () => {
   await con.getRepository(Post).save({
     id: 'p2',
