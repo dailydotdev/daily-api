@@ -2,7 +2,7 @@ import { gql, IResolvers } from 'apollo-server-fastify';
 import { FileUpload } from 'graphql-upload';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { Comment, getAuthorPostStats, PostStats } from '../entity';
+import { Comment, getAuthorPostStats, PostStats, View } from '../entity';
 import { DevCard } from '../entity/DevCard';
 import { getUserReadingRank, uploadDevCardBackground } from '../common';
 
@@ -105,6 +105,10 @@ export const typeDefs = gql`
     Get a heatmap of reads per day in a given time frame.
     """
     userReadHistory(id: ID!, after: String!, before: String!): [ReadHistory]
+    """
+    Get the number of articles the user read
+    """
+    userReads: Int @auth
   }
 
   extend type Mutation {
@@ -204,6 +208,11 @@ export const resolvers: IResolvers<any, Context> = {
       `,
         [id, after, before],
       );
+    },
+    userReads: async (source, args, ctx: Context): Promise<number> => {
+      return ctx.con
+        .getRepository(View)
+        .count({ where: { userId: ctx.userId } });
     },
   }),
   Mutation: traceResolverObject({
