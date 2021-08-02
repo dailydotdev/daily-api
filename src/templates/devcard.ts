@@ -1,3 +1,5 @@
+import { largeNumberFormat, transformTag } from '../common/devcard';
+
 type DevCardProperties = {
   username: string;
   profileImage: string;
@@ -7,34 +9,6 @@ type DevCardProperties = {
   readingRank: number;
   backgroundImage?: string;
 };
-
-const uppercaseTags = ['css', 'html'];
-
-function transformTag(tag: string): string {
-  if (uppercaseTags.indexOf(tag) > -1) {
-    return tag.toUpperCase();
-  }
-  const separateWord = tag.replace(/-/g, ' ').split(' ');
-  for (let i = 0; i < separateWord.length; i++) {
-    separateWord[i] =
-      separateWord[i].charAt(0).toUpperCase() + separateWord[i].substring(1);
-  }
-  return separateWord.join(' ');
-}
-
-function largeNumberFormat(value: number): string {
-  let newValue = value;
-  const suffixes = ['', 'K', 'M', 'B', 'T'];
-  let suffixNum = 0;
-  while (newValue >= 1000) {
-    newValue /= 1000;
-    suffixNum++;
-  }
-  if (suffixNum > 0) {
-    return newValue.toFixed(1) + suffixes[suffixNum];
-  }
-  return newValue.toString();
-}
 
 const firstRankColor = [
   '#A8B3CF52',
