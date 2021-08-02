@@ -13,7 +13,7 @@ const worker: Worker = {
       if (user && !user.devcardEligible) {
         const flags = await flagsmith.getFlagsForUser(user.id);
         const devcardLimitFeature = flags['feat_limit_dev_card'];
-        if (devcardLimitFeature.enabled && devcardLimitFeature.value) {
+        if (devcardLimitFeature?.enabled && devcardLimitFeature?.value) {
           const views = await con
             .getRepository(View)
             .count({ where: { userId: user.id } });
