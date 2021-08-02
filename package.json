@@ -99,7 +99,7 @@
     "fastify-static": "^2.7.0",
     "jest": "^26.6.3",
     "jest-junit": "^12.2.0",
-    "jest-mock-extended": "^1.0.16",
+    "jest-mock-extended": "^1.0.18",
     "nock": "^13.1.1",
     "nodemon": "^2.0.12",
     "pino-pretty": "^5.1.1",
