@@ -10,6 +10,6 @@ export const redisOptions: RedisOptions = {
 export const redisClient = new Redis(redisOptions);
 
 export const redisPubSub = new RedisPubSub({
-  publisher: redisClient,
-  subscriber: redisClient,
+  publisher: new Redis(redisOptions),
+  subscriber: new Redis(redisOptions),
 });

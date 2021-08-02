@@ -2,6 +2,7 @@
 
 exports[`should create user if does not exist 1`] = `
 User {
+  "devcardEligible": false,
   "id": "abc",
   "image": "https://daily.dev/image.jpg",
   "name": "Ido",
@@ -14,6 +15,7 @@ User {
 
 exports[`should update an existing user 1`] = `
 User {
+  "devcardEligible": false,
   "id": "abc",
   "image": "https://daily.dev/image.jpg",
   "name": "Ido",

@@ -2,6 +2,7 @@
 
 exports[`should save a new user 1`] = `
 User {
+  "devcardEligible": false,
   "id": "abc",
   "image": "https://daily.dev/image.jpg",
   "name": "Ido",
