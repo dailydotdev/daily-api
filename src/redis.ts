@@ -7,6 +7,8 @@ export const redisOptions: RedisOptions = {
   password: process.env.REDIS_PASS,
 };
 
+export const redisClient: Redis.Redis = new Redis(redisOptions);
+
 export const redisPubSub = new RedisPubSub({
   publisher: new Redis(redisOptions),
   subscriber: new Redis(redisOptions),

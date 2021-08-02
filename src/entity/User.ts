@@ -25,6 +25,9 @@ export class User {
   twitter: string | null;
 
   @Column({ default: false })
+  devcardEligible: boolean;
+
+  @Column({ default: false })
   @Index('IDX_user_profileConfirmed')
   profileConfirmed: boolean | null;
 

@@ -97,4 +97,16 @@ export const workers: Worker[] = [
     topic: 'post-banned-or-removed',
     subscription: 'post-banned-email',
   },
+  {
+    topic: 'views',
+    subscription: 'check-devcard-eligibility',
+  },
+  {
+    topic: 'devcard-eligible',
+    subscription: 'devcard-eligible-amplitude',
+  },
+  {
+    topic: 'devcard-eligible',
+    subscription: 'devcard-eligible-email',
+  },
 ];

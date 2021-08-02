@@ -20,6 +20,7 @@ const postReachedViewsThresholdTopic = pubsub.topic(
 );
 const viewsTopic = pubsub.topic('views');
 const postBannedOrRemovedTopic = pubsub.topic('post-banned-or-removed');
+const devcardEligibleTopic = pubsub.topic('devcard-eligible');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
@@ -188,4 +189,12 @@ export const notifyPostBannedOrRemoved = async (
 ): Promise<void> =>
   publishEvent(log, postBannedOrRemovedTopic, {
     post,
+  });
+
+export const notifyDevCardEligible = async (
+  log: EventLogger,
+  userId: string,
+): Promise<void> =>
+  publishEvent(log, devcardEligibleTopic, {
+    userId,
   });

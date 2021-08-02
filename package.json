@@ -25,6 +25,7 @@
     "db:seed:export": "ts-node bin/export.ts"
   },
   "dependencies": {
+    "@amplitude/node": "^1.8.0",
     "@binxhealth/pino-stackdriver": "^3.0.0",
     "@google-cloud/profiler": "^4.1.2",
     "@google-cloud/pubsub": "^2.16.0",
@@ -46,6 +47,7 @@
     "fastify-plugin": "^1.6.1",
     "fastify-rate-limit": "^3.0.1",
     "feedparser": "^2.2.10",
+    "flagsmith-nodejs": "^1.1.0",
     "graphql": "^14.7.0",
     "graphql-iso-date": "^3.6.1",
     "graphql-parse-resolve-info": "^4.12.0",
