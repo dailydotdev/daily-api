@@ -305,67 +305,6 @@ Object {
 }
 `;
 
-exports[`query latest should return feed with preconfigured filters 1`] = `
-Object {
-  "latest": Array [
-    Object {
-      "id": "p4",
-      "publication": Object {
-        "id": "a",
-        "image": "http://image.com/a",
-        "name": "A",
-      },
-      "readTime": null,
-      "tags": Array [
-        "backend",
-        "data",
-        "javascript",
-      ],
-      "title": "P4",
-      "url": "http://p4.com",
-    },
-    Object {
-      "id": "p1",
-      "publication": Object {
-        "id": "a",
-        "image": "http://image.com/a",
-        "name": "A",
-      },
-      "readTime": null,
-      "tags": Array [
-        "javascript",
-        "webdev",
-      ],
-      "title": "P1",
-      "url": "http://p1.com",
-    },
-  ],
-}
-`;
-
-exports[`query latest should return unread posts from preconfigured feed 1`] = `
-Object {
-  "latest": Array [
-    Object {
-      "id": "p4",
-      "publication": Object {
-        "id": "a",
-        "image": "http://image.com/a",
-        "name": "A",
-      },
-      "readTime": null,
-      "tags": Array [
-        "backend",
-        "data",
-        "javascript",
-      ],
-      "title": "P4",
-      "url": "http://p4.com",
-    },
-  ],
-}
-`;
-
 exports[`query postsByPublication should return a single source feed 1`] = `
 Object {
   "postsByPublication": Array [

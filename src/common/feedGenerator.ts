@@ -1,4 +1,4 @@
-import { SelectQueryBuilder } from 'typeorm';
+import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from 'apollo-server-fastify';
 import {
@@ -20,15 +20,24 @@ export const whereTags = (
   tags: string[],
   builder: SelectQueryBuilder<Post>,
   alias: string,
+  variableAlias = 'tags',
 ): string => {
   const query = builder
     .subQuery()
     .select('1')
     .from(PostKeyword, 'pk')
-    .where(`pk.keyword IN (:...tags)`, { tags })
+    .where(`pk.keyword IN (:...${variableAlias})`, { [variableAlias]: tags })
     .andWhere(`pk.postId = ${alias}.id`)
     .getQuery();
   return `EXISTS${query}`;
+};
+
+export const whereNotTags = (
+  tags: string[],
+  builder: SelectQueryBuilder<Post>,
+  alias: string,
+): string => {
+  return `NOT ${whereTags(tags, builder, alias, 'blockedTags')}`;
 };
 
 export const whereKeyword = (
@@ -44,6 +53,34 @@ export const whereKeyword = (
     .andWhere(`pk."postId" = ${alias}.id`)
     .getQuery();
   return `EXISTS${query}`;
+};
+
+export const feedToFilters = async (
+  con: ORMConnection,
+  feedId: string,
+): Promise<AnonymousFeedFilters> => {
+  const [tags, excludeSources] = await Promise.all([
+    con.getRepository(FeedTag).find({ where: { feedId } }),
+    con
+      .getRepository(FeedSource)
+      .find({ where: { feedId } })
+      .then((rows) => rows.map((row) => row.sourceId)),
+  ]);
+  const tagFilters = tags.reduce(
+    (acc, value) => {
+      if (value.blocked) {
+        acc.blockedTags.push(value.tag);
+      } else {
+        acc.includeTags.push(value.tag);
+      }
+      return acc;
+    },
+    { includeTags: [], blockedTags: [] },
+  );
+  return {
+    ...tagFilters,
+    excludeSources,
+  };
 };
 
 export const whereTagsInFeed = (
@@ -68,30 +105,6 @@ export const whereTagsInFeed = (
     .getQuery();
 
   return `(NOT EXISTS${feedTag} OR EXISTS${query})`;
-};
-
-export const whereBlockedTagsNotInFeed = (
-  feedId: string,
-  builder: SelectQueryBuilder<Post>,
-  alias: string,
-): string => {
-  const feedTag = builder
-    .subQuery()
-    .select('feed.tag')
-    .from(FeedTag, 'feed')
-    .where('feed.feedId = :feedId', { feedId })
-    .andWhere('feed.blocked = true')
-    .getQuery();
-
-  const query = builder
-    .subQuery()
-    .select('1')
-    .from(PostKeyword, 'pk')
-    .where(`pk.keyword IN ${feedTag}`)
-    .andWhere(`pk.postId = ${alias}.id`)
-    .getQuery();
-
-  return `(NOT EXISTS${feedTag} OR NOT EXISTS${query})`;
 };
 
 export const whereSourcesInFeed = (
@@ -170,16 +183,24 @@ export const applyFeedWhere = (
   return newBuilder;
 };
 
+export type FeedResolverOptions<TArgs, TParams> = {
+  removeHiddenPosts?: boolean;
+  removeBannedPosts?: boolean;
+  fetchQueryParams?: (ctx: Context, args: TArgs) => Promise<TParams>;
+};
+
 export function feedResolver<
   TSource,
   TArgs extends ConnectionArguments,
   TPage extends Page,
+  TParams,
 >(
   query: (
     ctx: Context,
     args: TArgs,
     builder: SelectQueryBuilder<Post>,
     alias: string,
+    params?: TParams,
   ) => SelectQueryBuilder<Post>,
   pageGenerator: PageGenerator<GQLPost, TArgs, TPage>,
   applyPaging: (
@@ -189,11 +210,16 @@ export function feedResolver<
     builder: SelectQueryBuilder<Post>,
     alias: string,
   ) => SelectQueryBuilder<Post>,
-  removeHiddenPosts = true,
-  removeBannedPosts = true,
+  {
+    removeHiddenPosts = true,
+    removeBannedPosts = true,
+    fetchQueryParams,
+  }: FeedResolverOptions<TArgs, TParams> = {},
 ): IFieldResolver<TSource, Context, TArgs> {
   return async (source, args, context, info): Promise<Connection<GQLPost>> => {
     const page = pageGenerator.connArgsToPage(args);
+    const queryParams =
+      fetchQueryParams && (await fetchQueryParams(context, args));
     return graphorm.queryPaginated<GQLPost>(
       context,
       info,
@@ -207,7 +233,13 @@ export function feedResolver<
             context,
             args,
             page,
-            query(context, args, builder.queryBuilder, builder.alias),
+            query(
+              context,
+              args,
+              builder.queryBuilder,
+              builder.alias,
+              queryParams,
+            ),
             builder.alias,
           ),
           builder.alias,
@@ -284,6 +316,11 @@ export const anonymousFeedBuilder = (
       whereTags(filters.includeTags, builder, alias),
     );
   }
+  if (filters?.blockedTags?.length) {
+    newBuilder = newBuilder.andWhere((builder) =>
+      whereNotTags(filters.blockedTags, builder, alias),
+    );
+  }
   return newBuilder;
 };
 
@@ -293,14 +330,9 @@ export const configuredFeedBuilder = (
   unreadOnly: boolean,
   builder: SelectQueryBuilder<Post>,
   alias: string,
+  filters: AnonymousFeedFilters,
 ): SelectQueryBuilder<Post> => {
-  let newBuilder = builder;
-  newBuilder = newBuilder
-    .andWhere((subBuilder) => whereSourcesInFeed(feedId, subBuilder, alias))
-    .andWhere((subBuilder) => whereTagsInFeed(feedId, subBuilder, alias));
-  // .andWhere((subBuilder) =>
-  //   whereBlockedTagsNotInFeed(feedId, subBuilder, alias),
-  // );
+  let newBuilder = anonymousFeedBuilder(ctx, filters, builder, alias);
   if (unreadOnly) {
     newBuilder = newBuilder.andWhere((subBuilder) =>
       whereUnread(ctx.userId, subBuilder, alias),

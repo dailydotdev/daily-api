@@ -129,29 +129,6 @@ describe('query latest', () => {
     });
     expect(res.data).toMatchSnapshot();
   });
-
-  it('should return feed with preconfigured filters', async () => {
-    const latest = new Date().toISOString();
-    loggedUser = '1';
-    await saveFeedFixtures();
-    const res = await client.query({
-      query: QUERY,
-      variables: { params: { latest } },
-    });
-    expect(res.data).toMatchSnapshot();
-  });
-
-  it('should return unread posts from preconfigured feed', async () => {
-    const latest = new Date().toISOString();
-    loggedUser = '1';
-    await saveFeedFixtures();
-    await con.getRepository(View).save([{ userId: '1', postId: 'p1' }]);
-    const res = await client.query({
-      query: QUERY,
-      variables: { params: { latest, read: false } },
-    });
-    expect(res.data).toMatchSnapshot();
-  });
 });
 
 describe('query bookmarks', () => {

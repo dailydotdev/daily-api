@@ -9,6 +9,7 @@ import {
   configuredFeedBuilder,
   FeedArgs,
   feedResolver,
+  feedToFilters,
   getCursorFromAfter,
   randomPostsResolver,
   Ranking,
@@ -611,8 +612,7 @@ const searchResolver = feedResolver(
       .orderBy('views', 'DESC'),
   offsetPageGenerator(30, 50),
   (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
-  true,
-  false,
+  { removeHiddenPosts: true, removeBannedPosts: false },
 );
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -625,18 +625,25 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       applyFeedPaging,
     ),
     feed: feedResolver(
-      (ctx, { unreadOnly }: ConfiguredFeedArgs, builder, alias) =>
-        configuredFeedBuilder(ctx, ctx.userId, unreadOnly, builder, alias),
+      (ctx, { unreadOnly }: ConfiguredFeedArgs, builder, alias, queryParams) =>
+        configuredFeedBuilder(
+          ctx,
+          ctx.userId,
+          unreadOnly,
+          builder,
+          alias,
+          queryParams,
+        ),
       feedPageGenerator,
       applyFeedPaging,
+      { fetchQueryParams: (ctx) => feedToFilters(ctx.con, ctx.userId) },
     ),
     sourceFeed: feedResolver(
       (ctx, { source }: SourceFeedArgs, builder, alias) =>
         sourceFeedBuilder(ctx, source, builder, alias),
       feedPageGenerator,
       applyFeedPaging,
-      true,
-      false,
+      { removeHiddenPosts: true, removeBannedPosts: false },
     ),
     tagFeed: feedResolver(
       (ctx, { tag }: TagFeedArgs, builder, alias) =>
@@ -712,8 +719,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         }),
       feedPageGenerator,
       applyFeedPaging,
-      false,
-      false,
+      { removeHiddenPosts: false, removeBannedPosts: false },
     ),
     mostUpvotedFeed: feedResolver(
       (
@@ -733,7 +739,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       offsetPageGenerator(30, 50, 100),
       (ctx, args, { limit, offset }, builder) =>
         builder.limit(limit).offset(offset),
-      true,
+      { removeHiddenPosts: true },
     ),
     mostDiscussedFeed: feedResolver(
       (ctx, args, builder, alias) =>
@@ -742,7 +748,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           .orderBy(`${alias}."discussionScore"`, 'DESC'),
       discussedPageGenerator,
       applyDiscussedPaging,
-      true,
+      { removeHiddenPosts: true },
     ),
     randomTrendingPosts: randomPostsResolver(
       (
