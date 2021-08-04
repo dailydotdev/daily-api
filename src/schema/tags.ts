@@ -53,9 +53,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     popularTags: async (source, args, ctx): Promise<GQLTag[]> => {
       const hits = await ctx.getRepository(Keyword).find({
         select: ['value'],
-        order: { occurrences: 'DESC' },
+        order: { value: 'ASC' },
         where: { status: 'allow' },
-        take: 300,
       });
       return hits.map((x) => ({ name: x.value }));
     },
@@ -70,8 +69,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         .select('value')
         .where(`status = 'allow'`)
         .andWhere(`value ilike :query`, { query: `%${query}%` })
-        .orderBy('occurrences', 'DESC')
-        .limit(200)
+        .orderBy('value', 'ASC')
         .getRawMany();
       return {
         query,

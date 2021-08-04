@@ -6,19 +6,10 @@ import {
   ApolloServerTestClient,
   createTestClient,
 } from 'apollo-server-testing';
-import {
-  Bookmark,
-  Feed,
-  FeedTag,
-  Post,
-  PostKeyword,
-  Source,
-  View,
-} from '../src/entity';
+import { Bookmark, Post, PostKeyword, Source } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postKeywordsFixture, postsFixture } from './fixture/post';
 import { ApolloServer } from 'apollo-server-fastify';
-import { FeedSource } from '../src/entity';
 
 let con: Connection;
 let server: ApolloServer;
@@ -41,18 +32,6 @@ beforeEach(async () => {
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
 });
-
-const saveFeedFixtures = async (): Promise<void> => {
-  await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-  await saveFixtures(con, FeedTag, [
-    { feedId: '1', tag: 'html' },
-    { feedId: '1', tag: 'javascript' },
-  ]);
-  await saveFixtures(con, FeedSource, [
-    { feedId: '1', sourceId: 'b' },
-    { feedId: '1', sourceId: 'c' },
-  ]);
-};
 
 const now = new Date();
 const bookmarksFixture = [
