@@ -202,26 +202,26 @@ describe('query feed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  // it('should return preconfigured feed with blocked tags filters only', async () => {
-  //   loggedUser = '1';
-  //   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-  //   await saveFixtures(con, FeedTag, [
-  //     { feedId: '1', tag: 'html', blocked: true },
-  //   ]);
-  //   const res = await client.query({ query: QUERY() });
-  //   expect(res.data).toMatchSnapshot();
-  // });
+  it('should return preconfigured feed with blocked tags filters only', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await saveFixtures(con, FeedTag, [
+      { feedId: '1', tag: 'html', blocked: true },
+    ]);
+    const res = await client.query({ query: QUERY() });
+    expect(res.data).toMatchSnapshot();
+  });
 
-  // it('should return preconfigured feed with tags and blocked tags filters', async () => {
-  //   loggedUser = '1';
-  //   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-  //   await saveFixtures(con, FeedTag, [
-  //     { feedId: '1', tag: 'javascript' },
-  //     { feedId: '1', tag: 'webdev', blocked: true },
-  //   ]);
-  //   const res = await client.query({ query: QUERY() });
-  //   expect(res.data).toMatchSnapshot();
-  // });
+  it('should return preconfigured feed with tags and blocked tags filters', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await saveFixtures(con, FeedTag, [
+      { feedId: '1', tag: 'javascript' },
+      { feedId: '1', tag: 'webdev', blocked: true },
+    ]);
+    const res = await client.query({ query: QUERY() });
+    expect(res.data).toMatchSnapshot();
+  });
 
   it('should return preconfigured feed with sources filters only', async () => {
     loggedUser = '1';

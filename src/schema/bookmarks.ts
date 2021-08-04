@@ -253,8 +253,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias),
       bookmarkPageGenerator,
       applyBookmarkPaging,
-      false,
-      false,
+      { removeHiddenPosts: false, removeBannedPosts: false },
     ),
     bookmarkLists: (source, args, ctx, info): Promise<GQLBookmarkList[]> =>
       ctx.loader.loadMany<BookmarkList>(

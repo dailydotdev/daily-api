@@ -202,6 +202,7 @@ export const resolvers: IResolvers<any, Context> = {
             params.read === false,
             newBuilder,
             alias,
+            {},
           );
         } else {
           const filters: AnonymousFeedFilters = {
