@@ -40,6 +40,11 @@ export default async function app(): Promise<FastifyInstance> {
   app.register(trace, { enabled: isProd });
   app.register(auth, { secret: process.env.ACCESS_SECRET });
 
+  app.setErrorHandler((err, req, res) => {
+    req.log.error({ err }, err.message);
+    res.code(500).send({ statusCode: 500, error: 'Internal Server Error' });
+  });
+
   app.get('/health', (req, res) => {
     res.type('application/health+json');
     res.send(stringifyHealthCheck({ status: 'ok' }));
