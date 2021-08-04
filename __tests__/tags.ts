@@ -46,7 +46,7 @@ describe('query popularTags', () => {
     }
   }`;
 
-  it('should return most popular tags ordered by count', async () => {
+  it('should return most popular tags ordered by value', async () => {
     const res = await client.query({ query: QUERY });
     expect(res.data).toMatchSnapshot();
   });
@@ -62,7 +62,7 @@ describe('query searchTags', () => {
     }
   }`;
 
-  it('should search for tags and order by count', async () => {
+  it('should search for tags and order by value', async () => {
     const res = await client.query({ query: QUERY('dev') });
     expect(res.data).toMatchSnapshot();
   });
@@ -75,7 +75,7 @@ describe('query searchTags', () => {
 
 describe('compatibility routes', () => {
   describe('GET /tags/latest', () => {
-    it('should return most popular tags ordered by count', async () => {
+    it('should return most popular tags ordered by value', async () => {
       const res = await request(app.server)
         .get('/v1/tags/popular')
         .send()
@@ -85,7 +85,7 @@ describe('compatibility routes', () => {
   });
 
   describe('GET /tags/search', () => {
-    it('should search for tags and order by count', async () => {
+    it('should search for tags and order by value', async () => {
       const res = await request(app.server)
         .get('/v1/tags/search?query=dev')
         .send()

@@ -1,15 +1,12 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`compatibility routes GET /tags/latest should return most popular tags ordered by count 1`] = `
+exports[`compatibility routes GET /tags/latest should return most popular tags ordered by value 1`] = `
 Array [
-  Object {
-    "name": "fullstack",
-  },
   Object {
     "name": "development",
   },
   Object {
-    "name": "webdev",
+    "name": "fullstack",
   },
   Object {
     "name": "golang",
@@ -17,10 +14,13 @@ Array [
   Object {
     "name": "rust",
   },
+  Object {
+    "name": "webdev",
+  },
 ]
 `;
 
-exports[`compatibility routes GET /tags/search should search for tags and order by count 1`] = `
+exports[`compatibility routes GET /tags/search should search for tags and order by value 1`] = `
 Object {
   "hits": Array [
     Object {
@@ -34,17 +34,14 @@ Object {
 }
 `;
 
-exports[`query popularTags should return most popular tags ordered by count 1`] = `
+exports[`query popularTags should return most popular tags ordered by value 1`] = `
 Object {
   "popularTags": Array [
-    Object {
-      "name": "fullstack",
-    },
     Object {
       "name": "development",
     },
     Object {
-      "name": "webdev",
+      "name": "fullstack",
     },
     Object {
       "name": "golang",
@@ -52,11 +49,14 @@ Object {
     Object {
       "name": "rust",
     },
+    Object {
+      "name": "webdev",
+    },
   ],
 }
 `;
 
-exports[`query searchTags should search for tags and order by count 1`] = `
+exports[`query searchTags should search for tags and order by value 1`] = `
 Object {
   "searchTags": Object {
     "hits": Array [
