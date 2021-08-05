@@ -323,5 +323,6 @@ deployDebeziumToKubernetes(
   debeziumTopicName,
   Output.create(getDebeziumProps()),
   `${location}-f`,
+  'pd-ssd',
   100,
 );
