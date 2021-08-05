@@ -79,7 +79,7 @@ jobs:
           tag: $CIRCLE_SHA1
   pulumi_preview:
     docker:
-      - image: circleci/node:12.21.0
+      - image: circleci/node:14.16.0
     steps:
       - checkout
       - pulumi/login
@@ -93,7 +93,7 @@ jobs:
           working_directory: infra
   pulumi_up:
     docker:
-      - image: circleci/node:12.21.0
+      - image: circleci/node:14.16.0
     steps:
       - checkout
       - gcp-cli/install

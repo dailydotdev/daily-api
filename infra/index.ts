@@ -1,7 +1,7 @@
 import * as gcp from '@pulumi/gcp';
 import * as k8s from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
-import { Input } from '@pulumi/pulumi';
+import { Input, Output } from '@pulumi/pulumi';
 import { workers } from './workers';
 import { crons } from './crons';
 import {
@@ -14,13 +14,16 @@ import {
   createMigrationJob,
   createServiceAccountAndGrantRoles,
   createSubscriptionsFromWorkers,
+  deployDebeziumToKubernetes,
   imageTag,
   k8sServiceAccountToIdentity,
   location,
   Secret,
 } from '@dailydotdev/pulumi-common';
+import { readFile } from 'fs/promises';
 
 const name = 'api';
+const debeziumTopicName = `${name}.changes`;
 
 const vpcConnector = new gcp.vpcaccess.Connector(`${name}-vpc-e2`, {
   name: `${name}-vpc-e2`,
@@ -302,3 +305,23 @@ new k8s.networking.v1beta1.Ingress(`${name}-k8s-ingress`, {
     ],
   },
 });
+
+const envVars = config.requireObject<Record<string, string>>('env');
+
+const getDebeziumProps = async (): Promise<string> => {
+  return (await readFile('./application.properties', 'utf-8'))
+    .replace('%database_pass%', config.require('debeziumDbPass'))
+    .replace('%database_user%', config.require('debeziumDbUser'))
+    .replace('%database_dbname%', name)
+    .replace('%hostname%', envVars.typeormHost)
+    .replace('%topic%', debeziumTopicName);
+};
+
+deployDebeziumToKubernetes(
+  name,
+  namespace,
+  debeziumTopicName,
+  Output.create(getDebeziumProps()),
+  `${location}-f`,
+  100,
+);
