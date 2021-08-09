@@ -26,11 +26,7 @@ import appFunc from '../src';
 import { Roles } from '../src/roles';
 import { Source, SourceRequest } from '../src/entity';
 import { sourceRequestFixture } from './fixture/sourceRequest';
-import {
-  addOrRemoveSuperfeedrSubscription,
-  notifySourceRequest,
-  uploadLogo,
-} from '../src/common';
+import { uploadLogo } from '../src/common';
 import {
   GQLDeclineSourceRequestInput,
   GQLRequestSourceInput,
@@ -46,9 +42,7 @@ let roles: Roles[] = [];
 
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
-  notifySourceRequest: jest.fn(),
   uploadLogo: jest.fn(),
-  addOrRemoveSuperfeedrSubscription: jest.fn(),
 }));
 
 const mockInfo = (): nock.Scope =>
@@ -85,7 +79,6 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
   roles = [];
-  mocked(notifySourceRequest).mockClear();
 });
 
 afterAll(() => app.close());
@@ -132,7 +125,6 @@ describe('mutation requestSource', () => {
       variables: { data },
     });
     expect(res.data).toMatchSnapshot();
-    expect(notifySourceRequest).toBeCalledTimes(1);
   });
 });
 
@@ -213,7 +205,6 @@ describe('mutation declineSourceRequest', () => {
       variables: { data },
     });
     expect(res.data).toMatchSnapshot();
-    expect(notifySourceRequest).toBeCalledTimes(1);
   });
 });
 
@@ -247,7 +238,6 @@ describe('mutation approveSourceRequest', () => {
       mutation: MUTATION(req.id),
     });
     expect(res.data).toMatchSnapshot();
-    expect(notifySourceRequest).toBeCalledTimes(1);
   });
 });
 
@@ -328,7 +318,6 @@ describe('mutation publishSourceRequest', () => {
   it('should publish a source request', async () => {
     roles = [Roles.Moderator];
     loggedUser = '1';
-    mocked(addOrRemoveSuperfeedrSubscription).mockResolvedValue();
     const req = await con
       .getRepository(SourceRequest)
       .save(sourceRequestFixture[2]);
@@ -336,12 +325,6 @@ describe('mutation publishSourceRequest', () => {
       mutation: MUTATION(req.id),
     });
     expect(res.data).toMatchSnapshot();
-    expect(addOrRemoveSuperfeedrSubscription).toBeCalledWith(
-      req.sourceFeed,
-      req.sourceId,
-      'subscribe',
-    );
-    expect(notifySourceRequest).toBeCalledTimes(1);
     const source = await con.getRepository(Source).findOneOrFail(req.sourceId);
     expect(source).toMatchSnapshot();
     expect(await source.feeds).toMatchSnapshot();

@@ -1,4 +1,5 @@
 import { SourceRequest } from '../entity';
+import { ChangeObject } from '../types';
 
 export interface LegacySourceRequest {
   id: string;
@@ -17,7 +18,7 @@ export interface LegacySourceRequest {
 }
 
 export const toLegacySourceRequest = (
-  req: SourceRequest,
+  req: ChangeObject<SourceRequest> | SourceRequest,
 ): LegacySourceRequest => ({
   id: req.id,
   url: req.sourceUrl,
@@ -31,5 +32,5 @@ export const toLegacySourceRequest = (
   pubImage: req.sourceImage,
   pubTwitter: req.sourceTwitter,
   pubRss: req.sourceFeed,
-  createdAt: req.createdAt,
+  createdAt: new Date(req.createdAt),
 });
