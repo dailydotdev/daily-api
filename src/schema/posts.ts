@@ -8,8 +8,6 @@ import {
   defaultImage,
   getDiscussionLink,
   notifyPostReport,
-  notifyPostUpvoted,
-  notifyPostUpvoteCanceled,
   pickImageUrl,
   notifyPostBannedOrRemoved,
 } from '../common';
@@ -474,7 +472,6 @@ export const resolvers: IResolvers<any, Context> = {
             .getRepository(Post)
             .increment({ id }, 'upvotes', 1);
         });
-        notifyPostUpvoted(ctx.log, id, ctx.userId);
       } catch (err) {
         // Foreign key violation
         if (err?.code === '23503') {
@@ -492,7 +489,7 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      const exists = await ctx.con.transaction(async (entityManager) => {
+      await ctx.con.transaction(async (entityManager) => {
         const upvote = await entityManager.getRepository(Upvote).findOne({
           postId: id,
           userId: ctx.userId,
@@ -509,9 +506,6 @@ export const resolvers: IResolvers<any, Context> = {
         }
         return false;
       });
-      if (exists) {
-        notifyPostUpvoteCanceled(ctx.log, id, ctx.userId);
-      }
       return { _: true };
     },
   }),

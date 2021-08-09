@@ -1,7 +1,8 @@
 export type ChangeObject<Type> = {
-  [Property in keyof Type]: Type[Property] extends Date
-    ? number
-    : Type[Property];
+  [Property in keyof Type as Exclude<
+    Property,
+    Type[Property] extends Promise<unknown> ? Property : never
+  >]: Type[Property] extends Date ? number : Type[Property];
 };
 
 export type ChangeSchema = {

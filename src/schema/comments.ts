@@ -3,13 +3,7 @@ import shortid from 'shortid';
 import { ForbiddenError, gql, IResolvers } from 'apollo-server-fastify';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import {
-  getDiscussionLink,
-  notifyCommentCommented,
-  notifyCommentUpvoteCanceled,
-  notifyCommentUpvoted,
-  notifyPostCommented,
-} from '../common';
+import { getDiscussionLink } from '../common';
 import { Comment, CommentUpvote, Post } from '../entity';
 import { NotFoundError } from '../errors';
 import { GQLEmptyResponse } from './common';
@@ -337,7 +331,6 @@ export const resolvers: IResolvers<any, Context> = {
             .increment({ id: postId }, 'comments', 1);
           return comment;
         });
-        notifyPostCommented(ctx.log, postId, ctx.userId, comment.id);
         return getCommentById(comment.id, ctx, info);
       } catch (err) {
         // Foreign key violation
@@ -376,13 +369,6 @@ export const resolvers: IResolvers<any, Context> = {
             .increment({ id: commentId }, 'comments', 1);
           return comment;
         });
-        notifyCommentCommented(
-          ctx.log,
-          comment.postId,
-          ctx.userId,
-          comment.parentId,
-          comment.id,
-        );
         return getCommentById(comment.id, ctx, info);
       } catch (err) {
         // Foreign key violation
@@ -453,7 +439,6 @@ export const resolvers: IResolvers<any, Context> = {
             .getRepository(Comment)
             .increment({ id }, 'upvotes', 1);
         });
-        notifyCommentUpvoted(ctx.log, id, ctx.userId);
       } catch (err) {
         // Foreign key violation
         if (err?.code === '23503') {
@@ -471,30 +456,25 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      const didCancel = await ctx.con.transaction(
-        async (entityManager): Promise<boolean> => {
-          const upvote = await entityManager
-            .getRepository(CommentUpvote)
-            .findOne({
-              commentId: id,
-              userId: ctx.userId,
-            });
-          if (upvote) {
-            await entityManager.getRepository(CommentUpvote).delete({
-              commentId: id,
-              userId: ctx.userId,
-            });
-            await entityManager
-              .getRepository(Comment)
-              .decrement({ id }, 'upvotes', 1);
-            return true;
-          }
-          return false;
-        },
-      );
-      if (didCancel) {
-        notifyCommentUpvoteCanceled(ctx.log, id, ctx.userId);
-      }
+      await ctx.con.transaction(async (entityManager): Promise<boolean> => {
+        const upvote = await entityManager
+          .getRepository(CommentUpvote)
+          .findOne({
+            commentId: id,
+            userId: ctx.userId,
+          });
+        if (upvote) {
+          await entityManager.getRepository(CommentUpvote).delete({
+            commentId: id,
+            userId: ctx.userId,
+          });
+          await entityManager
+            .getRepository(Comment)
+            .decrement({ id }, 'upvotes', 1);
+          return true;
+        }
+        return false;
+      });
       return { _: true };
     },
   }),

@@ -1,12 +1,19 @@
 import { messageToJson, Worker } from './worker';
-import { SourceRequest } from '../entity';
+import { Comment, CommentUpvote, SourceRequest, Upvote } from '../entity';
 import {
   addOrRemoveSuperfeedrSubscription,
+  notifyCommentCommented,
+  notifyCommentUpvoteCanceled,
+  notifyCommentUpvoted,
+  notifyPostCommented,
+  notifyPostUpvoteCanceled,
+  notifyPostUpvoted,
   notifySourceRequest,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
 import { Logger } from 'fastify';
+import { EntityTarget } from 'typeorm/common/EntityTarget';
 
 const onSourceRequestChange = async (
   con: Connection,
@@ -37,6 +44,76 @@ const onSourceRequestChange = async (
   }
 };
 
+const onPostUpvoteChange = async (
+  con: Connection,
+  logger: Logger,
+  data: ChangeMessage<Upvote>,
+): Promise<void> => {
+  if (data.payload.op === 'c') {
+    await notifyPostUpvoted(
+      logger,
+      data.payload.after.postId,
+      data.payload.after.userId,
+    );
+  } else if (data.payload.op === 'd') {
+    await notifyPostUpvoteCanceled(
+      logger,
+      data.payload.before.postId,
+      data.payload.before.userId,
+    );
+  }
+};
+
+const onCommentUpvoteChange = async (
+  con: Connection,
+  logger: Logger,
+  data: ChangeMessage<CommentUpvote>,
+): Promise<void> => {
+  if (data.payload.op === 'c') {
+    await notifyCommentUpvoted(
+      logger,
+      data.payload.after.commentId,
+      data.payload.after.userId,
+    );
+  } else if (data.payload.op === 'd') {
+    await notifyCommentUpvoteCanceled(
+      logger,
+      data.payload.before.commentId,
+      data.payload.before.userId,
+    );
+  }
+};
+
+const onCommentChange = async (
+  con: Connection,
+  logger: Logger,
+  data: ChangeMessage<Comment>,
+): Promise<void> => {
+  if (data.payload.op === 'c') {
+    if (data.payload.after.parentId) {
+      await notifyCommentCommented(
+        logger,
+        data.payload.after.postId,
+        data.payload.after.userId,
+        data.payload.after.parentId,
+        data.payload.after.id,
+      );
+    } else {
+      await notifyPostCommented(
+        logger,
+        data.payload.after.postId,
+        data.payload.after.userId,
+        data.payload.after.id,
+      );
+    }
+  }
+};
+
+const getTableName = <Entity>(
+  con: Connection,
+  target: EntityTarget<Entity>,
+): string => con.getRepository(target).metadata.tableName;
+
 const worker: Worker = {
   subscription: 'cdc',
   handler: async (message, con, logger): Promise<void> => {
@@ -46,8 +123,17 @@ const worker: Worker = {
       return;
     }
     switch (data.payload.source.table) {
-      case 'source_request':
+      case getTableName(con, SourceRequest):
         await onSourceRequestChange(con, logger, data);
+        break;
+      case getTableName(con, Upvote):
+        await onPostUpvoteChange(con, logger, data);
+        break;
+      case getTableName(con, CommentUpvote):
+        await onCommentUpvoteChange(con, logger, data);
+        break;
+      case getTableName(con, Comment):
+        await onCommentChange(con, logger, data);
         break;
     }
   },
