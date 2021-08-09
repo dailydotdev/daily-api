@@ -42,8 +42,7 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: ChangeMessage<any> = messageToJson(message);
-    if (!data?.payload?.source?.table) {
-      logger.warn({ message, data }, 'could not find the source table');
+    if (data.schema.name === 'io.debezium.connector.common.Heartbeat') {
       return;
     }
     switch (data.payload.source.table) {
