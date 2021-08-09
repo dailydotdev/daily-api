@@ -42,6 +42,13 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: ChangeMessage<any> = messageToJson(message);
+    if (data?.payload?.source?.table) {
+      logger.warn(
+        { message, data },
+        'could not find the relevant table of this event',
+      );
+      return;
+    }
     switch (data.payload.source.table) {
       case 'source_request':
         await onSourceRequestChange(con, logger, data);
