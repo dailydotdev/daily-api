@@ -9,13 +9,6 @@ import createApolloServer from '../src/apollo';
 import { Context } from '../src/Context';
 import { MockContext, saveFixtures, testMutationErrorCode } from './helpers';
 import appFunc from '../src';
-import { mocked } from 'ts-jest/utils';
-import {
-  notifyPostCommented,
-  notifyCommentCommented,
-  notifyCommentUpvoted,
-  notifyCommentUpvoteCanceled,
-} from '../src/common';
 import {
   Post,
   PostTag,
@@ -32,14 +25,6 @@ let con: Connection;
 let server: ApolloServer;
 let client: ApolloServerTestClient;
 let loggedUser: string = null;
-
-jest.mock('../src/common', () => ({
-  ...(jest.requireActual('../src/common') as Record<string, unknown>),
-  notifyPostCommented: jest.fn(),
-  notifyCommentCommented: jest.fn(),
-  notifyCommentUpvoted: jest.fn(),
-  notifyCommentUpvoteCanceled: jest.fn(),
-}));
 
 beforeAll(async () => {
   con = await getConnection();
@@ -246,12 +231,6 @@ describe('mutation commentOnPost', () => {
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.comments).toEqual(1);
-    // Cannot use toBeCalledWith for because of logger for some reason
-    expect(mocked(notifyPostCommented).mock.calls[0].slice(1)).toEqual([
-      'p1',
-      '1',
-      actual[0].id,
-    ]);
   });
 });
 
@@ -327,13 +306,6 @@ describe('mutation commentOnComment', () => {
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.comments).toEqual(1);
     expect(actual.find((c) => c.id === 'c1').comments).toEqual(1);
-    // Cannot use toBeCalledWith for because of logger for some reason
-    expect(mocked(notifyCommentCommented).mock.calls[0].slice(1)).toEqual([
-      'p1',
-      '1',
-      'c1',
-      actual[0].id,
-    ]);
   });
 });
 
@@ -464,11 +436,6 @@ describe('mutation upvoteComment', () => {
     expect(actual).toMatchSnapshot();
     const comment = await con.getRepository(Comment).findOne('c1');
     expect(comment.upvotes).toEqual(1);
-    // Cannot use toBeCalledWith for because of logger for some reason
-    expect(mocked(notifyCommentUpvoted).mock.calls[0].slice(1)).toEqual([
-      'c1',
-      '1',
-    ]);
   });
 
   it('should ignore conflicts', async () => {
@@ -486,7 +453,6 @@ describe('mutation upvoteComment', () => {
     expect(actual).toMatchSnapshot();
     const comment = await con.getRepository(Comment).findOne('c1');
     expect(comment.upvotes).toEqual(0);
-    expect(notifyCommentUpvoted).toBeCalledTimes(0);
   });
 });
 
@@ -521,10 +487,6 @@ describe('mutation cancelCommentUpvote', () => {
     expect(actual).toEqual([]);
     const comment = await con.getRepository(Comment).findOne('c1');
     expect(comment.upvotes).toEqual(-1);
-    expect(mocked(notifyCommentUpvoteCanceled).mock.calls[0].slice(1)).toEqual([
-      'c1',
-      '1',
-    ]);
   });
 
   it('should ignore if no upvotes', async () => {
@@ -538,7 +500,6 @@ describe('mutation cancelCommentUpvote', () => {
     expect(actual).toEqual([]);
     const comment = await con.getRepository(Comment).findOne('c1');
     expect(comment.upvotes).toEqual(0);
-    expect(notifyCommentUpvoteCanceled).toBeCalledTimes(0);
   });
 });
 

@@ -33,12 +33,7 @@ import {
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
-import {
-  notifyPostReport,
-  notifyPostUpvoted,
-  notifyPostUpvoteCanceled,
-  notifyPostBannedOrRemoved,
-} from '../src/common';
+import { notifyPostReport, notifyPostBannedOrRemoved } from '../src/common';
 import { Roles } from '../src/roles';
 import { PostReport } from '../src/entity/PostReport';
 
@@ -53,8 +48,6 @@ let roles: Roles[] = [];
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
   notifyPostReport: jest.fn(),
-  notifyPostUpvoted: jest.fn(),
-  notifyPostUpvoteCanceled: jest.fn(),
   notifyPostBannedOrRemoved: jest.fn(),
 }));
 
@@ -830,11 +823,6 @@ describe('mutation upvote', () => {
     expect(actual).toMatchSnapshot();
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.upvotes).toEqual(1);
-    // Cannot use toBeCalledWith for because of logger for some reason
-    expect(mocked(notifyPostUpvoted).mock.calls[0].slice(1)).toEqual([
-      'p1',
-      '1',
-    ]);
   });
 
   it('should ignore conflicts', async () => {
@@ -852,7 +840,6 @@ describe('mutation upvote', () => {
     expect(actual).toMatchSnapshot();
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.upvotes).toEqual(0);
-    expect(notifyPostUpvoted).toBeCalledTimes(0);
   });
 });
 
@@ -887,10 +874,6 @@ describe('mutation cancelUpvote', () => {
     expect(actual).toEqual([]);
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.upvotes).toEqual(-1);
-    expect(mocked(notifyPostUpvoteCanceled).mock.calls[0].slice(1)).toEqual([
-      'p1',
-      '1',
-    ]);
   });
 
   it('should ignore if no upvotes', async () => {
@@ -904,7 +887,6 @@ describe('mutation cancelUpvote', () => {
     expect(actual).toEqual([]);
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.upvotes).toEqual(0);
-    expect(notifyPostUpvoteCanceled).toBeCalledTimes(0);
   });
 });
 
