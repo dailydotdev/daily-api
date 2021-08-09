@@ -2,6 +2,7 @@ import { PubSub, Topic } from '@google-cloud/pubsub';
 import { Logger } from 'fastify';
 import { Post, SourceRequest } from '../entity';
 import { toLegacySourceRequest } from '../compatibility/entity';
+import { ChangeObject } from '../types';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
@@ -46,7 +47,7 @@ const publishEvent = async (
 export const notifySourceRequest = async (
   log: EventLogger,
   reason: NotificationReason,
-  sourceReq: SourceRequest,
+  sourceReq: ChangeObject<SourceRequest>,
 ): Promise<void> =>
   publishEvent(log, sourceRequestTopic, {
     type: reason,

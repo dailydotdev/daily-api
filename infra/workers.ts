@@ -109,4 +109,10 @@ export const workers: Worker[] = [
     topic: 'devcard-eligible',
     subscription: 'devcard-eligible-email',
   },
+  {
+    topic: 'api.changes',
+    subscription: 'api-cdc',
+    endpoint: 'cdc',
+    args: { enableMessageOrdering: true },
+  },
 ];

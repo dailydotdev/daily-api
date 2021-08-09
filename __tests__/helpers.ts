@@ -16,6 +16,7 @@ import { join } from 'path';
 import http from 'http';
 import { Roles } from '../src/roles';
 import { Cron } from '../src/cron/cron';
+import { ChangeMessage, ChangeObject } from '../src/types';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -187,3 +188,43 @@ export const setupStaticServer = async (
   await app.listen(6789);
   return app;
 };
+
+export const mockChangeMessage = <T>({
+  before,
+  after,
+  table,
+  op,
+}: {
+  before?: ChangeObject<T>;
+  after?: ChangeObject<T>;
+  table: string;
+  op: 'c' | 'u' | 'd' | 'r';
+}): ChangeMessage<T> => ({
+  schema: {
+    type: 'type',
+    fields: [],
+    optional: false,
+    name: 'name',
+  },
+  payload: {
+    before,
+    after,
+    source: {
+      version: '1',
+      connector: 'api',
+      name: 'api',
+      ts_ms: 0,
+      snapshot: false,
+      db: 'api',
+      sequence: 's',
+      schema: 'public',
+      table,
+      txId: 0,
+      lsn: 0,
+      xmin: 0,
+    },
+    op,
+    ts_ms: 0,
+    transaction: 0,
+  },
+});

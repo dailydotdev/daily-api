@@ -11,13 +11,7 @@ import {
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { Source, SourceFeed, SourceRequest } from '../entity';
-import {
-  addOrRemoveSuperfeedrSubscription,
-  fetchUserInfo,
-  getRelayNodeInfo,
-  notifySourceRequest,
-  uploadLogo,
-} from '../common';
+import { fetchUserInfo, getRelayNodeInfo, uploadLogo } from '../common';
 import { GraphQLResolveInfo } from 'graphql';
 import { FileUpload } from 'graphql-upload';
 
@@ -330,7 +324,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         userEmail: info.email,
       });
       await repo.save(sourceReq);
-      await notifySourceRequest(ctx.log, 'new', sourceReq);
       return sourceReq;
     },
     updateSourceRequest: async (
@@ -350,7 +343,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         closed: true,
         ...data,
       });
-      await notifySourceRequest(ctx.log, 'decline', req);
       return req;
     },
     approveSourceRequest: async (
@@ -361,7 +353,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const req = await partialUpdateSourceRequest(ctx, id, {
         approved: true,
       });
-      await notifySourceRequest(ctx.log, 'approve', req);
       return req;
     },
     publishSourceRequest: async (
@@ -384,12 +375,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       await createSourceFromRequest(ctx, req);
       req.closed = true;
       await ctx.getRepository(SourceRequest).save(req);
-      await notifySourceRequest(ctx.log, 'publish', req);
-      await addOrRemoveSuperfeedrSubscription(
-        req.sourceFeed,
-        req.sourceId,
-        'subscribe',
-      );
       ctx.log.info(
         {
           sourceRequest: req,

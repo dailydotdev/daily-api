@@ -26,6 +26,7 @@ import postBannedEmail from './postBannedEmail';
 import checkDevCardEligibility from './checkDevCardEligibility';
 import devCardEligibleAmplitude from './devCardEligibleAmplitude';
 import devCardEligibleEmail from './devCardEligibleEmail';
+import cdc from './cdc';
 
 export { Worker } from './worker';
 
@@ -57,4 +58,5 @@ export const workers: Worker[] = [
   checkDevCardEligibility,
   devCardEligibleAmplitude,
   devCardEligibleEmail,
+  cdc,
 ];
