@@ -7,7 +7,6 @@ import {
 } from 'apollo-server-testing';
 import request from 'supertest';
 import _ from 'lodash';
-import { mocked } from 'ts-jest/utils';
 
 import createApolloServer from '../src/apollo';
 import { Context } from '../src/Context';
@@ -33,7 +32,6 @@ import {
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
-import { notifyPostReport, notifyPostBannedOrRemoved } from '../src/common';
 import { Roles } from '../src/roles';
 import { PostReport } from '../src/entity/PostReport';
 
@@ -44,12 +42,6 @@ let client: ApolloServerTestClient;
 let loggedUser: string = null;
 let premiumUser = false;
 let roles: Roles[] = [];
-
-jest.mock('../src/common', () => ({
-  ...(jest.requireActual('../src/common') as Record<string, unknown>),
-  notifyPostReport: jest.fn(),
-  notifyPostBannedOrRemoved: jest.fn(),
-}));
 
 beforeAll(async () => {
   con = await getConnection();
@@ -610,7 +602,6 @@ describe('mutation deletePost', () => {
   it('should delete the post', async () => {
     loggedUser = '1';
     roles = [Roles.Moderator];
-    const post = await con.getRepository(Post).findOne('p1');
     const res = await client.mutate({
       mutation: MUTATION,
       variables: { id: 'p1' },
@@ -618,9 +609,6 @@ describe('mutation deletePost', () => {
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Post).findOne('p1');
     expect(actual).toBeFalsy();
-    expect(mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1)).toEqual([
-      post,
-    ]);
   });
 
   it('should do nothing if post is already deleted', async () => {
@@ -632,7 +620,6 @@ describe('mutation deletePost', () => {
       variables: { id: 'p1' },
     });
     expect(res.errors).toBeFalsy();
-    expect(notifyPostBannedOrRemoved).toBeCalledTimes(0);
   });
 });
 
@@ -677,9 +664,6 @@ describe('mutation banPost', () => {
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.banned).toEqual(true);
-    expect(mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1)).toEqual([
-      { ...post, banned: false },
-    ]);
   });
 
   it('should do nothing if post is already banned', async () => {
@@ -691,7 +675,6 @@ describe('mutation banPost', () => {
       variables: { id: 'p1' },
     });
     expect(res.errors).toBeFalsy();
-    expect(notifyPostBannedOrRemoved).toBeCalledTimes(0);
   });
 });
 
@@ -736,12 +719,6 @@ describe('mutation reportPost', () => {
       .getRepository(HiddenPost)
       .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
     expect(actual).toMatchSnapshot();
-    const post = await con.getRepository(Post).findOne('p1');
-    expect(notifyPostReport).toBeCalledWith(
-      loggedUser,
-      post,
-      '💔 Link is broken',
-    );
     expect(await con.getRepository(PostReport).findOne()).toEqual({
       postId: 'p1',
       userId: '1',
@@ -764,7 +741,6 @@ describe('mutation reportPost', () => {
       select: ['postId', 'userId'],
     });
     expect(actual).toMatchSnapshot();
-    expect(notifyPostReport).toBeCalledTimes(0);
   });
 });
 
@@ -946,8 +922,6 @@ describe('compatibility routes', () => {
         .getRepository(HiddenPost)
         .find({ where: { userId: '1' }, select: ['postId', 'userId'] });
       expect(actual).toMatchSnapshot();
-      const post = await con.getRepository(Post).findOne('p1');
-      expect(notifyPostReport).toBeCalledWith('1', post, '💔 Link is broken');
     });
   });
 });

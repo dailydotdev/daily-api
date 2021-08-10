@@ -1,19 +1,36 @@
 import { messageToJson, Worker } from './worker';
-import { Comment, CommentUpvote, SourceRequest, Upvote } from '../entity';
+import {
+  Comment,
+  CommentUpvote,
+  Post,
+  SourceRequest,
+  Upvote,
+  User,
+} from '../entity';
 import {
   addOrRemoveSuperfeedrSubscription,
   notifyCommentCommented,
   notifyCommentUpvoteCanceled,
   notifyCommentUpvoted,
+  notifyDevCardEligible,
+  notifyPostAuthorMatched,
+  notifyPostBannedOrRemoved,
   notifyPostCommented,
+  notifyPostReachedViewsThreshold,
+  notifyPostReport,
   notifyPostUpvoteCanceled,
   notifyPostUpvoted,
+  notifySendAnalyticsReport,
   notifySourceRequest,
+  notifyUserReputationUpdated,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
 import { Logger } from 'fastify';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
+import { viewsThresholds } from '../cron/viewsThreshold';
+import { PostReport } from '../entity/PostReport';
+import { reportReasons } from '../schema/posts';
 
 const onSourceRequestChange = async (
   con: Connection,
@@ -109,6 +126,84 @@ const onCommentChange = async (
   }
 };
 
+const onUserChange = async (
+  con: Connection,
+  logger: Logger,
+  data: ChangeMessage<User>,
+): Promise<void> => {
+  if (data.payload.op === 'u') {
+    if (data.payload.before.reputation !== data.payload.after.reputation) {
+      await notifyUserReputationUpdated(
+        logger,
+        data.payload.after.id,
+        data.payload.after.reputation,
+      );
+    }
+    if (
+      !data.payload.before.devcardEligible &&
+      data.payload.after.devcardEligible
+    ) {
+      await notifyDevCardEligible(logger, data.payload.after.id);
+    }
+  }
+};
+
+const onPostChange = async (
+  con: Connection,
+  logger: Logger,
+  data: ChangeMessage<Post>,
+): Promise<void> => {
+  if (data.payload.op === 'c') {
+    if (data.payload.after.authorId) {
+      await notifyPostAuthorMatched(
+        logger,
+        data.payload.after.id,
+        data.payload.after.authorId,
+      );
+    }
+  } else if (data.payload.op === 'u') {
+    if (
+      !data.payload.before.sentAnalyticsReport &&
+      data.payload.after.sentAnalyticsReport
+    ) {
+      await notifySendAnalyticsReport(logger, data.payload.after.id);
+    }
+    if (
+      data.payload.before.viewsThreshold !== data.payload.after.viewsThreshold
+    ) {
+      await notifyPostReachedViewsThreshold(
+        logger,
+        data.payload.after.id,
+        viewsThresholds[data.payload.after.viewsThreshold - 1],
+      );
+    }
+    if (!data.payload.before.banned && data.payload.after.banned) {
+      await notifyPostBannedOrRemoved(logger, data.payload.after);
+    }
+  } else if (data.payload.op === 'd') {
+    await notifyPostBannedOrRemoved(logger, data.payload.before);
+  }
+};
+
+const onPostReportChange = async (
+  con: Connection,
+  logger: Logger,
+  data: ChangeMessage<PostReport>,
+): Promise<void> => {
+  if (data.payload.op === 'c') {
+    const post = await con
+      .getRepository(Post)
+      .findOne(data.payload.after.postId);
+    if (post) {
+      await notifyPostReport(
+        data.payload.after.userId,
+        post,
+        reportReasons.get(data.payload.after.reason),
+      );
+    }
+  }
+};
+
 const getTableName = <Entity>(
   con: Connection,
   target: EntityTarget<Entity>,
@@ -134,6 +229,15 @@ const worker: Worker = {
         break;
       case getTableName(con, Comment):
         await onCommentChange(con, logger, data);
+        break;
+      case getTableName(con, User):
+        await onUserChange(con, logger, data);
+        break;
+      case getTableName(con, Post):
+        await onPostChange(con, logger, data);
+        break;
+      case getTableName(con, PostReport):
+        await onPostReportChange(con, logger, data);
         break;
     }
   },

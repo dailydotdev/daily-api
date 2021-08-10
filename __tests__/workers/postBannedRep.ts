@@ -1,6 +1,5 @@
 import { Connection, getConnection } from 'typeorm';
 import { FastifyInstance } from 'fastify';
-import { mocked } from 'ts-jest/utils';
 
 import appFunc from '../../src/background';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
@@ -8,13 +7,7 @@ import worker from '../../src/workers/postBannedRep';
 import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
-import { notifyUserReputationUpdated } from '../../src/common';
 import { PostReport } from '../../src/entity/PostReport';
-
-jest.mock('../../src/common/pubsub', () => ({
-  ...(jest.requireActual('../../src/common/pubsub') as Record<string, unknown>),
-  notifyUserReputationUpdated: jest.fn(),
-}));
 
 let con: Connection;
 let app: FastifyInstance;
@@ -57,12 +50,4 @@ it('should increase reputation and notify', async () => {
   const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
   expect(users[0].reputation).toEqual(4);
   expect(users[1].reputation).toEqual(7);
-  expect(mocked(notifyUserReputationUpdated).mock.calls[0].slice(1)).toEqual([
-    '1',
-    4,
-  ]);
-  expect(mocked(notifyUserReputationUpdated).mock.calls[1].slice(1)).toEqual([
-    '2',
-    7,
-  ]);
 });

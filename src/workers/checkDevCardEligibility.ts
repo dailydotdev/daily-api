@@ -2,7 +2,6 @@ import { DeepPartial } from 'typeorm';
 import { User, View } from '../entity';
 import { messageToJson, Worker } from './worker';
 import flagsmith from '../flagsmith';
-import { notifyDevCardEligible } from '../common';
 
 const worker: Worker = {
   subscription: 'check-devcard-eligibility',
@@ -21,7 +20,6 @@ const worker: Worker = {
             await con
               .getRepository(User)
               .update(user.id, { devcardEligible: true });
-            await notifyDevCardEligible(logger, user.id);
           }
         }
       }

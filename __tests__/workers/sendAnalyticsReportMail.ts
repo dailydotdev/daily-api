@@ -93,6 +93,4 @@ it('should send analytics reports', async () => {
   });
   expect(sendEmail).toBeCalledTimes(1);
   expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
-  const post = await con.getRepository(Post).findOne('p1');
-  expect(post.sentAnalyticsReport).toEqual(true);
 });

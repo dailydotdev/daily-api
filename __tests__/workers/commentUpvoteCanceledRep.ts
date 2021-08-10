@@ -1,6 +1,5 @@
 import { Connection, getConnection } from 'typeorm';
 import { FastifyInstance } from 'fastify';
-import { mocked } from 'ts-jest/utils';
 
 import appFunc from '../../src/background';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
@@ -8,12 +7,6 @@ import worker from '../../src/workers/commentUpvoteCanceledRep';
 import { Comment, Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
-import { notifyUserReputationUpdated } from '../../src/common';
-
-jest.mock('../../src/common/pubsub', () => ({
-  ...(jest.requireActual('../../src/common/pubsub') as Record<string, unknown>),
-  notifyUserReputationUpdated: jest.fn(),
-}));
 
 let con: Connection;
 let app: FastifyInstance;
@@ -55,10 +48,6 @@ it('should decrease reputation and notify', async () => {
   });
   const user = await con.getRepository(User).findOne('1');
   expect(user.reputation).toEqual(2);
-  expect(mocked(notifyUserReputationUpdated).mock.calls[0].slice(1)).toEqual([
-    '1',
-    2,
-  ]);
 });
 
 it('should not decrease reputation when the author is the upvote user', async () => {
@@ -68,5 +57,4 @@ it('should not decrease reputation when the author is the upvote user', async ()
   });
   const user = await con.getRepository(User).findOne('1');
   expect(user.reputation).toEqual(3);
-  expect(notifyUserReputationUpdated).toBeCalledTimes(0);
 });

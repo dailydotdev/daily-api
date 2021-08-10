@@ -1,39 +1,26 @@
 import { Cron } from './cron';
-import { notifyPostReachedViewsThreshold } from '../common';
 
 type UpdateResult = { id: string }[];
 
+export const viewsThresholds = [250, 500];
+
 const cron: Cron = {
   name: 'views-threshold',
-  handler: async (con, logger) => {
-    const thresholds = [250, 500].reverse();
-
-    const updatedIds = await con.transaction(
+  handler: async (con) => {
+    await con.transaction(
       async (entityManager): Promise<UpdateResult[]> =>
         Promise.all(
-          thresholds.map(
-            async (thresh, reversedIndex): Promise<UpdateResult> => {
-              const index = thresholds.length - reversedIndex - 1;
-              const [res]: UpdateResult[] = await entityManager.query(
-                `UPDATE "post"
+          viewsThresholds.map(async (thresh, index): Promise<UpdateResult> => {
+            const [res]: UpdateResult[] = await entityManager.query(
+              `UPDATE "post"
              SET "viewsThreshold" = $1
              WHERE "views" >= $2 AND "viewsThreshold" = $3
              RETURNING id`,
-                [index + 1, thresh, index],
-              );
-              return res;
-            },
-          ),
+              [index + 1, thresh, index],
+            );
+            return res;
+          }),
         ),
-    );
-    await Promise.all(
-      updatedIds.map((ids, index) =>
-        Promise.all(
-          ids.map(({ id }) =>
-            notifyPostReachedViewsThreshold(logger, id, thresholds[index]),
-          ),
-        ),
-      ),
     );
   },
 };

@@ -1,6 +1,5 @@
 import { Connection, getConnection } from 'typeorm';
 import { FastifyInstance } from 'fastify';
-import { mocked } from 'ts-jest/utils';
 
 import appFunc from '../../src/background';
 import worker from '../../src/workers/newPost';
@@ -14,15 +13,9 @@ import {
   User,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { notifyPostAuthorMatched } from '../../src/common';
 
 let con: Connection;
 let app: FastifyInstance;
-
-jest.mock('../../src/common', () => ({
-  ...(jest.requireActual('../../src/common') as Record<string, unknown>),
-  notifyPostAuthorMatched: jest.fn(),
-}));
 
 beforeAll(async () => {
   con = await getConnection();
@@ -366,10 +359,6 @@ it('should match post to author', async () => {
     id: expect.any(String),
     shortId: expect.any(String),
   });
-  expect(mocked(notifyPostAuthorMatched).mock.calls[0].slice(1)).toEqual([
-    posts[0].id,
-    '1',
-  ]);
 });
 
 it('should not match post to author based on username', async () => {
@@ -396,7 +385,6 @@ it('should not match post to author based on username', async () => {
     id: expect.any(String),
     shortId: expect.any(String),
   });
-  expect(notifyPostAuthorMatched).toBeCalledTimes(0);
 });
 
 it('should not match post to author', async () => {
@@ -415,7 +403,6 @@ it('should not match post to author', async () => {
     id: expect.any(String),
     shortId: expect.any(String),
   });
-  expect(notifyPostAuthorMatched).toBeCalledTimes(0);
 });
 
 it('should clear empty creator twitter', async () => {

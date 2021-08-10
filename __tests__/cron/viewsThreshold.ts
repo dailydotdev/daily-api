@@ -5,18 +5,11 @@ import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Post, Source } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
-import { notifyPostReachedViewsThreshold } from '../../src/common';
-import { mocked } from 'ts-jest/utils';
 import { FastifyInstance } from 'fastify';
 import appFunc from '../../src/background';
 
 let con: Connection;
 let app: FastifyInstance;
-
-jest.mock('../../src/common', () => ({
-  ...(jest.requireActual('../../src/common') as Record<string, unknown>),
-  notifyPostReachedViewsThreshold: jest.fn(),
-}));
 
 beforeAll(async () => {
   con = await getConnection();
@@ -43,7 +36,6 @@ it('should not update anything', async () => {
     order: { id: 'ASC' },
   });
   expect(posts).toMatchSnapshot();
-  expect(notifyPostReachedViewsThreshold).toBeCalledTimes(0);
 });
 
 it('should update 3 posts that reached views threshold', async () => {
@@ -62,17 +54,4 @@ it('should update 3 posts that reached views threshold', async () => {
     order: { id: 'ASC' },
   });
   expect(posts).toMatchSnapshot();
-  expect(
-    mocked(notifyPostReachedViewsThreshold)
-      .mock.calls.map((call) => call.slice(1))
-      .sort(([id1], [id2]) => {
-        if (id1 < id2) {
-          return -1;
-        }
-        if (id1 > id2) {
-          return 1;
-        }
-        return 0;
-      }),
-  ).toMatchSnapshot();
 });

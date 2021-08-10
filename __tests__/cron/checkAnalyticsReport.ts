@@ -5,19 +5,12 @@ import cron from '../../src/cron/checkAnalyticsReport';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { notifySendAnalyticsReport } from '../../src/common';
-import { mocked } from 'ts-jest/utils';
 import { FastifyInstance } from 'fastify';
 import appFunc from '../../src/background';
 
 let con: Connection;
 let app: FastifyInstance;
 const now = new Date();
-
-jest.mock('../../src/common', () => ({
-  ...(jest.requireActual('../../src/common') as Record<string, unknown>),
-  notifySendAnalyticsReport: jest.fn(),
-}));
 
 beforeAll(async () => {
   con = await getConnection();
@@ -85,8 +78,11 @@ beforeEach(async () => {
 
 it('should publish message for every post that needs analytics report', async () => {
   await expectSuccessfulCron(app, cron);
-  expect(notifySendAnalyticsReport).toBeCalledTimes(2);
-  expect(
-    mocked(notifySendAnalyticsReport).mock.calls.map((call) => call.slice(1)),
-  ).toEqual(expect.arrayContaining([['p3'], ['p4']]));
+  const posts = await con
+    .getRepository(Post)
+    .find({ sentAnalyticsReport: true });
+  expect(posts.length).toEqual(3);
+  expect(posts.map(({ id }) => id)).toEqual(
+    expect.arrayContaining(['p3', 'p4', 'p5']),
+  );
 });
