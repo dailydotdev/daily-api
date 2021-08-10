@@ -44,9 +44,6 @@ const worker: Worker = {
             profile_link: user.permalink,
           },
         });
-        await con
-          .getRepository(Post)
-          .update(post.id, { sentAnalyticsReport: true });
         logger.info(
           {
             data,

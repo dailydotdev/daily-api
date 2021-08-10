@@ -10,18 +10,36 @@ import {
   notifyCommentCommented,
   notifyPostCommented,
   notifyCommentUpvoteCanceled,
+  notifyUserReputationUpdated,
+  notifyPostAuthorMatched,
+  notifySendAnalyticsReport,
+  notifyPostReachedViewsThreshold,
+  notifyPostBannedOrRemoved,
+  notifyDevCardEligible,
+  notifyPostReport,
 } from '../../src/common';
 import appFunc from '../../src/background';
 import worker from '../../src/workers/cdc';
-import { expectSuccessfulBackground, mockChangeMessage } from '../helpers';
+import {
+  expectSuccessfulBackground,
+  mockChangeMessage,
+  saveFixtures,
+} from '../helpers';
 import {
   Comment,
   CommentUpvote,
+  Post,
+  Source,
   SourceRequest,
   Upvote,
+  User,
 } from '../../src/entity';
 import { mocked } from 'ts-jest/utils';
 import { ChangeObject } from '../../src/types';
+import { PostReport } from '../../src/entity/PostReport';
+import { Connection, getConnection } from 'typeorm';
+import { sourcesFixture } from '../fixture/source';
+import { postsFixture } from '../fixture/post';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -33,11 +51,20 @@ jest.mock('../../src/common', () => ({
   notifyCommentUpvoted: jest.fn(),
   notifyCommentCommented: jest.fn(),
   notifyPostCommented: jest.fn(),
+  notifyUserReputationUpdated: jest.fn(),
+  notifyPostAuthorMatched: jest.fn(),
+  notifySendAnalyticsReport: jest.fn(),
+  notifyPostReachedViewsThreshold: jest.fn(),
+  notifyPostBannedOrRemoved: jest.fn(),
+  notifyDevCardEligible: jest.fn(),
+  notifyPostReport: jest.fn(),
 }));
 
+let con: Connection;
 let app: FastifyInstance;
 
 beforeAll(async () => {
+  con = await getConnection();
   app = await appFunc();
   return app.ready();
 });
@@ -310,5 +337,208 @@ describe('comment', () => {
       'c2',
       'c1',
     ]);
+  });
+});
+
+describe('user', () => {
+  type ObjectType = User;
+  const base: ChangeObject<ObjectType> = {
+    id: '1',
+    name: 'Ido',
+    image: 'https://daily.dev/image.jpg',
+    reputation: 5,
+    devcardEligible: false,
+    profileConfirmed: false,
+    twitter: null,
+    username: 'idoshamun',
+  };
+
+  it('should notify on new user reputation change', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      reputation: 10,
+    };
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'user',
+      }),
+    );
+    expect(notifyUserReputationUpdated).toBeCalledTimes(1);
+    expect(mocked(notifyUserReputationUpdated).mock.calls[0].slice(1)).toEqual([
+      '1',
+      10,
+    ]);
+  });
+
+  it('should notify on dev card eligibility', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      devcardEligible: true,
+    };
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'user',
+      }),
+    );
+    expect(notifyDevCardEligible).toBeCalledTimes(1);
+    expect(mocked(notifyDevCardEligible).mock.calls[0].slice(1)).toEqual(['1']);
+  });
+});
+
+describe('post', () => {
+  type ObjectType = Partial<Post>;
+  const base: ChangeObject<ObjectType> = {
+    id: 'p1',
+    shortId: 'sp1',
+    title: 'P1',
+    url: 'http://p1.com',
+    score: 0,
+    sourceId: 'a',
+    createdAt: 0,
+    tagsStr: 'javascript,webdev',
+  };
+
+  it('should notify on author matched', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      authorId: 'u1',
+    };
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostAuthorMatched).toBeCalledTimes(1);
+    expect(mocked(notifyPostAuthorMatched).mock.calls[0].slice(1)).toEqual([
+      'p1',
+      'u1',
+    ]);
+  });
+
+  it('should notify on send analytics report', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      sentAnalyticsReport: true,
+    };
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(notifySendAnalyticsReport).toBeCalledTimes(1);
+    expect(mocked(notifySendAnalyticsReport).mock.calls[0].slice(1)).toEqual([
+      'p1',
+    ]);
+  });
+
+  it('should notify on views threshold reached', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      viewsThreshold: 1,
+    };
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostReachedViewsThreshold).toBeCalledTimes(1);
+    expect(
+      mocked(notifyPostReachedViewsThreshold).mock.calls[0].slice(1),
+    ).toEqual(['p1', 250]);
+  });
+
+  it('should notify on post banned', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      banned: true,
+    };
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostBannedOrRemoved).toBeCalledTimes(1);
+    expect(mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
+  });
+
+  it('should notify on post removed', async () => {
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: null,
+        before: base,
+        op: 'd',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostBannedOrRemoved).toBeCalledTimes(1);
+    expect(mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1)).toEqual([
+      base,
+    ]);
+  });
+});
+
+describe('post report', () => {
+  type ObjectType = PostReport;
+  const base: ChangeObject<ObjectType> = {
+    userId: 'u1',
+    postId: 'p1',
+    createdAt: 0,
+    reason: 'BROKEN',
+  };
+
+  beforeEach(async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, postsFixture);
+  });
+
+  it('should notify on new post report', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post_report',
+      }),
+    );
+    const post = await con.getRepository(Post).findOne('p1');
+    expect(notifyPostReport).toBeCalledTimes(1);
+    expect(notifyPostReport).toBeCalledWith('u1', post, '💔 Link is broken');
   });
 });

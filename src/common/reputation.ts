@@ -1,5 +1,5 @@
-import { Connection } from 'typeorm';
-import { EventLogger, notifyUserReputationUpdated } from './pubsub';
+import { Connection, In } from 'typeorm';
+import { EventLogger } from './pubsub';
 import { User } from '../entity';
 
 export const increaseReputation = async (
@@ -8,10 +8,16 @@ export const increaseReputation = async (
   userId: string,
   delta: number,
 ): Promise<void> => {
-  const user = await con.transaction(async (entityManager): Promise<User> => {
-    const repo = entityManager.getRepository(User);
-    await repo.increment({ id: userId }, 'reputation', delta);
-    return repo.findOne(userId);
-  });
-  await notifyUserReputationUpdated(log, userId, user.reputation);
+  const repo = con.getRepository(User);
+  await repo.increment({ id: userId }, 'reputation', delta);
+};
+
+export const increaseMultipleReputation = async (
+  con: Connection,
+  log: EventLogger,
+  userIds: string[],
+  delta: number,
+): Promise<void> => {
+  const repo = con.getRepository(User);
+  await repo.increment({ id: In(userIds) }, 'reputation', delta);
 };

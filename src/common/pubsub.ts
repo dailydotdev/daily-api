@@ -186,7 +186,7 @@ export const notifyView = (
 
 export const notifyPostBannedOrRemoved = async (
   log: EventLogger,
-  post: Post,
+  post: ChangeObject<Post>,
 ): Promise<void> =>
   publishEvent(log, postBannedOrRemovedTopic, {
     post,

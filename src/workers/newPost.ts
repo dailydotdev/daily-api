@@ -3,8 +3,6 @@ import { Connection, In } from 'typeorm';
 import * as he from 'he';
 import { Keyword, Post, PostKeyword, PostTag, Toc, User } from '../entity';
 import { messageToJson, Worker } from './worker';
-import { notifyPostAuthorMatched } from '../common';
-import { Logger } from 'fastify';
 
 interface AddPostData {
   id: string;
@@ -28,12 +26,8 @@ interface AddPostData {
 
 type Result = { postId: string; authorId?: string };
 
-const addPost = async (
-  con: Connection,
-  data: AddPostData,
-  logger: Logger,
-): Promise<void> => {
-  const res = await con.transaction(async (entityManager): Promise<Result> => {
+const addPost = async (con: Connection, data: AddPostData): Promise<void> => {
+  await con.transaction(async (entityManager): Promise<Result> => {
     let keywords: string[] = null;
     if (data.keywords?.length > 0) {
       const synonymKeywords = await entityManager.getRepository(Keyword).find({
@@ -139,10 +133,6 @@ const addPost = async (
       authorId,
     };
   });
-  if (res.authorId) {
-    logger.info(res, 'matched author to post');
-    await notifyPostAuthorMatched(logger, res.postId, res.authorId);
-  }
 };
 
 const parseReadTime = (
@@ -204,7 +194,7 @@ const worker: Worker = {
       data.creatorTwitter = null;
     }
     try {
-      await addPost(con, data, logger);
+      await addPost(con, data);
       logger.info(
         {
           post: data,

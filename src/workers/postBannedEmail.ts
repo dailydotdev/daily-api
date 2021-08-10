@@ -8,9 +8,10 @@ import {
 } from '../common';
 import { fetchUser } from '../common';
 import { PostReport } from '../entity/PostReport';
+import { ChangeObject } from '../types';
 
 interface Data {
-  post: Post;
+  post: ChangeObject<Post>;
 }
 
 const reportReasons = new Map([

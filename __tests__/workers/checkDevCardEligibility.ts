@@ -9,16 +9,9 @@ import { Post, Source, User, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { redisClient } from '../../src/redis';
-import { notifyDevCardEligible } from '../../src/common';
-import { mocked } from 'ts-jest/utils';
 
 let con: Connection;
 let app: FastifyInstance;
-
-jest.mock('../../src/common', () => ({
-  ...(jest.requireActual('../../src/common') as Record<string, unknown>),
-  notifyDevCardEligible: jest.fn(),
-}));
 
 beforeAll(async () => {
   con = await getConnection();
@@ -66,7 +59,6 @@ it('should ignore anonymous views', async () => {
     agent: 'agent',
     ip: '127.0.0.1',
   });
-  expect(notifyDevCardEligible).toBeCalledTimes(0);
 });
 
 it('should ignore users who already eligible for devcard', async () => {
@@ -78,7 +70,6 @@ it('should ignore users who already eligible for devcard', async () => {
     agent: 'agent',
     ip: '127.0.0.1',
   });
-  expect(notifyDevCardEligible).toBeCalledTimes(0);
 });
 
 it('should ignore users who have the eligibility feature turned off', async () => {
@@ -92,7 +83,6 @@ it('should ignore users who have the eligibility feature turned off', async () =
   });
   const user = await con.getRepository(User).findOne('u1');
   expect(user.devcardEligible).toEqual(false);
-  expect(notifyDevCardEligible).toBeCalledTimes(0);
 });
 
 it('should ignore users with limit equals zero', async () => {
@@ -106,7 +96,6 @@ it('should ignore users with limit equals zero', async () => {
   });
   const user = await con.getRepository(User).findOne('u1');
   expect(user.devcardEligible).toEqual(false);
-  expect(notifyDevCardEligible).toBeCalledTimes(0);
 });
 
 it('should ignore users who did not reach their limit', async () => {
@@ -136,5 +125,4 @@ it('should ignore users who did not reach their limit', async () => {
   });
   const user = await con.getRepository(User).findOne('u1');
   expect(user.devcardEligible).toEqual(true);
-  expect(mocked(notifyDevCardEligible).mock.calls[0].slice(1)).toEqual(['u1']);
 });

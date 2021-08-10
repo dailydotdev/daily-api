@@ -4,13 +4,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import {
-  defaultImage,
-  getDiscussionLink,
-  notifyPostReport,
-  pickImageUrl,
-  notifyPostBannedOrRemoved,
-} from '../common';
+import { defaultImage, getDiscussionLink, pickImageUrl } from '../common';
 import { HiddenPost, Post, Toc, Upvote } from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError } from '../errors';
@@ -361,7 +355,7 @@ const saveHiddenPost = async (
   return true;
 };
 
-const reportReasons = new Map([
+export const reportReasons = new Map([
   ['BROKEN', '💔 Link is broken'],
   ['NSFW', '🔞 Post is NSFW'],
   ['CLICKBAIT', '🎣 Clickbait!!!'],
@@ -418,7 +412,6 @@ export const resolvers: IResolvers<any, Context> = {
             await ctx
               .getRepository(PostReport)
               .insert({ postId: id, userId: ctx.userId, reason: reason });
-            await notifyPostReport(ctx.userId, post, reportReasons.get(reason));
           } catch (err) {
             if (err?.code !== '23505') {
               ctx.log.error(
@@ -438,11 +431,7 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      const post = await ctx.getRepository(Post).findOne(id);
-      if (post) {
-        await ctx.getRepository(Post).delete({ id });
-        await notifyPostBannedOrRemoved(ctx.log, post);
-      }
+      await ctx.getRepository(Post).delete({ id });
       return { _: true };
     },
     banPost: async (
@@ -453,7 +442,6 @@ export const resolvers: IResolvers<any, Context> = {
       const post = await ctx.getRepository(Post).findOneOrFail(id);
       if (!post.banned) {
         await ctx.getRepository(Post).update({ id }, { banned: true });
-        await notifyPostBannedOrRemoved(ctx.log, post);
       }
       return { _: true };
     },
