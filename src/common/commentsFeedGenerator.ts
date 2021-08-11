@@ -15,7 +15,7 @@ export const commentsPageGenerator: PageGenerator<
 > = {
   connArgsToPage: ({ first, after }: ConnectionArguments) => {
     const cursor = getCursorFromAfter(after);
-    const limit = Math.min(first || 30, 100);
+    const limit = Math.min(first || 100, 100);
     if (cursor) {
       return { limit, timestamp: new Date(parseInt(cursor)) };
     }
