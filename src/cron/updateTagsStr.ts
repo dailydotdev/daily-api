@@ -1,5 +1,7 @@
 import { Cron } from './cron';
 import { Checkpoint } from '../entity/Checkpoint';
+import { Keyword } from '../entity';
+import { MoreThanOrEqual, Not } from 'typeorm';
 
 const cron: Cron = {
   name: 'update-tags-str',
@@ -10,22 +12,33 @@ const cron: Cron = {
     const after = checkpoint?.timestamp || new Date();
 
     await con.transaction(async (entityManager): Promise<void> => {
-      await entityManager.query(
-        `update post
-          set "tagsStr" = res.tags
-          from (
-             select pk."postId", array_to_string((array_agg(pk.keyword order by k.occurrences desc, pk.keyword)), ',') as tags
+      const keywords = await entityManager.getRepository(Keyword).find({
+        where: { status: Not('pending'), updatedAt: MoreThanOrEqual(after) },
+      });
+      if (keywords.length) {
+        await entityManager.query(
+          `update post
+           set "tagsStr" = res.tags
+           from (
+                  select pk."postId",
+                         array_to_string((array_agg(pk.keyword
+                                                    order by pk.keyword asc, pk.keyword)),
+                                         ',') as tags
+                  from post_keyword pk
+                  where pk.status = 'allow'
+                  group by pk."postId"
+                ) as res
+           where post.id = res."postId"
+             and exists(
+             select keyword
              from post_keyword pk
-             inner join keyword k on pk.keyword = k.value and k.status = 'allow'
-             group by pk."postId"
-          ) as res
-          where post.id = res."postId" and exists(
-              select * from post_keyword pk
-              inner join keyword k on pk.keyword = k.value and k.status != 'pending'
-              where pk."postId" = post.id and k."updatedAt" >= $1
-              )`,
-        [after],
-      );
+             where pk."postId" = post.id
+               and pk.keyword in (${keywords
+                 .map(({ value }) => `'${value}'`)
+                 .join(',')})
+             )`,
+        );
+      }
       if (!checkpoint) {
         checkpoint = new Checkpoint();
         checkpoint.key = checkpointKey;
