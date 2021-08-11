@@ -31,6 +31,10 @@ export class User {
   @Index('IDX_user_profileConfirmed')
   profileConfirmed: boolean | null;
 
+  @Column({ nullable: true })
+  @Index('IDX_user_createdAt')
+  createdAt?: Date | null;
+
   @OneToMany(() => Post, (post) => post.author, { lazy: true })
   posts: Promise<Post[]>;
 

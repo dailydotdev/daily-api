@@ -20,6 +20,7 @@ it('should save a new user', async () => {
     name: 'Ido',
     email: 'ido@acme.com',
     image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const users = await con.getRepository(User).find();
   expect(users.length).toEqual(1);
