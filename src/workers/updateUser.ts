@@ -14,6 +14,7 @@ interface UserData {
   bio?: string;
   twitter?: string;
   github?: string;
+  createdAt: Date;
 }
 
 interface ProfileData {
@@ -27,6 +28,7 @@ interface ProfileData {
   bio?: string;
   twitter?: string;
   github?: string;
+  createdAt: Date;
 }
 
 interface Data {
@@ -46,6 +48,7 @@ const worker: Worker = {
         username: data.newProfile.username,
         twitter: data.newProfile.twitter,
         profileConfirmed: false,
+        createdAt: data.user.createdAt,
       });
       logger.info(
         {
