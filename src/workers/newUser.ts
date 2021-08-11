@@ -7,6 +7,7 @@ interface Data {
   email: string;
   image: string;
   referral: string;
+  createdAt: Date;
 }
 
 const worker: Worker = {
@@ -18,6 +19,7 @@ const worker: Worker = {
         id: data.id,
         name: data.name,
         image: data.image,
+        createdAt: data.createdAt,
       });
       logger.info(
         {

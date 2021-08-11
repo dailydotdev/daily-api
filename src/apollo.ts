@@ -22,7 +22,7 @@ import { AuthDirective, UrlDirective } from './directive';
 
 const errorConverter = new ApolloErrorConverter({
   errorMap: {
-    EntityNotFoundError: {
+    EntityNotFound: {
       code: 'NOT_FOUND',
       message: 'Entity not found',
     },

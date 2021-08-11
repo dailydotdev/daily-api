@@ -21,6 +21,7 @@ it('should update an existing user', async () => {
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
     profileConfirmed: true,
+    createdAt: new Date(2021, 7, 11),
   });
 
   await expectSuccessfulBackground(app, worker, {
@@ -29,6 +30,7 @@ it('should update an existing user', async () => {
       name: 'ido',
       email: 'ido@acme.com',
       image: 'https://daily.dev/image.jpg',
+      createdAt: new Date(2021, 7, 11),
     },
     newProfile: {
       name: 'Ido',
@@ -50,6 +52,7 @@ it('should create user if does not exist', async () => {
       name: 'ido',
       email: 'ido@acme.com',
       image: 'https://daily.dev/image.jpg',
+      createdAt: new Date(2021, 7, 11),
     },
     newProfile: {
       name: 'Ido',
@@ -57,6 +60,7 @@ it('should create user if does not exist', async () => {
       username: 'idoshamun',
       twitter: 'idoshamun',
       github: 'idoshamun',
+      createdAt: new Date(2021, 7, 11),
     },
   });
   const users = await con.getRepository(User).find();
