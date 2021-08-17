@@ -15,6 +15,7 @@ export interface LegacySourceRequest {
   pubTwitter?: string;
   pubRss?: string;
   createdAt: Date;
+  reason?: string;
 }
 
 export const toLegacySourceRequest = (
@@ -33,4 +34,5 @@ export const toLegacySourceRequest = (
   pubTwitter: req.sourceTwitter,
   pubRss: req.sourceFeed,
   createdAt: new Date(req.createdAt),
+  reason: req.reason,
 });

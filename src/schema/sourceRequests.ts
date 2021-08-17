@@ -338,12 +338,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { id, data }: GQLDataIdInput<GQLDeclineSourceRequestInput>,
       ctx,
     ): Promise<GQLSourceRequest> => {
-      const req = await partialUpdateSourceRequest(ctx, id, {
+      return partialUpdateSourceRequest(ctx, id, {
         approved: false,
         closed: true,
         ...data,
       });
-      return req;
     },
     approveSourceRequest: async (
       source,
