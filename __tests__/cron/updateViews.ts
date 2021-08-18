@@ -29,6 +29,7 @@ it('should update views and scores', async () => {
       title: 'P1',
       url: 'http://p1.com',
       score: 0,
+      comments: 6,
       sourceId: 'a',
       createdAt: now,
     },
@@ -73,14 +74,14 @@ it('should update views and scores', async () => {
   expect(posts[1].score).toEqual(
     Math.round(
       posts[1].createdAt.getTime() / (1000 * 60) +
-        Math.pow(Math.log(2 + 5 * 2 + 1 + 10) / Math.log(5), 2) * 60,
+        Math.pow(Math.log(2 + 5 * 2.5 + 1 + 10) / Math.log(5), 2) * 60,
     ),
   );
   expect(posts[2].views).toEqual(5);
   expect(posts[2].score).toEqual(
     Math.round(
       posts[2].createdAt.getTime() / (1000 * 60) +
-        Math.pow(Math.log(5 + 1) / Math.log(5), 2) * 60,
+        Math.pow(Math.log(5 + 6 * 4 + 1) / Math.log(5), 2) * 60,
     ),
   );
 });
