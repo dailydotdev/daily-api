@@ -14,7 +14,7 @@ const cron: Cron = {
         `update "public"."post" p
              set views = p.views + v.count,
                  score = extract(EPOCH FROM p."createdAt") / 60 +
-                         POW(LOG(5, (p.views + p.upvotes * 2 + v.count + v."rankBoost") + 1), 2) * 60
+                         POW(LOG(5, (p.views + p.upvotes * 2.5 + p.comments * 4 + v.count + v."rankBoost") + 1), 2) * 60
              FROM (
                 select v.*, s."rankBoost"
                 from (
