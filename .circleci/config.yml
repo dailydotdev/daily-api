@@ -65,7 +65,8 @@ jobs:
       - store_test_results:
           path: ./test-results
   build_and_push_docker:
-    machine: true
+    machine:
+      docker_layer_caching: true
     steps:
       - checkout
       - attach_workspace:
