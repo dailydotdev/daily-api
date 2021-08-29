@@ -21,6 +21,9 @@ const worker: Worker = {
       const comment = await con
         .getRepository(Comment)
         .findOne(data.childCommentId, { relations: ['post', 'parent'] });
+      if (!comment) {
+        return;
+      }
       const parent = await comment.parent;
       const [author, commenter] = await Promise.all([
         fetchUser(parent.userId),

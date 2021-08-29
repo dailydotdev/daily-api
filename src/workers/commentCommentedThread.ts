@@ -21,6 +21,9 @@ const worker: Worker = {
       const comment = await con
         .getRepository(Comment)
         .findOne(data.childCommentId, { relations: ['post', 'parent'] });
+      if (!comment) {
+        return;
+      }
       const parent = await comment.parent;
       const post = await comment.post;
       const threadFollowers = await con
