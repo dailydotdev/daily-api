@@ -13,7 +13,7 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     try {
       const post = await con.getRepository(Post).findOne(data.postId);
-      if (post.creatorTwitter && !post.authorId && data.threshold <= 500) {
+      if (post?.creatorTwitter && !post.authorId && data.threshold <= 500) {
         const title = truncatePostToTweet(post);
         const link = `${getDiscussionLink(post.id)}?author=true`;
         const handle = post.creatorTwitter;

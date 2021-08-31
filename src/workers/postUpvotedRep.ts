@@ -13,7 +13,7 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     try {
       const post = await con.getRepository(Post).findOne(data.postId);
-      if (post.authorId && post.authorId !== data.userId) {
+      if (post?.authorId && post?.authorId !== data.userId) {
         await increaseReputation(con, logger, post.authorId, 1);
         logger.info(
           {
