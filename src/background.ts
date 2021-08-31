@@ -37,9 +37,10 @@ export default async function app(): Promise<FastifyInstance> {
     app.post(`/${worker.subscription}`, async (req, res) => {
       const { body } = req;
       if (!body?.message) {
+        req.log.warn('empty worker body');
         return res.status(400).send();
       }
-      await worker.handler(body.message, connection, app.log, pubsub);
+      await worker.handler(body.message, connection, req.log, pubsub);
       return res.status(204).send();
     });
   });

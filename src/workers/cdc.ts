@@ -212,33 +212,44 @@ const getTableName = <Entity>(
 const worker: Worker = {
   subscription: 'cdc',
   handler: async (message, con, logger): Promise<void> => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data: ChangeMessage<any> = messageToJson(message);
-    if (data.schema.name === 'io.debezium.connector.common.Heartbeat') {
-      return;
-    }
-    switch (data.payload.source.table) {
-      case getTableName(con, SourceRequest):
-        await onSourceRequestChange(con, logger, data);
-        break;
-      case getTableName(con, Upvote):
-        await onPostUpvoteChange(con, logger, data);
-        break;
-      case getTableName(con, CommentUpvote):
-        await onCommentUpvoteChange(con, logger, data);
-        break;
-      case getTableName(con, Comment):
-        await onCommentChange(con, logger, data);
-        break;
-      case getTableName(con, User):
-        await onUserChange(con, logger, data);
-        break;
-      case getTableName(con, Post):
-        await onPostChange(con, logger, data);
-        break;
-      case getTableName(con, PostReport):
-        await onPostReportChange(con, logger, data);
-        break;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: ChangeMessage<any> = messageToJson(message);
+      if (data.schema.name === 'io.debezium.connector.common.Heartbeat') {
+        return;
+      }
+      switch (data.payload.source.table) {
+        case getTableName(con, SourceRequest):
+          await onSourceRequestChange(con, logger, data);
+          break;
+        case getTableName(con, Upvote):
+          await onPostUpvoteChange(con, logger, data);
+          break;
+        case getTableName(con, CommentUpvote):
+          await onCommentUpvoteChange(con, logger, data);
+          break;
+        case getTableName(con, Comment):
+          await onCommentChange(con, logger, data);
+          break;
+        case getTableName(con, User):
+          await onUserChange(con, logger, data);
+          break;
+        case getTableName(con, Post):
+          await onPostChange(con, logger, data);
+          break;
+        case getTableName(con, PostReport):
+          await onPostReportChange(con, logger, data);
+          break;
+      }
+    } catch (err) {
+      logger.error(
+        {
+          messageId: message.id,
+          err,
+        },
+        'failed to handle cdc message',
+      );
+      throw err;
     }
   },
 };
