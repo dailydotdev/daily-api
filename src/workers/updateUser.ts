@@ -53,7 +53,7 @@ const worker: Worker = {
       logger.info(
         {
           userId: data.user.id,
-          messageId: message.id,
+          messageId: message.messageId,
         },
         'updated user',
       );
@@ -61,7 +61,7 @@ const worker: Worker = {
       logger.error(
         {
           userId: data.user.id,
-          messageId: message.id,
+          messageId: message.messageId,
           err,
         },
         'failed to update user',

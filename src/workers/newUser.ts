@@ -24,7 +24,7 @@ const worker: Worker = {
       logger.info(
         {
           userId: data.id,
-          messageId: message.id,
+          messageId: message.messageId,
         },
         'added new user',
       );
@@ -32,7 +32,7 @@ const worker: Worker = {
       logger.error(
         {
           userId: data.id,
-          messageId: message.id,
+          messageId: message.messageId,
           err,
         },
         'failed to add new user',

@@ -18,7 +18,7 @@ const worker: Worker = {
         logger.info(
           {
             data,
-            messageId: message.id,
+            messageId: message.messageId,
           },
           'decreased reputation due to post upvote cancellation',
         );
@@ -27,7 +27,7 @@ const worker: Worker = {
       logger.error(
         {
           data,
-          messageId: message.id,
+          messageId: message.messageId,
           err,
         },
         'failed to increase reputation due to post upvote cancellation',

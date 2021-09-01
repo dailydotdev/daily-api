@@ -35,7 +35,7 @@ const worker: Worker = {
         logger.info(
           {
             data,
-            messageId: message.id,
+            messageId: message.messageId,
           },
           'tweeted about the new post comment',
         );
@@ -44,7 +44,7 @@ const worker: Worker = {
       logger.error(
         {
           data,
-          messageId: message.id,
+          messageId: message.messageId,
           err,
         },
         'failed to tweet about the new post comment',

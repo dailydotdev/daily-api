@@ -27,7 +27,7 @@ const worker: Worker = {
       logger.error(
         {
           view: data,
-          messageId: message.id,
+          messageId: message.messageId,
           err,
         },
         'failed to check devcard eligibility',

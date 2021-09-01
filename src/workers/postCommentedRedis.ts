@@ -17,7 +17,7 @@ const worker: Worker = {
       logger.error(
         {
           data,
-          messageId: message.id,
+          messageId: message.messageId,
           err,
         },
         'failed to send post commented event to redis',

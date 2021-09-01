@@ -29,7 +29,7 @@ const worker: Worker = {
         logger.info(
           {
             data,
-            messageId: message.id,
+            messageId: message.messageId,
           },
           'post commented author email sent',
         );
@@ -38,7 +38,7 @@ const worker: Worker = {
       logger.error(
         {
           data,
-          messageId: message.id,
+          messageId: message.messageId,
           err,
         },
         'failed to send post commented author email',

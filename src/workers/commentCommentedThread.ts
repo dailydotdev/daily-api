@@ -66,7 +66,7 @@ const worker: Worker = {
         logger.info(
           {
             data,
-            messageId: message.id,
+            messageId: message.messageId,
           },
           'thread email sent',
         );
@@ -75,7 +75,7 @@ const worker: Worker = {
       logger.error(
         {
           data,
-          messageId: message.id,
+          messageId: message.messageId,
           err,
         },
         'failed to send thread email',

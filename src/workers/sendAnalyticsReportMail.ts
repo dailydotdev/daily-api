@@ -47,7 +47,7 @@ const worker: Worker = {
         logger.info(
           {
             data,
-            messageId: message.id,
+            messageId: message.messageId,
           },
           'analytics report sent',
         );
@@ -56,7 +56,7 @@ const worker: Worker = {
       logger.error(
         {
           data,
-          messageId: message.id,
+          messageId: message.messageId,
           err,
         },
         'failed to send analytics report',

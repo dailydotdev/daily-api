@@ -137,7 +137,7 @@ export const mockMessage = (
 ): { message: Message } => {
   const message: Message = {
     data: base64(JSON.stringify(data)),
-    id: '1',
+    messageId: '1',
   };
   return { message };
 };

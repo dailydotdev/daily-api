@@ -49,7 +49,7 @@ const worker: Worker = {
       logger.info(
         {
           userId: data.userId,
-          messageId: message.id,
+          messageId: message.messageId,
           segment,
         },
         'find successfully segment for user',
@@ -58,7 +58,7 @@ const worker: Worker = {
       logger.error(
         {
           userId: data.userId,
-          messageId: message.id,
+          messageId: message.messageId,
           err,
         },
         'failed to find segment for user',

@@ -3,7 +3,7 @@ import { Logger } from 'fastify';
 import { PubSub } from '@google-cloud/pubsub';
 
 export interface Message {
-  id: string;
+  messageId: string;
   data: string;
 }
 

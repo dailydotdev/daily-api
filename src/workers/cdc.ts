@@ -215,7 +215,7 @@ const worker: Worker = {
     try {
       logger.info(
         {
-          messageId: message.id,
+          messageId: message.messageId,
         },
         'received cdc message',
       );
@@ -250,7 +250,7 @@ const worker: Worker = {
     } catch (err) {
       logger.error(
         {
-          messageId: message.id,
+          messageId: message.messageId,
           err,
         },
         'failed to handle cdc message',

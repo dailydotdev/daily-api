@@ -39,7 +39,7 @@ const worker: Worker = {
         logger.debug(
           {
             view: data,
-            messageId: message.id,
+            messageId: message.messageId,
           },
           'ignored view event',
         );
@@ -53,7 +53,7 @@ const worker: Worker = {
       logger.error(
         {
           view: data,
-          messageId: message.id,
+          messageId: message.messageId,
           err,
         },
         'failed to add view event to db',

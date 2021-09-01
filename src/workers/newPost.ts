@@ -165,7 +165,7 @@ const worker: Worker = {
       logger.info(
         {
           post: data,
-          messageId: message.id,
+          messageId: message.messageId,
         },
         'post url already exists',
       );
@@ -175,7 +175,7 @@ const worker: Worker = {
       logger.info(
         {
           post: data,
-          messageId: message.id,
+          messageId: message.messageId,
         },
         'author is banned',
       );
@@ -198,7 +198,7 @@ const worker: Worker = {
       logger.info(
         {
           post: data,
-          messageId: message.id,
+          messageId: message.messageId,
         },
         'added successfully post',
       );
@@ -206,7 +206,7 @@ const worker: Worker = {
       logger.error(
         {
           post: data,
-          messageId: message.id,
+          messageId: message.messageId,
           err,
         },
         'failed to add post to db',
