@@ -135,6 +135,7 @@ const bgService = createCloudRunService(
     dependsOn: [...iamMembers, redis, migrationJob],
     access: CloudRunAccess.PubSub,
     iamMemberName: `${name}-pubsub-invoker`,
+    concurrency: 250,
   },
 );
 
