@@ -213,12 +213,6 @@ const worker: Worker = {
   subscription: 'cdc',
   handler: async (message, con, logger): Promise<void> => {
     try {
-      logger.info(
-        {
-          messageId: message.messageId,
-        },
-        'received cdc message',
-      );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data: ChangeMessage<any> = messageToJson(message);
       if (data.schema.name === 'io.debezium.connector.common.Heartbeat') {
