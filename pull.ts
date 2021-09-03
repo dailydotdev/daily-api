@@ -15,7 +15,14 @@ import { createOrGetConnection } from './src/db';
   });
   sub.on('message', async (message) => {
     try {
-      logger.info({ msgId: message.id }, 'received message');
+      logger.info(
+        {
+          msgId: message.id,
+          orderingKey: message.orderingKey,
+          publishTime: message.publishTime,
+        },
+        'received message',
+      );
       await worker.handler(message, con, logger, pubsub);
       message.ack();
     } catch (err) {

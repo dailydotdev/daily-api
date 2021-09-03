@@ -17,6 +17,9 @@ const worker: Worker = {
       const comment = await con
         .getRepository(Comment)
         .findOne(data.commentId, { relations: ['post'] });
+      if (!comment) {
+        return;
+      }
       const post = await comment.post;
       if (post?.authorId && post?.authorId !== data.userId) {
         const [author, commenter] = await Promise.all([
