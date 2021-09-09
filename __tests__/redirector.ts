@@ -73,8 +73,6 @@ describe('GET /r/:postId', () => {
       'p1',
       'u1',
       'https://daily.dev',
-      agent,
-      expect.anything(),
       expect.anything(),
     );
   });
