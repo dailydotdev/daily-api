@@ -10,10 +10,6 @@ export const workers: Worker[] = [
     subscription: 'add-posts-v2',
   },
   {
-    topic: 'find-segment',
-    subscription: 'daily-api-v2',
-  },
-  {
     topic: 'user-registered',
     subscription: 'user-registered-api',
   },
