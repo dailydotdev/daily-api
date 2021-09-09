@@ -82,7 +82,7 @@
     "@types/jest": "^27.0.1",
     "@types/jsonwebtoken": "^8.5.5",
     "@types/lodash": "^4.14.172",
-    "@types/node": "^15.14.8",
+    "@types/node": "^16.9.0",
     "@types/node-fetch": "^2.5.12",
     "@types/rss": "0.0.28",
     "@types/sharp": "^0.28.5",
