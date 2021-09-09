@@ -2,8 +2,6 @@
 
 exports[`should not save a new view within a week since the last view 1`] = `
 View {
-  "agent": "agent",
-  "ip": "127.0.0.1",
   "postId": "p1",
   "referer": "referer",
   "timestamp": 2020-06-11T01:17:00.000Z,
@@ -13,8 +11,6 @@ View {
 
 exports[`should save a new view after a week since the last view 1`] = `
 View {
-  "agent": "agent",
-  "ip": "127.0.0.1",
   "postId": "p1",
   "referer": "referer",
   "timestamp": 2020-06-19T01:17:00.000Z,
@@ -24,8 +20,6 @@ View {
 
 exports[`should save a new view with the provided timestamp 1`] = `
 View {
-  "agent": "agent",
-  "ip": "127.0.0.1",
   "postId": "p1",
   "referer": "referer",
   "timestamp": 2020-06-11T01:17:00.000Z,
@@ -35,8 +29,6 @@ View {
 
 exports[`should save a new view without timestamp 1`] = `
 Object {
-  "agent": "agent",
-  "ip": "127.0.0.1",
   "postId": "p1",
   "referer": "referer",
   "timestamp": Any<Date>,

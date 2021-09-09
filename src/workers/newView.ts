@@ -31,7 +31,9 @@ const worker: Worker = {
       const didSave = await addView(
         con,
         con.getRepository(View).create({
-          ...data,
+          postId: data.postId,
+          userId: data.userId,
+          referer: data.referer,
           timestamp: data.timestamp && new Date(data.timestamp as string),
         }),
       );

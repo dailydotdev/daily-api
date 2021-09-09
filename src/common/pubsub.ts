@@ -172,12 +172,14 @@ export const notifyView = (
   userId: string,
   referer: string,
   timestamp: Date,
+  tags?: string[],
 ): Promise<void> =>
   publishEvent(log, viewsTopic, {
     postId,
     userId,
     referer,
     timestamp,
+    tags,
   });
 
 export const notifyPostBannedOrRemoved = async (

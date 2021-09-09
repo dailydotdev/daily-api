@@ -74,6 +74,7 @@ describe('GET /r/:postId', () => {
       'u1',
       'https://daily.dev',
       expect.anything(),
+      ['javascript', 'webdev'],
     );
   });
 
