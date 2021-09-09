@@ -8,7 +8,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/:postId', async (req, res) => {
     const con = getConnection();
     const post = await con.getRepository(Post).findOne({
-      select: ['id', 'url'],
+      select: ['id', 'url', 'tagsStr'],
       where: [{ id: req.params.postId }, { shortId: req.params.postId }],
     });
     if (!post) {
@@ -19,7 +19,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
     const userId = req.userId || req.cookies.da2;
     if (userId) {
-      notifyView(req.log, post.id, userId, req.headers['referer'], new Date());
+      notifyView(
+        req.log,
+        post.id,
+        userId,
+        req.headers['referer'],
+        new Date(),
+        post.tagsStr?.split?.(',') ?? [],
+      );
     }
     return res
       .type('text/html')
