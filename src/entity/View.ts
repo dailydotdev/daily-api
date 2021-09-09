@@ -21,12 +21,6 @@ export class View {
   @Column({ type: 'text', nullable: true })
   referer?: string;
 
-  @Column({ type: 'text', nullable: true })
-  agent?: string;
-
-  @Column({ type: 'text', nullable: true })
-  ip?: string;
-
   @PrimaryColumn({ default: () => 'now()' })
   @Index()
   timestamp: Date;
