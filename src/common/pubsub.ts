@@ -171,16 +171,12 @@ export const notifyView = (
   postId: string,
   userId: string,
   referer: string,
-  agent: string,
-  ip: string,
   timestamp: Date,
 ): Promise<void> =>
   publishEvent(log, viewsTopic, {
     postId,
     userId,
     referer,
-    agent,
-    ip,
     timestamp,
   });
 

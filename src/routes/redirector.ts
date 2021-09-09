@@ -19,15 +19,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
     const userId = req.userId || req.cookies.da2;
     if (userId) {
-      notifyView(
-        req.log,
-        post.id,
-        userId,
-        req.headers['referer'],
-        req.headers['user-agent'],
-        req.ip,
-        new Date(),
-      );
+      notifyView(req.log, post.id, userId, req.headers['referer'], new Date());
     }
     return res
       .type('text/html')
