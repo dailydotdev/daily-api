@@ -1,5 +1,4 @@
 import { Cron } from './cron';
-import segmentUsers from './segmentUsers';
 import tweetTrending from './tweetTrending';
 import updateViews from './updateViews';
 import updateFeaturedComments from './updateFeaturedComments';
@@ -12,7 +11,6 @@ import updateTagsStr from './updateTagsStr';
 import updateDiscussionScore from './updateDiscussionScore';
 
 export const crons: Cron[] = [
-  segmentUsers,
   tweetTrending,
   updateViews,
   updateFeaturedComments,
