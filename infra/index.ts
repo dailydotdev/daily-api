@@ -25,6 +25,10 @@ import { readFile } from 'fs/promises';
 const name = 'api';
 const debeziumTopicName = `${name}.changes`;
 
+const debeziumTopic = new gcp.pubsub.Topic('debezium-topic', {
+  name: debeziumTopicName,
+});
+
 const vpcConnector = new gcp.vpcaccess.Connector(`${name}-vpc-e2`, {
   name: `${name}-vpc-e2`,
   region: location,
@@ -142,7 +146,7 @@ const bgService = createCloudRunService(
 export const serviceUrl = service.statuses[0].url;
 export const bgServiceUrl = bgService.statuses[0].url;
 
-createSubscriptionsFromWorkers(name, workers, bgServiceUrl);
+createSubscriptionsFromWorkers(name, workers, bgServiceUrl, [debeziumTopic]);
 createCronJobs(name, crons, bgServiceUrl);
 
 // Subscriptions server deployment
@@ -321,8 +325,8 @@ const getDebeziumProps = async (): Promise<string> => {
 deployDebeziumToKubernetes(
   name,
   namespace,
-  debeziumTopicName,
+  debeziumTopic,
   Output.create(getDebeziumProps()),
   `${location}-f`,
-  { diskType: 'pd-ssd', diskSize: 100 },
+  { diskType: 'pd-ssd', diskSize: 100, image: 'debezium/server:1.6' },
 );

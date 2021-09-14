@@ -6,3 +6,4 @@ node_modules/
 local.sh
 prod.sh
 schema.graphql
+debezium/

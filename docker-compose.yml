@@ -19,6 +19,10 @@ services:
       - db:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
   redis:
     image: redis:5.0.10
     command: redis-server --appendonly yes
