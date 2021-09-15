@@ -20,6 +20,7 @@ const worker: Worker = {
         name: data.name,
         image: data.image,
         createdAt: data.createdAt,
+        email: data.email,
       });
       logger.info(
         {

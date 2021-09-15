@@ -351,6 +351,8 @@ describe('user', () => {
     profileConfirmed: false,
     twitter: null,
     username: 'idoshamun',
+    infoConfirmed: true,
+    acceptedMarketing: true,
   };
 
   it('should notify on new user reputation change', async () => {
