@@ -11,6 +11,10 @@ export interface GQLUser {
   name: string;
   image: string;
   username?: string;
+  bio?: string;
+  twitter?: string;
+  github?: string;
+  hashnode?: string;
 }
 
 type CommentStats = { numComments: number; numCommentUpvotes: number };
@@ -55,6 +59,22 @@ export const typeDefs = gql`
     URL to the user's profile page
     """
     permalink: String!
+    """
+    Bio of the user
+    """
+    bio: String
+    """
+    Twitter handle of the user
+    """
+    twitter: String
+    """
+    Github handle of the user
+    """
+    github: String
+    """
+    Hashnode handle of the user
+    """
+    hashnode: String
   }
 
   type UserStats {

@@ -1,29 +1,49 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`should create user if does not exist 1`] = `
-User {
+Object {
+  "acceptedMarketing": false,
+  "bio": null,
+  "company": null,
   "createdAt": 2021-08-11T00:00:00.000Z,
   "devcardEligible": false,
+  "email": null,
+  "github": "idoshamun",
+  "hashnode": null,
   "id": "abc",
   "image": "https://daily.dev/image.jpg",
+  "infoConfirmed": false,
   "name": "Ido",
+  "portfolio": null,
   "profileConfirmed": false,
   "reputation": 1,
+  "title": null,
   "twitter": "idoshamun",
+  "updatedAt": Any<Date>,
   "username": "idoshamun",
 }
 `;
 
 exports[`should update an existing user 1`] = `
-User {
+Object {
+  "acceptedMarketing": false,
+  "bio": null,
+  "company": null,
   "createdAt": 2021-08-11T00:00:00.000Z,
   "devcardEligible": false,
+  "email": null,
+  "github": "idoshamun",
+  "hashnode": null,
   "id": "abc",
   "image": "https://daily.dev/image.jpg",
+  "infoConfirmed": false,
   "name": "Ido",
+  "portfolio": null,
   "profileConfirmed": false,
   "reputation": 1,
+  "title": null,
   "twitter": "idoshamun",
+  "updatedAt": Any<Date>,
   "username": "idoshamun",
 }
 `;

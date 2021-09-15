@@ -9,31 +9,19 @@ interface UserData {
   company?: string;
   title?: string;
   infoConfirmed: boolean;
-  premium: boolean;
   username?: string;
   bio?: string;
   twitter?: string;
   github?: string;
   createdAt: Date;
-}
-
-interface ProfileData {
-  name: string;
-  email: string;
-  image: string;
-  company?: string;
-  title?: string;
-  infoConfirmed: boolean;
-  username?: string;
-  bio?: string;
-  twitter?: string;
-  github?: string;
-  createdAt: Date;
+  acceptedMarketing: boolean;
+  portfolio?: string;
+  hashnode?: string;
 }
 
 interface Data {
   user: UserData;
-  newProfile: ProfileData;
+  newProfile: UserData;
 }
 
 const worker: Worker = {
@@ -49,6 +37,16 @@ const worker: Worker = {
         twitter: data.newProfile.twitter,
         profileConfirmed: false,
         createdAt: data.user.createdAt,
+        email: data.newProfile.email,
+        company: data.newProfile.company,
+        acceptedMarketing: data.newProfile.acceptedMarketing,
+        bio: data.newProfile.bio,
+        infoConfirmed: data.newProfile.infoConfirmed,
+        portfolio: data.newProfile.portfolio,
+        github: data.newProfile.github,
+        title: data.newProfile.title,
+        hashnode: data.newProfile.hashnode,
+        updatedAt: new Date(),
       });
       logger.info(
         {

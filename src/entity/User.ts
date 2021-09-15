@@ -8,21 +8,48 @@ export class User {
   id: string;
 
   @Column({ type: 'text', nullable: true })
-  name: string | null;
+  name?: string;
 
   @Column({ type: 'text', nullable: true })
-  image: string | null;
+  email?: string;
+
+  @Column({ type: 'text', nullable: true })
+  image?: string;
+
+  @Column({ type: 'text', nullable: true })
+  company?: string;
+
+  @Column({ type: 'text', nullable: true })
+  title?: string;
+
+  @Column({ default: false })
+  infoConfirmed: boolean;
+
+  @Column({ default: false })
+  acceptedMarketing: boolean;
 
   @Column({ default: 1 })
   reputation: number;
 
   @Column({ length: 15, nullable: true })
   @Index()
-  username: string | null;
+  username?: string;
+
+  @Column({ type: 'text', nullable: true })
+  bio?: string;
 
   @Column({ length: 15, nullable: true })
   @Index()
-  twitter: string | null;
+  twitter?: string;
+
+  @Column({ length: 39, nullable: true })
+  github?: string;
+
+  @Column({ type: 'text', nullable: true })
+  portfolio?: string;
+
+  @Column({ length: 39, nullable: true })
+  hashnode?: string;
 
   @Column({ default: false })
   devcardEligible: boolean;
@@ -33,7 +60,10 @@ export class User {
 
   @Column({ nullable: true })
   @Index('IDX_user_createdAt')
-  createdAt?: Date | null;
+  createdAt?: Date;
+
+  @Column({ nullable: true })
+  updatedAt?: Date;
 
   @OneToMany(() => Post, (post) => post.author, { lazy: true })
   posts: Promise<Post[]>;

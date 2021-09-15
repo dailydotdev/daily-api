@@ -2,14 +2,24 @@
 
 exports[`should save a new user 1`] = `
 User {
+  "acceptedMarketing": false,
+  "bio": null,
+  "company": null,
   "createdAt": 2021-08-11T00:00:00.000Z,
   "devcardEligible": false,
+  "email": "ido@acme.com",
+  "github": null,
+  "hashnode": null,
   "id": "abc",
   "image": "https://daily.dev/image.jpg",
+  "infoConfirmed": false,
   "name": "Ido",
+  "portfolio": null,
   "profileConfirmed": false,
   "reputation": 1,
+  "title": null,
   "twitter": null,
+  "updatedAt": null,
   "username": null,
 }
 `;

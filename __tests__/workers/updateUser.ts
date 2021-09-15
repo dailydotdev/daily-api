@@ -42,7 +42,9 @@ it('should update an existing user', async () => {
   });
   const users = await con.getRepository(User).find();
   expect(users.length).toEqual(1);
-  expect(users[0]).toMatchSnapshot();
+  expect(users[0]).toMatchSnapshot({
+    updatedAt: expect.any(Date),
+  });
 });
 
 it('should create user if does not exist', async () => {
@@ -65,5 +67,7 @@ it('should create user if does not exist', async () => {
   });
   const users = await con.getRepository(User).find();
   expect(users.length).toEqual(1);
-  expect(users[0]).toMatchSnapshot();
+  expect(users[0]).toMatchSnapshot({
+    updatedAt: expect.any(Date),
+  });
 });
