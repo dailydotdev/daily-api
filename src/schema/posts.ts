@@ -222,6 +222,13 @@ export const typeDefs = gql`
     cursor: String!
   }
 
+  type Upvote {
+    postId: String!
+    userId: String!
+
+    user: User!
+  }
+
   """
   Enum of the possible reasons to report a post
   """
@@ -254,6 +261,16 @@ export const typeDefs = gql`
       """
       id: ID
     ): Post!
+
+    """
+    Get Post's Upvotes by post id
+    """
+    postUpvotes(
+      """
+      Id of the relevant post to return Upvotes
+      """
+      id: String!
+    ): [Upvote]!
   }
 
   extend type Mutation {
@@ -382,6 +399,15 @@ export const resolvers: IResolvers<any, Context> = {
         return res[0];
       }
       throw new NotFoundError('Post not found');
+    },
+    postUpvotes: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<Upvote[]> => {
+      const upvotes = await ctx.getRepository(Upvote).find({ postId: id });
+
+      return upvotes;
     },
   }),
   Mutation: traceResolverObject({
