@@ -2,14 +2,13 @@ import { Page, PageGenerator } from '../schema/common';
 import { ConnectionArguments } from 'graphql-relay';
 import { getCursorFromAfter } from './pagination';
 import { base64 } from './base64';
-import { IBaseUpvote } from '../entity/BaseUpvote';
 
 export interface UpvotesPage extends Page {
   timestamp?: Date;
 }
 
 export const upvotePageGenerator: PageGenerator<
- { createdAt: Date },
+  { createdAt: Date },
   ConnectionArguments,
   UpvotesPage
 > = {
