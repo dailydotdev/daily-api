@@ -2,6 +2,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
 import { ForbiddenError, gql, IResolvers } from 'apollo-server-fastify';
 import { Context } from '../Context';
+import { upvotePageGenerator } from '../common/upvoteGenerator';
 import { traceResolverObject } from './trace';
 import { getDiscussionLink } from '../common';
 import { Comment, CommentUpvote, Post } from '../entity';
@@ -13,6 +14,7 @@ import { commentsPageGenerator } from '../common/commentsFeedGenerator';
 import graphorm from '../graphorm';
 import { GQLPost } from './posts';
 import { Roles } from '../roles';
+import { IBaseUpvote } from '../entity/BaseUpvote';
 
 export interface GQLComment {
   id: string;
@@ -34,6 +36,10 @@ interface GQLPostCommentArgs {
 interface GQLCommentCommentArgs {
   commentId: string;
   content: string;
+}
+
+export interface GQLCommentUpvote extends IBaseUpvote {
+  comment: GQLComment;
 }
 
 export const typeDefs = gql`
@@ -104,10 +110,24 @@ export const typeDefs = gql`
   }
 
   type CommentUpvote {
-    commentId: String!
-    userId: String!
+    createdAt: DateTime!
 
     user: User!
+    comment: Comment!
+  }
+
+  type CommentUpvoteEdge {
+    node: CommentUpvote!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type CommentUpvoteConnection {
+    pageInfo: PageInfo!
+    edges: [CommentUpvoteEdge!]!
   }
 
   extend type Query {
@@ -139,7 +159,16 @@ export const typeDefs = gql`
       Id of the relevant comment to return Upvotes
       """
       id: String!
-    ): [CommentUpvote]!
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): CommentUpvoteConnection!
 
     """
     Get the comments of a user
@@ -241,6 +270,10 @@ export interface GQLPostCommentsArgs extends ConnectionArguments {
   postId: string;
 }
 
+export interface GQLCommentUpvoteArgs extends ConnectionArguments {
+  id: string;
+}
+
 export interface GQLUserCommentsArgs extends ConnectionArguments {
   userId: string;
 }
@@ -328,14 +361,35 @@ export const resolvers: IResolvers<any, Context> = {
     },
     commentUpvotes: async (
       _,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<CommentUpvote[]> => {
-      const upvotes = await ctx
-        .getRepository(CommentUpvote)
-        .find({ commentId: id });
+      args: GQLCommentUpvoteArgs,
+      ctx,
+      info,
+    ): Promise<Connection<GQLCommentUpvote>> => {
+      const page = upvotePageGenerator.connArgsToPage(args);
 
-      return upvotes;
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => upvotePageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => upvotePageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          upvotePageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}.commentId = :commentId`, {
+              commentId: args.id,
+            })
+            .orderBy(`${builder.alias}."createdAt"`, 'DESC')
+            .limit(page.limit);
+          if (page.timestamp) {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}."createdAt" < :timestamp`,
+              { timestamp: page.timestamp },
+            );
+          }
+          return builder;
+        },
+      );
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

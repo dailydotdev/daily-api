@@ -1,8 +1,13 @@
+import {
+  Connection as ConnectionRelay,
+  ConnectionArguments,
+} from 'graphql-relay';
 import { gql, IResolvers, ValidationError } from 'apollo-server-fastify';
 import { Connection, DeepPartial } from 'typeorm';
 import { GraphQLResolveInfo } from 'graphql';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
+import { upvotePageGenerator } from '../common/upvoteGenerator';
 import { traceResolverObject } from './trace';
 import { defaultImage, getDiscussionLink, pickImageUrl } from '../common';
 import { HiddenPost, Post, Toc, Upvote } from '../entity';
@@ -14,6 +19,7 @@ import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
 import { PostReport } from '../entity/PostReport';
+import { IBaseUpvote } from '../entity/BaseUpvote';
 
 export interface GQLPost {
   id: string;
@@ -44,6 +50,14 @@ export interface GQLPost {
   discussionScore?: number;
   description?: string;
   toc?: Toc;
+}
+
+export interface GQLPostUpvote extends IBaseUpvote {
+  post: GQLPost;
+}
+
+export interface GQLPostUpvoteArgs extends ConnectionArguments {
+  id: string;
 }
 
 export const typeDefs = gql`
@@ -222,11 +236,29 @@ export const typeDefs = gql`
     cursor: String!
   }
 
-  type PostUpvote {
-    postId: String!
-    userId: String!
+  type Upvote {
+    createdAt: DateTime!
 
     user: User!
+    post: Post!
+  }
+
+  type UpvoteEdge {
+    node: Upvote!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type UpvoteConnection {
+    pageInfo: PageInfo!
+    edges: [UpvoteEdge!]!
+    """
+    The original query in case of a search operation
+    """
+    query: String
   }
 
   """
@@ -270,7 +302,17 @@ export const typeDefs = gql`
       Id of the relevant post to return Upvotes
       """
       id: String!
-    ): [PostUpvote]!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): UpvoteConnection!
   }
 
   extend type Mutation {
@@ -402,12 +444,35 @@ export const resolvers: IResolvers<any, Context> = {
     },
     postUpvotes: async (
       _,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<Upvote[]> => {
-      const upvotes = await ctx.getRepository(Upvote).find({ postId: id });
+      args: GQLPostUpvoteArgs,
+      ctx,
+      info,
+    ): Promise<ConnectionRelay<GQLPostUpvote>> => {
+      const page = upvotePageGenerator.connArgsToPage(args);
 
-      return upvotes;
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => upvotePageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => upvotePageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          upvotePageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}.postId = :postId`, {
+              postId: args.id,
+            })
+            .orderBy(`${builder.alias}."createdAt"`, 'DESC')
+            .limit(page.limit);
+          if (page.timestamp) {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}."createdAt" < :timestamp`,
+              { timestamp: page.timestamp },
+            );
+          }
+          return builder;
+        },
+      );
     },
   }),
   Mutation: traceResolverObject({
