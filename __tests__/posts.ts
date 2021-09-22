@@ -508,6 +508,35 @@ describe('query post', () => {
   });
 });
 
+describe('query postUpvotes', () => {
+  const QUERY = `
+  query postUpvotes($id: String!) {
+    postUpvotes(id: $id) {
+      pageInfo { endCursor, hasNextPage }
+      edges {
+        node {
+          user {
+            name
+            username
+            bio
+            image
+          }
+        }
+      }
+    }
+  }
+  `;
+
+  it('should return an array of users that upvoted the post by id', async () => {
+    const res = await client.query({
+      query: QUERY,
+      variables: { id: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('mutation hidePost', () => {
   const MUTATION = `
   mutation HidePost($id: ID!) {

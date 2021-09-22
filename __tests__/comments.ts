@@ -172,6 +172,35 @@ describe('query userComments', () => {
   });
 });
 
+describe('query commentUpvotes', () => {
+  const QUERY = `
+  query commentUpvotes($id: String!) {
+    commentUpvotes(id: $id) {
+      pageInfo { endCursor, hasNextPage }
+      edges {
+        node {
+          user {
+            name
+            username
+            bio
+            image
+          }
+        }
+      }
+    }
+  }
+  `;
+
+  it('should return an array of users that upvoted the comment by id', async () => {
+    const res = await client.query({
+      query: QUERY,
+      variables: { id: 'c1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('mutation commentOnPost', () => {
   const MUTATION = `
   mutation CommentOnPost($postId: ID!, $content: String!) {

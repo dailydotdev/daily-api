@@ -36,6 +36,18 @@ Array [
 ]
 `;
 
+exports[`query commentUpvotes should return an array of users that upvoted the comment by id 1`] = `
+Object {
+  "commentUpvotes": Object {
+    "edges": Array [],
+    "pageInfo": Object {
+      "endCursor": null,
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
 exports[`query postComments should fetch comments and sub-comments of a post 1`] = `
 Object {
   "postComments": Object {

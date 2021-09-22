@@ -163,6 +163,18 @@ Object {
 }
 `;
 
+exports[`query postUpvotes should return an array of users that upvoted the post by id 1`] = `
+Object {
+  "postUpvotes": Object {
+    "edges": Array [],
+    "pageInfo": Object {
+      "endCursor": null,
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
 exports[`source field should return the public representation 1`] = `
 Object {
   "post": Object {
