@@ -19,7 +19,6 @@ import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
 import { PostReport } from '../entity/PostReport';
-import { IBaseUpvote } from '../entity/BaseUpvote';
 
 export interface GQLPost {
   id: string;
@@ -52,7 +51,8 @@ export interface GQLPost {
   toc?: Toc;
 }
 
-export interface GQLPostUpvote extends IBaseUpvote {
+export interface GQLPostUpvote {
+  createdAt: Date;
   post: GQLPost;
 }
 

@@ -14,7 +14,6 @@ import { commentsPageGenerator } from '../common/commentsFeedGenerator';
 import graphorm from '../graphorm';
 import { GQLPost } from './posts';
 import { Roles } from '../roles';
-import { IBaseUpvote } from '../entity/BaseUpvote';
 
 export interface GQLComment {
   id: string;
@@ -38,7 +37,8 @@ interface GQLCommentCommentArgs {
   content: string;
 }
 
-export interface GQLCommentUpvote extends IBaseUpvote {
+export interface GQLCommentUpvote {
+  createdAt: Date;
   comment: GQLComment;
 }
 
