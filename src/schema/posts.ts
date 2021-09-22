@@ -222,7 +222,7 @@ export const typeDefs = gql`
     cursor: String!
   }
 
-  type Upvote {
+  type PostUpvote {
     postId: String!
     userId: String!
 
@@ -270,7 +270,7 @@ export const typeDefs = gql`
       Id of the relevant post to return Upvotes
       """
       id: String!
-    ): [Upvote]!
+    ): [PostUpvote]!
   }
 
   extend type Mutation {
