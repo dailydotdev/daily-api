@@ -103,6 +103,13 @@ export const typeDefs = gql`
     edges: [CommentEdge!]!
   }
 
+  type CommentUpvote {
+    commentId: String!
+    userId: String!
+
+    user: User!
+  }
+
   extend type Query {
     """
     Get the comments of a post
@@ -123,6 +130,16 @@ export const typeDefs = gql`
       """
       first: Int
     ): CommentConnection!
+
+    """
+    Get Comment's Upvotes by post id
+    """
+    commentUpvotes(
+      """
+      Id of the relevant comment to return Upvotes
+      """
+      id: String!
+    ): [CommentUpvote]!
 
     """
     Get the comments of a user
@@ -308,6 +325,17 @@ export const resolvers: IResolvers<any, Context> = {
           return builder;
         },
       );
+    },
+    commentUpvotes: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<CommentUpvote[]> => {
+      const upvotes = await ctx
+        .getRepository(CommentUpvote)
+        .find({ commentId: id });
+
+      return upvotes;
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
