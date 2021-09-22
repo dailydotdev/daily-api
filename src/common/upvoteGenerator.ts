@@ -9,7 +9,7 @@ export interface UpvotesPage extends Page {
 }
 
 export const upvotePageGenerator: PageGenerator<
-  IBaseUpvote,
+ { createdAt: Date },
   ConnectionArguments,
   UpvotesPage
 > = {
