@@ -23,6 +23,12 @@ const obj = new GraphORM({
   User: {
     requiredColumns: ['id', 'username'],
   },
+  CommentUpvote: {
+    requiredColumns: ['createdAt'],
+  },
+  Upvote: {
+    requiredColumns: ['createdAt'],
+  },
   Post: {
     requiredColumns: ['id', 'shortId', 'createdAt', 'authorId'],
     fields: {

@@ -2,6 +2,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
 import { ForbiddenError, gql, IResolvers } from 'apollo-server-fastify';
 import { Context } from '../Context';
+import { upvotePageGenerator } from '../common/upvoteGenerator';
 import { traceResolverObject } from './trace';
 import { getDiscussionLink } from '../common';
 import { Comment, CommentUpvote, Post } from '../entity';
@@ -34,6 +35,11 @@ interface GQLPostCommentArgs {
 interface GQLCommentCommentArgs {
   commentId: string;
   content: string;
+}
+
+export interface GQLCommentUpvote {
+  createdAt: Date;
+  comment: GQLComment;
 }
 
 export const typeDefs = gql`
@@ -103,6 +109,27 @@ export const typeDefs = gql`
     edges: [CommentEdge!]!
   }
 
+  type CommentUpvote {
+    createdAt: DateTime!
+
+    user: User!
+    comment: Comment!
+  }
+
+  type CommentUpvoteEdge {
+    node: CommentUpvote!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type CommentUpvoteConnection {
+    pageInfo: PageInfo!
+    edges: [CommentUpvoteEdge!]!
+  }
+
   extend type Query {
     """
     Get the comments of a post
@@ -123,6 +150,25 @@ export const typeDefs = gql`
       """
       first: Int
     ): CommentConnection!
+
+    """
+    Get Comment's Upvotes by post id
+    """
+    commentUpvotes(
+      """
+      Id of the relevant comment to return Upvotes
+      """
+      id: String!
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): CommentUpvoteConnection!
 
     """
     Get the comments of a user
@@ -224,6 +270,10 @@ export interface GQLPostCommentsArgs extends ConnectionArguments {
   postId: string;
 }
 
+export interface GQLCommentUpvoteArgs extends ConnectionArguments {
+  id: string;
+}
+
 export interface GQLUserCommentsArgs extends ConnectionArguments {
   userId: string;
 }
@@ -296,6 +346,38 @@ export const resolvers: IResolvers<any, Context> = {
           builder.queryBuilder = builder.queryBuilder
             .andWhere(`${builder.alias}."userId" = :userId`, {
               userId: args.userId,
+            })
+            .orderBy(`${builder.alias}."createdAt"`, 'DESC')
+            .limit(page.limit);
+          if (page.timestamp) {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}."createdAt" < :timestamp`,
+              { timestamp: page.timestamp },
+            );
+          }
+          return builder;
+        },
+      );
+    },
+    commentUpvotes: async (
+      _,
+      args: GQLCommentUpvoteArgs,
+      ctx,
+      info,
+    ): Promise<Connection<GQLCommentUpvote>> => {
+      const page = upvotePageGenerator.connArgsToPage(args);
+
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => upvotePageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => upvotePageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          upvotePageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}.commentId = :commentId`, {
+              commentId: args.id,
             })
             .orderBy(`${builder.alias}."createdAt"`, 'DESC')
             .limit(page.limit);

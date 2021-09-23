@@ -163,6 +163,37 @@ Object {
 }
 `;
 
+exports[`query postUpvotes should return users that upvoted the post by id in descending order 1`] = `
+Object {
+  "postUpvotes": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "createdAt": "2021-09-22T07:15:51.247Z",
+          "user": Object {
+            "bio": null,
+            "image": "https://daily.dev/lee.jpg",
+            "name": "Lee",
+            "username": null,
+          },
+        },
+      },
+      Object {
+        "node": Object {
+          "createdAt": "2020-09-22T07:15:51.247Z",
+          "user": Object {
+            "bio": null,
+            "image": "https://daily.dev/ido.jpg",
+            "name": "Ido",
+            "username": null,
+          },
+        },
+      },
+    ],
+  },
+}
+`;
+
 exports[`source field should return the public representation 1`] = `
 Object {
   "post": Object {
