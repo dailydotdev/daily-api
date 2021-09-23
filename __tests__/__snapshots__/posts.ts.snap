@@ -163,29 +163,6 @@ Object {
 }
 `;
 
-exports[`query postUpvotes should return an array of users that upvoted the post by id 1`] = `
-Object {
-  "postUpvotes": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "user": Object {
-            "bio": null,
-            "image": "https://daily.dev/ido.jpg",
-            "name": "Ido",
-            "username": null,
-          },
-        },
-      },
-    ],
-    "pageInfo": Object {
-      "endCursor": "dGltZToxNjMxNTAxNTgyMDg2",
-      "hasNextPage": false,
-    },
-  },
-}
-`;
-
 exports[`query postUpvotes should return users that upvoted the post by id 1`] = `
 Object {
   "postUpvotes": Object {
@@ -202,7 +179,7 @@ Object {
       },
     ],
     "pageInfo": Object {
-      "endCursor": "dGltZToxNjMxNTAyMzA4NjU0",
+      "endCursor": "dGltZToxNjMxNTAyNzg2ODQ0",
       "hasNextPage": false,
     },
   },
