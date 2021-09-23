@@ -176,7 +176,6 @@ describe('query commentUpvotes', () => {
   const QUERY = `
   query commentUpvotes($id: String!) {
     commentUpvotes(id: $id) {
-      pageInfo { endCursor, hasNextPage }
       edges {
         node {
           user {

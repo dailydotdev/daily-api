@@ -512,7 +512,6 @@ describe('query postUpvotes', () => {
   const QUERY = `
   query postUpvotes($id: String!) {
     postUpvotes(id: $id) {
-      pageInfo { endCursor, hasNextPage }
       edges {
         node {
           user {

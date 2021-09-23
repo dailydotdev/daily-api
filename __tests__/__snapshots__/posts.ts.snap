@@ -178,10 +178,6 @@ Object {
         },
       },
     ],
-    "pageInfo": Object {
-      "endCursor": "dGltZToxNjMxNTAyNzg2ODQ0",
-      "hasNextPage": false,
-    },
   },
 }
 `;
