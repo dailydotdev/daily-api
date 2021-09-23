@@ -169,6 +169,18 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
+          "createdAt": "2021-09-23T07:12:07.882Z",
+          "user": Object {
+            "bio": null,
+            "image": "https://daily.dev/lee.jpg",
+            "name": "Lee",
+            "username": null,
+          },
+        },
+      },
+      Object {
+        "node": Object {
+          "createdAt": "2021-09-23T07:12:07.879Z",
           "user": Object {
             "bio": null,
             "image": "https://daily.dev/ido.jpg",

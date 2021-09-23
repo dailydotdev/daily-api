@@ -178,6 +178,7 @@ describe('query commentUpvotes', () => {
     commentUpvotes(id: $id) {
       edges {
         node {
+          createdAt
           user {
             name
             username
@@ -190,20 +191,33 @@ describe('query commentUpvotes', () => {
   }
   `;
 
-  it('should return users that upvoted the comment by id', async () => {
-    const commentRepo = con.getRepository(Comment);
+  it('should return users that upvoted the comment by id in descending order', async () => {
     const commentUpvoteRepo = con.getRepository(CommentUpvote);
     const now = new Date();
-    const createdAt = new Date(now.getTime() - 1000 * 60 * 60 * 24 * 10);
-    await commentRepo.update({ id: 'c1' }, { upvotes: 1 });
-    await commentUpvoteRepo.save({ userId: '1', commentId: 'c1', createdAt });
+    const createdAtFirst = new Date(now.getTime() - 1000 * 60 * 60 * 24 * 10);
+    const createdAtSecond = new Date(now.getTime() - 999 * 60 * 60 * 24 * 10);
+    await commentUpvoteRepo.save({
+      userId: '1',
+      commentId: 'c1',
+      createdAt: createdAtFirst,
+    });
+    await commentUpvoteRepo.save({
+      userId: '2',
+      commentId: 'c1',
+      createdAt: createdAtSecond,
+    });
 
     const res = await client.query({
       query: QUERY,
       variables: { id: 'c1' },
     });
+
+    const [secondUpvote, firstUpvote] = res.data.commentUpvotes.edges;
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+    expect(new Date(secondUpvote.node.createdAt).getTime()).toBeGreaterThan(
+      new Date(firstUpvote.node.createdAt).getTime(),
+    );
   });
 });
 

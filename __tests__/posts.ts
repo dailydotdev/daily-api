@@ -514,6 +514,7 @@ describe('query postUpvotes', () => {
     postUpvotes(id: $id) {
       edges {
         node {
+          createdAt
           user {
             name
             username
@@ -526,20 +527,31 @@ describe('query postUpvotes', () => {
   }
   `;
 
-  it('should return users that upvoted the post by id', async () => {
-    const postRepo = con.getRepository(Post);
+  it('should return users that upvoted the post by id in descending order', async () => {
+    const userRepo = con.getRepository(User);
     const upvoteRepo = con.getRepository(Upvote);
     const now = new Date();
-    const createdAt = new Date(now.getTime() - 1000 * 60 * 60 * 24 * 10);
-    await postRepo.update({ id: 'p1' }, { upvotes: 1 });
-    await upvoteRepo.save({ userId: '1', postId: 'p1', createdAt });
+    const createdAtFirst = new Date(now.getTime() - 1000 * 60 * 60 * 24 * 10);
+    const createdAtSecond = new Date(now.getTime() - 999 * 60 * 60 * 24 * 10);
+    await userRepo.save({
+      id: '2',
+      name: 'Lee',
+      image: 'https://daily.dev/lee.jpg',
+    });
+    await upvoteRepo.save({ userId: '1', postId: 'p1', createdAtFirst });
+    await upvoteRepo.save({ userId: '2', postId: 'p1', createdAtSecond });
 
     const res = await client.query({
       query: QUERY,
       variables: { id: 'p1' },
     });
+
+    const [secondUpvote, firstUpvote] = res.data.postUpvotes.edges;
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+    expect(new Date(secondUpvote.node.createdAt).getTime()).toBeGreaterThan(
+      new Date(firstUpvote.node.createdAt).getTime(),
+    );
   });
 });
 
