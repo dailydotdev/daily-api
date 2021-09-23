@@ -192,6 +192,13 @@ describe('query commentUpvotes', () => {
   `;
 
   it('should return an array of users that upvoted the comment by id', async () => {
+    const commentRepo = con.getRepository(Comment);
+    const commentUpvoteRepo = con.getRepository(CommentUpvote);
+    const now = new Date();
+    const createdAt = new Date(now.getTime() - 1000 * 60 * 60 * 24 * 10);
+    await commentRepo.update({ id: 'c1' }, { upvotes: 1 });
+    await commentUpvoteRepo.save({ userId: '1', commentId: 'c1', createdAt });
+
     const res = await client.query({
       query: QUERY,
       variables: { id: 'c1' },

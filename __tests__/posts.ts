@@ -528,6 +528,13 @@ describe('query postUpvotes', () => {
   `;
 
   it('should return an array of users that upvoted the post by id', async () => {
+    const postRepo = con.getRepository(Post);
+    const upvoteRepo = con.getRepository(Upvote);
+    const now = new Date();
+    const createdAt = new Date(now.getTime() - 1000 * 60 * 60 * 24 * 10);
+    await postRepo.update({ id: 'p1' }, { upvotes: 1 });
+    await upvoteRepo.save({ userId: '1', postId: 'p1', createdAt });
+
     const res = await client.query({
       query: QUERY,
       variables: { id: 'p1' },

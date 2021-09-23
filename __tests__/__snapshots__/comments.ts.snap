@@ -39,9 +39,20 @@ Array [
 exports[`query commentUpvotes should return an array of users that upvoted the comment by id 1`] = `
 Object {
   "commentUpvotes": Object {
-    "edges": Array [],
+    "edges": Array [
+      Object {
+        "node": Object {
+          "user": Object {
+            "bio": null,
+            "image": "https://daily.dev/ido.jpg",
+            "name": "Ido",
+            "username": null,
+          },
+        },
+      },
+    ],
     "pageInfo": Object {
-      "endCursor": null,
+      "endCursor": "dGltZToxNjMxNTAxNTc1NTEz",
       "hasNextPage": false,
     },
   },
