@@ -186,6 +186,29 @@ Object {
 }
 `;
 
+exports[`query postUpvotes should return users that upvoted the post by id 1`] = `
+Object {
+  "postUpvotes": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "user": Object {
+            "bio": null,
+            "image": "https://daily.dev/ido.jpg",
+            "name": "Ido",
+            "username": null,
+          },
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjMxNTAyMzA4NjU0",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
 exports[`source field should return the public representation 1`] = `
 Object {
   "post": Object {

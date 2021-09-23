@@ -527,7 +527,7 @@ describe('query postUpvotes', () => {
   }
   `;
 
-  it('should return an array of users that upvoted the post by id', async () => {
+  it('should return users that upvoted the post by id', async () => {
     const postRepo = con.getRepository(Post);
     const upvoteRepo = con.getRepository(Upvote);
     const now = new Date();
