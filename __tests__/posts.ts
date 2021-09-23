@@ -530,16 +530,13 @@ describe('query postUpvotes', () => {
   it('should return users that upvoted the post by id in descending order', async () => {
     const userRepo = con.getRepository(User);
     const upvoteRepo = con.getRepository(Upvote);
-    const now = new Date();
-    const createdAtFirst = new Date(now.getTime() - 1000 * 60 * 60 * 24 * 10);
-    const createdAtSecond = new Date(now.getTime() - 999 * 60 * 60 * 24 * 10);
     await userRepo.save({
       id: '2',
       name: 'Lee',
       image: 'https://daily.dev/lee.jpg',
     });
-    await upvoteRepo.save({ userId: '1', postId: 'p1', createdAtFirst });
-    await upvoteRepo.save({ userId: '2', postId: 'p1', createdAtSecond });
+    await upvoteRepo.save({ userId: '1', postId: 'p1' });
+    await upvoteRepo.save({ userId: '2', postId: 'p1' });
 
     const res = await client.query({
       query: QUERY,

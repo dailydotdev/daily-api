@@ -193,18 +193,13 @@ describe('query commentUpvotes', () => {
 
   it('should return users that upvoted the comment by id in descending order', async () => {
     const commentUpvoteRepo = con.getRepository(CommentUpvote);
-    const now = new Date();
-    const createdAtFirst = new Date(now.getTime() - 1000 * 60 * 60 * 24 * 10);
-    const createdAtSecond = new Date(now.getTime() - 999 * 60 * 60 * 24 * 10);
     await commentUpvoteRepo.save({
       userId: '1',
       commentId: 'c1',
-      createdAt: createdAtFirst,
     });
     await commentUpvoteRepo.save({
       userId: '2',
       commentId: 'c1',
-      createdAt: createdAtSecond,
     });
 
     const res = await client.query({

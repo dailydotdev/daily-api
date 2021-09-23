@@ -169,7 +169,7 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
-          "createdAt": "2021-09-23T07:15:51.247Z",
+          "createdAt": "2021-09-23T07:42:32.819Z",
           "user": Object {
             "bio": null,
             "image": "https://daily.dev/lee.jpg",
@@ -180,7 +180,7 @@ Object {
       },
       Object {
         "node": Object {
-          "createdAt": "2021-09-23T07:15:51.244Z",
+          "createdAt": "2021-09-23T07:42:32.815Z",
           "user": Object {
             "bio": null,
             "image": "https://daily.dev/ido.jpg",
