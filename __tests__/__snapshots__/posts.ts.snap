@@ -163,13 +163,13 @@ Object {
 }
 `;
 
-exports[`query postUpvotes should return users that upvoted the post by id 1`] = `
+exports[`query postUpvotes should return users that upvoted the post by id in descending order 1`] = `
 Object {
   "postUpvotes": Object {
     "edges": Array [
       Object {
         "node": Object {
-          "createdAt": "2021-09-23T07:12:07.882Z",
+          "createdAt": "2021-09-23T07:15:51.247Z",
           "user": Object {
             "bio": null,
             "image": "https://daily.dev/lee.jpg",
@@ -180,7 +180,7 @@ Object {
       },
       Object {
         "node": Object {
-          "createdAt": "2021-09-23T07:12:07.879Z",
+          "createdAt": "2021-09-23T07:15:51.244Z",
           "user": Object {
             "bio": null,
             "image": "https://daily.dev/ido.jpg",

@@ -36,13 +36,13 @@ Array [
 ]
 `;
 
-exports[`query commentUpvotes should return users that upvoted the comment by id 1`] = `
+exports[`query commentUpvotes should return users that upvoted the comment by id in descending order 1`] = `
 Object {
   "commentUpvotes": Object {
     "edges": Array [
       Object {
         "node": Object {
-          "createdAt": "2021-09-13T07:26:41.002Z",
+          "createdAt": "2021-09-13T07:30:22.772Z",
           "user": Object {
             "bio": null,
             "image": "https://daily.dev/tsahi.jpg",
@@ -53,7 +53,7 @@ Object {
       },
       Object {
         "node": Object {
-          "createdAt": "2021-09-13T07:12:17.002Z",
+          "createdAt": "2021-09-13T07:15:58.772Z",
           "user": Object {
             "bio": null,
             "image": "https://daily.dev/ido.jpg",
