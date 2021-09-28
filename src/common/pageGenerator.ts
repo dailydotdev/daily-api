@@ -20,7 +20,7 @@ export interface PageGeneratorEntity {
 }
 
 const DEFAULT_PAGE_SIZE = 300;
-const DEFAULT_MAX_SIZE = 300;
+const DEFAULT_MAX_SIZE = 100;
 
 export function createPageGenerator({
   maxSize = DEFAULT_MAX_SIZE,
