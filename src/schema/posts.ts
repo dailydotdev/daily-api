@@ -1,3 +1,4 @@
+import { GQLPageGenerator } from './../common/pageGenerator';
 import {
   Connection as ConnectionRelay,
   ConnectionArguments,
@@ -7,7 +8,6 @@ import { Connection, DeepPartial } from 'typeorm';
 import { GraphQLResolveInfo } from 'graphql';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
-import { upvotePageGenerator } from '../common/upvoteGenerator';
 import { traceResolverObject } from './trace';
 import { defaultImage, getDiscussionLink, pickImageUrl } from '../common';
 import { HiddenPost, Post, Toc, Upvote } from '../entity';
@@ -448,31 +448,17 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<ConnectionRelay<GQLPostUpvote>> => {
-      const page = upvotePageGenerator.connArgsToPage(args);
+      const pageGenerator = new GQLPageGenerator<GQLPostUpvote>();
 
-      return graphorm.queryPaginated(
-        ctx,
-        info,
-        (nodeSize) => upvotePageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) => upvotePageGenerator.hasNextPage(page, nodeSize),
-        (node, index) =>
-          upvotePageGenerator.nodeToCursor(page, args, node, index),
-        (builder) => {
-          builder.queryBuilder = builder.queryBuilder
-            .andWhere(`${builder.alias}.postId = :postId`, {
-              postId: args.id,
-            })
-            .orderBy(`${builder.alias}."createdAt"`, 'DESC')
-            .limit(page.limit);
-          if (page.timestamp) {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
-              `${builder.alias}."createdAt" < :timestamp`,
-              { timestamp: page.timestamp },
-            );
-          }
-          return builder;
-        },
-      );
+      return pageGenerator.queryPaginated(ctx, info, args, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`${builder.alias}.postId = :postId`, {
+            postId: args.id,
+          })
+          .orderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+        return builder;
+      });
     },
   }),
   Mutation: traceResolverObject({

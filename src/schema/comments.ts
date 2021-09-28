@@ -1,8 +1,8 @@
+import { GQLPageGenerator } from './../common/pageGenerator';
 import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
 import { ForbiddenError, gql, IResolvers } from 'apollo-server-fastify';
 import { Context } from '../Context';
-import { upvotePageGenerator } from '../common/upvoteGenerator';
 import { traceResolverObject } from './trace';
 import { getDiscussionLink } from '../common';
 import { Comment, CommentUpvote, Post } from '../entity';
@@ -10,7 +10,6 @@ import { NotFoundError } from '../errors';
 import { GQLEmptyResponse } from './common';
 import { GQLUser } from './users';
 import { Connection, ConnectionArguments } from 'graphql-relay';
-import { commentsPageGenerator } from '../common/commentsFeedGenerator';
 import graphorm from '../graphorm';
 import { GQLPost } from './posts';
 import { Roles } from '../roles';
@@ -297,67 +296,41 @@ export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Query: traceResolverObject<any, any>({
     postComments: async (
-      source,
+      _,
       args: GQLPostCommentsArgs,
       ctx,
       info,
     ): Promise<Connection<GQLComment>> => {
-      const page = commentsPageGenerator.connArgsToPage(args);
-      return graphorm.queryPaginated(
-        ctx,
-        info,
-        (nodeSize) => commentsPageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) => commentsPageGenerator.hasNextPage(page, nodeSize),
-        (node, index) =>
-          commentsPageGenerator.nodeToCursor(page, args, node, index),
-        (builder) => {
-          builder.queryBuilder = builder.queryBuilder
-            .andWhere(`${builder.alias}.postId = :postId`, {
-              postId: args.postId,
-            })
-            .andWhere(`${builder.alias}.parentId is null`)
-            .orderBy(`${builder.alias}."createdAt"`)
-            .limit(page.limit);
-          if (page.timestamp) {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
-              `${builder.alias}."createdAt" > :timestamp`,
-              { timestamp: page.timestamp },
-            );
-          }
-          return builder;
-        },
-      );
+      const pageGenerator = new GQLPageGenerator<GQLComment>();
+
+      return pageGenerator.queryPaginated(ctx, info, args, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`${builder.alias}.postId = :postId`, {
+            postId: args.postId,
+          })
+          .andWhere(`${builder.alias}.parentId is null`)
+          .orderBy(`${builder.alias}."createdAt"`);
+
+        return builder;
+      });
     },
     userComments: async (
-      source,
+      _,
       args: GQLUserCommentsArgs,
       ctx,
       info,
     ): Promise<Connection<GQLComment>> => {
-      const page = commentsPageGenerator.connArgsToPage(args);
-      return graphorm.queryPaginated(
-        ctx,
-        info,
-        (nodeSize) => commentsPageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) => commentsPageGenerator.hasNextPage(page, nodeSize),
-        (node, index) =>
-          commentsPageGenerator.nodeToCursor(page, args, node, index),
-        (builder) => {
-          builder.queryBuilder = builder.queryBuilder
-            .andWhere(`${builder.alias}."userId" = :userId`, {
-              userId: args.userId,
-            })
-            .orderBy(`${builder.alias}."createdAt"`, 'DESC')
-            .limit(page.limit);
-          if (page.timestamp) {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
-              `${builder.alias}."createdAt" < :timestamp`,
-              { timestamp: page.timestamp },
-            );
-          }
-          return builder;
-        },
-      );
+      const pageGenerator = new GQLPageGenerator<GQLComment>();
+
+      return pageGenerator.queryPaginated(ctx, info, args, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`${builder.alias}."userId" = :userId`, {
+            userId: args.userId,
+          })
+          .orderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+        return builder;
+      });
     },
     commentUpvotes: async (
       _,
@@ -365,31 +338,17 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLCommentUpvote>> => {
-      const page = upvotePageGenerator.connArgsToPage(args);
+      const pageGenerator = new GQLPageGenerator<GQLCommentUpvote>();
 
-      return graphorm.queryPaginated(
-        ctx,
-        info,
-        (nodeSize) => upvotePageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) => upvotePageGenerator.hasNextPage(page, nodeSize),
-        (node, index) =>
-          upvotePageGenerator.nodeToCursor(page, args, node, index),
-        (builder) => {
-          builder.queryBuilder = builder.queryBuilder
-            .andWhere(`${builder.alias}.commentId = :commentId`, {
-              commentId: args.id,
-            })
-            .orderBy(`${builder.alias}."createdAt"`, 'DESC')
-            .limit(page.limit);
-          if (page.timestamp) {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
-              `${builder.alias}."createdAt" < :timestamp`,
-              { timestamp: page.timestamp },
-            );
-          }
-          return builder;
-        },
-      );
+      return pageGenerator.queryPaginated(ctx, info, args, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`${builder.alias}.commentId = :commentId`, {
+            commentId: args.id,
+          })
+          .orderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+        return builder;
+      });
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
