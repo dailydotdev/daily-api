@@ -50,6 +50,11 @@ export type GQLDatePageGeneratorType = PageGenerator<
   GQLPage
 >;
 
+export interface QueryOptions {
+  queryBuilder?: (builder: GraphORMBuilder) => GraphORMBuilder;
+  orderByCreatedAt?: 'ASC' | 'DESC';
+}
+
 export class GQLDatePageGenerator {
   #pageGenerator: GQLDatePageGeneratorType;
 
@@ -72,7 +77,7 @@ export class GQLDatePageGenerator {
     ctx: Context,
     info: GraphQLResolveInfo,
     args: TArgs,
-    query?: (builder: GraphORMBuilder) => GraphORMBuilder,
+    { queryBuilder, orderByCreatedAt = 'ASC' }: QueryOptions = {},
   ): Promise<Connection<TEntity>> {
     const page = this.#pageGenerator.connArgsToPage(args);
 
@@ -84,13 +89,19 @@ export class GQLDatePageGenerator {
       (node, index) =>
         this.#pageGenerator.nodeToCursor(page, args, node, index),
       (defaultBuilder) => {
-        const builder = (query && query(defaultBuilder)) || defaultBuilder;
+        const builder =
+          (queryBuilder && queryBuilder(defaultBuilder)) || defaultBuilder;
+        const orderCondition = orderByCreatedAt === 'DESC' ? '<' : '>';
 
+        builder.queryBuilder.addOrderBy(
+          `${builder.alias}."createdAt"`,
+          orderByCreatedAt,
+        );
         builder.queryBuilder.limit(page.limit);
 
         if (page.timestamp) {
           builder.queryBuilder = builder.queryBuilder.andWhere(
-            `${builder.alias}."createdAt" < :timestamp`,
+            `${builder.alias}."createdAt" ${orderCondition} :timestamp`,
             { timestamp: page.timestamp },
           );
         }
