@@ -11,21 +11,21 @@ export interface GQLPage extends Page {
   timestamp?: Date;
 }
 
-export interface PageGeneratorConfig {
+export interface GQLDatePageGeneratorConfig {
   maxSize?: number;
 }
 
-export interface PageGeneratorEntity {
+export interface GQLDatePageGeneratorEntity {
   createdAt: Date;
 }
 
 const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_MAX_SIZE = 100;
 
-export function createPageGenerator({
+export function createDatePageGenerator({
   maxSize = DEFAULT_MAX_SIZE,
-}: PageGeneratorConfig): PageGenerator<
-  PageGeneratorEntity,
+}: GQLDatePageGeneratorConfig): PageGenerator<
+  GQLDatePageGeneratorEntity,
   ConnectionArguments,
   GQLPage
 > {
@@ -44,24 +44,31 @@ export function createPageGenerator({
   };
 }
 
-export type GQLPageGeneratorType = PageGenerator<
-  PageGeneratorEntity,
+export type GQLDatePageGeneratorType = PageGenerator<
+  GQLDatePageGeneratorEntity,
   ConnectionArguments,
   GQLPage
 >;
 
-export class GQLPageGenerator<TEntity extends PageGeneratorEntity> {
-  #pageGenerator: GQLPageGeneratorType;
+export class GQLDatePageGenerator {
+  #pageGenerator: GQLDatePageGeneratorType;
 
-  constructor(props: PageGeneratorConfig = {}) {
-    this.#pageGenerator = createPageGenerator(props);
+  constructor(props: GQLDatePageGeneratorConfig = {}) {
+    this.#pageGenerator = createDatePageGenerator(props);
   }
 
-  get pageGenerator(): GQLPageGeneratorType {
+  get pageGenerator(): GQLDatePageGeneratorType {
     return this.#pageGenerator;
   }
 
-  queryPaginated<TArgs extends ConnectionArguments>(
+  createPageGenerator(props: GQLDatePageGeneratorConfig = {}) {
+    this.#pageGenerator = createDatePageGenerator(props);
+  }
+
+  queryPaginated<
+    TEntity extends GQLDatePageGeneratorEntity,
+    TArgs extends ConnectionArguments,
+  >(
     ctx: Context,
     info: GraphQLResolveInfo,
     args: TArgs,

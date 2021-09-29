@@ -1,4 +1,4 @@
-import { GQLPageGenerator } from './../common/pageGenerator';
+import { GQLDatePageGenerator } from './../common/pageGenerator';
 import {
   Connection as ConnectionRelay,
   ConnectionArguments,
@@ -421,6 +421,8 @@ export const reportReasons = new Map([
   ['LOW', '💩 Low quality content'],
 ]);
 
+const pageGenerator = new GQLDatePageGenerator();
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   Query: traceResolverObject({
@@ -448,8 +450,6 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<ConnectionRelay<GQLPostUpvote>> => {
-      const pageGenerator = new GQLPageGenerator<GQLPostUpvote>();
-
       return pageGenerator.queryPaginated(ctx, info, args, (builder) => {
         builder.queryBuilder = builder.queryBuilder
           .andWhere(`${builder.alias}.postId = :postId`, {

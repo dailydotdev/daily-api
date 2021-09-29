@@ -1,4 +1,4 @@
-import { GQLPageGenerator } from './../common/pageGenerator';
+import { GQLDatePageGenerator } from './../common/pageGenerator';
 import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
 import { ForbiddenError, gql, IResolvers } from 'apollo-server-fastify';
@@ -291,6 +291,8 @@ const getCommentById = async (
   return res[0];
 };
 
+const pageGenerator = new GQLDatePageGenerator();
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -301,8 +303,6 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLComment>> => {
-      const pageGenerator = new GQLPageGenerator<GQLComment>();
-
       return pageGenerator.queryPaginated(ctx, info, args, (builder) => {
         builder.queryBuilder = builder.queryBuilder
           .andWhere(`${builder.alias}.postId = :postId`, {
@@ -320,8 +320,6 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLComment>> => {
-      const pageGenerator = new GQLPageGenerator<GQLComment>();
-
       return pageGenerator.queryPaginated(ctx, info, args, (builder) => {
         builder.queryBuilder = builder.queryBuilder
           .andWhere(`${builder.alias}."userId" = :userId`, {
@@ -338,8 +336,6 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLCommentUpvote>> => {
-      const pageGenerator = new GQLPageGenerator<GQLCommentUpvote>();
-
       return pageGenerator.queryPaginated(ctx, info, args, (builder) => {
         builder.queryBuilder = builder.queryBuilder
           .andWhere(`${builder.alias}.commentId = :commentId`, {
