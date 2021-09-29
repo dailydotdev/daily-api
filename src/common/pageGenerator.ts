@@ -61,7 +61,7 @@ export class GQLDatePageGenerator {
     return this.#pageGenerator;
   }
 
-  createPageGenerator(props: GQLDatePageGeneratorConfig = {}) {
+  createPageGenerator(props: GQLDatePageGeneratorConfig = {}): void {
     this.#pageGenerator = createDatePageGenerator(props);
   }
 
