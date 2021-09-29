@@ -303,15 +303,16 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLComment>> => {
-      return pageGenerator.queryPaginated(ctx, info, args, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .andWhere(`${builder.alias}.postId = :postId`, {
-            postId: args.postId,
-          })
-          .andWhere(`${builder.alias}.parentId is null`)
-          .orderBy(`${builder.alias}."createdAt"`);
+      return pageGenerator.queryPaginated(ctx, info, args, {
+        queryBuilder: (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`${builder.alias}.postId = :postId`, {
+              postId: args.postId,
+            })
+            .andWhere(`${builder.alias}.parentId is null`);
 
-        return builder;
+          return builder;
+        },
       });
     },
     userComments: async (
@@ -320,14 +321,16 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLComment>> => {
-      return pageGenerator.queryPaginated(ctx, info, args, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .andWhere(`${builder.alias}."userId" = :userId`, {
-            userId: args.userId,
-          })
-          .orderBy(`${builder.alias}."createdAt"`, 'DESC');
+      return pageGenerator.queryPaginated(ctx, info, args, {
+        queryBuilder: (builder) => {
+          builder.queryBuilder = builder.queryBuilder.andWhere(
+            `${builder.alias}."userId" = :userId`,
+            { userId: args.userId },
+          );
 
-        return builder;
+          return builder;
+        },
+        orderByCreatedAt: 'DESC',
       });
     },
     commentUpvotes: async (
@@ -336,14 +339,16 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLCommentUpvote>> => {
-      return pageGenerator.queryPaginated(ctx, info, args, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .andWhere(`${builder.alias}.commentId = :commentId`, {
-            commentId: args.id,
-          })
-          .orderBy(`${builder.alias}."createdAt"`, 'DESC');
+      return pageGenerator.queryPaginated(ctx, info, args, {
+        queryBuilder: (builder) => {
+          builder.queryBuilder = builder.queryBuilder.andWhere(
+            `${builder.alias}.commentId = :commentId`,
+            { commentId: args.id },
+          );
 
-        return builder;
+          return builder;
+        },
+        orderByCreatedAt: 'DESC',
       });
     },
   }),

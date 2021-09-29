@@ -450,14 +450,16 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<ConnectionRelay<GQLPostUpvote>> => {
-      return pageGenerator.queryPaginated(ctx, info, args, (builder) => {
-        builder.queryBuilder = builder.queryBuilder
-          .andWhere(`${builder.alias}.postId = :postId`, {
-            postId: args.id,
-          })
-          .orderBy(`${builder.alias}."createdAt"`, 'DESC');
+      return pageGenerator.queryPaginated(ctx, info, args, {
+        queryBuilder: (builder) => {
+          builder.queryBuilder = builder.queryBuilder.andWhere(
+            `${builder.alias}.postId = :postId`,
+            { postId: args.id },
+          );
 
-        return builder;
+          return builder;
+        },
+        orderByCreatedAt: 'DESC',
       });
     },
   }),
