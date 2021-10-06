@@ -116,6 +116,7 @@ export interface PageGenerator<
   TReturn,
   TArgs extends ConnectionArguments,
   TPage extends Page,
+  TParams = undefined,
 > {
   connArgsToPage: (args: TArgs) => TPage;
   nodeToCursor: (
@@ -123,17 +124,32 @@ export interface PageGenerator<
     args: TArgs,
     node: TReturn,
     index: number,
+    queryParams?: TParams,
   ) => string;
-  hasNextPage: (page: TPage, nodesSize: number, total?: number) => boolean;
-  hasPreviousPage: (page: TPage, nodesSize: number, total?: number) => boolean;
-  transformNodes?: (page: TPage, nodes: TReturn[]) => TReturn[];
+  hasNextPage: (
+    page: TPage,
+    nodesSize: number,
+    total?: number,
+    queryParams?: TParams,
+  ) => boolean;
+  hasPreviousPage: (
+    page: TPage,
+    nodesSize: number,
+    total?: number,
+    queryParams?: TParams,
+  ) => boolean;
+  transformNodes?: (
+    page: TPage,
+    nodes: TReturn[],
+    queryParams?: TParams,
+  ) => TReturn[];
 }
 
 export const offsetPageGenerator = <TReturn>(
   defaultLimit: number,
   maxLimit: number,
   totalLimit?: number,
-): PageGenerator<TReturn, ConnectionArguments, OffsetPage> => ({
+): PageGenerator<TReturn, ConnectionArguments, OffsetPage, unknown> => ({
   connArgsToPage: (args: ConnectionArguments): OffsetPage => {
     const limit = Math.min(args.first || defaultLimit, maxLimit);
     const offset = getOffsetWithDefault(args.after, -1) + 1;
@@ -150,6 +166,27 @@ export const offsetPageGenerator = <TReturn>(
       : (page.offset + nodesSize < totalLimit || !totalLimit) &&
         page.limit === nodesSize,
   hasPreviousPage: (page): boolean => page.offset > 0,
+});
+
+export const fixedIdsPageGenerator = <TId, TReturn extends { id: TId }>(
+  defaultLimit: number,
+  maxLimit: number,
+  totalLimit?: number,
+): PageGenerator<TReturn, ConnectionArguments, OffsetPage, TId[]> => ({
+  connArgsToPage: (args: ConnectionArguments): OffsetPage => {
+    const limit = Math.min(args.first || defaultLimit, maxLimit) + 1;
+    const offset = getOffsetWithDefault(args.after, -1) + 1;
+    return {
+      limit: totalLimit ? Math.min(limit, totalLimit - offset) : limit,
+      offset,
+    };
+  },
+  nodeToCursor: (page, args, node, i, queryParams): string =>
+    offsetToCursor(page.offset + queryParams.indexOf(node.id)),
+  hasNextPage: (page, nodesSize, total, queryParams): boolean =>
+    queryParams.length >= page.limit,
+  hasPreviousPage: (page): boolean => page.offset > 0,
+  transformNodes: (page, nodes) => nodes.slice(0, page.limit - 1),
 });
 
 type PaginationResolver<
@@ -172,13 +209,15 @@ export function connectionFromNodes<
   TArgs extends ConnectionArguments,
   TPage extends Page,
   TExtra = undefined,
+  TParams = undefined,
 >(
   args: TArgs,
   nodes: TReturn[],
   extra: TExtra,
   page: TPage,
-  pageGenerator: PageGenerator<TReturn, TArgs, TPage>,
+  pageGenerator: PageGenerator<TReturn, TArgs, TPage, TParams>,
   total?: number,
+  queryParams?: TParams,
 ): Connection<TReturn> & TExtra {
   const transformedNodes = pageGenerator.transformNodes?.(page, nodes) ?? nodes;
   if (!transformedNodes.length) {
@@ -197,7 +236,7 @@ export function connectionFromNodes<
   const edges = transformedNodes.map(
     (n, i): Edge<TReturn> => ({
       node: n,
-      cursor: pageGenerator.nodeToCursor(page, args, n, i),
+      cursor: pageGenerator.nodeToCursor(page, args, n, i, queryParams),
     }),
   );
   return {

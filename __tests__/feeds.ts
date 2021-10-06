@@ -38,6 +38,8 @@ import {
   postTagsFixture,
 } from './fixture/post';
 import { Ranking } from '../src/common';
+import nock from 'nock';
+import { deleteKeysByPattern } from '../src/redis';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -63,6 +65,7 @@ beforeEach(async () => {
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
+  await deleteKeysByPattern('feeds:*');
 });
 
 afterAll(() => app.close());
@@ -102,57 +105,62 @@ edges {
 }`;
 
 describe('query anonymousFeed', () => {
-  const QUERY = (
-    ranking: Ranking = Ranking.POPULARITY,
-    now = new Date(),
-    first = 10,
-  ): string => `
-  query AnonymousFeed($filters: FiltersInput) {
-    anonymousFeed(filters: $filters, ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}) {
+  const variables = {
+    ranking: Ranking.POPULARITY,
+    first: 10,
+  };
+
+  const QUERY = `
+  query AnonymousFeed($filters: FiltersInput, $ranking: Ranking, $first: Int, $version: Int) {
+    anonymousFeed(filters: $filters, ranking: $ranking, first: $first, version: $version) {
       ${feedFields}
     }
   }
 `;
 
   it('should return anonymous feed with no filters ordered by popularity', async () => {
-    const res = await client.query({ query: QUERY() });
+    const res = await client.query({ query: QUERY, variables });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return anonymous feed with no filters ordered by time', async () => {
-    const res = await client.query({ query: QUERY(Ranking.TIME) });
+    const res = await client.query({
+      query: QUERY,
+      variables: { ...variables, ranking: Ranking.TIME },
+    });
     delete res.data.anonymousFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return anonymous feed filtered by sources', async () => {
     const res = await client.query({
-      query: QUERY(),
-      variables: { filters: { includeSources: ['a', 'b'] } },
+      query: QUERY,
+      variables: { ...variables, filters: { includeSources: ['a', 'b'] } },
     });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return anonymous feed filtered by tags', async () => {
     const res = await client.query({
-      query: QUERY(),
-      variables: { filters: { includeTags: ['html', 'webdev'] } },
+      query: QUERY,
+      variables: { ...variables, filters: { includeTags: ['html', 'webdev'] } },
     });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return anonymous feed while excluding sources', async () => {
     const res = await client.query({
-      query: QUERY(),
-      variables: { filters: { excludeSources: ['a'] } },
+      query: QUERY,
+      variables: { ...variables, filters: { excludeSources: ['a'] } },
     });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return anonymous feed filtered by tags and sources', async () => {
     const res = await client.query({
-      query: QUERY(),
+      query: QUERY,
       variables: {
+        ...variables,
         filters: {
           includeTags: ['javascript'],
           includeSources: ['a', 'b'],
@@ -164,33 +172,45 @@ describe('query anonymousFeed', () => {
 
   it('should remove banned posts from the feed', async () => {
     await con.getRepository(Post).update({ id: 'p5' }, { banned: true });
-    const res = await client.query({ query: QUERY() });
+    const res = await client.query({ query: QUERY, variables });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return anonymous feed v2', async () => {
+    nock('http://localhost:6000')
+      .get('/feed.json?token=token&page_size=11&fresh_page_size=3')
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+      });
+    const res = await client.query({
+      query: QUERY,
+      variables: { ...variables, version: 2 },
+    });
     expect(res.data).toMatchSnapshot();
   });
 });
 
 describe('query feed', () => {
-  const QUERY = (
-    unreadOnly?: boolean,
-    ranking: Ranking = Ranking.POPULARITY,
-    now = new Date(),
-    first = 10,
-  ): string => `{
-    feed(ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}${
-    unreadOnly ? ', unreadOnly: true' : ''
-  }) {
+  const variables = {
+    ranking: Ranking.POPULARITY,
+    first: 10,
+  };
+
+  const QUERY = `
+  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean) {
+    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly) {
       ${feedFields}
     }
   }
 `;
 
   it('should not authorize when not logged-in', () =>
-    testQueryErrorCode(client, { query: QUERY() }, 'UNAUTHENTICATED'));
+    testQueryErrorCode(client, { query: QUERY, variables }, 'UNAUTHENTICATED'));
 
   it('should return feed with preconfigured filters', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    const res = await client.query({ query: QUERY() });
+    const res = await client.query({ query: QUERY, variables });
     expect(res.data).toMatchSnapshot();
   });
 
@@ -198,7 +218,7 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, FeedTag, [{ feedId: '1', tag: 'html' }]);
-    const res = await client.query({ query: QUERY() });
+    const res = await client.query({ query: QUERY, variables });
     expect(res.data).toMatchSnapshot();
   });
 
@@ -208,7 +228,7 @@ describe('query feed', () => {
     await saveFixtures(con, FeedTag, [
       { feedId: '1', tag: 'html', blocked: true },
     ]);
-    const res = await client.query({ query: QUERY() });
+    const res = await client.query({ query: QUERY, variables });
     expect(res.data).toMatchSnapshot();
   });
 
@@ -219,7 +239,7 @@ describe('query feed', () => {
       { feedId: '1', tag: 'javascript' },
       { feedId: '1', tag: 'webdev', blocked: true },
     ]);
-    const res = await client.query({ query: QUERY() });
+    const res = await client.query({ query: QUERY, variables });
     expect(res.data).toMatchSnapshot();
   });
 
@@ -227,14 +247,14 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, FeedSource, [{ feedId: '1', sourceId: 'a' }]);
-    const res = await client.query({ query: QUERY() });
+    const res = await client.query({ query: QUERY, variables });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return preconfigured feed with no filters', async () => {
     loggedUser = '1';
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-    const res = await client.query({ query: QUERY() });
+    const res = await client.query({ query: QUERY, variables });
     expect(res.data).toMatchSnapshot();
   });
 
@@ -242,7 +262,10 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await con.getRepository(View).save([{ userId: '1', postId: 'p1' }]);
-    const res = await client.query({ query: QUERY(true) });
+    const res = await client.query({
+      query: QUERY,
+      variables: { ...variables, unreadOnly: true },
+    });
     expect(res.data).toMatchSnapshot();
   });
 
@@ -250,7 +273,34 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFeedFixtures();
     await con.getRepository(Post).update({ id: 'p4' }, { banned: true });
-    const res = await client.query({ query: QUERY() });
+    const res = await client.query({ query: QUERY });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return feed v2', async () => {
+    loggedUser = '1';
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
+    await con.getRepository(FeedTag).save([
+      { feedId: '1', tag: 'javascript' },
+      { feedId: '1', tag: 'golang' },
+      { feedId: '1', tag: 'python', blocked: true },
+      { feedId: '1', tag: 'java', blocked: true },
+    ]);
+    await con.getRepository(FeedSource).save([
+      { feedId: '1', sourceId: 'a' },
+      { feedId: '1', sourceId: 'b' },
+    ]);
+    nock('http://localhost:6000')
+      .get(
+        '/feed.json?token=token&page_size=11&fresh_page_size=3&user_id=1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
+      )
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+      });
+    const res = await client.query({
+      query: QUERY,
+      variables: { ...variables, version: 2 },
+    });
     expect(res.data).toMatchSnapshot();
   });
 });

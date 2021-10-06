@@ -19,6 +19,10 @@ export class Context {
     return this.req.userId;
   }
 
+  get trackingId(): string | null {
+    return this.req.cookies.da2;
+  }
+
   get premium(): boolean {
     return this.req.premium;
   }
