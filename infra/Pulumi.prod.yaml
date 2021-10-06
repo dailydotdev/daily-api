@@ -61,6 +61,8 @@ config:
       secure: AAABAJwPYRU11H3rzyBBw/SejgxYXAax/0qA9Pmqh+9DyCzZlNb8gIk5gaDRj4ILG3xTE7w9Nb1GUlu5TDJ9ug==
     superfeedrUser:
       secure: AAABADKUZKSoWAtFvFpES4O5CWtdc2/SyNQu/MFEeJ+tBRnK/kzjdDg=
+    tinybirdFeed:
+      secure: AAABAOBzmGhgLEiSUamPST9V1A2UCuhdoXq20+g6FBA/H1XRSNc20AzI1XMvnRu8rDG6O+SUxdul/vNvxvePxf6WLE1ygF7I1BrgzuWpA/7Ylm6Hp/I1eIqPjxmes3/sbESgX+RIobmPm7zMWfGKLAEmzfsgDvRIRkn8JgDpas99hsfVaFetyyUzvN+E8Wo6F1pueaETQ16vo8kHLBi+QQKJEaOmfGsGKE/tmOPA3tjTeFH14+mWey92+96Nuap11OWiulC4y5FSMIqy09pWLEVidHXJCJ525Y8ne2WpRXhmhoAkgyQ1F/ZuH3awRkYs8AQa+l84bS5l
     twitterAccessTokenKey:
       secure: AAABAM4p+Bnbw3S7QDYqNNSFJzbPMsD8TQbvhNGr2Y9nU+lM1bFrLCB1Ra/NEG5YzHpVINf4/4PPMBhNJk85hK0CZ7fcS23t02CZgoJeJO6CsQ==
     twitterAccessTokenSecret:

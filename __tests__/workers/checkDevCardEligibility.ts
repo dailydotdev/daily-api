@@ -8,7 +8,7 @@ import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { Post, Source, User, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
-import { redisClient } from '../../src/redis';
+import { deleteKeysByPattern } from '../../src/redis';
 
 let con: Connection;
 let app: FastifyInstance;
@@ -22,7 +22,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.clearAllMocks();
   nock.cleanAll();
-  await redisClient.del(`flagsmith:flags-u1`);
+  await deleteKeysByPattern('flagsmith:*');
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
   await con.getRepository(User).save({

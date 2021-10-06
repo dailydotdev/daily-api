@@ -13,3 +13,16 @@ export const redisPubSub = new RedisPubSub({
   publisher: new Redis(redisOptions),
   subscriber: new Redis(redisOptions),
 });
+
+export function deleteKeysByPattern(pattern: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const stream = redisClient.scanStream({ match: pattern });
+    stream.on('data', (keys) => {
+      if (keys.length) {
+        redisClient.unlink(keys);
+      }
+    });
+    stream.on('end', resolve);
+    stream.on('error', reject);
+  });
+}
