@@ -57,7 +57,7 @@ export default async function app(): Promise<FastifyInstance> {
     }: ContextParams): Context => {
       return new Context(request ?? wsConnection?.context?.req, connection);
     },
-    playground: false
+    playground: isProd
       ? false
       : { settings: { 'request.credentials': 'include' } },
     logger: app.log,
