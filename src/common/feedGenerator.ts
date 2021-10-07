@@ -163,7 +163,8 @@ export const applyFeedWhere = (
     .subQuery()
     .from(Source, 'source')
     .where('source.active = true')
-    .andWhere(`source.id = "${alias}"."sourceId"`);
+    .andWhere(`source.id = "${alias}"."sourceId"`)
+    .andWhere(`${alias}.deleted = false`);
   let newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`, {
     userId: ctx.userId,
   });

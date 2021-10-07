@@ -32,6 +32,9 @@ import { viewsThresholds } from '../cron/viewsThreshold';
 import { PostReport } from '../entity/PostReport';
 import { reportReasons } from '../schema/posts';
 
+const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
+  before[property] != after[property];
+
 const onSourceRequestChange = async (
   con: Connection,
   logger: Logger,
@@ -177,11 +180,30 @@ const onPostChange = async (
         viewsThresholds[data.payload.after.viewsThreshold - 1],
       );
     }
-    if (!data.payload.before.banned && data.payload.after.banned) {
+    if (
+      !data.payload.before.banned &&
+      !data.payload.before.deleted &&
+      (data.payload.after.banned || data.payload.after.deleted)
+    ) {
       await notifyPostBannedOrRemoved(logger, data.payload.after);
     }
-  } else if (data.payload.op === 'd') {
-    await notifyPostBannedOrRemoved(logger, data.payload.before);
+    if (
+      isChanged(data.payload.before, data.payload.after, 'id') ||
+      isChanged(data.payload.before, data.payload.after, 'deleted') ||
+      isChanged(data.payload.before, data.payload.after, 'banned') ||
+      isChanged(data.payload.before, data.payload.after, 'tagsStr') ||
+      isChanged(data.payload.before, data.payload.after, 'createdAt') ||
+      isChanged(data.payload.before, data.payload.after, 'authorId') ||
+      isChanged(data.payload.before, data.payload.after, 'sourceId') ||
+      isChanged(data.payload.before, data.payload.after, 'creatorTwitter')
+    ) {
+      await con
+        .getRepository(Post)
+        .update(
+          { id: data.payload.before.id },
+          { metadataChangedAt: new Date() },
+        );
+    }
   }
 };
 

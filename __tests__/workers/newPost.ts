@@ -41,6 +41,7 @@ it('should save a new post with basic information', async () => {
   expect(tags.length).toEqual(0);
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
+    metadataChangedAt: expect.any(Date),
     score: expect.any(Number),
     id: expect.any(String),
     shortId: expect.any(String),
@@ -86,6 +87,7 @@ it('should save a new post with full information', async () => {
   expect(posts.length).toEqual(1);
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
+    metadataChangedAt: expect.any(Date),
     score: expect.any(Number),
     id: expect.any(String),
     shortId: expect.any(String),
@@ -355,6 +357,7 @@ it('should match post to author', async () => {
   expect(posts.length).toEqual(1);
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
+    metadataChangedAt: expect.any(Date),
     score: expect.any(Number),
     id: expect.any(String),
     shortId: expect.any(String),
@@ -381,6 +384,7 @@ it('should not match post to author based on username', async () => {
   expect(posts.length).toEqual(1);
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
+    metadataChangedAt: expect.any(Date),
     score: expect.any(Number),
     id: expect.any(String),
     shortId: expect.any(String),
@@ -399,6 +403,7 @@ it('should not match post to author', async () => {
   expect(posts.length).toEqual(1);
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
+    metadataChangedAt: expect.any(Date),
     score: expect.any(Number),
     id: expect.any(String),
     shortId: expect.any(String),
@@ -456,6 +461,7 @@ it('should unescape html text', async () => {
   expect(tags.length).toEqual(0);
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
+    metadataChangedAt: expect.any(Date),
     score: expect.any(Number),
     id: expect.any(String),
     shortId: expect.any(String),
@@ -475,6 +481,7 @@ it('should keep html-like text', async () => {
   expect(tags.length).toEqual(0);
   expect(posts[0]).toMatchSnapshot({
     createdAt: expect.any(Date),
+    metadataChangedAt: expect.any(Date),
     score: expect.any(Number),
     id: expect.any(String),
     shortId: expect.any(String),

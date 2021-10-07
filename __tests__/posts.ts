@@ -662,7 +662,7 @@ describe('mutation deletePost', () => {
     });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Post).findOne('p1');
-    expect(actual).toBeFalsy();
+    expect(actual.deleted).toBeTruthy();
   });
 
   it('should do nothing if post is already deleted', async () => {

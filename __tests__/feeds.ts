@@ -277,6 +277,14 @@ describe('query feed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
+  it('should remove deleted posts from the feed', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con.getRepository(Post).update({ id: 'p4' }, { deleted: true });
+    const res = await client.query({ query: QUERY });
+    expect(res.data).toMatchSnapshot();
+  });
+
   it('should return feed v2', async () => {
     loggedUser = '1';
     await con.getRepository(Feed).save({ id: '1', userId: '1' });
