@@ -9,6 +9,7 @@ import viewsThreshold from './viewsThreshold';
 import updateTrending from './updateTrending';
 import updateTagsStr from './updateTagsStr';
 import updateDiscussionScore from './updateDiscussionScore';
+import exportToTinybird from './exportToTinybird';
 
 export const crons: Cron[] = [
   tweetTrending,
@@ -21,4 +22,5 @@ export const crons: Cron[] = [
   updateTrending,
   updateTagsStr,
   updateDiscussionScore,
+  exportToTinybird,
 ];
