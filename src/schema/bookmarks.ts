@@ -1,6 +1,12 @@
 import { gql, IResolvers } from 'apollo-server-fastify';
 import { ConnectionArguments } from 'graphql-relay';
-import { GQLEmptyResponse, Page, PageGenerator } from './common';
+import {
+  GQLEmptyResponse,
+  Page,
+  PageGenerator,
+  offsetPageGenerator,
+  getSearchQuery,
+} from './common';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { Bookmark, BookmarkList, Post } from '../entity';
@@ -11,9 +17,9 @@ import {
   feedResolver,
   getCursorFromAfter,
 } from '../common';
-import { GQLPost } from './posts';
 import { SelectQueryBuilder } from 'typeorm';
-
+import { GQLPost } from './posts';
+import { Connection } from 'graphql-relay';
 interface GQLAddBookmarkInput {
   postIds: string[];
 }
@@ -34,6 +40,15 @@ export const typeDefs = gql`
     Name of the list
     """
     name: String!
+  }
+
+  type SearchBookmarksSuggestion {
+    title: String!
+  }
+
+  type SearchBookmarksSuggestionsResults {
+    query: String!
+    hits: [SearchBookmarksSuggestion!]!
   }
 
   input AddBookmarkInput {
@@ -111,6 +126,51 @@ export const typeDefs = gql`
     Get all the bookmark lists of the user
     """
     bookmarkLists: [BookmarkList!]! @auth(premium: true)
+
+    """
+    Get suggestions for search bookmarks query
+    """
+    searchBookmarksSuggestions(
+      """
+      The query to search for
+      """
+      query: String!
+    ): SearchBookmarksSuggestionsResults!
+
+    """
+    Search through users bookmarks
+    """
+    searchBookmarks(
+      """
+      The query to search for
+      """
+      query: String!
+
+      """
+      Time the pagination started to ignore new items
+      """
+      now: DateTime
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Return only unread posts
+      """
+      unreadOnly: Boolean = false
+
+      """
+      Id of the list to retrieve bookmarks from
+      """
+      listId: ID
+    ): PostConnection! @auth
   }
 `;
 
@@ -161,6 +221,26 @@ const applyBookmarkPaging = (
   }
   return newBuilder;
 };
+
+const searchResolver = feedResolver(
+  (
+    ctx,
+    { query, unreadOnly, listId = null }: BookmarksArgs & { query: string },
+    builder,
+    alias,
+  ) => bookmarksFeedBuilder(ctx, unreadOnly, listId, builder, alias, query),
+  offsetPageGenerator(30, 50),
+  (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
+  { removeHiddenPosts: true, removeBannedPosts: false },
+);
+
+const searchSuggestionResolved = feedResolver(
+  (ctx, { query }: FeedArgs & { query: string }, builder, alias) =>
+    builder.orderBy('views', 'DESC'),
+  offsetPageGenerator(30, 50),
+  (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
+  { removeHiddenPosts: true, removeBannedPosts: false },
+);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
@@ -264,5 +344,39 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           order: { name: 'ASC' },
         },
       ),
+    searchBookmarksSuggestions: async (
+      source,
+      { query }: { query: string },
+      ctx,
+    ) => {
+      const hits: { title: string }[] = await ctx.con.query(
+        `
+        WITH search AS (${getSearchQuery('$2')})
+        select ts_headline(process_text(title), search.query,
+        'StartSel = <strong>, StopSel = </strong>') as title
+        from post INNER JOIN bookmark ON bookmark."postId" = post.id AND bookmark."userId" = $1, search
+        where tsv @@ search.query
+        order by views desc
+        limit 5;
+        `,
+        [ctx.userId, query],
+      );
+      return {
+        query,
+        hits,
+      };
+    },
+    searchBookmarks: async (
+      source,
+      args: FeedArgs & { query: string },
+      ctx,
+      info,
+    ): Promise<Connection<GQLPost> & { query: string }> => {
+      const res = await searchResolver(source, args, ctx, info);
+      return {
+        ...res,
+        query: args.query,
+      };
+    },
   },
 });

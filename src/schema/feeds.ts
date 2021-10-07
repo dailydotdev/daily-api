@@ -27,7 +27,12 @@ import {
   Source,
 } from '../entity';
 import { GQLSource } from './sources';
-import { offsetPageGenerator, Page, PageGenerator } from './common';
+import {
+  offsetPageGenerator,
+  Page,
+  PageGenerator,
+  getSearchQuery,
+} from './common';
 import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
@@ -598,10 +603,6 @@ const getFeedSettings = async (
     blockedTags: [],
   };
 };
-
-const getSearchQuery = (param: string) => `SELECT to_tsquery('english',
-                                                             string_agg(lexeme || ':*', ' & ' order by positions)) AS query
-                                           FROM unnest(to_tsvector('english', process_text(${param})))`;
 
 const searchResolver = feedResolver(
   (ctx, { query }: FeedArgs & { query: string }, builder, alias) =>
