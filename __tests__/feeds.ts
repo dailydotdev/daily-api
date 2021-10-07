@@ -178,7 +178,7 @@ describe('query anonymousFeed', () => {
 
   it('should return anonymous feed v2', async () => {
     nock('http://localhost:6000')
-      .get('/feed.json?token=token&page_size=11&fresh_page_size=3')
+      .get('/feed.json?token=token&page_size=11&fresh_page_size=4')
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
       });
@@ -292,7 +292,7 @@ describe('query feed', () => {
     ]);
     nock('http://localhost:6000')
       .get(
-        '/feed.json?token=token&page_size=11&fresh_page_size=3&user_id=1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
+        '/feed.json?token=token&page_size=11&fresh_page_size=4&user_id=1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
       )
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
