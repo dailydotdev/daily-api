@@ -31,6 +31,10 @@ export class Post {
   @Index('IDX_post_createdAt', { synchronize: false })
   createdAt: Date;
 
+  @Column({ default: () => 'now()' })
+  @Index('IDX_post_metadataChangedAt')
+  metadataChangedAt: Date;
+
   @Column({ type: 'text' })
   @Index()
   sourceId: string;
@@ -132,6 +136,10 @@ export class Post {
   @Column({ default: false })
   @Index('IDX_post_banned')
   banned: boolean;
+
+  @Column({ default: false })
+  @Index('IDX_post_deleted')
+  deleted: boolean;
 
   @Column({ nullable: true, type: 'tsvector', select: false })
   @Index('IDX_post_tsv')
