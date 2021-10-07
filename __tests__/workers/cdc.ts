@@ -496,20 +496,77 @@ describe('post', () => {
   });
 
   it('should notify on post removed', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      deleted: true,
+    };
     await expectSuccessfulBackground(
       app,
       worker,
       mockChangeMessage<ObjectType>({
-        after: null,
+        after: after,
         before: base,
-        op: 'd',
+        op: 'u',
         table: 'post',
       }),
     );
     expect(notifyPostBannedOrRemoved).toBeCalledTimes(1);
     expect(mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1)).toEqual([
-      base,
+      after,
     ]);
+  });
+
+  it('should not notify on post removed when banned already', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      banned: true,
+      deleted: true,
+    };
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: after,
+        before: {
+          ...base,
+          banned: true,
+        },
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostBannedOrRemoved).toBeCalledTimes(0);
+  });
+
+  it('should update post metadata changed at', async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, postsFixture);
+    const oldPost = await con.getRepository(Post).findOne({ id: 'p1' });
+    const localBase: ChangeObject<Post> = {
+      ...oldPost,
+      createdAt: 0,
+      metadataChangedAt: 0,
+      publishedAt: 0,
+      lastTrending: 0,
+    };
+    const after: ChangeObject<ObjectType> = {
+      ...localBase,
+      banned: true,
+    };
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: after,
+        before: localBase,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    const updatedPost = await con.getRepository(Post).findOne({ id: 'p1' });
+    expect(updatedPost.metadataChangedAt.getTime()).toBeGreaterThan(
+      oldPost.metadataChangedAt.getTime(),
+    );
   });
 });
 

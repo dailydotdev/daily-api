@@ -1,5 +1,5 @@
 import { GraphQLResolveInfo } from 'graphql';
-import { gql, IResolvers } from 'apollo-server-fastify';
+import { gql, IFieldResolver, IResolvers } from 'apollo-server-fastify';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
@@ -10,6 +10,7 @@ import {
   FeedArgs,
   feedResolver,
   feedToFilters,
+  fixedIdsFeedBuilder,
   getCursorFromAfter,
   randomPostsResolver,
   Ranking,
@@ -28,6 +29,7 @@ import {
 } from '../entity';
 import { GQLSource } from './sources';
 import {
+  fixedIdsPageGenerator,
   offsetPageGenerator,
   Page,
   PageGenerator,
@@ -36,6 +38,7 @@ import {
 import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
+import { generatePersonalizedFeed } from '../personalizedFeed';
 
 export const typeDefs = gql`
   type FeedSettings {
@@ -122,6 +125,11 @@ export const typeDefs = gql`
       Filters to apply to the feed
       """
       filters: FiltersInput
+
+      """
+      Version of the feed algorithm
+      """
+      version: Int = 1
     ): PostConnection!
 
     """
@@ -152,6 +160,11 @@ export const typeDefs = gql`
       Return only unread posts
       """
       unreadOnly: Boolean = false
+
+      """
+      Version of the feed algorithm
+      """
+      version: Int = 1
     ): PostConnection! @auth
 
     """
@@ -459,10 +472,12 @@ export interface GQLSearchPostSuggestionsResults {
 
 interface AnonymousFeedArgs extends FeedArgs {
   filters?: GQLFiltersInput;
+  version: number;
 }
 
 interface ConfiguredFeedArgs extends FeedArgs {
   unreadOnly: boolean;
+  version: number;
 }
 
 interface SourceFeedArgs extends FeedArgs {
@@ -486,7 +501,7 @@ interface FeedPage extends Page {
   score?: number;
 }
 
-const feedPageGenerator: PageGenerator<GQLPost, FeedArgs, FeedPage> = {
+const feedPageGenerator: PageGenerator<GQLPost, FeedArgs, FeedPage, unknown> = {
   connArgsToPage: ({ ranking, first, after }: FeedArgs) => {
     const cursor = getCursorFromAfter(after);
     // Increment by one to determine if there's one more page
@@ -616,29 +631,65 @@ const searchResolver = feedResolver(
   { removeHiddenPosts: true, removeBannedPosts: false },
 );
 
+const anonymousFeedResolverV1: IFieldResolver<
+  unknown,
+  Context,
+  AnonymousFeedArgs
+> = feedResolver(
+  (ctx, { filters }: AnonymousFeedArgs, builder, alias) =>
+    anonymousFeedBuilder(ctx, filters, builder, alias),
+  feedPageGenerator,
+  applyFeedPaging,
+);
+
+const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
+  feedResolver(
+    (ctx, { unreadOnly }: ConfiguredFeedArgs, builder, alias, queryParams) =>
+      configuredFeedBuilder(
+        ctx,
+        ctx.userId,
+        unreadOnly,
+        builder,
+        alias,
+        queryParams,
+      ),
+    feedPageGenerator,
+    applyFeedPaging,
+    { fetchQueryParams: (ctx) => feedToFilters(ctx.con, ctx.userId) },
+  );
+
+const feedResolverV2: IFieldResolver<unknown, Context, FeedArgs> = feedResolver(
+  (ctx, args, builder, alias, queryParams) =>
+    fixedIdsFeedBuilder(ctx, queryParams as string[], builder, alias),
+  fixedIdsPageGenerator(30, 50),
+  (ctx, args, page, builder) => builder,
+  {
+    fetchQueryParams: (ctx, args, page) =>
+      generatePersonalizedFeed(
+        ctx.con,
+        page.limit,
+        page.offset,
+        ctx.userId || ctx.trackingId,
+        ctx.userId,
+      ),
+  },
+);
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
-    anonymousFeed: feedResolver(
-      (ctx, { filters }: AnonymousFeedArgs, builder, alias) =>
-        anonymousFeedBuilder(ctx, filters, builder, alias),
-      feedPageGenerator,
-      applyFeedPaging,
-    ),
-    feed: feedResolver(
-      (ctx, { unreadOnly }: ConfiguredFeedArgs, builder, alias, queryParams) =>
-        configuredFeedBuilder(
-          ctx,
-          ctx.userId,
-          unreadOnly,
-          builder,
-          alias,
-          queryParams,
-        ),
-      feedPageGenerator,
-      applyFeedPaging,
-      { fetchQueryParams: (ctx) => feedToFilters(ctx.con, ctx.userId) },
-    ),
+    anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
+      if (args.version === 2 && args.ranking === Ranking.POPULARITY) {
+        return feedResolverV2(source, args, ctx, info);
+      }
+      return anonymousFeedResolverV1(source, args, ctx, info);
+    },
+    feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
+      if (args.version === 2 && args.ranking === Ranking.POPULARITY) {
+        return feedResolverV2(source, args, ctx, info);
+      }
+      return feedResolverV1(source, args, ctx, info);
+    },
     sourceFeed: feedResolver(
       (ctx, { source }: SourceFeedArgs, builder, alias) =>
         sourceFeedBuilder(ctx, source, builder, alias),

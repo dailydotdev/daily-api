@@ -1,4 +1,4 @@
-import { GQLDatePageGenerator } from './../common/pageGenerator';
+import { GQLDatePageGenerator } from '../common/pageGenerator';
 import {
   Connection as ConnectionRelay,
   ConnectionArguments,
@@ -510,7 +510,7 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      await ctx.getRepository(Post).delete({ id });
+      await ctx.getRepository(Post).update({ id }, { deleted: true });
       return { _: true };
     },
     banPost: async (

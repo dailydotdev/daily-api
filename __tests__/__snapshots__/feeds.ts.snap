@@ -560,6 +560,56 @@ Object {
 }
 `;
 
+exports[`query anonymousFeed should return anonymous feed v2 1`] = `
+Object {
+  "anonymousFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p4",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "backend",
+            "data",
+            "javascript",
+          ],
+          "title": "P4",
+          "url": "http://p4.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
 exports[`query anonymousFeed should return anonymous feed while excluding sources 1`] = `
 Object {
   "anonymousFeed": Object {
@@ -887,6 +937,87 @@ Object {
     ],
     "pageInfo": Object {
       "endCursor": "c2NvcmU6MA==",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query feed should remove deleted posts from the feed 1`] = `
+Object {
+  "feed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "c2NvcmU6MA==",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query feed should return feed v2 1`] = `
+Object {
+  "feed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p4",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "backend",
+            "data",
+            "javascript",
+          ],
+          "title": "P4",
+          "url": "http://p4.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
       "hasNextPage": false,
     },
   },

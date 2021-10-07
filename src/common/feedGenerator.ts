@@ -163,7 +163,8 @@ export const applyFeedWhere = (
     .subQuery()
     .from(Source, 'source')
     .where('source.active = true')
-    .andWhere(`source.id = "${alias}"."sourceId"`);
+    .andWhere(`source.id = "${alias}"."sourceId"`)
+    .andWhere(`${alias}.deleted = false`);
   let newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`, {
     userId: ctx.userId,
   });
@@ -183,10 +184,14 @@ export const applyFeedWhere = (
   return newBuilder;
 };
 
-export type FeedResolverOptions<TArgs, TParams> = {
+export type FeedResolverOptions<TArgs, TParams, TPage extends Page> = {
   removeHiddenPosts?: boolean;
   removeBannedPosts?: boolean;
-  fetchQueryParams?: (ctx: Context, args: TArgs) => Promise<TParams>;
+  fetchQueryParams?: (
+    ctx: Context,
+    args: TArgs,
+    page: TPage,
+  ) => Promise<TParams>;
 };
 
 export function feedResolver<
@@ -202,7 +207,7 @@ export function feedResolver<
     alias: string,
     params?: TParams,
   ) => SelectQueryBuilder<Post>,
-  pageGenerator: PageGenerator<GQLPost, TArgs, TPage>,
+  pageGenerator: PageGenerator<GQLPost, TArgs, TPage, TParams>,
   applyPaging: (
     ctx: Context,
     args: TArgs,
@@ -214,18 +219,21 @@ export function feedResolver<
     removeHiddenPosts = true,
     removeBannedPosts = true,
     fetchQueryParams,
-  }: FeedResolverOptions<TArgs, TParams> = {},
+  }: FeedResolverOptions<TArgs, TParams, TPage> = {},
 ): IFieldResolver<TSource, Context, TArgs> {
   return async (source, args, context, info): Promise<Connection<GQLPost>> => {
     const page = pageGenerator.connArgsToPage(args);
     const queryParams =
-      fetchQueryParams && (await fetchQueryParams(context, args));
+      fetchQueryParams && (await fetchQueryParams(context, args, page));
     return graphorm.queryPaginated<GQLPost>(
       context,
       info,
-      (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
-      (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
-      (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+      (nodeSize) =>
+        pageGenerator.hasPreviousPage(page, nodeSize, undefined, queryParams),
+      (nodeSize) =>
+        pageGenerator.hasNextPage(page, nodeSize, undefined, queryParams),
+      (node, index) =>
+        pageGenerator.nodeToCursor(page, args, node, index, queryParams),
       (builder) => {
         builder.queryBuilder = applyFeedWhere(
           context,
@@ -248,7 +256,8 @@ export function feedResolver<
         );
         return builder;
       },
-      (nodes) => pageGenerator.transformNodes?.(page, nodes) ?? nodes,
+      (nodes) =>
+        pageGenerator.transformNodes?.(page, nodes, queryParams) ?? nodes,
     );
   };
 }
@@ -393,3 +402,15 @@ export const tagFeedBuilder = (
   alias: string,
 ): SelectQueryBuilder<Post> =>
   builder.andWhere((subBuilder) => whereTags([tag], subBuilder, alias));
+
+export const fixedIdsFeedBuilder = (
+  ctx: Context,
+  ids: string[],
+  builder: SelectQueryBuilder<Post>,
+  alias: string,
+): SelectQueryBuilder<Post> => {
+  const idsStr = ids.map((id) => `'${id}'`).join(',');
+  return builder
+    .andWhere(`${alias}.id IN (${idsStr})`)
+    .orderBy(`array_position(array[${idsStr}], ${alias}.id)`);
+};
