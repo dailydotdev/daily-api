@@ -129,7 +129,9 @@ export interface PageGenerator<
   transformNodes?: (page: TPage, nodes: TReturn[]) => TReturn[];
 }
 
-export const getSearchQuery = (param: string) => `SELECT to_tsquery('english',
+export const getSearchQuery = (
+  param: string,
+): string => `SELECT to_tsquery('english',
 string_agg(lexeme || ':*', ' & ' order by positions)) AS query
 FROM unnest(to_tsvector('english', process_text(${param})))`;
 

@@ -234,14 +234,6 @@ const searchResolver = feedResolver(
   { removeHiddenPosts: true, removeBannedPosts: false },
 );
 
-const searchSuggestionResolved = feedResolver(
-  (ctx, { query }: FeedArgs & { query: string }, builder, alias) =>
-    builder.orderBy('views', 'DESC'),
-  offsetPageGenerator(30, 50),
-  (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
-  { removeHiddenPosts: true, removeBannedPosts: false },
-);
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Mutation: {
