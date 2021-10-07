@@ -13,7 +13,7 @@ async function fetchTinybirdFeed(
   userId?: string,
   feedId?: string,
 ): Promise<{ post_id: string }[]> {
-  const freshPageSize = Math.ceil(pageSize / 4).toFixed(0);
+  const freshPageSize = Math.ceil(pageSize / 3).toFixed(0);
   let url = `${process.env.TINYBIRD_FEED}&page_size=${pageSize}&fresh_page_size=${freshPageSize}`;
   if (userId) {
     url += `&user_id=${userId}`;
