@@ -54,7 +54,8 @@ async function cacheFeed(
   pipeline.del(key);
   pipeline.expire(key, ONE_DAY_SECONDS);
   postIds.forEach(({ post_id }, i) => pipeline.zadd(key, i, post_id));
-  await pipeline.exec();
+  // Don't wait for the promise to serve quickly the response
+  pipeline.exec();
   return postIds;
 }
 

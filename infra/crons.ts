@@ -44,4 +44,8 @@ export const crons: Cron[] = [
     name: 'update-discussion-score',
     schedule: '23 */1 * * *',
   },
+  {
+    name: 'export-to-tinybird',
+    schedule: '* * * * *',
+  },
 ];
