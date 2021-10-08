@@ -42,10 +42,13 @@ const cron: Cron = {
           headers,
         },
       );
+      const text = await res.text();
       if (res.status >= 200 && res.status < 300) {
-        logger.info(`posts replicated successfully to tinybird`);
+        logger.info(
+          { tinybirdResponse: text },
+          `${posts.length} posts replicated successfully to tinybird`,
+        );
       } else {
-        const text = await res.text();
         logger.error(
           { tinybirdResponse: text },
           `failed to replicate posts to tinybird`,

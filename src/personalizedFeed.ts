@@ -49,13 +49,19 @@ async function cacheFeed(
   feedId?: string,
 ): Promise<{ post_id: string }[]> {
   const key = getPersonalizedFeedKey(userId, feedId);
+  console.time('[feed_v2] fetch from tinybird');
   const postIds = await fetchTinybirdFeed(con, pageSize, userId, feedId);
+  console.timeEnd('[feed_v2] fetch from tinybird');
+  console.time('[feed_v2] prepare pipeline');
   const pipeline = redisClient.pipeline();
   pipeline.del(key);
   pipeline.expire(key, ONE_DAY_SECONDS);
   postIds.forEach(({ post_id }, i) => pipeline.zadd(key, i, post_id));
+  console.timeEnd('[feed_v2] prepare pipeline');
+  console.time('[feed_v2] submit pipeline');
   // Don't wait for the promise to serve quickly the response
-  pipeline.exec();
+  await pipeline.exec();
+  console.timeEnd('[feed_v2] submit pipeline');
   return postIds;
 }
 
