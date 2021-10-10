@@ -55,10 +55,10 @@ const { serviceAccount, iamMembers } = createServiceAccountAndGrantRoles(
 const redis = new gcp.redis.Instance(`${name}-redis`, {
   name: `${name}-redis`,
   tier: 'STANDARD_HA',
-  memorySizeGb: 1,
+  memorySizeGb: 5,
   region: location,
   authEnabled: true,
-  redisVersion: 'REDIS_5_0',
+  redisVersion: 'REDIS_6_x',
 });
 
 export const redisHost = redis.host;
