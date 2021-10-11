@@ -19,7 +19,6 @@ async function fetchTinybirdFeed(
     url += `&user_id=${userId}`;
   }
   if (feedId) {
-    console.time('[feed_v2] fetch filters');
     const filters = await feedToFilters(con, feedId);
     if (filters.includeTags?.length) {
       url += `&allowed_tags=${filters.includeTags.join(',')}`;
@@ -30,12 +29,15 @@ async function fetchTinybirdFeed(
     if (filters.excludeSources?.length) {
       url += `&blocked_sources=${filters.excludeSources.join(',')}`;
     }
-    console.timeEnd('[feed_v2] fetch filters');
   }
-  console.time('[feed_v2] fetch from tinybird');
+  const start = new Date();
   const res = await fetch(url);
   const body: TinybirdResponse<{ post_id: string }> = await res.json();
-  console.timeLog('[feed_v2] fetch from tinybird', url);
+  console.log(
+    `[feed_v2] fetch from tinybird ${
+      new Date().getTime() - start.getTime()
+    }ms (${url})`,
+  );
   return body.data;
 }
 
@@ -56,16 +58,12 @@ async function fetchAndCacheFeed(
   const postIds = await fetchTinybirdFeed(con, pageSize, userId, feedId);
   // Don't wait for caching the feed to serve quickly
   setTimeout(async () => {
-    console.time('[feed_v2] prepare redis pipeline');
     const pipeline = redisClient.pipeline();
     pipeline.del(key);
     pipeline.set(`${key}:time`, new Date().toISOString());
     pipeline.expire(key, ONE_DAY_SECONDS);
     postIds.forEach(({ post_id }, i) => pipeline.zadd(key, i, post_id));
-    console.timeEnd('[feed_v2] prepare redis pipeline');
-    console.time('[feed_v2] submit redis pipeline');
     await pipeline.exec();
-    console.timeEnd('[feed_v2] submit redis pipeline');
   });
   return postIds;
 }
