@@ -40,6 +40,7 @@ it('should fetch anonymous feed and serve consequent pages from cache', async ()
   const page0 = await generatePersonalizedFeed(con, 2, 0);
   expect(page0).toEqual(['1', '2']);
   expect(nock.isDone()).toEqual(true);
+  await new Promise((resolve) => setTimeout(resolve, 50));
   const page1 = await generatePersonalizedFeed(con, 2, 2);
   expect(page1).toEqual(['3', '4']);
 });
