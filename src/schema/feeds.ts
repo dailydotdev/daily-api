@@ -38,7 +38,11 @@ import {
 import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
-import { generatePersonalizedFeed } from '../personalizedFeed';
+import {
+  generatePersonalizedFeed,
+  getPersonalizedFeedKey,
+} from '../personalizedFeed';
+import { deleteKeysByPattern } from '../redis';
 
 export const typeDefs = gql`
   type FeedSettings {
@@ -658,6 +662,14 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
     { fetchQueryParams: (ctx) => feedToFilters(ctx.con, ctx.userId) },
   );
 
+const clearFeedCache = async (feedId: string): Promise<void> => {
+  try {
+    await deleteKeysByPattern(`${getPersonalizedFeedKey('*', feedId)}:time`);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
 const feedResolverV2: IFieldResolver<unknown, Context, FeedArgs> = feedResolver(
   (ctx, args, builder, alias, queryParams) =>
     fixedIdsFeedBuilder(ctx, queryParams as string[], builder, alias),
@@ -920,8 +932,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
       info,
     ): Promise<GQLFeedSettings> => {
+      const feedId = ctx.userId;
       await ctx.con.transaction(async (manager): Promise<void> => {
-        const feedId = ctx.userId;
         await manager.getRepository(Feed).save({
           userId: ctx.userId,
           id: feedId,
@@ -971,6 +983,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .execute();
         }
       });
+      await clearFeedCache(feedId);
       return getFeedSettings(ctx, info);
     },
     removeFiltersFromFeed: async (
@@ -979,8 +992,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
       info,
     ): Promise<GQLFeedSettings> => {
+      const feedId = ctx.userId;
       await ctx.con.transaction(async (manager): Promise<void> => {
-        const feedId = ctx.userId;
         await ctx.getRepository(Feed).findOneOrFail(feedId);
         if (filters?.excludeSources?.length) {
           await manager.getRepository(FeedSource).delete({
@@ -1001,6 +1014,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           });
         }
       });
+      await clearFeedCache(feedId);
       return getFeedSettings(ctx, info);
     },
   },
