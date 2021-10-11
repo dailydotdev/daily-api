@@ -622,3 +622,64 @@ describe('compatibility routes', () => {
     });
   });
 });
+
+describe('query searchBookmarksSuggestions', () => {
+  const QUERY = (query: string): string => `{
+    searchBookmarksSuggestions(query: "${query}") {
+      query
+      hits {
+        title
+      }
+    }
+  }
+`;
+
+  it('should return bookmark search suggestions', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Bookmark, bookmarksFixture);
+    const res = await client.query({ query: QUERY('p1') });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query searchBookmarks', () => {
+  const QUERY = (query: string, now = new Date(), first = 10): string => `{
+    searchBookmarks(query: "${query}", now: "${now.toISOString()}", first: ${first}) {
+      query
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+          url
+          title
+          readTime
+          tags
+          source {
+            id
+            name
+            image
+            public
+          }
+        }
+      }
+    }
+  }
+`;
+
+  it('should return bookmarks search feed', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Bookmark, bookmarksFixture);
+    const res = await client.query({ query: QUERY('p1') });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return bookmarks search empty feed', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Bookmark, bookmarksFixture);
+    const res = await client.query({ query: QUERY('not found') });
+    expect(res.data).toMatchSnapshot();
+  });
+});
