@@ -58,7 +58,7 @@ const redis = new gcp.redis.Instance(`${name}-redis`, {
   memorySizeGb: 5,
   region: location,
   authEnabled: true,
-  redisVersion: 'REDIS_6_x',
+  redisVersion: 'REDIS_6_X',
 });
 
 export const redisHost = redis.host;

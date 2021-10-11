@@ -40,13 +40,30 @@ it('should fetch anonymous feed and serve consequent pages from cache', async ()
   const page0 = await generatePersonalizedFeed(con, 2, 0);
   expect(page0).toEqual(['1', '2']);
   expect(nock.isDone()).toEqual(true);
+  await new Promise((resolve) => setTimeout(resolve, 50));
   const page1 = await generatePersonalizedFeed(con, 2, 2);
   expect(page1).toEqual(['3', '4']);
 });
 
-it('should fetch anonymous feed even when cache is present', async () => {
+it('should fetch anonymous feed and serve consequent calls from cache', async () => {
+  nock('http://localhost:6000')
+    .get('/feed.json?token=token&page_size=2&fresh_page_size=1')
+    .reply(200, tinybirdResponse);
+  const page0 = await generatePersonalizedFeed(con, 2, 0);
+  expect(page0).toEqual(['1', '2']);
+  expect(nock.isDone()).toEqual(true);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const page1 = await generatePersonalizedFeed(con, 2, 0);
+  expect(page1).toEqual(['1', '2']);
+});
+
+it('should fetch anonymous feed even when cache is old', async () => {
   const key = getPersonalizedFeedKey();
   const pipeline = redisClient.pipeline();
+  pipeline.set(
+    `${key}:time`,
+    new Date(new Date().getTime() - 60 * 60 * 1000).toISOString(),
+  );
   ['7', '8'].forEach((id, i) => pipeline.zadd(key, i, id));
   await pipeline.exec();
 
@@ -56,6 +73,21 @@ it('should fetch anonymous feed even when cache is present', async () => {
   const page0 = await generatePersonalizedFeed(con, 2, 0);
   expect(page0).toEqual(['1', '2']);
   expect(nock.isDone()).toEqual(true);
+});
+
+it('should not fetch anonymous feed even when cache is still fresh', async () => {
+  const key = getPersonalizedFeedKey();
+  const pipeline = redisClient.pipeline();
+  pipeline.set(`${key}:time`, new Date().toISOString());
+  ['7', '8'].forEach((id, i) => pipeline.zadd(key, i, id));
+  await pipeline.exec();
+
+  nock('http://localhost:6000')
+    .get('/feed.json?token=token&page_size=2&fresh_page_size=1')
+    .reply(200, tinybirdResponse);
+  const page0 = await generatePersonalizedFeed(con, 2, 0);
+  expect(page0).toEqual(['7', '8']);
+  expect(nock.isDone()).toEqual(false);
 });
 
 it('should set the correct query parameters', async () => {

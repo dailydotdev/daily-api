@@ -17,10 +17,6 @@ export const crons: Cron[] = [
     body: JSON.stringify({ feed: 'https://daily.dev/posts/rss.xml' }),
   },
   {
-    name: 'tweet-trending',
-    schedule: '0 7,12,15,19,22 * * *',
-  },
-  {
     name: 'update-featured-comments',
     schedule: '*/10 * * * *',
   },
