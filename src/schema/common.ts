@@ -145,6 +145,12 @@ export interface PageGenerator<
   ) => TReturn[];
 }
 
+export const getSearchQuery = (
+  param: string,
+): string => `SELECT to_tsquery('english',
+string_agg(lexeme || ':*', ' & ' order by positions)) AS query
+FROM unnest(to_tsvector('english', process_text(${param})))`;
+
 export const offsetPageGenerator = <TReturn>(
   defaultLimit: number,
   maxLimit: number,

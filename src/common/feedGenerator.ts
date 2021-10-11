@@ -13,7 +13,7 @@ import {
 } from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
-import { Page, PageGenerator } from '../schema/common';
+import { Page, PageGenerator, getSearchQuery } from '../schema/common';
 import graphorm from '../graphorm';
 
 export const whereTags = (
@@ -356,6 +356,7 @@ export const bookmarksFeedBuilder = (
   listId: string | null,
   builder: SelectQueryBuilder<Post>,
   alias: string,
+  query?: string | null,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder
     .addSelect('bookmark.createdAt', 'bookmarkedAt')
@@ -372,6 +373,14 @@ export const bookmarksFeedBuilder = (
   }
   if (listId && ctx.premium) {
     newBuilder = newBuilder.andWhere('bookmark.listId = :listId', { listId });
+  }
+  if (query) {
+    newBuilder = newBuilder.andWhere(
+      `${alias}.tsv @@ (${getSearchQuery(':query')})`,
+      {
+        query,
+      },
+    );
   }
   return newBuilder;
 };

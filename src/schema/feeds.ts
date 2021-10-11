@@ -33,6 +33,7 @@ import {
   offsetPageGenerator,
   Page,
   PageGenerator,
+  getSearchQuery,
 } from './common';
 import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -617,10 +618,6 @@ const getFeedSettings = async (
     blockedTags: [],
   };
 };
-
-const getSearchQuery = (param: string) => `SELECT to_tsquery('english',
-                                                             string_agg(lexeme || ':*', ' & ' order by positions)) AS query
-                                           FROM unnest(to_tsvector('english', process_text(${param})))`;
 
 const searchResolver = feedResolver(
   (ctx, { query }: FeedArgs & { query: string }, builder, alias) =>
