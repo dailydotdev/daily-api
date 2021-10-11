@@ -39,7 +39,8 @@ import {
 } from './fixture/post';
 import { Ranking } from '../src/common';
 import nock from 'nock';
-import { deleteKeysByPattern } from '../src/redis';
+import { deleteKeysByPattern, redisClient } from '../src/redis';
+import { getPersonalizedFeedKey } from '../src/personalizedFeed';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -745,6 +746,8 @@ describe('mutation addFiltersToFeed', () => {
 
   it('should add the new feed settings', async () => {
     loggedUser = '1';
+    await redisClient.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
+    await redisClient.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
     const res = await client.mutate({
       mutation: MUTATION,
       variables: {
@@ -756,6 +759,12 @@ describe('mutation addFiltersToFeed', () => {
       },
     });
     expect(res.data).toMatchSnapshot();
+    expect(
+      await redisClient.get(`${getPersonalizedFeedKey('2', '1')}:time`),
+    ).toBeFalsy();
+    expect(
+      await redisClient.get(`${getPersonalizedFeedKey('2', '2')}:time`),
+    ).toEqual('2');
   });
 
   it('should ignore duplicates', async () => {
@@ -818,6 +827,8 @@ describe('mutation removeFiltersFromFeed', () => {
 
   it('should remove existing filters', async () => {
     loggedUser = '1';
+    await redisClient.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
+    await redisClient.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
     await saveFeedFixtures();
     const res = await client.mutate({
       mutation: MUTATION,
@@ -830,6 +841,12 @@ describe('mutation removeFiltersFromFeed', () => {
       },
     });
     expect(res.data).toMatchSnapshot();
+    expect(
+      await redisClient.get(`${getPersonalizedFeedKey('2', '1')}:time`),
+    ).toBeFalsy();
+    expect(
+      await redisClient.get(`${getPersonalizedFeedKey('2', '2')}:time`),
+    ).toEqual('2');
   });
 });
 
