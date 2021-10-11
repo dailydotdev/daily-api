@@ -35,7 +35,7 @@ async function fetchTinybirdFeed(
   console.time('[feed_v2] fetch from tinybird');
   const res = await fetch(url);
   const body: TinybirdResponse<{ post_id: string }> = await res.json();
-  console.timeEnd('[feed_v2] fetch from tinybird');
+  console.timeLog('[feed_v2] fetch from tinybird', url);
   return body.data;
 }
 
