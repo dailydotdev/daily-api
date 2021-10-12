@@ -1,3 +1,8 @@
+import {
+  Keyword,
+  KeywordCategory,
+  KEYWORD_CATEGORY,
+} from './../entity/Keyword';
 import { gql, IResolvers } from 'apollo-server-fastify';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
@@ -26,6 +31,19 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   showOnlyUnreadPosts?: boolean;
   openNewTab?: boolean;
 }
+
+type GQLTagCategory = {
+  key: KeywordCategory;
+  title: string;
+};
+
+type GQLTagCategories = {
+  categories: GQLTagCategory[];
+};
+
+type GQLSettingsCategoryTags = {
+  keywords: string[];
+};
 
 export const typeDefs = gql`
   """
@@ -125,6 +143,19 @@ export const typeDefs = gql`
     openNewTab: Boolean
   }
 
+  type TagCategory {
+    key: String!
+    title: String!
+  }
+
+  type TagCategories {
+    categories: [TagCategory]!
+  }
+
+  type CategoryTags {
+    keywords: [String]!
+  }
+
   extend type Mutation {
     """
     Update the user settings
@@ -137,6 +168,21 @@ export const typeDefs = gql`
     Get the user settings
     """
     userSettings: Settings! @auth
+
+    """
+    Get the keywords of a category
+    """
+    categoryTags(
+      """
+      category of keywords to look for
+      """
+      category: String!
+    ): CategoryTags! @auth
+
+    """
+    Get the list of available categories for tags
+    """
+    tagCategories: TagCategories!
   }
 `;
 
@@ -166,6 +212,28 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         return repo.findOne(ctx.userId);
       }
       return settings;
+    },
+    tagCategories: (): GQLTagCategories => ({
+      categories: Object.keys(KEYWORD_CATEGORY).map((key: KeywordCategory) => ({
+        key,
+        title: KEYWORD_CATEGORY[key],
+      })),
+    }),
+    categoryTags: async (
+      _,
+      { category }: { category: string },
+      ctx,
+    ): Promise<GQLSettingsCategoryTags> => {
+      const repo = ctx.getRepository(Keyword);
+      const keywords = await repo
+        .createQueryBuilder()
+        .select('value')
+        .where('categories @> ARRAY[:category]', {
+          category,
+        })
+        .execute();
+
+      return { keywords: keywords.map((keyword: Keyword) => keyword.value) };
     },
   },
 });

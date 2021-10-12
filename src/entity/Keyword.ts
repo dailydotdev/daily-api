@@ -8,15 +8,15 @@ import {
 
 export type KeywordStatus = 'pending' | 'allow' | 'deny' | 'synonym';
 
-enum KEYWORD_CATEGORY {
-  TechNews = '🦄 Tech news',
-  Frontend = 'Frontend',
-  Devops = 'Devops',
-  Backend = 'Backend',
-  Mobile = 'Mobile',
+export enum KEYWORD_CATEGORY {
+  'Tech news' = '🦄 Tech news',
+  Frontend = '🌈 Frontend',
+  Devops = '⚙️ Devops',
+  Backend = '☁️ Backend',
+  Mobile = '📱 Mobile',
 }
 
-type KeywordCategory = keyof typeof KEYWORD_CATEGORY;
+export type KeywordCategory = keyof typeof KEYWORD_CATEGORY;
 
 @Entity()
 export class Keyword {
