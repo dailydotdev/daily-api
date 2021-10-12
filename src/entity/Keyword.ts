@@ -8,6 +8,14 @@ import {
 
 export type KeywordStatus = 'pending' | 'allow' | 'deny' | 'synonym';
 
+enum KeywordCategory {
+  TechNews = '🦄 Tech news',
+  Frontend = 'Frontend',
+  Devops = 'Devops',
+  Backend = 'Backend',
+  Mobile = 'Mobile',
+}
+
 @Entity()
 export class Keyword {
   @PrimaryColumn({ type: 'text' })
@@ -25,6 +33,9 @@ export class Keyword {
 
   @Column({ type: 'text', nullable: true })
   synonym?: string;
+
+  @Column({ type: 'text', array: true, default: [] })
+  categories: KeywordCategory[];
 
   @UpdateDateColumn()
   @Index('IDX_keyword_updatedAt')
