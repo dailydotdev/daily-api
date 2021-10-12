@@ -78,12 +78,12 @@ const shouldServeFromCache = async (
   if (offset) {
     return true;
   }
-  // const lastGenerated = await redisClient.get(`${key}:time`);
-  // return (
-  //   lastGenerated &&
-  //   new Date().getTime() - new Date(lastGenerated).getTime() <= 5 * 60 * 1000
-  // );
-  return !key;
+  const lastGenerated = await redisClient.get(`${key}:time`);
+  return (
+    lastGenerated &&
+    new Date().getTime() - new Date(lastGenerated).getTime() <= 3 * 60 * 1000
+  );
+  // return !key;
 };
 
 export async function generatePersonalizedFeed(
