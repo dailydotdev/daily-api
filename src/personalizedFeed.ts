@@ -1,3 +1,4 @@
+import { Agent } from 'https';
 import { Connection } from 'typeorm';
 import { feedToFilters } from './common';
 import fetch from 'node-fetch';
@@ -6,6 +7,8 @@ import { redisClient } from './redis';
 interface TinybirdResponse<T> {
   data: T[];
 }
+
+const agent = new Agent({ keepAlive: true });
 
 async function fetchTinybirdFeed(
   con: Connection,
@@ -31,7 +34,7 @@ async function fetchTinybirdFeed(
     }
   }
   const start = new Date();
-  const res = await fetch(url);
+  const res = await fetch(url, { agent });
   const body: TinybirdResponse<{ post_id: string }> = await res.json();
   console.log(
     `[feed_v2] fetch from tinybird ${
