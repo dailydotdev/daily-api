@@ -1,3 +1,9 @@
+import {
+  Keyword,
+  KeywordCategory,
+  KEYWORD_CATEGORY,
+} from './../src/entity/Keyword';
+import { Feed } from './../src/entity/Feed';
 import { ApolloServer } from 'apollo-server-fastify';
 import {
   ApolloServerTestClient,
@@ -12,11 +18,12 @@ import createApolloServer from '../src/apollo';
 import {
   authorizeRequest,
   MockContext,
+  saveFixtures,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
 import appFunc from '../src';
-import { Settings } from '../src/entity';
+import { FeedTag, Settings } from '../src/entity';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -40,6 +47,23 @@ beforeEach(async () => {
 });
 
 afterAll(() => app.close());
+
+const keywords: Partial<Keyword>[] = [
+  { value: 'html', categories: ['Frontend'] },
+  { value: 'javascript', categories: ['Frontend', 'Backend'] },
+  { value: 'golang', categories: ['Backend'] },
+];
+const feedTags = [
+  { feedId: '1', tag: 'html' },
+  { feedId: '1', tag: 'javascript' },
+  { feedId: '1', tag: 'golang', blocked: true },
+];
+
+const saveFeedFixtures = async (): Promise<void> => {
+  await saveFixtures(con, Keyword, keywords);
+  await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+  await saveFixtures(con, FeedTag, feedTags);
+};
 
 describe('query userSettings', () => {
   const QUERY = `{
@@ -169,5 +193,91 @@ describe('compatibility routes', () => {
         }),
       ).toMatchSnapshot();
     });
+  });
+});
+
+describe('query tagCategories', () => {
+  it('should return a list of categories having key as a unique identifier and title with some cute emojis!', async () => {
+    const QUERY = `{
+      tagCategories {
+        categories {
+          key
+          title
+        }
+      }
+    }`;
+
+    await saveFeedFixtures();
+
+    const res = await client.query({ query: QUERY });
+
+    expect(res.data.tagCategories).toMatchSnapshot();
+  });
+});
+
+describe('query tagCategories', () => {
+  it('should return a list of categories having key as a unique identifier and title with some cute emojis!', async () => {
+    const QUERY = `{
+      tagCategories {
+        categories {
+          key
+          title
+        }
+      }
+    }`;
+
+    await saveFeedFixtures();
+
+    const res = await client.query({ query: QUERY });
+
+    expect(res.data.tagCategories.categories.length).toEqual(
+      Object.keys(KEYWORD_CATEGORY).length,
+    );
+  });
+});
+
+describe('query categoryTags', () => {
+  const FE_IN_FIXTURES = keywords.filter((keyword) =>
+    keyword.categories.some(
+      (category: KeywordCategory) => category === 'Frontend',
+    ),
+  );
+  const BE_IN_FIXTURES = keywords.filter((keyword) =>
+    keyword.categories.some(
+      (category: KeywordCategory) => category === 'Backend',
+    ),
+  );
+  const BLOCKED_IN_FIXTURES = feedTags.filter((feedTag) => feedTag.blocked);
+
+  it('should return a list of tags under the provided category', async () => {
+    loggedUser = '1';
+
+    const getQuery = (category: KeywordCategory) => `{
+      categoryTags(category: "${category}") {
+        keywords {
+          name,
+          blocked
+        }
+      }
+    }`;
+
+    await saveFeedFixtures();
+
+    const res1 = await client.query({ query: getQuery('Frontend') });
+
+    expect(res1.data.categoryTags.keywords.length).toEqual(
+      FE_IN_FIXTURES.length,
+    );
+
+    const res2 = await client.query({ query: getQuery('Backend') });
+
+    expect(res2.data.categoryTags.keywords.length).toEqual(
+      BE_IN_FIXTURES.length,
+    );
+
+    const blockedTags = res2.data.categoryTags.keywords.filter(
+      (tag: FeedTag) => tag.blocked,
+    );
+    expect(blockedTags.length).toEqual(BLOCKED_IN_FIXTURES.length);
   });
 });

@@ -40,6 +40,33 @@ Object {
 }
 `;
 
+exports[`query tagCategories should return a list of categories having key as a unique identifier and title with some cute emojis! 1`] = `
+Object {
+  "categories": Array [
+    Object {
+      "key": "Tech news",
+      "title": "🦄 Tech news",
+    },
+    Object {
+      "key": "Frontend",
+      "title": "🌈 Frontend",
+    },
+    Object {
+      "key": "Devops",
+      "title": "⚙️ Devops",
+    },
+    Object {
+      "key": "Backend",
+      "title": "☁️ Backend",
+    },
+    Object {
+      "key": "Mobile",
+      "title": "📱 Mobile",
+    },
+  ],
+}
+`;
+
 exports[`query userSettings should create default settings if not exist 1`] = `
 Object {
   "appInsaneMode": true,
