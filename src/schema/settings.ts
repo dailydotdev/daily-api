@@ -41,13 +41,13 @@ interface GQLTagCategories {
   categories: GQLTagCategory[];
 }
 
-interface Tag {
+interface GQLTag {
   name: string;
   blocked: boolean;
 }
 
-interface CategoryTags {
-  keywords: Tag[];
+interface GQLCategoryTags {
+  keywords: GQLTag[];
 }
 
 type CategoryFeedTag = Pick<Keyword, 'value'> & Pick<FeedTag, 'blocked'>;
@@ -235,7 +235,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       _,
       { category }: { category: string },
       ctx,
-    ): Promise<CategoryTags> => {
+    ): Promise<GQLCategoryTags> => {
       const repo = ctx.getRepository(Keyword);
       const keywords = await repo
         .createQueryBuilder('keyword')
