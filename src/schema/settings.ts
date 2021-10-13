@@ -6,7 +6,7 @@ import {
 import { gql, IResolvers } from 'apollo-server-fastify';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { Settings } from '../entity';
+import { FeedTag, Settings } from '../entity';
 
 interface GQLSettings {
   userId: string;
@@ -32,18 +32,25 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   openNewTab?: boolean;
 }
 
-type GQLTagCategory = {
+interface GQLTagCategory {
   key: KeywordCategory;
   title: string;
-};
+}
 
-type GQLTagCategories = {
+interface GQLTagCategories {
   categories: GQLTagCategory[];
-};
+}
 
-type GQLSettingsCategoryTags = {
-  keywords: string[];
-};
+interface Tag {
+  name: string;
+  blocked: boolean;
+}
+
+interface CategoryTags {
+  keywords: Tag[];
+}
+
+type CategoryFeedTag = Pick<Keyword, 'value'> & Pick<FeedTag, 'blocked'>;
 
 export const typeDefs = gql`
   """
@@ -152,8 +159,13 @@ export const typeDefs = gql`
     categories: [TagCategory]!
   }
 
+  type CategoryTag {
+    name: String!
+    blocked: Boolean
+  }
+
   type CategoryTags {
-    keywords: [String]!
+    keywords: [CategoryTag]!
   }
 
   extend type Mutation {
@@ -223,17 +235,27 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       _,
       { category }: { category: string },
       ctx,
-    ): Promise<GQLSettingsCategoryTags> => {
+    ): Promise<CategoryTags> => {
       const repo = ctx.getRepository(Keyword);
       const keywords = await repo
-        .createQueryBuilder()
-        .select('value')
-        .where('categories @> ARRAY[:category]', {
-          category,
-        })
+        .createQueryBuilder('keyword')
+        .select('keyword.value, feed_tag.blocked')
+        .leftJoin('feed_tag', 'feed_tag', 'keyword.value = feed_tag.tag')
+        .leftJoin(
+          'feed',
+          'feed',
+          'feed.id = feed_tag.feedId AND feed.userId = :userId',
+          { userId: ctx.userId },
+        )
+        .where('keyword.categories @> ARRAY[:category]', { category })
         .execute();
 
-      return { keywords: keywords.map((keyword: Keyword) => keyword.value) };
+      return {
+        keywords: keywords.map(({ value, blocked }: CategoryFeedTag) => ({
+          name: value,
+          blocked,
+        })),
+      };
     },
   },
 });
