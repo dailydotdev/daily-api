@@ -1,7 +1,9 @@
+import { CategoryKeyword } from './CategoryKeyword';
 import {
   Column,
   Entity,
   Index,
+  OneToMany,
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -19,28 +21,24 @@ export enum KEYWORD_CATEGORY {
 export type KeywordCategory = keyof typeof KEYWORD_CATEGORY;
 
 @Entity()
-export class Keyword {
+export class Category {
   @PrimaryColumn({ type: 'text' })
-  @Index('IDX_keyword_value')
-  value: string;
+  @Index('IDX_category_id')
+  id: string;
 
-  @Column({
-    default: 'pending',
-  })
-  @Index('IDX_keyword_status')
-  status: KeywordStatus;
+  @Index()
+  @Column({ type: 'text' })
+  value: string;
 
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
-  @Column({ type: 'text', nullable: true })
-  synonym?: string;
-
   @UpdateDateColumn()
-  @Index('IDX_keyword_updatedAt')
+  @Index('IDX_category_updatedAt')
   updatedAt: Date;
 
-  @Column({ default: 1 })
-  @Index('IDX_keyword_occurrences')
-  occurrences: number;
+  @OneToMany(() => CategoryKeyword, (ck) => ck.categoryId, {
+    lazy: true,
+  })
+  keywords: Promise<CategoryKeyword[]>;
 }
