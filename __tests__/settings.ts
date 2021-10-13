@@ -211,25 +211,6 @@ describe('query tagCategories', () => {
 
     const res = await client.query({ query: QUERY });
 
-    expect(res.data.tagCategories).toMatchSnapshot();
-  });
-});
-
-describe('query tagCategories', () => {
-  it('should return a list of categories having key as a unique identifier and title with some cute emojis!', async () => {
-    const QUERY = `{
-      tagCategories {
-        categories {
-          key
-          title
-        }
-      }
-    }`;
-
-    await saveFeedFixtures();
-
-    const res = await client.query({ query: QUERY });
-
     expect(res.data.tagCategories.categories.length).toEqual(
       Object.keys(KEYWORD_CATEGORY).length,
     );
