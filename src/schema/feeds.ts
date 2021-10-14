@@ -85,7 +85,7 @@ export const typeDefs = gql`
   }
 
   type TagsCategories {
-    categories: [Category]!
+    categories: [TagCategory]!
   }
 
   enum Ranking {
