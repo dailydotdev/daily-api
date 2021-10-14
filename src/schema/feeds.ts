@@ -80,7 +80,7 @@ export const typeDefs = gql`
   }
 
   type TagCategory {
-    id: String
+    id: String!
     emoji: String
     title: String!
     tags: [String]!
