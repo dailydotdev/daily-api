@@ -47,7 +47,7 @@ import { deleteKeysByPattern } from '../redis';
 
 interface GQLCategory {
   id: string;
-  value: string;
+  title: string;
   tags: string[];
 }
 
@@ -80,7 +80,7 @@ export const typeDefs = gql`
 
   type TagCategory {
     id: String
-    value: String!
+    title: String!
     tags: [String]!
   }
 

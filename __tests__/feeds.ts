@@ -78,8 +78,8 @@ enum TagCategory {
 }
 
 const categories: Partial<Category>[] = [
-  { id: 'FE', value: TagCategory.Frontend, tags: ['html', 'javascript'] },
-  { id: 'BE', value: TagCategory.Backend, tags: ['golang', 'javascript'] },
+  { id: 'FE', title: TagCategory.Frontend, tags: ['html', 'javascript'] },
+  { id: 'BE', title: TagCategory.Backend, tags: ['golang', 'javascript'] },
 ];
 
 const saveFeedFixtures = async (): Promise<void> => {
@@ -731,10 +731,10 @@ describe('query randomDiscussedPosts', () => {
 
 describe('query tagsCategories', () => {
   const FE_IN_FIXTURES = categories.find(
-    (category) => category.value === TagCategory.Frontend,
+    (category) => category.title === TagCategory.Frontend,
   );
   const BE_IN_FIXTURES = categories.find(
-    (category) => category.value === TagCategory.Backend,
+    (category) => category.title === TagCategory.Backend,
   );
 
   it('should return a list of categories with a property of a string array as tags', async () => {
@@ -742,7 +742,7 @@ describe('query tagsCategories', () => {
       tagsCategories {
         categories {
           id
-          value
+          title
           tags
         }
       }
