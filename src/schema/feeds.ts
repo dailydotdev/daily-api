@@ -45,7 +45,7 @@ import {
 } from '../personalizedFeed';
 import { deleteKeysByPattern } from '../redis';
 
-interface GQLCategory {
+interface GQLTagsCategory {
   id: string;
   emoji: string;
   title: string;
