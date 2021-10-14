@@ -53,7 +53,7 @@ interface GQLTagsCategory {
 }
 
 interface GQLTagsCategories {
-  categories: GQLCategory[];
+  categories: GQLTagsCategory[];
 }
 
 export const typeDefs = gql`
@@ -79,7 +79,7 @@ export const typeDefs = gql`
     url: String!
   }
 
-  type TagCategory {
+  type TagsCategory {
     id: String!
     emoji: String
     title: String!
@@ -87,7 +87,7 @@ export const typeDefs = gql`
   }
 
   type TagsCategories {
-    categories: [TagCategory]!
+    categories: [TagsCategory]!
   }
 
   enum Ranking {
