@@ -78,8 +78,18 @@ enum TagCategory {
 }
 
 const categories: Partial<Category>[] = [
-  { id: 'FE', title: TagCategory.Frontend, tags: ['html', 'javascript'] },
-  { id: 'BE', title: TagCategory.Backend, tags: ['golang', 'javascript'] },
+  {
+    id: 'FE',
+    emoji: '🌈',
+    title: TagCategory.Frontend,
+    tags: ['html', 'javascript'],
+  },
+  {
+    id: 'BE',
+    emoji: '⚙️',
+    title: TagCategory.Backend,
+    tags: ['golang', 'javascript'],
+  },
 ];
 
 const saveFeedFixtures = async (): Promise<void> => {
@@ -744,6 +754,7 @@ describe('query tagsCategories', () => {
           id
           title
           tags
+          emoji
         }
       }
     }`;
@@ -757,6 +768,7 @@ describe('query tagsCategories', () => {
 
     expect(fe.tags.length).toEqual(FE_IN_FIXTURES.tags.length);
     expect(be.tags.length).toEqual(BE_IN_FIXTURES.tags.length);
+    expect(res.data).toMatchSnapshot();
   });
 });
 
