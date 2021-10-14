@@ -53,6 +53,7 @@ describe('query userSettings', () => {
     spaciness
     showOnlyUnreadPosts
     openNewTab
+    alertSidebar
   }
 }`;
 
@@ -67,6 +68,7 @@ describe('query userSettings', () => {
       userId: '1',
       theme: 'bright',
       insaneMode: true,
+      alertSidebar: true,
     });
     const expected = new Object(await repo.save(settings));
     delete expected['updatedAt'];
@@ -126,12 +128,13 @@ describe('mutation updateUserSettings', () => {
         userId: '1',
         theme: 'bright',
         insaneMode: true,
+        alertSidebar: true,
       }),
     );
 
     const res = await client.mutate({
       mutation: MUTATION,
-      variables: { data: { appInsaneMode: false } },
+      variables: { data: { appInsaneMode: false, alertSidebar: false } },
     });
     expect(res.data).toMatchSnapshot();
   });
@@ -145,6 +148,7 @@ describe('compatibility routes', () => {
         userId: '1',
         theme: 'bright',
         insaneMode: true,
+        alertSidebar: true,
       });
       const expected = new Object(await repo.save(settings));
       expected['showOnlyNotReadPosts'] = expected['showOnlyUnreadPosts'];

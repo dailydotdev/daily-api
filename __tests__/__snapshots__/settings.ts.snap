@@ -42,6 +42,7 @@ Object {
 
 exports[`query userSettings should create default settings if not exist 1`] = `
 Object {
+  "alertSidebar": true,
   "appInsaneMode": true,
   "enableCardAnimations": true,
   "insaneMode": false,
