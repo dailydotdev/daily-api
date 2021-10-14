@@ -24,7 +24,6 @@ export class Category {
   @Index('IDX_category_id')
   id: string;
 
-  @Index()
   @Column({ type: 'text' })
   title: string;
 
@@ -32,6 +31,7 @@ export class Category {
   createdAt: Date;
 
   @UpdateDateColumn()
+  @Index('IDX_category_updatedAt')
   updatedAt: Date;
 
   @Column({ type: 'text', array: true, default: [] })
