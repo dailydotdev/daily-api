@@ -78,7 +78,7 @@ export const typeDefs = gql`
     url: String!
   }
 
-  type Category {
+  type TagCategory {
     id: String
     value: String!
     tags: [String]!
