@@ -1902,7 +1902,7 @@ Object {
   "tagsCategories": Object {
     "categories": Array [
       Object {
-        "emoji": "R",
+        "emoji": "🌈",
         "id": "FE",
         "tags": Array [
           "html",
@@ -1911,7 +1911,7 @@ Object {
         "title": "Frontend",
       },
       Object {
-        "emoji": "G",
+        "emoji": "⚙️",
         "id": "BE",
         "tags": Array [
           "golang",

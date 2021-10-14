@@ -72,22 +72,17 @@ beforeEach(async () => {
 
 afterAll(() => app.close());
 
-enum TagCategory {
-  Frontend = 'Frontend',
-  Backend = 'Backend',
-}
-
 const categories: Partial<Category>[] = [
   {
     id: 'FE',
-    emoji: 'R',
-    title: TagCategory.Frontend,
+    emoji: '🌈',
+    title: 'Frontend',
     tags: ['html', 'javascript'],
   },
   {
     id: 'BE',
-    emoji: 'G',
-    title: TagCategory.Backend,
+    emoji: '⚙️',
+    title: 'Backend',
     tags: ['golang', 'javascript'],
   },
 ];
@@ -740,13 +735,6 @@ describe('query randomDiscussedPosts', () => {
 });
 
 describe('query tagsCategories', () => {
-  const FE_IN_FIXTURES = categories.find(
-    (category) => category.title === TagCategory.Frontend,
-  );
-  const BE_IN_FIXTURES = categories.find(
-    (category) => category.title === TagCategory.Backend,
-  );
-
   it('should return a list of categories with a property of a string array as tags', async () => {
     const QUERY = `{
       tagsCategories {
@@ -762,12 +750,7 @@ describe('query tagsCategories', () => {
     await saveFeedFixtures();
 
     const res = await client.query({ query: QUERY });
-    const { categories } = res.data.tagsCategories;
-    const fe = categories.find((category) => category.id === 'FE');
-    const be = categories.find((category) => category.id === 'BE');
 
-    expect(fe.tags.length).toEqual(FE_IN_FIXTURES.tags.length);
-    expect(be.tags.length).toEqual(BE_IN_FIXTURES.tags.length);
     expect(res.data).toMatchSnapshot();
   });
 });
