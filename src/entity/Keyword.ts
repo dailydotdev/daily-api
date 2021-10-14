@@ -8,16 +8,6 @@ import {
 
 export type KeywordStatus = 'pending' | 'allow' | 'deny' | 'synonym';
 
-export enum KEYWORD_CATEGORY {
-  'Tech news' = '🦄 Tech news',
-  Frontend = '🌈 Frontend',
-  Devops = '⚙️ Devops',
-  Backend = '☁️ Backend',
-  Mobile = '📱 Mobile',
-}
-
-export type KeywordCategory = keyof typeof KEYWORD_CATEGORY;
-
 @Entity()
 export class Keyword {
   @PrimaryColumn({ type: 'text' })
