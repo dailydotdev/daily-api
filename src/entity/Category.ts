@@ -12,6 +12,9 @@ export class Category {
   @Index('IDX_category_id')
   id: string;
 
+  @Column({ type: 'char' })
+  emoji: string;
+
   @Column({ type: 'text' })
   title: string;
 
