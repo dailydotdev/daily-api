@@ -1,9 +1,7 @@
-import { CategoryKeyword } from './CategoryKeyword';
 import {
   Column,
   Entity,
   Index,
-  OneToMany,
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -37,8 +35,6 @@ export class Category {
   @Index('IDX_category_updatedAt')
   updatedAt: Date;
 
-  @OneToMany(() => CategoryKeyword, (ck) => ck.categoryId, {
-    lazy: true,
-  })
-  keywords: Promise<CategoryKeyword[]>;
+  @Column({ type: 'text', array: true, default: [] })
+  tags: string[];
 }
