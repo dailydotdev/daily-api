@@ -1,3 +1,4 @@
+import { Category } from './../src/entity/Category';
 import { FastifyInstance } from 'fastify';
 import { Connection, getConnection, In } from 'typeorm';
 import { ApolloServer } from 'apollo-server-fastify';
@@ -71,7 +72,18 @@ beforeEach(async () => {
 
 afterAll(() => app.close());
 
+enum TagCategory {
+  Frontend = 'Frontend',
+  Backend = 'Backend',
+}
+
+const categories: Partial<Category>[] = [
+  { id: 'FE', value: TagCategory.Frontend, tags: ['html', 'javascript'] },
+  { id: 'BE', value: TagCategory.Backend, tags: ['golang', 'javascript'] },
+];
+
 const saveFeedFixtures = async (): Promise<void> => {
+  await saveFixtures(con, Category, categories);
   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
   await saveFixtures(con, FeedTag, [
     { feedId: '1', tag: 'html' },
@@ -714,6 +726,37 @@ describe('query randomDiscussedPosts', () => {
     expect(res.data.randomDiscussedPosts.map((post) => post.id).sort()).toEqual(
       ['p3'],
     );
+  });
+});
+
+describe('query tagsCategories', () => {
+  const FE_IN_FIXTURES = categories.find(
+    (category) => category.value === TagCategory.Frontend,
+  );
+  const BE_IN_FIXTURES = categories.find(
+    (category) => category.value === TagCategory.Backend,
+  );
+
+  it('should return a list of categories with a property of a string array as tags', async () => {
+    const QUERY = `{
+      tagsCategories {
+        categories {
+          id
+          value
+          tags
+        }
+      }
+    }`;
+
+    await saveFeedFixtures();
+
+    const res = await client.query({ query: QUERY });
+    const { categories } = res.data.tagsCategories;
+    const fe = categories.find((category) => category.id === 'FE');
+    const be = categories.find((category) => category.id === 'BE');
+
+    expect(fe.tags.length).toEqual(FE_IN_FIXTURES.tags.length);
+    expect(be.tags.length).toEqual(BE_IN_FIXTURES.tags.length);
   });
 });
 

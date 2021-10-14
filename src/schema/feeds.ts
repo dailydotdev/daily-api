@@ -1,3 +1,4 @@
+import { Category } from './../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
 import { gql, IFieldResolver, IResolvers } from 'apollo-server-fastify';
 import { Context } from '../Context';
@@ -44,6 +45,16 @@ import {
 } from '../personalizedFeed';
 import { deleteKeysByPattern } from '../redis';
 
+interface GQLCategory {
+  id: string;
+  value: string;
+  tags: string[];
+}
+
+interface GQLTagsCategories {
+  categories: GQLCategory[];
+}
+
 export const typeDefs = gql`
   type FeedSettings {
     id: String
@@ -65,6 +76,16 @@ export const typeDefs = gql`
   type RSSFeed {
     name: String!
     url: String!
+  }
+
+  type Category {
+    id: String
+    value: String!
+    tags: [String]!
+  }
+
+  type TagsCategories {
+    categories: [Category]!
   }
 
   enum Ranking {
@@ -425,6 +446,11 @@ export const typeDefs = gql`
       """
       first: Int
     ): [Post]!
+
+    """
+    Get the categories of tags
+    """
+    tagsCategories: TagsCategories!
   }
 
   extend type Mutation {
@@ -924,6 +950,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       },
       3,
     ),
+    tagsCategories: async (_, __, ctx): Promise<GQLTagsCategories> => {
+      const repo = ctx.getRepository(Category);
+      const categories = await repo.find();
+
+      return { categories };
+    },
   },
   Mutation: {
     addFiltersToFeed: async (

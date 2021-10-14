@@ -1,12 +1,7 @@
-import {
-  Keyword,
-  KeywordCategory,
-  KEYWORD_CATEGORY,
-} from './../entity/Keyword';
 import { gql, IResolvers } from 'apollo-server-fastify';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { FeedTag, Settings } from '../entity';
+import { Settings } from '../entity';
 
 interface GQLSettings {
   userId: string;
@@ -31,26 +26,6 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   showOnlyUnreadPosts?: boolean;
   openNewTab?: boolean;
 }
-
-interface GQLTagCategory {
-  key: KeywordCategory;
-  title: string;
-}
-
-interface GQLTagCategories {
-  categories: GQLTagCategory[];
-}
-
-interface GQLTag {
-  name: string;
-  blocked: boolean;
-}
-
-interface GQLCategoryTags {
-  keywords: GQLTag[];
-}
-
-type CategoryFeedTag = Pick<Keyword, 'value'> & Pick<FeedTag, 'blocked'>;
 
 export const typeDefs = gql`
   """
@@ -150,24 +125,6 @@ export const typeDefs = gql`
     openNewTab: Boolean
   }
 
-  type TagCategory {
-    key: String!
-    title: String!
-  }
-
-  type TagCategories {
-    categories: [TagCategory]!
-  }
-
-  type CategoryTag {
-    name: String!
-    blocked: Boolean
-  }
-
-  type CategoryTags {
-    keywords: [CategoryTag]!
-  }
-
   extend type Mutation {
     """
     Update the user settings
@@ -180,21 +137,6 @@ export const typeDefs = gql`
     Get the user settings
     """
     userSettings: Settings! @auth
-
-    """
-    Get the keywords of a category
-    """
-    categoryTags(
-      """
-      category of keywords to look for
-      """
-      category: String!
-    ): CategoryTags! @auth
-
-    """
-    Get the list of available categories for tags
-    """
-    tagCategories: TagCategories!
   }
 `;
 
@@ -224,38 +166,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         return repo.findOne(ctx.userId);
       }
       return settings;
-    },
-    tagCategories: (): GQLTagCategories => ({
-      categories: Object.keys(KEYWORD_CATEGORY).map((key: KeywordCategory) => ({
-        key,
-        title: KEYWORD_CATEGORY[key],
-      })),
-    }),
-    categoryTags: async (
-      _,
-      { category }: { category: string },
-      ctx,
-    ): Promise<GQLCategoryTags> => {
-      const repo = ctx.getRepository(Keyword);
-      const keywords = await repo
-        .createQueryBuilder('keyword')
-        .select('keyword.value, feed_tag.blocked')
-        .leftJoin('feed_tag', 'feed_tag', 'keyword.value = feed_tag.tag')
-        .leftJoin(
-          'feed',
-          'feed',
-          'feed.id = feed_tag.feedId AND feed.userId = :userId',
-          { userId: ctx.userId },
-        )
-        .where('keyword.categories @> ARRAY[:category]', { category })
-        .execute();
-
-      return {
-        keywords: keywords.map(({ value, blocked }: CategoryFeedTag) => ({
-          name: value,
-          blocked,
-        })),
-      };
     },
   },
 });
