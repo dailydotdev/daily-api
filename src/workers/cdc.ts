@@ -1,3 +1,4 @@
+import { Settings } from './../entity/Settings';
 import { messageToJson, Worker } from './worker';
 import {
   Comment,
@@ -21,6 +22,7 @@ import {
   notifyPostUpvoteCanceled,
   notifyPostUpvoted,
   notifySendAnalyticsReport,
+  notifySettingsAlertSidebar,
   notifySourceRequest,
   notifyUserReputationUpdated,
 } from '../common';
@@ -151,6 +153,24 @@ const onUserChange = async (
   }
 };
 
+const onSettingsChange = async (
+  con: Connection,
+  logger: Logger,
+  data: ChangeMessage<Settings>,
+): Promise<void> => {
+  if (data.payload.op === 'u') {
+    if (data.payload.before.alertSidebar !== data.payload.after.alertSidebar) {
+      await notifySettingsAlertSidebar(
+        logger,
+        data.payload.after.userId,
+        data.payload.after.alertSidebar,
+      );
+    }
+  } else if (data.payload.op === 'c') {
+    await notifySettingsAlertSidebar(logger, data.payload.after.userId, true);
+  }
+};
+
 const onPostChange = async (
   con: Connection,
   logger: Logger,
@@ -261,6 +281,9 @@ const worker: Worker = {
           break;
         case getTableName(con, PostReport):
           await onPostReportChange(con, logger, data);
+          break;
+        case getTableName(con, Settings):
+          await onSettingsChange(con, logger, data);
           break;
       }
     } catch (err) {
