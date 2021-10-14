@@ -80,13 +80,13 @@ enum TagCategory {
 const categories: Partial<Category>[] = [
   {
     id: 'FE',
-    emoji: '🌈',
+    emoji: 'R',
     title: TagCategory.Frontend,
     tags: ['html', 'javascript'],
   },
   {
     id: 'BE',
-    emoji: '⚙️',
+    emoji: 'G',
     title: TagCategory.Backend,
     tags: ['golang', 'javascript'],
   },
