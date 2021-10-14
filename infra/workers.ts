@@ -94,10 +94,6 @@ export const workers: Worker[] = [
     subscription: 'post-banned-email',
   },
   {
-    topic: 'settings-alert',
-    subscription: 'settings-alert-sidebar-redis',
-  },
-  {
     topic: 'views',
     subscription: 'check-devcard-eligibility',
   },
