@@ -621,7 +621,7 @@ describe('alerts', () => {
     updatedAt: 1634260310996,
   };
 
-  it('should notify on alertSidebar changed', async () => {
+  it('should notify on settings.alertSidebar changed', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
       alertSidebar: false,
