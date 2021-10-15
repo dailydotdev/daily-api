@@ -1,3 +1,4 @@
+import { ArticleType } from './../entity/ArticleType';
 import { Category } from './../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
 import { gql, IFieldResolver, IResolvers } from 'apollo-server-fastify';
@@ -56,6 +57,15 @@ interface GQLTagsCategories {
   categories: GQLTagsCategory[];
 }
 
+interface GQLArticleType {
+  id: string;
+  title: string;
+}
+
+interface GQLArticleTypes {
+  types: GQLArticleType[];
+}
+
 export const typeDefs = gql`
   type FeedSettings {
     id: String
@@ -77,6 +87,15 @@ export const typeDefs = gql`
   type RSSFeed {
     name: String!
     url: String!
+  }
+
+  type ArticleType {
+    id: String!
+    title: String!
+  }
+
+  type ArticleTypes {
+    types: [ArticleType]!
   }
 
   type TagsCategory {
@@ -450,6 +469,11 @@ export const typeDefs = gql`
     ): [Post]!
 
     """
+    Get article types of sources
+    """
+    articleTypes: ArticleTypes!
+
+    """
     Get the categories of tags
     """
     tagsCategories: TagsCategories!
@@ -718,6 +742,12 @@ const feedResolverV2: IFieldResolver<unknown, Context, FeedArgs> = feedResolver(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
+    articleTypes: async (_, __, ctx): Promise<GQLArticleTypes> => {
+      const repo = ctx.getRepository(ArticleType);
+      const types = await repo.find();
+
+      return { types };
+    },
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
       if (args.version === 2 && args.ranking === Ranking.POPULARITY) {
         return feedResolverV2(source, args, ctx, info);
