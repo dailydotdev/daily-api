@@ -1,4 +1,12 @@
-import { Column, Entity, Index, OneToMany, PrimaryColumn } from 'typeorm';
+import { ArticleType } from './ArticleType';
+import {
+  Column,
+  Entity,
+  Index,
+  OneToMany,
+  PrimaryColumn,
+  ManyToOne,
+} from 'typeorm';
 import { SourceDisplay } from './SourceDisplay';
 import { SourceFeed } from './SourceFeed';
 import { Post } from './Post';
@@ -29,6 +37,16 @@ export class Source {
 
   @Column({ default: false })
   private: boolean;
+
+  @Column({ type: 'text', default: null })
+  @Index()
+  editorialId: string;
+
+  @ManyToOne(() => ArticleType, (articleType) => articleType.sources, {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  articleType: Promise<ArticleType>;
 
   @OneToMany(() => SourceDisplay, (display) => display.source, { lazy: true })
   displays: Promise<SourceDisplay[]>;
