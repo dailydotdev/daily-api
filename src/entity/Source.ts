@@ -40,7 +40,7 @@ export class Source {
 
   @Column({ type: 'text', default: null })
   @Index()
-  editorialId: string;
+  articleTypeId: string;
 
   @ManyToOne(() => ArticleType, (articleType) => articleType.sources, {
     lazy: true,
