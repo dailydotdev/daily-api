@@ -1,3 +1,4 @@
+import { ArticleType } from './../src/entity/ArticleType';
 import { Category } from './../src/entity/Category';
 import { FastifyInstance } from 'fastify';
 import { Connection, getConnection, In } from 'typeorm';
@@ -72,6 +73,14 @@ beforeEach(async () => {
 
 afterAll(() => app.close());
 
+const articleTypes: Partial<ArticleType>[] = [
+  { id: 'tm', title: 'Tech magazines' },
+  { id: 'n-ec', title: 'Non-editorial content' },
+  { id: 'rn', title: 'Release notes' },
+  { id: 'ce', title: 'Code examples' },
+  { id: 'cb', title: 'Company blogs' },
+];
+
 const categories: Partial<Category>[] = [
   {
     id: 'FE',
@@ -88,6 +97,7 @@ const categories: Partial<Category>[] = [
 ];
 
 const saveFeedFixtures = async (): Promise<void> => {
+  await saveFixtures(con, ArticleType, articleTypes);
   await saveFixtures(con, Category, categories);
   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
   await saveFixtures(con, FeedTag, [
@@ -731,6 +741,25 @@ describe('query randomDiscussedPosts', () => {
     expect(res.data.randomDiscussedPosts.map((post) => post.id).sort()).toEqual(
       ['p3'],
     );
+  });
+});
+
+describe('query tagsCategories', () => {
+  it('should return a list of article types', async () => {
+    const QUERY = `{
+      articleTypes {
+        types {
+          id
+          title
+        }
+      }
+    }`;
+
+    await saveFeedFixtures();
+
+    const res = await client.query({ query: QUERY });
+
+    expect(res.data).toMatchSnapshot();
   });
 });
 

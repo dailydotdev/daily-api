@@ -1897,6 +1897,35 @@ Object {
 }
 `;
 
+exports[`query tagsCategories should return a list of article types 1`] = `
+Object {
+  "articleTypes": Object {
+    "types": Array [
+      Object {
+        "id": "tm",
+        "title": "Tech magazines",
+      },
+      Object {
+        "id": "n-ec",
+        "title": "Non-editorial content",
+      },
+      Object {
+        "id": "rn",
+        "title": "Release notes",
+      },
+      Object {
+        "id": "ce",
+        "title": "Code examples",
+      },
+      Object {
+        "id": "cb",
+        "title": "Company blogs",
+      },
+    ],
+  },
+}
+`;
+
 exports[`query tagsCategories should return a list of categories with a property of a string array as tags 1`] = `
 Object {
   "tagsCategories": Object {
