@@ -97,6 +97,7 @@ describe('mutation updateUserSettings', () => {
     spaciness
     showOnlyUnreadPosts
     openNewTab
+    alertSidebar
   }
 }`;
 

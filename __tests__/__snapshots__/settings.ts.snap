@@ -11,6 +11,7 @@ Settings {
 exports[`mutation updateUserSettings should create user settings when does not exist 1`] = `
 Object {
   "updateUserSettings": Object {
+    "alertSidebar": true,
     "appInsaneMode": true,
     "enableCardAnimations": true,
     "insaneMode": true,
@@ -27,6 +28,7 @@ Object {
 exports[`mutation updateUserSettings should update user settings 1`] = `
 Object {
   "updateUserSettings": Object {
+    "alertSidebar": false,
     "appInsaneMode": false,
     "enableCardAnimations": true,
     "insaneMode": true,
