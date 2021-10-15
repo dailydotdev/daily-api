@@ -1,3 +1,4 @@
+import { Settings } from './../../src/entity/Settings';
 import { FastifyInstance } from 'fastify';
 import nock from 'nock';
 
@@ -17,6 +18,7 @@ import {
   notifyPostBannedOrRemoved,
   notifyDevCardEligible,
   notifyPostReport,
+  notifyAlertsUpdated,
 } from '../../src/common';
 import appFunc from '../../src/background';
 import worker from '../../src/workers/cdc';
@@ -58,6 +60,7 @@ jest.mock('../../src/common', () => ({
   notifyPostBannedOrRemoved: jest.fn(),
   notifyDevCardEligible: jest.fn(),
   notifyPostReport: jest.fn(),
+  notifyAlertsUpdated: jest.fn(),
 }));
 
 let con: Connection;
@@ -599,5 +602,62 @@ describe('post report', () => {
     const post = await con.getRepository(Post).findOne('p1');
     expect(notifyPostReport).toBeCalledTimes(1);
     expect(notifyPostReport).toBeCalledWith('u1', post, '💔 Link is broken');
+  });
+});
+
+describe('alerts', () => {
+  type ObjectType = Settings;
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    alertSidebar: true,
+    enableCardAnimations: true,
+    appInsaneMode: false,
+    theme: 'light',
+    showTopSites: true,
+    spaciness: 'cozy',
+    insaneMode: false,
+    openNewTab: true,
+    showOnlyUnreadPosts: false,
+    updatedAt: 1634260310996,
+  };
+
+  it('should notify on alertSidebar changed', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      alertSidebar: false,
+    };
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'settings',
+      }),
+    );
+    expect(notifyAlertsUpdated).toBeCalledTimes(1);
+    expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([
+      '1',
+      false,
+    ]);
+  });
+
+  it('should notify on new instance of settings is created', async () => {
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'settings',
+      }),
+    );
+    expect(notifyAlertsUpdated).toBeCalledTimes(1);
+    expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([
+      '1',
+      true,
+    ]);
   });
 });
