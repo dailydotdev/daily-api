@@ -22,7 +22,7 @@ import {
   notifyPostUpvoteCanceled,
   notifyPostUpvoted,
   notifySendAnalyticsReport,
-  notifySettingsAlertSidebar,
+  notifyAlertsUpdated,
   notifySourceRequest,
   notifyUserReputationUpdated,
 } from '../common';
@@ -160,14 +160,14 @@ const onSettingsChange = async (
 ): Promise<void> => {
   if (data.payload.op === 'u') {
     if (data.payload.before.alertSidebar !== data.payload.after.alertSidebar) {
-      await notifySettingsAlertSidebar(
+      await notifyAlertsUpdated(
         logger,
         data.payload.after.userId,
         data.payload.after.alertSidebar,
       );
     }
   } else if (data.payload.op === 'c') {
-    await notifySettingsAlertSidebar(logger, data.payload.after.userId, true);
+    await notifyAlertsUpdated(logger, data.payload.after.userId, true);
   }
 };
 

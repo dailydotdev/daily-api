@@ -13,7 +13,7 @@ const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-commented');
 const commentFeaturedTopic = pubsub.topic('comment-featured');
 const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
-const settingsAlertSidebarTopic = pubsub.topic('user-alerts-updated');
+const alertsUpdatedTopic = pubsub.topic('alerts-updated');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
@@ -129,12 +129,12 @@ export const notifyUserReputationUpdated = async (
     reputation,
   });
 
-export const notifySettingsAlertSidebar = async (
+export const notifyAlertsUpdated = async (
   log: EventLogger,
   userId: string,
   alertSidebar: boolean,
 ): Promise<void> =>
-  publishEvent(log, settingsAlertSidebarTopic, {
+  publishEvent(log, alertsUpdatedTopic, {
     userId,
     alertSidebar,
   });
