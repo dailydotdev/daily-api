@@ -1,3 +1,4 @@
+import { FeedArticleType } from './../entity/FeedArticleType';
 import { ArticleType } from './../entity/ArticleType';
 import { Category } from './../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
@@ -66,6 +67,11 @@ interface GQLArticleTypes {
   types: GQLArticleType[];
 }
 
+interface GQLArticleTypeArgs {
+  articleTypeId: string;
+  feedId: string;
+}
+
 export const typeDefs = gql`
   type FeedSettings {
     id: String
@@ -107,6 +113,11 @@ export const typeDefs = gql`
 
   type TagsCategories {
     categories: [TagsCategory]!
+  }
+
+  type FeedArticleType {
+    articleTypeId: String!
+    feedId: String!
   }
 
   enum Ranking {
@@ -499,6 +510,36 @@ export const typeDefs = gql`
       """
       filters: FiltersInput!
     ): FeedSettings @auth
+
+    """
+    Enable article type from user's feed
+    """
+    enableArticleTypeFromFeed(
+      """
+      Article Type ID
+      """
+      articleTypeId: String!
+
+      """
+      Feed ID
+      """
+      feedId: String!
+    ): FeedArticleType @auth
+
+    """
+    Disable article type from user's feed
+    """
+    disableArticleTypeFromFeed(
+      """
+      Article Type ID
+      """
+      articleTypeId: String!
+
+      """
+      Feed ID
+      """
+      feedId: String!
+    ): FeedArticleType @auth
   }
 `;
 
@@ -1080,6 +1121,16 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       });
       await clearFeedCache(feedId);
       return getFeedSettings(ctx, info);
+    },
+    enableArticleTypeFromFeed: (_, data: GQLArticleTypeArgs, ctx) => {
+      const repo = ctx.getRepository(FeedArticleType);
+
+      return repo.delete(data);
+    },
+    disableArticleTypeFromFeed: async (_, data: GQLArticleTypeArgs, ctx) => {
+      const repo = ctx.getRepository(FeedArticleType);
+
+      return repo.save(repo.create(data));
     },
   },
 });
