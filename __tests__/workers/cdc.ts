@@ -609,7 +609,7 @@ describe('alerts', () => {
   type ObjectType = Settings;
   const base: ChangeObject<ObjectType> = {
     userId: '1',
-    alertSidebar: true,
+    alertFilter: true,
     enableCardAnimations: true,
     appInsaneMode: false,
     theme: 'light',
@@ -621,10 +621,10 @@ describe('alerts', () => {
     updatedAt: 1634260310996,
   };
 
-  it('should notify on settings.alertSidebar changed', async () => {
+  it('should notify on settings.alertFilter changed', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
-      alertSidebar: false,
+      alertFilter: false,
     };
     await expectSuccessfulBackground(
       app,

@@ -159,11 +159,11 @@ const onSettingsChange = async (
   data: ChangeMessage<Settings>,
 ): Promise<void> => {
   if (data.payload.op === 'u') {
-    if (data.payload.before.alertSidebar !== data.payload.after.alertSidebar) {
+    if (data.payload.before.alertFilter !== data.payload.after.alertFilter) {
       await notifyAlertsUpdated(
         logger,
         data.payload.after.userId,
-        data.payload.after.alertSidebar,
+        data.payload.after.alertFilter,
       );
     }
   } else if (data.payload.op === 'c') {

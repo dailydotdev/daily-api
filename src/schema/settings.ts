@@ -25,7 +25,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   spaciness?: string;
   showOnlyUnreadPosts?: boolean;
   openNewTab?: boolean;
-  alertSidebar?: boolean;
+  alertFilter?: boolean;
 }
 
 export const typeDefs = gql`
@@ -81,7 +81,7 @@ export const typeDefs = gql`
     """
     Whether to display the red dot alert on settings
     """
-    alertSidebar: Boolean
+    alertFilter: Boolean
 
     """
     Time of last update
@@ -133,7 +133,7 @@ export const typeDefs = gql`
     """
     Whether to display the red dot alert on settings
     """
-    alertSidebar: Boolean
+    alertFilter: Boolean
   }
 
   extend type Mutation {

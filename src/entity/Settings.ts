@@ -30,7 +30,7 @@ export class Settings {
   openNewTab: boolean;
 
   @Column({ default: true })
-  alertSidebar: boolean;
+  alertFilter: boolean;
 
   @UpdateDateColumn()
   updatedAt: Date;
