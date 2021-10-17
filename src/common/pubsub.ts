@@ -13,7 +13,7 @@ const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-commented');
 const commentFeaturedTopic = pubsub.topic('comment-featured');
 const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
-const alertsUpdatedTopic = pubsub.topic('alerts-updated');
+const alertsFilterUpdatedTopic = pubsub.topic('alerts-filter-updated');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
@@ -134,7 +134,7 @@ export const notifyAlertsUpdated = async (
   userId: string,
   alertFilter: boolean,
 ): Promise<void> =>
-  publishEvent(log, alertsUpdatedTopic, {
+  publishEvent(log, alertsFilterUpdatedTopic, {
     userId,
     alertFilter,
   });
