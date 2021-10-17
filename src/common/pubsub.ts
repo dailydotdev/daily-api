@@ -22,6 +22,8 @@ const postReachedViewsThresholdTopic = pubsub.topic(
 const viewsTopic = pubsub.topic('views');
 const postBannedOrRemovedTopic = pubsub.topic('post-banned-or-removed');
 const devcardEligibleTopic = pubsub.topic('devcard-eligible');
+const sourceFeedAddedTopic = pubsub.topic('source-feed-added');
+const sourceFeedRemovedTopic = pubsub.topic('source-feed-removed');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
@@ -196,4 +198,24 @@ export const notifyDevCardEligible = async (
 ): Promise<void> =>
   publishEvent(log, devcardEligibleTopic, {
     userId,
+  });
+
+export const notifySourceFeedAdded = async (
+  log: EventLogger,
+  sourceId: string,
+  feed: string,
+): Promise<void> =>
+  publishEvent(log, sourceFeedAddedTopic, {
+    feed,
+    sourceId,
+  });
+
+export const notifySourceFeedRemoved = async (
+  log: EventLogger,
+  sourceId: string,
+  feed: string,
+): Promise<void> =>
+  publishEvent(log, sourceFeedRemovedTopic, {
+    feed,
+    sourceId,
   });
