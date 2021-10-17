@@ -409,7 +409,10 @@ export const fixedIdsFeedBuilder = (
   builder: SelectQueryBuilder<Post>,
   alias: string,
 ): SelectQueryBuilder<Post> => {
-  const idsStr = ids.map((id) => `'${id}'`).join(',');
+  // In case ids is empty make sure the query does not fail
+  const idsStr = ids.length
+    ? ids.map((id) => `'${id}'`).join(',')
+    : `'nosuchid'`;
   return builder
     .andWhere(`${alias}.id IN (${idsStr})`)
     .orderBy(`array_position(array[${idsStr}], ${alias}.id)`);

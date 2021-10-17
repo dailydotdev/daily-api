@@ -1,4 +1,4 @@
-import { Category } from './../src/entity/Category';
+import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
 import { Connection, getConnection, In } from 'typeorm';
 import { ApolloServer } from 'apollo-server-fastify';
@@ -204,6 +204,20 @@ describe('query anonymousFeed', () => {
       query: QUERY,
       variables: { ...variables, version: 2 },
     });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should safetly handle a case where the feed is empty', async () => {
+    nock('http://localhost:6000')
+      .get('/feed.json?token=token&page_size=11&fresh_page_size=4')
+      .reply(200, {
+        data: [],
+      });
+    const res = await client.query({
+      query: QUERY,
+      variables: { ...variables, version: 2 },
+    });
+    expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
 });
