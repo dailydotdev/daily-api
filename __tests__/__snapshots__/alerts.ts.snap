@@ -1,0 +1,24 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`mutation updateUserAlerts should create user alerts when does not exist 1`] = `
+Object {
+  "updateUserAlerts": Object {
+    "filter": false,
+  },
+}
+`;
+
+exports[`mutation updateUserAlerts should update alerts of user 1`] = `
+Object {
+  "updateUserAlerts": Object {
+    "filter": false,
+  },
+}
+`;
+
+exports[`query userAlerts should create default alerts if not exist 1`] = `
+Object {
+  "filter": true,
+  "userId": "1",
+}
+`;
