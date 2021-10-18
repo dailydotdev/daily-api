@@ -163,11 +163,7 @@ const onAlertsChange = async (
 ): Promise<void> => {
   if (data.payload.op === 'u') {
     if (data.payload.before.filter !== data.payload.after.filter) {
-      await notifyAlertsUpdated(
-        logger,
-        data.payload.after.userId,
-        data.payload.after.filter,
-      );
+      await notifyAlertsUpdated(logger, data.payload.after);
     }
   }
 };
