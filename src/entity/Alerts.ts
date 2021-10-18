@@ -1,7 +1,7 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 @Entity()
-export class Alert {
+export class Alerts {
   @PrimaryColumn({ type: 'text' })
   @Index()
   userId: string;

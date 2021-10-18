@@ -41,7 +41,7 @@ import { PostReport } from '../../src/entity/PostReport';
 import { Connection, getConnection } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
-import { Alert } from '../../src/entity/Alert';
+import { Alerts } from '../../src/entity/Alerts';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -606,7 +606,7 @@ describe('post report', () => {
 });
 
 describe('alerts', () => {
-  type ObjectType = Alert;
+  type ObjectType = Alerts;
   const base: ChangeObject<ObjectType> = {
     userId: '1',
     filter: true,
@@ -624,7 +624,7 @@ describe('alerts', () => {
         after,
         before: base,
         op: 'u',
-        table: 'settings',
+        table: 'alerts',
       }),
     );
     expect(notifyAlertsUpdated).toBeCalledTimes(1);

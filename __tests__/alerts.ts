@@ -1,4 +1,4 @@
-import { Alert } from './../src/entity/Alert';
+import { Alerts } from '../src/entity/Alerts';
 import { ApolloServer } from 'apollo-server-fastify';
 import {
   ApolloServerTestClient,
@@ -39,7 +39,7 @@ describe('query userAlerts', () => {
   it('should return user alerts', async () => {
     loggedUser = '1';
 
-    const repo = con.getRepository(Alert);
+    const repo = con.getRepository(Alerts);
     const alerts = repo.create({
       userId: '1',
       filter: true,
@@ -88,7 +88,7 @@ describe('mutation updateUserAlerts', () => {
   it('should update alerts of user', async () => {
     loggedUser = '1';
 
-    const repo = con.getRepository(Alert);
+    const repo = con.getRepository(Alerts);
     await repo.save(
       repo.create({
         userId: '1',

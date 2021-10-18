@@ -1,4 +1,3 @@
-import { Settings } from './../entity/Settings';
 import { messageToJson, Worker } from './worker';
 import {
   Comment,
@@ -33,7 +32,7 @@ import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { viewsThresholds } from '../cron/viewsThreshold';
 import { PostReport } from '../entity/PostReport';
 import { reportReasons } from '../schema/posts';
-import { Alert } from '../entity/Alert';
+import { Alerts } from '../entity/Alerts';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -154,10 +153,10 @@ const onUserChange = async (
   }
 };
 
-const onSettingsChange = async (
+const onAlertsChange = async (
   con: Connection,
   logger: Logger,
-  data: ChangeMessage<Alert>,
+  data: ChangeMessage<Alerts>,
 ): Promise<void> => {
   if (data.payload.op === 'u') {
     if (data.payload.before.filter !== data.payload.after.filter) {
@@ -281,8 +280,8 @@ const worker: Worker = {
         case getTableName(con, PostReport):
           await onPostReportChange(con, logger, data);
           break;
-        case getTableName(con, Settings):
-          await onSettingsChange(con, logger, data);
+        case getTableName(con, Alerts):
+          await onAlertsChange(con, logger, data);
           break;
       }
     } catch (err) {

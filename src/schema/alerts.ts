@@ -1,7 +1,7 @@
 import { gql, IResolvers } from 'apollo-server-fastify';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { Alert } from '../entity/Alert';
+import { Alerts } from '../entity/Alerts';
 
 interface GQLAlerts {
   userId: string;
@@ -58,7 +58,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { data }: { data: GQLUpdateAlertsInput },
       ctx,
     ): Promise<GQLAlerts> => {
-      const repo = ctx.getRepository(Alert);
+      const repo = ctx.getRepository(Alerts);
       const alerts = await repo.findOne(ctx.userId);
 
       if (!alerts) {
@@ -70,7 +70,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   },
   Query: {
     userAlerts: async (_, __, ctx): Promise<GQLAlerts> => {
-      const repo = ctx.getRepository(Alert);
+      const repo = ctx.getRepository(Alerts);
       const alerts = await repo.findOne(ctx.userId);
 
       if (!alerts) {
