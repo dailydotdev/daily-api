@@ -1912,27 +1912,66 @@ Object {
 }
 `;
 
-exports[`query tagsCategories should return a list of article types 1`] = `
+exports[`query tagsCategories should return a list of article types disabled based on user preference 1`] = `
 Object {
   "articleTypes": Object {
     "types": Array [
       Object {
+        "disabled": true,
         "id": "tm",
         "title": "Tech magazines",
       },
       Object {
-        "id": "n-ec",
-        "title": "Non-editorial content",
-      },
-      Object {
+        "disabled": false,
         "id": "rn",
         "title": "Release notes",
       },
       Object {
+        "disabled": false,
+        "id": "n-ec",
+        "title": "Non-editorial content",
+      },
+      Object {
+        "disabled": false,
+        "id": "cb",
+        "title": "Company blogs",
+      },
+      Object {
+        "disabled": false,
+        "id": "ce",
+        "title": "Code examples",
+      },
+    ],
+  },
+}
+`;
+
+exports[`query tagsCategories should return a list of article types having disabled as false being anonymous user 1`] = `
+Object {
+  "articleTypes": Object {
+    "types": Array [
+      Object {
+        "disabled": null,
+        "id": "tm",
+        "title": "Tech magazines",
+      },
+      Object {
+        "disabled": null,
+        "id": "n-ec",
+        "title": "Non-editorial content",
+      },
+      Object {
+        "disabled": null,
+        "id": "rn",
+        "title": "Release notes",
+      },
+      Object {
+        "disabled": null,
         "id": "ce",
         "title": "Code examples",
       },
       Object {
+        "disabled": null,
         "id": "cb",
         "title": "Company blogs",
       },

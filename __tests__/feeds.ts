@@ -746,18 +746,30 @@ describe('query randomDiscussedPosts', () => {
 });
 
 describe('query tagsCategories', () => {
-  it('should return a list of article types', async () => {
-    const QUERY = `{
-      articleTypes {
-        types {
-          id
-          title
-        }
+  const QUERY = `{
+    articleTypes {
+      types {
+        id
+        title
+        disabled
       }
-    }`;
+    }
+  }`;
 
+  it('should return a list of article types having disabled as null being anonymous user', async () => {
     await saveFeedFixtures();
 
+    const res = await client.query({ query: QUERY });
+
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return a list of article types disabled based on user preference', async () => {
+    loggedUser = '1';
+
+    await saveFeedFixtures();
+    const repo = con.getRepository(FeedArticleType);
+    await repo.save(repo.create({ feedId: '1', articleTypeId: 'tm' }));
     const res = await client.query({ query: QUERY });
 
     expect(res.data).toMatchSnapshot();
