@@ -29,6 +29,13 @@ const debeziumTopic = new gcp.pubsub.Topic('debezium-topic', {
   name: debeziumTopicName,
 });
 
+['source-feed-added', 'source-feed-removed'].map(
+  (topic) =>
+    new gcp.pubsub.Topic(topic, {
+      name: topic,
+    }),
+);
+
 const vpcConnector = new gcp.vpcaccess.Connector(`${name}-vpc-e2`, {
   name: `${name}-vpc-e2`,
   region: location,

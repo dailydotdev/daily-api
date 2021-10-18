@@ -881,6 +881,18 @@ Object {
 }
 `;
 
+exports[`query anonymousFeed should safetly handle a case where the feed is empty 1`] = `
+Object {
+  "anonymousFeed": Object {
+    "edges": Array [],
+    "pageInfo": Object {
+      "endCursor": null,
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
 exports[`query authorFeed should return a single author feed 1`] = `
 Object {
   "authorFeed": Object {

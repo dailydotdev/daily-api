@@ -17,6 +17,8 @@ import {
   notifyPostBannedOrRemoved,
   notifyDevCardEligible,
   notifyPostReport,
+  notifySourceFeedAdded,
+  notifySourceFeedRemoved,
 } from '../../src/common';
 import appFunc from '../../src/background';
 import worker from '../../src/workers/cdc';
@@ -30,6 +32,7 @@ import {
   CommentUpvote,
   Post,
   Source,
+  SourceFeed,
   SourceRequest,
   Upvote,
   User,
@@ -58,6 +61,8 @@ jest.mock('../../src/common', () => ({
   notifyPostBannedOrRemoved: jest.fn(),
   notifyDevCardEligible: jest.fn(),
   notifyPostReport: jest.fn(),
+  notifySourceFeedAdded: jest.fn(),
+  notifySourceFeedRemoved: jest.fn(),
 }));
 
 let con: Connection;
@@ -599,5 +604,51 @@ describe('post report', () => {
     const post = await con.getRepository(Post).findOne('p1');
     expect(notifyPostReport).toBeCalledTimes(1);
     expect(notifyPostReport).toBeCalledWith('u1', post, '💔 Link is broken');
+  });
+});
+
+describe('source feed', () => {
+  type ObjectType = SourceFeed;
+  const base: ChangeObject<ObjectType> = {
+    sourceId: 's1',
+    feed: 'https://daily.dev',
+    lastFetched: new Date().getTime(),
+  };
+
+  it('should notify on new source feed', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'source_feed',
+      }),
+    );
+    expect(notifySourceFeedAdded).toBeCalledTimes(1);
+    expect(mocked(notifySourceFeedAdded).mock.calls[0].slice(1)).toEqual([
+      base.sourceId,
+      base.feed,
+    ]);
+  });
+
+  it('should notify on source feed removed', async () => {
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: null,
+        before: base,
+        op: 'd',
+        table: 'source_feed',
+      }),
+    );
+    expect(notifySourceFeedRemoved).toBeCalledTimes(1);
+    expect(mocked(notifySourceFeedRemoved).mock.calls[0].slice(1)).toEqual([
+      base.sourceId,
+      base.feed,
+    ]);
   });
 });
