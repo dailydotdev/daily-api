@@ -1,4 +1,3 @@
-
 import { FeedArticleType } from './../src/entity/FeedArticleType';
 import { ArticleType } from './../src/entity/ArticleType';
 import { Category } from '../src/entity/Category';
