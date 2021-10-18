@@ -1,3 +1,4 @@
+import { FeedArticleType } from './../src/entity/FeedArticleType';
 import { ArticleType } from './../src/entity/ArticleType';
 import { Category } from './../src/entity/Category';
 import { FastifyInstance } from 'fastify';
@@ -1058,5 +1059,106 @@ describe('compatibility routes', () => {
         .expect(200);
       expect(res.body).toMatchSnapshot();
     });
+  });
+});
+
+describe('mutation enableArticleTypeFromFeed', () => {
+  const MUTATION = `
+    mutation EnableArticleTypeFromFeed($articleTypeId: String!, $feedId: String!) {
+      enableArticleTypeFromFeed(articleTypeId: $articleTypeId, feedId: $feedId) {
+        articleTypeId,
+        feedId
+      }
+    }
+  `;
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { articleTypeId: 'tm', feedId: '1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should add the unwanted article type for filtering', async () => {
+    loggedUser = '1';
+
+    await saveFeedFixtures();
+
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { articleTypeId: 'tm', feedId: '1' },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return an error for enabling already enabled article type', async () => {
+    loggedUser = '1';
+
+    await saveFeedFixtures();
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { articleTypeId: 'tm', feedId: '1' },
+      },
+      'BAD_USER_INPUT',
+    );
+  });
+});
+
+describe('mutation disableArticleTypeFromFeed', () => {
+  const MUTATION = `
+    mutation DisabledArticleTypeFromFeed($articleTypeId: String!, $feedId: String!) {
+      disableArticleTypeFromFeed(articleTypeId: $articleTypeId, feedId: $feedId) {
+        articleTypeId,
+        feedId
+      }
+    }
+  `;
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { articleTypeId: 'tm', feedId: '1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should remove the unwanted article type for filtering', async () => {
+    loggedUser = '1';
+
+    await saveFeedFixtures();
+
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { articleTypeId: 'tm', feedId: '1' },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return an error for disabling already disabled article type', async () => {
+    loggedUser = '1';
+
+    await saveFeedFixtures();
+
+    const disabledArticleType = { articleTypeId: 'tm', feedId: '1' };
+    const repo = con.getRepository(FeedArticleType);
+
+    await repo.save(repo.create(disabledArticleType));
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { articleTypeId: 'tm', feedId: '1' },
+      },
+      'BAD_USER_INPUT',
+    );
   });
 });

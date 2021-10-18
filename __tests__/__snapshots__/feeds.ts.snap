@@ -259,6 +259,21 @@ Object {
 }
 `;
 
+exports[`mutation disableArticleTypeFromFeed should remove the unwanted article type for filtering 1`] = `
+Object {
+  "disableArticleTypeFromFeed": Object {
+    "articleTypeId": "tm",
+    "feedId": "1",
+  },
+}
+`;
+
+exports[`mutation enableArticleTypeFromFeed should add the unwanted article type for filtering 1`] = `
+Object {
+  "enableArticleTypeFromFeed": null,
+}
+`;
+
 exports[`mutation removeFiltersFromFeed should remove existing filters 1`] = `
 Object {
   "removeFiltersFromFeed": Object {

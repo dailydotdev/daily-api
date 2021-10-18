@@ -3,6 +3,7 @@ import { ArticleType } from './../entity/ArticleType';
 import { Category } from './../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
 import { gql, IFieldResolver, IResolvers } from 'apollo-server-fastify';
+import { UserInputError } from 'apollo-server-fastify';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
@@ -1122,13 +1123,26 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       await clearFeedCache(feedId);
       return getFeedSettings(ctx, info);
     },
-    enableArticleTypeFromFeed: (_, data: GQLArticleTypeArgs, ctx) => {
+    // TODO: Create a query to get all disabled article types
+    enableArticleTypeFromFeed: async (_, data: GQLArticleTypeArgs, ctx) => {
       const repo = ctx.getRepository(FeedArticleType);
+      const entity = await repo.findOne(data);
 
-      return repo.delete(data);
+      if (!entity) {
+        throw new UserInputError('Article Type is already enabled');
+      }
+
+      await repo.delete(data);
+
+      return entity;
     },
     disableArticleTypeFromFeed: async (_, data: GQLArticleTypeArgs, ctx) => {
       const repo = ctx.getRepository(FeedArticleType);
+      const entity = await repo.findOne(data);
+
+      if (entity) {
+        throw new UserInputError('Article Type is already disabled');
+      }
 
       return repo.save(repo.create(data));
     },
