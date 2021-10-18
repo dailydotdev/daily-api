@@ -19,6 +19,5 @@ Object {
 exports[`query userAlerts should create default alerts if not exist 1`] = `
 Object {
   "filter": true,
-  "userId": "1",
 }
 `;

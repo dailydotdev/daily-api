@@ -31,7 +31,6 @@ beforeEach(async () => {
 describe('query userAlerts', () => {
   const QUERY = `{
     userAlerts {
-      userId
       filter
     }
   }`;

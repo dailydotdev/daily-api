@@ -4,7 +4,6 @@ import { Context } from '../Context';
 import { Alerts } from '../entity/Alerts';
 
 interface GQLAlerts {
-  userId: string;
   filter: boolean;
 }
 
@@ -17,11 +16,6 @@ export const typeDefs = gql`
   Alerts to display to the relevant user
   """
   type Alerts {
-    """
-    User ID
-    """
-    userId: ID!
-
     """
     Status to display for filter red dot
     """
