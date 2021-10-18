@@ -25,7 +25,6 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   spaciness?: string;
   showOnlyUnreadPosts?: boolean;
   openNewTab?: boolean;
-  alertFilter?: boolean;
 }
 
 export const typeDefs = gql`
@@ -79,11 +78,6 @@ export const typeDefs = gql`
     openNewTab: Boolean!
 
     """
-    Whether to display the red dot alert on settings
-    """
-    alertFilter: Boolean
-
-    """
     Time of last update
     """
     updatedAt: DateTime!
@@ -129,11 +123,6 @@ export const typeDefs = gql`
     Whether to open articles on new tab
     """
     openNewTab: Boolean
-
-    """
-    Whether to display the red dot alert on settings
-    """
-    alertFilter: Boolean
   }
 
   extend type Mutation {

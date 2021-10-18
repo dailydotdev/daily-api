@@ -1,4 +1,3 @@
-import { Settings } from './../../src/entity/Settings';
 import { FastifyInstance } from 'fastify';
 import nock from 'nock';
 
@@ -42,6 +41,7 @@ import { PostReport } from '../../src/entity/PostReport';
 import { Connection, getConnection } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
+import { Alert } from '../../src/entity/Alert';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -606,25 +606,16 @@ describe('post report', () => {
 });
 
 describe('alerts', () => {
-  type ObjectType = Settings;
+  type ObjectType = Alert;
   const base: ChangeObject<ObjectType> = {
     userId: '1',
-    alertFilter: true,
-    enableCardAnimations: true,
-    appInsaneMode: false,
-    theme: 'light',
-    showTopSites: true,
-    spaciness: 'cozy',
-    insaneMode: false,
-    openNewTab: true,
-    showOnlyUnreadPosts: false,
-    updatedAt: 1634260310996,
+    filter: true,
   };
 
-  it('should notify on settings.alertFilter changed', async () => {
+  it('should notify on alert.filter changed', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
-      alertFilter: false,
+      filter: false,
     };
     await expectSuccessfulBackground(
       app,
@@ -640,24 +631,6 @@ describe('alerts', () => {
     expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([
       '1',
       false,
-    ]);
-  });
-
-  it('should notify on new instance of settings is created', async () => {
-    await expectSuccessfulBackground(
-      app,
-      worker,
-      mockChangeMessage<ObjectType>({
-        after: base,
-        before: null,
-        op: 'c',
-        table: 'settings',
-      }),
-    );
-    expect(notifyAlertsUpdated).toBeCalledTimes(1);
-    expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([
-      '1',
-      true,
     ]);
   });
 });

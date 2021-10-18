@@ -25,7 +25,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     spaciness
     showOnlyUnreadPosts
     openNewTab
-    alertFilter
   }
 }`;
     return injectGraphql(

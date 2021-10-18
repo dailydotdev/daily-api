@@ -33,6 +33,7 @@ import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { viewsThresholds } from '../cron/viewsThreshold';
 import { PostReport } from '../entity/PostReport';
 import { reportReasons } from '../schema/posts';
+import { Alert } from '../entity/Alert';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -156,18 +157,16 @@ const onUserChange = async (
 const onSettingsChange = async (
   con: Connection,
   logger: Logger,
-  data: ChangeMessage<Settings>,
+  data: ChangeMessage<Alert>,
 ): Promise<void> => {
   if (data.payload.op === 'u') {
-    if (data.payload.before.alertFilter !== data.payload.after.alertFilter) {
+    if (data.payload.before.filter !== data.payload.after.filter) {
       await notifyAlertsUpdated(
         logger,
         data.payload.after.userId,
-        data.payload.after.alertFilter,
+        data.payload.after.filter,
       );
     }
-  } else if (data.payload.op === 'c') {
-    await notifyAlertsUpdated(logger, data.payload.after.userId, true);
   }
 };
 

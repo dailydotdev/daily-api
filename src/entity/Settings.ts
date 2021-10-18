@@ -29,9 +29,6 @@ export class Settings {
   @Column({ default: true })
   openNewTab: boolean;
 
-  @Column({ default: true })
-  alertFilter: boolean;
-
   @UpdateDateColumn()
   updatedAt: Date;
 }
