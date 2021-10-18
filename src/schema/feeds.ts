@@ -62,6 +62,7 @@ interface GQLTagsCategories {
 interface GQLArticleType {
   id: string;
   title: string;
+  disabled?: boolean;
 }
 
 interface GQLArticleTypes {
@@ -99,6 +100,7 @@ export const typeDefs = gql`
   type ArticleType {
     id: String!
     title: String!
+    disabled: Boolean
   }
 
   type ArticleTypes {
@@ -786,7 +788,29 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     articleTypes: async (_, __, ctx): Promise<GQLArticleTypes> => {
       const repo = ctx.getRepository(ArticleType);
-      const types = await repo.find();
+
+      if (!ctx.userId) {
+        return { types: await repo.find() };
+      }
+
+      const types = await repo
+        .createQueryBuilder('types')
+        .select('types.id, types.title')
+        .leftJoin(
+          'feed_article_type',
+          'feed_article_type',
+          'types.id = feed_article_type."articleTypeId"',
+        )
+        .addSelect(
+          'feed_article_type."articleTypeId" IS NOT NULL as "disabled"',
+        )
+        .leftJoin(
+          'feed',
+          'feed',
+          'feed.id = feed_article_type."feedId" AND feed."userId" = :userId',
+          { userId: ctx.userId },
+        )
+        .execute();
 
       return { types };
     },
