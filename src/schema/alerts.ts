@@ -62,7 +62,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const alerts = await repo.findOne(ctx.userId);
 
       if (!alerts) {
-        return repo.save(repo.merge(repo.create(data), { userId: ctx.userId }));
+        return repo.save({ userId: ctx.userId, ...data }));
       }
 
       return repo.save(repo.merge(alerts, data));
