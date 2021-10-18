@@ -57,12 +57,6 @@ describe('query userAlerts', () => {
 
     expect(res.data.userAlerts).toEqual(expected);
   });
-
-  it('should create default alerts if not exist', async () => {
-    loggedUser = '1';
-    const res = await client.query({ query: QUERY });
-    expect(res.data.userAlerts).toMatchSnapshot();
-  });
 });
 
 describe('mutation updateUserAlerts', () => {
