@@ -1147,7 +1147,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       await clearFeedCache(feedId);
       return getFeedSettings(ctx, info);
     },
-    // TODO: Create a query to get all disabled article types
     enableArticleTypeFromFeed: async (_, data: GQLArticleTypeArgs, ctx) => {
       const repo = ctx.getRepository(FeedArticleType);
       const entity = await repo.findOne(data);
