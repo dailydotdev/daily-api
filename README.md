@@ -22,27 +22,27 @@ along with other very useful endpoints.
 
 ## Stack
 
-* Node v12.19.0 (a `.nvmrc` is presented for [nvm](https://github.com/nvm-sh/nvm) users).
-* NPM for managing dependencies.
-* Fastify as the web framework
-* Apollo for GraphQL
-* Typeorm as a database layer
+- Node v12.19.0 (a `.nvmrc` is presented for [nvm](https://github.com/nvm-sh/nvm) users).
+- NPM for managing dependencies.
+- Fastify as the web framework
+- Apollo for GraphQL
+- Typeorm as a database layer
 
 ## Project structure
 
-* `__tests__` - There you can find all the tests and fixtures. Tests are written using `jest`.
-* `bin` - Folder with utilities and executables.
-* `helm` - The home of the service helm chart for easily deploying it to kubernetes.
-* `seeds` - JSON files with seed data for local development.
-* `src` - This is obviously the place where you can find the source files.
-  * `common` - Utility functions that are used across the project.
-  * `compatibility` - Fastify routes to keep backwards compatibility with API v1.
-  * `cron` - Tasks that will be deployed as cron jobs.
-  * `directive` - GraphQL schema directives.
-  * `entity` - Typeorm entities that are used to communicate with the database and sync its schema.
-  * `migration` - Typeorm migrations folder to update the database schema.
-  * `schema` - Apollo GraphQL resolvers, including also types.
-  * `workers` - Pub/Sub message handlers that are deployed as part of the background processor. 
+- `__tests__` - There you can find all the tests and fixtures. Tests are written using `jest`.
+- `bin` - Folder with utilities and executables.
+- `helm` - The home of the service helm chart for easily deploying it to kubernetes.
+- `seeds` - JSON files with seed data for local development.
+- `src` - This is obviously the place where you can find the source files.
+  - `common` - Utility functions that are used across the project.
+  - `compatibility` - Fastify routes to keep backwards compatibility with API v1.
+  - `cron` - Tasks that will be deployed as cron jobs.
+  - `directive` - GraphQL schema directives.
+  - `entity` - Typeorm entities that are used to communicate with the database and sync its schema.
+  - `migration` - Typeorm migrations folder to update the database schema.
+  - `schema` - Apollo GraphQL resolvers, including also types.
+  - `workers` - Pub/Sub message handlers that are deployed as part of the background processor.
 
 ## Local environment
 
@@ -63,6 +63,11 @@ Finally run `npm run dev` to run the service and listen to port `5000`.
 
 Currently, there is no staging environment for Algolia so there is no search functionality for local development.
 
+## GraphORM
+
+We have an internal solution to tackle problems we have encountered along the way.
+The library is in its early stages so we are continually writing the documentation to provide better developer experience. Have a look at the link below:
+https://github.com/dailydotdev/daily-api/wiki/GraphORM
 
 ## Want to Help?
 

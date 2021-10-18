@@ -17,6 +17,7 @@ import * as sourceRequests from './schema/sourceRequests';
 import * as sources from './schema/sources';
 import * as tags from './schema/tags';
 import * as users from './schema/users';
+import * as alerts from './schema/alerts';
 import * as keywords from './schema/keywords';
 import { AuthDirective, UrlDirective } from './directive';
 
@@ -46,6 +47,7 @@ export default async function (config: Config): Promise<ApolloServer> {
       tags.typeDefs,
       users.typeDefs,
       keywords.typeDefs,
+      alerts.typeDefs,
     ],
     resolvers: merge(
       common.resolvers,
@@ -62,6 +64,7 @@ export default async function (config: Config): Promise<ApolloServer> {
       tags.resolvers,
       users.resolvers,
       keywords.resolvers,
+      alerts.resolvers,
     ),
     schemaDirectives: {
       auth: AuthDirective,

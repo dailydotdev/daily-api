@@ -22,6 +22,7 @@ import {
   notifyPostUpvoteCanceled,
   notifyPostUpvoted,
   notifySendAnalyticsReport,
+  notifyAlertsUpdated,
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
   notifySourceRequest,
@@ -34,6 +35,7 @@ import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { viewsThresholds } from '../cron/viewsThreshold';
 import { PostReport } from '../entity/PostReport';
 import { reportReasons } from '../schema/posts';
+import { Alerts } from '../entity/Alerts';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -150,6 +152,18 @@ const onUserChange = async (
       data.payload.after.devcardEligible
     ) {
       await notifyDevCardEligible(logger, data.payload.after.id);
+    }
+  }
+};
+
+const onAlertsChange = async (
+  con: Connection,
+  logger: Logger,
+  data: ChangeMessage<Alerts>,
+): Promise<void> => {
+  if (data.payload.op === 'u') {
+    if (data.payload.before.filter !== data.payload.after.filter) {
+      await notifyAlertsUpdated(logger, data.payload.after);
     }
   }
 };
@@ -285,6 +299,8 @@ const worker: Worker = {
         case getTableName(con, PostReport):
           await onPostReportChange(con, logger, data);
           break;
+        case getTableName(con, Alerts):
+          await onAlertsChange(con, logger, data);
         case getTableName(con, SourceFeed):
           await onSourceFeedChange(con, logger, data);
           break;

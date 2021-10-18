@@ -17,6 +17,7 @@ import {
   notifyPostBannedOrRemoved,
   notifyDevCardEligible,
   notifyPostReport,
+  notifyAlertsUpdated,
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
 } from '../../src/common';
@@ -43,6 +44,7 @@ import { PostReport } from '../../src/entity/PostReport';
 import { Connection, getConnection } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
+import { Alerts } from '../../src/entity/Alerts';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -61,6 +63,7 @@ jest.mock('../../src/common', () => ({
   notifyPostBannedOrRemoved: jest.fn(),
   notifyDevCardEligible: jest.fn(),
   notifyPostReport: jest.fn(),
+  notifyAlertsUpdated: jest.fn(),
   notifySourceFeedAdded: jest.fn(),
   notifySourceFeedRemoved: jest.fn(),
 }));
@@ -604,6 +607,33 @@ describe('post report', () => {
     const post = await con.getRepository(Post).findOne('p1');
     expect(notifyPostReport).toBeCalledTimes(1);
     expect(notifyPostReport).toBeCalledWith('u1', post, '💔 Link is broken');
+  });
+});
+
+describe('alerts', () => {
+  type ObjectType = Alerts;
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    filter: true,
+  };
+
+  it('should notify on alert.filter changed', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      filter: false,
+    };
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'alerts',
+      }),
+    );
+    expect(notifyAlertsUpdated).toBeCalledTimes(1);
+    expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
   });
 });
 
