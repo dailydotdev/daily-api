@@ -62,10 +62,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const alerts = await repo.findOne(ctx.userId);
 
       if (!alerts) {
-        return repo.save({ userId: ctx.userId, ...data }));
+        return repo.save({ userId: ctx.userId, ...data });
       }
 
-      return repo.save({...data, ...alerts});
+      return repo.save({ ...data, ...alerts });
     },
   },
   Query: {
