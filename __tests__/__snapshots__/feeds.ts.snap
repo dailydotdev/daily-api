@@ -1958,7 +1958,7 @@ Object {
 }
 `;
 
-exports[`query tagsCategories should return a list of article types having disabled as false being anonymous user 1`] = `
+exports[`query tagsCategories should return a list of article types having disabled as null being anonymous user 1`] = `
 Object {
   "articleTypes": Object {
     "types": Array [
