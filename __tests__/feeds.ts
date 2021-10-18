@@ -1,3 +1,4 @@
+import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
 import { Connection, getConnection, In } from 'typeorm';
 import { ApolloServer } from 'apollo-server-fastify';
@@ -71,7 +72,23 @@ beforeEach(async () => {
 
 afterAll(() => app.close());
 
+const categories: Partial<Category>[] = [
+  {
+    id: 'FE',
+    emoji: '🌈',
+    title: 'Frontend',
+    tags: ['html', 'javascript'],
+  },
+  {
+    id: 'BE',
+    emoji: '⚙️',
+    title: 'Backend',
+    tags: ['golang', 'javascript'],
+  },
+];
+
 const saveFeedFixtures = async (): Promise<void> => {
+  await saveFixtures(con, Category, categories);
   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
   await saveFixtures(con, FeedTag, [
     { feedId: '1', tag: 'html' },
@@ -187,6 +204,20 @@ describe('query anonymousFeed', () => {
       query: QUERY,
       variables: { ...variables, version: 2 },
     });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should safetly handle a case where the feed is empty', async () => {
+    nock('http://localhost:6000')
+      .get('/feed.json?token=token&page_size=11&fresh_page_size=4')
+      .reply(200, {
+        data: [],
+      });
+    const res = await client.query({
+      query: QUERY,
+      variables: { ...variables, version: 2 },
+    });
+    expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -714,6 +745,27 @@ describe('query randomDiscussedPosts', () => {
     expect(res.data.randomDiscussedPosts.map((post) => post.id).sort()).toEqual(
       ['p3'],
     );
+  });
+});
+
+describe('query tagsCategories', () => {
+  it('should return a list of categories with a property of a string array as tags', async () => {
+    const QUERY = `{
+      tagsCategories {
+        categories {
+          id
+          title
+          tags
+          emoji
+        }
+      }
+    }`;
+
+    await saveFeedFixtures();
+
+    const res = await client.query({ query: QUERY });
+
+    expect(res.data).toMatchSnapshot();
   });
 });
 

@@ -16,7 +16,7 @@ beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-afterEach(() => cleanDatabase());
+afterEach(cleanDatabase);
 
 afterAll(async () => {
   await con.close();

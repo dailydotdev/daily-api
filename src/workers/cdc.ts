@@ -3,6 +3,7 @@ import {
   Comment,
   CommentUpvote,
   Post,
+  SourceFeed,
   SourceRequest,
   Upvote,
   User,
@@ -22,6 +23,8 @@ import {
   notifyPostUpvoted,
   notifySendAnalyticsReport,
   notifyAlertsUpdated,
+  notifySourceFeedAdded,
+  notifySourceFeedRemoved,
   notifySourceRequest,
   notifyUserReputationUpdated,
 } from '../common';
@@ -244,6 +247,26 @@ const onPostReportChange = async (
   }
 };
 
+const onSourceFeedChange = async (
+  con: Connection,
+  logger: Logger,
+  data: ChangeMessage<SourceFeed>,
+): Promise<void> => {
+  if (data.payload.op === 'c') {
+    await notifySourceFeedAdded(
+      logger,
+      data.payload.after.sourceId,
+      data.payload.after.feed,
+    );
+  } else if (data.payload.op === 'd') {
+    await notifySourceFeedRemoved(
+      logger,
+      data.payload.before.sourceId,
+      data.payload.before.feed,
+    );
+  }
+};
+
 const getTableName = <Entity>(
   con: Connection,
   target: EntityTarget<Entity>,
@@ -282,6 +305,8 @@ const worker: Worker = {
           break;
         case getTableName(con, Alerts):
           await onAlertsChange(con, logger, data);
+        case getTableName(con, SourceFeed):
+          await onSourceFeedChange(con, logger, data);
           break;
       }
     } catch (err) {

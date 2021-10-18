@@ -65,7 +65,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         return repo.save({ userId: ctx.userId, ...data });
       }
 
-      return repo.save({ ...data, ...alerts });
+      return repo.save({ ...alerts, ...data });
     },
   },
   Query: {

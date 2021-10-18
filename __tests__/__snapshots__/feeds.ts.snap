@@ -866,6 +866,18 @@ Object {
 }
 `;
 
+exports[`query anonymousFeed should safetly handle a case where the feed is empty 1`] = `
+Object {
+  "anonymousFeed": Object {
+    "edges": Array [],
+    "pageInfo": Object {
+      "endCursor": null,
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
 exports[`query authorFeed should return a single author feed 1`] = `
 Object {
   "authorFeed": Object {
@@ -1893,6 +1905,33 @@ Object {
       "endCursor": "c2NvcmU6MA==",
       "hasNextPage": false,
     },
+  },
+}
+`;
+
+exports[`query tagsCategories should return a list of categories with a property of a string array as tags 1`] = `
+Object {
+  "tagsCategories": Object {
+    "categories": Array [
+      Object {
+        "emoji": "🌈",
+        "id": "FE",
+        "tags": Array [
+          "html",
+          "javascript",
+        ],
+        "title": "Frontend",
+      },
+      Object {
+        "emoji": "⚙️",
+        "id": "BE",
+        "tags": Array [
+          "golang",
+          "javascript",
+        ],
+        "title": "Backend",
+      },
+    ],
   },
 }
 `;
