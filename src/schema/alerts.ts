@@ -1,3 +1,4 @@
+import { ALERTS_DEFAULT } from './../entity/Alerts';
 import { gql, IResolvers } from 'apollo-server-fastify';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
@@ -68,9 +69,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const alerts = await repo.findOne(ctx.userId);
 
       if (!alerts) {
-        await repo.insert({ userId: ctx.userId });
-        return repo.findOne(ctx.userId);
+        return Promise.resolve(ALERTS_DEFAULT);
       }
+
       return alerts;
     },
   },

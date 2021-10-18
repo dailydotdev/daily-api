@@ -9,3 +9,5 @@ export class Alerts {
   @Column({ type: 'bool', default: true })
   filter: boolean;
 }
+
+export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = { filter: true };
