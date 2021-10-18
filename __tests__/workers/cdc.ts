@@ -633,10 +633,7 @@ describe('alerts', () => {
       }),
     );
     expect(notifyAlertsUpdated).toBeCalledTimes(1);
-    expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([
-      '1',
-      false,
-    ]);
+    expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
   });
 });
 

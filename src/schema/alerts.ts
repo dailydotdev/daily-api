@@ -41,7 +41,7 @@ export const typeDefs = gql`
     """
     Get the alerts for user
     """
-    userAlerts: Alerts! @auth
+    userAlerts: Alerts!
   }
 `;
 

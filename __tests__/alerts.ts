@@ -1,3 +1,4 @@
+import { ALERTS_DEFAULT } from './../src/entity/Alerts';
 import { Alerts } from '../src/entity/Alerts';
 import { ApolloServer } from 'apollo-server-fastify';
 import {
@@ -35,6 +36,12 @@ describe('query userAlerts', () => {
     }
   }`;
 
+  it('should return alerts default values if anonymous', async () => {
+    const res = await client.query({ query: QUERY });
+
+    expect(res.data.userAlerts).toEqual(ALERTS_DEFAULT);
+  });
+
   it('should return user alerts', async () => {
     loggedUser = '1';
 
@@ -45,6 +52,8 @@ describe('query userAlerts', () => {
     });
     const expected = await repo.save(alerts);
     const res = await client.query({ query: QUERY });
+
+    delete expected.userId;
 
     expect(res.data.userAlerts).toEqual(expected);
   });
