@@ -2,7 +2,6 @@ import { Cron } from './cron';
 import tweetTrending from './tweetTrending';
 import updateViews from './updateViews';
 import updateFeaturedComments from './updateFeaturedComments';
-import rss from './rss';
 import hashnodeBadge from './hashnodeBadge';
 import checkAnalyticsReport from './checkAnalyticsReport';
 import viewsThreshold from './viewsThreshold';
@@ -15,7 +14,6 @@ export const crons: Cron[] = [
   tweetTrending,
   updateViews,
   updateFeaturedComments,
-  rss,
   hashnodeBadge,
   checkAnalyticsReport,
   viewsThreshold,
