@@ -65,14 +65,15 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   },
   Query: {
     userAlerts: async (_, __, ctx): Promise<GQLAlerts> => {
+     if (ctx.userId) {
       const repo = ctx.getRepository(Alerts);
       const alerts = await repo.findOne(ctx.userId);
 
-      if (!alerts) {
-        return Promise.resolve(ALERTS_DEFAULT);
+      if (alerts) {
+         return alerts;
       }
-
-      return alerts;
+      }
+      return ALERTS_DEFAULT;
     },
   },
 });
