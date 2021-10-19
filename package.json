@@ -46,7 +46,6 @@
     "fastify-helmet": "^3.0.2",
     "fastify-plugin": "^1.6.1",
     "fastify-rate-limit": "^3.0.1",
-    "feedparser": "^2.2.10",
     "flagsmith-nodejs": "^1.1.0",
     "form-data": "^4.0.0",
     "graphql": "^14.7.0",
@@ -77,7 +76,6 @@
   "devDependencies": {
     "@types/algoliasearch": "^4.0.0",
     "@types/express": "^4.17.13",
-    "@types/feedparser": "^2.2.4",
     "@types/graphql": "^14.5.0",
     "@types/graphql-relay": "^0.6.0",
     "@types/ioredis": "^4.27.4",

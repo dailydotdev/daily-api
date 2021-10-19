@@ -3,6 +3,7 @@ import { Logger } from 'fastify';
 import { Post, SourceRequest } from '../entity';
 import { toLegacySourceRequest } from '../compatibility/entity';
 import { ChangeObject } from '../types';
+import { Alerts } from '../entity/Alerts';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
@@ -13,6 +14,7 @@ const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-commented');
 const commentFeaturedTopic = pubsub.topic('comment-featured');
 const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
+const alertsFilterUpdatedTopic = pubsub.topic('alerts-updated');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
@@ -128,6 +130,14 @@ export const notifyUserReputationUpdated = async (
   publishEvent(log, userReputationUpdatedTopic, {
     userId,
     reputation,
+  });
+
+export const notifyAlertsUpdated = async (
+  log: EventLogger,
+  alerts: ChangeObject<Alerts>,
+): Promise<void> =>
+  publishEvent(log, alertsFilterUpdatedTopic, {
+    alerts,
   });
 
 export const notifyCommentUpvoteCanceled = async (

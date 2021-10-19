@@ -10,13 +10,6 @@ export const crons: Cron[] = [
     schedule: '0 7 * * *',
   },
   {
-    name: 'rss-daily',
-    endpoint: 'rss',
-    schedule: '*/5 * * * *',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ feed: 'https://daily.dev/posts/rss.xml' }),
-  },
-  {
     name: 'update-featured-comments',
     schedule: '*/10 * * * *',
   },
