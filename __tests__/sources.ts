@@ -4,21 +4,14 @@ import {
   createTestClient,
 } from 'apollo-server-testing';
 import { Connection, getConnection } from 'typeorm';
-import { mocked } from 'ts-jest/utils';
 
 import { Context } from '../src/Context';
 import createApolloServer from '../src/apollo';
 import { MockContext, testQueryErrorCode } from './helpers';
 import { Source, SourceFeed } from '../src/entity';
-import { addOrRemoveSuperfeedrSubscription } from '../src/common';
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
-
-jest.mock('../src/common', () => ({
-  ...(jest.requireActual('../src/common') as Record<string, unknown>),
-  addOrRemoveSuperfeedrSubscription: jest.fn(),
-}));
 
 let con: Connection;
 let server: ApolloServer;
@@ -48,7 +41,6 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
   premiumUser = false;
-  mocked(addOrRemoveSuperfeedrSubscription).mockReset();
   await con
     .getRepository(Source)
     .save([

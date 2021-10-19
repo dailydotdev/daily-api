@@ -9,7 +9,6 @@ import {
   User,
 } from '../entity';
 import {
-  addOrRemoveSuperfeedrSubscription,
   notifyCommentCommented,
   notifyCommentUpvoteCanceled,
   notifyCommentUpvoted,
@@ -52,11 +51,6 @@ const onSourceRequestChange = async (
     if (!data.payload.before.closed && data.payload.after.closed) {
       if (data.payload.after.approved) {
         // Source request published
-        await addOrRemoveSuperfeedrSubscription(
-          data.payload.after.sourceFeed,
-          data.payload.after.sourceId,
-          'subscribe',
-        );
         await notifySourceRequest(logger, 'publish', data.payload.after);
       } else {
         // Source request declined
