@@ -2,7 +2,6 @@ import { FastifyInstance } from 'fastify';
 import nock from 'nock';
 
 import {
-  addOrRemoveSuperfeedrSubscription,
   notifySourceRequest,
   notifyPostUpvoted,
   notifyPostUpvoteCanceled,
@@ -49,7 +48,6 @@ import { Alerts } from '../../src/entity/Alerts';
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
   notifySourceRequest: jest.fn(),
-  addOrRemoveSuperfeedrSubscription: jest.fn(),
   notifyPostUpvoted: jest.fn(),
   notifyPostUpvoteCanceled: jest.fn(),
   notifyCommentUpvoteCanceled: jest.fn(),
@@ -138,11 +136,6 @@ describe('source request', () => {
       'publish',
       after,
     ]);
-    expect(addOrRemoveSuperfeedrSubscription).toBeCalledWith(
-      after.sourceFeed,
-      after.sourceId,
-      'subscribe',
-    );
   });
 
   it('should notify on source request declined', async () => {
