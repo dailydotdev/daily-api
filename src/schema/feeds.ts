@@ -1,3 +1,5 @@
+import { FeedAdvancedSettings } from './../entity/FeedAdvancedSettings';
+import { AdvancedSettings } from './../entity/AdvancedSettings';
 import { FeedArticleType } from './../entity/FeedArticleType';
 import { ArticleType } from './../entity/ArticleType';
 import { Category } from './../entity/Category';
@@ -75,12 +77,20 @@ interface GQLArticleTypeArgs {
 }
 
 export const typeDefs = gql`
+  type AdvancedSettings {
+    advancedSettingsId: String
+    title: String
+    description: String
+    disabled: Boolean
+  }
+
   type FeedSettings {
     id: String
     userId: String
     includeTags: [String]
     blockedTags: [String]
     excludeSources: [Source]
+    advancedSettings: [AdvancedSettings]
   }
 
   type SearchPostSuggestion {
@@ -154,6 +164,16 @@ export const typeDefs = gql`
     Posts must not include even one tag from this list
     """
     blockedTags: [String!]
+
+    """
+    Posts must include sources having advanced settings from this list
+    """
+    enabledAdvancedSettings: [String!]
+
+    """
+    Posts must not include sources having advanced settings from this list
+    """
+    disabledAdvancedSettings: [String!]
   }
 
   extend type Query {
@@ -551,12 +571,20 @@ export interface GQLRSSFeed {
   url: string;
 }
 
+export interface GQLFeedAdvancedSettings {
+  advancedSettingsId: string;
+  title: string;
+  description: string;
+  disabled: boolean;
+}
+
 export interface GQLFeedSettings {
   id: string;
   userId: string;
   includeTags: string[];
   blockedTags: string[];
   excludeSources: GQLSource[];
+  advancedSettings: GQLFeedAdvancedSettings[];
 }
 
 export type GQLFiltersInput = AnonymousFeedFilters;
@@ -716,6 +744,7 @@ const getFeedSettings = async (
     excludeSources: [],
     includeTags: [],
     blockedTags: [],
+    advancedSettings: [],
   };
 };
 
@@ -1057,7 +1086,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   },
   Mutation: {
     addFiltersToFeed: async (
-      source,
+      _,
       { filters }: { filters: GQLFiltersInput },
       ctx,
       info,
@@ -1080,6 +1109,44 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             `insert into feed_source("sourceId", "feedId") ${query}
              on conflict
             do nothing`,
+            params,
+          );
+        }
+        if (filters?.enabledAdvancedSettings?.length) {
+          const [query, params] = ctx.con
+            .createQueryBuilder()
+            .select('id', 'advancedSettingsId')
+            .addSelect(`'${feedId}'`, 'feedId')
+            .from(AdvancedSettings, 'adv')
+            .where('adv.id IN (:...ids)', {
+              ids: filters.enabledAdvancedSettings,
+            })
+            .getQueryAndParameters();
+          await manager.query(
+            `
+              insert into feed_advanced_settings("advancedSettingsId", "feedId") ${query}
+              on conflict
+              DO UPDATE SET disabled = false
+            `,
+            params,
+          );
+        }
+        if (filters?.disabledAdvancedSettings?.length) {
+          const [query, params] = ctx.con
+            .createQueryBuilder()
+            .select('id', 'advancedSettingsId')
+            .addSelect(`'${feedId}'`, 'feedId')
+            .from(AdvancedSettings, 'adv')
+            .where('adv.id IN (:...ids)', {
+              ids: filters.disabledAdvancedSettings,
+            })
+            .getQueryAndParameters();
+          await manager.query(
+            `
+              insert into feed_advanced_settings("advancedSettingsId", "feedId") ${query}
+              on conflict
+              DO UPDATE SET disabled = true
+            `,
             params,
           );
         }
@@ -1129,6 +1196,18 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           await manager.getRepository(FeedSource).delete({
             feedId,
             sourceId: In(filters.excludeSources),
+          });
+        }
+        if (filters?.enabledAdvancedSettings?.length) {
+          await manager.getRepository(FeedAdvancedSettings).delete({
+            feedId,
+            advancedSettingsId: In(filters.enabledAdvancedSettings),
+          });
+        }
+        if (filters?.disabledAdvancedSettings?.length) {
+          await manager.getRepository(FeedAdvancedSettings).delete({
+            feedId,
+            advancedSettingsId: In(filters.disabledAdvancedSettings),
           });
         }
         if (filters?.includeTags?.length) {

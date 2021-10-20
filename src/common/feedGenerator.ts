@@ -299,6 +299,8 @@ export interface AnonymousFeedFilters {
   excludeSources?: string[];
   includeTags?: string[];
   blockedTags?: string[];
+  enabledAdvancedSettings?: string[];
+  disabledAdvancedSettings?: string[];
 }
 
 export const anonymousFeedBuilder = (
