@@ -259,21 +259,6 @@ Object {
 }
 `;
 
-exports[`mutation disableArticleTypeFromFeed should remove the unwanted article type for filtering 1`] = `
-Object {
-  "disableArticleTypeFromFeed": Object {
-    "articleTypeId": "tm",
-    "feedId": "1",
-  },
-}
-`;
-
-exports[`mutation enableArticleTypeFromFeed should add the unwanted article type for filtering 1`] = `
-Object {
-  "enableArticleTypeFromFeed": null,
-}
-`;
-
 exports[`mutation removeFiltersFromFeed should remove existing filters 1`] = `
 Object {
   "removeFiltersFromFeed": Object {
@@ -1920,74 +1905,6 @@ Object {
       "endCursor": "c2NvcmU6MA==",
       "hasNextPage": false,
     },
-  },
-}
-`;
-
-exports[`query tagsCategories should return a list of article types disabled based on user preference 1`] = `
-Object {
-  "articleTypes": Object {
-    "types": Array [
-      Object {
-        "disabled": true,
-        "id": "tm",
-        "title": "Tech magazines",
-      },
-      Object {
-        "disabled": false,
-        "id": "rn",
-        "title": "Release notes",
-      },
-      Object {
-        "disabled": false,
-        "id": "n-ec",
-        "title": "Non-editorial content",
-      },
-      Object {
-        "disabled": false,
-        "id": "cb",
-        "title": "Company blogs",
-      },
-      Object {
-        "disabled": false,
-        "id": "ce",
-        "title": "Code examples",
-      },
-    ],
-  },
-}
-`;
-
-exports[`query tagsCategories should return a list of article types having disabled as null being anonymous user 1`] = `
-Object {
-  "articleTypes": Object {
-    "types": Array [
-      Object {
-        "disabled": null,
-        "id": "tm",
-        "title": "Tech magazines",
-      },
-      Object {
-        "disabled": null,
-        "id": "n-ec",
-        "title": "Non-editorial content",
-      },
-      Object {
-        "disabled": null,
-        "id": "rn",
-        "title": "Release notes",
-      },
-      Object {
-        "disabled": null,
-        "id": "ce",
-        "title": "Code examples",
-      },
-      Object {
-        "disabled": null,
-        "id": "cb",
-        "title": "Company blogs",
-      },
-    ],
   },
 }
 `;

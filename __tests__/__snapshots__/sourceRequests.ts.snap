@@ -83,6 +83,14 @@ Object {
 }
 `;
 
+exports[`mutation publishSourceRequest should not authorize when not moderator 1`] = `
+Object {
+  "uploadSourceRequestLogo": Object {
+    "sourceImage": "http://image.com",
+  },
+}
+`;
+
 exports[`mutation publishSourceRequest should publish a source request 1`] = `
 Object {
   "publishSourceRequest": Object {
@@ -95,7 +103,7 @@ Object {
 exports[`mutation publishSourceRequest should publish a source request 2`] = `
 Source {
   "active": true,
-  "articleTypeId": null,
+  "advancedSettings": Array [],
   "id": "a",
   "image": "http://a.com",
   "name": "A",

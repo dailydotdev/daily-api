@@ -1,11 +1,8 @@
 import { FeedAdvancedSettings } from './../entity/FeedAdvancedSettings';
 import { AdvancedSettings } from './../entity/AdvancedSettings';
-import { FeedArticleType } from './../entity/FeedArticleType';
-import { ArticleType } from './../entity/ArticleType';
 import { Category } from './../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
 import { gql, IFieldResolver, IResolvers } from 'apollo-server-fastify';
-import { UserInputError } from 'apollo-server-fastify';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
@@ -61,21 +58,6 @@ interface GQLTagsCategories {
   categories: GQLTagsCategory[];
 }
 
-interface GQLArticleType {
-  id: string;
-  title: string;
-  disabled?: boolean;
-}
-
-interface GQLArticleTypes {
-  types: GQLArticleType[];
-}
-
-interface GQLArticleTypeArgs {
-  articleTypeId: string;
-  feedId: string;
-}
-
 export const typeDefs = gql`
   type AdvancedSettings {
     advancedSettingsId: String
@@ -107,16 +89,6 @@ export const typeDefs = gql`
     url: String!
   }
 
-  type ArticleType {
-    id: String!
-    title: String!
-    disabled: Boolean
-  }
-
-  type ArticleTypes {
-    types: [ArticleType]!
-  }
-
   type TagsCategory {
     id: String!
     emoji: String
@@ -126,11 +98,6 @@ export const typeDefs = gql`
 
   type TagsCategories {
     categories: [TagsCategory]!
-  }
-
-  type FeedArticleType {
-    articleTypeId: String!
-    feedId: String!
   }
 
   enum Ranking {
@@ -503,11 +470,6 @@ export const typeDefs = gql`
     ): [Post]!
 
     """
-    Get article types of sources
-    """
-    articleTypes: ArticleTypes!
-
-    """
     Get the categories of tags
     """
     tagsCategories: TagsCategories!
@@ -533,36 +495,6 @@ export const typeDefs = gql`
       """
       filters: FiltersInput!
     ): FeedSettings @auth
-
-    """
-    Enable article type from user's feed
-    """
-    enableArticleTypeFromFeed(
-      """
-      Article Type ID
-      """
-      articleTypeId: String!
-
-      """
-      Feed ID
-      """
-      feedId: String!
-    ): FeedArticleType @auth
-
-    """
-    Disable article type from user's feed
-    """
-    disableArticleTypeFromFeed(
-      """
-      Article Type ID
-      """
-      articleTypeId: String!
-
-      """
-      Feed ID
-      """
-      feedId: String!
-    ): FeedArticleType @auth
   }
 `;
 
@@ -815,34 +747,6 @@ const feedResolverV2: IFieldResolver<unknown, Context, FeedArgs> = feedResolver(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
-    articleTypes: async (_, __, ctx): Promise<GQLArticleTypes> => {
-      const repo = ctx.getRepository(ArticleType);
-
-      if (!ctx.userId) {
-        return { types: await repo.find() };
-      }
-
-      const types = await repo
-        .createQueryBuilder('types')
-        .select('types.id, types.title')
-        .leftJoin(
-          'feed_article_type',
-          'feed_article_type',
-          'types.id = feed_article_type."articleTypeId"',
-        )
-        .addSelect(
-          'feed_article_type."articleTypeId" IS NOT NULL as "disabled"',
-        )
-        .leftJoin(
-          'feed',
-          'feed',
-          'feed.id = feed_article_type."feedId" AND feed."userId" = :userId',
-          { userId: ctx.userId },
-        )
-        .execute();
-
-      return { types };
-    },
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
       if (args.version === 2 && args.ranking === Ranking.POPULARITY) {
         return feedResolverV2(source, args, ctx, info);
@@ -1225,28 +1129,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       });
       await clearFeedCache(feedId);
       return getFeedSettings(ctx, info);
-    },
-    enableArticleTypeFromFeed: async (_, data: GQLArticleTypeArgs, ctx) => {
-      const repo = ctx.getRepository(FeedArticleType);
-      const entity = await repo.findOne(data);
-
-      if (!entity) {
-        throw new UserInputError('Article Type is already enabled');
-      }
-
-      await repo.delete(data);
-
-      return entity;
-    },
-    disableArticleTypeFromFeed: async (_, data: GQLArticleTypeArgs, ctx) => {
-      const repo = ctx.getRepository(FeedArticleType);
-      const entity = await repo.findOne(data);
-
-      if (entity) {
-        throw new UserInputError('Article Type is already disabled');
-      }
-
-      return repo.save(repo.create(data));
     },
   },
 });

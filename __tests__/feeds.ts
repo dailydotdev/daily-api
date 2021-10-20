@@ -1,5 +1,4 @@
-import { FeedArticleType } from './../src/entity/FeedArticleType';
-import { ArticleType } from './../src/entity/ArticleType';
+import { AdvancedSettings } from './../src/entity/AdvancedSettings';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
 import { Connection, getConnection, In } from 'typeorm';
@@ -74,12 +73,32 @@ beforeEach(async () => {
 
 afterAll(() => app.close());
 
-const articleTypes: Partial<ArticleType>[] = [
-  { id: 'tm', title: 'Tech magazines' },
-  { id: 'n-ec', title: 'Non-editorial content' },
-  { id: 'rn', title: 'Release notes' },
-  { id: 'ce', title: 'Code examples' },
-  { id: 'cb', title: 'Company blogs' },
+const advancedSettings: Partial<AdvancedSettings>[] = [
+  {
+    id: 'tm',
+    title: 'Tech magazines',
+    description: 'Description for Tech magazines',
+  },
+  {
+    id: 'n-ec',
+    title: 'Non-editorial content',
+    description: 'Description for Non-editorial content',
+  },
+  {
+    id: 'rn',
+    title: 'Release notes',
+    description: 'Description for Release notes',
+  },
+  {
+    id: 'ce',
+    title: 'Code examples',
+    description: 'Description for Code examples',
+  },
+  {
+    id: 'cb',
+    title: 'Company blogs',
+    description: 'Description for Company blogs',
+  },
 ];
 
 const categories: Partial<Category>[] = [
@@ -98,7 +117,7 @@ const categories: Partial<Category>[] = [
 ];
 
 const saveFeedFixtures = async (): Promise<void> => {
-  await saveFixtures(con, ArticleType, articleTypes);
+  await saveFixtures(con, AdvancedSettings, advancedSettings);
   await saveFixtures(con, Category, categories);
   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
   await saveFixtures(con, FeedTag, [
@@ -760,37 +779,6 @@ describe('query randomDiscussedPosts', () => {
 });
 
 describe('query tagsCategories', () => {
-  const QUERY = `{
-    articleTypes {
-      types {
-        id
-        title
-        disabled
-      }
-    }
-  }`;
-
-  it('should return a list of article types having disabled as null being anonymous user', async () => {
-    await saveFeedFixtures();
-
-    const res = await client.query({ query: QUERY });
-
-    expect(res.data).toMatchSnapshot();
-  });
-
-  it('should return a list of article types disabled based on user preference', async () => {
-    loggedUser = '1';
-
-    await saveFeedFixtures();
-    const repo = con.getRepository(FeedArticleType);
-    await repo.save(repo.create({ feedId: '1', articleTypeId: 'tm' }));
-    const res = await client.query({ query: QUERY });
-
-    expect(res.data).toMatchSnapshot();
-  });
-});
-
-describe('query tagsCategories', () => {
   it('should return a list of categories with a property of a string array as tags', async () => {
     const QUERY = `{
       tagsCategories {
@@ -1085,106 +1073,5 @@ describe('compatibility routes', () => {
         .expect(200);
       expect(res.body).toMatchSnapshot();
     });
-  });
-});
-
-describe('mutation enableArticleTypeFromFeed', () => {
-  const MUTATION = `
-    mutation EnableArticleTypeFromFeed($articleTypeId: String!, $feedId: String!) {
-      enableArticleTypeFromFeed(articleTypeId: $articleTypeId, feedId: $feedId) {
-        articleTypeId,
-        feedId
-      }
-    }
-  `;
-
-  it('should not authorize when not logged-in', () =>
-    testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { articleTypeId: 'tm', feedId: '1' },
-      },
-      'UNAUTHENTICATED',
-    ));
-
-  it('should add the unwanted article type for filtering', async () => {
-    loggedUser = '1';
-
-    await saveFeedFixtures();
-
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { articleTypeId: 'tm', feedId: '1' },
-    });
-    expect(res.data).toMatchSnapshot();
-  });
-
-  it('should return an error for enabling already enabled article type', async () => {
-    loggedUser = '1';
-
-    await saveFeedFixtures();
-
-    testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { articleTypeId: 'tm', feedId: '1' },
-      },
-      'BAD_USER_INPUT',
-    );
-  });
-});
-
-describe('mutation disableArticleTypeFromFeed', () => {
-  const MUTATION = `
-    mutation DisabledArticleTypeFromFeed($articleTypeId: String!, $feedId: String!) {
-      disableArticleTypeFromFeed(articleTypeId: $articleTypeId, feedId: $feedId) {
-        articleTypeId,
-        feedId
-      }
-    }
-  `;
-
-  it('should not authorize when not logged-in', () =>
-    testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { articleTypeId: 'tm', feedId: '1' },
-      },
-      'UNAUTHENTICATED',
-    ));
-
-  it('should remove the unwanted article type for filtering', async () => {
-    loggedUser = '1';
-
-    await saveFeedFixtures();
-
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { articleTypeId: 'tm', feedId: '1' },
-    });
-    expect(res.data).toMatchSnapshot();
-  });
-
-  it('should return an error for disabling already disabled article type', async () => {
-    loggedUser = '1';
-
-    await saveFeedFixtures();
-
-    const disabledArticleType = { articleTypeId: 'tm', feedId: '1' };
-    const repo = con.getRepository(FeedArticleType);
-
-    await repo.save(repo.create(disabledArticleType));
-
-    testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { articleTypeId: 'tm', feedId: '1' },
-      },
-      'BAD_USER_INPUT',
-    );
   });
 });
