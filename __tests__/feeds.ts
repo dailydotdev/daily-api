@@ -1,3 +1,4 @@
+import { FeedAdvancedSettings } from './../src/entity/FeedAdvancedSettings';
 import { AdvancedSettings } from './../src/entity/AdvancedSettings';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
@@ -117,9 +118,13 @@ const categories: Partial<Category>[] = [
 ];
 
 const saveFeedFixtures = async (): Promise<void> => {
-  await saveFixtures(con, AdvancedSettings, advancedSettings);
-  await saveFixtures(con, Category, categories);
   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+  await saveFixtures(con, AdvancedSettings, advancedSettings);
+  await saveFixtures(con, FeedAdvancedSettings, [
+    { feedId: '1', advancedSettingsId: 'tm' },
+    { feedId: '1', advancedSettingsId: 'rn', disabled: true },
+  ]);
+  await saveFixtures(con, Category, categories);
   await saveFixtures(con, FeedTag, [
     { feedId: '1', tag: 'html' },
     { feedId: '1', tag: 'javascript' },
@@ -440,6 +445,12 @@ describe('query feedSettings', () => {
         name
         image
         public
+      }
+      advancedSettings {
+        advancedSettingsId
+        title
+        description
+        disabled
       }
     }
   }`;
@@ -813,6 +824,12 @@ describe('mutation addFiltersToFeed', () => {
         image
         public
       }
+      advancedSettings {
+        advancedSettingsId
+        title
+        description
+        disabled
+      }
     }
   }`;
 
@@ -830,6 +847,8 @@ describe('mutation addFiltersToFeed', () => {
     loggedUser = '1';
     await redisClient.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
     await redisClient.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
+    await saveFixtures(con, Feed, [{ id: '2', userId: '1' }]);
+    await saveFixtures(con, AdvancedSettings, advancedSettings);
     const res = await client.mutate({
       mutation: MUTATION,
       variables: {
@@ -837,6 +856,8 @@ describe('mutation addFiltersToFeed', () => {
           includeTags: ['webdev', 'javascript'],
           excludeSources: ['a', 'b'],
           blockedTags: ['golang'],
+          enabledAdvancedSettings: ['tm'],
+          disabledAdvancedSettings: ['rn'],
         },
       },
     });
@@ -859,6 +880,8 @@ describe('mutation addFiltersToFeed', () => {
           includeTags: ['webdev', 'javascript'],
           excludeSources: ['a', 'b'],
           blockedTags: ['golang'],
+          enabledAdvancedSettings: ['tm'],
+          disabledAdvancedSettings: ['rn'],
         },
       },
     });
@@ -894,6 +917,12 @@ describe('mutation removeFiltersFromFeed', () => {
         image
         public
       }
+      advancedSettings {
+        advancedSettingsId
+        title
+        description
+        disabled
+      }
     }
   }`;
 
@@ -919,6 +948,8 @@ describe('mutation removeFiltersFromFeed', () => {
           includeTags: ['webdev', 'javascript'],
           excludeSources: ['a', 'b'],
           blockedTags: ['golang'],
+          enabledAdvancedSettings: ['tm'],
+          disabledAdvancedSettings: ['rn'],
         },
       },
     });

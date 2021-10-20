@@ -167,6 +167,20 @@ Array [
 exports[`mutation addFiltersToFeed should add the new feed settings 1`] = `
 Object {
   "addFiltersToFeed": Object {
+    "advancedSettings": Array [
+      Object {
+        "advancedSettingsId": "rn",
+        "description": "Description for Release notes",
+        "disabled": false,
+        "title": "Release notes",
+      },
+      Object {
+        "advancedSettingsId": "tm",
+        "description": "Description for Tech magazines",
+        "disabled": false,
+        "title": "Tech magazines",
+      },
+    ],
     "blockedTags": Array [
       "golang",
     ],
@@ -197,6 +211,20 @@ Object {
 exports[`mutation addFiltersToFeed should ignore duplicates 1`] = `
 Object {
   "addFiltersToFeed": Object {
+    "advancedSettings": Array [
+      Object {
+        "advancedSettingsId": "rn",
+        "description": "Description for Release notes",
+        "disabled": true,
+        "title": "Release notes",
+      },
+      Object {
+        "advancedSettingsId": "tm",
+        "description": "Description for Tech magazines",
+        "disabled": false,
+        "title": "Tech magazines",
+      },
+    ],
     "blockedTags": Array [
       "golang",
     ],
@@ -234,6 +262,7 @@ Object {
 exports[`mutation addFiltersToFeed should ignore non existing sources 1`] = `
 Object {
   "addFiltersToFeed": Object {
+    "advancedSettings": Array [],
     "blockedTags": Array [],
     "excludeSources": Array [
       Object {
@@ -262,6 +291,7 @@ Object {
 exports[`mutation removeFiltersFromFeed should remove existing filters 1`] = `
 Object {
   "removeFiltersFromFeed": Object {
+    "advancedSettings": Array [],
     "blockedTags": Array [],
     "excludeSources": Array [
       Object {
@@ -1489,6 +1519,20 @@ Object {
 exports[`query feedSettings should return the feed settings 1`] = `
 Object {
   "feedSettings": Object {
+    "advancedSettings": Array [
+      Object {
+        "advancedSettingsId": "rn",
+        "description": "Description for Release notes",
+        "disabled": true,
+        "title": "Release notes",
+      },
+      Object {
+        "advancedSettingsId": "tm",
+        "description": "Description for Tech magazines",
+        "disabled": false,
+        "title": "Tech magazines",
+      },
+    ],
     "blockedTags": Array [
       "golang",
     ],

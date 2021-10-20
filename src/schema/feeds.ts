@@ -1022,14 +1022,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .select('id', 'advancedSettingsId')
             .addSelect(`'${feedId}'`, 'feedId')
             .from(AdvancedSettings, 'adv')
-            .where('adv.id IN (:...ids)', {
+            .where('adv."id" IN (:...ids)', {
               ids: filters.enabledAdvancedSettings,
             })
             .getQueryAndParameters();
           await manager.query(
             `
               insert into feed_advanced_settings("advancedSettingsId", "feedId") ${query}
-              on conflict
+              on conflict ("advancedSettingsId", "feedId")
               DO UPDATE SET disabled = false
             `,
             params,
@@ -1048,7 +1048,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           await manager.query(
             `
               insert into feed_advanced_settings("advancedSettingsId", "feedId") ${query}
-              on conflict
+              on conflict ("advancedSettingsId", "feedId")
               DO UPDATE SET disabled = true
             `,
             params,
