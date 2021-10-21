@@ -59,7 +59,7 @@ interface GQLTagsCategories {
 }
 
 export const typeDefs = gql`
-  type AdvancedSettings {
+  type FeedAdvancedSettings {
     id: String
     title: String
     description: String
@@ -72,7 +72,7 @@ export const typeDefs = gql`
     includeTags: [String]
     blockedTags: [String]
     excludeSources: [Source]
-    advancedSettings: [AdvancedSettings]
+    advancedSettings: [FeedAdvancedSettings]
   }
 
   type SearchPostSuggestion {
@@ -111,6 +111,18 @@ export const typeDefs = gql`
     TIME
   }
 
+  input AdvancedSettingsInput {
+    """
+    Advanced Settings ID
+    """
+    id: String!
+
+    """
+    State if the sources related tadvanced settings will be included/excluded
+    """
+    enabled: Boolean!
+  }
+
   input FiltersInput {
     """
     Include posts of these sources
@@ -133,14 +145,9 @@ export const typeDefs = gql`
     blockedTags: [String!]
 
     """
-    Posts must include sources having advanced settings from this list
+    Posts must include/exclude sources having advanced settings from this list
     """
-    enabledAdvancedSettings: [String!]
-
-    """
-    Posts must not include sources having advanced settings from this list
-    """
-    disabledAdvancedSettings: [String!]
+    advancedSettings: [AdvancedSettingsInput!]
   }
 
   extend type Query {
@@ -1016,45 +1023,54 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             params,
           );
         }
-        if (filters?.enabledAdvancedSettings?.length) {
-          const [query, params] = ctx.con
-            .createQueryBuilder()
-            .select('id', 'advancedSettingsId')
-            .addSelect(`'${feedId}'`, 'feedId')
-            .addSelect('true', 'enabled')
-            .from(AdvancedSettings, 'adv')
-            .where('adv."id" IN (:...ids)', {
-              ids: filters.enabledAdvancedSettings,
-            })
-            .getQueryAndParameters();
-          await manager.query(
-            `
-              insert into feed_advanced_settings("advancedSettingsId", "feedId", "enabled") ${query}
-              on conflict ("advancedSettingsId", "feedId")
-              DO UPDATE SET enabled = true
-            `,
-            params,
-          );
-        }
-        if (filters?.disabledAdvancedSettings?.length) {
-          const [query, params] = ctx.con
-            .createQueryBuilder()
-            .select('id', 'advancedSettingsId')
-            .addSelect(`'${feedId}'`, 'feedId')
-            .addSelect('false', 'enabled')
-            .from(AdvancedSettings, 'adv')
-            .where('adv.id IN (:...ids)', {
-              ids: filters.disabledAdvancedSettings,
-            })
-            .getQueryAndParameters();
-          await manager.query(
-            `
-              insert into feed_advanced_settings("advancedSettingsId", "feedId", "enabled") ${query}
-              on conflict ("advancedSettingsId", "feedId")
-              DO UPDATE SET enabled = false
-            `,
-            params,
-          );
+        if (filters?.advancedSettings?.length) {
+          const enabledIds = filters.advancedSettings
+            .filter((settings) => settings.enabled)
+            .map((settings) => settings.id);
+
+          if (enabledIds.length) {
+            const [query, params] = ctx.con
+              .createQueryBuilder()
+              .select('adv.id', 'advancedSettingsId')
+              .addSelect(`'${feedId}'`, 'feedId')
+              .addSelect('true', 'enabled')
+              .from(AdvancedSettings, 'adv')
+              .where('adv."id" IN (:...ids)', { ids: enabledIds })
+              .getQueryAndParameters();
+
+            await manager.query(
+              `
+                insert into feed_advanced_settings("advancedSettingsId", "feedId", "enabled") ${query}
+                on conflict ("advancedSettingsId", "feedId")
+                DO UPDATE SET enabled = true
+              `,
+              params,
+            );
+          }
+
+          const disabledIds = filters.advancedSettings
+            .filter((settings) => !settings.enabled)
+            .map((settings) => settings.id);
+
+          if (disabledIds.length) {
+            const [query, params] = ctx.con
+              .createQueryBuilder()
+              .select('adv.id', 'advancedSettingsId')
+              .addSelect(`'${feedId}'`, 'feedId')
+              .addSelect('false', 'enabled')
+              .from(AdvancedSettings, 'adv')
+              .where('adv."id" IN (:...ids)', { ids: disabledIds })
+              .getQueryAndParameters();
+
+            await manager.query(
+              `
+                  insert into feed_advanced_settings("advancedSettingsId", "feedId", "enabled") ${query}
+                  on conflict ("advancedSettingsId", "feedId")
+                  DO UPDATE SET enabled = false
+                `,
+              params,
+            );
+          }
         }
         if (filters?.includeTags?.length) {
           await manager
@@ -1104,16 +1120,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             sourceId: In(filters.excludeSources),
           });
         }
-        if (filters?.enabledAdvancedSettings?.length) {
+        if (filters?.advancedSettings?.length) {
           await manager.getRepository(FeedAdvancedSettings).delete({
             feedId,
-            advancedSettingsId: In(filters.enabledAdvancedSettings),
-          });
-        }
-        if (filters?.disabledAdvancedSettings?.length) {
-          await manager.getRepository(FeedAdvancedSettings).delete({
-            feedId,
-            advancedSettingsId: In(filters.disabledAdvancedSettings),
+            advancedSettingsId: In(
+              filters.advancedSettings
+                .filter((settings) => !settings.enabled)
+                .map((settings) => settings.id),
+            ),
           });
         }
         if (filters?.includeTags?.length) {

@@ -12,5 +12,5 @@ export class AdvancedSettings {
   description: string;
 
   @Column({ type: 'bool', default: true })
-  state: boolean;
+  defaultEnabledState: boolean;
 }

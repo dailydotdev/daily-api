@@ -294,13 +294,17 @@ export function randomPostsResolver<
  * Feeds builders and resolvers
  */
 
+export interface AnonymousFeedAdvancedSettings {
+  id: string;
+  enabled: boolean;
+}
+
 export interface AnonymousFeedFilters {
   includeSources?: string[];
   excludeSources?: string[];
   includeTags?: string[];
   blockedTags?: string[];
-  enabledAdvancedSettings?: string[];
-  disabledAdvancedSettings?: string[];
+  advancedSettings?: AnonymousFeedAdvancedSettings[];
 }
 
 export const anonymousFeedBuilder = (

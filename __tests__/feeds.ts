@@ -856,8 +856,10 @@ describe('mutation addFiltersToFeed', () => {
           includeTags: ['webdev', 'javascript'],
           excludeSources: ['a', 'b'],
           blockedTags: ['golang'],
-          enabledAdvancedSettings: ['tm'],
-          disabledAdvancedSettings: ['rn'],
+          advancedSettings: [
+            { id: 'tm', enabled: true },
+            { id: 'rn', enabled: false },
+          ],
         },
       },
     });
@@ -880,8 +882,10 @@ describe('mutation addFiltersToFeed', () => {
           includeTags: ['webdev', 'javascript'],
           excludeSources: ['a', 'b'],
           blockedTags: ['golang'],
-          enabledAdvancedSettings: ['tm'],
-          disabledAdvancedSettings: ['rn'],
+          advancedSettings: [
+            { id: 'tm', enabled: true },
+            { id: 'rn', enabled: false },
+          ],
         },
       },
     });
@@ -948,8 +952,10 @@ describe('mutation removeFiltersFromFeed', () => {
           includeTags: ['webdev', 'javascript'],
           excludeSources: ['a', 'b'],
           blockedTags: ['golang'],
-          enabledAdvancedSettings: ['tm'],
-          disabledAdvancedSettings: ['rn'],
+          advancedSettings: [
+            { id: 'tm', enabled: true },
+            { id: 'rn', enabled: false },
+          ],
         },
       },
     });

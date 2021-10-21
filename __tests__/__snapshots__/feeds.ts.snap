@@ -169,15 +169,15 @@ Object {
   "addFiltersToFeed": Object {
     "advancedSettings": Array [
       Object {
-        "advancedSettingsId": "rn",
         "description": "Description for Release notes",
         "enabled": false,
+        "id": "rn",
         "title": "Release notes",
       },
       Object {
-        "advancedSettingsId": "tm",
         "description": "Description for Tech magazines",
         "enabled": true,
+        "id": "tm",
         "title": "Tech magazines",
       },
     ],
@@ -213,15 +213,15 @@ Object {
   "addFiltersToFeed": Object {
     "advancedSettings": Array [
       Object {
-        "advancedSettingsId": "rn",
         "description": "Description for Release notes",
         "enabled": false,
+        "id": "rn",
         "title": "Release notes",
       },
       Object {
-        "advancedSettingsId": "tm",
         "description": "Description for Tech magazines",
         "enabled": true,
+        "id": "tm",
         "title": "Tech magazines",
       },
     ],
@@ -291,7 +291,14 @@ Object {
 exports[`mutation removeFiltersFromFeed should remove existing filters 1`] = `
 Object {
   "removeFiltersFromFeed": Object {
-    "advancedSettings": Array [],
+    "advancedSettings": Array [
+      Object {
+        "description": "Description for Tech magazines",
+        "enabled": true,
+        "id": "tm",
+        "title": "Tech magazines",
+      },
+    ],
     "blockedTags": Array [],
     "excludeSources": Array [
       Object {
@@ -1521,15 +1528,15 @@ Object {
   "feedSettings": Object {
     "advancedSettings": Array [
       Object {
-        "advancedSettingsId": "rn",
         "description": "Description for Release notes",
         "enabled": false,
+        "id": "rn",
         "title": "Release notes",
       },
       Object {
-        "advancedSettingsId": "tm",
         "description": "Description for Tech magazines",
         "enabled": true,
+        "id": "tm",
         "title": "Tech magazines",
       },
     ],
