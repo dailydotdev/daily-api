@@ -171,13 +171,13 @@ Object {
       Object {
         "advancedSettingsId": "rn",
         "description": "Description for Release notes",
-        "disabled": false,
+        "enabled": false,
         "title": "Release notes",
       },
       Object {
         "advancedSettingsId": "tm",
         "description": "Description for Tech magazines",
-        "disabled": false,
+        "enabled": true,
         "title": "Tech magazines",
       },
     ],
@@ -215,13 +215,13 @@ Object {
       Object {
         "advancedSettingsId": "rn",
         "description": "Description for Release notes",
-        "disabled": true,
+        "enabled": false,
         "title": "Release notes",
       },
       Object {
         "advancedSettingsId": "tm",
         "description": "Description for Tech magazines",
-        "disabled": false,
+        "enabled": true,
         "title": "Tech magazines",
       },
     ],
@@ -1523,13 +1523,13 @@ Object {
       Object {
         "advancedSettingsId": "rn",
         "description": "Description for Release notes",
-        "disabled": true,
+        "enabled": false,
         "title": "Release notes",
       },
       Object {
         "advancedSettingsId": "tm",
         "description": "Description for Tech magazines",
-        "disabled": false,
+        "enabled": true,
         "title": "Tech magazines",
       },
     ],

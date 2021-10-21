@@ -173,7 +173,7 @@ const obj = new GraphORM({
                 `"${childAlias}"."id" = fas."advancedSettingsId"`,
               )
               .select(
-                `fas.disabled, fas."advancedSettingsId", "${childAlias}".title, "${childAlias}".description`,
+                `fas.enabled, fas."advancedSettingsId", "${childAlias}".title, "${childAlias}".description`,
               )
               .where(`fas."feedId" = "${parentAlias}".id`)
               .orderBy(`"${childAlias}".title`),

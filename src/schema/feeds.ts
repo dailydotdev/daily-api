@@ -63,7 +63,7 @@ export const typeDefs = gql`
     advancedSettingsId: String
     title: String
     description: String
-    disabled: Boolean
+    enabled: Boolean
   }
 
   type FeedSettings {
@@ -507,7 +507,7 @@ export interface GQLFeedAdvancedSettings {
   advancedSettingsId: string;
   title: string;
   description: string;
-  disabled: boolean;
+  enabled: boolean;
 }
 
 export interface GQLFeedSettings {
@@ -1021,6 +1021,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .createQueryBuilder()
             .select('id', 'advancedSettingsId')
             .addSelect(`'${feedId}'`, 'feedId')
+            .addSelect('true', 'enabled')
             .from(AdvancedSettings, 'adv')
             .where('adv."id" IN (:...ids)', {
               ids: filters.enabledAdvancedSettings,
@@ -1028,9 +1029,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .getQueryAndParameters();
           await manager.query(
             `
-              insert into feed_advanced_settings("advancedSettingsId", "feedId") ${query}
+              insert into feed_advanced_settings("advancedSettingsId", "feedId", "enabled") ${query}
               on conflict ("advancedSettingsId", "feedId")
-              DO UPDATE SET disabled = false
+              DO UPDATE SET enabled = true
             `,
             params,
           );
@@ -1040,6 +1041,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .createQueryBuilder()
             .select('id', 'advancedSettingsId')
             .addSelect(`'${feedId}'`, 'feedId')
+            .addSelect('false', 'enabled')
             .from(AdvancedSettings, 'adv')
             .where('adv.id IN (:...ids)', {
               ids: filters.disabledAdvancedSettings,
@@ -1047,9 +1049,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .getQueryAndParameters();
           await manager.query(
             `
-              insert into feed_advanced_settings("advancedSettingsId", "feedId") ${query}
+              insert into feed_advanced_settings("advancedSettingsId", "feedId", "enabled") ${query}
               on conflict ("advancedSettingsId", "feedId")
-              DO UPDATE SET disabled = true
+              DO UPDATE SET enabled = false
             `,
             params,
           );
