@@ -60,7 +60,7 @@ interface GQLTagsCategories {
 
 export const typeDefs = gql`
   type AdvancedSettings {
-    advancedSettingsId: String
+    id: String
     title: String
     description: String
     enabled: Boolean
