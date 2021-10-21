@@ -1,9 +1,8 @@
-import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn } from 'typeorm';
 
 @Entity()
 export class AdvancedSettings {
   @PrimaryColumn({ type: 'text' })
-  @Index('IDX_advancedSettings_id')
   id: string;
 
   @Column({ type: 'text' })
