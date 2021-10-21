@@ -5,7 +5,7 @@ import { Feed } from './Feed';
 @Entity()
 export class FeedAdvancedSettings {
   @PrimaryColumn({ type: 'text' })
-  @Index()
+  @Index('IX_feed_advanced_settings_feedId')
   feedId: string;
 
   @PrimaryColumn({ type: 'text' })
