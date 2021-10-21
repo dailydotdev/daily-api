@@ -447,7 +447,7 @@ describe('query feedSettings', () => {
         public
       }
       advancedSettings {
-        advancedSettingsId
+        id
         title
         description
         enabled
@@ -825,7 +825,7 @@ describe('mutation addFiltersToFeed', () => {
         public
       }
       advancedSettings {
-        advancedSettingsId
+        id
         title
         description
         enabled
@@ -918,7 +918,7 @@ describe('mutation removeFiltersFromFeed', () => {
         public
       }
       advancedSettings {
-        advancedSettingsId
+        id
         title
         description
         enabled

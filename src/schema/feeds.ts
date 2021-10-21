@@ -504,7 +504,7 @@ export interface GQLRSSFeed {
 }
 
 export interface GQLFeedAdvancedSettings {
-  advancedSettingsId: string;
+  id: string;
   title: string;
   description: string;
   enabled: boolean;
