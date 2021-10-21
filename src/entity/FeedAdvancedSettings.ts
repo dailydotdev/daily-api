@@ -11,8 +11,8 @@ export class FeedAdvancedSettings {
   @PrimaryColumn({ type: 'text' })
   advancedSettingsId: string;
 
-  @Column({ type: 'bool', default: false })
-  disabled: boolean;
+  @Column({ type: 'bool', default: true })
+  enabled: boolean;
 
   @ManyToOne(() => Feed, {
     lazy: true,

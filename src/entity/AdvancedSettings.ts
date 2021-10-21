@@ -12,6 +12,6 @@ export class AdvancedSettings {
   @Column({ type: 'text' })
   description: string;
 
-  @Column({ type: 'bool', default: false })
-  defaultDisabledState: boolean;
+  @Column({ type: 'bool', default: true })
+  state: boolean;
 }
