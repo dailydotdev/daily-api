@@ -1095,10 +1095,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
             await manager.query(
               `
-                  insert into feed_advanced_settings("advancedSettingsId", "feedId", "enabled") ${query}
-                  on conflict ("advancedSettingsId", "feedId")
-                  DO UPDATE SET enabled = false
-                `,
+                insert into feed_advanced_settings("advancedSettingsId", "feedId", "enabled") ${query}
+                on conflict ("advancedSettingsId", "feedId")
+                DO UPDATE SET enabled = false
+              `,
               params,
             );
           }
