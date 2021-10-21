@@ -317,6 +317,40 @@ Object {
 }
 `;
 
+exports[`query advancedSettings should return the list of the advanced settings 1`] = `
+Object {
+  "advancedSettings": Object {
+    "settings": Array [
+      Object {
+        "description": "Description for Tech magazines",
+        "id": "tm",
+        "title": "Tech magazines",
+      },
+      Object {
+        "description": "Description for Non-editorial content",
+        "id": "n-ec",
+        "title": "Non-editorial content",
+      },
+      Object {
+        "description": "Description for Release notes",
+        "id": "rn",
+        "title": "Release notes",
+      },
+      Object {
+        "description": "Description for Code examples",
+        "id": "ce",
+        "title": "Code examples",
+      },
+      Object {
+        "description": "Description for Company blogs",
+        "id": "cb",
+        "title": "Company blogs",
+      },
+    ],
+  },
+}
+`;
+
 exports[`query anonymousFeed should remove banned posts from the feed 1`] = `
 Object {
   "anonymousFeed": Object {
