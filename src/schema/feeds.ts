@@ -59,6 +59,12 @@ interface GQLTagsCategories {
 }
 
 export const typeDefs = gql`
+  type AdvancedSettings {
+    id: String!
+    title: String!
+    description: String!
+  }
+
   type FeedAdvancedSettings {
     id: String
     title: String
@@ -98,6 +104,10 @@ export const typeDefs = gql`
 
   type TagsCategories {
     categories: [TagsCategory]!
+  }
+
+  type AdvancedSettingsList {
+    settings: [AdvancedSettings]!
   }
 
   enum Ranking {
@@ -480,6 +490,11 @@ export const typeDefs = gql`
     Get the categories of tags
     """
     tagsCategories: TagsCategories!
+
+    """
+    Get the list of advanced settings
+    """
+    advancedSettings: AdvancedSettingsList!
   }
 
   extend type Mutation {
@@ -508,6 +523,16 @@ export const typeDefs = gql`
 export interface GQLRSSFeed {
   name: string;
   url: string;
+}
+
+export interface GQLAdvancedSettings {
+  id: string;
+  title: string;
+  description: string;
+}
+
+export interface GQLAdvancedSettingsList {
+  settings: GQLAdvancedSettings[];
 }
 
 export interface GQLFeedAdvancedSettings {
@@ -993,6 +1018,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const categories = await repo.find();
 
       return { categories };
+    },
+    advancedSettings: async (_, __, ctx): Promise<GQLAdvancedSettingsList> => {
+      const repo = ctx.getRepository(AdvancedSettings);
+      const settings = await repo.find();
+
+      return { settings };
     },
   },
   Mutation: {

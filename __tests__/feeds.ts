@@ -810,6 +810,26 @@ describe('query tagsCategories', () => {
   });
 });
 
+describe('query advancedSettings', () => {
+  it('should return the list of the advanced settings', async () => {
+    const QUERY = `{
+      advancedSettings {
+        settings {
+          id
+          title
+          description
+        }
+      }
+    }`;
+
+    await saveFeedFixtures();
+
+    const res = await client.query({ query: QUERY });
+
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('mutation addFiltersToFeed', () => {
   const MUTATION = `
   mutation AddFiltersToFeed($filters: FiltersInput!) {
