@@ -155,7 +155,7 @@ export const typeDefs = gql`
     blockedTags: [String!]
 
     """
-    Posts must include/exclude sources having advanced settings from this list
+    Posts must comply with the advanced settings from this list
     """
     advancedSettings: [AdvancedSettingsInput!]
   }
