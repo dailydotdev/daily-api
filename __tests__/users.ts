@@ -581,13 +581,31 @@ describe('mutation generateDevCard', () => {
         mutation: MUTATION,
         variables: { url: 'hh::/not-a-valid-url.test' },
       },
-      'BAD_USER_INPUT',
+      'GRAPHQL_VALIDATION_FAILED',
     );
   });
 
   it('should generate new dev card', async () => {
     loggedUser = '1';
     const res = await client.mutate({ mutation: MUTATION });
+    expect(res.errors).toBeFalsy();
+    const devCards = await con.getRepository(DevCard).find();
+    expect(devCards.length).toEqual(1);
+    expect(res.data.generateDevCard.imageUrl).toMatch(
+      new RegExp(
+        `http://localhost:4000/devcards/${devCards[0].id.replace(
+          /-/g,
+          '',
+        )}.png\\?r=.*`,
+      ),
+    );
+  });
+
+  it('should generate new dev card based from the url', async () => {
+    loggedUser = '1';
+    const url =
+      'https://daily-now-res.cloudinary.com/image/upload/v1634801813/devcard/bg/halloween.jpg';
+    const res = await client.mutate({ mutation: MUTATION, variables: { url } });
     expect(res.errors).toBeFalsy();
     const devCards = await con.getRepository(DevCard).find();
     expect(devCards.length).toEqual(1);

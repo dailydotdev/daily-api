@@ -1,4 +1,4 @@
-import { gql, IResolvers, UserInputError } from 'apollo-server-fastify';
+import { gql, IResolvers, ValidationError } from 'apollo-server-fastify';
 import { FileUpload } from 'graphql-upload';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
@@ -262,7 +262,7 @@ export const resolvers: IResolvers<any, Context> = {
         await repo.update(devCard.id, { background: backgroundImage });
       } else if (url) {
         if (!isValidHttpUrl(url)) {
-          throw new UserInputError('Invalid url');
+          throw new ValidationError('Invalid url');
         }
         await repo.update(devCard.id, { background: url });
       }
