@@ -169,15 +169,15 @@ Object {
   "addFiltersToFeed": Object {
     "advancedSettings": Array [
       Object {
-        "description": "Description for Release notes",
+        "description": "Description for Non-editorial content",
         "enabled": false,
-        "id": "rn",
-        "title": "Release notes",
+        "id": "2",
+        "title": "Non-editorial content",
       },
       Object {
         "description": "Description for Tech magazines",
         "enabled": true,
-        "id": "tm",
+        "id": "1",
         "title": "Tech magazines",
       },
     ],
@@ -213,15 +213,15 @@ Object {
   "addFiltersToFeed": Object {
     "advancedSettings": Array [
       Object {
-        "description": "Description for Release notes",
+        "description": "Description for Non-editorial content",
         "enabled": false,
-        "id": "rn",
-        "title": "Release notes",
+        "id": "2",
+        "title": "Non-editorial content",
       },
       Object {
         "description": "Description for Tech magazines",
         "enabled": true,
-        "id": "tm",
+        "id": "1",
         "title": "Tech magazines",
       },
     ],
@@ -293,9 +293,15 @@ Object {
   "removeFiltersFromFeed": Object {
     "advancedSettings": Array [
       Object {
+        "description": "Description for Non-editorial content",
+        "enabled": false,
+        "id": "2",
+        "title": "Non-editorial content",
+      },
+      Object {
         "description": "Description for Tech magazines",
         "enabled": true,
-        "id": "tm",
+        "id": "1",
         "title": "Tech magazines",
       },
     ],
@@ -323,27 +329,27 @@ Object {
     "settings": Array [
       Object {
         "description": "Description for Tech magazines",
-        "id": "tm",
+        "id": "1",
         "title": "Tech magazines",
       },
       Object {
         "description": "Description for Non-editorial content",
-        "id": "n-ec",
+        "id": "2",
         "title": "Non-editorial content",
       },
       Object {
         "description": "Description for Release notes",
-        "id": "rn",
+        "id": "3",
         "title": "Release notes",
       },
       Object {
         "description": "Description for Code examples",
-        "id": "ce",
+        "id": "4",
         "title": "Code examples",
       },
       Object {
         "description": "Description for Company blogs",
-        "id": "cb",
+        "id": "5",
         "title": "Company blogs",
       },
     ],
@@ -1562,15 +1568,15 @@ Object {
   "feedSettings": Object {
     "advancedSettings": Array [
       Object {
-        "description": "Description for Release notes",
+        "description": "Description for Non-editorial content",
         "enabled": false,
-        "id": "rn",
-        "title": "Release notes",
+        "id": "2",
+        "title": "Non-editorial content",
       },
       Object {
         "description": "Description for Tech magazines",
         "enabled": true,
-        "id": "tm",
+        "id": "1",
         "title": "Tech magazines",
       },
     ],

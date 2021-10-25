@@ -65,6 +65,14 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
 
+  const settings = await con.getRepository(AdvancedSettings).find();
+  await con
+    .getRepository(AdvancedSettings)
+    .delete({ id: In(settings.map((s) => s.id)) });
+  await con
+    .getRepository(AdvancedSettings)
+    .query('ALTER SEQUENCE advanced_settings_id_seq RESTART WITH 1');
+  await saveFixtures(con, AdvancedSettings, advancedSettings);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
@@ -76,27 +84,27 @@ afterAll(() => app.close());
 
 const advancedSettings: Partial<AdvancedSettings>[] = [
   {
-    id: 'tm',
+    id: 1,
     title: 'Tech magazines',
     description: 'Description for Tech magazines',
   },
   {
-    id: 'n-ec',
+    id: 2,
     title: 'Non-editorial content',
     description: 'Description for Non-editorial content',
   },
   {
-    id: 'rn',
+    id: 3,
     title: 'Release notes',
     description: 'Description for Release notes',
   },
   {
-    id: 'ce',
+    id: 4,
     title: 'Code examples',
     description: 'Description for Code examples',
   },
   {
-    id: 'cb',
+    id: 5,
     title: 'Company blogs',
     description: 'Description for Company blogs',
   },
@@ -121,8 +129,8 @@ const saveFeedFixtures = async (): Promise<void> => {
   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
   await saveFixtures(con, AdvancedSettings, advancedSettings);
   await saveFixtures(con, FeedAdvancedSettings, [
-    { feedId: '1', advancedSettingsId: 'tm' },
-    { feedId: '1', advancedSettingsId: 'rn', enabled: false },
+    { feedId: '1', advancedSettingsId: 1 },
+    { feedId: '1', advancedSettingsId: 2, enabled: false },
   ]);
   await saveFixtures(con, Category, categories);
   await saveFixtures(con, FeedTag, [
@@ -877,8 +885,8 @@ describe('mutation addFiltersToFeed', () => {
           excludeSources: ['a', 'b'],
           blockedTags: ['golang'],
           advancedSettings: [
-            { id: 'tm', enabled: true },
-            { id: 'rn', enabled: false },
+            { id: 1, enabled: true },
+            { id: 2, enabled: false },
           ],
         },
       },
@@ -903,8 +911,8 @@ describe('mutation addFiltersToFeed', () => {
           excludeSources: ['a', 'b'],
           blockedTags: ['golang'],
           advancedSettings: [
-            { id: 'tm', enabled: true },
-            { id: 'rn', enabled: false },
+            { id: 1, enabled: true },
+            { id: 2, enabled: false },
           ],
         },
       },
@@ -973,8 +981,8 @@ describe('mutation removeFiltersFromFeed', () => {
           excludeSources: ['a', 'b'],
           blockedTags: ['golang'],
           advancedSettings: [
-            { id: 'tm', enabled: true },
-            { id: 'rn', enabled: false },
+            { id: 1, enabled: true },
+            { id: 2, enabled: false },
           ],
         },
       },
