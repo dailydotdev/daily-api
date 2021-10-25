@@ -31,7 +31,7 @@ export class Source {
   private: boolean;
 
   @Column({ type: 'text', array: true, default: [] })
-  @Index('IX_source_advancedSettings')
+  @Index('IDX_source_advancedSettings')
   advancedSettings: string[];
 
   @OneToMany(() => SourceDisplay, (display) => display.source, { lazy: true })
