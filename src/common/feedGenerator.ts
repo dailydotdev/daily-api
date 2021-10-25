@@ -295,7 +295,7 @@ export function randomPostsResolver<
  */
 
 export interface AnonymousFeedAdvancedSettings {
-  id: string;
+  id: number;
   enabled: boolean;
 }
 

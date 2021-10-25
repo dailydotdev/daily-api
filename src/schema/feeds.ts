@@ -1,4 +1,3 @@
-import { FeedAdvancedSettings } from './../entity/FeedAdvancedSettings';
 import { AdvancedSettings } from './../entity/AdvancedSettings';
 import { Category } from './../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
@@ -526,7 +525,7 @@ export interface GQLRSSFeed {
 }
 
 export interface GQLAdvancedSettings {
-  id: string;
+  id: number;
   title: string;
   description: string;
 }
@@ -536,7 +535,7 @@ export interface GQLAdvancedSettingsList {
 }
 
 export interface GQLFeedAdvancedSettings {
-  id: string;
+  id: number;
   title: string;
   description: string;
   enabled: boolean;
@@ -1149,16 +1148,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           await manager.getRepository(FeedSource).delete({
             feedId,
             sourceId: In(filters.excludeSources),
-          });
-        }
-        if (filters?.advancedSettings?.length) {
-          await manager.getRepository(FeedAdvancedSettings).delete({
-            feedId,
-            advancedSettingsId: In(
-              filters.advancedSettings
-                .filter((settings) => !settings.enabled)
-                .map((settings) => settings.id),
-            ),
           });
         }
         if (filters?.includeTags?.length) {
