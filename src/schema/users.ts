@@ -1,10 +1,14 @@
-import { gql, IResolvers } from 'apollo-server-fastify';
+import { gql, IResolvers, ValidationError } from 'apollo-server-fastify';
 import { FileUpload } from 'graphql-upload';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { Comment, getAuthorPostStats, PostStats, View } from '../entity';
 import { DevCard } from '../entity/DevCard';
-import { getUserReadingRank, uploadDevCardBackground } from '../common';
+import {
+  getUserReadingRank,
+  isValidHttpUrl,
+  uploadDevCardBackground,
+} from '../common';
 
 export interface GQLUser {
   id: string;
@@ -135,7 +139,7 @@ export const typeDefs = gql`
     """
     Generates or updates the user's Dev Card preferences
     """
-    generateDevCard(file: Upload): DevCard @auth
+    generateDevCard(file: Upload, url: String): DevCard @auth
   }
 `;
 
@@ -238,14 +242,14 @@ export const resolvers: IResolvers<any, Context> = {
   Mutation: traceResolverObject({
     generateDevCard: async (
       source,
-      { file }: { file?: FileUpload },
+      { file, url }: { file?: FileUpload; url: string },
       ctx: Context,
     ): Promise<{ imageUrl: string }> => {
       const repo = ctx.con.getRepository(DevCard);
       let devCard: DevCard = await repo.findOne({ userId: ctx.userId });
       if (!devCard) {
         devCard = await repo.save({ userId: ctx.userId });
-      } else if (!file) {
+      } else if (!file && !url) {
         await repo.update(devCard.id, { background: null });
       }
       if (file) {
@@ -256,6 +260,11 @@ export const resolvers: IResolvers<any, Context> = {
           stream,
         );
         await repo.update(devCard.id, { background: backgroundImage });
+      } else if (url) {
+        if (!isValidHttpUrl(url)) {
+          throw new ValidationError('Invalid url');
+        }
+        await repo.update(devCard.id, { background: url });
       }
       // Avoid caching issues with the new version
       const randomStr = Math.random().toString(36).substring(2, 5);
