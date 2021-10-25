@@ -18,8 +18,6 @@ const start = async (): Promise<void> => {
   await importEntity(con, 'Post');
   await importEntity(con, 'Keyword');
   await importEntity(con, 'PostKeyword');
-  await importEntity(con, 'AdvancedSettings');
-  await importEntity(con, 'User');
 };
 
 start()
