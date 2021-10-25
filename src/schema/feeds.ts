@@ -1,3 +1,4 @@
+import { FeedAdvancedSettings } from './../entity/FeedAdvancedSettings';
 import { AdvancedSettings } from './../entity/AdvancedSettings';
 import { Category } from './../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
@@ -124,7 +125,7 @@ export const typeDefs = gql`
     """
     Advanced Settings ID
     """
-    id: String!
+    id: Int!
 
     """
     State if the sources related tadvanced settings will be included/excluded
@@ -547,7 +548,6 @@ export interface GQLFeedSettings {
   includeTags: string[];
   blockedTags: string[];
   excludeSources: GQLSource[];
-  advancedSettings: GQLFeedAdvancedSettings[];
 }
 
 export type GQLFiltersInput = AnonymousFeedFilters;
@@ -707,7 +707,6 @@ const getFeedSettings = async (
     excludeSources: [],
     includeTags: [],
     blockedTags: [],
-    advancedSettings: [],
   };
 };
 
@@ -1054,53 +1053,21 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           );
         }
         if (filters?.advancedSettings?.length) {
-          const enabledIds = filters.advancedSettings
-            .filter((settings) => settings.enabled)
-            .map((settings) => settings.id);
-
-          if (enabledIds.length) {
-            const [query, params] = ctx.con
-              .createQueryBuilder()
-              .select('adv.id', 'advancedSettingsId')
-              .addSelect(`'${feedId}'`, 'feedId')
-              .addSelect('true', 'enabled')
-              .from(AdvancedSettings, 'adv')
-              .where('adv."id" IN (:...ids)', { ids: enabledIds })
-              .getQueryAndParameters();
-
-            await manager.query(
-              `
-                insert into feed_advanced_settings("advancedSettingsId", "feedId", "enabled") ${query}
-                on conflict ("advancedSettingsId", "feedId")
-                DO UPDATE SET enabled = true
-              `,
-              params,
-            );
-          }
-
-          const disabledIds = filters.advancedSettings
-            .filter((settings) => !settings.enabled)
-            .map((settings) => settings.id);
-
-          if (disabledIds.length) {
-            const [query, params] = ctx.con
-              .createQueryBuilder()
-              .select('adv.id', 'advancedSettingsId')
-              .addSelect(`'${feedId}'`, 'feedId')
-              .addSelect('false', 'enabled')
-              .from(AdvancedSettings, 'adv')
-              .where('adv."id" IN (:...ids)', { ids: disabledIds })
-              .getQueryAndParameters();
-
-            await manager.query(
-              `
-                insert into feed_advanced_settings("advancedSettingsId", "feedId", "enabled") ${query}
-                on conflict ("advancedSettingsId", "feedId")
-                DO UPDATE SET enabled = false
-              `,
-              params,
-            );
-          }
+          await manager
+            .createQueryBuilder()
+            .insert()
+            .into(FeedAdvancedSettings)
+            .values(
+              filters.advancedSettings.map((settings) => ({
+                feedId,
+                advancedSettingsId: settings.id,
+                enabled: settings.enabled,
+              })),
+            )
+            .onConflict(
+              '("advancedSettingsId", "feedId") DO UPDATE SET enabled = excluded.enabled',
+            )
+            .execute();
         }
         if (filters?.includeTags?.length) {
           await manager
