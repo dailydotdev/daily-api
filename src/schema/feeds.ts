@@ -528,7 +528,7 @@ export const typeDefs = gql`
       """
       Posts must comply with the advanced settings from this list
       """
-      settings: [FeedAdvancedSettingsInput!]
+      settings: [FeedAdvancedSettingsInput]!
     ): FeedAdvancedSettingsList @auth
   }
 `;

@@ -280,11 +280,68 @@ Object {
 }
 `;
 
-exports[`mutation updateFeedAdvancedSettings should add the new feed advanced settings 1`] = `undefined`;
+exports[`mutation updateFeedAdvancedSettings should add the new feed advanced settings 1`] = `
+Object {
+  "updateFeedAdvancedSettings": Object {
+    "settings": Array [
+      Object {
+        "description": "Description for Tech magazines",
+        "enabled": true,
+        "id": "1",
+        "title": "Tech magazines",
+      },
+      Object {
+        "description": "Description for Non-editorial content",
+        "enabled": false,
+        "id": "2",
+        "title": "Non-editorial content",
+      },
+    ],
+  },
+}
+`;
 
-exports[`mutation updateFeedAdvancedSettings should ignore duplicates 1`] = `undefined`;
+exports[`mutation updateFeedAdvancedSettings should ignore duplicates 1`] = `
+Object {
+  "updateFeedAdvancedSettings": Object {
+    "settings": Array [
+      Object {
+        "description": "Description for Tech magazines",
+        "enabled": true,
+        "id": "1",
+        "title": "Tech magazines",
+      },
+      Object {
+        "description": "Description for Non-editorial content",
+        "enabled": false,
+        "id": "2",
+        "title": "Non-editorial content",
+      },
+    ],
+  },
+}
+`;
 
-exports[`mutation updateFeedAdvancedSettings should update existing feed advanced settings 1`] = `undefined`;
+exports[`mutation updateFeedAdvancedSettings should update existing feed advanced settings 1`] = `
+Object {
+  "updateFeedAdvancedSettings": Object {
+    "settings": Array [
+      Object {
+        "description": "Description for Tech magazines",
+        "enabled": false,
+        "id": "1",
+        "title": "Tech magazines",
+      },
+      Object {
+        "description": "Description for Non-editorial content",
+        "enabled": true,
+        "id": "2",
+        "title": "Non-editorial content",
+      },
+    ],
+  },
+}
+`;
 
 exports[`query advancedSettings should return the list of the advanced settings 1`] = `
 Object {
