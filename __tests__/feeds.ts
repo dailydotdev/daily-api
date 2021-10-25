@@ -129,7 +129,7 @@ const saveFeedFixtures = async (): Promise<void> => {
   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
   await saveFixtures(con, AdvancedSettings, advancedSettings);
   await saveFixtures(con, FeedAdvancedSettings, [
-    { feedId: '1', advancedSettingsId: 1 },
+    { feedId: '1', advancedSettingsId: 1, enabled: true },
     { feedId: '1', advancedSettingsId: 2, enabled: false },
   ]);
   await saveFixtures(con, Category, categories);
@@ -453,12 +453,6 @@ describe('query feedSettings', () => {
         name
         image
         public
-      }
-      advancedSettings {
-        id
-        title
-        description
-        enabled
       }
     }
   }`;
@@ -838,6 +832,122 @@ describe('query advancedSettings', () => {
   });
 });
 
+describe('query feedAdvancedSettings', () => {
+  it("should return the list of the user's feedAdvanced settings", async () => {
+    loggedUser = '1';
+
+    const QUERY = `{
+      feedAdvancedSettings {
+        settings {
+          id
+          title
+          description
+          enabled
+        }
+      }
+    }`;
+
+    await saveFeedFixtures();
+
+    const res = await client.query({ query: QUERY });
+
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('mutation updateFeedAdvancedSettings', () => {
+  const MUTATION = `
+    mutation UpdateFeedAdvancedSettings($settings: [FeedAdvancedSettingsInput]!) {
+      updateFeedAdvancedSettings(settings: $settings) {
+        settings {
+          id
+          title
+          description
+          enabled
+        }
+      }
+    }
+  `;
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          settings: [
+            { id: 1, enabled: true },
+            { id: 2, enabled: false },
+          ],
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should add the new feed advanced settings', async () => {
+    loggedUser = '1';
+    await redisClient.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
+    await redisClient.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await saveFixtures(con, AdvancedSettings, advancedSettings);
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: {
+        settings: [
+          { id: 1, enabled: true },
+          { id: 2, enabled: false },
+        ],
+      },
+    });
+
+    expect(res.data).toMatchSnapshot();
+    expect(
+      await redisClient.get(`${getPersonalizedFeedKey('2', '1')}:time`),
+    ).toBeFalsy();
+    expect(
+      await redisClient.get(`${getPersonalizedFeedKey('2', '2')}:time`),
+    ).toEqual('2');
+  });
+
+  it('should update existing feed advanced settings', async () => {
+    loggedUser = '1';
+    await redisClient.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
+    await redisClient.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
+    await saveFeedFixtures();
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: {
+        settings: [
+          { id: 1, enabled: false },
+          { id: 2, enabled: true },
+        ],
+      },
+    });
+    expect(res.data).toMatchSnapshot();
+    expect(
+      await redisClient.get(`${getPersonalizedFeedKey('2', '1')}:time`),
+    ).toBeFalsy();
+    expect(
+      await redisClient.get(`${getPersonalizedFeedKey('2', '2')}:time`),
+    ).toEqual('2');
+  });
+
+  it('should ignore duplicates', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: {
+        settings: [
+          { id: 1, enabled: true },
+          { id: 2, enabled: false },
+        ],
+      },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('mutation addFiltersToFeed', () => {
   const MUTATION = `
   mutation AddFiltersToFeed($filters: FiltersInput!) {
@@ -851,12 +961,6 @@ describe('mutation addFiltersToFeed', () => {
         name
         image
         public
-      }
-      advancedSettings {
-        id
-        title
-        description
-        enabled
       }
     }
   }`;
@@ -884,10 +988,6 @@ describe('mutation addFiltersToFeed', () => {
           includeTags: ['webdev', 'javascript'],
           excludeSources: ['a', 'b'],
           blockedTags: ['golang'],
-          advancedSettings: [
-            { id: 1, enabled: true },
-            { id: 2, enabled: false },
-          ],
         },
       },
     });
@@ -910,10 +1010,6 @@ describe('mutation addFiltersToFeed', () => {
           includeTags: ['webdev', 'javascript'],
           excludeSources: ['a', 'b'],
           blockedTags: ['golang'],
-          advancedSettings: [
-            { id: 1, enabled: true },
-            { id: 2, enabled: false },
-          ],
         },
       },
     });
@@ -949,12 +1045,6 @@ describe('mutation removeFiltersFromFeed', () => {
         image
         public
       }
-      advancedSettings {
-        id
-        title
-        description
-        enabled
-      }
     }
   }`;
 
@@ -980,10 +1070,6 @@ describe('mutation removeFiltersFromFeed', () => {
           includeTags: ['webdev', 'javascript'],
           excludeSources: ['a', 'b'],
           blockedTags: ['golang'],
-          advancedSettings: [
-            { id: 1, enabled: true },
-            { id: 2, enabled: false },
-          ],
         },
       },
     });

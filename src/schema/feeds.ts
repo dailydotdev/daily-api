@@ -131,7 +131,7 @@ export const typeDefs = gql`
     id: Int!
 
     """
-    State if the sources related tadvanced settings will be included/excluded
+    State if the sources related to advanced settings will be included/excluded
     """
     enabled: Boolean!
   }
