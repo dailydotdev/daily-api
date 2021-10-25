@@ -8,8 +8,8 @@ export class FeedAdvancedSettings {
   @Index('IDX_feed_advanced_settings_feedId')
   feedId: string;
 
-  @PrimaryColumn({ type: 'text' })
-  advancedSettingsId: string;
+  @PrimaryColumn({ type: 'int' })
+  advancedSettingsId: number;
 
   @Column({ type: 'bool', default: true })
   enabled: boolean;
