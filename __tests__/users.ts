@@ -558,8 +558,8 @@ describe('query userReadHistory', () => {
 });
 
 describe('mutation generateDevCard', () => {
-  const MUTATION = `mutation GenerateDevCard($file: Upload){
-    generateDevCard(file: $file) {
+  const MUTATION = `mutation GenerateDevCard($file: Upload, $url: String){
+    generateDevCard(file: $file, url: $url) {
       imageUrl
     }
   }`;
@@ -572,6 +572,18 @@ describe('mutation generateDevCard', () => {
       },
       'UNAUTHENTICATED',
     ));
+
+  it('should not validate passed url', () => {
+    loggedUser = '1';
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { url: 'hh::/not-a-valid-url.test' },
+      },
+      'BAD_USER_INPUT',
+    );
+  });
 
   it('should generate new dev card', async () => {
     loggedUser = '1';
