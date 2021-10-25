@@ -78,7 +78,6 @@ export const typeDefs = gql`
     includeTags: [String]
     blockedTags: [String]
     excludeSources: [Source]
-    advancedSettings: [FeedAdvancedSettings]
   }
 
   type SearchPostSuggestion {
@@ -110,6 +109,10 @@ export const typeDefs = gql`
     settings: [AdvancedSettings]!
   }
 
+  type FeedAdvancedSettingsList {
+    settings: [FeedAdvancedSettings]!
+  }
+
   enum Ranking {
     """
     Rank by a combination of time and views
@@ -121,7 +124,7 @@ export const typeDefs = gql`
     TIME
   }
 
-  input AdvancedSettingsInput {
+  input FeedAdvancedSettingsInput {
     """
     Advanced Settings ID
     """
@@ -153,11 +156,6 @@ export const typeDefs = gql`
     Posts must not include even one tag from this list
     """
     blockedTags: [String!]
-
-    """
-    Posts must comply with the advanced settings from this list
-    """
-    advancedSettings: [AdvancedSettingsInput!]
   }
 
   extend type Query {
@@ -495,6 +493,11 @@ export const typeDefs = gql`
     Get the list of advanced settings
     """
     advancedSettings: AdvancedSettingsList!
+
+    """
+    Get the user's feed advanced settings
+    """
+    feedAdvancedSettings: FeedAdvancedSettingsList!
   }
 
   extend type Mutation {
@@ -517,6 +520,16 @@ export const typeDefs = gql`
       """
       filters: FiltersInput!
     ): FeedSettings @auth
+
+    """
+    Update user's feed advanced settings
+    """
+    updateFeedAdvancedSettings(
+      """
+      Posts must comply with the advanced settings from this list
+      """
+      settings: [FeedAdvancedSettingsInput!]
+    ): FeedAdvancedSettingsList @auth
   }
 `;
 
@@ -539,6 +552,15 @@ export interface GQLFeedAdvancedSettings {
   id: number;
   title: string;
   description: string;
+  enabled: boolean;
+}
+
+export interface GQLFeedAdvancedSettingsList {
+  settings: GQLFeedAdvancedSettings[];
+}
+
+export interface GQLFeedAdvancedSettingsInput {
+  id: number;
   enabled: boolean;
 }
 
@@ -708,6 +730,18 @@ const getFeedSettings = async (
     includeTags: [],
     blockedTags: [],
   };
+};
+
+const getFeedAdvancedSettings = async (ctx: Context) => {
+  const repo = ctx.getRepository(FeedAdvancedSettings);
+  const settings = await repo
+    .createQueryBuilder('fas')
+    .select('adv.id, adv.title, adv.description, fas.enabled')
+    .innerJoin(AdvancedSettings, 'adv', 'fas."advancedSettingsId" = adv.id')
+    .where({ feedId: ctx.userId })
+    .execute();
+
+  return { settings };
 };
 
 const searchResolver = feedResolver(
@@ -1023,6 +1057,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
       return { settings };
     },
+    feedAdvancedSettings: async (
+      _,
+      __,
+      ctx,
+    ): Promise<GQLFeedAdvancedSettingsList> => getFeedAdvancedSettings(ctx),
   },
   Mutation: {
     addFiltersToFeed: async (
@@ -1051,23 +1090,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             do nothing`,
             params,
           );
-        }
-        if (filters?.advancedSettings?.length) {
-          await manager
-            .createQueryBuilder()
-            .insert()
-            .into(FeedAdvancedSettings)
-            .values(
-              filters.advancedSettings.map((settings) => ({
-                feedId,
-                advancedSettingsId: settings.id,
-                enabled: settings.enabled,
-              })),
-            )
-            .onConflict(
-              '("advancedSettingsId", "feedId") DO UPDATE SET enabled = excluded.enabled',
-            )
-            .execute();
         }
         if (filters?.includeTags?.length) {
           await manager
@@ -1132,6 +1154,34 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       });
       await clearFeedCache(feedId);
       return getFeedSettings(ctx, info);
+    },
+    updateFeedAdvancedSettings: async (
+      _,
+      { settings }: { settings: GQLFeedAdvancedSettingsInput[] },
+      ctx,
+    ): Promise<GQLFeedAdvancedSettingsList> => {
+      const feedId = ctx.userId;
+
+      await ctx.con
+        .getRepository(FeedAdvancedSettings)
+        .createQueryBuilder()
+        .insert()
+        .into(FeedAdvancedSettings)
+        .values(
+          settings.map((settings) => ({
+            feedId,
+            advancedSettingsId: settings.id,
+            enabled: settings.enabled,
+          })),
+        )
+        .onConflict(
+          '("advancedSettingsId", "feedId") DO UPDATE SET enabled = excluded.enabled',
+        )
+        .execute();
+
+      await clearFeedCache(feedId);
+
+      return getFeedAdvancedSettings(ctx);
     },
   },
 });

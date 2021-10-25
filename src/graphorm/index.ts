@@ -1,4 +1,3 @@
-import { AdvancedSettings } from './../entity/AdvancedSettings';
 import { GraphORM, QueryBuilder } from './graphorm';
 import { Bookmark, CommentUpvote, FeedSource, FeedTag, Post } from '../entity';
 import { Context } from '../Context';
@@ -161,23 +160,6 @@ const obj = new GraphORM({
             .where(`ft."feedId" = "${alias}".id`)
             .andWhere('ft.blocked = true'),
         transform: (value: string): string[] => value?.split(',') ?? [],
-      },
-      advancedSettings: {
-        relation: {
-          isMany: true,
-          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
-            qb
-              .innerJoin(
-                AdvancedSettings,
-                'adv',
-                `"${childAlias}"."advancedSettingsId" = adv.id`,
-              )
-              .select(
-                `"${childAlias}".enabled, adv.id, adv.title, adv.description`,
-              )
-              .where(`"${childAlias}"."feedId" = "${parentAlias}".id`)
-              .orderBy(`adv.title`),
-        },
       },
       excludeSources: {
         relation: {
