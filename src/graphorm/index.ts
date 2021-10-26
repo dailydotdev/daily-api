@@ -175,9 +175,11 @@ const obj = new GraphORM({
               .orderBy(`"${childAlias}".name`),
         },
       },
-      feedAdvancedSettings: {
-        select: 'enabled, "advancedSettingsId"',
-      },
+    },
+  },
+  FeedAdvancedSettings: {
+    fields: {
+      id: { alias: { field: 'advancedSettingsId', type: 'int' } },
     },
   },
 });

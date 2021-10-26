@@ -67,7 +67,7 @@ export const typeDefs = gql`
   }
 
   type FeedAdvancedSettings {
-    advancedSettingsId: Int!
+    id: Int!
     enabled: Boolean!
   }
 
@@ -77,7 +77,7 @@ export const typeDefs = gql`
     includeTags: [String]
     blockedTags: [String]
     excludeSources: [Source]
-    feedAdvancedSettings: [FeedAdvancedSettings]
+    advancedSettings: [FeedAdvancedSettings]
   }
 
   type SearchPostSuggestion {
@@ -120,7 +120,7 @@ export const typeDefs = gql`
     """
     Advanced Settings ID
     """
-    advancedSettingsId: Int!
+    id: Int!
 
     """
     State if the sources related to advanced settings will be included/excluded
@@ -531,11 +531,11 @@ export interface GQLAdvancedSettings {
   description: string;
 }
 export interface GQLFeedAdvancedSettings {
-  advancedSettingsId: number;
+  id: number;
   enabled: boolean;
 }
 export interface GQLFeedAdvancedSettingsInput {
-  advancedSettingsId: number;
+  id: number;
   enabled: boolean;
 }
 
@@ -545,7 +545,7 @@ export interface GQLFeedSettings {
   includeTags: string[];
   blockedTags: string[];
   excludeSources: GQLSource[];
-  feedAdvancedSettings: GQLFeedAdvancedSettings[];
+  advancedSettings: GQLFeedAdvancedSettings[];
 }
 
 export type GQLFiltersInput = AnonymousFeedFilters;
@@ -705,7 +705,7 @@ const getFeedSettings = async (
     excludeSources: [],
     includeTags: [],
     blockedTags: [],
-    feedAdvancedSettings: [],
+    advancedSettings: [],
   };
 };
 
@@ -1128,9 +1128,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         .insert()
         .into(FeedAdvancedSettings)
         .values(
-          settings.map(({ advancedSettingsId, enabled }) => ({
+          settings.map(({ id, enabled }) => ({
             feedId,
-            advancedSettingsId,
+            advancedSettingsId: id,
             enabled: enabled,
           })),
         )
@@ -1141,7 +1141,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
       await clearFeedCache(feedId);
 
-      return repo.find({ feedId });
+      return repo
+        .createQueryBuilder()
+        .select('"advancedSettingsId" AS id, enabled')
+        .where({ feedId })
+        .execute();
     },
   },
 });
