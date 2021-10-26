@@ -60,16 +60,16 @@ interface GQLTagsCategories {
 
 export const typeDefs = gql`
   type AdvancedSettings {
-    id: String!
+    id: Int!
     title: String!
     description: String!
   }
 
   type FeedAdvancedSettings {
-    id: String
+    id: Int!
     title: String
     description: String
-    enabled: Boolean
+    enabled: Boolean!
   }
 
   type FeedSettings {
@@ -497,7 +497,7 @@ export const typeDefs = gql`
     """
     Get the user's feed advanced settings
     """
-    feedAdvancedSettings: FeedAdvancedSettingsList!
+    feedAdvancedSettings: FeedAdvancedSettingsList! @auth
   }
 
   extend type Mutation {
@@ -737,7 +737,12 @@ const getFeedAdvancedSettings = async (ctx: Context) => {
   const settings = await repo
     .createQueryBuilder('adv')
     .select(
-      'adv.id, adv.title, adv.description, COALESCE(fas.enabled, adv."defaultEnabledState") AS "enabled"',
+      `
+        adv.id,
+        adv.title,
+        adv.description,
+        COALESCE(fas.enabled, adv."defaultEnabledState") AS "enabled"
+      `,
     )
     .leftJoin(
       FeedAdvancedSettings,
