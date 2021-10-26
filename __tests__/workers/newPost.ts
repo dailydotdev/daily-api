@@ -73,6 +73,7 @@ it('should save a new post with full information', async () => {
     creatorTwitter: 'creator',
     readTime: '5.123',
     description: 'This is my description',
+    summary: 'This is my summary',
     toc: [
       {
         text: 'Title 1',

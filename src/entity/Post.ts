@@ -150,6 +150,9 @@ export class Post {
 
   @Column({ type: 'jsonb', nullable: true })
   toc: Toc | null;
+
+  @Column({ type: 'text', nullable: true })
+  summary: string | null;
 }
 
 export interface SearchPostsResult {

@@ -22,6 +22,7 @@ interface AddPostData {
   keywords?: string[];
   description?: string;
   toc?: Toc;
+  summary?: string;
 }
 
 type Result = { postId: string; authorId?: string };
@@ -102,6 +103,7 @@ const addPost = async (con: Connection, data: AddPostData): Promise<void> => {
       sentAnalyticsReport: !authorId,
       description: data.description,
       toc: data.toc,
+      summary: data.summary,
     });
     if (data.tags?.length) {
       await entityManager.getRepository(PostTag).insert(
