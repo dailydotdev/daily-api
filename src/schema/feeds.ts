@@ -67,8 +67,6 @@ export const typeDefs = gql`
 
   type FeedAdvancedSettings {
     id: Int!
-    title: String
-    description: String
     enabled: Boolean!
   }
 
@@ -103,14 +101,6 @@ export const typeDefs = gql`
 
   type TagsCategories {
     categories: [TagsCategory]!
-  }
-
-  type AdvancedSettingsList {
-    settings: [AdvancedSettings]!
-  }
-
-  type FeedAdvancedSettingsList {
-    settings: [FeedAdvancedSettings]!
   }
 
   enum Ranking {
@@ -492,12 +482,12 @@ export const typeDefs = gql`
     """
     Get the list of advanced settings
     """
-    advancedSettings: AdvancedSettingsList!
+    advancedSettings: [AdvancedSettings]!
 
     """
     Get the user's feed advanced settings
     """
-    feedAdvancedSettings: FeedAdvancedSettingsList! @auth
+    feedAdvancedSettings: [FeedAdvancedSettings]! @auth
   }
 
   extend type Mutation {
@@ -529,7 +519,7 @@ export const typeDefs = gql`
       Posts must comply with the advanced settings from this list
       """
       settings: [FeedAdvancedSettingsInput]!
-    ): FeedAdvancedSettingsList @auth
+    ): [FeedAdvancedSettings]! @auth
   }
 `;
 
@@ -543,22 +533,12 @@ export interface GQLAdvancedSettings {
   title: string;
   description: string;
 }
-
-export interface GQLAdvancedSettingsList {
-  settings: GQLAdvancedSettings[];
-}
-
 export interface GQLFeedAdvancedSettings {
   id: number;
   title: string;
   description: string;
   enabled: boolean;
 }
-
-export interface GQLFeedAdvancedSettingsList {
-  settings: GQLFeedAdvancedSettings[];
-}
-
 export interface GQLFeedAdvancedSettingsInput {
   id: number;
   enabled: boolean;
@@ -739,8 +719,6 @@ const getFeedAdvancedSettings = async (ctx: Context) => {
     .select(
       `
         adv.id,
-        adv.title,
-        adv.description,
         COALESCE(fas.enabled, adv."defaultEnabledState") AS "enabled"
       `,
     )
@@ -752,7 +730,7 @@ const getFeedAdvancedSettings = async (ctx: Context) => {
     )
     .execute();
 
-  return { settings };
+  return settings;
 };
 
 const searchResolver = feedResolver(
@@ -1062,17 +1040,17 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
       return { categories };
     },
-    advancedSettings: async (_, __, ctx): Promise<GQLAdvancedSettingsList> => {
+    advancedSettings: async (_, __, ctx): Promise<GQLAdvancedSettings[]> => {
       const repo = ctx.getRepository(AdvancedSettings);
       const settings = await repo.find();
 
-      return { settings };
+      return settings;
     },
     feedAdvancedSettings: async (
       _,
       __,
       ctx,
-    ): Promise<GQLFeedAdvancedSettingsList> => getFeedAdvancedSettings(ctx),
+    ): Promise<GQLFeedAdvancedSettings[]> => getFeedAdvancedSettings(ctx),
   },
   Mutation: {
     addFiltersToFeed: async (
@@ -1170,7 +1148,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       _,
       { settings }: { settings: GQLFeedAdvancedSettingsInput[] },
       ctx,
-    ): Promise<GQLFeedAdvancedSettingsList> => {
+    ): Promise<GQLFeedAdvancedSettings[]> => {
       const feedId = ctx.userId;
 
       await ctx.con

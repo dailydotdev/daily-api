@@ -282,152 +282,114 @@ Object {
 
 exports[`mutation updateFeedAdvancedSettings should add the new feed advanced settings 1`] = `
 Object {
-  "updateFeedAdvancedSettings": Object {
-    "settings": Array [
-      Object {
-        "description": "Description for Tech magazines",
-        "enabled": true,
-        "id": 1,
-        "title": "Tech magazines",
-      },
-      Object {
-        "description": "Description for Non-editorial content",
-        "enabled": false,
-        "id": 2,
-        "title": "Non-editorial content",
-      },
-      Object {
-        "description": "Description for Release notes",
-        "enabled": true,
-        "id": 3,
-        "title": "Release notes",
-      },
-      Object {
-        "description": "Description for Code examples",
-        "enabled": true,
-        "id": 4,
-        "title": "Code examples",
-      },
-      Object {
-        "description": "Description for Company blogs",
-        "enabled": true,
-        "id": 5,
-        "title": "Company blogs",
-      },
-    ],
-  },
+  "updateFeedAdvancedSettings": Array [
+    Object {
+      "enabled": true,
+      "id": 1,
+    },
+    Object {
+      "enabled": false,
+      "id": 2,
+    },
+    Object {
+      "enabled": true,
+      "id": 3,
+    },
+    Object {
+      "enabled": true,
+      "id": 4,
+    },
+    Object {
+      "enabled": true,
+      "id": 5,
+    },
+  ],
 }
 `;
 
 exports[`mutation updateFeedAdvancedSettings should ignore duplicates 1`] = `
 Object {
-  "updateFeedAdvancedSettings": Object {
-    "settings": Array [
-      Object {
-        "description": "Description for Tech magazines",
-        "enabled": true,
-        "id": 1,
-        "title": "Tech magazines",
-      },
-      Object {
-        "description": "Description for Non-editorial content",
-        "enabled": false,
-        "id": 2,
-        "title": "Non-editorial content",
-      },
-      Object {
-        "description": "Description for Release notes",
-        "enabled": true,
-        "id": 3,
-        "title": "Release notes",
-      },
-      Object {
-        "description": "Description for Code examples",
-        "enabled": true,
-        "id": 4,
-        "title": "Code examples",
-      },
-      Object {
-        "description": "Description for Company blogs",
-        "enabled": true,
-        "id": 5,
-        "title": "Company blogs",
-      },
-    ],
-  },
+  "updateFeedAdvancedSettings": Array [
+    Object {
+      "enabled": true,
+      "id": 1,
+    },
+    Object {
+      "enabled": false,
+      "id": 2,
+    },
+    Object {
+      "enabled": true,
+      "id": 3,
+    },
+    Object {
+      "enabled": true,
+      "id": 4,
+    },
+    Object {
+      "enabled": true,
+      "id": 5,
+    },
+  ],
 }
 `;
 
 exports[`mutation updateFeedAdvancedSettings should update existing feed advanced settings 1`] = `
 Object {
-  "updateFeedAdvancedSettings": Object {
-    "settings": Array [
-      Object {
-        "description": "Description for Tech magazines",
-        "enabled": false,
-        "id": 1,
-        "title": "Tech magazines",
-      },
-      Object {
-        "description": "Description for Non-editorial content",
-        "enabled": true,
-        "id": 2,
-        "title": "Non-editorial content",
-      },
-      Object {
-        "description": "Description for Release notes",
-        "enabled": true,
-        "id": 3,
-        "title": "Release notes",
-      },
-      Object {
-        "description": "Description for Code examples",
-        "enabled": true,
-        "id": 4,
-        "title": "Code examples",
-      },
-      Object {
-        "description": "Description for Company blogs",
-        "enabled": true,
-        "id": 5,
-        "title": "Company blogs",
-      },
-    ],
-  },
+  "updateFeedAdvancedSettings": Array [
+    Object {
+      "enabled": false,
+      "id": 1,
+    },
+    Object {
+      "enabled": true,
+      "id": 2,
+    },
+    Object {
+      "enabled": true,
+      "id": 3,
+    },
+    Object {
+      "enabled": true,
+      "id": 4,
+    },
+    Object {
+      "enabled": true,
+      "id": 5,
+    },
+  ],
 }
 `;
 
 exports[`query advancedSettings should return the list of the advanced settings 1`] = `
 Object {
-  "advancedSettings": Object {
-    "settings": Array [
-      Object {
-        "description": "Description for Tech magazines",
-        "id": 1,
-        "title": "Tech magazines",
-      },
-      Object {
-        "description": "Description for Non-editorial content",
-        "id": 2,
-        "title": "Non-editorial content",
-      },
-      Object {
-        "description": "Description for Release notes",
-        "id": 3,
-        "title": "Release notes",
-      },
-      Object {
-        "description": "Description for Code examples",
-        "id": 4,
-        "title": "Code examples",
-      },
-      Object {
-        "description": "Description for Company blogs",
-        "id": 5,
-        "title": "Company blogs",
-      },
-    ],
-  },
+  "advancedSettings": Array [
+    Object {
+      "description": "Description for Tech magazines",
+      "id": 1,
+      "title": "Tech magazines",
+    },
+    Object {
+      "description": "Description for Non-editorial content",
+      "id": 2,
+      "title": "Non-editorial content",
+    },
+    Object {
+      "description": "Description for Release notes",
+      "id": 3,
+      "title": "Release notes",
+    },
+    Object {
+      "description": "Description for Code examples",
+      "id": 4,
+      "title": "Code examples",
+    },
+    Object {
+      "description": "Description for Company blogs",
+      "id": 5,
+      "title": "Company blogs",
+    },
+  ],
 }
 `;
 
@@ -1639,40 +1601,28 @@ Object {
 
 exports[`query feedAdvancedSettings should return the list of the user's feedAdvanced settings 1`] = `
 Object {
-  "feedAdvancedSettings": Object {
-    "settings": Array [
-      Object {
-        "description": "Description for Tech magazines",
-        "enabled": true,
-        "id": 1,
-        "title": "Tech magazines",
-      },
-      Object {
-        "description": "Description for Non-editorial content",
-        "enabled": false,
-        "id": 2,
-        "title": "Non-editorial content",
-      },
-      Object {
-        "description": "Description for Release notes",
-        "enabled": true,
-        "id": 3,
-        "title": "Release notes",
-      },
-      Object {
-        "description": "Description for Code examples",
-        "enabled": true,
-        "id": 4,
-        "title": "Code examples",
-      },
-      Object {
-        "description": "Description for Company blogs",
-        "enabled": true,
-        "id": 5,
-        "title": "Company blogs",
-      },
-    ],
-  },
+  "feedAdvancedSettings": Array [
+    Object {
+      "enabled": true,
+      "id": 1,
+    },
+    Object {
+      "enabled": false,
+      "id": 2,
+    },
+    Object {
+      "enabled": true,
+      "id": 3,
+    },
+    Object {
+      "enabled": true,
+      "id": 4,
+    },
+    Object {
+      "enabled": true,
+      "id": 5,
+    },
+  ],
 }
 `;
 

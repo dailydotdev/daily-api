@@ -816,11 +816,9 @@ describe('query advancedSettings', () => {
   it('should return the list of the advanced settings', async () => {
     const QUERY = `{
       advancedSettings {
-        settings {
-          id
-          title
-          description
-        }
+        id
+        title
+        description
       }
     }`;
 
@@ -833,19 +831,18 @@ describe('query advancedSettings', () => {
 });
 
 describe('query feedAdvancedSettings', () => {
+  const QUERY = `{
+    feedAdvancedSettings {
+      id
+      enabled
+    }
+  }`;
+
+  it('should not authorize when not logged-in', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
   it("should return the list of the user's feedAdvanced settings", async () => {
     loggedUser = '1';
-
-    const QUERY = `{
-      feedAdvancedSettings {
-        settings {
-          id
-          title
-          description
-          enabled
-        }
-      }
-    }`;
 
     await saveFeedFixtures();
 
@@ -859,12 +856,8 @@ describe('mutation updateFeedAdvancedSettings', () => {
   const MUTATION = `
     mutation UpdateFeedAdvancedSettings($settings: [FeedAdvancedSettingsInput]!) {
       updateFeedAdvancedSettings(settings: $settings) {
-        settings {
-          id
-          title
-          description
-          enabled
-        }
+        id
+        enabled
       }
     }
   `;
