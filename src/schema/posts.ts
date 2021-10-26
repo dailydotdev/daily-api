@@ -49,6 +49,7 @@ export interface GQLPost {
   discussionScore?: number;
   description?: string;
   toc?: Toc;
+  summary?: string;
 }
 
 export interface GQLPostUpvote {
@@ -216,6 +217,11 @@ export const typeDefs = gql`
     Table of content of the post
     """
     toc: [TocItem]
+
+    """
+    Auto generated summary
+    """
+    summary: String
   }
 
   type PostConnection {
