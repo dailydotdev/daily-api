@@ -76,6 +76,7 @@ export const typeDefs = gql`
     includeTags: [String]
     blockedTags: [String]
     excludeSources: [Source]
+    advancedSettings: [FeedAdvancedSettings]
   }
 
   type SearchPostSuggestion {
@@ -543,6 +544,7 @@ export interface GQLFeedSettings {
   includeTags: string[];
   blockedTags: string[];
   excludeSources: GQLSource[];
+  advancedSettings: GQLFeedAdvancedSettings[];
 }
 
 export type GQLFiltersInput = AnonymousFeedFilters;
@@ -702,6 +704,7 @@ const getFeedSettings = async (
     excludeSources: [],
     includeTags: [],
     blockedTags: [],
+    advancedSettings: [],
   };
 };
 
