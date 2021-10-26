@@ -733,12 +733,18 @@ const getFeedSettings = async (
 };
 
 const getFeedAdvancedSettings = async (ctx: Context) => {
-  const repo = ctx.getRepository(FeedAdvancedSettings);
+  const repo = ctx.getRepository(AdvancedSettings);
   const settings = await repo
-    .createQueryBuilder('fas')
-    .select('adv.id, adv.title, adv.description, fas.enabled')
-    .innerJoin(AdvancedSettings, 'adv', 'fas."advancedSettingsId" = adv.id')
-    .where({ feedId: ctx.userId })
+    .createQueryBuilder('adv')
+    .select(
+      'adv.id, adv.title, adv.description, COALESCE(fas.enabled, adv."defaultEnabledState") AS "enabled"',
+    )
+    .leftJoin(
+      FeedAdvancedSettings,
+      'fas',
+      'adv.id = fas."advancedSettingsId" AND fas."feedId" = :feedId',
+      { feedId: ctx.userId },
+    )
     .execute();
 
   return { settings };
