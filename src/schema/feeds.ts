@@ -483,11 +483,6 @@ export const typeDefs = gql`
     Get the list of advanced settings
     """
     advancedSettings: [AdvancedSettings]!
-
-    """
-    Get the user's feed advanced settings
-    """
-    feedAdvancedSettings: [FeedAdvancedSettings]! @auth
   }
 
   extend type Mutation {
@@ -535,8 +530,6 @@ export interface GQLAdvancedSettings {
 }
 export interface GQLFeedAdvancedSettings {
   id: number;
-  title: string;
-  description: string;
   enabled: boolean;
 }
 export interface GQLFeedAdvancedSettingsInput {
@@ -710,27 +703,6 @@ const getFeedSettings = async (
     includeTags: [],
     blockedTags: [],
   };
-};
-
-const getFeedAdvancedSettings = async (ctx: Context) => {
-  const repo = ctx.getRepository(AdvancedSettings);
-  const settings = await repo
-    .createQueryBuilder('adv')
-    .select(
-      `
-        adv.id,
-        COALESCE(fas.enabled, adv."defaultEnabledState") AS "enabled"
-      `,
-    )
-    .leftJoin(
-      FeedAdvancedSettings,
-      'fas',
-      'adv.id = fas."advancedSettingsId" AND fas."feedId" = :feedId',
-      { feedId: ctx.userId },
-    )
-    .execute();
-
-  return settings;
 };
 
 const searchResolver = feedResolver(
@@ -1046,11 +1018,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
       return settings;
     },
-    feedAdvancedSettings: async (
-      _,
-      __,
-      ctx,
-    ): Promise<GQLFeedAdvancedSettings[]> => getFeedAdvancedSettings(ctx),
   },
   Mutation: {
     addFiltersToFeed: async (
@@ -1150,9 +1117,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
     ): Promise<GQLFeedAdvancedSettings[]> => {
       const feedId = ctx.userId;
+      const repo = ctx.con.getRepository(FeedAdvancedSettings);
 
-      await ctx.con
-        .getRepository(FeedAdvancedSettings)
+      await repo
         .createQueryBuilder()
         .insert()
         .into(FeedAdvancedSettings)
@@ -1170,7 +1137,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
       await clearFeedCache(feedId);
 
-      return getFeedAdvancedSettings(ctx);
+      return repo
+        .createQueryBuilder()
+        .select('"advancedSettingsId" AS id, enabled')
+        .where({ feedId })
+        .execute();
     },
   },
 });
