@@ -63,10 +63,11 @@ export const typeDefs = gql`
     id: Int!
     title: String!
     description: String!
+    defaultEnabledState: Boolean!
   }
 
   type FeedAdvancedSettings {
-    id: Int!
+    advancedSettingsId: Int!
     enabled: Boolean!
   }
 
@@ -76,7 +77,7 @@ export const typeDefs = gql`
     includeTags: [String]
     blockedTags: [String]
     excludeSources: [Source]
-    advancedSettings: [FeedAdvancedSettings]
+    feedAdvancedSettings: [FeedAdvancedSettings]
   }
 
   type SearchPostSuggestion {
@@ -119,7 +120,7 @@ export const typeDefs = gql`
     """
     Advanced Settings ID
     """
-    id: Int!
+    advancedSettingsId: Int!
 
     """
     State if the sources related to advanced settings will be included/excluded
@@ -530,11 +531,11 @@ export interface GQLAdvancedSettings {
   description: string;
 }
 export interface GQLFeedAdvancedSettings {
-  id: number;
+  advancedSettingsId: number;
   enabled: boolean;
 }
 export interface GQLFeedAdvancedSettingsInput {
-  id: number;
+  advancedSettingsId: number;
   enabled: boolean;
 }
 
@@ -544,7 +545,7 @@ export interface GQLFeedSettings {
   includeTags: string[];
   blockedTags: string[];
   excludeSources: GQLSource[];
-  advancedSettings: GQLFeedAdvancedSettings[];
+  feedAdvancedSettings: GQLFeedAdvancedSettings[];
 }
 
 export type GQLFiltersInput = AnonymousFeedFilters;
@@ -704,7 +705,7 @@ const getFeedSettings = async (
     excludeSources: [],
     includeTags: [],
     blockedTags: [],
-    advancedSettings: [],
+    feedAdvancedSettings: [],
   };
 };
 
@@ -1127,10 +1128,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         .insert()
         .into(FeedAdvancedSettings)
         .values(
-          settings.map((settings) => ({
+          settings.map(({ advancedSettingsId, enabled }) => ({
             feedId,
-            advancedSettingsId: settings.id,
-            enabled: settings.enabled,
+            advancedSettingsId,
+            enabled: enabled,
           })),
         )
         .onConflict(
@@ -1140,11 +1141,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
       await clearFeedCache(feedId);
 
-      return repo
-        .createQueryBuilder()
-        .select('"advancedSettingsId" AS id, enabled')
-        .where({ feedId })
-        .execute();
+      return repo.find({ feedId });
     },
   },
 });

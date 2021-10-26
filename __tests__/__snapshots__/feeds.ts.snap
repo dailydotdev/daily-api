@@ -184,6 +184,7 @@ Object {
         "public": true,
       },
     ],
+    "feedAdvancedSettings": Array [],
     "id": "1",
     "includeTags": Array [
       "javascript",
@@ -220,6 +221,16 @@ Object {
         "public": true,
       },
     ],
+    "feedAdvancedSettings": Array [
+      Object {
+        "advancedSettingsId": 1,
+        "enabled": true,
+      },
+      Object {
+        "advancedSettingsId": 2,
+        "enabled": false,
+      },
+    ],
     "id": "1",
     "includeTags": Array [
       "html",
@@ -249,6 +260,7 @@ Object {
         "public": true,
       },
     ],
+    "feedAdvancedSettings": Array [],
     "id": "1",
     "includeTags": Array [
       "javascript",
@@ -271,6 +283,16 @@ Object {
         "public": true,
       },
     ],
+    "feedAdvancedSettings": Array [
+      Object {
+        "advancedSettingsId": 1,
+        "enabled": true,
+      },
+      Object {
+        "advancedSettingsId": 2,
+        "enabled": false,
+      },
+    ],
     "id": "1",
     "includeTags": Array [
       "html",
@@ -284,24 +306,12 @@ exports[`mutation updateFeedAdvancedSettings should add the new feed advanced se
 Object {
   "updateFeedAdvancedSettings": Array [
     Object {
+      "advancedSettingsId": 1,
       "enabled": true,
-      "id": 1,
     },
     Object {
+      "advancedSettingsId": 2,
       "enabled": false,
-      "id": 2,
-    },
-    Object {
-      "enabled": true,
-      "id": 3,
-    },
-    Object {
-      "enabled": true,
-      "id": 4,
-    },
-    Object {
-      "enabled": true,
-      "id": 5,
     },
   ],
 }
@@ -311,24 +321,12 @@ exports[`mutation updateFeedAdvancedSettings should ignore duplicates 1`] = `
 Object {
   "updateFeedAdvancedSettings": Array [
     Object {
+      "advancedSettingsId": 1,
       "enabled": true,
-      "id": 1,
     },
     Object {
+      "advancedSettingsId": 2,
       "enabled": false,
-      "id": 2,
-    },
-    Object {
-      "enabled": true,
-      "id": 3,
-    },
-    Object {
-      "enabled": true,
-      "id": 4,
-    },
-    Object {
-      "enabled": true,
-      "id": 5,
     },
   ],
 }
@@ -338,24 +336,12 @@ exports[`mutation updateFeedAdvancedSettings should update existing feed advance
 Object {
   "updateFeedAdvancedSettings": Array [
     Object {
+      "advancedSettingsId": 1,
       "enabled": false,
-      "id": 1,
     },
     Object {
+      "advancedSettingsId": 2,
       "enabled": true,
-      "id": 2,
-    },
-    Object {
-      "enabled": true,
-      "id": 3,
-    },
-    Object {
-      "enabled": true,
-      "id": 4,
-    },
-    Object {
-      "enabled": true,
-      "id": 5,
     },
   ],
 }
@@ -365,26 +351,31 @@ exports[`query advancedSettings should return the list of the advanced settings 
 Object {
   "advancedSettings": Array [
     Object {
+      "defaultEnabledState": true,
       "description": "Description for Tech magazines",
       "id": 1,
       "title": "Tech magazines",
     },
     Object {
+      "defaultEnabledState": true,
       "description": "Description for Non-editorial content",
       "id": 2,
       "title": "Non-editorial content",
     },
     Object {
+      "defaultEnabledState": true,
       "description": "Description for Release notes",
       "id": 3,
       "title": "Release notes",
     },
     Object {
+      "defaultEnabledState": true,
       "description": "Description for Code examples",
       "id": 4,
       "title": "Code examples",
     },
     Object {
+      "defaultEnabledState": true,
       "description": "Description for Company blogs",
       "id": 5,
       "title": "Company blogs",
@@ -1599,33 +1590,6 @@ Object {
 }
 `;
 
-exports[`query feedAdvancedSettings should return the list of the user's feedAdvanced settings 1`] = `
-Object {
-  "feedAdvancedSettings": Array [
-    Object {
-      "enabled": true,
-      "id": 1,
-    },
-    Object {
-      "enabled": false,
-      "id": 2,
-    },
-    Object {
-      "enabled": true,
-      "id": 3,
-    },
-    Object {
-      "enabled": true,
-      "id": 4,
-    },
-    Object {
-      "enabled": true,
-      "id": 5,
-    },
-  ],
-}
-`;
-
 exports[`query feedSettings should return the feed settings 1`] = `
 Object {
   "feedSettings": Object {
@@ -1644,6 +1608,16 @@ Object {
         "image": "http://image.com/c",
         "name": "C",
         "public": true,
+      },
+    ],
+    "feedAdvancedSettings": Array [
+      Object {
+        "advancedSettingsId": 1,
+        "enabled": true,
+      },
+      Object {
+        "advancedSettingsId": 2,
+        "enabled": false,
       },
     ],
     "id": "1",

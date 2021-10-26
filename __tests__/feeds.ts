@@ -454,6 +454,10 @@ describe('query feedSettings', () => {
         image
         public
       }
+      feedAdvancedSettings {
+        advancedSettingsId
+        enabled
+      }
     }
   }`;
 
@@ -819,30 +823,9 @@ describe('query advancedSettings', () => {
         id
         title
         description
+        defaultEnabledState
       }
     }`;
-
-    await saveFeedFixtures();
-
-    const res = await client.query({ query: QUERY });
-
-    expect(res.data).toMatchSnapshot();
-  });
-});
-
-describe('query feedAdvancedSettings', () => {
-  const QUERY = `{
-    feedAdvancedSettings {
-      id
-      enabled
-    }
-  }`;
-
-  it('should not authorize when not logged-in', () =>
-    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
-
-  it("should return the list of the user's feedAdvanced settings", async () => {
-    loggedUser = '1';
 
     await saveFeedFixtures();
 
@@ -856,7 +839,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
   const MUTATION = `
     mutation UpdateFeedAdvancedSettings($settings: [FeedAdvancedSettingsInput]!) {
       updateFeedAdvancedSettings(settings: $settings) {
-        id
+        advancedSettingsId
         enabled
       }
     }
@@ -869,8 +852,8 @@ describe('mutation updateFeedAdvancedSettings', () => {
         mutation: MUTATION,
         variables: {
           settings: [
-            { id: 1, enabled: true },
-            { id: 2, enabled: false },
+            { advancedSettingsId: 1, enabled: true },
+            { advancedSettingsId: 2, enabled: false },
           ],
         },
       },
@@ -887,8 +870,8 @@ describe('mutation updateFeedAdvancedSettings', () => {
       mutation: MUTATION,
       variables: {
         settings: [
-          { id: 1, enabled: true },
-          { id: 2, enabled: false },
+          { advancedSettingsId: 1, enabled: true },
+          { advancedSettingsId: 2, enabled: false },
         ],
       },
     });
@@ -911,8 +894,8 @@ describe('mutation updateFeedAdvancedSettings', () => {
       mutation: MUTATION,
       variables: {
         settings: [
-          { id: 1, enabled: false },
-          { id: 2, enabled: true },
+          { advancedSettingsId: 1, enabled: false },
+          { advancedSettingsId: 2, enabled: true },
         ],
       },
     });
@@ -932,8 +915,8 @@ describe('mutation updateFeedAdvancedSettings', () => {
       mutation: MUTATION,
       variables: {
         settings: [
-          { id: 1, enabled: true },
-          { id: 2, enabled: false },
+          { advancedSettingsId: 1, enabled: true },
+          { advancedSettingsId: 2, enabled: false },
         ],
       },
     });
@@ -954,6 +937,10 @@ describe('mutation addFiltersToFeed', () => {
         name
         image
         public
+      }
+      feedAdvancedSettings {
+        advancedSettingsId
+        enabled
       }
     }
   }`;
@@ -1037,6 +1024,10 @@ describe('mutation removeFiltersFromFeed', () => {
         name
         image
         public
+      }
+      feedAdvancedSettings {
+        advancedSettingsId
+        enabled
       }
     }
   }`;

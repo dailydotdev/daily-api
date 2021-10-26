@@ -1,4 +1,3 @@
-import { FeedAdvancedSettings } from './../entity/FeedAdvancedSettings';
 import { GraphORM, QueryBuilder } from './graphorm';
 import { Bookmark, CommentUpvote, FeedSource, FeedTag, Post } from '../entity';
 import { Context } from '../Context';
@@ -176,15 +175,8 @@ const obj = new GraphORM({
               .orderBy(`"${childAlias}".name`),
         },
       },
-      advancedSettings: {
-        relation: {
-          isMany: true,
-          customRelation: (_, parentAlias, __, qb): QueryBuilder =>
-            qb
-              .select('fas."advancedSettingsId" AS "id", fas.enabled')
-              .from(FeedAdvancedSettings, 'fas')
-              .where(`fas."feedId" = "${parentAlias}".id`),
-        },
+      feedAdvancedSettings: {
+        select: 'enabled, "advancedSettingsId"',
       },
     },
   },
