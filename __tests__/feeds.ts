@@ -454,8 +454,8 @@ describe('query feedSettings', () => {
         image
         public
       }
-      feedAdvancedSettings {
-        advancedSettingsId
+      advancedSettings {
+        id
         enabled
       }
     }
@@ -839,7 +839,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
   const MUTATION = `
     mutation UpdateFeedAdvancedSettings($settings: [FeedAdvancedSettingsInput]!) {
       updateFeedAdvancedSettings(settings: $settings) {
-        advancedSettingsId
+        id
         enabled
       }
     }
@@ -852,8 +852,8 @@ describe('mutation updateFeedAdvancedSettings', () => {
         mutation: MUTATION,
         variables: {
           settings: [
-            { advancedSettingsId: 1, enabled: true },
-            { advancedSettingsId: 2, enabled: false },
+            { id: 1, enabled: true },
+            { id: 2, enabled: false },
           ],
         },
       },
@@ -870,8 +870,8 @@ describe('mutation updateFeedAdvancedSettings', () => {
       mutation: MUTATION,
       variables: {
         settings: [
-          { advancedSettingsId: 1, enabled: true },
-          { advancedSettingsId: 2, enabled: false },
+          { id: 1, enabled: true },
+          { id: 2, enabled: false },
         ],
       },
     });
@@ -894,8 +894,8 @@ describe('mutation updateFeedAdvancedSettings', () => {
       mutation: MUTATION,
       variables: {
         settings: [
-          { advancedSettingsId: 1, enabled: false },
-          { advancedSettingsId: 2, enabled: true },
+          { id: 1, enabled: false },
+          { id: 2, enabled: true },
         ],
       },
     });
@@ -915,8 +915,8 @@ describe('mutation updateFeedAdvancedSettings', () => {
       mutation: MUTATION,
       variables: {
         settings: [
-          { advancedSettingsId: 1, enabled: true },
-          { advancedSettingsId: 2, enabled: false },
+          { id: 1, enabled: true },
+          { id: 2, enabled: false },
         ],
       },
     });
@@ -938,8 +938,8 @@ describe('mutation addFiltersToFeed', () => {
         image
         public
       }
-      feedAdvancedSettings {
-        advancedSettingsId
+      advancedSettings {
+        id
         enabled
       }
     }
@@ -1025,8 +1025,8 @@ describe('mutation removeFiltersFromFeed', () => {
         image
         public
       }
-      feedAdvancedSettings {
-        advancedSettingsId
+      advancedSettings {
+        id
         enabled
       }
     }
