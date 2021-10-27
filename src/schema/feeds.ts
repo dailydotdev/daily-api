@@ -54,10 +54,6 @@ interface GQLTagsCategory {
   tags: string[];
 }
 
-interface GQLTagsCategories {
-  categories: GQLTagsCategory[];
-}
-
 export const typeDefs = gql`
   type AdvancedSettings {
     id: Int!
@@ -99,10 +95,6 @@ export const typeDefs = gql`
     emoji: String
     title: String!
     tags: [String]!
-  }
-
-  type TagsCategories {
-    categories: [TagsCategory]!
   }
 
   enum Ranking {
@@ -479,7 +471,7 @@ export const typeDefs = gql`
     """
     Get the categories of tags
     """
-    tagsCategories: TagsCategories!
+    tagsCategories: [TagsCategory]!
 
     """
     Get the list of advanced settings
@@ -1010,12 +1002,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       },
       3,
     ),
-    tagsCategories: async (_, __, ctx): Promise<GQLTagsCategories> => {
-      const repo = ctx.getRepository(Category);
-      const categories = await repo.find();
-
-      return { categories };
-    },
+    tagsCategories: (_, __, ctx): Promise<GQLTagsCategory[]> =>
+      ctx.getRepository(Category).find({ order: { title: 'ASC' } }),
     advancedSettings: async (_, __, ctx): Promise<GQLAdvancedSettings[]> =>
       ctx.getRepository(AdvancedSettings).find({ order: { title: 'ASC' } }),
   },
