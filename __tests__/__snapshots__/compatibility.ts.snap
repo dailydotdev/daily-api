@@ -1,15 +1,393 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`query bookmarks should return bookmarks ordered by time 1`] = `null`;
+exports[`query bookmarks should return bookmarks ordered by time 1`] = `
+Object {
+  "bookmarks": Array [
+    Object {
+      "id": "p3",
+      "publication": Object {
+        "id": "c",
+        "image": "http://image.com/c",
+        "name": "C",
+      },
+      "readTime": null,
+      "tags": Array [],
+      "title": "P3",
+      "url": "http://p3.com",
+    },
+    Object {
+      "id": "p1",
+      "publication": Object {
+        "id": "a",
+        "image": "http://image.com/a",
+        "name": "A",
+      },
+      "readTime": null,
+      "tags": Array [
+        "javascript",
+        "webdev",
+      ],
+      "title": "P1",
+      "url": "http://p1.com",
+    },
+    Object {
+      "id": "p5",
+      "publication": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+      },
+      "readTime": null,
+      "tags": Array [
+        "html",
+        "javascript",
+      ],
+      "title": "P5",
+      "url": "http://p5.com",
+    },
+  ],
+}
+`;
 
-exports[`query latest should return anonymous feed filtered by sources 1`] = `null`;
+exports[`query latest should return anonymous feed filtered by sources 1`] = `
+Object {
+  "latest": Array [
+    Object {
+      "id": "p5",
+      "publication": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+      },
+      "readTime": null,
+      "tags": Array [
+        "html",
+        "javascript",
+      ],
+      "title": "P5",
+      "url": "http://p5.com",
+    },
+    Object {
+      "id": "p2",
+      "publication": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+      },
+      "readTime": null,
+      "tags": Array [],
+      "title": "P2",
+      "url": "http://p2.com",
+    },
+    Object {
+      "id": "p4",
+      "publication": Object {
+        "id": "a",
+        "image": "http://image.com/a",
+        "name": "A",
+      },
+      "readTime": null,
+      "tags": Array [
+        "backend",
+        "data",
+        "javascript",
+      ],
+      "title": "P4",
+      "url": "http://p4.com",
+    },
+    Object {
+      "id": "p1",
+      "publication": Object {
+        "id": "a",
+        "image": "http://image.com/a",
+        "name": "A",
+      },
+      "readTime": null,
+      "tags": Array [
+        "javascript",
+        "webdev",
+      ],
+      "title": "P1",
+      "url": "http://p1.com",
+    },
+  ],
+}
+`;
 
-exports[`query latest should return anonymous feed filtered by tags 1`] = `null`;
+exports[`query latest should return anonymous feed filtered by tags 1`] = `
+Object {
+  "latest": Array [
+    Object {
+      "id": "p5",
+      "publication": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+      },
+      "readTime": null,
+      "tags": Array [
+        "html",
+        "javascript",
+      ],
+      "title": "P5",
+      "url": "http://p5.com",
+    },
+    Object {
+      "id": "p1",
+      "publication": Object {
+        "id": "a",
+        "image": "http://image.com/a",
+        "name": "A",
+      },
+      "readTime": null,
+      "tags": Array [
+        "javascript",
+        "webdev",
+      ],
+      "title": "P1",
+      "url": "http://p1.com",
+    },
+  ],
+}
+`;
 
-exports[`query latest should return anonymous feed with no filters ordered by popularity 1`] = `null`;
+exports[`query latest should return anonymous feed with no filters ordered by popularity 1`] = `
+Object {
+  "latest": Array [
+    Object {
+      "id": "p5",
+      "publication": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+      },
+      "readTime": null,
+      "tags": Array [
+        "html",
+        "javascript",
+      ],
+      "title": "P5",
+      "url": "http://p5.com",
+    },
+    Object {
+      "id": "p2",
+      "publication": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+      },
+      "readTime": null,
+      "tags": Array [],
+      "title": "P2",
+      "url": "http://p2.com",
+    },
+    Object {
+      "id": "p3",
+      "publication": Object {
+        "id": "c",
+        "image": "http://image.com/c",
+        "name": "C",
+      },
+      "readTime": null,
+      "tags": Array [],
+      "title": "P3",
+      "url": "http://p3.com",
+    },
+    Object {
+      "id": "p4",
+      "publication": Object {
+        "id": "a",
+        "image": "http://image.com/a",
+        "name": "A",
+      },
+      "readTime": null,
+      "tags": Array [
+        "backend",
+        "data",
+        "javascript",
+      ],
+      "title": "P4",
+      "url": "http://p4.com",
+    },
+    Object {
+      "id": "p1",
+      "publication": Object {
+        "id": "a",
+        "image": "http://image.com/a",
+        "name": "A",
+      },
+      "readTime": null,
+      "tags": Array [
+        "javascript",
+        "webdev",
+      ],
+      "title": "P1",
+      "url": "http://p1.com",
+    },
+  ],
+}
+`;
 
-exports[`query latest should return anonymous feed with no filters ordered by time 1`] = `null`;
+exports[`query latest should return anonymous feed with no filters ordered by time 1`] = `
+Object {
+  "latest": Array [
+    Object {
+      "id": "p1",
+      "publication": Object {
+        "id": "a",
+        "image": "http://image.com/a",
+        "name": "A",
+      },
+      "readTime": null,
+      "tags": Array [
+        "javascript",
+        "webdev",
+      ],
+      "title": "P1",
+      "url": "http://p1.com",
+    },
+    Object {
+      "id": "p2",
+      "publication": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+      },
+      "readTime": null,
+      "tags": Array [],
+      "title": "P2",
+      "url": "http://p2.com",
+    },
+    Object {
+      "id": "p3",
+      "publication": Object {
+        "id": "c",
+        "image": "http://image.com/c",
+        "name": "C",
+      },
+      "readTime": null,
+      "tags": Array [],
+      "title": "P3",
+      "url": "http://p3.com",
+    },
+    Object {
+      "id": "p4",
+      "publication": Object {
+        "id": "a",
+        "image": "http://image.com/a",
+        "name": "A",
+      },
+      "readTime": null,
+      "tags": Array [
+        "backend",
+        "data",
+        "javascript",
+      ],
+      "title": "P4",
+      "url": "http://p4.com",
+    },
+    Object {
+      "id": "p5",
+      "publication": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+      },
+      "readTime": null,
+      "tags": Array [
+        "html",
+        "javascript",
+      ],
+      "title": "P5",
+      "url": "http://p5.com",
+    },
+  ],
+}
+`;
 
-exports[`query postsByPublication should return a single source feed 1`] = `null`;
+exports[`query postsByPublication should return a single source feed 1`] = `
+Object {
+  "postsByPublication": Array [
+    Object {
+      "id": "p5",
+      "publication": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+      },
+      "readTime": null,
+      "tags": Array [
+        "html",
+        "javascript",
+      ],
+      "title": "P5",
+      "url": "http://p5.com",
+    },
+    Object {
+      "id": "p2",
+      "publication": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+      },
+      "readTime": null,
+      "tags": Array [],
+      "title": "P2",
+      "url": "http://p2.com",
+    },
+  ],
+}
+`;
 
-exports[`query postsByTag should return a single tag feed 1`] = `null`;
+exports[`query postsByTag should return a single tag feed 1`] = `
+Object {
+  "postsByTag": Array [
+    Object {
+      "id": "p5",
+      "publication": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+      },
+      "readTime": null,
+      "tags": Array [
+        "html",
+        "javascript",
+      ],
+      "title": "P5",
+      "url": "http://p5.com",
+    },
+    Object {
+      "id": "p4",
+      "publication": Object {
+        "id": "a",
+        "image": "http://image.com/a",
+        "name": "A",
+      },
+      "readTime": null,
+      "tags": Array [
+        "backend",
+        "data",
+        "javascript",
+      ],
+      "title": "P4",
+      "url": "http://p4.com",
+    },
+    Object {
+      "id": "p1",
+      "publication": Object {
+        "id": "a",
+        "image": "http://image.com/a",
+        "name": "A",
+      },
+      "readTime": null,
+      "tags": Array [
+        "javascript",
+        "webdev",
+      ],
+      "title": "P1",
+      "url": "http://p1.com",
+    },
+  ],
+}
+`;
