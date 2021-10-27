@@ -1016,12 +1016,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
       return { categories };
     },
-    advancedSettings: async (_, __, ctx): Promise<GQLAdvancedSettings[]> => {
-      const repo = ctx.getRepository(AdvancedSettings);
-      const settings = await repo.find();
-
-      return settings;
-    },
+    advancedSettings: async (_, __, ctx): Promise<GQLAdvancedSettings[]> =>
+      ctx.getRepository(AdvancedSettings).find({ order: { title: 'ASC' } }),
   },
   Mutation: {
     addFiltersToFeed: async (

@@ -352,9 +352,15 @@ Object {
   "advancedSettings": Array [
     Object {
       "defaultEnabledState": true,
-      "description": "Description for Tech magazines",
-      "id": 1,
-      "title": "Tech magazines",
+      "description": "Description for Code examples",
+      "id": 4,
+      "title": "Code examples",
+    },
+    Object {
+      "defaultEnabledState": true,
+      "description": "Description for Company blogs",
+      "id": 5,
+      "title": "Company blogs",
     },
     Object {
       "defaultEnabledState": true,
@@ -370,15 +376,9 @@ Object {
     },
     Object {
       "defaultEnabledState": true,
-      "description": "Description for Code examples",
-      "id": 4,
-      "title": "Code examples",
-    },
-    Object {
-      "defaultEnabledState": true,
-      "description": "Description for Company blogs",
-      "id": 5,
-      "title": "Company blogs",
+      "description": "Description for Tech magazines",
+      "id": 1,
+      "title": "Tech magazines",
     },
   ],
 }
