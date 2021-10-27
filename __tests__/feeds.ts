@@ -65,13 +65,6 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
 
-  const settings = await con.getRepository(AdvancedSettings).find();
-  await con
-    .getRepository(AdvancedSettings)
-    .delete({ id: In(settings.map((s) => s.id)) });
-  await con
-    .getRepository(AdvancedSettings)
-    .query('ALTER SEQUENCE advanced_settings_id_seq RESTART WITH 1');
   await saveFixtures(con, AdvancedSettings, advancedSettings);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
