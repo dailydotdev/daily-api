@@ -30,6 +30,10 @@ export class Source {
   @Column({ default: false })
   private: boolean;
 
+  @Column({ type: 'text', array: true, default: [] })
+  @Index('IDX_source_advancedSettings')
+  advancedSettings: string[];
+
   @OneToMany(() => SourceDisplay, (display) => display.source, { lazy: true })
   displays: Promise<SourceDisplay[]>;
 

@@ -84,12 +84,6 @@ export const typeDefs = gql`
   }
 `;
 
-interface GQLPublication {
-  id: string;
-  name: string;
-  image: string;
-}
-
 interface CompatFeedInput {
   latest: Date;
   page: number;
@@ -255,7 +249,4 @@ export const resolvers: IResolvers<any, Context> = {
         ),
     ),
   }),
-  Post: {
-    publication: (source: GQLPost): GQLPublication => source.source,
-  },
 };

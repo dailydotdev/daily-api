@@ -216,7 +216,7 @@ export class GraphORM {
       return this.selectField(ctx, builder, alias, metadata, type, {
         ...field,
         name: mapping.alias.field,
-        alias: mapping.alias.field,
+        alias: field.name,
         fieldsByTypeName,
       });
     }

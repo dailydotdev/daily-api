@@ -167,6 +167,7 @@ Array [
 exports[`mutation addFiltersToFeed should add the new feed settings 1`] = `
 Object {
   "addFiltersToFeed": Object {
+    "advancedSettings": Array [],
     "blockedTags": Array [
       "golang",
     ],
@@ -197,6 +198,16 @@ Object {
 exports[`mutation addFiltersToFeed should ignore duplicates 1`] = `
 Object {
   "addFiltersToFeed": Object {
+    "advancedSettings": Array [
+      Object {
+        "enabled": true,
+        "id": 1,
+      },
+      Object {
+        "enabled": false,
+        "id": 2,
+      },
+    ],
     "blockedTags": Array [
       "golang",
     ],
@@ -234,6 +245,7 @@ Object {
 exports[`mutation addFiltersToFeed should ignore non existing sources 1`] = `
 Object {
   "addFiltersToFeed": Object {
+    "advancedSettings": Array [],
     "blockedTags": Array [],
     "excludeSources": Array [
       Object {
@@ -262,6 +274,16 @@ Object {
 exports[`mutation removeFiltersFromFeed should remove existing filters 1`] = `
 Object {
   "removeFiltersFromFeed": Object {
+    "advancedSettings": Array [
+      Object {
+        "enabled": true,
+        "id": 1,
+      },
+      Object {
+        "enabled": false,
+        "id": 2,
+      },
+    ],
     "blockedTags": Array [],
     "excludeSources": Array [
       Object {
@@ -277,6 +299,88 @@ Object {
     ],
     "userId": "1",
   },
+}
+`;
+
+exports[`mutation updateFeedAdvancedSettings should add the new feed advanced settings 1`] = `
+Object {
+  "updateFeedAdvancedSettings": Array [
+    Object {
+      "enabled": true,
+      "id": 1,
+    },
+    Object {
+      "enabled": false,
+      "id": 2,
+    },
+  ],
+}
+`;
+
+exports[`mutation updateFeedAdvancedSettings should ignore duplicates 1`] = `
+Object {
+  "updateFeedAdvancedSettings": Array [
+    Object {
+      "enabled": true,
+      "id": 1,
+    },
+    Object {
+      "enabled": false,
+      "id": 2,
+    },
+  ],
+}
+`;
+
+exports[`mutation updateFeedAdvancedSettings should update existing feed advanced settings 1`] = `
+Object {
+  "updateFeedAdvancedSettings": Array [
+    Object {
+      "enabled": false,
+      "id": 1,
+    },
+    Object {
+      "enabled": true,
+      "id": 2,
+    },
+  ],
+}
+`;
+
+exports[`query advancedSettings should return the list of the advanced settings 1`] = `
+Object {
+  "advancedSettings": Array [
+    Object {
+      "defaultEnabledState": true,
+      "description": "Description for Code examples",
+      "id": 4,
+      "title": "Code examples",
+    },
+    Object {
+      "defaultEnabledState": true,
+      "description": "Description for Company blogs",
+      "id": 5,
+      "title": "Company blogs",
+    },
+    Object {
+      "defaultEnabledState": true,
+      "description": "Description for Non-editorial content",
+      "id": 2,
+      "title": "Non-editorial content",
+    },
+    Object {
+      "defaultEnabledState": true,
+      "description": "Description for Release notes",
+      "id": 3,
+      "title": "Release notes",
+    },
+    Object {
+      "defaultEnabledState": true,
+      "description": "Description for Tech magazines",
+      "id": 1,
+      "title": "Tech magazines",
+    },
+  ],
 }
 `;
 
@@ -1489,6 +1593,16 @@ Object {
 exports[`query feedSettings should return the feed settings 1`] = `
 Object {
   "feedSettings": Object {
+    "advancedSettings": Array [
+      Object {
+        "enabled": true,
+        "id": 1,
+      },
+      Object {
+        "enabled": false,
+        "id": 2,
+      },
+    ],
     "blockedTags": Array [
       "golang",
     ],

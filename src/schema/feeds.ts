@@ -1,3 +1,5 @@
+import { FeedAdvancedSettings } from './../entity/FeedAdvancedSettings';
+import { AdvancedSettings } from './../entity/AdvancedSettings';
 import { Category } from './../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
 import { gql, IFieldResolver, IResolvers } from 'apollo-server-fastify';
@@ -53,12 +55,25 @@ interface GQLTagsCategory {
 }
 
 export const typeDefs = gql`
+  type AdvancedSettings {
+    id: Int!
+    title: String!
+    description: String!
+    defaultEnabledState: Boolean!
+  }
+
+  type FeedAdvancedSettings {
+    id: Int!
+    enabled: Boolean!
+  }
+
   type FeedSettings {
     id: String
     userId: String
     includeTags: [String]
     blockedTags: [String]
     excludeSources: [Source]
+    advancedSettings: [FeedAdvancedSettings]
   }
 
   type SearchPostSuggestion {
@@ -91,6 +106,18 @@ export const typeDefs = gql`
     Rank by time only
     """
     TIME
+  }
+
+  input FeedAdvancedSettingsInput {
+    """
+    Advanced Settings ID
+    """
+    id: Int!
+
+    """
+    State if the sources related to advanced settings will be included/excluded
+    """
+    enabled: Boolean!
   }
 
   input FiltersInput {
@@ -445,6 +472,11 @@ export const typeDefs = gql`
     Get the categories of tags
     """
     tagsCategories: [TagsCategory]!
+
+    """
+    Get the list of advanced settings
+    """
+    advancedSettings: [AdvancedSettings]!
   }
 
   extend type Mutation {
@@ -467,6 +499,16 @@ export const typeDefs = gql`
       """
       filters: FiltersInput!
     ): FeedSettings @auth
+
+    """
+    Update user's feed advanced settings
+    """
+    updateFeedAdvancedSettings(
+      """
+      Posts must comply with the advanced settings from this list
+      """
+      settings: [FeedAdvancedSettingsInput]!
+    ): [FeedAdvancedSettings]! @auth
   }
 `;
 
@@ -475,12 +517,27 @@ export interface GQLRSSFeed {
   url: string;
 }
 
+export interface GQLAdvancedSettings {
+  id: number;
+  title: string;
+  description: string;
+}
+export interface GQLFeedAdvancedSettings {
+  id: number;
+  enabled: boolean;
+}
+export interface GQLFeedAdvancedSettingsInput {
+  id: number;
+  enabled: boolean;
+}
+
 export interface GQLFeedSettings {
   id: string;
   userId: string;
   includeTags: string[];
   blockedTags: string[];
   excludeSources: GQLSource[];
+  advancedSettings: GQLFeedAdvancedSettings[];
 }
 
 export type GQLFiltersInput = AnonymousFeedFilters;
@@ -640,6 +697,7 @@ const getFeedSettings = async (
     excludeSources: [],
     includeTags: [],
     blockedTags: [],
+    advancedSettings: [],
   };
 };
 
@@ -946,10 +1004,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ),
     tagsCategories: (_, __, ctx): Promise<GQLTagsCategory[]> =>
       ctx.getRepository(Category).find({ order: { title: 'ASC' } }),
+    advancedSettings: async (_, __, ctx): Promise<GQLAdvancedSettings[]> =>
+      ctx.getRepository(AdvancedSettings).find({ order: { title: 'ASC' } }),
   },
   Mutation: {
     addFiltersToFeed: async (
-      source,
+      _,
       { filters }: { filters: GQLFiltersInput },
       ctx,
       info,
@@ -1038,6 +1098,38 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       });
       await clearFeedCache(feedId);
       return getFeedSettings(ctx, info);
+    },
+    updateFeedAdvancedSettings: async (
+      _,
+      { settings }: { settings: GQLFeedAdvancedSettingsInput[] },
+      ctx,
+    ): Promise<GQLFeedAdvancedSettings[]> => {
+      const feedId = ctx.userId;
+      const repo = ctx.con.getRepository(FeedAdvancedSettings);
+
+      await repo
+        .createQueryBuilder()
+        .insert()
+        .into(FeedAdvancedSettings)
+        .values(
+          settings.map(({ id, enabled }) => ({
+            feedId,
+            advancedSettingsId: id,
+            enabled: enabled,
+          })),
+        )
+        .onConflict(
+          '("advancedSettingsId", "feedId") DO UPDATE SET enabled = excluded.enabled',
+        )
+        .execute();
+
+      await clearFeedCache(feedId);
+
+      return repo
+        .createQueryBuilder()
+        .select('"advancedSettingsId" AS id, enabled')
+        .where({ feedId })
+        .execute();
     },
   },
 });
