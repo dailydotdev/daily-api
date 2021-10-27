@@ -177,6 +177,11 @@ const obj = new GraphORM({
       },
     },
   },
+  FeedAdvancedSettings: {
+    fields: {
+      id: { alias: { field: 'advancedSettingsId', type: 'int' } },
+    },
+  },
 });
 
 export default obj;

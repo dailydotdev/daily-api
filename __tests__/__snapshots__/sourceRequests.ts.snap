@@ -95,6 +95,7 @@ Object {
 exports[`mutation publishSourceRequest should publish a source request 2`] = `
 Source {
   "active": true,
+  "advancedSettings": Array [],
   "id": "a",
   "image": "http://a.com",
   "name": "A",

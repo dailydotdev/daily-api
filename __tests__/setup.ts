@@ -9,6 +9,14 @@ const cleanDatabase = async (): Promise<void> => {
   for (const entity of con.entityMetadatas) {
     const repository = con.getRepository(entity.name);
     await repository.query(`DELETE FROM "${entity.tableName}";`);
+
+    for (const column of entity.primaryColumns) {
+      if (column.generationStrategy === 'increment') {
+        await repository.query(
+          `ALTER SEQUENCE ${entity.tableName}_${column.databaseName}_seq RESTART WITH 1`,
+        );
+      }
+    }
   }
 };
 

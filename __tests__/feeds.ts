@@ -1,3 +1,5 @@
+import { FeedAdvancedSettings } from './../src/entity/FeedAdvancedSettings';
+import { AdvancedSettings } from './../src/entity/AdvancedSettings';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
 import { Connection, getConnection, In } from 'typeorm';
@@ -63,6 +65,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
 
+  await saveFixtures(con, AdvancedSettings, advancedSettings);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
@@ -71,6 +74,34 @@ beforeEach(async () => {
 });
 
 afterAll(() => app.close());
+
+const advancedSettings: Partial<AdvancedSettings>[] = [
+  {
+    id: 1,
+    title: 'Tech magazines',
+    description: 'Description for Tech magazines',
+  },
+  {
+    id: 2,
+    title: 'Non-editorial content',
+    description: 'Description for Non-editorial content',
+  },
+  {
+    id: 3,
+    title: 'Release notes',
+    description: 'Description for Release notes',
+  },
+  {
+    id: 4,
+    title: 'Code examples',
+    description: 'Description for Code examples',
+  },
+  {
+    id: 5,
+    title: 'Company blogs',
+    description: 'Description for Company blogs',
+  },
+];
 
 const categories: Partial<Category>[] = [
   {
@@ -88,8 +119,13 @@ const categories: Partial<Category>[] = [
 ];
 
 const saveFeedFixtures = async (): Promise<void> => {
-  await saveFixtures(con, Category, categories);
   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+  await saveFixtures(con, AdvancedSettings, advancedSettings);
+  await saveFixtures(con, FeedAdvancedSettings, [
+    { feedId: '1', advancedSettingsId: 1, enabled: true },
+    { feedId: '1', advancedSettingsId: 2, enabled: false },
+  ]);
+  await saveFixtures(con, Category, categories);
   await saveFixtures(con, FeedTag, [
     { feedId: '1', tag: 'html' },
     { feedId: '1', tag: 'javascript' },
@@ -410,6 +446,10 @@ describe('query feedSettings', () => {
         name
         image
         public
+      }
+      advancedSettings {
+        id
+        enabled
       }
     }
   }`;
@@ -752,12 +792,10 @@ describe('query tagsCategories', () => {
   it('should return a list of categories with a property of a string array as tags', async () => {
     const QUERY = `{
       tagsCategories {
-        categories {
-          id
-          title
-          tags
-          emoji
-        }
+        id
+        title
+        tags
+        emoji
       }
     }`;
 
@@ -765,6 +803,114 @@ describe('query tagsCategories', () => {
 
     const res = await client.query({ query: QUERY });
 
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query advancedSettings', () => {
+  it('should return the list of the advanced settings', async () => {
+    const QUERY = `{
+      advancedSettings {
+        id
+        title
+        description
+        defaultEnabledState
+      }
+    }`;
+
+    await saveFeedFixtures();
+
+    const res = await client.query({ query: QUERY });
+
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('mutation updateFeedAdvancedSettings', () => {
+  const MUTATION = `
+    mutation UpdateFeedAdvancedSettings($settings: [FeedAdvancedSettingsInput]!) {
+      updateFeedAdvancedSettings(settings: $settings) {
+        id
+        enabled
+      }
+    }
+  `;
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          settings: [
+            { id: 1, enabled: true },
+            { id: 2, enabled: false },
+          ],
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should add the new feed advanced settings', async () => {
+    loggedUser = '1';
+    await redisClient.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
+    await redisClient.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await saveFixtures(con, AdvancedSettings, advancedSettings);
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: {
+        settings: [
+          { id: 1, enabled: true },
+          { id: 2, enabled: false },
+        ],
+      },
+    });
+
+    expect(res.data).toMatchSnapshot();
+    expect(
+      await redisClient.get(`${getPersonalizedFeedKey('2', '1')}:time`),
+    ).toBeFalsy();
+    expect(
+      await redisClient.get(`${getPersonalizedFeedKey('2', '2')}:time`),
+    ).toEqual('2');
+  });
+
+  it('should update existing feed advanced settings', async () => {
+    loggedUser = '1';
+    await redisClient.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
+    await redisClient.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
+    await saveFeedFixtures();
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: {
+        settings: [
+          { id: 1, enabled: false },
+          { id: 2, enabled: true },
+        ],
+      },
+    });
+    expect(res.data).toMatchSnapshot();
+    expect(
+      await redisClient.get(`${getPersonalizedFeedKey('2', '1')}:time`),
+    ).toBeFalsy();
+    expect(
+      await redisClient.get(`${getPersonalizedFeedKey('2', '2')}:time`),
+    ).toEqual('2');
+  });
+
+  it('should ignore duplicates', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: {
+        settings: [
+          { id: 1, enabled: true },
+          { id: 2, enabled: false },
+        ],
+      },
+    });
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -783,6 +929,10 @@ describe('mutation addFiltersToFeed', () => {
         image
         public
       }
+      advancedSettings {
+        id
+        enabled
+      }
     }
   }`;
 
@@ -800,6 +950,8 @@ describe('mutation addFiltersToFeed', () => {
     loggedUser = '1';
     await redisClient.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
     await redisClient.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
+    await saveFixtures(con, Feed, [{ id: '2', userId: '1' }]);
+    await saveFixtures(con, AdvancedSettings, advancedSettings);
     const res = await client.mutate({
       mutation: MUTATION,
       variables: {
@@ -863,6 +1015,10 @@ describe('mutation removeFiltersFromFeed', () => {
         name
         image
         public
+      }
+      advancedSettings {
+        id
+        enabled
       }
     }
   }`;
