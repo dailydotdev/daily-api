@@ -752,12 +752,10 @@ describe('query tagsCategories', () => {
   it('should return a list of categories with a property of a string array as tags', async () => {
     const QUERY = `{
       tagsCategories {
-        categories {
-          id
-          title
-          tags
-          emoji
-        }
+        id
+        title
+        tags
+        emoji
       }
     }`;
 

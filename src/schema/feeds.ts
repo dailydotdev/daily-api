@@ -52,10 +52,6 @@ interface GQLTagsCategory {
   tags: string[];
 }
 
-interface GQLTagsCategories {
-  categories: GQLTagsCategory[];
-}
-
 export const typeDefs = gql`
   type FeedSettings {
     id: String
@@ -84,10 +80,6 @@ export const typeDefs = gql`
     emoji: String
     title: String!
     tags: [String]!
-  }
-
-  type TagsCategories {
-    categories: [TagsCategory]!
   }
 
   enum Ranking {
@@ -452,7 +444,7 @@ export const typeDefs = gql`
     """
     Get the categories of tags
     """
-    tagsCategories: TagsCategories!
+    tagsCategories: [TagsCategory]!
   }
 
   extend type Mutation {
@@ -952,12 +944,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       },
       3,
     ),
-    tagsCategories: async (_, __, ctx): Promise<GQLTagsCategories> => {
-      const repo = ctx.getRepository(Category);
-      const categories = await repo.find();
-
-      return { categories };
-    },
+    tagsCategories: (_, __, ctx): Promise<GQLTagsCategory[]> =>
+      ctx.getRepository(Category).find({ order: { title: 'ASC' } }),
   },
   Mutation: {
     addFiltersToFeed: async (
