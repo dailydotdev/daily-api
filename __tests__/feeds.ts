@@ -1,3 +1,4 @@
+import { feedToFilters } from './../src/common/feedGenerator';
 import { FeedAdvancedSettings } from './../src/entity/FeedAdvancedSettings';
 import { AdvancedSettings } from './../src/entity/AdvancedSettings';
 import { Category } from '../src/entity/Category';
@@ -137,6 +138,63 @@ const saveFeedFixtures = async (): Promise<void> => {
   ]);
 };
 
+const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
+  await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+  await saveFixtures(con, Source, [
+    {
+      id: 'includedSource',
+      name: 'IS',
+      image: 'http://image.com/c',
+      advancedSettings: [2],
+    },
+    {
+      id: 'excludedSource',
+      name: 'ES',
+      image: 'http://image.com/c',
+      advancedSettings: [1],
+    },
+    {
+      id: 'settingsCombinationSource',
+      name: 'SCS',
+      image: 'http://image.com/c',
+      advancedSettings: [1, 2],
+    },
+  ]);
+  await saveFixtures(con, Post, [
+    {
+      id: 'includedPost',
+      shortId: 'ip1',
+      title: 'Included Post',
+      url: 'http://p1.com',
+      score: 0,
+      sourceId: 'includedSource',
+      tagsStr: 'javascript,webdev',
+    },
+    {
+      id: 'excludedPost',
+      shortId: 'ep1',
+      title: 'Excluded Post',
+      url: 'http://p1.com',
+      score: 0,
+      sourceId: 'excludedSource',
+      tagsStr: 'javascript,webdev',
+    },
+    {
+      id: 'excludedPostAgain',
+      shortId: 'epa1',
+      title: 'This should be excluded as well',
+      url: 'http://p1.com',
+      score: 0,
+      sourceId: 'settingsCombinationSource',
+      tagsStr: 'javascript,webdev',
+    },
+  ]);
+  await saveFixtures(con, FeedAdvancedSettings, [
+    { feedId: '1', advancedSettingsId: 1, enabled: false },
+    { feedId: '1', advancedSettingsId: 2, enabled: true },
+  ]);
+};
+
 const feedFields = `
 pageInfo {
   endCursor
@@ -206,6 +264,16 @@ describe('query anonymousFeed', () => {
     const res = await client.query({
       query: QUERY,
       variables: { ...variables, filters: { excludeSources: ['a'] } },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return feed while excluding sources based on advanced settings', async () => {
+    await saveAdvancedSettingsFiltersFixtures();
+    const filters = await feedToFilters(con, '1');
+    const res = await client.query({
+      query: QUERY,
+      variables: { ...variables, filters },
     });
     expect(res.data).toMatchSnapshot();
   });
@@ -315,6 +383,13 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, FeedSource, [{ feedId: '1', sourceId: 'a' }]);
+    const res = await client.query({ query: QUERY, variables });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return preconfigured feed with sources filtered based on advanced settings', async () => {
+    loggedUser = '1';
+    await saveAdvancedSettingsFiltersFixtures();
     const res = await client.query({ query: QUERY, variables });
     expect(res.data).toMatchSnapshot();
   });
@@ -1199,5 +1274,23 @@ describe('compatibility routes', () => {
         .expect(200);
       expect(res.body).toMatchSnapshot();
     });
+  });
+});
+
+describe('function feedToFilters', () => {
+  it('shoud return fiters having excluded sources based on advanced settings', async () => {
+    loggedUser = '1';
+
+    await saveAdvancedSettingsFiltersFixtures();
+
+    expect(await feedToFilters(con, '1')).toMatchSnapshot();
+  });
+
+  it('shoud return fiters for tags/sources based on the values from our data', async () => {
+    loggedUser = '1';
+
+    await saveFeedFixtures();
+
+    expect(await feedToFilters(con, '1')).toMatchSnapshot();
   });
 });
