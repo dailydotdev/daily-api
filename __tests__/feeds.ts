@@ -1286,7 +1286,7 @@ describe('function feedToFilters', () => {
     expect(await feedToFilters(con, '1')).toMatchSnapshot();
   });
 
-  it('shoud return fiters for tags based on the values from our data', async () => {
+  it('shoud return fiters for tags/sources based on the values from our data', async () => {
     loggedUser = '1';
 
     await saveFeedFixtures();

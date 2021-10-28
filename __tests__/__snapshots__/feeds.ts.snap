@@ -164,7 +164,7 @@ Array [
 ]
 `;
 
-exports[`function feedToFilters shoud return fiters for tags based on the values from our data 1`] = `
+exports[`function feedToFilters shoud return fiters for tags/sources based on the values from our data 1`] = `
 Object {
   "blockedTags": Array [
     "golang",
