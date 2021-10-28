@@ -1276,3 +1276,21 @@ describe('compatibility routes', () => {
     });
   });
 });
+
+describe('function feedToFilters', () => {
+  it('shoud return fiters having excluded sources based on advanced settings', async () => {
+    loggedUser = '1';
+
+    await saveAdvancedSettingsFiltersFixtures();
+
+    expect(await feedToFilters(con, '1')).toMatchSnapshot();
+  });
+
+  it('shoud return fiters for tags based on the values from our data', async () => {
+    loggedUser = '1';
+
+    await saveFeedFixtures();
+
+    expect(await feedToFilters(con, '1')).toMatchSnapshot();
+  });
+});

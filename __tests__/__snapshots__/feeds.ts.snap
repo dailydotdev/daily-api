@@ -164,6 +164,33 @@ Array [
 ]
 `;
 
+exports[`function feedToFilters shoud return fiters for tags based on the values from our data 1`] = `
+Object {
+  "blockedTags": Array [
+    "golang",
+  ],
+  "excludeSources": Array [
+    "b",
+    "c",
+  ],
+  "includeTags": Array [
+    "html",
+    "javascript",
+  ],
+}
+`;
+
+exports[`function feedToFilters shoud return fiters having excluded sources based on advanced settings 1`] = `
+Object {
+  "blockedTags": Array [],
+  "excludeSources": Array [
+    "excludedSource",
+    "settingsCombinationSource",
+  ],
+  "includeTags": Array [],
+}
+`;
+
 exports[`mutation addFiltersToFeed should add the new feed settings 1`] = `
 Object {
   "addFiltersToFeed": Object {
