@@ -328,7 +328,6 @@ export interface AnonymousFeedFilters {
   excludeSources?: string[];
   includeTags?: string[];
   blockedTags?: string[];
-  disabledAdvancedSettings?: number[];
 }
 
 export const anonymousFeedBuilder = (
@@ -349,9 +348,6 @@ export const anonymousFeedBuilder = (
         sources: filters.excludeSources,
       },
     );
-  }
-
-  if (filters?.disabledAdvancedSettings?.length) {
   }
 
   if (filters?.includeTags?.length) {
