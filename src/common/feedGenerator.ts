@@ -1,3 +1,5 @@
+import { AdvancedSettings } from './../entity/AdvancedSettings';
+import { FeedAdvancedSettings } from './../entity/FeedAdvancedSettings';
 import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from 'apollo-server-fastify';
@@ -62,9 +64,36 @@ export const feedToFilters = async (
   const [tags, excludeSources] = await Promise.all([
     con.getRepository(FeedTag).find({ where: { feedId } }),
     con
-      .getRepository(FeedSource)
-      .find({ where: { feedId } })
-      .then((rows) => rows.map((row) => row.sourceId)),
+      .getRepository(Source)
+      .createQueryBuilder('s')
+      .select('s.id AS "id"')
+      .where((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('adv.id')
+          .from(AdvancedSettings, 'adv')
+          .leftJoin(
+            FeedAdvancedSettings,
+            'fas',
+            'adv.id = fas."advancedSettingsId" AND fas."feedId" = :feedId',
+            { feedId },
+          )
+          .where('COALESCE(fas.enabled, adv.defaultEnabledState) = false')
+          .getQuery();
+
+        return `s.advancedSettings @> array[${subQuery}]`;
+      })
+      .orWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('fs."sourceId"')
+          .from(FeedSource, 'fs')
+          .where('fs."feedId" = :feedId', { feedId })
+          .getQuery();
+
+        return `s.id IN (${subQuery})`;
+      })
+      .execute(),
   ]);
   const tagFilters = tags.reduce(
     (acc, value) => {
@@ -79,7 +108,7 @@ export const feedToFilters = async (
   );
   return {
     ...tagFilters,
-    excludeSources,
+    excludeSources: excludeSources.map((sources: Source) => sources.id),
   };
 };
 
@@ -299,6 +328,7 @@ export interface AnonymousFeedFilters {
   excludeSources?: string[];
   includeTags?: string[];
   blockedTags?: string[];
+  disabledAdvancedSettings?: number[];
 }
 
 export const anonymousFeedBuilder = (
@@ -320,6 +350,10 @@ export const anonymousFeedBuilder = (
       },
     );
   }
+
+  if (filters?.disabledAdvancedSettings?.length) {
+  }
+
   if (filters?.includeTags?.length) {
     newBuilder = newBuilder.andWhere((builder) =>
       whereTags(filters.includeTags, builder, alias),
