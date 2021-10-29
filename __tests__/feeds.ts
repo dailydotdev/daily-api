@@ -125,6 +125,7 @@ const saveFeedFixtures = async (): Promise<void> => {
   await saveFixtures(con, FeedAdvancedSettings, [
     { feedId: '1', advancedSettingsId: 1, enabled: true },
     { feedId: '1', advancedSettingsId: 2, enabled: false },
+    { feedId: '1', advancedSettingsId: 3, enabled: false },
   ]);
   await saveFixtures(con, Category, categories);
   await saveFixtures(con, FeedTag, [

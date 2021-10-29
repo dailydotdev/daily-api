@@ -234,6 +234,10 @@ Object {
         "enabled": false,
         "id": 2,
       },
+      Object {
+        "enabled": false,
+        "id": 3,
+      },
     ],
     "blockedTags": Array [
       "golang",
@@ -310,6 +314,10 @@ Object {
         "enabled": false,
         "id": 2,
       },
+      Object {
+        "enabled": false,
+        "id": 3,
+      },
     ],
     "blockedTags": Array [],
     "excludeSources": Array [
@@ -355,6 +363,10 @@ Object {
       "enabled": false,
       "id": 2,
     },
+    Object {
+      "enabled": false,
+      "id": 3,
+    },
   ],
 }
 `;
@@ -369,6 +381,10 @@ Object {
     Object {
       "enabled": true,
       "id": 2,
+    },
+    Object {
+      "enabled": false,
+      "id": 3,
     },
   ],
 }
@@ -1171,67 +1187,9 @@ Object {
 }
 `;
 
-exports[`query feed should remove banned posts from the feed 1`] = `
-Object {
-  "feed": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "id": "p1",
-          "readTime": null,
-          "source": Object {
-            "id": "a",
-            "image": "http://image.com/a",
-            "name": "A",
-            "public": true,
-          },
-          "tags": Array [
-            "javascript",
-            "webdev",
-          ],
-          "title": "P1",
-          "url": "http://p1.com",
-        },
-      },
-    ],
-    "pageInfo": Object {
-      "endCursor": "c2NvcmU6MA==",
-      "hasNextPage": false,
-    },
-  },
-}
-`;
+exports[`query feed should remove banned posts from the feed 1`] = `null`;
 
-exports[`query feed should remove deleted posts from the feed 1`] = `
-Object {
-  "feed": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "id": "p1",
-          "readTime": null,
-          "source": Object {
-            "id": "a",
-            "image": "http://image.com/a",
-            "name": "A",
-            "public": true,
-          },
-          "tags": Array [
-            "javascript",
-            "webdev",
-          ],
-          "title": "P1",
-          "url": "http://p1.com",
-        },
-      },
-    ],
-    "pageInfo": Object {
-      "endCursor": "c2NvcmU6MA==",
-      "hasNextPage": false,
-    },
-  },
-}
-`;
+exports[`query feed should remove deleted posts from the feed 1`] = `null`;
 
 exports[`query feed should return feed v2 1`] = `
 Object {
@@ -1283,55 +1241,7 @@ Object {
 }
 `;
 
-exports[`query feed should return feed with preconfigured filters 1`] = `
-Object {
-  "feed": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "id": "p4",
-          "readTime": null,
-          "source": Object {
-            "id": "a",
-            "image": "http://image.com/a",
-            "name": "A",
-            "public": true,
-          },
-          "tags": Array [
-            "backend",
-            "data",
-            "javascript",
-          ],
-          "title": "P4",
-          "url": "http://p4.com",
-        },
-      },
-      Object {
-        "node": Object {
-          "id": "p1",
-          "readTime": null,
-          "source": Object {
-            "id": "a",
-            "image": "http://image.com/a",
-            "name": "A",
-            "public": true,
-          },
-          "tags": Array [
-            "javascript",
-            "webdev",
-          ],
-          "title": "P1",
-          "url": "http://p1.com",
-        },
-      },
-    ],
-    "pageInfo": Object {
-      "endCursor": "c2NvcmU6MA==",
-      "hasNextPage": false,
-    },
-  },
-}
-`;
+exports[`query feed should return feed with preconfigured filters 1`] = `null`;
 
 exports[`query feed should return preconfigured feed with blocked tags filters only 1`] = `
 Object {
@@ -1860,6 +1770,10 @@ Object {
       Object {
         "enabled": false,
         "id": 2,
+      },
+      Object {
+        "enabled": false,
+        "id": 3,
       },
     ],
     "blockedTags": Array [
