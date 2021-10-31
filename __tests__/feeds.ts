@@ -125,6 +125,8 @@ const saveFeedFixtures = async (): Promise<void> => {
   await saveFixtures(con, FeedAdvancedSettings, [
     { feedId: '1', advancedSettingsId: 1, enabled: true },
     { feedId: '1', advancedSettingsId: 2, enabled: false },
+    { feedId: '1', advancedSettingsId: 3, enabled: false },
+    { feedId: '1', advancedSettingsId: 4, enabled: true },
   ]);
   await saveFixtures(con, Category, categories);
   await saveFixtures(con, FeedTag, [
@@ -192,6 +194,8 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
   await saveFixtures(con, FeedAdvancedSettings, [
     { feedId: '1', advancedSettingsId: 1, enabled: false },
     { feedId: '1', advancedSettingsId: 2, enabled: true },
+    { feedId: '1', advancedSettingsId: 3, enabled: true },
+    { feedId: '1', advancedSettingsId: 4, enabled: false },
   ]);
 };
 
@@ -962,6 +966,8 @@ describe('mutation updateFeedAdvancedSettings', () => {
         settings: [
           { id: 1, enabled: false },
           { id: 2, enabled: true },
+          { id: 3, enabled: true },
+          { id: 4, enabled: false },
         ],
       },
     });
@@ -983,6 +989,8 @@ describe('mutation updateFeedAdvancedSettings', () => {
         settings: [
           { id: 1, enabled: true },
           { id: 2, enabled: false },
+          { id: 3, enabled: false },
+          { id: 4, enabled: true },
         ],
       },
     });

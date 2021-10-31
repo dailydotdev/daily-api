@@ -81,7 +81,7 @@ export const feedToFilters = async (
           .where('COALESCE(fas.enabled, adv.defaultEnabledState) = false')
           .getQuery();
 
-        return `s.advancedSettings @> array[${subQuery}]`;
+        return `s.advancedSettings && array(${subQuery})`;
       })
       .orWhere((qb) => {
         const subQuery = qb

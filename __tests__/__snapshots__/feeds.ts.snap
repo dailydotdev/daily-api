@@ -234,6 +234,14 @@ Object {
         "enabled": false,
         "id": 2,
       },
+      Object {
+        "enabled": false,
+        "id": 3,
+      },
+      Object {
+        "enabled": true,
+        "id": 4,
+      },
     ],
     "blockedTags": Array [
       "golang",
@@ -310,6 +318,14 @@ Object {
         "enabled": false,
         "id": 2,
       },
+      Object {
+        "enabled": false,
+        "id": 3,
+      },
+      Object {
+        "enabled": true,
+        "id": 4,
+      },
     ],
     "blockedTags": Array [],
     "excludeSources": Array [
@@ -355,6 +371,14 @@ Object {
       "enabled": false,
       "id": 2,
     },
+    Object {
+      "enabled": false,
+      "id": 3,
+    },
+    Object {
+      "enabled": true,
+      "id": 4,
+    },
   ],
 }
 `;
@@ -369,6 +393,14 @@ Object {
     Object {
       "enabled": true,
       "id": 2,
+    },
+    Object {
+      "enabled": true,
+      "id": 3,
+    },
+    Object {
+      "enabled": false,
+      "id": 4,
     },
   ],
 }
@@ -1860,6 +1892,14 @@ Object {
       Object {
         "enabled": false,
         "id": 2,
+      },
+      Object {
+        "enabled": false,
+        "id": 3,
+      },
+      Object {
+        "enabled": true,
+        "id": 4,
       },
     ],
     "blockedTags": Array [
