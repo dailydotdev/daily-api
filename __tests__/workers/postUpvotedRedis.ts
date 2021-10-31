@@ -24,17 +24,22 @@ beforeEach(async () => {
   await saveFixtures(con, Post, postsFixture);
 });
 
-it('should publish an event to redis', async (done) => {
-  const subId = await redisPubSub.subscribe('events.posts.upvoted', (value) => {
-    expect(value).toEqual({
+it('should publish an event to redis', async () => {
+  return new Promise<void>(async (resolve) => {
+    const subId = await redisPubSub.subscribe(
+      'events.posts.upvoted',
+      (value) => {
+        expect(value).toEqual({
+          userId: '2',
+          postId: 'p1',
+        });
+        redisPubSub.unsubscribe(subId);
+        resolve();
+      },
+    );
+    await expectSuccessfulBackground(app, worker, {
       userId: '2',
       postId: 'p1',
     });
-    redisPubSub.unsubscribe(subId);
-    done();
-  });
-  await expectSuccessfulBackground(app, worker, {
-    userId: '2',
-    postId: 'p1',
   });
 });
