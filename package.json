@@ -93,7 +93,7 @@
     "apollo-server-testing": "^2.25.2",
     "apollo-server-types": "^0.9.0",
     "cross-env": "^7.0.3",
-    "eslint": "^7.32.0",
+    "eslint": "^8.1.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^4.0.0",
     "faker": "^5.5.3",
