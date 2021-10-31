@@ -83,7 +83,7 @@
     "@types/jsonwebtoken": "^8.5.5",
     "@types/lodash": "^4.14.173",
     "@types/node": "^16.9.6",
-    "@types/node-fetch": "^2.5.12",
+    "@types/node-fetch": "^3.0.3",
     "@types/rss": "0.0.29",
     "@types/sharp": "^0.28.6",
     "@types/supertest": "^2.0.11",
