@@ -17,6 +17,9 @@ export class PostReport {
   @Column({ length: 12 })
   reason: string;
 
+  @Column({ type: 'text' })
+  comment: string;
+
   @ManyToOne(() => User, {
     lazy: true,
     onDelete: 'CASCADE',
