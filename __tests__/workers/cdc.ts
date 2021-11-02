@@ -578,6 +578,7 @@ describe('post report', () => {
     postId: 'p1',
     createdAt: 0,
     reason: 'BROKEN',
+    comment: 'Test comment',
   };
 
   beforeEach(async () => {

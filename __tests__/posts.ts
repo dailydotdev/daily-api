@@ -734,8 +734,8 @@ describe('mutation banPost', () => {
 
 describe('mutation reportPost', () => {
   const MUTATION = `
-  mutation ReportPost($id: ID!, $reason: ReportReason) {
-  reportPost(id: $id, reason: $reason) {
+  mutation ReportPost($id: ID!, $reason: ReportReason, $comment: String) {
+  reportPost(id: $id, reason: $reason, comment: $comment) {
     _
   }
 }`;
@@ -745,7 +745,7 @@ describe('mutation reportPost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'p1', reason: 'BROKEN' },
+        variables: { id: 'p1', reason: 'BROKEN', comment: 'Test comment' },
       },
       'UNAUTHENTICATED',
     ));
@@ -756,7 +756,7 @@ describe('mutation reportPost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'invalid', reason: 'BROKEN' },
+        variables: { id: 'invalid', reason: 'BROKEN', comment: 'Test comment' },
       },
       'NOT_FOUND',
     );
@@ -766,7 +766,7 @@ describe('mutation reportPost', () => {
     loggedUser = '1';
     const res = await client.mutate({
       mutation: MUTATION,
-      variables: { id: 'p1', reason: 'BROKEN' },
+      variables: { id: 'p1', reason: 'BROKEN', comment: 'Test comment' },
     });
     expect(res.errors).toBeFalsy();
     const actual = await con
@@ -778,6 +778,7 @@ describe('mutation reportPost', () => {
       userId: '1',
       createdAt: expect.anything(),
       reason: 'BROKEN',
+      comment: 'Test comment',
     });
   });
 
@@ -787,7 +788,7 @@ describe('mutation reportPost', () => {
     await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
     const res = await client.mutate({
       mutation: MUTATION,
-      variables: { id: 'p1', reason: 'BROKEN' },
+      variables: { id: 'p1', reason: 'BROKEN', comment: 'Test comment' },
     });
     expect(res.errors).toBeFalsy();
     const actual = await repo.find({
