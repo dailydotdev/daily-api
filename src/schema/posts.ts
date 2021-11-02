@@ -505,8 +505,8 @@ export const resolvers: IResolvers<any, Context> = {
             await ctx.getRepository(PostReport).insert({
               postId: id,
               userId: ctx.userId,
-              reason: reason,
-              comment: comment,
+              reason,
+              comment,
             });
           } catch (err) {
             if (err?.code !== '23505') {
