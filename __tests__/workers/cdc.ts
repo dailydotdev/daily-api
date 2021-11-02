@@ -600,7 +600,12 @@ describe('post report', () => {
     );
     const post = await con.getRepository(Post).findOne('p1');
     expect(notifyPostReport).toBeCalledTimes(1);
-    expect(notifyPostReport).toBeCalledWith('u1', post, '💔 Link is broken');
+    expect(notifyPostReport).toBeCalledWith(
+      'u1',
+      post,
+      '💔 Link is broken',
+      'Test comment',
+    );
   });
 });
 

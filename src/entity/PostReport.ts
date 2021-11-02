@@ -17,7 +17,7 @@ export class PostReport {
   @Column({ length: 12 })
   reason: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', nullable: true })
   comment: string;
 
   @ManyToOne(() => User, {

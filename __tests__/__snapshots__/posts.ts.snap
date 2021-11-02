@@ -124,6 +124,24 @@ Array [
 ]
 `;
 
+exports[`mutation reportPost should report post with comment 1`] = `
+Array [
+  HiddenPost {
+    "postId": "p1",
+    "userId": "1",
+  },
+]
+`;
+
+exports[`mutation reportPost should report post without comment 1`] = `
+Array [
+  HiddenPost {
+    "postId": "p1",
+    "userId": "1",
+  },
+]
+`;
+
 exports[`mutation upvote should ignore conflicts 1`] = `
 Array [
   Upvote {

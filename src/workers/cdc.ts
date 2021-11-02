@@ -232,6 +232,7 @@ const onPostReportChange = async (
         data.payload.after.userId,
         post,
         reportReasons.get(data.payload.after.reason),
+        data.payload.after.comment,
       );
     }
   }

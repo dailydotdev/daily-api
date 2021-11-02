@@ -762,7 +762,7 @@ describe('mutation reportPost', () => {
     );
   });
 
-  it('should report post', async () => {
+  it('should report post with comment', async () => {
     loggedUser = '1';
     const res = await client.mutate({
       mutation: MUTATION,
@@ -779,6 +779,26 @@ describe('mutation reportPost', () => {
       createdAt: expect.anything(),
       reason: 'BROKEN',
       comment: 'Test comment',
+    });
+  });
+
+  it('should report post without comment', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'p1', reason: 'BROKEN' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con
+      .getRepository(HiddenPost)
+      .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
+    expect(actual).toMatchSnapshot();
+    expect(await con.getRepository(PostReport).findOne()).toEqual({
+      postId: 'p1',
+      userId: '1',
+      createdAt: expect.anything(),
+      reason: 'BROKEN',
+      comment: null,
     });
   });
 
