@@ -440,7 +440,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLPost> => {
       const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
         queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."id" = :id`,
+          `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
           { id },
         ),
         ...builder,
