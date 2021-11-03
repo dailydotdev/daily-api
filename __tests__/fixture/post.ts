@@ -5,17 +5,6 @@ const now = new Date();
 
 export const postsFixture: DeepPartial<Post>[] = [
   {
-    id: 'pdeleted',
-    shortId: 'spdeleted',
-    title: 'PDeleted',
-    url: 'http://p1.com',
-    score: 0,
-    sourceId: 'a',
-    createdAt: now,
-    tagsStr: 'javascript,webdev',
-    deleted: true,
-  },
-  {
     id: 'p1',
     shortId: 'sp1',
     title: 'P1',
