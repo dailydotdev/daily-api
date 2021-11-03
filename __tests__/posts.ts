@@ -499,8 +499,26 @@ describe('query post', () => {
     }
   }`;
 
-  it('should throw not found when post was soft deleted', () =>
-    testQueryErrorCode(client, { query: QUERY('pdeleted') }, 'NOT_FOUND'));
+  it('should throw not found when cannot find post', () =>
+    testQueryErrorCode(client, { query: QUERY('notfound') }, 'NOT_FOUND'));
+
+  it('should throw not found when post was soft deleted', async () => {
+    await saveFixtures(con, Post, [
+      {
+        id: 'pdeleted',
+        shortId: 'spdeleted',
+        title: 'PDeleted',
+        url: 'http://p1.com',
+        score: 0,
+        sourceId: 'a',
+        createdAt: new Date('2021-09-22T07:15:51.247Z'),
+        tagsStr: 'javascript,webdev',
+        deleted: true,
+      },
+    ]);
+
+    testQueryErrorCode(client, { query: QUERY('pdeleted') }, 'NOT_FOUND');
+  });
 
   it('should return post by id', async () => {
     const res = await client.query({ query: QUERY('p1') });
