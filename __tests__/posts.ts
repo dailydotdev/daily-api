@@ -499,8 +499,8 @@ describe('query post', () => {
     }
   }`;
 
-  it('should throw not found when cannot find post', () =>
-    testQueryErrorCode(client, { query: QUERY('notfound') }, 'NOT_FOUND'));
+  it('should throw not found when post was soft deleted', () =>
+    testQueryErrorCode(client, { query: QUERY('pdeleted') }, 'NOT_FOUND'));
 
   it('should return post by id', async () => {
     const res = await client.query({ query: QUERY('p1') });
