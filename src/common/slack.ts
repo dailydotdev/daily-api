@@ -10,6 +10,7 @@ export const notifyPostReport = async (
   userId: string,
   post: Post,
   reason: string,
+  comment?: string,
 ): Promise<void> => {
   await webhook.send({
     text: 'Post was just reported!',
@@ -25,6 +26,10 @@ export const notifyPostReport = async (
           {
             title: 'Reason',
             value: reason,
+          },
+          {
+            title: 'Comment',
+            value: comment,
           },
         ],
         color: '#FF1E1F',

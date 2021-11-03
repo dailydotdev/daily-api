@@ -752,8 +752,8 @@ describe('mutation banPost', () => {
 
 describe('mutation reportPost', () => {
   const MUTATION = `
-  mutation ReportPost($id: ID!, $reason: ReportReason) {
-  reportPost(id: $id, reason: $reason) {
+  mutation ReportPost($id: ID!, $reason: ReportReason, $comment: String) {
+  reportPost(id: $id, reason: $reason, comment: $comment) {
     _
   }
 }`;
@@ -763,7 +763,7 @@ describe('mutation reportPost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'p1', reason: 'BROKEN' },
+        variables: { id: 'p1', reason: 'BROKEN', comment: 'Test comment' },
       },
       'UNAUTHENTICATED',
     ));
@@ -774,13 +774,33 @@ describe('mutation reportPost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'invalid', reason: 'BROKEN' },
+        variables: { id: 'invalid', reason: 'BROKEN', comment: 'Test comment' },
       },
       'NOT_FOUND',
     );
   });
 
-  it('should report post', async () => {
+  it('should report post with comment', async () => {
+    loggedUser = '1';
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { id: 'p1', reason: 'BROKEN', comment: 'Test comment' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con
+      .getRepository(HiddenPost)
+      .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
+    expect(actual).toMatchSnapshot();
+    expect(await con.getRepository(PostReport).findOne()).toEqual({
+      postId: 'p1',
+      userId: '1',
+      createdAt: expect.anything(),
+      reason: 'BROKEN',
+      comment: 'Test comment',
+    });
+  });
+
+  it('should report post without comment', async () => {
     loggedUser = '1';
     const res = await client.mutate({
       mutation: MUTATION,
@@ -796,6 +816,7 @@ describe('mutation reportPost', () => {
       userId: '1',
       createdAt: expect.anything(),
       reason: 'BROKEN',
+      comment: null,
     });
   });
 
@@ -805,7 +826,7 @@ describe('mutation reportPost', () => {
     await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
     const res = await client.mutate({
       mutation: MUTATION,
-      variables: { id: 'p1', reason: 'BROKEN' },
+      variables: { id: 'p1', reason: 'BROKEN', comment: 'Test comment' },
     });
     expect(res.errors).toBeFalsy();
     const actual = await repo.find({

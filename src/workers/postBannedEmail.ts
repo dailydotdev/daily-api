@@ -19,6 +19,7 @@ const reportReasons = new Map([
   ['NSFW', 'NSFW content'],
   ['CLICKBAIT', 'Clickbait'],
   ['LOW', 'Low quality content'],
+  ['OTHER', 'Other reason'],
 ]);
 
 const worker: Worker = {

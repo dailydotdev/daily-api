@@ -287,6 +287,10 @@ export const typeDefs = gql`
     The post is not safe for work (NSFW), for any reason
     """
     NSFW
+    """
+    Reason doesnt fit any specific category
+    """
+    OTHER
   }
 
   extend type Query {
@@ -344,6 +348,10 @@ export const typeDefs = gql`
       Reason the user would like to report
       """
       reason: ReportReason
+      """
+      Additional comment about report reason
+      """
+      comment: String
     ): EmptyResponse @auth
 
     """
@@ -480,7 +488,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     reportPost: async (
       source,
-      { id, reason }: { id: string; reason: string },
+      { id, reason, comment }: { id: string; reason: string; comment: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       if (!reportReasons.has(reason)) {
@@ -494,9 +502,12 @@ export const resolvers: IResolvers<any, Context> = {
         const post = await ctx.getRepository(Post).findOneOrFail(id);
         if (!post.banned) {
           try {
-            await ctx
-              .getRepository(PostReport)
-              .insert({ postId: id, userId: ctx.userId, reason: reason });
+            await ctx.getRepository(PostReport).insert({
+              postId: id,
+              userId: ctx.userId,
+              reason,
+              comment,
+            });
           } catch (err) {
             if (err?.code !== '23505') {
               ctx.log.error(
