@@ -17,12 +17,14 @@ export const redisPubSub = new RedisPubSub({
 export function deleteKeysByPattern(pattern: string): Promise<void> {
   const now = new Date().getTime();
   return new Promise((resolve, reject) => {
-    console.log(`[${now}] starting to scan`);
     const stream = redisClient.scanStream({ match: pattern });
     stream.on('data', (keys) => {
       console.log(`[${now}] found data: ${keys.length}`);
       if (keys.length) {
         redisClient.unlink(keys);
+      } else {
+        stream.destroy();
+        resolve();
       }
     });
     stream.on('end', () => {

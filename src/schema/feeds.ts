@@ -1065,7 +1065,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .execute();
         }
       });
-      clearFeedCache(feedId);
+      await clearFeedCache(feedId);
       return getFeedSettings(ctx, info);
     },
     removeFiltersFromFeed: async (
@@ -1096,7 +1096,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           });
         }
       });
-      clearFeedCache(feedId);
+      await clearFeedCache(feedId);
       return getFeedSettings(ctx, info);
     },
     updateFeedAdvancedSettings: async (
@@ -1123,7 +1123,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         )
         .execute();
 
-      clearFeedCache(feedId);
+      await clearFeedCache(feedId);
 
       return repo
         .createQueryBuilder()

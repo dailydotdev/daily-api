@@ -67,7 +67,6 @@ async function fetchAndCacheFeed(
     pipeline.expire(key, ONE_DAY_SECONDS);
     postIds.forEach(({ post_id }, i) => pipeline.zadd(key, i, post_id));
     await pipeline.exec();
-    console.log(`set cache for ${key}`);
   });
   return postIds;
 }
