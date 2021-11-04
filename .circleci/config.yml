@@ -6,7 +6,7 @@ orbs:
 jobs:
   build:
     docker:
-      - image: circleci/node:16
+      - image: circleci/node:12
     steps:
       - checkout
       - restore_cache:
@@ -27,7 +27,7 @@ jobs:
             - build
   test:
     docker:
-      - image: circleci/node:16
+      - image: circleci/node:12
       - image: postgres:11.6-alpine
         environment:
           - POSTGRES_DB: api_test
