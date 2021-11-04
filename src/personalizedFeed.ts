@@ -33,14 +33,14 @@ async function fetchTinybirdFeed(
       url += `&blocked_sources=${filters.excludeSources.join(',')}`;
     }
   }
-  const start = new Date();
+  // const start = new Date();
   const res = await fetch(url, { agent });
   const body: TinybirdResponse<{ post_id: string }> = await res.json();
-  console.log(
-    `[feed_v2] fetch from tinybird ${
-      new Date().getTime() - start.getTime()
-    }ms (${url})`,
-  );
+  // console.log(
+  //   `[feed_v2] fetch from tinybird ${
+  //     new Date().getTime() - start.getTime()
+  //   }ms (${url})`,
+  // );
   return body.data;
 }
 
@@ -67,6 +67,7 @@ async function fetchAndCacheFeed(
     pipeline.expire(key, ONE_DAY_SECONDS);
     postIds.forEach(({ post_id }, i) => pipeline.zadd(key, i, post_id));
     await pipeline.exec();
+    console.log(`set cache for ${key}`);
   });
   return postIds;
 }
