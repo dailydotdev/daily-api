@@ -433,6 +433,7 @@ export const reportReasons = new Map([
   ['NSFW', '🔞 Post is NSFW'],
   ['CLICKBAIT', '🎣 Clickbait!!!'],
   ['LOW', '💩 Low quality content'],
+  ['OTHER', '🤔 Other'],
 ]);
 
 const pageGenerator = new GQLDatePageGenerator();
