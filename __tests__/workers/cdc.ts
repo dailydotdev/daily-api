@@ -634,6 +634,25 @@ describe('alerts', () => {
     expect(notifyAlertsUpdated).toBeCalledTimes(1);
     expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
   });
+
+  it('should notify on alerts created', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      filter: false,
+    };
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'alerts',
+      }),
+    );
+    expect(notifyAlertsUpdated).toBeCalledTimes(1);
+    expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
+  });
 });
 
 describe('source feed', () => {
