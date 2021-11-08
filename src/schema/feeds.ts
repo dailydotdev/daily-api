@@ -1106,7 +1106,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ): Promise<GQLFeedAdvancedSettings[]> => {
       const feedId = ctx.userId;
       const feedRepo = ctx.con.getRepository(Feed);
-      const feed = await feedRepo.find({ id: feedId });
+      const feed = await feedRepo.findOne({ id: feedId });
       const feedAdvSettingsrepo = ctx.con.getRepository(FeedAdvancedSettings);
 
       if (!feed) {

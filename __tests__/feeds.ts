@@ -955,6 +955,22 @@ describe('mutation updateFeedAdvancedSettings', () => {
     ).toEqual('2');
   });
 
+  it('should not fail if feed entity does not exists', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, AdvancedSettings, advancedSettings);
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: {
+        settings: [
+          { id: 1, enabled: true },
+          { id: 2, enabled: false },
+        ],
+      },
+    });
+
+    expect(res.data).toMatchSnapshot();
+  });
+
   it('should update existing feed advanced settings', async () => {
     loggedUser = '1';
     await redisClient.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');

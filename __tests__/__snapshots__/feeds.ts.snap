@@ -383,6 +383,21 @@ Object {
 }
 `;
 
+exports[`mutation updateFeedAdvancedSettings should not fail if feed entity does not exists 1`] = `
+Object {
+  "updateFeedAdvancedSettings": Array [
+    Object {
+      "enabled": true,
+      "id": 1,
+    },
+    Object {
+      "enabled": false,
+      "id": 2,
+    },
+  ],
+}
+`;
+
 exports[`mutation updateFeedAdvancedSettings should update existing feed advanced settings 1`] = `
 Object {
   "updateFeedAdvancedSettings": Array [
