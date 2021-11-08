@@ -135,10 +135,7 @@ export const notifyUserReputationUpdated = async (
 export const notifyAlertsUpdated = async (
   log: EventLogger,
   alerts: ChangeObject<Alerts>,
-): Promise<void> =>
-  publishEvent(log, alertsFilterUpdatedTopic, {
-    alerts,
-  });
+): Promise<void> => publishEvent(log, alertsFilterUpdatedTopic, alerts);
 
 export const notifyCommentUpvoteCanceled = async (
   log: EventLogger,
