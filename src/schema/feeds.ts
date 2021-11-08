@@ -43,9 +43,9 @@ import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
 import {
   generatePersonalizedFeed,
-  getPersonalizedFeedKey,
+  getPersonalizedFeedKeyPrefix,
 } from '../personalizedFeed';
-import { deleteKeysByPattern } from '../redis';
+import { redisClient } from '../redis';
 
 interface GQLTagsCategory {
   id: string;
@@ -740,9 +740,10 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
     { fetchQueryParams: (ctx) => feedToFilters(ctx.con, ctx.userId) },
   );
 
-const clearFeedCache = async (feedId: string): Promise<void> => {
+const invalidateFeedCache = async (feedId: string): Promise<void> => {
   try {
-    await deleteKeysByPattern(`${getPersonalizedFeedKey('*', feedId)}:time`);
+    const key = getPersonalizedFeedKeyPrefix(feedId);
+    await redisClient.set(`${key}:update`, new Date().toISOString());
   } catch (err) {
     console.error(err);
   }
@@ -1065,7 +1066,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .execute();
         }
       });
-      await clearFeedCache(feedId);
+      await invalidateFeedCache(feedId);
       return getFeedSettings(ctx, info);
     },
     removeFiltersFromFeed: async (
@@ -1096,7 +1097,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           });
         }
       });
-      await clearFeedCache(feedId);
+      await invalidateFeedCache(feedId);
       return getFeedSettings(ctx, info);
     },
     updateFeedAdvancedSettings: async (
@@ -1129,7 +1130,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         )
         .execute();
 
-      await clearFeedCache(feedId);
+      await invalidateFeedCache(feedId);
 
       return feedAdvSettingsrepo
         .createQueryBuilder()

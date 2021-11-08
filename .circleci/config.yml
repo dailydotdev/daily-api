@@ -32,7 +32,7 @@ jobs:
         environment:
           - POSTGRES_DB: api_test
           - POSTGRES_PASSWORD: 12345
-      - image: redis:5.0.10
+      - image: redis:6
     steps:
       - checkout
       - restore_cache:
