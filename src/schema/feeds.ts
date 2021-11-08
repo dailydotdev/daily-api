@@ -1105,9 +1105,15 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
     ): Promise<GQLFeedAdvancedSettings[]> => {
       const feedId = ctx.userId;
-      const repo = ctx.con.getRepository(FeedAdvancedSettings);
+      const feedRepo = ctx.con.getRepository(Feed);
+      const feed = await feedRepo.find({ id: feedId });
+      const feedAdvSettingsrepo = ctx.con.getRepository(FeedAdvancedSettings);
 
-      await repo
+      if (!feed) {
+        await feedRepo.save({ userId: feedId, id: feedId });
+      }
+
+      await feedAdvSettingsrepo
         .createQueryBuilder()
         .insert()
         .into(FeedAdvancedSettings)
@@ -1125,7 +1131,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
       await clearFeedCache(feedId);
 
-      return repo
+      return feedAdvSettingsrepo
         .createQueryBuilder()
         .select('"advancedSettingsId" AS id, enabled')
         .where({ feedId })
