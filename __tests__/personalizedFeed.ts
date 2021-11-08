@@ -4,6 +4,7 @@ import { deleteKeysByPattern, redisClient } from '../src/redis';
 import {
   generatePersonalizedFeed,
   getPersonalizedFeedKey,
+  getPersonalizedFeedKeyPrefix,
 } from '../src/personalizedFeed';
 import { Feed, FeedSource, FeedTag, Source } from '../src/entity';
 import { saveFixtures } from './helpers';
@@ -88,6 +89,28 @@ it('should not fetch anonymous feed even when cache is still fresh', async () =>
   const page0 = await generatePersonalizedFeed(con, 2, 0);
   expect(page0).toEqual(['7', '8']);
   expect(nock.isDone()).toEqual(false);
+});
+
+it('should fetch anonymous feed when last updated time is greater than last generated time', async () => {
+  const key = getPersonalizedFeedKey();
+  const pipeline = redisClient.pipeline();
+  pipeline.set(
+    `${getPersonalizedFeedKeyPrefix()}:update`,
+    new Date(new Date().getTime() - 10 * 1000).toISOString(),
+  );
+  pipeline.set(
+    `${key}:time`,
+    new Date(new Date().getTime() - 60 * 1000).toISOString(),
+  );
+  ['7', '8'].forEach((id, i) => pipeline.zadd(key, i, id));
+  await pipeline.exec();
+
+  nock('http://localhost:6000')
+    .get('/feed.json?token=token&page_size=2&fresh_page_size=1')
+    .reply(200, tinybirdResponse);
+  const page0 = await generatePersonalizedFeed(con, 2, 0);
+  expect(page0).toEqual(['1', '2']);
+  expect(nock.isDone()).toEqual(true);
 });
 
 it('should set the correct query parameters', async () => {
