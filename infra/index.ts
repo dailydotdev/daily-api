@@ -21,6 +21,8 @@ import {
   bindK8sServiceAccountToGCP,
   getMemoryAndCpuMetrics,
   addLabelsToWorkers,
+  convertRecordToContainerEnvVars,
+  createKubernetesSecretFromRecord,
 } from '@dailydotdev/pulumi-common';
 import { readFile } from 'fs/promises';
 
@@ -73,7 +75,7 @@ const redis = new gcp.redis.Instance(`${name}-redis`, {
 
 export const redisHost = redis.host;
 
-const secrets: Input<Secret>[] = [
+const cloudRunSecrets: Input<Secret>[] = [
   ...createEnvVarsFromSecret(name),
   { name: 'REDIS_HOST', value: redisHost },
 ];
@@ -97,7 +99,7 @@ const migrationJob = createMigrationJob(
   namespace,
   image,
   ['node', './node_modules/typeorm/cli.js', 'migration:run'],
-  secrets,
+  cloudRunSecrets,
   k8sServiceAccount,
 );
 
@@ -105,7 +107,7 @@ const migrationJob = createMigrationJob(
 const service = createCloudRunService(
   name,
   image,
-  secrets,
+  cloudRunSecrets,
   { cpu: '1', memory: '512Mi' },
   vpcConnector,
   serviceAccount,
@@ -121,7 +123,7 @@ const service = createCloudRunService(
 const bgService = createCloudRunService(
   `${name}-background`,
   image,
-  [...secrets, { name: 'MODE', value: 'background' }],
+  [...cloudRunSecrets, { name: 'MODE', value: 'background' }],
   { cpu: '1', memory: '256Mi' },
   vpcConnector,
   serviceAccount,
@@ -151,6 +153,18 @@ const limits: pulumi.Input<{
   memory: '1024Mi',
 };
 
+const envVars: Record<string, Input<string>> = {
+  ...config.requireObject<Record<string, string>>('env'),
+  redisHost,
+};
+
+createKubernetesSecretFromRecord({
+  data: envVars,
+  resourceName: 'k8s-secret',
+  name,
+  namespace,
+});
+
 const { labels } = createAutoscaledExposedApplication({
   name,
   namespace: namespace,
@@ -164,7 +178,10 @@ const { labels } = createAutoscaledExposedApplication({
       readinessProbe: {
         httpGet: { path: '/health', port: 'http' },
       },
-      env: [...secrets, { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' }],
+      env: [
+        ...convertRecordToContainerEnvVars({ secretName: name, data: envVars }),
+        { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
+      ],
       resources: {
         requests: limits,
         limits,
@@ -256,14 +273,12 @@ new k8s.networking.v1beta1.Ingress(`${name}-k8s-ingress`, {
   },
 });
 
-const envVars = config.requireObject<Record<string, string>>('env');
-
 const getDebeziumProps = async (): Promise<string> => {
   return (await readFile('./application.properties', 'utf-8'))
     .replace('%database_pass%', config.require('debeziumDbPass'))
     .replace('%database_user%', config.require('debeziumDbUser'))
     .replace('%database_dbname%', name)
-    .replace('%hostname%', envVars.typeormHost)
+    .replace('%hostname%', envVars.typeormHost as string)
     .replace('%topic%', debeziumTopicName);
 };
 
