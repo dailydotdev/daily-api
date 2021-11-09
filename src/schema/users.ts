@@ -174,7 +174,7 @@ export const typeDefs = gql`
       Paginate first
       """
       first: Int
-    ): ReadingHistoryConnection!
+    ): ReadingHistoryConnection! @auth
   }
 
   extend type Mutation {
