@@ -1,3 +1,4 @@
+import { NotFoundError } from './../errors';
 import { GraphORMBuilder } from './../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { Post } from './../entity/Post';
@@ -182,12 +183,18 @@ export const typeDefs = gql`
     Generates or updates the user's Dev Card preferences
     """
     generateDevCard(file: Upload, url: String): DevCard @auth
+
+    """
+    Hide user's read history
+    """
+    hideReadHistory(postId: String!, timestamp: DateTime!): EmptyResponse @auth
   }
 `;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
-  Query: traceResolverObject({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Query: traceResolverObject<any, any>({
     userStats: async (
       source,
       { id }: { id: string },
@@ -282,7 +289,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     readHistory: async (
       _,
-      args: ConnectionArguments & { id: string },
+      args: ConnectionArguments,
       ctx: Context,
       info,
     ): Promise<Connection<GQLView>> => {
@@ -305,7 +312,8 @@ export const resolvers: IResolvers<any, Context> = {
       );
     },
   }),
-  Mutation: traceResolverObject({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Mutation: traceResolverObject<any, any>({
     generateDevCard: async (
       source,
       { file, url }: { file?: FileUpload; url: string },
@@ -340,6 +348,23 @@ export const resolvers: IResolvers<any, Context> = {
           '',
         )}.png?r=${randomStr}`,
       };
+    },
+    hideReadHistory: async (
+      _,
+      { postId, timestamp }: { postId?: string; timestamp: Date },
+      ctx: Context,
+    ): Promise<void> => {
+      const repo = ctx.getRepository(View);
+      const history = await repo.findOne({
+        postId,
+        timestamp,
+      });
+
+      if (!history) {
+        throw new NotFoundError('Read history not found');
+      }
+
+      repo.update({ postId, timestamp, userId: ctx.userId }, { hidden: true });
     },
   }),
   User: {
