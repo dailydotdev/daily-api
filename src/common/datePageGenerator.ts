@@ -58,63 +58,42 @@ export interface QueryOptions {
   orderByKey?: 'ASC' | 'DESC';
 }
 
-class GQLDatePageGenerator<
+export function queryPaginated<
   TEntity extends Record<TKey, Date>,
   TKey extends keyof TEntity,
-> {
-  #config: GQLDatePageGeneratorConfig<TEntity, TKey>;
-  #pageGenerator: GQLDatePageGeneratorType<TEntity, TKey>;
+  TArgs extends ConnectionArguments,
+>(
+  ctx: Context,
+  info: GraphQLResolveInfo,
+  args: TArgs,
+  config: GQLDatePageGeneratorConfig<TEntity, TKey>,
+  { queryBuilder, orderByKey = 'ASC' }: QueryOptions = {},
+): Promise<Connection<TEntity>> {
+  const pageGenerator = createDatePageGenerator(config);
+  const page = pageGenerator.connArgsToPage(args);
 
-  constructor(props: GQLDatePageGeneratorConfig<TEntity, TKey>) {
-    this.#config = props;
-    this.#pageGenerator = createDatePageGenerator(props);
-  }
+  return graphorm.queryPaginated(
+    ctx,
+    info,
+    (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+    (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+    (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+    (defaultBuilder) => {
+      const { key } = config;
+      const builder =
+        (queryBuilder && queryBuilder(defaultBuilder)) || defaultBuilder;
+      const orderCondition = orderByKey === 'DESC' ? '<' : '>';
 
-  get pageGenerator(): GQLDatePageGeneratorType<TEntity, TKey> {
-    return this.#pageGenerator;
-  }
+      builder.queryBuilder.addOrderBy(`${builder.alias}."${key}"`, orderByKey);
+      builder.queryBuilder.limit(page.limit);
 
-  createPageGenerator(props: GQLDatePageGeneratorConfig<TEntity, TKey>): void {
-    this.#pageGenerator = createDatePageGenerator(props);
-  }
-
-  queryPaginated<TArgs extends ConnectionArguments>(
-    ctx: Context,
-    info: GraphQLResolveInfo,
-    args: TArgs,
-    { queryBuilder, orderByKey = 'ASC' }: QueryOptions = {},
-  ): Promise<Connection<TEntity>> {
-    const page = this.#pageGenerator.connArgsToPage(args);
-
-    return graphorm.queryPaginated(
-      ctx,
-      info,
-      (nodeSize) => this.#pageGenerator.hasPreviousPage(page, nodeSize),
-      (nodeSize) => this.#pageGenerator.hasNextPage(page, nodeSize),
-      (node, index) =>
-        this.#pageGenerator.nodeToCursor(page, args, node, index),
-      (defaultBuilder) => {
-        const { key } = this.#config;
-        const builder =
-          (queryBuilder && queryBuilder(defaultBuilder)) || defaultBuilder;
-        const orderCondition = orderByKey === 'DESC' ? '<' : '>';
-
-        builder.queryBuilder.addOrderBy(
-          `${builder.alias}."${key}"`,
-          orderByKey,
+      if (page.timestamp) {
+        builder.queryBuilder = builder.queryBuilder.andWhere(
+          `${builder.alias}."${key}" ${orderCondition} :timestamp`,
+          { timestamp: page.timestamp },
         );
-        builder.queryBuilder.limit(page.limit);
-
-        if (page.timestamp) {
-          builder.queryBuilder = builder.queryBuilder.andWhere(
-            `${builder.alias}."${key}" ${orderCondition} :timestamp`,
-            { timestamp: page.timestamp },
-          );
-        }
-        return builder;
-      },
-    );
-  }
+      }
+      return builder;
+    },
+  );
 }
-
-export default GQLDatePageGenerator;

@@ -1,3 +1,4 @@
+import { GraphORMBuilder } from './../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { Post } from './../entity/Post';
 import { gql, IResolvers, ValidationError } from 'apollo-server-fastify';
@@ -6,7 +7,7 @@ import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { Comment, getAuthorPostStats, PostStats, View } from '../entity';
 import { DevCard } from '../entity/DevCard';
-import DatePageGenerator from '../common/datePageGenerator';
+import { queryPaginated } from '../common/datePageGenerator';
 import {
   getUserReadingRank,
   isValidHttpUrl,
@@ -285,22 +286,23 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<Connection<GQLView>> => {
-      const pageGenerator = new DatePageGenerator<GQLView, 'timestamp'>({
-        key: 'timestamp',
-      });
+      const queryBuilder = (builder: GraphORMBuilder): GraphORMBuilder => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`"${builder.alias}"."userId" = :userId`, {
+            userId: ctx.userId,
+          })
+          .andWhere(`"${builder.alias}"."hidden" = false`);
 
-      return pageGenerator.queryPaginated(ctx, info, args, {
-        queryBuilder: (builder) => {
-          builder.queryBuilder = builder.queryBuilder
-            .andWhere(`"${builder.alias}"."userId" = :userId`, {
-              userId: ctx.userId,
-            })
-            .andWhere(`"${builder.alias}"."hidden" = false`);
+        return builder;
+      };
 
-          return builder;
-        },
-        orderByKey: 'DESC',
-      });
+      return queryPaginated(
+        ctx,
+        info,
+        args,
+        { key: 'timestamp' },
+        { queryBuilder, orderByKey: 'DESC' },
+      );
     },
   }),
   Mutation: traceResolverObject({
