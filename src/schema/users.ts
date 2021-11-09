@@ -354,17 +354,15 @@ export const resolvers: IResolvers<any, Context> = {
       { postId, timestamp }: { postId?: string; timestamp: Date },
       ctx: Context,
     ): Promise<void> => {
+      const args = { postId, timestamp, userId: ctx.userId };
       const repo = ctx.getRepository(View);
-      const history = await repo.findOne({
-        postId,
-        timestamp,
-      });
+      const history = await repo.findOne(args);
 
       if (!history) {
         throw new NotFoundError('Read history not found');
       }
 
-      repo.update({ postId, timestamp, userId: ctx.userId }, { hidden: true });
+      repo.update(args, { hidden: true });
     },
   }),
   User: {

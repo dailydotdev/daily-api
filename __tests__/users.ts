@@ -716,3 +716,77 @@ describe('mutation generateDevCard', () => {
     );
   });
 });
+
+describe('mutation hideReadHistory', () => {
+  const MUTATION = `
+    mutation HideReadHistory($postId: String!, $timestamp: DateTime!) {
+      hideReadHistory(postId: $postId, timestamp: $timestamp) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { postId: 'p1', timestamp: now.toISOString() },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return not found when view history is not available', async () => {
+    loggedUser = '1';
+    const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+
+    await saveFixtures(con, View, [
+      {
+        userId: '1',
+        postId: 'p1',
+        timestamp: createdAtOld.toISOString(),
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtNew.toISOString(),
+      },
+    ]);
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { postId: 'p3', timestamp: createdAtNew.toISOString() },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should set view history hidden property to true', async () => {
+    loggedUser = '1';
+    const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+
+    await saveFixtures(con, View, [
+      {
+        userId: '1',
+        postId: 'p1',
+        timestamp: createdAtOld.toISOString(),
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtNew.toISOString(),
+      },
+    ]);
+
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { postId: 'p2', timestamp: createdAtNew.toISOString() },
+    });
+
+    expect(res.errors).toBeFalsy();
+  });
+});
