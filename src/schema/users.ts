@@ -1,9 +1,12 @@
+import { Connection, ConnectionArguments } from 'graphql-relay';
+import { Post } from './../entity/Post';
 import { gql, IResolvers, ValidationError } from 'apollo-server-fastify';
 import { FileUpload } from 'graphql-upload';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { Comment, getAuthorPostStats, PostStats, View } from '../entity';
 import { DevCard } from '../entity/DevCard';
+import DatePageGenerator from '../common/datePageGenerator';
 import {
   getUserReadingRank,
   isValidHttpUrl,
@@ -19,6 +22,11 @@ export interface GQLUser {
   twitter?: string;
   github?: string;
   hashnode?: string;
+}
+
+export interface GQLView {
+  post: Post;
+  timestamp: Date;
 }
 
 type CommentStats = { numComments: number; numCommentUpvotes: number };
@@ -111,6 +119,25 @@ export const typeDefs = gql`
     imageUrl: String!
   }
 
+  type ReadingHistory {
+    timestamp: DateTime!
+    post: Post!
+  }
+
+  type ReadingHistoryEdge {
+    node: ReadingHistory!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type ReadingHistoryConnection {
+    pageInfo: PageInfo!
+    edges: [ReadingHistoryEdge]!
+  }
+
   extend type Query {
     """
     Get the statistics of the user
@@ -133,6 +160,20 @@ export const typeDefs = gql`
     Get the number of articles the user read
     """
     userReads: Int @auth
+    """
+    Get user's reading history
+    """
+    readHistory(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): ReadingHistoryConnection!
   }
 
   extend type Mutation {
@@ -237,6 +278,29 @@ export const resolvers: IResolvers<any, Context> = {
       return ctx.con
         .getRepository(View)
         .count({ where: { userId: ctx.userId } });
+    },
+    readHistory: async (
+      _,
+      args: ConnectionArguments & { id: string },
+      ctx: Context,
+      info,
+    ): Promise<Connection<GQLView>> => {
+      const pageGenerator = new DatePageGenerator<GQLView, 'timestamp'>({
+        key: 'timestamp',
+      });
+
+      return pageGenerator.queryPaginated(ctx, info, args, {
+        queryBuilder: (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere(`"${builder.alias}"."userId" = :userId`, {
+              userId: ctx.userId,
+            })
+            .andWhere(`"${builder.alias}"."hidden" = false`);
+
+          return builder;
+        },
+        orderByKey: 'DESC',
+      });
     },
   }),
   Mutation: traceResolverObject({

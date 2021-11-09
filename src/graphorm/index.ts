@@ -182,6 +182,9 @@ const obj = new GraphORM({
       id: { alias: { field: 'advancedSettingsId', type: 'int' } },
     },
   },
+  ReadingHistory: {
+    from: 'View',
+  },
 });
 
 export default obj;
