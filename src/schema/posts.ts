@@ -18,7 +18,7 @@ import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
 import { PostReport } from '../entity/PostReport';
-import { queryPaginated } from '../common/datePageGenerator';
+import { queryPaginatedByDate } from '../common/datePageGenerator';
 
 export interface GQLPost {
   id: string;
@@ -463,7 +463,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<ConnectionRelay<GQLPostUpvote>> => {
-      return queryPaginated(
+      return queryPaginatedByDate(
         ctx,
         info,
         args,

@@ -8,7 +8,7 @@ import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { Comment, getAuthorPostStats, PostStats, View } from '../entity';
 import { DevCard } from '../entity/DevCard';
-import { queryPaginated } from '../common/datePageGenerator';
+import { queryPaginatedByDate } from '../common/datePageGenerator';
 import {
   getUserReadingRank,
   isValidHttpUrl,
@@ -303,7 +303,7 @@ export const resolvers: IResolvers<any, Context> = {
         return builder;
       };
 
-      return queryPaginated(
+      return queryPaginatedByDate(
         ctx,
         info,
         args,

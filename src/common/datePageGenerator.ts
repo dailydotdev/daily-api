@@ -58,7 +58,7 @@ export interface QueryOptions {
   orderByKey?: 'ASC' | 'DESC';
 }
 
-export function queryPaginated<
+export function queryPaginatedByDate<
   TEntity extends Record<TKey, Date>,
   TKey extends keyof TEntity,
   TArgs extends ConnectionArguments,

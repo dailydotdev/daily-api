@@ -12,7 +12,7 @@ import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
 import { GQLPost } from './posts';
 import { Roles } from '../roles';
-import { queryPaginated } from '../common/datePageGenerator';
+import { queryPaginatedByDate } from '../common/datePageGenerator';
 
 export interface GQLComment {
   id: string;
@@ -301,7 +301,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLComment>> => {
-      return queryPaginated(
+      return queryPaginatedByDate(
         ctx,
         info,
         args,
@@ -325,7 +325,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLComment>> => {
-      return queryPaginated(
+      return queryPaginatedByDate(
         ctx,
         info,
         args,
@@ -349,7 +349,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLCommentUpvote>> => {
-      return queryPaginated(
+      return queryPaginatedByDate(
         ctx,
         info,
         args,
