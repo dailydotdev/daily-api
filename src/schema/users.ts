@@ -1,4 +1,3 @@
-import { NotFoundError } from './../errors';
 import { GraphORMBuilder } from './../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { Post } from './../entity/Post';
@@ -349,21 +348,14 @@ export const resolvers: IResolvers<any, Context> = {
         )}.png?r=${randomStr}`,
       };
     },
-    hideReadHistory: async (
+    hideReadHistory: (
       _,
       { postId, timestamp }: { postId?: string; timestamp: Date },
       ctx: Context,
-    ): Promise<void> => {
-      const args = { postId, timestamp, userId: ctx.userId };
-      const repo = ctx.getRepository(View);
-      const history = await repo.findOne(args);
-
-      if (!history) {
-        throw new NotFoundError('Read history not found');
-      }
-
-      repo.update(args, { hidden: true });
-    },
+    ): Promise<unknown> =>
+      ctx
+        .getRepository(View)
+        .update({ postId, timestamp, userId: ctx.userId }, { hidden: true }),
   }),
   User: {
     permalink: (user: GQLUser): string =>
