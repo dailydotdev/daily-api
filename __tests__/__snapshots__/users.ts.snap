@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`query readHistory should return user's reading history in descending order 1`] = `
+exports[`query readHistory should return user's reading history 1`] = `
 Object {
   "readHistory": Object {
     "edges": Array [
@@ -28,6 +28,43 @@ Object {
             },
             "title": "P1",
             "url": "http://p1.com",
+          },
+          "timestamp": "2020-09-22T07:15:51.247Z",
+        },
+      },
+    ],
+  },
+}
+`;
+
+exports[`query readHistory should return user's reading history in descending order 1`] = `
+Object {
+  "readHistory": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p1",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/a",
+            },
+            "title": "P1",
+            "url": "http://p1.com",
+          },
+          "timestamp": "2021-09-22T07:15:51.247Z",
+        },
+      },
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p2",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/b",
+            },
+            "title": "P2",
+            "url": "http://p2.com",
           },
           "timestamp": "2020-09-22T07:15:51.247Z",
         },

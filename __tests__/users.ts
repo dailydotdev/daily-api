@@ -587,7 +587,7 @@ describe('query readHistory', () => {
   it('should not authorize when not logged in', () =>
     testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
 
-  it("should return user's reading history in descending order", async () => {
+  it("should return user's reading history", async () => {
     loggedUser = '1';
     const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
     const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
@@ -610,6 +610,32 @@ describe('query readHistory', () => {
     expect(new Date(secondView.node.timestamp).getTime()).toBeGreaterThan(
       new Date(firstView.node.timestamp).getTime(),
     );
+  });
+
+  it("should return user's reading history in descending order", async () => {
+    loggedUser = '1';
+    const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+    await saveFixtures(con, View, [
+      {
+        userId: '1',
+        postId: 'p1',
+        timestamp: createdAtNew,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtOld,
+      },
+    ]);
+    const res = await client.query({ query: QUERY });
+    const [firstButLaterView, secondButEarlierView] =
+      res.data.readHistory.edges;
+    const firstDate = new Date(firstButLaterView.node.timestamp).getTime();
+    const secondDate = new Date(secondButEarlierView.node.timestamp).getTime();
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+    expect(firstDate).toBeGreaterThan(secondDate);
   });
 
   it("should return user's reading history in without the hidden ones", async () => {
