@@ -67,6 +67,7 @@ beforeEach(async () => {
       authorId: '1',
       views: 20,
       upvotes: 5,
+      image: 'sample.image.test',
     },
     {
       id: 'p2',
@@ -77,6 +78,7 @@ beforeEach(async () => {
       createdAt: new Date(now.getTime() - 1000),
       views: 5,
       upvotes: 1,
+      image: 'sample.image.test',
     },
     {
       id: 'p3',
@@ -88,6 +90,7 @@ beforeEach(async () => {
       authorId: '1',
       views: 80,
       upvotes: 10,
+      image: 'sample.image.test',
     },
     {
       id: 'p4',
@@ -98,6 +101,7 @@ beforeEach(async () => {
       createdAt: new Date(now.getTime() - 3000),
       authorId: '1',
       upvotes: 5,
+      image: 'sample.image.test',
     },
     {
       id: 'p5',
@@ -106,6 +110,7 @@ beforeEach(async () => {
       url: 'http://p5.com',
       sourceId: 'b',
       createdAt: new Date(now.getTime() - 4000),
+      image: 'sample.image.test',
     },
     {
       id: 'p6',
@@ -115,6 +120,7 @@ beforeEach(async () => {
       sourceId: 'p',
       createdAt: new Date(now.getTime() - 5000),
       views: 40,
+      image: 'sample.image.test',
     },
     {
       id: 'p7',
@@ -124,6 +130,7 @@ beforeEach(async () => {
       sourceId: 'p',
       createdAt: new Date(now.getTime() - 6000),
       views: 10,
+      image: 'sample.image.test',
     },
   ]);
   await con.getRepository(Comment).save([
@@ -557,6 +564,121 @@ describe('query userReadHistory', () => {
   });
 });
 
+describe('query readHistory', () => {
+  const QUERY = `
+    query ReadHistory($after: String, $first: Int) {
+      readHistory(first: $first, after: $after) {
+        pageInfo { endCursor, hasNextPage }
+        edges {
+          node {
+            timestamp
+            post {
+              id
+              url
+              title
+              image
+              source {
+                image
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it("should return user's reading history paginated", async () => {
+    loggedUser = '1';
+    const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const createdAtOlder = new Date('2021-08-22T07:15:51.247Z');
+    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+    const createdAtNewer = new Date('2021-10-22T07:15:51.247Z');
+
+    await saveFixtures(con, View, [
+      {
+        userId: '1',
+        postId: 'p1',
+        timestamp: createdAtOld,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtNewer,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtOlder,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtNew,
+      },
+    ]);
+    const res = await client.query({ query: QUERY });
+    const [secondView, firstView] = res.data.readHistory.edges;
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+    expect(new Date(secondView.node.timestamp).getTime()).toBeGreaterThan(
+      new Date(firstView.node.timestamp).getTime(),
+    );
+  });
+
+  it('should return the reading history of user in descending order', async () => {
+    loggedUser = '1';
+    const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+    await saveFixtures(con, View, [
+      {
+        userId: '1',
+        postId: 'p1',
+        timestamp: createdAtNew,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtOld,
+      },
+    ]);
+    const res = await client.query({ query: QUERY });
+    const [firstButLaterView, secondButEarlierView] =
+      res.data.readHistory.edges;
+    const firstDate = new Date(firstButLaterView.node.timestamp).getTime();
+    const secondDate = new Date(secondButEarlierView.node.timestamp).getTime();
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+    expect(firstDate).toBeGreaterThan(secondDate);
+  });
+
+  it("should return user's reading history in without the hidden ones", async () => {
+    loggedUser = '1';
+    const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+    await saveFixtures(con, View, [
+      {
+        userId: '1',
+        postId: 'p1',
+        timestamp: createdAtOld,
+        hidden: true,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtNew,
+      },
+    ]);
+
+    const res = await client.query({ query: QUERY });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.readHistory.edges.length).toEqual(1);
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('mutation generateDevCard', () => {
   const MUTATION = `mutation GenerateDevCard($file: Upload, $url: String){
     generateDevCard(file: $file, url: $url) {
@@ -634,5 +756,51 @@ describe('mutation generateDevCard', () => {
         )}.png\\?r=.*`,
       ),
     );
+  });
+});
+
+describe('mutation hideReadHistory', () => {
+  const MUTATION = `
+    mutation HideReadHistory($postId: String!, $timestamp: DateTime!) {
+      hideReadHistory(postId: $postId, timestamp: $timestamp) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { postId: 'p1', timestamp: now.toISOString() },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should set view history hidden property to true', async () => {
+    loggedUser = '1';
+    const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+
+    await saveFixtures(con, View, [
+      {
+        userId: '1',
+        postId: 'p1',
+        timestamp: createdAtOld.toISOString(),
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtNew.toISOString(),
+      },
+    ]);
+
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: { postId: 'p2', timestamp: createdAtNew.toISOString() },
+    });
+
+    expect(res.errors).toBeFalsy();
   });
 });

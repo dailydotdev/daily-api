@@ -1,5 +1,142 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`query readHistory should return the reading history of user in descending order 1`] = `
+Object {
+  "readHistory": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p1",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/a",
+            },
+            "title": "P1",
+            "url": "http://p1.com",
+          },
+          "timestamp": "2021-09-22T07:15:51.247Z",
+        },
+      },
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p2",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/b",
+            },
+            "title": "P2",
+            "url": "http://p2.com",
+          },
+          "timestamp": "2020-09-22T07:15:51.247Z",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjAwNzU4OTUxMjQ3",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query readHistory should return user's reading history in without the hidden ones 1`] = `
+Object {
+  "readHistory": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p2",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/b",
+            },
+            "title": "P2",
+            "url": "http://p2.com",
+          },
+          "timestamp": "2021-09-22T07:15:51.247Z",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjMyMjk0OTUxMjQ3",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query readHistory should return user's reading history paginated 1`] = `
+Object {
+  "readHistory": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p2",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/b",
+            },
+            "title": "P2",
+            "url": "http://p2.com",
+          },
+          "timestamp": "2021-10-22T07:15:51.247Z",
+        },
+      },
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p2",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/b",
+            },
+            "title": "P2",
+            "url": "http://p2.com",
+          },
+          "timestamp": "2021-09-22T07:15:51.247Z",
+        },
+      },
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p2",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/b",
+            },
+            "title": "P2",
+            "url": "http://p2.com",
+          },
+          "timestamp": "2021-08-22T07:15:51.247Z",
+        },
+      },
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p1",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/a",
+            },
+            "title": "P1",
+            "url": "http://p1.com",
+          },
+          "timestamp": "2020-09-22T07:15:51.247Z",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjAwNzU4OTUxMjQ3",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
 exports[`query userReadHistory should return the read history 1`] = `
 Array [
   Object {
