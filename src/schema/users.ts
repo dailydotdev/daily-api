@@ -123,7 +123,7 @@ export const typeDefs = gql`
     """
     Get the reading rank of the user
     """
-    userReadingRank(id: ID!): ReadingRank
+    userReadingRank(id: ID!, timezone: String): ReadingRank
     """
     Get the reading rank history of the user.
     An aggregated count of all the ranks the user ever received.
@@ -178,11 +178,12 @@ export const resolvers: IResolvers<any, Context> = {
     },
     userReadingRank: async (
       source,
-      { id }: { id: string },
+      { id, timezone }: { id: string; timezone?: string },
       ctx: Context,
     ): Promise<GQLReadingRank> => {
       const isSameUser = ctx.userId === id;
-      const rank = await getUserReadingRank(ctx.con, id);
+      console.log('tz', timezone);
+      const rank = await getUserReadingRank(ctx.con, id, timezone);
       if (isSameUser) {
         return rank;
       } else {
