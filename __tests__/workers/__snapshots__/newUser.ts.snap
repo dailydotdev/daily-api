@@ -21,5 +21,6 @@ User {
   "twitter": null,
   "updatedAt": null,
   "username": null,
+  "timezone": null,
 }
 `;

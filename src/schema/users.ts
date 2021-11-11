@@ -79,6 +79,10 @@ export const typeDefs = gql`
     Hashnode handle of the user
     """
     hashnode: String
+    """
+    Time zone of the user
+    """
+    timezone: String
   }
 
   type UserStats {
