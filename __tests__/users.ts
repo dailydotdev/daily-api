@@ -565,37 +565,53 @@ describe('query userReadHistory', () => {
 });
 
 describe('query readHistory', () => {
-  const QUERY = `{
-    readHistory {
-      edges {
-        node {
-          timestamp
-          post {
-            id
-            url
-            title
-            image
-            source {
+  const QUERY = `
+    query ReadHistory($after: String, $first: Int) {
+      readHistory(first: $first, after: $after) {
+        pageInfo { endCursor, hasNextPage }
+        edges {
+          node {
+            timestamp
+            post {
+              id
+              url
+              title
               image
+              source {
+                image
+              }
             }
           }
         }
       }
     }
-  }`;
+  `;
 
   it('should not authorize when not logged in', () =>
     testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
 
-  it("should return user's reading history", async () => {
+  it("should return user's reading history paginated", async () => {
     loggedUser = '1';
     const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const createdAtOlder = new Date('2021-08-22T07:15:51.247Z');
     const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+    const createdAtNewer = new Date('2021-10-22T07:15:51.247Z');
+
     await saveFixtures(con, View, [
       {
         userId: '1',
         postId: 'p1',
         timestamp: createdAtOld,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtNewer,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtOlder,
       },
       {
         userId: '1',
