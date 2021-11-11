@@ -612,7 +612,7 @@ describe('query readHistory', () => {
     );
   });
 
-  it("should return user's reading history in descending order", async () => {
+  it('should return the reading history of user in descending order', async () => {
     loggedUser = '1';
     const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
     const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
