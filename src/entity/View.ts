@@ -21,7 +21,7 @@ export class View {
   @Column({ type: 'text', nullable: true })
   referer?: string;
 
-  @PrimaryColumn({ default: () => 'now()', precision: 0 })
+  @PrimaryColumn({ default: () => 'now()' })
   @Index()
   timestamp: Date;
 

@@ -355,7 +355,15 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<unknown> =>
       ctx
         .getRepository(View)
-        .update({ postId, timestamp, userId: ctx.userId }, { hidden: true }),
+        .createQueryBuilder()
+        .update()
+        .set({ hidden: true })
+        .where('"postId" = :postId', { postId })
+        .andWhere(`date_trunc('second', "timestamp"::timestamp) = :param`, {
+          param: timestamp,
+        })
+        .andWhere('"userId" = :userId', { userId: ctx.userId })
+        .execute(),
   }),
   User: {
     permalink: (user: GQLUser): string =>
