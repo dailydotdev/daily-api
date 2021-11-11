@@ -360,7 +360,7 @@ export const resolvers: IResolvers<any, Context> = {
         .set({ hidden: true })
         .where('"postId" = :postId', { postId })
         .andWhere(`date_trunc('second', "timestamp"::timestamp) = :param`, {
-          param: timestamp,
+          param: new Date(timestamp).toJSON().split('.')[0],
         })
         .andWhere('"userId" = :userId', { userId: ctx.userId })
         .execute(),
