@@ -10,18 +10,23 @@ import {
   createCloudRunService,
   createCronJobs,
   createEnvVarsFromSecret,
-  createK8sServiceAccountFromGCPServiceAccount,
   createMigrationJob,
   createServiceAccountAndGrantRoles,
   createSubscriptionsFromWorkers,
+  createAutoscaledExposedApplication,
   deployDebeziumToKubernetes,
-  imageTag,
-  k8sServiceAccountToIdentity,
+  getImageTag,
   location,
   Secret,
+  bindK8sServiceAccountToGCP,
+  getMemoryAndCpuMetrics,
+  addLabelsToWorkers,
+  convertRecordToContainerEnvVars,
+  createKubernetesSecretFromRecord,
 } from '@dailydotdev/pulumi-common';
 import { readFile } from 'fs/promises';
 
+const imageTag = getImageTag();
 const name = 'api';
 const debeziumTopicName = `${name}.changes`;
 
@@ -70,7 +75,7 @@ const redis = new gcp.redis.Instance(`${name}-redis`, {
 
 export const redisHost = redis.host;
 
-const secrets: Input<Secret>[] = [
+const cloudRunSecrets: Input<Secret>[] = [
   ...createEnvVarsFromSecret(name),
   { name: 'REDIS_HOST', value: redisHost },
 ];
@@ -82,39 +87,19 @@ const { namespace, host: subsHost } = config.requireObject<{
   host: string;
 }>('k8s');
 
-const labels: pulumi.Input<{
-  [key: string]: pulumi.Input<string>;
-}> = {
-  app: name,
-};
-
-const versionLabels: pulumi.Input<{
-  [key: string]: pulumi.Input<string>;
-}> = {
-  ...labels,
-  version: imageTag,
-};
-
-// Create K8S service account and assign it to a GCP service account
-const k8sServiceAccount = createK8sServiceAccountFromGCPServiceAccount(
-  `${name}-k8s-sa`,
+const k8sServiceAccount = bindK8sServiceAccountToGCP(
+  '',
   name,
   namespace,
   serviceAccount,
 );
-
-new gcp.serviceaccount.IAMBinding(`${name}-k8s-iam-binding`, {
-  role: 'roles/iam.workloadIdentityUser',
-  serviceAccountId: serviceAccount.id,
-  members: [k8sServiceAccountToIdentity(k8sServiceAccount)],
-});
 
 const migrationJob = createMigrationJob(
   `${name}-migration`,
   namespace,
   image,
   ['node', './node_modules/typeorm/cli.js', 'migration:run'],
-  secrets,
+  cloudRunSecrets,
   k8sServiceAccount,
 );
 
@@ -122,7 +107,7 @@ const migrationJob = createMigrationJob(
 const service = createCloudRunService(
   name,
   image,
-  secrets,
+  cloudRunSecrets,
   { cpu: '1', memory: '512Mi' },
   vpcConnector,
   serviceAccount,
@@ -138,7 +123,7 @@ const service = createCloudRunService(
 const bgService = createCloudRunService(
   `${name}-background`,
   image,
-  [...secrets, { name: 'MODE', value: 'background' }],
+  [...cloudRunSecrets, { name: 'MODE', value: 'background' }],
   { cpu: '1', memory: '256Mi' },
   vpcConnector,
   serviceAccount,
@@ -153,116 +138,86 @@ const bgService = createCloudRunService(
 export const serviceUrl = service.statuses[0].url;
 export const bgServiceUrl = bgService.statuses[0].url;
 
-createSubscriptionsFromWorkers(name, workers, bgServiceUrl, [debeziumTopic]);
+createSubscriptionsFromWorkers(
+  name,
+  addLabelsToWorkers(workers, { app: name }),
+  bgServiceUrl,
+  [debeziumTopic],
+);
 createCronJobs(name, crons, bgServiceUrl);
-
-// Subscriptions server deployment
 
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
-  cpu: '2',
+  cpu: '1',
   memory: '1024Mi',
 };
 
-new k8s.policy.v1beta1.PodDisruptionBudget(`${name}-k8s-pdb`, {
-  metadata: {
-    name: `${name}-pdb`,
-    namespace,
-  },
-  spec: {
-    minAvailable: 1,
-    selector: {
-      matchLabels: labels,
-    },
-  },
+const envVars: Record<string, Input<string>> = {
+  ...config.requireObject<Record<string, string>>('env'),
+  redisHost,
+};
+
+createKubernetesSecretFromRecord({
+  data: envVars,
+  resourceName: 'k8s-secret',
+  name,
+  namespace,
 });
 
-new k8s.apps.v1.Deployment(
-  `${name}-k8s-deployment`,
-  {
-    metadata: {
-      name,
-      namespace,
-      labels: versionLabels,
-    },
-    spec: {
-      replicas: 2,
-      selector: { matchLabels: labels },
-      template: {
-        metadata: { labels },
-        spec: {
-          containers: [
-            {
-              name: 'app',
-              image,
-              ports: [{ name: 'http', containerPort: 3000, protocol: 'TCP' }],
-              // readinessProbe: {
-              //   httpGet: { path: '/health', port: 'http' },
-              // },
-              env: [
-                ...secrets,
-                { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
-              ],
-              resources: {
-                requests: limits,
-                limits,
-              },
-            },
-          ],
-          serviceAccountName: k8sServiceAccount.metadata.name,
-          affinity: {
-            podAntiAffinity: {
-              requiredDuringSchedulingIgnoredDuringExecution: [
-                {
-                  labelSelector: {
-                    matchExpressions: Object.keys(versionLabels).map((key) => ({
-                      key,
-                      operator: 'In',
-                      values: [versionLabels[key]],
-                    })),
-                  },
-                  topologyKey: 'kubernetes.io/hostname',
-                },
-              ],
-            },
-          },
-        },
+const { labels } = createAutoscaledExposedApplication({
+  name,
+  namespace: namespace,
+  version: imageTag,
+  serviceAccount: k8sServiceAccount,
+  containers: [
+    {
+      name: 'app',
+      image,
+      ports: [{ name: 'http', containerPort: 3000, protocol: 'TCP' }],
+      readinessProbe: {
+        httpGet: { path: '/health', port: 'http' },
+      },
+      env: [
+        ...convertRecordToContainerEnvVars({ secretName: name, data: envVars }),
+        { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
+      ],
+      resources: {
+        requests: limits,
+        limits,
       },
     },
-  },
-  { dependsOn: [migrationJob] },
-);
+  ],
+  maxReplicas: 10,
+  metrics: getMemoryAndCpuMetrics(),
+});
 
 const k8sBackendConfig = new k8s.apiextensions.CustomResource(
   `${name}-k8s-backend-config`,
   {
-    apiVersion: 'cloud.google.com/v1beta1',
+    apiVersion: 'cloud.google.com/v1',
     kind: 'BackendConfig',
     metadata: {
-      name: `${name}-backend-config`,
+      name,
       namespace,
       labels,
     },
     spec: {
-      sessionAffinity: {
-        affinityType: 'CLIENT_IP',
-      },
-      timeoutSec: 300,
-      connectionDraining: { drainingTimeoutSec: 600 },
+      timeoutSec: 43200,
     },
   },
 );
 
 const k8sService = new k8s.core.v1.Service(`${name}-k8s-service`, {
   metadata: {
-    name,
+    name: `${name}-subs`,
     namespace,
     labels,
     annotations: {
-      'cloud.google.com/backend-config': k8sBackendConfig.metadata.name.apply(
-        (name) => `{"default": "${name}"}`,
-      ),
+      'beta.cloud.google.com/backend-config':
+        k8sBackendConfig.metadata.name.apply(
+          (name) => `{"ports": {"http": "${name}"}}`,
+        ),
     },
   },
   spec: {
@@ -318,14 +273,12 @@ new k8s.networking.v1beta1.Ingress(`${name}-k8s-ingress`, {
   },
 });
 
-const envVars = config.requireObject<Record<string, string>>('env');
-
 const getDebeziumProps = async (): Promise<string> => {
   return (await readFile('./application.properties', 'utf-8'))
     .replace('%database_pass%', config.require('debeziumDbPass'))
     .replace('%database_user%', config.require('debeziumDbUser'))
     .replace('%database_dbname%', name)
-    .replace('%hostname%', envVars.typeormHost)
+    .replace('%hostname%', envVars.typeormHost as string)
     .replace('%topic%', debeziumTopicName);
 };
 

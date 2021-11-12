@@ -44,7 +44,10 @@ import {
 import { Ranking } from '../src/common';
 import nock from 'nock';
 import { deleteKeysByPattern, redisClient } from '../src/redis';
-import { getPersonalizedFeedKey } from '../src/personalizedFeed';
+import {
+  getPersonalizedFeedKey,
+  getPersonalizedFeedKeyPrefix,
+} from '../src/personalizedFeed';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -948,11 +951,24 @@ describe('mutation updateFeedAdvancedSettings', () => {
 
     expect(res.data).toMatchSnapshot();
     expect(
-      await redisClient.get(`${getPersonalizedFeedKey('2', '1')}:time`),
-    ).toBeFalsy();
-    expect(
-      await redisClient.get(`${getPersonalizedFeedKey('2', '2')}:time`),
-    ).toEqual('2');
+      await redisClient.get(`${getPersonalizedFeedKeyPrefix('1')}:update`),
+    ).toBeTruthy();
+  });
+
+  it('should not fail if feed entity does not exists', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, AdvancedSettings, advancedSettings);
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: {
+        settings: [
+          { id: 1, enabled: true },
+          { id: 2, enabled: false },
+        ],
+      },
+    });
+
+    expect(res.data).toMatchSnapshot();
   });
 
   it('should update existing feed advanced settings', async () => {
@@ -973,11 +989,8 @@ describe('mutation updateFeedAdvancedSettings', () => {
     });
     expect(res.data).toMatchSnapshot();
     expect(
-      await redisClient.get(`${getPersonalizedFeedKey('2', '1')}:time`),
-    ).toBeFalsy();
-    expect(
-      await redisClient.get(`${getPersonalizedFeedKey('2', '2')}:time`),
-    ).toEqual('2');
+      await redisClient.get(`${getPersonalizedFeedKeyPrefix('1')}:update`),
+    ).toBeTruthy();
   });
 
   it('should ignore duplicates', async () => {
@@ -1047,11 +1060,8 @@ describe('mutation addFiltersToFeed', () => {
     });
     expect(res.data).toMatchSnapshot();
     expect(
-      await redisClient.get(`${getPersonalizedFeedKey('2', '1')}:time`),
-    ).toBeFalsy();
-    expect(
-      await redisClient.get(`${getPersonalizedFeedKey('2', '2')}:time`),
-    ).toEqual('2');
+      await redisClient.get(`${getPersonalizedFeedKeyPrefix('1')}:update`),
+    ).toBeTruthy();
   });
 
   it('should ignore duplicates', async () => {
@@ -1133,11 +1143,8 @@ describe('mutation removeFiltersFromFeed', () => {
     });
     expect(res.data).toMatchSnapshot();
     expect(
-      await redisClient.get(`${getPersonalizedFeedKey('2', '1')}:time`),
-    ).toBeFalsy();
-    expect(
-      await redisClient.get(`${getPersonalizedFeedKey('2', '2')}:time`),
-    ).toEqual('2');
+      await redisClient.get(`${getPersonalizedFeedKeyPrefix('1')}:update`),
+    ).toBeTruthy();
   });
 });
 

@@ -44,10 +44,13 @@ async function fetchTinybirdFeed(
   return body.data;
 }
 
+export const getPersonalizedFeedKeyPrefix = (feedId?: string): string =>
+  `feeds:${feedId || 'global'}`;
+
 export const getPersonalizedFeedKey = (
   userId?: string,
   feedId?: string,
-): string => `feeds:${feedId || 'global'}:${userId || 'anonymous'}`;
+): string => `${getPersonalizedFeedKeyPrefix(feedId)}:${userId || 'anonymous'}`;
 
 const ONE_DAY_SECONDS = 24 * 60 * 60;
 
@@ -63,7 +66,12 @@ async function fetchAndCacheFeed(
   setTimeout(async () => {
     const pipeline = redisClient.pipeline();
     pipeline.del(key);
-    pipeline.set(`${key}:time`, new Date().toISOString());
+    pipeline.set(
+      `${key}:time`,
+      new Date().toISOString(),
+      'ex',
+      ONE_DAY_SECONDS,
+    );
     pipeline.expire(key, ONE_DAY_SECONDS);
     postIds.forEach(({ post_id }, i) => pipeline.zadd(key, i, post_id));
     await pipeline.exec();
@@ -74,14 +82,20 @@ async function fetchAndCacheFeed(
 const shouldServeFromCache = async (
   offset: number,
   key: string,
+  feedId?: string,
 ): Promise<boolean> => {
   if (offset) {
     return true;
   }
-  const lastGenerated = await redisClient.get(`${key}:time`);
-  return (
-    lastGenerated &&
-    new Date().getTime() - new Date(lastGenerated).getTime() <= 3 * 60 * 1000
+  const updateKey = `${getPersonalizedFeedKeyPrefix(feedId)}:update`;
+  const [lastGenerated, lastUpdated] = await redisClient.mget(
+    `${key}:time`,
+    updateKey,
+  );
+  return !(
+    !lastGenerated ||
+    (lastUpdated && lastUpdated > lastGenerated) ||
+    new Date().getTime() - new Date(lastGenerated).getTime() > 3 * 60 * 1000
   );
   // return !key;
 };
@@ -96,7 +110,7 @@ export async function generatePersonalizedFeed(
   try {
     const key = getPersonalizedFeedKey(userId, feedId);
     const idsPromise = redisClient.zrange(key, offset, pageSize + offset - 1);
-    if (await shouldServeFromCache(offset, key)) {
+    if (await shouldServeFromCache(offset, key, feedId)) {
       const postIds = await idsPromise;
       if (postIds.length) {
         return postIds;

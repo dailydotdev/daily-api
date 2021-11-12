@@ -1,4 +1,3 @@
-import { GQLDatePageGenerator } from '../common/pageGenerator';
 import {
   Connection as ConnectionRelay,
   ConnectionArguments,
@@ -19,6 +18,7 @@ import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
 import { PostReport } from '../entity/PostReport';
+import { queryPaginatedByDate } from '../common/datePageGenerator';
 
 export interface GQLPost {
   id: string;
@@ -436,8 +436,6 @@ export const reportReasons = new Map([
   ['OTHER', '🤔 Other'],
 ]);
 
-const pageGenerator = new GQLDatePageGenerator();
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   Query: traceResolverObject({
@@ -465,17 +463,23 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<ConnectionRelay<GQLPostUpvote>> => {
-      return pageGenerator.queryPaginated(ctx, info, args, {
-        queryBuilder: (builder) => {
-          builder.queryBuilder = builder.queryBuilder.andWhere(
-            `${builder.alias}.postId = :postId`,
-            { postId: args.id },
-          );
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}.postId = :postId`,
+              { postId: args.id },
+            );
 
-          return builder;
+            return builder;
+          },
+          orderByKey: 'DESC',
         },
-        orderByCreatedAt: 'DESC',
-      });
+      );
     },
   }),
   Mutation: traceResolverObject({

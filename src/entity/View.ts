@@ -24,4 +24,7 @@ export class View {
   @PrimaryColumn({ default: () => 'now()' })
   @Index()
   timestamp: Date;
+
+  @Column({ type: 'bool', default: false })
+  hidden?: boolean;
 }

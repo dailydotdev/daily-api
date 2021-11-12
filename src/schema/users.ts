@@ -1,9 +1,13 @@
+import { GraphORMBuilder } from './../graphorm/graphorm';
+import { Connection, ConnectionArguments } from 'graphql-relay';
+import { Post } from './../entity/Post';
 import { gql, IResolvers, ValidationError } from 'apollo-server-fastify';
 import { FileUpload } from 'graphql-upload';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { Comment, getAuthorPostStats, PostStats, View } from '../entity';
 import { DevCard } from '../entity/DevCard';
+import { queryPaginatedByDate } from '../common/datePageGenerator';
 import {
   getUserReadingRank,
   isValidHttpUrl,
@@ -19,6 +23,11 @@ export interface GQLUser {
   twitter?: string;
   github?: string;
   hashnode?: string;
+}
+
+export interface GQLView {
+  post: Post;
+  timestamp: Date;
 }
 
 type CommentStats = { numComments: number; numCommentUpvotes: number };
@@ -115,6 +124,25 @@ export const typeDefs = gql`
     imageUrl: String!
   }
 
+  type ReadingHistory {
+    timestamp: DateTime!
+    post: Post!
+  }
+
+  type ReadingHistoryEdge {
+    node: ReadingHistory!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type ReadingHistoryConnection {
+    pageInfo: PageInfo!
+    edges: [ReadingHistoryEdge]!
+  }
+
   extend type Query {
     """
     Get the statistics of the user
@@ -142,6 +170,20 @@ export const typeDefs = gql`
     Get the number of articles the user read
     """
     userReads: Int @auth
+    """
+    Get user's reading history
+    """
+    readHistory(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): ReadingHistoryConnection! @auth
   }
 
   extend type Mutation {
@@ -149,12 +191,18 @@ export const typeDefs = gql`
     Generates or updates the user's Dev Card preferences
     """
     generateDevCard(file: Upload, url: String): DevCard @auth
+
+    """
+    Hide user's read history
+    """
+    hideReadHistory(postId: String!, timestamp: DateTime!): EmptyResponse @auth
   }
 `;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
-  Query: traceResolverObject({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Query: traceResolverObject<any, any>({
     userStats: async (
       source,
       { id }: { id: string },
@@ -251,8 +299,33 @@ export const resolvers: IResolvers<any, Context> = {
         .getRepository(View)
         .count({ where: { userId: ctx.userId } });
     },
+    readHistory: async (
+      _,
+      args: ConnectionArguments,
+      ctx: Context,
+      info,
+    ): Promise<Connection<GQLView>> => {
+      const queryBuilder = (builder: GraphORMBuilder): GraphORMBuilder => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`"${builder.alias}"."userId" = :userId`, {
+            userId: ctx.userId,
+          })
+          .andWhere(`"${builder.alias}"."hidden" = false`);
+
+        return builder;
+      };
+
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'timestamp' },
+        { queryBuilder, orderByKey: 'DESC' },
+      );
+    },
   }),
-  Mutation: traceResolverObject({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Mutation: traceResolverObject<any, any>({
     generateDevCard: async (
       source,
       { file, url }: { file?: FileUpload; url: string },
@@ -288,6 +361,22 @@ export const resolvers: IResolvers<any, Context> = {
         )}.png?r=${randomStr}`,
       };
     },
+    hideReadHistory: (
+      _,
+      { postId, timestamp }: { postId?: string; timestamp: Date },
+      ctx: Context,
+    ): Promise<unknown> =>
+      ctx
+        .getRepository(View)
+        .createQueryBuilder()
+        .update()
+        .set({ hidden: true })
+        .where('"postId" = :postId', { postId })
+        .andWhere(`date_trunc('second', "timestamp"::timestamp) = :param`, {
+          param: timestamp,
+        })
+        .andWhere('"userId" = :userId', { userId: ctx.userId })
+        .execute(),
   }),
   User: {
     permalink: (user: GQLUser): string =>
