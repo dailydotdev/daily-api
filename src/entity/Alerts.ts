@@ -8,6 +8,12 @@ export class Alerts {
 
   @Column({ type: 'bool', default: true })
   filter: boolean;
+
+  @Column({ type: 'bool', default: true })
+  rank: boolean;
 }
 
-export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = { filter: true };
+export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
+  filter: true,
+  rank: true,
+};
