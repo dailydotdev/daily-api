@@ -4,6 +4,7 @@ exports[`mutation updateUserAlerts should create user alerts when does not exist
 Object {
   "updateUserAlerts": Object {
     "filter": false,
+    "rank": true,
   },
 }
 `;
@@ -12,6 +13,7 @@ exports[`mutation updateUserAlerts should update alerts of user 1`] = `
 Object {
   "updateUserAlerts": Object {
     "filter": false,
+    "rank": false,
   },
 }
 `;

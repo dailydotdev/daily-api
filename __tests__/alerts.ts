@@ -17,7 +17,7 @@ let client: ApolloServerTestClient;
 let loggedUser: string = null;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = getConnection();
   server = await createApolloServer({
     context: (): Context => new MockContext(con, loggedUser),
     playground: false,
@@ -33,6 +33,7 @@ describe('query userAlerts', () => {
   const QUERY = `{
     userAlerts {
       filter
+      rank
     }
   }`;
 
@@ -64,6 +65,7 @@ describe('mutation updateUserAlerts', () => {
     mutation UpdateUserAlerts($data: UpdateAlertsInput!) {
       updateUserAlerts(data: $data) {
         filter
+        rank
       }
     }
   `;
@@ -95,12 +97,13 @@ describe('mutation updateUserAlerts', () => {
       repo.create({
         userId: '1',
         filter: true,
+        rank: true,
       }),
     );
 
     const res = await client.mutate({
       mutation: MUTATION,
-      variables: { data: { filter: false } },
+      variables: { data: { filter: false, rank: false } },
     });
     expect(res.data).toMatchSnapshot();
   });

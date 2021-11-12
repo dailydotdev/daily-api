@@ -21,6 +21,11 @@ export const typeDefs = gql`
     Status to display for filter red dot
     """
     filter: Boolean!
+
+    """
+    Status to display modal on rank achievement
+    """
+    rank: Boolean!
   }
 
   input UpdateAlertsInput {
@@ -28,6 +33,11 @@ export const typeDefs = gql`
     Status to display for filter red dot
     """
     filter: Boolean
+
+    """
+    Status to display modal on rank achievement
+    """
+    rank: Boolean
   }
 
   extend type Mutation {
