@@ -150,13 +150,18 @@ const onUserChange = async (
   }
 };
 
+const anyHasChanged = (
+  after: Record<string, unknown>,
+  before: Record<string, unknown> = {},
+) => Object.entries(after).some(([key, value]) => before[key] !== value);
+
 const onAlertsChange = async (
   con: Connection,
   logger: Logger,
   data: ChangeMessage<Alerts>,
 ): Promise<void> => {
   if (data.payload.op === 'u') {
-    if (data.payload.before?.filter !== data.payload.after.filter) {
+    if (anyHasChanged(data.payload.after, data.payload.before)) {
       await notifyAlertsUpdated(logger, data.payload.after);
     }
   } else if (data.payload.op === 'c') {

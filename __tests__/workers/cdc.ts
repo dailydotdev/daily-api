@@ -614,12 +614,32 @@ describe('alerts', () => {
   const base: ChangeObject<ObjectType> = {
     userId: '1',
     filter: true,
+    rank: true,
   };
 
   it('should notify on alert.filter changed', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
       filter: false,
+    };
+    await expectSuccessfulBackground(
+      app,
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'alerts',
+      }),
+    );
+    expect(notifyAlertsUpdated).toBeCalledTimes(1);
+    expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
+  });
+
+  it('should notify on alert.rank changed', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      rank: false,
     };
     await expectSuccessfulBackground(
       app,
