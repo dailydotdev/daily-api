@@ -17,10 +17,10 @@ User {
   "portfolio": null,
   "profileConfirmed": false,
   "reputation": 1,
+  "timezone": null,
   "title": null,
   "twitter": null,
   "updatedAt": null,
   "username": null,
-  "timezone": null,
 }
 `;

@@ -1,4 +1,4 @@
-import { fetchUser, getUserReadingRank, ReadingRank } from './users';
+import { getUserReadingRank, ReadingRank } from './users';
 import { Post, PostKeyword, Source, View } from '../entity';
 import { Connection } from 'typeorm';
 import { User } from '../entity/User';
@@ -67,7 +67,6 @@ export async function getDevCardData(
   con: Connection,
 ): Promise<DevCardData> {
   const user = await con.getRepository(User).findOne(userId);
-  console.log('user', user);
   const [articlesRead, tags, sourcesLogos, rank] = await Promise.all([
     con.getRepository(View).count({ userId }),
     getMostReadTags(con, userId),

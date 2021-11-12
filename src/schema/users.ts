@@ -128,11 +128,16 @@ export const typeDefs = gql`
     Get the reading rank history of the user.
     An aggregated count of all the ranks the user ever received.
     """
-    userReadingRankHistory(id: ID!): [ReadingRankHistory]
+    userReadingRankHistory(id: ID!, timezone: String): [ReadingRankHistory]
     """
     Get a heatmap of reads per day in a given time frame.
     """
-    userReadHistory(id: ID!, after: String!, before: String!): [ReadHistory]
+    userReadHistory(
+      id: ID!
+      timezone: String
+      after: String!
+      before: String!
+    ): [ReadHistory]
     """
     Get the number of articles the user read
     """
@@ -178,11 +183,10 @@ export const resolvers: IResolvers<any, Context> = {
     },
     userReadingRank: async (
       source,
-      { id, timezone }: { id: string; timezone?: string },
+      { id, timezone = 'utc' }: { id: string; timezone?: string },
       ctx: Context,
     ): Promise<GQLReadingRank> => {
       const isSameUser = ctx.userId === id;
-      console.log('tz', timezone);
       const rank = await getUserReadingRank(ctx.con, id, timezone);
       if (isSameUser) {
         return rank;
@@ -194,7 +198,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     userReadingRankHistory: async (
       source,
-      { id }: { id: string },
+      { id, timezone = 'utc' }: { id: string; timezone?: string },
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> => {
       return ctx.con.query(
@@ -205,11 +209,10 @@ export const resolvers: IResolvers<any, Context> = {
                select date_trunc('week', "timestamp") as "timestamp",
                       count(*)                        as days
                from (
-                      select date_trunc('day', "timestamp") as "timestamp"
+                      select date_trunc('day', "timestamp" at time zone '${timezone}') as "timestamp"
                       from "view"
                       where "userId" = $1
                         and "timestamp" >= '2020-12-14'
-                        and "timestamp" < date_trunc('week', timezone('utc', now()))
                       group by 1
                       having count(*) > 0
                     ) as days
@@ -222,12 +225,17 @@ export const resolvers: IResolvers<any, Context> = {
     },
     userReadHistory: async (
       source,
-      { id, after, before }: { id: string; after: string; before: string },
+      {
+        id,
+        timezone = 'utc',
+        after,
+        before,
+      }: { id: string; timezone?: string; after: string; before: string },
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> => {
       return ctx.con.query(
         `
-          select date_trunc('day', "timestamp")::date::text as "date", count(*) as "reads"
+          select date_trunc('day', "timestamp" at time zone '${timezone}')::date::text as "date", count(*) as "reads"
           from "view"
           where "userId" = $1
             and "timestamp" >= $2

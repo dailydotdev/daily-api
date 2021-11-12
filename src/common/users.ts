@@ -84,9 +84,7 @@ export const getUserReadingRank = async (
   userId: string,
   timezone = 'utc',
 ): Promise<ReadingRank> => {
-  console.log('timezone', timezone);
   const now = `timezone('${timezone}', now())`;
-  console.log(now);
   const res = await con
     .createQueryBuilder()
     .select(
@@ -94,11 +92,11 @@ export const getUserReadingRank = async (
       'thisWeek',
     )
     .addSelect(
-      `count(distinct date_trunc('day', "timestamp")) filter(where "timestamp" < date_trunc('week', ${now}) and "timestamp" >= date_trunc('week', ${now} - interval '7 days'))`,
+      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' < date_trunc('week', ${now}) and "timestamp" at time zone '${timezone}' >= date_trunc('week', ${now} - interval '7 days'))`,
       'lastWeek',
     )
     .addSelect(
-      `count(*) filter(where "timestamp" >= date_trunc('day', ${now}))`,
+      `count(*) filter(where "timestamp" at time zone '${timezone}' >= date_trunc('day', ${now}))`,
       'today',
     )
     .from(View, 'view')
