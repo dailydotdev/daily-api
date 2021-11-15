@@ -780,18 +780,21 @@ describe('mutation hideReadHistory', () => {
 
   it('should set view history hidden property to true', async () => {
     loggedUser = '1';
+    const repo = con.getRepository(View);
     const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
     const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
 
-    await saveFixtures(con, View, [
+    await repo.save([
       {
         userId: '1',
         postId: 'p1',
+        hidden: false,
         timestamp: createdAtOld.toISOString(),
       },
       {
         userId: '1',
         postId: 'p2',
+        hidden: false,
         timestamp: createdAtNew.toISOString(),
       },
     ]);
@@ -802,18 +805,27 @@ describe('mutation hideReadHistory', () => {
     });
 
     expect(res.errors).toBeFalsy();
+    expect(await repo.find()).toMatchSnapshot();
   });
 
   it('should set view history hidden property to true without matching milliseconds value', async () => {
     loggedUser = '1';
     const createdAt = new Date('2020-09-22T07:15:51.247231Z');
     const createdAtDifferentMS = new Date('2020-09-22T07:15:51.247Z');
+    const repo = con.getRepository(View);
 
-    await saveFixtures(con, View, [
+    await repo.save([
       {
         userId: '1',
         postId: 'p1',
         timestamp: createdAt.toISOString(),
+        hidden: false,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        hidden: false,
+        timestamp: new Date('2019-09-22T07:15:51.247231Z').toISOString(),
       },
     ]);
 
@@ -826,5 +838,6 @@ describe('mutation hideReadHistory', () => {
     });
 
     expect(res.errors).toBeFalsy();
+    expect(await repo.find()).toMatchSnapshot();
   });
 });

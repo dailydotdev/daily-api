@@ -1,5 +1,43 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`mutation hideReadHistory should set view history hidden property to true 1`] = `
+Array [
+  View {
+    "hidden": false,
+    "postId": "p1",
+    "referer": null,
+    "timestamp": 2020-09-22T07:15:51.247Z,
+    "userId": "1",
+  },
+  View {
+    "hidden": true,
+    "postId": "p2",
+    "referer": null,
+    "timestamp": 2021-09-22T07:15:51.247Z,
+    "userId": "1",
+  },
+]
+`;
+
+exports[`mutation hideReadHistory should set view history hidden property to true without matching milliseconds value 1`] = `
+Array [
+  View {
+    "hidden": false,
+    "postId": "p2",
+    "referer": null,
+    "timestamp": 2019-09-22T07:15:51.247Z,
+    "userId": "1",
+  },
+  View {
+    "hidden": true,
+    "postId": "p1",
+    "referer": null,
+    "timestamp": 2020-09-22T07:15:51.247Z,
+    "userId": "1",
+  },
+]
+`;
+
 exports[`query readHistory should return the reading history of user in descending order 1`] = `
 Object {
   "readHistory": Object {
