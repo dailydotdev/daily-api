@@ -66,7 +66,7 @@ export async function getDevCardData(
   userId: string,
   con: Connection,
 ): Promise<DevCardData> {
-  const user = await con.getRepository(User).findOne(userId);
+  const user = await con.getRepository(User).findOneOrFail(userId);
   const [articlesRead, tags, sourcesLogos, rank] = await Promise.all([
     con.getRepository(View).count({ userId }),
     getMostReadTags(con, userId),

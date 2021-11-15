@@ -88,10 +88,6 @@ export const typeDefs = gql`
     Hashnode handle of the user
     """
     hashnode: String
-    """
-    Time zone of the user
-    """
-    timezone: String
   }
 
   type UserStats {
@@ -156,16 +152,11 @@ export const typeDefs = gql`
     Get the reading rank history of the user.
     An aggregated count of all the ranks the user ever received.
     """
-    userReadingRankHistory(id: ID!, timezone: String): [ReadingRankHistory]
+    userReadingRankHistory(id: ID!): [ReadingRankHistory]
     """
     Get a heatmap of reads per day in a given time frame.
     """
-    userReadHistory(
-      id: ID!
-      timezone: String
-      after: String!
-      before: String!
-    ): [ReadHistory]
+    userReadHistory(id: ID!, after: String!, before: String!): [ReadHistory]
     """
     Get the number of articles the user read
     """
@@ -246,7 +237,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     userReadingRankHistory: async (
       source,
-      { id, timezone = 'utc' }: { id: string; timezone?: string },
+      { id }: { id: string },
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> => {
       return ctx.con.query(
@@ -257,8 +248,9 @@ export const resolvers: IResolvers<any, Context> = {
                select date_trunc('week', "timestamp") as "timestamp",
                       count(*)                        as days
                from (
-                      select date_trunc('day', "timestamp" at time zone '${timezone}') as "timestamp"
+                      select date_trunc('day', "timestamp" at time zone COALESCE("user".timezone, 'utc')) as "timestamp"
                       from "view"
+                      join "user" on "user".id = view."userId"
                       where "userId" = $1
                         and "timestamp" >= '2020-12-14'
                       group by 1
@@ -273,18 +265,14 @@ export const resolvers: IResolvers<any, Context> = {
     },
     userReadHistory: async (
       source,
-      {
-        id,
-        timezone = 'utc',
-        after,
-        before,
-      }: { id: string; timezone?: string; after: string; before: string },
+      { id, after, before }: { id: string; after: string; before: string },
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> => {
       return ctx.con.query(
         `
-          select date_trunc('day', "timestamp" at time zone '${timezone}')::date::text as "date", count(*) as "reads"
+          select date_trunc('day', "timestamp" at time zone COALESCE("user".timezone, 'utc'))::date::text as "date", count(*) as "reads"
           from "view"
+          join "user" on "user".id = view."userId"
           where "userId" = $1
             and "timestamp" >= $2
             and "timestamp" < $3
