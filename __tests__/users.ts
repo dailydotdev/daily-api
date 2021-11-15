@@ -803,4 +803,28 @@ describe('mutation hideReadHistory', () => {
 
     expect(res.errors).toBeFalsy();
   });
+
+  it('should set view history hidden property to true without matching milliseconds value', async () => {
+    loggedUser = '1';
+    const createdAt = new Date('2020-09-22T07:15:51.247231Z');
+    const createdAtDifferentMS = new Date('2020-09-22T07:15:51.247Z');
+
+    await saveFixtures(con, View, [
+      {
+        userId: '1',
+        postId: 'p1',
+        timestamp: createdAt.toISOString(),
+      },
+    ]);
+
+    const res = await client.mutate({
+      mutation: MUTATION,
+      variables: {
+        postId: 'p1',
+        timestamp: createdAtDifferentMS.toISOString(),
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+  });
 });
