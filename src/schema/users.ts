@@ -362,9 +362,10 @@ export const resolvers: IResolvers<any, Context> = {
         .update()
         .set({ hidden: true })
         .where('"postId" = :postId', { postId })
-        .andWhere(`date_trunc('second', "timestamp"::timestamp) = :param`, {
-          param: timestamp,
-        })
+        .andWhere(
+          `date_trunc('second', "timestamp"::timestamp) = date_trunc('second', :param::timestamp)`,
+          { param: timestamp },
+        )
         .andWhere('"userId" = :userId', { userId: ctx.userId })
         .execute(),
   }),
