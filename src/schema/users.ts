@@ -8,6 +8,7 @@ import { traceResolverObject } from './trace';
 import { Comment, getAuthorPostStats, PostStats, View } from '../entity';
 import { DevCard } from '../entity/DevCard';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
+import { User } from '../entity/User';
 import {
   getUserReadingRank,
   isValidHttpUrl,
@@ -147,7 +148,7 @@ export const typeDefs = gql`
     """
     Get the reading rank of the user
     """
-    userReadingRank(id: ID!, timezone: String): ReadingRank
+    userReadingRank(id: ID!): ReadingRank
     """
     Get the reading rank history of the user.
     An aggregated count of all the ranks the user ever received.
@@ -222,11 +223,12 @@ export const resolvers: IResolvers<any, Context> = {
     },
     userReadingRank: async (
       source,
-      { id, timezone = 'utc' }: { id: string; timezone?: string },
+      { id }: { id: string },
       ctx: Context,
     ): Promise<GQLReadingRank> => {
       const isSameUser = ctx.userId === id;
-      const rank = await getUserReadingRank(ctx.con, id, timezone);
+      const user = await ctx.con.getRepository(User).findOneOrFail(id);
+      const rank = await getUserReadingRank(ctx.con, id, user?.timezone);
       if (isSameUser) {
         return rank;
       } else {

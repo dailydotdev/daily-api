@@ -207,8 +207,8 @@ describe('query userStats', () => {
 });
 
 describe('query userReadingRank', () => {
-  const QUERY = `query UserReadingRank($id: ID!, $timezone: String){
-    userReadingRank(id: $id, timezone: $timezone) {
+  const QUERY = `query UserReadingRank($id: ID!){
+    userReadingRank(id: $id) {
       rankThisWeek
       rankLastWeek
       currentRank
@@ -338,7 +338,7 @@ describe('query userReadingRank', () => {
 
     const resPacific = await client.query({
       query: QUERY,
-      variables: { id: loggedUserTimezoned, timezone: 'Pacific/Midway' },
+      variables: { id: loggedUserTimezoned },
     });
     expect(resPacific.errors).toBeFalsy();
     expect(resPacific.data.userReadingRank.currentRank).toEqual(1);
