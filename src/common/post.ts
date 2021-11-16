@@ -4,7 +4,10 @@ export const defaultImage = {
   placeholder: process.env.DEFAULT_IMAGE_PLACEHOLDER,
 };
 
-export const pickImageUrl = (post: { createdAt: Date }): string =>
+export const pickImageUrl = (post: {
+  createdAt: Date | string | number;
+}): string =>
   defaultImage.urls[
-    Math.floor(post.createdAt.getTime() / 1000) % defaultImage.urls.length
+    Math.floor(new Date(post.createdAt).getTime() / 1000) %
+      defaultImage.urls.length
   ];
