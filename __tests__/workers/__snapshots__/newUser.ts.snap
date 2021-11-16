@@ -17,6 +17,7 @@ User {
   "portfolio": null,
   "profileConfirmed": false,
   "reputation": 1,
+  "showTopSites": true,
   "timezone": null,
   "title": null,
   "twitter": null,

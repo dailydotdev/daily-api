@@ -57,6 +57,9 @@ export class User {
   @Column({ type: 'text', nullable: true })
   timezone?: string;
 
+  @Column({ default: true })
+  showTopSites: boolean;
+
   @Column({ default: false })
   @Index('IDX_user_profileConfirmed')
   profileConfirmed: boolean | null;

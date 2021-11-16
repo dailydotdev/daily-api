@@ -354,6 +354,7 @@ describe('user', () => {
     username: 'idoshamun',
     infoConfirmed: true,
     acceptedMarketing: true,
+    showTopSites: true,
   };
 
   it('should notify on new user reputation change', async () => {

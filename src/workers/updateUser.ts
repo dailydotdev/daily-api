@@ -18,6 +18,7 @@ interface UserData {
   portfolio?: string;
   hashnode?: string;
   timezone?: string;
+  showTopSites: boolean;
 }
 
 interface Data {
@@ -48,6 +49,7 @@ const worker: Worker = {
         title: data.newProfile.title,
         hashnode: data.newProfile.hashnode,
         timezone: data.newProfile.timezone,
+        showTopSites: data.newProfile.showTopSites,
         updatedAt: new Date(),
       });
       logger.info(
