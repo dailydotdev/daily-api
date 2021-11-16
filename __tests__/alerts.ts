@@ -33,7 +33,7 @@ describe('query userAlerts', () => {
   const QUERY = `{
     userAlerts {
       filter
-      rank
+      rankLastSeen
     }
   }`;
 
@@ -65,7 +65,7 @@ describe('mutation updateUserAlerts', () => {
     mutation UpdateUserAlerts($data: UpdateAlertsInput!) {
       updateUserAlerts(data: $data) {
         filter
-        rank
+        rankLastSeen
       }
     }
   `;
@@ -92,19 +92,24 @@ describe('mutation updateUserAlerts', () => {
   it('should update alerts of user', async () => {
     loggedUser = '1';
 
+    const rankLastSeenOld = new Date('2020-09-21T07:15:51.247Z');
     const repo = con.getRepository(Alerts);
     await repo.save(
       repo.create({
         userId: '1',
         filter: true,
-        rank: true,
+        rankLastSeen: rankLastSeenOld,
       }),
     );
 
+    const rankLastSeen = new Date('2020-09-22T12:15:51.247Z');
     const res = await client.mutate({
       mutation: MUTATION,
-      variables: { data: { filter: false, rank: false } },
+      variables: {
+        data: { filter: false, rankLastSeen: rankLastSeen.toISOString() },
+      },
     });
+
     expect(res.data).toMatchSnapshot();
   });
 });
