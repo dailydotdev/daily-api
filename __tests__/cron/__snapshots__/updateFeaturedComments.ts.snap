@@ -31,7 +31,7 @@ Array [
 
 exports[`should update featured comments 2`] = `
 Array [
-  "c3",
   "c2",
+  "c3",
 ]
 `;
