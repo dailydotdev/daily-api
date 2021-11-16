@@ -54,6 +54,9 @@ export class User {
   @Column({ default: false })
   devcardEligible: boolean;
 
+  @Column({ type: 'text', nullable: true })
+  timezone?: string;
+
   @Column({ default: false })
   @Index('IDX_user_profileConfirmed')
   profileConfirmed: boolean | null;

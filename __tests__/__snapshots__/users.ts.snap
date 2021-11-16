@@ -196,6 +196,15 @@ Array [
 ]
 `;
 
+exports[`query userReadHistory should return the timezone based read history 1`] = `
+Array [
+  Object {
+    "date": "2021-04-25",
+    "reads": 1,
+  },
+]
+`;
+
 exports[`query userReadingRank should return partially null result when the user asks for someone else 1`] = `
 Object {
   "currentRank": 0,
@@ -220,6 +229,10 @@ exports[`query userReadingRankHistory should ignore views during current week 1`
 Array [
   Object {
     "count": 1,
+    "rank": 1,
+  },
+  Object {
+    "count": 1,
     "rank": 2,
   },
 ]
@@ -239,6 +252,32 @@ Array [
 `;
 
 exports[`query userReadingRankHistory should return the reading rank history 1`] = `
+Array [
+  Object {
+    "count": 1,
+    "rank": 0,
+  },
+  Object {
+    "count": 2,
+    "rank": 1,
+  },
+]
+`;
+
+exports[`query userReadingRankHistory with timezone should return the reading rank history 1`] = `
+Array [
+  Object {
+    "count": 3,
+    "rank": 0,
+  },
+  Object {
+    "count": 1,
+    "rank": 1,
+  },
+]
+`;
+
+exports[`query userReadingRankHistory with timezone should return the reading rank history 2`] = `
 Array [
   Object {
     "count": 1,

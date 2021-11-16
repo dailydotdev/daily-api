@@ -16,6 +16,7 @@ export interface User {
   reputation: number;
   permalink: string;
   username?: string;
+  timezone?: string;
 }
 
 const authorizedHeaders = (userId: string): { [key: string]: string } => ({
@@ -81,20 +82,24 @@ const rankFromProgress = (progress: number) => {
 export const getUserReadingRank = async (
   con: Connection,
   userId: string,
+  timezone = 'utc',
 ): Promise<ReadingRank> => {
-  const now = `timezone('utc', now())`;
+  if (!timezone || timezone === null) {
+    timezone = 'utc';
+  }
+  const now = `timezone('${timezone}', now())`;
   const res = await con
     .createQueryBuilder()
     .select(
-      `count(distinct date_trunc('day', "timestamp")) filter(where "timestamp" >= date_trunc('week', ${now}))`,
+      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' >= date_trunc('week', ${now}))`,
       'thisWeek',
     )
     .addSelect(
-      `count(distinct date_trunc('day', "timestamp")) filter(where "timestamp" < date_trunc('week', ${now}) and "timestamp" >= date_trunc('week', ${now} - interval '7 days'))`,
+      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' < date_trunc('week', ${now}) and "timestamp" at time zone '${timezone}' >= date_trunc('week', ${now} - interval '7 days'))`,
       'lastWeek',
     )
     .addSelect(
-      `count(*) filter(where "timestamp" >= date_trunc('day', ${now}))`,
+      `count(*) filter(where "timestamp" at time zone '${timezone}' >= date_trunc('day', ${now}))`,
       'today',
     )
     .from(View, 'view')

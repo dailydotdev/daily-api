@@ -17,6 +17,7 @@ interface UserData {
   acceptedMarketing: boolean;
   portfolio?: string;
   hashnode?: string;
+  timezone?: string;
 }
 
 interface Data {
@@ -46,6 +47,7 @@ const worker: Worker = {
         github: data.newProfile.github,
         title: data.newProfile.title,
         hashnode: data.newProfile.hashnode,
+        timezone: data.newProfile.timezone,
         updatedAt: new Date(),
       });
       logger.info(

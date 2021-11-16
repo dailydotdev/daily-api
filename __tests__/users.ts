@@ -11,6 +11,7 @@ import {
   startOfDay,
   startOfISOWeek,
   subDays,
+  subHours,
 } from 'date-fns';
 import createApolloServer from '../src/apollo';
 import { Context } from '../src/Context';
@@ -30,6 +31,7 @@ let con: Connection;
 let server: ApolloServer;
 let client: ApolloServerTestClient;
 let loggedUser: string = null;
+let loggedUserTimezoned: string = null;
 
 beforeAll(async () => {
   con = await getConnection();
@@ -46,14 +48,21 @@ const now = new Date();
 
 beforeEach(async () => {
   loggedUser = null;
+  loggedUserTimezoned = null;
 
   await con.getRepository(User).save([
     {
       id: '1',
       name: 'Ido',
       image: 'https://daily.dev/ido.jpg',
+      timezone: 'utc',
     },
-    { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
+    {
+      id: '2',
+      name: 'Tsahi',
+      image: 'https://daily.dev/tsahi.jpg',
+      timezone: 'Pacific/Midway',
+    },
   ]);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, [
@@ -287,6 +296,54 @@ describe('query userReadingRank', () => {
     expect(res.data.userReadingRank.currentRank).toEqual(1);
   });
 
+  it('should return different results if a timezone is set', async () => {
+    loggedUser = '1';
+    loggedUserTimezoned = '2';
+    const timeZoneLastWeekStart = subHours(startOfISOWeek(subDays(now, 7)), 5);
+    await con.getRepository(View).save([
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: timeZoneLastWeekStart,
+      },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addDays(timeZoneLastWeekStart, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(timeZoneLastWeekStart, 3),
+      },
+      {
+        userId: loggedUserTimezoned,
+        postId: 'p1',
+        timestamp: timeZoneLastWeekStart,
+      },
+      {
+        userId: loggedUserTimezoned,
+        postId: 'p2',
+        timestamp: addDays(timeZoneLastWeekStart, 2),
+      },
+      {
+        userId: loggedUserTimezoned,
+        postId: 'p3',
+        timestamp: addDays(timeZoneLastWeekStart, 3),
+      },
+    ]);
+    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadingRank.currentRank).toEqual(0);
+
+    const resPacific = await client.query({
+      query: QUERY,
+      variables: { id: loggedUserTimezoned },
+    });
+    expect(resPacific.errors).toBeFalsy();
+    expect(resPacific.data.userReadingRank.currentRank).toEqual(1);
+  });
+
   it('should set readToday to true', async () => {
     loggedUser = '1';
     await con
@@ -315,6 +372,108 @@ describe('query userReadingRank', () => {
     const res = await client.query({ query: QUERY, variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRank.progressThisWeek).toEqual(1);
+  });
+});
+
+describe('query userReadingRankHistory with timezone', () => {
+  const QUERY = `query UserReadingRankHistory($id: ID!){
+    userReadingRankHistory(id: $id) {
+      rank
+      count
+    }
+  }`;
+
+  const now = new Date();
+  // const thisWeekStart = subHours(startOfISOWeek(new Date()), 5);
+  const lastWeekStart = subHours(startOfISOWeek(subDays(now, 7)), 5);
+  const lastTwoWeeksStart = subHours(startOfISOWeek(subDays(now, 14)), 5);
+  const lastThreeWeeksStart = subHours(startOfISOWeek(subDays(now, 21)), 5);
+
+  it('should return the reading rank history', async () => {
+    loggedUser = '1';
+    const loggedUserTimezonded = '2';
+    await con.getRepository(View).save([
+      { userId: loggedUser, postId: 'p1', timestamp: lastThreeWeeksStart },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: lastTwoWeeksStart,
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastTwoWeeksStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p4',
+        timestamp: addDays(lastTwoWeeksStart, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p5',
+        timestamp: addDays(lastWeekStart, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p6',
+        timestamp: addDays(lastWeekStart, 4),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p7',
+        timestamp: addDays(lastWeekStart, 5),
+      },
+      {
+        userId: loggedUserTimezonded,
+        postId: 'p1',
+        timestamp: lastThreeWeeksStart,
+      },
+      {
+        userId: loggedUserTimezonded,
+        postId: 'p2',
+        timestamp: lastTwoWeeksStart,
+      },
+      {
+        userId: loggedUserTimezonded,
+        postId: 'p3',
+        timestamp: addDays(lastTwoWeeksStart, 1),
+      },
+      {
+        userId: loggedUserTimezonded,
+        postId: 'p4',
+        timestamp: addDays(lastTwoWeeksStart, 2),
+      },
+      {
+        userId: loggedUserTimezonded,
+        postId: 'p5',
+        timestamp: addDays(lastWeekStart, 3),
+      },
+      {
+        userId: loggedUserTimezonded,
+        postId: 'p6',
+        timestamp: addDays(lastWeekStart, 4),
+      },
+      {
+        userId: loggedUserTimezonded,
+        postId: 'p7',
+        timestamp: addDays(lastWeekStart, 5),
+      },
+    ]);
+    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadingRankHistory).toMatchSnapshot();
+    expect(res.data.userReadingRankHistory[0].count).toBe(3);
+    expect(res.data.userReadingRankHistory[1].count).toBe(1);
+
+    const resPacific = await client.query({
+      query: QUERY,
+      variables: { id: loggedUserTimezonded },
+    });
+    expect(resPacific.errors).toBeFalsy();
+    expect(resPacific.data.userReadingRankHistory).toMatchSnapshot();
+    expect(resPacific.data.userReadingRankHistory[0].count).toBe(1);
+    expect(resPacific.data.userReadingRankHistory[1].count).toBe(2);
   });
 });
 
@@ -561,6 +720,45 @@ describe('query userReadHistory', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadHistory).toMatchSnapshot();
+  });
+
+  it('should return the timezone based read history', async () => {
+    loggedUser = '1';
+    const loggedUserTimezonded = '2';
+    await con.getRepository(View).save([
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: subHours(thisWeekStart, 5),
+      },
+      {
+        userId: loggedUserTimezonded,
+        postId: 'p1',
+        timestamp: subHours(thisWeekStart, 5),
+      },
+    ]);
+    const res = await client.query({
+      query: QUERY,
+      variables: {
+        id: '1',
+        after: lastThreeWeeksStart.toISOString(),
+        before: now.toISOString(),
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadHistory).toMatchSnapshot();
+    expect(res.data.userReadHistory[0].date).toBe('2021-04-25');
+
+    const resPacific = await client.query({
+      query: QUERY,
+      variables: {
+        id: loggedUserTimezonded,
+        after: lastThreeWeeksStart.toISOString(),
+        before: now.toISOString(),
+      },
+    });
+    expect(resPacific.errors).toBeFalsy();
+    expect(resPacific.data.userReadHistory[0].date).toBe('2021-04-26');
   });
 });
 
