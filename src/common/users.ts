@@ -84,6 +84,9 @@ export const getUserReadingRank = async (
   userId: string,
   timezone = 'utc',
 ): Promise<ReadingRank> => {
+  if (!timezone || timezone === null) {
+    timezone = 'utc';
+  }
   const now = `timezone('${timezone}', now())`;
   const res = await con
     .createQueryBuilder()
