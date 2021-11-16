@@ -23,9 +23,9 @@ export const typeDefs = gql`
     filter: Boolean!
 
     """
-    Status to display modal on rank achievement
+    Date last seen of the rank achievement popup
     """
-    rank: Boolean!
+    rankLastSeen: DateTime
   }
 
   input UpdateAlertsInput {
@@ -35,9 +35,9 @@ export const typeDefs = gql`
     filter: Boolean
 
     """
-    Status to display modal on rank achievement
+    Date last seen of the rank achievement popup
     """
-    rank: Boolean
+    rankLastSeen: DateTime
   }
 
   extend type Mutation {
