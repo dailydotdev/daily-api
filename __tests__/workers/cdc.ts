@@ -611,10 +611,12 @@ describe('post report', () => {
 
 describe('alerts', () => {
   type ObjectType = Alerts;
+  const rankLastSeen = new Date('2020-09-21T07:15:51.247Z');
+  const rankLastSeenNew = new Date('2020-09-22T07:15:51.247Z');
   const base: ChangeObject<ObjectType> = {
     userId: '1',
     filter: true,
-    rank: true,
+    rankLastSeen: rankLastSeen.getTime(),
   };
 
   it('should notify on alert.filter changed', async () => {
@@ -639,7 +641,7 @@ describe('alerts', () => {
   it('should notify on alert.rank changed', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
-      rank: false,
+      rankLastSeen: rankLastSeenNew.getTime(),
     };
     await expectSuccessfulBackground(
       app,
