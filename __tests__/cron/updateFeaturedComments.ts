@@ -79,12 +79,14 @@ it('should update featured comments', async () => {
       featured: true,
       upvotes: 3,
     },
+    { id: 'c7', postId: 'p1', userId: '2', content: 'Comment', upvotes: 3 },
   ]);
   await con.getRepository(CommentUpvote).save([
     { commentId: 'c2', userId: '3', createdAt: now },
     { commentId: 'c3', userId: '1', createdAt: now },
     { commentId: 'c4', userId: '1', createdAt: now },
     { commentId: 'c5', userId: '2', createdAt: before },
+    { commentId: 'c7', userId: '1', createdAt: now },
   ]);
   await expectSuccessfulCron(app, cron);
   const comments = await con.getRepository(Comment).find({

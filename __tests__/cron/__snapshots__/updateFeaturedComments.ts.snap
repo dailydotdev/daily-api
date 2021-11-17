@@ -26,6 +26,10 @@ Array [
     "featured": false,
     "id": "c6",
   },
+  Comment {
+    "featured": false,
+    "id": "c7",
+  },
 ]
 `;
 
