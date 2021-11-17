@@ -39,7 +39,7 @@ const cron: Cron = {
                 SELECT c.id "commentId"
                 FROM (${postsQuery}) p
                 INNER JOIN (
-                  SELECT c.id, c."postId", ROW_NUMBER() OVER (PARTITION BY c."postId" ORDER BY c.upvotes DESC) r
+                  SELECT DISTINCT ON (c."userId") c.id, c."postId", ROW_NUMBER() OVER (PARTITION BY c."postId" ORDER BY c.upvotes DESC) r
                   FROM "comment" c
                   WHERE c.upvotes >= 3
                 ) c ON c."postId" = p."postId"

@@ -26,12 +26,16 @@ Array [
     "featured": false,
     "id": "c6",
   },
+  Comment {
+    "featured": false,
+    "id": "c7",
+  },
 ]
 `;
 
 exports[`should update featured comments 2`] = `
 Array [
-  "c3",
   "c2",
+  "c3",
 ]
 `;
