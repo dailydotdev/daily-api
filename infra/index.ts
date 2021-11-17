@@ -190,6 +190,7 @@ const { labels } = createAutoscaledExposedApplication({
   ],
   maxReplicas: 10,
   metrics: getMemoryAndCpuMetrics(),
+  enableCdn: true,
 });
 
 const k8sBackendConfig = new k8s.apiextensions.CustomResource(
@@ -198,7 +199,7 @@ const k8sBackendConfig = new k8s.apiextensions.CustomResource(
     apiVersion: 'cloud.google.com/v1',
     kind: 'BackendConfig',
     metadata: {
-      name,
+      name: `${name}-subs`,
       namespace,
       labels,
     },
