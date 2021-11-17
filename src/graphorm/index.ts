@@ -80,7 +80,7 @@ const obj = new GraphORM({
       },
       featuredComments: {
         customQuery: (ctx, alias, qb): QueryBuilder =>
-          qb.andWhere(`"${alias}".featured is true`),
+          qb.distinctOn([`"userId"`]).andWhere(`"${alias}".featured is true`),
       },
       publication: {
         alias: { field: 'source', type: 'Source' },
