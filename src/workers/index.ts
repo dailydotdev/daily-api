@@ -25,6 +25,7 @@ import postBannedEmail from './postBannedEmail';
 import checkDevCardEligibility from './checkDevCardEligibility';
 import devCardEligibleAmplitude from './devCardEligibleAmplitude';
 import devCardEligibleEmail from './devCardEligibleEmail';
+import deleteUser from './deleteUser';
 import cdc from './cdc';
 
 export { Worker } from './worker';
@@ -34,6 +35,7 @@ export const workers: Worker[] = [
   newPost,
   newUser,
   updateUser,
+  deleteUser,
   commentUpvoted,
   commentCommented,
   commentUpvotedRep,
