@@ -8,6 +8,12 @@ export class Alerts {
 
   @Column({ type: 'bool', default: true })
   filter: boolean;
+
+  @Column({ type: 'timestamp without time zone', default: null })
+  rankLastSeen: Date | null;
 }
 
-export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = { filter: true };
+export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
+  filter: true,
+  rankLastSeen: null,
+};

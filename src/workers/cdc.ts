@@ -156,9 +156,7 @@ const onAlertsChange = async (
   data: ChangeMessage<Alerts>,
 ): Promise<void> => {
   if (data.payload.op === 'u') {
-    if (data.payload.before?.filter !== data.payload.after.filter) {
-      await notifyAlertsUpdated(logger, data.payload.after);
-    }
+    await notifyAlertsUpdated(logger, data.payload.after);
   } else if (data.payload.op === 'c') {
     await notifyAlertsUpdated(logger, data.payload.after);
   }

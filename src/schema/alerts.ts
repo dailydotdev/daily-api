@@ -21,6 +21,11 @@ export const typeDefs = gql`
     Status to display for filter red dot
     """
     filter: Boolean!
+
+    """
+    Date last seen of the rank achievement popup
+    """
+    rankLastSeen: DateTime
   }
 
   input UpdateAlertsInput {
@@ -28,6 +33,11 @@ export const typeDefs = gql`
     Status to display for filter red dot
     """
     filter: Boolean
+
+    """
+    Date last seen of the rank achievement popup
+    """
+    rankLastSeen: DateTime
   }
 
   extend type Mutation {
