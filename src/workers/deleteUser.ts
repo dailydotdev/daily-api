@@ -46,24 +46,54 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      await con.getRepository(View).delete({ userId: data.user.id });
-      await con.getRepository(Alerts).delete({ userId: data.user.id });
-      await con.getRepository(BookmarkList).delete({ userId: data.user.id });
-      await con.getRepository(Bookmark).delete({ userId: data.user.id });
-      await con.getRepository(CommentUpvote).delete({ userId: data.user.id });
-      await con.getRepository(Comment).delete({ userId: data.user.id });
-      await con.getRepository(DevCard).delete({ userId: data.user.id });
-      await con.getRepository(Feed).delete({ userId: data.user.id });
-      await con.getRepository(HiddenPost).delete({ userId: data.user.id });
-      await con.getRepository(PostReport).delete({ userId: data.user.id });
-      await con.getRepository(Settings).delete({ userId: data.user.id });
-      await con.getRepository(SourceDisplay).delete({ userId: data.user.id });
-      await con.getRepository(SourceRequest).delete({ userId: data.user.id });
-      await con.getRepository(Upvote).delete({ userId: data.user.id });
-      await con
-        .getRepository(Post)
-        .update({ authorId: data.user.id }, { authorId: null });
-      await con.getRepository(User).delete(data.user.id);
+      await con.transaction(async (entityManager): Promise<void> => {
+        await entityManager
+          .getRepository(View)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(Alerts)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(BookmarkList)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(Bookmark)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(CommentUpvote)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(Comment)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(DevCard)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(Feed)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(HiddenPost)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(PostReport)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(Settings)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(SourceDisplay)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(SourceRequest)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(Upvote)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(Post)
+          .update({ authorId: data.user.id }, { authorId: null });
+        await entityManager.getRepository(User).delete(data.user.id);
+      });
       logger.info(
         {
           userId: data.user.id,
@@ -80,9 +110,6 @@ const worker: Worker = {
         },
         'failed to delete user',
       );
-      if (err.name === 'QueryFailedError') {
-        return;
-      }
       throw err;
     }
   },
