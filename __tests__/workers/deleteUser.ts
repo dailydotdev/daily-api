@@ -251,12 +251,10 @@ beforeEach(async () => {
 
 it('should delete an existing user', async () => {
   await expectSuccessfulBackground(app, worker, {
-    user: {
-      id: 'u1',
-      name: 'ido',
-      image: 'https://daily.dev/image.jpg',
-      createdAt: new Date(2021, 7, 11),
-    },
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const users = await con.getRepository(User).find();
   expect(users.length).toEqual(1);
@@ -264,12 +262,10 @@ it('should delete an existing user', async () => {
 
 it('should delete views for the deleted user', async () => {
   await expectSuccessfulBackground(app, worker, {
-    user: {
-      id: 'u1',
-      name: 'ido',
-      image: 'https://daily.dev/image.jpg',
-      createdAt: new Date(2021, 7, 11),
-    },
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const views = await con.getRepository(View).find();
   expect(views.length).toEqual(0);
@@ -277,12 +273,10 @@ it('should delete views for the deleted user', async () => {
 
 it('should delete all alerts for the deleted user', async () => {
   await expectSuccessfulBackground(app, worker, {
-    user: {
-      id: 'u1',
-      name: 'ido',
-      image: 'https://daily.dev/image.jpg',
-      createdAt: new Date(2021, 7, 11),
-    },
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const alerts = await con.getRepository(Alerts).find();
   expect(alerts.length).toEqual(0);
@@ -290,12 +284,10 @@ it('should delete all alerts for the deleted user', async () => {
 
 it('should delete all bookmark list and bookmarks for the deleted user', async () => {
   await expectSuccessfulBackground(app, worker, {
-    user: {
-      id: 'u1',
-      name: 'ido',
-      image: 'https://daily.dev/image.jpg',
-      createdAt: new Date(2021, 7, 11),
-    },
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const bookmarkLists = await con.getRepository(BookmarkList).find();
   expect(bookmarkLists.length).toEqual(0);
@@ -305,12 +297,10 @@ it('should delete all bookmark list and bookmarks for the deleted user', async (
 
 it('should delete all comments and comment upvotes for the deleted user', async () => {
   await expectSuccessfulBackground(app, worker, {
-    user: {
-      id: 'u1',
-      name: 'ido',
-      image: 'https://daily.dev/image.jpg',
-      createdAt: new Date(2021, 7, 11),
-    },
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const comments = await con.getRepository(Comment).find();
   expect(comments.length).toEqual(1);
@@ -321,12 +311,10 @@ it('should delete all comments and comment upvotes for the deleted user', async 
 
 it('should delete the DevCard for the deleted user', async () => {
   await expectSuccessfulBackground(app, worker, {
-    user: {
-      id: 'u1',
-      name: 'ido',
-      image: 'https://daily.dev/image.jpg',
-      createdAt: new Date(2021, 7, 11),
-    },
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const devCards = await con.getRepository(DevCard).find();
   expect(devCards.length).toEqual(0);
@@ -334,12 +322,10 @@ it('should delete the DevCard for the deleted user', async () => {
 
 it('should delete the feed and related items for the deleted user', async () => {
   await expectSuccessfulBackground(app, worker, {
-    user: {
-      id: 'u1',
-      name: 'ido',
-      image: 'https://daily.dev/image.jpg',
-      createdAt: new Date(2021, 7, 11),
-    },
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const feed = await con.getRepository(Feed).find();
   expect(feed.length).toEqual(0);
@@ -358,12 +344,10 @@ it('should delete the feed and related items for the deleted user', async () => 
 
 it('should delete hidden posts for the deleted user', async () => {
   await expectSuccessfulBackground(app, worker, {
-    user: {
-      id: 'u1',
-      name: 'ido',
-      image: 'https://daily.dev/image.jpg',
-      createdAt: new Date(2021, 7, 11),
-    },
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const hiddenPosts = await con.getRepository(HiddenPost).find();
   expect(hiddenPosts.length).toEqual(0);
@@ -371,12 +355,10 @@ it('should delete hidden posts for the deleted user', async () => {
 
 it('should delete reported posts for the deleted user', async () => {
   await expectSuccessfulBackground(app, worker, {
-    user: {
-      id: 'u1',
-      name: 'ido',
-      image: 'https://daily.dev/image.jpg',
-      createdAt: new Date(2021, 7, 11),
-    },
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const reportedPosts = await con.getRepository(PostReport).find();
   expect(reportedPosts.length).toEqual(0);
@@ -384,12 +366,10 @@ it('should delete reported posts for the deleted user', async () => {
 
 it('should delete settings for the deleted user', async () => {
   await expectSuccessfulBackground(app, worker, {
-    user: {
-      id: 'u1',
-      name: 'ido',
-      image: 'https://daily.dev/image.jpg',
-      createdAt: new Date(2021, 7, 11),
-    },
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const settings = await con.getRepository(Settings).find();
   expect(settings.length).toEqual(0);
@@ -397,12 +377,10 @@ it('should delete settings for the deleted user', async () => {
 
 it('should delete source displays for the deleted user', async () => {
   await expectSuccessfulBackground(app, worker, {
-    user: {
-      id: 'u1',
-      name: 'ido',
-      image: 'https://daily.dev/image.jpg',
-      createdAt: new Date(2021, 7, 11),
-    },
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const sourceDisplays = await con.getRepository(SourceDisplay).find();
   expect(sourceDisplays.length).toEqual(0);
@@ -410,12 +388,10 @@ it('should delete source displays for the deleted user', async () => {
 
 it('should delete source requests for the deleted user', async () => {
   await expectSuccessfulBackground(app, worker, {
-    user: {
-      id: 'u1',
-      name: 'ido',
-      image: 'https://daily.dev/image.jpg',
-      createdAt: new Date(2021, 7, 11),
-    },
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const sourceRequests = await con.getRepository(SourceRequest).find();
   expect(sourceRequests.length).toEqual(0);
@@ -423,12 +399,10 @@ it('should delete source requests for the deleted user', async () => {
 
 it('should delete upvotes for the deleted user', async () => {
   await expectSuccessfulBackground(app, worker, {
-    user: {
-      id: 'u1',
-      name: 'ido',
-      image: 'https://daily.dev/image.jpg',
-      createdAt: new Date(2021, 7, 11),
-    },
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const upvotes = await con.getRepository(Upvote).find();
   expect(upvotes.length).toEqual(1);
@@ -440,12 +414,10 @@ it('should clear author from posts for the deleted user', async () => {
     .find({ where: { authorId: 'u1' } });
   expect(sanityCheck.length).toEqual(1);
   await expectSuccessfulBackground(app, worker, {
-    user: {
-      id: 'u1',
-      name: 'ido',
-      image: 'https://daily.dev/image.jpg',
-      createdAt: new Date(2021, 7, 11),
-    },
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
   });
   const authorPosts = await con
     .getRepository(Post)
