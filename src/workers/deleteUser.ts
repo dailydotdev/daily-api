@@ -17,8 +17,28 @@ import { Settings } from '../entity/Settings';
 import { SourceDisplay } from '../entity/SourceDisplay';
 import { SourceRequest } from '../entity/SourceRequest';
 import { Upvote } from '../entity/Upvote';
-interface Data {
+
+interface UserData {
   id: string;
+  name: string;
+  email: string;
+  image: string;
+  company?: string;
+  title?: string;
+  infoConfirmed: boolean;
+  username?: string;
+  bio?: string;
+  twitter?: string;
+  github?: string;
+  createdAt: Date;
+  acceptedMarketing: boolean;
+  portfolio?: string;
+  hashnode?: string;
+  timezone?: string;
+}
+
+interface Data {
+  user: UserData;
 }
 
 const worker: Worker = {
@@ -27,40 +47,56 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     try {
       await con.transaction(async (entityManager): Promise<void> => {
-        await entityManager.getRepository(View).delete({ userId: data.id });
-        await entityManager.getRepository(Alerts).delete({ userId: data.id });
+        await entityManager
+          .getRepository(View)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(Alerts)
+          .delete({ userId: data.user.id });
         await entityManager
           .getRepository(BookmarkList)
-          .delete({ userId: data.id });
-        await entityManager.getRepository(Bookmark).delete({ userId: data.id });
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(Bookmark)
+          .delete({ userId: data.user.id });
         await entityManager
           .getRepository(CommentUpvote)
-          .delete({ userId: data.id });
-        await entityManager.getRepository(Comment).delete({ userId: data.id });
-        await entityManager.getRepository(DevCard).delete({ userId: data.id });
-        await entityManager.getRepository(Feed).delete({ userId: data.id });
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(Comment)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(DevCard)
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(Feed)
+          .delete({ userId: data.user.id });
         await entityManager
           .getRepository(HiddenPost)
-          .delete({ userId: data.id });
+          .delete({ userId: data.user.id });
         await entityManager
           .getRepository(PostReport)
-          .delete({ userId: data.id });
-        await entityManager.getRepository(Settings).delete({ userId: data.id });
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(Settings)
+          .delete({ userId: data.user.id });
         await entityManager
           .getRepository(SourceDisplay)
-          .delete({ userId: data.id });
+          .delete({ userId: data.user.id });
         await entityManager
           .getRepository(SourceRequest)
-          .delete({ userId: data.id });
-        await entityManager.getRepository(Upvote).delete({ userId: data.id });
+          .delete({ userId: data.user.id });
+        await entityManager
+          .getRepository(Upvote)
+          .delete({ userId: data.user.id });
         await entityManager
           .getRepository(Post)
-          .update({ authorId: data.id }, { authorId: null });
-        await entityManager.getRepository(User).delete(data.id);
+          .update({ authorId: data.user.id }, { authorId: null });
+        await entityManager.getRepository(User).delete(data.user.id);
       });
       logger.info(
         {
-          userId: data.id,
+          userId: data.user.id,
           messageId: message.messageId,
         },
         'deleted user',
@@ -68,7 +104,7 @@ const worker: Worker = {
     } catch (err) {
       logger.error(
         {
-          userId: data.id,
+          userId: data.user.id,
           messageId: message.messageId,
           err,
         },
