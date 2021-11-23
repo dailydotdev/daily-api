@@ -1,18 +1,13 @@
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
 
-import appFunc from '../../src/background';
 import { expectSuccessfulBackground } from '../helpers';
 import worker from '../../src/workers/updateUser';
 import { User } from '../../src/entity';
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 it('should update an existing user', async () => {
@@ -24,7 +19,7 @@ it('should update an existing user', async () => {
     createdAt: new Date(2021, 7, 11),
   });
 
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     user: {
       id: 'abc',
       name: 'ido',
@@ -48,7 +43,7 @@ it('should update an existing user', async () => {
 });
 
 it('should create user if does not exist', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     user: {
       id: 'abc',
       name: 'ido',

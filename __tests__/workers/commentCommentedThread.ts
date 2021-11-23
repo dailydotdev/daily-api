@@ -1,9 +1,8 @@
 import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
+
 import { mocked } from 'ts-jest/utils';
 
-import appFunc from '../../src/background';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail } from '../../src/common';
 import { User as GatewayUser } from '../../src/common/users';
@@ -21,12 +20,9 @@ jest.mock('../../src/common/mailing', () => ({
 }));
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -128,7 +124,7 @@ it('should send mail to the thread followers', async () => {
   ];
   mockedUsers.forEach(mockUsersMe);
 
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: '4',
     childCommentId: 'c5',
@@ -176,7 +172,7 @@ it('should send mail to the thread followers without the post author', async () 
   mockedUsers.forEach(mockUsersMe);
 
   await con.getRepository(Post).update('p1', { authorId: '2' });
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: '4',
     childCommentId: 'c5',

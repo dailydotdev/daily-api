@@ -1,8 +1,8 @@
 import { mock, MockProxy } from 'jest-mock-extended';
-import fastify, { FastifyInstance, FastifyRequest, Logger } from 'fastify';
+import fastify, { FastifyRequest, Logger } from 'fastify';
 import fastifyStatic from 'fastify-static';
-import { Connection, DeepPartial, ObjectType } from 'typeorm';
-import request, { Test } from 'supertest';
+import { Connection, DeepPartial, getConnection, ObjectType } from 'typeorm';
+import request from 'supertest';
 import {
   RootSpan,
   Span,
@@ -17,6 +17,8 @@ import http from 'http';
 import { Roles } from '../src/roles';
 import { Cron } from '../src/cron/cron';
 import { ChangeMessage, ChangeObject } from '../src/types';
+import { PubSub } from '@google-cloud/pubsub';
+import pino from 'pino';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -136,36 +138,46 @@ export const mockMessage = (
   data: Record<string, unknown>,
 ): { message: Message } => {
   const message: Message = {
-    data: base64(JSON.stringify(data)),
+    data: Buffer.from(base64(JSON.stringify(data)), 'base64'),
     messageId: '1',
   };
   return { message };
 };
 
-export const invokeBackground = (
-  app: FastifyInstance,
+export const invokeBackground = async (
   worker: Worker,
   data: Record<string, unknown>,
-): Test =>
-  request(app.server).post(`/${worker.subscription}`).send(mockMessage(data));
+): Promise<void> => {
+  const con = await getConnection();
+  const pubsub = new PubSub();
+  const logger = pino();
+  await worker.handler(mockMessage(data).message, con, logger, pubsub);
+};
 
 export const expectSuccessfulBackground = (
-  app: FastifyInstance,
   worker: Worker,
   data: Record<string, unknown>,
-): Test => invokeBackground(app, worker, data).expect(204);
+): Promise<void> => invokeBackground(worker, data);
 
-export const invokeCron = (
-  app: FastifyInstance,
+export const invokeCron = async (
   cron: Cron,
   data: Record<string, unknown> = undefined,
-): Test => request(app.server).post(`/${cron.name}`).send(data);
+): Promise<void> => {
+  const con = await getConnection();
+  const pubsub = new PubSub();
+  const logger = pino();
+  await cron.handler(
+    con,
+    logger,
+    pubsub,
+    data ? mockMessage(data).message.data : Buffer.from(''),
+  );
+};
 
 export const expectSuccessfulCron = (
-  app: FastifyInstance,
   cron: Cron,
   data: Record<string, unknown> = undefined,
-): Test => invokeCron(app, cron, data).expect(204);
+): Promise<void> => invokeCron(cron, data);
 
 export const setupStaticServer = async (
   rss?: string,

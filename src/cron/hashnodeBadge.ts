@@ -3,7 +3,7 @@ import { Cron } from './cron';
 import { Post } from '../entity';
 
 const cron: Cron = {
-  name: 'hashnode-badge',
+  subscription: 'hashnode-badge-sub',
   handler: async (con, logger) => {
     const post = await con
       .getRepository(Post)

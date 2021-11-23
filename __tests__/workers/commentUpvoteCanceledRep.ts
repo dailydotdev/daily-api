@@ -1,7 +1,5 @@
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
 
-import appFunc from '../../src/background';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/commentUpvoteCanceledRep';
 import { Comment, Post, Source, User } from '../../src/entity';
@@ -9,12 +7,9 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -42,7 +37,7 @@ beforeEach(async () => {
 });
 
 it('should decrease reputation and notify', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     userId: '2',
     commentId: 'c1',
   });
@@ -51,7 +46,7 @@ it('should decrease reputation and notify', async () => {
 });
 
 it('should not decrease reputation when the author is the upvote user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     userId: '1',
     commentId: 'c1',
   });

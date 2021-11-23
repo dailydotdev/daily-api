@@ -1,21 +1,17 @@
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
-import appFunc from '../../src/background';
+
 import { expectSuccessfulBackground } from '../helpers';
 import worker from '../../src/workers/newUser';
 import { User } from '../../src/entity';
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 it('should save a new user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'abc',
     name: 'Ido',
     email: 'ido@acme.com',

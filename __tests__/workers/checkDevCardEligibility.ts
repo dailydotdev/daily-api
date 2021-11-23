@@ -1,8 +1,7 @@
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
+
 import nock from 'nock';
 
-import appFunc from '../../src/background';
 import worker from '../../src/workers/checkDevCardEligibility';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { Post, Source, User, View } from '../../src/entity';
@@ -11,12 +10,9 @@ import { postsFixture } from '../fixture/post';
 import { deleteKeysByPattern } from '../../src/redis';
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -52,7 +48,7 @@ const mockFeatureFlagForUser = (
     });
 
 it('should ignore anonymous views', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: 'u2',
     referer: 'referer',
@@ -63,7 +59,7 @@ it('should ignore anonymous views', async () => {
 
 it('should ignore users who already eligible for devcard', async () => {
   await con.getRepository(User).update({ id: 'u1' }, { devcardEligible: true });
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: 'u1',
     referer: 'referer',
@@ -74,7 +70,7 @@ it('should ignore users who already eligible for devcard', async () => {
 
 it('should ignore users who have the eligibility feature turned off', async () => {
   mockFeatureFlagForUser('u1', 'feat_limit_dev_card', false);
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: 'u1',
     referer: 'referer',
@@ -87,7 +83,7 @@ it('should ignore users who have the eligibility feature turned off', async () =
 
 it('should ignore users with limit equals zero', async () => {
   mockFeatureFlagForUser('u1', 'feat_limit_dev_card', true, 0);
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: 'u1',
     referer: 'referer',
@@ -116,7 +112,7 @@ it('should ignore users who did not reach their limit', async () => {
       ip: '127.0.0.1',
     },
   ]);
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: 'u1',
     referer: 'referer',

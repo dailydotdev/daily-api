@@ -9,7 +9,7 @@ const jsonexportPromise = promisify(jsonexport);
 
 // TODO: need to add tests
 const cron: Cron = {
-  name: 'export-to-tinybird',
+  subscription: 'export-to-tinybird-sub',
   handler: async (con, logger) => {
     const headers = { Authorization: `Bearer ${process.env.TINYBIRD_TOKEN}` };
     const latestResponse = await (

@@ -4,16 +4,11 @@ import cron from '../../src/cron/updateViews';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Post, Source, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { FastifyInstance } from 'fastify';
-import appFunc from '../../src/background';
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -63,7 +58,7 @@ it('should update views and scores', async () => {
     { postId: 'p2', userId: 'u5', timestamp: new Date(now.getTime() - 6) },
   ]);
 
-  await expectSuccessfulCron(app, cron);
+  await expectSuccessfulCron(cron);
   const posts = await con.getRepository(Post).find({
     select: ['id', 'views', 'score', 'createdAt'],
     order: { createdAt: 'ASC' },

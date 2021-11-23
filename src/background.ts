@@ -1,57 +1,78 @@
 import 'reflect-metadata';
-import fastify from 'fastify';
-import { FastifyInstance } from 'fastify';
-import helmet from 'fastify-helmet';
+import { PubSub, Message } from '@google-cloud/pubsub';
+import pino from 'pino';
 
 import './config';
 import './profiler';
 
-import trace from './trace';
-
 import { createOrGetConnection } from './db';
-import { stringifyHealthCheck } from './common';
 import { workers } from './workers';
 import { crons } from './cron';
-import { PubSub } from '@google-cloud/pubsub';
+import { Connection } from 'typeorm';
+import { Logger } from 'fastify';
 
-export default async function app(): Promise<FastifyInstance> {
-  const isProd = process.env.NODE_ENV === 'production';
+const subscribe = (
+  logger: pino.Logger,
+  pubsub: PubSub,
+  connection: Connection,
+  subscription: string,
+  handler: (
+    message: Message,
+    con: Connection,
+    logger: Logger,
+    pubsub: PubSub,
+  ) => Promise<void>,
+): void => {
+  const sub = pubsub.subscription(subscription);
+  const childLogger = logger.child({ subscription });
+  sub.on('message', async (message) => {
+    try {
+      await handler(message, connection, childLogger, pubsub);
+      message.ack();
+    } catch (err) {
+      childLogger.error(
+        { messageId: message.id, data: message.data, err },
+        'failed to process message',
+      );
+      message.nack();
+    }
+  });
+};
+
+export default async function app(): Promise<void> {
+  const logger = pino();
   const connection = await createOrGetConnection();
   const pubsub = new PubSub();
 
-  const app = fastify({
-    logger: true,
-    disableRequestLogging: true,
-    trustProxy: isProd,
-  });
+  logger.info('background processing in on');
 
-  app.register(helmet);
-  app.register(trace, { enabled: isProd });
+  workers.forEach((worker) =>
+    subscribe(
+      logger,
+      pubsub,
+      connection,
+      worker.subscription,
+      (message, con, logger, pubsub) =>
+        worker.handler(
+          {
+            messageId: message.id,
+            data: message.data,
+          },
+          con,
+          logger,
+          pubsub,
+        ),
+    ),
+  );
 
-  app.get('/health', (req, res) => {
-    res.type('application/health+json');
-    res.send(stringifyHealthCheck({ status: 'ok' }));
-  });
-
-  workers.forEach((worker) => {
-    app.post(`/${worker.subscription}`, async (req, res) => {
-      const { body } = req;
-      if (!body?.message) {
-        req.log.warn('empty worker body');
-        return res.status(400).send();
-      }
-      await worker.handler(body.message, connection, req.log, pubsub);
-      return res.status(204).send();
-    });
-  });
-
-  crons.forEach((worker) => {
-    app.post(`/${worker.name}`, async (req, res) => {
-      const { body } = req;
-      await worker.handler(connection, app.log, pubsub, body);
-      return res.status(204).send();
-    });
-  });
-
-  return app;
+  crons.forEach((cron) =>
+    subscribe(
+      logger,
+      pubsub,
+      connection,
+      cron.subscription,
+      (message, con, logger, pubsub) =>
+        cron.handler(con, logger, pubsub, message.data),
+    ),
+  );
 }

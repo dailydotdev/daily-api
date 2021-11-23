@@ -1,7 +1,5 @@
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
 
-import appFunc from '../../src/background';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postBannedRep';
 import { Post, Source, User } from '../../src/entity';
@@ -10,12 +8,9 @@ import { postsFixture } from '../fixture/post';
 import { PostReport } from '../../src/entity/PostReport';
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -44,7 +39,7 @@ beforeEach(async () => {
 
 it('should increase reputation and notify', async () => {
   const post = await con.getRepository(Post).findOne('p1');
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     post,
   });
   const users = await con.getRepository(User).find({ order: { id: 'ASC' } });

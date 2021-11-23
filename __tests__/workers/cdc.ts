@@ -1,4 +1,3 @@
-import { FastifyInstance } from 'fastify';
 import nock from 'nock';
 
 import {
@@ -20,7 +19,6 @@ import {
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
 } from '../../src/common';
-import appFunc from '../../src/background';
 import worker from '../../src/workers/cdc';
 import {
   expectSuccessfulBackground,
@@ -39,11 +37,11 @@ import {
 } from '../../src/entity';
 import { mocked } from 'ts-jest/utils';
 import { ChangeObject } from '../../src/types';
-import { PostReport } from '../../src/entity/PostReport';
+import { PostReport } from '../../src/entity';
 import { Connection, getConnection } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
-import { Alerts } from '../../src/entity/Alerts';
+import { Alerts } from '../../src/entity';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -67,12 +65,9 @@ jest.mock('../../src/common', () => ({
 }));
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -96,7 +91,6 @@ describe('source request', () => {
   it('should notify on new source request', async () => {
     const after: ChangeObject<ObjectType> = base;
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -122,7 +116,6 @@ describe('source request', () => {
       closed: true,
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -147,7 +140,6 @@ describe('source request', () => {
       closed: true,
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -172,7 +164,6 @@ describe('source request', () => {
       approved: true,
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -200,7 +191,6 @@ describe('post upvote', () => {
   it('should notify on new upvote', async () => {
     const after: ChangeObject<ObjectType> = base;
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -218,7 +208,6 @@ describe('post upvote', () => {
 
   it('should notify on upvote deleted', async () => {
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after: null,
@@ -246,7 +235,6 @@ describe('comment upvote', () => {
   it('should notify on new upvote', async () => {
     const after: ChangeObject<ObjectType> = base;
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -264,7 +252,6 @@ describe('comment upvote', () => {
 
   it('should notify on upvote deleted', async () => {
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after: null,
@@ -299,7 +286,6 @@ describe('comment', () => {
   it('should notify on new post comment', async () => {
     const after: ChangeObject<ObjectType> = base;
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -322,7 +308,6 @@ describe('comment', () => {
       parentId: 'c2',
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -362,7 +347,6 @@ describe('user', () => {
       reputation: 10,
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -384,7 +368,6 @@ describe('user', () => {
       devcardEligible: true,
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -417,7 +400,6 @@ describe('post', () => {
       authorId: 'u1',
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -439,7 +421,6 @@ describe('post', () => {
       sentAnalyticsReport: true,
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -460,7 +441,6 @@ describe('post', () => {
       viewsThreshold: 1,
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -481,7 +461,6 @@ describe('post', () => {
       banned: true,
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -502,7 +481,6 @@ describe('post', () => {
       deleted: true,
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after: after,
@@ -524,7 +502,6 @@ describe('post', () => {
       deleted: true,
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after: after,
@@ -555,7 +532,6 @@ describe('post', () => {
       banned: true,
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after: after,
@@ -589,7 +565,6 @@ describe('post report', () => {
   it('should notify on new post report', async () => {
     const after: ChangeObject<ObjectType> = base;
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -625,7 +600,6 @@ describe('alerts', () => {
       filter: false,
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -644,7 +618,6 @@ describe('alerts', () => {
       rankLastSeen: rankLastSeenNew.getTime(),
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -663,7 +636,6 @@ describe('alerts', () => {
       filter: false,
     };
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -688,7 +660,6 @@ describe('source feed', () => {
   it('should notify on new source feed', async () => {
     const after: ChangeObject<ObjectType> = base;
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after,
@@ -706,7 +677,6 @@ describe('source feed', () => {
 
   it('should notify on source feed removed', async () => {
     await expectSuccessfulBackground(
-      app,
       worker,
       mockChangeMessage<ObjectType>({
         after: null,

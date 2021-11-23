@@ -1,9 +1,8 @@
 import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
+
 import { mocked } from 'ts-jest/utils';
 
-import appFunc from '../../src/background';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail } from '../../src/common';
 import worker from '../../src/workers/commentUpvoted';
@@ -20,12 +19,9 @@ jest.mock('../../src/common/mailing', () => ({
 }));
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -70,7 +66,7 @@ it('should send mail to author', async () => {
       permalink: 'https://daily.dev/ido',
     });
 
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     userId: '2',
     commentId: 'c1',
   });
@@ -91,7 +87,7 @@ it('should not send mail when the author is the upvote user', async () => {
       image: 'https://daily.dev/ido.jpg',
     });
 
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     userId: '1',
     commentId: 'c1',
   });
@@ -111,7 +107,7 @@ it('should not send mail when number of upvotes is not a defined trigger', async
       image: 'https://daily.dev/ido.jpg',
     });
 
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     userId: '1',
     commentId: 'c2',
   });

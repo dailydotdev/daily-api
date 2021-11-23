@@ -6,18 +6,14 @@ import cron from '../../src/cron/hashnodeBadge';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Post, Source } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { FastifyInstance } from 'fastify';
-import appFunc from '../../src/background';
 
 let con: Connection;
-let app: FastifyInstance;
+
 const today = startOfToday();
 const yesterday = startOfYesterday();
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -62,7 +58,7 @@ it('should select the most upvoted post', async () => {
     .post('/hashnode', { url: 'http://p2.com' })
     .reply(204);
 
-  await expectSuccessfulCron(app, cron);
+  await expectSuccessfulCron(cron);
   expect(nock.isDone()).toEqual(true);
 });
 
@@ -84,7 +80,7 @@ it('should select only an hashnode post', async () => {
     .post('/hashnode', { url: 'http://p2.com' })
     .reply(204);
 
-  await expectSuccessfulCron(app, cron);
+  await expectSuccessfulCron(cron);
   expect(nock.isDone()).toEqual(true);
 });
 
@@ -106,7 +102,7 @@ it('should select only a post from yesterday', async () => {
     .post('/hashnode', { url: 'http://p2.com' })
     .reply(204);
 
-  await expectSuccessfulCron(app, cron);
+  await expectSuccessfulCron(cron);
   expect(nock.isDone()).toEqual(true);
 });
 
@@ -128,6 +124,6 @@ it('should select only a post from yesterday not before', async () => {
     .post('/hashnode', { url: 'http://p2.com' })
     .reply(204);
 
-  await expectSuccessfulCron(app, cron);
+  await expectSuccessfulCron(cron);
   expect(nock.isDone()).toEqual(true);
 });
