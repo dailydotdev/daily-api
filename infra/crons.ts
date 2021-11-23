@@ -1,6 +1,6 @@
-import { Cron } from '@dailydotdev/pulumi-common';
+import { CronPubSub } from '@dailydotdev/pulumi-common';
 
-export const crons: Cron[] = [
+export const crons: CronPubSub[] = [
   {
     name: 'check-analytics-report',
     schedule: '0 */1 * * *',

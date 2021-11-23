@@ -23,7 +23,9 @@ const subscribe = (
     pubsub: PubSub,
   ) => Promise<void>,
 ): void => {
-  const sub = pubsub.subscription(subscription);
+  const sub = pubsub.subscription(subscription, {
+    batching: { maxMilliseconds: 10 },
+  });
   const childLogger = logger.child({ subscription });
   sub.on('message', async (message) => {
     try {

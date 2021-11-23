@@ -1,4 +1,5 @@
 import { Worker } from '@dailydotdev/pulumi-common';
+import { crons } from './crons';
 
 export const workers: Worker[] = [
   {
@@ -112,7 +113,12 @@ export const workers: Worker[] = [
   {
     topic: 'api.changes',
     subscription: 'api-cdc',
-    endpoint: 'cdc',
     args: { enableMessageOrdering: true },
   },
+  ...crons.map(
+    (cron): Worker => ({
+      topic: cron.topic || cron.name,
+      subscription: `${cron.topic || cron.name}-sub`,
+    }),
+  ),
 ];
