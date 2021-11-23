@@ -5,17 +5,13 @@ import cron from '../../src/cron/checkAnalyticsReport';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { FastifyInstance } from 'fastify';
-import appFunc from '../../src/background';
 
 let con: Connection;
-let app: FastifyInstance;
+
 const now = new Date();
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -77,7 +73,7 @@ beforeEach(async () => {
 });
 
 it('should publish message for every post that needs analytics report', async () => {
-  await expectSuccessfulCron(app, cron);
+  await expectSuccessfulCron(cron);
   const posts = await con
     .getRepository(Post)
     .find({ sentAnalyticsReport: true });

@@ -6,17 +6,13 @@ import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Post, Source, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
-import { FastifyInstance } from 'fastify';
-import appFunc from '../../src/background';
+
 import { DeepPartial } from 'typeorm/common/DeepPartial';
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -54,7 +50,7 @@ it('should update the trending score of the relevant articles', async () => {
     addViewsToPost(postsFixture[2].id, 170, now),
     addViewsToPost(postsFixture[2].id, 30, halfHour),
   ]);
-  await expectSuccessfulCron(app, cron);
+  await expectSuccessfulCron(cron);
   const posts = await con
     .getRepository(Post)
     .find({ select: ['id', 'trending'], order: { id: 'ASC' } });
@@ -79,7 +75,7 @@ it('should set trending to null when no longer trending', async () => {
       lastTrending: new Date(now.getTime() - 60 * 60 * 1000),
     }),
   ]);
-  await expectSuccessfulCron(app, cron);
+  await expectSuccessfulCron(cron);
   const post = await con.getRepository(Post).findOne({
     select: ['id', 'trending'],
     where: { id: postsFixture[0].id },

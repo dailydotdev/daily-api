@@ -1,7 +1,5 @@
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
 
-import appFunc from '../../src/background';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/deleteUser';
 import {
@@ -31,12 +29,9 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -250,7 +245,7 @@ beforeEach(async () => {
 });
 
 it('should delete an existing user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'u1',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
@@ -261,7 +256,7 @@ it('should delete an existing user', async () => {
 });
 
 it('should delete views for the deleted user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'u1',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
@@ -272,7 +267,7 @@ it('should delete views for the deleted user', async () => {
 });
 
 it('should delete all alerts for the deleted user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'u1',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
@@ -283,7 +278,7 @@ it('should delete all alerts for the deleted user', async () => {
 });
 
 it('should delete all bookmark list and bookmarks for the deleted user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'u1',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
@@ -296,7 +291,7 @@ it('should delete all bookmark list and bookmarks for the deleted user', async (
 });
 
 it('should delete all comments and comment upvotes for the deleted user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'u1',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
@@ -310,7 +305,7 @@ it('should delete all comments and comment upvotes for the deleted user', async 
 });
 
 it('should delete the DevCard for the deleted user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'u1',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
@@ -321,7 +316,7 @@ it('should delete the DevCard for the deleted user', async () => {
 });
 
 it('should delete the feed and related items for the deleted user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'u1',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
@@ -343,7 +338,7 @@ it('should delete the feed and related items for the deleted user', async () => 
 });
 
 it('should delete hidden posts for the deleted user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'u1',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
@@ -354,7 +349,7 @@ it('should delete hidden posts for the deleted user', async () => {
 });
 
 it('should delete reported posts for the deleted user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'u1',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
@@ -365,7 +360,7 @@ it('should delete reported posts for the deleted user', async () => {
 });
 
 it('should delete settings for the deleted user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'u1',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
@@ -376,7 +371,7 @@ it('should delete settings for the deleted user', async () => {
 });
 
 it('should delete source displays for the deleted user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'u1',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
@@ -387,7 +382,7 @@ it('should delete source displays for the deleted user', async () => {
 });
 
 it('should delete source requests for the deleted user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'u1',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
@@ -398,7 +393,7 @@ it('should delete source requests for the deleted user', async () => {
 });
 
 it('should delete upvotes for the deleted user', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'u1',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',
@@ -413,7 +408,7 @@ it('should clear author from posts for the deleted user', async () => {
     .getRepository(Post)
     .find({ where: { authorId: 'u1' } });
   expect(sanityCheck.length).toEqual(1);
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'u1',
     name: 'ido',
     image: 'https://daily.dev/image.jpg',

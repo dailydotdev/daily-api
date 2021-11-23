@@ -1,7 +1,5 @@
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
 
-import appFunc from '../../src/background';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postUpvotedRedis';
 import { Post, Source } from '../../src/entity';
@@ -10,12 +8,9 @@ import { postsFixture } from '../fixture/post';
 import { redisPubSub } from '../../src/redis';
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -37,7 +32,7 @@ it('should publish an event to redis', async () => {
         resolve();
       },
     );
-    await expectSuccessfulBackground(app, worker, {
+    await expectSuccessfulBackground(worker, {
       userId: '2',
       postId: 'p1',
     });

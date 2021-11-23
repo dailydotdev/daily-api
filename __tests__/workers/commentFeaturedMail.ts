@@ -1,9 +1,8 @@
 import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
+
 import { mocked } from 'ts-jest/utils';
 
-import appFunc from '../../src/background';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail, User as GatewayUser } from '../../src/common';
 import worker from '../../src/workers/commentFeaturedMail';
@@ -19,12 +18,9 @@ jest.mock('../../src/common/mailing', () => ({
 }));
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -87,7 +83,7 @@ it('should send featured comment mail', async () => {
   ];
   mockedUsers.forEach(mockUsersMe);
 
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     commentId: 'c1',
   });
   expect(sendEmail).toBeCalledTimes(1);

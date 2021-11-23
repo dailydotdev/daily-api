@@ -4,7 +4,7 @@ import { Keyword } from '../entity';
 import { MoreThanOrEqual, Not } from 'typeorm';
 
 const cron: Cron = {
-  name: 'update-tags-str',
+  subscription: 'update-tags-str-sub',
   handler: async (con) => {
     const checkpointKey = 'last_tags_str_update';
     const before = new Date();

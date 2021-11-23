@@ -1,9 +1,8 @@
 import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
+
 import { mocked } from 'ts-jest/utils';
 
-import appFunc from '../../src/background';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail } from '../../src/common';
 import worker from '../../src/workers/commentCommentedAuthor';
@@ -20,12 +19,9 @@ jest.mock('../../src/common/mailing', () => ({
 }));
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -95,7 +91,7 @@ it('should send mail to the post author', async () => {
   await con
     .getRepository(Post)
     .update('p1', { authorId: '3', image: 'https://daily.dev/image.jpg' });
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: '2',
     childCommentId: 'c2',
@@ -106,7 +102,7 @@ it('should send mail to the post author', async () => {
 });
 
 it('should not send mail when no post author', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: '1',
     childCommentId: 'c3',
@@ -119,7 +115,7 @@ it('should not send mail when the commenter is the post author', async () => {
   await con
     .getRepository(Post)
     .update('p1', { authorId: '1', image: 'https://daily.dev/image.jpg' });
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: '1',
     childCommentId: 'c3',

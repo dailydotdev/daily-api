@@ -3,11 +3,11 @@ import { Logger } from 'fastify';
 import { PubSub } from '@google-cloud/pubsub';
 
 export interface Cron {
-  name: string;
+  subscription: string;
   handler: (
     con: Connection,
     logger: Logger,
     pubsub: PubSub,
-    data: unknown,
+    data: Buffer,
   ) => Promise<void>;
 }

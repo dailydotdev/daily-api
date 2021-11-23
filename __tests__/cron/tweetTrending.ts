@@ -5,11 +5,8 @@ import cron from '../../src/cron/tweetTrending';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Post, Source } from '../../src/entity';
 import { tweet } from '../../src/common';
-import { FastifyInstance } from 'fastify';
-import appFunc from '../../src/background';
 
 let con: Connection;
-let app: FastifyInstance;
 
 jest.mock('../../src/common/twitter', () => ({
   ...(jest.requireActual('../../src/common/twitter') as Record<
@@ -21,8 +18,6 @@ jest.mock('../../src/common/twitter', () => ({
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(() => {
@@ -66,7 +61,7 @@ it('should tweet the latest post over the views threshold', async () => {
     },
   ]);
   mocked(tweet).mockResolvedValue();
-  await expectSuccessfulCron(app, cron);
+  await expectSuccessfulCron(cron);
   expect(tweet).toBeCalledTimes(1);
   expect(tweet).toBeCalledWith('P2\n\n\nhttp://localhost:5002/posts/p2');
   const post = await con.getRepository(Post).findOne('p2');
@@ -93,7 +88,7 @@ it('should tag the author and site and add hashtags', async () => {
     },
   ]);
   mocked(tweet).mockResolvedValue();
-  await expectSuccessfulCron(app, cron);
+  await expectSuccessfulCron(cron);
   expect(tweet).toBeCalledTimes(1);
   expect(tweet).toBeCalledWith(
     'P1 by @creator via @site\n#webdev #javascript\n\nhttp://localhost:5002/posts/p1',
@@ -118,7 +113,7 @@ it('should fallback to source twitter', async () => {
     },
   ]);
   mocked(tweet).mockResolvedValue();
-  await expectSuccessfulCron(app, cron);
+  await expectSuccessfulCron(cron);
   expect(tweet).toBeCalledTimes(1);
   expect(tweet).toBeCalledWith(
     'P1 by @creator via @source\n\n\nhttp://localhost:5002/posts/p1',

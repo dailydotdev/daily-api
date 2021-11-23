@@ -1,7 +1,5 @@
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
 
-import appFunc from '../../src/background';
 import worker from '../../src/workers/newPost';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import {
@@ -15,12 +13,9 @@ import {
 import { sourcesFixture } from '../fixture/source';
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -29,7 +24,7 @@ beforeEach(async () => {
 });
 
 it('should save a new post with basic information', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -58,7 +53,7 @@ it('should save a new post with full information', async () => {
     { value: 'js', occurrences: 5, status: 'synonym', synonym: 'javascript' },
     { value: 'nodejs', occurrences: 5, status: 'deny' },
   ]);
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -97,7 +92,7 @@ it('should save a new post with full information', async () => {
 });
 
 it('should handle empty tags array', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -111,7 +106,7 @@ it('should handle empty tags array', async () => {
 });
 
 it('should save keywords', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -131,7 +126,7 @@ it('should save keywords', async () => {
 });
 
 it('should ignore numerical only keywords', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -152,7 +147,7 @@ it('should ignore numerical only keywords', async () => {
 
 it('should increase occurrences by one when keyword exists', async () => {
   await con.getRepository(Keyword).save([{ value: 'nodejs', status: 'allow' }]);
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -173,7 +168,7 @@ it('should increase occurrences by one when keyword exists', async () => {
 });
 
 it('should handle duplicate keywords', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -197,7 +192,7 @@ it('should replace synonym keywords', async () => {
     { value: 'node', status: 'synonym', synonym: 'nodejs' },
     { value: 'nodejs', status: 'allow' },
   ]);
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -217,7 +212,7 @@ it('should replace synonym keywords', async () => {
 });
 
 it('should handle empty keywords array', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -233,7 +228,7 @@ it('should handle empty keywords array', async () => {
 });
 
 it('should ignore null value violation', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: null,
@@ -244,7 +239,7 @@ it('should ignore null value violation', async () => {
 });
 
 it('should set tagsStr to null when all keywords are not allowed', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -265,7 +260,7 @@ it('should not save post with existing url', async () => {
     sourceId: 'b',
   });
 
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -285,7 +280,7 @@ it('should not save post when url matches existing canonical url', async () => {
     sourceId: 'b',
   });
 
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.dev',
@@ -305,7 +300,7 @@ it('should not save post when canonical url matches existing url', async () => {
     sourceId: 'b',
   });
 
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.io',
@@ -326,7 +321,7 @@ it('should not save post when canonical url matches existing canonical url', asy
     sourceId: 'b',
   });
 
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.io',
@@ -347,7 +342,7 @@ it('should match post to author', async () => {
     },
   ]);
 
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -374,7 +369,7 @@ it('should not match post to author based on username', async () => {
       username: 'idoshamun',
     },
   ]);
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -393,7 +388,7 @@ it('should not match post to author based on username', async () => {
 });
 
 it('should not match post to author', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -412,7 +407,7 @@ it('should not match post to author', async () => {
 });
 
 it('should clear empty creator twitter', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -425,7 +420,7 @@ it('should clear empty creator twitter', async () => {
 });
 
 it('should clear invalid creator twitter', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.com',
@@ -438,7 +433,7 @@ it('should clear invalid creator twitter', async () => {
 });
 
 it('should not save post when author is banned', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Title',
     url: 'https://post.io',
@@ -450,7 +445,7 @@ it('should not save post when author is banned', async () => {
 });
 
 it('should unescape html text', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'It&#039;s ok jQuery, I still love you',
     url: 'https://post.com',
@@ -470,7 +465,7 @@ it('should unescape html text', async () => {
 });
 
 it('should keep html-like text', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     title: 'Here is my <progress> element',
     url: 'https://post.com',
@@ -490,7 +485,7 @@ it('should keep html-like text', async () => {
 });
 
 it('should ignore message if title is empty', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     id: 'p1',
     url: 'https://post.io',
     publicationId: 'a',

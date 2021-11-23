@@ -264,7 +264,7 @@ const getTableName = <Entity>(
 ): string => con.getRepository(target).metadata.tableName;
 
 const worker: Worker = {
-  subscription: 'cdc',
+  subscription: 'api-cdc',
   handler: async (message, con, logger): Promise<void> => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,7 +1,5 @@
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
 
-import appFunc from '../../src/background';
 import worker from '../../src/workers/newView';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { postsFixture } from '../fixture/post';
@@ -9,12 +7,9 @@ import { Post, Source, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -23,7 +18,7 @@ beforeEach(async () => {
 });
 
 it('should save a new view without timestamp', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: 'u1',
     referer: 'referer',
@@ -39,7 +34,7 @@ it('should save a new view without timestamp', async () => {
 
 it('should save a new view with the provided timestamp', async () => {
   const timestamp = new Date(2020, 5, 11, 1, 17);
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: 'u1',
     referer: 'referer',
@@ -61,8 +56,8 @@ it('should not save a new view within a week since the last view', async () => {
     ip: '127.0.0.1',
     timestamp: new Date(2020, 5, 11, 1, 17).toISOString(),
   };
-  await expectSuccessfulBackground(app, worker, data);
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, data);
+  await expectSuccessfulBackground(worker, {
     ...data,
     timestamp: new Date(2020, 5, 13, 1, 17).toISOString(),
   });
@@ -80,8 +75,8 @@ it('should save a new view after a week since the last view', async () => {
     ip: '127.0.0.1',
     timestamp: new Date(2020, 5, 11, 1, 17).toISOString(),
   };
-  await expectSuccessfulBackground(app, worker, data);
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, data);
+  await expectSuccessfulBackground(worker, {
     ...data,
     timestamp: new Date(2020, 5, 19, 1, 17).toISOString(),
   });

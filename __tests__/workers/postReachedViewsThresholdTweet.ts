@@ -1,7 +1,5 @@
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
 
-import appFunc from '../../src/background';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { tweet } from '../../src/common';
 import worker from '../../src/workers/postReachedViewsThresholdTweet';
@@ -19,12 +17,9 @@ jest.mock('../../src/common/twitter', () => ({
 }));
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -38,7 +33,7 @@ beforeEach(async () => {
 
 it('should tweet about the trending post', async () => {
   await con.getRepository(Post).update('p1', { creatorTwitter: '@idoshamun' });
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     threshold: 250,
   });
@@ -51,7 +46,7 @@ it('should tweet about the trending post', async () => {
 });
 
 it('should not tweet when no creator twitter', async () => {
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     threshold: 250,
   });
@@ -62,7 +57,7 @@ it('should not tweet when author is matched', async () => {
   await con
     .getRepository(Post)
     .update('p1', { authorId: '1', creatorTwitter: '@idoshamun' });
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: '1',
     commentId: 'c1',

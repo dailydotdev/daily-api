@@ -4,16 +4,11 @@ import cron from '../../src/cron/updateDiscussionScore';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Comment, Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { FastifyInstance } from 'fastify';
-import appFunc from '../../src/background';
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -116,7 +111,7 @@ it('should update discussion score', async () => {
     },
   ]);
 
-  await expectSuccessfulCron(app, cron);
+  await expectSuccessfulCron(cron);
   const posts = await con.getRepository(Post).find({
     select: ['id', 'discussionScore'],
     order: { id: 'ASC' },

@@ -1,6 +1,5 @@
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
-import appFunc from '../../src/background';
+
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import cron from '../../src/cron/updateTagsStr';
 import { Keyword, Post, PostKeyword, Source } from '../../src/entity';
@@ -9,20 +8,15 @@ import { postsFixture } from '../fixture/post';
 import { Checkpoint } from '../../src/entity/Checkpoint';
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
 });
-
-afterAll(() => app.close());
 
 it('should update post tagsStr with the all recently updated keywords', async () => {
   const now = new Date();
@@ -50,7 +44,7 @@ it('should update post tagsStr with the all recently updated keywords', async ()
     `update keyword set "updatedAt" = $1 where "value" = 'webdev'`,
     [before],
   );
-  await expectSuccessfulCron(app, cron);
+  await expectSuccessfulCron(cron);
   const posts = await con.getRepository(Post).find({
     select: ['id', 'tagsStr'],
     order: { id: 'ASC' },

@@ -1,9 +1,8 @@
 import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
-import { FastifyInstance } from 'fastify';
+
 import { mocked } from 'ts-jest/utils';
 
-import appFunc from '../../src/background';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail } from '../../src/common';
 import { User as GatewayUser } from '../../src/common/users';
@@ -22,12 +21,9 @@ jest.mock('../../src/common/mailing', () => ({
 }));
 
 let con: Connection;
-let app: FastifyInstance;
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -84,7 +80,7 @@ it('should send mail to the reporters', async () => {
   mockedUsers.forEach(mockUsersMe);
 
   const post = await con.getRepository(Post).findOne('p1');
-  await expectSuccessfulBackground(app, worker, {
+  await expectSuccessfulBackground(worker, {
     post,
   });
   expect(sendEmail).toBeCalledTimes(1);

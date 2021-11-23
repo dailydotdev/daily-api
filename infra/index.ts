@@ -8,7 +8,6 @@ import {
   CloudRunAccess,
   config,
   createCloudRunService,
-  createCronJobs,
   createEnvVarsFromSecret,
   createMigrationJob,
   createServiceAccountAndGrantRoles,
@@ -23,6 +22,10 @@ import {
   addLabelsToWorkers,
   convertRecordToContainerEnvVars,
   createKubernetesSecretFromRecord,
+  createAutoscaledApplication,
+  getPubSubUndeliveredMessagesMetric,
+  getFullSubscriptionLabel,
+  createPubSubCronJobs,
 } from '@dailydotdev/pulumi-common';
 import { readFile } from 'fs/promises';
 
@@ -120,31 +123,14 @@ const service = createCloudRunService(
   },
 );
 
-const bgService = createCloudRunService(
-  `${name}-background`,
-  image,
-  [...cloudRunSecrets, { name: 'MODE', value: 'background' }],
-  { cpu: '1', memory: '256Mi' },
-  vpcConnector,
-  serviceAccount,
-  {
-    dependsOn: [...iamMembers, redis, migrationJob],
-    access: CloudRunAccess.PubSub,
-    iamMemberName: `${name}-pubsub-invoker`,
-    concurrency: 80,
-  },
-);
-
 export const serviceUrl = service.statuses[0].url;
-export const bgServiceUrl = bgService.statuses[0].url;
 
 createSubscriptionsFromWorkers(
   name,
   addLabelsToWorkers(workers, { app: name }),
-  bgServiceUrl,
-  [debeziumTopic],
+  { dependsOn: [debeziumTopic] },
 );
-createCronJobs(name, crons, bgServiceUrl);
+createPubSubCronJobs(name, crons);
 
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
@@ -191,6 +177,55 @@ const { labels } = createAutoscaledExposedApplication({
   maxReplicas: 10,
   metrics: getMemoryAndCpuMetrics(),
   enableCdn: true,
+  deploymentDependsOn: [migrationJob],
+});
+
+const bgLimits: pulumi.Input<{
+  [key: string]: pulumi.Input<string>;
+}> = { cpu: '1', memory: '256Mi' };
+
+createAutoscaledApplication({
+  resourcePrefix: 'bg-',
+  name: `${name}-bg`,
+  namespace,
+  version: imageTag,
+  serviceAccount: k8sServiceAccount,
+  containers: [
+    {
+      name: 'app',
+      image,
+      env: [
+        ...convertRecordToContainerEnvVars({ secretName: name, data: envVars }),
+        { name: 'MODE', value: 'background' },
+      ],
+      resources: {
+        requests: bgLimits,
+        limits: bgLimits,
+      },
+    },
+  ],
+  minReplicas: 1,
+  maxReplicas: 4,
+  metrics: [
+    {
+      external: {
+        metric: {
+          name: getPubSubUndeliveredMessagesMetric(),
+          selector: {
+            matchLabels: {
+              [getFullSubscriptionLabel('app')]: name,
+            },
+          },
+        },
+        target: {
+          type: 'Value',
+          averageValue: '20',
+        },
+      },
+      type: 'External',
+    },
+  ],
+  deploymentDependsOn: [migrationJob],
 });
 
 const k8sBackendConfig = new k8s.apiextensions.CustomResource(

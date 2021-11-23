@@ -4,11 +4,11 @@ import { PubSub } from '@google-cloud/pubsub';
 
 export interface Message {
   messageId: string;
-  data: string;
+  data: Buffer;
 }
 
 export const messageToJson = <T>(message: Message): T =>
-  JSON.parse(Buffer.from(message.data, 'base64').toString('utf-8').trim());
+  JSON.parse(message.data.toString('utf-8').trim());
 
 export interface Worker {
   subscription: string;

@@ -2,7 +2,7 @@ import { Cron } from './cron';
 import { Checkpoint } from '../entity/Checkpoint';
 
 const cron: Cron = {
-  name: 'update-views',
+  subscription: 'update-views-sub',
   handler: async (con) => {
     const checkpointKey = 'last_views_update';
     const before = new Date();

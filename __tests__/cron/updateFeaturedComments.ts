@@ -8,11 +8,8 @@ import { postsFixture } from '../fixture/post';
 import { Checkpoint } from '../../src/entity/Checkpoint';
 import { notifyCommentFeatured } from '../../src/common';
 import { mocked } from 'ts-jest/utils';
-import { FastifyInstance } from 'fastify';
-import appFunc from '../../src/background';
 
 let con: Connection;
-let app: FastifyInstance;
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -21,8 +18,6 @@ jest.mock('../../src/common', () => ({
 
 beforeAll(async () => {
   con = await getConnection();
-  app = await appFunc();
-  return app.ready();
 });
 
 beforeEach(async () => {
@@ -88,7 +83,7 @@ it('should update featured comments', async () => {
     { commentId: 'c5', userId: '2', createdAt: before },
     { commentId: 'c7', userId: '1', createdAt: now },
   ]);
-  await expectSuccessfulCron(app, cron);
+  await expectSuccessfulCron(cron);
   const comments = await con.getRepository(Comment).find({
     select: ['id', 'featured'],
     order: { id: 'ASC' },
