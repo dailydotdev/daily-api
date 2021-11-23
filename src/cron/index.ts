@@ -1,5 +1,4 @@
 import { Cron } from './cron';
-import tweetTrending from './tweetTrending';
 import updateViews from './updateViews';
 import updateFeaturedComments from './updateFeaturedComments';
 import hashnodeBadge from './hashnodeBadge';
@@ -11,7 +10,6 @@ import updateDiscussionScore from './updateDiscussionScore';
 import exportToTinybird from './exportToTinybird';
 
 export const crons: Cron[] = [
-  tweetTrending,
   updateViews,
   updateFeaturedComments,
   hashnodeBadge,
