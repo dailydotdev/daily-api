@@ -23,7 +23,11 @@ const subscribe = (
     pubsub: PubSub,
   ) => Promise<void>,
 ): void => {
+  logger.info(`subscribing to ${subscription}`);
   const sub = pubsub.subscription(subscription, {
+    flowControl: {
+      maxMessages: 1,
+    },
     batching: { maxMilliseconds: 10 },
   });
   const childLogger = logger.child({ subscription });
@@ -33,7 +37,7 @@ const subscribe = (
       message.ack();
     } catch (err) {
       childLogger.error(
-        { messageId: message.id, data: message.data, err },
+        { messageId: message.id, data: message.data.toString('utf-8'), err },
         'failed to process message',
       );
       message.nack();
