@@ -30,6 +30,7 @@ export default async function app(): Promise<FastifyInstance> {
     disableRequestLogging: true,
     trustProxy: isProd,
   });
+  app.server.keepAliveTimeout = 650 * 1000;
 
   app.register(helmet);
   app.register(cors, {

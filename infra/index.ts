@@ -153,7 +153,7 @@ createKubernetesSecretFromRecord({
 
 const probe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
-  initialDelaySeconds: 10,
+  initialDelaySeconds: 5,
 };
 
 const { labels } = createAutoscaledExposedApplication({
