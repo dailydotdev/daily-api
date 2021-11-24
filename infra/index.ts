@@ -114,13 +114,14 @@ createPubSubCronJobs(name, crons);
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
-  cpu: '1',
-  memory: '1024Mi',
+  cpu: '2',
+  memory: '2048Mi',
 };
 
 const probe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
   initialDelaySeconds: 5,
+  timeoutSeconds: 60,
 };
 
 const { labels } = createAutoscaledExposedApplication({
