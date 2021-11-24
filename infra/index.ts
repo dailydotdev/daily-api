@@ -151,8 +151,9 @@ createKubernetesSecretFromRecord({
   namespace,
 });
 
-const probe = {
+const probe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
+  initialDelaySeconds: 10,
 };
 
 const { labels } = createAutoscaledExposedApplication({
@@ -207,7 +208,7 @@ createAutoscaledApplication({
       },
     },
   ],
-  maxReplicas: 10,
+  maxReplicas: 5,
   metrics: [
     {
       external: {
@@ -221,7 +222,7 @@ createAutoscaledApplication({
         },
         target: {
           type: 'Value',
-          averageValue: '20',
+          averageValue: '200',
         },
       },
       type: 'External',
