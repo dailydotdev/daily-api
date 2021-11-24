@@ -18,4 +18,5 @@ export interface Worker {
     logger: Logger,
     pubsub: PubSub,
   ) => Promise<void>;
+  maxMessages?: number;
 }

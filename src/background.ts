@@ -22,11 +22,12 @@ const subscribe = (
     logger: Logger,
     pubsub: PubSub,
   ) => Promise<void>,
+  maxMessages = 1,
 ): void => {
   logger.info(`subscribing to ${subscription}`);
   const sub = pubsub.subscription(subscription, {
     flowControl: {
-      maxMessages: 1,
+      maxMessages,
     },
     batching: { maxMilliseconds: 10 },
   });
