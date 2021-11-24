@@ -5,10 +5,7 @@ import { Input, Output } from '@pulumi/pulumi';
 import { workers } from './workers';
 import { crons } from './crons';
 import {
-  CloudRunAccess,
   config,
-  createCloudRunService,
-  createEnvVarsFromSecret,
   createMigrationJob,
   createServiceAccountAndGrantRoles,
   createSubscriptionsFromWorkers,
@@ -16,7 +13,6 @@ import {
   deployDebeziumToKubernetes,
   getImageTag,
   location,
-  Secret,
   bindK8sServiceAccountToGCP,
   getMemoryAndCpuMetrics,
   addLabelsToWorkers,
@@ -44,17 +40,7 @@ const debeziumTopic = new gcp.pubsub.Topic('debezium-topic', {
     }),
 );
 
-const vpcConnector = new gcp.vpcaccess.Connector(`${name}-vpc-e2`, {
-  name: `${name}-vpc-e2`,
-  region: location,
-  network: 'default',
-  ipCidrRange: '10.6.0.0/28',
-  minInstances: 2,
-  maxInstances: 10,
-  machineType: 'e2-standard-4',
-});
-
-const { serviceAccount, iamMembers } = createServiceAccountAndGrantRoles(
+const { serviceAccount } = createServiceAccountAndGrantRoles(
   `${name}-sa`,
   name,
   `daily-${name}`,
@@ -78,17 +64,29 @@ const redis = new gcp.redis.Instance(`${name}-redis`, {
 
 export const redisHost = redis.host;
 
-const cloudRunSecrets: Input<Secret>[] = [
-  ...createEnvVarsFromSecret(name),
-  { name: 'REDIS_HOST', value: redisHost },
-];
-
-const image = `gcr.io/daily-ops/daily-${name}:${imageTag}`;
-
 const { namespace, host: subsHost } = config.requireObject<{
   namespace: string;
   host: string;
 }>('k8s');
+
+const envVars: Record<string, Input<string>> = {
+  ...config.requireObject<Record<string, string>>('env'),
+  redisHost,
+};
+
+const containerEnvVars = convertRecordToContainerEnvVars({
+  secretName: name,
+  data: envVars,
+});
+
+createKubernetesSecretFromRecord({
+  data: envVars,
+  resourceName: 'k8s-secret',
+  name,
+  namespace,
+});
+
+const image = `gcr.io/daily-ops/daily-${name}:${imageTag}`;
 
 const k8sServiceAccount = bindK8sServiceAccountToGCP(
   '',
@@ -102,28 +100,9 @@ const migrationJob = createMigrationJob(
   namespace,
   image,
   ['node', './node_modules/typeorm/cli.js', 'migration:run'],
-  cloudRunSecrets,
+  containerEnvVars,
   k8sServiceAccount,
 );
-
-// Deploy to Cloud Run (foreground & background)
-const service = createCloudRunService(
-  name,
-  image,
-  cloudRunSecrets,
-  { cpu: '1', memory: '512Mi' },
-  vpcConnector,
-  serviceAccount,
-  {
-    minScale: 1,
-    concurrency: 250,
-    dependsOn: [...iamMembers, redis, migrationJob],
-    access: CloudRunAccess.Public,
-    iamMemberName: `${name}-public`,
-  },
-);
-
-export const serviceUrl = service.statuses[0].url;
 
 createSubscriptionsFromWorkers(
   name,
@@ -138,18 +117,6 @@ const limits: pulumi.Input<{
   cpu: '1',
   memory: '1024Mi',
 };
-
-const envVars: Record<string, Input<string>> = {
-  ...config.requireObject<Record<string, string>>('env'),
-  redisHost,
-};
-
-createKubernetesSecretFromRecord({
-  data: envVars,
-  resourceName: 'k8s-secret',
-  name,
-  namespace,
-});
 
 const probe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
@@ -169,7 +136,7 @@ const { labels } = createAutoscaledExposedApplication({
       readinessProbe: probe,
       livenessProbe: probe,
       env: [
-        ...convertRecordToContainerEnvVars({ secretName: name, data: envVars }),
+        ...containerEnvVars,
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
       ],
       resources: {
@@ -198,10 +165,7 @@ createAutoscaledApplication({
     {
       name: 'app',
       image,
-      env: [
-        ...convertRecordToContainerEnvVars({ secretName: name, data: envVars }),
-        { name: 'MODE', value: 'background' },
-      ],
+      env: [...containerEnvVars, { name: 'MODE', value: 'background' }],
       resources: {
         requests: bgLimits,
         limits: bgLimits,
@@ -222,7 +186,7 @@ createAutoscaledApplication({
         },
         target: {
           type: 'Value',
-          averageValue: '200',
+          averageValue: '20',
         },
       },
       type: 'External',
