@@ -114,8 +114,8 @@ createPubSubCronJobs(name, crons);
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
-  cpu: '2',
-  memory: '2048Mi',
+  cpu: '1',
+  memory: '1536Mi',
 };
 
 const probe: k8s.types.input.core.v1.Probe = {
@@ -146,6 +146,7 @@ const { labels } = createAutoscaledExposedApplication({
       },
     },
   ],
+  minReplicas: 4,
   maxReplicas: 10,
   metrics: getMemoryAndCpuMetrics(),
   enableCdn: true,
