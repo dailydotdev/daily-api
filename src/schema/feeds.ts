@@ -776,13 +776,13 @@ const feedResolverV2: IFieldResolver<
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
-      if (args.version === 2 && args.ranking === Ranking.POPULARITY) {
+      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
         return feedResolverV2(source, args, ctx, info);
       }
       return anonymousFeedResolverV1(source, args, ctx, info);
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
-      if (args.version === 2 && args.ranking === Ranking.POPULARITY) {
+      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
         return feedResolverV2(source, args, ctx, info);
       }
       return feedResolverV1(source, args, ctx, info);
