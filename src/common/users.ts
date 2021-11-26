@@ -58,12 +58,14 @@ export interface ReadingRank {
   currentRank: number;
   progressThisWeek: number;
   readToday: boolean;
+  lastReadTime: Date;
 }
 
 interface ReadingRankQueryResult {
   thisWeek: number;
   lastWeek: number;
   today: number;
+  lastReadTime: Date;
 }
 
 const STEPS_PER_RANK = [3, 4, 5, 6, 7];
@@ -102,12 +104,14 @@ export const getUserReadingRank = async (
       `count(*) filter(where "timestamp" at time zone '${timezone}' >= date_trunc('day', ${now}))`,
       'today',
     )
+    .addSelect('MAX(timestamp)', 'lastReadTime')
     .from(View, 'view')
     .where('"userId" = :id', { id: userId })
     .getRawOne<ReadingRankQueryResult>();
   const rankThisWeek = rankFromProgress(res.thisWeek);
   const rankLastWeek = rankFromProgress(res.lastWeek);
   return {
+    lastReadTime: res.lastReadTime,
     currentRank: rankThisWeek > rankLastWeek ? rankThisWeek : rankLastWeek,
     progressThisWeek: res.thisWeek,
     rankLastWeek,
