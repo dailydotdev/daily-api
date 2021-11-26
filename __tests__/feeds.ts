@@ -1,6 +1,5 @@
-import { feedToFilters } from './../src/common/feedGenerator';
-import { FeedAdvancedSettings } from './../src/entity/FeedAdvancedSettings';
-import { AdvancedSettings } from './../src/entity/AdvancedSettings';
+import { feedToFilters } from '../src/common';
+import { FeedAdvancedSettings, AdvancedSettings } from '../src/entity';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
 import { Connection, getConnection, In } from 'typeorm';
@@ -307,7 +306,9 @@ describe('query anonymousFeed', () => {
 
   it('should return anonymous feed v2', async () => {
     nock('http://localhost:6000')
-      .get('/feed.json?token=token&page_size=11&fresh_page_size=4')
+      .get(
+        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2',
+      )
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
       });
@@ -320,7 +321,9 @@ describe('query anonymousFeed', () => {
 
   it('should safetly handle a case where the feed is empty', async () => {
     nock('http://localhost:6000')
-      .get('/feed.json?token=token&page_size=11&fresh_page_size=4')
+      .get(
+        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2',
+      )
       .reply(200, {
         data: [],
       });
@@ -450,7 +453,7 @@ describe('query feed', () => {
     ]);
     nock('http://localhost:6000')
       .get(
-        '/feed.json?token=token&page_size=11&fresh_page_size=4&user_id=1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
+        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&user_id=1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
       )
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
