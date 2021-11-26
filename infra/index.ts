@@ -146,8 +146,8 @@ const { labels } = createAutoscaledExposedApplication({
       },
     },
   ],
-  minReplicas: 4,
-  maxReplicas: 10,
+  minReplicas: 8,
+  maxReplicas: 15,
   metrics: getMemoryAndCpuMetrics(),
   enableCdn: true,
   deploymentDependsOn: [migrationJob],
@@ -174,7 +174,8 @@ createAutoscaledApplication({
       },
     },
   ],
-  maxReplicas: 5,
+  minReplicas: 4,
+  maxReplicas: 7,
   metrics: [
     {
       external: {
@@ -188,7 +189,7 @@ createAutoscaledApplication({
         },
         target: {
           type: 'Value',
-          averageValue: '20',
+          averageValue: '50',
         },
       },
       type: 'External',

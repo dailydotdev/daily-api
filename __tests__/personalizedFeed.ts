@@ -36,25 +36,45 @@ beforeEach(async () => {
 
 it('should fetch anonymous feed and serve consequent pages from cache', async () => {
   nock('http://localhost:6000')
-    .get('/feed.json?token=token&page_size=2&fresh_page_size=1')
+    .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
     .reply(200, tinybirdResponse);
-  const page0 = await generatePersonalizedFeed(con, 2, 0);
+  const page0 = await generatePersonalizedFeed({
+    con,
+    pageSize: 2,
+    offset: 0,
+    feedVersion: 5,
+  });
   expect(page0).toEqual(['1', '2']);
   expect(nock.isDone()).toEqual(true);
   await new Promise((resolve) => setTimeout(resolve, 50));
-  const page1 = await generatePersonalizedFeed(con, 2, 2);
+  const page1 = await generatePersonalizedFeed({
+    con,
+    pageSize: 2,
+    offset: 2,
+    feedVersion: 5,
+  });
   expect(page1).toEqual(['3', '4']);
 });
 
 it('should fetch anonymous feed and serve consequent calls from cache', async () => {
   nock('http://localhost:6000')
-    .get('/feed.json?token=token&page_size=2&fresh_page_size=1')
+    .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
     .reply(200, tinybirdResponse);
-  const page0 = await generatePersonalizedFeed(con, 2, 0);
+  const page0 = await generatePersonalizedFeed({
+    con,
+    pageSize: 2,
+    offset: 0,
+    feedVersion: 5,
+  });
   expect(page0).toEqual(['1', '2']);
   expect(nock.isDone()).toEqual(true);
   await new Promise((resolve) => setTimeout(resolve, 50));
-  const page1 = await generatePersonalizedFeed(con, 2, 0);
+  const page1 = await generatePersonalizedFeed({
+    con,
+    pageSize: 2,
+    offset: 0,
+    feedVersion: 5,
+  });
   expect(page1).toEqual(['1', '2']);
 });
 
@@ -69,9 +89,14 @@ it('should fetch anonymous feed even when cache is old', async () => {
   await pipeline.exec();
 
   nock('http://localhost:6000')
-    .get('/feed.json?token=token&page_size=2&fresh_page_size=1')
+    .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
     .reply(200, tinybirdResponse);
-  const page0 = await generatePersonalizedFeed(con, 2, 0);
+  const page0 = await generatePersonalizedFeed({
+    con,
+    pageSize: 2,
+    offset: 0,
+    feedVersion: 5,
+  });
   expect(page0).toEqual(['1', '2']);
   expect(nock.isDone()).toEqual(true);
 });
@@ -84,9 +109,14 @@ it('should not fetch anonymous feed even when cache is still fresh', async () =>
   await pipeline.exec();
 
   nock('http://localhost:6000')
-    .get('/feed.json?token=token&page_size=2&fresh_page_size=1')
+    .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
     .reply(200, tinybirdResponse);
-  const page0 = await generatePersonalizedFeed(con, 2, 0);
+  const page0 = await generatePersonalizedFeed({
+    con,
+    pageSize: 2,
+    offset: 0,
+    feedVersion: 5,
+  });
   expect(page0).toEqual(['7', '8']);
   expect(nock.isDone()).toEqual(false);
 });
@@ -106,9 +136,14 @@ it('should fetch anonymous feed when last updated time is greater than last gene
   await pipeline.exec();
 
   nock('http://localhost:6000')
-    .get('/feed.json?token=token&page_size=2&fresh_page_size=1')
+    .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
     .reply(200, tinybirdResponse);
-  const page0 = await generatePersonalizedFeed(con, 2, 0);
+  const page0 = await generatePersonalizedFeed({
+    con,
+    pageSize: 2,
+    offset: 0,
+    feedVersion: 5,
+  });
   expect(page0).toEqual(['1', '2']);
   expect(nock.isDone()).toEqual(true);
 });
@@ -127,10 +162,17 @@ it('should set the correct query parameters', async () => {
   ]);
   nock('http://localhost:6000')
     .get(
-      '/feed.json?token=token&page_size=2&fresh_page_size=1&user_id=u1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
+      '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&user_id=u1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
     )
     .reply(200, tinybirdResponse);
-  const page0 = await generatePersonalizedFeed(con, 2, 0, 'u1', '1');
+  const page0 = await generatePersonalizedFeed({
+    con,
+    pageSize: 2,
+    offset: 0,
+    feedVersion: 5,
+    userId: 'u1',
+    feedId: '1',
+  });
   expect(page0).toEqual(['1', '2']);
   expect(nock.isDone()).toEqual(true);
 });

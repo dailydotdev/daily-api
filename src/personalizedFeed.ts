@@ -13,11 +13,12 @@ const agent = new Agent({ keepAlive: true });
 async function fetchTinybirdFeed(
   con: Connection,
   pageSize: number,
+  feedVersion: number,
   userId?: string,
   feedId?: string,
 ): Promise<{ post_id: string }[]> {
   const freshPageSize = Math.ceil(pageSize / 3).toFixed(0);
-  let url = `${process.env.TINYBIRD_FEED}&page_size=${pageSize}&fresh_page_size=${freshPageSize}`;
+  let url = `${process.env.TINYBIRD_FEED}&page_size=${pageSize}&fresh_page_size=${freshPageSize}&feed_version=${feedVersion}`;
   if (userId) {
     url += `&user_id=${userId}`;
   }
@@ -57,11 +58,18 @@ const ONE_DAY_SECONDS = 24 * 60 * 60;
 async function fetchAndCacheFeed(
   con: Connection,
   pageSize: number,
+  feedVersion: number,
   userId?: string,
   feedId?: string,
 ): Promise<{ post_id: string }[]> {
   const key = getPersonalizedFeedKey(userId, feedId);
-  const postIds = await fetchTinybirdFeed(con, pageSize, userId, feedId);
+  const postIds = await fetchTinybirdFeed(
+    con,
+    pageSize,
+    feedVersion,
+    userId,
+    feedId,
+  );
   // Don't wait for caching the feed to serve quickly
   setTimeout(async () => {
     const pipeline = redisClient.pipeline();
@@ -100,13 +108,21 @@ const shouldServeFromCache = async (
   // return !key;
 };
 
-export async function generatePersonalizedFeed(
-  con: Connection,
-  pageSize: number,
-  offset: number,
-  userId?: string,
-  feedId?: string,
-): Promise<string[]> {
+export async function generatePersonalizedFeed({
+  con,
+  pageSize,
+  offset,
+  feedVersion,
+  userId,
+  feedId,
+}: {
+  con: Connection;
+  pageSize: number;
+  offset: number;
+  feedVersion: number;
+  userId?: string;
+  feedId?: string;
+}): Promise<string[]> {
   try {
     const key = getPersonalizedFeedKey(userId, feedId);
     const idsPromise = redisClient.zrange(key, offset, pageSize + offset - 1);
@@ -119,6 +135,12 @@ export async function generatePersonalizedFeed(
   } catch (err) {
     console.error(err, 'failed to get feed from redis');
   }
-  const postIds = await fetchAndCacheFeed(con, pageSize, userId, feedId);
+  const postIds = await fetchAndCacheFeed(
+    con,
+    pageSize,
+    feedVersion,
+    userId,
+    feedId,
+  );
   return postIds.slice(offset, pageSize + offset).map(({ post_id }) => post_id);
 }

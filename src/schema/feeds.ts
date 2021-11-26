@@ -1,6 +1,5 @@
-import { FeedAdvancedSettings } from './../entity/FeedAdvancedSettings';
-import { AdvancedSettings } from './../entity/AdvancedSettings';
-import { Category } from './../entity/Category';
+import { FeedAdvancedSettings, AdvancedSettings } from '../entity';
+import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
 import { gql, IFieldResolver, IResolvers } from 'apollo-server-fastify';
 import { Context } from '../Context';
@@ -522,10 +521,12 @@ export interface GQLAdvancedSettings {
   title: string;
   description: string;
 }
+
 export interface GQLFeedAdvancedSettings {
   id: number;
   enabled: boolean;
 }
+
 export interface GQLFeedAdvancedSettingsInput {
   id: number;
   enabled: boolean;
@@ -749,20 +750,25 @@ const invalidateFeedCache = async (feedId: string): Promise<void> => {
   }
 };
 
-const feedResolverV2: IFieldResolver<unknown, Context, FeedArgs> = feedResolver(
+const feedResolverV2: IFieldResolver<
+  unknown,
+  Context,
+  FeedArgs & { version: number }
+> = feedResolver(
   (ctx, args, builder, alias, queryParams) =>
     fixedIdsFeedBuilder(ctx, queryParams as string[], builder, alias),
   fixedIdsPageGenerator(30, 50),
   (ctx, args, page, builder) => builder,
   {
-    fetchQueryParams: (ctx, args, page) =>
-      generatePersonalizedFeed(
-        ctx.con,
-        page.limit,
-        page.offset,
-        ctx.userId || ctx.trackingId,
-        ctx.userId,
-      ),
+    fetchQueryParams: (ctx, args: FeedArgs & { version: number }, page) =>
+      generatePersonalizedFeed({
+        con: ctx.con,
+        pageSize: page.limit,
+        offset: page.offset,
+        feedVersion: args.version,
+        userId: ctx.userId || ctx.trackingId,
+        feedId: ctx.userId,
+      }),
   },
 );
 
@@ -770,13 +776,13 @@ const feedResolverV2: IFieldResolver<unknown, Context, FeedArgs> = feedResolver(
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
-      if (args.version === 2 && args.ranking === Ranking.POPULARITY) {
+      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
         return feedResolverV2(source, args, ctx, info);
       }
       return anonymousFeedResolverV1(source, args, ctx, info);
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
-      if (args.version === 2 && args.ranking === Ranking.POPULARITY) {
+      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
         return feedResolverV2(source, args, ctx, info);
       }
       return feedResolverV1(source, args, ctx, info);
@@ -933,7 +939,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                                    where post.id != :postId
                                      and post."createdAt" >= now() - interval '6 month'
                                      and post."upvotes" > 0
-                                   order by (pow(post.upvotes, k.similar) * 1000 / k.occurrences) desc
+                                   order by (pow(post.upvotes, k.similar) *
+                                             1000 / k.occurrences) desc
                                    limit 25`;
         return builder.andWhere(`${alias}."id" in (${similarPostsQuery})`, {
           postId: post,
@@ -967,7 +974,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                                ) k on k."postId" = post.id
                                where post.id != :postId
                                  and post."createdAt" >= now() - interval '6 month'
-                               order by (pow(post.upvotes, k.similar) * 1000 / k.occurrences) desc
+                               order by (pow(post.upvotes, k.similar) * 1000 /
+                                         k.occurrences) desc
                                limit 25`;
         } else {
           similarPostsQuery = `select post.id
