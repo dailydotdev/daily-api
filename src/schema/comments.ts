@@ -13,11 +13,13 @@ import graphorm from '../graphorm';
 import { GQLPost } from './posts';
 import { Roles } from '../roles';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
+import { markdown } from '../common/markdown';
 
 export interface GQLComment {
   id: string;
   postId: string;
   content: string;
+  content_html: string;
   createdAt: Date;
   author?: GQLUser;
   upvoted?: boolean;
@@ -52,6 +54,11 @@ export const typeDefs = gql`
     Content of the comment
     """
     content: String!
+
+    """
+    HTML Parsed content of the comment
+    """
+    content_html: String!
 
     """
     Time when comment was created
@@ -383,6 +390,7 @@ export const resolvers: IResolvers<any, Context> = {
             postId,
             userId: ctx.userId,
             content,
+            content_html: markdown.render(content),
           });
           await entityManager
             .getRepository(Post)
@@ -418,6 +426,7 @@ export const resolvers: IResolvers<any, Context> = {
             userId: ctx.userId,
             parentId: commentId,
             content,
+            content_html: markdown.render(content),
           });
           await entityManager
             .getRepository(Post)
@@ -450,7 +459,11 @@ export const resolvers: IResolvers<any, Context> = {
         }
         await repo.update(
           { id: comment.id },
-          { content, lastUpdatedAt: new Date() },
+          {
+            content,
+            content_html: markdown.render(content),
+            lastUpdatedAt: new Date(),
+          },
         );
       });
       return getCommentById(id, ctx, info);

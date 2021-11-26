@@ -28,6 +28,9 @@ export class Comment {
   @Column({ type: 'text' })
   content: string;
 
+  @Column({ type: 'text' })
+  content_html: string;
+
   @Column({ type: 'integer', default: 0 })
   @Index('IDX_comment_upvotes')
   upvotes: number;

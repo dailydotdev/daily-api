@@ -55,6 +55,7 @@ beforeEach(async () => {
       postId: 'p1',
       userId: '1',
       content: 'parent comment',
+      content_html: '<p>parent comment</p>',
       createdAt: new Date(2020, 1, 6, 0, 0),
     },
     {
@@ -63,6 +64,7 @@ beforeEach(async () => {
       postId: 'p1',
       userId: '1',
       content: 'child comment',
+      content_html: '<p>child comment</p>',
       createdAt: new Date(2020, 1, 7, 0, 0),
     },
     {
@@ -70,6 +72,7 @@ beforeEach(async () => {
       postId: 'p1',
       userId: '2',
       content: 'parent comment #2',
+      content_html: '<p>parent comment #2</p>',
       createdAt: new Date(2020, 1, 8, 0, 0),
     },
     {
@@ -77,6 +80,7 @@ beforeEach(async () => {
       postId: 'p2',
       userId: '3',
       content: 'parent comment #3',
+      content_html: '<p>parent comment #3</p>',
       createdAt: new Date(2020, 1, 9, 0, 0),
     },
     {
@@ -85,6 +89,7 @@ beforeEach(async () => {
       parentId: 'c4',
       userId: '1',
       content: 'child comment #2',
+      content_html: '<p>child comment #2</p>',
       createdAt: new Date(2020, 1, 10, 0, 0),
     },
     {
@@ -92,6 +97,7 @@ beforeEach(async () => {
       postId: 'p1',
       userId: '3',
       content: 'parent comment #4',
+      content_html: '<p>parent comment #4</p>',
       createdAt: new Date(2020, 1, 9, 0, 0),
     },
     {
@@ -100,6 +106,7 @@ beforeEach(async () => {
       parentId: 'c6',
       userId: '2',
       content: 'child comment #3',
+      content_html: '<p>child comment #3</p>',
       createdAt: new Date(2020, 1, 10, 0, 0),
     },
   ]);
@@ -108,7 +115,7 @@ beforeEach(async () => {
 afterAll(() => app.close());
 
 const commentFields =
-  'id, content, createdAt, permalink, upvoted, author { id, name, image }';
+  'id, content, content_html, createdAt, permalink, upvoted, author { id, name, image }';
 
 describe('query postComments', () => {
   const QUERY = `query PostComments($postId: ID!, $after: String, $first: Int) {
@@ -262,20 +269,23 @@ describe('mutation commentOnPost', () => {
     );
   });
 
-  it('should comment on a post', async () => {
+  it('should comment markdown on a post', async () => {
     loggedUser = '1';
     const res = await client.mutate({
       mutation: MUTATION,
-      variables: { postId: 'p1', content: 'my comment' },
+      variables: { postId: 'p1', content: '# my comment' },
     });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Comment).find({
-      select: ['id', 'content', 'parentId'],
+      select: ['id', 'content', 'content_html', 'parentId'],
       order: { createdAt: 'DESC' },
       where: { postId: 'p1' },
     });
     expect(actual.length).toEqual(6);
     expect(actual[0]).toMatchSnapshot({ id: expect.any(String) });
+    expect(actual[0]).toMatchSnapshot({
+      content_html: `<h1>my comment</h1>\n`,
+    });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.comments).toEqual(1);
