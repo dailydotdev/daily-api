@@ -214,6 +214,7 @@ describe('query userReadingRank', () => {
       currentRank
       progressThisWeek
       readToday
+      lastReadTime
     }
   }`;
 

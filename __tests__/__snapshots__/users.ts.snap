@@ -208,6 +208,7 @@ Array [
 exports[`query userReadingRank should return partially null result when the user asks for someone else 1`] = `
 Object {
   "currentRank": 0,
+  "lastReadTime": null,
   "progressThisWeek": null,
   "rankLastWeek": null,
   "rankThisWeek": null,
@@ -218,6 +219,7 @@ Object {
 exports[`query userReadingRank should return the reading rank 1`] = `
 Object {
   "currentRank": 2,
+  "lastReadTime": "2021-11-26T00:00:00.000Z",
   "progressThisWeek": 4,
   "rankLastWeek": 1,
   "rankThisWeek": 2,
