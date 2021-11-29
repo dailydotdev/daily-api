@@ -282,6 +282,7 @@ describe('comment', () => {
     featured: false,
     createdAt: 0,
     lastUpdatedAt: 0,
+    setContentHTML: null,
   };
 
   it('should notify on new post comment', async () => {
