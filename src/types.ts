@@ -1,5 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/ban-types
-type IgnoredTypes = Function | Promise<unknown>;
+type IgnoredTypes = Promise<unknown> | ((...args: unknown[]) => unknown);
 
 export type ChangeObject<Type> = {
   [Property in keyof Type as Exclude<
