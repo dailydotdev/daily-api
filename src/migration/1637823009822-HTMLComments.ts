@@ -1,5 +1,4 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
-import { Comment } from '../entity';
 
 export class HTMLComments1637823009822 implements MigrationInterface {
   name = 'HTMLComments1637823009822';
