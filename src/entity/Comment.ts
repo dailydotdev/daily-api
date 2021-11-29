@@ -38,7 +38,7 @@ export class Comment {
   content: string;
 
   @Column({ type: 'text' })
-  content_html: string;
+  contentHtml: string;
 
   @Column({ type: 'integer', default: 0 })
   @Index('IDX_comment_upvotes')
@@ -73,6 +73,6 @@ export class Comment {
   @BeforeInsert()
   @BeforeUpdate()
   setContentHTML(): void {
-    this.content_html = markdown.render(this.content);
+    this.contentHtml = markdown.render(this.content);
   }
 }

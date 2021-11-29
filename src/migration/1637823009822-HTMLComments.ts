@@ -6,13 +6,13 @@ export class HTMLComments1637823009822 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "public"."comment" ADD "content_html" text NULL`,
+      `ALTER TABLE "public"."comment" ADD "contentHtml" text NULL`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "public"."comment" DROP COLUMN "content_html"`,
+      `ALTER TABLE "public"."comment" DROP COLUMN "contentHtml"`,
     );
   }
 }

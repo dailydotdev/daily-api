@@ -18,7 +18,7 @@ export interface GQLComment {
   id: string;
   postId: string;
   content: string;
-  content_html: string;
+  contentHtml: string;
   createdAt: Date;
   author?: GQLUser;
   upvoted?: boolean;
@@ -57,7 +57,7 @@ export const typeDefs = gql`
     """
     HTML Parsed content of the comment
     """
-    content_html: String!
+    contentHtml: String!
 
     """
     Time when comment was created

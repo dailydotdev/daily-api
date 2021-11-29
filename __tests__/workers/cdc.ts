@@ -275,14 +275,13 @@ describe('comment', () => {
     postId: 'p1',
     userId: '1',
     content: 'comment',
-    content_html: '<p>comment</p>',
+    contentHtml: '<p>comment</p>',
     parentId: null,
     comments: 0,
     upvotes: 0,
     featured: false,
     createdAt: 0,
     lastUpdatedAt: 0,
-    setContentHTML: null,
   };
 
   it('should notify on new post comment', async () => {

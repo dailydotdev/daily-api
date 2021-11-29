@@ -15,7 +15,7 @@ interface Row {
     .createQueryBuilder()
     .select('id, content')
     .from(Comment, 'c')
-    .where('c."content_html" is NULL')
+    .where('c."contentHtml" is NULL')
     .stream();
 
   let index = 0;
@@ -26,7 +26,7 @@ interface Row {
     await con
       .createQueryBuilder()
       .update(Comment)
-      .set({ content_html: markdown.render(content) })
+      .set({ contentHtml: markdown.render(content) })
       .where({ id })
       .execute();
   });
