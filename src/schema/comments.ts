@@ -13,7 +13,6 @@ import graphorm from '../graphorm';
 import { GQLPost } from './posts';
 import { Roles } from '../roles';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
-import { markdown } from '../common/markdown';
 
 export interface GQLComment {
   id: string;
@@ -385,13 +384,14 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLComment> => {
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
-          const comment = await entityManager.getRepository(Comment).save({
-            id: shortid.generate(),
-            postId,
-            userId: ctx.userId,
-            content,
-            content_html: markdown.render(content),
-          });
+          const comment = await entityManager.getRepository(Comment).save(
+            entityManager.getRepository(Comment).create({
+              id: shortid.generate(),
+              postId,
+              userId: ctx.userId,
+              content,
+            }),
+          );
           await entityManager
             .getRepository(Post)
             .increment({ id: postId }, 'comments', 1);
@@ -420,14 +420,15 @@ export const resolvers: IResolvers<any, Context> = {
           if (parentComment.parentId) {
             throw new ForbiddenError('Cannot comment on a sub-comment');
           }
-          const comment = await entityManager.getRepository(Comment).save({
-            id: shortid.generate(),
-            postId: parentComment.postId,
-            userId: ctx.userId,
-            parentId: commentId,
-            content,
-            content_html: markdown.render(content),
-          });
+          const comment = await entityManager.getRepository(Comment).save(
+            entityManager.getRepository(Comment).create({
+              id: shortid.generate(),
+              postId: parentComment.postId,
+              userId: ctx.userId,
+              parentId: commentId,
+              content,
+            }),
+          );
           await entityManager
             .getRepository(Post)
             .increment({ id: parentComment.postId }, 'comments', 1);
@@ -457,14 +458,9 @@ export const resolvers: IResolvers<any, Context> = {
         if (comment.userId !== ctx.userId) {
           throw new ForbiddenError("Cannot edit someone else's comment");
         }
-        await repo.update(
-          { id: comment.id },
-          {
-            content,
-            content_html: markdown.render(content),
-            lastUpdatedAt: new Date(),
-          },
-        );
+        comment.content = content;
+        comment.lastUpdatedAt = new Date();
+        await repo.save(comment);
       });
       return getCommentById(id, ctx, info);
     },

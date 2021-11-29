@@ -16,7 +16,6 @@ interface Row {
     .select('id, content')
     .from(Comment, 'c')
     .where('c."content_html" is NULL')
-    .limit(50000)
     .stream();
 
   let index = 0;
