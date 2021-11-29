@@ -72,8 +72,7 @@ export class Comment {
 
   @BeforeInsert()
   @BeforeUpdate()
-  check() {
-    console.log('set content', this.content);
+  setContentHTML() {
     this.content_html = markdown.render(this.content);
   }
 }
