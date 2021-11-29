@@ -72,7 +72,7 @@ export class Comment {
 
   @BeforeInsert()
   @BeforeUpdate()
-  setContentHTML() {
+  setContentHTML(): void {
     this.content_html = markdown.render(this.content);
   }
 }
