@@ -275,6 +275,7 @@ describe('comment', () => {
     postId: 'p1',
     userId: '1',
     content: 'comment',
+    contentHtml: '<p>comment</p>',
     parentId: null,
     comments: 0,
     upvotes: 0,

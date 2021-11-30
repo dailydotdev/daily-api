@@ -1,7 +1,9 @@
+type IgnoredTypes = Promise<unknown> | ((...args: unknown[]) => unknown);
+
 export type ChangeObject<Type> = {
   [Property in keyof Type as Exclude<
     Property,
-    Type[Property] extends Promise<unknown> ? Property : never
+    Type[Property] extends IgnoredTypes ? Property : never
   >]: Type[Property] extends Date ? number : Type[Property];
 };
 

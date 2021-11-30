@@ -1,4 +1,13 @@
-import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
+import {
+  BeforeInsert,
+  BeforeUpdate,
+  Column,
+  Entity,
+  Index,
+  ManyToOne,
+  PrimaryColumn,
+} from 'typeorm';
+import { markdown } from '../common/markdown';
 import { Post } from './Post';
 import { User } from './User';
 
@@ -27,6 +36,9 @@ export class Comment {
 
   @Column({ type: 'text' })
   content: string;
+
+  @Column({ type: 'text' })
+  contentHtml: string;
 
   @Column({ type: 'integer', default: 0 })
   @Index('IDX_comment_upvotes')
@@ -57,4 +69,10 @@ export class Comment {
     onDelete: 'CASCADE',
   })
   parent: Promise<Comment>;
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  setContentHTML(): void {
+    this.contentHtml = markdown.render(this.content);
+  }
 }

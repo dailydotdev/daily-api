@@ -55,6 +55,7 @@ beforeEach(async () => {
       postId: 'p1',
       userId: '1',
       content: 'parent comment',
+      contentHtml: '<p>parent comment</p>',
       createdAt: new Date(2020, 1, 6, 0, 0),
     },
     {
@@ -63,6 +64,7 @@ beforeEach(async () => {
       postId: 'p1',
       userId: '1',
       content: 'child comment',
+      contentHtml: '<p>child comment</p>',
       createdAt: new Date(2020, 1, 7, 0, 0),
     },
     {
@@ -70,6 +72,7 @@ beforeEach(async () => {
       postId: 'p1',
       userId: '2',
       content: 'parent comment #2',
+      contentHtml: '<p>parent comment #2</p>',
       createdAt: new Date(2020, 1, 8, 0, 0),
     },
     {
@@ -77,6 +80,7 @@ beforeEach(async () => {
       postId: 'p2',
       userId: '3',
       content: 'parent comment #3',
+      contentHtml: '<p>parent comment #3</p>',
       createdAt: new Date(2020, 1, 9, 0, 0),
     },
     {
@@ -85,6 +89,7 @@ beforeEach(async () => {
       parentId: 'c4',
       userId: '1',
       content: 'child comment #2',
+      contentHtml: '<p>child comment #2</p>',
       createdAt: new Date(2020, 1, 10, 0, 0),
     },
     {
@@ -92,6 +97,7 @@ beforeEach(async () => {
       postId: 'p1',
       userId: '3',
       content: 'parent comment #4',
+      contentHtml: '<p>parent comment #4</p>',
       createdAt: new Date(2020, 1, 9, 0, 0),
     },
     {
@@ -100,6 +106,7 @@ beforeEach(async () => {
       parentId: 'c6',
       userId: '2',
       content: 'child comment #3',
+      contentHtml: '<p>child comment #3</p>',
       createdAt: new Date(2020, 1, 10, 0, 0),
     },
   ]);
@@ -108,7 +115,7 @@ beforeEach(async () => {
 afterAll(() => app.close());
 
 const commentFields =
-  'id, content, createdAt, permalink, upvoted, author { id, name, image }';
+  'id, content, contentHtml, createdAt, permalink, upvoted, author { id, name, image }';
 
 describe('query postComments', () => {
   const QUERY = `query PostComments($postId: ID!, $after: String, $first: Int) {
@@ -233,7 +240,7 @@ describe('mutation commentOnPost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { postId: 'p1', content: 'my comment' },
+        variables: { postId: 'p1', content: '# my comment http://daily.dev' },
       },
       'UNAUTHENTICATED',
     ));
@@ -244,7 +251,10 @@ describe('mutation commentOnPost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { postId: 'invalid', content: 'my comment' },
+        variables: {
+          postId: 'invalid',
+          content: '# my comment http://daily.dev',
+        },
       },
       'NOT_FOUND',
     );
@@ -256,26 +266,29 @@ describe('mutation commentOnPost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { postId: 'p1', content: 'my comment' },
+        variables: { postId: 'p1', content: '# my comment http://daily.dev' },
       },
       'NOT_FOUND',
     );
   });
 
-  it('should comment on a post', async () => {
+  it('should comment markdown on a post', async () => {
     loggedUser = '1';
     const res = await client.mutate({
       mutation: MUTATION,
-      variables: { postId: 'p1', content: 'my comment' },
+      variables: { postId: 'p1', content: '# my comment http://daily.dev' },
     });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Comment).find({
-      select: ['id', 'content', 'parentId'],
+      select: ['id', 'content', 'contentHtml', 'parentId'],
       order: { createdAt: 'DESC' },
       where: { postId: 'p1' },
     });
     expect(actual.length).toEqual(6);
-    expect(actual[0]).toMatchSnapshot({ id: expect.any(String) });
+    expect(actual[0]).toMatchSnapshot({
+      id: expect.any(String),
+      contentHtml: `<h1>my comment <a href=\"http://daily.dev\" target=\"_blank\" rel=\"noopener nofollow\">http://daily.dev</a></h1>\n`,
+    });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.comments).toEqual(1);
@@ -295,7 +308,10 @@ describe('mutation commentOnComment', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { commentId: 'c1', content: 'my comment' },
+        variables: {
+          commentId: 'c1',
+          content: '# my comment http://daily.dev',
+        },
       },
       'UNAUTHENTICATED',
     ));
@@ -306,7 +322,10 @@ describe('mutation commentOnComment', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { commentId: 'invalid', content: 'my comment' },
+        variables: {
+          commentId: 'invalid',
+          content: '# my comment http://daily.dev',
+        },
       },
       'NOT_FOUND',
     );
@@ -318,7 +337,10 @@ describe('mutation commentOnComment', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { commentId: 'c1', content: 'my comment' },
+        variables: {
+          commentId: 'c1',
+          content: '# my comment http://daily.dev',
+        },
       },
       'NOT_FOUND',
     );
@@ -330,7 +352,10 @@ describe('mutation commentOnComment', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { commentId: 'c2', content: 'my comment' },
+        variables: {
+          commentId: 'c2',
+          content: '# my comment http://daily.dev',
+        },
       },
       'FORBIDDEN',
     );
@@ -340,7 +365,7 @@ describe('mutation commentOnComment', () => {
     loggedUser = '1';
     const res = await client.mutate({
       mutation: MUTATION,
-      variables: { content: 'my comment', commentId: 'c1' },
+      variables: { content: '# my comment http://daily.dev', commentId: 'c1' },
     });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Comment).find({
@@ -563,7 +588,7 @@ describe('permalink field', () => {
     loggedUser = '1';
     const res = await client.mutate({
       mutation: MUTATION,
-      variables: { postId: 'p1', content: 'my comment' },
+      variables: { postId: 'p1', content: '# my comment http://daily.dev' },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.commentOnPost.permalink).toEqual(
