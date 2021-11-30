@@ -102,7 +102,7 @@ export const getUserReadingRank = async (
       'lastWeek',
     )
     .addSelect(
-      `MAX(date_trunc('second', "timestamp" at time zone '${timezone}'))`,
+      `MAX("timestamp"::timestamp at time zone '${timezone}')`,
       'lastReadTime',
     )
     .from(View, 'view')
