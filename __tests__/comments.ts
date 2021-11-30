@@ -240,7 +240,7 @@ describe('mutation commentOnPost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { postId: 'p1', content: '# my comment' },
+        variables: { postId: 'p1', content: '# my comment http://daily.dev' },
       },
       'UNAUTHENTICATED',
     ));
@@ -251,7 +251,10 @@ describe('mutation commentOnPost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { postId: 'invalid', content: '# my comment' },
+        variables: {
+          postId: 'invalid',
+          content: '# my comment http://daily.dev',
+        },
       },
       'NOT_FOUND',
     );
@@ -263,7 +266,7 @@ describe('mutation commentOnPost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { postId: 'p1', content: '# my comment' },
+        variables: { postId: 'p1', content: '# my comment http://daily.dev' },
       },
       'NOT_FOUND',
     );
@@ -273,7 +276,7 @@ describe('mutation commentOnPost', () => {
     loggedUser = '1';
     const res = await client.mutate({
       mutation: MUTATION,
-      variables: { postId: 'p1', content: '# my comment' },
+      variables: { postId: 'p1', content: '# my comment http://daily.dev' },
     });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Comment).find({
@@ -282,9 +285,10 @@ describe('mutation commentOnPost', () => {
       where: { postId: 'p1' },
     });
     expect(actual.length).toEqual(6);
+    console.log(actual[0]);
     expect(actual[0]).toMatchSnapshot({
       id: expect.any(String),
-      contentHtml: `<h1>my comment</h1>\n`,
+      contentHtml: `<h1>my comment <a href=\"http://daily.dev\" target=\"_blank\" rel=\"noopener nofollow\">http://daily.dev</a></h1>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOne('p1');
@@ -305,7 +309,10 @@ describe('mutation commentOnComment', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { commentId: 'c1', content: '# my comment' },
+        variables: {
+          commentId: 'c1',
+          content: '# my comment http://daily.dev',
+        },
       },
       'UNAUTHENTICATED',
     ));
@@ -316,7 +323,10 @@ describe('mutation commentOnComment', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { commentId: 'invalid', content: '# my comment' },
+        variables: {
+          commentId: 'invalid',
+          content: '# my comment http://daily.dev',
+        },
       },
       'NOT_FOUND',
     );
@@ -328,7 +338,10 @@ describe('mutation commentOnComment', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { commentId: 'c1', content: '# my comment' },
+        variables: {
+          commentId: 'c1',
+          content: '# my comment http://daily.dev',
+        },
       },
       'NOT_FOUND',
     );
@@ -340,7 +353,10 @@ describe('mutation commentOnComment', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { commentId: 'c2', content: '# my comment' },
+        variables: {
+          commentId: 'c2',
+          content: '# my comment http://daily.dev',
+        },
       },
       'FORBIDDEN',
     );
@@ -350,7 +366,7 @@ describe('mutation commentOnComment', () => {
     loggedUser = '1';
     const res = await client.mutate({
       mutation: MUTATION,
-      variables: { content: '# my comment', commentId: 'c1' },
+      variables: { content: '# my comment http://daily.dev', commentId: 'c1' },
     });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Comment).find({
@@ -573,7 +589,7 @@ describe('permalink field', () => {
     loggedUser = '1';
     const res = await client.mutate({
       mutation: MUTATION,
-      variables: { postId: 'p1', content: '# my comment' },
+      variables: { postId: 'p1', content: '# my comment http://daily.dev' },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.commentOnPost.permalink).toEqual(
