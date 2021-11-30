@@ -1,7 +1,7 @@
+import { isSameDay } from 'date-fns';
 import fetch from 'node-fetch';
 import { Connection } from 'typeorm';
 import { View } from '../entity';
-import { isDateOnlyEqual } from './date';
 
 interface UserInfo {
   name?: string;
@@ -116,6 +116,6 @@ export const getUserReadingRank = async (
     progressThisWeek: res.thisWeek,
     rankLastWeek,
     rankThisWeek,
-    readToday: isDateOnlyEqual(res.lastReadTime, new Date()),
+    readToday: isSameDay(res.lastReadTime, new Date()),
   };
 };
