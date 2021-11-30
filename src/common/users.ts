@@ -1,6 +1,7 @@
 import fetch from 'node-fetch';
 import { Connection } from 'typeorm';
 import { View } from '../entity';
+import { isDateOnlyEqual } from './date';
 
 interface UserInfo {
   name?: string;
@@ -101,10 +102,9 @@ export const getUserReadingRank = async (
       'lastWeek',
     )
     .addSelect(
-      `count(*) filter(where "timestamp" at time zone '${timezone}' >= date_trunc('day', ${now}))`,
-      'today',
+      `MAX(date_trunc('second', "timestamp" at time zone '${timezone}'))`,
+      'lastReadTime',
     )
-    .addSelect('MAX(timestamp)', 'lastReadTime')
     .from(View, 'view')
     .where('"userId" = :id', { id: userId })
     .getRawOne<ReadingRankQueryResult>();
@@ -116,6 +116,6 @@ export const getUserReadingRank = async (
     progressThisWeek: res.thisWeek,
     rankLastWeek,
     rankThisWeek,
-    readToday: res.today > 0,
+    readToday: isDateOnlyEqual(res.lastReadTime, new Date()),
   };
 };
