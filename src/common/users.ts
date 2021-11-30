@@ -1,3 +1,4 @@
+import { isSameDay } from 'date-fns';
 import fetch from 'node-fetch';
 import { Connection } from 'typeorm';
 import { View } from '../entity';
@@ -58,12 +59,14 @@ export interface ReadingRank {
   currentRank: number;
   progressThisWeek: number;
   readToday: boolean;
+  lastReadTime: Date;
 }
 
 interface ReadingRankQueryResult {
   thisWeek: number;
   lastWeek: number;
   today: number;
+  lastReadTime: Date;
 }
 
 const STEPS_PER_RANK = [3, 4, 5, 6, 7];
@@ -99,8 +102,8 @@ export const getUserReadingRank = async (
       'lastWeek',
     )
     .addSelect(
-      `count(*) filter(where "timestamp" at time zone '${timezone}' >= date_trunc('day', ${now}))`,
-      'today',
+      `MAX("timestamp"::timestamp at time zone '${timezone}')`,
+      'lastReadTime',
     )
     .from(View, 'view')
     .where('"userId" = :id', { id: userId })
@@ -108,10 +111,11 @@ export const getUserReadingRank = async (
   const rankThisWeek = rankFromProgress(res.thisWeek);
   const rankLastWeek = rankFromProgress(res.lastWeek);
   return {
+    lastReadTime: res.lastReadTime,
     currentRank: rankThisWeek > rankLastWeek ? rankThisWeek : rankLastWeek,
     progressThisWeek: res.thisWeek,
     rankLastWeek,
     rankThisWeek,
-    readToday: res.today > 0,
+    readToday: isSameDay(res.lastReadTime, new Date()),
   };
 };

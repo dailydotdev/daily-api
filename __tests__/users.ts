@@ -214,6 +214,7 @@ describe('query userReadingRank', () => {
       currentRank
       progressThisWeek
       readToday
+      lastReadTime
     }
   }`;
 
@@ -268,7 +269,34 @@ describe('query userReadingRank', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRank).toMatchSnapshot({
       readToday: expect.anything(),
+      lastReadTime: expect.anything(),
     });
+  });
+
+  it('should return the last read time accurately', async () => {
+    loggedUser = '1';
+    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+    const createdAtNewer = new Date('2021-10-22T07:15:51.247Z');
+    await con.getRepository(View).save([
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: createdAtNewer,
+      },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: createdAtNew,
+      },
+    ]);
+    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadingRank).toMatchSnapshot({
+      readToday: expect.anything(),
+    });
+    expect(res.data.userReadingRank.lastReadTime).toEqual(
+      createdAtNewer.toISOString(),
+    );
   });
 
   it('should return last week rank as current rank', async () => {

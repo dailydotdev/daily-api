@@ -208,6 +208,7 @@ Array [
 exports[`query userReadingRank should return partially null result when the user asks for someone else 1`] = `
 Object {
   "currentRank": 0,
+  "lastReadTime": null,
   "progressThisWeek": null,
   "rankLastWeek": null,
   "rankThisWeek": null,
@@ -215,9 +216,21 @@ Object {
 }
 `;
 
+exports[`query userReadingRank should return the last read time accurately 1`] = `
+Object {
+  "currentRank": 0,
+  "lastReadTime": "2021-10-22T07:15:51.247Z",
+  "progressThisWeek": 0,
+  "rankLastWeek": 0,
+  "rankThisWeek": 0,
+  "readToday": Anything,
+}
+`;
+
 exports[`query userReadingRank should return the reading rank 1`] = `
 Object {
   "currentRank": 2,
+  "lastReadTime": Anything,
   "progressThisWeek": 4,
   "rankLastWeek": 1,
   "rankThisWeek": 2,

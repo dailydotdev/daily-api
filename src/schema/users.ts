@@ -41,6 +41,7 @@ export interface GQLReadingRank {
   currentRank: number;
   progressThisWeek?: number;
   readToday?: boolean;
+  lastReadTime?: Date;
 }
 
 export interface GQLReadingRankHistory {
@@ -105,6 +106,7 @@ export const typeDefs = gql`
     currentRank: Int!
     progressThisWeek: Int
     readToday: Boolean
+    lastReadTime: DateTime
   }
 
   type ReadingRankHistory {
