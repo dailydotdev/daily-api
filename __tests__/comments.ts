@@ -285,7 +285,6 @@ describe('mutation commentOnPost', () => {
       where: { postId: 'p1' },
     });
     expect(actual.length).toEqual(6);
-    console.log(actual[0]);
     expect(actual[0]).toMatchSnapshot({
       id: expect.any(String),
       contentHtml: `<h1>my comment <a href=\"http://daily.dev\" target=\"_blank\" rel=\"noopener nofollow\">http://daily.dev</a></h1>\n`,
