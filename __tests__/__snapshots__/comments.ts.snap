@@ -3,7 +3,7 @@
 exports[`mutation commentOnComment should comment on a comment 1`] = `
 Object {
   "comments": 0,
-  "content": "# my comment",
+  "content": "# my comment http://daily.dev",
   "id": Any<String>,
   "parentId": "c1",
   "postId": "p1",
@@ -12,8 +12,8 @@ Object {
 
 exports[`mutation commentOnPost should comment markdown on a post 1`] = `
 Object {
-  "content": "# my comment",
-  "contentHtml": "<h1>my comment</h1>
+  "content": "# my comment http://daily.dev",
+  "contentHtml": "<h1>my comment <a href=\\"http://daily.dev\\" target=\\"_blank\\" rel=\\"noopener nofollow\\">http://daily.dev</a></h1>
 ",
   "id": Any<String>,
   "parentId": null,
