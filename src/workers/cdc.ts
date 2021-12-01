@@ -29,19 +29,18 @@ import {
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
-import { Logger } from 'fastify';
+import { FastifyLoggerInstance } from 'fastify';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { viewsThresholds } from '../cron/viewsThreshold';
-import { PostReport } from '../entity/PostReport';
+import { PostReport, Alerts } from '../entity';
 import { reportReasons } from '../schema/posts';
-import { Alerts } from '../entity/Alerts';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
 
 const onSourceRequestChange = async (
   con: Connection,
-  logger: Logger,
+  logger: FastifyLoggerInstance,
   data: ChangeMessage<SourceRequest>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -65,7 +64,7 @@ const onSourceRequestChange = async (
 
 const onPostUpvoteChange = async (
   con: Connection,
-  logger: Logger,
+  logger: FastifyLoggerInstance,
   data: ChangeMessage<Upvote>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -85,7 +84,7 @@ const onPostUpvoteChange = async (
 
 const onCommentUpvoteChange = async (
   con: Connection,
-  logger: Logger,
+  logger: FastifyLoggerInstance,
   data: ChangeMessage<CommentUpvote>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -105,7 +104,7 @@ const onCommentUpvoteChange = async (
 
 const onCommentChange = async (
   con: Connection,
-  logger: Logger,
+  logger: FastifyLoggerInstance,
   data: ChangeMessage<Comment>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -130,7 +129,7 @@ const onCommentChange = async (
 
 const onUserChange = async (
   con: Connection,
-  logger: Logger,
+  logger: FastifyLoggerInstance,
   data: ChangeMessage<User>,
 ): Promise<void> => {
   if (data.payload.op === 'u') {
@@ -152,7 +151,7 @@ const onUserChange = async (
 
 const onAlertsChange = async (
   con: Connection,
-  logger: Logger,
+  logger: FastifyLoggerInstance,
   data: ChangeMessage<Alerts>,
 ): Promise<void> => {
   if (data.payload.op === 'u') {
@@ -164,7 +163,7 @@ const onAlertsChange = async (
 
 const onPostChange = async (
   con: Connection,
-  logger: Logger,
+  logger: FastifyLoggerInstance,
   data: ChangeMessage<Post>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -220,7 +219,7 @@ const onPostChange = async (
 
 const onPostReportChange = async (
   con: Connection,
-  logger: Logger,
+  logger: FastifyLoggerInstance,
   data: ChangeMessage<PostReport>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -240,7 +239,7 @@ const onPostReportChange = async (
 
 const onSourceFeedChange = async (
   con: Connection,
-  logger: Logger,
+  logger: FastifyLoggerInstance,
   data: ChangeMessage<SourceFeed>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {

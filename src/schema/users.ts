@@ -1,14 +1,20 @@
-import { GraphORMBuilder } from './../graphorm/graphorm';
+import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
-import { Post } from './../entity/Post';
-import { gql, IResolvers, ValidationError } from 'apollo-server-fastify';
+import {
+  Post,
+  DevCard,
+  User,
+  Comment,
+  getAuthorPostStats,
+  PostStats,
+  View,
+} from '../entity';
+import { gql, ValidationError } from 'apollo-server-fastify';
+import { IResolvers } from 'graphql-tools';
 import { FileUpload } from 'graphql-upload';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { Comment, getAuthorPostStats, PostStats, View } from '../entity';
-import { DevCard } from '../entity/DevCard';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
-import { User } from '../entity/User';
 import {
   getUserReadingRank,
   isValidHttpUrl,

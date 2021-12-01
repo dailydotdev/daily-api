@@ -1,4 +1,5 @@
-import { gql, IResolvers, ForbiddenError } from 'apollo-server-fastify';
+import { gql, ForbiddenError } from 'apollo-server-fastify';
+import { IResolvers } from 'graphql-tools';
 import { v4 as uuidv4 } from 'uuid';
 import {
   forwardPagination,

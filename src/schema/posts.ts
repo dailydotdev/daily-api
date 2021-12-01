@@ -2,7 +2,8 @@ import {
   Connection as ConnectionRelay,
   ConnectionArguments,
 } from 'graphql-relay';
-import { gql, IResolvers, ValidationError } from 'apollo-server-fastify';
+import { gql, ValidationError } from 'apollo-server-fastify';
+import { IResolvers } from 'graphql-tools';
 import { Connection, DeepPartial } from 'typeorm';
 import { GraphQLResolveInfo } from 'graphql';
 import { GQLSource } from './sources';

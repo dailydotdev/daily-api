@@ -3,7 +3,7 @@ import {
   MergeInfo,
   IResolvers,
   IResolverObject,
-} from 'apollo-server-fastify';
+} from 'graphql-tools';
 import { GraphQLResolveInfo } from 'graphql';
 import { isFunction, isObject } from 'lodash';
 import { Context } from '../Context';

@@ -1,6 +1,5 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { injectGraphql } from './utils';
-import { ServerResponse } from 'http';
 import { SourceRequest } from '../entity';
 import { toLegacySourceRequest } from './entity';
 
@@ -31,9 +30,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
 
   const requestSource = (
-    req: FastifyRequest,
-    res: FastifyReply<ServerResponse>,
-  ): Promise<FastifyReply<ServerResponse>> => {
+    req: FastifyRequest<{ Body: { source: string } }>,
+    res: FastifyReply,
+  ): Promise<FastifyReply> => {
     const query = `
   mutation RequestSource($data: RequestSourceInput!) {
   requestSource(data: $data) {
@@ -90,7 +89,17 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     );
   });
 
-  fastify.put('/requests/:id', async (req, res) => {
+  fastify.put<{
+    Params: { id: string };
+    Body: {
+      url: string;
+      pubId: string;
+      pubName: string;
+      pubImage: string;
+      pubTwitter: string;
+      pubRss: string;
+    };
+  }>('/requests/:id', async (req, res) => {
     const query = `
   mutation UpdateSourceRequest($data: UpdateSourceRequestInput!) {
   updateSourceRequest(id: "${req.params.id}", data: $data) {
@@ -119,63 +128,72 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     );
   });
 
-  fastify.post('/requests/:id/decline', async (req, res) => {
-    const query = `
+  fastify.post<{ Params: { id: string }; Body: { reason: string } }>(
+    '/requests/:id/decline',
+    async (req, res) => {
+      const query = `
   mutation DeclineSourceRequest($data: DeclineSourceRequestInput!) {
   declineSourceRequest(id: "${req.params.id}", data: $data) {
     id
   }
 }`;
 
-    return injectGraphql(
-      fastify,
-      {
-        query,
-        variables: {
-          data: { reason: req.body.reason },
+      return injectGraphql(
+        fastify,
+        {
+          query,
+          variables: {
+            data: { reason: req.body.reason },
+          },
         },
-      },
-      () => undefined,
-      req,
-      res,
-    );
-  });
+        () => undefined,
+        req,
+        res,
+      );
+    },
+  );
 
-  fastify.post('/requests/:id/approve', async (req, res) => {
-    const query = `
+  fastify.post<{ Params: { id: string } }>(
+    '/requests/:id/approve',
+    async (req, res) => {
+      const query = `
   mutation ApproveSourceRequest {
   approveSourceRequest(id: "${req.params.id}") {
     id
   }
 }`;
 
-    return injectGraphql(
-      fastify,
-      {
-        query,
-      },
-      () => undefined,
-      req,
-      res,
-    );
-  });
+      return injectGraphql(
+        fastify,
+        {
+          query,
+        },
+        () => undefined,
+        req,
+        res,
+      );
+    },
+  );
 
-  fastify.post('/requests/:id/publish', async (req, res) => {
-    const query = `
+  fastify.post<{ Params: { id: string } }>(
+    '/requests/:id/publish',
+    async (req, res) => {
+      const query = `
   mutation PublishSourceRequest {
   publishSourceRequest(id: "${req.params.id}") {
     id
   }
 }`;
 
-    return injectGraphql(
-      fastify,
-      {
-        query,
-      },
-      () => undefined,
-      req,
-      res,
-    );
-  });
+      return injectGraphql(
+        fastify,
+        {
+          query,
+        },
+        () => undefined,
+        req,
+        res,
+      );
+    },
+  );
 }

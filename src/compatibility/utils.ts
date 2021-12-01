@@ -1,6 +1,5 @@
 import { GraphQLError } from 'graphql';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { ServerResponse } from 'http';
 import { generateTraceContext } from '@google-cloud/trace-agent/build/src/util';
 import { Constants } from '@google-cloud/trace-agent/build/src/constants';
 
@@ -25,8 +24,8 @@ export const injectGraphql = async (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extractResponse: (obj: Record<string, unknown>) => any,
   req: FastifyRequest,
-  res: FastifyReply<ServerResponse>,
-): Promise<FastifyReply<ServerResponse>> => {
+  res: FastifyReply,
+): Promise<FastifyReply> => {
   const traceContext = generateTraceContext(req.span.getTraceContext());
   const reqHeaders = {
     ...req.headers,

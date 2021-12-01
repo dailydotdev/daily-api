@@ -11,6 +11,7 @@ import './profiler';
 
 import trace from './trace';
 import auth from './auth';
+import uploads from './uploads';
 import compatibility from './compatibility';
 import routes from './routes';
 
@@ -40,6 +41,7 @@ export default async function app(): Promise<FastifyInstance> {
   app.register(cookie, { secret: process.env.COOKIES_KEY });
   app.register(trace, { enabled: isProd });
   app.register(auth, { secret: process.env.ACCESS_SECRET });
+  app.register(uploads);
 
   app.setErrorHandler((err, req, res) => {
     req.log.error({ err }, err.message);
@@ -51,22 +53,23 @@ export default async function app(): Promise<FastifyInstance> {
     res.send(stringifyHealthCheck({ status: 'ok' }));
   });
 
-  const server = await createApolloServer({
-    context: ({
-      request,
-      connection: wsConnection,
-    }: ContextParams): Context => {
-      return new Context(request ?? wsConnection?.context?.req, connection);
+  const server = await createApolloServer(
+    {
+      context: ({
+        request,
+        connection: wsConnection,
+      }: ContextParams): Context => {
+        return new Context(request ?? wsConnection?.context?.req, connection);
+      },
+      logger: app.log,
     },
-    playground: isProd
-      ? false
-      : { settings: { 'request.credentials': 'include' } },
-    logger: app.log,
-  });
+    app,
+  );
+  await server.start();
   app.register(server.createHandler({ disableHealthCheck: true, cors: false }));
-  if (process.env.ENABLE_SUBSCRIPTIONS === 'true') {
-    server.installSubscriptionHandlers(app.server);
-  }
+  // if (process.env.ENABLE_SUBSCRIPTIONS === 'true') {
+  //   server.installSubscriptionHandlers(app.server);
+  // }
 
   app.register(compatibility, { prefix: '/v1' });
   app.register(routes, { prefix: '/' });

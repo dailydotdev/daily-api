@@ -1,6 +1,7 @@
 import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
-import { ForbiddenError, gql, IResolvers } from 'apollo-server-fastify';
+import { ForbiddenError, gql } from 'apollo-server-fastify';
+import { IResolvers } from 'graphql-tools';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { getDiscussionLink } from '../common';

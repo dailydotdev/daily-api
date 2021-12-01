@@ -9,7 +9,7 @@ import { createOrGetConnection } from './db';
 import { workers } from './workers';
 import { crons } from './cron';
 import { Connection } from 'typeorm';
-import { Logger } from 'fastify';
+import { FastifyLoggerInstance } from 'fastify';
 
 const subscribe = (
   logger: pino.Logger,
@@ -19,7 +19,7 @@ const subscribe = (
   handler: (
     message: Message,
     con: Connection,
-    logger: Logger,
+    logger: FastifyLoggerInstance,
     pubsub: PubSub,
   ) => Promise<void>,
   maxMessages = 1,

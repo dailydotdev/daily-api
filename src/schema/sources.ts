@@ -1,4 +1,5 @@
-import { gql, IResolvers, ForbiddenError } from 'apollo-server-fastify';
+import { gql, ForbiddenError } from 'apollo-server-fastify';
+import { IResolvers } from 'graphql-tools';
 import { ConnectionArguments } from 'graphql-relay';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';

@@ -1,7 +1,8 @@
 import { FeedAdvancedSettings, AdvancedSettings } from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
-import { gql, IFieldResolver, IResolvers } from 'apollo-server-fastify';
+import { gql } from 'apollo-server-fastify';
+import { IFieldResolver, IResolvers } from 'graphql-tools';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import {

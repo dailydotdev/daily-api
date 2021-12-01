@@ -1,5 +1,9 @@
 import { mock, MockProxy } from 'jest-mock-extended';
-import fastify, { FastifyRequest, Logger } from 'fastify';
+import {
+  FastifyRequest,
+  FastifyLoggerInstance,
+  FastifyInstance,
+} from 'fastify';
 import fastifyStatic from 'fastify-static';
 import { Connection, DeepPartial, getConnection, ObjectType } from 'typeorm';
 import request from 'supertest';
@@ -25,7 +29,7 @@ export class MockContext extends Context {
   mockUserId: string | null;
   mockPremium: boolean;
   mockRoles: Roles[];
-  logger: Logger;
+  logger: FastifyLoggerInstance;
 
   constructor(
     con: Connection,
@@ -39,7 +43,7 @@ export class MockContext extends Context {
     this.mockUserId = userId;
     this.mockPremium = premium;
     this.mockRoles = roles;
-    this.logger = mock<Logger>();
+    this.logger = mock<FastifyLoggerInstance>();
   }
 
   get span(): RootSpan {
@@ -181,7 +185,7 @@ export const expectSuccessfulCron = (
 
 export const setupStaticServer = async (
   rss?: string,
-): Promise<fastify.FastifyInstance> => {
+): Promise<FastifyInstance> => {
   const app = fastify({ logger: false });
   app.register(fastifyStatic, {
     root: join(__dirname, 'fixture'),

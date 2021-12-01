@@ -1,9 +1,5 @@
-import {
-  gql,
-  IFieldResolver,
-  IResolvers,
-  MergeInfo,
-} from 'apollo-server-fastify';
+import { gql } from 'apollo-server-fastify';
+import { IFieldResolver, IResolvers, MergeInfo } from 'graphql-tools';
 import {
   Connection,
   ConnectionArguments,
@@ -12,6 +8,7 @@ import {
   offsetToCursor,
 } from 'graphql-relay';
 import { GraphQLResolveInfo } from 'graphql';
+import { GraphQLUpload } from 'graphql-upload';
 import { GraphQLDateTime } from 'graphql-iso-date';
 import { Context } from '../Context';
 
@@ -74,28 +71,24 @@ export const typeDefs = gql`
     _: Boolean
   }
 
-  directive @auth(
-    """
-    Roles required for the operation (at least one)
-    """
-    requires: [Role] = []
-
-    """
-    Whether premium subscription is required
-    """
-    premium: Boolean = false
-  ) on OBJECT | FIELD_DEFINITION
-
-  enum Role {
-    MODERATOR
+  enum CacheControlScope {
+    PUBLIC
+    PRIVATE
   }
 
-  directive @url on INPUT_FIELD_DEFINITION
+  directive @cacheControl(
+    maxAge: Int
+    scope: CacheControlScope
+    inheritMaxAge: Boolean
+  ) on FIELD_DEFINITION | OBJECT | INTERFACE | UNION
+
+  scalar Upload
 `;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   DateTime: GraphQLDateTime,
+  Upload: GraphQLUpload,
 };
 
 export interface PaginationResponse<TReturn, TExtra = undefined> {

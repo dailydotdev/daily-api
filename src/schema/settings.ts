@@ -1,4 +1,5 @@
-import { gql, IResolvers } from 'apollo-server-fastify';
+import { gql } from 'apollo-server-fastify';
+import { IResolvers } from 'graphql-tools';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { Settings } from '../entity';
