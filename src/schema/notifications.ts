@@ -72,7 +72,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get up to 5 latest notifications
     """
-    latestNotifications: [Notification!]! @cacheControl(maxAge: 600)
+    latestNotifications: [Notification!]! @cacheControl(maxAge: 60)
     """
     Get a banner to show, if any
     """
@@ -81,7 +81,7 @@ export const typeDefs = /* GraphQL */ `
       The last time the user seen a banner
       """
       lastSeen: DateTime
-    ): Banner @cacheControl(maxAge: 600)
+    ): Banner @cacheControl(maxAge: 60)
   }
 `;
 
