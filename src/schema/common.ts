@@ -1,4 +1,3 @@
-import { gql } from 'apollo-server-fastify';
 import { IFieldResolver, IResolvers, MergeInfo } from 'graphql-tools';
 import {
   Connection,
@@ -26,7 +25,7 @@ export interface GQLIdInput {
 
 export type GQLDataIdInput<T> = GQLIdInput & GQLDataInput<T>;
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   """
   The javascript \`Date\` as string. Type represents date and time as the ISO Date string.
   """

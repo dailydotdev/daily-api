@@ -1,4 +1,3 @@
-import { gql } from 'apollo-server-fastify';
 import { IResolvers } from 'graphql-tools';
 import { ConnectionArguments } from 'graphql-relay';
 import {
@@ -30,7 +29,7 @@ export interface GQLBookmarkList {
   name: string;
 }
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   type BookmarkList {
     """
     Unique identifier

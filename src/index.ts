@@ -1,26 +1,25 @@
 import 'reflect-metadata';
 import fastify from 'fastify';
-import { FastifyInstance, FastifyRequest } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import helmet from 'fastify-helmet';
 import cookie from 'fastify-cookie';
 import cors from 'fastify-cors';
-import { ExecutionParams } from 'subscriptions-transport-ws';
+import mercurius from 'mercurius';
+import MercuriusGQLUpload from 'mercurius-upload';
+import fastifyWebsocket from 'fastify-websocket';
 
 import './config';
 import './profiler';
 
 import trace from './trace';
 import auth from './auth';
-import uploads from './uploads';
 import compatibility from './compatibility';
 import routes from './routes';
 
 import { Context } from './Context';
-import createApolloServer from './apollo';
+import { schema } from './graphql';
 import { createOrGetConnection } from './db';
 import { stringifyHealthCheck } from './common';
-
-type ContextParams = { request: FastifyRequest; connection: ExecutionParams };
 
 export default async function app(): Promise<FastifyInstance> {
   const isProd = process.env.NODE_ENV === 'production';
@@ -41,7 +40,6 @@ export default async function app(): Promise<FastifyInstance> {
   app.register(cookie, { secret: process.env.COOKIES_KEY });
   app.register(trace, { enabled: isProd });
   app.register(auth, { secret: process.env.ACCESS_SECRET });
-  app.register(uploads);
 
   app.setErrorHandler((err, req, res) => {
     req.log.error({ err }, err.message);
@@ -53,23 +51,28 @@ export default async function app(): Promise<FastifyInstance> {
     res.send(stringifyHealthCheck({ status: 'ok' }));
   });
 
-  const server = await createApolloServer(
-    {
-      context: ({
-        request,
-        connection: wsConnection,
-      }: ContextParams): Context => {
-        return new Context(request ?? wsConnection?.context?.req, connection);
-      },
-      logger: app.log,
+  app.register(fastifyWebsocket, {
+    options: {
+      maxPayload: 1048576,
+      verifyClient: (info, next) => next(true),
     },
-    app,
-  );
-  await server.start();
-  app.register(server.createHandler({ disableHealthCheck: true, cors: false }));
-  // if (process.env.ENABLE_SUBSCRIPTIONS === 'true') {
-  //   server.installSubscriptionHandlers(app.server);
-  // }
+  });
+
+  app.register(MercuriusGQLUpload, {
+    maxFileSize: 1024 * 1024 * 2,
+    maxFiles: 1,
+  });
+
+  app.register(mercurius, {
+    schema,
+    context: (request): Context => new Context(request, connection),
+    queryDepth: 7,
+    subscription: {
+      context: (wsConnection, request): Context =>
+        new Context(request, connection),
+    },
+    graphiql: process.env.NODE_ENV !== 'production',
+  });
 
   app.register(compatibility, { prefix: '/v1' });
   app.register(routes, { prefix: '/' });

@@ -9,7 +9,7 @@ import {
   PostStats,
   View,
 } from '../entity';
-import { gql, ValidationError } from 'apollo-server-fastify';
+import { ValidationError } from 'apollo-server-errors';
 import { IResolvers } from 'graphql-tools';
 import { FileUpload } from 'graphql-upload';
 import { Context } from '../Context';
@@ -55,7 +55,7 @@ export interface GQLReadingRankHistory {
   count: number;
 }
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   """
   Registered user
   """

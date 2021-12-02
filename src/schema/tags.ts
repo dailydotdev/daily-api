@@ -1,4 +1,3 @@
-import { gql } from 'apollo-server-fastify';
 import { IResolvers } from 'graphql-tools';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
@@ -13,7 +12,7 @@ interface GQLTagSearchResults {
   hits: GQLTag[];
 }
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   """
   Post tag
   """

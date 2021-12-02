@@ -1,5 +1,5 @@
 import { ALERTS_DEFAULT, Alerts } from '../entity';
-import { gql } from 'apollo-server-fastify';
+
 import { IResolvers } from 'graphql-tools';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
@@ -12,7 +12,7 @@ interface GQLUpdateAlertsInput extends Partial<GQLAlerts> {
   filter?: boolean;
 }
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   """
   Alerts to display to the relevant user
   """

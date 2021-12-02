@@ -1,8 +1,4 @@
-import {
-  ForbiddenError,
-  AuthenticationError,
-  gql,
-} from 'apollo-server-fastify';
+import { ForbiddenError, AuthenticationError } from 'apollo-server-errors';
 import { defaultFieldResolver } from 'graphql';
 import { GraphQLSchema } from 'graphql';
 import { mapSchema, getDirective, MapperKind } from '@graphql-tools/utils';
@@ -10,7 +6,7 @@ import { Context } from '../Context';
 
 const directiveName = 'auth';
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
 directive @${directiveName}(
   """
   Roles required for the operation (at least one)

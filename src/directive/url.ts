@@ -1,4 +1,4 @@
-import { gql, ValidationError } from 'apollo-server-fastify';
+import { ValidationError } from 'apollo-server-errors';
 import {
   isNonNullType,
   isScalarType,
@@ -12,7 +12,7 @@ import { getDirective, MapperKind, mapSchema } from '@graphql-tools/utils';
 
 const directiveName = 'url';
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   directive @${directiveName} on INPUT_FIELD_DEFINITION
 `;
 
