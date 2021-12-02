@@ -134,7 +134,7 @@ export const typeDefs = gql`
     """
     Whether to show the sidebar open
     """
-    openSidebar: Boolean!
+    openSidebar: Boolean
   }
 
   extend type Mutation {
