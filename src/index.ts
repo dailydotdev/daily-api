@@ -76,28 +76,34 @@ export default async function app(
     },
     graphiql: !isProd,
     errorFormatter(execution) {
+      if (execution.errors?.length > 0) {
+        return {
+          statusCode: 200,
+          response: {
+            data: execution.data,
+            errors: execution.errors.map((error): GraphQLError => {
+              const newError = { ...error };
+              if (isProd) {
+                newError.originalError = undefined;
+              }
+              if (!error.originalError) {
+                newError.extensions = {
+                  code: 'GRAPHQL_VALIDATION_FAILED',
+                };
+              } else if (error.originalError?.name === 'EntityNotFoundError') {
+                newError.message = 'Entity not found';
+                newError.extensions = {
+                  code: 'NOT_FOUND',
+                };
+              }
+              return newError;
+            }),
+          },
+        };
+      }
       return {
         statusCode: 200,
-        response: {
-          data: execution.data,
-          errors: execution.errors.map((error): GraphQLError => {
-            const newError = { ...error };
-            if (isProd) {
-              newError.originalError = undefined;
-            }
-            if (!error.originalError) {
-              newError.extensions = {
-                code: 'GRAPHQL_VALIDATION_FAILED',
-              };
-            } else if (error.originalError?.name === 'EntityNotFoundError') {
-              newError.message = 'Entity not found';
-              newError.extensions = {
-                code: 'NOT_FOUND',
-              };
-            }
-            return newError;
-          }),
-        },
+        response: execution,
       };
     },
   });
