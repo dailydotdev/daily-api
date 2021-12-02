@@ -3,24 +3,19 @@ import { FeedAdvancedSettings, AdvancedSettings } from '../src/entity';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
 import { Connection, getConnection, In } from 'typeorm';
-import { ApolloServer } from 'apollo-server-fastify';
-import {
-  ApolloServerTestClient,
-  createTestClient,
-} from 'apollo-server-testing';
 import request from 'supertest';
 import _ from 'lodash';
 
-import createApolloServer from '../src/apollo';
-import { Context } from '../src/Context';
 import {
   authorizeRequest,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
   MockContext,
   saveFixtures,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
-import appFunc from '../src';
 import {
   Feed,
   FeedSource,
@@ -50,19 +45,17 @@ import {
 
 let app: FastifyInstance;
 let con: Connection;
-let server: ApolloServer;
-let client: ApolloServerTestClient;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
 let loggedUser: string = null;
 
 beforeAll(async () => {
   con = await getConnection();
-  server = await createApolloServer({
-    context: (): Context => new MockContext(con, loggedUser),
-    playground: false,
-  });
-  client = createTestClient(server);
-  app = await appFunc();
-  return app.ready();
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser),
+  );
+  client = state.client;
+  app = state.app;
 });
 
 beforeEach(async () => {
@@ -237,13 +230,12 @@ describe('query anonymousFeed', () => {
 `;
 
   it('should return anonymous feed with no filters ordered by popularity', async () => {
-    const res = await client.query({ query: QUERY, variables });
+    const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return anonymous feed with no filters ordered by time', async () => {
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { ...variables, ranking: Ranking.TIME },
     });
     delete res.data.anonymousFeed.pageInfo.endCursor;
@@ -251,24 +243,21 @@ describe('query anonymousFeed', () => {
   });
 
   it('should return anonymous feed filtered by sources', async () => {
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { ...variables, filters: { includeSources: ['a', 'b'] } },
     });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return anonymous feed filtered by tags', async () => {
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { ...variables, filters: { includeTags: ['html', 'webdev'] } },
     });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return anonymous feed while excluding sources', async () => {
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { ...variables, filters: { excludeSources: ['a'] } },
     });
     expect(res.data).toMatchSnapshot();
@@ -277,16 +266,14 @@ describe('query anonymousFeed', () => {
   it('should return feed while excluding sources based on advanced settings', async () => {
     await saveAdvancedSettingsFiltersFixtures();
     const filters = await feedToFilters(con, '1');
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { ...variables, filters },
     });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return anonymous feed filtered by tags and sources', async () => {
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: {
         ...variables,
         filters: {
@@ -300,7 +287,7 @@ describe('query anonymousFeed', () => {
 
   it('should remove banned posts from the feed', async () => {
     await con.getRepository(Post).update({ id: 'p5' }, { banned: true });
-    const res = await client.query({ query: QUERY, variables });
+    const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
@@ -312,8 +299,7 @@ describe('query anonymousFeed', () => {
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
       });
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
     });
     expect(res.data).toMatchSnapshot();
@@ -327,8 +313,7 @@ describe('query anonymousFeed', () => {
       .reply(200, {
         data: [],
       });
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
     });
     expect(res.errors).toBeFalsy();
@@ -356,7 +341,7 @@ describe('query feed', () => {
   it('should return feed with preconfigured filters', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    const res = await client.query({ query: QUERY, variables });
+    const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
@@ -364,7 +349,7 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, FeedTag, [{ feedId: '1', tag: 'html' }]);
-    const res = await client.query({ query: QUERY, variables });
+    const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
@@ -374,7 +359,7 @@ describe('query feed', () => {
     await saveFixtures(con, FeedTag, [
       { feedId: '1', tag: 'html', blocked: true },
     ]);
-    const res = await client.query({ query: QUERY, variables });
+    const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
@@ -385,7 +370,7 @@ describe('query feed', () => {
       { feedId: '1', tag: 'javascript' },
       { feedId: '1', tag: 'webdev', blocked: true },
     ]);
-    const res = await client.query({ query: QUERY, variables });
+    const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
@@ -393,21 +378,21 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, FeedSource, [{ feedId: '1', sourceId: 'a' }]);
-    const res = await client.query({ query: QUERY, variables });
+    const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return preconfigured feed with sources filtered based on advanced settings', async () => {
     loggedUser = '1';
     await saveAdvancedSettingsFiltersFixtures();
-    const res = await client.query({ query: QUERY, variables });
+    const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return preconfigured feed with no filters', async () => {
     loggedUser = '1';
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-    const res = await client.query({ query: QUERY, variables });
+    const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
@@ -415,8 +400,7 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await con.getRepository(View).save([{ userId: '1', postId: 'p1' }]);
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { ...variables, unreadOnly: true },
     });
     expect(res.data).toMatchSnapshot();
@@ -426,7 +410,7 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFeedFixtures();
     await con.getRepository(Post).update({ id: 'p4' }, { banned: true });
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 
@@ -434,7 +418,7 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFeedFixtures();
     await con.getRepository(Post).update({ id: 'p4' }, { deleted: true });
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 
@@ -458,8 +442,7 @@ describe('query feed', () => {
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
       });
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
     });
     expect(res.data).toMatchSnapshot();
@@ -479,7 +462,7 @@ describe('query sourceFeed', () => {
   }`;
 
   it('should return a single source feed', async () => {
-    const res = await client.query({ query: QUERY('b') });
+    const res = await client.query(QUERY('b'));
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -497,7 +480,7 @@ describe('query tagFeed', () => {
   }`;
 
   it('should return a single tag feed', async () => {
-    const res = await client.query({ query: QUERY('javascript') });
+    const res = await client.query(QUERY('javascript'));
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -514,7 +497,7 @@ describe('query keywordFeed', () => {
   }`;
 
   it('should return a single keyword feed', async () => {
-    const res = await client.query({ query: QUERY('javascript') });
+    const res = await client.query(QUERY('javascript'));
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -545,7 +528,7 @@ describe('query feedSettings', () => {
   it('should return the feed settings', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -562,7 +545,7 @@ describe('query searchPostSuggestions', () => {
 `;
 
   it('should return search suggestions', async () => {
-    const res = await client.query({ query: QUERY('p1') });
+    const res = await client.query(QUERY('p1'));
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -577,12 +560,12 @@ describe('query searchPosts', () => {
 `;
 
   it('should return search feed', async () => {
-    const res = await client.query({ query: QUERY('p1') });
+    const res = await client.query(QUERY('p1'));
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return search empty feed', async () => {
-    const res = await client.query({ query: QUERY('not found') });
+    const res = await client.query(QUERY('not found'));
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -602,7 +585,7 @@ describe('query rssFeeds', () => {
     const list = await con
       .getRepository(BookmarkList)
       .save({ userId: loggedUser, name: 'list' });
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.rssFeeds).toEqual([
       { name: 'Recent news feed', url: 'http://localhost:4000/rss/f/1' },
       { name: 'Bookmarks', url: 'http://localhost:4000/rss/b/1' },
@@ -638,7 +621,7 @@ describe('query authorFeed', () => {
       .getRepository(Post)
       .update({ id: In(['p1', 'p3']) }, { authorId: '1' });
 
-    const res = await client.query({ query: QUERY('1') });
+    const res = await client.query(QUERY('1'));
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
@@ -664,7 +647,7 @@ describe('query mostUpvotedFeed', () => {
       },
     );
 
-    const res = await client.query({ query: QUERY() });
+    const res = await client.query(QUERY());
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
@@ -682,7 +665,7 @@ describe('query mostUpvotedFeed', () => {
       },
     );
 
-    const res = await client.query({ query: QUERY(30) });
+    const res = await client.query(QUERY(30));
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
@@ -700,7 +683,7 @@ describe('query mostDiscussedFeed', () => {
     await repo.update({ id: 'p1' }, { discussionScore: 20 });
     await repo.update({ id: 'p3' }, { discussionScore: 15 });
 
-    const res = await client.query({ query: QUERY() });
+    const res = await client.query(QUERY());
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
@@ -720,7 +703,7 @@ describe('query randomTrendingPosts', () => {
   });
 
   it('should return random trending posts', async () => {
-    const res = await client.query({ query: QUERY, variables: { first: 10 } });
+    const res = await client.query(QUERY, { variables: { first: 10 } });
     expect(res.errors).toBeFalsy();
     expect(res.data.randomTrendingPosts.map((post) => post.id).sort()).toEqual([
       'p1',
@@ -729,8 +712,7 @@ describe('query randomTrendingPosts', () => {
   });
 
   it('should filter out the given post', async () => {
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { first: 10, post: 'p1' },
     });
     expect(res.errors).toBeFalsy();
@@ -767,7 +749,7 @@ describe('query randomSimilarPosts', () => {
       },
     );
 
-    const res = await client.query({ query: QUERY() });
+    const res = await client.query(QUERY());
     expect(res.errors).toBeFalsy();
     expect(res.data.randomSimilarPosts.map((post) => post.id).sort()).toEqual([
       'p3',
@@ -802,8 +784,7 @@ describe('query randomSimilarPostsByTags', () => {
       },
     );
 
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { post: 'p1', tags: ['webdev', 'javascript'] },
     });
     expect(res.errors).toBeFalsy();
@@ -831,8 +812,7 @@ describe('query randomSimilarPostsByTags', () => {
       },
     );
 
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { post: 'p1', tags: [] },
     });
     expect(res.errors).toBeFalsy();
@@ -854,7 +834,7 @@ describe('query randomDiscussedPosts', () => {
   });
 
   it('should return random discussed posts', async () => {
-    const res = await client.query({ query: QUERY, variables: { first: 10 } });
+    const res = await client.query(QUERY, { variables: { first: 10 } });
     expect(res.errors).toBeFalsy();
     expect(res.data.randomDiscussedPosts.map((post) => post.id).sort()).toEqual(
       ['p1', 'p3'],
@@ -862,8 +842,7 @@ describe('query randomDiscussedPosts', () => {
   });
 
   it('should filter out the given post', async () => {
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { first: 10, post: 'p1' },
     });
     expect(res.errors).toBeFalsy();
@@ -886,7 +865,7 @@ describe('query tagsCategories', () => {
 
     await saveFeedFixtures();
 
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
 
     expect(res.data).toMatchSnapshot();
   });
@@ -905,7 +884,7 @@ describe('query advancedSettings', () => {
 
     await saveFeedFixtures();
 
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
 
     expect(res.data).toMatchSnapshot();
   });
@@ -942,8 +921,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
     await redisClient.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, AdvancedSettings, advancedSettings);
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: {
         settings: [
           { id: 1, enabled: true },
@@ -961,8 +939,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
   it('should not fail if feed entity does not exists', async () => {
     loggedUser = '1';
     await saveFixtures(con, AdvancedSettings, advancedSettings);
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: {
         settings: [
           { id: 1, enabled: true },
@@ -979,8 +956,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
     await redisClient.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
     await redisClient.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
     await saveFeedFixtures();
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: {
         settings: [
           { id: 1, enabled: false },
@@ -999,8 +975,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
   it('should ignore duplicates', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: {
         settings: [
           { id: 1, enabled: true },
@@ -1051,8 +1026,7 @@ describe('mutation addFiltersToFeed', () => {
     await redisClient.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
     await saveFixtures(con, Feed, [{ id: '2', userId: '1' }]);
     await saveFixtures(con, AdvancedSettings, advancedSettings);
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: {
         filters: {
           includeTags: ['webdev', 'javascript'],
@@ -1070,8 +1044,7 @@ describe('mutation addFiltersToFeed', () => {
   it('should ignore duplicates', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: {
         filters: {
           includeTags: ['webdev', 'javascript'],
@@ -1085,8 +1058,7 @@ describe('mutation addFiltersToFeed', () => {
 
   it('should ignore non existing sources', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: {
         filters: {
           includeTags: ['webdev', 'javascript'],
@@ -1134,8 +1106,7 @@ describe('mutation removeFiltersFromFeed', () => {
     await redisClient.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
     await redisClient.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
     await saveFeedFixtures();
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: {
         filters: {
           includeTags: ['webdev', 'javascript'],
@@ -1195,6 +1166,7 @@ describe('compatibility routes', () => {
 
     it('should return preconfigured feed when logged-in', async () => {
       await saveFeedFixtures();
+      loggedUser = '1';
       const res = await authorizeRequest(
         request(app.server)
           .get('/v1/posts/latest')
@@ -1231,18 +1203,19 @@ describe('compatibility routes', () => {
   describe('GET /feeds/publications', () => {
     it('should return feed publications filters', async () => {
       await saveFeedFixtures();
-      const res = await authorizeRequest(
-        request(app.server).get('/v1/feeds/publications'),
-      ).expect(200);
+      loggedUser = '1';
+      const res = await request(app.server)
+        .get('/v1/feeds/publications')
+        .expect(200);
       expect(res.body).toMatchSnapshot();
     });
   });
 
   describe('POST /feeds/publications', () => {
     it('should add new feed publications filters', async () => {
-      const res = await authorizeRequest(
-        request(app.server).post('/v1/feeds/publications'),
-      )
+      loggedUser = '1';
+      const res = await request(app.server)
+        .post('/v1/feeds/publications')
         .send([
           { publicationId: 'a', enabled: false },
           { publicationId: 'b', enabled: false },
@@ -1253,9 +1226,9 @@ describe('compatibility routes', () => {
 
     it('should remove existing feed publications filters', async () => {
       await saveFeedFixtures();
-      const res = await authorizeRequest(
-        request(app.server).post('/v1/feeds/publications'),
-      )
+      loggedUser = '1';
+      const res = await request(app.server)
+        .post('/v1/feeds/publications')
         .send([{ publicationId: 'b', enabled: true }])
         .expect(200);
       expect(res.body).toMatchSnapshot();
@@ -1265,18 +1238,17 @@ describe('compatibility routes', () => {
   describe('GET /feeds/tags', () => {
     it('should return feed tags filters', async () => {
       await saveFeedFixtures();
-      const res = await authorizeRequest(
-        request(app.server).get('/v1/feeds/tags'),
-      ).expect(200);
+      loggedUser = '1';
+      const res = await request(app.server).get('/v1/feeds/tags').expect(200);
       expect(res.body).toMatchSnapshot();
     });
   });
 
   describe('POST /feeds/tags', () => {
     it('should add new feed tags filters', async () => {
-      const res = await authorizeRequest(
-        request(app.server).post('/v1/feeds/tags'),
-      )
+      loggedUser = '1';
+      const res = await request(app.server)
+        .post('/v1/feeds/tags')
         .send([{ tag: 'html' }, { tag: 'javascript' }])
         .expect(200);
       expect(res.body).toMatchSnapshot();
@@ -1285,9 +1257,9 @@ describe('compatibility routes', () => {
   describe('DELETE /feeds/tags', () => {
     it('should remove existing feed tags filters', async () => {
       await saveFeedFixtures();
-      const res = await authorizeRequest(
-        request(app.server).delete('/v1/feeds/tags'),
-      )
+      loggedUser = '1';
+      const res = await request(app.server)
+        .delete('/v1/feeds/tags')
         .send({ tag: 'javascript' })
         .expect(200);
       expect(res.body).toMatchSnapshot();

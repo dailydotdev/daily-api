@@ -1,23 +1,18 @@
 import { FastifyInstance } from 'fastify';
 import { Connection, getConnection } from 'typeorm';
-import { ApolloServer } from 'apollo-server-fastify';
-import {
-  ApolloServerTestClient,
-  createTestClient,
-} from 'apollo-server-testing';
 import request from 'supertest';
 import _ from 'lodash';
 
-import createApolloServer from '../src/apollo';
-import { Context } from '../src/Context';
 import {
-  authorizeRequest,
+  disposeGraphQLTesting,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
   MockContext,
   saveFixtures,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
-import appFunc from '../src';
 import {
   Bookmark,
   Post,
@@ -31,8 +26,8 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 
 let app: FastifyInstance;
 let con: Connection;
-let server: ApolloServer;
-let client: ApolloServerTestClient;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
 let loggedUser: string;
 let premiumUser: boolean;
 
@@ -57,13 +52,11 @@ const bookmarksFixture = [
 
 beforeAll(async () => {
   con = await getConnection();
-  server = await createApolloServer({
-    context: (): Context => new MockContext(con, loggedUser, premiumUser),
-    playground: false,
-  });
-  client = createTestClient(server);
-  app = await appFunc();
-  return app.ready();
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser, premiumUser),
+  );
+  client = state.client;
+  app = state.app;
 });
 
 beforeEach(async () => {
@@ -75,7 +68,7 @@ beforeEach(async () => {
   await saveFixtures(con, PostTag, postTagsFixture);
 });
 
-afterAll(() => app.close());
+afterAll(() => disposeGraphQLTesting(state));
 
 describe('mutation addBookmarks', () => {
   const MUTATION = `
@@ -97,8 +90,7 @@ describe('mutation addBookmarks', () => {
 
   it('should add new bookmarks', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { data: { postIds: ['p1', 'p3'] } },
     });
     expect(res.errors).toBeFalsy();
@@ -112,8 +104,7 @@ describe('mutation addBookmarks', () => {
     loggedUser = '1';
     const repo = con.getRepository(Bookmark);
     await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { data: { postIds: ['p1', 'p3'] } },
     });
     expect(res.errors).toBeFalsy();
@@ -126,8 +117,7 @@ describe('mutation addBookmarks', () => {
 
   it('should ignore bookmarks of deleted posts', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { data: { postIds: ['p1', 'p3', 'p100'] } },
     });
     expect(res.errors).toBeFalsy();
@@ -139,8 +129,7 @@ describe('mutation addBookmarks', () => {
 
   it('should ignore nulls', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { data: { postIds: ['p1', null, 'p3'] } },
     });
     expect(res.errors).toBeFalsy();
@@ -172,9 +161,7 @@ describe('mutation removeBookmark', () => {
     loggedUser = '1';
     const repo = con.getRepository(Bookmark);
     await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
-    const res = await client.mutate({
-      mutation: MUTATION('p1'),
-    });
+    const res = await client.mutate(MUTATION('p1'));
     expect(res.errors).toBeFalsy();
     const actual = await repo.find({
       where: { userId: loggedUser },
@@ -186,9 +173,7 @@ describe('mutation removeBookmark', () => {
   it('should ignore remove non-existing bookmark', async () => {
     loggedUser = '1';
     const repo = con.getRepository(Bookmark);
-    const res = await client.mutate({
-      mutation: MUTATION('p1'),
-    });
+    const res = await client.mutate(MUTATION('p1'));
     expect(res.errors).toBeFalsy();
     const actual = await repo.find({
       where: { userId: loggedUser },
@@ -229,9 +214,7 @@ describe('mutation createBookmarkList', () => {
   it('should create a new list', async () => {
     loggedUser = '1';
     premiumUser = true;
-    const res = await client.mutate({
-      mutation: MUTATION('list'),
-    });
+    const res = await client.mutate(MUTATION('list'));
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(BookmarkList).find();
     expect(actual.length).toEqual(1);
@@ -275,9 +258,7 @@ describe('mutation removeBookmarkList', () => {
     premiumUser = true;
     const repo = con.getRepository(BookmarkList);
     const list = await repo.save({ userId: loggedUser, name: 'list' });
-    const res = await client.mutate({
-      mutation: MUTATION(list.id),
-    });
+    const res = await client.mutate(MUTATION(list.id));
     expect(res.errors).toBeFalsy();
     const actual = await repo.find();
     expect(actual.length).toEqual(0);
@@ -288,9 +269,7 @@ describe('mutation removeBookmarkList', () => {
     premiumUser = true;
     const repo = con.getRepository(BookmarkList);
     const list = await repo.save({ userId: '2', name: 'list' });
-    const res = await client.mutate({
-      mutation: MUTATION(list.id),
-    });
+    const res = await client.mutate(MUTATION(list.id));
     expect(res.errors).toBeFalsy();
     const actual = await repo.find();
     expect(actual.length).toEqual(1);
@@ -330,9 +309,7 @@ describe('mutation renameBookmarkList', () => {
     premiumUser = true;
     const repo = con.getRepository(BookmarkList);
     const list = await repo.save({ userId: loggedUser, name: 'list' });
-    const res = await client.mutate({
-      mutation: MUTATION(list.id, 'new'),
-    });
+    const res = await client.mutate(MUTATION(list.id, 'new'));
     expect(res.errors).toBeFalsy();
     const actual = await repo.find();
     expect(actual.length).toEqual(1);
@@ -387,9 +364,7 @@ describe('mutation addBookmarkToList', () => {
     const list = await con
       .getRepository(BookmarkList)
       .save({ userId: loggedUser, name: 'list' });
-    const res = await client.mutate({
-      mutation: MUTATION('p1', list.id),
-    });
+    const res = await client.mutate(MUTATION('p1', list.id));
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Bookmark).find({
       where: { userId: loggedUser },
@@ -409,9 +384,7 @@ describe('mutation addBookmarkToList', () => {
       .save({ userId: loggedUser, name: 'list' });
     const repo = con.getRepository(Bookmark);
     await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
-    const res = await client.mutate({
-      mutation: MUTATION('p1', list.id),
-    });
+    const res = await client.mutate(MUTATION('p1', list.id));
     expect(res.errors).toBeFalsy();
     const actual = await repo.find({
       where: { userId: loggedUser },
@@ -433,9 +406,7 @@ describe('mutation addBookmarkToList', () => {
     await repo.save(
       repo.create({ postId: 'p1', userId: loggedUser, listId: list.id }),
     );
-    const res = await client.mutate({
-      mutation: MUTATION('p1'),
-    });
+    const res = await client.mutate(MUTATION('p1'));
     expect(res.errors).toBeFalsy();
     const actual = await repo.find({
       where: { userId: loggedUser },
@@ -489,7 +460,7 @@ describe('query bookmarks', () => {
   it('should return bookmarks ordered by time', async () => {
     loggedUser = '1';
     await saveFixtures(con, Bookmark, bookmarksFixture);
-    const res = await client.query({ query: QUERY(false, null, now, 2) });
+    const res = await client.query(QUERY(false, null, now, 2));
     delete res.data.bookmarksFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
   });
@@ -498,7 +469,7 @@ describe('query bookmarks', () => {
     loggedUser = '1';
     await saveFixtures(con, Bookmark, bookmarksFixture);
     await con.getRepository(View).save([{ userId: '1', postId: 'p3' }]);
-    const res = await client.query({ query: QUERY(true, null, now, 2) });
+    const res = await client.query(QUERY(true, null, now, 2));
     delete res.data.bookmarksFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
   });
@@ -519,7 +490,7 @@ describe('query bookmarks', () => {
       { postId: bookmarksFixture[2].postId },
       { listId: list.id },
     );
-    const res = await client.query({ query: QUERY(false, list.id, now, 2) });
+    const res = await client.query(QUERY(false, list.id, now, 2));
     delete res.data.bookmarksFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
   });
@@ -528,7 +499,7 @@ describe('query bookmarks', () => {
     loggedUser = '1';
     await saveFixtures(con, Bookmark, bookmarksFixture);
     await con.getRepository(Post).update({ id: 'p3' }, { banned: true });
-    const res = await client.query({ query: QUERY(false, null, now, 2) });
+    const res = await client.query(QUERY(false, null, now, 2));
     delete res.data.bookmarksFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
   });
@@ -567,7 +538,7 @@ describe('query bookmarksLists', () => {
     const list = await con
       .getRepository(BookmarkList)
       .save({ userId: loggedUser, name: 'list' });
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     delete list.userId;
     expect(res.data.bookmarkLists).toEqual([list]);
   });
@@ -575,13 +546,15 @@ describe('query bookmarksLists', () => {
 
 describe('compatibility routes', () => {
   describe('POST /posts/bookmarks', () => {
-    it('should return bad request when no body is provided', () =>
-      authorizeRequest(request(app.server).post('/v1/posts/bookmarks')).expect(
-        400,
-      ));
+    it('should return bad request when no body is provided', () => {
+      loggedUser = '1';
+      request(app.server).post('/v1/posts/bookmarks').expect(400);
+    });
 
     it('should add new bookmarks', async () => {
-      await authorizeRequest(request(app.server).post('/v1/posts/bookmarks'))
+      loggedUser = '1';
+      await request(app.server)
+        .post('/v1/posts/bookmarks')
         .send(['p1', 'p3'])
         .expect(204);
       const actual = await con.getRepository(Bookmark).find({
@@ -596,9 +569,9 @@ describe('compatibility routes', () => {
     it('should remove existing bookmark', async () => {
       const repo = con.getRepository(Bookmark);
       await repo.save(repo.create({ postId: 'p1', userId: '1' }));
-      await authorizeRequest(
-        request(app.server).delete('/v1/posts/p1/bookmark'),
-      )
+      loggedUser = '1';
+      await request(app.server)
+        .delete('/v1/posts/p1/bookmark')
         .send()
         .expect(204);
       const actual = await repo.find({
@@ -612,9 +585,9 @@ describe('compatibility routes', () => {
   describe('GET /posts/bookmarks', () => {
     it('should return bookmarks ordered by time', async () => {
       await saveFixtures(con, Bookmark, bookmarksFixture);
-      const res = await authorizeRequest(
-        request(app.server).get('/v1/posts/bookmarks'),
-      )
+      loggedUser = '1';
+      const res = await request(app.server)
+        .get('/v1/posts/bookmarks')
         .query({ latest: now, pageSize: 2, page: 0 })
         .send()
         .expect(200);
@@ -637,7 +610,7 @@ describe('query searchBookmarksSuggestions', () => {
   it('should return bookmark search suggestions', async () => {
     loggedUser = '1';
     await saveFixtures(con, Bookmark, bookmarksFixture);
-    const res = await client.query({ query: QUERY('p1') });
+    const res = await client.query(QUERY('p1'));
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -672,14 +645,14 @@ describe('query searchBookmarks', () => {
   it('should return bookmarks search feed', async () => {
     loggedUser = '1';
     await saveFixtures(con, Bookmark, bookmarksFixture);
-    const res = await client.query({ query: QUERY('p1') });
+    const res = await client.query(QUERY('p1'));
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return bookmarks search empty feed', async () => {
     loggedUser = '1';
     await saveFixtures(con, Bookmark, bookmarksFixture);
-    const res = await client.query({ query: QUERY('not found') });
+    const res = await client.query(QUERY('not found'));
     expect(res.data).toMatchSnapshot();
   });
 });

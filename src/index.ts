@@ -1,6 +1,5 @@
 import 'reflect-metadata';
-import fastify from 'fastify';
-import { FastifyInstance } from 'fastify';
+import fastify, { FastifyRequest, FastifyInstance } from 'fastify';
 import helmet from 'fastify-helmet';
 import cookie from 'fastify-cookie';
 import cors from 'fastify-cors';
@@ -20,8 +19,11 @@ import { Context } from './Context';
 import { schema } from './graphql';
 import { createOrGetConnection } from './db';
 import { stringifyHealthCheck } from './common';
+import { GraphQLError } from 'graphql';
 
-export default async function app(): Promise<FastifyInstance> {
+export default async function app(
+  contextFn?: (request: FastifyRequest) => Context,
+): Promise<FastifyInstance> {
   const isProd = process.env.NODE_ENV === 'production';
   const connection = await createOrGetConnection();
 
@@ -65,13 +67,39 @@ export default async function app(): Promise<FastifyInstance> {
 
   app.register(mercurius, {
     schema,
-    context: (request): Context => new Context(request, connection),
-    queryDepth: 7,
+    context:
+      contextFn ?? ((request): Context => new Context(request, connection)),
+    queryDepth: 10,
     subscription: {
       context: (wsConnection, request): Context =>
         new Context(request, connection),
     },
-    graphiql: process.env.NODE_ENV !== 'production',
+    graphiql: !isProd,
+    errorFormatter(execution) {
+      return {
+        statusCode: 200,
+        response: {
+          data: execution.data,
+          errors: execution.errors.map((error): GraphQLError => {
+            const newError = { ...error };
+            if (isProd) {
+              newError.originalError = undefined;
+            }
+            if (!error.originalError) {
+              newError.extensions = {
+                code: 'GRAPHQL_VALIDATION_FAILED',
+              };
+            } else if (error.originalError?.name === 'EntityNotFoundError') {
+              newError.message = 'Entity not found';
+              newError.extensions = {
+                code: 'NOT_FOUND',
+              };
+            }
+            return newError;
+          }),
+        },
+      };
+    },
   });
 
   app.register(compatibility, { prefix: '/v1' });

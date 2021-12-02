@@ -1,5 +1,5 @@
 import { mock, MockProxy } from 'jest-mock-extended';
-import {
+import fastify, {
   FastifyRequest,
   FastifyLoggerInstance,
   FastifyInstance,
@@ -12,7 +12,6 @@ import {
   Span,
 } from '@google-cloud/trace-agent/build/src/plugin-types';
 import { GraphQLFormattedError } from 'graphql';
-import { ApolloServerTestClient } from 'apollo-server-testing';
 import { Context } from '../src/Context';
 import { Message, Worker } from '../src/workers/worker';
 import { base64 } from '../src/common';
@@ -23,6 +22,8 @@ import { Cron } from '../src/cron/cron';
 import { ChangeMessage, ChangeObject } from '../src/types';
 import { PubSub } from '@google-cloud/pubsub';
 import pino from 'pino';
+import { createMercuriusTestClient } from 'mercurius-integration-testing';
+import appFunc from '../src';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -62,10 +63,31 @@ export class MockContext extends Context {
     return this.mockRoles;
   }
 
-  get log(): Logger {
+  get log(): FastifyLoggerInstance {
     return this.logger;
   }
 }
+
+export type GraphQLTestClient = ReturnType<typeof createMercuriusTestClient>;
+export type GraphQLTestingState = {
+  app: FastifyInstance;
+  client: GraphQLTestClient;
+};
+
+export const initializeGraphQLTesting = async (
+  contextFn: (request: FastifyRequest) => Context,
+): Promise<GraphQLTestingState> => {
+  const app = await appFunc(contextFn);
+  const client = createMercuriusTestClient(app);
+  await app.ready();
+  return { app, client };
+};
+
+export const disposeGraphQLTesting = async ({
+  app,
+}: GraphQLTestingState): Promise<void> => {
+  await app.close();
+};
 
 export const authorizeRequest = (
   req: request.Test,
@@ -85,16 +107,18 @@ export type Mutation = {
 };
 
 export const testMutationError = async (
-  client: ApolloServerTestClient,
+  client: GraphQLTestClient,
   mutation: Mutation,
   callback: (errors: readonly GraphQLFormattedError[]) => void | Promise<void>,
 ): Promise<void> => {
-  const res = await client.mutate(mutation);
+  const res = await client.mutate(mutation.mutation, {
+    variables: mutation.variables,
+  });
   return callback(res.errors);
 };
 
 export const testMutationErrorCode = async (
-  client: ApolloServerTestClient,
+  client: GraphQLTestClient,
   mutation: Mutation,
   code: string,
 ): Promise<void> =>
@@ -110,16 +134,16 @@ export type Query = {
 };
 
 export const testQueryError = async (
-  client: ApolloServerTestClient,
+  client: GraphQLTestClient,
   query: Query,
   callback: (errors: readonly GraphQLFormattedError[]) => void | Promise<void>,
 ): Promise<void> => {
-  const res = await client.query(query);
+  const res = await client.query(query.query, { variables: query.variables });
   return callback(res.errors);
 };
 
 export const testQueryErrorCode = async (
-  client: ApolloServerTestClient,
+  client: GraphQLTestClient,
   query: Query,
   code: string,
 ): Promise<void> =>

@@ -1,29 +1,24 @@
-import { ApolloServer } from 'apollo-server-fastify';
-import {
-  ApolloServerTestClient,
-  createTestClient,
-} from 'apollo-server-testing';
 import { Connection, getConnection } from 'typeorm';
 import faker from 'faker';
 import _ from 'lodash';
-
-import { Context } from '../src/Context';
-import createApolloServer from '../src/apollo';
-import { MockContext } from './helpers';
+import {
+  disposeGraphQLTesting,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
+  MockContext,
+} from './helpers';
 import { Integration } from '../src/entity';
 
 let con: Connection;
-let server: ApolloServer;
-let client: ApolloServerTestClient;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
 let integrations: Integration[];
 
 beforeAll(async () => {
   con = getConnection();
-  server = await createApolloServer({
-    context: (): Context => new MockContext(con),
-    playground: false,
-  });
-  client = createTestClient(server);
+  state = await initializeGraphQLTesting(() => new MockContext(con));
+  client = state.client;
 });
 
 beforeEach(async () => {
@@ -43,6 +38,8 @@ beforeEach(async () => {
   await con.getRepository(Integration).save(integrations);
 });
 
+afterAll(() => disposeGraphQLTesting(state));
+
 describe('query popularIntegrations', () => {
   const QUERY = `{
   popularIntegrations {
@@ -53,7 +50,7 @@ describe('query popularIntegrations', () => {
   it('should return the popular integrations', async () => {
     const expected = integrations.map((i) => _.omit(i, 'timestamp'));
 
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.popularIntegrations).toEqual(expected);
   });
 });
