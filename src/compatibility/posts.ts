@@ -1,11 +1,14 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { offsetToCursor } from 'graphql-relay';
-import { ServerResponse } from 'http';
 import { getConnection } from 'typeorm';
 import { GraphqlPayload, injectGraphql, postFields } from './utils';
 import { Post } from '../entity';
 
-const getPaginationParams = (req: FastifyRequest): string => {
+const getPaginationParams = (
+  req: FastifyRequest<{
+    Querystring: { pageSize?: number; page?: number; latest?: string };
+  }>,
+): string => {
   const pageSize = Math.min(req.query.pageSize || 30, 40);
   const offset = pageSize * (req.query.page || 0);
   const after = offset ? `, after: "${offsetToCursor(offset)}"` : '';
@@ -36,26 +39,31 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     );
   });
 
-  fastify.delete('/:id/bookmark', async (req, res) => {
-    const query = `
+  fastify.delete<{ Params: { id: string } }>(
+    '/:id/bookmark',
+    async (req, res) => {
+      const query = `
   mutation RemoveBookmark {
   removeBookmark(id: "${req.params.id}") {
     _
   }
 }`;
 
-    return injectGraphql(
-      fastify,
-      {
-        query,
-      },
-      () => undefined,
-      req,
-      res,
-    );
-  });
+      return injectGraphql(
+        fastify,
+        {
+          query,
+        },
+        () => undefined,
+        req,
+        res,
+      );
+    },
+  );
 
-  fastify.get('/bookmarks', async (req, res) => {
+  fastify.get<{
+    Querystring: { pageSize?: number; page?: number; latest?: string };
+  }>('/bookmarks', async (req, res) => {
     const query = `{
   bookmarksFeed(${getPaginationParams(req)}) {
     edges {
@@ -75,9 +83,17 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
 
   const latestHandler = async (
-    req: FastifyRequest,
-    res: FastifyReply<ServerResponse>,
-  ): Promise<FastifyReply<ServerResponse>> => {
+    req: FastifyRequest<{
+      Querystring: {
+        pageSize?: number;
+        page?: number;
+        latest?: string;
+        sources: string;
+        tags: string;
+      };
+    }>,
+    res: FastifyReply,
+  ): Promise<FastifyReply> => {
     const pageParams = getPaginationParams(req);
     let name: string;
     let query: GraphqlPayload;
@@ -130,7 +146,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/latest', latestHandler);
   fastify.get('/toilet', latestHandler);
 
-  fastify.get('/publication', async (req, res) => {
+  fastify.get<{
+    Querystring: {
+      pageSize?: number;
+      page?: number;
+      latest?: string;
+      pub: string;
+    };
+  }>('/publication', async (req, res) => {
     const pageParams = getPaginationParams(req);
     const query = `{
   sourceFeed(source: "${req.query.pub}", ${pageParams}) {
@@ -150,7 +173,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     );
   });
 
-  fastify.get('/tag', async (req, res) => {
+  fastify.get<{
+    Querystring: {
+      pageSize?: number;
+      page?: number;
+      latest?: string;
+      tag: string;
+    };
+  }>('/tag', async (req, res) => {
     const pageParams = getPaginationParams(req);
     const query = `{
   tagFeed(tag: "${req.query.tag}", ${pageParams}) {
@@ -170,7 +200,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     );
   });
 
-  fastify.get('/:id', async (req, res) => {
+  fastify.get<{ Params: { id: string } }>('/:id', async (req, res) => {
     const con = getConnection();
     const post = await con.getRepository(Post).findOne({
       select: ['id', 'title', 'url'],
@@ -182,7 +212,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     return res.send(post);
   });
 
-  fastify.post('/:id/hide', async (req, res) => {
+  fastify.post<{ Params: { id: string } }>('/:id/hide', async (req, res) => {
     const query = `
   mutation HidePost {
   hidePost(id: "${req.params.id}") {
@@ -201,23 +231,26 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     );
   });
 
-  fastify.post('/:id/report', async (req, res) => {
-    const reason = req?.body?.reason.toUpperCase();
-    const query = `
+  fastify.post<{ Body: { reason: string }; Params: { id: string } }>(
+    '/:id/report',
+    async (req, res) => {
+      const reason = req?.body?.reason.toUpperCase();
+      const query = `
   mutation ReportPost {
   reportPost(id: "${req.params.id}", reason: ${reason}) {
     _
   }
 }`;
 
-    return injectGraphql(
-      fastify,
-      {
-        query,
-      },
-      () => undefined,
-      req,
-      res,
-    );
-  });
+      return injectGraphql(
+        fastify,
+        {
+          query,
+        },
+        () => undefined,
+        req,
+        res,
+      );
+    },
+  );
 }

@@ -1,9 +1,8 @@
 import { PubSub, Topic } from '@google-cloud/pubsub';
-import { Logger } from 'fastify';
-import { Post, SourceRequest } from '../entity';
+import { FastifyLoggerInstance } from 'fastify';
+import { Post, SourceRequest, Alerts } from '../entity';
 import { toLegacySourceRequest } from '../compatibility/entity';
 import { ChangeObject } from '../types';
-import { Alerts } from '../entity/Alerts';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
@@ -29,7 +28,7 @@ const sourceFeedRemovedTopic = pubsub.topic('source-feed-removed');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
-export type EventLogger = Omit<Logger, 'fatal'>;
+export type EventLogger = Omit<FastifyLoggerInstance, 'fatal'>;
 
 const publishEvent = async (
   log: EventLogger,
@@ -38,7 +37,9 @@ const publishEvent = async (
 ): Promise<void> => {
   if (process.env.NODE_ENV === 'production') {
     try {
-      await topic.publishJSON(payload);
+      await topic.publishMessage({
+        json: payload,
+      });
     } catch (err) {
       log.error(
         { err, topic: topic.name, payload },

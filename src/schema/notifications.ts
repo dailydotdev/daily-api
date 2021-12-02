@@ -1,4 +1,4 @@
-import { gql, IResolvers } from 'apollo-server-fastify';
+import { IResolvers } from 'graphql-tools';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { Banner, Notification } from '../entity';
@@ -17,7 +17,7 @@ interface GQLBanner {
   theme: string;
 }
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   """
   News and updates notification
   """

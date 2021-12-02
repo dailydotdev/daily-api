@@ -2,7 +2,6 @@ import { FastifyInstance, FastifyReply } from 'fastify';
 import { upperFirst } from 'lodash';
 import { injectGraphql } from './utils';
 import { GQLFeedSettings } from '../schema/feeds';
-import { ServerResponse } from 'http';
 
 interface Publication {
   publicationId: string;
@@ -51,7 +50,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const updateFilters = (
       mutation: string,
       pubs: Publication[],
-    ): Promise<FastifyReply<ServerResponse>> => {
+    ): Promise<FastifyReply> => {
       const query = `
   mutation ${upperFirst(mutation)}($filters: FiltersInput!) {
     ${mutation}(filters: $filters) {

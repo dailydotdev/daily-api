@@ -1,45 +1,38 @@
-import { ApolloServer } from 'apollo-server-fastify';
-import {
-  ApolloServerTestClient,
-  createTestClient,
-} from 'apollo-server-testing';
 import { Connection, getConnection } from 'typeorm';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
-
-import { Context } from '../src/Context';
-import createApolloServer from '../src/apollo';
 import {
   authorizeRequest,
+  disposeGraphQLTesting,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
   MockContext,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
-import appFunc from '../src';
 import { Settings } from '../src/entity';
 
 let app: FastifyInstance;
 let con: Connection;
-let server: ApolloServer;
-let client: ApolloServerTestClient;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
 let loggedUser: string = null;
 
 beforeAll(async () => {
   con = await getConnection();
-  server = await createApolloServer({
-    context: (): Context => new MockContext(con, loggedUser),
-    playground: false,
-  });
-  client = createTestClient(server);
-  app = await appFunc();
-  return app.ready();
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser),
+  );
+  client = state.client;
+  app = state.app;
 });
 
 beforeEach(async () => {
   loggedUser = null;
 });
 
-afterAll(() => app.close());
+afterAll(() => disposeGraphQLTesting(state));
 
 describe('query userSettings', () => {
   const QUERY = `{
@@ -71,13 +64,13 @@ describe('query userSettings', () => {
     const expected = new Object(await repo.save(settings));
     delete expected['updatedAt'];
 
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.userSettings).toEqual(expected);
   });
 
   it('should create default settings if not exist', async () => {
     loggedUser = '1';
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.userSettings).toMatchSnapshot();
   });
 });
@@ -110,8 +103,7 @@ describe('mutation updateUserSettings', () => {
 
   it('should create user settings when does not exist', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { data: { theme: 'bright', insaneMode: true } },
     });
     expect(res.data).toMatchSnapshot();
@@ -129,8 +121,7 @@ describe('mutation updateUserSettings', () => {
       }),
     );
 
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { data: { appInsaneMode: false } },
     });
     expect(res.data).toMatchSnapshot();
@@ -151,6 +142,7 @@ describe('compatibility routes', () => {
       delete expected['updatedAt'];
       delete expected['showOnlyUnreadPosts'];
 
+      loggedUser = '1';
       const res = await authorizeRequest(
         request(app.server).get('/v1/settings'),
       ).expect(200);
@@ -160,6 +152,7 @@ describe('compatibility routes', () => {
 
   describe('POST /settings', () => {
     it('should update user settings', async () => {
+      loggedUser = '1';
       await authorizeRequest(
         request(app.server).post('/v1/settings').send({ theme: 'bright' }),
       ).expect(204);

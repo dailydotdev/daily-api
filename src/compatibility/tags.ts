@@ -17,8 +17,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     );
   });
 
-  fastify.get('/search', async (req, res) => {
-    const query = `{
+  fastify.get<{ Querystring: { query: string } }>(
+    '/search',
+    async (req, res) => {
+      const query = `{
   searchTags(query: "${req.query.query}") {
     query
     hits {
@@ -26,12 +28,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
   }
 }`;
-    return injectGraphql(
-      fastify,
-      { query },
-      (obj) => obj['data']['searchTags'],
-      req,
-      res,
-    );
-  });
+      return injectGraphql(
+        fastify,
+        { query },
+        (obj) => obj['data']['searchTags'],
+        req,
+        res,
+      );
+    },
+  );
 }

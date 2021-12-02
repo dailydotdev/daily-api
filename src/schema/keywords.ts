@@ -1,4 +1,4 @@
-import { gql, IResolvers } from 'apollo-server-fastify';
+import { IResolvers } from 'graphql-tools';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import { Keyword, KeywordStatus, PostKeyword } from '../entity';
@@ -27,7 +27,7 @@ interface GQLSynonymKeywordArgs {
   originalKeyword: string;
 }
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   """
   Post keyword
   """

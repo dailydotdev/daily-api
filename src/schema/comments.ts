@@ -1,6 +1,7 @@
 import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
-import { ForbiddenError, gql, IResolvers } from 'apollo-server-fastify';
+import { ForbiddenError } from 'apollo-server-errors';
+import { IResolvers } from 'graphql-tools';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { getDiscussionLink } from '../common';
@@ -42,7 +43,7 @@ export interface GQLCommentUpvote {
   comment: GQLComment;
 }
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   type Comment {
     """
     Unique identifier

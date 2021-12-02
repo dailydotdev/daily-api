@@ -1,34 +1,30 @@
 import { FastifyInstance } from 'fastify';
 import { Connection, getConnection } from 'typeorm';
-import { ApolloServer } from 'apollo-server-fastify';
-import {
-  ApolloServerTestClient,
-  createTestClient,
-} from 'apollo-server-testing';
 import request from 'supertest';
-
-import createApolloServer from '../src/apollo';
-import { Context } from '../src/Context';
-import { MockContext, saveFixtures } from './helpers';
-import appFunc from '../src';
+import {
+  disposeGraphQLTesting,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
+  MockContext,
+  saveFixtures,
+} from './helpers';
 import { Keyword } from '../src/entity';
 import { keywordsFixture } from './fixture/keywords';
 
 let app: FastifyInstance;
 let con: Connection;
-let server: ApolloServer;
-let client: ApolloServerTestClient;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
 let loggedUser: string = null;
 
 beforeAll(async () => {
   con = await getConnection();
-  server = await createApolloServer({
-    context: (): Context => new MockContext(con, loggedUser),
-    playground: false,
-  });
-  client = createTestClient(server);
-  app = await appFunc();
-  return app.ready();
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser),
+  );
+  client = state.client;
+  app = state.app;
 });
 
 beforeEach(async () => {
@@ -37,7 +33,7 @@ beforeEach(async () => {
   await saveFixtures(con, Keyword, keywordsFixture);
 });
 
-afterAll(() => app.close());
+afterAll(() => disposeGraphQLTesting(state));
 
 describe('query popularTags', () => {
   const QUERY = `{
@@ -47,7 +43,7 @@ describe('query popularTags', () => {
   }`;
 
   it('should return most popular tags ordered by value', async () => {
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -63,12 +59,12 @@ describe('query searchTags', () => {
   }`;
 
   it('should search for tags and order by value', async () => {
-    const res = await client.query({ query: QUERY('dev') });
+    const res = await client.query(QUERY('dev'));
     expect(res.data).toMatchSnapshot();
   });
 
   it('should take into account keyword synonyms', async () => {
-    const res = await client.query({ query: QUERY('web-dev') });
+    const res = await client.query(QUERY('web-dev'));
     expect(res.data).toMatchSnapshot();
   });
 });

@@ -1,4 +1,4 @@
-import { ApolloError } from 'apollo-server-fastify';
+import { ApolloError } from 'apollo-server-errors';
 
 export class NotFoundError extends ApolloError {
   constructor(message: string) {

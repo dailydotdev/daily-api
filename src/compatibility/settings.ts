@@ -41,7 +41,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     );
   });
 
-  fastify.post('/', async (req, res) => {
+  fastify.post<{ Body: Record<string, unknown> }>('/', async (req, res) => {
     const query = `
   mutation UpdateUserSettings($data: UpdateSettingsInput!) {
   updateUserSettings(data: $data) {

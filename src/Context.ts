@@ -1,5 +1,5 @@
 import { Connection, EntitySchema, ObjectType, Repository } from 'typeorm';
-import { FastifyRequest, Logger } from 'fastify';
+import { FastifyRequest, FastifyLoggerInstance } from 'fastify';
 import { RootSpan } from '@google-cloud/trace-agent/build/src/plugin-types';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
 import { Roles } from './roles';
@@ -31,7 +31,7 @@ export class Context {
     return this.req.roles ?? [];
   }
 
-  get log(): Logger {
+  get log(): FastifyLoggerInstance {
     return this.req.log;
   }
 

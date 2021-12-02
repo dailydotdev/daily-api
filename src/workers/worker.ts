@@ -1,5 +1,5 @@
 import { Connection } from 'typeorm';
-import { Logger } from 'fastify';
+import { FastifyLoggerInstance } from 'fastify';
 import { PubSub } from '@google-cloud/pubsub';
 
 export interface Message {
@@ -15,7 +15,7 @@ export interface Worker {
   handler: (
     message: Message,
     con: Connection,
-    logger: Logger,
+    logger: FastifyLoggerInstance,
     pubsub: PubSub,
   ) => Promise<void>;
   maxMessages?: number;

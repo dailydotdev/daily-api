@@ -1,14 +1,13 @@
-import { FastifyInstance } from 'fastify';
 import { Connection, getConnection } from 'typeorm';
-import { ApolloServer } from 'apollo-server-fastify';
 import {
-  ApolloServerTestClient,
-  createTestClient,
-} from 'apollo-server-testing';
-import createApolloServer from '../src/apollo';
-import { Context } from '../src/Context';
-import { MockContext, saveFixtures, testMutationErrorCode } from './helpers';
-import appFunc from '../src';
+  disposeGraphQLTesting,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
+  MockContext,
+  saveFixtures,
+  testMutationErrorCode,
+} from './helpers';
 import {
   Post,
   PostTag,
@@ -20,21 +19,17 @@ import {
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 
-let app: FastifyInstance;
 let con: Connection;
-let server: ApolloServer;
-let client: ApolloServerTestClient;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
 let loggedUser: string = null;
 
 beforeAll(async () => {
   con = await getConnection();
-  server = await createApolloServer({
-    context: (): Context => new MockContext(con, loggedUser, false),
-    playground: false,
-  });
-  client = createTestClient(server);
-  app = await appFunc();
-  return app.ready();
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser),
+  );
+  client = state.client;
 });
 
 beforeEach(async () => {
@@ -112,7 +107,7 @@ beforeEach(async () => {
   ]);
 });
 
-afterAll(() => app.close());
+afterAll(() => disposeGraphQLTesting(state));
 
 const commentFields =
   'id, content, contentHtml, createdAt, permalink, upvoted, author { id, name, image }';
@@ -140,20 +135,14 @@ describe('query postComments', () => {
   });
 
   it('should fetch comments and sub-comments of a post', async () => {
-    const res = await client.query({
-      query: QUERY,
-      variables: { postId: 'p1' },
-    });
+    const res = await client.query(QUERY, { variables: { postId: 'p1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
 
   it('should fetch comments and sub-comments of a post with upvoted', async () => {
     loggedUser = '1';
-    const res = await client.query({
-      query: QUERY,
-      variables: { postId: 'p1' },
-    });
+    const res = await client.query(QUERY, { variables: { postId: 'p1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
@@ -170,10 +159,7 @@ describe('query userComments', () => {
   }`;
 
   it('should fetch comments by user id', async () => {
-    const res = await client.query({
-      query: QUERY,
-      variables: { userId: '1' },
-    });
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
@@ -213,10 +199,7 @@ describe('query commentUpvotes', () => {
       createdAt: createdAtNew,
     });
 
-    const res = await client.query({
-      query: QUERY,
-      variables: { id: 'c1' },
-    });
+    const res = await client.query(QUERY, { variables: { id: 'c1' } });
 
     const [secondUpvote, firstUpvote] = res.data.commentUpvotes.edges;
     expect(res.errors).toBeFalsy();
@@ -274,8 +257,7 @@ describe('mutation commentOnPost', () => {
 
   it('should comment markdown on a post', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { postId: 'p1', content: '# my comment http://daily.dev' },
     });
     expect(res.errors).toBeFalsy();
@@ -363,8 +345,7 @@ describe('mutation commentOnComment', () => {
 
   it('should comment on a comment', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { content: '# my comment http://daily.dev', commentId: 'c1' },
     });
     expect(res.errors).toBeFalsy();
@@ -426,10 +407,7 @@ describe('mutation deleteComment', () => {
 
   it('should delete a comment', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'c2' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'c2' } });
     expect(res.errors).toBeFalsy();
     const actual = await con
       .getRepository(Comment)
@@ -442,10 +420,7 @@ describe('mutation deleteComment', () => {
 
   it('should delete a comment and its children', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'c1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'c1' } });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Comment).find({ postId: 'p1' });
     expect(actual.length).toEqual(3);
@@ -498,10 +473,7 @@ describe('mutation upvoteComment', () => {
 
   it('should upvote comment', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'c1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'c1' } });
     expect(res.errors).toBeFalsy();
     const actual = await con
       .getRepository(CommentUpvote)
@@ -515,10 +487,7 @@ describe('mutation upvoteComment', () => {
     loggedUser = '1';
     const repo = con.getRepository(CommentUpvote);
     await repo.save({ commentId: 'c1', userId: loggedUser });
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'c1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'c1' } });
     expect(res.errors).toBeFalsy();
     const actual = await repo.find({
       select: ['commentId', 'userId'],
@@ -551,10 +520,7 @@ describe('mutation cancelCommentUpvote', () => {
     loggedUser = '1';
     const repo = con.getRepository(CommentUpvote);
     await repo.save({ commentId: 'c1', userId: loggedUser });
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'c1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'c1' } });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(CommentUpvote).find();
     expect(actual).toEqual([]);
@@ -564,10 +530,7 @@ describe('mutation cancelCommentUpvote', () => {
 
   it('should ignore if no upvotes', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'c1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'c1' } });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(CommentUpvote).find();
     expect(actual).toEqual([]);
@@ -586,8 +549,7 @@ describe('permalink field', () => {
 
   it('should return permalink', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { postId: 'p1', content: '# my comment http://daily.dev' },
     });
     expect(res.errors).toBeFalsy();
@@ -641,8 +603,7 @@ describe('mutation editComment', () => {
 
   it('should edit a comment', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { id: 'c2', content: 'Edit' },
     });
     expect(res.errors).toBeFalsy();

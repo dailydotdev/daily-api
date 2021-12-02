@@ -139,7 +139,7 @@ Array [
         "line": 2,
       },
     ],
-    "message": "Variable \\"$data\\" got invalid value \\"invalid\\" at \\"data.sourceUrl\\"; Expected type URL. Field validation failed",
+    "message": "Variable \\"$data\\" got invalid value \\"invalid\\" at \\"data.sourceUrl\\"; Expected type \\"URL\\". Field validation failed",
   },
 ]
 `;

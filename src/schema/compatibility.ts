@@ -1,4 +1,4 @@
-import { gql, IFieldResolver, IResolvers } from 'apollo-server-fastify';
+import { IFieldResolver, IResolvers } from 'graphql-tools';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { GQLPost } from './posts';
@@ -17,7 +17,7 @@ import { SelectQueryBuilder } from 'typeorm';
 import { Post } from '../entity';
 import graphorm from '../graphorm';
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   type Publication {
     id: ID!
     name: String!

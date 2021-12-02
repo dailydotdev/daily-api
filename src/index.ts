@@ -1,10 +1,11 @@
 import 'reflect-metadata';
-import fastify from 'fastify';
-import { FastifyInstance, FastifyRequest } from 'fastify';
+import fastify, { FastifyRequest, FastifyInstance } from 'fastify';
 import helmet from 'fastify-helmet';
 import cookie from 'fastify-cookie';
 import cors from 'fastify-cors';
-import { ExecutionParams } from 'subscriptions-transport-ws';
+import mercurius from 'mercurius';
+import MercuriusGQLUpload from 'mercurius-upload';
+import fastifyWebsocket from 'fastify-websocket';
 
 import './config';
 import './profiler';
@@ -15,13 +16,14 @@ import compatibility from './compatibility';
 import routes from './routes';
 
 import { Context } from './Context';
-import createApolloServer from './apollo';
+import { schema } from './graphql';
 import { createOrGetConnection } from './db';
 import { stringifyHealthCheck } from './common';
+import { GraphQLError } from 'graphql';
 
-type ContextParams = { request: FastifyRequest; connection: ExecutionParams };
-
-export default async function app(): Promise<FastifyInstance> {
+export default async function app(
+  contextFn?: (request: FastifyRequest) => Context,
+): Promise<FastifyInstance> {
   const isProd = process.env.NODE_ENV === 'production';
   const connection = await createOrGetConnection();
 
@@ -51,22 +53,54 @@ export default async function app(): Promise<FastifyInstance> {
     res.send(stringifyHealthCheck({ status: 'ok' }));
   });
 
-  const server = await createApolloServer({
-    context: ({
-      request,
-      connection: wsConnection,
-    }: ContextParams): Context => {
-      return new Context(request ?? wsConnection?.context?.req, connection);
+  app.register(fastifyWebsocket, {
+    options: {
+      maxPayload: 1048576,
+      verifyClient: (info, next) => next(true),
     },
-    playground: isProd
-      ? false
-      : { settings: { 'request.credentials': 'include' } },
-    logger: app.log,
   });
-  app.register(server.createHandler({ disableHealthCheck: true, cors: false }));
-  if (process.env.ENABLE_SUBSCRIPTIONS === 'true') {
-    server.installSubscriptionHandlers(app.server);
-  }
+
+  app.register(MercuriusGQLUpload, {
+    maxFileSize: 1024 * 1024 * 2,
+    maxFiles: 1,
+  });
+
+  app.register(mercurius, {
+    schema,
+    context:
+      contextFn ?? ((request): Context => new Context(request, connection)),
+    queryDepth: 10,
+    subscription: {
+      context: (wsConnection, request): Context =>
+        new Context(request, connection),
+    },
+    graphiql: !isProd,
+    errorFormatter(execution) {
+      return {
+        statusCode: 200,
+        response: {
+          data: execution.data,
+          errors: execution.errors.map((error): GraphQLError => {
+            const newError = { ...error };
+            if (isProd) {
+              newError.originalError = undefined;
+            }
+            if (!error.originalError) {
+              newError.extensions = {
+                code: 'GRAPHQL_VALIDATION_FAILED',
+              };
+            } else if (error.originalError?.name === 'EntityNotFoundError') {
+              newError.message = 'Entity not found';
+              newError.extensions = {
+                code: 'NOT_FOUND',
+              };
+            }
+            return newError;
+          }),
+        },
+      };
+    },
+  });
 
   app.register(compatibility, { prefix: '/v1' });
   app.register(routes, { prefix: '/' });

@@ -1,4 +1,4 @@
-import { gql, IResolvers } from 'apollo-server-fastify';
+import { IResolvers } from 'graphql-tools';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { Settings } from '../entity';
@@ -27,7 +27,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   openNewTab?: boolean;
 }
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   """
   User personal preferences
   """

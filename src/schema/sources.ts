@@ -1,4 +1,5 @@
-import { gql, IResolvers, ForbiddenError } from 'apollo-server-fastify';
+import { ForbiddenError } from 'apollo-server-errors';
+import { IResolvers } from 'graphql-tools';
 import { ConnectionArguments } from 'graphql-relay';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
@@ -23,7 +24,7 @@ export interface GQLAddPrivateSourceInput {
   website?: string;
 }
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   """
   Source to discover posts from (usually blogs)
   """

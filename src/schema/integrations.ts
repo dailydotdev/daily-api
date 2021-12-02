@@ -1,4 +1,4 @@
-import { gql, IResolvers } from 'apollo-server-fastify';
+import { IResolvers } from 'graphql-tools';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { Integration } from '../entity';
@@ -10,7 +10,7 @@ interface GQLIntegration {
   url: string;
 }
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   """
   Integration tutorials and walkthroughs
   """
