@@ -1,12 +1,12 @@
 import { Connection } from 'typeorm';
-import { Logger } from 'fastify';
+import { FastifyLoggerInstance } from 'fastify';
 import { PubSub } from '@google-cloud/pubsub';
 
 export interface Cron {
   subscription: string;
   handler: (
     con: Connection,
-    logger: Logger,
+    logger: FastifyLoggerInstance,
     pubsub: PubSub,
     data: Buffer,
   ) => Promise<void>;

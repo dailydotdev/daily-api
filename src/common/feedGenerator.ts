@@ -1,8 +1,7 @@
-import { AdvancedSettings } from './../entity/AdvancedSettings';
-import { FeedAdvancedSettings } from './../entity/FeedAdvancedSettings';
+import { AdvancedSettings, FeedAdvancedSettings } from '../entity';
 import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
-import { IFieldResolver } from 'apollo-server-fastify';
+import { IFieldResolver } from 'graphql-tools';
 import {
   Bookmark,
   FeedTag,

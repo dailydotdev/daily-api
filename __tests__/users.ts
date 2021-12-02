@@ -1,10 +1,4 @@
-import { FastifyInstance } from 'fastify';
 import { Connection, getConnection } from 'typeorm';
-import { ApolloServer } from 'apollo-server-fastify';
-import {
-  ApolloServerTestClient,
-  createTestClient,
-} from 'apollo-server-testing';
 import {
   addDays,
   addHours,
@@ -13,35 +7,31 @@ import {
   subDays,
   subHours,
 } from 'date-fns';
-import createApolloServer from '../src/apollo';
-import { Context } from '../src/Context';
 import {
+  disposeGraphQLTesting,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
   MockContext,
   saveFixtures,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
-import appFunc from '../src';
-import { Comment, Post, Source, User, View } from '../src/entity';
+import { Comment, Post, Source, User, View, DevCard } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
-import { DevCard } from '../src/entity/DevCard';
 
-let app: FastifyInstance;
 let con: Connection;
-let server: ApolloServer;
-let client: ApolloServerTestClient;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
 let loggedUser: string = null;
 let loggedUserTimezoned: string = null;
 
 beforeAll(async () => {
   con = await getConnection();
-  server = await createApolloServer({
-    context: (): Context => new MockContext(con, loggedUser),
-    playground: false,
-  });
-  client = createTestClient(server);
-  app = await appFunc();
-  return app.ready();
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser),
+  );
+  client = state.client;
 });
 
 const now = new Date();
@@ -171,7 +161,7 @@ beforeEach(async () => {
   ]);
 });
 
-afterAll(() => app.close());
+afterAll(() => disposeGraphQLTesting(state));
 
 describe('query userStats', () => {
   const QUERY = `query UserStats($id: ID!){
@@ -186,21 +176,21 @@ describe('query userStats', () => {
 
   it('should return partially null result when the user is not the stats owner', async () => {
     loggedUser = '1';
-    const res = await client.query({ query: QUERY, variables: { id: '2' } });
+    const res = await client.query(QUERY, { variables: { id: '2' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userStats).toMatchSnapshot();
   });
 
   it('should return the user stats', async () => {
     loggedUser = '1';
-    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return partial user stats when no posts or no comments', async () => {
     loggedUser = '2';
-    const res = await client.query({ query: QUERY, variables: { id: '2' } });
+    const res = await client.query(QUERY, { variables: { id: '2' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
@@ -225,7 +215,7 @@ describe('query userReadingRank', () => {
 
   it('should return partially null result when the user asks for someone else', async () => {
     loggedUser = '1';
-    const res = await client.query({ query: QUERY, variables: { id: '2' } });
+    const res = await client.query(QUERY, { variables: { id: '2' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRank).toMatchSnapshot();
   });
@@ -265,7 +255,7 @@ describe('query userReadingRank', () => {
         timestamp: addDays(thisWeekStart, 4),
       },
     ]);
-    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRank).toMatchSnapshot({
       readToday: expect.anything(),
@@ -289,7 +279,7 @@ describe('query userReadingRank', () => {
         timestamp: createdAtNew,
       },
     ]);
-    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRank).toMatchSnapshot({
       readToday: expect.anything(),
@@ -319,7 +309,7 @@ describe('query userReadingRank', () => {
         timestamp: addDays(thisWeekStart, 1),
       },
     ]);
-    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRank.currentRank).toEqual(1);
   });
@@ -360,12 +350,11 @@ describe('query userReadingRank', () => {
         timestamp: addDays(timeZoneLastWeekStart, 3),
       },
     ]);
-    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRank.currentRank).toEqual(0);
 
-    const resPacific = await client.query({
-      query: QUERY,
+    const resPacific = await client.query(QUERY, {
       variables: { id: loggedUserTimezoned },
     });
     expect(resPacific.errors).toBeFalsy();
@@ -377,7 +366,7 @@ describe('query userReadingRank', () => {
     await con
       .getRepository(View)
       .save([{ userId: loggedUser, postId: 'p4', timestamp: dayStart }]);
-    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRank.readToday).toEqual(true);
   });
@@ -397,7 +386,7 @@ describe('query userReadingRank', () => {
         timestamp: addHours(thisWeekStart, 3),
       },
     ]);
-    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRank.progressThisWeek).toEqual(1);
   });
@@ -488,14 +477,13 @@ describe('query userReadingRankHistory with timezone', () => {
         timestamp: addDays(lastWeekStart, 5),
       },
     ]);
-    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRankHistory).toMatchSnapshot();
     expect(res.data.userReadingRankHistory[0].count).toBe(3);
     expect(res.data.userReadingRankHistory[1].count).toBe(1);
 
-    const resPacific = await client.query({
-      query: QUERY,
+    const resPacific = await client.query(QUERY, {
       variables: { id: loggedUserTimezonded },
     });
     expect(resPacific.errors).toBeFalsy();
@@ -554,7 +542,7 @@ describe('query userReadingRankHistory', () => {
         timestamp: addDays(lastWeekStart, 5),
       },
     ]);
-    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRankHistory).toMatchSnapshot();
   });
@@ -594,7 +582,7 @@ describe('query userReadingRankHistory', () => {
         timestamp: addDays(lastWeekStart, 5),
       },
     ]);
-    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRankHistory).toMatchSnapshot();
   });
@@ -634,7 +622,7 @@ describe('query userReadingRankHistory', () => {
         timestamp: addDays(lastWeekStart, 5),
       },
     ]);
-    const res = await client.query({ query: QUERY, variables: { id: '1' } });
+    const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRankHistory).toMatchSnapshot();
   });
@@ -683,7 +671,7 @@ describe('query userReads', () => {
         timestamp: addDays(new Date(), 5),
       },
     ]);
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.userReads).toEqual(7);
   });
@@ -738,8 +726,7 @@ describe('query userReadHistory', () => {
         timestamp: addDays(lastWeekStart, 5),
       },
     ]);
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: {
         id: '1',
         after: lastThreeWeeksStart.toISOString(),
@@ -765,8 +752,7 @@ describe('query userReadHistory', () => {
         timestamp: subHours(thisWeekStart, 5),
       },
     ]);
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: {
         id: '1',
         after: lastThreeWeeksStart.toISOString(),
@@ -777,8 +763,7 @@ describe('query userReadHistory', () => {
     expect(res.data.userReadHistory).toMatchSnapshot();
     expect(res.data.userReadHistory[0].date).toBe('2021-04-25');
 
-    const resPacific = await client.query({
-      query: QUERY,
+    const resPacific = await client.query(QUERY, {
       variables: {
         id: loggedUserTimezonded,
         after: lastThreeWeeksStart.toISOString(),
@@ -845,7 +830,7 @@ describe('query readHistory', () => {
         timestamp: createdAtNew,
       },
     ]);
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     const [secondView, firstView] = res.data.readHistory.edges;
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
@@ -870,7 +855,7 @@ describe('query readHistory', () => {
         timestamp: createdAtOld,
       },
     ]);
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     const [firstButLaterView, secondButEarlierView] =
       res.data.readHistory.edges;
     const firstDate = new Date(firstButLaterView.node.timestamp).getTime();
@@ -898,7 +883,7 @@ describe('query readHistory', () => {
       },
     ]);
 
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.readHistory.edges.length).toEqual(1);
     expect(res.data).toMatchSnapshot();
@@ -935,7 +920,7 @@ describe('mutation generateDevCard', () => {
 
   it('should generate new dev card', async () => {
     loggedUser = '1';
-    const res = await client.mutate({ mutation: MUTATION });
+    const res = await client.mutate(MUTATION);
     expect(res.errors).toBeFalsy();
     const devCards = await con.getRepository(DevCard).find();
     expect(devCards.length).toEqual(1);
@@ -953,7 +938,7 @@ describe('mutation generateDevCard', () => {
     loggedUser = '1';
     const url =
       'https://daily-now-res.cloudinary.com/image/upload/v1634801813/devcard/bg/halloween.jpg';
-    const res = await client.mutate({ mutation: MUTATION, variables: { url } });
+    const res = await client.mutate(MUTATION, { variables: { url } });
     expect(res.errors).toBeFalsy();
     const devCards = await con.getRepository(DevCard).find();
     expect(devCards.length).toEqual(1);
@@ -970,7 +955,7 @@ describe('mutation generateDevCard', () => {
   it('should use an existing dev card entity', async () => {
     loggedUser = '1';
     await con.getRepository(DevCard).insert({ userId: '1' });
-    const res = await client.mutate({ mutation: MUTATION });
+    const res = await client.mutate(MUTATION);
     expect(res.errors).toBeFalsy();
     const devCards = await con.getRepository(DevCard).find();
     expect(devCards.length).toEqual(1);
@@ -1025,8 +1010,7 @@ describe('mutation hideReadHistory', () => {
       },
     ]);
 
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { postId: 'p2', timestamp: createdAtNew.toISOString() },
     });
 
@@ -1055,8 +1039,7 @@ describe('mutation hideReadHistory', () => {
       },
     ]);
 
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: {
         postId: 'p1',
         timestamp: createdAtDifferentMS.toISOString(),

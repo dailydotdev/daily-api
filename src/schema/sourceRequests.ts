@@ -1,4 +1,5 @@
-import { gql, IResolvers, ForbiddenError } from 'apollo-server-fastify';
+import { ForbiddenError } from 'apollo-server-errors';
+import { IResolvers } from 'graphql-tools';
 import { v4 as uuidv4 } from 'uuid';
 import {
   forwardPagination,
@@ -51,7 +52,7 @@ export interface GQLDeclineSourceRequestInput
   reason: string;
 }
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   """
   Community request for a new source
   """

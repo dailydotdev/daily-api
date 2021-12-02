@@ -2,14 +2,15 @@ import {
   Connection as ConnectionRelay,
   ConnectionArguments,
 } from 'graphql-relay';
-import { gql, IResolvers, ValidationError } from 'apollo-server-fastify';
+import { ValidationError } from 'apollo-server-errors';
+import { IResolvers } from 'graphql-tools';
 import { Connection, DeepPartial } from 'typeorm';
 import { GraphQLResolveInfo } from 'graphql';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { defaultImage, getDiscussionLink, pickImageUrl } from '../common';
-import { HiddenPost, Post, Toc, Upvote } from '../entity';
+import { HiddenPost, Post, Toc, Upvote, PostReport } from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
@@ -17,7 +18,6 @@ import { GQLComment } from './comments';
 import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
-import { PostReport } from '../entity/PostReport';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 
 export interface GQLPost {
@@ -61,7 +61,7 @@ export interface GQLPostUpvoteArgs extends ConnectionArguments {
   id: string;
 }
 
-export const typeDefs = gql`
+export const typeDefs = /* GraphQL */ `
   type TocItem {
     """
     Content of the toc item

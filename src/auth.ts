@@ -2,9 +2,6 @@ import {
   FastifyInstance,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   FastifyRequest,
-  DefaultQuery,
-  DefaultParams,
-  DefaultHeaders,
 } from 'fastify';
 import fp from 'fastify-plugin';
 import jwt from 'jsonwebtoken';
@@ -12,14 +9,7 @@ import { Roles } from './roles';
 
 declare module 'fastify' {
   /* eslint-disable @typescript-eslint/no-unused-vars */
-  interface FastifyRequest<
-    HttpRequest,
-    Query = DefaultQuery,
-    Params = DefaultParams,
-    Headers = DefaultHeaders,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    Body = any,
-  > {
+  interface FastifyRequest {
     userId?: string;
     premium?: boolean;
     roles?: Roles[];
@@ -69,9 +59,10 @@ const plugin = async (
       req.headers['user-id'] &&
       req.headers['logged-in'] === 'true'
     ) {
-      req.userId = req.headers['user-id'];
+      req.userId = req.headers['user-id'] as string;
       req.premium = req.headers.premium === 'true';
-      req.roles = req.headers['roles']?.split(',') ?? [];
+      req.roles =
+        ((req.headers['roles'] as string)?.split(',') as Roles[]) ?? [];
     } else {
       delete req.headers['user-id'];
       delete req.headers['logged-in'];

@@ -1,23 +1,18 @@
 import { FastifyInstance } from 'fastify';
 import { Connection, getConnection } from 'typeorm';
-import { ApolloServer } from 'apollo-server-fastify';
-import {
-  ApolloServerTestClient,
-  createTestClient,
-} from 'apollo-server-testing';
 import request from 'supertest';
 import _ from 'lodash';
-
-import createApolloServer from '../src/apollo';
-import { Context } from '../src/Context';
 import {
   authorizeRequest,
+  disposeGraphQLTesting,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
   MockContext,
   saveFixtures,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
-import appFunc from '../src';
 import {
   Bookmark,
   BookmarkList,
@@ -29,30 +24,27 @@ import {
   Upvote,
   User,
   View,
+  PostReport,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
-import { PostReport } from '../src/entity/PostReport';
 
 let app: FastifyInstance;
 let con: Connection;
-let server: ApolloServer;
-let client: ApolloServerTestClient;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
 let loggedUser: string = null;
 let premiumUser = false;
 let roles: Roles[] = [];
 
 beforeAll(async () => {
   con = await getConnection();
-  server = await createApolloServer({
-    context: (): Context =>
-      new MockContext(con, loggedUser, premiumUser, roles),
-    playground: false,
-  });
-  client = createTestClient(server);
-  app = await appFunc();
-  return app.ready();
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser, premiumUser, roles),
+  );
+  client = state.client;
+  app = state.app;
 });
 
 beforeEach(async () => {
@@ -69,7 +61,7 @@ beforeEach(async () => {
     .save({ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' });
 });
 
-afterAll(() => app.close());
+afterAll(() => disposeGraphQLTesting(state));
 
 describe('image fields', () => {
   const QUERY = `{
@@ -93,7 +85,7 @@ describe('image fields', () => {
         createdAt: new Date(2020, 4, 4, 19, 35),
       }),
     );
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 
@@ -113,7 +105,7 @@ describe('image fields', () => {
         ratio: 0.5,
       }),
     );
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -131,7 +123,7 @@ describe('source field', () => {
   }`;
 
   it('should return the public representation', async () => {
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 
@@ -145,7 +137,7 @@ describe('source field', () => {
   //     image: 'https://private.com/a',
   //     userId: loggedUser,
   //   });
-  //   const res = await client.query({ query: QUERY });
+  //   const res = await client.query(QUERY);
   //   expect(res.data).toMatchSnapshot();
   // });
 });
@@ -158,13 +150,13 @@ describe('read field', () => {
   }`;
 
   it('should return null when user is not logged in', async () => {
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.read).toEqual(null);
   });
 
   it('should return false when user did not read the post', async () => {
     loggedUser = '1';
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.read).toEqual(false);
   });
 
@@ -177,7 +169,7 @@ describe('read field', () => {
         userId: loggedUser,
       }),
     );
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.read).toEqual(true);
   });
 });
@@ -190,13 +182,13 @@ describe('bookmarked field', () => {
   }`;
 
   it('should return null when user is not logged in', async () => {
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.bookmarked).toEqual(null);
   });
 
   it('should return false when user did not bookmark the post', async () => {
     loggedUser = '1';
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.bookmarked).toEqual(false);
   });
 
@@ -209,7 +201,7 @@ describe('bookmarked field', () => {
         userId: loggedUser,
       }),
     );
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.bookmarked).toEqual(true);
   });
 });
@@ -233,7 +225,7 @@ describe('bookmarkList field', () => {
   });
 
   it('should return null when user is not logged in', async () => {
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.bookmarkList).toEqual(null);
   });
 
@@ -244,7 +236,7 @@ describe('bookmarkList field', () => {
       userId: loggedUser,
       listId: list.id,
     });
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.bookmarkList).toEqual(null);
   });
 
@@ -255,7 +247,7 @@ describe('bookmarkList field', () => {
       postId: 'p1',
       userId: loggedUser,
     });
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.bookmarkList).toEqual(null);
   });
 
@@ -267,7 +259,7 @@ describe('bookmarkList field', () => {
       userId: loggedUser,
       listId: list.id,
     });
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.bookmarkList).toEqual({
       id: list.id,
       name: list.name,
@@ -283,7 +275,7 @@ describe('permalink field', () => {
   }`;
 
   it('should return permalink of the post', async () => {
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.permalink).toEqual('http://localhost:4000/r/sp1');
   });
 });
@@ -296,7 +288,7 @@ describe('commentsPermalink field', () => {
   }`;
 
   it('should return permalink of the post', async () => {
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.commentsPermalink).toEqual(
       'http://localhost:5002/posts/p1',
     );
@@ -311,13 +303,13 @@ describe('upvoted field', () => {
   }`;
 
   it('should return null when user is not logged in', async () => {
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.upvoted).toEqual(null);
   });
 
   it('should return false when user did not upvoted the post', async () => {
     loggedUser = '1';
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.upvoted).toEqual(false);
   });
 
@@ -330,7 +322,7 @@ describe('upvoted field', () => {
         userId: loggedUser,
       }),
     );
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.upvoted).toEqual(true);
   });
 });
@@ -343,13 +335,13 @@ describe('commented field', () => {
   }`;
 
   it('should return null when user is not logged in', async () => {
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.commented).toEqual(null);
   });
 
   it('should return false when user did not commented the post', async () => {
     loggedUser = '1';
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.commented).toEqual(false);
   });
 
@@ -364,7 +356,7 @@ describe('commented field', () => {
         content: 'My comment',
       }),
     );
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.commented).toEqual(true);
   });
 });
@@ -377,7 +369,7 @@ describe('featuredComments field', () => {
   }`;
 
   it('should return empty array when no featured comments', async () => {
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     const repo = con.getRepository(Comment);
     await repo.save({
       id: 'c1',
@@ -397,7 +389,7 @@ describe('featuredComments field', () => {
       content: 'My comment',
       featured: true,
     });
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data.post.featuredComments).toMatchSnapshot();
   });
 });
@@ -413,7 +405,7 @@ describe('author field', () => {
   }`;
 
   it('should return null when author is not set', async () => {
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 
@@ -422,7 +414,7 @@ describe('author field', () => {
       .getRepository(User)
       .save([{ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' }]);
     await con.getRepository(Post).update('p1', { authorId: '1' });
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -435,7 +427,7 @@ describe('views field', () => {
   }`;
 
   it('should return null when the user is not the author', async () => {
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.post.views).toEqual(null);
   });
@@ -446,7 +438,7 @@ describe('views field', () => {
       .getRepository(User)
       .save([{ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' }]);
     await con.getRepository(Post).update('p1', { authorId: '1', views: 200 });
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.post.views).toEqual(200);
   });
@@ -460,7 +452,7 @@ describe('toc field', () => {
   }`;
 
   it('should return null when toc is not set', async () => {
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
@@ -476,7 +468,7 @@ describe('toc field', () => {
         { text: 'Title 2', id: 'title-2' },
       ],
     });
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
@@ -521,7 +513,7 @@ describe('query post', () => {
   });
 
   it('should return post by id', async () => {
-    const res = await client.query({ query: QUERY('p1') });
+    const res = await client.query(QUERY('p1'));
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -566,10 +558,7 @@ describe('query postUpvotes', () => {
       createdAt: createdAtNew,
     });
 
-    const res = await client.query({
-      query: QUERY,
-      variables: { id: 'p1' },
-    });
+    const res = await client.query(QUERY, { variables: { id: 'p1' } });
 
     const [secondUpvote, firstUpvote] = res.data.postUpvotes.edges;
     expect(res.errors).toBeFalsy();
@@ -612,10 +601,7 @@ describe('mutation hidePost', () => {
 
   it('should hide the post', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'p1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
     const actual = await con
       .getRepository(HiddenPost)
@@ -627,10 +613,7 @@ describe('mutation hidePost', () => {
     loggedUser = '1';
     const repo = con.getRepository(HiddenPost);
     await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'p1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
     const actual = await repo.find({
       where: { userId: loggedUser },
@@ -674,10 +657,7 @@ describe('mutation deletePost', () => {
   it('should delete the post', async () => {
     loggedUser = '1';
     roles = [Roles.Moderator];
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'p1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Post).findOne('p1');
     expect(actual.deleted).toBeTruthy();
@@ -687,10 +667,7 @@ describe('mutation deletePost', () => {
     loggedUser = '1';
     roles = [Roles.Moderator];
     await con.getRepository(Post).delete({ id: 'p1' });
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'p1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
   });
 });
@@ -729,10 +706,7 @@ describe('mutation banPost', () => {
   it('should ban the post', async () => {
     loggedUser = '1';
     roles = [Roles.Moderator];
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'p1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.banned).toEqual(true);
@@ -742,10 +716,7 @@ describe('mutation banPost', () => {
     loggedUser = '1';
     roles = [Roles.Moderator];
     await con.getRepository(Post).update({ id: 'p1' }, { banned: true });
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'p1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
   });
 });
@@ -782,8 +753,7 @@ describe('mutation reportPost', () => {
 
   it('should report post with comment', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', reason: 'BROKEN', comment: 'Test comment' },
     });
     expect(res.errors).toBeFalsy();
@@ -802,8 +772,7 @@ describe('mutation reportPost', () => {
 
   it('should report post without comment', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', reason: 'BROKEN' },
     });
     expect(res.errors).toBeFalsy();
@@ -824,8 +793,7 @@ describe('mutation reportPost', () => {
     loggedUser = '1';
     const repo = con.getRepository(HiddenPost);
     await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', reason: 'BROKEN', comment: 'Test comment' },
     });
     expect(res.errors).toBeFalsy();
@@ -881,10 +849,7 @@ describe('mutation upvote', () => {
 
   it('should upvote post', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'p1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
     const actual = await con
       .getRepository(Upvote)
@@ -898,10 +863,7 @@ describe('mutation upvote', () => {
     loggedUser = '1';
     const repo = con.getRepository(Upvote);
     await repo.save({ postId: 'p1', userId: loggedUser });
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'p1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
     const actual = await repo.find({
       select: ['postId', 'userId'],
@@ -934,10 +896,7 @@ describe('mutation cancelUpvote', () => {
     loggedUser = '1';
     const repo = con.getRepository(Upvote);
     await repo.save({ postId: 'p1', userId: loggedUser });
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'p1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Upvote).find();
     expect(actual).toEqual([]);
@@ -947,10 +906,7 @@ describe('mutation cancelUpvote', () => {
 
   it('should ignore if no upvotes', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
-      variables: { id: 'p1' },
-    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Upvote).find();
     expect(actual).toEqual([]);
@@ -991,6 +947,7 @@ describe('compatibility routes', () => {
 
   describe('POST /posts/:id/hide', () => {
     it('should hide the post', async () => {
+      loggedUser = '1';
       await authorizeRequest(request(app.server).post('/v1/posts/p1/hide'))
         .send()
         .expect(204);
@@ -1008,6 +965,7 @@ describe('compatibility routes', () => {
       ));
 
     it('should report the post', async () => {
+      loggedUser = '1';
       await authorizeRequest(request(app.server).post('/v1/posts/p1/report'))
         .send({ reason: 'broken' })
         .expect(204);

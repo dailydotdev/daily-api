@@ -1,29 +1,28 @@
-import { ALERTS_DEFAULT } from './../src/entity/Alerts';
-import { Alerts } from '../src/entity/Alerts';
-import { ApolloServer } from 'apollo-server-fastify';
-import {
-  ApolloServerTestClient,
-  createTestClient,
-} from 'apollo-server-testing';
+import { Alerts, ALERTS_DEFAULT } from '../src/entity';
 import { Connection, getConnection } from 'typeorm';
-
-import { Context } from '../src/Context';
-import createApolloServer from '../src/apollo';
-import { MockContext, testMutationErrorCode } from './helpers';
+import {
+  disposeGraphQLTesting,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
+  MockContext,
+  testMutationErrorCode,
+} from './helpers';
 
 let con: Connection;
-let server: ApolloServer;
-let client: ApolloServerTestClient;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
 let loggedUser: string = null;
 
 beforeAll(async () => {
   con = getConnection();
-  server = await createApolloServer({
-    context: (): Context => new MockContext(con, loggedUser),
-    playground: false,
-  });
-  client = createTestClient(server);
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser),
+  );
+  client = state.client;
 });
+
+afterAll(() => disposeGraphQLTesting(state));
 
 beforeEach(async () => {
   loggedUser = null;
@@ -38,7 +37,7 @@ describe('query userAlerts', () => {
   }`;
 
   it('should return alerts default values if anonymous', async () => {
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
 
     expect(res.data.userAlerts).toEqual(ALERTS_DEFAULT);
   });
@@ -52,7 +51,7 @@ describe('query userAlerts', () => {
       filter: true,
     });
     const expected = await repo.save(alerts);
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
 
     delete expected.userId;
 
@@ -82,8 +81,7 @@ describe('mutation updateUserAlerts', () => {
 
   it('should create user alerts when does not exist', async () => {
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { data: { filter: false } },
     });
     expect(res.data).toMatchSnapshot();
@@ -103,8 +101,7 @@ describe('mutation updateUserAlerts', () => {
     );
 
     const rankLastSeen = new Date('2020-09-22T12:15:51.247Z');
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: {
         data: { filter: false, rankLastSeen: rankLastSeen.toISOString() },
       },

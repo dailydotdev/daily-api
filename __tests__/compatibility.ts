@@ -1,28 +1,27 @@
 import { Connection, getConnection } from 'typeorm';
-import createApolloServer from '../src/apollo';
-import { Context } from '../src/Context';
-import { MockContext, saveFixtures } from './helpers';
 import {
-  ApolloServerTestClient,
-  createTestClient,
-} from 'apollo-server-testing';
+  disposeGraphQLTesting,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
+  MockContext,
+  saveFixtures,
+} from './helpers';
 import { Bookmark, Post, PostKeyword, Source } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postKeywordsFixture, postsFixture } from './fixture/post';
-import { ApolloServer } from 'apollo-server-fastify';
 
 let con: Connection;
-let server: ApolloServer;
-let client: ApolloServerTestClient;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
 let loggedUser: string = null;
 
 beforeAll(async () => {
   con = await getConnection();
-  server = await createApolloServer({
-    context: (): Context => new MockContext(con, loggedUser),
-    playground: false,
-  });
-  client = createTestClient(server);
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser),
+  );
+  client = state.client;
 });
 
 beforeEach(async () => {
@@ -32,6 +31,8 @@ beforeEach(async () => {
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
 });
+
+afterAll(() => disposeGraphQLTesting(state));
 
 const now = new Date();
 const bookmarksFixture = [
@@ -75,8 +76,7 @@ describe('query latest', () => {
 
   it('should return anonymous feed with no filters ordered by popularity', async () => {
     const latest = new Date().toISOString();
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { params: { latest } },
     });
     expect(res.data).toMatchSnapshot();
@@ -84,8 +84,7 @@ describe('query latest', () => {
 
   it('should return anonymous feed with no filters ordered by time', async () => {
     const latest = new Date().toISOString();
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { params: { latest, sortBy: 'creation' } },
     });
     expect(res.data).toMatchSnapshot();
@@ -93,8 +92,7 @@ describe('query latest', () => {
 
   it('should return anonymous feed filtered by sources', async () => {
     const latest = new Date().toISOString();
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { params: { latest, pubs: 'a,b' } },
     });
     expect(res.data).toMatchSnapshot();
@@ -102,8 +100,7 @@ describe('query latest', () => {
 
   it('should return anonymous feed filtered by tags', async () => {
     const latest = new Date().toISOString();
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { params: { latest, tags: 'html,webdev' } },
     });
     expect(res.data).toMatchSnapshot();
@@ -122,8 +119,7 @@ describe('query bookmarks', () => {
     const latest = new Date().toISOString();
     loggedUser = '1';
     await saveFixtures(con, Bookmark, bookmarksFixture);
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { params: { latest } },
     });
     expect(res.data).toMatchSnapshot();
@@ -140,8 +136,7 @@ describe('query postsByPublication', () => {
 
   it('should return a single source feed', async () => {
     const latest = new Date().toISOString();
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { params: { latest, pub: 'b' } },
     });
     expect(res.data).toMatchSnapshot();
@@ -158,8 +153,7 @@ describe('query postsByTag', () => {
 
   it('should return a single tag feed', async () => {
     const latest = new Date().toISOString();
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { params: { latest, tag: 'javascript' } },
     });
     expect(res.data).toMatchSnapshot();

@@ -1,21 +1,20 @@
-import { ApolloServer } from 'apollo-server-fastify';
-import {
-  ApolloServerTestClient,
-  createTestClient,
-} from 'apollo-server-testing';
 import { Connection, getConnection } from 'typeorm';
-
-import { Context } from '../src/Context';
-import createApolloServer from '../src/apollo';
-import { MockContext, testQueryErrorCode } from './helpers';
+import {
+  disposeGraphQLTesting,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
+  MockContext,
+  testQueryErrorCode,
+} from './helpers';
 import { Source, SourceFeed } from '../src/entity';
-import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 
+let app: FastifyInstance;
 let con: Connection;
-let server: ApolloServer;
-let client: ApolloServerTestClient;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
 let loggedUser: string = null;
 let premiumUser: boolean;
 
@@ -31,11 +30,11 @@ const createSource = (id: string, name: string, image: string): Source => {
 
 beforeAll(async () => {
   con = getConnection();
-  server = await createApolloServer({
-    context: (): Context => new MockContext(con, loggedUser, premiumUser),
-    playground: false,
-  });
-  client = createTestClient(server);
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser, premiumUser),
+  );
+  client = state.client;
+  app = state.app;
 });
 
 beforeEach(async () => {
@@ -48,6 +47,8 @@ beforeEach(async () => {
       createSource('b', 'B', 'http://b.com'),
     ]);
 });
+
+afterAll(() => disposeGraphQLTesting(state));
 
 describe('query sources', () => {
   const QUERY = (first = 10): string => `{
@@ -68,12 +69,12 @@ describe('query sources', () => {
 }`;
 
   it('should return only public sources', async () => {
-    const res = await client.query({ query: QUERY() });
+    const res = await client.query(QUERY());
     expect(res.data).toMatchSnapshot();
   });
 
   it('should flag that more pages available', async () => {
-    const res = await client.query({ query: QUERY(1) });
+    const res = await client.query(QUERY(1));
     expect(res.data).toMatchSnapshot();
   });
 
@@ -81,7 +82,7 @@ describe('query sources', () => {
     await con
       .getRepository(Source)
       .save([{ id: 'd', active: false, name: 'D', image: 'http://d.com' }]);
-    const res = await client.query({ query: QUERY() });
+    const res = await client.query(QUERY());
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -106,8 +107,7 @@ query SourceByFeed($data: String!) {
 
   it('should return null when feed does not exist', async () => {
     loggedUser = '1';
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { data: 'https://a.com/feed' },
     });
     expect(res.errors).toBeFalsy();
@@ -120,8 +120,7 @@ query SourceByFeed($data: String!) {
       feed: 'https://a.com/feed',
       sourceId: 'a',
     });
-    const res = await client.query({
-      query: QUERY,
+    const res = await client.query(QUERY, {
       variables: { data: 'https://a.com/feed' },
     });
     expect(res.errors).toBeFalsy();
@@ -154,21 +153,12 @@ query Source($id: ID!) {
     ));
 
   it('should return source by', async () => {
-    const res = await client.query({ query: QUERY, variables: { id: 'a' } });
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.data).toMatchSnapshot();
   });
 });
 
 describe('compatibility route /publications', () => {
-  let app: FastifyInstance;
-
-  beforeAll(async () => {
-    app = await appFunc();
-    return app.ready();
-  });
-
-  afterAll(() => app.close());
-
   it('should return only public sources', async () => {
     const res = await request(app.server).get('/v1/publications').expect(200);
     expect(res.body).toMatchSnapshot();

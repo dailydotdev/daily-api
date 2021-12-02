@@ -1,14 +1,9 @@
-import { FastifyInstance } from 'fastify';
 import { Connection, getConnection } from 'typeorm';
-import { ApolloServer } from 'apollo-server-fastify';
 import {
-  ApolloServerTestClient,
-  createTestClient,
-} from 'apollo-server-testing';
-
-import createApolloServer from '../src/apollo';
-import { Context } from '../src/Context';
-import {
+  disposeGraphQLTesting,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
   MockContext,
   Mutation,
   Query,
@@ -16,28 +11,23 @@ import {
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
-import appFunc from '../src';
 import { Roles } from '../src/roles';
 import { Keyword, Post, PostKeyword, Source } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture } from './fixture/post';
 
-let app: FastifyInstance;
 let con: Connection;
-let server: ApolloServer;
-let client: ApolloServerTestClient;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
 let loggedUser: string = null;
 let roles: Roles[] = [];
 
 beforeAll(async () => {
   con = await getConnection();
-  server = await createApolloServer({
-    context: (): Context => new MockContext(con, loggedUser, false, roles),
-    playground: false,
-  });
-  client = createTestClient(server);
-  app = await appFunc();
-  return app.ready();
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser, false, roles),
+  );
+  client = state.client;
 });
 
 beforeEach(async () => {
@@ -49,7 +39,7 @@ beforeEach(async () => {
   await saveFixtures(con, Post, postsFixture);
 });
 
-afterAll(() => app.close());
+afterAll(() => disposeGraphQLTesting(state));
 
 const testModeratorQueryAuthorization = (query: Query): Promise<void> => {
   roles = [];
@@ -87,7 +77,7 @@ describe('query randomPendingKeyword', () => {
         { value: 'react' },
         { value: 'go', occurrences: 100 },
       ]);
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
@@ -112,7 +102,7 @@ describe('query countPendingKeywords', () => {
         { value: 'go', occurrences: 100 },
         { value: 'vuejs' },
       ]);
-    const res = await client.query({ query: QUERY });
+    const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.countPendingKeywords).toEqual(2);
   });
@@ -141,10 +131,7 @@ describe('query searchKeywords', () => {
       { value: 'typescript', occurrences: 50 },
       { value: 'nativescript', status: 'allow', occurrences: 80 },
     ]);
-    const res = await client.query({
-      query: QUERY,
-      variables: { query: 'script' },
-    });
+    const res = await client.query(QUERY, { variables: { query: 'script' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
@@ -171,10 +158,7 @@ describe('query keyword', () => {
       { value: 'nodejs', status: 'allow', occurrences: 200 },
       { value: 'react', occurrences: 300 },
     ]);
-    const res = await client.query({
-      query: QUERY,
-      variables: { value: 'nodejs' },
-    });
+    const res = await client.query(QUERY, { variables: { value: 'nodejs' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
@@ -186,10 +170,7 @@ describe('query keyword', () => {
       { value: 'nodejs', status: 'allow', occurrences: 200 },
       { value: 'react', occurrences: 300 },
     ]);
-    const res = await client.query({
-      query: QUERY,
-      variables: { value: 'go' },
-    });
+    const res = await client.query(QUERY, { variables: { value: 'go' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
@@ -213,8 +194,7 @@ describe('mutation allowKeyword', () => {
     roles = [Roles.Moderator];
     loggedUser = '1';
     await con.getRepository(Keyword).save([{ value: 'java', occurrences: 20 }]);
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { keyword: 'java' },
     });
     expect(res.errors).toBeFalsy();
@@ -228,8 +208,7 @@ describe('mutation allowKeyword', () => {
   it('should create a new keyword and allow it', async () => {
     roles = [Roles.Moderator];
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { keyword: 'java' },
     });
     expect(res.errors).toBeFalsy();
@@ -259,8 +238,7 @@ describe('mutation denyKeyword', () => {
     roles = [Roles.Moderator];
     loggedUser = '1';
     await con.getRepository(Keyword).save([{ value: 'java', occurrences: 20 }]);
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { keyword: 'java' },
     });
     expect(res.errors).toBeFalsy();
@@ -274,8 +252,7 @@ describe('mutation denyKeyword', () => {
   it('should create a new keyword and deny it', async () => {
     roles = [Roles.Moderator];
     loggedUser = '1';
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { keyword: 'java' },
     });
     expect(res.errors).toBeFalsy();
@@ -315,8 +292,7 @@ describe('mutation setKeywordAsSynonym', () => {
       { postId: 'p2', keyword: 'typescript' },
       { postId: 'p3', keyword: 'reactjs' },
     ]);
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { keywordToUpdate: 'react', originalKeyword: 'reactjs' },
     });
     expect(res.errors).toBeFalsy();
@@ -344,8 +320,7 @@ describe('mutation setKeywordAsSynonym', () => {
       { postId: 'p2', keyword: 'typescript' },
       { postId: 'p3', keyword: 'reactjs' },
     ]);
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { keywordToUpdate: 'react', originalKeyword: 'reactjs' },
     });
     expect(res.errors).toBeFalsy();
@@ -374,8 +349,7 @@ describe('mutation setKeywordAsSynonym', () => {
       { postId: 'p2', keyword: 'typescript' },
       { postId: 'p3', keyword: 'reactjs' },
     ]);
-    const res = await client.mutate({
-      mutation: MUTATION,
+    const res = await client.mutate(MUTATION, {
       variables: { keywordToUpdate: 'react', originalKeyword: 'reactjs' },
     });
     expect(res.errors).toBeFalsy();

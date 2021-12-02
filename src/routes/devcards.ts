@@ -1,15 +1,14 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
-import { ServerResponse } from 'http';
 import fetch from 'node-fetch';
 import { getConnection } from 'typeorm';
-import { DevCard } from '../entity/DevCard';
+import { DevCard } from '../entity';
 import { generateDevCard } from '../templates/devcard';
 import { getDevCardData } from '../common/devcard';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
-  fastify.get(
+  fastify.get<{ Params: { id: string } }>(
     '/:id',
-    async (req, res): Promise<FastifyReply<ServerResponse>> => {
+    async (req, res): Promise<FastifyReply> => {
       const [id, format] = req.params.id.split('.');
       if (['png', 'svg'].indexOf(format) < 0) {
         return res.status(404).send();

@@ -1,10 +1,4 @@
-import { ServerResponse } from 'http';
-import {
-  FastifyInstance,
-  RequestHandler,
-  FastifyReply,
-  FastifyRequest,
-} from 'fastify';
+import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { getConnection, SelectQueryBuilder, Connection } from 'typeorm';
 import rateLimit from 'fastify-rate-limit';
 import RSS from 'rss';
@@ -15,6 +9,12 @@ import {
   whereTagsInFeed,
 } from '../common';
 import { Post, Bookmark, BookmarkList, Feed } from '../entity';
+import { RouteGenericInterface, RouteHandlerMethod } from 'fastify/types/route';
+import {
+  RawReplyDefaultExpression,
+  RawRequestDefaultExpression,
+  RawServerDefault,
+} from 'fastify/types/utils';
 
 interface RssItem {
   id: string;
@@ -26,21 +26,29 @@ interface RssItem {
 }
 
 const generateRSS =
-  <State>(
+  <State, RouteGeneric extends RouteGenericInterface = RouteGenericInterface>(
     extractUserId: (
-      req: FastifyRequest,
+      req: FastifyRequest<RouteGeneric>,
       state: State,
     ) => Promise<string | null>,
     title: (user: User, state: State) => string,
     orderBy: string,
     query: (
-      req: FastifyRequest,
+      req: FastifyRequest<RouteGeneric>,
       user: User,
       builder: SelectQueryBuilder<Post>,
     ) => SelectQueryBuilder<Post>,
-    stateFactory?: (req: FastifyRequest, con: Connection) => Promise<State>,
-  ): RequestHandler =>
-  async (req, res): Promise<FastifyReply<ServerResponse>> => {
+    stateFactory?: (
+      req: FastifyRequest<RouteGeneric>,
+      con: Connection,
+    ) => Promise<State>,
+  ): RouteHandlerMethod<
+    RawServerDefault,
+    RawRequestDefaultExpression,
+    RawReplyDefaultExpression,
+    RouteGeneric
+  > =>
+  async (req, res): Promise<FastifyReply> => {
     const con = getConnection();
     const state = stateFactory ? await stateFactory(req, con) : null;
     const userId = await extractUserId(req, state);
@@ -93,7 +101,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   fastify.get(
     '/b/l/:listId',
-    generateRSS<BookmarkList>(
+    generateRSS<BookmarkList, { Params: { listId: string } }>(
       (req, list) => Promise.resolve(list?.userId),
       (user, list) => `${list.name} List`,
       'bookmark.createdAt',
@@ -112,7 +120,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   fastify.get(
     '/b/:userId',
-    generateRSS(
+    generateRSS<unknown, { Params: { userId: string } }>(
       (req) => Promise.resolve(req.params.userId),
       (user) => `${extractFirstName(user)}'s Bookmarks`,
       'bookmark.createdAt',
@@ -126,7 +134,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   fastify.get(
     '/f/:feedId',
-    generateRSS<Feed>(
+    generateRSS<Feed, { Params: { feedId: string } }>(
       (req, feed) => Promise.resolve(feed?.userId),
       (user) => `${extractFirstName(user)}'s Feed`,
       'post.createdAt',
