@@ -13,6 +13,7 @@ interface GQLSettings {
   spaciness: string;
   showOnlyUnreadPosts: boolean;
   openNewTab: boolean;
+  openSidebar: boolean;
   updatedAt: Date;
 }
 
@@ -25,6 +26,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   spaciness?: string;
   showOnlyUnreadPosts?: boolean;
   openNewTab?: boolean;
+  openSidebar?: boolean;
 }
 
 export const typeDefs = gql`
@@ -78,6 +80,11 @@ export const typeDefs = gql`
     openNewTab: Boolean!
 
     """
+    Whether to show the sidebar open
+    """
+    openSidebar: Boolean!
+
+    """
     Time of last update
     """
     updatedAt: DateTime!
@@ -123,6 +130,11 @@ export const typeDefs = gql`
     Whether to open articles on new tab
     """
     openNewTab: Boolean
+
+    """
+    Whether to show the sidebar open
+    """
+    openSidebar: Boolean!
   }
 
   extend type Mutation {
