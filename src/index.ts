@@ -5,6 +5,7 @@ import cookie from 'fastify-cookie';
 import cors from 'fastify-cors';
 import mercurius from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
+import MercuriusCache from 'mercurius-cache';
 import fastifyWebsocket from 'fastify-websocket';
 
 import './config';
@@ -20,6 +21,12 @@ import { schema } from './graphql';
 import { createOrGetConnection } from './db';
 import { stringifyHealthCheck } from './common';
 import { GraphQLError } from 'graphql';
+
+const userExtendKey = (
+  source: unknown,
+  args: unknown,
+  ctx: Context,
+): string | undefined => (ctx.userId ? `user:${ctx.userId}` : undefined);
 
 export default async function app(
   contextFn?: (request: FastifyRequest) => Context,
@@ -107,6 +114,76 @@ export default async function app(
       };
     },
   });
+
+  if (isProd) {
+    app.register(MercuriusCache, {
+      ttl: 10,
+      policy: {
+        Query: {
+          searchBookmarksSuggestions: {
+            extendKey: userExtendKey,
+          },
+          searchBookmarks: {
+            extendKey: userExtendKey,
+          },
+          anonymousFeed: {
+            extendKey: userExtendKey,
+          },
+          feed: {
+            extendKey: userExtendKey,
+          },
+          sourceFeed: {
+            extendKey: userExtendKey,
+          },
+          tagFeed: {
+            extendKey: userExtendKey,
+          },
+          keywordFeed: {
+            extendKey: userExtendKey,
+          },
+          searchPostSuggestions: {
+            extendKey: userExtendKey,
+          },
+          searchPosts: {
+            extendKey: userExtendKey,
+          },
+          authorFeed: {
+            extendKey: userExtendKey,
+          },
+          mostUpvotedFeed: {
+            extendKey: userExtendKey,
+          },
+          mostDiscussedFeed: {
+            extendKey: userExtendKey,
+          },
+          randomTrendingPosts: {
+            extendKey: userExtendKey,
+          },
+          randomSimilarPosts: {
+            extendKey: userExtendKey,
+          },
+          randomSimilarPostsByTags: {
+            extendKey: userExtendKey,
+          },
+          randomDiscussedPosts: {
+            extendKey: userExtendKey,
+          },
+          tagsCategories: true,
+          advancedSettings: true,
+          banner: true,
+          post: {
+            extendKey: userExtendKey,
+          },
+          postUpvotes: true,
+          sources: true,
+          source: true,
+          searchTags: true,
+          userReadingRankHistory: true,
+          userReadHistory: true,
+        },
+      },
+    });
+  }
 
   app.register(compatibility, { prefix: '/v1' });
   app.register(routes, { prefix: '/' });
