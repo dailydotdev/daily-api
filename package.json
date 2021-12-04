@@ -68,7 +68,7 @@
     "p-retry": "^4.6.1",
     "pg": "^8.7.1",
     "pg-query-stream": "^4.2.1",
-    "pino": "^7.4.0",
+    "pino": "^7.5.1",
     "reflect-metadata": "^0.1.13",
     "rss": "^1.2.2",
     "shortid": "^2.2.16",
