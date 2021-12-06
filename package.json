@@ -55,7 +55,7 @@
     "graphql-tools": "^4.0.8",
     "he": "^1.2.0",
     "highlight.js": "^11.3.1",
-    "ioredis": "^4.27.9",
+    "ioredis": "^4.28.2",
     "isbot": "^3.3.3",
     "jsonexport": "^3.2.0",
     "jsonwebtoken": "^8.5.1",
@@ -68,7 +68,7 @@
     "p-retry": "^4.6.1",
     "pg": "^8.7.1",
     "pg-query-stream": "^4.2.1",
-    "pino": "^7.4.0",
+    "pino": "^7.5.1",
     "reflect-metadata": "^0.1.13",
     "rss": "^1.2.2",
     "shortid": "^2.2.16",
@@ -109,7 +109,7 @@
     "pino-pretty": "^5.1.3",
     "prettier": "^2.4.1",
     "supertest": "^6.1.6",
-    "ts-jest": "^27.0.7",
+    "ts-jest": "^27.1.0",
     "ts-node": "^10.2.1",
     "typescript": "^4.4.3"
   }
