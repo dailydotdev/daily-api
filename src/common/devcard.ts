@@ -3,10 +3,20 @@ import { Post, PostKeyword, Source, View } from '../entity';
 import { Connection } from 'typeorm';
 import { User } from '../entity/User';
 
-const getMostReadTags = (
+interface QueryOptions {
+  limit?: number;
+}
+
+export interface MostReadTag {
+  value: string;
+  count: number;
+}
+
+export const getMostReadTags = (
   con: Connection,
   userId: string,
-): Promise<{ value: string; count: number }[]> =>
+  { limit = 4 }: QueryOptions = {},
+): Promise<MostReadTag[]> =>
   con
     .createQueryBuilder()
     .select('pk.keyword', 'value')
@@ -18,7 +28,7 @@ const getMostReadTags = (
     .andWhere(`pk.keyword != 'general-programming'`)
     .groupBy('pk.keyword')
     .orderBy('2', 'DESC')
-    .limit(4)
+    .limit(limit)
     .getRawMany();
 
 const getFavoriteSourcesLogos = async (
