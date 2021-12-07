@@ -175,6 +175,31 @@ Object {
 }
 `;
 
+exports[`query userMostReadTags should return the user most read tags 1`] = `
+Array [
+  Object {
+    "count": 5,
+    "value": "javascript",
+  },
+  Object {
+    "count": 3,
+    "value": "security",
+  },
+  Object {
+    "count": 3,
+    "value": "ai",
+  },
+  Object {
+    "count": 2,
+    "value": "devops",
+  },
+  Object {
+    "count": 1,
+    "value": "backend",
+  },
+]
+`;
+
 exports[`query userReadHistory should return the read history 1`] = `
 Array [
   Object {
