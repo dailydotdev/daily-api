@@ -1,3 +1,4 @@
+import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
@@ -52,6 +53,11 @@ export interface GQLReadingRank {
 
 export interface GQLReadingRankHistory {
   rank: number;
+  count: number;
+}
+
+export interface GQLMostReadTag {
+  value: string;
   count: number;
 }
 
@@ -115,6 +121,11 @@ export const typeDefs = /* GraphQL */ `
     lastReadTime: DateTime
   }
 
+  type MostReadTag {
+    value: String!
+    count: Int!
+  }
+
   type ReadingRankHistory {
     rank: Int!
     count: Int!
@@ -157,6 +168,10 @@ export const typeDefs = /* GraphQL */ `
     Get the reading rank of the user
     """
     userReadingRank(id: ID!): ReadingRank
+    """
+    Get the reading rank of the user
+    """
+    userMostReadTags(id: ID!): [MostReadTag]
     """
     Get the reading rank history of the user.
     An aggregated count of all the ranks the user ever received.
@@ -244,6 +259,15 @@ export const resolvers: IResolvers<any, Context> = {
           currentRank: rank.currentRank,
         };
       }
+    },
+    userMostReadTags: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLMostReadTag[]> => {
+      const user = await ctx.con.getRepository(User).findOneOrFail(id);
+
+      return getMostReadTags(ctx.con, user.id, { limit: 5 });
     },
     userReadingRankHistory: async (
       source,

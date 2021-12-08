@@ -1,3 +1,6 @@
+import { keywordsFixture } from './fixture/keywords';
+import { Keyword } from './../src/entity/Keyword';
+import { PostKeyword } from './../src/entity/PostKeyword';
 import { Connection, getConnection } from 'typeorm';
 import {
   addDays,
@@ -161,6 +164,27 @@ beforeEach(async () => {
   ]);
 });
 
+const postKeywordFixtures: Partial<PostKeyword>[] = [
+  { postId: 'p1', keyword: 'javascript', status: 'allow' },
+  { postId: 'p1', keyword: 'ai', status: 'allow' },
+  { postId: 'p1', keyword: 'security', status: 'allow' },
+  { postId: 'p2', keyword: 'javascript', status: 'allow' },
+  { postId: 'p2', keyword: 'cloud', status: 'allow' },
+  { postId: 'p2', keyword: 'devops', status: 'allow' },
+  { postId: 'p3', keyword: 'javascript', status: 'allow' },
+  { postId: 'p3', keyword: 'crypto', status: 'allow' },
+  { postId: 'p3', keyword: 'blockchain', status: 'allow' },
+  { postId: 'p4', keyword: 'javascript', status: 'allow' },
+  { postId: 'p4', keyword: 'security', status: 'allow' },
+  { postId: 'p4', keyword: 'web3', status: 'allow' },
+  { postId: 'p5', keyword: 'python', status: 'allow' },
+  { postId: 'p5', keyword: 'ai', status: 'allow' },
+  { postId: 'p5', keyword: 'analytics', status: 'allow' },
+  { postId: 'p6', keyword: 'golang', status: 'allow' },
+  { postId: 'p6', keyword: 'backend', status: 'allow' },
+  { postId: 'p6', keyword: 'devops', status: 'allow' },
+];
+
 afterAll(() => disposeGraphQLTesting(state));
 
 describe('query userStats', () => {
@@ -193,6 +217,49 @@ describe('query userStats', () => {
     const res = await client.query(QUERY, { variables: { id: '2' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query userMostReadTags', () => {
+  const QUERY = `query UserMostReadTags($id: ID!){
+    userMostReadTags(id: $id) {
+      value
+      count
+    }
+  }`;
+
+  const additionalKeywords: Partial<Keyword>[] = [
+    { value: 'security', occurrences: 15, status: 'allow' },
+    { value: 'web3', occurrences: 20, status: 'allow' },
+    { value: 'blockchain', occurrences: 30, status: 'allow' },
+    { value: 'cloud', occurrences: 45, status: 'allow' },
+    { value: 'backend', occurrences: 105, status: 'allow' },
+    { value: 'crypto', occurrences: 180, status: 'allow' },
+    { value: 'ai', occurrences: 270, status: 'allow' },
+    { value: 'analytics', occurrences: 420, status: 'allow' },
+    { value: 'devops', occurrences: 760, status: 'allow' },
+    { value: 'javascript', occurrences: 980, status: 'allow' },
+  ];
+
+  it('should return the user most read tags', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Keyword)
+      .save([...keywordsFixture, ...additionalKeywords]);
+    await con.getRepository(PostKeyword).save(postKeywordFixtures);
+    await con.getRepository(View).save([
+      { userId: loggedUser, timestamp: new Date(2021), postId: 'p1' },
+      { userId: loggedUser, timestamp: new Date(2022), postId: 'p2' },
+      { userId: loggedUser, timestamp: new Date(2023), postId: 'p3' },
+      { userId: loggedUser, timestamp: new Date(2024), postId: 'p4' },
+      { userId: loggedUser, timestamp: new Date(2025), postId: 'p5' },
+      { userId: loggedUser, timestamp: new Date(2026), postId: 'p6' },
+      { userId: loggedUser, timestamp: new Date(2027), postId: 'p1' },
+    ]);
+    const res = await client.query(QUERY, { variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userMostReadTags.length).toEqual(5);
+    expect(res.data.userMostReadTags).toMatchSnapshot();
   });
 });
 
