@@ -1,3 +1,4 @@
+import { fetchUserFeatures } from './users';
 import { AdvancedSettings, FeedAdvancedSettings } from '../entity';
 import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -60,6 +61,8 @@ export const feedToFilters = async (
   con: ORMConnection,
   feedId: string,
 ): Promise<AnonymousFeedFilters> => {
+  const features = await fetchUserFeatures(feedId);
+
   const [tags, excludeSources] = await Promise.all([
     con.getRepository(FeedTag).find({ where: { feedId } }),
     con
@@ -67,7 +70,7 @@ export const feedToFilters = async (
       .createQueryBuilder('s')
       .select('s.id AS "id"')
       .where((qb) => {
-        const subQuery = qb
+        let subQuery = qb
           .subQuery()
           .select('adv.id')
           .from(AdvancedSettings, 'adv')
@@ -77,10 +80,26 @@ export const feedToFilters = async (
             'adv.id = fas."advancedSettingsId" AND fas."feedId" = :feedId',
             { feedId },
           )
-          .where('COALESCE(fas.enabled, adv.defaultEnabledState) = false')
-          .getQuery();
+          .where('COALESCE(fas.enabled, adv.defaultEnabledState) = false');
 
-        return `s.advancedSettings && array(${subQuery})`;
+        const experimentSettings = features?.advanced_settings_default_values;
+        if (!experimentSettings?.enabled) {
+          return `s.advancedSettings && array(${subQuery.getQuery()})`;
+        }
+
+        const settings = Object.keys(experimentSettings.value).map((key) => ({
+          id: parseInt(key),
+          defaultEnabledState: experimentSettings.value[key],
+        }));
+
+        settings.forEach((experiment) => {
+          subQuery = subQuery.orWhere(
+            `(adv.id = :id AND COALESCE(fas.enabled, :enabled, adv.defaultEnabledState) = false)`,
+            { id: experiment.id, enabled: experiment.defaultEnabledState },
+          );
+        });
+
+        return `s.advancedSettings && array(${subQuery.getQuery()})`;
       })
       .orWhere((qb) => {
         const subQuery = qb
