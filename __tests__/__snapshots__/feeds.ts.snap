@@ -164,6 +164,18 @@ Array [
 ]
 `;
 
+exports[`function feedToFilters shoud return fiters for sources based features flags 1`] = `
+Object {
+  "blockedTags": Array [],
+  "excludeSources": Array [
+    "excludedSource",
+    "settingsCombinationSource",
+    "experimentSource",
+  ],
+  "includeTags": Array [],
+}
+`;
+
 exports[`function feedToFilters shoud return fiters for tags/sources based on the values from our data 1`] = `
 Object {
   "blockedTags": Array [
@@ -741,47 +753,9 @@ Object {
 exports[`query anonymousFeed should return anonymous feed v2 1`] = `
 Object {
   "anonymousFeed": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "id": "p1",
-          "readTime": null,
-          "source": Object {
-            "id": "a",
-            "image": "http://image.com/a",
-            "name": "A",
-            "public": true,
-          },
-          "tags": Array [
-            "javascript",
-            "webdev",
-          ],
-          "title": "P1",
-          "url": "http://p1.com",
-        },
-      },
-      Object {
-        "node": Object {
-          "id": "p4",
-          "readTime": null,
-          "source": Object {
-            "id": "a",
-            "image": "http://image.com/a",
-            "name": "A",
-            "public": true,
-          },
-          "tags": Array [
-            "backend",
-            "data",
-            "javascript",
-          ],
-          "title": "P4",
-          "url": "http://p4.com",
-        },
-      },
-    ],
+    "edges": Array [],
     "pageInfo": Object {
-      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "endCursor": null,
       "hasNextPage": false,
     },
   },

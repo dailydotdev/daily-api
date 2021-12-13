@@ -49,6 +49,12 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 
+const getSampleFeature = () => ({
+  advanced_settings_default_values: {
+    enabled: true,
+    value: { 5: false },
+  },
+});
 const mockFeatures = (data = {}) => {
   nock(process.env.GATEWAY_URL)
     .get('/boot/features')
@@ -104,6 +110,7 @@ const advancedSettings: Partial<AdvancedSettings>[] = [
     id: 5,
     title: 'Company blogs',
     description: 'Description for Company blogs',
+    defaultEnabledState: true,
   },
 ];
 
@@ -163,6 +170,12 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
       name: 'SCS',
       image: 'http://image.com/c',
       advancedSettings: [1, 2],
+    },
+    {
+      id: 'experimentSource',
+      name: 'ExS',
+      image: 'http://image.com/c',
+      advancedSettings: [5],
     },
   ]);
   await saveFixtures(con, Post, [
@@ -1303,5 +1316,13 @@ describe('function feedToFilters', () => {
     await saveFeedFixtures();
 
     expect(await feedToFilters(con, '1', {})).toMatchSnapshot();
+  });
+
+  it('shoud return fiters for sources based features flags', async () => {
+    loggedUser = '1';
+
+    await saveAdvancedSettingsFiltersFixtures();
+
+    expect(await feedToFilters(con, '1', getSampleFeature())).toMatchSnapshot();
   });
 });
