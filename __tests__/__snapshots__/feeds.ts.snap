@@ -170,7 +170,6 @@ Object {
   "excludeSources": Array [
     "excludedSource",
     "settingsCombinationSource",
-    "experimentSource",
   ],
   "includeTags": Array [],
 }
