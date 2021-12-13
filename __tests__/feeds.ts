@@ -435,6 +435,11 @@ describe('query feed', () => {
       { feedId: '1', sourceId: 'a' },
       { feedId: '1', sourceId: 'b' },
     ]);
+    nock(process.env.GATEWAY_URL)
+      .get('/boot/features')
+      .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
+      .matchHeader('user-id', '1')
+      .reply(200, {});
     nock('http://localhost:6000')
       .get(
         '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&user_id=1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
