@@ -62,7 +62,11 @@ export const fetchUserFeatures = async (userId: string): Promise<IFlags> => {
       'user-id': userId,
     },
   });
-  return res.json();
+  const text = await res.text();
+
+  if (!text) return {};
+
+  return JSON.parse(text);
 };
 
 export interface ReadingRank {
