@@ -57,7 +57,10 @@ export const fetchUserRoles = async (userId: string): Promise<string[]> => {
 export const fetchUserFeatures = async (userId: string): Promise<IFlags> => {
   const res = await fetch(`${process.env.GATEWAY_URL}/boot/features`, {
     method: 'GET',
-    headers: authorizedHeaders(userId),
+    headers: {
+      authorization: `Service ${process.env.GATEWAY_SECRET}`,
+      'user-id': userId,
+    },
   });
   return res.json();
 };
