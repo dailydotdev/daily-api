@@ -1,8 +1,8 @@
+import { ICustomFeature, ICustomFlags } from './users';
 import { AdvancedSettings, FeedAdvancedSettings } from '../entity';
 import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from 'graphql-tools';
-import { IFeature, IFlags } from 'flagsmith-nodejs';
 import {
   Bookmark,
   FeedTag,
@@ -58,7 +58,7 @@ export const whereKeyword = (
 };
 
 const advancedSettingsExperiment = (
-  settings: IFeature,
+  settings: ICustomFeature<boolean>,
   query: SelectQueryBuilder<AdvancedSettings>,
   key: string,
 ) => {
@@ -79,7 +79,7 @@ const advancedSettingsExperiment = (
 export const feedToFilters = async (
   con: ORMConnection,
   feedId: string,
-  features: IFlags,
+  features: ICustomFlags<boolean>,
 ): Promise<AnonymousFeedFilters> => {
   const [tags, excludeSources] = await Promise.all([
     con.getRepository(FeedTag).find({ where: { feedId } }),
