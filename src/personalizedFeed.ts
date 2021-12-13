@@ -24,7 +24,7 @@ async function fetchTinybirdFeed(
     url += `&user_id=${userId}`;
   }
   if (feedId) {
-    const features = userId ? await fetchUserFeatures(feedId) : null;
+    const features = userId ? await fetchUserFeatures(userId) : null;
     const filters = await feedToFilters(con, feedId, features);
     if (filters.includeTags?.length) {
       url += `&allowed_tags=${filters.includeTags.join(',')}`;
