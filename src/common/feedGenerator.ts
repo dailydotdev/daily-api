@@ -2,6 +2,7 @@ import { AdvancedSettings, FeedAdvancedSettings } from '../entity';
 import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from 'graphql-tools';
+import { IFeature, IFlags } from 'flagsmith-nodejs';
 import {
   Bookmark,
   FeedTag,
@@ -16,7 +17,6 @@ import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
 import { Page, PageGenerator, getSearchQuery } from '../schema/common';
 import graphorm from '../graphorm';
-import { IFlags } from 'flagsmith-nodejs';
 
 export const whereTags = (
   tags: string[],
@@ -57,6 +57,25 @@ export const whereKeyword = (
   return `EXISTS${query}`;
 };
 
+const advancedSettingsExperiment = (
+  settings: IFeature,
+  query: SelectQueryBuilder<AdvancedSettings>,
+  key: string,
+) => {
+  let finalQuery = query;
+  const experiment = {
+    id: parseInt(key),
+    defaultEnabledState: settings.value[key],
+  };
+
+  finalQuery = query.orWhere(
+    `(adv.id = :id AND COALESCE(fas.enabled, :enabled, adv.defaultEnabledState) = false)`,
+    { id: experiment.id, enabled: experiment.defaultEnabledState },
+  );
+
+  return finalQuery;
+};
+
 export const feedToFilters = async (
   con: ORMConnection,
   feedId: string,
@@ -81,22 +100,13 @@ export const feedToFilters = async (
           )
           .where('COALESCE(fas.enabled, adv.defaultEnabledState) = false');
 
-        const experimentSettings = features?.advanced_settings_default_values;
-        if (!experimentSettings?.enabled) {
-          return `s.advancedSettings && array(${subQuery.getQuery()})`;
-        }
-
-        const settings = Object.keys(experimentSettings.value).map((key) => ({
-          id: parseInt(key),
-          defaultEnabledState: experimentSettings.value[key],
-        }));
-
-        settings.forEach((experiment) => {
-          subQuery = subQuery.orWhere(
-            `(adv.id = :id AND COALESCE(fas.enabled, :enabled, adv.defaultEnabledState) = false)`,
-            { id: experiment.id, enabled: experiment.defaultEnabledState },
+        const settings = features?.advanced_settings_default_values;
+        if (settings?.enabled) {
+          subQuery = Object.keys(settings.value).reduce(
+            (query, key) => advancedSettingsExperiment(settings, query, key),
+            subQuery,
           );
-        });
+        }
 
         return `s.advancedSettings && array(${subQuery.getQuery()})`;
       })
