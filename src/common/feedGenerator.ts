@@ -1,4 +1,3 @@
-import { fetchUserFeatures } from './users';
 import { AdvancedSettings, FeedAdvancedSettings } from '../entity';
 import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -17,6 +16,7 @@ import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
 import { Page, PageGenerator, getSearchQuery } from '../schema/common';
 import graphorm from '../graphorm';
+import { IFlags } from 'flagsmith-nodejs';
 
 export const whereTags = (
   tags: string[],
@@ -60,9 +60,8 @@ export const whereKeyword = (
 export const feedToFilters = async (
   con: ORMConnection,
   feedId: string,
+  features?: IFlags,
 ): Promise<AnonymousFeedFilters> => {
-  const features = await fetchUserFeatures(feedId);
-
   const [tags, excludeSources] = await Promise.all([
     con.getRepository(FeedTag).find({ where: { feedId } }),
     con

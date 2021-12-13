@@ -1,3 +1,4 @@
+import { fetchUserFeatures } from './common/users';
 import { Agent } from 'https';
 import { Connection } from 'typeorm';
 import { feedToFilters } from './common';
@@ -23,7 +24,8 @@ async function fetchTinybirdFeed(
     url += `&user_id=${userId}`;
   }
   if (feedId) {
-    const filters = await feedToFilters(con, feedId);
+    const features = await fetchUserFeatures(feedId);
+    const filters = await feedToFilters(con, feedId, features);
     if (filters.includeTags?.length) {
       url += `&allowed_tags=${filters.includeTags.join(',')}`;
     }
