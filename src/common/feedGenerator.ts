@@ -79,7 +79,7 @@ const advancedSettingsExperiment = (
 export const feedToFilters = async (
   con: ORMConnection,
   feedId: string,
-  features?: IFlags,
+  features: IFlags,
 ): Promise<AnonymousFeedFilters> => {
   const [tags, excludeSources] = await Promise.all([
     con.getRepository(FeedTag).find({ where: { feedId } }),
