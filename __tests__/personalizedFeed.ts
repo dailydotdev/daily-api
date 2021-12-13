@@ -27,7 +27,7 @@ const mockFeatures = (data = {}) => {
   nock(process.env.GATEWAY_URL)
     .get('/boot/features')
     .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
+    .matchHeader('user-id', 'u1')
     .reply(200, data);
 };
 beforeAll(async () => {
