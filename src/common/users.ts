@@ -1,4 +1,5 @@
 import { isSameDay } from 'date-fns';
+import { IFlags } from 'flagsmith-nodejs';
 import fetch from 'node-fetch';
 import { Connection } from 'typeorm';
 import { View } from '../entity';
@@ -47,6 +48,14 @@ export const fetchUserInfo = async (userId: string): Promise<UserInfo> => {
 
 export const fetchUserRoles = async (userId: string): Promise<string[]> => {
   const res = await fetch(`${process.env.GATEWAY_URL}/v1/users/me/roles`, {
+    method: 'GET',
+    headers: authorizedHeaders(userId),
+  });
+  return res.json();
+};
+
+export const fetchUserFeatures = async (userId: string): Promise<IFlags> => {
+  const res = await fetch(`${process.env.GATEWAY_URL}/boot/features`, {
     method: 'GET',
     headers: authorizedHeaders(userId),
   });
