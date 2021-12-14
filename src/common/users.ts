@@ -69,10 +69,7 @@ export const fetchUserFeatures = async (
 ): Promise<ICustomFlags<boolean>> => {
   const res = await fetch(`${process.env.GATEWAY_URL}/boot/features`, {
     method: 'GET',
-    headers: {
-      authorization: `Service ${process.env.GATEWAY_SECRET}`,
-      'user-id': userId,
-    },
+    headers: authorizedHeaders(userId),
   });
   const text = await res.text();
 
