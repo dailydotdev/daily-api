@@ -153,6 +153,9 @@ const worker: Worker = {
   subscription: 'add-posts-v2',
   handler: async (message, con, logger): Promise<void> => {
     const data: AddPostData = messageToJson(message);
+    if (!data.canonicalUrl?.length) {
+      data.canonicalUrl = data.url;
+    }
 
     const p = await con
       .getRepository(Post)
