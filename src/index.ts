@@ -169,7 +169,9 @@ export default async function app(
             extendKey: userExtendKey,
           },
           tagsCategories: true,
-          advancedSettings: true,
+          advancedSettings: {
+            extendKey: userExtendKey,
+          },
           banner: true,
           post: {
             extendKey: userExtendKey,
