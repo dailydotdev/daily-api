@@ -1,4 +1,5 @@
-import { fetchUserFeatures, ICustomFlags } from './users';
+import { IFlags } from 'flagsmith-nodejs';
+import { fetchUserFeatures } from './users';
 import { AdvancedSettings, FeedAdvancedSettings } from '../entity';
 import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -18,6 +19,7 @@ import { Context } from '../Context';
 import { Page, PageGenerator, getSearchQuery } from '../schema/common';
 import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
+import { CustomObject } from '.';
 
 export const whereTags = (
   tags: string[],
@@ -59,7 +61,7 @@ export const whereKeyword = (
 };
 
 export const getFeatureAdvancedSettings = (
-  features: ICustomFlags,
+  features: IFlags,
   settings: AdvancedSettings[],
 ): AdvancedSettings[] => {
   const feature = features?.advanced_settings_default_values;
@@ -67,12 +69,19 @@ export const getFeatureAdvancedSettings = (
   if (!feature?.enabled) {
     return settings;
   }
+
+  if (!feature.value || typeof feature.value !== 'string') {
+    return settings;
+  }
+
+  const values = JSON.parse(feature.value) as CustomObject<boolean>;
+
   return settings.map((adv) => {
-    if (feature.value?.[adv.id] === undefined) {
+    if (values[adv.id] === undefined) {
       return adv;
     }
 
-    return { ...adv, defaultEnabledState: feature.value[adv.id] };
+    return { ...adv, defaultEnabledState: values[adv.id] };
   });
 };
 
