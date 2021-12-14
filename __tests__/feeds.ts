@@ -286,7 +286,7 @@ describe('query anonymousFeed', () => {
 
   it('should return feed while excluding sources based on advanced settings', async () => {
     await saveAdvancedSettingsFiltersFixtures();
-    const filters = await feedToFilters(con, '1', {});
+    const filters = await feedToFilters(con, '1', '1');
     const res = await client.query(QUERY, {
       variables: { ...variables, filters },
     });
@@ -1307,15 +1307,15 @@ describe('function feedToFilters', () => {
 
     await saveAdvancedSettingsFiltersFixtures();
 
-    expect(await feedToFilters(con, '1', {})).toMatchSnapshot();
+    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 
   it('shoud return fiters for tags/sources based on the values from our data', async () => {
     loggedUser = '1';
 
     await saveFeedFixtures();
-
-    expect(await feedToFilters(con, '1', {})).toMatchSnapshot();
+    mockFeatures(getSampleFeature());
+    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 
   it('shoud return fiters for sources based features flags', async () => {
@@ -1323,6 +1323,6 @@ describe('function feedToFilters', () => {
 
     await saveAdvancedSettingsFiltersFixtures();
 
-    expect(await feedToFilters(con, '1', getSampleFeature())).toMatchSnapshot();
+    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 });

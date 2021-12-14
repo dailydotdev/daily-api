@@ -1,4 +1,4 @@
-import { ICustomFeature, ICustomFlags } from './users';
+import { fetchUserFeatures } from './users';
 import { AdvancedSettings, FeedAdvancedSettings } from '../entity';
 import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -57,58 +57,52 @@ export const whereKeyword = (
   return `EXISTS${query}`;
 };
 
-const advancedSettingsExperiment = (
-  settings: ICustomFeature<boolean>,
-  query: SelectQueryBuilder<AdvancedSettings>,
-  key: string,
-) => {
-  let finalQuery = query;
-  const experiment = {
-    id: parseInt(key),
-    defaultEnabledState: settings.value[key],
-  };
-
-  finalQuery = query.orWhere(
-    `(adv.id = :id AND COALESCE(fas.enabled, :enabled, adv.defaultEnabledState) = false)`,
-    { id: experiment.id, enabled: experiment.defaultEnabledState },
+export const getExcludedAdvancedSettings = async (
+  con: ORMConnection,
+  feedId: string,
+  userId: string,
+): Promise<number[]> => {
+  const [features, advancedSettings, feedAdvancedSettings] = await Promise.all([
+    fetchUserFeatures(userId),
+    con.getRepository(AdvancedSettings).find(),
+    con.getRepository(FeedAdvancedSettings).find({ feedId, enabled: false }),
+  ]);
+  const userSettings = feedAdvancedSettings.reduce(
+    (obj, settings) => ({
+      ...obj,
+      [settings.advancedSettingsId]: settings.enabled,
+    }),
+    {},
   );
+  const feature = features?.advanced_settings_default_values;
+  const excludedSettings = advancedSettings.filter((adv) => {
+    const hasNoSettings = userSettings[adv.id] === undefined;
+    const conditions = [
+      userSettings[adv.id],
+      feature?.value[adv.id],
+      !(hasNoSettings && adv.defaultEnabledState === false),
+    ];
 
-  return finalQuery;
+    return conditions.some((value) => value === false);
+  });
+
+  return excludedSettings.map((adv) => adv.id);
 };
 
 export const feedToFilters = async (
   con: ORMConnection,
   feedId: string,
-  features: ICustomFlags<boolean>,
+  userId: string,
 ): Promise<AnonymousFeedFilters> => {
+  const settings = await getExcludedAdvancedSettings(con, feedId, userId);
   const [tags, excludeSources] = await Promise.all([
     con.getRepository(FeedTag).find({ where: { feedId } }),
     con
       .getRepository(Source)
       .createQueryBuilder('s')
       .select('s.id AS "id"')
-      .where((qb) => {
-        let subQuery = qb
-          .subQuery()
-          .select('adv.id')
-          .from(AdvancedSettings, 'adv')
-          .leftJoin(
-            FeedAdvancedSettings,
-            'fas',
-            'adv.id = fas."advancedSettingsId" AND fas."feedId" = :feedId',
-            { feedId },
-          )
-          .where('COALESCE(fas.enabled, adv.defaultEnabledState) = false');
-
-        const settings = features?.advanced_settings_default_values;
-        if (settings?.enabled) {
-          subQuery = Object.keys(settings.value).reduce(
-            (query, key) => advancedSettingsExperiment(settings, query, key),
-            subQuery,
-          );
-        }
-
-        return `s.advancedSettings && array(${subQuery.getQuery()})`;
+      .where(`s.advancedSettings && ARRAY[:...settings]::integer[]`, {
+        settings,
       })
       .orWhere((qb) => {
         const subQuery = qb

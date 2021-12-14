@@ -1,4 +1,3 @@
-import { fetchUserFeatures } from './../common/users';
 import { FeedAdvancedSettings, AdvancedSettings } from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
@@ -741,11 +740,8 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
     feedPageGenerator,
     applyFeedPaging,
     {
-      fetchQueryParams: async (ctx) => {
-        const features = await fetchUserFeatures(ctx.userId);
-
-        return feedToFilters(ctx.con, ctx.userId, features);
-      },
+      fetchQueryParams: async (ctx) =>
+        feedToFilters(ctx.con, ctx.userId, ctx.userId),
     },
   );
 
