@@ -17,6 +17,7 @@ import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
 import { Page, PageGenerator, getSearchQuery } from '../schema/common';
 import graphorm from '../graphorm';
+import { mapArrayToOjbect } from './object';
 
 export const whereTags = (
   tags: string[],
@@ -86,12 +87,10 @@ export const getExcludedAdvancedSettings = async (
     con.getRepository(FeedAdvancedSettings).find({ feedId }),
   ]);
   const settings = getFeatureAdvancedSettings(features, advancedSettings);
-  const userSettings = feedAdvancedSettings.reduce(
-    (obj, settings) => ({
-      ...obj,
-      [settings.advancedSettingsId]: settings.enabled,
-    }),
-    {},
+  const userSettings = mapArrayToOjbect(
+    feedAdvancedSettings,
+    'advancedSettingsId',
+    'enabled',
   );
   const excludedSettings = settings.filter((adv) => {
     if (userSettings[adv.id] !== undefined) {
