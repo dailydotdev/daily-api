@@ -932,7 +932,7 @@ describe('query advancedSettings', () => {
     }`;
 
     await saveFeedFixtures();
-    mockFeatures(defaultFeatures);
+    mockFeatures();
 
     const res = await client.query(QUERY);
 
