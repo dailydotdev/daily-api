@@ -164,19 +164,19 @@ Array [
 ]
 `;
 
-exports[`function feedToFilters shoud return fiters for sources based features flags 1`] = `
+exports[`function feedToFilters shoud return filters for sources with consideration of features flags 1`] = `
 Object {
   "blockedTags": Array [],
   "excludeSources": Array [
     "excludedSource",
     "settingsCombinationSource",
-    "experimentSource",
+    "experimentExcludedSource",
   ],
   "includeTags": Array [],
 }
 `;
 
-exports[`function feedToFilters shoud return fiters for tags/sources based on the values from our data 1`] = `
+exports[`function feedToFilters shoud return filters for tags/sources based on the values from our data 1`] = `
 Object {
   "blockedTags": Array [
     "golang",
@@ -192,12 +192,13 @@ Object {
 }
 `;
 
-exports[`function feedToFilters shoud return fiters having excluded sources based on advanced settings 1`] = `
+exports[`function feedToFilters shoud return filters having excluded sources based on advanced settings 1`] = `
 Object {
   "blockedTags": Array [],
   "excludeSources": Array [
     "excludedSource",
     "settingsCombinationSource",
+    "experimentExcludedSource",
   ],
   "includeTags": Array [],
 }
@@ -436,6 +437,12 @@ Object {
 exports[`query advancedSettings should return the list of the advanced settings 1`] = `
 Object {
   "advancedSettings": Array [
+    Object {
+      "defaultEnabledState": false,
+      "description": "Description for Another Settings",
+      "id": 6,
+      "title": "Another Settings",
+    },
     Object {
       "defaultEnabledState": true,
       "description": "Description for Code examples",

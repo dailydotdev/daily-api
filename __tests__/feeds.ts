@@ -1,3 +1,4 @@
+import { ICustomFlags } from './../src/common/users';
 import { feedToFilters } from '../src/common';
 import { FeedAdvancedSettings, AdvancedSettings } from '../src/entity';
 import { Category } from '../src/entity/Category';
@@ -49,13 +50,14 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 
-const getSampleFeature = () => ({
-  advanced_settings_default_values: {
-    enabled: true,
-    value: { 5: false },
+const mockFeatures = (
+  data: ICustomFlags = {
+    advanced_settings_default_values: {
+      enabled: true,
+      value: { 1: false, 5: false, 6: true },
+    },
   },
-});
-const mockFeatures = (data = {}) => {
+) => {
   nock(process.env.GATEWAY_URL)
     .get('/boot/features')
     .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
@@ -90,27 +92,37 @@ const advancedSettings: Partial<AdvancedSettings>[] = [
     id: 1,
     title: 'Tech magazines',
     description: 'Description for Tech magazines',
+    defaultEnabledState: true,
   },
   {
     id: 2,
     title: 'Non-editorial content',
     description: 'Description for Non-editorial content',
+    defaultEnabledState: true,
   },
   {
     id: 3,
     title: 'Release notes',
     description: 'Description for Release notes',
+    defaultEnabledState: true,
   },
   {
     id: 4,
     title: 'Code examples',
     description: 'Description for Code examples',
+    defaultEnabledState: true,
   },
   {
     id: 5,
     title: 'Company blogs',
     description: 'Description for Company blogs',
     defaultEnabledState: true,
+  },
+  {
+    id: 6,
+    title: 'Another Settings',
+    description: 'Description for Another Settings',
+    defaultEnabledState: false,
   },
 ];
 
@@ -131,7 +143,6 @@ const categories: Partial<Category>[] = [
 
 const saveFeedFixtures = async (): Promise<void> => {
   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-  await saveFixtures(con, AdvancedSettings, advancedSettings);
   await saveFixtures(con, FeedAdvancedSettings, [
     { feedId: '1', advancedSettingsId: 1, enabled: true },
     { feedId: '1', advancedSettingsId: 2, enabled: false },
@@ -172,10 +183,16 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
       advancedSettings: [1, 2],
     },
     {
-      id: 'experimentSource',
-      name: 'ExS',
+      id: 'experimentExcludedSource',
+      name: 'ExES',
       image: 'http://image.com/c',
       advancedSettings: [5],
+    },
+    {
+      id: 'experimentIncludedSource',
+      name: 'ExIS',
+      image: 'http://image.com/c',
+      advancedSettings: [6],
     },
   ]);
   await saveFixtures(con, Post, [
@@ -286,6 +303,7 @@ describe('query anonymousFeed', () => {
 
   it('should return feed while excluding sources based on advanced settings', async () => {
     await saveAdvancedSettingsFiltersFixtures();
+    mockFeatures();
     const filters = await feedToFilters(con, '1', '1');
     const res = await client.query(QUERY, {
       variables: { ...variables, filters },
@@ -1302,27 +1320,29 @@ describe('compatibility routes', () => {
 });
 
 describe('function feedToFilters', () => {
-  it('shoud return fiters having excluded sources based on advanced settings', async () => {
+  it('shoud return filters having excluded sources based on advanced settings', async () => {
     loggedUser = '1';
 
     await saveAdvancedSettingsFiltersFixtures();
+    mockFeatures();
 
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 
-  it('shoud return fiters for tags/sources based on the values from our data', async () => {
+  it('shoud return filters for tags/sources based on the values from our data', async () => {
     loggedUser = '1';
 
     await saveFeedFixtures();
-    mockFeatures(getSampleFeature());
+    mockFeatures();
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 
-  it('shoud return fiters for sources based features flags', async () => {
+  it('shoud return filters for sources with consideration of features flags', async () => {
     loggedUser = '1';
 
     await saveAdvancedSettingsFiltersFixtures();
 
+    mockFeatures();
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 });
