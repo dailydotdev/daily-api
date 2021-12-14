@@ -65,7 +65,7 @@ export const getExcludedAdvancedSettings = async (
   const [features, advancedSettings, feedAdvancedSettings] = await Promise.all([
     fetchUserFeatures(userId),
     con.getRepository(AdvancedSettings).find(),
-    con.getRepository(FeedAdvancedSettings).find({ feedId, enabled: false }),
+    con.getRepository(FeedAdvancedSettings).find({ feedId }),
   ]);
   const userSettings = feedAdvancedSettings.reduce(
     (obj, settings) => ({
@@ -76,14 +76,15 @@ export const getExcludedAdvancedSettings = async (
   );
   const feature = features?.advanced_settings_default_values;
   const excludedSettings = advancedSettings.filter((adv) => {
-    const hasNoSettings = userSettings[adv.id] === undefined;
-    const conditions = [
-      userSettings[adv.id],
-      feature?.value[adv.id],
-      !(hasNoSettings && adv.defaultEnabledState === false),
-    ];
+    if (userSettings[adv.id] !== undefined) {
+      return userSettings[adv.id] === false;
+    }
 
-    return conditions.some((value) => value === false);
+    if (feature?.value[adv.id] !== undefined) {
+      return feature.value[adv.id] === false;
+    }
+
+    return adv.defaultEnabledState === false;
   });
 
   return excludedSettings.map((adv) => adv.id);
