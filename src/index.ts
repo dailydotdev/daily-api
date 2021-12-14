@@ -33,7 +33,7 @@ const trackingExtendKey = (
   args: unknown,
   ctx: Context,
 ): string | undefined =>
-  ctx.userId ? `tracking:${ctx.trackingId}` : undefined;
+  ctx.trackingId ? `tracking:${ctx.trackingId}` : undefined;
 
 export default async function app(
   contextFn?: (request: FastifyRequest) => Context,
