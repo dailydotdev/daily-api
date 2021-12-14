@@ -20,6 +20,17 @@ export interface User {
   timezone?: string;
 }
 
+type CustomObject<T> = Record<string, T> | Record<number, T>;
+
+export type ICustomFeature<T = unknown> = {
+  enabled: boolean;
+  value?: string | number | boolean | CustomObject<T>;
+};
+
+export type ICustomFlags<T = unknown> = {
+  [key: string]: ICustomFeature<T>;
+};
+
 const authorizedHeaders = (userId: string): { [key: string]: string } => ({
   authorization: `Service ${process.env.GATEWAY_SECRET}`,
   'user-id': userId,
@@ -51,6 +62,23 @@ export const fetchUserRoles = async (userId: string): Promise<string[]> => {
     headers: authorizedHeaders(userId),
   });
   return res.json();
+};
+
+export const fetchUserFeatures = async (
+  userId: string,
+): Promise<ICustomFlags<boolean>> => {
+  const res = await fetch(`${process.env.GATEWAY_URL}/boot/features`, {
+    method: 'GET',
+    headers: {
+      authorization: `Service ${process.env.GATEWAY_SECRET}`,
+      'user-id': userId,
+    },
+  });
+  const text = await res.text();
+
+  if (!text) return {};
+
+  return JSON.parse(text);
 };
 
 export interface ReadingRank {

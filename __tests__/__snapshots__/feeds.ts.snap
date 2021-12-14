@@ -164,7 +164,19 @@ Array [
 ]
 `;
 
-exports[`function feedToFilters shoud return fiters for tags/sources based on the values from our data 1`] = `
+exports[`function feedToFilters shoud return filters for sources with consideration of features flags 1`] = `
+Object {
+  "blockedTags": Array [],
+  "excludeSources": Array [
+    "excludedSource",
+    "settingsCombinationSource",
+    "experimentExcludedSource",
+  ],
+  "includeTags": Array [],
+}
+`;
+
+exports[`function feedToFilters shoud return filters for tags/sources based on the values from our data 1`] = `
 Object {
   "blockedTags": Array [
     "golang",
@@ -180,12 +192,13 @@ Object {
 }
 `;
 
-exports[`function feedToFilters shoud return fiters having excluded sources based on advanced settings 1`] = `
+exports[`function feedToFilters shoud return filters having excluded sources based on advanced settings 1`] = `
 Object {
   "blockedTags": Array [],
   "excludeSources": Array [
     "excludedSource",
     "settingsCombinationSource",
+    "experimentExcludedSource",
   ],
   "includeTags": Array [],
 }
@@ -426,12 +439,18 @@ Object {
   "advancedSettings": Array [
     Object {
       "defaultEnabledState": true,
+      "description": "Description for Another Settings",
+      "id": 6,
+      "title": "Another Settings",
+    },
+    Object {
+      "defaultEnabledState": true,
       "description": "Description for Code examples",
       "id": 4,
       "title": "Code examples",
     },
     Object {
-      "defaultEnabledState": true,
+      "defaultEnabledState": false,
       "description": "Description for Company blogs",
       "id": 5,
       "title": "Company blogs",
@@ -449,7 +468,7 @@ Object {
       "title": "Release notes",
     },
     Object {
-      "defaultEnabledState": true,
+      "defaultEnabledState": false,
       "description": "Description for Tech magazines",
       "id": 1,
       "title": "Tech magazines",

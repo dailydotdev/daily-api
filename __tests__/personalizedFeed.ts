@@ -23,6 +23,13 @@ const tinybirdResponse = {
   ],
 };
 
+const mockFeatures = (data = {}) => {
+  nock(process.env.GATEWAY_URL)
+    .get('/boot/features')
+    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
+    .matchHeader('user-id', 'u1')
+    .reply(200, data);
+};
 beforeAll(async () => {
   con = await getConnection();
 });
@@ -160,6 +167,7 @@ it('should set the correct query parameters', async () => {
     { feedId: '1', sourceId: 'a' },
     { feedId: '1', sourceId: 'b' },
   ]);
+  mockFeatures();
   nock('http://localhost:6000')
     .get(
       '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&user_id=u1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',

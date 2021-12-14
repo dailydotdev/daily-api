@@ -1,3 +1,4 @@
+import { fetchUserFeatures } from './../common/users';
 import { FeedAdvancedSettings, AdvancedSettings } from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
@@ -15,6 +16,7 @@ import {
   feedToFilters,
   fixedIdsFeedBuilder,
   getCursorFromAfter,
+  getFeatureAdvancedSettings,
   randomPostsResolver,
   Ranking,
   sourceFeedBuilder,
@@ -739,7 +741,10 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
       ),
     feedPageGenerator,
     applyFeedPaging,
-    { fetchQueryParams: (ctx) => feedToFilters(ctx.con, ctx.userId) },
+    {
+      fetchQueryParams: async (ctx) =>
+        feedToFilters(ctx.con, ctx.userId, ctx.userId),
+    },
   );
 
 const invalidateFeedCache = async (feedId: string): Promise<void> => {
@@ -1014,8 +1019,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ),
     tagsCategories: (_, __, ctx): Promise<GQLTagsCategory[]> =>
       ctx.getRepository(Category).find({ order: { title: 'ASC' } }),
-    advancedSettings: async (_, __, ctx): Promise<GQLAdvancedSettings[]> =>
-      ctx.getRepository(AdvancedSettings).find({ order: { title: 'ASC' } }),
+    advancedSettings: async (_, __, ctx): Promise<GQLAdvancedSettings[]> => {
+      const [features, advancedSettings] = await Promise.all([
+        fetchUserFeatures(ctx.userId || ctx.trackingId),
+        ctx.getRepository(AdvancedSettings).find({ order: { title: 'ASC' } }),
+      ]);
+
+      return getFeatureAdvancedSettings(features, advancedSettings);
+    },
   },
   Mutation: {
     addFiltersToFeed: async (
