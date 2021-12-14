@@ -50,18 +50,16 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 
-const mockFeatures = (
-  data: ICustomFlags = {
-    advanced_settings_default_values: {
-      enabled: true,
-      value: { 1: false, 5: false, 6: true },
-    },
+const defaultFeatures: ICustomFlags = {
+  advanced_settings_default_values: {
+    enabled: true,
+    value: { 1: false, 5: false, 6: true },
   },
-) => {
+};
+const mockFeatures = (data: ICustomFlags = defaultFeatures) => {
   nock(process.env.GATEWAY_URL)
     .get('/boot/features')
     .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
     .reply(200, data);
 };
 
@@ -934,6 +932,7 @@ describe('query advancedSettings', () => {
     }`;
 
     await saveFeedFixtures();
+    mockFeatures(defaultFeatures);
 
     const res = await client.query(QUERY);
 

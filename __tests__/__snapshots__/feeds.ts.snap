@@ -438,7 +438,7 @@ exports[`query advancedSettings should return the list of the advanced settings 
 Object {
   "advancedSettings": Array [
     Object {
-      "defaultEnabledState": false,
+      "defaultEnabledState": true,
       "description": "Description for Another Settings",
       "id": 6,
       "title": "Another Settings",
@@ -450,7 +450,7 @@ Object {
       "title": "Code examples",
     },
     Object {
-      "defaultEnabledState": true,
+      "defaultEnabledState": false,
       "description": "Description for Company blogs",
       "id": 5,
       "title": "Company blogs",
@@ -468,7 +468,7 @@ Object {
       "title": "Release notes",
     },
     Object {
-      "defaultEnabledState": true,
+      "defaultEnabledState": false,
       "description": "Description for Tech magazines",
       "id": 1,
       "title": "Tech magazines",
