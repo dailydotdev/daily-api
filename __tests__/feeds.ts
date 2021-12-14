@@ -1,4 +1,4 @@
-import { ICustomFlags } from './../src/common/users';
+import { IFlags } from 'flagsmith-nodejs';
 import { feedToFilters } from '../src/common';
 import { FeedAdvancedSettings, AdvancedSettings } from '../src/entity';
 import { Category } from '../src/entity/Category';
@@ -50,13 +50,13 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 
-const defaultFeatures: ICustomFlags = {
+const defaultFeatures: IFlags = {
   advanced_settings_default_values: {
     enabled: true,
-    value: { 1: false, 5: false, 6: true },
+    value: JSON.stringify({ 1: false, 5: false, 6: true }),
   },
 };
-const mockFeatures = (data: ICustomFlags = defaultFeatures) => {
+const mockFeatures = (data: IFlags = defaultFeatures) => {
   nock(process.env.GATEWAY_URL)
     .get('/boot/features')
     .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
