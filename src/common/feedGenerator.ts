@@ -1,4 +1,4 @@
-import { fetchUserFeatures } from './users';
+import { fetchUserFeatures, ICustomFlags } from './users';
 import { AdvancedSettings, FeedAdvancedSettings } from '../entity';
 import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -57,6 +57,24 @@ export const whereKeyword = (
   return `EXISTS${query}`;
 };
 
+export const getFeatureAdvancedSettings = (
+  features: ICustomFlags,
+  settings: AdvancedSettings[],
+): AdvancedSettings[] => {
+  const feature = features?.advanced_settings_default_values;
+
+  if (!feature?.enabled) {
+    return settings;
+  }
+  return settings.map((adv) => {
+    if (feature.value?.[adv.id] === undefined) {
+      return adv;
+    }
+
+    return { ...adv, defaultEnabledState: feature.value[adv.id] };
+  });
+};
+
 export const getExcludedAdvancedSettings = async (
   con: ORMConnection,
   feedId: string,
@@ -67,6 +85,7 @@ export const getExcludedAdvancedSettings = async (
     con.getRepository(AdvancedSettings).find(),
     con.getRepository(FeedAdvancedSettings).find({ feedId }),
   ]);
+  const settings = getFeatureAdvancedSettings(features, advancedSettings);
   const userSettings = feedAdvancedSettings.reduce(
     (obj, settings) => ({
       ...obj,
@@ -74,14 +93,9 @@ export const getExcludedAdvancedSettings = async (
     }),
     {},
   );
-  const feature = features?.advanced_settings_default_values;
-  const excludedSettings = advancedSettings.filter((adv) => {
+  const excludedSettings = settings.filter((adv) => {
     if (userSettings[adv.id] !== undefined) {
       return userSettings[adv.id] === false;
-    }
-
-    if (feature?.value[adv.id] !== undefined) {
-      return feature.value[adv.id] === false;
     }
 
     return adv.defaultEnabledState === false;
