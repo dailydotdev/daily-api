@@ -4,6 +4,7 @@
     "type": "node",
     "request": "launch",
     "name": "Node: Nodemon",
+    "runtimeVersion": "16",
     "runtimeExecutable": "npm",
     "runtimeArgs": ["run", "dev"],
     "outputCapture": "std",
