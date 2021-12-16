@@ -34,6 +34,8 @@ beforeEach(async () => {
 
 afterAll(() => disposeGraphQLTesting(state));
 
+const compatibilityProps = { enableCardAnimations: true, appInsaneMode: true };
+
 describe('query userSettings', () => {
   const QUERY = `{
   userSettings {
@@ -62,7 +64,8 @@ describe('query userSettings', () => {
       theme: 'bright',
       insaneMode: true,
     });
-    const expected = new Object(await repo.save(settings));
+    const data = await repo.save(settings);
+    const expected = new Object({ ...data, ...compatibilityProps });
     delete expected['updatedAt'];
 
     const res = await client.query(QUERY);
@@ -124,7 +127,7 @@ describe('mutation updateUserSettings', () => {
     );
 
     const res = await client.mutate(MUTATION, {
-      variables: { data: { appInsaneMode: false } },
+      variables: { data: { insaneMode: false } },
     });
     expect(res.data).toMatchSnapshot();
   });
@@ -139,7 +142,8 @@ describe('compatibility routes', () => {
         theme: 'bright',
         insaneMode: true,
       });
-      const expected = new Object(await repo.save(settings));
+      const data = await repo.save(settings);
+      const expected = new Object({ ...data, ...compatibilityProps });
       expected['showOnlyNotReadPosts'] = expected['showOnlyUnreadPosts'];
       delete expected['updatedAt'];
       delete expected['showOnlyUnreadPosts'];
