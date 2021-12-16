@@ -12,6 +12,9 @@ export class UnnecessarySettingsProperties1639656961912
     await queryRunner.query(
       `ALTER TABLE "public"."settings" DROP COLUMN "appInsaneMode"`,
     );
+    await queryRunner.query(
+      `ALTER TABLE "public"."settings" REPLICA IDENTITY FULL`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
@@ -20,6 +23,9 @@ export class UnnecessarySettingsProperties1639656961912
     );
     await queryRunner.query(
       `ALTER TABLE "public"."settings" ADD "appInsaneMode" boolean NOT NULL DEFAULT true`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "public"."settings" REPLICA IDENTITY DEFAULT`,
     );
   }
 }
