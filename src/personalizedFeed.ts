@@ -71,20 +71,23 @@ async function fetchAndCacheFeed(
     feedId,
   );
   // Don't wait for caching the feed to serve quickly
-  setTimeout(async () => {
-    const pipeline = redisClient.pipeline();
-    pipeline.del(key);
-    pipeline.set(
-      `${key}:time`,
-      new Date().toISOString(),
-      'ex',
-      ONE_DAY_SECONDS,
-    );
-    pipeline.expire(key, ONE_DAY_SECONDS);
-    postIds.forEach(({ post_id }, i) => pipeline.zadd(key, i, post_id));
-    await pipeline.exec();
-  });
-  return postIds;
+  if (postIds?.length) {
+    setTimeout(async () => {
+      const pipeline = redisClient.pipeline();
+      pipeline.del(key);
+      pipeline.set(
+        `${key}:time`,
+        new Date().toISOString(),
+        'ex',
+        ONE_DAY_SECONDS,
+      );
+      pipeline.expire(key, ONE_DAY_SECONDS);
+      postIds.forEach(({ post_id }, i) => pipeline.zadd(key, i, post_id));
+      await pipeline.exec();
+    });
+    return postIds;
+  }
+  return [];
 }
 
 const shouldServeFromCache = async (
