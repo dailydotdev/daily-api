@@ -6,10 +6,8 @@ import { Settings } from '../entity';
 interface GQLSettings {
   userId: string;
   theme: string;
-  enableCardAnimations: boolean;
   showTopSites: boolean;
   insaneMode: boolean;
-  appInsaneMode: boolean;
   spaciness: string;
   showOnlyUnreadPosts: boolean;
   openNewTab: boolean;
@@ -19,10 +17,8 @@ interface GQLSettings {
 
 interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   theme?: string;
-  enableCardAnimations?: boolean;
   showTopSites?: boolean;
   insaneMode?: boolean;
-  appInsaneMode?: boolean;
   spaciness?: string;
   showOnlyUnreadPosts?: boolean;
   openNewTab?: boolean;
@@ -179,5 +175,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       }
       return settings;
     },
+  },
+  Settings: {
+    appInsaneMode: () => true,
+    enableCardAnimations: () => true,
   },
 });

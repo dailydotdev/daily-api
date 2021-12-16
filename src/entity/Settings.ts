@@ -9,16 +9,10 @@ export class Settings {
   theme: string;
 
   @Column({ default: true })
-  enableCardAnimations: boolean;
-
-  @Column({ default: true })
   showTopSites: boolean;
 
   @Column({ default: false })
   insaneMode: boolean;
-
-  @Column({ default: true })
-  appInsaneMode: boolean;
 
   @Column({ type: 'text', default: 'eco' })
   spaciness: string;
