@@ -80,7 +80,7 @@ export const typeDefs = /* GraphQL */ `
     openNewTab: Boolean!
 
     """
-    Whether to show the sidebar open
+    Whether to show the sidebar in expanded form
     """
     sidebarExpanded: Boolean!
 
@@ -132,7 +132,7 @@ export const typeDefs = /* GraphQL */ `
     openNewTab: Boolean
 
     """
-    Whether to show the sidebar open
+    Whether to show the sidebar in expanded form
     """
     sidebarExpanded: Boolean
   }
