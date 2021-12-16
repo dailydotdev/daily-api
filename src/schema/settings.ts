@@ -13,7 +13,7 @@ interface GQLSettings {
   spaciness: string;
   showOnlyUnreadPosts: boolean;
   openNewTab: boolean;
-  openSidebar: boolean;
+  sidebarExpanded: boolean;
   updatedAt: Date;
 }
 
@@ -26,7 +26,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   spaciness?: string;
   showOnlyUnreadPosts?: boolean;
   openNewTab?: boolean;
-  openSidebar?: boolean;
+  sidebarExpanded?: boolean;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -82,7 +82,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Whether to show the sidebar open
     """
-    openSidebar: Boolean!
+    sidebarExpanded: Boolean!
 
     """
     Time of last update
@@ -134,7 +134,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Whether to show the sidebar open
     """
-    openSidebar: Boolean
+    sidebarExpanded: Boolean
   }
 
   extend type Mutation {
