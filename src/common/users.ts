@@ -1,3 +1,4 @@
+import { IFlags } from 'flagsmith-nodejs';
 import { isSameDay } from 'date-fns';
 import fetch from 'node-fetch';
 import { Connection } from 'typeorm';
@@ -19,6 +20,8 @@ export interface User {
   username?: string;
   timezone?: string;
 }
+
+export type CustomObject<T> = Record<string, T> | Record<number, T>;
 
 const authorizedHeaders = (userId: string): { [key: string]: string } => ({
   authorization: `Service ${process.env.GATEWAY_SECRET}`,
@@ -51,6 +54,18 @@ export const fetchUserRoles = async (userId: string): Promise<string[]> => {
     headers: authorizedHeaders(userId),
   });
   return res.json();
+};
+
+export const fetchUserFeatures = async (userId: string): Promise<IFlags> => {
+  const res = await fetch(`${process.env.GATEWAY_URL}/boot/features`, {
+    method: 'GET',
+    headers: authorizedHeaders(userId),
+  });
+  const text = await res.text();
+
+  if (!text) return {};
+
+  return JSON.parse(text);
 };
 
 export interface ReadingRank {

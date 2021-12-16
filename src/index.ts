@@ -28,6 +28,13 @@ const userExtendKey = (
   ctx: Context,
 ): string | undefined => (ctx.userId ? `user:${ctx.userId}` : undefined);
 
+const trackingExtendKey = (
+  source: unknown,
+  args: unknown,
+  ctx: Context,
+): string | undefined =>
+  ctx.trackingId ? `tracking:${ctx.trackingId}` : undefined;
+
 export default async function app(
   contextFn?: (request: FastifyRequest) => Context,
 ): Promise<FastifyInstance> {
@@ -169,7 +176,9 @@ export default async function app(
             extendKey: userExtendKey,
           },
           tagsCategories: true,
-          advancedSettings: true,
+          advancedSettings: {
+            extendKey: trackingExtendKey,
+          },
           banner: true,
           post: {
             extendKey: userExtendKey,

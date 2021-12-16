@@ -78,7 +78,7 @@ exports[`should keep html-like text 1`] = `
 Object {
   "authorId": null,
   "banned": false,
-  "canonicalUrl": null,
+  "canonicalUrl": "https://post.com",
   "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": null,
@@ -115,7 +115,7 @@ exports[`should match post to author 1`] = `
 Object {
   "authorId": "1",
   "banned": false,
-  "canonicalUrl": null,
+  "canonicalUrl": "https://post.com",
   "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": "@Idoshamun",
@@ -152,7 +152,7 @@ exports[`should not match post to author 1`] = `
 Object {
   "authorId": null,
   "banned": false,
-  "canonicalUrl": null,
+  "canonicalUrl": "https://post.com",
   "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": "@nouser",
@@ -189,7 +189,7 @@ exports[`should not match post to author based on username 1`] = `
 Object {
   "authorId": null,
   "banned": false,
-  "canonicalUrl": null,
+  "canonicalUrl": "https://post.com",
   "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": "@idoshamun",
@@ -254,7 +254,7 @@ exports[`should save a new post with basic information 1`] = `
 Object {
   "authorId": null,
   "banned": false,
-  "canonicalUrl": null,
+  "canonicalUrl": "https://post.com",
   "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": null,
@@ -291,7 +291,7 @@ exports[`should save a new post with full information 1`] = `
 Object {
   "authorId": null,
   "banned": false,
-  "canonicalUrl": null,
+  "canonicalUrl": "https://post.com",
   "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": "creator",
@@ -381,7 +381,7 @@ exports[`should unescape html text 1`] = `
 Object {
   "authorId": null,
   "banned": false,
-  "canonicalUrl": null,
+  "canonicalUrl": "https://post.com",
   "comments": 0,
   "createdAt": Any<Date>,
   "creatorTwitter": null,
