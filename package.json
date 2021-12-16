@@ -46,7 +46,7 @@
     "fastify-websocket": "^4.0.0",
     "flagsmith-nodejs": "^1.1.0",
     "form-data": "^4.0.0",
-    "graphql": "^15.7.2",
+    "graphql": "^16.1.0",
     "graphql-iso-date": "^3.6.1",
     "graphql-parse-resolve-info": "^4.12.0",
     "graphql-redis-subscriptions": "^2.4.0",
