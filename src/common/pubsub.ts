@@ -134,7 +134,7 @@ export const notifyUserReputationUpdated = async (
     reputation,
   });
 
-const removeSomeProps = <T>(obj: T, excludes: (keyof T)[]) =>
+export const removeSomeProps = <T>(obj: T, excludes: (keyof T)[]): Partial<T> =>
   Object.keys(obj).reduce((result, key) => {
     if (excludes.some((excluding) => excluding === key)) {
       return result;
@@ -149,6 +149,11 @@ export const notifyAlertsUpdated = (
 ): Promise<void> =>
   publishEvent(log, alertsUpdatedTopic, removeSomeProps(alerts, ['userId']));
 
+export const excludedSettingsProps: (keyof Settings)[] = [
+  'userId',
+  'updatedAt',
+];
+
 export const notifySettingsUpdated = (
   log: EventLogger,
   settings: ChangeObject<Settings>,
@@ -156,7 +161,7 @@ export const notifySettingsUpdated = (
   publishEvent(
     log,
     settingsUpdatedTopic,
-    removeSomeProps(settings, ['userId', 'updatedAt']),
+    removeSomeProps(settings, excludedSettingsProps),
   );
 
 export const notifyCommentUpvoteCanceled = async (

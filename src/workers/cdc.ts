@@ -28,6 +28,7 @@ import {
   notifySourceFeedRemoved,
   notifySourceRequest,
   notifyUserReputationUpdated,
+  excludedSettingsProps,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -163,13 +164,30 @@ const onAlertsChange = async (
   }
 };
 
+const hasAnyChanged = <T>(before: T, after: T, excludes: (keyof T)[] = []) =>
+  Object.keys(before).some((key) => {
+    if (excludes.some((excluding) => excluding === key)) {
+      return false;
+    }
+
+    return before[key] !== after[key];
+  });
+
 const onSettingsChange = async (
   _: Connection,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<Settings>,
 ): Promise<void> => {
   if (data.payload.op === 'u') {
-    await notifySettingsUpdated(logger, data.payload.after);
+    const hasChanged = hasAnyChanged(
+      data.payload.before,
+      data.payload.after,
+      excludedSettingsProps,
+    );
+
+    if (hasChanged) {
+      await notifySettingsUpdated(logger, data.payload.after);
+    }
   } else if (data.payload.op === 'c') {
     await notifySettingsUpdated(logger, data.payload.after);
   }
@@ -310,6 +328,7 @@ const worker: Worker = {
           break;
         case getTableName(con, Alerts):
           await onAlertsChange(con, logger, data);
+          break;
         case getTableName(con, SourceFeed):
           await onSourceFeedChange(con, logger, data);
           break;
