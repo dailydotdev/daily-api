@@ -1,6 +1,6 @@
 import { PubSub, Topic } from '@google-cloud/pubsub';
 import { FastifyLoggerInstance } from 'fastify';
-import { Post, SourceRequest, Alerts } from '../entity';
+import { Post, SourceRequest, Alerts, Settings } from '../entity';
 import { toLegacySourceRequest } from '../compatibility/entity';
 import { ChangeObject } from '../types';
 
@@ -13,7 +13,8 @@ const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-commented');
 const commentFeaturedTopic = pubsub.topic('comment-featured');
 const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
-const alertsFilterUpdatedTopic = pubsub.topic('alerts-updated');
+const alertsUpdatedTopic = pubsub.topic('alerts-updated');
+const settingsUpdatedTopic = pubsub.topic('settings-updated');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
@@ -133,10 +134,30 @@ export const notifyUserReputationUpdated = async (
     reputation,
   });
 
-export const notifyAlertsUpdated = async (
+const removeSomeProps = <T>(obj: T, excludes: (keyof T)[]) =>
+  Object.keys(obj).reduce((result, key) => {
+    if (excludes.some((excluding) => excluding === key)) {
+      return result;
+    }
+
+    return { ...result, [key]: obj[key] };
+  }, {});
+
+export const notifyAlertsUpdated = (
   log: EventLogger,
   alerts: ChangeObject<Alerts>,
-): Promise<void> => publishEvent(log, alertsFilterUpdatedTopic, alerts);
+): Promise<void> =>
+  publishEvent(log, alertsUpdatedTopic, removeSomeProps(alerts, ['userId']));
+
+export const notifySettingsUpdated = (
+  log: EventLogger,
+  settings: ChangeObject<Settings>,
+): Promise<void> =>
+  publishEvent(
+    log,
+    settingsUpdatedTopic,
+    removeSomeProps(settings, ['userId', 'updatedAt']),
+  );
 
 export const notifyCommentUpvoteCanceled = async (
   log: EventLogger,

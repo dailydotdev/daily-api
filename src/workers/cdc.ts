@@ -1,8 +1,10 @@
+import { notifySettingsUpdated } from './../common/pubsub';
 import { messageToJson, Worker } from './worker';
 import {
   Comment,
   CommentUpvote,
   Post,
+  Settings,
   SourceFeed,
   SourceRequest,
   Upvote,
@@ -161,6 +163,18 @@ const onAlertsChange = async (
   }
 };
 
+const onSettingsChange = async (
+  _: Connection,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<Settings>,
+): Promise<void> => {
+  if (data.payload.op === 'u') {
+    await notifySettingsUpdated(logger, data.payload.after);
+  } else if (data.payload.op === 'c') {
+    await notifySettingsUpdated(logger, data.payload.after);
+  }
+};
+
 const onPostChange = async (
   con: Connection,
   logger: FastifyLoggerInstance,
@@ -298,6 +312,9 @@ const worker: Worker = {
           await onAlertsChange(con, logger, data);
         case getTableName(con, SourceFeed):
           await onSourceFeedChange(con, logger, data);
+          break;
+        case getTableName(con, Settings):
+          await onSettingsChange(con, logger, data);
           break;
       }
     } catch (err) {
