@@ -664,7 +664,7 @@ describe('settings', () => {
     spaciness: 'eco',
     showOnlyUnreadPosts: false,
     openNewTab: true,
-    openSidebar: true,
+    sidebarExpanded: true,
     updatedAt: date.getTime(),
   };
 
