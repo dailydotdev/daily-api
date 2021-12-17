@@ -704,9 +704,6 @@ describe('settings', () => {
       }),
     );
     expect(notifySettingsUpdated).toBeCalledTimes(0);
-    expect(mocked(notifySettingsUpdated).mock.calls[0].slice(1)).toEqual([
-      after,
-    ]);
   });
 
   it('should notify on settings created', async () => {

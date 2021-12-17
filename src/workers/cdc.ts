@@ -178,7 +178,10 @@ const onSettingsChange = async (
   logger: FastifyLoggerInstance,
   data: ChangeMessage<Settings>,
 ): Promise<void> => {
+  console.log('SETTINGS WENT HERE', data.payload.op, data.payload);
+  await notifySettingsUpdated(logger, data.payload.after);
   if (data.payload.op === 'u') {
+    console.log('SETTINGS UPDATED', data.payload.op, data.payload);
     const hasChanged = hasAnyChanged(
       data.payload.before,
       data.payload.after,
