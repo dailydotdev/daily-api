@@ -24,7 +24,7 @@ export class Settings {
   openNewTab: boolean;
 
   @Column({ default: true })
-  openSidebar: boolean;
+  sidebarExpanded: boolean;
 
   @UpdateDateColumn()
   updatedAt: Date;

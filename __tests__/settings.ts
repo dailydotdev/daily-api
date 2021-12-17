@@ -48,7 +48,7 @@ describe('query userSettings', () => {
     spaciness
     showOnlyUnreadPosts
     openNewTab
-    openSidebar
+    sidebarExpanded
   }
 }`;
 
@@ -92,7 +92,7 @@ describe('mutation updateUserSettings', () => {
     spaciness
     showOnlyUnreadPosts
     openNewTab
-    openSidebar
+    sidebarExpanded
   }
 }`;
 
