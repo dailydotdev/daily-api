@@ -1,4 +1,3 @@
-import { notifySettingsUpdated } from './../common/pubsub';
 import { messageToJson, Worker } from './worker';
 import {
   Comment,
@@ -27,6 +26,7 @@ import {
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
   notifySourceRequest,
+  notifySettingsUpdated,
   notifyUserReputationUpdated,
   excludedSettingsProps,
 } from '../common';
@@ -178,7 +178,6 @@ const onSettingsChange = async (
   logger: FastifyLoggerInstance,
   data: ChangeMessage<Settings>,
 ): Promise<void> => {
-  await notifySettingsUpdated(logger, data.payload.after);
   if (data.payload.op === 'u') {
     const hasChanged = hasAnyChanged(
       data.payload.before,
