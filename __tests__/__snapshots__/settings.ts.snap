@@ -28,9 +28,9 @@ Object {
 exports[`mutation updateUserSettings should update user settings 1`] = `
 Object {
   "updateUserSettings": Object {
-    "appInsaneMode": false,
+    "appInsaneMode": true,
     "enableCardAnimations": true,
-    "insaneMode": true,
+    "insaneMode": false,
     "openNewTab": true,
     "showOnlyUnreadPosts": false,
     "showTopSites": true,

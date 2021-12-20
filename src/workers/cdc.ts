@@ -3,6 +3,7 @@ import {
   Comment,
   CommentUpvote,
   Post,
+  Settings,
   SourceFeed,
   SourceRequest,
   Upvote,
@@ -25,6 +26,7 @@ import {
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
   notifySourceRequest,
+  notifySettingsUpdated,
   notifyUserReputationUpdated,
 } from '../common';
 import { ChangeMessage } from '../types';
@@ -158,6 +160,18 @@ const onAlertsChange = async (
     await notifyAlertsUpdated(logger, data.payload.after);
   } else if (data.payload.op === 'c') {
     await notifyAlertsUpdated(logger, data.payload.after);
+  }
+};
+
+const onSettingsChange = async (
+  _: Connection,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<Settings>,
+): Promise<void> => {
+  if (data.payload.op === 'u') {
+    await notifySettingsUpdated(logger, data.payload.after);
+  } else if (data.payload.op === 'c') {
+    await notifySettingsUpdated(logger, data.payload.after);
   }
 };
 
@@ -296,8 +310,12 @@ const worker: Worker = {
           break;
         case getTableName(con, Alerts):
           await onAlertsChange(con, logger, data);
+          break;
         case getTableName(con, SourceFeed):
           await onSourceFeedChange(con, logger, data);
+          break;
+        case getTableName(con, Settings):
+          await onSettingsChange(con, logger, data);
           break;
       }
     } catch (err) {

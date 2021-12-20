@@ -18,6 +18,7 @@ import {
   notifyAlertsUpdated,
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
+  notifySettingsUpdated,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -29,6 +30,7 @@ import {
   Comment,
   CommentUpvote,
   Post,
+  Settings,
   Source,
   SourceFeed,
   SourceRequest,
@@ -62,6 +64,7 @@ jest.mock('../../src/common', () => ({
   notifyAlertsUpdated: jest.fn(),
   notifySourceFeedAdded: jest.fn(),
   notifySourceFeedRemoved: jest.fn(),
+  notifySettingsUpdated: jest.fn(),
 }));
 
 let con: Connection;
@@ -647,6 +650,58 @@ describe('alerts', () => {
     );
     expect(notifyAlertsUpdated).toBeCalledTimes(1);
     expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
+  });
+});
+
+describe('settings', () => {
+  type ObjectType = Settings;
+  const date = new Date('2020-09-21T07:15:51.247Z');
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    theme: 'darcula',
+    showTopSites: true,
+    insaneMode: false,
+    spaciness: 'eco',
+    showOnlyUnreadPosts: false,
+    openNewTab: true,
+    sidebarExpanded: true,
+    updatedAt: date.getTime(),
+  };
+
+  it('should notify on any of settings has changed', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      theme: 'light',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'settings',
+      }),
+    );
+    expect(notifySettingsUpdated).toBeCalledTimes(1);
+    expect(mocked(notifySettingsUpdated).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
+  });
+
+  it('should notify on settings created', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'settings',
+      }),
+    );
+    expect(notifySettingsUpdated).toBeCalledTimes(1);
+    expect(mocked(notifySettingsUpdated).mock.calls[0].slice(1)).toEqual([
+      base,
+    ]);
   });
 });
 

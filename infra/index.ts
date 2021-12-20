@@ -33,7 +33,12 @@ const debeziumTopic = new gcp.pubsub.Topic('debezium-topic', {
   name: debeziumTopicName,
 });
 
-['source-feed-added', 'source-feed-removed', 'alerts-updated'].map(
+[
+  'source-feed-added',
+  'source-feed-removed',
+  'alerts-updated',
+  'settings-updated',
+].map(
   (topic) =>
     new gcp.pubsub.Topic(topic, {
       name: topic,
