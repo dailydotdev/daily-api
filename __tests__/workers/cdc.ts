@@ -688,24 +688,6 @@ describe('settings', () => {
     ]);
   });
 
-  it('should not notify on any of excluded props has changed', async () => {
-    const newer = new Date('2020-09-22T07:15:51.247Z');
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      updatedAt: newer.getTime(),
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: base,
-        op: 'u',
-        table: 'settings',
-      }),
-    );
-    expect(notifySettingsUpdated).toBeCalledTimes(0);
-  });
-
   it('should notify on settings created', async () => {
     await expectSuccessfulBackground(
       worker,
