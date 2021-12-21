@@ -116,7 +116,7 @@ createSubscriptionsFromWorkers(
 );
 createPubSubCronJobs(name, crons);
 
-const memory = 1536;
+const memory = 2048;
 
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
