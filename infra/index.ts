@@ -157,7 +157,7 @@ const { labels } = createAutoscaledExposedApplication({
       },
     },
   ],
-  minReplicas: 8,
+  minReplicas: 5,
   maxReplicas: 15,
   metrics: getMemoryAndCpuMetrics(),
   enableCdn: true,
