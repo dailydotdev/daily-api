@@ -116,11 +116,13 @@ createSubscriptionsFromWorkers(
 );
 createPubSubCronJobs(name, crons);
 
+const memory = 1536;
+
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
   cpu: '1',
-  memory: '1536Mi',
+  memory: `${memory}Mi`,
 };
 
 const probe: k8s.types.input.core.v1.Probe = {
@@ -144,6 +146,10 @@ const { labels } = createAutoscaledExposedApplication({
       env: [
         ...containerEnvVars,
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
+        {
+          name: 'NODE_OPTIONS',
+          value: `--max-old-space-size=${Math.floor(memory * 0.75).toFixed(0)}`,
+        },
       ],
       resources: {
         requests: limits,
