@@ -61,9 +61,9 @@ async function fetchAndCacheFeed(
   feedVersion: number,
   userId?: string,
   feedId?: string,
-): Promise<{ post_id: string }[]> {
+): Promise<string[]> {
   const key = getPersonalizedFeedKey(userId, feedId);
-  const postIds = await fetchTinybirdFeed(
+  const rawPostIds = await fetchTinybirdFeed(
     con,
     pageSize,
     feedVersion,
@@ -71,18 +71,22 @@ async function fetchAndCacheFeed(
     feedId,
   );
   // Don't wait for caching the feed to serve quickly
-  if (postIds?.length) {
+  if (rawPostIds?.length) {
+    const postIds = rawPostIds.map(({ post_id }) => post_id);
     setTimeout(async () => {
       const pipeline = redisClient.pipeline();
-      pipeline.del(key);
       pipeline.set(
         `${key}:time`,
         new Date().toISOString(),
         'ex',
         ONE_DAY_SECONDS,
       );
-      pipeline.expire(key, ONE_DAY_SECONDS);
-      postIds.forEach(({ post_id }, i) => pipeline.zadd(key, i, post_id));
+      pipeline.set(
+        `${key}:posts`,
+        JSON.stringify(postIds),
+        'ex',
+        ONE_DAY_SECONDS,
+      );
       await pipeline.exec();
     });
     return postIds;
@@ -128,11 +132,11 @@ export async function generatePersonalizedFeed({
 }): Promise<string[]> {
   try {
     const key = getPersonalizedFeedKey(userId, feedId);
-    const idsPromise = redisClient.zrange(key, offset, pageSize + offset - 1);
+    const idsPromise = redisClient.get(`${key}:posts`);
     if (await shouldServeFromCache(offset, key, feedId)) {
-      const postIds = await idsPromise;
+      const postIds = JSON.parse(await idsPromise);
       if (postIds.length) {
-        return postIds;
+        return postIds.slice(offset, pageSize + offset);
       }
     }
   } catch (err) {
@@ -145,5 +149,5 @@ export async function generatePersonalizedFeed({
     userId,
     feedId,
   );
-  return postIds.slice(offset, pageSize + offset).map(({ post_id }) => post_id);
+  return postIds.slice(offset, pageSize + offset);
 }
