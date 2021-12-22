@@ -41,6 +41,9 @@ beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
 });
 
+const setCache = (key: string, ids: string[]) =>
+  redisClient.set(`${key}:posts`, JSON.stringify(ids));
+
 it('should fetch anonymous feed and serve consequent pages from cache', async () => {
   nock('http://localhost:6000')
     .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
@@ -87,13 +90,11 @@ it('should fetch anonymous feed and serve consequent calls from cache', async ()
 
 it('should fetch anonymous feed even when cache is old', async () => {
   const key = getPersonalizedFeedKey();
-  const pipeline = redisClient.pipeline();
-  pipeline.set(
+  await redisClient.set(
     `${key}:time`,
     new Date(new Date().getTime() - 60 * 60 * 1000).toISOString(),
   );
-  ['7', '8'].forEach((id, i) => pipeline.zadd(key, i, id));
-  await pipeline.exec();
+  await setCache(key, ['7', '8']);
 
   nock('http://localhost:6000')
     .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
@@ -110,10 +111,8 @@ it('should fetch anonymous feed even when cache is old', async () => {
 
 it('should not fetch anonymous feed even when cache is still fresh', async () => {
   const key = getPersonalizedFeedKey();
-  const pipeline = redisClient.pipeline();
-  pipeline.set(`${key}:time`, new Date().toISOString());
-  ['7', '8'].forEach((id, i) => pipeline.zadd(key, i, id));
-  await pipeline.exec();
+  await redisClient.set(`${key}:time`, new Date().toISOString());
+  await setCache(key, ['7', '8']);
 
   nock('http://localhost:6000')
     .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
@@ -130,17 +129,15 @@ it('should not fetch anonymous feed even when cache is still fresh', async () =>
 
 it('should fetch anonymous feed when last updated time is greater than last generated time', async () => {
   const key = getPersonalizedFeedKey();
-  const pipeline = redisClient.pipeline();
-  pipeline.set(
+  await redisClient.set(
     `${getPersonalizedFeedKeyPrefix()}:update`,
     new Date(new Date().getTime() - 10 * 1000).toISOString(),
   );
-  pipeline.set(
+  await redisClient.set(
     `${key}:time`,
     new Date(new Date().getTime() - 60 * 1000).toISOString(),
   );
-  ['7', '8'].forEach((id, i) => pipeline.zadd(key, i, id));
-  await pipeline.exec();
+  await setCache(key, ['7', '8']);
 
   nock('http://localhost:6000')
     .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
