@@ -148,7 +148,7 @@ const { labels } = createAutoscaledExposedApplication({
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
         {
           name: 'NODE_OPTIONS',
-          value: `--max-old-space-size=${Math.floor(memory * 0.75).toFixed(0)}`,
+          value: `--max-old-space-size=${Math.floor(memory * 0.9).toFixed(0)}`,
         },
       ],
       resources: {
