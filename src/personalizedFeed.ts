@@ -135,7 +135,7 @@ export async function generatePersonalizedFeed({
     const idsPromise = redisClient.get(`${key}:posts`);
     if (await shouldServeFromCache(offset, key, feedId)) {
       const postIds = JSON.parse(await idsPromise);
-      if (postIds.length) {
+      if (postIds?.length) {
         return postIds.slice(offset, pageSize + offset);
       }
     }
