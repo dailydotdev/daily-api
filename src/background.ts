@@ -3,7 +3,6 @@ import { PubSub, Message } from '@google-cloud/pubsub';
 import pino from 'pino';
 
 import './config';
-import './profiler';
 
 import { createOrGetConnection } from './db';
 import { workers } from './workers';

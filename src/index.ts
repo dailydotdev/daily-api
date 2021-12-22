@@ -9,7 +9,6 @@ import MercuriusCache from 'mercurius-cache';
 import fastifyWebsocket from 'fastify-websocket';
 
 import './config';
-import './profiler';
 
 import trace from './trace';
 import auth from './auth';
