@@ -4,6 +4,7 @@
   "scripts": {
     "start": "node index.js | pino-stackdriver",
     "dev": "nodemon ./index.ts | pino-pretty",
+    "dev:background": "MODE=background npm run dev",
     "lint": "eslint . --ext .js,.ts --max-warnings 0",
     "build": "tsc",
     "prebuild": "rm -rf build",
@@ -19,7 +20,8 @@
     "db:migrate:rollback": "npm run typeorm -- migration:revert",
     "db:migrate:reset": "npm run db:schema:drop && npm run db:migrate:latest",
     "db:seed:import": "ts-node bin/import.ts",
-    "db:seed:export": "ts-node bin/export.ts"
+    "db:seed:export": "ts-node bin/export.ts",
+    "cloud:init": "ts-node bin/initPubsub.ts"
   },
   "dependencies": {
     "@amplitude/node": "^1.8.3",
