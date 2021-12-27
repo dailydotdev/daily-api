@@ -11,6 +11,7 @@
   },
   "exclude": [
     "__tests__",
-    "infra"
+    "infra",
+    "bin/initPubsub.ts"
   ]
 }

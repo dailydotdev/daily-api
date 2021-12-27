@@ -6,4 +6,5 @@ node_modules/
 local.sh
 prod.sh
 schema.graphql
-debezium/
+debezium/conf/key.json
+debezium/data
