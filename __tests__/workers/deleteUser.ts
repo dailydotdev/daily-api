@@ -102,6 +102,7 @@ beforeEach(async () => {
     userId: 'u1',
     filter: true,
     rankLastSeen: null,
+    myFeed: 'default',
   });
   await con.getRepository(Comment).save([
     {

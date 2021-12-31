@@ -16,6 +16,10 @@ export const typeDefs = /* GraphQL */ `
   """
   Alerts to display to the relevant user
   """
+  enum MyFeed {
+    default
+    manual
+  }
   type Alerts {
     """
     Status to display for filter red dot
@@ -26,6 +30,14 @@ export const typeDefs = /* GraphQL */ `
     Date last seen of the rank achievement popup
     """
     rankLastSeen: DateTime
+
+    """
+    Wether to show the my feed alert (default/manual/null)
+    default: The user has existing filters so we created myFeed for them
+    manual: The user applied filters himself
+    null: The user clicked to not show the alert anymore
+    """
+    myFeed: MyFeed
   }
 
   input UpdateAlertsInput {
@@ -38,6 +50,11 @@ export const typeDefs = /* GraphQL */ `
     Date last seen of the rank achievement popup
     """
     rankLastSeen: DateTime
+
+    """
+    Status for the My Feed alert
+    """
+    myFeed: MyFeed
   }
 
   extend type Mutation {
