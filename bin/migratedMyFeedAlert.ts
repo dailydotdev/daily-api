@@ -13,7 +13,7 @@ interface Row {
     .createQueryBuilder()
     .select('id')
     .from(Alerts, 'a')
-    .where('a."filter" is true')
+    .where('a."filter" is false')
     .stream();
 
   let index = 0;
