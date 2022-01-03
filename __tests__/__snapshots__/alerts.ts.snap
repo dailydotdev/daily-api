@@ -4,7 +4,7 @@ exports[`mutation updateUserAlerts should create user alerts when does not exist
 Object {
   "updateUserAlerts": Object {
     "filter": false,
-    "myFeed": "default",
+    "myFeed": "created",
     "rankLastSeen": null,
   },
 }
