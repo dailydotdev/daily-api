@@ -7,6 +7,9 @@ export class AlertsMyFeedColumn1640931306714 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "public"."alerts" ADD "myFeed" text NULL DEFAULT 'created'`,
     );
+    await queryRunner.query(
+      `update "public"."alerts" set "myFeed" = 'migrated' where filter is FALSE`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
