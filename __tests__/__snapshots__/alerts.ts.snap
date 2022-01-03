@@ -14,7 +14,7 @@ exports[`mutation updateUserAlerts should update alerts of user 1`] = `
 Object {
   "updateUserAlerts": Object {
     "filter": false,
-    "myFeed": "manual",
+    "myFeed": "created",
     "rankLastSeen": "2020-09-22T12:15:51.247Z",
   },
 }

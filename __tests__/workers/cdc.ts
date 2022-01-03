@@ -596,7 +596,7 @@ describe('alerts', () => {
     userId: '1',
     filter: true,
     rankLastSeen: rankLastSeen.getTime(),
-    myFeed: 'default',
+    myFeed: 'created',
   };
 
   it('should notify on alert.filter changed', async () => {

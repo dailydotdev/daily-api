@@ -99,7 +99,7 @@ describe('mutation updateUserAlerts', () => {
         userId: '1',
         filter: true,
         rankLastSeen: rankLastSeenOld,
-        myFeed: 'default',
+        myFeed: 'created',
       }),
     );
 
@@ -109,7 +109,7 @@ describe('mutation updateUserAlerts', () => {
         data: {
           filter: false,
           rankLastSeen: rankLastSeen.toISOString(),
-          myFeed: 'manual',
+          myFeed: 'created',
         },
       },
     });

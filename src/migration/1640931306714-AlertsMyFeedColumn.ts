@@ -5,7 +5,7 @@ export class AlertsMyFeedColumn1640931306714 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "public"."alerts" ADD "myFeed" text NULL DEFAULT 'default'`,
+      `ALTER TABLE "public"."alerts" ADD "myFeed" text NULL DEFAULT 'created'`,
     );
   }
 
