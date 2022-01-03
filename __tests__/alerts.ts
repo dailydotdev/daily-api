@@ -33,6 +33,7 @@ describe('query userAlerts', () => {
     userAlerts {
       filter
       rankLastSeen
+      myFeed
     }
   }`;
 
@@ -65,6 +66,7 @@ describe('mutation updateUserAlerts', () => {
       updateUserAlerts(data: $data) {
         filter
         rankLastSeen
+        myFeed
       }
     }
   `;
@@ -97,13 +99,18 @@ describe('mutation updateUserAlerts', () => {
         userId: '1',
         filter: true,
         rankLastSeen: rankLastSeenOld,
+        myFeed: 'created',
       }),
     );
 
     const rankLastSeen = new Date('2020-09-22T12:15:51.247Z');
     const res = await client.mutate(MUTATION, {
       variables: {
-        data: { filter: false, rankLastSeen: rankLastSeen.toISOString() },
+        data: {
+          filter: false,
+          rankLastSeen: rankLastSeen.toISOString(),
+          myFeed: 'created',
+        },
       },
     });
 

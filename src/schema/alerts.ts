@@ -26,6 +26,14 @@ export const typeDefs = /* GraphQL */ `
     Date last seen of the rank achievement popup
     """
     rankLastSeen: DateTime
+
+    """
+    Wether to show the my feed alert (migrated/created/null)
+    migrated: The user has existing filters so we created myFeed for them
+    created: The user applied filters himself
+    null: The user clicked to not show the alert anymore
+    """
+    myFeed: String
   }
 
   input UpdateAlertsInput {
@@ -38,6 +46,11 @@ export const typeDefs = /* GraphQL */ `
     Date last seen of the rank achievement popup
     """
     rankLastSeen: DateTime
+
+    """
+    Status for the My Feed alert
+    """
+    myFeed: String
   }
 
   extend type Mutation {

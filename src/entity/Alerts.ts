@@ -11,9 +11,13 @@ export class Alerts {
 
   @Column({ type: 'timestamp without time zone', default: null })
   rankLastSeen: Date | null;
+
+  @Column({ type: 'text', default: 'created' })
+  myFeed: string;
 }
 
 export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
   filter: true,
   rankLastSeen: null,
+  myFeed: 'created',
 };
