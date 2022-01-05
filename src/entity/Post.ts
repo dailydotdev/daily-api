@@ -2,15 +2,20 @@ import {
   Column,
   Connection,
   Entity,
+  EntityManager,
+  In,
   Index,
   ManyToOne,
   OneToMany,
   PrimaryColumn,
 } from 'typeorm';
+import shortid from 'shortid';
+import * as he from 'he';
 import { PostTag } from './PostTag';
 import { Source } from './Source';
 import { User } from './User';
 import { PostKeyword } from './PostKeyword';
+import { Keyword } from './Keyword';
 
 export type TocItem = { text: string; id?: string; children?: TocItem[] };
 export type Toc = TocItem[];
@@ -179,3 +184,238 @@ export const getAuthorPostStats = (
     .from(Post, 'post')
     .where({ authorId })
     .getRawOne<PostStats>();
+
+export interface AddPostData {
+  id: string;
+  title: string;
+  url: string;
+  publicationId: string;
+  publishedAt?: string | Date;
+  createdAt?: Date;
+  image?: string;
+  ratio?: number;
+  placeholder?: string;
+  tags?: string[];
+  siteTwitter?: string;
+  creatorTwitter?: string;
+  readTime?: number;
+  canonicalUrl?: string;
+  keywords?: string[];
+  description?: string;
+  toc?: Toc;
+  summary?: string;
+}
+
+const parseReadTime = (
+  readTime: number | string | undefined,
+): number | undefined => {
+  if (!readTime) {
+    return undefined;
+  }
+  if (typeof readTime == 'number') {
+    return Math.floor(readTime);
+  }
+  return Math.floor(parseInt(readTime));
+};
+
+type Reason = 'exists' | 'author banned' | 'missing fields';
+export type AddNewPostResult =
+  | { status: 'ok'; postId: string }
+  | { status: 'failed'; reason: Reason; error?: Error };
+
+const checkRequiredFields = (data: AddPostData): boolean => {
+  return !!(data && data.title && data.url && data.publicationId);
+};
+
+const shouldAddNewPost = async (
+  con: Connection,
+  data: AddPostData,
+): Promise<Reason | null> => {
+  const p = await con
+    .getRepository(Post)
+    .createQueryBuilder()
+    .select('id')
+    .where(
+      'url = :url or url = :canonicalUrl or "canonicalUrl" = :url or "canonicalUrl" = :canonicalUrl',
+      { url: data.url, canonicalUrl: data.canonicalUrl },
+    )
+    .getRawOne();
+  if (p) {
+    return 'exists';
+  }
+  if (data.creatorTwitter === '@NewGenDeveloper') {
+    return 'author banned';
+  }
+
+  if (!data.title) {
+    return 'missing fields';
+  }
+};
+
+const fixAddPostData = (data: AddPostData): AddPostData => ({
+  ...data,
+  id: shortid.generate(),
+  canonicalUrl: data.canonicalUrl || data.url,
+  title: data.title && he.decode(data.title),
+  createdAt: new Date(),
+  readTime: parseReadTime(data.readTime),
+  creatorTwitter:
+    data.creatorTwitter === '' || data.creatorTwitter === '@'
+      ? null
+      : data.creatorTwitter,
+  publishedAt: data.publishedAt && new Date(data.publishedAt),
+});
+
+const mergeKeywords = async (
+  entityManager: EntityManager,
+  keywords?: string[],
+): Promise<{ mergedKeywords: string[]; allowedKeywords: string[] }> => {
+  if (keywords?.length) {
+    const synonymKeywords = await entityManager.getRepository(Keyword).find({
+      where: {
+        status: 'synonym',
+        value: In(keywords),
+      },
+    });
+    const mergedKeywords = Array.from(
+      new Set(
+        keywords
+          .map((keyword) => {
+            const synonym = synonymKeywords.find(
+              (synonym) => synonym.value === keyword && synonym.synonym,
+            );
+            return synonym?.synonym ?? keyword;
+          })
+          .filter((keyword) => !keyword.match(/^\d+$/)),
+      ),
+    );
+    const allowedKeywords = await entityManager.getRepository(Keyword).find({
+      where: {
+        status: 'allow',
+        value: In(mergedKeywords),
+      },
+      order: { occurrences: 'DESC' },
+    });
+    return {
+      allowedKeywords: allowedKeywords.map((keyword) => keyword.value),
+      mergedKeywords,
+    };
+  }
+  return { allowedKeywords: [], mergedKeywords: [] };
+};
+
+const findAuthor = async (
+  entityManager: EntityManager,
+  creatorTwitter?: string,
+): Promise<string | null> => {
+  if (creatorTwitter && typeof creatorTwitter === 'string') {
+    const twitter = (
+      creatorTwitter[0] === '@' ? creatorTwitter.substr(1) : creatorTwitter
+    ).toLowerCase();
+    const author = await entityManager
+      .getRepository(User)
+      .createQueryBuilder()
+      .select('id')
+      .where(
+        `lower(twitter) = :twitter or (lower(username) = :twitter and username = 'addyosmani')`,
+        {
+          twitter,
+        },
+      )
+      .getRawOne();
+    if (author) {
+      return author.id;
+    }
+  }
+  return null;
+};
+
+const addPostAndKeywordsToDb = async (
+  con: Connection,
+  data: AddPostData,
+): Promise<string> => {
+  return con.transaction(async (entityManager) => {
+    const { allowedKeywords, mergedKeywords } = await mergeKeywords(
+      entityManager,
+      data.keywords,
+    );
+    const authorId = await findAuthor(entityManager, data.creatorTwitter);
+    await entityManager.getRepository(Post).insert({
+      id: data.id,
+      shortId: data.id,
+      publishedAt: data.publishedAt,
+      createdAt: data.createdAt,
+      sourceId: data.publicationId,
+      url: data.url,
+      title: data.title,
+      image: data.image,
+      ratio: data.ratio,
+      placeholder: data.placeholder,
+      score: Math.floor(data.createdAt.getTime() / (1000 * 60)),
+      siteTwitter: data.siteTwitter,
+      creatorTwitter: data.creatorTwitter,
+      readTime: data.readTime,
+      tagsStr: allowedKeywords?.join(',') || null,
+      canonicalUrl: data.canonicalUrl,
+      authorId,
+      sentAnalyticsReport: !authorId,
+      description: data.description,
+      toc: data.toc,
+      summary: data.summary,
+    });
+    if (data.tags?.length) {
+      await entityManager.getRepository(PostTag).insert(
+        data.tags.map((t) => ({
+          tag: t,
+          postId: data.id,
+        })),
+      );
+    }
+    if (mergedKeywords?.length) {
+      await entityManager
+        .createQueryBuilder()
+        .insert()
+        .into(Keyword)
+        .values(mergedKeywords.map((keyword) => ({ value: keyword })))
+        .onConflict(
+          `("value") DO UPDATE SET occurrences = keyword.occurrences + 1`,
+        )
+        .execute();
+      await entityManager.getRepository(PostKeyword).insert(
+        mergedKeywords.map((keyword) => ({
+          keyword,
+          postId: data.id,
+        })),
+      );
+    }
+    return data.id;
+  });
+};
+
+export const addNewPost = async (
+  con: Connection,
+  data: AddPostData,
+): Promise<AddNewPostResult> => {
+  if (!checkRequiredFields(data)) {
+    return { status: 'failed', reason: 'missing fields' };
+  }
+  const fixedData = fixAddPostData(data);
+  const reason = await shouldAddNewPost(con, fixedData);
+  if (reason) {
+    return { status: 'failed', reason };
+  }
+  try {
+    const postId = await addPostAndKeywordsToDb(con, fixedData);
+    return { status: 'ok', postId };
+  } catch (error) {
+    // Unique
+    if (error?.code === '23505') {
+      return { status: 'failed', reason: 'exists', error };
+    }
+    // Null violation
+    if (error?.code === '23502') {
+      return { status: 'failed', reason: 'missing fields', error };
+    }
+    throw error;
+  }
+};

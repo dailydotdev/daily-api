@@ -13,6 +13,7 @@ declare module 'fastify' {
     userId?: string;
     premium?: boolean;
     roles?: Roles[];
+    service?: boolean;
   }
   /* eslint-enable @typescript-eslint/no-unused-vars */
 }
@@ -54,15 +55,14 @@ const plugin = async (
   fastify.decorateRequest('roles', null);
   // Machine-to-machine authentication
   fastify.addHook('preHandler', async (req) => {
-    if (
-      req.headers['authorization'] === `Service ${opts.secret}` &&
-      req.headers['user-id'] &&
-      req.headers['logged-in'] === 'true'
-    ) {
-      req.userId = req.headers['user-id'] as string;
-      req.premium = req.headers.premium === 'true';
-      req.roles =
-        ((req.headers['roles'] as string)?.split(',') as Roles[]) ?? [];
+    if (req.headers['authorization'] === `Service ${opts.secret}`) {
+      req.service = true;
+      if (req.headers['user-id'] && req.headers['logged-in'] === 'true') {
+        req.userId = req.headers['user-id'] as string;
+        req.premium = req.headers.premium === 'true';
+        req.roles =
+          ((req.headers['roles'] as string)?.split(',') as Roles[]) ?? [];
+      }
     } else {
       delete req.headers['user-id'];
       delete req.headers['logged-in'];
