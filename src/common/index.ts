@@ -12,3 +12,7 @@ export * from './users';
 export * from './mailing';
 export * from './post';
 export * from './links';
+
+export const uniqueifyArray = <T>(array: T[]): T[] => {
+  return [...new Set(array)];
+};
