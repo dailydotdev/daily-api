@@ -16,6 +16,7 @@ import { Source } from './Source';
 import { User } from './User';
 import { PostKeyword } from './PostKeyword';
 import { Keyword } from './Keyword';
+import { uniqueifyArray } from '../common';
 
 export type TocItem = { text: string; id?: string; children?: TocItem[] };
 export type Toc = TocItem[];
@@ -227,6 +228,8 @@ const checkRequiredFields = (data: AddPostData): boolean => {
   return !!(data && data.title && data.url && data.publicationId);
 };
 
+const bannedAuthors = ['@NewGenDeveloper'];
+
 const shouldAddNewPost = async (
   con: Connection,
   data: AddPostData,
@@ -243,7 +246,7 @@ const shouldAddNewPost = async (
   if (p) {
     return 'exists';
   }
-  if (data.creatorTwitter === '@NewGenDeveloper') {
+  if (bannedAuthors.indexOf(data.creatorTwitter) > -1) {
     return 'author banned';
   }
 
@@ -277,17 +280,15 @@ const mergeKeywords = async (
         value: In(keywords),
       },
     });
-    const mergedKeywords = Array.from(
-      new Set(
-        keywords
-          .map((keyword) => {
-            const synonym = synonymKeywords.find(
-              (synonym) => synonym.value === keyword && synonym.synonym,
-            );
-            return synonym?.synonym ?? keyword;
-          })
-          .filter((keyword) => !keyword.match(/^\d+$/)),
-      ),
+    const mergedKeywords = uniqueifyArray(
+      keywords
+        .map((keyword) => {
+          const synonym = synonymKeywords.find(
+            (synonym) => synonym.value === keyword && synonym.synonym,
+          );
+          return synonym?.synonym ?? keyword;
+        })
+        .filter((keyword) => !keyword.match(/^\d+$/)),
     );
     const allowedKeywords = await entityManager.getRepository(Keyword).find({
       where: {
