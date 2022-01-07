@@ -28,6 +28,7 @@ import {
   notifySourceRequest,
   notifySettingsUpdated,
   notifyUserReputationUpdated,
+  notifyNewComment,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -110,6 +111,16 @@ const onCommentChange = async (
   data: ChangeMessage<Comment>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
+    const post = await con
+      .getRepository(Post)
+      .findOne(data.payload.after.postId);
+    if (post) {
+      await notifyNewComment(
+        data.payload.after.userId,
+        post,
+        data.payload.after.content,
+      );
+    }
     if (data.payload.after.parentId) {
       await notifyCommentCommented(
         logger,

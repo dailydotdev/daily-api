@@ -19,6 +19,7 @@ import {
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
   notifySettingsUpdated,
+  notifyNewComment,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -65,6 +66,7 @@ jest.mock('../../src/common', () => ({
   notifySourceFeedAdded: jest.fn(),
   notifySourceFeedRemoved: jest.fn(),
   notifySettingsUpdated: jest.fn(),
+  notifyNewComment: jest.fn(),
 }));
 
 let con: Connection;
@@ -287,6 +289,11 @@ describe('comment', () => {
     lastUpdatedAt: 0,
   };
 
+  beforeEach(async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, postsFixture);
+  });
+
   it('should notify on new post comment', async () => {
     const after: ChangeObject<ObjectType> = base;
     await expectSuccessfulBackground(
@@ -298,6 +305,9 @@ describe('comment', () => {
         table: 'comment',
       }),
     );
+    const post = await con.getRepository(Post).findOne('p1');
+    expect(notifyNewComment).toBeCalledTimes(1);
+    expect(notifyNewComment).toBeCalledWith('1', post, 'comment');
     expect(notifyPostCommented).toBeCalledTimes(1);
     expect(mocked(notifyPostCommented).mock.calls[0].slice(1)).toEqual([
       'p1',
@@ -320,6 +330,9 @@ describe('comment', () => {
         table: 'comment',
       }),
     );
+    const post = await con.getRepository(Post).findOne('p1');
+    expect(notifyNewComment).toBeCalledTimes(1);
+    expect(notifyNewComment).toBeCalledWith('1', post, 'comment');
     expect(notifyCommentCommented).toBeCalledTimes(1);
     expect(mocked(notifyCommentCommented).mock.calls[0].slice(1)).toEqual([
       'p1',
