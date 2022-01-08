@@ -61,7 +61,7 @@ const { serviceAccount } = createServiceAccountAndGrantRoles(
 const redis = new gcp.redis.Instance(`${name}-redis`, {
   name: `${name}-redis`,
   tier: 'STANDARD_HA',
-  memorySizeGb: 5,
+  memorySizeGb: 10,
   region: location,
   authEnabled: true,
   redisVersion: 'REDIS_6_X',
