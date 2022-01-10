@@ -7,8 +7,8 @@ const webhook = process.env.SLACK_WEBHOOK
   : { send: (): Promise<void> => Promise.resolve() };
 
 export const notifyNewComment = async (
-  userId: string,
   post: Post,
+  userId: string,
   comment: string,
 ): Promise<void> => {
   await webhook.send({
