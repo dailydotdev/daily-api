@@ -61,7 +61,7 @@ const { serviceAccount } = createServiceAccountAndGrantRoles(
 const redis = new gcp.redis.Instance(`${name}-redis`, {
   name: `${name}-redis`,
   tier: 'STANDARD_HA',
-  memorySizeGb: 5,
+  memorySizeGb: 10,
   region: location,
   authEnabled: true,
   redisVersion: 'REDIS_6_X',
@@ -116,7 +116,7 @@ createSubscriptionsFromWorkers(
 );
 createPubSubCronJobs(name, crons);
 
-const memory = 2048;
+const memory = 3072;
 
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
@@ -127,8 +127,8 @@ const limits: pulumi.Input<{
 
 const probe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
-  initialDelaySeconds: 5,
-  timeoutSeconds: 60,
+  initialDelaySeconds: 30,
+  timeoutSeconds: 20,
 };
 
 const { labels } = createAutoscaledExposedApplication({
@@ -159,7 +159,7 @@ const { labels } = createAutoscaledExposedApplication({
   ],
   minReplicas: 5,
   maxReplicas: 15,
-  metrics: getMemoryAndCpuMetrics(),
+  metrics: getMemoryAndCpuMetrics(60),
   enableCdn: true,
   deploymentDependsOn: [migrationJob],
 });
