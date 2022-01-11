@@ -680,6 +680,8 @@ describe('feed', () => {
     id: '1',
   };
   it('should update alerts when feed is created', async () => {
+    const repo = con.getRepository(Alerts);
+    await repo.save({ userId: base.userId, myFeed: null });
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
@@ -689,9 +691,7 @@ describe('feed', () => {
         table: 'feed',
       }),
     );
-    const alerts = await con
-      .getRepository(Alerts)
-      .findOne({ userId: base.userId });
+    const alerts = await repo.findOne({ userId: base.userId });
     expect(alerts.myFeed).toEqual('created');
   });
 });
