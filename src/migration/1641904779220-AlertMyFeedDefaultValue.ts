@@ -5,13 +5,13 @@ export class AlertMyFeedDefaultValue1641904779220
 {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "public"."alerts" ALTER COLUMN "myFeed" DROP NOT NULL`,
+      `ALTER TABLE "public"."alerts" ALTER COLUMN "myFeed" SET DEFAULT NULL`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "public"."alerts" ALTER COLUMN "myFeed" SET NOT NULL`,
+      `ALTER TABLE "public"."alerts" ALTER COLUMN "myFeed" SET DEFAULT 'created'`,
     );
   }
 }
