@@ -20,7 +20,6 @@ import {
   notifySourceFeedRemoved,
   notifySettingsUpdated,
 } from '../../src/common';
-import { updateAlerts } from '../../src/schema/alerts';
 import worker from '../../src/workers/cdc';
 import {
   expectSuccessfulBackground,
@@ -67,11 +66,6 @@ jest.mock('../../src/common', () => ({
   notifySourceFeedAdded: jest.fn(),
   notifySourceFeedRemoved: jest.fn(),
   notifySettingsUpdated: jest.fn(),
-}));
-
-jest.mock('../../src/schema/alerts', () => ({
-  ...(jest.requireActual('../../src/schema/alerts') as Record<string, unknown>),
-  updateAlerts: jest.fn(),
 }));
 
 let con: Connection;
@@ -685,7 +679,7 @@ describe('feed', () => {
     userId: '1',
     id: '1',
   };
-  it('should notify on alerts created', async () => {
+  it('should update alerts when feed is created', async () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
@@ -695,9 +689,10 @@ describe('feed', () => {
         table: 'feed',
       }),
     );
-    const params = [con, base.userId, { myFeed: 'created' }];
-    expect(updateAlerts).toBeCalledTimes(1);
-    expect(mocked(updateAlerts).mock.calls[0]).toEqual(params);
+    const alerts = await con
+      .getRepository(Alerts)
+      .findOne({ userId: base.userId });
+    expect(alerts.myFeed).toEqual('created');
   });
 });
 
