@@ -20,6 +20,7 @@ import {
   notifySourceFeedRemoved,
   notifySettingsUpdated,
 } from '../../src/common';
+import { updateAlerts } from '../../src/schema/alerts';
 import worker from '../../src/workers/cdc';
 import {
   expectSuccessfulBackground,
@@ -29,6 +30,7 @@ import {
 import {
   Comment,
   CommentUpvote,
+  Feed,
   Post,
   Settings,
   Source,
@@ -65,6 +67,11 @@ jest.mock('../../src/common', () => ({
   notifySourceFeedAdded: jest.fn(),
   notifySourceFeedRemoved: jest.fn(),
   notifySettingsUpdated: jest.fn(),
+}));
+
+jest.mock('../../src/schema/alerts', () => ({
+  ...(jest.requireActual('../../src/schema/alerts') as Record<string, unknown>),
+  updateAlerts: jest.fn(),
 }));
 
 let con: Connection;
@@ -635,6 +642,24 @@ describe('alerts', () => {
     expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
   });
 
+  it('should notify on alert.myFeed changed', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      myFeed: null,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'alerts',
+      }),
+    );
+    expect(notifyAlertsUpdated).toBeCalledTimes(1);
+    expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
+  });
+
   it('should notify on alerts created', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
@@ -651,6 +676,28 @@ describe('alerts', () => {
     );
     expect(notifyAlertsUpdated).toBeCalledTimes(1);
     expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
+  });
+});
+
+describe('feed', () => {
+  type ObjectType = Feed;
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    id: '1',
+  };
+  it('should notify on alerts created', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'feed',
+      }),
+    );
+    const params = [con, base.userId, { myFeed: 'created' }];
+    expect(updateAlerts).toBeCalledTimes(1);
+    expect(mocked(updateAlerts).mock.calls[0]).toEqual(params);
   });
 });
 
