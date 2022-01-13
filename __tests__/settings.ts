@@ -49,6 +49,7 @@ describe('query userSettings', () => {
     showOnlyUnreadPosts
     openNewTab
     sidebarExpanded
+    sortingEnabled
   }
 }`;
 
@@ -93,6 +94,7 @@ describe('mutation updateUserSettings', () => {
     showOnlyUnreadPosts
     openNewTab
     sidebarExpanded
+    sortingEnabled
   }
 }`;
 

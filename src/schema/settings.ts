@@ -12,6 +12,7 @@ interface GQLSettings {
   showOnlyUnreadPosts: boolean;
   openNewTab: boolean;
   sidebarExpanded: boolean;
+  sortingEnabled: boolean;
   updatedAt: Date;
 }
 
@@ -23,6 +24,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   showOnlyUnreadPosts?: boolean;
   openNewTab?: boolean;
   sidebarExpanded?: boolean;
+  sortingEnabled?: boolean;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -81,6 +83,11 @@ export const typeDefs = /* GraphQL */ `
     sidebarExpanded: Boolean!
 
     """
+    Whether to allow sorting of the feeds
+    """
+    sortingEnabled: Boolean!
+
+    """
     Time of last update
     """
     updatedAt: DateTime!
@@ -131,6 +138,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to show the sidebar in expanded form
     """
     sidebarExpanded: Boolean
+
+    """
+    Whether to allow sorting of the feeds
+    """
+    sortingEnabled: Boolean
   }
 
   extend type Mutation {
