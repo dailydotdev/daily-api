@@ -708,6 +708,7 @@ describe('settings', () => {
     showOnlyUnreadPosts: false,
     openNewTab: true,
     sidebarExpanded: true,
+    sortingEnabled: false,
     updatedAt: date.getTime(),
   };
 
