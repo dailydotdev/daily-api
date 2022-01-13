@@ -764,21 +764,25 @@ const invalidateFeedCache = async (feedId: string): Promise<void> => {
 const feedResolverV2: IFieldResolver<
   unknown,
   Context,
-  FeedArgs & { version: number }
+  FeedArgs & { version: number; feedId?: string }
 > = feedResolver(
   (ctx, args, builder, alias, queryParams) =>
     fixedIdsFeedBuilder(ctx, queryParams as string[], builder, alias),
   fixedIdsPageGenerator(30, 50),
   (ctx, args, page, builder) => builder,
   {
-    fetchQueryParams: (ctx, args: FeedArgs & { version: number }, page) =>
+    fetchQueryParams: (
+      ctx,
+      args: FeedArgs & { version: number; feedId?: string },
+      page,
+    ) =>
       generatePersonalizedFeed({
         con: ctx.con,
         pageSize: page.limit,
         offset: page.offset,
         feedVersion: args.version,
         userId: ctx.userId || ctx.trackingId,
-        feedId: ctx.userId,
+        feedId: args.feedId,
       }),
   },
 );
@@ -794,7 +798,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
-        return feedResolverV2(source, args, ctx, info);
+        return feedResolverV2(
+          source,
+          { ...args, feedId: ctx.userId },
+          ctx,
+          info,
+        );
       }
       return feedResolverV1(source, args, ctx, info);
     },
