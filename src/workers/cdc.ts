@@ -2,6 +2,7 @@ import { messageToJson, Worker } from './worker';
 import {
   Comment,
   CommentUpvote,
+  Feed,
   Post,
   Settings,
   SourceFeed,
@@ -36,6 +37,7 @@ import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { viewsThresholds } from '../cron/viewsThreshold';
 import { PostReport, Alerts } from '../entity';
 import { reportReasons } from '../schema/posts';
+import { updateAlerts } from '../schema/alerts';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -271,6 +273,16 @@ const onSourceFeedChange = async (
   }
 };
 
+const onFeedChange = async (
+  con: Connection,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<Feed>,
+) => {
+  if (data.payload.op === 'c') {
+    await updateAlerts(con, data.payload.after.userId, { myFeed: 'created' });
+  }
+};
+
 const getTableName = <Entity>(
   con: Connection,
   target: EntityTarget<Entity>,
@@ -287,6 +299,9 @@ const worker: Worker = {
         return;
       }
       switch (data.payload.source.table) {
+        case getTableName(con, Feed):
+          await onFeedChange(con, logger, data);
+          break;
         case getTableName(con, SourceRequest):
           await onSourceRequestChange(con, logger, data);
           break;

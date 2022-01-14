@@ -1,3 +1,4 @@
+import { Connection } from 'typeorm';
 import { ALERTS_DEFAULT, Alerts } from '../entity';
 
 import { IResolvers } from 'graphql-tools';
@@ -10,6 +11,7 @@ interface GQLAlerts {
 
 interface GQLUpdateAlertsInput extends Partial<GQLAlerts> {
   filter?: boolean;
+  myFeed?: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -68,6 +70,21 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+export const updateAlerts = async (
+  con: Connection,
+  userId: string,
+  data: GQLUpdateAlertsInput,
+): Promise<GQLAlerts> => {
+  const repo = con.getRepository(Alerts);
+  const alerts = await repo.findOne(userId);
+
+  if (!alerts) {
+    return repo.save({ userId, ...data });
+  }
+
+  return repo.save({ ...alerts, ...data });
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Mutation: {
@@ -75,16 +92,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       _,
       { data }: { data: GQLUpdateAlertsInput },
       ctx,
-    ): Promise<GQLAlerts> => {
-      const repo = ctx.getRepository(Alerts);
-      const alerts = await repo.findOne(ctx.userId);
-
-      if (!alerts) {
-        return repo.save({ userId: ctx.userId, ...data });
-      }
-
-      return repo.save({ ...alerts, ...data });
-    },
+    ): Promise<GQLAlerts> => updateAlerts(ctx.con, ctx.userId, data),
   },
   Query: {
     userAlerts: async (_, __, ctx): Promise<GQLAlerts> => {

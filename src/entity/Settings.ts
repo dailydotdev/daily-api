@@ -26,6 +26,9 @@ export class Settings {
   @Column({ default: true })
   sidebarExpanded: boolean;
 
+  @Column({ default: false })
+  sortingEnabled: boolean;
+
   @UpdateDateColumn()
   updatedAt: Date;
 }
