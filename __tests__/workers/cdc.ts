@@ -29,6 +29,7 @@ import {
 import {
   Comment,
   CommentUpvote,
+  Feed,
   Post,
   Settings,
   Source,
@@ -635,6 +636,24 @@ describe('alerts', () => {
     expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
   });
 
+  it('should notify on alert.myFeed changed', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      myFeed: null,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'alerts',
+      }),
+    );
+    expect(notifyAlertsUpdated).toBeCalledTimes(1);
+    expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
+  });
+
   it('should notify on alerts created', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
@@ -654,6 +673,29 @@ describe('alerts', () => {
   });
 });
 
+describe('feed', () => {
+  type ObjectType = Feed;
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    id: '1',
+  };
+  it('should update alerts when feed is created', async () => {
+    const repo = con.getRepository(Alerts);
+    await repo.save({ userId: base.userId, myFeed: null });
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'feed',
+      }),
+    );
+    const alerts = await repo.findOne({ userId: base.userId });
+    expect(alerts.myFeed).toEqual('created');
+  });
+});
+
 describe('settings', () => {
   type ObjectType = Settings;
   const date = new Date('2020-09-21T07:15:51.247Z');
@@ -666,6 +708,7 @@ describe('settings', () => {
     showOnlyUnreadPosts: false,
     openNewTab: true,
     sidebarExpanded: true,
+    sortingEnabled: false,
     updatedAt: date.getTime(),
   };
 

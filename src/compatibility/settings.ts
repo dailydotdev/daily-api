@@ -26,6 +26,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     showOnlyUnreadPosts
     openNewTab
     sidebarExpanded
+    sortingEnabled
   }
 }`;
     return injectGraphql(

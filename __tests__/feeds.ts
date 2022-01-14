@@ -357,6 +357,33 @@ describe('query anonymousFeed', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should return anonymous feed v2 and ignore existing filters', async () => {
+    loggedUser = '1';
+    await con.getRepository(Feed).save({ id: '1', userId: '1' });
+    await con.getRepository(FeedTag).save([
+      { feedId: '1', tag: 'javascript' },
+      { feedId: '1', tag: 'golang' },
+      { feedId: '1', tag: 'python', blocked: true },
+      { feedId: '1', tag: 'java', blocked: true },
+    ]);
+    await con.getRepository(FeedSource).save([
+      { feedId: '1', sourceId: 'a' },
+      { feedId: '1', sourceId: 'b' },
+    ]);
+    mockFeatures();
+    nock('http://localhost:6000')
+      .get(
+        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&user_id=1',
+      )
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+      });
+    const res = await client.query(QUERY, {
+      variables: { ...variables, version: 2 },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
 });
 
 describe('query feed', () => {
