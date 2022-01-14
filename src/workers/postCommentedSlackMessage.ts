@@ -4,18 +4,18 @@ import { notifyNewComment } from '../common';
 
 interface Data {
   userId: string;
-  childCommentId: string;
+  commentId: string;
   postId: string;
 }
 
 const worker: Worker = {
-  subscription: 'comment-comment-slack-message',
+  subscription: 'post-commented-slack-message',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
       const comment = await con
         .getRepository(Comment)
-        .findOne(data.childCommentId, { relations: ['post'] });
+        .findOne(data.commentId, { relations: ['post'] });
       if (!comment) {
         return;
       }
