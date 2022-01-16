@@ -6,7 +6,7 @@ import cors from 'fastify-cors';
 import mercurius from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
-import fastifyWebsocket from 'fastify-websocket';
+// import fastifyWebsocket from 'fastify-websocket';
 
 import './config';
 
@@ -66,12 +66,12 @@ export default async function app(
     res.send(stringifyHealthCheck({ status: 'ok' }));
   });
 
-  app.register(fastifyWebsocket, {
-    options: {
-      maxPayload: 1048576,
-      verifyClient: (info, next) => next(true),
-    },
-  });
+  // app.register(fastifyWebsocket, {
+  //   options: {
+  //     maxPayload: 1048576,
+  //     verifyClient: (info, next) => next(true),
+  //   },
+  // });
 
   app.register(MercuriusGQLUpload, {
     maxFileSize: 1024 * 1024 * 2,
@@ -83,10 +83,10 @@ export default async function app(
     context:
       contextFn ?? ((request): Context => new Context(request, connection)),
     queryDepth: 10,
-    subscription: {
-      context: (wsConnection, request): Context =>
-        new Context(request, connection),
-    },
+    // subscription: {
+    //   context: (wsConnection, request): Context =>
+    //     new Context(request, connection),
+    // },
     graphiql: !isProd,
     errorFormatter(execution) {
       if (execution.errors?.length > 0) {
