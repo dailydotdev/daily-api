@@ -784,6 +784,7 @@ const feedResolverV2: IFieldResolver<
         userId: ctx.userId || ctx.trackingId,
         feedId: args.feedId,
       }),
+    warnOnPartialFirstPage: true,
   },
 );
 

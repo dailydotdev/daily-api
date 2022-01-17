@@ -265,6 +265,7 @@ export type FeedResolverOptions<TArgs, TParams, TPage extends Page> = {
     args: TArgs,
     page: TPage,
   ) => Promise<TParams>;
+  warnOnPartialFirstPage?: boolean;
 };
 
 export function feedResolver<
@@ -292,13 +293,14 @@ export function feedResolver<
     removeHiddenPosts = true,
     removeBannedPosts = true,
     fetchQueryParams,
+    warnOnPartialFirstPage = false,
   }: FeedResolverOptions<TArgs, TParams, TPage> = {},
 ): IFieldResolver<TSource, Context, TArgs> {
   return async (source, args, context, info): Promise<Connection<GQLPost>> => {
     const page = pageGenerator.connArgsToPage(args);
     const queryParams =
       fetchQueryParams && (await fetchQueryParams(context, args, page));
-    return graphorm.queryPaginated<GQLPost>(
+    const result = await graphorm.queryPaginated<GQLPost>(
       context,
       info,
       (nodeSize) =>
@@ -332,6 +334,21 @@ export function feedResolver<
       (nodes) =>
         pageGenerator.transformNodes?.(page, nodes, queryParams) ?? nodes,
     );
+    if (
+      warnOnPartialFirstPage &&
+      !args.after &&
+      result.edges.length < args.first
+    ) {
+      context.log.warn(
+        {
+          args,
+          userId: context.userId || context.trackingId,
+          loggedIn: !!context.userId,
+        },
+        `feed's first page is missing posts`,
+      );
+    }
+    return result;
   };
 }
 
