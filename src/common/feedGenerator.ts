@@ -334,10 +334,11 @@ export function feedResolver<
       (nodes) =>
         pageGenerator.transformNodes?.(page, nodes, queryParams) ?? nodes,
     );
+    // Sometimes the feed can have a bit less posts than requested due to recent ban or deletion
     if (
       warnOnPartialFirstPage &&
       !args.after &&
-      result.edges.length < args.first
+      result.edges.length < args.first * 0.5
     ) {
       context.log.warn(
         {
