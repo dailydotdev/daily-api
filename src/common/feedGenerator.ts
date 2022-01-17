@@ -344,6 +344,7 @@ export function feedResolver<
           args,
           userId: context.userId || context.trackingId,
           loggedIn: !!context.userId,
+          posts: result.edges.length,
         },
         `feed's first page is missing posts`,
       );
