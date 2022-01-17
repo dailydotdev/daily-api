@@ -1,4 +1,4 @@
-import { fetchUserFeatures } from './../common/users';
+import { fetchUserFeatures } from '../common';
 import { FeedAdvancedSettings, AdvancedSettings } from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
@@ -784,6 +784,7 @@ const feedResolverV2: IFieldResolver<
         userId: ctx.userId || ctx.trackingId,
         feedId: args.feedId,
       }),
+    warnOnPartialFirstPage: true,
   },
 );
 
@@ -844,7 +845,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                search
           where tsv @@ search.query
           order by views desc
-          limit 5;
+            limit 5;
         `,
         [query],
       );
@@ -960,8 +961,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                                      and post."createdAt" >= now() - interval '6 month'
                                      and post."upvotes" > 0
                                    order by (pow(post.upvotes, k.similar) *
-                                             1000 / k.occurrences) desc
-                                   limit 25`;
+                                     1000 / k.occurrences) desc
+                                     limit 25`;
         return builder.andWhere(`${alias}."id" in (${similarPostsQuery})`, {
           postId: post,
         });
@@ -995,15 +996,15 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                                where post.id != :postId
                                  and post."createdAt" >= now() - interval '6 month'
                                order by (pow(post.upvotes, k.similar) * 1000 /
-                                         k.occurrences) desc
-                               limit 25`;
+                                 k.occurrences) desc
+                                 limit 25`;
         } else {
           similarPostsQuery = `select post.id
                                from post
                                where post.id != :postId
                                  and post."createdAt" >= now() - interval '6 month'
                                order by post.upvotes desc
-                               limit 25`;
+                                 limit 25`;
         }
         return builder.andWhere(`${alias}."id" in (${similarPostsQuery})`, {
           postId: post,
@@ -1064,8 +1065,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .where('source.id IN (:...ids)', { ids: filters.excludeSources })
             .getQueryAndParameters();
           await manager.query(
-            `insert into feed_source("sourceId", "feedId") ${query}
-             on conflict
+            `insert into feed_source("sourceId", "feedId") ${query} on conflict
             do nothing`,
             params,
           );
