@@ -16,6 +16,7 @@ declare module 'fastify' {
   interface FastifyInstance {
     tracer: traceAgent.PluginTypes.Tracer;
   }
+
   /* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
@@ -43,6 +44,30 @@ const createSpan = (
   return new Promise<traceAgent.PluginTypes.RootSpan>((resolve) => {
     tracer.runInRootSpan({ name, traceContext }, resolve);
   });
+};
+
+export const runInSpan = async <T>(
+  rootSpan: traceAgent.PluginTypes.RootSpan | undefined,
+  name: string,
+  func: () => Promise<T>,
+  labels?: Record<string, unknown>,
+): Promise<T> => {
+  if (!rootSpan) {
+    return func();
+  }
+  const childSpan = rootSpan.createChildSpan({ name });
+  if (labels) {
+    Object.keys(labels).forEach((key) => childSpan.addLabel(key, labels[key]));
+  }
+  try {
+    const res = await func();
+    childSpan.endSpan();
+    return res;
+  } catch (err) {
+    childSpan.addLabel('error', err?.name);
+    childSpan.endSpan();
+    throw err;
+  }
 };
 
 const plugin = async (

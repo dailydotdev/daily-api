@@ -20,6 +20,7 @@ import { Page, PageGenerator, getSearchQuery } from '../schema/common';
 import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
 import { CustomObject } from '.';
+import { runInSpan } from '../trace';
 
 export const whereTags = (
   tags: string[],
@@ -299,40 +300,53 @@ export function feedResolver<
   return async (source, args, context, info): Promise<Connection<GQLPost>> => {
     const page = pageGenerator.connArgsToPage(args);
     const queryParams =
-      fetchQueryParams && (await fetchQueryParams(context, args, page));
-    const result = await graphorm.queryPaginated<GQLPost>(
-      context,
-      info,
-      (nodeSize) =>
-        pageGenerator.hasPreviousPage(page, nodeSize, undefined, queryParams),
-      (nodeSize) =>
-        pageGenerator.hasNextPage(page, nodeSize, undefined, queryParams),
-      (node, index) =>
-        pageGenerator.nodeToCursor(page, args, node, index, queryParams),
-      (builder) => {
-        builder.queryBuilder = applyFeedWhere(
+      fetchQueryParams &&
+      (await runInSpan(context.span, 'feedResolver.fetchQueryParams', () =>
+        fetchQueryParams(context, args, page),
+      ));
+    const result = await runInSpan(
+      context.span,
+      'feedResolver.queryPaginated',
+      () =>
+        graphorm.queryPaginated<GQLPost>(
           context,
-          applyPaging(
-            context,
-            args,
-            page,
-            query(
-              context,
-              args,
-              builder.queryBuilder,
-              builder.alias,
+          info,
+          (nodeSize) =>
+            pageGenerator.hasPreviousPage(
+              page,
+              nodeSize,
+              undefined,
               queryParams,
             ),
-            builder.alias,
-          ),
-          builder.alias,
-          removeHiddenPosts,
-          removeBannedPosts,
-        );
-        return builder;
-      },
-      (nodes) =>
-        pageGenerator.transformNodes?.(page, nodes, queryParams) ?? nodes,
+          (nodeSize) =>
+            pageGenerator.hasNextPage(page, nodeSize, undefined, queryParams),
+          (node, index) =>
+            pageGenerator.nodeToCursor(page, args, node, index, queryParams),
+          (builder) => {
+            builder.queryBuilder = applyFeedWhere(
+              context,
+              applyPaging(
+                context,
+                args,
+                page,
+                query(
+                  context,
+                  args,
+                  builder.queryBuilder,
+                  builder.alias,
+                  queryParams,
+                ),
+                builder.alias,
+              ),
+              builder.alias,
+              removeHiddenPosts,
+              removeBannedPosts,
+            );
+            return builder;
+          },
+          (nodes) =>
+            pageGenerator.transformNodes?.(page, nodes, queryParams) ?? nodes,
+        ),
     );
     // Sometimes the feed can have a bit less posts than requested due to recent ban or deletion
     if (
