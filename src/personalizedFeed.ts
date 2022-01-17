@@ -10,7 +10,7 @@ interface TinybirdResponse<T> {
 
 const agent = new Agent({ keepAlive: true });
 
-async function fetchTinybirdFeed(
+export async function fetchTinybirdFeed(
   con: Connection,
   pageSize: number,
   feedVersion: number,
@@ -34,14 +34,14 @@ async function fetchTinybirdFeed(
       url += `&blocked_sources=${filters.excludeSources.join(',')}`;
     }
   }
-  // const start = new Date();
+  const start = new Date();
   const res = await fetch(url, { agent });
   const body: TinybirdResponse<{ post_id: string }> = await res.json();
-  // console.log(
-  //   `[feed_v2] fetch from tinybird ${
-  //     new Date().getTime() - start.getTime()
-  //   }ms (${url})`,
-  // );
+  console.log(
+    `[feed_v2] fetch from tinybird ${
+      new Date().getTime() - start.getTime()
+    }ms (posts: ${body.data.length}) (${url})`,
+  );
   return body.data;
 }
 
