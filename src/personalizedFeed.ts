@@ -3,6 +3,8 @@ import { Connection } from 'typeorm';
 import { feedToFilters } from './common';
 import fetch from 'node-fetch';
 import { redisClient } from './redis';
+import { Context } from './Context';
+import { runInSpan } from './trace';
 
 interface TinybirdResponse<T> {
   data: T[];
@@ -16,32 +18,54 @@ export async function fetchTinybirdFeed(
   feedVersion: number,
   userId?: string,
   feedId?: string,
+  ctx?: Context,
 ): Promise<{ post_id: string }[]> {
   const freshPageSize = Math.ceil(pageSize / 3).toFixed(0);
-  let url = `${process.env.TINYBIRD_FEED}&page_size=${pageSize}&fresh_page_size=${freshPageSize}&feed_version=${feedVersion}`;
+  let params = `page_size=${pageSize}&fresh_page_size=${freshPageSize}&feed_version=${feedVersion}`;
   if (userId) {
-    url += `&user_id=${userId}`;
+    params += `&user_id=${userId}`;
   }
   if (feedId) {
-    const filters = await feedToFilters(con, feedId, userId);
+    const filters = await runInSpan(
+      ctx?.span,
+      'Feed_v2.feedToFilters',
+      () => feedToFilters(con, feedId, userId),
+      {
+        feedId,
+        userId,
+      },
+    );
     if (filters.includeTags?.length) {
-      url += `&allowed_tags=${filters.includeTags.join(',')}`;
+      params += `&allowed_tags=${filters.includeTags.join(',')}`;
     }
     if (filters.blockedTags?.length) {
-      url += `&blocked_tags=${filters.blockedTags.join(',')}`;
+      params += `&blocked_tags=${filters.blockedTags.join(',')}`;
     }
     if (filters.excludeSources?.length) {
-      url += `&blocked_sources=${filters.excludeSources.join(',')}`;
+      params += `&blocked_sources=${filters.excludeSources.join(',')}`;
     }
   }
-  const start = new Date();
-  const res = await fetch(url, { agent });
-  const body: TinybirdResponse<{ post_id: string }> = await res.json();
-  console.log(
-    `[feed_v2] fetch from tinybird ${
-      new Date().getTime() - start.getTime()
-    }ms (posts: ${body.data.length}) (${url})`,
+  const body: TinybirdResponse<{ post_id: string }> = await runInSpan(
+    ctx?.span,
+    'Feed_v2.fetchTinybirdFeed',
+    async () => {
+      const res = await fetch(`${process.env.TINYBIRD_FEED}&${params}`, {
+        agent,
+      });
+      return res.json();
+    },
+    { params, feedVersion },
   );
+  if (!body.data.length) {
+    ctx?.log.warn(
+      {
+        params,
+        userId,
+        feedId,
+      },
+      'empty response received from tinybird',
+    );
+  }
   return body.data;
 }
 
@@ -61,6 +85,7 @@ async function fetchAndCacheFeed(
   feedVersion: number,
   userId?: string,
   feedId?: string,
+  ctx?: Context,
 ): Promise<string[]> {
   const key = getPersonalizedFeedKey(userId, feedId);
   const rawPostIds = await fetchTinybirdFeed(
@@ -69,6 +94,7 @@ async function fetchAndCacheFeed(
     feedVersion,
     userId,
     feedId,
+    ctx,
   );
   // Don't wait for caching the feed to serve quickly
   if (rawPostIds?.length) {
@@ -122,6 +148,7 @@ export async function generatePersonalizedFeed({
   feedVersion,
   userId,
   feedId,
+  ctx,
 }: {
   con: Connection;
   pageSize: number;
@@ -129,11 +156,23 @@ export async function generatePersonalizedFeed({
   feedVersion: number;
   userId?: string;
   feedId?: string;
+  ctx?: Context;
 }): Promise<string[]> {
   try {
     const key = getPersonalizedFeedKey(userId, feedId);
     const idsPromise = redisClient.get(`${key}:posts`);
-    if (await shouldServeFromCache(offset, key, feedId)) {
+    if (
+      await runInSpan(
+        ctx?.span,
+        'Feed_v2.shouldServeFromCache',
+        () => shouldServeFromCache(offset, key, feedId),
+        {
+          offset,
+          key,
+          feedId,
+        },
+      )
+    ) {
       const postIds = JSON.parse(await idsPromise);
       if (postIds?.length) {
         return postIds.slice(offset, pageSize + offset);
@@ -148,6 +187,7 @@ export async function generatePersonalizedFeed({
     feedVersion,
     userId,
     feedId,
+    ctx,
   );
   return postIds.slice(offset, pageSize + offset);
 }

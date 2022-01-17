@@ -783,6 +783,7 @@ const feedResolverV2: IFieldResolver<
         feedVersion: args.version,
         userId: ctx.userId || ctx.trackingId,
         feedId: args.feedId,
+        ctx,
       }),
     warnOnPartialFirstPage: true,
   },
