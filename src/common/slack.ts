@@ -15,7 +15,7 @@ export const notifyNewComment = async (
     text: 'New comment',
     attachments: [
       {
-        title: post.title,
+        title: comment,
         title_link: getDiscussionLink(post.id),
         fields: [
           {
@@ -23,8 +23,8 @@ export const notifyNewComment = async (
             value: userId,
           },
           {
-            title: 'Comment',
-            value: comment,
+            title: 'Post title',
+            value: post.title,
           },
         ],
         color: '#1DDC6F',
