@@ -59,6 +59,10 @@ export const workers: Worker[] = [
     subscription: 'comment-commented-author-mail',
   },
   {
+    topic: 'comment-commented',
+    subscription: 'comment-commented-slack-message',
+  },
+  {
     topic: 'post-commented',
     subscription: 'post-commented-author-mail',
   },
@@ -85,6 +89,10 @@ export const workers: Worker[] = [
   {
     topic: 'post-commented',
     subscription: 'post-commented-redis',
+  },
+  {
+    topic: 'post-commented',
+    subscription: 'post-commented-slack-message',
   },
   {
     topic: 'post-upvoted',
