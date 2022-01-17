@@ -218,6 +218,19 @@ describe('mutation commentOnPost', () => {
   }
 }`;
 
+  it('should not allow comment if content is empty string', () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { postId: 'p1', content: '   ' },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
       client,
@@ -284,6 +297,19 @@ describe('mutation commentOnComment', () => {
     id, content
   }
 }`;
+
+  it('should not allow comment if content is empty string', () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { postId: 'p1', content: '   ' },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
 
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
@@ -566,6 +592,19 @@ describe('mutation editComment', () => {
     id, content, lastUpdatedAt
   }
 }`;
+
+  it('should not allow comment if content is empty string', () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { postId: 'p1', content: '   ' },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
 
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
