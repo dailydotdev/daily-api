@@ -1,6 +1,6 @@
 import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
-import { ForbiddenError } from 'apollo-server-errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from 'graphql-tools';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
@@ -383,6 +383,10 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<GQLComment> => {
+      if (!content.trim().length) {
+        throw new ValidationError('Content cannot be empty!');
+      }
+
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
           const comment = await entityManager.getRepository(Comment).save(
@@ -413,6 +417,10 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<GQLComment> => {
+      if (!content.trim().length) {
+        throw new ValidationError('Content cannot be empty!');
+      }
+
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
           const parentComment = await entityManager
@@ -453,6 +461,10 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<GQLComment> => {
+      if (!content.trim().length) {
+        throw new ValidationError('Content cannot be empty!');
+      }
+
       await ctx.con.transaction(async (entityManager) => {
         const repo = entityManager.getRepository(Comment);
         const comment = await repo.findOneOrFail({ id });
