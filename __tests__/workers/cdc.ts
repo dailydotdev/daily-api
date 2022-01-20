@@ -709,6 +709,7 @@ describe('settings', () => {
     openNewTab: true,
     sidebarExpanded: true,
     sortingEnabled: false,
+    customLinks: null,
     updatedAt: date.getTime(),
   };
 
