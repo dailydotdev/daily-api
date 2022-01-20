@@ -2,6 +2,8 @@ import { IResolvers } from 'graphql-tools';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { Settings } from '../entity';
+import { isValidHttpUrl } from '../common';
+import { ValidationError } from 'apollo-server-errors';
 
 interface GQLSettings {
   userId: string;
@@ -25,6 +27,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   openNewTab?: boolean;
   sidebarExpanded?: boolean;
   sortingEnabled?: boolean;
+  customLinks?: string[];
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -88,6 +91,11 @@ export const typeDefs = /* GraphQL */ `
     sortingEnabled: Boolean!
 
     """
+    Custom links that the user has defined for their extension shortcut links
+    """
+    customLinks: [String]
+
+    """
     Time of last update
     """
     updatedAt: DateTime!
@@ -143,6 +151,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to allow sorting of the feeds
     """
     sortingEnabled: Boolean
+
+    """
+    Custom links that the user has defined for their extension shortcut links
+    """
+    customLinks: [String]
   }
 
   extend type Mutation {
@@ -150,6 +163,11 @@ export const typeDefs = /* GraphQL */ `
     Update the user settings
     """
     updateUserSettings(data: UpdateSettingsInput!): Settings! @auth
+
+    """
+    Update the user's custom links
+    """
+    updateCustomLinks(links: [String]!): Settings! @auth
   }
 
   extend type Query {
@@ -160,33 +178,52 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+const getOrCreateSettings = async (ctx: Context): Promise<Settings> => {
+  const repo = ctx.getRepository(Settings);
+  const settings = await repo.findOne(ctx.userId);
+
+  if (!settings) {
+    return repo.save({ userId: ctx.userId });
+  }
+
+  return settings;
+};
+
+const updateUserSettings = async (
+  data: GQLUpdateSettingsInput,
+  ctx: Context,
+) => {
+  const repo = ctx.getRepository(Settings);
+  const settings = await getOrCreateSettings(ctx);
+
+  return repo.save(repo.merge(settings, data));
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Mutation: {
     updateUserSettings: async (
-      source,
+      _,
       { data }: { data: GQLUpdateSettingsInput },
       ctx,
+    ): Promise<GQLSettings> => updateUserSettings(data, ctx),
+    updateCustomLinks: async (
+      _,
+      { links }: { links: string[] },
+      ctx,
     ): Promise<GQLSettings> => {
-      const repo = ctx.getRepository(Settings);
-      const settings = await repo.findOne(ctx.userId);
-      if (!settings) {
-        return repo.save(repo.merge(repo.create(data), { userId: ctx.userId }));
+      const valid = links.every(isValidHttpUrl);
+
+      if (!valid) {
+        throw new ValidationError('One of the links is invalid');
       }
-      return repo.save(repo.merge(settings, data));
+
+      return updateUserSettings({ customLinks: links }, ctx);
     },
   },
   Query: {
-    userSettings: async (source, args, ctx): Promise<GQLSettings> => {
-      const repo = ctx.getRepository(Settings);
-      const settings = await repo.findOne(ctx.userId);
-      // TODO: need to come up with a better solution for non existing settings
-      if (!settings) {
-        await repo.insert({ userId: ctx.userId });
-        return repo.findOne(ctx.userId);
-      }
-      return settings;
-    },
+    userSettings: async (_, __, ctx): Promise<GQLSettings> =>
+      getOrCreateSettings(ctx),
   },
   Settings: {
     appInsaneMode: () => true,

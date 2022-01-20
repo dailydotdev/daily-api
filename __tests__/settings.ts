@@ -50,6 +50,7 @@ describe('query userSettings', () => {
     openNewTab
     sidebarExpanded
     sortingEnabled
+    customLinks
   }
 }`;
 
@@ -95,6 +96,7 @@ describe('mutation updateUserSettings', () => {
     openNewTab
     sidebarExpanded
     sortingEnabled
+    customLinks
   }
 }`;
 
