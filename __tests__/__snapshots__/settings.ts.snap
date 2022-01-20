@@ -92,7 +92,9 @@ exports[`mutation updateUserSettings should update user settings 1`] = `
 Object {
   "updateUserSettings": Object {
     "appInsaneMode": true,
-    "customLinks": null,
+    "customLinks": Array [
+      "http://abc.com",
+    ],
     "enableCardAnimations": true,
     "insaneMode": false,
     "openNewTab": true,

@@ -212,6 +212,7 @@ describe('mutation updateUserSettings', () => {
         userId: '1',
         theme: 'bright',
         insaneMode: true,
+        customLinks: ['http://abc.com'],
       }),
     );
 
