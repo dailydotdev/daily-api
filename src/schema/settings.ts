@@ -167,7 +167,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Update the user's custom links
     """
-    updateCustomLinks(links: [String]!): Settings! @auth
+    updateCustomLinks(links: [String]): Settings! @auth
   }
 
   extend type Query {
@@ -212,6 +212,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { links }: { links: string[] },
       ctx,
     ): Promise<GQLSettings> => {
+      if (!links) {
+        return updateUserSettings({ customLinks: null }, ctx);
+      }
+
       const valid = links.every(isValidHttpUrl);
 
       if (!valid) {
