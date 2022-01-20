@@ -119,7 +119,7 @@ describe('mutation updateCustomLinks', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should validate user links', async () => {
+  it('should not allow invalid user links', async () => {
     loggedUser = '1';
 
     testMutationErrorCode(
