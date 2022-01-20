@@ -132,6 +132,19 @@ describe('mutation updateCustomLinks', () => {
     );
   });
 
+  it('should not allow invalid user links even when there are valid ones', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { links: ['https://app.daily.dev', 'http://abc'] },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should update user links to null if empty', async () => {
     loggedUser = '1';
 
