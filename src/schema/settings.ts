@@ -193,18 +193,6 @@ const getOrCreateSettings = async (
   return settings;
 };
 
-const updateUserSettings = async (
-  data: GQLUpdateSettingsInput,
-  ctx: Context,
-) => {
-  return ctx.con.transaction(async (manager): Promise<Settings> => {
-    const repo = manager.getRepository(Settings);
-    const settings = await getOrCreateSettings(manager, ctx.userId);
-
-    return repo.save(repo.merge(settings, data));
-  });
-};
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Mutation: {
@@ -212,23 +200,17 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       _,
       { data }: { data: GQLUpdateSettingsInput },
       ctx,
-    ): Promise<GQLSettings> => updateUserSettings(data, ctx),
-    updateCustomLinks: async (
-      _,
-      { links }: { links: string[] },
-      ctx,
     ): Promise<GQLSettings> => {
-      if (!links?.length) {
-        return updateUserSettings({ customLinks: null }, ctx);
-      }
-
-      const valid = links.every(isValidHttpUrl);
-
-      if (!valid) {
+      if (data.customLinks?.length && !data.customLinks.every(isValidHttpUrl)) {
         throw new ValidationError('One of the links is invalid');
       }
 
-      return updateUserSettings({ customLinks: links }, ctx);
+      return ctx.con.transaction(async (manager): Promise<Settings> => {
+        const repo = manager.getRepository(Settings);
+        const settings = await getOrCreateSettings(manager, ctx.userId);
+
+        return repo.save(repo.merge(settings, data));
+      });
     },
   },
   Query: {

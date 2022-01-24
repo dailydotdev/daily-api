@@ -8,67 +8,6 @@ Settings {
 }
 `;
 
-exports[`mutation updateCustomLinks should create user settings when does not exist 1`] = `
-Object {
-  "updateCustomLinks": Object {
-    "appInsaneMode": true,
-    "customLinks": Array [
-      "http://abc.com",
-    ],
-    "enableCardAnimations": true,
-    "insaneMode": false,
-    "openNewTab": true,
-    "showOnlyUnreadPosts": false,
-    "showTopSites": true,
-    "sidebarExpanded": true,
-    "sortingEnabled": false,
-    "spaciness": "eco",
-    "theme": "darcula",
-    "userId": "1",
-  },
-}
-`;
-
-exports[`mutation updateCustomLinks should update user links if valid 1`] = `
-Object {
-  "updateCustomLinks": Object {
-    "appInsaneMode": true,
-    "customLinks": Array [
-      "http://abc.com",
-    ],
-    "enableCardAnimations": true,
-    "insaneMode": false,
-    "openNewTab": true,
-    "showOnlyUnreadPosts": false,
-    "showTopSites": true,
-    "sidebarExpanded": true,
-    "sortingEnabled": false,
-    "spaciness": "eco",
-    "theme": "darcula",
-    "userId": "1",
-  },
-}
-`;
-
-exports[`mutation updateCustomLinks should update user links to null if empty 1`] = `
-Object {
-  "updateCustomLinks": Object {
-    "appInsaneMode": true,
-    "customLinks": null,
-    "enableCardAnimations": true,
-    "insaneMode": false,
-    "openNewTab": true,
-    "showOnlyUnreadPosts": false,
-    "showTopSites": true,
-    "sidebarExpanded": true,
-    "sortingEnabled": false,
-    "spaciness": "eco",
-    "theme": "darcula",
-    "userId": "1",
-  },
-}
-`;
-
 exports[`mutation updateUserSettings should create user settings when does not exist 1`] = `
 Object {
   "updateUserSettings": Object {
@@ -83,6 +22,27 @@ Object {
     "sortingEnabled": false,
     "spaciness": "eco",
     "theme": "bright",
+    "userId": "1",
+  },
+}
+`;
+
+exports[`mutation updateUserSettings should update user links if valid 1`] = `
+Object {
+  "updateUserSettings": Object {
+    "appInsaneMode": true,
+    "customLinks": Array [
+      "http://abc.com",
+    ],
+    "enableCardAnimations": true,
+    "insaneMode": false,
+    "openNewTab": true,
+    "showOnlyUnreadPosts": false,
+    "showTopSites": true,
+    "sidebarExpanded": true,
+    "sortingEnabled": false,
+    "spaciness": "eco",
+    "theme": "darcula",
     "userId": "1",
   },
 }
