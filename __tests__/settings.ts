@@ -219,3 +219,26 @@ describe('compatibility routes', () => {
     });
   });
 });
+
+describe('dedicated api routes', () => {
+  describe('GET /settings', () => {
+    it('should return user settings', async () => {
+      const repo = con.getRepository(Settings);
+      const settings = repo.create({
+        userId: '1',
+        theme: 'bright',
+        insaneMode: true,
+      });
+      const data = await repo.save(settings);
+      const expected = new Object({ ...data, ...compatibilityProps });
+      delete expected['updatedAt'];
+      delete expected['userId'];
+
+      loggedUser = '1';
+      const res = await authorizeRequest(
+        request(app.server).get('/settings'),
+      ).expect(200);
+      expect(res.body).toEqual(expected);
+    });
+  });
+});
