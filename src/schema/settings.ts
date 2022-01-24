@@ -212,7 +212,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { links }: { links: string[] },
       ctx,
     ): Promise<GQLSettings> => {
-      if (!links || !links.length) {
+      if (!links?.length) {
         return updateUserSettings({ customLinks: null }, ctx);
       }
 
