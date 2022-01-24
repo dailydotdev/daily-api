@@ -4,6 +4,7 @@ import { Context } from '../Context';
 import { Settings } from '../entity';
 import { isValidHttpUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
+import { EntityManager } from 'typeorm';
 
 interface GQLSettings {
   userId: string;
@@ -178,12 +179,15 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-const getOrCreateSettings = async (ctx: Context): Promise<Settings> => {
-  const repo = ctx.getRepository(Settings);
-  const settings = await repo.findOne(ctx.userId);
+const getOrCreateSettings = async (
+  manager: EntityManager,
+  userId: string,
+): Promise<Settings> => {
+  const repo = manager.getRepository(Settings);
+  const settings = await repo.findOne(userId);
 
   if (!settings) {
-    return repo.save({ userId: ctx.userId });
+    return repo.save({ userId });
   }
 
   return settings;
@@ -193,10 +197,12 @@ const updateUserSettings = async (
   data: GQLUpdateSettingsInput,
   ctx: Context,
 ) => {
-  const repo = ctx.getRepository(Settings);
-  const settings = await getOrCreateSettings(ctx);
+  return ctx.con.transaction(async (manager): Promise<Settings> => {
+    const repo = manager.getRepository(Settings);
+    const settings = await getOrCreateSettings(manager, ctx.userId);
 
-  return repo.save(repo.merge(settings, data));
+    return repo.save(repo.merge(settings, data));
+  });
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -226,8 +232,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
   },
   Query: {
-    userSettings: async (_, __, ctx): Promise<GQLSettings> =>
-      getOrCreateSettings(ctx),
+    userSettings: async (_, __, ctx): Promise<GQLSettings> => {
+      return ctx.con.transaction(
+        async (manager): Promise<Settings> =>
+          getOrCreateSettings(manager, ctx.userId),
+      );
+    },
   },
   Settings: {
     appInsaneMode: () => true,
