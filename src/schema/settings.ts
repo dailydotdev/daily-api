@@ -164,11 +164,6 @@ export const typeDefs = /* GraphQL */ `
     Update the user settings
     """
     updateUserSettings(data: UpdateSettingsInput!): Settings! @auth
-
-    """
-    Update the user's custom links
-    """
-    updateCustomLinks(links: [String]): Settings! @auth
   }
 
   extend type Query {
