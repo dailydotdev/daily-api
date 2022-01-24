@@ -230,7 +230,7 @@ describe('dedicated api routes', () => {
         insaneMode: true,
       });
       const data = await repo.save(settings);
-      const expected = new Object({ ...data, ...compatibilityProps });
+      const expected = new Object(data);
       delete expected['updatedAt'];
       delete expected['userId'];
 

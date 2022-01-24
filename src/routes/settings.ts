@@ -6,10 +6,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const query = `{
       userSettings {
         theme
-        enableCardAnimations
         showTopSites
         insaneMode
-        appInsaneMode
         spaciness
         showOnlyUnreadPosts
         openNewTab
