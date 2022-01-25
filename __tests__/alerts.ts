@@ -124,8 +124,8 @@ describe('mutation updateUserAlerts', () => {
 });
 
 describe('dedicated api routes', () => {
-  describe('GET /settings', () => {
-    it('should return user settings', async () => {
+  describe('GET /alerts', () => {
+    it('should return user alerts', async () => {
       const repo = con.getRepository(Alerts);
       const alerts = repo.create({
         userId: '1',
