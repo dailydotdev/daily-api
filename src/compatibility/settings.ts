@@ -27,6 +27,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     openNewTab
     sidebarExpanded
     sortingEnabled
+    customLinks
   }
 }`;
     return injectGraphql(

@@ -29,6 +29,9 @@ export class Settings {
   @Column({ default: false })
   sortingEnabled: boolean;
 
+  @Column({ type: 'text', array: true, default: null })
+  customLinks: string[];
+
   @UpdateDateColumn()
   updatedAt: Date;
 }

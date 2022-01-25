@@ -2,6 +2,9 @@ import { IResolvers } from 'graphql-tools';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { Settings } from '../entity';
+import { isValidHttpUrl } from '../common';
+import { ValidationError } from 'apollo-server-errors';
+import { EntityManager } from 'typeorm';
 
 interface GQLSettings {
   userId: string;
@@ -25,6 +28,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   openNewTab?: boolean;
   sidebarExpanded?: boolean;
   sortingEnabled?: boolean;
+  customLinks?: string[];
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -88,6 +92,11 @@ export const typeDefs = /* GraphQL */ `
     sortingEnabled: Boolean!
 
     """
+    Custom links that the user has defined for their extension shortcut links
+    """
+    customLinks: [String]
+
+    """
     Time of last update
     """
     updatedAt: DateTime!
@@ -143,6 +152,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to allow sorting of the feeds
     """
     sortingEnabled: Boolean
+
+    """
+    Custom links that the user has defined for their extension shortcut links
+    """
+    customLinks: [String]
   }
 
   extend type Mutation {
@@ -160,32 +174,46 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+const getOrCreateSettings = async (
+  manager: EntityManager,
+  userId: string,
+): Promise<Settings> => {
+  const repo = manager.getRepository(Settings);
+  const settings = await repo.findOne(userId);
+
+  if (!settings) {
+    return repo.save({ userId });
+  }
+
+  return settings;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Mutation: {
     updateUserSettings: async (
-      source,
+      _,
       { data }: { data: GQLUpdateSettingsInput },
       ctx,
     ): Promise<GQLSettings> => {
-      const repo = ctx.getRepository(Settings);
-      const settings = await repo.findOne(ctx.userId);
-      if (!settings) {
-        return repo.save(repo.merge(repo.create(data), { userId: ctx.userId }));
+      if (data.customLinks?.length && !data.customLinks.every(isValidHttpUrl)) {
+        throw new ValidationError('One of the links is invalid');
       }
-      return repo.save(repo.merge(settings, data));
+
+      return ctx.con.transaction(async (manager): Promise<Settings> => {
+        const repo = manager.getRepository(Settings);
+        const settings = await getOrCreateSettings(manager, ctx.userId);
+
+        return repo.save(repo.merge(settings, data));
+      });
     },
   },
   Query: {
-    userSettings: async (source, args, ctx): Promise<GQLSettings> => {
-      const repo = ctx.getRepository(Settings);
-      const settings = await repo.findOne(ctx.userId);
-      // TODO: need to come up with a better solution for non existing settings
-      if (!settings) {
-        await repo.insert({ userId: ctx.userId });
-        return repo.findOne(ctx.userId);
-      }
-      return settings;
+    userSettings: async (_, __, ctx): Promise<GQLSettings> => {
+      return ctx.con.transaction(
+        async (manager): Promise<Settings> =>
+          getOrCreateSettings(manager, ctx.userId),
+      );
     },
   },
   Settings: {

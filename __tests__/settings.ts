@@ -50,6 +50,7 @@ describe('query userSettings', () => {
     openNewTab
     sidebarExpanded
     sortingEnabled
+    customLinks
   }
 }`;
 
@@ -95,6 +96,7 @@ describe('mutation updateUserSettings', () => {
     openNewTab
     sidebarExpanded
     sortingEnabled
+    customLinks
   }
 }`;
 
@@ -116,6 +118,50 @@ describe('mutation updateUserSettings', () => {
     expect(res.data).toMatchSnapshot();
   });
 
+  it('should not allow invalid user links', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { data: { customLinks: ['http://'] } },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow invalid user links even when there are valid ones', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          data: { customLinks: ['https://app.daily.dev', 'http://'] },
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should update user links if valid', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.save(
+      repo.create({
+        userId: '1',
+      }),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { customLinks: ['http://abc.com'] } },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+
   it('should update user settings', async () => {
     loggedUser = '1';
 
@@ -125,6 +171,7 @@ describe('mutation updateUserSettings', () => {
         userId: '1',
         theme: 'bright',
         insaneMode: true,
+        customLinks: ['http://abc.com'],
       }),
     );
 
@@ -169,6 +216,29 @@ describe('compatibility routes', () => {
           select: ['userId', 'theme', 'insaneMode'],
         }),
       ).toMatchSnapshot();
+    });
+  });
+});
+
+describe('dedicated api routes', () => {
+  describe('GET /settings', () => {
+    it('should return user settings', async () => {
+      const repo = con.getRepository(Settings);
+      const settings = repo.create({
+        userId: '1',
+        theme: 'bright',
+        insaneMode: true,
+      });
+      const data = await repo.save(settings);
+      const expected = new Object(data);
+      delete expected['updatedAt'];
+      delete expected['userId'];
+
+      loggedUser = '1';
+      const res = await authorizeRequest(
+        request(app.server).get('/settings'),
+      ).expect(200);
+      expect(res.body).toEqual(expected);
     });
   });
 });
