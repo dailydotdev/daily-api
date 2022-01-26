@@ -1,6 +1,9 @@
+import { FastifyInstance } from 'fastify';
 import { Alerts, ALERTS_DEFAULT } from '../src/entity';
 import { Connection, getConnection } from 'typeorm';
+import request from 'supertest';
 import {
+  authorizeRequest,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
@@ -9,6 +12,7 @@ import {
   testMutationErrorCode,
 } from './helpers';
 
+let app: FastifyInstance;
 let con: Connection;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
@@ -20,6 +24,7 @@ beforeAll(async () => {
     () => new MockContext(con, loggedUser),
   );
   client = state.client;
+  app = state.app;
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -115,5 +120,26 @@ describe('mutation updateUserAlerts', () => {
     });
 
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('dedicated api routes', () => {
+  describe('GET /alerts', () => {
+    it('should return user alerts', async () => {
+      const repo = con.getRepository(Alerts);
+      const alerts = repo.create({
+        userId: '1',
+        myFeed: 'created',
+      });
+      const data = await repo.save(alerts);
+      const expected = new Object(data);
+      delete expected['userId'];
+
+      loggedUser = '1';
+      const res = await authorizeRequest(
+        request(app.server).get('/alerts'),
+      ).expect(200);
+      expect(res.body).toEqual(expected);
+    });
   });
 });
