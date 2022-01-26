@@ -327,13 +327,19 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<Connection<GQLView>> => {
+      const user = await ctx.con
+        .getRepository(User)
+        .findOneOrFail({ where: { id: ctx.userId }, select: ['timezone'] });
       const queryBuilder = (builder: GraphORMBuilder): GraphORMBuilder => {
         builder.queryBuilder = builder.queryBuilder
           .andWhere(`"${builder.alias}"."userId" = :userId`, {
             userId: ctx.userId,
           })
-          .andWhere(`"${builder.alias}"."hidden" = false`);
-
+          .andWhere(`"${builder.alias}"."hidden" = false`)
+          .addSelect(
+            `"timestamp" at time zone '${user.timezone ?? 'utc'}'`,
+            'timestamp',
+          );
         return builder;
       };
 
