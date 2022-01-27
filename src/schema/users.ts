@@ -327,9 +327,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<Connection<GQLView>> => {
-      const user = await ctx.con
-        .getRepository(User)
-        .findOneOrFail({ where: { id: ctx.userId }, select: ['timezone'] });
+      const user = await ctx.con.getRepository(User).findOneOrFail(ctx.userId);
       const queryBuilder = (builder: GraphORMBuilder): GraphORMBuilder => {
         builder.queryBuilder = builder.queryBuilder
           .andWhere(`"${builder.alias}"."userId" = :userId`, {
