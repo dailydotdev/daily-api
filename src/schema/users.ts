@@ -36,7 +36,7 @@ export interface GQLUser {
 export interface GQLView {
   post: Post;
   timestamp: Date;
-  timestamp_db: Date;
+  timestampDb: Date;
 }
 
 type CommentStats = { numComments: number; numCommentUpvotes: number };
@@ -143,7 +143,7 @@ export const typeDefs = /* GraphQL */ `
 
   type ReadingHistory {
     timestamp: DateTime!
-    timestamp_db: DateTime!
+    timestampDb: DateTime!
     post: Post!
   }
 
@@ -340,7 +340,7 @@ export const resolvers: IResolvers<any, Context> = {
             `"timestamp" at time zone '${user.timezone ?? 'utc'}'`,
             'timestamp',
           )
-          .addSelect('timestamp', 'timestamp_db');
+          .addSelect('timestamp', 'timestampDb');
         return builder;
       };
 
