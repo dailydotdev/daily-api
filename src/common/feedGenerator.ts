@@ -1,5 +1,4 @@
 import { IFlags } from 'flagsmith-nodejs';
-import { fetchUserFeatures } from './users';
 import { AdvancedSettings, FeedAdvancedSettings } from '../entity';
 import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -18,7 +17,6 @@ import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
 import { Page, PageGenerator, getSearchQuery } from '../schema/common';
 import graphorm from '../graphorm';
-import { mapArrayToOjbect } from './object';
 import { CustomObject } from '.';
 import { runInSpan } from '../trace';
 
@@ -84,33 +82,6 @@ export const getFeatureAdvancedSettings = (
 
     return { ...adv, defaultEnabledState: values[adv.id] };
   });
-};
-
-export const getExcludedAdvancedSettings = async (
-  con: ORMConnection,
-  feedId: string,
-  userId: string,
-): Promise<number[]> => {
-  const [features, advancedSettings, feedAdvancedSettings] = await Promise.all([
-    fetchUserFeatures(userId),
-    con.getRepository(AdvancedSettings).find(),
-    con.getRepository(FeedAdvancedSettings).find({ feedId }),
-  ]);
-  const settings = getFeatureAdvancedSettings(features, advancedSettings);
-  const userSettings = mapArrayToOjbect(
-    feedAdvancedSettings,
-    'advancedSettingsId',
-    'enabled',
-  );
-  const excludedSettings = settings.filter((adv) => {
-    if (userSettings[adv.id] !== undefined) {
-      return userSettings[adv.id] === false;
-    }
-
-    return adv.defaultEnabledState === false;
-  });
-
-  return excludedSettings.map((adv) => adv.id);
 };
 
 export const feedToFilters = async (
