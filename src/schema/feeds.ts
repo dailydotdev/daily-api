@@ -742,8 +742,7 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
     feedPageGenerator,
     applyFeedPaging,
     {
-      fetchQueryParams: async (ctx) =>
-        feedToFilters(ctx.con, ctx.userId, ctx.userId),
+      fetchQueryParams: async (ctx) => feedToFilters(ctx.con, ctx.userId),
     },
   );
 

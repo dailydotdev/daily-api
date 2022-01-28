@@ -29,7 +29,7 @@ export async function fetchTinybirdFeed(
     const filters = await runInSpan(
       ctx?.span,
       'Feed_v2.feedToFilters',
-      () => feedToFilters(con, feedId, userId),
+      () => feedToFilters(con, feedId),
       {
         feedId,
         userId,

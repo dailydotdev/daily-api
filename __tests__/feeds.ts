@@ -180,18 +180,6 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
       image: 'http://image.com/c',
       advancedSettings: [1, 2],
     },
-    {
-      id: 'experimentExcludedSource',
-      name: 'ExES',
-      image: 'http://image.com/c',
-      advancedSettings: [5],
-    },
-    {
-      id: 'experimentIncludedSource',
-      name: 'ExIS',
-      image: 'http://image.com/c',
-      advancedSettings: [6],
-    },
   ]);
   await saveFixtures(con, Post, [
     {
@@ -302,7 +290,7 @@ describe('query anonymousFeed', () => {
   it('should return feed while excluding sources based on advanced settings', async () => {
     await saveAdvancedSettingsFiltersFixtures();
     mockFeatures();
-    const filters = await feedToFilters(con, '1', '1');
+    const filters = await feedToFilters(con, '1');
     const res = await client.query(QUERY, {
       variables: { ...variables, filters },
     });
@@ -1352,7 +1340,7 @@ describe('function feedToFilters', () => {
     await saveAdvancedSettingsFiltersFixtures();
     mockFeatures();
 
-    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
+    expect(await feedToFilters(con, '1')).toMatchSnapshot();
   });
 
   it('shoud return filters for tags/sources based on the values from our data', async () => {
@@ -1360,15 +1348,6 @@ describe('function feedToFilters', () => {
 
     await saveFeedFixtures();
     mockFeatures();
-    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
-  });
-
-  it('shoud return filters for sources with consideration of features flags', async () => {
-    loggedUser = '1';
-
-    await saveAdvancedSettingsFiltersFixtures();
-
-    mockFeatures();
-    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
+    expect(await feedToFilters(con, '1')).toMatchSnapshot();
   });
 });

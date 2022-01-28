@@ -116,17 +116,28 @@ export const getExcludedAdvancedSettings = async (
 export const feedToFilters = async (
   con: ORMConnection,
   feedId: string,
-  userId: string,
 ): Promise<AnonymousFeedFilters> => {
-  const settings = await getExcludedAdvancedSettings(con, feedId, userId);
   const [tags, excludeSources] = await Promise.all([
     con.getRepository(FeedTag).find({ where: { feedId } }),
     con
       .getRepository(Source)
       .createQueryBuilder('s')
       .select('s.id AS "id"')
-      .where(`s.advancedSettings && ARRAY[:...settings]::integer[]`, {
-        settings,
+      .where((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('adv.id')
+          .from(AdvancedSettings, 'adv')
+          .leftJoin(
+            FeedAdvancedSettings,
+            'fas',
+            'adv.id = fas."advancedSettingsId" AND fas."feedId" = :feedId',
+            { feedId },
+          )
+          .where('COALESCE(fas.enabled, adv.defaultEnabledState) = false')
+          .getQuery();
+
+        return `s.advancedSettings && array(${subQuery})`;
       })
       .orWhere((qb) => {
         const subQuery = qb
