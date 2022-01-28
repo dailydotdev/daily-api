@@ -54,6 +54,7 @@ Object {
             "url": "http://p1.com",
           },
           "timestamp": "2021-09-22T07:15:51.247Z",
+          "timestampDb": "2021-09-22T07:15:51.247Z",
         },
       },
       Object {
@@ -68,11 +69,68 @@ Object {
             "url": "http://p2.com",
           },
           "timestamp": "2020-09-22T07:15:51.247Z",
+          "timestampDb": "2020-09-22T07:15:51.247Z",
         },
       },
     ],
     "pageInfo": Object {
       "endCursor": "dGltZToxNjAwNzU4OTUxMjQ3",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query readHistory should return the same date for a non-timezoned user 1`] = `
+Object {
+  "readHistory": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p1",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/a",
+            },
+            "title": "P1",
+            "url": "http://p1.com",
+          },
+          "timestamp": "2020-09-22T07:15:51.247Z",
+          "timestampDb": "2020-09-22T07:15:51.247Z",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjAwNzU4OTUxMjQ3",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query readHistory should return two different dates for a timezoned user 1`] = `
+Object {
+  "readHistory": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p1",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/a",
+            },
+            "title": "P1",
+            "url": "http://p1.com",
+          },
+          "timestamp": "2020-09-22T18:15:51.247Z",
+          "timestampDb": "2020-09-22T07:15:51.247Z",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjAwNzk4NTUxMjQ3",
       "hasNextPage": false,
     },
   },
@@ -95,6 +153,7 @@ Object {
             "url": "http://p2.com",
           },
           "timestamp": "2021-09-22T07:15:51.247Z",
+          "timestampDb": "2021-09-22T07:15:51.247Z",
         },
       },
     ],
@@ -122,6 +181,7 @@ Object {
             "url": "http://p2.com",
           },
           "timestamp": "2021-10-22T07:15:51.247Z",
+          "timestampDb": "2021-10-22T07:15:51.247Z",
         },
       },
       Object {
@@ -136,6 +196,7 @@ Object {
             "url": "http://p2.com",
           },
           "timestamp": "2021-09-22T07:15:51.247Z",
+          "timestampDb": "2021-09-22T07:15:51.247Z",
         },
       },
       Object {
@@ -150,6 +211,7 @@ Object {
             "url": "http://p2.com",
           },
           "timestamp": "2021-08-22T07:15:51.247Z",
+          "timestampDb": "2021-08-22T07:15:51.247Z",
         },
       },
       Object {
@@ -164,6 +226,7 @@ Object {
             "url": "http://p1.com",
           },
           "timestamp": "2020-09-22T07:15:51.247Z",
+          "timestampDb": "2020-09-22T07:15:51.247Z",
         },
       },
     ],
