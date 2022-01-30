@@ -14,9 +14,11 @@ const importEntity = async (con: Connection, name: string): Promise<void> => {
 
 const start = async (): Promise<void> => {
   const con = await createOrGetConnection();
+  await importEntity(con, 'AdvancedSettings');
   await importEntity(con, 'Source');
   await importEntity(con, 'Post');
   await importEntity(con, 'Keyword');
+  await importEntity(con, 'Category');
   await importEntity(con, 'PostKeyword');
 };
 
