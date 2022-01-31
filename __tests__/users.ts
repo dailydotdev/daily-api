@@ -850,6 +850,7 @@ describe('query readHistory', () => {
         edges {
           node {
             timestamp
+            timestampDb
             post {
               id
               url
@@ -953,6 +954,46 @@ describe('query readHistory', () => {
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.readHistory.edges.length).toEqual(1);
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return the same date for a non-timezoned user', async () => {
+    loggedUser = '1';
+    const createdAt = new Date('2020-09-22T07:15:51.247Z');
+    await saveFixtures(con, View, [
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: createdAt,
+      },
+    ]);
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.readHistory.edges.length).toEqual(1);
+    expect(res.data.readHistory.edges[0].node.timestamp).toBe(
+      res.data.readHistory.edges[0].node.timestampDb,
+    );
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return two different dates for a timezoned user', async () => {
+    loggedUser = '2';
+    const createdAt = new Date('2020-09-22T07:15:51.247Z');
+    await saveFixtures(con, View, [
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: createdAt,
+      },
+    ]);
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.readHistory.edges.length).toEqual(1);
+    expect(res.data.readHistory.edges[0].node.timestamp).not.toBe(
+      res.data.readHistory.edges[0].node.timestampDb,
+    );
     expect(res.data).toMatchSnapshot();
   });
 });
