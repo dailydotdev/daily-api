@@ -39,6 +39,9 @@ export class Settings {
   @Index('IDX_settings_bookmarkslug', { unique: true })
   bookmarkSlug?: string | null;
 
+  @Column({ default: false })
+  optOutWeeklyGoal: boolean;
+
   @Column({ type: 'text', array: true, default: null })
   customLinks: string[];
 

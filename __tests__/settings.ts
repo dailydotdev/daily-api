@@ -52,6 +52,7 @@ describe('query userSettings', () => {
     sidebarExpanded
     sortingEnabled
     customLinks
+    optOutWeeklyGoal
   }
 }`;
 
@@ -144,6 +145,7 @@ describe('mutation updateUserSettings', () => {
     sidebarExpanded
     sortingEnabled
     customLinks
+    optOutWeeklyGoal
   }
 }`;
 
@@ -302,6 +304,7 @@ describe('compatibility routes', () => {
       delete expected['updatedAt'];
       delete expected['showOnlyUnreadPosts'];
       delete expected['bookmarkSlug'];
+      delete expected['optOutWeeklyGoal'];
 
       loggedUser = '1';
       const res = await authorizeRequest(
