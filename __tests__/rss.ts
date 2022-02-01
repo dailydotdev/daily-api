@@ -151,7 +151,9 @@ describe('GET /rss/b/:slug', () => {
       .expect('Content-Type', 'application/rss+xml')
       .expect(200);
     expect(
-      res.text.replace(/\<lastBuildDate>.*?<\/lastBuildDate>/g, ''),
+      res.text
+        .replace(/\<lastBuildDate>.*?<\/lastBuildDate>/g, '')
+        .replace(slug, 'uuid'),
     ).toMatchSnapshot();
   });
 });

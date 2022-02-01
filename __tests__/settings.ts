@@ -70,6 +70,7 @@ describe('query userSettings', () => {
     const data = await repo.save(settings);
     const expected = new Object({ ...data, ...compatibilityProps });
     delete expected['updatedAt'];
+    delete expected['bookmarkSlug'];
 
     const res = await client.query(QUERY);
     expect(res.data.userSettings).toEqual(expected);
@@ -300,6 +301,7 @@ describe('compatibility routes', () => {
       expected['showOnlyNotReadPosts'] = expected['showOnlyUnreadPosts'];
       delete expected['updatedAt'];
       delete expected['showOnlyUnreadPosts'];
+      delete expected['bookmarkSlug'];
 
       loggedUser = '1';
       const res = await authorizeRequest(
@@ -337,6 +339,7 @@ describe('dedicated api routes', () => {
       const expected = new Object(data);
       delete expected['updatedAt'];
       delete expected['userId'];
+      delete expected['bookmarkSlug'];
 
       loggedUser = '1';
       const res = await authorizeRequest(
