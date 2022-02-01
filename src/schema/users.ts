@@ -110,7 +110,7 @@ export const typeDefs = /* GraphQL */ `
   type TagsReadingStatus {
     tag: String!
     readingDays: Int!
-    percentage: Int
+    percentage: Float
   }
 
   type UserStats {

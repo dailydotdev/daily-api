@@ -122,7 +122,7 @@ const getUserReadingDays = (
       from "view" v
       where "userId" = $1 and v."timestamp" at time zone '${timezone}' >= date_trunc('week', ${now})
     )
-    select *, tags."readingDays" * 1.0 / (select count(DISTINCT day) from filtered_view) as relative
+    select *, tags."readingDays" * 1.0 / (select count(DISTINCT day) from filtered_view) as percentage
     from (
       select pk.keyword as tag, count(DISTINCT day) as "readingDays"
       from filtered_view v

@@ -327,42 +327,42 @@ Object {
   "readToday": Anything,
   "tags": Array [
     Object {
-      "percentage": null,
+      "percentage": 0.75,
       "readingDays": 3,
       "tag": "javascript",
     },
     Object {
-      "percentage": null,
+      "percentage": 0.5,
       "readingDays": 2,
       "tag": "devops",
     },
     Object {
-      "percentage": null,
+      "percentage": 0.5,
       "readingDays": 2,
       "tag": "ai",
     },
     Object {
-      "percentage": null,
+      "percentage": 0.25,
       "readingDays": 1,
       "tag": "blockchain",
     },
     Object {
-      "percentage": null,
+      "percentage": 0.25,
       "readingDays": 1,
       "tag": "cloud",
     },
     Object {
-      "percentage": null,
+      "percentage": 0.25,
       "readingDays": 1,
       "tag": "crypto",
     },
     Object {
-      "percentage": null,
+      "percentage": 0.25,
       "readingDays": 1,
       "tag": "golang",
     },
     Object {
-      "percentage": null,
+      "percentage": 0.25,
       "readingDays": 1,
       "tag": "security",
     },
