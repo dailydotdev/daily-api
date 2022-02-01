@@ -1,4 +1,10 @@
-import { Column, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  PrimaryColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 @Entity()
 export class Settings {
@@ -28,6 +34,10 @@ export class Settings {
 
   @Column({ default: false })
   sortingEnabled: boolean;
+
+  @Column({ type: 'uuid', default: null })
+  @Index('IDX_settings_bookmarkslug', { unique: true })
+  bookmarkSlug?: string | null;
 
   @Column({ type: 'text', array: true, default: null })
   customLinks: string[];
