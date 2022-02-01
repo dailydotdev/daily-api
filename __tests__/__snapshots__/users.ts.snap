@@ -313,11 +313,23 @@ Object {
   "rankLastWeek": 0,
   "rankThisWeek": 0,
   "readToday": Anything,
-  "tags": Array [],
+  "tags": null,
 }
 `;
 
 exports[`query userReadingRank should return the reading rank 1`] = `
+Object {
+  "currentRank": 2,
+  "lastReadTime": Anything,
+  "progressThisWeek": 4,
+  "rankLastWeek": 1,
+  "rankThisWeek": 2,
+  "readToday": Anything,
+  "tags": null,
+}
+`;
+
+exports[`query userReadingRank should return the reading rank with tags on version 2 1`] = `
 Object {
   "currentRank": 2,
   "lastReadTime": Anything,

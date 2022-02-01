@@ -64,6 +64,11 @@ export interface GQLMostReadTag {
   count: number;
 }
 
+export interface ReadingRankArgs {
+  id: string;
+  version?: number;
+}
+
 export const typeDefs = /* GraphQL */ `
   """
   Registered user
@@ -178,7 +183,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the reading rank of the user
     """
-    userReadingRank(id: ID!): ReadingRank
+    userReadingRank(id: ID!, version: Int): ReadingRank
     """
     Get the reading rank of the user
     """
@@ -256,13 +261,18 @@ export const resolvers: IResolvers<any, Context> = {
       };
     },
     userReadingRank: async (
-      source,
-      { id }: { id: string },
+      _,
+      { id, version }: ReadingRankArgs,
       ctx: Context,
     ): Promise<GQLReadingRank> => {
       const isSameUser = ctx.userId === id;
       const user = await ctx.con.getRepository(User).findOneOrFail(id);
-      const rank = await getUserReadingRank(ctx.con, id, user?.timezone);
+      const rank = await getUserReadingRank(
+        ctx.con,
+        id,
+        user?.timezone,
+        version > 1,
+      );
 
       return isSameUser ? rank : { currentRank: rank.currentRank };
     },

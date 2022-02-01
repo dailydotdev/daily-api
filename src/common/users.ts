@@ -141,6 +141,7 @@ export const getUserReadingRank = async (
   con: Connection,
   userId: string,
   timezone = 'utc',
+  includeTags = false,
 ): Promise<ReadingRank> => {
   if (!timezone || timezone === null) {
     timezone = 'utc';
@@ -163,9 +164,14 @@ export const getUserReadingRank = async (
     .from(View, 'view')
     .where('"userId" = :id', { id: userId });
 
+  const getReadingTags = () =>
+    includeTags
+      ? getUserReadingDays(con, { userId, timezone })
+      : Promise.resolve(null);
+
   const [{ thisWeek, lastWeek, lastReadTime }, tags] = await Promise.all([
     req.getRawOne<ReadingRankQueryResult>(),
-    getUserReadingDays(con, { userId, timezone }),
+    getReadingTags(),
   ]);
   const rankThisWeek = rankFromProgress(thisWeek);
   const rankLastWeek = rankFromProgress(lastWeek);

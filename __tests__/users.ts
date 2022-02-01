@@ -264,8 +264,8 @@ describe('query userMostReadTags', () => {
 });
 
 describe('query userReadingRank', () => {
-  const QUERY = `query UserReadingRank($id: ID!){
-    userReadingRank(id: $id) {
+  const QUERY = `query UserReadingRank($id: ID!, $version: Int){
+    userReadingRank(id: $id, version: $version) {
       rankThisWeek
       rankLastWeek
       currentRank
@@ -347,6 +347,70 @@ describe('query userReadingRank', () => {
       },
     ]);
     const res = await client.query(QUERY, { variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadingRank).toMatchSnapshot({
+      readToday: expect.anything(),
+      lastReadTime: expect.anything(),
+    });
+  });
+
+  it('should return the reading rank with tags on version 2', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Keyword)
+      .save([...keywordsFixture, ...additionalKeywords]);
+    await con.getRepository(PostKeyword).save(postKeywordFixtures);
+    await con.getRepository(View).save([
+      { userId: loggedUser, postId: 'p1', timestamp: lastWeekStart },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addDays(lastWeekStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastWeekStart, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: addDays(thisWeekStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addDays(thisWeekStart, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(thisWeekStart, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p4',
+        timestamp: addDays(thisWeekStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p5',
+        timestamp: addDays(thisWeekStart, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p6',
+        timestamp: addDays(thisWeekStart, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p7',
+        timestamp: addDays(thisWeekStart, 4),
+      },
+    ]);
+    const res = await client.query(QUERY, {
+      variables: { id: '1', version: 2 },
+    });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRank).toMatchSnapshot({
       readToday: expect.anything(),
