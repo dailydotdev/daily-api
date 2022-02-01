@@ -301,6 +301,7 @@ Object {
   "rankLastWeek": null,
   "rankThisWeek": null,
   "readToday": null,
+  "tags": null,
 }
 `;
 
@@ -312,6 +313,7 @@ Object {
   "rankLastWeek": 0,
   "rankThisWeek": 0,
   "readToday": Anything,
+  "tags": Array [],
 }
 `;
 
@@ -323,6 +325,48 @@ Object {
   "rankLastWeek": 1,
   "rankThisWeek": 2,
   "readToday": Anything,
+  "tags": Array [
+    Object {
+      "percentage": null,
+      "readingDays": 3,
+      "tag": "javascript",
+    },
+    Object {
+      "percentage": null,
+      "readingDays": 2,
+      "tag": "devops",
+    },
+    Object {
+      "percentage": null,
+      "readingDays": 2,
+      "tag": "ai",
+    },
+    Object {
+      "percentage": null,
+      "readingDays": 1,
+      "tag": "blockchain",
+    },
+    Object {
+      "percentage": null,
+      "readingDays": 1,
+      "tag": "cloud",
+    },
+    Object {
+      "percentage": null,
+      "readingDays": 1,
+      "tag": "crypto",
+    },
+    Object {
+      "percentage": null,
+      "readingDays": 1,
+      "tag": "golang",
+    },
+    Object {
+      "percentage": null,
+      "readingDays": 1,
+      "tag": "security",
+    },
+  ],
 }
 `;
 

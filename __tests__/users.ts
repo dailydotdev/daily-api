@@ -185,6 +185,19 @@ const postKeywordFixtures: Partial<PostKeyword>[] = [
   { postId: 'p6', keyword: 'devops', status: 'allow' },
 ];
 
+const additionalKeywords: Partial<Keyword>[] = [
+  { value: 'security', occurrences: 15, status: 'allow' },
+  { value: 'web3', occurrences: 20, status: 'allow' },
+  { value: 'blockchain', occurrences: 30, status: 'allow' },
+  { value: 'cloud', occurrences: 45, status: 'allow' },
+  { value: 'backend', occurrences: 105, status: 'allow' },
+  { value: 'crypto', occurrences: 180, status: 'allow' },
+  { value: 'ai', occurrences: 270, status: 'allow' },
+  { value: 'analytics', occurrences: 420, status: 'allow' },
+  { value: 'devops', occurrences: 760, status: 'allow' },
+  { value: 'javascript', occurrences: 980, status: 'allow' },
+];
+
 afterAll(() => disposeGraphQLTesting(state));
 
 describe('query userStats', () => {
@@ -228,19 +241,6 @@ describe('query userMostReadTags', () => {
     }
   }`;
 
-  const additionalKeywords: Partial<Keyword>[] = [
-    { value: 'security', occurrences: 15, status: 'allow' },
-    { value: 'web3', occurrences: 20, status: 'allow' },
-    { value: 'blockchain', occurrences: 30, status: 'allow' },
-    { value: 'cloud', occurrences: 45, status: 'allow' },
-    { value: 'backend', occurrences: 105, status: 'allow' },
-    { value: 'crypto', occurrences: 180, status: 'allow' },
-    { value: 'ai', occurrences: 270, status: 'allow' },
-    { value: 'analytics', occurrences: 420, status: 'allow' },
-    { value: 'devops', occurrences: 760, status: 'allow' },
-    { value: 'javascript', occurrences: 980, status: 'allow' },
-  ];
-
   it('should return the user most read tags', async () => {
     loggedUser = '1';
     await con
@@ -272,6 +272,11 @@ describe('query userReadingRank', () => {
       progressThisWeek
       readToday
       lastReadTime
+      tags {
+        tag
+        readingDays
+        percentage
+      }
     }
   }`;
 
@@ -289,6 +294,10 @@ describe('query userReadingRank', () => {
 
   it('should return the reading rank', async () => {
     loggedUser = '1';
+    await con
+      .getRepository(Keyword)
+      .save([...keywordsFixture, ...additionalKeywords]);
+    await con.getRepository(PostKeyword).save(postKeywordFixtures);
     await con.getRepository(View).save([
       { userId: loggedUser, postId: 'p1', timestamp: lastWeekStart },
       {
@@ -300,6 +309,21 @@ describe('query userReadingRank', () => {
         userId: loggedUser,
         postId: 'p3',
         timestamp: addDays(lastWeekStart, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: addDays(thisWeekStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addDays(thisWeekStart, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(thisWeekStart, 3),
       },
       {
         userId: loggedUser,
@@ -328,6 +352,10 @@ describe('query userReadingRank', () => {
       readToday: expect.anything(),
       lastReadTime: expect.anything(),
     });
+    const { tags } = res.data.userReadingRank;
+    expect(tags.length).toEqual(8);
+    const sum = tags.reduce((total, { readingDays }) => total + readingDays, 0);
+    expect(sum).toEqual(12);
   });
 
   it('should return the last read time accurately', async () => {

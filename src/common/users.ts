@@ -68,6 +68,12 @@ export const fetchUserFeatures = async (userId: string): Promise<IFlags> => {
   return JSON.parse(text);
 };
 
+export interface TagsReadingStatus {
+  tag: string;
+  readingDays: number;
+  percentage: number;
+}
+
 export interface ReadingRank {
   rankThisWeek: number;
   rankLastWeek: number;
@@ -75,6 +81,7 @@ export interface ReadingRank {
   progressThisWeek: number;
   readToday: boolean;
   lastReadTime: Date;
+  tags: TagsReadingStatus[];
 }
 
 interface ReadingRankQueryResult {
@@ -97,6 +104,39 @@ const rankFromProgress = (progress: number) => {
   return 0;
 };
 
+interface ReadingDaysArgs {
+  userId: string;
+  timezone?: string;
+  limit?: number;
+}
+
+const getUserReadingDays = (
+  con: Connection,
+  { userId, timezone = 'utc', limit = 8 }: ReadingDaysArgs,
+) => {
+  const now = `timezone('${timezone}', now())`;
+  return con.query(
+    `
+    with filtered_view as (
+      select *, CAST(v."timestamp" at time zone '${timezone}' AS DATE) as day
+      from "view" v
+      where "userId" = $1 and v."timestamp" at time zone '${timezone}' >= date_trunc('week', ${now})
+    )
+    select *, tags."readingDays" * 1.0 / (select count(DISTINCT day) from filtered_view) as relative
+    from (
+      select pk.keyword as tag, count(DISTINCT day) as "readingDays"
+      from filtered_view v
+      inner join post_keyword pk on v."postId" = pk."postId" and pk.status = 'allow'
+      where pk.keyword != 'general-programming'
+      group by pk.keyword
+    ) as tags
+    order by tags."readingDays" desc
+    limit $2;
+  `,
+    [userId, limit],
+  );
+};
+
 export const getUserReadingRank = async (
   con: Connection,
   userId: string,
@@ -106,7 +146,7 @@ export const getUserReadingRank = async (
     timezone = 'utc';
   }
   const now = `timezone('${timezone}', now())`;
-  const res = await con
+  const req = con
     .createQueryBuilder()
     .select(
       `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' >= date_trunc('week', ${now}))`,
@@ -121,16 +161,21 @@ export const getUserReadingRank = async (
       'lastReadTime',
     )
     .from(View, 'view')
-    .where('"userId" = :id', { id: userId })
-    .getRawOne<ReadingRankQueryResult>();
-  const rankThisWeek = rankFromProgress(res.thisWeek);
-  const rankLastWeek = rankFromProgress(res.lastWeek);
+    .where('"userId" = :id', { id: userId });
+
+  const [{ thisWeek, lastWeek, lastReadTime }, tags] = await Promise.all([
+    req.getRawOne<ReadingRankQueryResult>(),
+    getUserReadingDays(con, { userId, timezone }),
+  ]);
+  const rankThisWeek = rankFromProgress(thisWeek);
+  const rankLastWeek = rankFromProgress(lastWeek);
   return {
-    lastReadTime: res.lastReadTime,
+    lastReadTime: lastReadTime,
     currentRank: rankThisWeek > rankLastWeek ? rankThisWeek : rankLastWeek,
-    progressThisWeek: res.thisWeek,
+    progressThisWeek: thisWeek,
     rankLastWeek,
     rankThisWeek,
-    readToday: isSameDay(res.lastReadTime, new Date()),
+    readToday: isSameDay(lastReadTime, new Date()),
+    tags,
   };
 };

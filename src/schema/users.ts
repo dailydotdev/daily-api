@@ -19,6 +19,7 @@ import { queryPaginatedByDate } from '../common/datePageGenerator';
 import {
   getUserReadingRank,
   isValidHttpUrl,
+  TagsReadingStatus,
   uploadDevCardBackground,
 } from '../common';
 
@@ -50,6 +51,7 @@ export interface GQLReadingRank {
   progressThisWeek?: number;
   readToday?: boolean;
   lastReadTime?: Date;
+  tags?: TagsReadingStatus[];
 }
 
 export interface GQLReadingRankHistory {
@@ -105,6 +107,12 @@ export const typeDefs = /* GraphQL */ `
     hashnode: String
   }
 
+  type TagsReadingStatus {
+    tag: String!
+    readingDays: Int!
+    percentage: Int
+  }
+
   type UserStats {
     numPosts: Int!
     numComments: Int!
@@ -120,6 +128,7 @@ export const typeDefs = /* GraphQL */ `
     progressThisWeek: Int
     readToday: Boolean
     lastReadTime: DateTime
+    tags: [TagsReadingStatus]
   }
 
   type MostReadTag {
@@ -254,13 +263,8 @@ export const resolvers: IResolvers<any, Context> = {
       const isSameUser = ctx.userId === id;
       const user = await ctx.con.getRepository(User).findOneOrFail(id);
       const rank = await getUserReadingRank(ctx.con, id, user?.timezone);
-      if (isSameUser) {
-        return rank;
-      } else {
-        return {
-          currentRank: rank.currentRank,
-        };
-      }
+
+      return isSameUser ? rank : { currentRank: rank.currentRank };
     },
     userMostReadTags: async (
       _,
