@@ -1,5 +1,5 @@
-import { getUserReadingRank, ReadingRank } from './users';
-import { Post, PostKeyword, Source, View } from '../entity';
+import { getUserReadingRank, ReadingRank, getUserReadingDays } from './users';
+import { Post, Source, View } from '../entity';
 import { Connection } from 'typeorm';
 import { User } from '../entity/User';
 
@@ -12,24 +12,24 @@ export interface MostReadTag {
   count: number;
 }
 
-export const getMostReadTags = (
+export const getMostReadTags = async (
   con: Connection,
   userId: string,
   { limit = 4 }: QueryOptions = {},
-): Promise<MostReadTag[]> =>
-  con
-    .createQueryBuilder()
-    .select('pk.keyword', 'value')
-    .addSelect('count(*)', 'count')
-    .from(View, 'v')
-    .innerJoin(PostKeyword, 'pk', 'v."postId" = pk."postId"')
-    .where('v."userId" = :id', { id: userId })
-    .andWhere(`pk.status = 'allow'`)
-    .andWhere(`pk.keyword != 'general-programming'`)
-    .groupBy('pk.keyword')
-    .orderBy('2', 'DESC')
-    .limit(limit)
-    .getRawMany();
+): Promise<MostReadTag[]> => {
+  const start = new Date(0);
+  const end = new Date();
+  const result = await getUserReadingDays(con, {
+    userId,
+    limit,
+    dateRange: { start, end },
+  });
+
+  return result.map(({ tag, readingDays }) => ({
+    value: tag,
+    count: readingDays,
+  }));
+};
 
 const getFavoriteSourcesLogos = async (
   con: Connection,
