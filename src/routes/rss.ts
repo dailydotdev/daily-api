@@ -2,13 +2,8 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { getConnection, SelectQueryBuilder, Connection } from 'typeorm';
 import rateLimit from 'fastify-rate-limit';
 import RSS from 'rss';
-import {
-  fetchUser,
-  User,
-  whereSourcesInFeed,
-  whereTagsInFeed,
-} from '../common';
-import { Post, Bookmark, BookmarkList, Feed } from '../entity';
+import { fetchUser, getDiscussionLink, User } from '../common';
+import { Post, Bookmark, Settings } from '../entity';
 import { RouteGenericInterface, RouteHandlerMethod } from 'fastify/types/route';
 import {
   RawReplyDefaultExpression,
@@ -53,14 +48,14 @@ const generateRSS =
     const state = stateFactory ? await stateFactory(req, con) : null;
     const userId = await extractUserId(req, state);
     const user = userId && (await fetchUser(userId));
-    if (!user || !user.premium) {
-      return res.status(403).send();
+    if (!user) {
+      return res.status(404).send();
     }
     const feed = new RSS({
       title: `${title(user, state)} by daily.dev`,
-      generator: 'Daily Premium RSS',
+      generator: 'daily.dev RSS',
       feed_url: `${process.env.URL_PREFIX}${req.raw.url}`,
-      site_url: 'https://daily.dev',
+      site_url: `https://app.daily.dev/${user.username}`,
     });
     const builder = query(
       req,
@@ -81,7 +76,9 @@ const generateRSS =
     items.forEach((x) =>
       feed.item({
         title: x.title,
-        url: `${process.env.URL_PREFIX}/r/${x.shortId}`,
+        url: `${getDiscussionLink(
+          x.id,
+        )}?utm_source=rss&utm_medium=bookmarks&utm_campaign=${userId}`,
         date: x.publishedAt,
         guid: x.id,
         description: '',
@@ -99,55 +96,57 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     timeWindow: '1 minute',
   });
 
-  fastify.get(
-    '/b/l/:listId',
-    generateRSS<BookmarkList, { Params: { listId: string } }>(
-      (req, list) => Promise.resolve(list?.userId),
-      (user, list) => `${list.name} List`,
-      'bookmark.createdAt',
-      (req, user, builder) =>
-        builder
-          .addSelect('bookmark."createdAt"', 'publishedAt')
-          .innerJoin(Bookmark, 'bookmark', 'post.id = bookmark.postId')
-          .where('bookmark.listId = :listId', { listId: req.params.listId }),
-      (req, con) =>
-        con
-          .getRepository(BookmarkList)
-          .findOne(req.params.listId)
-          .catch(() => null),
-    ),
-  );
+  // fastify.get(
+  //   '/b/l/:listId',
+  //   generateRSS<BookmarkList, { Params: { listId: string } }>(
+  //     (req, list) => Promise.resolve(list?.userId),
+  //     (user, list) => `${list.name} List`,
+  //     'bookmark.createdAt',
+  //     (req, user, builder) =>
+  //       builder
+  //         .addSelect('bookmark."createdAt"', 'publishedAt')
+  //         .innerJoin(Bookmark, 'bookmark', 'post.id = bookmark.postId')
+  //         .where('bookmark.listId = :listId', { listId: req.params.listId }),
+  //     (req, con) =>
+  //       con
+  //         .getRepository(BookmarkList)
+  //         .findOne(req.params.listId)
+  //         .catch(() => null),
+  //   ),
+  // );
 
   fastify.get(
-    '/b/:userId',
-    generateRSS<unknown, { Params: { userId: string } }>(
-      (req) => Promise.resolve(req.params.userId),
-      (user) => `${extractFirstName(user)}'s Bookmarks`,
+    '/b/:slug',
+    generateRSS<Settings, { Params: { slug: string } }>(
+      (req, settings) => Promise.resolve(settings?.userId),
+      (user) => `${extractFirstName(user)}'s bookmarks`,
       'bookmark.createdAt',
       (req, user, builder) =>
         builder
           .addSelect('bookmark."createdAt"', 'publishedAt')
           .innerJoin(Bookmark, 'bookmark', 'post.id = bookmark.postId')
           .where('bookmark.userId = :userId', { userId: user.id }),
+      (req, con) =>
+        con.getRepository(Settings).findOne({ bookmarkSlug: req.params.slug }),
     ),
   );
 
-  fastify.get(
-    '/f/:feedId',
-    generateRSS<Feed, { Params: { feedId: string } }>(
-      (req, feed) => Promise.resolve(feed?.userId),
-      (user) => `${extractFirstName(user)}'s Feed`,
-      'post.createdAt',
-      (req, user, builder) =>
-        builder
-          .addSelect('post."createdAt"', 'publishedAt')
-          .where((subBuilder) =>
-            whereSourcesInFeed(req.params.feedId, subBuilder, 'post'),
-          )
-          .andWhere((subBuilder) =>
-            whereTagsInFeed(req.params.feedId, subBuilder, 'post'),
-          ),
-      (req, con) => con.getRepository(Feed).findOne(req.params.feedId),
-    ),
-  );
+  // fastify.get(
+  //   '/f/:feedId',
+  //   generateRSS<Feed, { Params: { feedId: string } }>(
+  //     (req, feed) => Promise.resolve(feed?.userId),
+  //     (user) => `${extractFirstName(user)}'s Feed`,
+  //     'post.createdAt',
+  //     (req, user, builder) =>
+  //       builder
+  //         .addSelect('post."createdAt"', 'publishedAt')
+  //         .where((subBuilder) =>
+  //           whereSourcesInFeed(req.params.feedId, subBuilder, 'post'),
+  //         )
+  //         .andWhere((subBuilder) =>
+  //           whereTagsInFeed(req.params.feedId, subBuilder, 'post'),
+  //         ),
+  //     (req, con) => con.getRepository(Feed).findOne(req.params.feedId),
+  //   ),
+  // );
 }
