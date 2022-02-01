@@ -113,16 +113,13 @@ interface ReadingDaysArgs {
   dateRange: DateRange;
 }
 
-const getUserReadingDays = (
+export const getUserReadingDays = (
   con: Connection,
   { userId, dateRange, timezone = 'utc', limit = 8 }: ReadingDaysArgs,
-) => {
-  const formattedStart = dateRange.start.toISOString();
-  const formattedEnd = dateRange.end.toISOString();
+): Promise<TagsReadingStatus[]> => {
   const timestamp = `v."timestamp" at time zone '${timezone}'`;
-
-  const start = `timezone('${timezone}', '${formattedStart}')`;
-  const end = `timezone('${timezone}', '${formattedEnd}')`;
+  const start = `timezone('${timezone}', '${dateRange.start.toISOString()}')`;
+  const end = `timezone('${timezone}', '${dateRange.end.toISOString()}')`;
   const condition = `${timestamp} >= ${start} and ${timestamp} < ${end}`;
 
   return con.query(
