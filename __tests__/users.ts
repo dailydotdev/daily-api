@@ -412,10 +412,6 @@ describe('query userReadingRank', () => {
       variables: { id: '1', version: 2 },
     });
     expect(res.errors).toBeFalsy();
-    expect(res.data.userReadingRank).toMatchSnapshot({
-      readToday: expect.anything(),
-      lastReadTime: expect.anything(),
-    });
     const { tags } = res.data.userReadingRank;
     expect(tags.length).toEqual(8);
     const sum = tags.reduce((total, { readingDays }) => total + readingDays, 0);

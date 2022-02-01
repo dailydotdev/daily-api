@@ -329,59 +329,6 @@ Object {
 }
 `;
 
-exports[`query userReadingRank should return the reading rank with tags on version 2 1`] = `
-Object {
-  "currentRank": 2,
-  "lastReadTime": Anything,
-  "progressThisWeek": 4,
-  "rankLastWeek": 1,
-  "rankThisWeek": 2,
-  "readToday": Anything,
-  "tags": Array [
-    Object {
-      "percentage": 0.75,
-      "readingDays": 3,
-      "tag": "javascript",
-    },
-    Object {
-      "percentage": 0.5,
-      "readingDays": 2,
-      "tag": "devops",
-    },
-    Object {
-      "percentage": 0.5,
-      "readingDays": 2,
-      "tag": "ai",
-    },
-    Object {
-      "percentage": 0.25,
-      "readingDays": 1,
-      "tag": "blockchain",
-    },
-    Object {
-      "percentage": 0.25,
-      "readingDays": 1,
-      "tag": "cloud",
-    },
-    Object {
-      "percentage": 0.25,
-      "readingDays": 1,
-      "tag": "crypto",
-    },
-    Object {
-      "percentage": 0.25,
-      "readingDays": 1,
-      "tag": "golang",
-    },
-    Object {
-      "percentage": 0.25,
-      "readingDays": 1,
-      "tag": "security",
-    },
-  ],
-}
-`;
-
 exports[`query userReadingRankHistory should ignore views during current week 1`] = `
 Array [
   Object {
