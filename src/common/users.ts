@@ -1,5 +1,5 @@
 import { IFlags } from 'flagsmith-nodejs';
-import { isSameDay } from 'date-fns';
+import { endOfWeek, isSameDay, startOfWeek } from 'date-fns';
 import fetch from 'node-fetch';
 import { Connection } from 'typeorm';
 import { View } from '../entity';
@@ -104,23 +104,33 @@ const rankFromProgress = (progress: number) => {
   return 0;
 };
 
+type DateRange = { start: Date; end: Date };
+
 interface ReadingDaysArgs {
   userId: string;
   timezone?: string;
   limit?: number;
+  dateRange: DateRange;
 }
 
 const getUserReadingDays = (
   con: Connection,
-  { userId, timezone = 'utc', limit = 8 }: ReadingDaysArgs,
+  { userId, dateRange, timezone = 'utc', limit = 8 }: ReadingDaysArgs,
 ) => {
-  const now = `timezone('${timezone}', now())`;
+  const formattedStart = dateRange.start.toISOString();
+  const formattedEnd = dateRange.end.toISOString();
+  const timestamp = `v."timestamp" at time zone '${timezone}'`;
+
+  const start = `timezone('${timezone}', '${formattedStart}')`;
+  const end = `timezone('${timezone}', '${formattedEnd}')`;
+  const condition = `${timestamp} >= ${start} and ${timestamp} < ${end}`;
+
   return con.query(
     `
     with filtered_view as (
       select *, CAST(v."timestamp" at time zone '${timezone}' AS DATE) as day
       from "view" v
-      where "userId" = $1 and v."timestamp" at time zone '${timezone}' >= date_trunc('week', ${now})
+      where "userId" = $1 and ${condition}
     )
     select *, tags."readingDays" * 1.0 / (select count(DISTINCT day) from filtered_view) as percentage
     from (
@@ -164,10 +174,20 @@ export const getUserReadingRank = async (
     .from(View, 'view')
     .where('"userId" = :id', { id: userId });
 
-  const getReadingTags = () =>
-    includeTags
-      ? getUserReadingDays(con, { userId, timezone })
-      : Promise.resolve(null);
+  const getReadingTags = () => {
+    if (!includeTags) {
+      return Promise.resolve(null);
+    }
+
+    const start = new Date(startOfWeek(Date.now()).getTime());
+    const end = new Date(endOfWeek(Date.now()).getTime());
+
+    return getUserReadingDays(con, {
+      userId,
+      timezone,
+      dateRange: { start, end },
+    });
+  };
 
   const [{ thisWeek, lastWeek, lastReadTime }, tags] = await Promise.all([
     req.getRawOne<ReadingRankQueryResult>(),
