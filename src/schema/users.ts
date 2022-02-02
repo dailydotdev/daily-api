@@ -201,8 +201,8 @@ export const typeDefs = /* GraphQL */ `
     """
     userReadingRankHistory(
       id: ID!
-      after: String!
-      before: String!
+      after: String
+      before: String
       version: Int
     ): [ReadingRankHistory]
     """
@@ -315,6 +315,8 @@ export const resolvers: IResolvers<any, Context> = {
       { id, before, after, version = 1 }: ReadingRankArgs & ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> => {
+      const start = after ?? new Date(0).toISOString();
+      const end = before ?? new Date().toISOString();
       const rankColumn =
         version > 1 ? 'days' : 'case when days < 3 then 0 else days - 2 end';
 
@@ -339,7 +341,7 @@ export const resolvers: IResolvers<any, Context> = {
              ) as weeks
         group by 1;
       `,
-        [id, after, before],
+        [id, start, end],
       );
     },
     userReadHistory: async (
