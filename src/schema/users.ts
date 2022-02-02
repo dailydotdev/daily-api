@@ -19,6 +19,7 @@ import { queryPaginatedByDate } from '../common/datePageGenerator';
 import {
   getUserReadingRank,
   isValidHttpUrl,
+  TagsReadingStatus,
   uploadDevCardBackground,
 } from '../common';
 
@@ -50,6 +51,7 @@ export interface GQLReadingRank {
   progressThisWeek?: number;
   readToday?: boolean;
   lastReadTime?: Date;
+  tags?: TagsReadingStatus[];
 }
 
 export interface GQLReadingRankHistory {
@@ -60,6 +62,12 @@ export interface GQLReadingRankHistory {
 export interface GQLMostReadTag {
   value: string;
   count: number;
+  percentage?: number;
+}
+
+export interface ReadingRankArgs {
+  id: string;
+  version?: number;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -105,6 +113,12 @@ export const typeDefs = /* GraphQL */ `
     hashnode: String
   }
 
+  type TagsReadingStatus {
+    tag: String!
+    readingDays: Int!
+    percentage: Float
+  }
+
   type UserStats {
     numPosts: Int!
     numComments: Int!
@@ -120,11 +134,13 @@ export const typeDefs = /* GraphQL */ `
     progressThisWeek: Int
     readToday: Boolean
     lastReadTime: DateTime
+    tags: [TagsReadingStatus]
   }
 
   type MostReadTag {
     value: String!
     count: Int!
+    percentage: Float
   }
 
   type ReadingRankHistory {
@@ -169,16 +185,26 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the reading rank of the user
     """
-    userReadingRank(id: ID!): ReadingRank
+    userReadingRank(id: ID!, version: Int): ReadingRank
     """
-    Get the reading rank of the user
+    Get the most read tags of the user
     """
-    userMostReadTags(id: ID!): [MostReadTag]
+    userMostReadTags(
+      id: ID!
+      after: String
+      before: String
+      limit: Int
+    ): [MostReadTag]
     """
     Get the reading rank history of the user.
     An aggregated count of all the ranks the user ever received.
     """
-    userReadingRankHistory(id: ID!): [ReadingRankHistory]
+    userReadingRankHistory(
+      id: ID!
+      after: String
+      before: String
+      version: Int
+    ): [ReadingRankHistory]
     """
     Get a heatmap of reads per day in a given time frame.
     """
@@ -216,6 +242,13 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+interface ReadingHistyoryArgs {
+  id: string;
+  after: string;
+  before: string;
+  limit?: number;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -247,38 +280,49 @@ export const resolvers: IResolvers<any, Context> = {
       };
     },
     userReadingRank: async (
-      source,
-      { id }: { id: string },
+      _,
+      { id, version }: ReadingRankArgs,
       ctx: Context,
     ): Promise<GQLReadingRank> => {
       const isSameUser = ctx.userId === id;
       const user = await ctx.con.getRepository(User).findOneOrFail(id);
-      const rank = await getUserReadingRank(ctx.con, id, user?.timezone);
-      if (isSameUser) {
-        return rank;
-      } else {
-        return {
-          currentRank: rank.currentRank,
-        };
-      }
+      const rank = await getUserReadingRank(
+        ctx.con,
+        id,
+        user?.timezone,
+        version > 1,
+      );
+
+      return isSameUser ? rank : { currentRank: rank.currentRank };
     },
     userMostReadTags: async (
       _,
-      { id }: { id: string },
+      { id, before, after, limit = 5 }: ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<GQLMostReadTag[]> => {
+      const start = after ?? new Date(0).toISOString();
+      const end = before ?? new Date().toISOString();
       const user = await ctx.con.getRepository(User).findOneOrFail(id);
 
-      return getMostReadTags(ctx.con, user.id, { limit: 5 });
+      return getMostReadTags(ctx.con, {
+        limit,
+        userId: user.id,
+        dateRange: { start, end },
+      });
     },
     userReadingRankHistory: async (
-      source,
-      { id }: { id: string },
+      _,
+      { id, before, after, version = 1 }: ReadingRankArgs & ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> => {
+      const start = after ?? new Date(0).toISOString();
+      const end = before ?? new Date().toISOString();
+      const rankColumn =
+        version > 1 ? 'days' : 'case when days < 3 then 0 else days - 2 end';
+
       return ctx.con.query(
         `
-        select case when days < 3 then 0 else days - 2 end as "rank",
+        select ${rankColumn} as "rank",
                count(*)                                    as "count"
         from (
                select date_trunc('week', "timestamp") as "timestamp",
@@ -288,7 +332,8 @@ export const resolvers: IResolvers<any, Context> = {
                       from "view"
                       join "user" on "user".id = view."userId"
                       where "userId" = $1
-                        and "timestamp" >= '2020-12-14'
+                        and "timestamp" >= $2
+                        and "timestamp" < $3
                       group by 1
                       having count(*) > 0
                     ) as days
@@ -296,12 +341,12 @@ export const resolvers: IResolvers<any, Context> = {
              ) as weeks
         group by 1;
       `,
-        [id],
+        [id, start, end],
       );
     },
     userReadHistory: async (
       source,
-      { id, after, before }: { id: string; after: string; before: string },
+      { id, after, before }: ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> => {
       return ctx.con.query(

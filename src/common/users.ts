@@ -1,5 +1,5 @@
 import { IFlags } from 'flagsmith-nodejs';
-import { isSameDay } from 'date-fns';
+import { endOfWeek, isSameDay, startOfWeek } from 'date-fns';
 import fetch from 'node-fetch';
 import { Connection } from 'typeorm';
 import { View } from '../entity';
@@ -68,6 +68,12 @@ export const fetchUserFeatures = async (userId: string): Promise<IFlags> => {
   return JSON.parse(text);
 };
 
+export interface TagsReadingStatus {
+  tag: string;
+  readingDays: number;
+  percentage: number;
+}
+
 export interface ReadingRank {
   rankThisWeek: number;
   rankLastWeek: number;
@@ -75,6 +81,7 @@ export interface ReadingRank {
   progressThisWeek: number;
   readToday: boolean;
   lastReadTime: Date;
+  tags: TagsReadingStatus[];
 }
 
 interface ReadingRankQueryResult {
@@ -97,23 +104,63 @@ const rankFromProgress = (progress: number) => {
   return 0;
 };
 
+type DateRange = { start: string; end: string };
+
+export interface ReadingDaysArgs {
+  userId: string;
+  limit?: number;
+  dateRange: DateRange;
+}
+
+export const getUserReadingDays = (
+  con: Connection,
+  { userId, dateRange: { start, end }, limit = 8 }: ReadingDaysArgs,
+): Promise<TagsReadingStatus[]> => {
+  return con.query(
+    `
+    with filtered_view as (
+      select  *, CAST(v."timestamp" at time zone COALESCE(u.timezone, 'utc') AS DATE) as day
+      from    "view" v
+      inner   join "user" u
+      on      u."id" = v."userId"
+
+      where   u."id" = $1
+      and     "timestamp" >= $2
+      and     "timestamp" < $3
+    )
+    select *, tags."readingDays" * 1.0 / (select count(DISTINCT day) from filtered_view) as percentage
+    from (
+      select pk.keyword as tag, count(DISTINCT day) as "readingDays"
+      from filtered_view v
+      inner join post_keyword pk on v."postId" = pk."postId" and pk.status = 'allow'
+      where pk.keyword != 'general-programming'
+      group by pk.keyword
+    ) as tags
+    order by tags."readingDays" desc
+    limit $4;
+  `,
+    [userId, start, end, limit],
+  );
+};
+
 export const getUserReadingRank = async (
   con: Connection,
   userId: string,
   timezone = 'utc',
+  includeTags = false,
 ): Promise<ReadingRank> => {
   if (!timezone || timezone === null) {
     timezone = 'utc';
   }
-  const now = `timezone('${timezone}', now())`;
-  const res = await con
+  const nowTimezone = `timezone('${timezone}', now())`;
+  const req = con
     .createQueryBuilder()
     .select(
-      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' >= date_trunc('week', ${now}))`,
+      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' >= date_trunc('week', ${nowTimezone}))`,
       'thisWeek',
     )
     .addSelect(
-      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' < date_trunc('week', ${now}) and "timestamp" at time zone '${timezone}' >= date_trunc('week', ${now} - interval '7 days'))`,
+      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' < date_trunc('week', ${nowTimezone}) and "timestamp" at time zone '${timezone}' >= date_trunc('week', ${nowTimezone} - interval '7 days'))`,
       'lastWeek',
     )
     .addSelect(
@@ -121,16 +168,36 @@ export const getUserReadingRank = async (
       'lastReadTime',
     )
     .from(View, 'view')
-    .where('"userId" = :id', { id: userId })
-    .getRawOne<ReadingRankQueryResult>();
-  const rankThisWeek = rankFromProgress(res.thisWeek);
-  const rankLastWeek = rankFromProgress(res.lastWeek);
+    .where('"userId" = :id', { id: userId });
+
+  const now = new Date();
+  const getReadingTags = () => {
+    if (!includeTags) {
+      return Promise.resolve(null);
+    }
+
+    const start = new Date(startOfWeek(now).getTime()).toISOString();
+    const end = new Date(endOfWeek(now).getTime()).toISOString();
+
+    return getUserReadingDays(con, {
+      userId,
+      dateRange: { start, end },
+    });
+  };
+
+  const [{ thisWeek, lastWeek, lastReadTime }, tags] = await Promise.all([
+    req.getRawOne<ReadingRankQueryResult>(),
+    getReadingTags(),
+  ]);
+  const rankThisWeek = rankFromProgress(thisWeek);
+  const rankLastWeek = rankFromProgress(lastWeek);
   return {
-    lastReadTime: res.lastReadTime,
+    lastReadTime,
     currentRank: rankThisWeek > rankLastWeek ? rankThisWeek : rankLastWeek,
-    progressThisWeek: res.thisWeek,
+    progressThisWeek: thisWeek,
     rankLastWeek,
     rankThisWeek,
-    readToday: isSameDay(res.lastReadTime, new Date()),
+    readToday: isSameDay(lastReadTime, now),
+    tags,
   };
 };

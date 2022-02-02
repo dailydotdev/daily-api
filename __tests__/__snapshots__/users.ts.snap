@@ -263,6 +263,43 @@ Array [
 ]
 `;
 
+exports[`query userMostReadTags should return the user most read tags 2`] = `
+Array [
+  Object {
+    "count": 5,
+    "value": "javascript",
+  },
+  Object {
+    "count": 3,
+    "value": "security",
+  },
+  Object {
+    "count": 3,
+    "value": "ai",
+  },
+  Object {
+    "count": 2,
+    "value": "devops",
+  },
+  Object {
+    "count": 1,
+    "value": "cloud",
+  },
+  Object {
+    "count": 1,
+    "value": "crypto",
+  },
+  Object {
+    "count": 1,
+    "value": "golang",
+  },
+  Object {
+    "count": 1,
+    "value": "web3",
+  },
+]
+`;
+
 exports[`query userReadHistory should return the read history 1`] = `
 Array [
   Object {
@@ -301,6 +338,7 @@ Object {
   "rankLastWeek": null,
   "rankThisWeek": null,
   "readToday": null,
+  "tags": null,
 }
 `;
 
@@ -312,6 +350,7 @@ Object {
   "rankLastWeek": 0,
   "rankThisWeek": 0,
   "readToday": Anything,
+  "tags": null,
 }
 `;
 
@@ -323,6 +362,7 @@ Object {
   "rankLastWeek": 1,
   "rankThisWeek": 2,
   "readToday": Anything,
+  "tags": null,
 }
 `;
 
@@ -352,7 +392,7 @@ Array [
 ]
 `;
 
-exports[`query userReadingRankHistory should return the reading rank history 1`] = `
+exports[`query userReadingRankHistory should return the reading rank history utilizing timezone 1`] = `
 Array [
   Object {
     "count": 1,
@@ -365,20 +405,7 @@ Array [
 ]
 `;
 
-exports[`query userReadingRankHistory with timezone should return the reading rank history 1`] = `
-Array [
-  Object {
-    "count": 3,
-    "rank": 0,
-  },
-  Object {
-    "count": 1,
-    "rank": 1,
-  },
-]
-`;
-
-exports[`query userReadingRankHistory with timezone should return the reading rank history 2`] = `
+exports[`query userReadingRankHistory should return the reading rank history utilizing timezone 2`] = `
 Array [
   Object {
     "count": 1,
@@ -387,6 +414,19 @@ Array [
   Object {
     "count": 2,
     "rank": 1,
+  },
+]
+`;
+
+exports[`query userReadingRankHistory should return the reading rank history v2 utilizing timezone 1`] = `
+Array [
+  Object {
+    "count": 1,
+    "rank": 1,
+  },
+  Object {
+    "count": 2,
+    "rank": 3,
   },
 ]
 `;
