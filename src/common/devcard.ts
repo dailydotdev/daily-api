@@ -12,12 +12,14 @@ export interface MostReadTag {
   count: number;
 }
 
+export const START_OF_DEVCARD = '2020-12-14';
+
 export const getMostReadTags = async (
   con: Connection,
   userId: string,
   { limit = 4 }: QueryOptions = {},
 ): Promise<MostReadTag[]> => {
-  const start = new Date(0).toISOString();
+  const start = new Date(START_OF_DEVCARD).toISOString();
   const end = new Date().toISOString();
   const result = await getUserReadingDays(con, {
     userId,

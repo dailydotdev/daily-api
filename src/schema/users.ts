@@ -1,5 +1,5 @@
 import { getUserReadingDays } from './../common/users';
-import { getMostReadTags } from './../common/devcard';
+import { getMostReadTags, START_OF_DEVCARD } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
@@ -335,7 +335,7 @@ export const resolvers: IResolvers<any, Context> = {
                       from "view"
                       join "user" on "user".id = view."userId"
                       where "userId" = $1
-                        and "timestamp" >= '2020-12-14'
+                        and "timestamp" >= '${START_OF_DEVCARD}'
                         and "timestamp" >= $2
                         and "timestamp" < $3
                       group by 1
