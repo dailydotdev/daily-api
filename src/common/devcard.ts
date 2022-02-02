@@ -1,3 +1,4 @@
+import { subYears } from 'date-fns';
 import { getUserReadingRank, ReadingRank, getUserReadingDays } from './users';
 import { Post, Source, View } from '../entity';
 import { Connection } from 'typeorm';
@@ -9,8 +10,6 @@ export interface MostReadTag {
   count: number;
   percentage?: number;
 }
-
-export const START_OF_DEVCARD = '2020-12-14';
 
 export const getMostReadTags = async (
   con: Connection,
@@ -70,8 +69,9 @@ export async function getDevCardData(
   userId: string,
   con: Connection,
 ): Promise<DevCardData> {
-  const start = new Date(START_OF_DEVCARD).toISOString();
-  const end = new Date().toISOString();
+  const now = new Date();
+  const start = subYears(now, 1).toISOString();
+  const end = now.toISOString();
   const user = await con.getRepository(User).findOneOrFail(userId);
   const [articlesRead, tags, sourcesLogos, rank] = await Promise.all([
     con.getRepository(View).count({ userId }),

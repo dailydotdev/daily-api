@@ -1,4 +1,4 @@
-import { getMostReadTags, START_OF_DEVCARD } from './../common/devcard';
+import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
@@ -300,7 +300,7 @@ export const resolvers: IResolvers<any, Context> = {
       { id, before, after, limit = 5 }: ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<GQLMostReadTag[]> => {
-      const start = after ?? new Date(START_OF_DEVCARD).toISOString();
+      const start = after ?? new Date(0).toISOString();
       const end = before ?? new Date().toISOString();
       const user = await ctx.con.getRepository(User).findOneOrFail(id);
 
@@ -330,7 +330,7 @@ export const resolvers: IResolvers<any, Context> = {
                       from "view"
                       join "user" on "user".id = view."userId"
                       where "userId" = $1
-                        and "timestamp" >= '${START_OF_DEVCARD}'
+                        and "timestamp" >= '2020-12-14'
                         and "timestamp" >= $2
                         and "timestamp" < $3
                       group by 1
