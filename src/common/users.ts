@@ -153,15 +153,15 @@ export const getUserReadingRank = async (
   if (!timezone || timezone === null) {
     timezone = 'utc';
   }
-  const now = `timezone('${timezone}', now())`;
+  const nowTimezone = `timezone('${timezone}', now())`;
   const req = con
     .createQueryBuilder()
     .select(
-      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' >= date_trunc('week', ${now}))`,
+      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' >= date_trunc('week', ${nowTimezone}))`,
       'thisWeek',
     )
     .addSelect(
-      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' < date_trunc('week', ${now}) and "timestamp" at time zone '${timezone}' >= date_trunc('week', ${now} - interval '7 days'))`,
+      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' < date_trunc('week', ${nowTimezone}) and "timestamp" at time zone '${timezone}' >= date_trunc('week', ${nowTimezone} - interval '7 days'))`,
       'lastWeek',
     )
     .addSelect(
@@ -171,12 +171,12 @@ export const getUserReadingRank = async (
     .from(View, 'view')
     .where('"userId" = :id', { id: userId });
 
+  const now = new Date();
   const getReadingTags = () => {
     if (!includeTags) {
       return Promise.resolve(null);
     }
 
-    const now = Date.now();
     const start = new Date(startOfWeek(now).getTime()).toISOString();
     const end = new Date(endOfWeek(now).getTime()).toISOString();
 
@@ -199,7 +199,7 @@ export const getUserReadingRank = async (
     progressThisWeek: thisWeek,
     rankLastWeek,
     rankThisWeek,
-    readToday: isSameDay(lastReadTime, new Date()),
+    readToday: isSameDay(lastReadTime, now),
     tags,
   };
 };
