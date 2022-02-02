@@ -355,7 +355,7 @@ Array [
 ]
 `;
 
-exports[`query userReadingRankHistory should return the reading rank history 1`] = `
+exports[`query userReadingRankHistory should return the reading rank history utilizing timezone 1`] = `
 Array [
   Object {
     "count": 1,
@@ -368,20 +368,7 @@ Array [
 ]
 `;
 
-exports[`query userReadingRankHistory with timezone should return the reading rank history 1`] = `
-Array [
-  Object {
-    "count": 3,
-    "rank": 0,
-  },
-  Object {
-    "count": 1,
-    "rank": 1,
-  },
-]
-`;
-
-exports[`query userReadingRankHistory with timezone should return the reading rank history 2`] = `
+exports[`query userReadingRankHistory should return the reading rank history utilizing timezone 2`] = `
 Array [
   Object {
     "count": 1,
@@ -390,6 +377,19 @@ Array [
   Object {
     "count": 2,
     "rank": 1,
+  },
+]
+`;
+
+exports[`query userReadingRankHistory should return the reading rank history v2 utilizing timezone 1`] = `
+Array [
+  Object {
+    "count": 1,
+    "rank": 1,
+  },
+  Object {
+    "count": 2,
+    "rank": 3,
   },
 ]
 `;

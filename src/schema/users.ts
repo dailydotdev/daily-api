@@ -201,7 +201,12 @@ export const typeDefs = /* GraphQL */ `
     Get the reading rank history of the user.
     An aggregated count of all the ranks the user ever received.
     """
-    userReadingRankHistory(id: ID!): [ReadingRankHistory]
+    userReadingRankHistory(
+      id: ID!
+      after: String!
+      before: String!
+      version: Int
+    ): [ReadingRankHistory]
     """
     Get a heatmap of reads per day in a given time frame.
     """
@@ -311,13 +316,16 @@ export const resolvers: IResolvers<any, Context> = {
       return getMostReadTags(ctx.con, user.id, { limit: 5 });
     },
     userReadingRankHistory: async (
-      source,
-      { id }: { id: string },
+      _,
+      { id, before, after, version = 1 }: ReadingRankArgs & ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> => {
+      const rankColumn =
+        version > 1 ? 'days' : 'case when days < 3 then 0 else days - 2 end';
+
       return ctx.con.query(
         `
-        select case when days < 3 then 0 else days - 2 end as "rank",
+        select ${rankColumn} as "rank",
                count(*)                                    as "count"
         from (
                select date_trunc('week', "timestamp") as "timestamp",
@@ -328,6 +336,8 @@ export const resolvers: IResolvers<any, Context> = {
                       join "user" on "user".id = view."userId"
                       where "userId" = $1
                         and "timestamp" >= '2020-12-14'
+                        and "timestamp" >= $2
+                        and "timestamp" < $3
                       group by 1
                       having count(*) > 0
                     ) as days
@@ -335,7 +345,7 @@ export const resolvers: IResolvers<any, Context> = {
              ) as weeks
         group by 1;
       `,
-        [id],
+        [id, after, before],
       );
     },
     userReadHistory: async (
