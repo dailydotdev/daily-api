@@ -194,7 +194,7 @@ export const getUserReadingRank = async (
   const rankThisWeek = rankFromProgress(thisWeek);
   const rankLastWeek = rankFromProgress(lastWeek);
   return {
-    lastReadTime: lastReadTime,
+    lastReadTime,
     currentRank: rankThisWeek > rankLastWeek ? rankThisWeek : rankLastWeek,
     progressThisWeek: thisWeek,
     rankLastWeek,
