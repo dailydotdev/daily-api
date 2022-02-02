@@ -1,3 +1,4 @@
+import { getUserReadingDays } from './../common/users';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -189,6 +190,14 @@ export const typeDefs = /* GraphQL */ `
     """
     userMostReadTags(id: ID!): [MostReadTag]
     """
+    Get the reading top tags of the user
+    """
+    userReadingTopTags(
+      id: ID!
+      before: String!
+      after: String!
+    ): [TagsReadingStatus]
+    """
     Get the reading rank history of the user.
     An aggregated count of all the ranks the user ever received.
     """
@@ -229,6 +238,12 @@ export const typeDefs = /* GraphQL */ `
     hideReadHistory(postId: String!, timestamp: DateTime!): EmptyResponse @auth
   }
 `;
+
+interface ReadingHistyoryArgs {
+  id: string;
+  after: string;
+  before: string;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
@@ -276,6 +291,19 @@ export const resolvers: IResolvers<any, Context> = {
 
       return isSameUser ? rank : { currentRank: rank.currentRank };
     },
+    userReadingTopTags: async (
+      _,
+      { id, before, after }: ReadingHistyoryArgs,
+      ctx: Context,
+    ): Promise<TagsReadingStatus[]> => {
+      const { timezone } = await ctx.con.getRepository(User).findOneOrFail(id);
+
+      return getUserReadingDays(ctx.con, {
+        userId: id,
+        timezone: timezone ?? 'utc',
+        dateRange: { start: new Date(after), end: new Date(before) },
+      });
+    },
     userMostReadTags: async (
       _,
       { id }: { id: string },
@@ -315,7 +343,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     userReadHistory: async (
       source,
-      { id, after, before }: { id: string; after: string; before: string },
+      { id, after, before }: ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> => {
       return ctx.con.query(

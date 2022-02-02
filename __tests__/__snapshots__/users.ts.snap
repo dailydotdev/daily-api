@@ -394,6 +394,51 @@ Array [
 ]
 `;
 
+exports[`query userReadingTopTags should return the user reading top tags 1`] = `
+Array [
+  Object {
+    "percentage": 0.7142857142857143,
+    "readingDays": 5,
+    "tag": "javascript",
+  },
+  Object {
+    "percentage": 0.42857142857142855,
+    "readingDays": 3,
+    "tag": "security",
+  },
+  Object {
+    "percentage": 0.42857142857142855,
+    "readingDays": 3,
+    "tag": "ai",
+  },
+  Object {
+    "percentage": 0.2857142857142857,
+    "readingDays": 2,
+    "tag": "devops",
+  },
+  Object {
+    "percentage": 0.14285714285714285,
+    "readingDays": 1,
+    "tag": "cloud",
+  },
+  Object {
+    "percentage": 0.14285714285714285,
+    "readingDays": 1,
+    "tag": "crypto",
+  },
+  Object {
+    "percentage": 0.14285714285714285,
+    "readingDays": 1,
+    "tag": "golang",
+  },
+  Object {
+    "percentage": 0.14285714285714285,
+    "readingDays": 1,
+    "tag": "web3",
+  },
+]
+`;
+
 exports[`query userStats should return partial user stats when no posts or no comments 1`] = `
 Object {
   "userStats": Object {
