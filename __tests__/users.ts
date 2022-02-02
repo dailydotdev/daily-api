@@ -234,8 +234,8 @@ describe('query userStats', () => {
 });
 
 describe('query userMostReadTags', () => {
-  const QUERY = `query UserMostReadTags($id: ID!){
-    userMostReadTags(id: $id) {
+  const QUERY = `query UserMostReadTags($id: ID!, $limit: Int){
+    userMostReadTags(id: $id, limit: $limit) {
       value
       count
     }
@@ -261,6 +261,14 @@ describe('query userMostReadTags', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.userMostReadTags.length).toEqual(5);
     expect(res.data.userMostReadTags).toMatchSnapshot();
+
+    const limit = 8;
+    const limited = await client.query(QUERY, {
+      variables: { id: '1', limit },
+    });
+    expect(limited.errors).toBeFalsy();
+    expect(limited.data.userMostReadTags.length).toEqual(limit);
+    expect(limited.data.userMostReadTags).toMatchSnapshot();
   });
 });
 
@@ -791,45 +799,6 @@ describe('query userReadingRankHistory', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRankHistory).toMatchSnapshot();
-  });
-});
-
-describe('query userReadingTopTags', () => {
-  const QUERY = `query UserReadingTopTags($id: ID!, $after: String!, $before: String!){
-    userReadingTopTags(id: $id, after: $after, before: $before) {
-      tag
-      readingDays
-      percentage
-    }
-  }`;
-
-  it('should return the user reading top tags', async () => {
-    loggedUser = '1';
-    const now = new Date();
-    const lastThreeWeeksStart = startOfISOWeek(subDays(now, 21));
-    await con
-      .getRepository(Keyword)
-      .save([...keywordsFixture, ...additionalKeywords]);
-    await con.getRepository(PostKeyword).save(postKeywordFixtures);
-    await con.getRepository(View).save([
-      { userId: loggedUser, timestamp: subDays(now, 1), postId: 'p1' },
-      { userId: loggedUser, timestamp: subDays(now, 2), postId: 'p2' },
-      { userId: loggedUser, timestamp: subDays(now, 3), postId: 'p3' },
-      { userId: loggedUser, timestamp: subDays(now, 4), postId: 'p4' },
-      { userId: loggedUser, timestamp: subDays(now, 5), postId: 'p5' },
-      { userId: loggedUser, timestamp: subDays(now, 6), postId: 'p6' },
-      { userId: loggedUser, timestamp: subDays(now, 7), postId: 'p1' },
-    ]);
-    const res = await client.query(QUERY, {
-      variables: {
-        id: '1',
-        after: lastThreeWeeksStart.toISOString(),
-        before: now.toISOString(),
-      },
-    });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userReadingTopTags.length).toEqual(8);
-    expect(res.data.userReadingTopTags).toMatchSnapshot();
   });
 });
 

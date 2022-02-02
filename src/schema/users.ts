@@ -1,4 +1,3 @@
-import { getUserReadingDays } from './../common/users';
 import { getMostReadTags, START_OF_DEVCARD } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -63,6 +62,7 @@ export interface GQLReadingRankHistory {
 export interface GQLMostReadTag {
   value: string;
   count: number;
+  percentage?: number;
 }
 
 export interface ReadingRankArgs {
@@ -140,6 +140,7 @@ export const typeDefs = /* GraphQL */ `
   type MostReadTag {
     value: String!
     count: Int!
+    percentage: Float
   }
 
   type ReadingRankHistory {
@@ -186,17 +187,14 @@ export const typeDefs = /* GraphQL */ `
     """
     userReadingRank(id: ID!, version: Int): ReadingRank
     """
-    Get the reading rank of the user
+    Get the most read tags of the user
     """
-    userMostReadTags(id: ID!): [MostReadTag]
-    """
-    Get the reading top tags of the user
-    """
-    userReadingTopTags(
+    userMostReadTags(
       id: ID!
-      before: String!
-      after: String!
-    ): [TagsReadingStatus]
+      after: String
+      before: String
+      limit: Int
+    ): [MostReadTag]
     """
     Get the reading rank history of the user.
     An aggregated count of all the ranks the user ever received.
@@ -248,6 +246,7 @@ interface ReadingHistyoryArgs {
   id: string;
   after: string;
   before: string;
+  limit?: number;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -296,24 +295,20 @@ export const resolvers: IResolvers<any, Context> = {
 
       return isSameUser ? rank : { currentRank: rank.currentRank };
     },
-    userReadingTopTags: async (
-      _,
-      { id, before, after }: ReadingHistyoryArgs,
-      ctx: Context,
-    ): Promise<TagsReadingStatus[]> => {
-      return getUserReadingDays(ctx.con, {
-        userId: id,
-        dateRange: { start: after, end: before },
-      });
-    },
     userMostReadTags: async (
       _,
-      { id }: { id: string },
+      { id, before, after, limit = 5 }: ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<GQLMostReadTag[]> => {
+      const start = after ?? new Date(START_OF_DEVCARD).toISOString();
+      const end = before ?? new Date().toISOString();
       const user = await ctx.con.getRepository(User).findOneOrFail(id);
 
-      return getMostReadTags(ctx.con, user.id, { limit: 5 });
+      return getMostReadTags(ctx.con, {
+        limit,
+        userId: user.id,
+        dateRange: { start, end },
+      });
     },
     userReadingRankHistory: async (
       _,

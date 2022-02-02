@@ -2,34 +2,26 @@ import { getUserReadingRank, ReadingRank, getUserReadingDays } from './users';
 import { Post, Source, View } from '../entity';
 import { Connection } from 'typeorm';
 import { User } from '../entity/User';
-
-interface QueryOptions {
-  limit?: number;
-}
+import { ReadingDaysArgs } from './users';
 
 export interface MostReadTag {
   value: string;
   count: number;
+  percentage?: number;
 }
 
 export const START_OF_DEVCARD = '2020-12-14';
 
 export const getMostReadTags = async (
   con: Connection,
-  userId: string,
-  { limit = 4 }: QueryOptions = {},
+  args: ReadingDaysArgs,
 ): Promise<MostReadTag[]> => {
-  const start = new Date(START_OF_DEVCARD).toISOString();
-  const end = new Date().toISOString();
-  const result = await getUserReadingDays(con, {
-    userId,
-    limit,
-    dateRange: { start, end },
-  });
+  const result = await getUserReadingDays(con, args);
 
-  return result.map(({ tag, readingDays }) => ({
+  return result.map(({ tag, readingDays, percentage }) => ({
     value: tag,
     count: readingDays,
+    percentage,
   }));
 };
 
@@ -78,10 +70,12 @@ export async function getDevCardData(
   userId: string,
   con: Connection,
 ): Promise<DevCardData> {
+  const start = new Date(START_OF_DEVCARD).toISOString();
+  const end = new Date().toISOString();
   const user = await con.getRepository(User).findOneOrFail(userId);
   const [articlesRead, tags, sourcesLogos, rank] = await Promise.all([
     con.getRepository(View).count({ userId }),
-    getMostReadTags(con, userId),
+    getMostReadTags(con, { userId, limit: 4, dateRange: { start, end } }),
     getFavoriteSourcesLogos(con, userId),
     getUserReadingRank(con, userId, user?.timezone),
   ]);

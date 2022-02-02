@@ -106,9 +106,8 @@ const rankFromProgress = (progress: number) => {
 
 type DateRange = { start: string; end: string };
 
-interface ReadingDaysArgs {
+export interface ReadingDaysArgs {
   userId: string;
-  timezone?: string;
   limit?: number;
   dateRange: DateRange;
 }
@@ -182,7 +181,6 @@ export const getUserReadingRank = async (
 
     return getUserReadingDays(con, {
       userId,
-      timezone,
       dateRange: { start, end },
     });
   };

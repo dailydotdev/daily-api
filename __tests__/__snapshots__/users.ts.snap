@@ -263,6 +263,43 @@ Array [
 ]
 `;
 
+exports[`query userMostReadTags should return the user most read tags 2`] = `
+Array [
+  Object {
+    "count": 5,
+    "value": "javascript",
+  },
+  Object {
+    "count": 3,
+    "value": "security",
+  },
+  Object {
+    "count": 3,
+    "value": "ai",
+  },
+  Object {
+    "count": 2,
+    "value": "devops",
+  },
+  Object {
+    "count": 1,
+    "value": "cloud",
+  },
+  Object {
+    "count": 1,
+    "value": "crypto",
+  },
+  Object {
+    "count": 1,
+    "value": "golang",
+  },
+  Object {
+    "count": 1,
+    "value": "web3",
+  },
+]
+`;
+
 exports[`query userReadHistory should return the read history 1`] = `
 Array [
   Object {
@@ -390,51 +427,6 @@ Array [
   Object {
     "count": 2,
     "rank": 3,
-  },
-]
-`;
-
-exports[`query userReadingTopTags should return the user reading top tags 1`] = `
-Array [
-  Object {
-    "percentage": 0.7142857142857143,
-    "readingDays": 5,
-    "tag": "javascript",
-  },
-  Object {
-    "percentage": 0.42857142857142855,
-    "readingDays": 3,
-    "tag": "security",
-  },
-  Object {
-    "percentage": 0.42857142857142855,
-    "readingDays": 3,
-    "tag": "ai",
-  },
-  Object {
-    "percentage": 0.2857142857142857,
-    "readingDays": 2,
-    "tag": "devops",
-  },
-  Object {
-    "percentage": 0.14285714285714285,
-    "readingDays": 1,
-    "tag": "cloud",
-  },
-  Object {
-    "percentage": 0.14285714285714285,
-    "readingDays": 1,
-    "tag": "crypto",
-  },
-  Object {
-    "percentage": 0.14285714285714285,
-    "readingDays": 1,
-    "tag": "golang",
-  },
-  Object {
-    "percentage": 0.14285714285714285,
-    "readingDays": 1,
-    "tag": "web3",
   },
 ]
 `;
