@@ -296,12 +296,9 @@ export const resolvers: IResolvers<any, Context> = {
       { id, before, after }: ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<TagsReadingStatus[]> => {
-      const { timezone } = await ctx.con.getRepository(User).findOneOrFail(id);
-
       return getUserReadingDays(ctx.con, {
         userId: id,
-        timezone: timezone ?? 'utc',
-        dateRange: { start: new Date(after), end: new Date(before) },
+        dateRange: { start: after, end: before },
       });
     },
     userMostReadTags: async (

@@ -104,7 +104,7 @@ const rankFromProgress = (progress: number) => {
   return 0;
 };
 
-type DateRange = { start: Date; end: Date };
+type DateRange = { start: string; end: string };
 
 interface ReadingDaysArgs {
   userId: string;
@@ -115,19 +115,19 @@ interface ReadingDaysArgs {
 
 export const getUserReadingDays = (
   con: Connection,
-  { userId, dateRange, timezone = 'utc', limit = 8 }: ReadingDaysArgs,
+  { userId, dateRange: { start, end }, limit = 8 }: ReadingDaysArgs,
 ): Promise<TagsReadingStatus[]> => {
-  const timestamp = `v."timestamp" at time zone '${timezone}'`;
-  const start = `timezone('${timezone}', '${dateRange.start.toISOString()}')`;
-  const end = `timezone('${timezone}', '${dateRange.end.toISOString()}')`;
-  const condition = `${timestamp} >= ${start} and ${timestamp} < ${end}`;
-
   return con.query(
     `
     with filtered_view as (
-      select *, CAST(v."timestamp" at time zone '${timezone}' AS DATE) as day
-      from "view" v
-      where "userId" = $1 and ${condition}
+      select  *, CAST(v."timestamp" at time zone COALESCE(u.timezone, 'utc') AS DATE) as day
+      from    "view" v
+      inner   join "user" u
+      on      u."id" = v."userId"
+
+      where   u."id" = $1
+      and     "timestamp" >= $2
+      and     "timestamp" < $3
     )
     select *, tags."readingDays" * 1.0 / (select count(DISTINCT day) from filtered_view) as percentage
     from (
@@ -138,9 +138,9 @@ export const getUserReadingDays = (
       group by pk.keyword
     ) as tags
     order by tags."readingDays" desc
-    limit $2;
+    limit $4;
   `,
-    [userId, limit],
+    [userId, start, end, limit],
   );
 };
 
@@ -176,8 +176,9 @@ export const getUserReadingRank = async (
       return Promise.resolve(null);
     }
 
-    const start = new Date(startOfWeek(Date.now()).getTime());
-    const end = new Date(endOfWeek(Date.now()).getTime());
+    const now = Date.now();
+    const start = new Date(startOfWeek(now).getTime()).toISOString();
+    const end = new Date(endOfWeek(now).getTime()).toISOString();
 
     return getUserReadingDays(con, {
       userId,

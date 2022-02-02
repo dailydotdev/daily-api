@@ -17,8 +17,8 @@ export const getMostReadTags = async (
   userId: string,
   { limit = 4 }: QueryOptions = {},
 ): Promise<MostReadTag[]> => {
-  const start = new Date(0);
-  const end = new Date();
+  const start = new Date(0).toISOString();
+  const end = new Date().toISOString();
   const result = await getUserReadingDays(con, {
     userId,
     limit,
