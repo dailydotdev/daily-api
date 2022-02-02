@@ -68,6 +68,7 @@ export interface GQLMostReadTag {
 export interface ReadingRankArgs {
   id: string;
   version?: number;
+  limit?: number;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -185,7 +186,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the reading rank of the user
     """
-    userReadingRank(id: ID!, version: Int): ReadingRank
+    userReadingRank(id: ID!, version: Int, limit: Int): ReadingRank
     """
     Get the most read tags of the user
     """
@@ -281,7 +282,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     userReadingRank: async (
       _,
-      { id, version }: ReadingRankArgs,
+      { id, version, limit }: ReadingRankArgs,
       ctx: Context,
     ): Promise<GQLReadingRank> => {
       const isSameUser = ctx.userId === id;
@@ -291,6 +292,7 @@ export const resolvers: IResolvers<any, Context> = {
         id,
         user?.timezone,
         version > 1,
+        limit ?? 6,
       );
 
       return isSameUser ? rank : { currentRank: rank.currentRank };

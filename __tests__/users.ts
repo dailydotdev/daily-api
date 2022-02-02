@@ -273,8 +273,8 @@ describe('query userMostReadTags', () => {
 });
 
 describe('query userReadingRank', () => {
-  const QUERY = `query UserReadingRank($id: ID!, $version: Int){
-    userReadingRank(id: $id, version: $version) {
+  const QUERY = `query UserReadingRank($id: ID!, $version: Int, $limit: Int){
+    userReadingRank(id: $id, version: $version, limit: $limit) {
       rankThisWeek
       rankLastWeek
       currentRank
@@ -418,13 +418,25 @@ describe('query userReadingRank', () => {
       },
     ]);
     const res = await client.query(QUERY, {
-      variables: { id: '1', version: 2 },
+      variables: { id: '1', version: 2, limit: 8 },
     });
     expect(res.errors).toBeFalsy();
     const { tags } = res.data.userReadingRank;
     expect(tags.length).toEqual(8);
     const sum = tags.reduce((total, { readingDays }) => total + readingDays, 0);
     expect(sum).toEqual(12);
+
+    const limited = await client.query(QUERY, {
+      variables: { id: '1', version: 2, limit: 6 },
+    });
+    expect(limited.errors).toBeFalsy();
+    const { tags: limitedTags } = limited.data.userReadingRank;
+    expect(limitedTags.length).toEqual(6);
+    const limitedSum = limitedTags.reduce(
+      (total, { readingDays }) => total + readingDays,
+      0,
+    );
+    expect(limitedSum).toEqual(10);
   });
 
   it('should return the last read time accurately', async () => {
