@@ -104,6 +104,11 @@ export const typeDefs = /* GraphQL */ `
     customLinks: [String]
 
     """
+    Whether the user opted out from the weekly goal
+    """
+    optOutWeeklyGoal: Boolean!
+
+    """
     Time of last update
     """
     updatedAt: DateTime!
@@ -170,6 +175,11 @@ export const typeDefs = /* GraphQL */ `
     Custom links that the user has defined for their extension shortcut links
     """
     customLinks: [String]
+
+    """
+    Whether the user opted out from the weekly goal
+    """
+    optOutWeeklyGoal: Boolean
   }
 
   extend type Mutation {
