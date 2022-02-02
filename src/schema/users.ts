@@ -330,7 +330,6 @@ export const resolvers: IResolvers<any, Context> = {
                       from "view"
                       join "user" on "user".id = view."userId"
                       where "userId" = $1
-                        and "timestamp" >= '2020-12-14'
                         and "timestamp" >= $2
                         and "timestamp" < $3
                       group by 1
