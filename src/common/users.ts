@@ -92,15 +92,15 @@ interface ReadingRankQueryResult {
   lastReadTime: Date;
 }
 
-const STEPS_PER_RANK = [3, 4, 5, 6, 7];
-const STEPS_PER_RANK_REVERSE = STEPS_PER_RANK.reverse();
+const V1_STEPS_PER_RANK = [3, 4, 5, 6, 7];
+const STEPS_PER_RANK_REVERSE = V1_STEPS_PER_RANK.reverse();
 
 const rankFromProgress = (progress: number) => {
   const reverseRank = STEPS_PER_RANK_REVERSE.findIndex(
     (threshold) => progress >= threshold,
   );
   if (reverseRank > -1) {
-    return STEPS_PER_RANK.length - reverseRank;
+    return V1_STEPS_PER_RANK.length - reverseRank;
   }
   return 0;
 };
