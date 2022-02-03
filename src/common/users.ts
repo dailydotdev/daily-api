@@ -148,6 +148,7 @@ export const getUserReadingRank = async (
   userId: string,
   timezone = 'utc',
   includeTags = false,
+  limit = 6,
 ): Promise<ReadingRank> => {
   if (!timezone || timezone === null) {
     timezone = 'utc';
@@ -180,6 +181,7 @@ export const getUserReadingRank = async (
     const end = new Date(endOfWeek(now).getTime()).toISOString();
 
     return getUserReadingDays(con, {
+      limit,
       userId,
       dateRange: { start, end },
     });
