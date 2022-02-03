@@ -17,10 +17,10 @@ export const getMostReadTags = async (
 ): Promise<MostReadTag[]> => {
   const result = await getUserReadingDays(con, args);
 
-  return result.map(({ tag, readingDays, percentage }) => ({
+  return result.map(({ tag, readingDays, ...props }) => ({
     value: tag,
     count: readingDays,
-    percentage,
+    ...props,
   }));
 };
 

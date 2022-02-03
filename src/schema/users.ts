@@ -63,6 +63,7 @@ export interface GQLMostReadTag {
   value: string;
   count: number;
   percentage?: number;
+  total?: number;
 }
 
 export interface ReadingRankArgs {
@@ -142,6 +143,7 @@ export const typeDefs = /* GraphQL */ `
     value: String!
     count: Int!
     percentage: Float
+    total: Int
   }
 
   type ReadingRankHistory {

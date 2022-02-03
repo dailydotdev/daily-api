@@ -72,6 +72,7 @@ export interface TagsReadingStatus {
   tag: string;
   readingDays: number;
   percentage: number;
+  total: number;
 }
 
 export interface ReadingRank {
@@ -128,7 +129,9 @@ export const getUserReadingDays = (
       and     "timestamp" >= $2
       and     "timestamp" < $3
     )
-    select *, tags."readingDays" * 1.0 / (select count(DISTINCT day) from filtered_view) as percentage
+    select  *,
+            (select count(DISTINCT day) from filtered_view) as total,
+            tags."readingDays" * 1.0 / (select count(DISTINCT day) from filtered_view) as percentage
     from (
       select pk.keyword as tag, count(DISTINCT day) as "readingDays"
       from filtered_view v

@@ -238,6 +238,8 @@ describe('query userMostReadTags', () => {
     userMostReadTags(id: $id, limit: $limit) {
       value
       count
+      total
+      percentage
     }
   }`;
 
