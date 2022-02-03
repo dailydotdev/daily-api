@@ -150,7 +150,7 @@ export const getUserReadingRank = async (
   con: Connection,
   userId: string,
   timezone = 'utc',
-  includeTags = false,
+  version = 1,
   limit = 6,
 ): Promise<ReadingRank> => {
   if (!timezone || timezone === null) {
@@ -176,7 +176,7 @@ export const getUserReadingRank = async (
 
   const now = new Date();
   const getReadingTags = () => {
-    if (!includeTags) {
+    if (version === 1) {
       return Promise.resolve(null);
     }
 
@@ -194,8 +194,8 @@ export const getUserReadingRank = async (
     req.getRawOne<ReadingRankQueryResult>(),
     getReadingTags(),
   ]);
-  const rankThisWeek = rankFromProgress(thisWeek);
-  const rankLastWeek = rankFromProgress(lastWeek);
+  const rankThisWeek = version === 1 ? rankFromProgress(thisWeek) : thisWeek;
+  const rankLastWeek = version === 1 ? rankFromProgress(lastWeek) : lastWeek;
   return {
     lastReadTime,
     currentRank: rankThisWeek > rankLastWeek ? rankThisWeek : rankLastWeek,

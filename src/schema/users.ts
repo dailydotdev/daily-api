@@ -284,7 +284,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     userReadingRank: async (
       _,
-      { id, version, limit = 6 }: ReadingRankArgs,
+      { id, version = 1, limit = 6 }: ReadingRankArgs,
       ctx: Context,
     ): Promise<GQLReadingRank> => {
       const isSameUser = ctx.userId === id;
@@ -293,7 +293,7 @@ export const resolvers: IResolvers<any, Context> = {
         ctx.con,
         id,
         user?.timezone,
-        version > 1,
+        version,
         limit,
       );
 
