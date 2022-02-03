@@ -242,22 +242,32 @@ exports[`query userMostReadTags should return the user most read tags 1`] = `
 Array [
   Object {
     "count": 5,
+    "percentage": 0.7142857142857143,
+    "total": 7,
     "value": "javascript",
   },
   Object {
     "count": 3,
+    "percentage": 0.42857142857142855,
+    "total": 7,
     "value": "security",
   },
   Object {
     "count": 3,
+    "percentage": 0.42857142857142855,
+    "total": 7,
     "value": "ai",
   },
   Object {
     "count": 2,
+    "percentage": 0.2857142857142857,
+    "total": 7,
     "value": "devops",
   },
   Object {
     "count": 1,
+    "percentage": 0.14285714285714285,
+    "total": 7,
     "value": "backend",
   },
 ]
@@ -267,34 +277,50 @@ exports[`query userMostReadTags should return the user most read tags 2`] = `
 Array [
   Object {
     "count": 5,
+    "percentage": 0.7142857142857143,
+    "total": 7,
     "value": "javascript",
   },
   Object {
     "count": 3,
+    "percentage": 0.42857142857142855,
+    "total": 7,
     "value": "security",
   },
   Object {
     "count": 3,
+    "percentage": 0.42857142857142855,
+    "total": 7,
     "value": "ai",
   },
   Object {
     "count": 2,
+    "percentage": 0.2857142857142857,
+    "total": 7,
     "value": "devops",
   },
   Object {
     "count": 1,
+    "percentage": 0.14285714285714285,
+    "total": 7,
     "value": "cloud",
   },
   Object {
     "count": 1,
+    "percentage": 0.14285714285714285,
+    "total": 7,
     "value": "crypto",
   },
   Object {
     "count": 1,
+    "percentage": 0.14285714285714285,
+    "total": 7,
     "value": "golang",
   },
   Object {
     "count": 1,
+    "percentage": 0.14285714285714285,
+    "total": 7,
     "value": "web3",
   },
 ]
