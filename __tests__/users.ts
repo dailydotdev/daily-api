@@ -359,8 +359,8 @@ describe('query userReadingRank', () => {
     ]);
     const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
-    const { currentRank, progressThisWeek } = res.data.userReadingRank;
-    expect(currentRank).not.toEqual(progressThisWeek);
+    const { rankThisWeek, progressThisWeek } = res.data.userReadingRank;
+    expect(rankThisWeek).not.toEqual(progressThisWeek);
     expect(res.data.userReadingRank).toMatchSnapshot({
       readToday: expect.anything(),
       lastReadTime: expect.anything(),
@@ -429,8 +429,8 @@ describe('query userReadingRank', () => {
     expect(tags.length).toEqual(8);
     const sum = tags.reduce((total, { readingDays }) => total + readingDays, 0);
     expect(sum).toEqual(12);
-    const { currentRank, progressThisWeek } = res.data.userReadingRank;
-    expect(currentRank).toEqual(progressThisWeek);
+    const { rankThisWeek, progressThisWeek } = res.data.userReadingRank;
+    expect(rankThisWeek).toEqual(progressThisWeek);
 
     const limited = await client.query(QUERY, {
       variables: { id: '1', version: 2, limit: 6 },
