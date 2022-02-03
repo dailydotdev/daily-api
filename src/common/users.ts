@@ -92,15 +92,15 @@ interface ReadingRankQueryResult {
   lastReadTime: Date;
 }
 
-const STEPS_PER_RANK = [3, 4, 5, 6, 7];
-const STEPS_PER_RANK_REVERSE = STEPS_PER_RANK.reverse();
+const V1_STEPS_PER_RANK = [3, 4, 5, 6, 7];
+const STEPS_PER_RANK_REVERSE = V1_STEPS_PER_RANK.reverse();
 
 const rankFromProgress = (progress: number) => {
   const reverseRank = STEPS_PER_RANK_REVERSE.findIndex(
     (threshold) => progress >= threshold,
   );
   if (reverseRank > -1) {
-    return STEPS_PER_RANK.length - reverseRank;
+    return V1_STEPS_PER_RANK.length - reverseRank;
   }
   return 0;
 };
@@ -150,7 +150,7 @@ export const getUserReadingRank = async (
   con: Connection,
   userId: string,
   timezone = 'utc',
-  includeTags = false,
+  version = 1,
   limit = 6,
 ): Promise<ReadingRank> => {
   if (!timezone || timezone === null) {
@@ -176,7 +176,7 @@ export const getUserReadingRank = async (
 
   const now = new Date();
   const getReadingTags = () => {
-    if (!includeTags) {
+    if (version === 1) {
       return Promise.resolve(null);
     }
 
@@ -194,8 +194,8 @@ export const getUserReadingRank = async (
     req.getRawOne<ReadingRankQueryResult>(),
     getReadingTags(),
   ]);
-  const rankThisWeek = rankFromProgress(thisWeek);
-  const rankLastWeek = rankFromProgress(lastWeek);
+  const rankThisWeek = version === 1 ? rankFromProgress(thisWeek) : thisWeek;
+  const rankLastWeek = version === 1 ? rankFromProgress(lastWeek) : lastWeek;
   return {
     lastReadTime,
     currentRank: rankThisWeek > rankLastWeek ? rankThisWeek : rankLastWeek,
