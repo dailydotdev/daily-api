@@ -93,6 +93,9 @@ Array [
 exports[`compatibility routes GET /posts/latest should return preconfigured feed when logged-in 1`] = `
 Array [
   Object {
+    "id": "p5",
+  },
+  Object {
     "id": "p4",
   },
   Object {
@@ -169,10 +172,7 @@ Object {
   "blockedTags": Array [
     "golang",
   ],
-  "excludeSources": Array [
-    "b",
-    "c",
-  ],
+  "excludeSources": Array [],
   "includeTags": Array [
     "html",
     "javascript",
@@ -1173,6 +1173,55 @@ Object {
       },
       Object {
         "node": Object {
+          "id": "includedPost",
+          "readTime": null,
+          "source": Object {
+            "id": "includedSource",
+            "image": "http://image.com/c",
+            "name": "IS",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "Included Post",
+          "url": "http://p1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "c2NvcmU6MA==",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query anonymousFeed should safetly handle a case where the feed is empty 1`] = `
+Object {
+  "anonymousFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
           "id": "p1",
           "readTime": null,
           "source": Object {
@@ -1191,37 +1240,26 @@ Object {
       },
       Object {
         "node": Object {
-          "id": "includedPost",
+          "id": "p4",
           "readTime": null,
           "source": Object {
-            "id": "includedSource",
-            "image": "http://image.com/c",
-            "name": "IS",
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
             "public": true,
           },
           "tags": Array [
+            "backend",
+            "data",
             "javascript",
-            "webdev",
           ],
-          "title": "Included Post",
-          "url": "http://p1.com",
+          "title": "P4",
+          "url": "http://p4.com",
         },
       },
     ],
     "pageInfo": Object {
-      "endCursor": "c2NvcmU6MA==",
-      "hasNextPage": false,
-    },
-  },
-}
-`;
-
-exports[`query anonymousFeed should safetly handle a case where the feed is empty 1`] = `
-Object {
-  "anonymousFeed": Object {
-    "edges": Array [],
-    "pageInfo": Object {
-      "endCursor": null,
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
       "hasNextPage": false,
     },
   },
@@ -1280,6 +1318,24 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
+          "id": "p5",
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [
+            "html",
+            "javascript",
+          ],
+          "title": "P5",
+          "url": "http://p5.com",
+        },
+      },
+      Object {
+        "node": Object {
           "id": "p1",
           "readTime": null,
           "source": Object {
@@ -1311,6 +1367,24 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
+          "id": "p5",
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [
+            "html",
+            "javascript",
+          ],
+          "title": "P5",
+          "url": "http://p5.com",
+        },
+      },
+      Object {
+        "node": Object {
           "id": "p1",
           "readTime": null,
           "source": Object {
@@ -1336,60 +1410,30 @@ Object {
 }
 `;
 
-exports[`query feed should return feed v2 1`] = `
-Object {
-  "feed": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "id": "p1",
-          "readTime": null,
-          "source": Object {
-            "id": "a",
-            "image": "http://image.com/a",
-            "name": "A",
-            "public": true,
-          },
-          "tags": Array [
-            "javascript",
-            "webdev",
-          ],
-          "title": "P1",
-          "url": "http://p1.com",
-        },
-      },
-      Object {
-        "node": Object {
-          "id": "p4",
-          "readTime": null,
-          "source": Object {
-            "id": "a",
-            "image": "http://image.com/a",
-            "name": "A",
-            "public": true,
-          },
-          "tags": Array [
-            "backend",
-            "data",
-            "javascript",
-          ],
-          "title": "P4",
-          "url": "http://p4.com",
-        },
-      },
-    ],
-    "pageInfo": Object {
-      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
-      "hasNextPage": false,
-    },
-  },
-}
-`;
+exports[`query feed should return feed v2 1`] = `null`;
 
 exports[`query feed should return feed with preconfigured filters 1`] = `
 Object {
   "feed": Object {
     "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p5",
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [
+            "html",
+            "javascript",
+          ],
+          "title": "P5",
+          "url": "http://p5.com",
+        },
+      },
       Object {
         "node": Object {
           "id": "p4",
@@ -1687,24 +1731,6 @@ Object {
       },
       Object {
         "node": Object {
-          "id": "p1",
-          "readTime": null,
-          "source": Object {
-            "id": "a",
-            "image": "http://image.com/a",
-            "name": "A",
-            "public": true,
-          },
-          "tags": Array [
-            "javascript",
-            "webdev",
-          ],
-          "title": "P1",
-          "url": "http://p1.com",
-        },
-      },
-      Object {
-        "node": Object {
           "id": "includedPost",
           "readTime": null,
           "source": Object {
@@ -1718,6 +1744,24 @@ Object {
             "webdev",
           ],
           "title": "Included Post",
+          "url": "http://p1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
           "url": "http://p1.com",
         },
       },
@@ -1782,9 +1826,46 @@ Object {
           "url": "http://p3.com",
         },
       },
+      Object {
+        "node": Object {
+          "id": "p4",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "backend",
+            "data",
+            "javascript",
+          ],
+          "title": "P4",
+          "url": "http://p4.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
     ],
     "pageInfo": Object {
-      "endCursor": "c2NvcmU6NA==",
+      "endCursor": "c2NvcmU6MA==",
       "hasNextPage": false,
     },
   },
