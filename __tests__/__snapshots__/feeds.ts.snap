@@ -164,6 +164,18 @@ Array [
 ]
 `;
 
+exports[`function feedToFilters shoud return filters for sources with consideration of features flags 1`] = `
+Object {
+  "blockedTags": Array [],
+  "excludeSources": Array [
+    "excludedSource",
+    "settingsCombinationSource",
+    "experimentExcludedSource",
+  ],
+  "includeTags": Array [],
+}
+`;
+
 exports[`function feedToFilters shoud return filters for tags/sources based on the values from our data 1`] = `
 Object {
   "blockedTags": Array [

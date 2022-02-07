@@ -1357,4 +1357,12 @@ describe('function feedToFilters', () => {
     await saveFeedFixtures();
     expect(await feedToFilters(con, '1')).toMatchSnapshot();
   });
+
+  it('shoud return filters for sources with consideration of features flags', async () => {
+    loggedUser = '1';
+    process.env.ENABLE_SETTINGS_EXPERIMENT = 'true';
+    await saveAdvancedSettingsFiltersFixtures();
+    mockFeatures();
+    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
+  });
 });
