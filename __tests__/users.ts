@@ -185,6 +185,19 @@ const postKeywordFixtures: Partial<PostKeyword>[] = [
   { postId: 'p6', keyword: 'devops', status: 'allow' },
 ];
 
+const additionalKeywords: Partial<Keyword>[] = [
+  { value: 'security', occurrences: 15, status: 'allow' },
+  { value: 'web3', occurrences: 20, status: 'allow' },
+  { value: 'blockchain', occurrences: 30, status: 'allow' },
+  { value: 'cloud', occurrences: 45, status: 'allow' },
+  { value: 'backend', occurrences: 105, status: 'allow' },
+  { value: 'crypto', occurrences: 180, status: 'allow' },
+  { value: 'ai', occurrences: 270, status: 'allow' },
+  { value: 'analytics', occurrences: 420, status: 'allow' },
+  { value: 'devops', occurrences: 760, status: 'allow' },
+  { value: 'javascript', occurrences: 980, status: 'allow' },
+];
+
 afterAll(() => disposeGraphQLTesting(state));
 
 describe('query userStats', () => {
@@ -221,57 +234,60 @@ describe('query userStats', () => {
 });
 
 describe('query userMostReadTags', () => {
-  const QUERY = `query UserMostReadTags($id: ID!){
-    userMostReadTags(id: $id) {
+  const QUERY = `query UserMostReadTags($id: ID!, $limit: Int){
+    userMostReadTags(id: $id, limit: $limit) {
       value
       count
+      total
+      percentage
     }
   }`;
 
-  const additionalKeywords: Partial<Keyword>[] = [
-    { value: 'security', occurrences: 15, status: 'allow' },
-    { value: 'web3', occurrences: 20, status: 'allow' },
-    { value: 'blockchain', occurrences: 30, status: 'allow' },
-    { value: 'cloud', occurrences: 45, status: 'allow' },
-    { value: 'backend', occurrences: 105, status: 'allow' },
-    { value: 'crypto', occurrences: 180, status: 'allow' },
-    { value: 'ai', occurrences: 270, status: 'allow' },
-    { value: 'analytics', occurrences: 420, status: 'allow' },
-    { value: 'devops', occurrences: 760, status: 'allow' },
-    { value: 'javascript', occurrences: 980, status: 'allow' },
-  ];
-
   it('should return the user most read tags', async () => {
     loggedUser = '1';
+    const now = new Date();
     await con
       .getRepository(Keyword)
       .save([...keywordsFixture, ...additionalKeywords]);
     await con.getRepository(PostKeyword).save(postKeywordFixtures);
     await con.getRepository(View).save([
-      { userId: loggedUser, timestamp: new Date(2021), postId: 'p1' },
-      { userId: loggedUser, timestamp: new Date(2022), postId: 'p2' },
-      { userId: loggedUser, timestamp: new Date(2023), postId: 'p3' },
-      { userId: loggedUser, timestamp: new Date(2024), postId: 'p4' },
-      { userId: loggedUser, timestamp: new Date(2025), postId: 'p5' },
-      { userId: loggedUser, timestamp: new Date(2026), postId: 'p6' },
-      { userId: loggedUser, timestamp: new Date(2027), postId: 'p1' },
+      { userId: loggedUser, timestamp: subDays(now, 1), postId: 'p1' },
+      { userId: loggedUser, timestamp: subDays(now, 2), postId: 'p2' },
+      { userId: loggedUser, timestamp: subDays(now, 3), postId: 'p3' },
+      { userId: loggedUser, timestamp: subDays(now, 4), postId: 'p4' },
+      { userId: loggedUser, timestamp: subDays(now, 5), postId: 'p5' },
+      { userId: loggedUser, timestamp: subDays(now, 6), postId: 'p6' },
+      { userId: loggedUser, timestamp: subDays(now, 7), postId: 'p1' },
     ]);
     const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.userMostReadTags.length).toEqual(5);
     expect(res.data.userMostReadTags).toMatchSnapshot();
+
+    const limit = 8;
+    const limited = await client.query(QUERY, {
+      variables: { id: '1', limit },
+    });
+    expect(limited.errors).toBeFalsy();
+    expect(limited.data.userMostReadTags.length).toEqual(limit);
+    expect(limited.data.userMostReadTags).toMatchSnapshot();
   });
 });
 
 describe('query userReadingRank', () => {
-  const QUERY = `query UserReadingRank($id: ID!){
-    userReadingRank(id: $id) {
+  const QUERY = `query UserReadingRank($id: ID!, $version: Int, $limit: Int){
+    userReadingRank(id: $id, version: $version, limit: $limit) {
       rankThisWeek
       rankLastWeek
       currentRank
       progressThisWeek
       readToday
       lastReadTime
+      tags {
+        tag
+        readingDays
+        percentage
+      }
     }
   }`;
 
@@ -289,6 +305,10 @@ describe('query userReadingRank', () => {
 
   it('should return the reading rank', async () => {
     loggedUser = '1';
+    await con
+      .getRepository(Keyword)
+      .save([...keywordsFixture, ...additionalKeywords]);
+    await con.getRepository(PostKeyword).save(postKeywordFixtures);
     await con.getRepository(View).save([
       { userId: loggedUser, postId: 'p1', timestamp: lastWeekStart },
       {
@@ -300,6 +320,21 @@ describe('query userReadingRank', () => {
         userId: loggedUser,
         postId: 'p3',
         timestamp: addDays(lastWeekStart, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: addDays(thisWeekStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addDays(thisWeekStart, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(thisWeekStart, 3),
       },
       {
         userId: loggedUser,
@@ -324,10 +359,90 @@ describe('query userReadingRank', () => {
     ]);
     const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
+    const { rankThisWeek, progressThisWeek } = res.data.userReadingRank;
+    expect(rankThisWeek).not.toEqual(progressThisWeek);
     expect(res.data.userReadingRank).toMatchSnapshot({
       readToday: expect.anything(),
       lastReadTime: expect.anything(),
     });
+  });
+
+  it('should return the reading rank with tags and accurate current rank on version 2', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Keyword)
+      .save([...keywordsFixture, ...additionalKeywords]);
+    await con.getRepository(PostKeyword).save(postKeywordFixtures);
+    await con.getRepository(View).save([
+      { userId: loggedUser, postId: 'p1', timestamp: lastWeekStart },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addDays(lastWeekStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastWeekStart, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: addDays(thisWeekStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addDays(thisWeekStart, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(thisWeekStart, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p4',
+        timestamp: addDays(thisWeekStart, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p5',
+        timestamp: addDays(thisWeekStart, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p6',
+        timestamp: addDays(thisWeekStart, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p7',
+        timestamp: addDays(thisWeekStart, 4),
+      },
+    ]);
+    const res = await client.query(QUERY, {
+      variables: { id: '1', version: 2, limit: 8 },
+    });
+    expect(res.errors).toBeFalsy();
+    const { tags } = res.data.userReadingRank;
+    expect(tags.length).toEqual(8);
+    const sum = tags.reduce((total, { readingDays }) => total + readingDays, 0);
+    expect(sum).toEqual(12);
+    const { rankThisWeek, progressThisWeek } = res.data.userReadingRank;
+    expect(rankThisWeek).toEqual(progressThisWeek);
+
+    const limited = await client.query(QUERY, {
+      variables: { id: '1', version: 2, limit: 6 },
+    });
+    expect(limited.errors).toBeFalsy();
+    const { tags: limitedTags } = limited.data.userReadingRank;
+    expect(limitedTags.length).toEqual(6);
+    const limitedSum = limitedTags.reduce(
+      (total, { readingDays }) => total + readingDays,
+      0,
+    );
+    expect(limitedSum).toEqual(10);
   });
 
   it('should return the last read time accurately', async () => {
@@ -459,21 +574,21 @@ describe('query userReadingRank', () => {
   });
 });
 
-describe('query userReadingRankHistory with timezone', () => {
-  const QUERY = `query UserReadingRankHistory($id: ID!){
-    userReadingRankHistory(id: $id) {
+describe('query userReadingRankHistory', () => {
+  const QUERY = `query UserReadingRankHistory($id: ID!, $after: String!, $before: String!, $version: Int){
+    userReadingRankHistory(id: $id, after: $after, before: $before, version: $version) {
       rank
       count
     }
   }`;
 
   const now = new Date();
-  // const thisWeekStart = subHours(startOfISOWeek(new Date()), 5);
-  const lastWeekStart = subHours(startOfISOWeek(subDays(now, 7)), 5);
-  const lastTwoWeeksStart = subHours(startOfISOWeek(subDays(now, 14)), 5);
-  const lastThreeWeeksStart = subHours(startOfISOWeek(subDays(now, 21)), 5);
+  const thisWeekStart = startOfISOWeek(now);
+  const lastWeekStart = startOfISOWeek(subDays(now, 7));
+  const lastTwoWeeksStart = startOfISOWeek(subDays(now, 14));
+  const lastThreeWeeksStart = startOfISOWeek(subDays(now, 21));
 
-  it('should return the reading rank history', async () => {
+  it('should return the reading rank history utilizing timezone', async () => {
     loggedUser = '1';
     const loggedUserTimezonded = '2';
     await con.getRepository(View).save([
@@ -544,37 +659,28 @@ describe('query userReadingRankHistory with timezone', () => {
         timestamp: addDays(lastWeekStart, 5),
       },
     ]);
-    const res = await client.query(QUERY, { variables: { id: '1' } });
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '1',
+        after: lastThreeWeeksStart.toISOString(),
+        before: now.toISOString(),
+      },
+    });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRankHistory).toMatchSnapshot();
-    expect(res.data.userReadingRankHistory[0].count).toBe(3);
-    expect(res.data.userReadingRankHistory[1].count).toBe(1);
 
     const resPacific = await client.query(QUERY, {
-      variables: { id: loggedUserTimezonded },
+      variables: {
+        id: loggedUserTimezonded,
+        after: lastThreeWeeksStart.toISOString(),
+        before: now.toISOString(),
+      },
     });
     expect(resPacific.errors).toBeFalsy();
     expect(resPacific.data.userReadingRankHistory).toMatchSnapshot();
-    expect(resPacific.data.userReadingRankHistory[0].count).toBe(1);
-    expect(resPacific.data.userReadingRankHistory[1].count).toBe(2);
   });
-});
 
-describe('query userReadingRankHistory', () => {
-  const QUERY = `query UserReadingRankHistory($id: ID!){
-    userReadingRankHistory(id: $id) {
-      rank
-      count
-    }
-  }`;
-
-  const now = new Date();
-  const thisWeekStart = startOfISOWeek(now);
-  const lastWeekStart = startOfISOWeek(subDays(now, 7));
-  const lastTwoWeeksStart = startOfISOWeek(subDays(now, 14));
-  const lastThreeWeeksStart = startOfISOWeek(subDays(now, 21));
-
-  it('should return the reading rank history', async () => {
+  it('should return the reading rank history v2 utilizing timezone', async () => {
     loggedUser = '1';
     await con.getRepository(View).save([
       { userId: loggedUser, postId: 'p1', timestamp: lastThreeWeeksStart },
@@ -609,7 +715,14 @@ describe('query userReadingRankHistory', () => {
         timestamp: addDays(lastWeekStart, 5),
       },
     ]);
-    const res = await client.query(QUERY, { variables: { id: '1' } });
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '1',
+        after: lastThreeWeeksStart.toISOString(),
+        before: now.toISOString(),
+        version: 2,
+      },
+    });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRankHistory).toMatchSnapshot();
   });
@@ -649,7 +762,13 @@ describe('query userReadingRankHistory', () => {
         timestamp: addDays(lastWeekStart, 5),
       },
     ]);
-    const res = await client.query(QUERY, { variables: { id: '1' } });
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '1',
+        after: lastThreeWeeksStart.toISOString(),
+        before: now.toISOString(),
+      },
+    });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRankHistory).toMatchSnapshot();
   });
@@ -689,7 +808,13 @@ describe('query userReadingRankHistory', () => {
         timestamp: addDays(lastWeekStart, 5),
       },
     ]);
-    const res = await client.query(QUERY, { variables: { id: '1' } });
+    const res = await client.query(QUERY, {
+      variables: {
+        id: '1',
+        after: lastThreeWeeksStart.toISOString(),
+        before: now.toISOString(),
+      },
+    });
     expect(res.errors).toBeFalsy();
     expect(res.data.userReadingRankHistory).toMatchSnapshot();
   });
@@ -850,6 +975,7 @@ describe('query readHistory', () => {
         edges {
           node {
             timestamp
+            timestampDb
             post {
               id
               url
@@ -953,6 +1079,46 @@ describe('query readHistory', () => {
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.readHistory.edges.length).toEqual(1);
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return the same date for a non-timezoned user', async () => {
+    loggedUser = '1';
+    const createdAt = new Date('2020-09-22T07:15:51.247Z');
+    await saveFixtures(con, View, [
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: createdAt,
+      },
+    ]);
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.readHistory.edges.length).toEqual(1);
+    expect(res.data.readHistory.edges[0].node.timestamp).toBe(
+      res.data.readHistory.edges[0].node.timestampDb,
+    );
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return two different dates for a timezoned user', async () => {
+    loggedUser = '2';
+    const createdAt = new Date('2020-09-22T07:15:51.247Z');
+    await saveFixtures(con, View, [
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: createdAt,
+      },
+    ]);
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.readHistory.edges.length).toEqual(1);
+    expect(res.data.readHistory.edges[0].node.timestamp).not.toBe(
+      res.data.readHistory.edges[0].node.timestampDb,
+    );
     expect(res.data).toMatchSnapshot();
   });
 });

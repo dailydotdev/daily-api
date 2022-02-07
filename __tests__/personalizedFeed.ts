@@ -39,7 +39,9 @@ const setCache = (key: string, ids: string[]) =>
 
 it('should fetch anonymous feed and serve consequent pages from cache', async () => {
   nock('http://localhost:6000')
-    .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
+    .get(
+      '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&feed_id=global',
+    )
     .reply(200, tinybirdResponse);
   const page0 = await generatePersonalizedFeed({
     con,
@@ -61,7 +63,9 @@ it('should fetch anonymous feed and serve consequent pages from cache', async ()
 
 it('should fetch anonymous feed and serve consequent calls from cache', async () => {
   nock('http://localhost:6000')
-    .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
+    .get(
+      '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&feed_id=global',
+    )
     .reply(200, tinybirdResponse);
   const page0 = await generatePersonalizedFeed({
     con,
@@ -90,7 +94,9 @@ it('should fetch anonymous feed even when cache is old', async () => {
   await setCache(key, ['7', '8']);
 
   nock('http://localhost:6000')
-    .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
+    .get(
+      '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&feed_id=global',
+    )
     .reply(200, tinybirdResponse);
   const page0 = await generatePersonalizedFeed({
     con,
@@ -133,7 +139,9 @@ it('should fetch anonymous feed when last updated time is greater than last gene
   await setCache(key, ['7', '8']);
 
   nock('http://localhost:6000')
-    .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
+    .get(
+      '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&feed_id=global',
+    )
     .reply(200, tinybirdResponse);
   const page0 = await generatePersonalizedFeed({
     con,
@@ -159,7 +167,7 @@ it('should set the correct query parameters', async () => {
   ]);
   nock('http://localhost:6000')
     .get(
-      '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&user_id=u1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
+      '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&user_id=u1&feed_id=1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
     )
     .reply(200, tinybirdResponse);
   const page0 = await generatePersonalizedFeed({

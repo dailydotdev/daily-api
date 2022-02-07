@@ -710,6 +710,7 @@ describe('settings', () => {
     sidebarExpanded: true,
     sortingEnabled: false,
     customLinks: null,
+    optOutWeeklyGoal: false,
     updatedAt: date.getTime(),
   };
 

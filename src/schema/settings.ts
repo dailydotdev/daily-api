@@ -5,6 +5,7 @@ import { Settings } from '../entity';
 import { isValidHttpUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 import { EntityManager } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
 
 interface GQLSettings {
   userId: string;
@@ -17,6 +18,12 @@ interface GQLSettings {
   sidebarExpanded: boolean;
   sortingEnabled: boolean;
   updatedAt: Date;
+}
+
+interface GQLBookmarksSharing {
+  enabled: boolean;
+  slug: string | null;
+  rssUrl: string | null;
 }
 
 interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
@@ -97,9 +104,20 @@ export const typeDefs = /* GraphQL */ `
     customLinks: [String]
 
     """
+    Whether the user opted out from the weekly goal
+    """
+    optOutWeeklyGoal: Boolean!
+
+    """
     Time of last update
     """
     updatedAt: DateTime!
+  }
+
+  type BookmarksSharing {
+    enabled: Boolean!
+    slug: String
+    rssUrl: String
   }
 
   input UpdateSettingsInput {
@@ -157,6 +175,11 @@ export const typeDefs = /* GraphQL */ `
     Custom links that the user has defined for their extension shortcut links
     """
     customLinks: [String]
+
+    """
+    Whether the user opted out from the weekly goal
+    """
+    optOutWeeklyGoal: Boolean
   }
 
   extend type Mutation {
@@ -164,6 +187,11 @@ export const typeDefs = /* GraphQL */ `
     Update the user settings
     """
     updateUserSettings(data: UpdateSettingsInput!): Settings! @auth
+
+    """
+    Enable/disable the bookmarks sharing
+    """
+    setBookmarksSharing(enabled: Boolean!): BookmarksSharing @auth
   }
 
   extend type Query {
@@ -171,6 +199,8 @@ export const typeDefs = /* GraphQL */ `
     Get the user settings
     """
     userSettings: Settings! @auth
+
+    bookmarksSharing: BookmarksSharing @auth
   }
 `;
 
@@ -187,6 +217,8 @@ const getOrCreateSettings = async (
 
   return settings;
 };
+
+type PartialBookmarkSharing = Pick<GQLBookmarksSharing, 'slug'>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
@@ -207,6 +239,28 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         return repo.save(repo.merge(settings, data));
       });
     },
+    setBookmarksSharing: async (
+      _,
+      { enabled }: { enabled: boolean },
+      ctx,
+    ): Promise<PartialBookmarkSharing> => {
+      const settings = await ctx.con.transaction(
+        async (manager): Promise<Settings> => {
+          const repo = manager.getRepository(Settings);
+          const settings = await getOrCreateSettings(manager, ctx.userId);
+
+          if (!!settings.bookmarkSlug === enabled) {
+            return settings;
+          }
+          if (enabled) {
+            return repo.save(repo.merge(settings, { bookmarkSlug: uuidv4() }));
+          } else {
+            return repo.save(repo.merge(settings, { bookmarkSlug: null }));
+          }
+        },
+      );
+      return { slug: settings?.bookmarkSlug };
+    },
   },
   Query: {
     userSettings: async (_, __, ctx): Promise<GQLSettings> => {
@@ -215,9 +269,20 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           getOrCreateSettings(manager, ctx.userId),
       );
     },
+    bookmarksSharing: async (_, __, ctx): Promise<PartialBookmarkSharing> => {
+      const settings = await ctx.con
+        .getRepository(Settings)
+        .findOne(ctx.userId);
+      return { slug: settings?.bookmarkSlug };
+    },
   },
   Settings: {
     appInsaneMode: () => true,
     enableCardAnimations: () => true,
+  },
+  BookmarksSharing: {
+    enabled: (obj: PartialBookmarkSharing) => !!obj.slug,
+    rssUrl: (obj: PartialBookmarkSharing) =>
+      obj.slug && `${process.env.URL_PREFIX}/rss/b/${obj.slug}`,
   },
 });

@@ -1,35 +1,28 @@
-import { getUserReadingRank, ReadingRank } from './users';
-import { Post, PostKeyword, Source, View } from '../entity';
+import { subYears } from 'date-fns';
+import { getUserReadingRank, ReadingRank, getUserReadingDays } from './users';
+import { Post, Source, View } from '../entity';
 import { Connection } from 'typeorm';
 import { User } from '../entity/User';
-
-interface QueryOptions {
-  limit?: number;
-}
+import { ReadingDaysArgs } from './users';
 
 export interface MostReadTag {
   value: string;
   count: number;
+  percentage?: number;
 }
 
-export const getMostReadTags = (
+export const getMostReadTags = async (
   con: Connection,
-  userId: string,
-  { limit = 4 }: QueryOptions = {},
-): Promise<MostReadTag[]> =>
-  con
-    .createQueryBuilder()
-    .select('pk.keyword', 'value')
-    .addSelect('count(*)', 'count')
-    .from(View, 'v')
-    .innerJoin(PostKeyword, 'pk', 'v."postId" = pk."postId"')
-    .where('v."userId" = :id', { id: userId })
-    .andWhere(`pk.status = 'allow'`)
-    .andWhere(`pk.keyword != 'general-programming'`)
-    .groupBy('pk.keyword')
-    .orderBy('2', 'DESC')
-    .limit(limit)
-    .getRawMany();
+  args: ReadingDaysArgs,
+): Promise<MostReadTag[]> => {
+  const result = await getUserReadingDays(con, args);
+
+  return result.map(({ tag, readingDays, ...props }) => ({
+    value: tag,
+    count: readingDays,
+    ...props,
+  }));
+};
 
 const getFavoriteSourcesLogos = async (
   con: Connection,
@@ -76,10 +69,13 @@ export async function getDevCardData(
   userId: string,
   con: Connection,
 ): Promise<DevCardData> {
+  const now = new Date();
+  const start = subYears(now, 1).toISOString();
+  const end = now.toISOString();
   const user = await con.getRepository(User).findOneOrFail(userId);
   const [articlesRead, tags, sourcesLogos, rank] = await Promise.all([
     con.getRepository(View).count({ userId }),
-    getMostReadTags(con, userId),
+    getMostReadTags(con, { userId, limit: 4, dateRange: { start, end } }),
     getFavoriteSourcesLogos(con, userId),
     getUserReadingRank(con, userId, user?.timezone),
   ]);

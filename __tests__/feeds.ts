@@ -320,7 +320,7 @@ describe('query anonymousFeed', () => {
   it('should return anonymous feed v2', async () => {
     nock('http://localhost:6000')
       .get(
-        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2',
+        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&feed_id=global',
       )
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -334,7 +334,7 @@ describe('query anonymousFeed', () => {
   it('should safetly handle a case where the feed is empty', async () => {
     nock('http://localhost:6000')
       .get(
-        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2',
+        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&feed_id=global',
       )
       .reply(200, {
         data: [],
@@ -362,7 +362,7 @@ describe('query anonymousFeed', () => {
     mockFeatures();
     nock('http://localhost:6000')
       .get(
-        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&user_id=1',
+        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&user_id=1&feed_id=global',
       )
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -501,7 +501,7 @@ describe('query feed', () => {
     mockFeatures();
     nock('http://localhost:6000')
       .get(
-        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&user_id=1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
+        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&user_id=1&feed_id=1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
       )
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],

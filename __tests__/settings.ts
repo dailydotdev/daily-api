@@ -1,6 +1,7 @@
 import { Connection, getConnection } from 'typeorm';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
+import { v4 as uuidv4 } from 'uuid';
 import {
   authorizeRequest,
   disposeGraphQLTesting,
@@ -51,6 +52,7 @@ describe('query userSettings', () => {
     sidebarExpanded
     sortingEnabled
     customLinks
+    optOutWeeklyGoal
   }
 }`;
 
@@ -69,6 +71,7 @@ describe('query userSettings', () => {
     const data = await repo.save(settings);
     const expected = new Object({ ...data, ...compatibilityProps });
     delete expected['updatedAt'];
+    delete expected['bookmarkSlug'];
 
     const res = await client.query(QUERY);
     expect(res.data.userSettings).toEqual(expected);
@@ -78,6 +81,51 @@ describe('query userSettings', () => {
     loggedUser = '1';
     const res = await client.query(QUERY);
     expect(res.data.userSettings).toMatchSnapshot();
+  });
+});
+
+describe('query bookmarksSharing', () => {
+  const QUERY = `{
+  bookmarksSharing {
+    enabled
+    slug
+    rssUrl
+  }
+}`;
+
+  it('should not authorize when not logged-in', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it('should return disabled settings', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    const settings = repo.create({ userId: '1' });
+    const data = await repo.save(settings);
+    const expected = new Object({ ...data, ...compatibilityProps });
+    delete expected['updatedAt'];
+
+    const res = await client.query(QUERY);
+    expect(res.data.bookmarksSharing.enabled).toEqual(false);
+    expect(res.data.bookmarksSharing.slug).toBeFalsy();
+    expect(res.data.bookmarksSharing.rssUrl).toBeFalsy();
+  });
+
+  it('should return enabled settings', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    const settings = repo.create({ userId: '1', bookmarkSlug: uuidv4() });
+    const data = await repo.save(settings);
+    const expected = new Object({ ...data, ...compatibilityProps });
+    delete expected['updatedAt'];
+
+    const res = await client.query(QUERY);
+    expect(res.data.bookmarksSharing.enabled).toEqual(true);
+    expect(res.data.bookmarksSharing.slug).toEqual(settings.bookmarkSlug);
+    expect(res.data.bookmarksSharing.rssUrl).toEqual(
+      `http://localhost:4000/rss/b/${settings.bookmarkSlug}`,
+    );
   });
 });
 
@@ -97,6 +145,7 @@ describe('mutation updateUserSettings', () => {
     sidebarExpanded
     sortingEnabled
     customLinks
+    optOutWeeklyGoal
   }
 }`;
 
@@ -182,6 +231,64 @@ describe('mutation updateUserSettings', () => {
   });
 });
 
+describe('mutation setBookmarksSharing', () => {
+  const MUTATION = `
+  mutation SetBookmarksSharing($enabled: Boolean!) {
+  setBookmarksSharing(enabled: $enabled) {
+    enabled
+    slug
+    rssUrl
+  }
+}`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { enabled: true },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should enable bookmarks sharing', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { enabled: true },
+    });
+    expect(res.data.setBookmarksSharing.enabled).toEqual(true);
+    expect(res.data.setBookmarksSharing.slug).toBeTruthy();
+    expect(res.data.setBookmarksSharing.rssUrl).toEqual(
+      `http://localhost:4000/rss/b/${res.data.setBookmarksSharing.slug}`,
+    );
+  });
+
+  it('should disable bookmarks sharing', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Settings);
+    const settings = repo.create({ userId: '1', bookmarkSlug: uuidv4() });
+    await repo.save(settings);
+    const res = await client.mutate(MUTATION, {
+      variables: { enabled: false },
+    });
+    expect(res.data.setBookmarksSharing.enabled).toEqual(false);
+    expect(res.data.setBookmarksSharing.slug).toBeFalsy();
+    expect(res.data.setBookmarksSharing.rssUrl).toBeFalsy();
+  });
+
+  it('should not do anything when bookmarks sharing is enabled', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Settings);
+    const settings = repo.create({ userId: '1', bookmarkSlug: uuidv4() });
+    const data = await repo.save(settings);
+    const res = await client.mutate(MUTATION, {
+      variables: { enabled: true },
+    });
+    expect(res.data.setBookmarksSharing.enabled).toEqual(true);
+    expect(res.data.setBookmarksSharing.slug).toEqual(data.bookmarkSlug);
+  });
+});
+
 describe('compatibility routes', () => {
   describe('GET /settings', () => {
     it('should return user settings', async () => {
@@ -196,6 +303,8 @@ describe('compatibility routes', () => {
       expected['showOnlyNotReadPosts'] = expected['showOnlyUnreadPosts'];
       delete expected['updatedAt'];
       delete expected['showOnlyUnreadPosts'];
+      delete expected['bookmarkSlug'];
+      delete expected['optOutWeeklyGoal'];
 
       loggedUser = '1';
       const res = await authorizeRequest(
@@ -233,6 +342,7 @@ describe('dedicated api routes', () => {
       const expected = new Object(data);
       delete expected['updatedAt'];
       delete expected['userId'];
+      delete expected['bookmarkSlug'];
 
       loggedUser = '1';
       const res = await authorizeRequest(

@@ -54,6 +54,7 @@ Object {
             "url": "http://p1.com",
           },
           "timestamp": "2021-09-22T07:15:51.247Z",
+          "timestampDb": "2021-09-22T07:15:51.247Z",
         },
       },
       Object {
@@ -68,11 +69,68 @@ Object {
             "url": "http://p2.com",
           },
           "timestamp": "2020-09-22T07:15:51.247Z",
+          "timestampDb": "2020-09-22T07:15:51.247Z",
         },
       },
     ],
     "pageInfo": Object {
       "endCursor": "dGltZToxNjAwNzU4OTUxMjQ3",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query readHistory should return the same date for a non-timezoned user 1`] = `
+Object {
+  "readHistory": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p1",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/a",
+            },
+            "title": "P1",
+            "url": "http://p1.com",
+          },
+          "timestamp": "2020-09-22T07:15:51.247Z",
+          "timestampDb": "2020-09-22T07:15:51.247Z",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjAwNzU4OTUxMjQ3",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query readHistory should return two different dates for a timezoned user 1`] = `
+Object {
+  "readHistory": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p1",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/a",
+            },
+            "title": "P1",
+            "url": "http://p1.com",
+          },
+          "timestamp": "2020-09-22T18:15:51.247Z",
+          "timestampDb": "2020-09-22T07:15:51.247Z",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjAwNzk4NTUxMjQ3",
       "hasNextPage": false,
     },
   },
@@ -95,6 +153,7 @@ Object {
             "url": "http://p2.com",
           },
           "timestamp": "2021-09-22T07:15:51.247Z",
+          "timestampDb": "2021-09-22T07:15:51.247Z",
         },
       },
     ],
@@ -122,6 +181,7 @@ Object {
             "url": "http://p2.com",
           },
           "timestamp": "2021-10-22T07:15:51.247Z",
+          "timestampDb": "2021-10-22T07:15:51.247Z",
         },
       },
       Object {
@@ -136,6 +196,7 @@ Object {
             "url": "http://p2.com",
           },
           "timestamp": "2021-09-22T07:15:51.247Z",
+          "timestampDb": "2021-09-22T07:15:51.247Z",
         },
       },
       Object {
@@ -150,6 +211,7 @@ Object {
             "url": "http://p2.com",
           },
           "timestamp": "2021-08-22T07:15:51.247Z",
+          "timestampDb": "2021-08-22T07:15:51.247Z",
         },
       },
       Object {
@@ -164,6 +226,7 @@ Object {
             "url": "http://p1.com",
           },
           "timestamp": "2020-09-22T07:15:51.247Z",
+          "timestampDb": "2020-09-22T07:15:51.247Z",
         },
       },
     ],
@@ -179,23 +242,86 @@ exports[`query userMostReadTags should return the user most read tags 1`] = `
 Array [
   Object {
     "count": 5,
+    "percentage": 0.7142857142857143,
+    "total": 7,
     "value": "javascript",
   },
   Object {
     "count": 3,
+    "percentage": 0.42857142857142855,
+    "total": 7,
     "value": "security",
   },
   Object {
     "count": 3,
+    "percentage": 0.42857142857142855,
+    "total": 7,
     "value": "ai",
   },
   Object {
     "count": 2,
+    "percentage": 0.2857142857142857,
+    "total": 7,
     "value": "devops",
   },
   Object {
     "count": 1,
+    "percentage": 0.14285714285714285,
+    "total": 7,
     "value": "backend",
+  },
+]
+`;
+
+exports[`query userMostReadTags should return the user most read tags 2`] = `
+Array [
+  Object {
+    "count": 5,
+    "percentage": 0.7142857142857143,
+    "total": 7,
+    "value": "javascript",
+  },
+  Object {
+    "count": 3,
+    "percentage": 0.42857142857142855,
+    "total": 7,
+    "value": "security",
+  },
+  Object {
+    "count": 3,
+    "percentage": 0.42857142857142855,
+    "total": 7,
+    "value": "ai",
+  },
+  Object {
+    "count": 2,
+    "percentage": 0.2857142857142857,
+    "total": 7,
+    "value": "devops",
+  },
+  Object {
+    "count": 1,
+    "percentage": 0.14285714285714285,
+    "total": 7,
+    "value": "cloud",
+  },
+  Object {
+    "count": 1,
+    "percentage": 0.14285714285714285,
+    "total": 7,
+    "value": "crypto",
+  },
+  Object {
+    "count": 1,
+    "percentage": 0.14285714285714285,
+    "total": 7,
+    "value": "golang",
+  },
+  Object {
+    "count": 1,
+    "percentage": 0.14285714285714285,
+    "total": 7,
+    "value": "web3",
   },
 ]
 `;
@@ -238,6 +364,7 @@ Object {
   "rankLastWeek": null,
   "rankThisWeek": null,
   "readToday": null,
+  "tags": null,
 }
 `;
 
@@ -249,6 +376,7 @@ Object {
   "rankLastWeek": 0,
   "rankThisWeek": 0,
   "readToday": Anything,
+  "tags": null,
 }
 `;
 
@@ -260,6 +388,7 @@ Object {
   "rankLastWeek": 1,
   "rankThisWeek": 2,
   "readToday": Anything,
+  "tags": null,
 }
 `;
 
@@ -289,7 +418,7 @@ Array [
 ]
 `;
 
-exports[`query userReadingRankHistory should return the reading rank history 1`] = `
+exports[`query userReadingRankHistory should return the reading rank history utilizing timezone 1`] = `
 Array [
   Object {
     "count": 1,
@@ -302,20 +431,7 @@ Array [
 ]
 `;
 
-exports[`query userReadingRankHistory with timezone should return the reading rank history 1`] = `
-Array [
-  Object {
-    "count": 3,
-    "rank": 0,
-  },
-  Object {
-    "count": 1,
-    "rank": 1,
-  },
-]
-`;
-
-exports[`query userReadingRankHistory with timezone should return the reading rank history 2`] = `
+exports[`query userReadingRankHistory should return the reading rank history utilizing timezone 2`] = `
 Array [
   Object {
     "count": 1,
@@ -324,6 +440,19 @@ Array [
   Object {
     "count": 2,
     "rank": 1,
+  },
+]
+`;
+
+exports[`query userReadingRankHistory should return the reading rank history v2 utilizing timezone 1`] = `
+Array [
+  Object {
+    "count": 1,
+    "rank": 1,
+  },
+  Object {
+    "count": 2,
+    "rank": 3,
   },
 ]
 `;

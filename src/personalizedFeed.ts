@@ -26,6 +26,7 @@ export async function fetchTinybirdFeed(
     params += `&user_id=${userId}`;
   }
   if (feedId) {
+    params += `&feed_id=${feedId}`;
     const filters = await runInSpan(
       ctx?.span,
       'Feed_v2.feedToFilters',
@@ -44,6 +45,8 @@ export async function fetchTinybirdFeed(
     if (filters.excludeSources?.length) {
       params += `&blocked_sources=${filters.excludeSources.join(',')}`;
     }
+  } else {
+    params += `&feed_id=global`;
   }
   const body: TinybirdResponse<{ post_id: string }> = await runInSpan(
     ctx?.span,
