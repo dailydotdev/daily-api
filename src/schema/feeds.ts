@@ -773,16 +773,16 @@ const feedResolverV2: IFieldResolver<
   {
     fetchQueryParams: (
       ctx,
-      { version, feedId }: FeedArgs & { version: number; feedId?: string },
+      args: FeedArgs & { version: number; feedId?: string },
       page,
     ) =>
       generatePersonalizedFeed({
         con: ctx.con,
         pageSize: page.limit,
         offset: page.offset,
-        feedVersion: version,
+        feedVersion: args.version,
         userId: ctx.userId || ctx.trackingId,
-        feedId: feedId,
+        feedId: args.feedId,
         ctx,
       }),
     warnOnPartialFirstPage: true,

@@ -124,7 +124,7 @@ export const getExcludedAdvancedSettings = async (
 export const feedToFilters = async (
   con: ORMConnection,
   feedId: string,
-  userId?: string,
+  userId: string,
 ): Promise<AnonymousFeedFilters> => {
   const settings = await getExcludedAdvancedSettings(con, feedId, userId);
   const [tags, excludeSources] = await Promise.all([
@@ -133,7 +133,7 @@ export const feedToFilters = async (
       .getRepository(Source)
       .createQueryBuilder('s')
       .select('s.id AS "id"')
-      .where(`s."advancedSettings" && ARRAY[:...settings]::integer[]`, {
+      .where(`s.advancedSettings && ARRAY[:...settings]::integer[]`, {
         settings,
       })
       .orWhere((qb) => {
