@@ -86,13 +86,21 @@ export const getFeatureAdvancedSettings = (
   });
 };
 
+const getUserFeaturesSettings = (userId: string) => {
+  if (!process.env.ENABLE_SETTINGS_EXPERIMENT) {
+    return Promise.resolve({});
+  }
+
+  return fetchUserFeatures(userId);
+};
+
 export const getExcludedAdvancedSettings = async (
   con: ORMConnection,
   feedId: string,
   userId: string,
 ): Promise<number[]> => {
   const [features, advancedSettings, feedAdvancedSettings] = await Promise.all([
-    fetchUserFeatures(userId),
+    getUserFeaturesSettings(userId),
     con.getRepository(AdvancedSettings).find(),
     con.getRepository(FeedAdvancedSettings).find({ feedId }),
   ]);
@@ -113,65 +121,32 @@ export const getExcludedAdvancedSettings = async (
   return excludedSettings.map((adv) => adv.id);
 };
 
-const getExcludedSources = async (
-  con: ORMConnection,
-  feedId: string,
-  userId: string,
-  enableSettingsExperiment: boolean,
-) => {
-  let query = con
-    .getRepository(Source)
-    .createQueryBuilder('s')
-    .select('s.id AS "id"');
-
-  if (enableSettingsExperiment) {
-    const settings = await getExcludedAdvancedSettings(con, feedId, userId);
-    query = query.where(
-      `s."advancedSettings" && ARRAY[:...settings]::integer[]`,
-      { settings },
-    );
-  } else {
-    query = query.where((qb) => {
-      const subQuery = qb
-        .subQuery()
-        .select('adv.id')
-        .from(AdvancedSettings, 'adv')
-        .leftJoin(
-          FeedAdvancedSettings,
-          'fas',
-          'adv.id = fas."advancedSettingsId" AND fas."feedId" = :feedId',
-          { feedId },
-        )
-        .where('COALESCE(fas.enabled, adv."defaultEnabledState") = false')
-        .getQuery();
-
-      return `s."advancedSettings" && array(${subQuery})`;
-    });
-  }
-
-  return query
-    .orWhere((qb) => {
-      const subQuery = qb
-        .subQuery()
-        .select('fs."sourceId"')
-        .from(FeedSource, 'fs')
-        .where('fs."feedId" = :feedId', { feedId })
-        .getQuery();
-
-      return `s.id IN (${subQuery})`;
-    })
-    .execute();
-};
-
 export const feedToFilters = async (
   con: ORMConnection,
   feedId: string,
   userId?: string,
-  enableSettingsExperiment = false,
 ): Promise<AnonymousFeedFilters> => {
+  const settings = await getExcludedAdvancedSettings(con, feedId, userId);
   const [tags, excludeSources] = await Promise.all([
     con.getRepository(FeedTag).find({ where: { feedId } }),
-    getExcludedSources(con, feedId, userId, enableSettingsExperiment),
+    con
+      .getRepository(Source)
+      .createQueryBuilder('s')
+      .select('s.id AS "id"')
+      .where(`s."advancedSettings" && ARRAY[:...settings]::integer[]`, {
+        settings,
+      })
+      .orWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('fs."sourceId"')
+          .from(FeedSource, 'fs')
+          .where('fs."feedId" = :feedId', { feedId })
+          .getQuery();
+
+        return `s.id IN (${subQuery})`;
+      })
+      .execute(),
   ]);
   const tagFilters = tags.reduce(
     (acc, value) => {

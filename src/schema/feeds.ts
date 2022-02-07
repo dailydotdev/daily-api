@@ -178,11 +178,6 @@ export const typeDefs = /* GraphQL */ `
       Version of the feed algorithm
       """
       version: Int = 1
-
-      """
-      Whether to enable the experiment for advanced settings
-      """
-      enableSettingsExperiment: Boolean = false
     ): PostConnection!
 
     """
@@ -218,11 +213,6 @@ export const typeDefs = /* GraphQL */ `
       Version of the feed algorithm
       """
       version: Int = 1
-
-      """
-      Whether to enable the experiment for advanced settings
-      """
-      enableSettingsExperiment: Boolean = false
     ): PostConnection! @auth
 
     """
@@ -738,11 +728,9 @@ const anonymousFeedResolverV1: IFieldResolver<
   applyFeedPaging,
 );
 
-type FeedV1Args = ConfiguredFeedArgs & { enableSettingsExperiment?: boolean };
-
-const feedResolverV1: IFieldResolver<unknown, Context, FeedV1Args> =
+const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
   feedResolver(
-    (ctx, { unreadOnly }: FeedV1Args, builder, alias, queryParams) =>
+    (ctx, { unreadOnly }: ConfiguredFeedArgs, builder, alias, queryParams) =>
       configuredFeedBuilder(
         ctx,
         ctx.userId,
@@ -754,13 +742,8 @@ const feedResolverV1: IFieldResolver<unknown, Context, FeedV1Args> =
     feedPageGenerator,
     applyFeedPaging,
     {
-      fetchQueryParams: async (ctx, args: FeedV1Args) =>
-        feedToFilters(
-          ctx.con,
-          ctx.userId,
-          ctx.userId,
-          args.enableSettingsExperiment,
-        ),
+      fetchQueryParams: async (ctx) =>
+        feedToFilters(ctx.con, ctx.userId, ctx.userId),
     },
   );
 
@@ -778,37 +761,33 @@ const invalidateFeedCache = async (feedId: string): Promise<void> => {
   }
 };
 
-type FeedV2Args = FeedArgs & {
-  version: number;
-  feedId?: string;
-  enableSettingsExperiment?: boolean;
-};
-
-const feedResolverV2: IFieldResolver<unknown, Context, FeedV2Args> =
-  feedResolver(
-    (ctx, args, builder, alias, queryParams) =>
-      fixedIdsFeedBuilder(ctx, queryParams as string[], builder, alias),
-    fixedIdsPageGenerator(30, 50),
-    (ctx, args, page, builder) => builder,
-    {
-      fetchQueryParams: (
+const feedResolverV2: IFieldResolver<
+  unknown,
+  Context,
+  FeedArgs & { version: number; feedId?: string }
+> = feedResolver(
+  (ctx, args, builder, alias, queryParams) =>
+    fixedIdsFeedBuilder(ctx, queryParams as string[], builder, alias),
+  fixedIdsPageGenerator(30, 50),
+  (ctx, args, page, builder) => builder,
+  {
+    fetchQueryParams: (
+      ctx,
+      { version, feedId }: FeedArgs & { version: number; feedId?: string },
+      page,
+    ) =>
+      generatePersonalizedFeed({
+        con: ctx.con,
+        pageSize: page.limit,
+        offset: page.offset,
+        feedVersion: version,
+        userId: ctx.userId || ctx.trackingId,
+        feedId: feedId,
         ctx,
-        { version, feedId, enableSettingsExperiment }: FeedV2Args,
-        page,
-      ) =>
-        generatePersonalizedFeed({
-          con: ctx.con,
-          pageSize: page.limit,
-          offset: page.offset,
-          feedVersion: version,
-          userId: ctx.userId || ctx.trackingId,
-          feedId: feedId,
-          ctx,
-          enableSettingsExperiment,
-        }),
-      warnOnPartialFirstPage: true,
-    },
-  );
+      }),
+    warnOnPartialFirstPage: true,
+  },
+);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({

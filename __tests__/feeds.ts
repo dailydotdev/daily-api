@@ -393,8 +393,8 @@ describe('query feed', () => {
   };
 
   const QUERY = `
-  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean, $enableSettingsExperiment: Boolean) {
-    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly, enableSettingsExperiment: $enableSettingsExperiment) {
+  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean) {
+    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly) {
       ${feedFields}
     }
   }
@@ -402,16 +402,6 @@ describe('query feed', () => {
 
   it('should not authorize when not logged-in', () =>
     testQueryErrorCode(client, { query: QUERY, variables }, 'UNAUTHENTICATED'));
-
-  it('should return feed with preconfigured filters in consideration of settings experiment', async () => {
-    loggedUser = '1';
-    await saveAdvancedSettingsFiltersFixtures();
-    mockFeatures();
-    const res = await client.query(QUERY, {
-      variables: { ...variables, enableSettingsExperiment: true },
-    });
-    expect(res.data).toMatchSnapshot();
-  });
 
   it('should return feed with preconfigured filters', async () => {
     loggedUser = '1';
@@ -1366,12 +1356,5 @@ describe('function feedToFilters', () => {
     loggedUser = '1';
     await saveFeedFixtures();
     expect(await feedToFilters(con, '1')).toMatchSnapshot();
-  });
-
-  it('shoud return filters for sources with consideration of features flags', async () => {
-    loggedUser = '1';
-    await saveAdvancedSettingsFiltersFixtures();
-    mockFeatures();
-    expect(await feedToFilters(con, '1', '1', true)).toMatchSnapshot();
   });
 });

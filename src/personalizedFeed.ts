@@ -19,7 +19,6 @@ export async function fetchTinybirdFeed(
   userId?: string,
   feedId?: string,
   ctx?: Context,
-  enableSettingsExperiment?: boolean,
 ): Promise<{ post_id: string }[]> {
   const freshPageSize = Math.ceil(pageSize / 3).toFixed(0);
   let params = `page_size=${pageSize}&fresh_page_size=${freshPageSize}&feed_version=${feedVersion}`;
@@ -31,7 +30,7 @@ export async function fetchTinybirdFeed(
     const filters = await runInSpan(
       ctx?.span,
       'Feed_v2.feedToFilters',
-      () => feedToFilters(con, feedId, userId, enableSettingsExperiment),
+      () => feedToFilters(con, feedId, userId),
       {
         feedId,
         userId,
@@ -94,7 +93,6 @@ async function fetchAndCacheFeed(
   userId?: string,
   feedId?: string,
   ctx?: Context,
-  enableSettingsExperiment?: boolean,
 ): Promise<string[]> {
   const key = getPersonalizedFeedKey(userId, feedId);
   const rawPostIds = await fetchTinybirdFeed(
@@ -104,7 +102,6 @@ async function fetchAndCacheFeed(
     userId,
     feedId,
     ctx,
-    enableSettingsExperiment,
   );
   // Don't wait for caching the feed to serve quickly
   if (rawPostIds?.length) {
@@ -159,7 +156,6 @@ export async function generatePersonalizedFeed({
   userId,
   feedId,
   ctx,
-  enableSettingsExperiment,
 }: {
   con: Connection;
   pageSize: number;
@@ -168,7 +164,6 @@ export async function generatePersonalizedFeed({
   userId?: string;
   feedId?: string;
   ctx?: Context;
-  enableSettingsExperiment?: boolean;
 }): Promise<string[]> {
   try {
     const key = getPersonalizedFeedKey(userId, feedId);
@@ -200,7 +195,6 @@ export async function generatePersonalizedFeed({
     userId,
     feedId,
     ctx,
-    enableSettingsExperiment,
   );
   return postIds.slice(offset, pageSize + offset);
 }
