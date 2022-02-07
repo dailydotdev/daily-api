@@ -1521,24 +1521,6 @@ Object {
       },
       Object {
         "node": Object {
-          "id": "includedPost",
-          "readTime": null,
-          "source": Object {
-            "id": "includedSource",
-            "image": "http://image.com/c",
-            "name": "IS",
-            "public": true,
-          },
-          "tags": Array [
-            "javascript",
-            "webdev",
-          ],
-          "title": "Included Post",
-          "url": "http://p1.com",
-        },
-      },
-      Object {
-        "node": Object {
           "id": "p1",
           "readTime": null,
           "source": Object {
@@ -1552,6 +1534,24 @@ Object {
             "webdev",
           ],
           "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "includedPost",
+          "readTime": null,
+          "source": Object {
+            "id": "includedSource",
+            "image": "http://image.com/c",
+            "name": "IS",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "Included Post",
           "url": "http://p1.com",
         },
       },
