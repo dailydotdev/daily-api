@@ -119,37 +119,46 @@ const getExcludedSources = async (
   userId: string,
   enableSettingsExperiment: boolean,
 ) => {
-  const query = con
+  let query = con
     .getRepository(Source)
     .createQueryBuilder('s')
     .select('s.id AS "id"');
 
-  if (!enableSettingsExperiment) {
-    return query
-      .where((qb) => {
-        const subQuery = qb
-          .subQuery()
-          .select('adv.id')
-          .from(AdvancedSettings, 'adv')
-          .leftJoin(
-            FeedAdvancedSettings,
-            'fas',
-            'adv.id = fas."advancedSettingsId" AND fas."feedId" = :feedId',
-            { feedId },
-          )
-          .where('COALESCE(fas.enabled, adv."defaultEnabledState") = false')
-          .getQuery();
+  if (enableSettingsExperiment) {
+    const settings = await getExcludedAdvancedSettings(con, feedId, userId);
+    query = query.where(
+      `s."advancedSettings" && ARRAY[:...settings]::integer[]`,
+      { settings },
+    );
+  } else {
+    query = query.where((qb) => {
+      const subQuery = qb
+        .subQuery()
+        .select('adv.id')
+        .from(AdvancedSettings, 'adv')
+        .leftJoin(
+          FeedAdvancedSettings,
+          'fas',
+          'adv.id = fas."advancedSettingsId" AND fas."feedId" = :feedId',
+          { feedId },
+        )
+        .where('COALESCE(fas.enabled, adv."defaultEnabledState") = false')
+        .getQuery();
 
-        return `s."advancedSettings" && array(${subQuery})`;
-      })
-      .execute();
+      return `s."advancedSettings" && array(${subQuery})`;
+    });
   }
 
-  const settings = await getExcludedAdvancedSettings(con, feedId, userId);
-
   return query
-    .where(`s."advancedSettings" && ARRAY[:...settings]::integer[]`, {
-      settings,
+    .orWhere((qb) => {
+      const subQuery = qb
+        .subQuery()
+        .select('fs."sourceId"')
+        .from(FeedSource, 'fs')
+        .where('fs."feedId" = :feedId', { feedId })
+        .getQuery();
+
+      return `s.id IN (${subQuery})`;
     })
     .execute();
 };
