@@ -385,6 +385,9 @@ export const resolvers: IResolvers<any, Context> = {
             userId: ctx.userId,
           })
           .andWhere(`"${builder.alias}"."hidden" = false`)
+          .innerJoin(Post, 'p', `"${builder.alias}"."postId" = p.id`)
+          .andWhere(`p.banned = false`)
+          .andWhere(`p.deleted = false`)
           .addSelect(
             `"timestamp" at time zone '${user.timezone ?? 'utc'}'`,
             'timestamp',

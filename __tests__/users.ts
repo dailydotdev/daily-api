@@ -134,6 +134,28 @@ beforeEach(async () => {
       views: 10,
       image: 'sample.image.test',
     },
+    {
+      id: 'pb',
+      shortId: 'spb',
+      title: 'PB',
+      url: 'http://pb.com',
+      sourceId: 'p',
+      createdAt: new Date(now.getTime() - 6000),
+      views: 10,
+      banned: true,
+      image: 'sample.image.test',
+    },
+    {
+      id: 'pd',
+      shortId: 'spd',
+      title: 'PD',
+      url: 'http://pd.com',
+      sourceId: 'p',
+      createdAt: new Date(now.getTime() - 6000),
+      views: 10,
+      deleted: true,
+      image: 'sample.image.test',
+    },
   ]);
   await con.getRepository(Comment).save([
     {
@@ -1080,6 +1102,52 @@ describe('query readHistory', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.readHistory.edges.length).toEqual(1);
     expect(res.data).toMatchSnapshot();
+  });
+
+  it("should return user's reading history in without the deleted posts", async () => {
+    loggedUser = '1';
+    const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+    await saveFixtures(con, View, [
+      {
+        userId: '1',
+        postId: 'pd',
+        timestamp: createdAtOld,
+        hidden: true,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtNew,
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.readHistory.edges.length).toEqual(1);
+  });
+
+  it("should return user's reading history in without the banned posts", async () => {
+    loggedUser = '1';
+    const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+    await saveFixtures(con, View, [
+      {
+        userId: '1',
+        postId: 'pb',
+        timestamp: createdAtOld,
+        hidden: true,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtNew,
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.readHistory.edges.length).toEqual(1);
   });
 
   it('should return the same date for a non-timezoned user', async () => {
