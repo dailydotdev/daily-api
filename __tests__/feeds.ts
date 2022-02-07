@@ -120,7 +120,7 @@ const advancedSettings: Partial<AdvancedSettings>[] = [
     id: 6,
     title: 'Another Settings',
     description: 'Description for Another Settings',
-    defaultEnabledState: false,
+    defaultEnabledState: true,
   },
 ];
 
@@ -1348,26 +1348,20 @@ describe('compatibility routes', () => {
 describe('function feedToFilters', () => {
   it('shoud return filters having excluded sources based on advanced settings', async () => {
     loggedUser = '1';
-
     await saveAdvancedSettingsFiltersFixtures();
-    mockFeatures();
-
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 
   it('shoud return filters for tags/sources based on the values from our data', async () => {
     loggedUser = '1';
-
     await saveFeedFixtures();
-    mockFeatures();
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 
   it('shoud return filters for sources with consideration of features flags', async () => {
     loggedUser = '1';
-
+    process.env.ENABLE_SETTINGS_EXPERIMENT = 'true';
     await saveAdvancedSettingsFiltersFixtures();
-
     mockFeatures();
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
