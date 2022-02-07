@@ -1125,6 +1125,7 @@ describe('query readHistory', () => {
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.readHistory.edges.length).toEqual(1);
+    expect(res.data.readHistory.edges[0].node.post.id).toEqual('p2');
   });
 
   it("should return user's reading history in without the banned posts", async () => {
@@ -1148,6 +1149,7 @@ describe('query readHistory', () => {
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.readHistory.edges.length).toEqual(1);
+    expect(res.data.readHistory.edges[0].node.post.id).toEqual('p2');
   });
 
   it('should return the same date for a non-timezoned user', async () => {
