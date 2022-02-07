@@ -86,13 +86,21 @@ export const getFeatureAdvancedSettings = (
   });
 };
 
+const getUserFeaturesSettings = (userId: string) => {
+  if (!process.env.ENABLE_SETTINGS_EXPERIMENT) {
+    return Promise.resolve({});
+  }
+
+  return fetchUserFeatures(userId);
+};
+
 export const getExcludedAdvancedSettings = async (
   con: ORMConnection,
   feedId: string,
   userId: string,
 ): Promise<number[]> => {
   const [features, advancedSettings, feedAdvancedSettings] = await Promise.all([
-    fetchUserFeatures(userId),
+    getUserFeaturesSettings(userId),
     con.getRepository(AdvancedSettings).find(),
     con.getRepository(FeedAdvancedSettings).find({ feedId }),
   ]);
