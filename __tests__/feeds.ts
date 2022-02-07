@@ -1349,13 +1349,13 @@ describe('function feedToFilters', () => {
   it('shoud return filters having excluded sources based on advanced settings', async () => {
     loggedUser = '1';
     await saveAdvancedSettingsFiltersFixtures();
-    expect(await feedToFilters(con, '1')).toMatchSnapshot();
+    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 
   it('shoud return filters for tags/sources based on the values from our data', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    expect(await feedToFilters(con, '1')).toMatchSnapshot();
+    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 
   it('shoud return filters for sources with consideration of features flags', async () => {
