@@ -137,10 +137,10 @@ const getExcludedSources = async (
             'adv.id = fas."advancedSettingsId" AND fas."feedId" = :feedId',
             { feedId },
           )
-          .where('COALESCE(fas.enabled, adv.defaultEnabledState) = false')
+          .where('COALESCE(fas.enabled, adv."defaultEnabledState") = false')
           .getQuery();
 
-        return `s.advancedSettings && array(${subQuery})`;
+        return `s."advancedSettings" && array(${subQuery})`;
       })
       .execute();
   }
@@ -148,7 +148,7 @@ const getExcludedSources = async (
   const settings = await getExcludedAdvancedSettings(con, feedId, userId);
 
   return query
-    .where(`s.advancedSettings && ARRAY[:...settings]::integer[]`, {
+    .where(`s."advancedSettings" && ARRAY[:...settings]::integer[]`, {
       settings,
     })
     .execute();
