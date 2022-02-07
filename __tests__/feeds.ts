@@ -302,7 +302,7 @@ describe('query anonymousFeed', () => {
   it('should return feed while excluding sources based on advanced settings', async () => {
     await saveAdvancedSettingsFiltersFixtures();
     mockFeatures();
-    const filters = await feedToFilters(con, '1');
+    const filters = await feedToFilters(con, '1', '1');
     const res = await client.query(QUERY, {
       variables: { ...variables, filters },
     });
