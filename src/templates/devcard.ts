@@ -8,6 +8,7 @@ type DevCardProperties = {
   sourcesLogos: string[];
   readingRank: number;
   backgroundImage?: string;
+  version: number;
 };
 
 const firstRankColor = [
@@ -19,6 +20,13 @@ const firstRankColor = [
   '#CE3DF3',
 ];
 
+const firstRankColorV2 = [
+  firstRankColor[0],
+  '#iron',
+  ...firstRankColor.slice(1),
+  '#legendary',
+];
+
 const secondRankColor = [
   '#A8B3CF52',
   '#FF8E3B',
@@ -26,6 +34,13 @@ const secondRankColor = [
   '#FF8E3B',
   '#2CDCE6',
   '#7147ED',
+];
+
+const secondRankColorV2 = [
+  secondRankColor[0],
+  '#iron',
+  ...secondRankColor.slice(1),
+  '#legendary',
 ];
 
 const rankShapes = [
@@ -48,6 +63,8 @@ const rankShapes = [
                             <path d="M68,44.8472102 L68,65.1666667 L47.6805435,65.1666667 C47.6805435,63.737802 48.2176078,62.3089373 49.2917364,61.2088463 L64.0402102,46.4565435 L64.5269032,46.0355363 C65.5457706,45.2433189 66.7728853,44.8472102 68,44.8472102 Z" id="Blink" fill-opacity="0.64" fill="#FFFFFF"></path>`,
 ];
 
+const rankShapesV2 = [`iron`, ...rankShapes, 'legendar'];
+
 const rankBackgrounds = [
   'https://daily-now-res.cloudinary.com/image/upload/v1626263852/devcard/Dev_Card_Bg_-_No_Rank.jpg',
   'https://daily-now-res.cloudinary.com/image/upload/v1626263638/devcard/Dev_Card_Bg_-_B.jpg',
@@ -55,6 +72,13 @@ const rankBackgrounds = [
   'https://daily-now-res.cloudinary.com/image/upload/v1626263639/devcard/Dev_Card_Bg_-_G.jpg',
   'https://daily-now-res.cloudinary.com/image/upload/v1626263639/devcard/Dev_Card_Bg_-_P.jpg',
   'https://daily-now-res.cloudinary.com/image/upload/v1626263638/devcard/Dev_Card_Bg_-_D.jpg',
+];
+
+const rankBackgroundsV2 = [
+  rankBackgrounds[0],
+  'iron link',
+  ...rankBackgrounds.slice(1),
+  'legendary link',
 ];
 
 export function generateDevCard({
@@ -65,8 +89,14 @@ export function generateDevCard({
   sourcesLogos,
   readingRank,
   backgroundImage,
+  version,
 }: DevCardProperties): string {
-  const finalBackgroundImage = backgroundImage || rankBackgrounds[readingRank];
+  const background = version === 1 ? rankBackgrounds : rankBackgroundsV2;
+  const finalBackgroundImage = backgroundImage || background[readingRank];
+  const firstColor = version === 1 ? firstRankColor : firstRankColorV2;
+  const secondColor = version === 1 ? secondRankColor : secondRankColorV2;
+  const shapes = version === 1 ? rankShapes : rankShapesV2;
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="892px" height="1218px" viewBox="0 0 892 1218" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <defs>
@@ -81,12 +111,8 @@ export function generateDevCard({
         </pattern>
         <image id="image-8" width="512" height="512" xlink:href="${profileImage}"></image>
         <linearGradient x1="100%" y1="50%" x2="-2.22044605e-14%" y2="50%" id="linearGradient-9">
-            <stop stop-color="${
-              firstRankColor[readingRank]
-            }" offset="0%"></stop>
-            <stop stop-color="${
-              secondRankColor[readingRank]
-            }" offset="100%"></stop>
+            <stop stop-color="${firstColor[readingRank]}" offset="0%"></stop>
+            <stop stop-color="${secondColor[readingRank]}" offset="100%"></stop>
         </linearGradient>
         <radialGradient cx="77.6966206%" cy="27.7857039%" fx="77.6966206%" fy="27.7857039%" r="103.840965%" gradientTransform="translate(0.776966,0.277857),scale(1.000000,0.855914),rotate(120.029938),translate(-0.776966,-0.277857)" id="radialGradient-10">
             <stop stop-color="#0E1217" stop-opacity="0" offset="0%"></stop>
@@ -100,12 +126,8 @@ export function generateDevCard({
         <path d="M17.92,0 L46.08,0 C55.9769427,0 64,8.02305728 64,17.92 L64,46.08 C64,55.9769427 55.9769427,64 46.08,64 L17.92,64 C8.02305728,64 0,55.9769427 0,46.08 L0,17.92 C0,8.02305728 8.02305728,0 17.92,0 Z" id="path-17"></path>
         <path d="M17.92,0 L46.08,0 C55.9769427,0 64,8.02305728 64,17.92 L64,46.08 C64,55.9769427 55.9769427,64 46.08,64 L17.92,64 C8.02305728,64 0,55.9769427 0,46.08 L0,17.92 C0,8.02305728 8.02305728,0 17.92,0 Z" id="path-19"></path>
         <linearGradient x1="50%" y1="-2.48949813e-15%" x2="50%" y2="100%" id="linearGradient-21">
-            <stop stop-color="${
-              firstRankColor[readingRank]
-            }" offset="0%"></stop>
-            <stop stop-color="${
-              secondRankColor[readingRank]
-            }" offset="100%"></stop>
+            <stop stop-color="${firstColor[readingRank]}" offset="0%"></stop>
+            <stop stop-color="${secondColor[readingRank]}" offset="100%"></stop>
         </linearGradient>
         <filter color-interpolation-filters="auto" id="filter-22">
             <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 1.000000 0 0 0 0 1.000000 0 0 0 0 1.000000 0 0 0 1.000000 0"></feColorMatrix>
@@ -204,7 +226,7 @@ export function generateDevCard({
                     <g id="rank-group">
                         <circle id="border" stroke="#525866" stroke-width="2" fill="#0E1217" cx="80" cy="80" r="81"></circle>
                         <g id="rank" transform="translate(12.000000, 12.000000)">
-                            ${rankShapes[readingRank > 0 ? readingRank - 1 : 0]}
+                            ${shapes[readingRank > 0 ? readingRank - 1 : 0]}
                         </g>
                     </g>
                 </g>

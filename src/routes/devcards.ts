@@ -5,8 +5,13 @@ import { DevCard } from '../entity';
 import { generateDevCard } from '../templates/devcard';
 import { getDevCardData } from '../common/devcard';
 
+interface GetDevCardArgs {
+  Params: { id: string };
+  Querystring: { version?: number };
+}
+
 export default async function (fastify: FastifyInstance): Promise<void> {
-  fastify.get<{ Params: { id: string } }>(
+  fastify.get<GetDevCardArgs>(
     '/:id',
     async (req, res): Promise<FastifyReply> => {
       const [id, format] = req.params.id.split('.');
@@ -29,6 +34,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           sourcesLogos,
           readingRank: rank.currentRank,
           backgroundImage: devCard.background,
+          version: req.query.version || 1,
         });
         if (format === 'png') {
           const response = await fetch(
