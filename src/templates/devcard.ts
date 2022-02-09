@@ -19,11 +19,11 @@ const firstRankColor = [
   '#427EF7',
   '#CE3DF3',
 ];
-
+const [firstZeroRank, ...firstRankColors] = firstRankColor;
 const firstRankColorV2 = [
-  firstRankColor[0],
+  firstZeroRank,
   '#iron',
-  ...firstRankColor.slice(1),
+  ...firstRankColors,
   '#legendary',
 ];
 
@@ -35,11 +35,11 @@ const secondRankColor = [
   '#2CDCE6',
   '#7147ED',
 ];
-
+const [secondZeroRank, ...secondRankColors] = secondRankColor;
 const secondRankColorV2 = [
-  secondRankColor[0],
+  secondZeroRank,
   '#iron',
-  ...secondRankColor.slice(1),
+  ...secondRankColors,
   '#legendary',
 ];
 
@@ -74,10 +74,11 @@ const rankBackgrounds = [
   'https://daily-now-res.cloudinary.com/image/upload/v1626263638/devcard/Dev_Card_Bg_-_D.jpg',
 ];
 
+const [noRankBackground, ...backgrounds] = rankBackgrounds;
 const rankBackgroundsV2 = [
-  rankBackgrounds[0],
+  noRankBackground,
   'iron link',
-  ...rankBackgrounds.slice(1),
+  ...backgrounds,
   'legendary link',
 ];
 
