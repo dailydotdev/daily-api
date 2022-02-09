@@ -22,6 +22,7 @@ import {
   TagsReadingStatus,
   uploadDevCardBackground,
 } from '../common';
+import { getSearchQuery } from './common';
 
 export interface GQLUser {
   id: string;
@@ -156,6 +157,15 @@ export const typeDefs = /* GraphQL */ `
     reads: Int!
   }
 
+  type SearchReadingHistorySuggestion {
+    title: String!
+  }
+
+  type SearchReadingHistorySuggestionsResults {
+    query: String!
+    hits: [SearchReadingHistorySuggestion!]!
+  }
+
   type DevCard {
     imageUrl: String!
   }
@@ -216,10 +226,41 @@ export const typeDefs = /* GraphQL */ `
     Get the number of articles the user read
     """
     userReads: Int @auth
+
+    """
+    Get suggestions for search reading history query
+    """
+    searchReadingHistorySuggestions(
+      """
+      The query to search for
+      """
+      query: String!
+    ): SearchReadingHistorySuggestionsResults!
+
     """
     Get user's reading history
     """
     readHistory(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): ReadingHistoryConnection! @auth
+
+    """
+    Search through users reading history
+    """
+    searchReadingHistory(
+      """
+      The query to search for
+      """
+      query: String!
+
       """
       Paginate after opaque cursor
       """
@@ -251,6 +292,44 @@ interface ReadingHistyoryArgs {
   before: string;
   limit?: number;
 }
+
+const readHistoryResolver = async (
+  args: ConnectionArguments & { query?: string },
+  ctx: Context,
+  info,
+): Promise<Connection<GQLView>> => {
+  const user = await ctx.con.getRepository(User).findOneOrFail(ctx.userId);
+  const queryBuilder = (builder: GraphORMBuilder): GraphORMBuilder => {
+    builder.queryBuilder = builder.queryBuilder
+      .andWhere(`"${builder.alias}"."userId" = :userId`, {
+        userId: ctx.userId,
+      })
+      .andWhere(`"${builder.alias}"."hidden" = false`)
+      .innerJoin(Post, 'p', `"${builder.alias}"."postId" = p.id`)
+      .andWhere(`p.deleted = false`)
+      .addSelect(
+        `"timestamp" at time zone '${user.timezone ?? 'utc'}'`,
+        'timestamp',
+      )
+      .addSelect('timestamp', 'timestampDb');
+
+    if (args?.query) {
+      builder.queryBuilder.andWhere(`p.tsv @@ (${getSearchQuery(':query')})`, {
+        query: args?.query,
+      });
+    }
+
+    return builder;
+  };
+
+  return queryPaginatedByDate(
+    ctx,
+    info,
+    args,
+    { key: 'timestamp' },
+    { queryBuilder, orderByKey: 'DESC' },
+  );
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
@@ -372,37 +451,40 @@ export const resolvers: IResolvers<any, Context> = {
         .getRepository(View)
         .count({ where: { userId: ctx.userId } });
     },
+    searchReadingHistorySuggestions: async (
+      source,
+      { query }: { query: string },
+      ctx,
+    ) => {
+      const hits: { title: string }[] = await ctx.con.query(
+        `
+        WITH search AS (${getSearchQuery('$2')})
+        select distinct(ts_headline(process_text(title), search.query,
+        ('StartSel = <strong>, StopSel = </strong>'))) as title
+        from post INNER JOIN view ON view."postId" = post.id AND view."userId" = $1, search
+        where tsv @@ search.query
+        order by title desc
+        limit 5;
+        `,
+        [ctx.userId, query],
+      );
+      return {
+        query,
+        hits,
+      };
+    },
+    searchReadingHistory: async (
+      source,
+      args: ConnectionArguments & { query: string },
+      ctx,
+      info,
+    ): Promise<Connection<GQLView>> => readHistoryResolver(args, ctx, info),
     readHistory: async (
       _,
       args: ConnectionArguments,
       ctx: Context,
       info,
-    ): Promise<Connection<GQLView>> => {
-      const user = await ctx.con.getRepository(User).findOneOrFail(ctx.userId);
-      const queryBuilder = (builder: GraphORMBuilder): GraphORMBuilder => {
-        builder.queryBuilder = builder.queryBuilder
-          .andWhere(`"${builder.alias}"."userId" = :userId`, {
-            userId: ctx.userId,
-          })
-          .andWhere(`"${builder.alias}"."hidden" = false`)
-          .innerJoin(Post, 'p', `"${builder.alias}"."postId" = p.id`)
-          .andWhere(`p.deleted = false`)
-          .addSelect(
-            `"timestamp" at time zone '${user.timezone ?? 'utc'}'`,
-            'timestamp',
-          )
-          .addSelect('timestamp', 'timestampDb');
-        return builder;
-      };
-
-      return queryPaginatedByDate(
-        ctx,
-        info,
-        args,
-        { key: 'timestamp' },
-        { queryBuilder, orderByKey: 'DESC' },
-      );
-    },
+    ): Promise<Connection<GQLView>> => readHistoryResolver(args, ctx, info),
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
