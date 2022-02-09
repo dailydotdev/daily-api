@@ -8,42 +8,32 @@ type DevCardProperties = {
   sourcesLogos: string[];
   readingRank: number;
   backgroundImage?: string;
-  version?: number;
 };
 
 const firstRankColor = [
   '#A8B3CF52',
+  'iron',
   '#AD6648',
   '#ffffff',
   '#FFE923',
   '#427EF7',
   '#CE3DF3',
-];
-const [firstZeroRank, ...firstRankColors] = firstRankColor;
-const firstRankColorV2 = [
-  firstZeroRank,
-  '#iron',
-  ...firstRankColors,
-  '#legendary',
+  'legendary',
 ];
 
 const secondRankColor = [
   '#A8B3CF52',
+  'iron',
   '#FF8E3B',
   '#DBE1ED',
   '#FF8E3B',
   '#2CDCE6',
   '#7147ED',
-];
-const [secondZeroRank, ...secondRankColors] = secondRankColor;
-const secondRankColorV2 = [
-  secondZeroRank,
-  '#iron',
-  ...secondRankColors,
-  '#legendary',
+  'legendary',
 ];
 
 const rankShapes = [
+  `iron`,
   `<path d="M32.4432469,55.4924056 L64.8864939,46.2229065 C66.9214495,45.6414906 69.0785505,45.6414906 71.1135061,46.2229065 L103.556753,55.4924056 C105.989462,56.1874653 107.666667,58.410986 107.666667,60.9410413 L107.666667,86.9104317 C107.666667,88.4752385 106.39814,89.743765 104.833333,89.743765 C104.57007,89.743765 104.308091,89.7070736 104.054957,89.6347496 L71.1135061,80.2229065 C69.0785505,79.6414906 66.9214495,79.6414906 64.8864939,80.2229065 L31.9450432,89.6347496 C30.440444,90.064635 28.8722343,89.1934074 28.4423488,87.6888082 C28.3700248,87.4356741 28.3333333,87.1736952 28.3333333,86.9104317 L28.3333333,60.9410413 C28.3333333,58.410986 30.0105381,56.1874653 32.4432469,55.4924056 Z" id="Rank" fill="url(#linearGradient-21)"></path>
                             <path d="M32.4432469,55.4924056 L64.8864939,46.2229065 C66.9214495,45.6414906 69.0785505,45.6414906 71.1135061,46.2229065 L103.556753,55.4924056 C105.989462,56.1874653 107.666667,58.410986 107.666667,60.9410413 L107.666667,73.6666667 L68,62.3333333 L28.3333333,73.6666667 L28.3333333,60.9410413 C28.3333333,58.410986 30.0105381,56.1874653 32.4432469,55.4924056 Z" id="Light" fill-opacity="0.2" fill="#F5F8FC"></path>
                             <path d="M68,45.7868446 L68,79.7868446 C66.9519859,79.7868446 65.9039717,79.9321986 64.8864939,80.2229065 L31.9450432,89.6347496 C30.440444,90.064635 28.8722343,89.1934074 28.4423488,87.6888082 C28.3700248,87.4356741 28.3333333,87.1736952 28.3333333,86.9104317 L28.3333333,60.9410413 C28.3333333,58.410986 30.0105381,56.1874653 32.4432469,55.4924056 L64.8864939,46.2229065 C65.9039717,45.9321986 66.9519859,45.7868446 68,45.7868446 Z" id="Shine" fill-opacity="0.2" fill="#F5F8FC"></path>`,
@@ -61,25 +51,18 @@ const rankShapes = [
                             <path d="M74.3529176,92.4860944 L103.556753,100.825739 C105.989462,101.520799 107.666667,103.744319 107.666667,106.274375 L107.666667,107.666667 L68,96.3333333 L28.3333333,107.666667 L28.3333333,106.274375 C28.3333333,103.744319 30.0105381,101.520799 32.4432469,100.825739 L61.6470824,92.4860944 C65.6333066,94.4861327 70.3666934,94.4861327 74.3529176,92.4860944 Z M88.7853333,51.2665112 L103.556753,55.4924056 C105.989462,56.1874653 107.666667,58.410986 107.666667,60.9410413 L107.666667,73.6666667 L95.8637194,70.2917566 C97.828475,65.2190986 96.7639472,59.2431319 92.6701359,55.1493206 L88.7853333,51.2665112 Z M47.209,51.2665112 L43.3298641,55.1493206 C39.2360528,59.2431319 38.171525,65.2190986 40.1362806,70.2917566 L28.3333333,73.6666667 L28.3333333,60.9410413 C28.3333333,58.410986 30.0105381,56.1874653 32.4432469,55.4924056 L47.209,51.2665112 Z M71.1135061,23.5562398 L103.556753,32.825739 C105.989462,33.5207986 107.666667,35.7443193 107.666667,38.2743747 L107.666667,39.6666667 L68,28.3333333 L28.3333333,39.6666667 L28.3333333,38.2743747 C28.3333333,35.7443193 30.0105381,33.5207986 32.4432469,32.825739 L64.8864939,23.5562398 C66.9214495,22.9748239 69.0785505,22.9748239 71.1135061,23.5562398 Z" id="light" fill-opacity="0.2" fill="#F5F8FC"></path>
                             <path d="M61.6470824,92.4860944 C63.6410575,93.4865466 65.8219851,93.9865561 68.0028317,93.9861229 L68,102.453511 C66.9519859,102.453511 65.9039717,102.598865 64.8864939,102.889573 L31.9450432,112.301416 C30.440444,112.731302 28.8722343,111.860074 28.4423488,110.355475 C28.3700248,110.102341 28.3333333,109.840362 28.3333333,109.577098 L28.3333333,106.274375 C28.3333333,103.744319 30.0105381,101.520799 32.4432469,100.825739 L61.6470824,92.4860944 Z M47.209,51.2665112 L43.3298641,55.1493206 C37.7974367,60.6817481 37.7974367,69.6515853 43.3298641,75.1840127 L52.037,83.8895112 L31.9450432,89.6347496 C30.440444,90.064635 28.8722343,89.1934074 28.4423488,87.6888082 C28.3700248,87.4356741 28.3333333,87.1736952 28.3333333,86.9104317 L28.3333333,60.9410413 C28.3333333,58.410986 30.0105381,56.1874653 32.4432469,55.4924056 L47.209,51.2665112 Z M68,65.1666667 L68,85.4861231 C66.5497735,85.4861231 65.0995471,84.9328804 63.9930616,83.8263949 L49.3012102,69.1333333 L48.8688697,68.6397635 C48.0766522,67.6208961 47.6805435,66.3937814 47.6805435,65.1666667 L68,65.1666667 Z M67.9971396,44.8472102 C69.4317047,44.8464913 70.8664909,45.3871298 71.9687738,46.4691265 L86.6597282,61.1597282 C87.7662137,62.2662137 88.3194565,63.7164402 88.3194565,65.1666667 L68,65.1666667 L67.9971396,44.8472102 Z M68,23.1201779 L68,34.4535112 C66.9519859,34.4535112 65.9039717,34.5988652 64.8864939,34.8895732 L31.9450432,44.3014162 C30.440444,44.7313017 28.8722343,43.8600741 28.4423488,42.3554749 C28.3700248,42.1023408 28.3333333,41.8403619 28.3333333,41.5770984 L28.3333333,38.2743747 C28.3333333,35.7443193 30.0105381,33.5207986 32.4432469,32.825739 L64.8864939,23.5562398 C65.9039717,23.2655319 66.9519859,23.1201779 68,23.1201779 Z" id="Shine" fill-opacity="0.2" fill="#F5F8FC"></path>
                             <path d="M68,44.8472102 L68,65.1666667 L47.6805435,65.1666667 C47.6805435,63.737802 48.2176078,62.3089373 49.2917364,61.2088463 L64.0402102,46.4565435 L64.5269032,46.0355363 C65.5457706,45.2433189 66.7728853,44.8472102 68,44.8472102 Z" id="Blink" fill-opacity="0.64" fill="#FFFFFF"></path>`,
+  'legendary',
 ];
-
-const rankShapesV2 = [`iron`, ...rankShapes, 'legendar'];
 
 const rankBackgrounds = [
   'https://daily-now-res.cloudinary.com/image/upload/v1626263852/devcard/Dev_Card_Bg_-_No_Rank.jpg',
+  'IRON',
   'https://daily-now-res.cloudinary.com/image/upload/v1626263638/devcard/Dev_Card_Bg_-_B.jpg',
   'https://daily-now-res.cloudinary.com/image/upload/v1626263638/devcard/Dev_Card_Bg_-_S.jpg',
   'https://daily-now-res.cloudinary.com/image/upload/v1626263639/devcard/Dev_Card_Bg_-_G.jpg',
   'https://daily-now-res.cloudinary.com/image/upload/v1626263639/devcard/Dev_Card_Bg_-_P.jpg',
   'https://daily-now-res.cloudinary.com/image/upload/v1626263638/devcard/Dev_Card_Bg_-_D.jpg',
-];
-
-const [noRankBackground, ...backgrounds] = rankBackgrounds;
-const rankBackgroundsV2 = [
-  noRankBackground,
-  'iron link',
-  ...backgrounds,
-  'legendary link',
+  'LEGENDARY',
 ];
 
 export function generateDevCard({
@@ -90,13 +73,8 @@ export function generateDevCard({
   sourcesLogos,
   readingRank,
   backgroundImage,
-  version,
 }: DevCardProperties): string {
-  const background = version === 1 ? rankBackgrounds : rankBackgroundsV2;
-  const finalBackgroundImage = backgroundImage || background[readingRank];
-  const firstColor = version === 1 ? firstRankColor : firstRankColorV2;
-  const secondColor = version === 1 ? secondRankColor : secondRankColorV2;
-  const shapes = version === 1 ? rankShapes : rankShapesV2;
+  const finalBackgroundImage = backgroundImage || rankBackgrounds[readingRank];
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="892px" height="1218px" viewBox="0 0 892 1218" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -112,8 +90,12 @@ export function generateDevCard({
         </pattern>
         <image id="image-8" width="512" height="512" xlink:href="${profileImage}"></image>
         <linearGradient x1="100%" y1="50%" x2="-2.22044605e-14%" y2="50%" id="linearGradient-9">
-            <stop stop-color="${firstColor[readingRank]}" offset="0%"></stop>
-            <stop stop-color="${secondColor[readingRank]}" offset="100%"></stop>
+            <stop stop-color="${
+              firstRankColor[readingRank]
+            }" offset="0%"></stop>
+            <stop stop-color="${
+              secondRankColor[readingRank]
+            }" offset="100%"></stop>
         </linearGradient>
         <radialGradient cx="77.6966206%" cy="27.7857039%" fx="77.6966206%" fy="27.7857039%" r="103.840965%" gradientTransform="translate(0.776966,0.277857),scale(1.000000,0.855914),rotate(120.029938),translate(-0.776966,-0.277857)" id="radialGradient-10">
             <stop stop-color="#0E1217" stop-opacity="0" offset="0%"></stop>
@@ -127,8 +109,12 @@ export function generateDevCard({
         <path d="M17.92,0 L46.08,0 C55.9769427,0 64,8.02305728 64,17.92 L64,46.08 C64,55.9769427 55.9769427,64 46.08,64 L17.92,64 C8.02305728,64 0,55.9769427 0,46.08 L0,17.92 C0,8.02305728 8.02305728,0 17.92,0 Z" id="path-17"></path>
         <path d="M17.92,0 L46.08,0 C55.9769427,0 64,8.02305728 64,17.92 L64,46.08 C64,55.9769427 55.9769427,64 46.08,64 L17.92,64 C8.02305728,64 0,55.9769427 0,46.08 L0,17.92 C0,8.02305728 8.02305728,0 17.92,0 Z" id="path-19"></path>
         <linearGradient x1="50%" y1="-2.48949813e-15%" x2="50%" y2="100%" id="linearGradient-21">
-            <stop stop-color="${firstColor[readingRank]}" offset="0%"></stop>
-            <stop stop-color="${secondColor[readingRank]}" offset="100%"></stop>
+            <stop stop-color="${
+              firstRankColor[readingRank]
+            }" offset="0%"></stop>
+            <stop stop-color="${
+              secondRankColor[readingRank]
+            }" offset="100%"></stop>
         </linearGradient>
         <filter color-interpolation-filters="auto" id="filter-22">
             <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 1.000000 0 0 0 0 1.000000 0 0 0 0 1.000000 0 0 0 1.000000 0"></feColorMatrix>
@@ -227,7 +213,7 @@ export function generateDevCard({
                     <g id="rank-group">
                         <circle id="border" stroke="#525866" stroke-width="2" fill="#0E1217" cx="80" cy="80" r="81"></circle>
                         <g id="rank" transform="translate(12.000000, 12.000000)">
-                            ${shapes[readingRank > 0 ? readingRank - 1 : 0]}
+                            ${rankShapes[readingRank > 0 ? readingRank - 1 : 0]}
                         </g>
                     </g>
                 </g>
