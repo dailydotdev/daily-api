@@ -1419,7 +1419,7 @@ describe('query search reading history', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should return bookmarks search empty feed', async () => {
+  it('should return reading history search empty feed', async () => {
     loggedUser = '1';
     await con.getRepository(View).save([
       { userId: loggedUser, timestamp: subDays(now, 1), postId: 'p1' },
