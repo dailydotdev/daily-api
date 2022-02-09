@@ -238,11 +238,62 @@ Object {
 }
 `;
 
-exports[`query search reading history should return bookmarks search empty feed 1`] = `undefined`;
+exports[`query search reading history should return bookmarks search empty feed 1`] = `
+Object {
+  "readHistory": Object {
+    "edges": Array [],
+    "pageInfo": Object {
+      "endCursor": null,
+      "hasNextPage": false,
+    },
+  },
+}
+`;
 
-exports[`query search reading history should return reading history search feed 1`] = `undefined`;
+exports[`query search reading history should return reading history search feed 1`] = `
+Object {
+  "readHistory": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p1",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/a",
+            },
+            "title": "P1",
+            "url": "http://p1.com",
+          },
+          "timestamp": "2022-02-08T13:22:45.121Z",
+          "timestampDb": "2022-02-08T13:22:45.121Z",
+        },
+      },
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p1",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/a",
+            },
+            "title": "P1",
+            "url": "http://p1.com",
+          },
+          "timestamp": "2022-02-02T13:22:45.121Z",
+          "timestampDb": "2022-02-02T13:22:45.121Z",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjQzODA4MTY1MTIx",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
 
-exports[`query searchBookmarksSuggestions should return reading history search suggestions 1`] = `
+exports[`query searchReadingHistorySuggestions should return reading history search suggestions 1`] = `
 Object {
   "searchReadingHistorySuggestions": Object {
     "hits": Array [

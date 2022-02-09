@@ -1352,7 +1352,7 @@ describe('mutation hideReadHistory', () => {
   });
 });
 
-describe('query searchBookmarksSuggestions', () => {
+describe('query searchReadingHistorySuggestions', () => {
   const QUERY = (query: string): string => `{
     searchReadingHistorySuggestions(query: "${query}") {
       query
@@ -1380,22 +1380,19 @@ describe('query searchBookmarksSuggestions', () => {
 });
 
 describe('query search reading history', () => {
-  const QUERY = (query: string, now = new Date(), first = 10): string => `{
-    searchReadingHistory(query: "${query}", now: "${now.toISOString()}", first: ${first}) {
-      query
-      pageInfo {
-        endCursor
-        hasNextPage
-      }
+  const QUERY = `
+  query SearchReadingHistory($query: String!, $after: String, $first: Int) {
+    readHistory: searchReadingHistory(query: $query, first: $first, after: $after) {
+      pageInfo { endCursor, hasNextPage }
       edges {
         node {
           timestamp
           timestampDb
           post {
             id
+            url
             title
             image
-            commentsPermalink
             source {
               image
             }
@@ -1417,7 +1414,8 @@ describe('query search reading history', () => {
       { userId: loggedUser, timestamp: subDays(now, 6), postId: 'p6' },
       { userId: loggedUser, timestamp: subDays(now, 7), postId: 'p1' },
     ]);
-    const res = await client.query(QUERY('p1'));
+    const res = await client.query(QUERY, { variables: { query: 'p1' } });
+    expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
 
@@ -1432,7 +1430,10 @@ describe('query search reading history', () => {
       { userId: loggedUser, timestamp: subDays(now, 6), postId: 'p6' },
       { userId: loggedUser, timestamp: subDays(now, 7), postId: 'p1' },
     ]);
-    const res = await client.query(QUERY('not found'));
+    const res = await client.query(QUERY, {
+      variables: { query: 'NOT FOUND' },
+    });
+    expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
 });
