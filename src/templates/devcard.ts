@@ -8,7 +8,7 @@ type DevCardProperties = {
   sourcesLogos: string[];
   readingRank: number;
   backgroundImage?: string;
-  version: number;
+  version?: number;
 };
 
 const firstRankColor = [
