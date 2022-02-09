@@ -1383,11 +1383,9 @@ describe('query search reading history', () => {
   const QUERY = `
   query SearchReadingHistory($query: String!, $after: String, $first: Int) {
     readHistory: searchReadingHistory(query: $query, first: $first, after: $after) {
-      pageInfo { endCursor, hasNextPage }
+      pageInfo { hasNextPage }
       edges {
         node {
-          timestamp
-          timestampDb
           post {
             id
             url

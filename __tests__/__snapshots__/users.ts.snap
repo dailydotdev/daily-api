@@ -238,12 +238,11 @@ Object {
 }
 `;
 
-exports[`query search reading history should return bookmarks search empty feed 1`] = `
+exports[`query search reading history should return reading history search empty feed 1`] = `
 Object {
   "readHistory": Object {
     "edges": Array [],
     "pageInfo": Object {
-      "endCursor": null,
       "hasNextPage": false,
     },
   },
@@ -265,8 +264,6 @@ Object {
             "title": "P1",
             "url": "http://p1.com",
           },
-          "timestamp": "2022-02-08T13:22:45.121Z",
-          "timestampDb": "2022-02-08T13:22:45.121Z",
         },
       },
       Object {
@@ -280,13 +277,10 @@ Object {
             "title": "P1",
             "url": "http://p1.com",
           },
-          "timestamp": "2022-02-02T13:22:45.121Z",
-          "timestampDb": "2022-02-02T13:22:45.121Z",
         },
       },
     ],
     "pageInfo": Object {
-      "endCursor": "dGltZToxNjQzODA4MTY1MTIx",
       "hasNextPage": false,
     },
   },
