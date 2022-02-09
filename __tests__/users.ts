@@ -1351,3 +1351,87 @@ describe('mutation hideReadHistory', () => {
     expect(await repo.find()).toMatchSnapshot();
   });
 });
+
+describe('query searchReadingHistorySuggestions', () => {
+  const QUERY = (query: string): string => `{
+    searchReadingHistorySuggestions(query: "${query}") {
+      query
+      hits {
+        title
+      }
+    }
+  }
+`;
+
+  it('should return reading history search suggestions', async () => {
+    loggedUser = '1';
+    await con.getRepository(View).save([
+      { userId: loggedUser, timestamp: subDays(now, 1), postId: 'p1' },
+      { userId: loggedUser, timestamp: subDays(now, 2), postId: 'p2' },
+      { userId: loggedUser, timestamp: subDays(now, 3), postId: 'p3' },
+      { userId: loggedUser, timestamp: subDays(now, 4), postId: 'p4' },
+      { userId: loggedUser, timestamp: subDays(now, 5), postId: 'p5' },
+      { userId: loggedUser, timestamp: subDays(now, 6), postId: 'p6' },
+      { userId: loggedUser, timestamp: subDays(now, 7), postId: 'p1' },
+    ]);
+    const res = await client.query(QUERY('p1'));
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query search reading history', () => {
+  const QUERY = `
+  query SearchReadingHistory($query: String!, $after: String, $first: Int) {
+    readHistory: searchReadingHistory(query: $query, first: $first, after: $after) {
+      pageInfo { hasNextPage }
+      edges {
+        node {
+          post {
+            id
+            url
+            title
+            image
+            source {
+              image
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+  it('should return reading history search feed', async () => {
+    loggedUser = '1';
+    await con.getRepository(View).save([
+      { userId: loggedUser, timestamp: subDays(now, 1), postId: 'p1' },
+      { userId: loggedUser, timestamp: subDays(now, 2), postId: 'p2' },
+      { userId: loggedUser, timestamp: subDays(now, 3), postId: 'p3' },
+      { userId: loggedUser, timestamp: subDays(now, 4), postId: 'p4' },
+      { userId: loggedUser, timestamp: subDays(now, 5), postId: 'p5' },
+      { userId: loggedUser, timestamp: subDays(now, 6), postId: 'p6' },
+      { userId: loggedUser, timestamp: subDays(now, 7), postId: 'p1' },
+    ]);
+    const res = await client.query(QUERY, { variables: { query: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return reading history search empty feed', async () => {
+    loggedUser = '1';
+    await con.getRepository(View).save([
+      { userId: loggedUser, timestamp: subDays(now, 1), postId: 'p1' },
+      { userId: loggedUser, timestamp: subDays(now, 2), postId: 'p2' },
+      { userId: loggedUser, timestamp: subDays(now, 3), postId: 'p3' },
+      { userId: loggedUser, timestamp: subDays(now, 4), postId: 'p4' },
+      { userId: loggedUser, timestamp: subDays(now, 5), postId: 'p5' },
+      { userId: loggedUser, timestamp: subDays(now, 6), postId: 'p6' },
+      { userId: loggedUser, timestamp: subDays(now, 7), postId: 'p1' },
+    ]);
+    const res = await client.query(QUERY, {
+      variables: { query: 'NOT FOUND' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+});

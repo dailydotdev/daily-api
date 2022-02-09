@@ -238,6 +238,68 @@ Object {
 }
 `;
 
+exports[`query search reading history should return reading history search empty feed 1`] = `
+Object {
+  "readHistory": Object {
+    "edges": Array [],
+    "pageInfo": Object {
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query search reading history should return reading history search feed 1`] = `
+Object {
+  "readHistory": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p1",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/a",
+            },
+            "title": "P1",
+            "url": "http://p1.com",
+          },
+        },
+      },
+      Object {
+        "node": Object {
+          "post": Object {
+            "id": "p1",
+            "image": "sample.image.test",
+            "source": Object {
+              "image": "http://image.com/a",
+            },
+            "title": "P1",
+            "url": "http://p1.com",
+          },
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query searchReadingHistorySuggestions should return reading history search suggestions 1`] = `
+Object {
+  "searchReadingHistorySuggestions": Object {
+    "hits": Array [
+      Object {
+        "title": "<strong>P1</strong>",
+      },
+    ],
+    "query": "p1",
+  },
+}
+`;
+
 exports[`query userMostReadTags should return the user most read tags 1`] = `
 Array [
   Object {
@@ -396,7 +458,7 @@ exports[`query userReadingRankHistory should ignore views during current week 1`
 Array [
   Object {
     "count": 1,
-    "rank": 0,
+    "rank": 1,
   },
   Object {
     "count": 1,

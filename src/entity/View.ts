@@ -3,6 +3,7 @@ import { Post } from './Post';
 
 @Entity()
 @Index(['postId', 'userId'])
+@Index(['postId', 'userId', 'hidden'])
 export class View {
   @PrimaryColumn({ type: 'text' })
   @Index()
