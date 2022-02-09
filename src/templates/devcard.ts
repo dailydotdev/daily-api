@@ -12,9 +12,9 @@ type DevCardProperties = {
 
 const firstRankColor = [
   '#A8B3CF52',
-  'iron',
+  '#525866',
   '#AD6648',
-  '#ffffff',
+  '#F5F8FC',
   '#FFE923',
   '#427EF7',
   '#CE3DF3',
@@ -23,7 +23,7 @@ const firstRankColor = [
 
 const secondRankColor = [
   '#A8B3CF52',
-  'iron',
+  '#A8B3CF',
   '#FF8E3B',
   '#DBE1ED',
   '#FF8E3B',
