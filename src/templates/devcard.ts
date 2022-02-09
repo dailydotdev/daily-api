@@ -17,8 +17,8 @@ const firstRankColor = [
   '#F5F8FC',
   '#FFE923',
   '#427EF7',
-  '#CE3DF3',
-  'legendary',
+  '#CE3AF3',
+  '#FC538D',
 ];
 
 const secondRankColor = [
@@ -29,7 +29,7 @@ const secondRankColor = [
   '#FF8E3B',
   '#2CDCE6',
   '#7147ED',
-  'legendary',
+  '#E04337',
 ];
 
 const rankShapes = [
