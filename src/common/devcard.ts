@@ -77,7 +77,7 @@ export async function getDevCardData(
     con.getRepository(View).count({ userId }),
     getMostReadTags(con, { userId, limit: 4, dateRange: { start, end } }),
     getFavoriteSourcesLogos(con, userId),
-    getUserReadingRank(con, userId, user?.timezone),
+    getUserReadingRank(con, userId, user?.timezone, 2),
   ]);
   return { user, articlesRead, tags, sourcesLogos, rank };
 }
