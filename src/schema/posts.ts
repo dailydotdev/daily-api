@@ -305,6 +305,16 @@ export const typeDefs = /* GraphQL */ `
     ): Post!
 
     """
+    Get post by canonical URL
+    """
+    postCanonical(
+      """
+      Canonical URL of the requested post
+      """
+      canonicalUrl: String
+    ): Post!
+
+    """
     Get Post's Upvotes by post id
     """
     postUpvotes(
@@ -449,6 +459,24 @@ export const resolvers: IResolvers<any, Context> = {
         queryBuilder: builder.queryBuilder.where(
           `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
           { id },
+        ),
+        ...builder,
+      }));
+      if (res.length) {
+        return res[0];
+      }
+      throw new NotFoundError('Post not found');
+    },
+    postCanonical: async (
+      source,
+      { canonicalUrl, id }: { id: string; canonicalUrl: string },
+      ctx: Context,
+      info,
+    ) => {
+      const res = await graphorm.query(ctx, info, (builder) => ({
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."canonicalUrl" = :canonicalUrl AND "${builder.alias}"."deleted" = false`,
+          { canonicalUrl },
         ),
         ...builder,
       }));

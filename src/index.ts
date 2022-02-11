@@ -179,6 +179,9 @@ export default async function app(
             extendKey: trackingExtendKey,
           },
           banner: true,
+          postCanonical: {
+            extendKey: userExtendKey,
+          },
           post: {
             extendKey: userExtendKey,
           },
