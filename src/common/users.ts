@@ -1,8 +1,12 @@
 import { IFlags } from 'flagsmith-nodejs';
-import { endOfWeek, isSameDay, startOfWeek } from 'date-fns';
+import { isSameDay } from 'date-fns';
 import fetch from 'node-fetch';
 import { Connection } from 'typeorm';
 import { View } from '../entity';
+import {
+  getTimezonedEndOfISOWeek,
+  getTimezonedStartOfISOWeek,
+} from '../compatibility/utils';
 
 interface UserInfo {
   name?: string;
@@ -161,7 +165,7 @@ export const getUserReadingRank = async (
   const req = con
     .createQueryBuilder()
     .select(
-      `count(distinct date_trunc('day', "timestamp"::timestamptz ${atTimezone}) ${atTimezone}) filter(where "timestamp"::timestamptz ${atTimezone}' >= date_trunc('week', ${nowTimezone}) ${atTimezone})`,
+      `count(distinct date_trunc('day', "timestamp"::timestamptz ${atTimezone}) ${atTimezone}) filter(where "timestamp"::timestamptz ${atTimezone} >= date_trunc('week', ${nowTimezone}) ${atTimezone})`,
       'thisWeek',
     )
     .addSelect(
@@ -178,8 +182,11 @@ export const getUserReadingRank = async (
       return Promise.resolve(null);
     }
 
-    const start = new Date(startOfWeek(now).getTime()).toISOString();
-    const end = new Date(endOfWeek(now).getTime()).toISOString();
+    const start = getTimezonedStartOfISOWeek({
+      date: now,
+      timezone,
+    }).toISOString();
+    const end = getTimezonedEndOfISOWeek({ date: now, timezone }).toISOString();
 
     return getUserReadingDays(con, {
       limit,
