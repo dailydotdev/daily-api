@@ -1,5 +1,5 @@
 import { subYears } from 'date-fns';
-import { getUserReadingRank, ReadingRank, getUserReadingDays } from './users';
+import { getUserReadingRank, ReadingRank, getUserReadingTags } from './users';
 import { Post, Source, View } from '../entity';
 import { Connection } from 'typeorm';
 import { User } from '../entity/User';
@@ -15,7 +15,7 @@ export const getMostReadTags = async (
   con: Connection,
   args: ReadingDaysArgs,
 ): Promise<MostReadTag[]> => {
-  const result = await getUserReadingDays(con, args);
+  const result = await getUserReadingTags(con, args);
 
   return result.map(({ tag, readingDays, ...props }) => ({
     value: tag,
