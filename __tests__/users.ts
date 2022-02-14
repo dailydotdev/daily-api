@@ -524,7 +524,6 @@ describe('query userReadingRank', () => {
       getTimezonedStartOfISOWeek({ date: now, timezone: userTimezone }),
       7,
     );
-    console.log(lastWeekStartTimezoned);
     await con.getRepository(View).save([
       {
         userId: loggedUser,
@@ -547,7 +546,6 @@ describe('query userReadingRank', () => {
       variables: { id: loggedUser, version: 2 },
     });
     expect(res.errors).toBeFalsy();
-    console.log(res.data.userReadingRank);
     expect(res.data.userReadingRank.currentRank).toEqual(3);
   });
 
