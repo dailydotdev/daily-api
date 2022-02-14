@@ -120,7 +120,7 @@ export const getUserReadingDays = (
   return con.query(
     `
     with filtered_view as (
-      select  *, CAST(v."timestamp" at time zone COALESCE(u.timezone, 'utc') AS DATE) as day
+      select  *, CAST(v."timestamp"::timestamptz at time zone COALESCE(u.timezone, 'utc') AS DATE) as day
       from    "view" v
       inner   join "user" u
       on      u."id" = v."userId"
@@ -157,20 +157,18 @@ export const getUserReadingRank = async (
     timezone = 'utc';
   }
   const nowTimezone = `timezone('${timezone}', now())`;
+  const atTimezone = `at time zone '${timezone}'`;
   const req = con
     .createQueryBuilder()
     .select(
-      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' >= date_trunc('week', ${nowTimezone}))`,
+      `count(distinct date_trunc('day', "timestamp"::timestamptz ${atTimezone}) ${atTimezone}) filter(where "timestamp"::timestamptz ${atTimezone}' >= date_trunc('week', ${nowTimezone}) ${atTimezone})`,
       'thisWeek',
     )
     .addSelect(
-      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' < date_trunc('week', ${nowTimezone}) and "timestamp" at time zone '${timezone}' >= date_trunc('week', ${nowTimezone} - interval '7 days'))`,
+      `count(distinct date_trunc('day', "timestamp"::timestamptz ${atTimezone}) ${atTimezone}) filter(where "timestamp"::timestamptz ${atTimezone} < date_trunc('week', ${nowTimezone}) ${atTimezone} and "timestamp"::timestamptz ${atTimezone} >= date_trunc('week', ${nowTimezone} - interval '7 days') ${atTimezone})`,
       'lastWeek',
     )
-    .addSelect(
-      `MAX("timestamp"::timestamp at time zone '${timezone}')`,
-      'lastReadTime',
-    )
+    .addSelect(`MAX("timestamp"::timestamptz ${atTimezone})`, 'lastReadTime')
     .from(View, 'view')
     .where('"userId" = :id', { id: userId });
 
