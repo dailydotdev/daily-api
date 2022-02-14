@@ -3,10 +3,7 @@ import { isSameDay } from 'date-fns';
 import fetch from 'node-fetch';
 import { Connection } from 'typeorm';
 import { View } from '../entity';
-import {
-  getTimezonedEndOfISOWeek,
-  getTimezonedStartOfISOWeek,
-} from '../compatibility/utils';
+import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 
 interface UserInfo {
   name?: string;
@@ -117,7 +114,7 @@ export interface ReadingDaysArgs {
   dateRange: DateRange;
 }
 
-export const getUserReadingDays = (
+export const getUserReadingTags = (
   con: Connection,
   { userId, dateRange: { start, end }, limit = 8 }: ReadingDaysArgs,
 ): Promise<TagsReadingStatus[]> => {
@@ -188,7 +185,7 @@ export const getUserReadingRank = async (
     }).toISOString();
     const end = getTimezonedEndOfISOWeek({ date: now, timezone }).toISOString();
 
-    return getUserReadingDays(con, {
+    return getUserReadingTags(con, {
       limit,
       userId,
       dateRange: { start, end },

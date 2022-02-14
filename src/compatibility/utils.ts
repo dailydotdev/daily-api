@@ -2,8 +2,6 @@ import { GraphQLError } from 'graphql';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { generateTraceContext } from '@google-cloud/trace-agent/build/src/util';
 import { Constants } from '@google-cloud/trace-agent/build/src/constants';
-import { endOfISOWeek, startOfISOWeek } from 'date-fns';
-import { zonedTimeToUtc } from 'date-fns-tz';
 
 export interface GraphqlPayload {
   query: string;
@@ -18,24 +16,6 @@ export const postFields = (userId?: string): string => {
     return `${base},bookmarked,read`;
   }
   return base;
-};
-
-interface GetTimezonedIsoWeekProps {
-  date: Date;
-  timezone: string;
-}
-export const getTimezonedStartOfISOWeek = ({
-  date,
-  timezone,
-}: GetTimezonedIsoWeekProps): Date => {
-  return zonedTimeToUtc(startOfISOWeek(date), timezone);
-};
-
-export const getTimezonedEndOfISOWeek = ({
-  date,
-  timezone,
-}: GetTimezonedIsoWeekProps): Date => {
-  return zonedTimeToUtc(endOfISOWeek(date), timezone);
 };
 
 export const injectGraphql = async (

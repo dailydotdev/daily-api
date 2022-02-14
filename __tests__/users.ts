@@ -22,7 +22,7 @@ import {
 } from './helpers';
 import { Comment, Post, Source, User, View, DevCard } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
-import { getTimezonedStartOfISOWeek } from '../src/compatibility/utils';
+import { getTimezonedStartOfISOWeek } from '../src/common';
 
 let con: Connection;
 let state: GraphQLTestingState;
