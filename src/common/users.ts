@@ -1,5 +1,5 @@
 import { IFlags } from 'flagsmith-nodejs';
-import { endOfWeek, isSameDay, startOfWeek } from 'date-fns';
+import { isSameDay } from 'date-fns';
 import fetch from 'node-fetch';
 import { Connection } from 'typeorm';
 import { View } from '../entity';
@@ -113,35 +113,44 @@ export interface ReadingDaysArgs {
   dateRange: DateRange;
 }
 
-export const getUserReadingDays = (
+export const getUserReadingTags = (
   con: Connection,
   { userId, dateRange: { start, end }, limit = 8 }: ReadingDaysArgs,
 ): Promise<TagsReadingStatus[]> => {
+  const timezone = `COALESCE(u.timezone, 'utc')`;
   return con.query(
     `
-    with filtered_view as (
-      select  *, CAST(v."timestamp" at time zone COALESCE(u.timezone, 'utc') AS DATE) as day
-      from    "view" v
-      inner   join "user" u
-      on      u."id" = v."userId"
+      with filtered_view as (
+        select *,
+               CAST(v."timestamp" at time zone ${timezone} AS DATE) as day
+      from "view" v
+        inner join "user" u
+      on u."id" = v."userId"
 
-      where   u."id" = $1
-      and     "timestamp" >= $2
-      and     "timestamp" < $3
-    )
-    select  *,
-            (select count(DISTINCT day) from filtered_view) as total,
-            tags."readingDays" * 1.0 / (select count(DISTINCT day) from filtered_view) as percentage
-    from (
-      select pk.keyword as tag, count(DISTINCT day) as "readingDays"
-      from filtered_view v
-      inner join post_keyword pk on v."postId" = pk."postId" and pk.status = 'allow'
-      where pk.keyword != 'general-programming'
-      group by pk.keyword
-    ) as tags
-    order by tags."readingDays" desc
-    limit $4;
-  `,
+      where u."id" = $1
+        and "timestamp" >= date_trunc('week'
+          , timezone(${timezone}
+          , $2))
+        and "timestamp"
+          < date_trunc('week'
+          , timezone(${timezone}
+          , $3)) + interval '7 days'
+        )
+      select *,
+             (select count(DISTINCT day) from filtered_view) as total,
+             tags."readingDays" * 1.0 /
+             (select count(DISTINCT day) from filtered_view) as percentage
+      from (
+             select pk.keyword as tag, count(DISTINCT day) as "readingDays"
+             from filtered_view v
+                    inner join post_keyword pk
+                               on v."postId" = pk."postId" and pk.status = 'allow'
+             where pk.keyword != 'general-programming'
+             group by pk.keyword
+           ) as tags
+      order by tags."readingDays" desc
+        limit $4;
+    `,
     [userId, start, end, limit],
   );
 };
@@ -153,7 +162,7 @@ export const getUserReadingRank = async (
   version = 1,
   limit = 6,
 ): Promise<ReadingRank> => {
-  if (!timezone || timezone === null) {
+  if (!timezone) {
     timezone = 'utc';
   }
   const nowTimezone = `timezone('${timezone}', now())`;
@@ -180,10 +189,10 @@ export const getUserReadingRank = async (
       return Promise.resolve(null);
     }
 
-    const start = new Date(startOfWeek(now).getTime()).toISOString();
-    const end = new Date(endOfWeek(now).getTime()).toISOString();
+    const start = now.toISOString();
+    const end = start;
 
-    return getUserReadingDays(con, {
+    return getUserReadingTags(con, {
       limit,
       userId,
       dateRange: { start, end },
