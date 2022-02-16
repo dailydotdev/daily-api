@@ -332,7 +332,7 @@ const readHistoryResolver = async (
 };
 
 const userTimezone = `at time zone COALESCE(timezone, 'utc')`;
-const timestampAtTimezone = `"timestamp"::timestamptz ${userTimezone}`;
+const timestampAtTimezone = `"timestamp"::timestamptz`;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
