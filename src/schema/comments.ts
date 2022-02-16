@@ -2,10 +2,12 @@ import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from 'graphql-tools';
+import { Connection as ORMConnection } from 'typeorm';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { getDiscussionLink } from '../common';
-import { Comment, CommentUpvote, Post } from '../entity';
+import { CommentMention } from './../entity/CommentMention';
+import { Comment, CommentUpvote, Post, User } from '../entity';
 import { NotFoundError } from '../errors';
 import { GQLEmptyResponse } from './common';
 import { GQLUser } from './users';
@@ -26,6 +28,18 @@ export interface GQLComment {
   children?: Connection<GQLComment>;
   post: GQLPost;
   numUpvotes: number;
+}
+
+interface GQLMentionUser {
+  username: string;
+  name: string;
+  image: string;
+}
+
+interface GQLMentionUserArgs {
+  postId: string;
+  name?: string;
+  limit?: number;
 }
 
 interface GQLPostCommentArgs {
@@ -136,6 +150,12 @@ export const typeDefs = /* GraphQL */ `
     edges: [CommentUpvoteEdge!]!
   }
 
+  type MentionUser {
+    rankThisWeek: String!
+    rankLastWeek: String!
+    currentRank: String!
+  }
+
   extend type Query {
     """
     Get the comments of a post
@@ -195,6 +215,11 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): CommentConnection!
+
+    """
+    Recommend users to mention in the comments
+    """
+    recommendedMentions(postId: String!, name: String): [MentionUser] @auth
   }
 
   extend type Mutation {
@@ -283,6 +308,35 @@ export interface GQLCommentUpvoteArgs extends ConnectionArguments {
 export interface GQLUserCommentsArgs extends ConnectionArguments {
   userId: string;
 }
+
+interface RecentMentionsProps {
+  name?: string;
+  limit?: number;
+}
+
+export const getRecentMentions = (
+  con: ORMConnection,
+  userId: string,
+  { limit = 5, name }: RecentMentionsProps,
+): Promise<GQLMentionUser[]> => {
+  let query = con
+    .getRepository(CommentMention)
+    .createQueryBuilder('cm')
+    .select('u.name, u.username, u.image')
+    .innerJoin(Comment, 'c', 'cm."commentId" === c.id')
+    .innerJoin(User, 'u', 'u.id = cm."mentionedUserId"')
+    .where('c."userId" = :userId', { userId })
+    .limit(limit);
+
+  if (name) {
+    query = query.andWhere(
+      'u.name ILIKE ":name%" OR u.username ILIKE ":name%"',
+      { name },
+    );
+  }
+
+  return query.orderBy('u.name').execute();
+};
 
 const getCommentById = async (
   id: string,
@@ -373,6 +427,87 @@ export const resolvers: IResolvers<any, Context> = {
           orderByKey: 'DESC',
         },
       );
+    },
+    recommendedMentions: async (
+      _,
+      { postId, name, limit = 5 }: GQLMentionUserArgs,
+      ctx,
+    ): Promise<GQLMentionUser[]> => {
+      if (name) {
+        const recent = await getRecentMentions(ctx.con, ctx.userId, {
+          name,
+        });
+        const missing = limit - recent.length;
+
+        if (missing === 0) {
+          return recent;
+        }
+
+        const users = await ctx
+          .getRepository(User)
+          .createQueryBuilder()
+          .select('name, username, image')
+          .where('name ILIKE ":name%" OR username ILIKE ":name%', { name })
+          .limit(missing)
+          .getRawMany<GQLMentionUser>();
+
+        return recent.concat(users);
+      }
+
+      const postRepo = ctx.getRepository(Post);
+      const commentRepo = ctx.getRepository(Comment);
+      const postQuery = postRepo
+        .createQueryBuilder('p')
+        .select('u.name, u.username, u.image')
+        .innerJoin(User, 'u', 'u.id = p."authorId"')
+        .where('p.id = :postId', { postId });
+      const commentQuery = commentRepo
+        .createQueryBuilder('c')
+        .select('u.name, u.username, u.image')
+        .innerJoin(User, 'u', 'u.id = p."authorId"')
+        .where('p.id = :postId', { postId })
+        .limit(4);
+
+      const [author, commenters] = await Promise.all([
+        postQuery.getRawMany<GQLMentionUser>(),
+        commentQuery.getRawMany<GQLMentionUser>(),
+      ]);
+
+      const recommendations = [...author, ...commenters];
+      const missing = limit - recommendations.length;
+
+      if (missing === 0) {
+        return recommendations;
+      }
+
+      const recent = await getRecentMentions(ctx.con, ctx.userId, {
+        limit: missing,
+      });
+
+      return recommendations.concat(recent);
+      // dummy data remove before prod
+      // return [
+      //   {
+      //     username: 'sshanzel',
+      //     name: 'Lee',
+      //     image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
+      //   },
+      //   {
+      //     username: 'hansel',
+      //     name: 'Hansel',
+      //     image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
+      //   },
+      //   {
+      //     username: 'samson',
+      //     name: 'Samson',
+      //     image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
+      //   },
+      //   {
+      //     username: 'solevilla',
+      //     name: 'Solevilla',
+      //     image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
+      //   },
+      // ];
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
