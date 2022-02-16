@@ -1,8 +1,9 @@
 import { IFlags } from 'flagsmith-nodejs';
-import { endOfWeek, isSameDay, startOfWeek } from 'date-fns';
+import { isSameDay } from 'date-fns';
 import fetch from 'node-fetch';
 import { Connection } from 'typeorm';
 import { View } from '../entity';
+import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 
 interface UserInfo {
   name?: string;
@@ -113,14 +114,14 @@ export interface ReadingDaysArgs {
   dateRange: DateRange;
 }
 
-export const getUserReadingDays = (
+export const getUserReadingTags = (
   con: Connection,
   { userId, dateRange: { start, end }, limit = 8 }: ReadingDaysArgs,
 ): Promise<TagsReadingStatus[]> => {
   return con.query(
     `
     with filtered_view as (
-      select  *, CAST(v."timestamp" at time zone COALESCE(u.timezone, 'utc') AS DATE) as day
+      select  *, CAST(v."timestamp"::timestamptz at time zone COALESCE(u.timezone, 'utc') AS DATE) as day
       from    "view" v
       inner   join "user" u
       on      u."id" = v."userId"
@@ -157,20 +158,18 @@ export const getUserReadingRank = async (
     timezone = 'utc';
   }
   const nowTimezone = `timezone('${timezone}', now())`;
+  const atTimezone = `at time zone '${timezone}'`;
   const req = con
     .createQueryBuilder()
     .select(
-      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' >= date_trunc('week', ${nowTimezone}))`,
+      `count(distinct date_trunc('day', "timestamp"::timestamptz ${atTimezone}) ${atTimezone}) filter(where "timestamp" >= date_trunc('week', ${nowTimezone}) ${atTimezone})`,
       'thisWeek',
     )
     .addSelect(
-      `count(distinct date_trunc('day', "timestamp" at time zone '${timezone}')) filter(where "timestamp" at time zone '${timezone}' < date_trunc('week', ${nowTimezone}) and "timestamp" at time zone '${timezone}' >= date_trunc('week', ${nowTimezone} - interval '7 days'))`,
+      `count(distinct date_trunc('day', "timestamp"::timestamptz ${atTimezone}) ${atTimezone}) filter(where "timestamp" BETWEEN (date_trunc('week', ${nowTimezone} - interval '7 days') ${atTimezone}) AND (date_trunc('week', ${nowTimezone}) ${atTimezone}))`,
       'lastWeek',
     )
-    .addSelect(
-      `MAX("timestamp"::timestamp at time zone '${timezone}')`,
-      'lastReadTime',
-    )
+    .addSelect(`MAX("timestamp"::timestamptz ${atTimezone})`, 'lastReadTime')
     .from(View, 'view')
     .where('"userId" = :id', { id: userId });
 
@@ -180,10 +179,13 @@ export const getUserReadingRank = async (
       return Promise.resolve(null);
     }
 
-    const start = new Date(startOfWeek(now).getTime()).toISOString();
-    const end = new Date(endOfWeek(now).getTime()).toISOString();
+    const start = getTimezonedStartOfISOWeek({
+      date: now,
+      timezone,
+    }).toISOString();
+    const end = getTimezonedEndOfISOWeek({ date: now, timezone }).toISOString();
 
-    return getUserReadingDays(con, {
+    return getUserReadingTags(con, {
       limit,
       userId,
       dateRange: { start, end },

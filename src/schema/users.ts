@@ -308,7 +308,7 @@ const readHistoryResolver = async (
       .innerJoin(Post, 'p', `"${builder.alias}"."postId" = p.id`)
       .andWhere(`p.deleted = false`)
       .addSelect(
-        `"timestamp" at time zone '${user.timezone ?? 'utc'}'`,
+        `"timestamp"::timestamptz at time zone '${user.timezone ?? 'utc'}'`,
         'timestamp',
       )
       .addSelect('timestamp', 'timestampDb');
@@ -330,6 +330,9 @@ const readHistoryResolver = async (
     { queryBuilder, orderByKey: 'DESC' },
   );
 };
+
+const userTimezone = `at time zone COALESCE(timezone, 'utc')`;
+const timestampAtTimezone = `"timestamp"::timestamptz ${userTimezone}`;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
@@ -408,10 +411,11 @@ export const resolvers: IResolvers<any, Context> = {
         select ${rankColumn} as "rank",
                count(*)                                    as "count"
         from (
-               select date_trunc('week', "timestamp") as "timestamp",
+               select date_trunc('week', ${timestampAtTimezone}) ${userTimezone} as "timestamp",
                       count(*)                        as days
                from (
-                      select date_trunc('day', "timestamp" at time zone COALESCE("user".timezone, 'utc')) as "timestamp"
+                      select date_trunc('day', ${timestampAtTimezone}) ${userTimezone} AS "timestamp",
+                      min("user".timezone) as "timezone"
                       from "view"
                       join "user" on "user".id = view."userId"
                       where "userId" = $1
@@ -434,7 +438,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLReadingRankHistory[]> => {
       return ctx.con.query(
         `
-          select date_trunc('day', "timestamp" at time zone COALESCE("user".timezone, 'utc'))::date::text as "date", count(*) as "reads"
+          select (date_trunc('day', ${timestampAtTimezone}) ${userTimezone})::date::text as "date", count(*) as "reads"
           from "view"
           join "user" on "user".id = view."userId"
           where "userId" = $1
