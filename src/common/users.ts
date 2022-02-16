@@ -154,7 +154,7 @@ export const getUserReadingRank = async (
   version = 1,
   limit = 6,
 ): Promise<ReadingRank> => {
-  if (!timezone || timezone === null) {
+  if (!timezone) {
     timezone = 'utc';
   }
   const nowTimezone = `timezone('${timezone}', now())`;
@@ -162,11 +162,11 @@ export const getUserReadingRank = async (
   const req = con
     .createQueryBuilder()
     .select(
-      `count(distinct (date_trunc('day', "timestamp"::timestamptz) ${atTimezone})) filter(where "timestamp" >= date_trunc('week', ${nowTimezone}) ${atTimezone})`,
+      `count(distinct ("timestamp"::timestamptz ${atTimezone})::date::text) filter(where "timestamp" >= date_trunc('week', ${nowTimezone}))`,
       'thisWeek',
     )
     .addSelect(
-      `count(distinct (date_trunc('day', "timestamp"::timestamptz) ${atTimezone})) filter(where "timestamp" BETWEEN (date_trunc('week', ${nowTimezone} - interval '7 days') ${atTimezone}) AND (date_trunc('week', ${nowTimezone}) ${atTimezone}))`,
+      `count(distinct ("timestamp"::timestamptz ${atTimezone})::date::text) filter(where "timestamp" BETWEEN (date_trunc('week', ${nowTimezone} - interval '7 days')) AND (date_trunc('week', ${nowTimezone})))`,
       'lastWeek',
     )
     .addSelect(`MAX("timestamp"::timestamptz ${atTimezone})`, 'lastReadTime')
