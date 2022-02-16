@@ -411,10 +411,10 @@ export const resolvers: IResolvers<any, Context> = {
         select ${rankColumn} as "rank",
                count(*)                                    as "count"
         from (
-               select date_trunc('week', ${timestampAtTimezone}) ${userTimezone} as "timestamp",
+               select date_trunc('week', "timestamp") as "timestamp",
                       count(*)                        as days
                from (
-                      select date_trunc('day', ${timestampAtTimezone}) ${userTimezone} AS "timestamp",
+                      select (${timestampAtTimezone})::date AS "timestamp",
                       min("user".timezone) as "timezone"
                       from "view"
                       join "user" on "user".id = view."userId"
@@ -438,7 +438,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLReadingRankHistory[]> => {
       return ctx.con.query(
         `
-          select (date_trunc('day', ${timestampAtTimezone}) ${userTimezone})::date::text as "date", count(*) as "reads"
+          select (${timestampAtTimezone})::date::text as "date", count(*) as "reads"
           from "view"
           join "user" on "user".id = view."userId"
           where "userId" = $1
