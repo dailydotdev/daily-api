@@ -323,7 +323,7 @@ export const getRecentMentions = (
     .getRepository(CommentMention)
     .createQueryBuilder('cm')
     .select('u.name, u.username, u.image')
-    .innerJoin(Comment, 'c', 'cm."commentId" === c.id')
+    .innerJoin(Comment, 'c', 'cm."commentId" = c.id')
     .innerJoin(User, 'u', 'u.id = cm."mentionedUserId"')
     .where('c."userId" = :userId', { userId })
     .limit(limit);
@@ -464,8 +464,11 @@ export const resolvers: IResolvers<any, Context> = {
       const commentQuery = commentRepo
         .createQueryBuilder('c')
         .select('u.name, u.username, u.image')
-        .innerJoin(User, 'u', 'u.id = p."authorId"')
-        .where('p.id = :postId', { postId })
+        .innerJoin(User, 'u', 'u.id = c."userId"')
+        .where('c."postId" = :postId AND u.id != :userId', {
+          postId,
+          userId: ctx.userId,
+        })
         .limit(4);
 
       const [author, commenters] = await Promise.all([
