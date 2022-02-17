@@ -151,9 +151,9 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type MentionUser {
-    rankThisWeek: String!
-    rankLastWeek: String!
-    currentRank: String!
+    username: String!
+    name: String!
+    image: String!
   }
 
   extend type Query {
