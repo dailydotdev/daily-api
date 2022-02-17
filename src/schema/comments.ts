@@ -329,10 +329,9 @@ export const getRecentMentions = (
     .limit(limit);
 
   if (name) {
-    query = query.andWhere(
-      'u.name ILIKE ":name%" OR u.username ILIKE ":name%"',
-      { name },
-    );
+    query = query.andWhere('u.name ILIKE :name OR u.username ILIKE :name', {
+      name: `${name}%`,
+    });
   }
 
   return query.orderBy('u.name').execute();
@@ -447,7 +446,9 @@ export const resolvers: IResolvers<any, Context> = {
           .getRepository(User)
           .createQueryBuilder()
           .select('name, username, image')
-          .where('name ILIKE ":name%" OR username ILIKE ":name%', { name })
+          .where('name ILIKE :name OR username ILIKE :name', {
+            name: `${name}%`,
+          })
           .limit(missing)
           .getRawMany<GQLMentionUser>();
 
