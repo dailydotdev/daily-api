@@ -458,7 +458,7 @@ exports[`query userReadingRankHistory should ignore views during current week 1`
 Array [
   Object {
     "count": 1,
-    "rank": 0,
+    "rank": 1,
   },
   Object {
     "count": 1,
