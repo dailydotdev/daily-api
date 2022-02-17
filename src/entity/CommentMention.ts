@@ -3,10 +3,10 @@ import { Entity, ManyToOne, PrimaryColumn } from 'typeorm';
 
 @Entity()
 export class CommentMention {
-  @PrimaryColumn({ type: 'text' })
+  @PrimaryColumn()
   commentId: string;
 
-  @PrimaryColumn({ type: 'text' })
+  @PrimaryColumn()
   mentionedUserId: string;
 
   @ManyToOne(() => Comment, {
