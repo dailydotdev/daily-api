@@ -20,6 +20,7 @@ import {
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
+import { getMentionLink } from '../src/common/markdown';
 
 let con: Connection;
 let state: GraphQLTestingState;
@@ -116,6 +117,24 @@ beforeEach(async () => {
 });
 
 afterAll(() => disposeGraphQLTesting(state));
+
+const saveCommentMentionFixtures = async (sampleAuthor = usersFixture[0]) => {
+  const promises = usersFixture.map((user) =>
+    con
+      .getRepository(User)
+      .update({ id: user.id }, { ...user, username: user.name }),
+  );
+  await Promise.all(promises);
+  await con
+    .getRepository(Post)
+    .update({ id: 'p1' }, { ...postsFixture[0], authorId: sampleAuthor.id });
+  await con.getRepository(CommentMention).save(
+    usersFixture.map(({ id }) => ({
+      commentId: 'c1',
+      mentionedUserId: id,
+    })),
+  );
+};
 
 const commentFields =
   'id, content, contentHtml, createdAt, permalink, upvoted, author { id, name, image }';
@@ -229,24 +248,6 @@ describe('query recommendedMentions', () => {
     }
   `;
 
-  const saveCommentMentionFixtures = async (sampleAuthor = usersFixture[0]) => {
-    const promises = usersFixture.map((user) =>
-      con
-        .getRepository(User)
-        .update({ id: user.id }, { ...user, username: user.name }),
-    );
-    await Promise.all(promises);
-    await con
-      .getRepository(Post)
-      .update({ id: 'p1' }, { ...postsFixture[0], authorId: sampleAuthor.id });
-    await con.getRepository(CommentMention).save(
-      usersFixture.map(({ id }) => ({
-        commentId: 'c1',
-        mentionedUserId: id,
-      })),
-    );
-  };
-
   it('should not authorize when not logged in', () =>
     testQueryErrorCode(
       client,
@@ -357,6 +358,28 @@ describe('mutation commentOnPost', () => {
     expect(actual[0]).toMatchSnapshot({
       id: expect.any(String),
       contentHtml: `<h1>my comment <a href=\"http://daily.dev\" target=\"_blank\" rel=\"noopener nofollow\">http://daily.dev</a></h1>\n`,
+    });
+    expect(res.data.commentOnPost.id).toEqual(actual[0].id);
+    const post = await con.getRepository(Post).findOne('p1');
+    expect(post.comments).toEqual(1);
+  });
+
+  it('should comment markdown on a post with user mention', async () => {
+    loggedUser = '1';
+    await saveCommentMentionFixtures();
+    const res = await client.mutate(MUTATION, {
+      variables: { postId: 'p1', content: '@Ido' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Comment).find({
+      select: ['id', 'content', 'contentHtml', 'parentId'],
+      order: { createdAt: 'DESC' },
+      where: { postId: 'p1' },
+    });
+    expect(actual.length).toEqual(6);
+    expect(actual[0]).toMatchSnapshot({
+      id: expect.any(String),
+      contentHtml: `<p>${getMentionLink('@Ido')}</p>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOne('p1');

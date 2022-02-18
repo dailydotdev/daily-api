@@ -20,6 +20,16 @@ Object {
 }
 `;
 
+exports[`mutation commentOnPost should comment markdown on a post with user mention 1`] = `
+Object {
+  "content": "@Ido",
+  "contentHtml": "<p><a href=\\"https://app.daily.dev/Ido\\" target=\\"_blank\\" data-mention-username=\\"Ido\\">Ido</a></p>
+",
+  "id": Any<String>,
+  "parentId": null,
+}
+`;
+
 exports[`mutation upvoteComment should ignore conflicts 1`] = `
 Array [
   CommentUpvote {

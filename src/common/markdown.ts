@@ -16,7 +16,7 @@ export const markdown: MarkdownIt = MarkdownIt({
   },
 });
 
-const getMentionLink = (mention: string) => {
+export const getMentionLink = (mention: string): string => {
   const username = mention.substring(1);
 
   return `<a href="${WEBAPP_URL}/${username}" target="_blank" data-mention-username="${username}">${username}</a>`;
