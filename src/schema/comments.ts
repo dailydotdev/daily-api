@@ -2,7 +2,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from 'graphql-tools';
-import { Connection as ORMConnection } from 'typeorm';
+import { Connection as ORMConnection, EntityManager, In } from 'typeorm';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { getDiscussionLink } from '../common';
@@ -314,6 +314,54 @@ interface RecentMentionsProps {
   limit?: number;
 }
 
+interface MentionedUser {
+  id: string;
+  username?: string;
+}
+
+const getVerifiedMentions = async (
+  con: ORMConnection,
+  usernames: string[],
+): Promise<MentionedUser[]> =>
+  con.getRepository(User).find({ where: { username: In(usernames) } });
+
+const getMentions = async (
+  con: ORMConnection,
+  content: string,
+): Promise<MentionedUser[]> => {
+  const words = content.split(' ');
+  const result = words
+    .filter(([first, next]) => first === '@' && !!next)
+    .map((mention) => mention.substring(1));
+
+  if (result.length === 0) {
+    return [];
+  }
+
+  return getVerifiedMentions(con, result);
+};
+
+const saveCommentMentions = (
+  transaction: EntityManager,
+  commentId: string,
+  users: MentionedUser[],
+) => {
+  if (!users.length) return;
+
+  const mentions: Partial<CommentMention>[] = users.map(({ id }) => ({
+    commentId,
+    mentionedUserId: id,
+  }));
+
+  return transaction
+    .createQueryBuilder()
+    .insert()
+    .into(CommentMention)
+    .values(mentions)
+    .orIgnore()
+    .execute();
+};
+
 export const getRecentMentions = (
   con: ORMConnection,
   userId: string,
@@ -433,26 +481,49 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
     ): Promise<GQLMentionUser[]> => {
       if (name) {
-        const recent = await getRecentMentions(ctx.con, ctx.userId, {
-          name,
-        });
-        const missing = limit - recent.length;
+        // const recent = await getRecentMentions(ctx.con, ctx.userId, {
+        //   name,
+        // });
+        // const missing = limit - recent.length;
 
-        if (missing === 0) {
-          return recent;
-        }
+        // if (missing === 0) {
+        //   return recent;
+        // }
 
-        const users = await ctx
-          .getRepository(User)
-          .createQueryBuilder()
-          .select('name, username, image')
-          .where('name ILIKE :name OR username ILIKE :name', {
-            name: `${name}%`,
-          })
-          .limit(missing)
-          .getRawMany<GQLMentionUser>();
+        // const users = await ctx
+        //   .getRepository(User)
+        //   .createQueryBuilder()
+        //   .select('name, username, image')
+        //   .where('name ILIKE :name OR username ILIKE :name', {
+        //     name: `${name}%`,
+        //   })
+        //   .limit(missing)
+        //   .getRawMany<GQLMentionUser>();
 
-        return recent.concat(users);
+        // return recent.concat(users);
+        // dummy data remove before prod
+        return [
+          {
+            username: 'sshanzel',
+            name: 'Lee',
+            image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
+          },
+          {
+            username: 'hansel',
+            name: 'Hansel',
+            image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
+          },
+          {
+            username: 'samson',
+            name: 'Samson',
+            image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
+          },
+          {
+            username: 'solevilla',
+            name: 'Solevilla',
+            image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
+          },
+        ];
       }
 
       const postRepo = ctx.getRepository(Post);
@@ -489,29 +560,6 @@ export const resolvers: IResolvers<any, Context> = {
       });
 
       return recommendations.concat(recent);
-      // dummy data remove before prod
-      // return [
-      //   {
-      //     username: 'sshanzel',
-      //     name: 'Lee',
-      //     image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
-      //   },
-      //   {
-      //     username: 'hansel',
-      //     name: 'Hansel',
-      //     image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
-      //   },
-      //   {
-      //     username: 'samson',
-      //     name: 'Samson',
-      //     image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
-      //   },
-      //   {
-      //     username: 'solevilla',
-      //     name: 'Solevilla',
-      //     image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
-      //   },
-      // ];
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -526,19 +574,24 @@ export const resolvers: IResolvers<any, Context> = {
         throw new ValidationError('Content cannot be empty!');
       }
 
+      const mentions = await getMentions(ctx.con, content);
+
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
-          const comment = await entityManager.getRepository(Comment).save(
-            entityManager.getRepository(Comment).create({
-              id: shortid.generate(),
-              postId,
-              userId: ctx.userId,
-              content,
-            }),
-          );
+          const createdComment = entityManager.getRepository(Comment).create({
+            id: shortid.generate(),
+            postId,
+            userId: ctx.userId,
+            content,
+          });
+          createdComment.mentions = mentions.map((mention) => mention.username);
+          const comment = await entityManager
+            .getRepository(Comment)
+            .save(createdComment);
           await entityManager
             .getRepository(Post)
             .increment({ id: postId }, 'comments', 1);
+          await saveCommentMentions(entityManager, comment.id, mentions);
           return comment;
         });
         return getCommentById(comment.id, ctx, info);
@@ -560,6 +613,8 @@ export const resolvers: IResolvers<any, Context> = {
         throw new ValidationError('Content cannot be empty!');
       }
 
+      const mentions = await getMentions(ctx.con, content);
+
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
           const parentComment = await entityManager
@@ -568,21 +623,24 @@ export const resolvers: IResolvers<any, Context> = {
           if (parentComment.parentId) {
             throw new ForbiddenError('Cannot comment on a sub-comment');
           }
-          const comment = await entityManager.getRepository(Comment).save(
-            entityManager.getRepository(Comment).create({
-              id: shortid.generate(),
-              postId: parentComment.postId,
-              userId: ctx.userId,
-              parentId: commentId,
-              content,
-            }),
-          );
+          const createdComment = entityManager.getRepository(Comment).create({
+            id: shortid.generate(),
+            postId: parentComment.postId,
+            userId: ctx.userId,
+            parentId: commentId,
+            content,
+          });
+          createdComment.mentions = mentions.map((mention) => mention.username);
+          const comment = await entityManager
+            .getRepository(Comment)
+            .save(entityManager.getRepository(Comment).create(createdComment));
           await entityManager
             .getRepository(Post)
             .increment({ id: parentComment.postId }, 'comments', 1);
           await entityManager
             .getRepository(Comment)
             .increment({ id: commentId }, 'comments', 1);
+          await saveCommentMentions(entityManager, comment.id, mentions);
           return comment;
         });
         return getCommentById(comment.id, ctx, info);
@@ -604,6 +662,8 @@ export const resolvers: IResolvers<any, Context> = {
         throw new ValidationError('Content cannot be empty!');
       }
 
+      const mentions = await getMentions(ctx.con, content);
+
       await ctx.con.transaction(async (entityManager) => {
         const repo = entityManager.getRepository(Comment);
         const comment = await repo.findOneOrFail({ id });
@@ -612,7 +672,9 @@ export const resolvers: IResolvers<any, Context> = {
         }
         comment.content = content;
         comment.lastUpdatedAt = new Date();
+        comment.mentions = mentions.map((mention) => mention.username);
         await repo.save(comment);
+        await saveCommentMentions(entityManager, comment.id, mentions);
       });
       return getCommentById(id, ctx, info);
     },
