@@ -70,7 +70,7 @@ export class Comment {
   })
   parent: Promise<Comment>;
 
-  mentions: string[];
+  mentions?: string[];
 
   @BeforeInsert()
   @BeforeUpdate()
