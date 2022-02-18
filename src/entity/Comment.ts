@@ -70,9 +70,13 @@ export class Comment {
   })
   parent: Promise<Comment>;
 
+  mentions: string[];
+
   @BeforeInsert()
   @BeforeUpdate()
   setContentHTML(): void {
-    this.contentHtml = markdown.render(this.content);
+    this.contentHtml = markdown.render(this.content, {
+      mentions: this.mentions,
+    });
   }
 }

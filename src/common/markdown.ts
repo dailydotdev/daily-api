@@ -1,5 +1,6 @@
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
+import { WEBAPP_URL } from '../config';
 
 export const markdown: MarkdownIt = MarkdownIt({
   html: true,
@@ -15,6 +16,12 @@ export const markdown: MarkdownIt = MarkdownIt({
   },
 });
 
+const getMentionLink = (mention: string) => {
+  const username = mention.substring(1);
+
+  return `<a href="${WEBAPP_URL}/${username}" target="_blank" data-mention-username="${username}">${username}</a>`;
+};
+
 const defaultRender =
   markdown.renderer.rules.link_open ||
   function (tokens, idx, options, env, self) {
@@ -29,6 +36,25 @@ const setTokenAttribute = (tokens, attribute, attributeValue) => {
     tokens.attrs[attributeIndex][1] = attributeValue;
   }
   return tokens;
+};
+
+const defaultTextRender = markdown.renderer.rules.text;
+
+markdown.renderer.rules.text = function (tokens, idx, options, env, self) {
+  const content = defaultTextRender(tokens, idx, options, env, self);
+  const mentions = env?.mentions as string[];
+  if (!mentions?.length) {
+    return content;
+  }
+
+  const usernames = mentions.map((username) => `@${username}`);
+  const words = content
+    .split(' ')
+    .map((word) =>
+      usernames.indexOf(word) === -1 ? word : getMentionLink(word),
+    );
+
+  return words.join(' ');
 };
 
 markdown.renderer.rules.link_open = function (tokens, idx, options, env, self) {
