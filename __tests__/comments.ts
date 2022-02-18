@@ -1,3 +1,4 @@
+import { CommentMention } from './../src/entity/CommentMention';
 import { Connection, getConnection } from 'typeorm';
 import {
   disposeGraphQLTesting,
@@ -7,6 +8,7 @@ import {
   MockContext,
   saveFixtures,
   testMutationErrorCode,
+  testQueryErrorCode,
 } from './helpers';
 import {
   Post,
@@ -32,6 +34,16 @@ beforeAll(async () => {
   client = state.client;
 });
 
+const usersFixture = [
+  { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
+  { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
+  { id: '3', name: 'Nimrod', image: 'https://daily.dev/nimrod.jpg' },
+  { id: '4', name: 'Lee', image: 'https://daily.dev/lee.jpg' },
+  { id: '5', name: 'Hansel', image: 'https://daily.dev/Hansel.jpg' },
+  { id: '6', name: 'Samson', image: 'https://daily.dev/samson.jpg' },
+  { id: '7', name: 'Solevilla', image: 'https://daily.dev/solevilla.jpg' },
+];
+
 beforeEach(async () => {
   loggedUser = null;
   jest.resetAllMocks();
@@ -39,11 +51,7 @@ beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
-  await con.getRepository(User).save([
-    { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
-    { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
-    { id: '3', name: 'Nimrod', image: 'https://daily.dev/nimrod.jpg' },
-  ]);
+  await con.getRepository(User).save(usersFixture);
   await con.getRepository(Comment).save([
     {
       id: 'c1',
@@ -207,6 +215,72 @@ describe('query commentUpvotes', () => {
     expect(new Date(secondUpvote.node.createdAt).getTime()).toBeGreaterThan(
       new Date(firstUpvote.node.createdAt).getTime(),
     );
+  });
+});
+
+describe('query recommendedMentions', () => {
+  const QUERY = `
+    query RecommendedMentions($postId: String!, $name: String, $limit: Int) {
+      recommendedMentions(postId: $postId, name: $name, limit: $limit) {
+        name
+        username
+        image      
+      }
+    }
+  `;
+
+  const saveCommentMentionFixtures = async (sampleAuthor = usersFixture[0]) => {
+    const promises = usersFixture.map((user) =>
+      con
+        .getRepository(User)
+        .update({ id: user.id }, { ...user, username: user.name }),
+    );
+    await Promise.all(promises);
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { ...postsFixture[0], authorId: sampleAuthor.id });
+    await con.getRepository(CommentMention).save(
+      usersFixture.map(({ id }) => ({
+        commentId: 'c1',
+        mentionedUserId: id,
+      })),
+    );
+  };
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { postId: 'p1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return author and previously mentioned users if name is empty', async () => {
+    loggedUser = '1';
+    const author = usersFixture[4];
+    await saveCommentMentionFixtures(author);
+
+    const res = await client.query(QUERY, { variables: { postId: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.recommendedMentions.length).toEqual(5);
+    expect(res.data.recommendedMentions[0].name).toEqual(author.name);
+  });
+
+  it('should return users with user or username starting with the name parameter prioritizing previously mentioned ones', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save({
+      id: 'sample',
+      name: 'sample',
+      username: 'sample',
+      image: 'sample/image',
+    });
+    await saveCommentMentionFixtures();
+
+    const res = await client.query(QUERY, {
+      variables: { postId: 'p1', name: 's' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.recommendedMentions.length).toEqual(3);
+    expect(res.data.recommendedMentions[0]).not.toEqual('sample');
   });
 });
 
