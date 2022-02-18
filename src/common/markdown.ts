@@ -16,11 +16,8 @@ export const markdown: MarkdownIt = MarkdownIt({
   },
 });
 
-export const getMentionLink = (mention: string): string => {
-  const username = mention.substring(1);
-
-  return `<a href="${WEBAPP_URL}/${username}" target="_blank" data-mention-username="${username}">${username}</a>`;
-};
+export const getMentionLink = (username: string): string =>
+  `<a href="${WEBAPP_URL}/${username}" target="_blank" data-mention-username="${username}">${username}</a>`;
 
 const defaultRender =
   markdown.renderer.rules.link_open ||
@@ -51,7 +48,7 @@ markdown.renderer.rules.text = function (tokens, idx, options, env, self) {
   const words = content
     .split(' ')
     .map((word) =>
-      usernames.indexOf(word) === -1 ? word : getMentionLink(word),
+      usernames.indexOf(word) === -1 ? word : getMentionLink(word.substring(1)),
     );
 
   return words.join(' ');
