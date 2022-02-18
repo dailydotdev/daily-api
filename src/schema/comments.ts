@@ -320,13 +320,13 @@ interface MentionedUser {
 }
 
 const getVerifiedMentions = async (
-  con: ORMConnection,
+  con: ORMConnection | EntityManager,
   usernames: string[],
 ): Promise<MentionedUser[]> =>
   con.getRepository(User).find({ where: { username: In(usernames) } });
 
 const getMentions = async (
-  con: ORMConnection,
+  con: ORMConnection | EntityManager,
   content: string,
 ): Promise<MentionedUser[]> => {
   const words = content.split(' ');
@@ -574,10 +574,9 @@ export const resolvers: IResolvers<any, Context> = {
         throw new ValidationError('Content cannot be empty!');
       }
 
-      const mentions = await getMentions(ctx.con, content);
-
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
+          const mentions = await getMentions(entityManager, content);
           const createdComment = entityManager.getRepository(Comment).create({
             id: shortid.generate(),
             postId,
@@ -613,10 +612,9 @@ export const resolvers: IResolvers<any, Context> = {
         throw new ValidationError('Content cannot be empty!');
       }
 
-      const mentions = await getMentions(ctx.con, content);
-
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
+          const mentions = await getMentions(entityManager, content);
           const parentComment = await entityManager
             .getRepository(Comment)
             .findOneOrFail({ id: commentId });
@@ -662,9 +660,8 @@ export const resolvers: IResolvers<any, Context> = {
         throw new ValidationError('Content cannot be empty!');
       }
 
-      const mentions = await getMentions(ctx.con, content);
-
       await ctx.con.transaction(async (entityManager) => {
+        const mentions = await getMentions(entityManager, content);
         const repo = entityManager.getRepository(Comment);
         const comment = await repo.findOneOrFail({ id });
         if (comment.userId !== ctx.userId) {
