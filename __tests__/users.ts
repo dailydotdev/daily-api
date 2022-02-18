@@ -549,6 +549,66 @@ describe('query userReadingRank', () => {
     expect(res.data.userReadingRank.currentRank).toEqual(3);
   });
 
+  it('should not return 8 reading days for a timezone edge case', async () => {
+    loggedUser = '2';
+    const lastWeekStartTimezoned = subDays(
+      getTimezonedStartOfISOWeek({ date: now, timezone: userTimezone }),
+      7,
+    );
+    await con.getRepository(View).save([
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: subHours(lastWeekStartTimezoned, 8),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: addHours(lastWeekStartTimezoned, 4),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addDays(lastWeekStartTimezoned, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addDays(lastWeekStartTimezoned, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastWeekStartTimezoned, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastWeekStartTimezoned, 4),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastWeekStartTimezoned, 5),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastWeekStartTimezoned, 6),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastWeekStartTimezoned, 7),
+      },
+    ]);
+    const res = await client.query(QUERY, {
+      variables: { id: loggedUser, version: 2 },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadingRank.rankLastWeek).toEqual(7);
+  });
+
   it('should set readToday to true', async () => {
     loggedUser = '1';
     await con
