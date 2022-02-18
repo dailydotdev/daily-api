@@ -219,7 +219,11 @@ export const typeDefs = /* GraphQL */ `
     """
     Recommend users to mention in the comments
     """
-    recommendedMentions(postId: String!, name: String): [MentionUser] @auth
+    recommendedMentions(
+      postId: String!
+      name: String
+      limit: Int
+    ): [MentionUser] @auth
   }
 
   extend type Mutation {
@@ -481,49 +485,26 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
     ): Promise<GQLMentionUser[]> => {
       if (name) {
-        // const recent = await getRecentMentions(ctx.con, ctx.userId, {
-        //   name,
-        // });
-        // const missing = limit - recent.length;
+        const recent = await getRecentMentions(ctx.con, ctx.userId, {
+          name,
+        });
+        const missing = limit - recent.length;
 
-        // if (missing === 0) {
-        //   return recent;
-        // }
+        if (missing === 0) {
+          return recent;
+        }
 
-        // const users = await ctx
-        //   .getRepository(User)
-        //   .createQueryBuilder()
-        //   .select('name, username, image')
-        //   .where('name ILIKE :name OR username ILIKE :name', {
-        //     name: `${name}%`,
-        //   })
-        //   .limit(missing)
-        //   .getRawMany<GQLMentionUser>();
+        const users = await ctx
+          .getRepository(User)
+          .createQueryBuilder()
+          .select('name, username, image')
+          .where('name ILIKE :name OR username ILIKE :name', {
+            name: `${name}%`,
+          })
+          .limit(missing)
+          .getRawMany<GQLMentionUser>();
 
-        // return recent.concat(users);
-        // dummy data remove before prod
-        return [
-          {
-            username: 'sshanzel',
-            name: 'Lee',
-            image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
-          },
-          {
-            username: 'hansel',
-            name: 'Hansel',
-            image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
-          },
-          {
-            username: 'samson',
-            name: 'Samson',
-            image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
-          },
-          {
-            username: 'solevilla',
-            name: 'Solevilla',
-            image: 'https://avatars.githubusercontent.com/u/13744167?v=4',
-          },
-        ];
+        return recent.concat(users);
       }
 
       const postRepo = ctx.getRepository(Post);
