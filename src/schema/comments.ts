@@ -2,7 +2,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from 'graphql-tools';
-import { Connection as ORMConnection, EntityManager, In } from 'typeorm';
+import { Connection as ORMConnection, EntityManager, In, Not } from 'typeorm';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { getDiscussionLink } from '../common';
@@ -494,12 +494,16 @@ export const resolvers: IResolvers<any, Context> = {
           return recent;
         }
 
+        const foundUsernames = recent.map(({ username }) => username);
         const users = await ctx
           .getRepository(User)
           .createQueryBuilder()
           .select('name, username, image')
-          .where('name ILIKE :name OR username ILIKE :name', {
+          .where('(name ILIKE :name OR username ILIKE :name)', {
             name: `${name}%`,
+          })
+          .andWhere({
+            username: Not(In(foundUsernames)),
           })
           .limit(missing)
           .getRawMany<GQLMentionUser>();
