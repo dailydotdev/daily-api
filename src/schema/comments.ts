@@ -633,7 +633,7 @@ export const resolvers: IResolvers<any, Context> = {
           createdComment.mentions = mentions.map((mention) => mention.username);
           const comment = await entityManager
             .getRepository(Comment)
-            .save(entityManager.getRepository(Comment).create(createdComment));
+            .save(createdComment);
           await entityManager
             .getRepository(Post)
             .increment({ id: parentComment.postId }, 'comments', 1);
