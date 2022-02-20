@@ -10,6 +10,16 @@ Object {
 }
 `;
 
+exports[`mutation commentOnPost should comment markdown but restrict mentioning ownself 1`] = `
+Object {
+  "content": "@Ido",
+  "contentHtml": "<p>@Ido</p>
+",
+  "id": Any<String>,
+  "parentId": null,
+}
+`;
+
 exports[`mutation commentOnPost should comment markdown on a post 1`] = `
 Object {
   "content": "# my comment http://daily.dev",
@@ -22,8 +32,8 @@ Object {
 
 exports[`mutation commentOnPost should comment markdown on a post with user mention 1`] = `
 Object {
-  "content": "@Ido",
-  "contentHtml": "<p><a href=\\"https://app.daily.dev/Ido\\" target=\\"_blank\\" data-mention-username=\\"Ido\\">Ido</a></p>
+  "content": "@Lee",
+  "contentHtml": "<p><a href=\\"https://app.daily.dev/Lee\\" target=\\"_blank\\" data-mention-username=\\"Lee\\">Lee</a></p>
 ",
   "id": Any<String>,
   "parentId": null,

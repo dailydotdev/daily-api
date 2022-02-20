@@ -385,6 +385,29 @@ describe('mutation commentOnPost', () => {
     const post = await con.getRepository(Post).findOne('p1');
     expect(post.comments).toEqual(1);
   });
+
+  it('should comment markdown but restrict mentioning ownself', async () => {
+    loggedUser = '1';
+    const mention = '@Ido';
+    await saveCommentMentionFixtures();
+    const res = await client.mutate(MUTATION, {
+      variables: { postId: 'p1', content: mention },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Comment).find({
+      select: ['id', 'content', 'contentHtml', 'parentId'],
+      order: { createdAt: 'DESC' },
+      where: { postId: 'p1' },
+    });
+    expect(actual.length).toEqual(6);
+    expect(actual[0]).toMatchSnapshot({
+      id: expect.any(String),
+      contentHtml: `<p>${mention}</p>\n`,
+    });
+    expect(res.data.commentOnPost.id).toEqual(actual[0].id);
+    const post = await con.getRepository(Post).findOne('p1');
+    expect(post.comments).toEqual(1);
+  });
 });
 
 describe('mutation commentOnComment', () => {
