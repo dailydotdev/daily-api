@@ -326,12 +326,16 @@ interface MentionedUser {
 const getVerifiedMentions = async (
   con: ORMConnection | EntityManager,
   usernames: string[],
+  userId: string,
 ): Promise<MentionedUser[]> =>
-  con.getRepository(User).find({ where: { username: In(usernames) } });
+  con
+    .getRepository(User)
+    .find({ where: { username: In(usernames), id: Not(userId) } });
 
 const getMentions = async (
   con: ORMConnection | EntityManager,
   content: string,
+  userId: string,
 ): Promise<MentionedUser[]> => {
   const words = content.split(' ');
   const result = words
@@ -342,7 +346,7 @@ const getMentions = async (
     return [];
   }
 
-  return getVerifiedMentions(con, result);
+  return getVerifiedMentions(con, result, userId);
 };
 
 const saveCommentMentions = (
@@ -561,7 +565,11 @@ export const resolvers: IResolvers<any, Context> = {
 
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
-          const mentions = await getMentions(entityManager, content);
+          const mentions = await getMentions(
+            entityManager,
+            content,
+            ctx.userId,
+          );
           const createdComment = entityManager.getRepository(Comment).create({
             id: shortid.generate(),
             postId,
@@ -599,7 +607,11 @@ export const resolvers: IResolvers<any, Context> = {
 
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
-          const mentions = await getMentions(entityManager, content);
+          const mentions = await getMentions(
+            entityManager,
+            content,
+            ctx.userId,
+          );
           const parentComment = await entityManager
             .getRepository(Comment)
             .findOneOrFail({ id: commentId });
@@ -646,7 +658,7 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       await ctx.con.transaction(async (entityManager) => {
-        const mentions = await getMentions(entityManager, content);
+        const mentions = await getMentions(entityManager, content, ctx.userId);
         const repo = entityManager.getRepository(Comment);
         const comment = await repo.findOneOrFail({ id });
         if (comment.userId !== ctx.userId) {
