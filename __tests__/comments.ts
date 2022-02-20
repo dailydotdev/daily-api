@@ -127,7 +127,7 @@ const saveCommentMentionFixtures = async (sampleAuthor = usersFixture[0]) => {
   await Promise.all(promises);
   await con
     .getRepository(Post)
-    .update({ id: 'p1' }, { ...sampleAuthor, authorId: sampleAuthor.id });
+    .update({ id: 'p1' }, { ...postsFixture[0], authorId: sampleAuthor.id });
   await con.getRepository(CommentMention).save(
     usersFixture.map(({ id }) => ({
       commentId: 'c1',
@@ -368,7 +368,7 @@ describe('mutation commentOnPost', () => {
     loggedUser = '1';
     await saveCommentMentionFixtures();
     const res = await client.mutate(MUTATION, {
-      variables: { postId: 'p1', content: '@Ido' },
+      variables: { postId: 'p1', content: '@Lee' },
     });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Comment).find({
@@ -379,7 +379,7 @@ describe('mutation commentOnPost', () => {
     expect(actual.length).toEqual(6);
     expect(actual[0]).toMatchSnapshot({
       id: expect.any(String),
-      contentHtml: `<p>${getMentionLink('Ido')}</p>\n`,
+      contentHtml: `<p>${getMentionLink('Lee')}</p>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOne('p1');
