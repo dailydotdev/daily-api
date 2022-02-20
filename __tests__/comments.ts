@@ -127,7 +127,7 @@ const saveCommentMentionFixtures = async (sampleAuthor = usersFixture[0]) => {
   await Promise.all(promises);
   await con
     .getRepository(Post)
-    .update({ id: 'p1' }, { ...postsFixture[0], authorId: sampleAuthor.id });
+    .update({ id: 'p1' }, { ...sampleAuthor, authorId: sampleAuthor.id });
   await con.getRepository(CommentMention).save(
     usersFixture.map(({ id }) => ({
       commentId: 'c1',
