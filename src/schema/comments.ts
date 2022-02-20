@@ -381,7 +381,7 @@ export const getRecentMentions = (
     .limit(limit);
 
   if (name) {
-    query = query.andWhere('u.name ILIKE :name OR u.username ILIKE :name', {
+    query = query.andWhere('(u.name ILIKE :name OR u.username ILIKE :name)', {
       name: `${name}%`,
     });
   }
