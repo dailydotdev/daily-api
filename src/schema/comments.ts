@@ -316,6 +316,7 @@ export interface GQLUserCommentsArgs extends ConnectionArguments {
 interface RecentMentionsProps {
   name?: string;
   limit?: number;
+  excludeUsernames?: string[];
 }
 
 interface MentionedUser {
@@ -373,20 +374,27 @@ const saveCommentMentions = (
 export const getRecentMentions = (
   con: ORMConnection,
   userId: string,
-  { limit = 5, name }: RecentMentionsProps,
+  { limit = 5, name, excludeUsernames }: RecentMentionsProps,
 ): Promise<GQLMentionUser[]> => {
   let query = con
     .getRepository(CommentMention)
     .createQueryBuilder('cm')
-    .select('u.name, u.username, u.image')
+    .select('DISTINCT u.name, u.username, u.image')
     .innerJoin(Comment, 'c', 'cm."commentId" = c.id')
     .innerJoin(User, 'u', 'u.id = cm."mentionedUserId"')
     .where('c."userId" = :userId', { userId })
+    .andWhere('cm."mentionedUserId" != :userId', { userId })
     .limit(limit);
 
   if (name) {
     query = query.andWhere('(u.name ILIKE :name OR u.username ILIKE :name)', {
       name: `${name}%`,
+    });
+  }
+
+  if (excludeUsernames?.length) {
+    query = query.andWhere('u.username NOT IN (...usernames)', {
+      usernames: excludeUsernames,
     });
   }
 
@@ -509,6 +517,9 @@ export const resolvers: IResolvers<any, Context> = {
           .andWhere({
             username: Not(In(foundUsernames)),
           })
+          .andWhere({
+            id: Not(ctx.userId),
+          })
           .limit(missing)
           .getRawMany<GQLMentionUser>();
 
@@ -521,7 +532,10 @@ export const resolvers: IResolvers<any, Context> = {
         .createQueryBuilder('p')
         .select('u.name, u.username, u.image')
         .innerJoin(User, 'u', 'u.id = p."authorId"')
-        .where('p.id = :postId', { postId });
+        .where('p.id = :postId AND u.id != :userId', {
+          postId,
+          userId: ctx.userId,
+        });
       const commentQuery = commentRepo
         .createQueryBuilder('c')
         .select('u.name, u.username, u.image')
@@ -546,6 +560,7 @@ export const resolvers: IResolvers<any, Context> = {
 
       const recent = await getRecentMentions(ctx.con, ctx.userId, {
         limit: missing,
+        excludeUsernames: recommendations.map((user) => user.username),
       });
 
       return recommendations.concat(recent);
