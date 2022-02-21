@@ -38,7 +38,7 @@ interface GQLMentionUser {
 
 interface GQLMentionUserArgs {
   postId: string;
-  name?: string;
+  query?: string;
   limit?: number;
 }
 
@@ -314,7 +314,7 @@ export interface GQLUserCommentsArgs extends ConnectionArguments {
 }
 
 interface RecentMentionsProps {
-  name?: string;
+  query?: string;
   limit?: number;
   excludeUsernames?: string[];
 }
@@ -374,9 +374,9 @@ const saveCommentMentions = (
 export const getRecentMentions = (
   con: ORMConnection,
   userId: string,
-  { limit = 5, name, excludeUsernames }: RecentMentionsProps,
+  { limit = 5, query, excludeUsernames }: RecentMentionsProps,
 ): Promise<GQLMentionUser[]> => {
-  let query = con
+  let queryBuilder = con
     .getRepository(CommentMention)
     .createQueryBuilder('cm')
     .select('DISTINCT u.name, u.username, u.image')
@@ -386,19 +386,20 @@ export const getRecentMentions = (
     .andWhere('cm."mentionedUserId" != :userId', { userId })
     .limit(limit);
 
-  if (name) {
-    query = query.andWhere('(u.name ILIKE :name OR u.username ILIKE :name)', {
-      name: `${name}%`,
-    });
+  if (query) {
+    queryBuilder = queryBuilder.andWhere(
+      '(u.name ILIKE :name OR u.username ILIKE :name)',
+      { name: `${query}%` },
+    );
   }
 
   if (excludeUsernames?.length) {
-    query = query.andWhere('u.username NOT IN (...usernames)', {
+    queryBuilder = queryBuilder.andWhere('u.username NOT IN (...usernames)', {
       usernames: excludeUsernames,
     });
   }
 
-  return query.orderBy('u.name').execute();
+  return queryBuilder.orderBy('u.name').execute();
 };
 
 const getCommentById = async (
@@ -493,12 +494,12 @@ export const resolvers: IResolvers<any, Context> = {
     },
     recommendedMentions: async (
       _,
-      { postId, name, limit = 5 }: GQLMentionUserArgs,
+      { postId, query, limit = 5 }: GQLMentionUserArgs,
       ctx,
     ): Promise<GQLMentionUser[]> => {
-      if (name) {
+      if (query) {
         const recent = await getRecentMentions(ctx.con, ctx.userId, {
-          name,
+          query: query,
           limit,
         });
         const missing = limit - recent.length;
@@ -513,7 +514,7 @@ export const resolvers: IResolvers<any, Context> = {
           .createQueryBuilder()
           .select('name, username, image')
           .where('(name ILIKE :name OR username ILIKE :name)', {
-            name: `${name}%`,
+            name: `${query}%`,
           })
           .andWhere({
             username: Not(In(foundUsernames)),
