@@ -14,11 +14,11 @@ export class CommentMention {
     lazy: true,
     onDelete: 'CASCADE',
   })
-  comment: Promise<Comment>;
+  comment?: Promise<Comment>;
 
   @ManyToOne(() => User, {
     lazy: true,
     onDelete: 'CASCADE',
   })
-  mentionedUser: Promise<User>;
+  mentionedUser?: Promise<User>;
 }

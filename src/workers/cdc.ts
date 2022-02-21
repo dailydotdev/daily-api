@@ -1,3 +1,4 @@
+import { CommentMention } from './../entity/CommentMention';
 import { messageToJson, Worker } from './worker';
 import {
   Comment,
@@ -38,6 +39,7 @@ import { viewsThresholds } from '../cron/viewsThreshold';
 import { PostReport, Alerts } from '../entity';
 import { reportReasons } from '../schema/posts';
 import { updateAlerts } from '../schema/alerts';
+import { sendEmailToMentionedUser } from './commentMentionEmail';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -103,6 +105,16 @@ const onCommentUpvoteChange = async (
       data.payload.before.commentId,
       data.payload.before.userId,
     );
+  }
+};
+
+const onCommentMentionChange = async (
+  con: Connection,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<CommentMention>,
+): Promise<void> => {
+  if (data.payload.op === 'c') {
+    await sendEmailToMentionedUser(con, data.payload.after, logger);
   }
 };
 
@@ -310,6 +322,9 @@ const worker: Worker = {
           break;
         case getTableName(con, CommentUpvote):
           await onCommentUpvoteChange(con, logger, data);
+          break;
+        case getTableName(con, CommentMention):
+          await onCommentMentionChange(con, logger, data);
           break;
         case getTableName(con, Comment):
           await onCommentChange(con, logger, data);
