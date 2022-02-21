@@ -239,8 +239,8 @@ describe('query commentUpvotes', () => {
 
 describe('query recommendedMentions', () => {
   const QUERY = `
-    query RecommendedMentions($postId: String!, $name: String, $limit: Int) {
-      recommendedMentions(postId: $postId, name: $name, limit: $limit) {
+    query RecommendedMentions($postId: String!, $query: String, $limit: Int) {
+      recommendedMentions(postId: $postId, query: $query, limit: $limit) {
         name
         username
         image      
@@ -255,7 +255,7 @@ describe('query recommendedMentions', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should return author and previously mentioned users if name is empty', async () => {
+  it('should return author and previously mentioned users if query is empty', async () => {
     loggedUser = '1';
     const author = usersFixture[4];
     await saveCommentMentionFixtures(author);
@@ -266,7 +266,7 @@ describe('query recommendedMentions', () => {
     expect(res.data.recommendedMentions[0].name).toEqual(author.name);
   });
 
-  it('should return users with user or username starting with the name parameter prioritizing previously mentioned ones', async () => {
+  it('should return users with user or username starting with the query prioritizing previously mentioned ones', async () => {
     loggedUser = '1';
     await con.getRepository(User).save({
       id: 'sample',
@@ -277,7 +277,7 @@ describe('query recommendedMentions', () => {
     await saveCommentMentionFixtures();
 
     const res = await client.query(QUERY, {
-      variables: { postId: 'p1', name: 's' },
+      variables: { postId: 'p1', query: 's' },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.recommendedMentions.length).toEqual(3);

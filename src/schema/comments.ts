@@ -5,7 +5,13 @@ import { IResolvers } from 'graphql-tools';
 import { Connection as ORMConnection, EntityManager, In, Not } from 'typeorm';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { getDiscussionLink } from '../common';
+import {
+  getDiscussionLink,
+  getPostAuthor,
+  getPostCommenters,
+  getRecentMentions,
+  recommendUsersByQuery,
+} from '../common';
 import { CommentMention } from './../entity/CommentMention';
 import { Comment, CommentUpvote, Post, User } from '../entity';
 import { NotFoundError } from '../errors';
@@ -305,12 +311,6 @@ export interface GQLUserCommentsArgs extends ConnectionArguments {
   userId: string;
 }
 
-interface RecentMentionsProps {
-  query?: string;
-  limit?: number;
-  excludeUsernames?: string[];
-}
-
 interface MentionedUser {
   id: string;
   username?: string;
@@ -394,37 +394,6 @@ const savNewComment = async (
   }
 
   return savedComment;
-};
-
-export const getRecentMentions = (
-  con: ORMConnection,
-  userId: string,
-  { limit = 5, query, excludeUsernames }: RecentMentionsProps,
-): Promise<GQLMentionUser[]> => {
-  let queryBuilder = con
-    .getRepository(CommentMention)
-    .createQueryBuilder('cm')
-    .select('DISTINCT u.name, u.username, u.image')
-    .innerJoin(Comment, 'c', 'cm."commentId" = c.id')
-    .innerJoin(User, 'u', 'u.id = cm."mentionedUserId"')
-    .where('c."userId" = :userId', { userId })
-    .andWhere('cm."mentionedUserId" != :userId', { userId })
-    .limit(limit);
-
-  if (query) {
-    queryBuilder = queryBuilder.andWhere(
-      '(u.name ILIKE :name OR u.username ILIKE :name)',
-      { name: `${query}%` },
-    );
-  }
-
-  if (excludeUsernames?.length) {
-    queryBuilder = queryBuilder.andWhere('u.username NOT IN (...usernames)', {
-      usernames: excludeUsernames,
-    });
-  }
-
-  return queryBuilder.orderBy('u.name').execute();
 };
 
 const getCommentById = async (
@@ -522,75 +491,32 @@ export const resolvers: IResolvers<any, Context> = {
       { postId, query, limit = 5 }: GQLMentionUserArgs,
       ctx,
     ): Promise<GQLMentionUser[]> => {
+      const { con, userId } = ctx;
       if (query) {
-        const recent = await getRecentMentions(ctx.con, ctx.userId, {
-          query: query,
-          limit,
-        });
-        const missing = limit - recent.length;
-
-        if (missing === 0) {
-          return recent;
-        }
-
-        const foundUsernames = recent.map(({ username }) => username);
-        const users = await ctx
-          .getRepository(User)
-          .createQueryBuilder()
-          .select('name, username, image')
-          .where('(name ILIKE :name OR username ILIKE :name)', {
-            name: `${query}%`,
-          })
-          .andWhere({
-            username: Not(In(foundUsernames)),
-          })
-          .andWhere({
-            id: Not(ctx.userId),
-          })
-          .limit(missing)
-          .getRawMany<GQLMentionUser>();
-
-        return recent.concat(users);
+        return recommendUsersByQuery(con, userId, { query, limit });
       }
 
-      const postRepo = ctx.getRepository(Post);
-      const commentRepo = ctx.getRepository(Comment);
-      const postQuery = postRepo
-        .createQueryBuilder('p')
-        .select('u.name, u.username, u.image')
-        .innerJoin(User, 'u', 'u.id = p."authorId"')
-        .where('p.id = :postId AND u.id != :userId', {
-          postId,
-          userId: ctx.userId,
-        });
-      const commentQuery = commentRepo
-        .createQueryBuilder('c')
-        .select('u.name, u.username, u.image')
-        .innerJoin(User, 'u', 'u.id = c."userId"')
-        .where('c."postId" = :postId AND u.id != :userId', {
-          postId,
-          userId: ctx.userId,
-        })
-        .limit(4);
-
-      const [author, commenters] = await Promise.all([
-        postQuery.getRawMany<GQLMentionUser>(),
-        commentQuery.getRawMany<GQLMentionUser>(),
+      const [author, users] = await Promise.all([
+        getPostAuthor(con, postId, userId),
+        getPostCommenters(con, postId, { limit, userId }),
       ]);
 
-      const recommendations = [...author, ...commenters];
-      const missing = limit - recommendations.length;
+      if (author) {
+        users.unshift(author);
+      }
+
+      const missing = limit - users.length;
 
       if (missing === 0) {
-        return recommendations;
+        return users;
       }
 
       const recent = await getRecentMentions(ctx.con, ctx.userId, {
         limit: missing,
-        excludeUsernames: recommendations.map((user) => user.username),
+        excludeUsernames: users.map((user) => user.username),
       });
 
-      return recommendations.concat(recent);
+      return users.concat(recent);
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

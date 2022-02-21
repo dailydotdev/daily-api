@@ -1,10 +1,11 @@
 import { IFlags } from 'flagsmith-nodejs';
 import { isSameDay } from 'date-fns';
 import fetch from 'node-fetch';
-import { Connection } from 'typeorm';
-import { View } from '../entity';
+import { Connection, In, Not } from 'typeorm';
+import { CommentMention, Comment, View } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { WEBAPP_URL } from '../config';
+import { User as DbUser } from './../entity/User';
 
 interface UserInfo {
   name?: string;
@@ -90,6 +91,12 @@ export interface ReadingRank {
   tags: TagsReadingStatus[];
 }
 
+export interface MentionUser {
+  username: string;
+  name: string;
+  image: string;
+}
+
 interface ReadingRankQueryResult {
   thisWeek: number;
   lastWeek: number;
@@ -117,6 +124,94 @@ export interface ReadingDaysArgs {
   limit?: number;
   dateRange: DateRange;
 }
+
+interface RecentMentionsProps {
+  query?: string;
+  limit?: number;
+  excludeUsernames?: string[];
+}
+
+export const getRecentMentions = (
+  con: Connection,
+  userId: string,
+  { limit = 5, query, excludeUsernames }: RecentMentionsProps,
+): Promise<MentionUser[]> => {
+  let queryBuilder = con
+    .getRepository(CommentMention)
+    .createQueryBuilder('cm')
+    .select('DISTINCT u.name, u.username, u.image')
+    .innerJoin(Comment, 'c', 'cm."commentId" = c.id')
+    .innerJoin(DbUser, 'u', 'u.id = cm."mentionedUserId"')
+    .where('c."userId" = :userId', { userId })
+    .andWhere('cm."mentionedUserId" != :userId', { userId })
+    .limit(limit);
+
+  if (query) {
+    queryBuilder = queryBuilder.andWhere(
+      '(u.name ILIKE :name OR u.username ILIKE :name)',
+      { name: `${query}%` },
+    );
+  }
+
+  if (excludeUsernames?.length) {
+    queryBuilder = queryBuilder.andWhere('u.username NOT IN (:...usernames)', {
+      usernames: excludeUsernames,
+    });
+  }
+
+  return queryBuilder.orderBy('u.name').execute();
+};
+
+export const getUsersWithNameOrUsername = (
+  con: Connection,
+  userId: string,
+  { query, limit, excludeUsernames }: RecentMentionsProps,
+): Promise<MentionUser[]> => {
+  let queryBuilder = con
+    .getRepository(DbUser)
+    .createQueryBuilder()
+    .select('name, username, image')
+    .where('(name ILIKE :name OR username ILIKE :name)', {
+      name: `${query}%`,
+    })
+    .andWhere({
+      id: Not(userId),
+    });
+
+  if (excludeUsernames) {
+    queryBuilder = queryBuilder.andWhere({
+      username: Not(In(excludeUsernames)),
+    });
+  }
+
+  if (limit) {
+    queryBuilder = queryBuilder.limit(limit);
+  }
+
+  return queryBuilder.getRawMany<MentionUser>();
+};
+
+export const recommendUsersByQuery = async (
+  con: Connection,
+  userId: string,
+  { query, limit }: RecentMentionsProps,
+): Promise<MentionUser[]> => {
+  const recent = await getRecentMentions(con, userId, { query, limit });
+  const missing = limit - recent.length;
+
+  if (missing === 0) {
+    return recent;
+  }
+
+  const foundUsernames = recent.map(({ username }) => username);
+  const users = await getUsersWithNameOrUsername(con, userId, {
+    limit,
+    query,
+    excludeUsernames: foundUsernames,
+  });
+
+  return recent.concat(users);
+};
 
 export const getUserReadingTags = (
   con: Connection,
