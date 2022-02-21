@@ -150,12 +150,6 @@ export const typeDefs = /* GraphQL */ `
     edges: [CommentUpvoteEdge!]!
   }
 
-  type MentionUser {
-    username: String!
-    name: String!
-    image: String!
-  }
-
   extend type Query {
     """
     Get the comments of a post
@@ -219,11 +213,8 @@ export const typeDefs = /* GraphQL */ `
     """
     Recommend users to mention in the comments
     """
-    recommendedMentions(
-      postId: String!
-      name: String
-      limit: Int
-    ): [MentionUser] @auth
+    recommendedMentions(postId: String!, query: String, limit: Int): [User]
+      @auth
   }
 
   extend type Mutation {
