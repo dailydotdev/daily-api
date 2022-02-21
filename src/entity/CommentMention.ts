@@ -1,5 +1,6 @@
-import { Comment } from './Comment';
 import { Entity, ManyToOne, PrimaryColumn } from 'typeorm';
+import { User } from './User';
+import { Comment } from './Comment';
 
 @Entity()
 export class CommentMention {
@@ -14,4 +15,10 @@ export class CommentMention {
     onDelete: 'CASCADE',
   })
   comment: Promise<Comment>;
+
+  @ManyToOne(() => User, {
+    lazy: true,
+    onDelete: 'CASCADE',
+  })
+  mentionedUser: Promise<User>;
 }
