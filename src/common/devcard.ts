@@ -4,6 +4,7 @@ import { Post, Source, View } from '../entity';
 import { Connection } from 'typeorm';
 import { User } from '../entity/User';
 import { ReadingDaysArgs } from './users';
+import { ActiveViews } from "../entity/ActiveView";
 
 export interface MostReadTag {
   value: string;
@@ -74,7 +75,7 @@ export async function getDevCardData(
   const end = now.toISOString();
   const user = await con.getRepository(User).findOneOrFail(userId);
   const [articlesRead, tags, sourcesLogos, rank] = await Promise.all([
-    con.getRepository(View).count({ userId }),
+    con.getRepository(ActiveViews).count({ userId }),
     getMostReadTags(con, { userId, limit: 4, dateRange: { start, end } }),
     getFavoriteSourcesLogos(con, userId),
     getUserReadingRank(con, userId, user?.timezone, 2),

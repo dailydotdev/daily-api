@@ -23,6 +23,7 @@ import {
   uploadDevCardBackground,
 } from '../common';
 import { getSearchQuery } from './common';
+import { ActiveViews } from '../entity/ActiveView';
 
 export interface GQLUser {
   id: string;
@@ -436,6 +437,22 @@ export const resolvers: IResolvers<any, Context> = {
       { id, after, before }: ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> => {
+      return ctx.con
+        .getRepository(ActiveViews)
+        .createQueryBuilder('view')
+        .select(
+          `(date_trunc('day', ${timestampAtTimezone}) ${userTimezone})::date::text`,
+          'date',
+        )
+        .addSelect(`count(*) AS "reads"`)
+        .innerJoin(User, 'user', 'user.id = view.userId')
+        .where('view.userId = :id', { id })
+        .andWhere('view.timestamp >= :after', { after })
+        .andWhere('view.timestamp < :before', { before })
+        .groupBy('date')
+        .orderBy('date')
+        .getRawMany();
+
       return ctx.con.query(
         `
           select (date_trunc('day', ${timestampAtTimezone}) ${userTimezone})::date::text as "date", count(*) as "reads"
@@ -452,7 +469,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     userReads: async (source, args, ctx: Context): Promise<number> => {
       return ctx.con
-        .getRepository(View)
+        .getRepository(ActiveViews)
         .count({ where: { userId: ctx.userId } });
     },
     searchReadingHistorySuggestions: async (
