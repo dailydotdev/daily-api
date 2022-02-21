@@ -362,6 +362,20 @@ const saveCommentMentions = (
     .execute();
 };
 
+const createComment = (
+  con: ORMConnection | EntityManager,
+  comment: Partial<Comment>,
+  mentions: MentionedUser[],
+) => {
+  const createdComment = con.getRepository(Comment).create({
+    id: shortid.generate(),
+    ...comment,
+  });
+  createdComment.mentions = mentions.map((mention) => mention.username);
+
+  return createdComment;
+};
+
 export const getRecentMentions = (
   con: ORMConnection,
   userId: string,
@@ -578,13 +592,11 @@ export const resolvers: IResolvers<any, Context> = {
             content,
             ctx.userId,
           );
-          const createdComment = entityManager.getRepository(Comment).create({
-            id: shortid.generate(),
-            postId,
-            userId: ctx.userId,
-            content,
-          });
-          createdComment.mentions = mentions.map((mention) => mention.username);
+          const createdComment = createComment(
+            entityManager,
+            { postId, userId: ctx.userId, content },
+            mentions,
+          );
           const comment = await entityManager
             .getRepository(Comment)
             .save(createdComment);
@@ -626,14 +638,16 @@ export const resolvers: IResolvers<any, Context> = {
           if (parentComment.parentId) {
             throw new ForbiddenError('Cannot comment on a sub-comment');
           }
-          const createdComment = entityManager.getRepository(Comment).create({
-            id: shortid.generate(),
-            postId: parentComment.postId,
-            userId: ctx.userId,
-            parentId: commentId,
-            content,
-          });
-          createdComment.mentions = mentions.map((mention) => mention.username);
+          const createdComment = createComment(
+            entityManager,
+            {
+              postId: parentComment.postId,
+              userId: ctx.userId,
+              parentId: commentId,
+              content,
+            },
+            mentions,
+          );
           const comment = await entityManager
             .getRepository(Comment)
             .save(createdComment);
