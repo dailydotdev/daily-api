@@ -499,6 +499,7 @@ export const resolvers: IResolvers<any, Context> = {
       if (name) {
         const recent = await getRecentMentions(ctx.con, ctx.userId, {
           name,
+          limit,
         });
         const missing = limit - recent.length;
 
