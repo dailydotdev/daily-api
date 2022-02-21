@@ -1,13 +1,4 @@
-import {
-  BeforeInsert,
-  BeforeUpdate,
-  Column,
-  Entity,
-  Index,
-  ManyToOne,
-  PrimaryColumn,
-} from 'typeorm';
-import { markdown } from '../common/markdown';
+import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Post } from './Post';
 import { User } from './User';
 
@@ -69,14 +60,4 @@ export class Comment {
     onDelete: 'CASCADE',
   })
   parent: Promise<Comment>;
-
-  mentions?: string[];
-
-  @BeforeInsert()
-  @BeforeUpdate()
-  setContentHTML(): void {
-    this.contentHtml = markdown.render(this.content, {
-      mentions: this.mentions,
-    });
-  }
 }

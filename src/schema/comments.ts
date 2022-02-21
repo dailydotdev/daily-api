@@ -16,6 +16,7 @@ import graphorm from '../graphorm';
 import { GQLPost } from './posts';
 import { Roles } from '../roles';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
+import { markdown } from '../common/markdown';
 
 export interface GQLComment {
   id: string;
@@ -342,7 +343,7 @@ const getMentions = async (
 };
 
 const saveCommentMentions = (
-  transaction: EntityManager,
+  transaction: ORMConnection | EntityManager,
   commentId: string,
   users: MentionedUser[],
 ) => {
@@ -362,18 +363,37 @@ const saveCommentMentions = (
     .execute();
 };
 
-const createComment = (
+const saveComment = async (
   con: ORMConnection | EntityManager,
-  comment: Partial<Comment>,
-  mentions: MentionedUser[],
+  comment: Comment,
 ) => {
-  const createdComment = con.getRepository(Comment).create({
-    id: shortid.generate(),
-    ...comment,
-  });
-  createdComment.mentions = mentions.map((mention) => mention.username);
+  const mentions = await getMentions(con, comment.content, comment.userId);
+  const usernames = mentions.map((user) => user.username);
+  const contentHtml = markdown.render(comment.content, { mentions: usernames });
+  comment.contentHtml = contentHtml;
+  const savedComment = await con.getRepository(Comment).save(comment);
+  await saveCommentMentions(con, savedComment.id, mentions);
 
-  return createdComment;
+  return savedComment;
+};
+
+const savNewComment = async (
+  con: ORMConnection | EntityManager,
+  comment: Comment,
+) => {
+  const savedComment = await saveComment(con, comment);
+
+  await con
+    .getRepository(Post)
+    .increment({ id: savedComment.postId }, 'comments', 1);
+
+  if (savedComment.parentId) {
+    await con
+      .getRepository(Comment)
+      .increment({ id: savedComment.parentId }, 'comments', 1);
+  }
+
+  return savedComment;
 };
 
 export const getRecentMentions = (
@@ -587,24 +607,14 @@ export const resolvers: IResolvers<any, Context> = {
 
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
-          const mentions = await getMentions(
-            entityManager,
+          const createdComment = entityManager.getRepository(Comment).create({
+            id: shortid.generate(),
+            postId,
+            userId: ctx.userId,
             content,
-            ctx.userId,
-          );
-          const createdComment = createComment(
-            entityManager,
-            { postId, userId: ctx.userId, content },
-            mentions,
-          );
-          const comment = await entityManager
-            .getRepository(Comment)
-            .save(createdComment);
-          await entityManager
-            .getRepository(Post)
-            .increment({ id: postId }, 'comments', 1);
-          await saveCommentMentions(entityManager, comment.id, mentions);
-          return comment;
+          });
+
+          return savNewComment(entityManager, createdComment);
         });
         return getCommentById(comment.id, ctx, info);
       } catch (err) {
@@ -627,38 +637,21 @@ export const resolvers: IResolvers<any, Context> = {
 
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
-          const mentions = await getMentions(
-            entityManager,
-            content,
-            ctx.userId,
-          );
           const parentComment = await entityManager
             .getRepository(Comment)
             .findOneOrFail({ id: commentId });
           if (parentComment.parentId) {
             throw new ForbiddenError('Cannot comment on a sub-comment');
           }
-          const createdComment = createComment(
-            entityManager,
-            {
-              postId: parentComment.postId,
-              userId: ctx.userId,
-              parentId: commentId,
-              content,
-            },
-            mentions,
-          );
-          const comment = await entityManager
-            .getRepository(Comment)
-            .save(createdComment);
-          await entityManager
-            .getRepository(Post)
-            .increment({ id: parentComment.postId }, 'comments', 1);
-          await entityManager
-            .getRepository(Comment)
-            .increment({ id: commentId }, 'comments', 1);
-          await saveCommentMentions(entityManager, comment.id, mentions);
-          return comment;
+          const createdComment = entityManager.getRepository(Comment).create({
+            id: shortid.generate(),
+            postId: parentComment.postId,
+            userId: ctx.userId,
+            parentId: commentId,
+            content,
+          });
+
+          return savNewComment(entityManager, createdComment);
         });
         return getCommentById(comment.id, ctx, info);
       } catch (err) {
@@ -680,7 +673,6 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       await ctx.con.transaction(async (entityManager) => {
-        const mentions = await getMentions(entityManager, content, ctx.userId);
         const repo = entityManager.getRepository(Comment);
         const comment = await repo.findOneOrFail({ id });
         if (comment.userId !== ctx.userId) {
@@ -688,9 +680,7 @@ export const resolvers: IResolvers<any, Context> = {
         }
         comment.content = content;
         comment.lastUpdatedAt = new Date();
-        comment.mentions = mentions.map((mention) => mention.username);
-        await repo.save(comment);
-        await saveCommentMentions(entityManager, comment.id, mentions);
+        await saveComment(entityManager, comment);
       });
       return getCommentById(id, ctx, info);
     },
