@@ -4,6 +4,7 @@ import fetch from 'node-fetch';
 import { Connection } from 'typeorm';
 import { View } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
+import { WEBAPP_URL } from '../config';
 
 interface UserInfo {
   name?: string;
@@ -68,6 +69,9 @@ export const fetchUserFeatures = async (userId: string): Promise<IFlags> => {
 
   return JSON.parse(text);
 };
+
+export const getUserProfileUrl = (username: string): string =>
+  `${WEBAPP_URL}/${username}`;
 
 export interface TagsReadingStatus {
   tag: string;

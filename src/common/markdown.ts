@@ -1,6 +1,6 @@
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
-import { WEBAPP_URL } from '../config';
+import { getUserProfileUrl } from './users';
 
 export const markdown: MarkdownIt = MarkdownIt({
   html: true,
@@ -16,8 +16,11 @@ export const markdown: MarkdownIt = MarkdownIt({
   },
 });
 
-export const getMentionLink = (username: string): string =>
-  `<a href="${WEBAPP_URL}/${username}" target="_blank" data-mention-username="${username}">${username}</a>`;
+export const getMentionLink = (username: string): string => {
+  const href = getUserProfileUrl(username);
+
+  return `<a href="${href}" data-mention-username="${username}">${username}</a>`;
+};
 
 const defaultRender =
   markdown.renderer.rules.link_open ||
