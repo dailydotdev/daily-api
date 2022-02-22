@@ -1,7 +1,8 @@
+import { getUserPermalink } from './../schema/users';
 import { FastifyLoggerInstance } from 'fastify';
 import { CommentMention } from './../entity/CommentMention';
 import { Comment } from '../entity';
-import { fetchUser, pickImageUrl } from '../common';
+import { pickImageUrl } from '../common';
 import { baseNotificationEmailData, sendEmail, truncatePost } from '../common';
 import { Connection } from 'typeorm';
 
@@ -14,7 +15,7 @@ export const sendEmailToMentionedUser = async (
     .getRepository(Comment)
     .findOne(commentMention.commentId);
   const post = await comment.post;
-  const user = await fetchUser(comment.userId);
+  const user = await comment.user;
   const [firstname] = user.name.split(' ');
   await sendEmail({
     ...baseNotificationEmailData,
@@ -25,7 +26,7 @@ export const sendEmailToMentionedUser = async (
       post_title: truncatePost(post),
       profile_image: user.image,
       post_image: post.image || pickImageUrl(post),
-      profile_link: user.permalink,
+      profile_link: getUserPermalink(user),
       content: comment.contentHtml,
     },
   });

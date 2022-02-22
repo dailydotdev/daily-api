@@ -286,6 +286,10 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+export const getUserPermalink = (
+  user: Pick<GQLUser, 'id' | 'username'>,
+): string => `${process.env.COMMENTS_PREFIX}/${user.username ?? user.id}`;
+
 interface ReadingHistyoryArgs {
   id: string;
   after: string;
@@ -546,7 +550,6 @@ export const resolvers: IResolvers<any, Context> = {
         .execute(),
   }),
   User: {
-    permalink: (user: GQLUser): string =>
-      `${process.env.COMMENTS_PREFIX}/${user.username ?? user.id}`,
+    permalink: getUserPermalink,
   },
 };
