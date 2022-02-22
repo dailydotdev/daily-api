@@ -1,5 +1,4 @@
 import nock from 'nock';
-import { getUserPermalink } from './../../src/schema/users';
 import {
   notifySourceRequest,
   notifyPostUpvoted,
@@ -50,6 +49,7 @@ import { Connection, getConnection } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { Alerts } from '../../src/entity';
+import { getPostPermalink } from '../../src/schema/posts';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -463,19 +463,24 @@ describe('comment mention', () => {
     );
     const comment = await con.getRepository(Comment).findOne(base.commentId);
     const post = await comment.post;
-    const user = await comment.user;
-    const [firstname] = user.name.split(' ');
+    const commenter = await comment.user;
+    const mentioned = await con
+      .getRepository(User)
+      .findOne(base.mentionedUserId);
+    const [first_name] = mentioned.name.split(' ');
     const params = {
       ...baseNotificationEmailData,
-      to: user.email,
+      to: mentioned.email,
       templateId: 'd-6949e2e50def4c6698900032973d469b',
       dynamicTemplateData: {
-        firstname,
+        first_name,
+        full_name: commenter.name,
+        comment: comment.content,
+        user_handle: mentioned.username,
+        profile_image: commenter.image,
         post_title: truncatePost(post),
-        profile_image: user.image,
         post_image: post.image || pickImageUrl(post),
-        profile_link: getUserPermalink(user),
-        content: comment.contentHtml,
+        post_link: getPostPermalink(post),
       },
     };
     expect(sendEmail).toBeCalledTimes(1);
