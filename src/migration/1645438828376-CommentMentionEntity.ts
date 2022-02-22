@@ -13,9 +13,15 @@ export class CommentMentionEntity1645438828376 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "comment_mention" ADD CONSTRAINT "FK_cc568f9fc855fc9ada0cfba6cd6" FOREIGN KEY ("mentionedUserId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
     );
+    await queryRunner.query(
+      `ALTER TABLE "comment_mention" REPLICA IDENTITY FULL`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "comment_mention" REPLICA IDENTITY DEFAULT`,
+    );
     await queryRunner.query(
       `ALTER TABLE "comment_mention" DROP CONSTRAINT "FK_cc568f9fc855fc9ada0cfba6cd6"`,
     );
