@@ -391,7 +391,7 @@ const getCommentsUserMentioned = (
 
 export const updateMentions = async (
   con: ORMConnection | EntityManager,
-  user: User,
+  user: Pick<User, 'username' | 'id'>,
   newUsername: string,
 ): Promise<unknown[]> => {
   const comments = await getCommentsUserMentioned(con, user.id);
