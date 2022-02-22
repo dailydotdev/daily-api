@@ -377,6 +377,36 @@ const saveComment = async (
   return savedComment;
 };
 
+const getCommentsUserMentioned = (
+  con: ORMConnection | EntityManager,
+  userId: string,
+) =>
+  con
+    .getRepository(Comment)
+    .createQueryBuilder('c')
+    .select('c.*')
+    .innerJoin(CommentMention, 'cm', 'cm."commentId" = c.id')
+    .where('cm."mentionedUserId" = :userId', { userId })
+    .getRawMany<Comment>();
+
+export const updateMentions = async (
+  con: ORMConnection | EntityManager,
+  user: User,
+  newUsername: string,
+): Promise<unknown[]> => {
+  const comments = await getCommentsUserMentioned(con, user.id);
+  const updated = comments.map((comment) => {
+    const content = comment.content
+      .split(' ')
+      .map((word) => (word === `@${user.username}` ? `@${newUsername}` : word))
+      .join(' ');
+
+    return { ...comment, content };
+  });
+
+  return Promise.all(updated.map((comment) => saveComment(con, comment)));
+};
+
 const savNewComment = async (
   con: ORMConnection | EntityManager,
   comment: Comment,

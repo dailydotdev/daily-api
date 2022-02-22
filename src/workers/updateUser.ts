@@ -1,5 +1,6 @@
 import { messageToJson, Worker } from './worker';
 import { User } from '../entity';
+import { updateMentions } from '../schema/comments';
 
 interface UserData {
   id: string;
@@ -30,7 +31,9 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      await con.getRepository(User).save({
+      const repo = con.getRepository(User);
+      const previousUser = await repo.findOne(data.user.id);
+      await repo.save({
         id: data.user.id,
         name: data.newProfile.name,
         image: data.newProfile.image,
@@ -50,6 +53,9 @@ const worker: Worker = {
         timezone: data.newProfile.timezone,
         updatedAt: new Date(),
       });
+      if (previousUser.username !== data.newProfile.username) {
+        await updateMentions(con, previousUser, data.newProfile.username);
+      }
       logger.info(
         {
           userId: data.user.id,
