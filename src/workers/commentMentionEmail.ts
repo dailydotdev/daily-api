@@ -29,7 +29,7 @@ export const sendEmailToMentionedUser = async (
       full_name: commenter.name,
       comment: comment.content,
       user_handle: mentioned.username,
-      profile_image: commenter.image,
+      commenter_profile_image: commenter.image,
       post_title: truncatePost(post),
       post_image: post.image || pickImageUrl(post),
       post_link: getPostPermalink(post),
