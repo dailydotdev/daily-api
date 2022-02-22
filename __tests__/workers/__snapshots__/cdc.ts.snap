@@ -1,0 +1,18 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`user should update comments where the user was mentioned if username changed 1`] = `
+Comment {
+  "comments": 0,
+  "content": "parent comment @sshanzel",
+  "contentHtml": "<p>parent comment <a href=\\"https://app.daily.dev/sshanzel\\" data-mention-username=\\"sshanzel\\">sshanzel</a></p>
+",
+  "createdAt": 2020-02-06T00:00:00.000Z,
+  "featured": false,
+  "id": "c1",
+  "lastUpdatedAt": null,
+  "parentId": null,
+  "postId": "p1",
+  "upvotes": 0,
+  "userId": "2",
+}
+`;

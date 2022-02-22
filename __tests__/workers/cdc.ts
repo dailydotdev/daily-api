@@ -28,6 +28,7 @@ import {
 } from '../helpers';
 import {
   Comment,
+  CommentMention,
   CommentUpvote,
   Feed,
   Post,
@@ -365,6 +366,49 @@ describe('user', () => {
       '1',
       10,
     ]);
+  });
+
+  const usersFixture = [
+    base,
+    { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
+    { id: '3', name: 'Nimrod', image: 'https://daily.dev/nimrod.jpg' },
+    { id: '4', name: 'Lee', image: 'https://daily.dev/lee.jpg' },
+    { id: '5', name: 'Hansel', image: 'https://daily.dev/Hansel.jpg' },
+    { id: '6', name: 'Samson', image: 'https://daily.dev/samson.jpg' },
+    { id: '7', name: 'Solevilla', image: 'https://daily.dev/solevilla.jpg' },
+  ];
+
+  it('should update comments where the user was mentioned if username changed', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      username: 'sshanzel',
+    };
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, postsFixture);
+    await con.getRepository(Comment).save({
+      id: 'c1',
+      postId: 'p1',
+      userId: '2',
+      content: `parent comment @${base.username}`,
+      contentHtml: `<p>parent comment <a>${base.username}</a></p>`,
+      createdAt: new Date(2020, 1, 6, 0, 0),
+    });
+    await con
+      .getRepository(CommentMention)
+      .save({ commentId: 'c1', mentionedUserId: '1' });
+    await con.getRepository(User).save(after);
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'user',
+      }),
+    );
+    const updatedComment = await con.getRepository(Comment).findOne('c1');
+    expect(updatedComment).toMatchSnapshot();
   });
 
   it('should notify on dev card eligibility', async () => {
