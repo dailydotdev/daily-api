@@ -2,7 +2,7 @@ import { DeepPartial } from 'typeorm';
 import { User, View } from '../entity';
 import { messageToJson, Worker } from './worker';
 import flagsmith from '../flagsmith';
-import { ActiveViews } from "../entity/ActiveView";
+import { ActiveView } from '../entity/ActiveView';
 
 const worker: Worker = {
   subscription: 'check-devcard-eligibility',
@@ -15,7 +15,7 @@ const worker: Worker = {
         const devcardLimitFeature = flags['feat_limit_dev_card'];
         if (devcardLimitFeature?.enabled && devcardLimitFeature?.value) {
           const views = await con
-            .getRepository(ActiveViews)
+            .getRepository(ActiveView)
             .count({ where: { userId: user.id } });
           if (views >= devcardLimitFeature.value) {
             await con

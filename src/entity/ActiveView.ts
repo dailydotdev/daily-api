@@ -14,7 +14,7 @@ import { View } from './View';
       .leftJoin(Post, 'post', 'post.id = view.postId')
       .where('post.deleted = false'),
 })
-export class ActiveViews {
+export class ActiveView {
   @ViewColumn()
   userId: string;
 

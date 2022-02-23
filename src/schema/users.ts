@@ -23,7 +23,7 @@ import {
   uploadDevCardBackground,
 } from '../common';
 import { getSearchQuery } from './common';
-import { ActiveViews } from '../entity/ActiveView';
+import { ActiveView } from '../entity/ActiveView';
 
 export interface GQLUser {
   id: string;
@@ -438,7 +438,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> => {
       return ctx.con
-        .getRepository(ActiveViews)
+        .getRepository(ActiveView)
         .createQueryBuilder('view')
         .select(
           `(date_trunc('day', ${timestampAtTimezone}) ${userTimezone})::date::text`,
@@ -455,7 +455,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     userReads: async (source, args, ctx: Context): Promise<number> => {
       return ctx.con
-        .getRepository(ActiveViews)
+        .getRepository(ActiveView)
         .count({ where: { userId: ctx.userId } });
     },
     searchReadingHistorySuggestions: async (
