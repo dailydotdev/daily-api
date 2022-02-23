@@ -452,20 +452,6 @@ export const resolvers: IResolvers<any, Context> = {
         .groupBy('date')
         .orderBy('date')
         .getRawMany();
-
-      return ctx.con.query(
-        `
-          select (date_trunc('day', ${timestampAtTimezone}) ${userTimezone})::date::text as "date", count(*) as "reads"
-          from "view"
-          join "user" on "user".id = view."userId"
-          where "userId" = $1
-            and "timestamp" >= $2
-            and "timestamp" < $3
-          group by 1
-          order by 1;
-      `,
-        [id, after, before],
-      );
     },
     userReads: async (source, args, ctx: Context): Promise<number> => {
       return ctx.con
@@ -484,6 +470,7 @@ export const resolvers: IResolvers<any, Context> = {
         ('StartSel = <strong>, StopSel = </strong>'))) as title
         from post INNER JOIN view ON view."postId" = post.id AND view."userId" = $1, search
         where tsv @@ search.query
+        and post.deleted = false
         order by title desc
         limit 5;
         `,
