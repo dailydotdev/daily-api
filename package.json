@@ -18,7 +18,7 @@
     "db:migrate:make": "npm run typeorm -- migration:generate -n",
     "db:migrate:latest": "npm run typeorm -- migration:run",
     "db:migrate:rollback": "npm run typeorm -- migration:revert",
-    "db:migrate:reset": "npm run db:schema:drop && npm run db:migrate:latest && npm run db:schema:sync",
+    "db:migrate:reset": "npm run db:schema:drop && npm run db:migrate:latest",
     "db:seed:import": "ts-node bin/import.ts",
     "db:seed:export": "ts-node bin/export.ts",
     "cloud:init": "ts-node bin/initPubsub.ts"

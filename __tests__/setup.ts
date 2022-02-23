@@ -4,9 +4,11 @@ import { createOrGetConnection } from '../src/db';
 import { redisClient, redisPubSub } from '../src/redis';
 
 let con: Connection;
+const excludeEntities = ['ActiveView'];
 
 const cleanDatabase = async (): Promise<void> => {
   for (const entity of con.entityMetadatas) {
+    if (excludeEntities.includes(entity.name)) continue;
     const repository = con.getRepository(entity.name);
     await repository.query(`DELETE FROM "${entity.tableName}";`);
 
