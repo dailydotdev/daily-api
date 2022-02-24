@@ -183,7 +183,16 @@ const obj = new GraphORM({
     },
   },
   ReadingHistory: {
-    from: 'View',
+    from: 'ActiveView',
+    fields: {
+      post: {
+        relation: {
+          isMany: false,
+          parentColumn: 'postId',
+          childColumn: 'id',
+        },
+      },
+    },
   },
 });
 

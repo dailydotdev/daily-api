@@ -23,6 +23,7 @@ import {
   uploadDevCardBackground,
 } from '../common';
 import { getSearchQuery } from './common';
+import { ActiveView } from '../entity/ActiveView';
 
 export interface GQLUser {
   id: string;
@@ -436,23 +437,25 @@ export const resolvers: IResolvers<any, Context> = {
       { id, after, before }: ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> => {
-      return ctx.con.query(
-        `
-          select (date_trunc('day', ${timestampAtTimezone}) ${userTimezone})::date::text as "date", count(*) as "reads"
-          from "view"
-          join "user" on "user".id = view."userId"
-          where "userId" = $1
-            and "timestamp" >= $2
-            and "timestamp" < $3
-          group by 1
-          order by 1;
-      `,
-        [id, after, before],
-      );
+      return ctx.con
+        .getRepository(ActiveView)
+        .createQueryBuilder('view')
+        .select(
+          `(date_trunc('day', ${timestampAtTimezone}) ${userTimezone})::date::text`,
+          'date',
+        )
+        .addSelect(`count(*) AS "reads"`)
+        .innerJoin(User, 'user', 'user.id = view.userId')
+        .where('view.userId = :id', { id })
+        .andWhere('view.timestamp >= :after', { after })
+        .andWhere('view.timestamp < :before', { before })
+        .groupBy('date')
+        .orderBy('date')
+        .getRawMany();
     },
     userReads: async (source, args, ctx: Context): Promise<number> => {
       return ctx.con
-        .getRepository(View)
+        .getRepository(ActiveView)
         .count({ where: { userId: ctx.userId } });
     },
     searchReadingHistorySuggestions: async (
@@ -467,6 +470,7 @@ export const resolvers: IResolvers<any, Context> = {
         ('StartSel = <strong>, StopSel = </strong>'))) as title
         from post INNER JOIN view ON view."postId" = post.id AND view."userId" = $1, search
         where tsv @@ search.query
+        and post.deleted = false
         order by title desc
         limit 5;
         `,
