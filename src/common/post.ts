@@ -60,5 +60,5 @@ export const getPostCommenters = (
     queryBuilder = queryBuilder.limit(limit);
   }
 
-  return queryBuilder.getRawMany();
+  return queryBuilder.orderBy('u.name').getRawMany();
 };
