@@ -93,12 +93,6 @@ export interface ReadingRank {
   tags: TagsReadingStatus[];
 }
 
-export interface MentionUser {
-  username: string;
-  name: string;
-  image: string;
-}
-
 interface ReadingRankQueryResult {
   thisWeek: number;
   lastWeek: number;
@@ -223,13 +217,9 @@ export const recommendUsersToMention = async (
     getPostCommenterIds(con, postId, { limit, userId }),
   ]);
 
-  console.log('COMMENTER IDS: ', commenterIds);
-
   if (post.authorId) {
     commenterIds.unshift(post.authorId);
   }
-
-  console.log('WITH AUTHOR IDS: ', commenterIds);
 
   const missing = limit - commenterIds.length;
 
