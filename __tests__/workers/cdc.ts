@@ -120,7 +120,7 @@ const saveMentionCommentFixtures = async (base: ChangeObject<User>) => {
   });
   await con
     .getRepository(CommentMention)
-    .save({ commentId: 'c1', mentionedUserId: base.id });
+    .save({ commentId: 'c1', commentByUserId: '2', mentionedUserId: base.id });
 };
 
 describe('source request', () => {
