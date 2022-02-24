@@ -6,7 +6,6 @@ import fetch from 'node-fetch';
 import { Connection, In, Not } from 'typeorm';
 import { CommentMention, Comment, View } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
-import { WEBAPP_URL } from '../config';
 import { User as DbUser } from './../entity/User';
 
 interface UserInfo {
@@ -74,7 +73,7 @@ export const fetchUserFeatures = async (userId: string): Promise<IFlags> => {
 };
 
 export const getUserProfileUrl = (username: string): string =>
-  `${WEBAPP_URL}/${username}`;
+  `${process.env.COMMENTS_PREFIX}/${username}`;
 
 export interface TagsReadingStatus {
   tag: string;
