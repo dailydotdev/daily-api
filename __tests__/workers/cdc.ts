@@ -444,6 +444,7 @@ describe('comment mention', () => {
   const base: ChangeObject<ObjectType> = {
     commentId: 'c1',
     mentionedUserId: '1',
+    commentByUserId: '2',
   };
 
   beforeEach(async () => {
