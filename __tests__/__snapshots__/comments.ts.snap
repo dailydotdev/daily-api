@@ -33,7 +33,7 @@ Object {
 exports[`mutation commentOnPost should comment markdown on a post with user mention 1`] = `
 Object {
   "content": "@Lee",
-  "contentHtml": "<p><a href=\\"https://app.daily.dev/Lee\\" data-mention-username=\\"Lee\\">Lee</a></p>
+  "contentHtml": "<p><a href=\\"http://localhost:5002/Lee\\" data-mention-username=\\"Lee\\">Lee</a></p>
 ",
   "id": Any<String>,
   "parentId": null,
