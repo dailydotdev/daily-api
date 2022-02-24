@@ -7,10 +7,8 @@ import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
   getDiscussionLink,
-  getPostAuthor,
-  getPostCommenters,
-  getRecentMentions,
   recommendUsersByQuery,
+  recommendUsersToMention,
 } from '../common';
 import { CommentMention } from './../entity/CommentMention';
 import { Comment, CommentUpvote, Post, User } from '../entity';
@@ -35,12 +33,6 @@ export interface GQLComment {
   children?: Connection<GQLComment>;
   post: GQLPost;
   numUpvotes: number;
-}
-
-interface GQLMentionUser {
-  username: string;
-  name: string;
-  image: string;
 }
 
 interface GQLMentionUserArgs {
@@ -342,15 +334,17 @@ const getMentions = async (
   return getVerifiedMentions(con, result, userId);
 };
 
-const saveCommentMentions = (
+const saveMentions = (
   transaction: ORMConnection | EntityManager,
   commentId: string,
+  commentByUserId: string,
   users: MentionedUser[],
 ) => {
   if (!users.length) return;
 
   const mentions: Partial<CommentMention>[] = users.map(({ id }) => ({
     commentId,
+    commentByUserId,
     mentionedUserId: id,
   }));
 
@@ -372,7 +366,7 @@ const saveComment = async (
   const contentHtml = markdown.render(comment.content, { mentions: usernames });
   comment.contentHtml = contentHtml;
   const savedComment = await con.getRepository(Comment).save(comment);
-  await saveCommentMentions(con, savedComment.id, mentions);
+  await saveMentions(con, savedComment.id, savedComment.userId, mentions);
 
   return savedComment;
 };
@@ -520,33 +514,16 @@ export const resolvers: IResolvers<any, Context> = {
       _,
       { postId, query, limit = 5 }: GQLMentionUserArgs,
       ctx,
-    ): Promise<GQLMentionUser[]> => {
+    ): Promise<User[]> => {
       const { con, userId } = ctx;
-      if (query) {
-        return recommendUsersByQuery(con, userId, { query, limit });
-      }
+      const ids = await (query
+        ? recommendUsersByQuery(con, userId, { query, limit })
+        : recommendUsersToMention(con, postId, userId, { limit }));
 
-      const [author, users] = await Promise.all([
-        getPostAuthor(con, postId, userId),
-        getPostCommenters(con, postId, { limit, userId }),
-      ]);
-
-      if (author) {
-        users.unshift(author);
-      }
-
-      const missing = limit - users.length;
-
-      if (missing === 0) {
-        return users;
-      }
-
-      const recent = await getRecentMentions(ctx.con, ctx.userId, {
-        limit: missing,
-        excludeUsernames: users.map((user) => user.username),
-      });
-
-      return users.concat(recent);
+      return con.getRepository(User).findByIds(
+        ids.filter((id) => id !== userId),
+        { order: { name: 'ASC' }, take: limit },
+      );
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

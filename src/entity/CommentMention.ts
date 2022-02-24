@@ -8,6 +8,9 @@ export class CommentMention {
   commentId: string;
 
   @PrimaryColumn()
+  commentByUserId: string;
+
+  @PrimaryColumn()
   mentionedUserId: string;
 
   @ManyToOne(() => Comment, {
@@ -15,6 +18,12 @@ export class CommentMention {
     onDelete: 'CASCADE',
   })
   comment?: Promise<Comment>;
+
+  @ManyToOne(() => User, {
+    lazy: true,
+    onDelete: 'CASCADE',
+  })
+  commentByUser?: Promise<User>;
 
   @ManyToOne(() => User, {
     lazy: true,

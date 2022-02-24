@@ -129,10 +129,13 @@ const saveCommentMentionFixtures = async (sampleAuthor = usersFixture[0]) => {
     .getRepository(Post)
     .update({ id: 'p1' }, { ...postsFixture[0], authorId: sampleAuthor.id });
   await con.getRepository(CommentMention).save(
-    usersFixture.map(({ id }) => ({
-      commentId: 'c1',
-      mentionedUserId: id,
-    })),
+    usersFixture
+      .filter(({ id }) => id !== loggedUser)
+      .map(({ id }) => ({
+        commentId: 'c1',
+        mentionedUserId: id,
+        commentByUserId: loggedUser,
+      })),
   );
 };
 
@@ -262,6 +265,7 @@ describe('query recommendedMentions', () => {
 
     const res = await client.query(QUERY, { variables: { postId: 'p1' } });
     expect(res.errors).toBeFalsy();
+    expect(res.data.recommendedMentions).toMatchSnapshot(); // to easily see there's no duplicates
     expect(res.data.recommendedMentions.length).toEqual(5);
     expect(res.data.recommendedMentions[0].name).toEqual(author.name);
   });
@@ -280,6 +284,7 @@ describe('query recommendedMentions', () => {
       variables: { postId: 'p1', query: 's' },
     });
     expect(res.errors).toBeFalsy();
+    expect(res.data.recommendedMentions).toMatchSnapshot(); // to easily see there's no duplicates
     expect(res.data.recommendedMentions.length).toEqual(3);
     expect(res.data.recommendedMentions[0]).not.toEqual('sample');
   });

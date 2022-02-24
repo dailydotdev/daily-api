@@ -1,14 +1,17 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CommentMentionEntity1645438828376 implements MigrationInterface {
-  name = 'CommentMentionEntity1645438828376';
+export class CommentMentionEntity1645672155570 implements MigrationInterface {
+  name = 'CommentMentionEntity1645672155570';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE TABLE "comment_mention" ("commentId" character varying NOT NULL, "mentionedUserId" character varying NOT NULL, CONSTRAINT "PK_d545a779ffe31921ed0d25b5846" PRIMARY KEY ("commentId", "mentionedUserId"))`,
+      `CREATE TABLE "comment_mention" ("commentId" character varying NOT NULL, "commentByUserId" character varying NOT NULL, "mentionedUserId" character varying NOT NULL, CONSTRAINT "PK_e80f73949dcc5d28b60ff4eadcf" PRIMARY KEY ("commentId", "commentByUserId", "mentionedUserId"))`,
     );
     await queryRunner.query(
       `ALTER TABLE "comment_mention" ADD CONSTRAINT "FK_f8dbf9ed06bbdc84d8a5e99f7e4" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "comment_mention" ADD CONSTRAINT "FK_bd51d362dd91064109b22f29061" FOREIGN KEY ("commentByUserId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
     );
     await queryRunner.query(
       `ALTER TABLE "comment_mention" ADD CONSTRAINT "FK_cc568f9fc855fc9ada0cfba6cd6" FOREIGN KEY ("mentionedUserId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
@@ -24,6 +27,9 @@ export class CommentMentionEntity1645438828376 implements MigrationInterface {
     );
     await queryRunner.query(
       `ALTER TABLE "comment_mention" DROP CONSTRAINT "FK_cc568f9fc855fc9ada0cfba6cd6"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "comment_mention" DROP CONSTRAINT "FK_bd51d362dd91064109b22f29061"`,
     );
     await queryRunner.query(
       `ALTER TABLE "comment_mention" DROP CONSTRAINT "FK_f8dbf9ed06bbdc84d8a5e99f7e4"`,

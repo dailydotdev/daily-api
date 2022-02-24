@@ -1,3 +1,5 @@
+import { getPostCommenterIds } from './post';
+import { Post } from './../entity/Post';
 import { IFlags } from 'flagsmith-nodejs';
 import { isSameDay } from 'date-fns';
 import fetch from 'node-fetch';
@@ -128,89 +130,119 @@ export interface ReadingDaysArgs {
 interface RecentMentionsProps {
   query?: string;
   limit?: number;
-  excludeUsernames?: string[];
+  excludeIds?: string[];
 }
 
-export const getRecentMentions = (
+export const getRecentMentionsIds = async (
   con: Connection,
   userId: string,
-  { limit = 5, query, excludeUsernames }: RecentMentionsProps,
-): Promise<MentionUser[]> => {
+  { limit = 5, query, excludeIds }: RecentMentionsProps,
+): Promise<string[]> => {
   let queryBuilder = con
     .getRepository(CommentMention)
     .createQueryBuilder('cm')
-    .select('DISTINCT u.name, u.username, u.image')
-    .innerJoin(Comment, 'c', 'cm."commentId" = c.id')
-    .innerJoin(DbUser, 'u', 'u.id = cm."mentionedUserId"')
-    .where('c."userId" = :userId', { userId })
-    .andWhere('cm."mentionedUserId" != :userId', { userId })
-    .limit(limit);
+    .select('DISTINCT cm."mentionedUserId"')
+    .where({ commentByUserId: userId })
+    .andWhere({ mentionedUserId: Not(userId) });
 
   if (query) {
-    queryBuilder = queryBuilder.andWhere(
-      '(u.name ILIKE :name OR u.username ILIKE :name)',
-      { name: `${query}%` },
-    );
+    queryBuilder = queryBuilder
+      .select('DISTINCT cm."mentionedUserId", u.name')
+      .innerJoin(Comment, 'c', 'cm."commentId" = c.id')
+      .innerJoin(DbUser, 'u', 'u.id = cm."mentionedUserId"')
+      .andWhere('(u.name ILIKE :name OR u.username ILIKE :name)', {
+        name: `${query}%`,
+      })
+      .orderBy('u.name');
   }
 
-  if (excludeUsernames?.length) {
-    queryBuilder = queryBuilder.andWhere('u.username NOT IN (:...usernames)', {
-      usernames: excludeUsernames,
+  if (excludeIds) {
+    queryBuilder = queryBuilder.andWhere({
+      mentionedUserId: Not(In(excludeIds)),
     });
   }
 
-  return queryBuilder.orderBy('u.name').execute();
+  const result = await queryBuilder.limit(limit).getRawMany<CommentMention>();
+
+  return result.map((user) => user.mentionedUserId);
 };
 
-export const getUsersWithNameOrUsername = (
+export const getUserIdsByNameOrUsername = async (
   con: Connection,
-  userId: string,
-  { query, limit, excludeUsernames }: RecentMentionsProps,
-): Promise<MentionUser[]> => {
+  { query, limit = 5, excludeIds = [] }: RecentMentionsProps,
+): Promise<string[]> => {
   let queryBuilder = con
     .getRepository(DbUser)
     .createQueryBuilder()
-    .select('name, username, image')
+    .select('id')
     .where('(name ILIKE :name OR username ILIKE :name)', {
       name: `${query}%`,
     })
-    .andWhere({
-      id: Not(userId),
-    });
+    .limit(limit);
 
-  if (excludeUsernames) {
+  if (excludeIds) {
     queryBuilder = queryBuilder.andWhere({
-      username: Not(In(excludeUsernames)),
+      id: Not(In(excludeIds)),
     });
   }
 
-  if (limit) {
-    queryBuilder = queryBuilder.limit(limit);
-  }
+  const result = await queryBuilder.getRawMany<User>();
 
-  return queryBuilder.getRawMany<MentionUser>();
+  return result.map((user) => user.id);
 };
 
 export const recommendUsersByQuery = async (
   con: Connection,
   userId: string,
   { query, limit }: RecentMentionsProps,
-): Promise<MentionUser[]> => {
-  const recent = await getRecentMentions(con, userId, { query, limit });
-  const missing = limit - recent.length;
+): Promise<string[]> => {
+  const recentIds = await getRecentMentionsIds(con, userId, { query, limit });
+  const missing = limit - recentIds.length;
 
   if (missing === 0) {
-    return recent;
+    return recentIds;
   }
 
-  const foundUsernames = recent.map(({ username }) => username);
-  const users = await getUsersWithNameOrUsername(con, userId, {
+  const userIds = await getUserIdsByNameOrUsername(con, {
     limit,
     query,
-    excludeUsernames: foundUsernames,
+    excludeIds: recentIds.concat(userId),
   });
 
-  return recent.concat(users);
+  return recentIds.concat(userIds);
+};
+
+export const recommendUsersToMention = async (
+  con: Connection,
+  postId: string,
+  userId: string,
+  { limit }: RecentMentionsProps,
+): Promise<string[]> => {
+  const [post, commenterIds] = await Promise.all([
+    con.getRepository(Post).findOne(postId),
+    getPostCommenterIds(con, postId, { limit, userId }),
+  ]);
+
+  console.log('COMMENTER IDS: ', commenterIds);
+
+  if (post.authorId) {
+    commenterIds.unshift(post.authorId);
+  }
+
+  console.log('WITH AUTHOR IDS: ', commenterIds);
+
+  const missing = limit - commenterIds.length;
+
+  if (missing === 0) {
+    return commenterIds;
+  }
+
+  const recent = await getRecentMentionsIds(con, userId, {
+    limit: missing,
+    excludeIds: commenterIds,
+  });
+
+  return commenterIds.concat(recent);
 };
 
 export const getUserReadingTags = (
