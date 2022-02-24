@@ -344,7 +344,19 @@ const saveMentions = (
   commentByUserId: string,
   users: MentionedUser[],
 ) => {
-  if (!users.length) return;
+  const ids = users.map((user) => user.id);
+  transaction
+    .createQueryBuilder()
+    .delete()
+    .from(CommentMention)
+    .where({ commentId })
+    .andWhere({ commentByUserId })
+    .andWhere({ mentionedUserId: Not(In(ids)) })
+    .execute();
+
+  if (!users.length) {
+    return;
+  }
 
   const mentions: Partial<CommentMention>[] = users.map(({ id }) => ({
     commentId,
