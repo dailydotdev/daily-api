@@ -323,9 +323,13 @@ const getMentions = async (
   userId: string,
 ): Promise<MentionedUser[]> => {
   const words = content.split(' ');
-  const result = words
-    .filter(([first, next]) => first === '@' && !!next)
-    .map((mention) => mention.substring(1));
+  const result = words.reduce((list, word) => {
+    if (word[0] !== '@' || word.length === 1) {
+      return list;
+    }
+
+    return list.concat(word);
+  }, []);
 
   if (result.length === 0) {
     return [];
