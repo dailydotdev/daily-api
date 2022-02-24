@@ -6,10 +6,7 @@ import { View } from './View';
   expression: (connection: Connection) =>
     connection
       .createQueryBuilder()
-      .select('view.userId', 'userId')
-      .addSelect('view.postId', 'postId')
-      .addSelect('view.timestamp', 'timestamp')
-      .addSelect('view.hidden', 'hidden')
+      .select('view.*')
       .from(View, 'view')
       .leftJoin(Post, 'post', 'post.id = view.postId')
       .where('post.deleted = false'),
