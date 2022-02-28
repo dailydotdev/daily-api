@@ -130,6 +130,7 @@ async function fetchAndCacheFeed(
 const shouldServeFromCache = async (
   offset: number,
   key: string,
+  feedVersion: number,
   feedId?: string,
 ): Promise<boolean> => {
   if (offset) {
@@ -140,10 +141,11 @@ const shouldServeFromCache = async (
     `${key}:time`,
     updateKey,
   );
+  const ttl = feedVersion != 8 ? 3 * 60 * 1000 : 60 * 1000;
   return !(
     !lastGenerated ||
     (lastUpdated && lastUpdated > lastGenerated) ||
-    new Date().getTime() - new Date(lastGenerated).getTime() > 3 * 60 * 1000
+    new Date().getTime() - new Date(lastGenerated).getTime() > ttl
   );
   // return !key;
 };
@@ -172,7 +174,7 @@ export async function generatePersonalizedFeed({
       await runInSpan(
         ctx?.span,
         'Feed_v2.shouldServeFromCache',
-        () => shouldServeFromCache(offset, key, feedId),
+        () => shouldServeFromCache(offset, key, feedVersion, feedId),
         {
           offset,
           key,
