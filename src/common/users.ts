@@ -197,7 +197,7 @@ export const recommendUsersByQuery = async (
   }
 
   const userIds = await getUserIdsByNameOrUsername(con, {
-    limit,
+    limit: missing,
     query,
     excludeIds: recentIds.concat(userId),
   });
