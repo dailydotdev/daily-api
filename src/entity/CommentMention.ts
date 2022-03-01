@@ -4,13 +4,13 @@ import { Comment } from './Comment';
 
 @Entity()
 export class CommentMention {
-  @PrimaryColumn()
+  @PrimaryColumn({ length: 14 })
   commentId: string;
 
-  @PrimaryColumn()
+  @PrimaryColumn({ length: 36 })
   commentByUserId: string;
 
-  @PrimaryColumn()
+  @PrimaryColumn({ length: 36 })
   mentionedUserId: string;
 
   @ManyToOne(() => Comment, {

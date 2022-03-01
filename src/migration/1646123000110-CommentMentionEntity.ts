@@ -1,11 +1,11 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CommentMentionEntity1645672155570 implements MigrationInterface {
-  name = 'CommentMentionEntity1645672155570';
+export class CommentMentionEntity1646123000110 implements MigrationInterface {
+  name = 'CommentMentionEntity1646123000110';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE TABLE "comment_mention" ("commentId" character varying NOT NULL, "commentByUserId" character varying NOT NULL, "mentionedUserId" character varying NOT NULL, CONSTRAINT "PK_e80f73949dcc5d28b60ff4eadcf" PRIMARY KEY ("commentId", "commentByUserId", "mentionedUserId"))`,
+      `CREATE TABLE "comment_mention" ("commentId" character varying(14) NOT NULL, "commentByUserId" character varying(36) NOT NULL, "mentionedUserId" character varying(36) NOT NULL, CONSTRAINT "PK_e80f73949dcc5d28b60ff4eadcf" PRIMARY KEY ("commentId", "commentByUserId", "mentionedUserId"))`,
     );
     await queryRunner.query(
       `ALTER TABLE "comment_mention" ADD CONSTRAINT "FK_f8dbf9ed06bbdc84d8a5e99f7e4" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
