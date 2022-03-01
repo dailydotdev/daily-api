@@ -6,6 +6,18 @@ import { baseNotificationEmailData, sendEmail, truncatePost } from '../common';
 import { Connection } from 'typeorm';
 import { getPostPermalink } from '../schema/posts';
 
+const getContent = (comment: string, username: string) => {
+  const mention = `@${username}`;
+
+  if (comment === mention) {
+    return '';
+  }
+
+  const [firstWord, ...content] = comment.split(' ');
+
+  return firstWord === mention ? content.join(' ') : comment;
+};
+
 export const sendEmailToMentionedUser = async (
   con: Connection,
   commentMention: CommentMention,
@@ -20,6 +32,8 @@ export const sendEmailToMentionedUser = async (
     .getRepository(User)
     .findOne(commentMention.mentionedUserId);
   const [first_name] = mentioned.name.split(' ');
+  const content = getContent(comment.content, mentioned.username);
+
   await sendEmail({
     ...baseNotificationEmailData,
     to: mentioned.email,
@@ -27,7 +41,7 @@ export const sendEmailToMentionedUser = async (
     dynamicTemplateData: {
       first_name,
       full_name: commenter.name,
-      comment: comment.content,
+      comment: content,
       user_handle: mentioned.username,
       commenter_profile_image: commenter.image,
       post_title: truncatePost(post),
