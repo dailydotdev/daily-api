@@ -1,7 +1,6 @@
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import { getUserProfileUrl } from './users';
-import { User } from '../entity';
 
 export const markdown: MarkdownIt = MarkdownIt({
   html: true,
@@ -17,10 +16,10 @@ export const markdown: MarkdownIt = MarkdownIt({
   },
 });
 
-export const getMentionLink = ({ id, username }: MarkdownMention): string => {
+export const getMentionLink = (username: string): string => {
   const href = getUserProfileUrl(username);
 
-  return `<a href="${href}" data-mention-id="${id}" data-mention-username="${username}">${username}</a>`;
+  return `<a href="${href}" data-mention-username="${username}">${username}</a>`;
 };
 
 const defaultRender =
@@ -41,19 +40,19 @@ const setTokenAttribute = (tokens, attribute, attributeValue) => {
 
 const defaultTextRender = markdown.renderer.rules.text;
 
-type MarkdownMention = Pick<User, 'id' | 'username'>;
-
 markdown.renderer.rules.text = function (tokens, idx, options, env, self) {
   const content = defaultTextRender(tokens, idx, options, env, self);
-  const mentions = env?.mentions as MarkdownMention[];
+  const mentions = env?.mentions as string[];
   if (!mentions?.length) {
     return content;
   }
 
-  const words = content.split(' ').map((word) => {
-    const mention = mentions.find(({ username }) => word === `@${username}`);
-    return mention ? getMentionLink(mention) : word;
-  });
+  const usernames = mentions.map((username) => `@${username}`);
+  const words = content
+    .split(' ')
+    .map((word) =>
+      usernames.indexOf(word) === -1 ? word : getMentionLink(word.substring(1)),
+    );
 
   return words.join(' ');
 };

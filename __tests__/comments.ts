@@ -384,7 +384,7 @@ describe('mutation commentOnPost', () => {
     expect(actual.length).toEqual(6);
     expect(actual[0]).toMatchSnapshot({
       id: expect.any(String),
-      contentHtml: `<p>${getMentionLink({ id: '4', username: 'Lee' })}</p>\n`,
+      contentHtml: `<p>${getMentionLink('Lee')}</p>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOne('p1');

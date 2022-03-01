@@ -368,7 +368,8 @@ const saveComment = async (
   comment: Comment,
 ) => {
   const mentions = await getMentions(con, comment.content, comment.userId);
-  const contentHtml = markdown.render(comment.content, { mentions });
+  const usernames = mentions.map((user) => user.username);
+  const contentHtml = markdown.render(comment.content, { mentions: usernames });
   comment.contentHtml = contentHtml;
   const savedComment = await con.getRepository(Comment).save(comment);
   await saveMentions(con, savedComment.id, savedComment.userId, mentions);
