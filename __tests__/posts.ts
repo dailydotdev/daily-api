@@ -500,7 +500,7 @@ describe('query post', () => {
         id: 'pdeleted',
         shortId: 'spdeleted',
         title: 'PDeleted',
-        url: 'http://p1.com',
+        url: 'http://p8.com',
         score: 0,
         sourceId: 'a',
         createdAt: new Date('2021-09-22T07:15:51.247Z'),
