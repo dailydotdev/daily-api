@@ -1,3 +1,4 @@
+import { templateId } from './../common/mailing';
 import { FastifyLoggerInstance } from 'fastify';
 import { CommentMention } from './../entity/CommentMention';
 import { Comment, User } from '../entity';
@@ -37,7 +38,7 @@ export const sendEmailToMentionedUser = async (
   await sendEmail({
     ...baseNotificationEmailData,
     to: mentioned.email,
-    templateId: 'd-6949e2e50def4c6698900032973d469b',
+    templateId: templateId.commentMentionedUser,
     dynamicTemplateData: {
       first_name,
       full_name: commenter.name,
