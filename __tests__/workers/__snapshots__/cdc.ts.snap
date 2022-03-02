@@ -4,7 +4,7 @@ exports[`user should update comments where the user was mentioned if username ch
 Comment {
   "comments": 0,
   "content": "parent comment @sshanzel",
-  "contentHtml": "<p>parent comment <a href=\\"http://localhost:5002/sshanzel\\" data-mention-username=\\"sshanzel\\">sshanzel</a></p>
+  "contentHtml": "<p>parent comment <a href=\\"http://localhost:5002/sshanzel\\" data-mention-username=\\"sshanzel\\">@sshanzel</a></p>
 ",
   "createdAt": 2020-02-06T00:00:00.000Z,
   "featured": false,
