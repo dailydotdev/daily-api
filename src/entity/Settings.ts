@@ -42,6 +42,9 @@ export class Settings {
   @Column({ default: false })
   optOutWeeklyGoal: boolean;
 
+  @Column({ default: false })
+  optOutCompanion: boolean;
+
   @Column({ type: 'text', array: true, default: null })
   customLinks: string[];
 

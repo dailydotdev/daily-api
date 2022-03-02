@@ -469,7 +469,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     postCanonical: async (
       source,
-      { canonicalUrl, id }: { id: string; canonicalUrl: string },
+      { canonicalUrl }: { id: string; canonicalUrl: string },
       ctx: Context,
       info,
     ) => {
