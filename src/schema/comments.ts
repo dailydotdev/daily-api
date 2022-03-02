@@ -520,16 +520,21 @@ export const resolvers: IResolvers<any, Context> = {
       _,
       { postId, query, limit = 5 }: GQLMentionUserArgs,
       ctx,
+      info,
     ): Promise<User[]> => {
       const { con, userId } = ctx;
       const ids = await (query
         ? recommendUsersByQuery(con, userId, { query, limit })
         : recommendUsersToMention(con, postId, userId, { limit }));
 
-      return con.getRepository(User).findByIds(
-        ids.filter((id) => id !== userId),
-        { order: { name: 'ASC' }, take: limit },
-      );
+      return graphorm.query(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .where(`"${builder.alias}".id IN (:...ids)`, { ids })
+          .orderBy(`"${builder.alias}".name`)
+          .limit(limit);
+
+        return builder;
+      });
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
