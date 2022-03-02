@@ -19,7 +19,7 @@ export const markdown: MarkdownIt = MarkdownIt({
 export const getMentionLink = (username: string): string => {
   const href = getUserProfileUrl(username);
 
-  return `<a href="${href}" data-mention-username="${username}">${username}</a>`;
+  return `<a href="${href}" data-mention-username="${username}">@${username}</a>`;
 };
 
 const defaultRender =
