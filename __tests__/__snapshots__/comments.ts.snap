@@ -1,12 +1,12 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`function updateMentions should update mentions based on passed comment ids utilizing old and new username 1`] = `
-Comment {
+Object {
   "comments": 0,
   "content": "@Solevilla",
   "contentHtml": "<p><a href=\\"http://localhost:5002/Solevilla\\" data-mention-username=\\"Solevilla\\">@Solevilla</a></p>
 ",
-  "createdAt": 2022-03-03T10:39:21.495Z,
+  "createdAt": Any<Date>,
   "featured": false,
   "id": "cm",
   "lastUpdatedAt": null,
@@ -18,12 +18,12 @@ Comment {
 `;
 
 exports[`function updateMentions should update mentions based on passed comment ids utilizing old and new username 2`] = `
-Comment {
+Object {
   "comments": 0,
   "content": "@sshanzel",
   "contentHtml": "<p><a href=\\"http://localhost:5002/sshanzel\\" data-mention-username=\\"sshanzel\\">@sshanzel</a></p>
 ",
-  "createdAt": 2022-03-03T10:39:21.495Z,
+  "createdAt": Any<Date>,
   "featured": false,
   "id": "cm",
   "lastUpdatedAt": null,

@@ -299,14 +299,14 @@ describe('function updateMentions', () => {
       .getRepository(Comment)
       .create({ id: 'cm', postId: 'p1', userId: '1', content: '@Solevilla' });
     const saved = await saveComment(con, comment);
-    expect(saved).toMatchSnapshot();
+    expect(saved).toMatchSnapshot({ createdAt: expect.any(Date) });
     const user = await con.getRepository(User).findOne('7');
     const previous = user.username;
     user.username = 'sshanzel';
     await con.getRepository(User).update({ id: user.id }, user);
     await updateMentions(con, previous, user.username, ['cm']);
     const updated = await con.getRepository(Comment).findOne('cm');
-    expect(updated).toMatchSnapshot();
+    expect(updated).toMatchSnapshot({ createdAt: expect.any(Date) });
   });
 });
 
