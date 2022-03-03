@@ -30,6 +30,7 @@ import {
   notifySourceRequest,
   notifySettingsUpdated,
   notifyUserReputationUpdated,
+  notifyUsernameChanged,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -40,7 +41,6 @@ import { PostReport, Alerts } from '../entity';
 import { reportReasons } from '../schema/posts';
 import { updateAlerts } from '../schema/alerts';
 import { sendEmailToMentionedUser } from './commentMentionEmail';
-import { updateMentions } from '../schema/comments';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -164,10 +164,11 @@ const onUserChange = async (
       await notifyDevCardEligible(logger, data.payload.after.id);
     }
 
-    if (data.payload.before?.username !== data.payload.after.username) {
-      await updateMentions(
-        con,
-        data.payload.before,
+    if (data.payload.before.username !== data.payload.after.username) {
+      await notifyUsernameChanged(
+        logger,
+        data.payload.after.id,
+        data.payload.before.username,
         data.payload.after.username,
       );
     }
