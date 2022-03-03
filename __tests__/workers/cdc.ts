@@ -18,6 +18,7 @@ import {
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
   notifySettingsUpdated,
+  notifyUsernameChanged,
   sendEmail,
   baseNotificationEmailData,
   pickImageUrl,
@@ -71,6 +72,7 @@ jest.mock('../../src/common', () => ({
   notifySourceFeedAdded: jest.fn(),
   notifySourceFeedRemoved: jest.fn(),
   notifySettingsUpdated: jest.fn(),
+  notifyUsernameChanged: jest.fn(),
   sendEmail: jest.fn(),
 }));
 
@@ -400,13 +402,11 @@ describe('user', () => {
     ]);
   });
 
-  it('should update comments where the user was mentioned if username changed', async () => {
+  it('should notify on username changed', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
       username: 'sshanzel',
     };
-    await saveMentionCommentFixtures(base);
-    await con.getRepository(User).save(after);
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
@@ -416,8 +416,12 @@ describe('user', () => {
         table: 'user',
       }),
     );
-    const updatedComment = await con.getRepository(Comment).findOne('c1');
-    expect(updatedComment).toMatchSnapshot();
+    expect(notifyUsernameChanged).toBeCalledTimes(1);
+    expect(mocked(notifyUsernameChanged).mock.calls[0].slice(1)).toEqual([
+      base.id,
+      base.username,
+      after.username,
+    ]);
   });
 
   it('should notify on dev card eligibility', async () => {
