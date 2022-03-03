@@ -8,7 +8,7 @@ interface Data {
 }
 
 const worker: Worker = {
-  subscription: 'comments-update-mention',
+  subscription: 'update-comments-mention',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     const { oldUsername, newUsername, commentIds } = data;

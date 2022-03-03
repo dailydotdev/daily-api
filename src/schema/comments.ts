@@ -366,7 +366,6 @@ export const saveComment = async (
   comment.contentHtml = contentHtml;
   const savedComment = await con.getRepository(Comment).save(comment);
   await saveMentions(con, savedComment.id, savedComment.userId, mentions);
-  console.log('CONTENT HTML: ', contentHtml, mentions);
 
   return savedComment;
 };

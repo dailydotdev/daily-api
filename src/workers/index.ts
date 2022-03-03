@@ -27,6 +27,8 @@ import postBannedEmail from './postBannedEmail';
 import checkDevCardEligibility from './checkDevCardEligibility';
 import devCardEligibleAmplitude from './devCardEligibleAmplitude';
 import devCardEligibleEmail from './devCardEligibleEmail';
+import usernameChanged from './usernameChanged';
+import updateComments from './updateComments';
 import deleteUser from './deleteUser';
 import cdc from './cdc';
 
@@ -62,5 +64,7 @@ export const workers: Worker[] = [
   checkDevCardEligibility,
   devCardEligibleAmplitude,
   devCardEligibleEmail,
+  usernameChanged,
+  updateComments,
   cdc,
 ];

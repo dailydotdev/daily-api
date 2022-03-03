@@ -38,6 +38,8 @@ const debeziumTopic = new gcp.pubsub.Topic('debezium-topic', {
   'source-feed-removed',
   'alerts-updated',
   'settings-updated',
+  'username-changed',
+  'update-comments',
 ].map(
   (topic) =>
     new gcp.pubsub.Topic(topic, {
