@@ -377,31 +377,23 @@ const saveComment = async (
   return savedComment;
 };
 
-const getCommentsUserMentioned = (
-  con: ORMConnection | EntityManager,
-  userId: string,
-) =>
-  con
-    .getRepository(Comment)
-    .createQueryBuilder('c')
-    .select('c.*')
-    .innerJoin(CommentMention, 'cm', 'cm."commentId" = c.id')
-    .where('cm."mentionedUserId" = :userId', { userId })
-    .getRawMany<Comment>();
-
 export const updateMentions = async (
   con: ORMConnection | EntityManager,
-  user: Pick<User, 'username' | 'id'>,
+  oldUsername: string,
   newUsername: string,
+  commentIds: string[],
 ): Promise<unknown[]> => {
-  const comments = await getCommentsUserMentioned(con, user.id);
+  const comments = await con
+    .getRepository(Comment)
+    .find({ where: { id: In(commentIds) } });
   const updated = comments.map((comment) => {
     const content = comment.content
       .split(' ')
-      .map((word) => (word === `@${user.username}` ? `@${newUsername}` : word))
+      .map((word) => (word === `@${oldUsername}` ? `@${newUsername}` : word))
       .join(' ');
+    comment.content = content;
 
-    return { ...comment, content };
+    return comment;
   });
 
   return Promise.all(updated.map((comment) => saveComment(con, comment)));
