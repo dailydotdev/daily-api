@@ -308,15 +308,6 @@ interface MentionedUser {
   username?: string;
 }
 
-const getVerifiedMentions = async (
-  con: ORMConnection | EntityManager,
-  usernames: string[],
-  userId: string,
-): Promise<MentionedUser[]> =>
-  con
-    .getRepository(User)
-    .find({ where: { username: In(usernames), id: Not(userId) } });
-
 const getMentions = async (
   con: ORMConnection | EntityManager,
   content: string,
@@ -335,7 +326,9 @@ const getMentions = async (
     return [];
   }
 
-  return getVerifiedMentions(con, result, userId);
+  return con
+    .getRepository(User)
+    .find({ where: { username: In(result), id: Not(userId) } });
 };
 
 const saveMentions = (
@@ -363,16 +356,17 @@ const saveMentions = (
     .execute();
 };
 
-const saveComment = async (
+export const saveComment = async (
   con: ORMConnection | EntityManager,
   comment: Comment,
-) => {
+): Promise<Comment> => {
   const mentions = await getMentions(con, comment.content, comment.userId);
   const usernames = mentions.map((user) => user.username);
   const contentHtml = markdown.render(comment.content, { mentions: usernames });
   comment.contentHtml = contentHtml;
   const savedComment = await con.getRepository(Comment).save(comment);
   await saveMentions(con, savedComment.id, savedComment.userId, mentions);
+  console.log('CONTENT HTML: ', contentHtml, mentions);
 
   return savedComment;
 };

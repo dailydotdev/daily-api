@@ -21,6 +21,7 @@ import {
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { getMentionLink } from '../src/common/markdown';
+import { saveComment, updateMentions } from '../src/schema/comments';
 
 let con: Connection;
 let state: GraphQLTestingState;
@@ -287,6 +288,25 @@ describe('query recommendedMentions', () => {
     expect(res.data.recommendedMentions).toMatchSnapshot(); // to easily see there's no duplicates
     expect(res.data.recommendedMentions.length).toEqual(3);
     expect(res.data.recommendedMentions[0]).not.toEqual('sample');
+  });
+});
+
+describe('function updateMentions', () => {
+  it('should update mentions based on passed comment ids utilizing old and new username', async () => {
+    loggedUser = '1';
+    await saveCommentMentionFixtures();
+    const comment = con
+      .getRepository(Comment)
+      .create({ id: 'cm', postId: 'p1', userId: '1', content: '@Solevilla' });
+    const saved = await saveComment(con, comment);
+    expect(saved).toMatchSnapshot();
+    const user = await con.getRepository(User).findOne('7');
+    const previous = user.username;
+    user.username = 'sshanzel';
+    await con.getRepository(User).update({ id: user.id }, user);
+    await updateMentions(con, previous, user.username, ['cm']);
+    const updated = await con.getRepository(Comment).findOne('cm');
+    expect(updated).toMatchSnapshot();
   });
 });
 
