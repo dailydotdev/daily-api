@@ -9,6 +9,18 @@ if (process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
+export const templateId = {
+  postBanned: 'd-dc6edf61c52442689e8870a434d8811d',
+  commentedAuthor: 'd-aba78d1947b14307892713ad6c2cafc5',
+  commentCommented: 'd-90c229bde4af427c8708a7615bfd85b4',
+  commentCommentedThread: 'd-62cb8a27d08a4951a49aade3b292c1ed',
+  commentFeatured: 'd-5888ea6c1baf482b9373fba25f0363ea',
+  commentUpvoted: 'd-92bca6102e3a4b41b6fc3f532f050429',
+  devcardEligible: 'd-680e36a387084cac87923963ea0656db',
+  postAuthorMatched: 'd-3d3402ec873640e788f549a0680c40bb',
+  analyticsReport: 'd-97c75b0e2cf847399d20233455736ba0',
+};
+
 export const truncatePost = (post: Post): string =>
   post.title.length <= 80 ? post.title : `${post.title.substr(0, 77)}...`;
 
@@ -61,7 +73,7 @@ export const getCommentedAuthorMailParams = (
   return {
     ...baseNotificationEmailData,
     to: author.email,
-    templateId: 'd-aba78d1947b14307892713ad6c2cafc5',
+    templateId: templateId.commentedAuthor,
     dynamicTemplateData: {
       profile_image: commenter.image,
       full_name: commenter.name,

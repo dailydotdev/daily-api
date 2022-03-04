@@ -1,3 +1,4 @@
+import { templateId } from './../common/mailing';
 import { messageToJson, Worker } from './worker';
 import { Comment } from '../entity';
 import { baseNotificationEmailData, sendEmail } from '../common';
@@ -49,7 +50,7 @@ const worker: Worker = {
         await sendEmail({
           ...baseNotificationEmailData,
           to: author.email,
-          templateId: 'd-92bca6102e3a4b41b6fc3f532f050429',
+          templateId: templateId.commentUpvoted,
           dynamicTemplateData: {
             upvote_title: title,
             main_comment: commentTruncated,

@@ -1,3 +1,4 @@
+import { templateId } from './../common/mailing';
 import { messageToJson, Worker } from './worker';
 import { Comment } from '../entity';
 import {
@@ -39,7 +40,7 @@ const worker: Worker = {
         await sendEmail({
           ...baseNotificationEmailData,
           to: author.email,
-          templateId: 'd-90c229bde4af427c8708a7615bfd85b4',
+          templateId: templateId.commentCommented,
           dynamicTemplateData: {
             profile_image: commenter.image,
             full_name: commenter.name,
