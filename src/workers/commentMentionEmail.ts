@@ -7,7 +7,7 @@ import { baseNotificationEmailData, sendEmail, truncatePost } from '../common';
 import { Connection } from 'typeorm';
 import { getPostPermalink } from '../schema/posts';
 
-const getContent = (comment: string, username: string) => {
+const removeFirstWordIfMention = (comment: string, username: string) => {
   const mention = `@${username}`;
 
   if (comment === mention) {
@@ -33,7 +33,7 @@ export const sendEmailToMentionedUser = async (
     .getRepository(User)
     .findOne(commentMention.mentionedUserId);
   const [first_name] = mentioned.name.split(' ');
-  const content = getContent(comment.content, mentioned.username);
+  const content = removeFirstWordIfMention(comment.content, mentioned.username);
 
   await sendEmail({
     ...baseNotificationEmailData,
