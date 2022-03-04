@@ -303,9 +303,11 @@ describe('function updateMentions', () => {
     const user = await con.getRepository(User).findOne('7');
     const previous = user.username;
     user.username = 'sshanzel';
-    await con.getRepository(User).update({ id: user.id }, user);
-    await updateMentions(con, previous, user.username, ['cm']);
-    const updated = await con.getRepository(Comment).findOne('cm');
+    const updated = await con.transaction(async (transaction) => {
+      await transaction.getRepository(User).update({ id: user.id }, user);
+      await updateMentions(transaction, previous, user.username, ['cm']);
+      return transaction.getRepository(Comment).findOne('cm');
+    });
     expect(updated).toMatchSnapshot({ createdAt: expect.any(Date) });
   });
 });
