@@ -13,7 +13,9 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     const { oldUsername, newUsername, commentIds } = data;
     try {
-      await updateMentions(con, oldUsername, newUsername, commentIds);
+      await con.transaction(async (entityManager) =>
+        updateMentions(entityManager, oldUsername, newUsername, commentIds),
+      );
       logger.info(
         {
           data,

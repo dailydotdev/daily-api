@@ -357,7 +357,7 @@ const saveMentions = (
 };
 
 export const saveComment = async (
-  con: ORMConnection | EntityManager,
+  con: EntityManager,
   comment: Comment,
 ): Promise<Comment> => {
   const mentions = await getMentions(con, comment.content, comment.userId);
@@ -371,7 +371,7 @@ export const saveComment = async (
 };
 
 export const updateMentions = async (
-  con: ORMConnection | EntityManager,
+  con: EntityManager,
   oldUsername: string,
   newUsername: string,
   commentIds: string[],
@@ -392,10 +392,7 @@ export const updateMentions = async (
   return Promise.all(updated.map((comment) => saveComment(con, comment)));
 };
 
-const savNewComment = async (
-  con: ORMConnection | EntityManager,
-  comment: Comment,
-) => {
+const savNewComment = async (con: EntityManager, comment: Comment) => {
   const savedComment = await saveComment(con, comment);
 
   await con
