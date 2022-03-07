@@ -160,7 +160,7 @@ export const getRecentMentionsIds = async (
       .orderBy('u.name');
   }
 
-  if (excludeIds) {
+  if (excludeIds?.length) {
     queryBuilder = queryBuilder.andWhere({
       mentionedUserId: Not(In(excludeIds)),
     });
@@ -173,7 +173,7 @@ export const getRecentMentionsIds = async (
 
 export const getUserIdsByNameOrUsername = async (
   con: Connection,
-  { query, limit = 5, excludeIds = [] }: RecentMentionsProps,
+  { query, limit = 5, excludeIds }: RecentMentionsProps,
 ): Promise<string[]> => {
   let queryBuilder = con
     .getRepository(DbUser)
@@ -184,7 +184,7 @@ export const getUserIdsByNameOrUsername = async (
     })
     .limit(limit);
 
-  if (excludeIds) {
+  if (excludeIds?.length) {
     queryBuilder = queryBuilder.andWhere({
       id: Not(In(excludeIds)),
     });

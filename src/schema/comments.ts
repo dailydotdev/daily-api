@@ -511,6 +511,10 @@ export const resolvers: IResolvers<any, Context> = {
         ? recommendUsersByQuery(con, userId, { query, limit })
         : recommendUsersToMention(con, postId, userId, { limit }));
 
+      if (ids.length === 0) {
+        return [];
+      }
+
       return graphorm.query(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder
           .where(`"${builder.alias}".id IN (:...ids)`, { ids })
