@@ -30,7 +30,6 @@ import {
   notifySourceRequest,
   notifySettingsUpdated,
   notifyUserReputationUpdated,
-  notifyUsernameChanged,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -162,15 +161,6 @@ const onUserChange = async (
       data.payload.after.devcardEligible
     ) {
       await notifyDevCardEligible(logger, data.payload.after.id);
-    }
-
-    if (data.payload.before.username !== data.payload.after.username) {
-      await notifyUsernameChanged(
-        logger,
-        data.payload.after.id,
-        data.payload.before.username,
-        data.payload.after.username,
-      );
     }
   }
 };

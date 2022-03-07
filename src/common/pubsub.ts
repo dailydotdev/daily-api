@@ -13,7 +13,6 @@ const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-commented');
 const commentFeaturedTopic = pubsub.topic('comment-featured');
 const commentsUpdateTopic = pubsub.topic('update-comments');
-const usernameChangedTopic = pubsub.topic('username-changed');
 const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
 const alertsUpdatedTopic = pubsub.topic('alerts-updated');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
@@ -124,18 +123,6 @@ export const notifyCommentFeatured = async (
 ): Promise<void> =>
   publishEvent(log, commentFeaturedTopic, {
     commentId,
-  });
-
-export const notifyUsernameChanged = async (
-  log: EventLogger,
-  userId: string,
-  oldUsername: string,
-  newUsername: string,
-): Promise<void> =>
-  publishEvent(log, usernameChangedTopic, {
-    userId,
-    oldUsername,
-    newUsername,
   });
 
 export const notifyCommentsUpdate = async (

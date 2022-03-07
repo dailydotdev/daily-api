@@ -18,7 +18,6 @@ import {
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
   notifySettingsUpdated,
-  notifyUsernameChanged,
   sendEmail,
   baseNotificationEmailData,
   pickImageUrl,
@@ -72,7 +71,6 @@ jest.mock('../../src/common', () => ({
   notifySourceFeedAdded: jest.fn(),
   notifySourceFeedRemoved: jest.fn(),
   notifySettingsUpdated: jest.fn(),
-  notifyUsernameChanged: jest.fn(),
   sendEmail: jest.fn(),
 }));
 
@@ -399,28 +397,6 @@ describe('user', () => {
     expect(mocked(notifyUserReputationUpdated).mock.calls[0].slice(1)).toEqual([
       '1',
       10,
-    ]);
-  });
-
-  it('should notify on username changed', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      username: 'sshanzel',
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: base,
-        op: 'u',
-        table: 'user',
-      }),
-    );
-    expect(notifyUsernameChanged).toBeCalledTimes(1);
-    expect(mocked(notifyUsernameChanged).mock.calls[0].slice(1)).toEqual([
-      base.id,
-      base.username,
-      after.username,
     ]);
   });
 
