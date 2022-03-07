@@ -4,7 +4,7 @@ exports[`function updateMentions should update mentions based on passed comment 
 Object {
   "comments": 0,
   "content": "@Solevilla",
-  "contentHtml": "<p><a href=\\"http://localhost:5002/Solevilla\\" data-mention-username=\\"Solevilla\\">@Solevilla</a></p>
+  "contentHtml": "<p><a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">Solevilla</a></p>
 ",
   "createdAt": Any<Date>,
   "featured": false,
@@ -21,7 +21,7 @@ exports[`function updateMentions should update mentions based on passed comment 
 Object {
   "comments": 0,
   "content": "@sshanzel",
-  "contentHtml": "<p><a href=\\"http://localhost:5002/sshanzel\\" data-mention-username=\\"sshanzel\\">@sshanzel</a></p>
+  "contentHtml": "<p><a href=\\"http://localhost:5002/sshanzel\\" data-mention-id=\\"7\\" data-mention-username=\\"sshanzel\\">sshanzel</a></p>
 ",
   "createdAt": Any<Date>,
   "featured": false,
@@ -67,7 +67,7 @@ Object {
 exports[`mutation commentOnPost should comment markdown on a post with user mention 1`] = `
 Object {
   "content": "@Lee",
-  "contentHtml": "<p><a href=\\"http://localhost:5002/Lee\\" data-mention-username=\\"Lee\\">@Lee</a></p>
+  "contentHtml": "<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">Lee</a></p>
 ",
   "id": Any<String>,
   "parentId": null,
