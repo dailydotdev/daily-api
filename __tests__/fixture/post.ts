@@ -9,6 +9,7 @@ export const postsFixture: DeepPartial<Post>[] = [
     shortId: 'sp1',
     title: 'P1',
     url: 'http://p1.com',
+    canonicalUrl: 'http://p1.com',
     score: 0,
     sourceId: 'a',
     createdAt: now,
