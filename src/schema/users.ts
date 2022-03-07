@@ -242,7 +242,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get user's info
     """
-    userInfo(id: String!): User
+    userInfo(id: ID!): User
 
     """
     Get user's reading history
