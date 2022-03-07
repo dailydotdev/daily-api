@@ -1,3 +1,4 @@
+import nock from 'nock';
 import { keywordsFixture } from './fixture/keywords';
 import { Keyword } from './../src/entity/Keyword';
 import { PostKeyword } from './../src/entity/PostKeyword';
@@ -42,6 +43,7 @@ const now = new Date();
 
 beforeEach(async () => {
   loggedUser = null;
+  nock.cleanAll();
 
   await con.getRepository(User).save([
     {
@@ -293,6 +295,36 @@ describe('query userMostReadTags', () => {
     expect(limited.errors).toBeFalsy();
     expect(limited.data.userMostReadTags.length).toEqual(limit);
     expect(limited.data.userMostReadTags).toMatchSnapshot();
+  });
+});
+
+describe('query userInfo', () => {
+  const QUERY = `query UserInfo($id: String!){
+    userInfo(id: $id) {
+      name
+      username
+      image
+    }
+  }`;
+
+  const mockInfo = (id: string): nock.Scope =>
+    nock(process.env.GATEWAY_URL)
+      .get('/v1/users/' + id)
+      .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
+      .matchHeader('user-id', '1')
+      .matchHeader('logged-in', 'true')
+      .reply(200, {
+        image: 'lee.image.com',
+        name: 'Lee Hansel',
+        username: 'lee',
+      });
+
+  it('should return user info with name, username, and image', async () => {
+    const requestUserId = '1';
+    mockInfo(requestUserId);
+    const res = await client.query(QUERY, { variables: { id: requestUserId } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userInfo).toMatchSnapshot();
   });
 });
 

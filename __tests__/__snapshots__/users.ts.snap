@@ -454,6 +454,14 @@ Object {
 }
 `;
 
+exports[`query userReadingRank should return user info from gateway 1`] = `
+Object {
+  "image": "lee.image.com",
+  "name": "Lee Hansel",
+  "username": "lee",
+}
+`;
+
 exports[`query userReadingRankHistory should ignore views during current week 1`] = `
 Array [
   Object {

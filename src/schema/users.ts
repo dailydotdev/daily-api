@@ -1,3 +1,4 @@
+import { fetchUserById } from './../common/users';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -239,6 +240,11 @@ export const typeDefs = /* GraphQL */ `
     ): SearchReadingHistorySuggestionsResults!
 
     """
+    Get user's info
+    """
+    userInfo(id: String!): User
+
+    """
     Get user's reading history
     """
     readHistory(
@@ -369,6 +375,8 @@ export const resolvers: IResolvers<any, Context> = {
           : null,
       };
     },
+    userInfo: async (_, { id }: ReadingRankArgs): Promise<GQLUser> =>
+      fetchUserById(id),
     userReadingRank: async (
       _,
       { id, version = 1, limit = 6 }: ReadingRankArgs,
