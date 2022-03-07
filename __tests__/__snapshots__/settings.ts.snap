@@ -60,6 +60,7 @@ Object {
     "enableCardAnimations": true,
     "insaneMode": false,
     "openNewTab": true,
+    "optOutCompanion": false,
     "optOutWeeklyGoal": false,
     "showOnlyUnreadPosts": false,
     "showTopSites": true,
