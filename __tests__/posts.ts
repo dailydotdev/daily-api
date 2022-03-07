@@ -559,8 +559,17 @@ describe('query postUpvotes', () => {
   const QUERY = `
   query postUpvotes($id: String!) {
     postUpvotes(id: $id) {
-      id
-      url
+      edges {
+        node {
+          createdAt
+          user {
+            name
+            username
+            bio
+            image
+          }
+        }
+      }
     }
   }
   `;
