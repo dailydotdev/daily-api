@@ -124,13 +124,13 @@ Object {
             "title": "P1",
             "url": "http://p1.com",
           },
-          "timestamp": "2020-09-22T18:15:51.247Z",
+          "timestamp": "2020-09-21T20:15:51.247Z",
           "timestampDb": "2020-09-22T07:15:51.247Z",
         },
       },
     ],
     "pageInfo": Object {
-      "endCursor": "dGltZToxNjAwNzk4NTUxMjQ3",
+      "endCursor": "dGltZToxNjAwNzE5MzUxMjQ3",
       "hasNextPage": false,
     },
   },
@@ -480,7 +480,7 @@ Array [
 ]
 `;
 
-exports[`query userReadingRankHistory should return the reading rank history utilizing timezone 1`] = `
+exports[`query userReadingRankHistory should return the reading rank history 1`] = `
 Array [
   Object {
     "count": 1,
@@ -493,14 +493,14 @@ Array [
 ]
 `;
 
-exports[`query userReadingRankHistory should return the reading rank history utilizing timezone 2`] = `
+exports[`query userReadingRankHistory should return the reading rank history utilizing timezone 1`] = `
 Array [
   Object {
-    "count": 1,
+    "count": 3,
     "rank": 0,
   },
   Object {
-    "count": 2,
+    "count": 1,
     "rank": 1,
   },
 ]
