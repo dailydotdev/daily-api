@@ -305,13 +305,13 @@ export const typeDefs = /* GraphQL */ `
     ): Post!
 
     """
-    Get post by canonical URL
+    Get post by URL
     """
-    postCanonical(
+    postByUrl(
       """
-      Canonical URL of the requested post
+      URL of the requested post
       """
-      canonicalUrl: String
+      url: String
     ): Post!
 
     """
@@ -470,17 +470,19 @@ export const resolvers: IResolvers<any, Context> = {
       }
       throw new NotFoundError('Post not found');
     },
-    postCanonical: async (
+    postByUrl: async (
       source,
-      { canonicalUrl }: { id: string; canonicalUrl: string },
+      { url }: { id: string; url: string },
       ctx: Context,
       info,
     ) => {
       const res = await graphorm.query(ctx, info, (builder) => ({
-        queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."canonicalUrl" = :canonicalUrl AND "${builder.alias}"."deleted" = false`,
-          { canonicalUrl },
-        ),
+        queryBuilder: builder.queryBuilder
+          .where(
+            `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false`,
+            { url },
+          )
+          .limit(1),
         ...builder,
       }));
       if (res.length) {

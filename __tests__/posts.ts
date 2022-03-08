@@ -518,9 +518,9 @@ describe('query post', () => {
   });
 });
 
-describe('query postCanonical', () => {
-  const QUERY = (postCanonical: string): string => `{
-    postCanonical(canonicalUrl: "${postCanonical}") {
+describe('query postByUrl', () => {
+  const QUERY = (url: string): string => `{
+    postByUrl(url: "${url}") {
       id
       url
       title
@@ -550,6 +550,11 @@ describe('query postCanonical', () => {
   });
 
   it('should return post by canonical', async () => {
+    const res = await client.query(QUERY('http://p1c.com'));
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return post by url', async () => {
     const res = await client.query(QUERY('http://p1.com'));
     expect(res.data).toMatchSnapshot();
   });

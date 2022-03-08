@@ -179,7 +179,7 @@ export default async function app(
             extendKey: trackingExtendKey,
           },
           banner: true,
-          postCanonical: {
+          postByUrl: {
             extendKey: userExtendKey,
           },
           post: {
