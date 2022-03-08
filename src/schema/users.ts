@@ -375,7 +375,7 @@ export const resolvers: IResolvers<any, Context> = {
           : null,
       };
     },
-    user: (_, { id }:{id: string): Promise<GQLUser> => fetchUserById(id),
+    user: (_, { id }: { id: string }): Promise<GQLUser> => fetchUserById(id),
     userReadingRank: async (
       _,
       { id, version = 1, limit = 6 }: ReadingRankArgs,
