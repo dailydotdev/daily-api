@@ -299,7 +299,7 @@ describe('query userMostReadTags', () => {
 });
 
 describe('query user', () => {
-  const QUERY = `query User($id: ID!){
+  const QUERY = `query User($id: ID!) {
     user(id: $id) {
       name
       username

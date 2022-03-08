@@ -300,7 +300,7 @@ Object {
 }
 `;
 
-exports[`query userInfo should return user info with name, username, and image 1`] = `
+exports[`query user should return user info with name, username, and image 1`] = `
 Object {
   "image": "lee.image.com",
   "name": "Lee Hansel",
@@ -466,7 +466,7 @@ exports[`query userReadingRankHistory should ignore views during current week 1`
 Array [
   Object {
     "count": 1,
-    "rank": 1,
+    "rank": 0,
   },
   Object {
     "count": 1,
