@@ -794,6 +794,7 @@ describe('settings', () => {
     sortingEnabled: false,
     customLinks: null,
     optOutWeeklyGoal: false,
+    optOutCompanion: false,
     updatedAt: date.getTime(),
   };
 
