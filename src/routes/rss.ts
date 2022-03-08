@@ -2,7 +2,12 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { getConnection, SelectQueryBuilder, Connection } from 'typeorm';
 import rateLimit from 'fastify-rate-limit';
 import RSS from 'rss';
-import { fetchUser, getDiscussionLink, User } from '../common';
+import {
+  fetchUser,
+  getDiscussionLink,
+  getUserProfileUrl,
+  User,
+} from '../common';
 import { Post, Bookmark, Settings } from '../entity';
 import { RouteGenericInterface, RouteHandlerMethod } from 'fastify/types/route';
 import {
@@ -55,7 +60,7 @@ const generateRSS =
       title: `${title(user, state)} by daily.dev`,
       generator: 'daily.dev RSS',
       feed_url: `${process.env.URL_PREFIX}${req.raw.url}`,
-      site_url: `https://app.daily.dev/${user.username}`,
+      site_url: getUserProfileUrl(user.username),
     });
     const builder = query(
       req,

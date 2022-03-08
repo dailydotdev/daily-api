@@ -1,5 +1,39 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`function updateMentions should update mentions based on passed comment ids utilizing old and new username 1`] = `
+Object {
+  "comments": 0,
+  "content": "@Solevilla",
+  "contentHtml": "<p><a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">Solevilla</a></p>
+",
+  "createdAt": Any<Date>,
+  "featured": false,
+  "id": "cm",
+  "lastUpdatedAt": null,
+  "parentId": null,
+  "postId": "p1",
+  "upvotes": 0,
+  "userId": "1",
+}
+`;
+
+exports[`function updateMentions should update mentions based on passed comment ids utilizing old and new username 2`] = `
+Object {
+  "comments": 0,
+  "content": "@sshanzel",
+  "contentHtml": "<p><a href=\\"http://localhost:5002/sshanzel\\" data-mention-id=\\"7\\" data-mention-username=\\"sshanzel\\">sshanzel</a></p>
+",
+  "createdAt": Any<Date>,
+  "featured": false,
+  "id": "cm",
+  "lastUpdatedAt": null,
+  "parentId": null,
+  "postId": "p1",
+  "upvotes": 0,
+  "userId": "1",
+}
+`;
+
 exports[`mutation commentOnComment should comment on a comment 1`] = `
 Object {
   "comments": 0,
@@ -10,10 +44,30 @@ Object {
 }
 `;
 
+exports[`mutation commentOnPost should comment markdown but restrict mentioning ownself 1`] = `
+Object {
+  "content": "@Ido",
+  "contentHtml": "<p>@Ido</p>
+",
+  "id": Any<String>,
+  "parentId": null,
+}
+`;
+
 exports[`mutation commentOnPost should comment markdown on a post 1`] = `
 Object {
   "content": "# my comment http://daily.dev",
   "contentHtml": "<h1>my comment <a href=\\"http://daily.dev\\" target=\\"_blank\\" rel=\\"noopener nofollow\\">http://daily.dev</a></h1>
+",
+  "id": Any<String>,
+  "parentId": null,
+}
+`;
+
+exports[`mutation commentOnPost should comment markdown on a post with user mention 1`] = `
+Object {
+  "content": "@Lee",
+  "contentHtml": "<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">Lee</a></p>
 ",
   "id": Any<String>,
   "parentId": null,
@@ -289,6 +343,56 @@ Object {
     },
   },
 }
+`;
+
+exports[`query recommendedMentions should return author and previously mentioned users if query is empty 1`] = `
+Array [
+  Object {
+    "image": "https://daily.dev/Hansel.jpg",
+    "name": "Hansel",
+    "username": "Hansel",
+  },
+  Object {
+    "image": "https://daily.dev/lee.jpg",
+    "name": "Lee",
+    "username": "Lee",
+  },
+  Object {
+    "image": "https://daily.dev/nimrod.jpg",
+    "name": "Nimrod",
+    "username": "Nimrod",
+  },
+  Object {
+    "image": "https://daily.dev/samson.jpg",
+    "name": "Samson",
+    "username": "Samson",
+  },
+  Object {
+    "image": "https://daily.dev/tsahi.jpg",
+    "name": "Tsahi",
+    "username": "Tsahi",
+  },
+]
+`;
+
+exports[`query recommendedMentions should return users with user or username starting with the query prioritizing previously mentioned ones 1`] = `
+Array [
+  Object {
+    "image": "https://daily.dev/samson.jpg",
+    "name": "Samson",
+    "username": "Samson",
+  },
+  Object {
+    "image": "https://daily.dev/solevilla.jpg",
+    "name": "Solevilla",
+    "username": "Solevilla",
+  },
+  Object {
+    "image": "sample/image",
+    "name": "sample",
+    "username": "sample",
+  },
+]
 `;
 
 exports[`query userComments should fetch comments by user id 1`] = `

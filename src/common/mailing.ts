@@ -14,6 +14,7 @@ export const templateId = {
   commentedAuthor: 'd-aba78d1947b14307892713ad6c2cafc5',
   commentCommented: 'd-90c229bde4af427c8708a7615bfd85b4',
   commentCommentedThread: 'd-62cb8a27d08a4951a49aade3b292c1ed',
+  commentMentionedUser: 'd-6949e2e50def4c6698900032973d469b',
   commentFeatured: 'd-5888ea6c1baf482b9373fba25f0363ea',
   commentUpvoted: 'd-92bca6102e3a4b41b6fc3f532f050429',
   devcardEligible: 'd-680e36a387084cac87923963ea0656db',
