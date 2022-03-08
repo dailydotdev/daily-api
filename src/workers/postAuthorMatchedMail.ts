@@ -1,3 +1,4 @@
+import { templateId } from './../common/mailing';
 import { messageToJson, Worker } from './worker';
 import { Post } from '../entity';
 import {
@@ -28,7 +29,7 @@ const worker: Worker = {
       await sendEmail({
         ...baseNotificationEmailData,
         to: user.email,
-        templateId: 'd-3d3402ec873640e788f549a0680c40bb',
+        templateId: templateId.postAuthorMatched,
         dynamicTemplateData: {
           post_title: truncatePostToTweet(post),
           published_at: formatPostCreatedAt(post),
