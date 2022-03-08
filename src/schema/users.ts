@@ -242,7 +242,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get user's info
     """
-    userInfo(id: ID!): User
+    user(id: ID!): User
 
     """
     Get user's reading history
@@ -375,8 +375,7 @@ export const resolvers: IResolvers<any, Context> = {
           : null,
       };
     },
-    userInfo: async (_, { id }: ReadingRankArgs): Promise<GQLUser> =>
-      fetchUserById(id),
+    user: (_, { id }: ReadingRankArgs): Promise<GQLUser> => fetchUserById(id),
     userReadingRank: async (
       _,
       { id, version = 1, limit = 6 }: ReadingRankArgs,
