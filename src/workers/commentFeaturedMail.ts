@@ -1,3 +1,4 @@
+import { templateId } from './../common/mailing';
 import { messageToJson, Worker } from './worker';
 import { Comment } from '../entity';
 import { fetchUser, formatPostCreatedAt, pickImageUrl } from '../common';
@@ -21,7 +22,7 @@ const worker: Worker = {
       await sendEmail({
         ...baseNotificationEmailData,
         to: user.email,
-        templateId: 'd-5888ea6c1baf482b9373fba25f0363ea',
+        templateId: templateId.commentFeatured,
         dynamicTemplateData: {
           post_title: truncatePost(post),
           published_at: formatPostCreatedAt(post),

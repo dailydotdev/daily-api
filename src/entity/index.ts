@@ -27,3 +27,4 @@ export * from './Comment';
 export * from './CommentUpvote';
 export * from './Keyword';
 export * from './PostKeyword';
+export * from './CommentMention';

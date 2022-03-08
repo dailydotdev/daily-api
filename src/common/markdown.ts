@@ -1,5 +1,7 @@
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
+import { getUserProfileUrl } from './users';
+import { User } from '../entity';
 
 export const markdown: MarkdownIt = MarkdownIt({
   html: true,
@@ -15,6 +17,12 @@ export const markdown: MarkdownIt = MarkdownIt({
   },
 });
 
+export const getMentionLink = ({ id, username }: MarkdownMention): string => {
+  const href = getUserProfileUrl(username);
+
+  return `<a href="${href}" data-mention-id="${id}" data-mention-username="${username}">${username}</a>`;
+};
+
 const defaultRender =
   markdown.renderer.rules.link_open ||
   function (tokens, idx, options, env, self) {
@@ -29,6 +37,25 @@ const setTokenAttribute = (tokens, attribute, attributeValue) => {
     tokens.attrs[attributeIndex][1] = attributeValue;
   }
   return tokens;
+};
+
+const defaultTextRender = markdown.renderer.rules.text;
+
+type MarkdownMention = Pick<User, 'id' | 'username'>;
+
+markdown.renderer.rules.text = function (tokens, idx, options, env, self) {
+  const content = defaultTextRender(tokens, idx, options, env, self);
+  const mentions = env?.mentions as MarkdownMention[];
+  if (!mentions?.length) {
+    return content;
+  }
+
+  const words = content.split(' ').map((word) => {
+    const mention = mentions.find(({ username }) => word === `@${username}`);
+    return mention ? getMentionLink(mention) : word;
+  });
+
+  return words.join(' ');
 };
 
 markdown.renderer.rules.link_open = function (tokens, idx, options, env, self) {

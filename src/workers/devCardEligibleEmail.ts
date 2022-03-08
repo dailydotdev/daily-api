@@ -1,3 +1,4 @@
+import { templateId } from './../common/mailing';
 import { DeepPartial } from 'typeorm';
 import { messageToJson, Worker } from './worker';
 import {
@@ -33,7 +34,7 @@ const worker: Worker = {
       await sendEmail({
         ...baseNotificationEmailData,
         to: user.email,
-        templateId: 'd-680e36a387084cac87923963ea0656db',
+        templateId: templateId.devcardEligible,
         dynamicTemplateData: {
           rank: `https://daily-now-res.cloudinary.com/image/upload/emails/devcard/rank_${clampedRank}.png`,
           banner: `https://daily-now-res.cloudinary.com/image/upload/emails/devcard/banner_${clampedRank}.jpg`,
