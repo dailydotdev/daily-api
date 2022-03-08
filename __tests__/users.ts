@@ -324,7 +324,7 @@ describe('query user', () => {
     mockInfo(requestUserId);
     const res = await client.query(QUERY, { variables: { id: requestUserId } });
     expect(res.errors).toBeFalsy();
-    expect(res.data.userInfo).toMatchSnapshot();
+    expect(res.data.user).toMatchSnapshot();
   });
 });
 
