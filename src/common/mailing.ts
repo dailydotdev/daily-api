@@ -9,6 +9,10 @@ if (process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 
+export const templateId = {
+  commentMentionedUser: 'd-6949e2e50def4c6698900032973d469b',
+};
+
 export const truncatePost = (post: Post): string =>
   post.title.length <= 80 ? post.title : `${post.title.substr(0, 77)}...`;
 

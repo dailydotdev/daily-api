@@ -1,3 +1,4 @@
+import { fetchUserById } from './../common/users';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -239,6 +240,11 @@ export const typeDefs = /* GraphQL */ `
     ): SearchReadingHistorySuggestionsResults!
 
     """
+    Get user's info
+    """
+    user(id: ID!): User
+
+    """
     Get user's reading history
     """
     readHistory(
@@ -286,6 +292,10 @@ export const typeDefs = /* GraphQL */ `
     hideReadHistory(postId: String!, timestamp: DateTime!): EmptyResponse @auth
   }
 `;
+
+export const getUserPermalink = (
+  user: Pick<GQLUser, 'id' | 'username'>,
+): string => `${process.env.COMMENTS_PREFIX}/${user.username ?? user.id}`;
 
 interface ReadingHistyoryArgs {
   id: string;
@@ -365,6 +375,7 @@ export const resolvers: IResolvers<any, Context> = {
           : null,
       };
     },
+    user: (_, { id }: { id: string }): Promise<GQLUser> => fetchUserById(id),
     userReadingRank: async (
       _,
       { id, version = 1, limit = 6 }: ReadingRankArgs,
@@ -550,7 +561,6 @@ export const resolvers: IResolvers<any, Context> = {
         .execute(),
   }),
   User: {
-    permalink: (user: GQLUser): string =>
-      `${process.env.COMMENTS_PREFIX}/${user.username ?? user.id}`,
+    permalink: getUserPermalink,
   },
 };
