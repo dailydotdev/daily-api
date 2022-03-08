@@ -1,3 +1,4 @@
+import { templateId } from './../common/mailing';
 import { differenceInHours } from 'date-fns';
 import { messageToJson, Worker } from './worker';
 import { getAuthorPostStats, Post } from '../entity';
@@ -25,7 +26,7 @@ const worker: Worker = {
         await sendEmail({
           ...baseNotificationEmailData,
           to: user.email,
-          templateId: 'd-97c75b0e2cf847399d20233455736ba0',
+          templateId: templateId.analyticsReport,
           dynamicTemplateData: {
             first_name: user.name.split(' ')[0],
             source_image: source.image,

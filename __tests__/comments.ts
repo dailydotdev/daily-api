@@ -1,3 +1,4 @@
+import { CommentMention } from './../src/entity/CommentMention';
 import { Connection, getConnection } from 'typeorm';
 import {
   disposeGraphQLTesting,
@@ -7,6 +8,7 @@ import {
   MockContext,
   saveFixtures,
   testMutationErrorCode,
+  testQueryErrorCode,
 } from './helpers';
 import {
   Post,
@@ -18,6 +20,8 @@ import {
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
+import { getMentionLink } from '../src/common/markdown';
+import { saveComment, updateMentions } from '../src/schema/comments';
 
 let con: Connection;
 let state: GraphQLTestingState;
@@ -32,6 +36,16 @@ beforeAll(async () => {
   client = state.client;
 });
 
+const usersFixture = [
+  { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
+  { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
+  { id: '3', name: 'Nimrod', image: 'https://daily.dev/nimrod.jpg' },
+  { id: '4', name: 'Lee', image: 'https://daily.dev/lee.jpg' },
+  { id: '5', name: 'Hansel', image: 'https://daily.dev/Hansel.jpg' },
+  { id: '6', name: 'Samson', image: 'https://daily.dev/samson.jpg' },
+  { id: '7', name: 'Solevilla', image: 'https://daily.dev/solevilla.jpg' },
+];
+
 beforeEach(async () => {
   loggedUser = null;
   jest.resetAllMocks();
@@ -39,11 +53,7 @@ beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
-  await con.getRepository(User).save([
-    { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
-    { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
-    { id: '3', name: 'Nimrod', image: 'https://daily.dev/nimrod.jpg' },
-  ]);
+  await con.getRepository(User).save(usersFixture);
   await con.getRepository(Comment).save([
     {
       id: 'c1',
@@ -108,6 +118,27 @@ beforeEach(async () => {
 });
 
 afterAll(() => disposeGraphQLTesting(state));
+
+const saveCommentMentionFixtures = async (sampleAuthor = usersFixture[0]) => {
+  const promises = usersFixture.map((user) =>
+    con
+      .getRepository(User)
+      .update({ id: user.id }, { ...user, username: user.name }),
+  );
+  await Promise.all(promises);
+  await con
+    .getRepository(Post)
+    .update({ id: 'p1' }, { ...postsFixture[0], authorId: sampleAuthor.id });
+  await con.getRepository(CommentMention).save(
+    usersFixture
+      .filter(({ id }) => id !== loggedUser)
+      .map(({ id }) => ({
+        commentId: 'c1',
+        mentionedUserId: id,
+        commentByUserId: loggedUser,
+      })),
+  );
+};
 
 const commentFields =
   'id, content, contentHtml, createdAt, permalink, upvoted, author { id, name, image }';
@@ -210,6 +241,77 @@ describe('query commentUpvotes', () => {
   });
 });
 
+describe('query recommendedMentions', () => {
+  const QUERY = `
+    query RecommendedMentions($postId: String!, $query: String, $limit: Int) {
+      recommendedMentions(postId: $postId, query: $query, limit: $limit) {
+        name
+        username
+        image      
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { postId: 'p1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return author and previously mentioned users if query is empty', async () => {
+    loggedUser = '1';
+    const author = usersFixture[4];
+    await saveCommentMentionFixtures(author);
+
+    const res = await client.query(QUERY, { variables: { postId: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.recommendedMentions).toMatchSnapshot(); // to easily see there's no duplicates
+    expect(res.data.recommendedMentions.length).toEqual(5);
+    expect(res.data.recommendedMentions[0].name).toEqual(author.name);
+  });
+
+  it('should return users with user or username starting with the query prioritizing previously mentioned ones', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save({
+      id: 'sample',
+      name: 'sample',
+      username: 'sample',
+      image: 'sample/image',
+    });
+    await saveCommentMentionFixtures();
+
+    const res = await client.query(QUERY, {
+      variables: { postId: 'p1', query: 's' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.recommendedMentions).toMatchSnapshot(); // to easily see there's no duplicates
+    expect(res.data.recommendedMentions.length).toEqual(3);
+    expect(res.data.recommendedMentions[0]).not.toEqual('sample');
+  });
+});
+
+describe('function updateMentions', () => {
+  it('should update mentions based on passed comment ids utilizing old and new username', async () => {
+    loggedUser = '1';
+    await saveCommentMentionFixtures();
+    const comment = con
+      .getRepository(Comment)
+      .create({ id: 'cm', postId: 'p1', userId: '1', content: '@Solevilla' });
+    const saved = await saveComment(con, comment);
+    expect(saved).toMatchSnapshot({ createdAt: expect.any(Date) });
+    const user = await con.getRepository(User).findOne('7');
+    const previous = user.username;
+    user.username = 'sshanzel';
+    const updated = await con.transaction(async (transaction) => {
+      await transaction.getRepository(User).update({ id: user.id }, user);
+      await updateMentions(transaction, previous, user.username, ['cm']);
+      return transaction.getRepository(Comment).findOne('cm');
+    });
+    expect(updated).toMatchSnapshot({ createdAt: expect.any(Date) });
+  });
+});
+
 describe('mutation commentOnPost', () => {
   const MUTATION = `
   mutation CommentOnPost($postId: ID!, $content: String!) {
@@ -283,6 +385,51 @@ describe('mutation commentOnPost', () => {
     expect(actual[0]).toMatchSnapshot({
       id: expect.any(String),
       contentHtml: `<h1>my comment <a href=\"http://daily.dev\" target=\"_blank\" rel=\"noopener nofollow\">http://daily.dev</a></h1>\n`,
+    });
+    expect(res.data.commentOnPost.id).toEqual(actual[0].id);
+    const post = await con.getRepository(Post).findOne('p1');
+    expect(post.comments).toEqual(1);
+  });
+
+  it('should comment markdown on a post with user mention', async () => {
+    loggedUser = '1';
+    await saveCommentMentionFixtures();
+    const res = await client.mutate(MUTATION, {
+      variables: { postId: 'p1', content: '@Lee' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Comment).find({
+      select: ['id', 'content', 'contentHtml', 'parentId'],
+      order: { createdAt: 'DESC' },
+      where: { postId: 'p1' },
+    });
+    expect(actual.length).toEqual(6);
+    expect(actual[0]).toMatchSnapshot({
+      id: expect.any(String),
+      contentHtml: `<p>${getMentionLink({ id: '4', username: 'Lee' })}</p>\n`,
+    });
+    expect(res.data.commentOnPost.id).toEqual(actual[0].id);
+    const post = await con.getRepository(Post).findOne('p1');
+    expect(post.comments).toEqual(1);
+  });
+
+  it('should comment markdown but restrict mentioning ownself', async () => {
+    loggedUser = '1';
+    const mention = '@Ido';
+    await saveCommentMentionFixtures();
+    const res = await client.mutate(MUTATION, {
+      variables: { postId: 'p1', content: mention },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Comment).find({
+      select: ['id', 'content', 'contentHtml', 'parentId'],
+      order: { createdAt: 'DESC' },
+      where: { postId: 'p1' },
+    });
+    expect(actual.length).toEqual(6);
+    expect(actual[0]).toMatchSnapshot({
+      id: expect.any(String),
+      contentHtml: `<p>${mention}</p>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOne('p1');

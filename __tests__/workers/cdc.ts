@@ -1,5 +1,4 @@
 import nock from 'nock';
-
 import {
   notifySourceRequest,
   notifyPostUpvoted,
@@ -19,6 +18,10 @@ import {
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
   notifySettingsUpdated,
+  sendEmail,
+  baseNotificationEmailData,
+  pickImageUrl,
+  truncatePost,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -28,6 +31,7 @@ import {
 } from '../helpers';
 import {
   Comment,
+  CommentMention,
   CommentUpvote,
   Feed,
   Post,
@@ -45,6 +49,7 @@ import { Connection, getConnection } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { Alerts } from '../../src/entity';
+import { getPostPermalink } from '../../src/schema/posts';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -66,6 +71,7 @@ jest.mock('../../src/common', () => ({
   notifySourceFeedAdded: jest.fn(),
   notifySourceFeedRemoved: jest.fn(),
   notifySettingsUpdated: jest.fn(),
+  sendEmail: jest.fn(),
 }));
 
 let con: Connection;
@@ -78,6 +84,44 @@ beforeEach(async () => {
   jest.clearAllMocks();
   nock.cleanAll();
 });
+
+const defaultUser: ChangeObject<User> = {
+  id: '1',
+  name: 'Ido',
+  image: 'https://daily.dev/image.jpg',
+  reputation: 5,
+  devcardEligible: false,
+  profileConfirmed: false,
+  twitter: null,
+  username: 'idoshamun',
+  infoConfirmed: true,
+  acceptedMarketing: true,
+};
+const saveMentionCommentFixtures = async (base: ChangeObject<User>) => {
+  const usersFixture = [
+    base,
+    { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
+    { id: '3', name: 'Nimrod', image: 'https://daily.dev/nimrod.jpg' },
+    { id: '4', name: 'Lee', image: 'https://daily.dev/lee.jpg' },
+    { id: '5', name: 'Hansel', image: 'https://daily.dev/Hansel.jpg' },
+    { id: '6', name: 'Samson', image: 'https://daily.dev/samson.jpg' },
+    { id: '7', name: 'Solevilla', image: 'https://daily.dev/solevilla.jpg' },
+  ];
+  await saveFixtures(con, User, usersFixture);
+  await saveFixtures(con, Source, sourcesFixture);
+  await saveFixtures(con, Post, postsFixture);
+  await con.getRepository(Comment).save({
+    id: 'c1',
+    postId: 'p1',
+    userId: '2',
+    content: `parent comment @${base.username}`,
+    contentHtml: `<p>parent comment <a>${base.username}</a></p>`,
+    createdAt: new Date(2020, 1, 6, 0, 0),
+  });
+  await con
+    .getRepository(CommentMention)
+    .save({ commentId: 'c1', commentByUserId: '2', mentionedUserId: base.id });
+};
 
 describe('source request', () => {
   type ObjectType = SourceRequest;
@@ -333,18 +377,7 @@ describe('comment', () => {
 
 describe('user', () => {
   type ObjectType = User;
-  const base: ChangeObject<ObjectType> = {
-    id: '1',
-    name: 'Ido',
-    image: 'https://daily.dev/image.jpg',
-    reputation: 5,
-    devcardEligible: false,
-    profileConfirmed: false,
-    twitter: null,
-    username: 'idoshamun',
-    infoConfirmed: true,
-    acceptedMarketing: true,
-  };
+  const base: ChangeObject<ObjectType> = { ...defaultUser };
 
   it('should notify on new user reputation change', async () => {
     const after: ChangeObject<ObjectType> = {
@@ -383,6 +416,56 @@ describe('user', () => {
     );
     expect(notifyDevCardEligible).toBeCalledTimes(1);
     expect(mocked(notifyDevCardEligible).mock.calls[0].slice(1)).toEqual(['1']);
+  });
+});
+
+describe('comment mention', () => {
+  type ObjectType = CommentMention;
+  const base: ChangeObject<ObjectType> = {
+    commentId: 'c1',
+    mentionedUserId: '1',
+    commentByUserId: '2',
+  };
+
+  beforeEach(async () => {
+    await saveMentionCommentFixtures(defaultUser);
+  });
+
+  it('should send email for the mentioned user', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'comment_mention',
+      }),
+    );
+    const comment = await con.getRepository(Comment).findOne(base.commentId);
+    const post = await comment.post;
+    const commenter = await comment.user;
+    const mentioned = await con
+      .getRepository(User)
+      .findOne(base.mentionedUserId);
+    const [first_name] = mentioned.name.split(' ');
+    const params = {
+      ...baseNotificationEmailData,
+      to: mentioned.email,
+      templateId: 'd-6949e2e50def4c6698900032973d469b',
+      dynamicTemplateData: {
+        first_name,
+        full_name: commenter.name,
+        comment: comment.content,
+        user_handle: mentioned.username,
+        commenter_profile_image: commenter.image,
+        post_title: truncatePost(post),
+        post_image: post.image || pickImageUrl(post),
+        post_link: getPostPermalink(post),
+      },
+    };
+    expect(sendEmail).toBeCalledTimes(1);
+    expect(sendEmail).toBeCalledWith(params);
   });
 });
 
