@@ -21,17 +21,31 @@ const removeFirstWordIfMention = (comment: string, username: string) => {
 
 export const sendEmailToMentionedUser = async (
   con: Connection,
-  commentMention: CommentMention,
+  { commentId, mentionedUserId }: CommentMention,
   logger: FastifyLoggerInstance,
 ): Promise<void> => {
-  const comment = await con
-    .getRepository(Comment)
-    .findOne(commentMention.commentId);
+  const comment = await con.getRepository(Comment).findOne(commentId);
   const post = await comment.post;
+
+  if (post.authorId === mentionedUserId) {
+    return;
+  }
+
+  if (comment.parentId !== null) {
+    const comments = await con
+      .getRepository(Comment)
+      .find({ parentId: comment.parentId });
+    const commentedTheSameThread = comments.some(
+      (comment) => comment.userId === mentionedUserId,
+    );
+
+    if (commentedTheSameThread) {
+      return;
+    }
+  }
+
   const commenter = await comment.user;
-  const mentioned = await con
-    .getRepository(User)
-    .findOne(commentMention.mentionedUserId);
+  const mentioned = await con.getRepository(User).findOne(mentionedUserId);
   const [first_name] = mentioned.name.split(' ');
   const content = removeFirstWordIfMention(comment.content, mentioned.username);
 
