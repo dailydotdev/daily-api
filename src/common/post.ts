@@ -1,3 +1,4 @@
+import { User } from './../entity/User';
 import { Connection } from 'typeorm';
 import { Comment } from '../entity';
 
@@ -29,7 +30,9 @@ export const getPostCommenterIds = async (
     .getRepository(Comment)
     .createQueryBuilder('c')
     .select(`DISTINCT c."userId"`)
-    .where('c."postId" = :postId', { postId });
+    .innerJoin(User, 'u', 'u.id = c."userId"')
+    .where('c."postId" = :postId', { postId })
+    .andWhere('u.username IS NOT NULL');
 
   if (userId) {
     queryBuilder = queryBuilder.andWhere('c."userId" != :userId', { userId });
