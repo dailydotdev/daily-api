@@ -223,7 +223,7 @@ export const recommendUsersToMention = async (
   { limit }: RecentMentionsProps,
 ): Promise<string[]> => {
   const [post, commenterIds] = await Promise.all([
-    con.getRepository(Post).findOne(postId),
+    con.getRepository(Post).findOne({ id: postId, authorId: Not(userId) }),
     getPostCommenterIds(con, postId, { limit, userId }),
   ]);
 
