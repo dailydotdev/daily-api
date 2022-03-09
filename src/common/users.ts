@@ -227,7 +227,7 @@ export const recommendUsersToMention = async (
     getPostCommenterIds(con, postId, { limit, userId }),
   ]);
 
-  if (post.authorId) {
+  if (post?.authorId) {
     if (commenterIds.length === 5) {
       commenterIds[4] = post.authorId;
     } else {
