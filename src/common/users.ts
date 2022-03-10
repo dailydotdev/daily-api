@@ -229,7 +229,7 @@ export const recommendUsersToMention = async (
 
   if (post?.authorId) {
     commenterIds.unshift(post.authorId);
-    if (commenterIds.length === 5) {
+    if (commenterIds.length > 5) {
       commenterIds.pop();
     }
   }
