@@ -32,14 +32,11 @@ export const sendEmailToMentionedUser = async (
   }
 
   if (comment.parentId !== null) {
-    const comments = await con
+    const commentOnSameThread = await con
       .getRepository(Comment)
-      .find({ parentId: comment.parentId });
-    const commentedTheSameThread = comments.some(
-      (comment) => comment.userId === mentionedUserId,
-    );
+      .findOne({ parentId: comment.parentId, userId: mentionedUserId });
 
-    if (commentedTheSameThread) {
+    if (commentOnSameThread) {
       return;
     }
   }
