@@ -228,10 +228,9 @@ export const recommendUsersToMention = async (
   ]);
 
   if (post?.authorId) {
+    commenterIds.unshift(post.authorId);
     if (commenterIds.length === 5) {
       commenterIds[4] = post.authorId;
-    } else {
-      commenterIds.unshift(post.authorId);
     }
   }
 
