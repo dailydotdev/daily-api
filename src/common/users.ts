@@ -182,6 +182,7 @@ export const getUserIdsByNameOrUsername = async (
     .where('(name ILIKE :name OR username ILIKE :name)', {
       name: `${query}%`,
     })
+    .andWhere('username IS NOT NULL')
     .limit(limit);
 
   if (excludeIds?.length) {
