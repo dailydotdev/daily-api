@@ -179,9 +179,10 @@ export const getUserIdsByNameOrUsername = async (
     .getRepository(DbUser)
     .createQueryBuilder()
     .select('id')
-    .where('(name ILIKE :name OR username ILIKE :name)', {
+    .where(`(replace(name, ' ', '') ILIKE :name OR username ILIKE :name)`, {
       name: `${query}%`,
     })
+    .andWhere('username IS NOT NULL')
     .limit(limit);
 
   if (excludeIds?.length) {
