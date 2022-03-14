@@ -28,3 +28,4 @@ export * from './CommentUpvote';
 export * from './Keyword';
 export * from './PostKeyword';
 export * from './CommentMention';
+export * from './ReputationEvent';
