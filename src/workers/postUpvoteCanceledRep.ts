@@ -1,3 +1,8 @@
+import {
+  ReputationEvent,
+  ReputationReason,
+  ReputationType,
+} from './../entity/ReputationEvent';
 import { messageToJson, Worker } from './worker';
 import { Post } from '../entity';
 import { increaseReputation } from '../common';
@@ -14,7 +19,15 @@ const worker: Worker = {
     try {
       const post = await con.getRepository(Post).findOne(data.postId);
       if (post?.authorId && post?.authorId !== data.userId) {
-        await increaseReputation(con, logger, post.authorId, -1);
+        const repo = con.getRepository(ReputationEvent);
+        const event = await repo.findOne({
+          grantById: data.userId,
+          grantToId: post.authorId,
+          targetId: post.id,
+          targetType: ReputationType.Post,
+          reason: ReputationReason.PostUpvote,
+        });
+        await increaseReputation(con, logger, post.authorId, -event.amount);
         logger.info(
           {
             data,
