@@ -92,7 +92,7 @@ Array [
 ]
 `;
 
-exports[`query commentPreview should return author and previously mentioned users if query is empty 1`] = `
+exports[`query commentPreview should return markdown equivalent of the content 1`] = `
 "<h1>Test</h1>
 "
 `;

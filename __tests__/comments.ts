@@ -255,7 +255,7 @@ describe('query commentPreview', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should return author and previously mentioned users if query is empty', async () => {
+  it('should return markdown equivalent of the content', async () => {
     loggedUser = '1';
     const content = '# Test';
     const res = await client.query(QUERY, { variables: { content } });
