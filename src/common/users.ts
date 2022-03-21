@@ -162,11 +162,11 @@ export const getUserReadingRank = async (
   const req = con
     .createQueryBuilder()
     .select(
-      `count(distinct date_trunc('day', "timestamp"::timestamptz ${atTimezone}) ${atTimezone}) filter(where "timestamp"::timestamptz ${atTimezone} >= date_trunc('week', ${nowTimezone}) ${atTimezone})`,
+      `count(distinct extract(dow from "timestamp"::timestamptz ${atTimezone})) filter(where "timestamp"::timestamptz ${atTimezone} >= date_trunc('week', ${nowTimezone}))`,
       'thisWeek',
     )
     .addSelect(
-      `count(distinct date_trunc('day', "timestamp"::timestamptz ${atTimezone}) ${atTimezone}) filter(where "timestamp"::timestamptz ${atTimezone} BETWEEN (date_trunc('week', ${nowTimezone} - interval '7 days') ${atTimezone}) AND (date_trunc('week', ${nowTimezone}) ${atTimezone}))`,
+      `count(distinct extract(dow from "timestamp"::timestamptz ${atTimezone})) filter(where "timestamp"::timestamptz ${atTimezone} BETWEEN (date_trunc('week', ${nowTimezone} - interval '7 days')) AND (date_trunc('week', ${nowTimezone})))`,
       'lastWeek',
     )
     .addSelect(`MAX("timestamp"::timestamptz ${atTimezone})`, 'lastReadTime')
