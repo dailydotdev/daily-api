@@ -451,10 +451,7 @@ export const resolvers: IResolvers<any, Context> = {
       return ctx.con
         .getRepository(ActiveView)
         .createQueryBuilder('view')
-        .select(
-          `date_trunc('day', ${timestampAtTimezone})::date::text`,
-          'date',
-        )
+        .select(`date_trunc('day', ${timestampAtTimezone})::date::text`, 'date')
         .addSelect(`count(*) AS "reads"`)
         .innerJoin(User, 'user', 'user.id = view.userId')
         .where('view.userId = :id', { id })
