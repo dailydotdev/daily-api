@@ -426,7 +426,7 @@ export const resolvers: IResolvers<any, Context> = {
                select date_trunc('week', ${timestampAtTimezone}) ${userTimezone} as "timestamp",
                       count(*)                        as days
                from (
-                      select date_trunc('day', ${timestampAtTimezone}) ${userTimezone} AS "timestamp",
+                      select date_trunc('day', ${timestampAtTimezone}) ${userTimezone} as "timestamp",
                       min("user".timezone) as "timezone"
                       from "view"
                       join "user" on "user".id = view."userId"
@@ -451,10 +451,7 @@ export const resolvers: IResolvers<any, Context> = {
       return ctx.con
         .getRepository(ActiveView)
         .createQueryBuilder('view')
-        .select(
-          `(date_trunc('day', ${timestampAtTimezone}) ${userTimezone})::date::text`,
-          'date',
-        )
+        .select(`date_trunc('day', ${timestampAtTimezone})::date::text`, 'date')
         .addSelect(`count(*) AS "reads"`)
         .innerJoin(User, 'user', 'user.id = view.userId')
         .where('view.userId = :id', { id })
