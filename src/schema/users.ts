@@ -1,3 +1,4 @@
+import { fetchUserById } from './../common/users';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -23,6 +24,7 @@ import {
   uploadDevCardBackground,
 } from '../common';
 import { getSearchQuery } from './common';
+import { ActiveView } from '../entity/ActiveView';
 
 export interface GQLUser {
   id: string;
@@ -238,6 +240,11 @@ export const typeDefs = /* GraphQL */ `
     ): SearchReadingHistorySuggestionsResults!
 
     """
+    Get user's info
+    """
+    user(id: ID!): User
+
+    """
     Get user's reading history
     """
     readHistory(
@@ -285,6 +292,10 @@ export const typeDefs = /* GraphQL */ `
     hideReadHistory(postId: String!, timestamp: DateTime!): EmptyResponse @auth
   }
 `;
+
+export const getUserPermalink = (
+  user: Pick<GQLUser, 'id' | 'username'>,
+): string => `${process.env.COMMENTS_PREFIX}/${user.username ?? user.id}`;
 
 interface ReadingHistyoryArgs {
   id: string;
@@ -364,6 +375,7 @@ export const resolvers: IResolvers<any, Context> = {
           : null,
       };
     },
+    user: (_, { id }: { id: string }): Promise<GQLUser> => fetchUserById(id),
     userReadingRank: async (
       _,
       { id, version = 1, limit = 6 }: ReadingRankArgs,
@@ -436,23 +448,25 @@ export const resolvers: IResolvers<any, Context> = {
       { id, after, before }: ReadingHistyoryArgs,
       ctx: Context,
     ): Promise<GQLReadingRankHistory[]> => {
-      return ctx.con.query(
-        `
-          select date_trunc('day', ${timestampAtTimezone})::date::text as "date", count(*) as "reads"
-          from "view"
-          join "user" on "user".id = view."userId"
-          where "userId" = $1
-            and "timestamp" >= $2
-            and "timestamp" < $3
-          group by 1
-          order by 1;
-      `,
-        [id, after, before],
-      );
+      return ctx.con
+        .getRepository(ActiveView)
+        .createQueryBuilder('view')
+        .select(
+          `date_trunc('day', ${timestampAtTimezone})::date::text`,
+          'date',
+        )
+        .addSelect(`count(*) AS "reads"`)
+        .innerJoin(User, 'user', 'user.id = view.userId')
+        .where('view.userId = :id', { id })
+        .andWhere('view.timestamp >= :after', { after })
+        .andWhere('view.timestamp < :before', { before })
+        .groupBy('date')
+        .orderBy('date')
+        .getRawMany();
     },
     userReads: async (source, args, ctx: Context): Promise<number> => {
       return ctx.con
-        .getRepository(View)
+        .getRepository(ActiveView)
         .count({ where: { userId: ctx.userId } });
     },
     searchReadingHistorySuggestions: async (
@@ -467,6 +481,7 @@ export const resolvers: IResolvers<any, Context> = {
         ('StartSel = <strong>, StopSel = </strong>'))) as title
         from post INNER JOIN view ON view."postId" = post.id AND view."userId" = $1, search
         where tsv @@ search.query
+        and post.deleted = false
         order by title desc
         limit 5;
         `,
@@ -546,7 +561,6 @@ export const resolvers: IResolvers<any, Context> = {
         .execute(),
   }),
   User: {
-    permalink: (user: GQLUser): string =>
-      `${process.env.COMMENTS_PREFIX}/${user.username ?? user.id}`,
+    permalink: getUserPermalink,
   },
 };

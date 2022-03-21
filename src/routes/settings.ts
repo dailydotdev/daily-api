@@ -15,6 +15,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         sortingEnabled
         customLinks
         optOutWeeklyGoal
+        optOutCompanion
       }
     }`;
 

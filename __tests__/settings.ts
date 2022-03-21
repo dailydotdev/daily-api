@@ -53,6 +53,7 @@ describe('query userSettings', () => {
     sortingEnabled
     customLinks
     optOutWeeklyGoal
+    optOutCompanion
   }
 }`;
 
@@ -146,6 +147,7 @@ describe('mutation updateUserSettings', () => {
     sortingEnabled
     customLinks
     optOutWeeklyGoal
+    optOutCompanion
   }
 }`;
 
@@ -229,6 +231,23 @@ describe('mutation updateUserSettings', () => {
     });
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should update opt out companion settings', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.save(
+      repo.create({
+        userId: '1',
+        optOutCompanion: false,
+      }),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { optOutCompanion: true } },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
 });
 
 describe('mutation setBookmarksSharing', () => {
@@ -305,6 +324,7 @@ describe('compatibility routes', () => {
       delete expected['showOnlyUnreadPosts'];
       delete expected['bookmarkSlug'];
       delete expected['optOutWeeklyGoal'];
+      delete expected['optOutCompanion'];
 
       loggedUser = '1';
       const res = await authorizeRequest(

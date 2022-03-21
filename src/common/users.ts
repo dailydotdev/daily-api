@@ -1,9 +1,12 @@
+import { getPostCommenterIds } from './post';
+import { Post } from './../entity/Post';
 import { IFlags } from 'flagsmith-nodejs';
 import { isSameDay } from 'date-fns';
 import fetch from 'node-fetch';
-import { Connection } from 'typeorm';
-import { View } from '../entity';
+import { Connection, In, Not } from 'typeorm';
+import { CommentMention, Comment, View } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
+import { User as DbUser } from './../entity/User';
 
 interface UserInfo {
   name?: string;
@@ -41,6 +44,17 @@ export const fetchUser = async (userId: string): Promise<User | null> => {
   return res.json();
 };
 
+export const fetchUserById = async (userId: string): Promise<User> => {
+  const res = await fetch(`${process.env.GATEWAY_URL}/v1/users/${userId}`, {
+    method: 'GET',
+    headers: authorizedHeaders(userId),
+  });
+  if (res.status !== 200) {
+    return null;
+  }
+  return res.json();
+};
+
 export const fetchUserInfo = async (userId: string): Promise<UserInfo> => {
   const res = await fetch(`${process.env.GATEWAY_URL}/v1/users/me/info`, {
     method: 'GET',
@@ -68,6 +82,9 @@ export const fetchUserFeatures = async (userId: string): Promise<IFlags> => {
 
   return JSON.parse(text);
 };
+
+export const getUserProfileUrl = (username: string): string =>
+  `${process.env.COMMENTS_PREFIX}/${username}`;
 
 export interface TagsReadingStatus {
   tag: string;
@@ -113,6 +130,124 @@ export interface ReadingDaysArgs {
   limit?: number;
   dateRange: DateRange;
 }
+
+interface RecentMentionsProps {
+  query?: string;
+  limit?: number;
+  excludeIds?: string[];
+}
+
+export const getRecentMentionsIds = async (
+  con: Connection,
+  userId: string,
+  { limit = 5, query, excludeIds }: RecentMentionsProps,
+): Promise<string[]> => {
+  let queryBuilder = con
+    .getRepository(CommentMention)
+    .createQueryBuilder('cm')
+    .select('DISTINCT cm."mentionedUserId"')
+    .where({ commentByUserId: userId })
+    .andWhere({ mentionedUserId: Not(userId) });
+
+  if (query) {
+    queryBuilder = queryBuilder
+      .select('DISTINCT cm."mentionedUserId", u.name')
+      .innerJoin(Comment, 'c', 'cm."commentId" = c.id')
+      .innerJoin(DbUser, 'u', 'u.id = cm."mentionedUserId"')
+      .andWhere('(u.name ILIKE :name OR u.username ILIKE :name)', {
+        name: `${query}%`,
+      })
+      .orderBy('u.name');
+  }
+
+  if (excludeIds?.length) {
+    queryBuilder = queryBuilder.andWhere({
+      mentionedUserId: Not(In(excludeIds)),
+    });
+  }
+
+  const result = await queryBuilder.limit(limit).getRawMany<CommentMention>();
+
+  return result.map((user) => user.mentionedUserId);
+};
+
+export const getUserIdsByNameOrUsername = async (
+  con: Connection,
+  { query, limit = 5, excludeIds }: RecentMentionsProps,
+): Promise<string[]> => {
+  let queryBuilder = con
+    .getRepository(DbUser)
+    .createQueryBuilder()
+    .select('id')
+    .where(`(replace(name, ' ', '') ILIKE :name OR username ILIKE :name)`, {
+      name: `${query}%`,
+    })
+    .andWhere('username IS NOT NULL')
+    .limit(limit);
+
+  if (excludeIds?.length) {
+    queryBuilder = queryBuilder.andWhere({
+      id: Not(In(excludeIds)),
+    });
+  }
+
+  const result = await queryBuilder.getRawMany<User>();
+
+  return result.map((user) => user.id);
+};
+
+export const recommendUsersByQuery = async (
+  con: Connection,
+  userId: string,
+  { query, limit }: RecentMentionsProps,
+): Promise<string[]> => {
+  const recentIds = await getRecentMentionsIds(con, userId, { query, limit });
+  const missing = limit - recentIds.length;
+
+  if (missing === 0) {
+    return recentIds;
+  }
+
+  const userIds = await getUserIdsByNameOrUsername(con, {
+    limit: missing,
+    query,
+    excludeIds: recentIds.concat(userId),
+  });
+
+  return recentIds.concat(userIds);
+};
+
+export const recommendUsersToMention = async (
+  con: Connection,
+  postId: string,
+  userId: string,
+  { limit }: RecentMentionsProps,
+): Promise<string[]> => {
+  const [post, commenterIds] = await Promise.all([
+    con.getRepository(Post).findOne({ id: postId, authorId: Not(userId) }),
+    getPostCommenterIds(con, postId, { limit, userId }),
+  ]);
+
+  if (post?.authorId) {
+    commenterIds.unshift(post.authorId);
+    if (commenterIds.length > 5) {
+      commenterIds.pop();
+    }
+  }
+
+  const missing = limit - commenterIds.length;
+
+  if (missing === 0) {
+    return commenterIds;
+  }
+
+  const recent = await getRecentMentionsIds(con, userId, {
+    limit: missing,
+    excludeIds: commenterIds,
+  });
+
+  return commenterIds.concat(recent);
+};
 
 export const getUserReadingTags = (
   con: Connection,

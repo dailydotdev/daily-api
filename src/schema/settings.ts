@@ -109,6 +109,11 @@ export const typeDefs = /* GraphQL */ `
     optOutWeeklyGoal: Boolean!
 
     """
+    Whether the user opted out from the companion app
+    """
+    optOutCompanion: Boolean!
+
+    """
     Time of last update
     """
     updatedAt: DateTime!
@@ -180,6 +185,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the user opted out from the weekly goal
     """
     optOutWeeklyGoal: Boolean
+
+    """
+    Whether the user opted out from the companion app
+    """
+    optOutCompanion: Boolean
   }
 
   extend type Mutation {

@@ -132,12 +132,12 @@ export default async function app(
           searchBookmarks: {
             extendKey: userExtendKey,
           },
-          anonymousFeed: {
-            extendKey: userExtendKey,
-          },
-          feed: {
-            extendKey: userExtendKey,
-          },
+          // anonymousFeed: {
+          //   extendKey: userExtendKey,
+          // },
+          // feed: {
+          //   extendKey: userExtendKey,
+          // },
           sourceFeed: {
             extendKey: userExtendKey,
           },
@@ -179,6 +179,9 @@ export default async function app(
             extendKey: trackingExtendKey,
           },
           banner: true,
+          postByUrl: {
+            extendKey: userExtendKey,
+          },
           post: {
             extendKey: userExtendKey,
           },

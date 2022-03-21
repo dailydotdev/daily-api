@@ -300,6 +300,14 @@ Object {
 }
 `;
 
+exports[`query user should return user info with name, username, and image 1`] = `
+Object {
+  "image": "lee.image.com",
+  "name": "Lee Hansel",
+  "username": "lee",
+}
+`;
+
 exports[`query userMostReadTags should return the user most read tags 1`] = `
 Array [
   Object {
@@ -452,19 +460,6 @@ Object {
   "readToday": Anything,
   "tags": null,
 }
-`;
-
-exports[`query userReadingRankHistory should ignore views during current week 1`] = `
-Array [
-  Object {
-    "count": 1,
-    "rank": 1,
-  },
-  Object {
-    "count": 1,
-    "rank": 2,
-  },
-]
 `;
 
 exports[`query userReadingRankHistory should not count views in the same day multiple times 1`] = `

@@ -305,6 +305,16 @@ export const typeDefs = /* GraphQL */ `
     ): Post!
 
     """
+    Get post by URL
+    """
+    postByUrl(
+      """
+      URL of the requested post
+      """
+      url: String
+    ): Post!
+
+    """
     Get Post's Upvotes by post id
     """
     postUpvotes(
@@ -436,6 +446,9 @@ export const reportReasons = new Map([
   ['OTHER', '🤔 Other'],
 ]);
 
+export const getPostPermalink = (post: Pick<GQLPost, 'shortId'>): string =>
+  `${process.env.URL_PREFIX}/r/${post.shortId}`;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   Query: traceResolverObject({
@@ -450,6 +463,26 @@ export const resolvers: IResolvers<any, Context> = {
           `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
           { id },
         ),
+        ...builder,
+      }));
+      if (res.length) {
+        return res[0];
+      }
+      throw new NotFoundError('Post not found');
+    },
+    postByUrl: async (
+      source,
+      { url }: { id: string; url: string },
+      ctx: Context,
+      info,
+    ) => {
+      const res = await graphorm.query(ctx, info, (builder) => ({
+        queryBuilder: builder.queryBuilder
+          .where(
+            `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false`,
+            { url },
+          )
+          .limit(1),
         ...builder,
       }));
       if (res.length) {
@@ -636,8 +669,7 @@ export const resolvers: IResolvers<any, Context> = {
       post.image ? post.placeholder : defaultImage.placeholder,
     ratio: (post: GQLPost): number =>
       post.image ? post.ratio : defaultImage.ratio,
-    permalink: (post: GQLPost): string =>
-      `${process.env.URL_PREFIX}/r/${post.shortId}`,
+    permalink: getPostPermalink,
     commentsPermalink: (post: GQLPost): string => getDiscussionLink(post.id),
   },
 };

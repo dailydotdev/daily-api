@@ -500,7 +500,7 @@ describe('query post', () => {
         id: 'pdeleted',
         shortId: 'spdeleted',
         title: 'PDeleted',
-        url: 'http://p1.com',
+        url: 'http://p8.com',
         score: 0,
         sourceId: 'a',
         createdAt: new Date('2021-09-22T07:15:51.247Z'),
@@ -514,6 +514,48 @@ describe('query post', () => {
 
   it('should return post by id', async () => {
     const res = await client.query(QUERY('p1'));
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query postByUrl', () => {
+  const QUERY = (url: string): string => `{
+    postByUrl(url: "${url}") {
+      id
+      url
+      title
+    }
+  }`;
+
+  it('should throw not found when cannot find post', () =>
+    testQueryErrorCode(client, { query: QUERY('notfound') }, 'NOT_FOUND'));
+
+  it('should throw not found when post was soft deleted', async () => {
+    await saveFixtures(con, Post, [
+      {
+        id: 'pdeleted',
+        shortId: 'spdeleted',
+        title: 'PDeleted',
+        url: 'http://p8.com',
+        canonicalUrl: 'http://p8.com',
+        score: 0,
+        sourceId: 'a',
+        createdAt: new Date('2021-09-22T07:15:51.247Z'),
+        tagsStr: 'javascript,webdev',
+        deleted: true,
+      },
+    ]);
+
+    testQueryErrorCode(client, { query: QUERY('http://p8.com') }, 'NOT_FOUND');
+  });
+
+  it('should return post by canonical', async () => {
+    const res = await client.query(QUERY('http://p1c.com'));
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return post by url', async () => {
+    const res = await client.query(QUERY('http://p1.com'));
     expect(res.data).toMatchSnapshot();
   });
 });

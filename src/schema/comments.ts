@@ -2,10 +2,16 @@ import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from 'graphql-tools';
+import { Connection as ORMConnection, EntityManager, In, Not } from 'typeorm';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { getDiscussionLink } from '../common';
-import { Comment, CommentUpvote, Post } from '../entity';
+import {
+  getDiscussionLink,
+  recommendUsersByQuery,
+  recommendUsersToMention,
+} from '../common';
+import { CommentMention } from './../entity/CommentMention';
+import { Comment, CommentUpvote, Post, User } from '../entity';
 import { NotFoundError } from '../errors';
 import { GQLEmptyResponse } from './common';
 import { GQLUser } from './users';
@@ -14,6 +20,7 @@ import graphorm from '../graphorm';
 import { GQLPost } from './posts';
 import { Roles } from '../roles';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
+import { markdown } from '../common/markdown';
 
 export interface GQLComment {
   id: string;
@@ -26,6 +33,12 @@ export interface GQLComment {
   children?: Connection<GQLComment>;
   post: GQLPost;
   numUpvotes: number;
+}
+
+interface GQLMentionUserArgs {
+  postId: string;
+  query?: string;
+  limit?: number;
 }
 
 interface GQLPostCommentArgs {
@@ -195,6 +208,17 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): CommentConnection!
+
+    """
+    Recommend users to mention in the comments
+    """
+    recommendedMentions(postId: String!, query: String, limit: Int): [User]
+      @auth
+
+    """
+    Markdown equivalent of the user's comment
+    """
+    commentPreview(content: String!): String @auth
   }
 
   extend type Mutation {
@@ -283,6 +307,113 @@ export interface GQLCommentUpvoteArgs extends ConnectionArguments {
 export interface GQLUserCommentsArgs extends ConnectionArguments {
   userId: string;
 }
+
+interface MentionedUser {
+  id: string;
+  username?: string;
+}
+
+const getMentions = async (
+  con: ORMConnection | EntityManager,
+  content: string,
+  userId: string,
+): Promise<MentionedUser[]> => {
+  const words = content.split(' ');
+  const result = words.reduce((list, word) => {
+    if (word[0] !== '@' || word.length === 1) {
+      return list;
+    }
+
+    return list.concat(word.substring(1));
+  }, []);
+
+  if (result.length === 0) {
+    return [];
+  }
+
+  return con
+    .getRepository(User)
+    .find({ where: { username: In(result), id: Not(userId) } });
+};
+
+const saveMentions = (
+  transaction: ORMConnection | EntityManager,
+  commentId: string,
+  commentByUserId: string,
+  users: MentionedUser[],
+) => {
+  if (!users.length) {
+    return;
+  }
+
+  const mentions: Partial<CommentMention>[] = users.map(({ id }) => ({
+    commentId,
+    commentByUserId,
+    mentionedUserId: id,
+  }));
+
+  return transaction
+    .createQueryBuilder()
+    .insert()
+    .into(CommentMention)
+    .values(mentions)
+    .orIgnore()
+    .execute();
+};
+
+export const saveComment = async (
+  con: ORMConnection | EntityManager,
+  comment: Comment,
+): Promise<Comment> => {
+  const mentions = await getMentions(con, comment.content, comment.userId);
+  const contentHtml = markdown.render(comment.content, { mentions });
+  comment.contentHtml = contentHtml;
+  const savedComment = await con.getRepository(Comment).save(comment);
+  await saveMentions(con, savedComment.id, savedComment.userId, mentions);
+
+  return savedComment;
+};
+
+export const updateMentions = async (
+  con: EntityManager,
+  oldUsername: string,
+  newUsername: string,
+  commentIds: string[],
+): Promise<unknown[]> => {
+  const comments = await con
+    .getRepository(Comment)
+    .find({ where: { id: In(commentIds) } });
+  const updated = comments.map((comment) => {
+    const content = comment.content
+      .split(' ')
+      .map((word) => (word === `@${oldUsername}` ? `@${newUsername}` : word))
+      .join(' ');
+    comment.content = content;
+
+    return comment;
+  });
+
+  return Promise.all(updated.map((comment) => saveComment(con, comment)));
+};
+
+const savNewComment = async (
+  con: ORMConnection | EntityManager,
+  comment: Comment,
+) => {
+  const savedComment = await saveComment(con, comment);
+
+  await con
+    .getRepository(Post)
+    .increment({ id: savedComment.postId }, 'comments', 1);
+
+  if (savedComment.parentId) {
+    await con
+      .getRepository(Comment)
+      .increment({ id: savedComment.parentId }, 'comments', 1);
+  }
+
+  return savedComment;
+};
 
 const getCommentById = async (
   id: string,
@@ -374,6 +505,39 @@ export const resolvers: IResolvers<any, Context> = {
         },
       );
     },
+    recommendedMentions: async (
+      _,
+      { postId, query, limit = 5 }: GQLMentionUserArgs,
+      ctx,
+      info,
+    ): Promise<User[]> => {
+      const { con, userId } = ctx;
+      const ids = await (query
+        ? recommendUsersByQuery(con, userId, { query, limit })
+        : recommendUsersToMention(con, postId, userId, { limit }));
+
+      if (ids.length === 0) {
+        return [];
+      }
+
+      return graphorm.query(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .where(`"${builder.alias}".id IN (:...ids)`, { ids })
+          .orderBy(`"${builder.alias}".name`)
+          .limit(limit);
+
+        return builder;
+      });
+    },
+    commentPreview: (_, { content }: { content: string }): string => {
+      const trimmed = content.trim();
+
+      if (trimmed.length === 0) {
+        return '';
+      }
+
+      return markdown.render(trimmed);
+    },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
@@ -389,18 +553,14 @@ export const resolvers: IResolvers<any, Context> = {
 
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
-          const comment = await entityManager.getRepository(Comment).save(
-            entityManager.getRepository(Comment).create({
-              id: shortid.generate(),
-              postId,
-              userId: ctx.userId,
-              content,
-            }),
-          );
-          await entityManager
-            .getRepository(Post)
-            .increment({ id: postId }, 'comments', 1);
-          return comment;
+          const createdComment = entityManager.getRepository(Comment).create({
+            id: shortid.generate(),
+            postId,
+            userId: ctx.userId,
+            content,
+          });
+
+          return savNewComment(entityManager, createdComment);
         });
         return getCommentById(comment.id, ctx, info);
       } catch (err) {
@@ -429,22 +589,15 @@ export const resolvers: IResolvers<any, Context> = {
           if (parentComment.parentId) {
             throw new ForbiddenError('Cannot comment on a sub-comment');
           }
-          const comment = await entityManager.getRepository(Comment).save(
-            entityManager.getRepository(Comment).create({
-              id: shortid.generate(),
-              postId: parentComment.postId,
-              userId: ctx.userId,
-              parentId: commentId,
-              content,
-            }),
-          );
-          await entityManager
-            .getRepository(Post)
-            .increment({ id: parentComment.postId }, 'comments', 1);
-          await entityManager
-            .getRepository(Comment)
-            .increment({ id: commentId }, 'comments', 1);
-          return comment;
+          const createdComment = entityManager.getRepository(Comment).create({
+            id: shortid.generate(),
+            postId: parentComment.postId,
+            userId: ctx.userId,
+            parentId: commentId,
+            content,
+          });
+
+          return savNewComment(entityManager, createdComment);
         });
         return getCommentById(comment.id, ctx, info);
       } catch (err) {
@@ -473,7 +626,7 @@ export const resolvers: IResolvers<any, Context> = {
         }
         comment.content = content;
         comment.lastUpdatedAt = new Date();
-        await repo.save(comment);
+        await saveComment(entityManager, comment);
       });
       return getCommentById(id, ctx, info);
     },

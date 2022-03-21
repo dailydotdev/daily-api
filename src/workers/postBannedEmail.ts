@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import { messageToJson, Worker } from './worker';
 import { Post, Source } from '../entity';
+import { templateId } from './../common/mailing';
 import {
   baseNotificationEmailData,
   sendEmail,
@@ -41,7 +42,7 @@ const worker: Worker = {
         const source = await con.getRepository(Source).findOne(post.sourceId);
         await sendEmail({
           ...baseNotificationEmailData,
-          templateId: 'd-dc6edf61c52442689e8870a434d8811d',
+          templateId: templateId.postBanned,
           personalizations: reportsWithUser
             .filter(({ user }) => user?.email)
             .map(({ user, ...report }) => ({

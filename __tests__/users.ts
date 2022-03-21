@@ -1,3 +1,4 @@
+import nock from 'nock';
 import { keywordsFixture } from './fixture/keywords';
 import { Keyword } from './../src/entity/Keyword';
 import { PostKeyword } from './../src/entity/PostKeyword';
@@ -42,6 +43,7 @@ const now = new Date();
 
 beforeEach(async () => {
   loggedUser = null;
+  nock.cleanAll();
 
   await con.getRepository(User).save([
     {
@@ -293,6 +295,36 @@ describe('query userMostReadTags', () => {
     expect(limited.errors).toBeFalsy();
     expect(limited.data.userMostReadTags.length).toEqual(limit);
     expect(limited.data.userMostReadTags).toMatchSnapshot();
+  });
+});
+
+describe('query user', () => {
+  const QUERY = `query User($id: ID!) {
+    user(id: $id) {
+      name
+      username
+      image
+    }
+  }`;
+
+  const mockInfo = (id: string): nock.Scope =>
+    nock(process.env.GATEWAY_URL)
+      .get('/v1/users/' + id)
+      .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
+      .matchHeader('user-id', '1')
+      .matchHeader('logged-in', 'true')
+      .reply(200, {
+        image: 'lee.image.com',
+        name: 'Lee Hansel',
+        username: 'lee',
+      });
+
+  it('should return user info with name, username, and image', async () => {
+    const requestUserId = '1';
+    mockInfo(requestUserId);
+    const res = await client.query(QUERY, { variables: { id: requestUserId } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user).toMatchSnapshot();
   });
 });
 
@@ -649,7 +681,6 @@ describe('query userReadingRankHistory', () => {
   }`;
 
   const now = new Date();
-  const thisWeekStart = startOfISOWeek(now);
   const lastWeekStart = startOfISOWeek(subDays(now, 7));
   const lastTwoWeeksStart = startOfISOWeek(subDays(now, 14));
   const lastThreeWeeksStart = startOfISOWeek(subDays(now, 21));
@@ -829,52 +860,6 @@ describe('query userReadingRankHistory', () => {
         userId: loggedUser,
         postId: 'p4',
         timestamp: addDays(lastTwoWeeksStart, 2),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p5',
-        timestamp: addDays(lastWeekStart, 3),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p6',
-        timestamp: addDays(lastWeekStart, 4),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p7',
-        timestamp: addDays(lastWeekStart, 5),
-      },
-    ]);
-    const res = await client.query(QUERY, {
-      variables: {
-        id: '1',
-        after: lastThreeWeeksStart.toISOString(),
-        before: now.toISOString(),
-      },
-    });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userReadingRankHistory).toMatchSnapshot();
-  });
-
-  it('should ignore views during current week', async () => {
-    loggedUser = '1';
-    await con.getRepository(View).save([
-      { userId: loggedUser, postId: 'p1', timestamp: thisWeekStart },
-      {
-        userId: loggedUser,
-        postId: 'p2',
-        timestamp: addDays(thisWeekStart, 1),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p3',
-        timestamp: addDays(thisWeekStart, 2),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p4',
-        timestamp: addDays(lastWeekStart, 2),
       },
       {
         userId: loggedUser,
