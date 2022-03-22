@@ -172,6 +172,26 @@ Object {
 }
 `;
 
+exports[`query postByUrl should return post by canonical 1`] = `
+Object {
+  "postByUrl": Object {
+    "id": "p1",
+    "title": "P1",
+    "url": "http://p1.com",
+  },
+}
+`;
+
+exports[`query postByUrl should return post by url 1`] = `
+Object {
+  "postByUrl": Object {
+    "id": "p1",
+    "title": "P1",
+    "url": "http://p1.com",
+  },
+}
+`;
+
 exports[`query postUpvotes should return users that upvoted the post by id in descending order 1`] = `
 Object {
   "postUpvotes": Object {

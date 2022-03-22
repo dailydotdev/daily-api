@@ -241,6 +241,29 @@ describe('query commentUpvotes', () => {
   });
 });
 
+describe('query commentPreview', () => {
+  const QUERY = `
+    query CommentPreview($content: String!) {
+      commentPreview(content: $content)
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { content: '# Test' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return markdown equivalent of the content', async () => {
+    loggedUser = '1';
+    const content = '# Test';
+    const res = await client.query(QUERY, { variables: { content } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.commentPreview).toMatchSnapshot();
+  });
+});
+
 describe('query recommendedMentions', () => {
   const QUERY = `
     query RecommendedMentions($postId: String!, $query: String, $limit: Int) {

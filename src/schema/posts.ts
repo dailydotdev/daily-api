@@ -305,6 +305,16 @@ export const typeDefs = /* GraphQL */ `
     ): Post!
 
     """
+    Get post by URL
+    """
+    postByUrl(
+      """
+      URL of the requested post
+      """
+      url: String
+    ): Post!
+
+    """
     Get Post's Upvotes by post id
     """
     postUpvotes(
@@ -453,6 +463,26 @@ export const resolvers: IResolvers<any, Context> = {
           `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
           { id },
         ),
+        ...builder,
+      }));
+      if (res.length) {
+        return res[0];
+      }
+      throw new NotFoundError('Post not found');
+    },
+    postByUrl: async (
+      source,
+      { url }: { id: string; url: string },
+      ctx: Context,
+      info,
+    ) => {
+      const res = await graphorm.query(ctx, info, (builder) => ({
+        queryBuilder: builder.queryBuilder
+          .where(
+            `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false`,
+            { url },
+          )
+          .limit(1),
         ...builder,
       }));
       if (res.length) {

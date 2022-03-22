@@ -179,9 +179,10 @@ export const getUserIdsByNameOrUsername = async (
     .getRepository(DbUser)
     .createQueryBuilder()
     .select('id')
-    .where('(name ILIKE :name OR username ILIKE :name)', {
+    .where(`(replace(name, ' ', '') ILIKE :name OR username ILIKE :name)`, {
       name: `${query}%`,
     })
+    .andWhere('username IS NOT NULL')
     .limit(limit);
 
   if (excludeIds?.length) {
@@ -223,12 +224,15 @@ export const recommendUsersToMention = async (
   { limit }: RecentMentionsProps,
 ): Promise<string[]> => {
   const [post, commenterIds] = await Promise.all([
-    con.getRepository(Post).findOne(postId),
+    con.getRepository(Post).findOne({ id: postId, authorId: Not(userId) }),
     getPostCommenterIds(con, postId, { limit, userId }),
   ]);
 
-  if (post.authorId) {
+  if (post?.authorId) {
     commenterIds.unshift(post.authorId);
+    if (commenterIds.length > 5) {
+      commenterIds.pop();
+    }
   }
 
   const missing = limit - commenterIds.length;
@@ -285,7 +289,7 @@ export const getUserReadingRank = async (
   version = 1,
   limit = 6,
 ): Promise<ReadingRank> => {
-  if (!timezone || timezone === null) {
+  if (!timezone) {
     timezone = 'utc';
   }
   const nowTimezone = `timezone('${timezone}', now())`;
@@ -293,11 +297,11 @@ export const getUserReadingRank = async (
   const req = con
     .createQueryBuilder()
     .select(
-      `count(distinct date_trunc('day', "timestamp"::timestamptz ${atTimezone}) ${atTimezone}) filter(where "timestamp" >= date_trunc('week', ${nowTimezone}) ${atTimezone})`,
+      `count(distinct extract(dow from "timestamp"::timestamptz ${atTimezone})) filter(where "timestamp"::timestamptz ${atTimezone} >= date_trunc('week', ${nowTimezone}))`,
       'thisWeek',
     )
     .addSelect(
-      `count(distinct date_trunc('day', "timestamp"::timestamptz ${atTimezone}) ${atTimezone}) filter(where "timestamp" BETWEEN (date_trunc('week', ${nowTimezone} - interval '7 days') ${atTimezone}) AND (date_trunc('week', ${nowTimezone}) ${atTimezone}))`,
+      `count(distinct extract(dow from "timestamp"::timestamptz ${atTimezone})) filter(where "timestamp"::timestamptz ${atTimezone} BETWEEN (date_trunc('week', ${nowTimezone} - interval '7 days')) AND (date_trunc('week', ${nowTimezone})))`,
       'lastWeek',
     )
     .addSelect(`MAX("timestamp"::timestamptz ${atTimezone})`, 'lastReadTime')
