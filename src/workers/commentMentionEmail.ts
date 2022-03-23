@@ -5,7 +5,7 @@ import { Comment, User } from '../entity';
 import { pickImageUrl } from '../common';
 import { baseNotificationEmailData, sendEmail, truncatePost } from '../common';
 import { Connection } from 'typeorm';
-import { getPostPermalink } from '../schema/posts';
+import { getPostPageLink } from '../schema/posts';
 
 const removeFirstWordIfMention = (comment: string, username: string) => {
   const mention = `@${username}`;
@@ -58,7 +58,7 @@ export const sendEmailToMentionedUser = async (
       commenter_profile_image: commenter.image,
       post_title: truncatePost(post),
       post_image: post.image || pickImageUrl(post),
-      post_link: getPostPermalink(post),
+      post_link: getPostPageLink(post),
     },
   });
   logger.info('comment mention email sent to: ' + commenter.id);
