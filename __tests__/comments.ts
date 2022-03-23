@@ -257,10 +257,18 @@ describe('query commentPreview', () => {
 
   it('should return markdown equivalent of the content', async () => {
     loggedUser = '1';
+    await saveCommentMentionFixtures();
     const content = '# Test';
     const res = await client.query(QUERY, { variables: { content } });
     expect(res.errors).toBeFalsy();
     expect(res.data.commentPreview).toMatchSnapshot();
+
+    const mention = '@Lee';
+    const withMention = await client.query(QUERY, {
+      variables: { content: mention },
+    });
+    expect(withMention.errors).toBeFalsy();
+    expect(withMention.data.commentPreview).toMatchSnapshot();
   });
 });
 
