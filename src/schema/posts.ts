@@ -449,9 +449,6 @@ export const reportReasons = new Map([
 export const getPostPermalink = (post: Pick<GQLPost, 'shortId'>): string =>
   `${process.env.URL_PREFIX}/r/${post.shortId}`;
 
-export const getPostPageLink = (post: Pick<GQLPost, 'shortId'>): string =>
-  `${process.env.URL_PREFIX}/posts/${post.shortId}`;
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   Query: traceResolverObject({

@@ -22,6 +22,7 @@ import {
   baseNotificationEmailData,
   pickImageUrl,
   truncatePost,
+  getDiscussionLink,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -49,7 +50,6 @@ import { Connection, getConnection } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { Alerts } from '../../src/entity';
-import { getPostPageLink } from '../../src/schema/posts';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -461,7 +461,7 @@ describe('comment mention', () => {
         commenter_profile_image: commenter.image,
         post_title: truncatePost(post),
         post_image: post.image || pickImageUrl(post),
-        post_link: getPostPageLink(post),
+        post_link: getDiscussionLink(post.id),
       },
     };
     expect(sendEmail).toBeCalledTimes(1);

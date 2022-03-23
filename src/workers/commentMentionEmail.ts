@@ -2,10 +2,9 @@ import { templateId } from './../common/mailing';
 import { FastifyLoggerInstance } from 'fastify';
 import { CommentMention } from './../entity/CommentMention';
 import { Comment, User } from '../entity';
-import { pickImageUrl } from '../common';
+import { getDiscussionLink, pickImageUrl } from '../common';
 import { baseNotificationEmailData, sendEmail, truncatePost } from '../common';
 import { Connection } from 'typeorm';
-import { getPostPageLink } from '../schema/posts';
 
 const removeFirstWordIfMention = (comment: string, username: string) => {
   const mention = `@${username}`;
@@ -58,7 +57,7 @@ export const sendEmailToMentionedUser = async (
       commenter_profile_image: commenter.image,
       post_title: truncatePost(post),
       post_image: post.image || pickImageUrl(post),
-      post_link: getPostPageLink(post),
+      post_link: getDiscussionLink(post.id),
     },
   });
   logger.info('comment mention email sent to: ' + commenter.id);
