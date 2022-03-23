@@ -529,14 +529,24 @@ export const resolvers: IResolvers<any, Context> = {
         return builder;
       });
     },
-    commentPreview: (_, { content }: { content: string }): string => {
+    commentPreview: async (
+      _,
+      { content }: { content: string },
+      ctx,
+    ): Promise<string> => {
       const trimmed = content.trim();
 
       if (trimmed.length === 0) {
         return '';
       }
 
-      return markdown.render(trimmed);
+      const mentions = await getMentions(ctx.con, trimmed, ctx.userId);
+
+      if (mentions.length === 0) {
+        return markdown.render(trimmed);
+      }
+
+      return markdown.render(trimmed, { mentions });
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
