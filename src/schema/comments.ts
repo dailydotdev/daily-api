@@ -542,7 +542,7 @@ export const resolvers: IResolvers<any, Context> = {
 
       const mentions = await getMentions(ctx.con, trimmed, ctx.userId);
 
-      if (mentions.length === 0) {
+      if (!mentions?.length) {
         return markdown.render(trimmed);
       }
 
