@@ -25,8 +25,9 @@ it('should publish an event to redis', async () => {
       'events.posts.upvoted',
       (value) => {
         expect(value).toEqual({
-          userId: '2',
-          postId: 'p1',
+          id: 'p1',
+          numComments: 0,
+          numUpvotes: 0,
         });
         redisPubSub.unsubscribe(subId);
         resolve();
