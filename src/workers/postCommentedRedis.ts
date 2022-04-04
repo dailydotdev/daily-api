@@ -1,6 +1,5 @@
 import { messageToJson, Worker } from './worker';
 import { redisPubSub } from '../redis';
-import { Post } from '../entity';
 import { getPostNotification } from '../schema/posts';
 
 interface Data {

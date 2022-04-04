@@ -5,7 +5,6 @@ import {
 import { ValidationError } from 'apollo-server-errors';
 import { IResolvers } from 'graphql-tools';
 import { Connection, DeepPartial } from 'typeorm';
-import { GraphQLResolveInfo } from 'graphql';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
@@ -666,12 +665,9 @@ export const resolvers: IResolvers<any, Context> = {
   }),
   Subscription: {
     postsEngaged: {
-      subscribe: async (
-        source: unknown,
-        { ids }: { ids: string[] },
-        ctx: Context,
-        info: GraphQLResolveInfo,
-      ): Promise<AsyncIterator<{ postsEngaged: GQLPostNotification }>> => {
+      subscribe: async (): Promise<
+        AsyncIterator<{ postsEngaged: GQLPostNotification }>
+      > => {
         const it = {
           [Symbol.asyncIterator]: () =>
             redisPubSub.asyncIterator<GQLPostNotification>('events.posts.*', {
