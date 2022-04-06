@@ -83,10 +83,10 @@ export default async function app(
     context:
       contextFn ?? ((request): Context => new Context(request, connection)),
     queryDepth: 10,
-    subscription: {
-      context: (wsConnection, request): Context =>
-        new Context(request, connection),
-    },
+    // subscription: {
+    //   context: (wsConnection, request): Context =>
+    //     new Context(request, connection),
+    // },
     graphiql: !isProd,
     errorFormatter(execution) {
       if (execution.errors?.length > 0) {
