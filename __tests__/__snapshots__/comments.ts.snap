@@ -92,6 +92,16 @@ Array [
 ]
 `;
 
+exports[`query commentPreview should return markdown equivalent of the content 1`] = `
+"<h1>Test</h1>
+"
+`;
+
+exports[`query commentPreview should return markdown equivalent of the content 2`] = `
+"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a></p>
+"
+`;
+
 exports[`query commentUpvotes should return users that upvoted the comment by id in descending order 1`] = `
 Object {
   "commentUpvotes": Object {

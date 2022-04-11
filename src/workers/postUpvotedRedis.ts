@@ -1,5 +1,6 @@
 import { messageToJson, Worker } from './worker';
 import { redisPubSub } from '../redis';
+import { getPostNotification } from '../schema/posts';
 
 interface Data {
   userId: string;
@@ -11,7 +12,8 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      await redisPubSub.publish('events.posts.upvoted', data);
+      const postNotificatiion = await getPostNotification(con, data.postId);
+      await redisPubSub.publish('events.posts.upvoted', postNotificatiion);
     } catch (err) {
       logger.error(
         {

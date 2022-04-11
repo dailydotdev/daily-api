@@ -5,7 +5,6 @@ import {
 import { ValidationError } from 'apollo-server-errors';
 import { IResolvers } from 'graphql-tools';
 import { Connection, DeepPartial } from 'typeorm';
-import { GraphQLResolveInfo } from 'graphql';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
@@ -52,6 +51,11 @@ export interface GQLPost {
   summary?: string;
 }
 
+export type GQLPostNotification = Pick<
+  GQLPost,
+  'id' | 'numUpvotes' | 'numComments'
+>;
+
 export interface GQLPostUpvote {
   createdAt: Date;
   post: GQLPost;
@@ -60,6 +64,19 @@ export interface GQLPostUpvote {
 export interface GQLPostUpvoteArgs extends ConnectionArguments {
   id: string;
 }
+
+export const getPostNotification = async (
+  con: Connection,
+  postId: string,
+): Promise<GQLPostNotification> => {
+  const post = await con
+    .getRepository(Post)
+    .findOne(postId, { select: ['id', 'upvotes', 'comments'] });
+  if (!post) {
+    return null;
+  }
+  return { id: post.id, numUpvotes: post.upvotes, numComments: post.comments };
+};
 
 export const typeDefs = /* GraphQL */ `
   type TocItem {
@@ -77,6 +94,26 @@ export const typeDefs = /* GraphQL */ `
     Children items of the toc item
     """
     children: [TocItem]
+  }
+
+  """
+  Post notification
+  """
+  type PostNotification {
+    """
+    Unique identifier
+    """
+    id: ID!
+
+    """
+    Total number of upvotes
+    """
+    numUpvotes: Int!
+
+    """
+    Total number of comments
+    """
+    numComments: Int!
   }
 
   """
@@ -409,12 +446,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get notified when one of the given posts is upvoted or comments
     """
-    postsEngaged(
-      """
-      IDs of the posts
-      """
-      ids: [ID]!
-    ): Post
+    postsEngaged: PostNotification
   }
 `;
 
@@ -633,31 +665,25 @@ export const resolvers: IResolvers<any, Context> = {
   }),
   Subscription: {
     postsEngaged: {
-      subscribe: async (
-        source: unknown,
-        { ids }: { ids: string[] },
-        ctx: Context,
-        info: GraphQLResolveInfo,
-      ): Promise<AsyncIterator<{ postsEngaged: GQLPost }>> => {
+      subscribe: async (): Promise<
+        AsyncIterator<{ postsEngaged: GQLPostNotification }>
+      > => {
         const it = {
           [Symbol.asyncIterator]: () =>
-            redisPubSub.asyncIterator<{ postId: string }>('events.posts.*', {
+            redisPubSub.asyncIterator<GQLPostNotification>('events.posts.*', {
               pattern: true,
             }),
         };
         return (async function* () {
           for await (const value of it) {
-            if (ids.indexOf(value.postId) < 0) {
-              continue;
-            }
-            const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
-              queryBuilder: builder.queryBuilder.where(
-                `"${builder.alias}"."id" = :id`,
-                { id: value.postId },
-              ),
-              ...builder,
-            }));
-            yield { postsEngaged: res[0] };
+            // const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
+            //   queryBuilder: builder.queryBuilder.where(
+            //     `"${builder.alias}"."id" = :id`,
+            //     { id: value.postId },
+            //   ),
+            //   ...builder,
+            // }));
+            yield { postsEngaged: value };
           }
         })();
       },

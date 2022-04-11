@@ -214,6 +214,11 @@ export const typeDefs = /* GraphQL */ `
     """
     recommendedMentions(postId: String!, query: String, limit: Int): [User]
       @auth
+
+    """
+    Markdown equivalent of the user's comment
+    """
+    commentPreview(content: String!): String @auth
   }
 
   extend type Mutation {
@@ -523,6 +528,25 @@ export const resolvers: IResolvers<any, Context> = {
 
         return builder;
       });
+    },
+    commentPreview: async (
+      _,
+      { content }: { content: string },
+      ctx,
+    ): Promise<string> => {
+      const trimmed = content.trim();
+
+      if (trimmed.length === 0) {
+        return '';
+      }
+
+      const mentions = await getMentions(ctx.con, trimmed, ctx.userId);
+
+      if (!mentions?.length) {
+        return markdown.render(trimmed);
+      }
+
+      return markdown.render(trimmed, { mentions });
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

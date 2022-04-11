@@ -581,6 +581,66 @@ describe('query userReadingRank', () => {
     expect(res.data.userReadingRank.currentRank).toEqual(3);
   });
 
+  it('should not return 8 reading days for a timezone edge case', async () => {
+    loggedUser = '2';
+    const lastWeekStartTimezoned = subDays(
+      getTimezonedStartOfISOWeek({ date: now, timezone: userTimezone }),
+      7,
+    );
+    await con.getRepository(View).save([
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: subHours(lastWeekStartTimezoned, 8),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p1',
+        timestamp: addHours(lastWeekStartTimezoned, 4),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addDays(lastWeekStartTimezoned, 1),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p2',
+        timestamp: addDays(lastWeekStartTimezoned, 2),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastWeekStartTimezoned, 3),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastWeekStartTimezoned, 4),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastWeekStartTimezoned, 5),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastWeekStartTimezoned, 6),
+      },
+      {
+        userId: loggedUser,
+        postId: 'p3',
+        timestamp: addDays(lastWeekStartTimezoned, 7),
+      },
+    ]);
+    const res = await client.query(QUERY, {
+      variables: { id: loggedUser, version: 2 },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReadingRank.rankLastWeek).toEqual(7);
+  });
+
   it('should set readToday to true', async () => {
     loggedUser = '1';
     await con
@@ -621,7 +681,6 @@ describe('query userReadingRankHistory', () => {
   }`;
 
   const now = new Date();
-  const thisWeekStart = startOfISOWeek(now);
   const lastWeekStart = startOfISOWeek(subDays(now, 7));
   const lastTwoWeeksStart = startOfISOWeek(subDays(now, 14));
   const lastThreeWeeksStart = startOfISOWeek(subDays(now, 21));
@@ -801,52 +860,6 @@ describe('query userReadingRankHistory', () => {
         userId: loggedUser,
         postId: 'p4',
         timestamp: addDays(lastTwoWeeksStart, 2),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p5',
-        timestamp: addDays(lastWeekStart, 3),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p6',
-        timestamp: addDays(lastWeekStart, 4),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p7',
-        timestamp: addDays(lastWeekStart, 5),
-      },
-    ]);
-    const res = await client.query(QUERY, {
-      variables: {
-        id: '1',
-        after: lastThreeWeeksStart.toISOString(),
-        before: now.toISOString(),
-      },
-    });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userReadingRankHistory).toMatchSnapshot();
-  });
-
-  it('should ignore views during current week', async () => {
-    loggedUser = '1';
-    await con.getRepository(View).save([
-      { userId: loggedUser, postId: 'p1', timestamp: thisWeekStart },
-      {
-        userId: loggedUser,
-        postId: 'p2',
-        timestamp: addDays(thisWeekStart, 1),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p3',
-        timestamp: addDays(thisWeekStart, 2),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p4',
-        timestamp: addDays(lastWeekStart, 2),
       },
       {
         userId: loggedUser,
