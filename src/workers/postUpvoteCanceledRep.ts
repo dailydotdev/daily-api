@@ -28,6 +28,7 @@ const worker: Worker = {
           reason: ReputationReason.PostUpvote,
         });
         await increaseReputation(con, logger, post.authorId, -event.amount);
+        await repo.delete(event);
         logger.info(
           {
             data,
