@@ -43,6 +43,6 @@ it('should increase reputation and notify', async () => {
     post,
   });
   const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-  expect(users[0].reputation).toEqual(4);
-  expect(users[1].reputation).toEqual(7);
+  expect(users[0].reputation).toEqual(103);
+  expect(users[1].reputation).toEqual(106);
 });

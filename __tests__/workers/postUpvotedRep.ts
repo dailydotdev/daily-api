@@ -1,5 +1,4 @@
 import { Connection, getConnection } from 'typeorm';
-
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postUpvotedRep';
 import { Post, Source, User } from '../../src/entity';
@@ -33,7 +32,7 @@ it('should increase reputation and notify', async () => {
     postId: 'p1',
   });
   const user = await con.getRepository(User).findOne('1');
-  expect(user.reputation).toEqual(4);
+  expect(user.reputation).toEqual(13);
 });
 
 it('should not increase reputation when the author is the upvote user', async () => {
