@@ -48,7 +48,7 @@ it('should decrease reputation and notify', async () => {
       grantToId: '1',
       targetId: 'c1',
       targetType: ReputationType.Comment,
-      reason: ReputationReason.CommentUpvote,
+      reason: ReputationReason.CommentUpvoted,
     }),
   );
   await expectSuccessfulBackground(worker, {
