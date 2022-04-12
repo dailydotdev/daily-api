@@ -25,7 +25,7 @@ const worker: Worker = {
       const events = userIds.map((userId) =>
         repo.create({
           grantToId: userId,
-          grantById: '',
+          grantById: null,
           targetId: id,
           targetType: ReputationType.Post,
           reason: ReputationReason.PostReportConfirmed,
