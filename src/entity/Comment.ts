@@ -39,10 +39,6 @@ export class Comment {
   @Index('IDX_comment_comments')
   comments: number;
 
-  @Column({ default: false })
-  @Index('IDX_comment_featured')
-  featured: boolean;
-
   @ManyToOne(() => Post, {
     lazy: true,
     onDelete: 'CASCADE',

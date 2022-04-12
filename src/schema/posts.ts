@@ -697,5 +697,6 @@ export const resolvers: IResolvers<any, Context> = {
       post.image ? post.ratio : defaultImage.ratio,
     permalink: getPostPermalink,
     commentsPermalink: (post: GQLPost): string => getDiscussionLink(post.id),
+    featuredComments: () => [],
   },
 };
