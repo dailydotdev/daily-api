@@ -5,7 +5,6 @@ import {
 } from './../entity/ReputationEvent';
 import { messageToJson, Worker } from './worker';
 import { Comment } from '../entity';
-import { increaseReputation } from '../common';
 
 interface Data {
   userId: string;
@@ -30,16 +29,19 @@ const worker: Worker = {
       }
       if (comment.userId !== data.userId) {
         const repo = con.getRepository(ReputationEvent);
-        const event = await repo.save(
-          repo.create({
-            grantById: data.userId,
-            grantToId: comment.userId,
-            targetId: comment.id,
-            targetType: ReputationType.Comment,
-            reason: ReputationReason.CommentUpvoted,
-          }),
-        );
-        await increaseReputation(con, logger, comment.userId, event.amount);
+        const event = repo.create({
+          grantById: data.userId,
+          grantToId: comment.userId,
+          targetId: comment.id,
+          targetType: ReputationType.Comment,
+          reason: ReputationReason.CommentUpvoted,
+        });
+        await repo
+          .createQueryBuilder()
+          .insert()
+          .values(event)
+          .orIgnore()
+          .execute();
         logger.info(
           {
             data,

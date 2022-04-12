@@ -1,3 +1,8 @@
+import {
+  ReputationEvent,
+  ReputationType,
+  ReputationReason,
+} from './../entity/ReputationEvent';
 import { CommentMention } from './../entity/CommentMention';
 import { messageToJson, Worker } from './worker';
 import {
@@ -30,6 +35,7 @@ import {
   notifySourceRequest,
   notifySettingsUpdated,
   notifyUserReputationUpdated,
+  increaseReputation,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -64,6 +70,20 @@ const onSourceRequestChange = async (
     } else if (!data.payload.before.approved && data.payload.after.approved) {
       // Source request approved
       await notifySourceRequest(logger, 'approve', data.payload.after);
+      const repo = con.getRepository(ReputationEvent);
+      const event = repo.create({
+        grantById: null,
+        grantToId: data.payload.after.userId,
+        targetId: data.payload.after.id,
+        targetType: ReputationType.Source,
+        reason: ReputationReason.SourceRequestApproved,
+      });
+      await repo
+        .createQueryBuilder()
+        .insert()
+        .values(event)
+        .orIgnore()
+        .execute();
     }
   }
 };
@@ -295,6 +315,20 @@ const onFeedChange = async (
   }
 };
 
+const onReputationEventChange = async (
+  con: Connection,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<ReputationEvent>,
+) => {
+  if (data.payload.op === 'c') {
+    const entity = data.payload.after;
+    await increaseReputation(con, logger, entity.grantToId, entity.amount);
+  } else if (data.payload.op === 'd') {
+    const entity = data.payload.before;
+    await increaseReputation(con, logger, entity.grantToId, -entity.amount);
+  }
+};
+
 const getTableName = <Entity>(
   con: Connection,
   target: EntityTarget<Entity>,
@@ -346,6 +380,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Settings):
           await onSettingsChange(con, logger, data);
+          break;
+        case getTableName(con, ReputationEvent):
+          await onReputationEventChange(con, logger, data);
           break;
       }
     } catch (err) {

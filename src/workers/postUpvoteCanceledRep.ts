@@ -5,7 +5,6 @@ import {
 } from './../entity/ReputationEvent';
 import { messageToJson, Worker } from './worker';
 import { Post } from '../entity';
-import { increaseReputation } from '../common';
 
 interface Data {
   userId: string;
@@ -19,16 +18,18 @@ const worker: Worker = {
     try {
       const post = await con.getRepository(Post).findOne(data.postId);
       if (post?.authorId && post?.authorId !== data.userId) {
-        const repo = con.getRepository(ReputationEvent);
-        const event = await repo.findOne({
-          grantById: data.userId,
-          grantToId: post.authorId,
-          targetId: post.id,
-          targetType: ReputationType.Post,
-          reason: ReputationReason.PostUpvoted,
-        });
-        await increaseReputation(con, logger, post.authorId, -event.amount);
-        await repo.delete(event);
+        await con
+          .getRepository(ReputationEvent)
+          .createQueryBuilder()
+          .delete()
+          .where({
+            grantById: data.userId,
+            grantToId: post.authorId,
+            targetId: post.id,
+            targetType: ReputationType.Post,
+            reason: ReputationReason.PostUpvoted,
+          })
+          .execute();
         logger.info(
           {
             data,

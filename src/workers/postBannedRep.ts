@@ -4,7 +4,6 @@ import {
   ReputationType,
 } from './../entity/ReputationEvent';
 import { messageToJson, Worker } from './worker';
-import { increaseMultipleReputation, increaseReputation } from '../common';
 import { PostReport } from '../entity/PostReport';
 import { Post } from '../entity';
 import { ChangeObject } from '../types';
@@ -31,19 +30,21 @@ const worker: Worker = {
           reason: ReputationReason.PostReportConfirmed,
         }),
       );
-      await repo.save(events);
-      await increaseMultipleReputation(con, logger, userIds, events[0].amount);
       if (authorId) {
-        const authorEvent = await repo.save(
-          repo.create({
-            grantToId: authorId,
-            targetId: id,
-            targetType: ReputationType.Post,
-            reason: ReputationReason.PostBanned,
-          }),
-        );
-        await increaseReputation(con, logger, authorId, authorEvent.amount);
+        const authorEvent = repo.create({
+          grantToId: authorId,
+          targetId: id,
+          targetType: ReputationType.Post,
+          reason: ReputationReason.PostBanned,
+        });
+        events.push(authorEvent);
       }
+      await repo
+        .createQueryBuilder()
+        .insert()
+        .values(events)
+        .orIgnore()
+        .execute();
       logger.info(
         {
           data,
