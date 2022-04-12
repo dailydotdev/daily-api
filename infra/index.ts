@@ -117,7 +117,7 @@ createSubscriptionsFromWorkers(
 );
 createPubSubCronJobs(name, crons);
 
-const memory = 3072;
+const memory = 2048;
 
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
@@ -146,6 +146,39 @@ const { labels } = createAutoscaledExposedApplication({
       livenessProbe: probe,
       env: [
         ...containerEnvVars,
+        {
+          name: 'NODE_OPTIONS',
+          value: `--max-old-space-size=${Math.floor(memory * 0.9).toFixed(0)}`,
+        },
+      ],
+      resources: {
+        requests: limits,
+        limits,
+      },
+    },
+  ],
+  minReplicas: 3,
+  maxReplicas: 15,
+  metrics: getMemoryAndCpuMetrics(60),
+  enableCdn: true,
+  deploymentDependsOn: [migrationJob],
+});
+
+const { labels: wsLabels } = createAutoscaledApplication({
+  resourcePrefix: 'ws-',
+  name: `${name}-ws`,
+  namespace: namespace,
+  version: imageTag,
+  serviceAccount: k8sServiceAccount,
+  containers: [
+    {
+      name: 'app',
+      image,
+      ports: [{ name: 'http', containerPort: 3000, protocol: 'TCP' }],
+      readinessProbe: probe,
+      livenessProbe: probe,
+      env: [
+        ...containerEnvVars,
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
         {
           name: 'NODE_OPTIONS',
@@ -158,10 +191,9 @@ const { labels } = createAutoscaledExposedApplication({
       },
     },
   ],
-  minReplicas: 5,
+  minReplicas: 3,
   maxReplicas: 15,
   metrics: getMemoryAndCpuMetrics(60),
-  enableCdn: true,
   deploymentDependsOn: [migrationJob],
 });
 
@@ -241,7 +273,7 @@ const k8sService = new k8s.core.v1.Service(`${name}-k8s-service`, {
   spec: {
     type: 'NodePort',
     ports: [{ port: 80, targetPort: 'http', protocol: 'TCP', name: 'http' }],
-    selector: labels,
+    selector: wsLabels,
   },
 });
 
