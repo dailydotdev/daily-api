@@ -32,7 +32,7 @@ const reputationReasonAmount: Record<ReputationReason, number> = {
 
 @Entity()
 export class ReputationEvent {
-  @Index()
+  @Index({ unique: true })
   @Column({ length: 36, default: null })
   grantById: string | null;
 
