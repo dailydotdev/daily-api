@@ -36,7 +36,7 @@ const worker: Worker = {
             grantToId: comment.userId,
             targetId: comment.id,
             targetType: ReputationType.Comment,
-            reason: ReputationReason.CommentUpvote,
+            reason: ReputationReason.CommentUpvoted,
           }),
         );
         await increaseReputation(con, logger, comment.userId, event.amount);

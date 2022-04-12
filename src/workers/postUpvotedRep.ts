@@ -26,7 +26,7 @@ const worker: Worker = {
             grantToId: post.authorId,
             targetId: post.id,
             targetType: ReputationType.Post,
-            reason: ReputationReason.PostUpvote,
+            reason: ReputationReason.PostUpvoted,
           }),
         );
         await increaseReputation(con, logger, post.authorId, event.amount);
