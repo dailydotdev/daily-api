@@ -9,9 +9,9 @@ import {
 import { User } from './User';
 
 export enum ReputationReason {
-  PostUpvote = 'post_upvote',
+  PostUpvote = 'post_upvoted',
   PostBanned = 'post_banned',
-  CommentUpvote = 'comment_upvote',
+  CommentUpvote = 'comment_upvoted',
   PostReportConfirmed = 'post_report_confirmed',
   SourceRequestApproved = 'source_request_approved',
 }
@@ -32,13 +32,10 @@ const reputationReasonAmount: Record<ReputationReason, number> = {
 
 @Entity()
 export class ReputationEvent {
-  @PrimaryColumn({ default: () => 'now()' })
-  timestamp: Date;
-
-  @PrimaryColumn({ length: 36, default: '' })
-  grantById: string;
-
   @Index()
+  @Column({ length: 36, default: null })
+  grantById: string | null;
+
   @PrimaryColumn({ length: 36 })
   grantToId: string;
 
@@ -48,23 +45,26 @@ export class ReputationEvent {
   @PrimaryColumn({ length: 36 })
   reason: ReputationReason;
 
-  @PrimaryColumn({ length: 36, type: 'varchar' })
+  @PrimaryColumn({ length: 36 })
   targetType: ReputationType;
 
   @Column({ type: 'int' })
   amount: number;
 
-  @ManyToOne(() => User, {
-    lazy: true,
-    onDelete: 'CASCADE',
-  })
-  grantByUser?: Promise<User>;
+  @Column({ default: () => 'now()' })
+  timestamp: Date;
 
   @ManyToOne(() => User, {
     lazy: true,
     onDelete: 'CASCADE',
   })
-  grantToUser?: Promise<User>;
+  grantByUser: Promise<User | null>;
+
+  @ManyToOne(() => User, {
+    lazy: true,
+    onDelete: 'CASCADE',
+  })
+  grantToUser: Promise<User>;
 
   @BeforeInsert()
   setAmount(): void {
