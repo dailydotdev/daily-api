@@ -6,10 +6,8 @@ import updateUser from './updateUser';
 import commentUpvoted from './commentUpvoted';
 import commentCommented from './commentCommented';
 import commentUpvotedRep from './commentUpvotedRep';
-import commentFeaturedRep from './commentFeaturedRep';
 import commentUpvoteCanceledRep from './commentUpvoteCanceledRep';
 import commentCommentedThread from './commentCommentedThread';
-import commentFeaturedMail from './commentFeaturedMail';
 import postAuthorMatchedMail from './postAuthorMatchedMail';
 import commentCommentedAuthor from './commentCommentedAuthor';
 import postCommentedAuthor from './postCommentedAuthor';
@@ -43,10 +41,8 @@ export const workers: Worker[] = [
   commentUpvoted,
   commentCommented,
   commentUpvotedRep,
-  commentFeaturedRep,
   commentUpvoteCanceledRep,
   commentCommentedThread,
-  commentFeaturedMail,
   postAuthorMatchedMail,
   commentCommentedAuthor,
   commentCommentedSlackMessage,
