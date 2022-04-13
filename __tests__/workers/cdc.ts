@@ -1,5 +1,10 @@
 import nock from 'nock';
 import {
+  ReputationEvent,
+  ReputationType,
+  ReputationReason,
+} from './../../src/entity/ReputationEvent';
+import {
   notifySourceRequest,
   notifyPostUpvoted,
   notifyPostUpvoteCanceled,
@@ -225,6 +230,68 @@ describe('source request', () => {
       'approve',
       after,
     ]);
+  });
+});
+
+describe('reputation event', () => {
+  const users = [
+    {
+      id: '1',
+      name: 'Ido',
+      image: 'https://daily.dev/ido.jpg',
+      reputation: 25,
+    },
+    {
+      id: '2',
+      name: 'Lee',
+      image: 'https://daily.dev/lee.jpg',
+      reputation: 251,
+    },
+  ];
+  type ObjectType = ReputationEvent;
+  const base: ChangeObject<ObjectType> = {
+    grantById: '2',
+    grantToId: '1',
+    targetId: '1',
+    targetType: ReputationType.Post,
+    reason: ReputationReason.PostUpvoted,
+    amount: 10,
+    timestamp: Date.now(),
+  };
+
+  it('should grant user reputation points', async () => {
+    const repo = con.getRepository(User);
+    await repo.save(users);
+    await con.getRepository(Post).update('p1', { authorId: '1' });
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'reputation_event',
+      }),
+    );
+    const grantedTo = await repo.findOne('1');
+    expect(grantedTo.reputation).toEqual(35);
+  });
+
+  it('should revert granted user reputation points', async () => {
+    const repo = con.getRepository(User);
+    await repo.save(users);
+    await con.getRepository(Post).update('p1', { authorId: '1' });
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: null,
+        before: base,
+        op: 'd',
+        table: 'reputation_event',
+      }),
+    );
+    const grantedTo = await repo.findOne('1');
+    expect(grantedTo.reputation).toEqual(15);
   });
 });
 
