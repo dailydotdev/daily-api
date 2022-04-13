@@ -30,6 +30,10 @@ const reputationReasonAmount: Record<ReputationReason, number> = {
   [ReputationReason.SourceRequestApproved]: 200,
 };
 
+export const REPUTATION_THRESHOLD = parseInt(
+  process.env.REPUTATION_THRESHOLD || '50',
+);
+
 @Entity()
 export class ReputationEvent {
   @Index({ unique: true })
