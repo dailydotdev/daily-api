@@ -11,6 +11,7 @@ const postUpvoteCanceledTopic = pubsub.topic('post-upvote-canceled');
 const commentUpvotedTopic = pubsub.topic('comment-upvoted');
 const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-commented');
+const commentFeaturedTopic = pubsub.topic('comment-featured');
 const commentsUpdateTopic = pubsub.topic('update-comments');
 const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
 const alertsUpdatedTopic = pubsub.topic('alerts-updated');
@@ -114,6 +115,14 @@ export const notifyCommentCommented = async (
     userId,
     parentCommentId,
     childCommentId,
+  });
+
+export const notifyCommentFeatured = async (
+  log: EventLogger,
+  commentId: string,
+): Promise<void> =>
+  publishEvent(log, commentFeaturedTopic, {
+    commentId,
   });
 
 export const notifyCommentsUpdate = async (

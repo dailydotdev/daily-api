@@ -10,6 +10,10 @@ export const crons: CronPubSub[] = [
     schedule: '0 7 * * *',
   },
   {
+    name: 'update-featured-comments',
+    schedule: '*/10 * * * *',
+  },
+  {
     name: 'update-views',
     schedule: '*/10 * * * *',
   },

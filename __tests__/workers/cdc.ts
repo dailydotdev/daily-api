@@ -327,6 +327,7 @@ describe('comment', () => {
     parentId: null,
     comments: 0,
     upvotes: 0,
+    featured: false,
     createdAt: 0,
     lastUpdatedAt: 0,
   };
