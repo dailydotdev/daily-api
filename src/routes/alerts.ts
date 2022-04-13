@@ -8,6 +8,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         filter
         rankLastSeen
         myFeed
+        companionHelper
       }
     }`;
 

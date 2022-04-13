@@ -14,10 +14,14 @@ export class Alerts {
 
   @Column({ type: 'text', default: null })
   myFeed: string;
+
+  @Column({ type: 'bool', default: true })
+  companionHelper: boolean;
 }
 
 export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
   filter: true,
   rankLastSeen: null,
   myFeed: null,
+  companionHelper: true,
 };
