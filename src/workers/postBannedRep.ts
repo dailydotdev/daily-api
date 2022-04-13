@@ -18,40 +18,44 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     const { id, authorId } = data.post;
     try {
-      const reports = await con.getRepository(PostReport).find({ postId: id });
-      const userIds = reports.map(({ userId }) => userId);
-      const repo = con.getRepository(ReputationEvent);
-      const events = userIds.map((userId) =>
-        repo.create({
-          grantToId: userId,
-          grantById: null,
-          targetId: id,
-          targetType: ReputationType.Post,
-          reason: ReputationReason.PostReportConfirmed,
-        }),
-      );
-      if (authorId) {
-        const authorEvent = repo.create({
-          grantToId: authorId,
-          targetId: id,
-          targetType: ReputationType.Post,
-          reason: ReputationReason.PostBanned,
-        });
-        events.push(authorEvent);
-      }
-      await repo
-        .createQueryBuilder()
-        .insert()
-        .values(events)
-        .orIgnore()
-        .execute();
-      logger.info(
-        {
-          data,
-          messageId: message.messageId,
-        },
-        'increased reputation due to post banned or removed',
-      );
+      await con.transaction(async (transaction) => {
+        const reports = await transaction
+          .getRepository(PostReport)
+          .find({ postId: id });
+        const userIds = reports.map(({ userId }) => userId);
+        const repo = transaction.getRepository(ReputationEvent);
+        const events = userIds.map((userId) =>
+          repo.create({
+            grantToId: userId,
+            grantById: null,
+            targetId: id,
+            targetType: ReputationType.Post,
+            reason: ReputationReason.PostReportConfirmed,
+          }),
+        );
+        if (authorId) {
+          const authorEvent = repo.create({
+            grantToId: authorId,
+            targetId: id,
+            targetType: ReputationType.Post,
+            reason: ReputationReason.PostBanned,
+          });
+          events.push(authorEvent);
+        }
+        await repo
+          .createQueryBuilder()
+          .insert()
+          .values(events)
+          .orIgnore()
+          .execute();
+        logger.info(
+          {
+            data,
+            messageId: message.messageId,
+          },
+          'increased reputation due to post banned or removed',
+        );
+      });
     } catch (err) {
       logger.error(
         {
