@@ -1,3 +1,4 @@
+import { ReputationEvent } from './../../src/entity/ReputationEvent';
 import { Connection, getConnection } from 'typeorm';
 
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
@@ -37,12 +38,14 @@ beforeEach(async () => {
   ]);
 });
 
-it('should increase reputation and notify', async () => {
+it('should create a reputation event that increases reputation', async () => {
   const post = await con.getRepository(Post).findOne('p1');
   await expectSuccessfulBackground(worker, {
     post,
   });
-  const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-  expect(users[0].reputation).toEqual(103);
-  expect(users[1].reputation).toEqual(106);
+  const events = await con
+    .getRepository(ReputationEvent)
+    .find({ where: { targetId: 'p1', grantById: null } });
+  expect(events[0].amount).toEqual(100);
+  expect(events[1].amount).toEqual(100);
 });
