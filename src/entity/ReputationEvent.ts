@@ -52,7 +52,7 @@ export class ReputationEvent {
   @PrimaryColumn({ length: 36 })
   targetType: ReputationType;
 
-  @Column({ type: 'int' })
+  @Column()
   amount: number;
 
   @Column({ default: () => 'now()' })
