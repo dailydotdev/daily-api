@@ -31,7 +31,7 @@ const reputationReasonAmount: Record<ReputationReason, number> = {
 };
 
 export const REPUTATION_THRESHOLD = parseInt(
-  process.env.REPUTATION_THRESHOLD || '50',
+  process.env.REPUTATION_THRESHOLD || '250',
 );
 
 @Entity()
