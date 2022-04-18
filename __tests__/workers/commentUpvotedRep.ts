@@ -60,10 +60,8 @@ it('should not create a reputation event when the upvoting user is ineligible', 
     userId: '2',
     commentId: 'c1',
   });
-  const event = await con
-    .getRepository(ReputationEvent)
-    .findOne({ where: { targetId: 'c1', grantById: '2', grantToId: '1' } });
-  expect(event).toEqual(undefined);
+  const events = await con.getRepository(ReputationEvent).find();
+  expect(events.length).toEqual(0);
 });
 
 it('should not create a reputation event when the author is the upvote user', async () => {
@@ -72,8 +70,6 @@ it('should not create a reputation event when the author is the upvote user', as
     commentId: 'c1',
   });
 
-  const event = await con
-    .getRepository(ReputationEvent)
-    .findOne({ where: { targetId: 'c1', grantById: '2', grantToId: '1' } });
-  expect(event).toEqual(undefined);
+  const events = await con.getRepository(ReputationEvent).find();
+  expect(events.length).toEqual(0);
 });

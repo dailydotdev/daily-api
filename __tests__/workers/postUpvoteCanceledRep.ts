@@ -47,12 +47,6 @@ it('should delete the reputation event relevant to granting of reputation', asyn
     userId: '2',
     postId: 'p1',
   });
-  const deleted = await repo.findOne({
-    grantById: '2',
-    grantToId: '1',
-    targetId: 'p1',
-    targetType: ReputationType.Post,
-    reason: ReputationReason.PostUpvoted,
-  });
-  expect(deleted).toEqual(undefined);
+  const events = await repo.find();
+  expect(events.length).toEqual(0);
 });
