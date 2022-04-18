@@ -92,7 +92,7 @@ createKubernetesSecretFromRecord({
   namespace,
 });
 
-const image = `gcr.io/daily-ops/daily-${name}:${imageTag}`;
+const image = `us.gcr.io/daily-ops/daily-${name}:${imageTag}`;
 
 const k8sServiceAccount = bindK8sServiceAccountToGCP(
   '',

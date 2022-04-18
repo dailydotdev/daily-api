@@ -74,10 +74,12 @@ jobs:
       - gcp-gcr/build-image:
           image: $CIRCLE_PROJECT_REPONAME
           tag: $CIRCLE_SHA1
+          registry-url: us.gcr.io
       - gcp-gcr/gcr-auth
       - gcp-gcr/push-image:
           image: $CIRCLE_PROJECT_REPONAME
           tag: $CIRCLE_SHA1
+          registry-url: us.gcr.io
   pulumi_preview:
     docker:
       - image: circleci/node:14
@@ -154,6 +156,7 @@ workflows:
           image: $CIRCLE_PROJECT_REPONAME
           source-tag: $CIRCLE_SHA1
           target-tag: latest
+          registry-url: us.gcr.io
           filters:
             branches:
               only:
