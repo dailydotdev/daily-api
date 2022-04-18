@@ -103,8 +103,8 @@ export const workers: Worker[] = [
     subscription: 'post-banned-email',
   },
   {
-    topic: 'source-request-approved',
-    subscription: 'source-request-approved-rep',
+    topic: 'pub-request',
+    subscription: 'pub-request-rep',
   },
   {
     topic: 'views',

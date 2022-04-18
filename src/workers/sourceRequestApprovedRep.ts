@@ -8,14 +8,20 @@ import { SourceRequest } from '../entity';
 import { ChangeObject } from '../types';
 
 interface Data {
-  request: ChangeObject<SourceRequest>;
+  type: string;
+  pubRequest: ChangeObject<SourceRequest>;
 }
 
 const worker: Worker = {
-  subscription: 'source-request-approved-rep',
+  subscription: 'pub-request-rep',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
-    const { id, userId } = data.request;
+
+    if (data.type !== 'approve') {
+      return;
+    }
+
+    const { id, userId } = data.pubRequest;
     try {
       const repo = con.getRepository(ReputationEvent);
       const event = repo.create({

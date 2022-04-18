@@ -29,7 +29,6 @@ import {
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
   notifySourceRequest,
-  notifySourceApproved,
   notifySettingsUpdated,
   notifyUserReputationUpdated,
   increaseReputation,
@@ -67,7 +66,6 @@ const onSourceRequestChange = async (
     } else if (!data.payload.before.approved && data.payload.after.approved) {
       // Source request approved
       await notifySourceRequest(logger, 'approve', data.payload.after);
-      await notifySourceApproved(logger, data.payload.after);
     }
   }
 };

@@ -5,7 +5,6 @@ import {
   ReputationReason,
 } from './../../src/entity/ReputationEvent';
 import {
-  notifySourceApproved,
   notifySourceRequest,
   notifyPostUpvoted,
   notifyPostUpvoteCanceled,
@@ -230,26 +229,6 @@ describe('source request', () => {
     expect(notifySourceRequest).toBeCalledTimes(1);
     expect(mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
       'approve',
-      after,
-    ]);
-  });
-
-  it('should notify reputation change on source request approve', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      approved: true,
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: base,
-        op: 'u',
-        table: 'source_request',
-      }),
-    );
-    expect(notifySourceApproved).toBeCalledTimes(1);
-    expect(mocked(notifySourceApproved).mock.calls[0].slice(1)).toEqual([
       after,
     ]);
   });

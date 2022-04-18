@@ -6,7 +6,6 @@ import { ChangeObject } from '../types';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
-const sourceApprovedTopic = pubsub.topic('source-request-approved');
 const postUpvotedTopic = pubsub.topic('post-upvoted');
 const postUpvoteCanceledTopic = pubsub.topic('post-upvote-canceled');
 const commentUpvotedTopic = pubsub.topic('comment-upvoted');
@@ -61,12 +60,6 @@ export const notifySourceRequest = async (
     type: reason,
     pubRequest: toLegacySourceRequest(sourceReq),
   });
-
-export const notifySourceApproved = async (
-  log: EventLogger,
-  sourceReq: ChangeObject<SourceRequest>,
-): Promise<void> =>
-  publishEvent(log, sourceApprovedTopic, { request: sourceReq });
 
 export const notifyPostUpvoted = async (
   log: EventLogger,
