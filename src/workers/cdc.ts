@@ -32,6 +32,7 @@ import {
   notifySettingsUpdated,
   notifyUserReputationUpdated,
   increaseReputation,
+  decreaseReputation,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -297,19 +298,6 @@ const onFeedChange = async (
   }
 };
 
-const getNegativeAmount = (amount: number, user: User) => {
-  const positiveAmount = Math.abs(amount);
-  const difference = user.reputation - positiveAmount;
-
-  if (difference >= 0) {
-    return amount;
-  }
-
-  const result = positiveAmount - Math.abs(difference);
-
-  return result * -1;
-};
-
 const onReputationEventChange = async (
   con: Connection,
   logger: FastifyLoggerInstance,
@@ -317,17 +305,10 @@ const onReputationEventChange = async (
 ) => {
   if (data.payload.op === 'c') {
     const entity = data.payload.after;
-    const { amount } = entity;
-    if (amount > 0) {
-      await increaseReputation(con, logger, entity.grantToId, amount);
-    } else {
-      const user = await con.getRepository(User).findOne(entity.grantToId);
-      const result = getNegativeAmount(amount, user);
-      await increaseReputation(con, logger, entity.grantToId, result);
-    }
+    await increaseReputation(con, logger, entity.grantToId, entity.amount);
   } else if (data.payload.op === 'd') {
     const entity = data.payload.before;
-    await increaseReputation(con, logger, entity.grantToId, -entity.amount);
+    await decreaseReputation(con, logger, entity.grantToId, entity.amount);
   }
 };
 
