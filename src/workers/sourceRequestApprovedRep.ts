@@ -19,7 +19,6 @@ const worker: Worker = {
     try {
       const repo = con.getRepository(ReputationEvent);
       const event = repo.create({
-        grantById: '',
         grantToId: userId,
         targetId: id,
         targetType: ReputationType.Source,
