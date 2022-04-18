@@ -4,7 +4,6 @@ import {
   PrimaryColumn,
   Column,
   BeforeInsert,
-  Index,
 } from 'typeorm';
 import { User } from './User';
 
@@ -36,9 +35,8 @@ export const REPUTATION_THRESHOLD = parseInt(
 
 @Entity()
 export class ReputationEvent {
-  @Index({ unique: true })
-  @Column({ length: 36, default: null })
-  grantById: string | null;
+  @PrimaryColumn({ length: 36, default: '' })
+  grantById: string;
 
   @PrimaryColumn({ length: 36 })
   grantToId: string;
@@ -62,13 +60,7 @@ export class ReputationEvent {
     lazy: true,
     onDelete: 'CASCADE',
   })
-  grantByUser: Promise<User | null>;
-
-  @ManyToOne(() => User, {
-    lazy: true,
-    onDelete: 'CASCADE',
-  })
-  grantToUser: Promise<User>;
+  grantTo: Promise<User>;
 
   @BeforeInsert()
   setAmount(): void {

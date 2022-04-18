@@ -45,7 +45,7 @@ it('should create a reputation event that increases reputation', async () => {
   });
   const events = await con
     .getRepository(ReputationEvent)
-    .find({ where: { targetId: 'p1', grantById: null } });
+    .find({ where: { targetId: 'p1', grantById: '' } });
   expect(events[0].amount).toEqual(100);
   expect(events[1].amount).toEqual(100);
 });
