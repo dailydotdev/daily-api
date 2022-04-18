@@ -33,18 +33,10 @@ const worker: Worker = {
           .findOne(data.userId);
 
         if (comment.userId === grantBy.id) {
-          logger.info(
-            logDetails,
-            `upvoting own comment won't grant reputation`,
-          );
           return;
         }
 
         if (grantBy.reputation < REPUTATION_THRESHOLD) {
-          logger.info(
-            logDetails,
-            `upvoter's reputation doesn't meet the threshold to grant reputation`,
-          );
           return;
         }
 
