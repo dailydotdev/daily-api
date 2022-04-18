@@ -1,8 +1,4 @@
-import {
-  ReputationEvent,
-  ReputationType,
-  ReputationReason,
-} from './../entity/ReputationEvent';
+import { ReputationEvent } from './../entity/ReputationEvent';
 import { CommentMention } from './../entity/CommentMention';
 import { messageToJson, Worker } from './worker';
 import {
@@ -33,6 +29,7 @@ import {
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
   notifySourceRequest,
+  notifySourceApproved,
   notifySettingsUpdated,
   notifyUserReputationUpdated,
   increaseReputation,
@@ -70,20 +67,7 @@ const onSourceRequestChange = async (
     } else if (!data.payload.before.approved && data.payload.after.approved) {
       // Source request approved
       await notifySourceRequest(logger, 'approve', data.payload.after);
-      const repo = con.getRepository(ReputationEvent);
-      const event = repo.create({
-        grantById: null,
-        grantToId: data.payload.after.userId,
-        targetId: data.payload.after.id,
-        targetType: ReputationType.Source,
-        reason: ReputationReason.SourceRequestApproved,
-      });
-      await repo
-        .createQueryBuilder()
-        .insert()
-        .values(event)
-        .orIgnore()
-        .execute();
+      await notifySourceApproved(logger, data.payload.after);
     }
   }
 };
