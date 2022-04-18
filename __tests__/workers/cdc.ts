@@ -231,6 +231,27 @@ describe('source request', () => {
       after,
     ]);
   });
+
+  it('should notify reputation change on source request approve', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      approved: true,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'source_request',
+      }),
+    );
+    expect(notifySourceRequest).toBeCalledTimes(1);
+    expect(mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
+      'approve',
+      after,
+    ]);
+  });
 });
 
 describe('reputation event', () => {
