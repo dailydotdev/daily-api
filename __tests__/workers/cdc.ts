@@ -5,6 +5,7 @@ import {
   ReputationReason,
 } from './../../src/entity/ReputationEvent';
 import {
+  notifySourceApproved,
   notifySourceRequest,
   notifyPostUpvoted,
   notifyPostUpvoteCanceled,
@@ -58,6 +59,7 @@ import { Alerts } from '../../src/entity';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
+  notifySourceApproved: jest.fn(),
   notifySourceRequest: jest.fn(),
   notifyPostUpvoted: jest.fn(),
   notifyPostUpvoteCanceled: jest.fn(),
@@ -246,9 +248,8 @@ describe('source request', () => {
         table: 'source_request',
       }),
     );
-    expect(notifySourceRequest).toBeCalledTimes(1);
-    expect(mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
-      'approve',
+    expect(notifySourceApproved).toBeCalledTimes(1);
+    expect(mocked(notifySourceApproved).mock.calls[0].slice(1)).toEqual([
       after,
     ]);
   });
