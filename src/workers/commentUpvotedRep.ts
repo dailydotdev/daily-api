@@ -32,11 +32,10 @@ const worker: Worker = {
           .getRepository(User)
           .findOne(data.userId);
 
-        if (comment.userId === grantBy.id) {
-          return;
-        }
-
-        if (grantBy.reputation < REPUTATION_THRESHOLD) {
+        if (
+          comment.userId === grantBy.id ||
+          grantBy.reputation < REPUTATION_THRESHOLD
+        ) {
           return;
         }
 
