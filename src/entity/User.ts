@@ -28,7 +28,7 @@ export class User {
   @Column({ default: false })
   acceptedMarketing: boolean;
 
-  @Column({ default: 1 })
+  @Column({ default: 10 })
   reputation: number;
 
   @Column({ length: 15, nullable: true })
