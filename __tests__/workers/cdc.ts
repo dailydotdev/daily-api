@@ -966,3 +966,70 @@ describe('source feed', () => {
     ]);
   });
 });
+
+describe('reputation event', () => {
+  type ObjectType = ReputationEvent;
+  const base: ChangeObject<ObjectType> = {
+    amount: 50,
+    grantToId: '1',
+    reason: ReputationReason.CommentUpvoted,
+    targetType: ReputationType.Comment,
+    targetId: 'c1',
+    timestamp: Date.now(),
+    grantById: '',
+  };
+
+  it('should update user reputation on create', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await saveFixtures(con, User, [defaultUser]);
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'reputation_event',
+      }),
+    );
+    const user = await con.getRepository(User).findOne(defaultUser.id);
+    expect(user.reputation).toEqual(55);
+  });
+
+  it('should not turn user reputation to negative', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      reason: ReputationReason.PostBanned,
+      targetType: ReputationType.Post,
+      targetId: 'p1',
+      amount: -100,
+    };
+    await saveFixtures(con, User, [defaultUser]);
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'reputation_event',
+      }),
+    );
+    const user = await con.getRepository(User).findOne(defaultUser.id);
+    expect(user.reputation).toEqual(0);
+  });
+
+  it('should update user reputation on delete', async () => {
+    const updatedUser = { ...defaultUser, reputation: 55 };
+    await saveFixtures(con, User, [updatedUser]);
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: null,
+        before: base,
+        op: 'd',
+        table: 'reputation_event',
+      }),
+    );
+    const user = await con.getRepository(User).findOne(defaultUser.id);
+    expect(user.reputation).toEqual(5);
+  });
+});
