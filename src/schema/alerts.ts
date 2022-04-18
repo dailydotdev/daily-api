@@ -36,6 +36,13 @@ export const typeDefs = /* GraphQL */ `
     null: The user clicked to not show the alert anymore
     """
     myFeed: String
+
+    """
+    Wether to show the companion helper
+    Default = true, meaning yes show it
+    Once the user has seen it once, we set this value to false
+    """
+    companionHelper: Boolean!
   }
 
   input UpdateAlertsInput {
@@ -53,6 +60,11 @@ export const typeDefs = /* GraphQL */ `
     Status for the My Feed alert
     """
     myFeed: String
+
+    """
+    Status to display for companion helper
+    """
+    companionHelper: Boolean
   }
 
   extend type Mutation {
