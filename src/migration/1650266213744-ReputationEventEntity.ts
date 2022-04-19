@@ -13,9 +13,15 @@ export class ReputationEventEntity1650266213744 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "reputation_event" REPLICA IDENTITY FULL`,
     );
+    await queryRunner.query(
+      `ALTER TABLE "user" ALTER COLUMN "reputation" SET DEFAULT '10'`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "user" ALTER COLUMN "reputation" SET DEFAULT '1'`,
+    );
     await queryRunner.query(
       `ALTER TABLE "reputation_event" REPLICA IDENTITY DEFAULT`,
     );
