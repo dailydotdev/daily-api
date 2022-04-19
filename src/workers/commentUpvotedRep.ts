@@ -41,7 +41,7 @@ const worker: Worker = {
 
         const repo = transaction.getRepository(ReputationEvent);
         const event = repo.create({
-          grantById: data.userId,
+          grantById: grantBy.id,
           grantToId: comment.userId,
           targetId: comment.id,
           targetType: ReputationType.Comment,

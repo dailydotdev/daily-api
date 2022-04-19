@@ -22,9 +22,8 @@ const worker: Worker = {
         const reports = await transaction
           .getRepository(PostReport)
           .find({ postId: id });
-        const userIds = reports.map(({ userId }) => userId);
         const repo = transaction.getRepository(ReputationEvent);
-        const events = userIds.map((userId) =>
+        const events = reports.map(({ userId }) =>
           repo.create({
             grantToId: userId,
             targetId: id,
