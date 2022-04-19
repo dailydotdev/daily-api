@@ -36,10 +36,20 @@ beforeEach(async () => {
 
 it('should create a reputation event that increases reputation', async () => {
   await expectSuccessfulBackground(worker, {
-    request: { id, userId: '1' },
+    pubRequest: { id, userId: '1' },
+    type: 'approve',
   });
   const event = await con
     .getRepository(ReputationEvent)
     .findOne({ where: { targetId: id, grantById: '', grantToId: '1' } });
   expect(event.amount).toEqual(200);
+});
+
+it('should not create a reputation event that increases reputation when type is not approve', async () => {
+  await expectSuccessfulBackground(worker, {
+    pubRequest: { id, userId: '1' },
+    type: 'publish',
+  });
+  const event = await con.getRepository(ReputationEvent).find();
+  expect(event.length).toEqual(0);
 });
