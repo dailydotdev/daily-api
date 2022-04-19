@@ -58,7 +58,6 @@ import { Alerts } from '../../src/entity';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
-  notifySourceApproved: jest.fn(),
   notifySourceRequest: jest.fn(),
   notifyPostUpvoted: jest.fn(),
   notifyPostUpvoteCanceled: jest.fn(),
@@ -934,6 +933,28 @@ describe('reputation event', () => {
     );
     const user = await con.getRepository(User).findOne(defaultUser.id);
     expect(user.reputation).toEqual(0);
+  });
+
+  it('should correctly revert user reputation with negative amount', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      reason: ReputationReason.PostBanned,
+      targetType: ReputationType.Post,
+      targetId: 'p1',
+      amount: -100,
+    };
+    await saveFixtures(con, User, [defaultUser]);
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: null,
+        before: after,
+        op: 'd',
+        table: 'reputation_event',
+      }),
+    );
+    const user = await con.getRepository(User).findOne(defaultUser.id);
+    expect(user.reputation).toEqual(105);
   });
 
   it('should update user reputation on delete', async () => {
