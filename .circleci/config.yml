@@ -74,10 +74,12 @@ jobs:
       - gcp-gcr/build-image:
           image: $CIRCLE_PROJECT_REPONAME
           tag: $CIRCLE_SHA1
+          registry-url: us.gcr.io
       - gcp-gcr/gcr-auth
       - gcp-gcr/push-image:
           image: $CIRCLE_PROJECT_REPONAME
           tag: $CIRCLE_SHA1
+          registry-url: us.gcr.io
   pulumi_preview:
     docker:
       - image: circleci/node:14
@@ -90,7 +92,7 @@ jobs:
           working_directory: infra
       - run:
           name: Pulumi preview
-          command: pulumi preview --suppress-outputs --stack prod -c tag=$CIRCLE_SHA1
+          command: pulumi preview --suppress-outputs --stack dailydotdev/prod -c tag=$CIRCLE_SHA1
           working_directory: infra
   pulumi_up:
     docker:
@@ -109,11 +111,11 @@ jobs:
           working_directory: infra
       - run:
           name: Pulumi refresh
-          command: pulumi refresh -y --suppress-outputs --stack prod
+          command: pulumi refresh -y --suppress-outputs --stack dailydotdev/prod
           working_directory: infra
       - run:
           name: Pulumi up
-          command: pulumi up -y --suppress-outputs --stack prod -c tag=$CIRCLE_SHA1
+          command: pulumi up -y --suppress-outputs --stack dailydotdev/prod -c tag=$CIRCLE_SHA1
           working_directory: infra
 workflows:
   build:
@@ -154,6 +156,7 @@ workflows:
           image: $CIRCLE_PROJECT_REPONAME
           source-tag: $CIRCLE_SHA1
           target-tag: latest
+          registry-url: us.gcr.io
           filters:
             branches:
               only:
