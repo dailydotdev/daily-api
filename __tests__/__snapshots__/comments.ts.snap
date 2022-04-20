@@ -92,6 +92,11 @@ Array [
 ]
 `;
 
+exports[`query commentPreview should only render markdown not HTML 1`] = `
+"<h1>Test &lt;button&gt;Test&lt;/button&gt;</h1>
+"
+`;
+
 exports[`query commentPreview should return markdown equivalent of the content 1`] = `
 "<h1>Test</h1>
 "

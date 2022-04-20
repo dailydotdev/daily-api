@@ -4,7 +4,7 @@ import { getUserProfileUrl } from './users';
 import { User } from '../entity';
 
 export const markdown: MarkdownIt = MarkdownIt({
-  html: true,
+  html: false,
   linkify: true,
   typographer: true,
   highlight: function (str, lang) {
