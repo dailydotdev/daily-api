@@ -270,6 +270,15 @@ describe('query commentPreview', () => {
     expect(withMention.errors).toBeFalsy();
     expect(withMention.data.commentPreview).toMatchSnapshot();
   });
+
+  it('should only render markdown not HTML', async () => {
+    loggedUser = '1';
+    await saveCommentMentionFixtures();
+    const content = '# Test <button>Test</button>';
+    const res = await client.query(QUERY, { variables: { content } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.commentPreview).toMatchSnapshot();
+  });
 });
 
 describe('query recommendedMentions', () => {
@@ -278,7 +287,7 @@ describe('query recommendedMentions', () => {
       recommendedMentions(postId: $postId, query: $query, limit: $limit) {
         name
         username
-        image      
+        image
       }
     }
   `;
