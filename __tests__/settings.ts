@@ -50,6 +50,7 @@ describe('query userSettings', () => {
     showOnlyUnreadPosts
     openNewTab
     sidebarExpanded
+    companionExpanded
     sortingEnabled
     customLinks
     optOutWeeklyGoal
@@ -144,6 +145,7 @@ describe('mutation updateUserSettings', () => {
     showOnlyUnreadPosts
     openNewTab
     sidebarExpanded
+    companionExpanded
     sortingEnabled
     customLinks
     optOutWeeklyGoal

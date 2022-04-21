@@ -792,6 +792,7 @@ describe('settings', () => {
     showOnlyUnreadPosts: false,
     openNewTab: true,
     sidebarExpanded: true,
+    companionExpanded: true,
     sortingEnabled: false,
     customLinks: null,
     optOutWeeklyGoal: false,
