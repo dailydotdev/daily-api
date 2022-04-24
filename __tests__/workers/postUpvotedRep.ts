@@ -1,5 +1,5 @@
+import { ReputationEvent } from './../../src/entity/ReputationEvent';
 import { Connection, getConnection } from 'typeorm';
-
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postUpvotedRep';
 import { Post, Source, User } from '../../src/entity';
@@ -23,24 +23,47 @@ beforeEach(async () => {
       image: 'https://daily.dev/ido.jpg',
       reputation: 3,
     },
+    {
+      id: '2',
+      name: 'Lee',
+      image: 'https://daily.dev/lee.jpg',
+      reputation: 251,
+    },
   ]);
   await con.getRepository(Post).update('p1', { authorId: '1' });
 });
 
-it('should increase reputation and notify', async () => {
+it('should create a reputation event that increases reputation', async () => {
   await expectSuccessfulBackground(worker, {
     userId: '2',
     postId: 'p1',
   });
-  const user = await con.getRepository(User).findOne('1');
-  expect(user.reputation).toEqual(4);
+  const event = await con
+    .getRepository(ReputationEvent)
+    .findOne({ where: { targetId: 'p1', grantById: '2', grantToId: '1' } });
+  expect(event.amount).toEqual(10);
 });
 
-it('should not increase reputation when the author is the upvote user', async () => {
+it('should not create a reputation event when the upvoting user is ineligible', async () => {
+  await con.getRepository(User).update({ id: '2' }, { reputation: 249 });
+  await expectSuccessfulBackground(worker, {
+    userId: '2',
+    postId: 'p1',
+  });
+  const event = await con
+    .getRepository(ReputationEvent)
+    .findOne({ where: { targetId: 'p1', grantById: '2', grantToId: '1' } });
+  expect(event).toEqual(undefined);
+});
+
+it('should not create a reputation event when the author is the upvote user', async () => {
   await expectSuccessfulBackground(worker, {
     userId: '1',
     postId: 'p1',
   });
-  const user = await con.getRepository(User).findOne('1');
-  expect(user.reputation).toEqual(3);
+
+  const event = await con
+    .getRepository(ReputationEvent)
+    .findOne({ where: { targetId: 'p1', grantById: '2', grantToId: '1' } });
+  expect(event).toEqual(undefined);
 });

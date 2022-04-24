@@ -6,7 +6,6 @@ import updateUser from './updateUser';
 import commentUpvoted from './commentUpvoted';
 import commentCommented from './commentCommented';
 import commentUpvotedRep from './commentUpvotedRep';
-import commentFeaturedRep from './commentFeaturedRep';
 import commentUpvoteCanceledRep from './commentUpvoteCanceledRep';
 import commentCommentedThread from './commentCommentedThread';
 import commentFeaturedMail from './commentFeaturedMail';
@@ -24,6 +23,7 @@ import postCommentedRedis from './postCommentedRedis';
 import postUpvotedRedis from './postUpvotedRedis';
 import postBannedRep from './postBannedRep';
 import postBannedEmail from './postBannedEmail';
+import sourceRequestApprovedRep from './sourceRequestApprovedRep';
 import checkDevCardEligibility from './checkDevCardEligibility';
 import devCardEligibleAmplitude from './devCardEligibleAmplitude';
 import devCardEligibleEmail from './devCardEligibleEmail';
@@ -43,7 +43,6 @@ export const workers: Worker[] = [
   commentUpvoted,
   commentCommented,
   commentUpvotedRep,
-  commentFeaturedRep,
   commentUpvoteCanceledRep,
   commentCommentedThread,
   commentFeaturedMail,
@@ -61,6 +60,7 @@ export const workers: Worker[] = [
   postUpvotedRedis,
   postBannedRep,
   postBannedEmail,
+  sourceRequestApprovedRep,
   checkDevCardEligibility,
   devCardEligibleAmplitude,
   devCardEligibleEmail,

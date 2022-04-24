@@ -1,4 +1,4 @@
-import { Connection, In } from 'typeorm';
+import { Connection } from 'typeorm';
 import { EventLogger } from './pubsub';
 import { User } from '../entity';
 
@@ -8,16 +8,24 @@ export const increaseReputation = async (
   userId: string,
   delta: number,
 ): Promise<void> => {
-  const repo = con.getRepository(User);
-  await repo.increment({ id: userId }, 'reputation', delta);
+  await con
+    .createQueryBuilder()
+    .update(User)
+    .set({ reputation: () => `greatest(0, reputation + ${delta})` })
+    .where({ id: userId })
+    .execute();
 };
 
-export const increaseMultipleReputation = async (
+export const decreaseReputation = async (
   con: Connection,
   log: EventLogger,
-  userIds: string[],
+  userId: string,
   delta: number,
 ): Promise<void> => {
-  const repo = con.getRepository(User);
-  await repo.increment({ id: In(userIds) }, 'reputation', delta);
+  await con
+    .createQueryBuilder()
+    .update(User)
+    .set({ reputation: () => `greatest(0, reputation - ${delta})` })
+    .where({ id: userId })
+    .execute();
 };

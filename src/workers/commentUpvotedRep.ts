@@ -1,6 +1,11 @@
+import {
+  ReputationEvent,
+  ReputationReason,
+  ReputationType,
+  REPUTATION_THRESHOLD,
+} from './../entity/ReputationEvent';
 import { messageToJson, Worker } from './worker';
-import { Comment } from '../entity';
-import { increaseReputation } from '../common';
+import { Comment, User } from '../entity';
 
 interface Data {
   userId: string;
@@ -11,35 +16,48 @@ const worker: Worker = {
   subscription: 'comment-upvoted-rep',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
+    const logDetails = { data, messageId: message.messageId };
     try {
-      const comment = await con.getRepository(Comment).findOne(data.commentId);
-      if (!comment) {
-        logger.info(
-          {
-            data,
-            messageId: message.messageId,
-          },
-          'comment does not exist',
-        );
-        return;
-      }
-      if (comment.userId !== data.userId) {
-        await increaseReputation(con, logger, comment.userId, 1);
-        logger.info(
-          {
-            data,
-            messageId: message.messageId,
-          },
-          'increased reputation due to upvote',
-        );
-      }
+      await con.transaction(async (transaction) => {
+        const comment = await transaction
+          .getRepository(Comment)
+          .findOne(data.commentId);
+
+        if (!comment) {
+          logger.info(logDetails, 'comment does not exist');
+          return;
+        }
+
+        const grantBy = await transaction
+          .getRepository(User)
+          .findOne(data.userId);
+
+        if (
+          comment.userId === grantBy.id ||
+          grantBy.reputation < REPUTATION_THRESHOLD
+        ) {
+          return;
+        }
+
+        const repo = transaction.getRepository(ReputationEvent);
+        const event = repo.create({
+          grantById: grantBy.id,
+          grantToId: comment.userId,
+          targetId: comment.id,
+          targetType: ReputationType.Comment,
+          reason: ReputationReason.CommentUpvoted,
+        });
+        await repo
+          .createQueryBuilder()
+          .insert()
+          .values(event)
+          .orIgnore()
+          .execute();
+        logger.info(logDetails, 'increased reputation due to upvote');
+      });
     } catch (err) {
       logger.error(
-        {
-          data,
-          messageId: message.messageId,
-          err,
-        },
+        { ...logDetails, err },
         'failed to increase reputation due to upvote',
       );
     }
