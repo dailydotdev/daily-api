@@ -128,8 +128,6 @@ const limits: pulumi.Input<{
 
 const probe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
-  initialDelaySeconds: 30,
-  timeoutSeconds: 20,
 };
 
 const { labels } = createAutoscaledExposedApplication({
