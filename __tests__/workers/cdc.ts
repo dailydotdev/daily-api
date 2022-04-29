@@ -801,6 +801,7 @@ describe('settings', () => {
     customLinks: null,
     optOutWeeklyGoal: false,
     optOutCompanion: false,
+    autoDismissNotifications: true,
     updatedAt: date.getTime(),
   };
 

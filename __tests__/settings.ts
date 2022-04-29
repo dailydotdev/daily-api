@@ -54,6 +54,7 @@ describe('query userSettings', () => {
     customLinks
     optOutWeeklyGoal
     optOutCompanion
+    autoDismissNotifications
   }
 }`;
 
