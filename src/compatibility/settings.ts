@@ -28,6 +28,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     sidebarExpanded
     sortingEnabled
     customLinks
+    autoDismissNotifications
   }
 }`;
     return injectGraphql(

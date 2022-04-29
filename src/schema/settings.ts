@@ -17,6 +17,7 @@ interface GQLSettings {
   openNewTab: boolean;
   sidebarExpanded: boolean;
   sortingEnabled: boolean;
+  autoDismissNotifications: boolean;
   updatedAt: Date;
 }
 
@@ -35,6 +36,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   openNewTab?: boolean;
   sidebarExpanded?: boolean;
   sortingEnabled?: boolean;
+  autoDismissNotifications?: boolean;
   customLinks?: string[];
 }
 
@@ -114,6 +116,11 @@ export const typeDefs = /* GraphQL */ `
     optOutCompanion: Boolean!
 
     """
+    Whether to automatically dismiss notifications
+    """
+    autoDismissNotifications: Boolean!
+
+    """
     Time of last update
     """
     updatedAt: DateTime!
@@ -190,6 +197,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the user opted out from the companion app
     """
     optOutCompanion: Boolean
+
+    """
+    Whether to automatically dismiss notifications
+    """
+    autoDismissNotifications: Boolean
   }
 
   extend type Mutation {
