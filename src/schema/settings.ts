@@ -16,6 +16,7 @@ interface GQLSettings {
   showOnlyUnreadPosts: boolean;
   openNewTab: boolean;
   sidebarExpanded: boolean;
+  companionExpanded: boolean;
   sortingEnabled: boolean;
   updatedAt: Date;
 }
@@ -34,6 +35,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   showOnlyUnreadPosts?: boolean;
   openNewTab?: boolean;
   sidebarExpanded?: boolean;
+  companionExpanded?: boolean;
   sortingEnabled?: boolean;
   customLinks?: string[];
 }
@@ -92,6 +94,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to show the sidebar in expanded form
     """
     sidebarExpanded: Boolean!
+
+    """
+    Whether to show the companion in expanded form
+    """
+    companionExpanded: Boolean
 
     """
     Whether to allow sorting of the feeds
@@ -170,6 +177,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to show the sidebar in expanded form
     """
     sidebarExpanded: Boolean
+
+    """
+    Whether to show the companion in expanded form
+    """
+    companionExpanded: Boolean
 
     """
     Whether to allow sorting of the feeds

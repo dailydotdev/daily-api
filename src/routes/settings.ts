@@ -12,6 +12,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         showOnlyUnreadPosts
         openNewTab
         sidebarExpanded
+        companionExpanded
         sortingEnabled
         customLinks
         optOutWeeklyGoal
