@@ -35,10 +35,6 @@ export const workers: Worker[] = [
     subscription: 'comment-upvoted-rep',
   },
   {
-    topic: 'comment-featured',
-    subscription: 'comment-featured-rep',
-  },
-  {
     topic: 'comment-upvote-canceled',
     subscription: 'comment-upvote-canceled-rep',
   },
@@ -105,6 +101,10 @@ export const workers: Worker[] = [
   {
     topic: 'post-banned-or-removed',
     subscription: 'post-banned-email',
+  },
+  {
+    topic: 'pub-request',
+    subscription: 'pub-request-rep',
   },
   {
     topic: 'views',

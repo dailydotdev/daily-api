@@ -1,3 +1,4 @@
+import { ReputationEvent } from './../../src/entity/ReputationEvent';
 import { Connection, getConnection } from 'typeorm';
 
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
@@ -21,7 +22,13 @@ beforeEach(async () => {
       id: '1',
       name: 'Ido',
       image: 'https://daily.dev/ido.jpg',
-      reputation: 3,
+      reputation: 53,
+    },
+    {
+      id: '2',
+      name: 'Lee',
+      image: 'https://daily.dev/lee.jpg',
+      reputation: 251,
     },
   ]);
   await con.getRepository(Comment).save([
@@ -36,20 +43,33 @@ beforeEach(async () => {
   ]);
 });
 
-it('should increase reputation and notify', async () => {
+it('should create a reputation event that increases reputation', async () => {
   await expectSuccessfulBackground(worker, {
     userId: '2',
     commentId: 'c1',
   });
-  const user = await con.getRepository(User).findOne('1');
-  expect(user.reputation).toEqual(4);
+  const event = await con
+    .getRepository(ReputationEvent)
+    .findOne({ where: { targetId: 'c1', grantById: '2', grantToId: '1' } });
+  expect(event.amount).toEqual(50);
 });
 
-it('should not increase reputation when the author is the upvote user', async () => {
+it('should not create a reputation event when the upvoting user is ineligible', async () => {
+  await con.getRepository(User).update({ id: '2' }, { reputation: 1 });
+  await expectSuccessfulBackground(worker, {
+    userId: '2',
+    commentId: 'c1',
+  });
+  const events = await con.getRepository(ReputationEvent).find();
+  expect(events.length).toEqual(0);
+});
+
+it('should not create a reputation event when the author is the upvote user', async () => {
   await expectSuccessfulBackground(worker, {
     userId: '1',
     commentId: 'c1',
   });
-  const user = await con.getRepository(User).findOne('1');
-  expect(user.reputation).toEqual(3);
+
+  const events = await con.getRepository(ReputationEvent).find();
+  expect(events.length).toEqual(0);
 });
