@@ -12,6 +12,7 @@ exports[`mutation updateUserSettings should create user settings when does not e
 Object {
   "updateUserSettings": Object {
     "appInsaneMode": true,
+    "companionExpanded": null,
     "customLinks": null,
     "enableCardAnimations": true,
     "insaneMode": true,
@@ -33,6 +34,7 @@ exports[`mutation updateUserSettings should update opt out companion settings 1`
 Object {
   "updateUserSettings": Object {
     "appInsaneMode": true,
+    "companionExpanded": null,
     "customLinks": null,
     "enableCardAnimations": true,
     "insaneMode": false,
@@ -54,6 +56,7 @@ exports[`mutation updateUserSettings should update user links if valid 1`] = `
 Object {
   "updateUserSettings": Object {
     "appInsaneMode": true,
+    "companionExpanded": null,
     "customLinks": Array [
       "http://abc.com",
     ],
@@ -77,6 +80,7 @@ exports[`mutation updateUserSettings should update user settings 1`] = `
 Object {
   "updateUserSettings": Object {
     "appInsaneMode": true,
+    "companionExpanded": null,
     "customLinks": Array [
       "http://abc.com",
     ],
@@ -100,6 +104,7 @@ exports[`query userSettings should create default settings if not exist 1`] = `
 Object {
   "appInsaneMode": true,
   "autoDismissNotifications": true,
+  "companionExpanded": null,
   "customLinks": null,
   "enableCardAnimations": true,
   "insaneMode": false,
