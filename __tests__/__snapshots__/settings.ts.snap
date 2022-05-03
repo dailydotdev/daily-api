@@ -103,6 +103,7 @@ Object {
 exports[`query userSettings should create default settings if not exist 1`] = `
 Object {
   "appInsaneMode": true,
+  "autoDismissNotifications": true,
   "companionExpanded": null,
   "customLinks": null,
   "enableCardAnimations": true,

@@ -51,6 +51,9 @@ export class Settings {
   @Column({ type: 'text', array: true, default: null })
   customLinks: string[];
 
+  @Column({ default: true })
+  autoDismissNotifications: boolean;
+
   @UpdateDateColumn()
   updatedAt: Date;
 }
