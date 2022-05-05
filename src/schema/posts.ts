@@ -384,6 +384,16 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
+    Unhide a post from all the user feeds
+    """
+    unhidePost(
+      """
+      Id of the post to hide
+      """
+      id: ID
+    ): EmptyResponse @auth
+
+    """
     Report a post and hide it from all the user feeds
     """
     reportPost(
@@ -399,6 +409,16 @@ export const typeDefs = /* GraphQL */ `
       Additional comment about report reason
       """
       comment: String
+    ): EmptyResponse @auth
+
+    """
+    Undo a report from post by removing the report itself
+    """
+    removePostReport(
+      """
+      Id of the post to report
+      """
+      id: ID
     ): EmptyResponse @auth
 
     """
@@ -556,6 +576,16 @@ export const resolvers: IResolvers<any, Context> = {
       await saveHiddenPost(ctx.con, { userId: ctx.userId, postId: id });
       return { _: true };
     },
+    unhidePost: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con
+        .getRepository(HiddenPost)
+        .delete({ postId: id, userId: ctx.userId });
+      return { _: true };
+    },
     reportPost: async (
       source,
       { id, reason, comment }: { id: string; reason: string; comment: string },
@@ -590,6 +620,22 @@ export const resolvers: IResolvers<any, Context> = {
           }
         }
       }
+      return { _: true };
+    },
+    removePostReport: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.transaction(async (transaction) => {
+        await transaction
+          .getRepository(HiddenPost)
+          .delete({ postId: id, userId: ctx.userId });
+        await transaction
+          .getRepository(PostReport)
+          .delete({ postId: id, userId: ctx.userId });
+      });
+
       return { _: true };
     },
     deletePost: async (

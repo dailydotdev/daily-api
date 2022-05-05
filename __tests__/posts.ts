@@ -665,6 +665,35 @@ describe('mutation hidePost', () => {
   });
 });
 
+describe('mutation unhidePost', () => {
+  const MUTATION = `
+    mutation UnhidePost($id: ID!) {
+      unhidePost(id: $id) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'p1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should unhide post', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(HiddenPost);
+    await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
+    const initial = await repo.find({ userId: loggedUser });
+    expect(initial.length).toBeGreaterThan(0);
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await repo.find({ userId: loggedUser });
+    expect(actual.length).toEqual(0);
+  });
+});
+
 describe('mutation deletePost', () => {
   const MUTATION = `
   mutation DeletePost($id: ID!) {
@@ -844,6 +873,48 @@ describe('mutation reportPost', () => {
       select: ['postId', 'userId'],
     });
     expect(actual).toMatchSnapshot();
+  });
+});
+
+describe('mutation removePostReport', () => {
+  const MUTATION = `
+    mutation RemovePostReport($id: ID!) {
+      removePostReport(id: $id) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'p1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should unreport post', async () => {
+    loggedUser = '1';
+    const hideRepo = con.getRepository(HiddenPost);
+    await hideRepo.save(hideRepo.create({ postId: 'p1', userId: loggedUser }));
+    const reportRepo = con.getRepository(PostReport);
+    await reportRepo.save(
+      reportRepo.create({
+        postId: 'p1',
+        userId: '1',
+        reason: 'BROKEN',
+        comment: null,
+      }),
+    );
+    const initialHidden = await hideRepo.find({ userId: loggedUser });
+    expect(initialHidden.length).toBeGreaterThan(0);
+    const initialReports = await reportRepo.find({ userId: loggedUser });
+    expect(initialReports.length).toBeGreaterThan(0);
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    const hidden = await hideRepo.find({ userId: loggedUser });
+    const reports = await reportRepo.find({ userId: loggedUser });
+    expect(hidden.length).toEqual(0);
+    expect(reports.length).toEqual(0);
   });
 });
 
