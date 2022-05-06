@@ -18,6 +18,7 @@ const alertsUpdatedTopic = pubsub.topic('alerts-updated');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
+const postScoutMatchedTopic = pubsub.topic('post-scout-matched');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
 const postReachedViewsThresholdTopic = pubsub.topic(
   'post-reached-views-threshold',
@@ -176,6 +177,16 @@ export const notifyPostAuthorMatched = async (
   publishEvent(log, postAuthorMatchedTopic, {
     postId,
     authorId,
+  });
+
+export const notifyScoutMatched = async (
+  log: EventLogger,
+  postId: string,
+  scoutId: string,
+): Promise<void> =>
+  publishEvent(log, postScoutMatchedTopic, {
+    postId,
+    scoutId,
   });
 
 export const notifySendAnalyticsReport = async (

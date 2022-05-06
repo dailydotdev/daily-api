@@ -36,6 +36,7 @@ import {
   increaseReputation,
   decreaseReputation,
   notifySubmissionChanged,
+  notifyScoutMatched,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -206,6 +207,14 @@ const onPostChange = async (
         logger,
         data.payload.after.id,
         data.payload.after.authorId,
+      );
+    }
+
+    if (data.payload.after.scoutId) {
+      await notifyScoutMatched(
+        logger,
+        data.payload.after.id,
+        data.payload.after.scoutId,
       );
     }
   } else if (data.payload.op === 'u') {
