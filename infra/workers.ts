@@ -51,6 +51,10 @@ export const workers: Worker[] = [
     subscription: 'post-author-matched-mail',
   },
   {
+    topic: 'post-scout-matched',
+    subscription: 'post-scout-matched-mail',
+  },
+  {
     topic: 'submission-changed',
     subscription: 'submission-changed-mail',
   },

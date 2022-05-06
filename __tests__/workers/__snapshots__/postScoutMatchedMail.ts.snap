@@ -1,0 +1,34 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`should send post scout matched mail 1`] = `
+Array [
+  Object {
+    "asm": Object {
+      "groupId": 12850,
+    },
+    "category": "Notification",
+    "dynamicTemplateData": Object {
+      "discussion_link": "http://localhost:5002/posts/p1",
+      "post_image": "https://daily.dev/image.jpg",
+      "post_title": "P1",
+      "published_at": "Sep 27, 2020",
+      "source_image": "http://image.com/a",
+    },
+    "from": Object {
+      "email": "informer@daily.dev",
+      "name": "daily.dev",
+    },
+    "replyTo": Object {
+      "email": "hi@daily.dev",
+      "name": "daily.dev",
+    },
+    "templateId": "no available tempalte yet",
+    "to": "lee@acme.com",
+    "trackingSettings": Object {
+      "openTracking": Object {
+        "enable": true,
+      },
+    },
+  },
+]
+`;
