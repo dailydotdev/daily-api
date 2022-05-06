@@ -9,6 +9,8 @@ import {
   Settings,
   SourceFeed,
   SourceRequest,
+  Submission,
+  SubmissionStatus,
   Upvote,
   User,
 } from '../entity';
@@ -33,6 +35,7 @@ import {
   notifyUserReputationUpdated,
   increaseReputation,
   decreaseReputation,
+  notifySubmissionChanged,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -312,6 +315,21 @@ const onReputationEventChange = async (
   }
 };
 
+const onSubmissionChange = async (
+  con: Connection,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<Submission>,
+) => {
+  const entity = data.payload.after;
+  if (data.payload.op === 'c') {
+    // start crawler
+  } else if (data.payload.op === 'u') {
+    if (entity.status !== SubmissionStatus.Accepted) {
+      await notifySubmissionChanged(logger, entity);
+    }
+  }
+};
+
 const getTableName = <Entity>(
   con: Connection,
   target: EntityTarget<Entity>,
@@ -366,6 +384,9 @@ const worker: Worker = {
           break;
         case getTableName(con, ReputationEvent):
           await onReputationEventChange(con, logger, data);
+          break;
+        case getTableName(con, Submission):
+          await onSubmissionChange(con, logger, data);
           break;
       }
     } catch (err) {

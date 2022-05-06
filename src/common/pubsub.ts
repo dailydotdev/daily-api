@@ -1,6 +1,6 @@
 import { PubSub, Topic } from '@google-cloud/pubsub';
 import { FastifyLoggerInstance } from 'fastify';
-import { Post, SourceRequest, Alerts, Settings } from '../entity';
+import { Post, SourceRequest, Alerts, Settings, Submission } from '../entity';
 import { toLegacySourceRequest } from '../compatibility/entity';
 import { ChangeObject } from '../types';
 
@@ -27,6 +27,7 @@ const postBannedOrRemovedTopic = pubsub.topic('post-banned-or-removed');
 const devcardEligibleTopic = pubsub.topic('devcard-eligible');
 const sourceFeedAddedTopic = pubsub.topic('source-feed-added');
 const sourceFeedRemovedTopic = pubsub.topic('source-feed-removed');
+const submissionChangedTopic = pubsub.topic('submission-changed');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
@@ -246,3 +247,8 @@ export const notifySourceFeedRemoved = async (
     feed,
     sourceId,
   });
+
+export const notifySubmissionChanged = async (
+  log: EventLogger,
+  submission: ChangeObject<Submission>,
+): Promise<void> => publishEvent(log, submissionChangedTopic, submission);

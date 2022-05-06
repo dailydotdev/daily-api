@@ -23,6 +23,7 @@ import {
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
   notifySettingsUpdated,
+  notifySubmissionChanged,
   sendEmail,
   baseNotificationEmailData,
   pickImageUrl,
@@ -45,6 +46,8 @@ import {
   Source,
   SourceFeed,
   SourceRequest,
+  Submission,
+  SubmissionStatus,
   Upvote,
   User,
 } from '../../src/entity';
@@ -76,6 +79,7 @@ jest.mock('../../src/common', () => ({
   notifySourceFeedAdded: jest.fn(),
   notifySourceFeedRemoved: jest.fn(),
   notifySettingsUpdated: jest.fn(),
+  notifySubmissionChanged: jest.fn(),
   sendEmail: jest.fn(),
 }));
 
@@ -973,5 +977,89 @@ describe('reputation event', () => {
     );
     const user = await con.getRepository(User).findOne(defaultUser.id);
     expect(user.reputation).toEqual(5);
+  });
+});
+
+describe('submission', () => {
+  type ObjectType = Submission;
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    url: '',
+    status: SubmissionStatus.NotStarted,
+    createdAt: Date.now(),
+  };
+
+  // still waiting for the pubsub schema on trigerring the crawler
+  // it('should notify crawler for this article', async () => {
+  //   const after: ChangeObject<ObjectType> = base;
+  //   await expectSuccessfulBackground(
+  //     worker,
+  //     mockChangeMessage<ObjectType>({
+  //       after,
+  //       before: null,
+  //       op: 'c',
+  //       table: 'submission',
+  //     }),
+  //   );
+  // });
+
+  it('should notify when the status turns to started', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      status: SubmissionStatus.Started,
+    };
+    await saveFixtures(con, User, [defaultUser]);
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'u',
+        table: 'submission',
+      }),
+    );
+    expect(notifySubmissionChanged).toBeCalledTimes(1);
+    expect(mocked(notifySubmissionChanged).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
+  });
+
+  it('should notify when the status turns to rejected', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      status: SubmissionStatus.Rejected,
+    };
+    await saveFixtures(con, User, [defaultUser]);
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'u',
+        table: 'submission',
+      }),
+    );
+    expect(notifySubmissionChanged).toBeCalledTimes(1);
+    expect(mocked(notifySubmissionChanged).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
+  });
+
+  it('should not notify when the status turns to accepted', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      status: SubmissionStatus.Accepted,
+    };
+    await saveFixtures(con, User, [defaultUser]);
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'u',
+        table: 'submission',
+      }),
+    );
+    expect(notifySubmissionChanged).toBeCalledTimes(0);
   });
 });
