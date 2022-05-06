@@ -56,6 +56,10 @@ export const workers: Worker[] = [
   },
   {
     topic: 'post-scout-matched',
+    subscription: 'post-scout-matched-rep',
+  },
+  {
+    topic: 'post-scout-matched',
     subscription: 'post-scout-matched-slack',
   },
   {

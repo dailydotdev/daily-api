@@ -11,6 +11,7 @@ import commentCommentedThread from './commentCommentedThread';
 import commentFeaturedMail from './commentFeaturedMail';
 import postAuthorMatchedMail from './postAuthorMatchedMail';
 import postScoutMatchedMail from './postScoutMatchedMail';
+import postScoutMatchedRep from './postScoutMatchedRep';
 import postScoutMatchedSlack from './postScoutMatchedSlack';
 import submissionChangedMail from './submissionChangedMail';
 import commentCommentedAuthor from './commentCommentedAuthor';
@@ -51,6 +52,7 @@ export const workers: Worker[] = [
   commentFeaturedMail,
   postAuthorMatchedMail,
   postScoutMatchedMail,
+  postScoutMatchedRep,
   postScoutMatchedSlack,
   submissionChangedMail,
   commentCommentedAuthor,
