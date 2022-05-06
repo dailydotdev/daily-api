@@ -2,7 +2,7 @@ import { IncomingWebhook } from '@slack/webhook';
 import { Post } from '../entity';
 import { getDiscussionLink } from './links';
 
-const webhook = process.env.SLACK_WEBHOOK
+export const webhook = process.env.SLACK_WEBHOOK
   ? new IncomingWebhook(process.env.SLACK_WEBHOOK)
   : { send: (): Promise<void> => Promise.resolve() };
 
