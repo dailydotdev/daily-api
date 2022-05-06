@@ -110,6 +110,15 @@ export class Post {
   comments: number;
 
   @Column({ length: 36, nullable: true })
+  scoutId: string | null;
+
+  @ManyToOne(() => User, {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  scout: Promise<User>;
+
+  @Column({ length: 36, nullable: true })
   @Index('IDX_post_author')
   authorId: string | null;
 
