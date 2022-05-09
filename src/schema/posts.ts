@@ -412,16 +412,6 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
-    Undo a report from post by removing the report itself
-    """
-    removePostReport(
-      """
-      Id of the post to report
-      """
-      id: ID
-    ): EmptyResponse @auth
-
-    """
     Delete a post permanently
     """
     deletePost(
@@ -620,22 +610,6 @@ export const resolvers: IResolvers<any, Context> = {
           }
         }
       }
-      return { _: true };
-    },
-    removePostReport: async (
-      _,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
-      await ctx.con.transaction(async (transaction) => {
-        await transaction
-          .getRepository(HiddenPost)
-          .delete({ postId: id, userId: ctx.userId });
-        await transaction
-          .getRepository(PostReport)
-          .delete({ postId: id, userId: ctx.userId });
-      });
-
       return { _: true };
     },
     deletePost: async (
