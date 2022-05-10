@@ -1,11 +1,10 @@
-import { Post, Source, Submission } from './../entity';
+import { Post, Submission } from './../entity';
 import { IResolvers } from 'graphql-tools';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { getDiscussionLink, isValidHttpUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 import { GQLEmptyResponse } from './common';
-import { getPostPermalink, GQLPost } from './posts';
 
 interface GQLArticleSubmission {
   url: string;
