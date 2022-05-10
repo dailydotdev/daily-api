@@ -1,10 +1,11 @@
-import { Submission } from './../entity';
+import { Post, Source, Submission } from './../entity';
 import { IResolvers } from 'graphql-tools';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { isValidHttpUrl } from '../common';
+import { getDiscussionLink, isValidHttpUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 import { GQLEmptyResponse } from './common';
+import { getPostPermalink, GQLPost } from './posts';
 
 interface GQLArticleSubmission {
   url: string;
@@ -30,17 +31,35 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         throw new ValidationError('Invalid URL!');
       }
 
-      const repo = ctx.con.getRepository(Submission);
-      const existing = await repo.findOne(url);
+      const postRepo = ctx.con.getRepository(Post);
+      const existingPost = await postRepo
+        .createQueryBuilder('post')
+        .where('url = :url or "canonicalUrl" = :url', { url })
+        .andWhere('deleted = false')
+        .leftJoinAndSelect('post.source', 'source')
+        .getOne();
+      if (existingPost) {
+        const post = {
+          ...existingPost,
+          source: await existingPost.source,
+          commentsPermalink: getDiscussionLink(existingPost.id),
+        };
+        throw new ValidationError(JSON.stringify({ post }));
+      }
 
-      if (existing) {
+      const submissionRepo = ctx.con.getRepository(Submission);
+      const existingSubmission = await submissionRepo.findOne(url);
+
+      if (existingSubmission) {
         throw new ValidationError(
           'Article has been submitted already! Current status: ' +
-            existing.status,
+            existingSubmission.status,
         );
       }
 
-      await repo.save(repo.create({ url, userId: ctx.userId }));
+      await submissionRepo.save(
+        submissionRepo.create({ url, userId: ctx.userId }),
+      );
 
       return { _: true };
     },
