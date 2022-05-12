@@ -20,6 +20,7 @@ Object {
   "ratio": null,
   "readTime": null,
   "score": Any<Number>,
+  "scoutId": null,
   "sentAnalyticsReport": true,
   "shortId": Any<String>,
   "siteTwitter": null,
