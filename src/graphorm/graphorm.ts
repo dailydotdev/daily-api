@@ -83,6 +83,7 @@ export class GraphORM {
   findRelation(
     parentMetadata: EntityMetadata,
     childMetadata: EntityMetadata,
+    field: string,
   ): GraphORMRelation {
     const relation = childMetadata.relations.find(
       (rel) => rel.inverseEntityMetadata.name === parentMetadata.name,
@@ -95,9 +96,21 @@ export class GraphORM {
         childColumn: fk.columnNames[0],
       };
     }
-    const inverseRelation = parentMetadata.relations.find(
+    const inverseRelations = parentMetadata.relations.filter(
       (rel) => rel.inverseEntityMetadata.name === childMetadata.name,
     );
+    const inverseRelation =
+      inverseRelations.length === 1
+        ? inverseRelations[0]
+        : inverseRelations.find((rel) => {
+            const fk = rel.foreignKeys[0].columnNames[0];
+            // the issue came from when we reference a table twice in the same entity (ex. Author and Source) - always using the first element of the array won't work
+            // strip the id part to compare the reference as it is a common convention on ORMs (ex. on EF Core ORM)
+            // ex. when we're looking for the "author" - it is highliy likely the relevant FK is named "authorId" - so we remove the "Id" part
+            // else we will have to force utilizing the metadata that would come from the "JoinColumn" provided by typeorm and explicitly define it
+            return fk.substring(0, fk.length - 2) === field;
+          });
+
     if (inverseRelation) {
       const fk = inverseRelation.foreignKeys[0];
       return {
@@ -136,7 +149,11 @@ export class GraphORM {
       : childType;
     const relation =
       mapping?.relation ||
-      this.findRelation(metadata, ctx.con.getMetadata(paginatedType));
+      this.findRelation(
+        metadata,
+        ctx.con.getMetadata(paginatedType),
+        field.name,
+      );
     if (!relation) {
       throw new Error(`Could not find relation ${type}.${field.name}`);
     }
