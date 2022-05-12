@@ -665,6 +665,35 @@ describe('mutation hidePost', () => {
   });
 });
 
+describe('mutation unhidePost', () => {
+  const MUTATION = `
+    mutation UnhidePost($id: ID!) {
+      unhidePost(id: $id) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'p1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should unhide post', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(HiddenPost);
+    await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
+    const initial = await repo.find({ userId: loggedUser });
+    expect(initial.length).toBeGreaterThan(0);
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await repo.find({ userId: loggedUser });
+    expect(actual.length).toEqual(0);
+  });
+});
+
 describe('mutation deletePost', () => {
   const MUTATION = `
   mutation DeletePost($id: ID!) {
