@@ -885,9 +885,22 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     authorFeed: feedResolver(
       (ctx, { author }: AuthorFeedArgs, builder, alias) =>
-        builder.andWhere(`${alias}.authorId = :author`, {
-          author,
-        }),
+        builder
+          .addSelect(
+            `count(*) filter (where ${alias}."scoutId" = '${author}')`,
+            'isScout',
+          )
+          .addSelect(
+            `count(*) filter (where ${alias}."authorId" = '${author}')`,
+            'isAuthor',
+          )
+          .andWhere(
+            `${alias}.authorId = :author or ${alias}.scoutId = :author`,
+            {
+              author,
+            },
+          )
+          .groupBy(`${alias}.id`),
       feedPageGenerator,
       applyFeedPaging,
       { removeHiddenPosts: false, removeBannedPosts: false },

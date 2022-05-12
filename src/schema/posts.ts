@@ -49,6 +49,8 @@ export interface GQLPost {
   description?: string;
   toc?: Toc;
   summary?: string;
+  isScout?: number;
+  isAuthor?: number;
 }
 
 export type GQLPostNotification = Pick<
@@ -259,6 +261,16 @@ export const typeDefs = /* GraphQL */ `
     Auto generated summary
     """
     summary: String
+
+    """
+    Whether the user is the author
+    """
+    isAuthor: Int
+
+    """
+    Whether the user is the scout
+    """
+    isScout: Int
   }
 
   type PostConnection {

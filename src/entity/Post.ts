@@ -192,7 +192,10 @@ export const getAuthorPostStats = (
     .addSelect('sum(post.views)', 'numPostViews')
     .addSelect('sum(post.upvotes)', 'numPostUpvotes')
     .from(Post, 'post')
-    .where({ authorId, deleted: false })
+    .where('post.authorId = :authorId or post.scoutId = :authorId', {
+      authorId,
+    })
+    .andWhere({ deleted: false })
     .getRawOne<PostStats>();
 
 export interface AddPostData {
