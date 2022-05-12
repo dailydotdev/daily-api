@@ -106,8 +106,8 @@ export class GraphORM {
             const fk = rel.foreignKeys[0].columnNames[0];
             // the issue came from when we reference a table twice in the same entity (ex. Author and Source) - always using the first element of the array won't work
             // strip the id part to compare the reference as it is a common convention on ORMs (ex. on EF Core ORM)
-            // ex. when we're looking for the "author" - it is highliy likely the relevant FK is named "authorId" - so we remove the "Id" part
-            // else we will have to force utilizing the metadata that would come from the "JoinColumn" provided by typeorm and explicitly define it
+            // ex. when we're looking for the "author" - it is highliy likely the relevant FK is named "authorId" - so we remove the "Id" part for comparison
+            // else we will have to force utilizing the metadata that would come from the "JoinColumn" provided by typeorm but have to explicitly define it
             return fk.substring(0, fk.length - 2) === field;
           });
 
