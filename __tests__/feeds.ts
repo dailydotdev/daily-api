@@ -3,7 +3,7 @@ import { feedToFilters } from '../src/common';
 import { FeedAdvancedSettings, AdvancedSettings } from '../src/entity';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
-import { Connection, getConnection, In } from 'typeorm';
+import { Connection, getConnection } from 'typeorm';
 import request from 'supertest';
 import _ from 'lodash';
 
