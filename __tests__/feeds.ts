@@ -230,13 +230,14 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
   ]);
 };
 
-const feedFields = `
+const feedFields = (extra) => `
 pageInfo {
   endCursor
   hasNextPage
 }
 edges {
   node {
+    ${extra}
     id
     url
     title
@@ -680,11 +681,14 @@ describe('query authorFeed', () => {
     first = 10,
   ): string => `{
     authorFeed(author: "${author}", ranking: ${ranking}, first: ${first}) {
-      ${feedFields}
+      ${feedFields(`
+      isAuthor
+      isScout
+      `)}
     }
   }`;
 
-  it('should return a single author feed', async () => {
+  it('should return a single author feed with scout and author setting', async () => {
     await con.getRepository(User).save([
       {
         id: '1',
@@ -693,9 +697,8 @@ describe('query authorFeed', () => {
         twitter: 'idoshamun',
       },
     ]);
-    await con
-      .getRepository(Post)
-      .update({ id: In(['p1', 'p3']) }, { authorId: '1' });
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    await con.getRepository(Post).update({ id: 'p3' }, { scoutId: '1' });
 
     const res = await client.query(QUERY('1'));
     expect(res.errors).toBeFalsy();

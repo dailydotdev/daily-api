@@ -1247,6 +1247,8 @@ Object {
       Object {
         "node": Object {
           "id": "p3",
+          "isAuthor": 0,
+          "isScout": 1,
           "readTime": null,
           "source": Object {
             "id": "c",
@@ -1262,6 +1264,8 @@ Object {
       Object {
         "node": Object {
           "id": "p1",
+          "isAuthor": 1,
+          "isScout": 0,
           "readTime": null,
           "source": Object {
             "id": "a",
