@@ -53,7 +53,9 @@ export async function fetchTinybirdFeed(
     'Feed_v2.fetchTinybirdFeed',
     async () => {
       const url =
-        feedVersion !== 6
+        feedVersion === 9
+          ? process.env.INTERNAL_FEED
+          : feedVersion !== 6
           ? process.env.TINYBIRD_FEED
           : process.env.TINYBIRD_FEED_V3;
       const res = await fetch(`${url}&${params}`, {
