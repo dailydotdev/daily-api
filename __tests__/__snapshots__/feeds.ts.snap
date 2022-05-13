@@ -1240,55 +1240,6 @@ Object {
 }
 `;
 
-exports[`query authorFeed should return a single author feed 1`] = `
-Object {
-  "authorFeed": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "id": "p3",
-          "isAuthor": 0,
-          "isScout": 1,
-          "readTime": null,
-          "source": Object {
-            "id": "c",
-            "image": "http://image.com/c",
-            "name": "C",
-            "public": true,
-          },
-          "tags": Array [],
-          "title": "P3",
-          "url": "http://p3.com",
-        },
-      },
-      Object {
-        "node": Object {
-          "id": "p1",
-          "isAuthor": 1,
-          "isScout": 0,
-          "readTime": null,
-          "source": Object {
-            "id": "a",
-            "image": "http://image.com/a",
-            "name": "A",
-            "public": true,
-          },
-          "tags": Array [
-            "javascript",
-            "webdev",
-          ],
-          "title": "P1",
-          "url": "http://p1.com",
-        },
-      },
-    ],
-    "pageInfo": Object {
-      "endCursor": "c2NvcmU6MA==",
-      "hasNextPage": false,
-    },
-  },
-}
-`;
 
 exports[`query authorFeed should return a single author feed with scout and author setting 1`] = `
 Object {
