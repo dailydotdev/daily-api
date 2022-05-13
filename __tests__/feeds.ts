@@ -230,7 +230,7 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
   ]);
 };
 
-const feedFields = (extra) => `
+const feedFields = (extra = '') => `
 pageInfo {
   endCursor
   hasNextPage
@@ -261,7 +261,7 @@ describe('query anonymousFeed', () => {
   const QUERY = `
   query AnonymousFeed($filters: FiltersInput, $ranking: Ranking, $first: Int, $version: Int) {
     anonymousFeed(filters: $filters, ranking: $ranking, first: $first, version: $version) {
-      ${feedFields}
+      ${feedFields()}
     }
   }
 `;
@@ -396,7 +396,7 @@ describe('query feed', () => {
   const QUERY = `
   query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean) {
     feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly) {
-      ${feedFields}
+      ${feedFields()}
     }
   }
 `;
@@ -534,7 +534,7 @@ describe('query sourceFeed', () => {
     first = 10,
   ): string => `{
     sourceFeed(source: "${source}", ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}) {
-      ${feedFields}
+      ${feedFields()}
     }
   }`;
 
@@ -552,7 +552,7 @@ describe('query tagFeed', () => {
     first = 10,
   ): string => `{
     tagFeed(tag: "${tag}", ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}) {
-      ${feedFields}
+      ${feedFields()}
     }
   }`;
 
@@ -569,7 +569,7 @@ describe('query keywordFeed', () => {
     first = 10,
   ): string => `{
     keywordFeed(keyword: "${keyword}", ranking: ${ranking}, first: ${first}) {
-      ${feedFields}
+      ${feedFields()}
     }
   }`;
 
@@ -631,7 +631,7 @@ describe('query searchPosts', () => {
   const QUERY = (query: string, now = new Date(), first = 10): string => `{
     searchPosts(query: "${query}", now: "${now.toISOString()}", first: ${first}) {
       query
-      ${feedFields}
+      ${feedFields()}
     }
   }
 `;
@@ -709,7 +709,7 @@ describe('query authorFeed', () => {
 describe('query mostUpvotedFeed', () => {
   const QUERY = (period = 7, first = 10): string => `{
     mostUpvotedFeed(first: ${first}, period: ${period}) {
-      ${feedFields}
+      ${feedFields()}
     }
   }`;
 
@@ -753,7 +753,7 @@ describe('query mostUpvotedFeed', () => {
 describe('query mostDiscussedFeed', () => {
   const QUERY = (first = 10): string => `{
     mostDiscussedFeed(first: ${first}) {
-      ${feedFields}
+      ${feedFields()}
     }
   }`;
 
