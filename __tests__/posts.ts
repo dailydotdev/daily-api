@@ -419,6 +419,45 @@ describe('author field', () => {
   });
 });
 
+describe('scout field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      scout {
+        id
+        name
+      }
+      author {
+        id
+        name
+      }
+    }
+  }`;
+
+  it('should return null when scout is not set', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return the scout when set', async () => {
+    await con
+      .getRepository(User)
+      .save([{ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' }]);
+    await con.getRepository(Post).update('p1', { scoutId: '1' });
+    const res = await client.query(QUERY);
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return the scout and author correctly', async () => {
+    await con.getRepository(User).save([
+      { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
+      { id: '2', name: 'Lee', image: 'https://daily.dev/lee.jpg' },
+    ]);
+    await con.getRepository(Post).update('p1', { scoutId: '1', authorId: '2' });
+    const res = await client.query(QUERY);
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('views field', () => {
   const QUERY = `{
     post(id: "p1") {

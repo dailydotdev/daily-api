@@ -44,6 +44,7 @@ export interface GQLPost {
   score: number;
   bookmarkedAt: Date;
   author?: GQLUser;
+  scout?: GQLUser;
   views?: number;
   discussionScore?: number;
   description?: string;
@@ -236,6 +237,11 @@ export const typeDefs = /* GraphQL */ `
     Author of the post (if they have a daily.dev account)
     """
     author: User
+
+    """
+    Scout of the post who suggested the link (if they have a daily.dev account)
+    """
+    scout: User
 
     """
     Number of times the article has been viewed (unique readers)
