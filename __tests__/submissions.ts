@@ -9,6 +9,8 @@ import {
   MockContext,
   testMutationErrorCode,
 } from './helpers';
+import { DEFAULT_SUBMISSION_LIMIT } from '../src/schema/submissions';
+import { subDays } from 'date-fns';
 
 let con: Connection;
 let state: GraphQLTestingState;
@@ -31,6 +33,50 @@ beforeEach(async () => {
 });
 
 afterAll(() => disposeGraphQLTesting(state));
+
+describe('query submissionsAndLimit', () => {
+  const QUERY = `
+    query SubmissionsAndLimit {
+      submissionsAndLimit {
+        hasAccess
+        limit
+        todaySubmissionsCount
+      }
+    }
+  `;
+
+  it('should return default values if not logged in', async () => {
+    const res = await client.query(QUERY);
+    const limit = parseInt(
+      process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
+    );
+    expect(res.errors).toBeFalsy();
+    expect(res.data.submissionsAndLimit.limit).toEqual(limit);
+    expect(res.data.submissionsAndLimit.hasAccess).toEqual(false);
+    expect(res.data.submissionsAndLimit.todaySubmissionsCount).toEqual(0);
+  });
+
+  it('should return submissions count today, limit, and if has access', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Submission);
+    await repo.save([
+      { url: 'http://abc.com/1', userId: '1' },
+      {
+        url: 'http://abc.com/2',
+        userId: '1',
+        createdAt: subDays(new Date(), 1),
+      },
+    ]);
+    const res = await client.query(QUERY);
+    const limit = parseInt(
+      process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
+    );
+    expect(res.errors).toBeFalsy();
+    expect(res.data.submissionsAndLimit.limit).toEqual(limit);
+    expect(res.data.submissionsAndLimit.hasAccess).toEqual(true);
+    expect(res.data.submissionsAndLimit.todaySubmissionsCount).toEqual(1);
+  });
+});
 
 describe('mutation submitArticle', () => {
   const MUTATION = `

@@ -1,4 +1,4 @@
-import { Post, Submission } from './../entity';
+import { Post, Submission, User } from './../entity';
 import { IResolvers } from 'graphql-tools';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
@@ -10,7 +10,27 @@ interface GQLArticleSubmission {
   url: string;
 }
 
+interface GQLSubmissionAvailability {
+  hasAccess: boolean;
+  limit: number;
+  todaySubmissionsCount: number;
+}
+
+export const DEFAULT_SUBMISSION_LIMIT = '3';
+
 export const typeDefs = /* GraphQL */ `
+  type SubmissionAvailability {
+    hasAccess: Boolean!
+    limit: Int!
+    todaySubmissionsCount: Int!
+  }
+
+  extend type Query {
+    """
+    Information regarding the access of submitting community links
+    """
+    submissionsAndLimit: SubmissionAvailability!
+  }
   extend type Mutation {
     """
     Submit an article to surface on users feed
@@ -20,6 +40,33 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 export const resolvers: IResolvers<unknown, Context> = traceResolvers({
+  Query: {
+    submissionsAndLimit: async (
+      _,
+      __,
+      ctx,
+    ): Promise<GQLSubmissionAvailability> => {
+      const limit = parseInt(
+        process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
+      );
+
+      const repo = ctx.getRepository(Submission);
+      const user = await ctx.getRepository(User).findOne({ id: ctx.userId });
+      if (!user) {
+        return { limit, hasAccess: false, todaySubmissionsCount: 0 };
+      }
+
+      const timezone = user.timezone ?? 'utc';
+      const nowTimezone = `timezone('${timezone}', now())`;
+      const atTimezone = `at time zone '${timezone}'`;
+      const submissions = await repo.find({
+        where: `date_trunc('day', "createdAt")::timestamptz ${atTimezone} = date_trunc('day', ${nowTimezone})::timestamptz`,
+      });
+      const hasAccess = true; // subject for change on how we define the access
+
+      return { limit, todaySubmissionsCount: submissions.length, hasAccess };
+    },
+  },
   Mutation: {
     submitArticle: async (
       _,
