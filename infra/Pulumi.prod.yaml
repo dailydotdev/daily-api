@@ -41,7 +41,7 @@ config:
     hashnodeWebhook:
       secure: AAABAKzPgckVKQYS/8TUyknOtW9gknSaYdZSEh+50+IGHe+u9AyZA5hXHCroH32XhjUPnrLjihrno9Yc/PgrN4p9OmE9mHj/GUCgzJMmjAjJ0Kg/wBXuT+BEsYbio3NEDcQ9kp36Ag9rXp0Y0ZHlF3SLy27cbf/rOmG9ag==
     internalFeed:
-      secure: AAABAA6nPLUFcZPYbRco5+KXREk55zUIdnMn4tU2aL6M0KAkadtAdU/bWS8GFFUz2WpG7e3HaJLm7ZDegZX7XNEA
+      secure: AAABAOBQzyhnr9Ld3gB9duiQeI7A/CGoF0kFmyIvBBlPSm653c3y0sCPIO/SzwXTMUwqkD+pUTtU6ceXXNqNaKSbr9uTG3TB6kM4
     jwtAudience:
       secure: AAABABYdafVA0XsTaLOHd1ROWJc6ggvXKA+e+lOjg3jduCMeGQ==
     jwtIssuer:
