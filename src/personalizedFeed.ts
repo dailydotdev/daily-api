@@ -1,16 +1,29 @@
-import { Agent } from 'https';
 import { Connection } from 'typeorm';
 import { feedToFilters } from './common';
 import fetch from 'node-fetch';
 import { redisClient } from './redis';
 import { Context } from './Context';
 import { runInSpan } from './trace';
+import http from 'node:http';
+import https from 'node:https';
 
 interface TinybirdResponse<T> {
   data: T[];
 }
 
-const agent = new Agent({ keepAlive: true });
+const fetch_options = {
+  agent: (_parsedURL) => {
+    if (_parsedURL.protocol == 'http:') {
+      return new http.Agent({
+        keepAlive: true,
+      });
+    } else {
+      return new https.Agent({
+        keepAlive: true,
+      });
+    }
+  },
+};
 
 export async function fetchTinybirdFeed(
   con: Connection,
@@ -58,9 +71,7 @@ export async function fetchTinybirdFeed(
           : feedVersion !== 6
           ? process.env.TINYBIRD_FEED
           : process.env.TINYBIRD_FEED_V3;
-      const res = await fetch(`${url}&${params}`, {
-        agent,
-      });
+      const res = await fetch(`${url}&${params}`, fetch_options);
       return res.json();
     },
     { params, feedVersion },
