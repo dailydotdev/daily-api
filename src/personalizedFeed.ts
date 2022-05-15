@@ -11,9 +11,9 @@ interface TinybirdResponse<T> {
   data: T[];
 }
 
-const fetch_options = {
-  agent: (_parsedURL) => {
-    if (_parsedURL.protocol == 'http:') {
+const fetchOptions = {
+  agent: (parsedURL) => {
+    if (parsedURL.protocol == 'http:') {
       return new http.Agent({
         keepAlive: true,
       });
@@ -71,7 +71,7 @@ export async function fetchTinybirdFeed(
           : feedVersion !== 6
           ? process.env.TINYBIRD_FEED
           : process.env.TINYBIRD_FEED_V3;
-      const res = await fetch(`${url}&${params}`, fetch_options);
+      const res = await fetch(`${url}&${params}`, fetchOptions);
       return res.json();
     },
     { params, feedVersion },
