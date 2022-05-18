@@ -4,14 +4,10 @@ import {
   EntityManager,
   Index,
   ManyToOne,
-  PrimaryColumn,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from './User';
-import { PostTag } from './PostTag';
-import { Keyword } from './Keyword';
-import { PostKeyword } from './PostKeyword';
-import { AddPostData, Post, RejectPostData } from './Post';
+import { RejectPostData } from './Post';
 
 export enum SubmissionStatus {
   NotStarted = 'NOT_STARTED',
