@@ -17,6 +17,7 @@ import { User } from './User';
 import { PostKeyword } from './PostKeyword';
 import { Keyword } from './Keyword';
 import { uniqueifyArray } from '../common';
+import { rejectSubmission, validateSubmission } from './Submission';
 
 export type TocItem = { text: string; id?: string; children?: TocItem[] };
 export type Toc = TocItem[];
@@ -198,6 +199,11 @@ export const getAuthorPostStats = (
     .andWhere({ deleted: false })
     .getRawOne<PostStats>();
 
+export interface RejectPostData {
+  submissionId: string;
+  reason?: string;
+}
+
 export interface AddPostData {
   id: string;
   title: string;
@@ -217,6 +223,8 @@ export interface AddPostData {
   description?: string;
   toc?: Toc;
   summary?: string;
+  submissionId?: string;
+  scoutId?: string;
 }
 
 const parseReadTime = (
@@ -235,6 +243,11 @@ type Reason = 'exists' | 'author banned' | 'missing fields';
 export type AddNewPostResult =
   | { status: 'ok'; postId: string }
   | { status: 'failed'; reason: Reason; error?: Error };
+
+type RejectReason = 'missing submission id';
+export type RejectPostResult =
+  | { status: 'ok'; submissionId: string }
+  | { status: 'failed'; reason: RejectReason; error?: Error };
 
 const checkRequiredFields = (data: AddPostData): boolean => {
   return !!(data && data.title && data.url && data.publicationId);
@@ -374,6 +387,7 @@ const addPostAndKeywordsToDb = async (
     description: data.description,
     toc: data.toc,
     summary: data.summary,
+    scoutId: data.scoutId,
   });
   if (data.tags?.length) {
     await entityManager.getRepository(PostTag).insert(
@@ -403,6 +417,24 @@ const addPostAndKeywordsToDb = async (
   return data.id;
 };
 
+export const rejectPost = async (
+  con: Connection,
+  data: RejectPostData,
+): Promise<RejectPostResult> => {
+  if (!data && !data.submissionId) {
+    return { status: 'failed', reason: 'missing submission id' };
+  }
+
+  return con.transaction(async (entityManager) => {
+    try {
+      const submissionId = await rejectSubmission(entityManager, data);
+      return { status: 'ok', submissionId };
+    } catch (error) {
+      throw error;
+    }
+  });
+};
+
 export const addNewPost = async (
   con: Connection,
   data: AddPostData,
@@ -418,8 +450,20 @@ export const addNewPost = async (
     if (reason) {
       return { status: 'failed', reason };
     }
+
+    const scoutId = await validateSubmission(
+      entityManager,
+      fixedData?.submissionId,
+    );
+
+    const combinedData = {
+      ...fixedData,
+      scoutId,
+    };
+
     try {
-      const postId = await addPostAndKeywordsToDb(entityManager, fixedData);
+      const postId = await addPostAndKeywordsToDb(entityManager, combinedData);
+
       return { status: 'ok', postId };
     } catch (error) {
       // Unique
