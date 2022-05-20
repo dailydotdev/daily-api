@@ -121,7 +121,9 @@ describe('mutation submitArticle', () => {
     const request = 'https://daily.dev/amazing/article';
     const res = await client.mutate(MUTATION, { variables: { url: request } });
     expect(res.errors).toBeFalsy();
-    const submission = await con.getRepository(Submission).findOne(request);
+    const submission = await con
+      .getRepository(Submission)
+      .findOne({ url: request });
     expect(submission.status).toEqual(SubmissionStatus.NotStarted);
   });
 });

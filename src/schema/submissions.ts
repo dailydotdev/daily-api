@@ -94,7 +94,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       }
 
       const submissionRepo = ctx.con.getRepository(Submission);
-      const existingSubmission = await submissionRepo.findOne(url);
+      const existingSubmission = await submissionRepo.findOne({ url });
 
       if (existingSubmission) {
         throw new ValidationError(
