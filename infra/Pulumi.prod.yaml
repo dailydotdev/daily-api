@@ -40,6 +40,8 @@ config:
       secure: AAABALdDc3omcKLnYIvm4ofsaZy+tajZa4Gw5rkpkRTWc5t2MLw2u7lzlsNF1g==
     hashnodeWebhook:
       secure: AAABAKzPgckVKQYS/8TUyknOtW9gknSaYdZSEh+50+IGHe+u9AyZA5hXHCroH32XhjUPnrLjihrno9Yc/PgrN4p9OmE9mHj/GUCgzJMmjAjJ0Kg/wBXuT+BEsYbio3NEDcQ9kp36Ag9rXp0Y0ZHlF3SLy27cbf/rOmG9ag==
+    internalFeed:
+      secure: AAABAPV9e8DPb3u4sNEIx14mEknn4noEbMVUH9hv2esac8TvNDY4CJuv9aojztt1B6kfUCsLhC5iBgSvx6LGGxkbk2dug/XvmG0r2Q==
     jwtAudience:
       secure: AAABABYdafVA0XsTaLOHd1ROWJc6ggvXKA+e+lOjg3jduCMeGQ==
     jwtIssuer:
