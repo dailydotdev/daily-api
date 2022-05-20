@@ -22,6 +22,21 @@ beforeAll(async () => {
   return app.ready();
 });
 
+const createDefaultUser = async () => {
+  await con.getRepository(User).save({
+    id: '1',
+    name: 'Lee',
+    image: 'https://daily.dev/lee.jpg',
+  });
+};
+
+const createDefaultSubmission = async (id: string = randomUUID()) => {
+  const repo = con.getRepository(Submission);
+  await repo.save(
+    repo.create({ id, url: 'http://sample.article/test', userId: '1' }),
+  );
+};
+
 afterAll(() => app.close());
 
 beforeEach(async () => {
@@ -71,28 +86,21 @@ describe('POST /p/newPost', () => {
 });
 
 describe('POST /p/rejectPost', () => {
-  const uuid = randomUUID();
   it('should return not found when not authorized', () => {
     return request(app.server).post('/p/rejectPost').expect(404);
   });
 
   it('should update submission to rejected', async () => {
-    await con.getRepository(User).save({
-      id: '1',
-      name: 'Lee',
-      image: 'https://daily.dev/lee.jpg',
-    });
-    const repo = con.getRepository(Submission);
-    await repo.save(
-      repo.create({ id: uuid, url: 'http://sample.article/test', userId: '1' }),
-    );
+    const uuid = randomUUID();
+    await createDefaultUser();
+    await createDefaultSubmission(uuid);
     const { body } = await request(app.server)
       .post('/p/rejectPost')
       .set('Content-type', 'application/json')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
       .send({ submissionId: uuid })
       .expect(200);
-    const submissions = await repo.find();
+    const submissions = await con.getRepository(Submission).find();
     const [submission] = submissions;
     expect(submissions.length).toEqual(1);
     expect(body).toEqual({ status: 'ok', submissionId: submission.id });
