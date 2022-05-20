@@ -58,6 +58,7 @@ import { Connection, getConnection } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { Alerts } from '../../src/entity';
+import { randomUUID } from 'crypto';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -982,9 +983,12 @@ describe('reputation event', () => {
 
 describe('submission', () => {
   type ObjectType = Submission;
+  const id = randomUUID();
   const base: ChangeObject<ObjectType> = {
+    id,
     userId: '1',
     url: '',
+    reason: '',
     status: SubmissionStatus.NotStarted,
     createdAt: Date.now(),
   };
