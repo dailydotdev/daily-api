@@ -24,6 +24,7 @@ import {
   notifySourceFeedRemoved,
   notifySettingsUpdated,
   notifySubmissionChanged,
+  notifySubmissionCreated,
   sendEmail,
   baseNotificationEmailData,
   pickImageUrl,
@@ -81,6 +82,7 @@ jest.mock('../../src/common', () => ({
   notifySourceFeedRemoved: jest.fn(),
   notifySettingsUpdated: jest.fn(),
   notifySubmissionChanged: jest.fn(),
+  notifySubmissionCreated: jest.fn(),
   sendEmail: jest.fn(),
 }));
 
@@ -993,19 +995,22 @@ describe('submission', () => {
     createdAt: Date.now(),
   };
 
-  // still waiting for the pubsub schema on trigerring the crawler
-  // it('should notify crawler for this article', async () => {
-  //   const after: ChangeObject<ObjectType> = base;
-  //   await expectSuccessfulBackground(
-  //     worker,
-  //     mockChangeMessage<ObjectType>({
-  //       after,
-  //       before: null,
-  //       op: 'c',
-  //       table: 'submission',
-  //     }),
-  //   );
-  // });
+  it('should notify crawler for this article', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'submission',
+      }),
+    );
+    expect(notifySubmissionCreated).toBeCalledTimes(1);
+    expect(mocked(notifySubmissionCreated).mock.calls[0].slice(1)).toEqual([
+      { url: after.url, submissionId: after.id, sourceId: 'TBD' },
+    ]);
+  });
 
   it('should notify when the status turns to started', async () => {
     const after: ChangeObject<ObjectType> = {

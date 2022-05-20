@@ -37,6 +37,7 @@ import {
   decreaseReputation,
   notifySubmissionChanged,
   notifyScoutMatched,
+  notifySubmissionCreated,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -331,7 +332,11 @@ const onSubmissionChange = async (
 ) => {
   const entity = data.payload.after;
   if (data.payload.op === 'c') {
-    // start crawler
+    await notifySubmissionCreated(logger, {
+      sourceId: 'TBD',
+      url: entity.url,
+      submissionId: entity.id,
+    });
   } else if (data.payload.op === 'u') {
     if (entity.status !== SubmissionStatus.Accepted) {
       await notifySubmissionChanged(logger, entity);
