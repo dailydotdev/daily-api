@@ -29,6 +29,7 @@ const devcardEligibleTopic = pubsub.topic('devcard-eligible');
 const sourceFeedAddedTopic = pubsub.topic('source-feed-added');
 const sourceFeedRemovedTopic = pubsub.topic('source-feed-removed');
 const submissionChangedTopic = pubsub.topic('submission-changed');
+const communityLinkSubmittedTopic = pubsub.topic('community-link-submitted');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
@@ -263,3 +264,14 @@ export const notifySubmissionChanged = async (
   log: EventLogger,
   submission: ChangeObject<Submission>,
 ): Promise<void> => publishEvent(log, submissionChangedTopic, submission);
+
+interface NewSubmission {
+  sourceId: string;
+  url: string;
+  submissionId: string;
+}
+
+export const notifySubmissionCreated = async (
+  log: EventLogger,
+  submission: ChangeObject<NewSubmission>,
+): Promise<void> => publishEvent(log, communityLinkSubmittedTopic, submission);
