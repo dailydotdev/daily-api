@@ -2,9 +2,16 @@ import { Connection, getConnection } from 'typeorm';
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
 import { saveFixtures } from './helpers';
-import { Post, Source } from '../src/entity';
+import {
+  Post,
+  Source,
+  Submission,
+  SubmissionStatus,
+  User,
+} from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
+import { randomUUID } from 'crypto';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -60,5 +67,45 @@ describe('POST /p/newPost', () => {
     const posts = await con.getRepository(Post).find();
     expect(posts.length).toEqual(0);
     expect(body).toEqual({ status: 'failed', reason: 'missing fields' });
+  });
+});
+
+describe('POST /p/rejectPost', () => {
+  const uuid = randomUUID();
+  it('should return not found when not authorized', () => {
+    return request(app.server).post('/p/rejectPost').expect(404);
+  });
+
+  it('should update submission to rejected', async () => {
+    await con.getRepository(User).save({
+      id: '1',
+      name: 'Lee',
+      image: 'https://daily.dev/lee.jpg',
+    });
+    const repo = con.getRepository(Submission);
+    await repo.save(
+      repo.create({ id: uuid, url: 'http://sample.article/test', userId: '1' }),
+    );
+    const { body } = await request(app.server)
+      .post('/p/rejectPost')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({ submissionId: uuid })
+      .expect(200);
+    const submissions = await repo.find();
+    const [submission] = submissions;
+    expect(submissions.length).toEqual(1);
+    expect(body).toEqual({ status: 'ok', submissionId: submission.id });
+    expect(submission.id).toEqual(uuid);
+    expect(submission.status).toEqual(SubmissionStatus.Rejected);
+  });
+
+  it('should handle empty body', async () => {
+    const { body } = await request(app.server)
+      .post('/p/rejectPost')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send()
+      .expect(200);
+    expect(body).toEqual({ status: 'failed', reason: 'missing submission id' });
   });
 });

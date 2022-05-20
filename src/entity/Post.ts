@@ -421,7 +421,7 @@ export const rejectPost = async (
   con: Connection,
   data: RejectPostData,
 ): Promise<RejectPostResult> => {
-  if (!data && !data.submissionId) {
+  if (!data || !data?.submissionId) {
     return { status: 'failed', reason: 'missing submission id' };
   }
 
