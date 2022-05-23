@@ -1,5 +1,11 @@
 import { FastifyInstance } from 'fastify';
-import { addNewPost, AddPostData, rejectPost, RejectPostData } from '../entity';
+import {
+  addNewPost,
+  AddPostData,
+  RejectPostData,
+  Submission,
+  SubmissionStatus,
+} from '../entity';
 import { getConnection } from 'typeorm';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
@@ -17,7 +23,28 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     const con = getConnection();
-    const operationResult = await rejectPost(con, req.body);
-    return res.status(200).send(operationResult);
+    const data = req.body;
+    if (!data && !data?.submissionId) {
+      return res
+        .status(200)
+        .send({ status: 'failed', reason: 'missing submission id' });
+    }
+
+    return con.transaction(async (entityManager) => {
+      try {
+        await con.getRepository(Submission).update(
+          { id: data.submissionId },
+          {
+            status: SubmissionStatus.Rejected,
+            reason: data.reason,
+          },
+        );
+        return res
+          .status(200)
+          .send({ status: 'ok', submissionId: data.submissionId });
+      } catch (error) {
+        throw error;
+      }
+    });
   });
 }

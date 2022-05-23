@@ -44,22 +44,7 @@ export class Submission {
   user: Promise<User>;
 }
 
-export const rejectSubmission = async (
-  entityManager: EntityManager,
-  data: RejectPostData,
-): Promise<string> => {
-  await entityManager.getRepository(Submission).update(
-    { id: data.submissionId },
-    {
-      status: SubmissionStatus.Rejected,
-      reason: data.reason,
-    },
-  );
-
-  return data.submissionId;
-};
-
-export const validateSubmission = async (
+export const validateAndApproveSubmission = async (
   entityManager: EntityManager,
   id: string,
 ): Promise<string> => {
@@ -67,9 +52,7 @@ export const validateSubmission = async (
     return null;
   }
 
-  const submission = await entityManager
-    .getRepository(Submission)
-    .findOneOrFail(id);
+  const submission = await entityManager.getRepository(Submission).findOne(id);
   if (!submission) {
     return null;
   }

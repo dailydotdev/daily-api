@@ -17,7 +17,7 @@ import { User } from './User';
 import { PostKeyword } from './PostKeyword';
 import { Keyword } from './Keyword';
 import { uniqueifyArray } from '../common';
-import { rejectSubmission, validateSubmission } from './Submission';
+import { validateAndApproveSubmission } from './Submission';
 
 export type TocItem = { text: string; id?: string; children?: TocItem[] };
 export type Toc = TocItem[];
@@ -417,24 +417,6 @@ const addPostAndKeywordsToDb = async (
   return data.id;
 };
 
-export const rejectPost = async (
-  con: Connection,
-  data: RejectPostData,
-): Promise<RejectPostResult> => {
-  if (!data || !data?.submissionId) {
-    return { status: 'failed', reason: 'missing submission id' };
-  }
-
-  return con.transaction(async (entityManager) => {
-    try {
-      const submissionId = await rejectSubmission(entityManager, data);
-      return { status: 'ok', submissionId };
-    } catch (error) {
-      throw error;
-    }
-  });
-};
-
 export const addNewPost = async (
   con: Connection,
   data: AddPostData,
@@ -451,7 +433,7 @@ export const addNewPost = async (
       return { status: 'failed', reason };
     }
 
-    const scoutId = await validateSubmission(
+    const scoutId = await validateAndApproveSubmission(
       entityManager,
       fixedData?.submissionId,
     );
