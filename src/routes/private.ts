@@ -30,21 +30,19 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         .send({ status: 'failed', reason: 'missing submission id' });
     }
 
-    return con.transaction(async (entityManager) => {
-      try {
-        await con.getRepository(Submission).update(
-          { id: data.submissionId },
-          {
-            status: SubmissionStatus.Rejected,
-            reason: data.reason,
-          },
-        );
-        return res
-          .status(200)
-          .send({ status: 'ok', submissionId: data.submissionId });
-      } catch (error) {
-        throw error;
-      }
-    });
+    try {
+      await con.getRepository(Submission).update(
+        { id: data.submissionId },
+        {
+          status: SubmissionStatus.Rejected,
+          reason: data.reason,
+        },
+      );
+      return res
+        .status(200)
+        .send({ status: 'ok', submissionId: data.submissionId });
+    } catch (error) {
+      throw error;
+    }
   });
 }

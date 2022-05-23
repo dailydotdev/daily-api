@@ -7,7 +7,6 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from './User';
-import { RejectPostData } from './Post';
 
 export enum SubmissionStatus {
   NotStarted = 'NOT_STARTED',
