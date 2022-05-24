@@ -11,6 +11,9 @@ export class SubmissionEntity1651802478465 implements MigrationInterface {
       `ALTER TABLE "post" ADD CONSTRAINT "FK_a51326b93176f2b2ebf3eda9fef" FOREIGN KEY ("scoutId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
     );
     await queryRunner.query(
+      `CREATE INDEX "IDX_post_scout" ON "post" ("scoutId") `,
+    );
+    await queryRunner.query(
       `CREATE TABLE "submission" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "url" text NOT NULL, "userId" character varying(36) NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "status" character varying NOT NULL DEFAULT 'NOT_STARTED', "reason" text, CONSTRAINT "PK_submission_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
@@ -33,6 +36,7 @@ export class SubmissionEntity1651802478465 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "submission" DROP CONSTRAINT "PK_submission_id"`,
     );
+    await queryRunner.query(`DROP INDEX "public"."IDX_post_scout"`);
     await queryRunner.query(
       `DROP INDEX "public"."IDX_7bd626272858ef6464aa257909"`,
     );
