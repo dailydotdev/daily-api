@@ -34,10 +34,10 @@ beforeEach(async () => {
 
 afterAll(() => disposeGraphQLTesting(state));
 
-describe('query submissionsAndLimit', () => {
+describe('query submissionAvailability', () => {
   const QUERY = `
-    query SubmissionsAndLimit {
-      submissionsAndLimit {
+    query SubmissionAvailability {
+      submissionAvailability {
         hasAccess
         limit
         todaySubmissionsCount
@@ -51,9 +51,9 @@ describe('query submissionsAndLimit', () => {
       process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
     );
     expect(res.errors).toBeFalsy();
-    expect(res.data.submissionsAndLimit.limit).toEqual(limit);
-    expect(res.data.submissionsAndLimit.hasAccess).toEqual(false);
-    expect(res.data.submissionsAndLimit.todaySubmissionsCount).toEqual(0);
+    expect(res.data.submissionAvailability.limit).toEqual(limit);
+    expect(res.data.submissionAvailability.hasAccess).toEqual(false);
+    expect(res.data.submissionAvailability.todaySubmissionsCount).toEqual(0);
   });
 
   it('should return submissions count today, limit, and if has access', async () => {
@@ -72,9 +72,9 @@ describe('query submissionsAndLimit', () => {
       process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
     );
     expect(res.errors).toBeFalsy();
-    expect(res.data.submissionsAndLimit.limit).toEqual(limit);
-    expect(res.data.submissionsAndLimit.hasAccess).toEqual(true);
-    expect(res.data.submissionsAndLimit.todaySubmissionsCount).toEqual(1);
+    expect(res.data.submissionAvailability.limit).toEqual(limit);
+    expect(res.data.submissionAvailability.hasAccess).toEqual(true);
+    expect(res.data.submissionAvailability.todaySubmissionsCount).toEqual(1);
   });
 });
 

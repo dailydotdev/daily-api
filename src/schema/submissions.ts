@@ -29,7 +29,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Information regarding the access of submitting community links
     """
-    submissionsAndLimit: SubmissionAvailability!
+    submissionAvailability: SubmissionAvailability!
   }
   extend type Mutation {
     """
@@ -41,7 +41,7 @@ export const typeDefs = /* GraphQL */ `
 
 export const resolvers: IResolvers<unknown, Context> = traceResolvers({
   Query: {
-    submissionsAndLimit: async (
+    submissionAvailability: async (
       _,
       __,
       ctx,
