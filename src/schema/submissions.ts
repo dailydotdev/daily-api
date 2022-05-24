@@ -4,10 +4,18 @@ import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { getDiscussionLink, isValidHttpUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
-import { GQLEmptyResponse } from './common';
 
 interface GQLArticleSubmission {
   url: string;
+}
+
+interface GQLSubmission {
+  id: string;
+  url: string;
+  userId: string;
+  createdAt: Date;
+  status: string;
+  reason: string;
 }
 
 interface GQLSubmissionAvailability {
@@ -25,6 +33,15 @@ export const typeDefs = /* GraphQL */ `
     todaySubmissionsCount: Int!
   }
 
+  type Submission {
+    id: String!
+    url: String!
+    userId: String!
+    createdAt: DateTime!
+    status: String!
+    reason: String
+  }
+
   extend type Query {
     """
     Information regarding the access of submitting community links
@@ -35,7 +52,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Submit an article to surface on users feed
     """
-    submitArticle(url: String!): EmptyResponse @auth
+    submitArticle(url: String!): Submission @auth
   }
 `;
 
@@ -72,7 +89,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       _,
       { url }: GQLArticleSubmission,
       ctx,
-    ): Promise<GQLEmptyResponse> => {
+    ): Promise<GQLSubmission> => {
       if (!isValidHttpUrl(url)) {
         throw new ValidationError('Invalid URL!');
       }
@@ -103,11 +120,9 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         );
       }
 
-      await submissionRepo.save(
+      return submissionRepo.save(
         submissionRepo.create({ url, userId: ctx.userId }),
       );
-
-      return { _: true };
     },
   },
 });

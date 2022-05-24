@@ -82,7 +82,10 @@ describe('mutation submitArticle', () => {
   const MUTATION = `
     mutation SubmitArticle($url: String!) {
       submitArticle(url: $url) {
-        _
+        url
+        userId
+        status
+        reason
       }
     }
   `;
@@ -125,5 +128,6 @@ describe('mutation submitArticle', () => {
       .getRepository(Submission)
       .findOne({ url: request });
     expect(submission.status).toEqual(SubmissionStatus.NotStarted);
+    expect(res.data).toMatchSnapshot();
   });
 });
