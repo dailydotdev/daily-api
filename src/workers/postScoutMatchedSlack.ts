@@ -18,7 +18,7 @@ const worker: Worker = {
       }
 
       await webhook.send({
-        text: 'Post submission was approved!',
+        text: 'New community link!',
         attachments: [
           {
             title: post.title,
