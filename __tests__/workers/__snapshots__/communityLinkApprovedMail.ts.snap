@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`should send post scout matched mail 1`] = `
+exports[`should send mail when the submission status is approved 1`] = `
 Array [
   Object {
     "asm": Object {
@@ -8,11 +8,8 @@ Array [
     },
     "category": "Notification",
     "dynamicTemplateData": Object {
-      "discussion_link": "http://localhost:5002/posts/p1",
-      "post_image": "https://daily.dev/image.jpg",
-      "post_title": "P1",
-      "published_at": "Sep 27, 2020",
-      "source_image": "http://image.com/a",
+      "status": "ACCEPTED",
+      "url": "http://sample.abc.com",
     },
     "from": Object {
       "email": "informer@daily.dev",

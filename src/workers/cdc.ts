@@ -10,7 +10,6 @@ import {
   SourceFeed,
   SourceRequest,
   Submission,
-  SubmissionStatus,
   Upvote,
   User,
 } from '../entity';
@@ -338,9 +337,7 @@ const onSubmissionChange = async (
       submissionId: entity.id,
     });
   } else if (data.payload.op === 'u') {
-    if (entity.status !== SubmissionStatus.Accepted) {
-      await notifySubmissionChanged(logger, entity);
-    }
+    await notifySubmissionChanged(logger, entity);
   }
 };
 

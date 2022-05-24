@@ -1,6 +1,5 @@
-import { templateId } from './../common/mailing';
+import { templateId } from '../common/mailing';
 import { messageToJson, Worker } from './worker';
-import { SubmissionStatus } from '../entity';
 import { fetchUser } from '../common';
 import { baseNotificationEmailData, sendEmail } from '../common';
 
@@ -13,20 +12,15 @@ interface Data {
 // TODO:: Update the dynamic template data once available
 
 const worker: Worker = {
-  subscription: 'submission-changed-mail',
+  subscription: 'community-link-accepted-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
-
-    if (data.status === SubmissionStatus.Accepted) {
-      return;
-    }
-
     try {
       const user = await fetchUser(data.userId);
       await sendEmail({
         ...baseNotificationEmailData,
         to: user.email,
-        templateId: templateId.postScoutMatched,
+        templateId: templateId.communityLinkAccepted,
         dynamicTemplateData: {
           status: data.status,
           url: data.url,

@@ -1012,27 +1012,6 @@ describe('submission', () => {
     ]);
   });
 
-  it('should notify when the status turns to started', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      status: SubmissionStatus.Started,
-    };
-    await saveFixtures(con, User, [defaultUser]);
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: null,
-        op: 'u',
-        table: 'submission',
-      }),
-    );
-    expect(notifySubmissionChanged).toBeCalledTimes(1);
-    expect(mocked(notifySubmissionChanged).mock.calls[0].slice(1)).toEqual([
-      after,
-    ]);
-  });
-
   it('should notify when the status turns to rejected', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
@@ -1054,7 +1033,7 @@ describe('submission', () => {
     ]);
   });
 
-  it('should not notify when the status turns to accepted', async () => {
+  it('should notify when the status turns to rejected', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
       status: SubmissionStatus.Accepted,
@@ -1069,6 +1048,9 @@ describe('submission', () => {
         table: 'submission',
       }),
     );
-    expect(notifySubmissionChanged).toBeCalledTimes(0);
+    expect(notifySubmissionChanged).toBeCalledTimes(1);
+    expect(mocked(notifySubmissionChanged).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
   });
 });

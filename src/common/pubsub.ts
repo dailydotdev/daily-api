@@ -1,6 +1,13 @@
 import { PubSub, Topic } from '@google-cloud/pubsub';
 import { FastifyLoggerInstance } from 'fastify';
-import { Post, SourceRequest, Alerts, Settings, Submission } from '../entity';
+import {
+  Post,
+  SourceRequest,
+  Alerts,
+  Settings,
+  Submission,
+  SubmissionStatus,
+} from '../entity';
 import { toLegacySourceRequest } from '../compatibility/entity';
 import { ChangeObject } from '../types';
 
@@ -28,7 +35,8 @@ const postBannedOrRemovedTopic = pubsub.topic('post-banned-or-removed');
 const devcardEligibleTopic = pubsub.topic('devcard-eligible');
 const sourceFeedAddedTopic = pubsub.topic('source-feed-added');
 const sourceFeedRemovedTopic = pubsub.topic('source-feed-removed');
-const submissionChangedTopic = pubsub.topic('submission-changed');
+const communityLinkAcceptedTopic = pubsub.topic('community-link-accepted');
+const communityLinkRejectedTopic = pubsub.topic('community-link-rejected');
 const communityLinkSubmittedTopic = pubsub.topic('community-link-submitted');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
@@ -263,7 +271,14 @@ export const notifySourceFeedRemoved = async (
 export const notifySubmissionChanged = async (
   log: EventLogger,
   submission: ChangeObject<Submission>,
-): Promise<void> => publishEvent(log, submissionChangedTopic, submission);
+): Promise<void> => {
+  if (submission.status === SubmissionStatus.Accepted) {
+    publishEvent(log, communityLinkAcceptedTopic, submission);
+  }
+  if (submission.status === SubmissionStatus.Rejected) {
+    publishEvent(log, communityLinkRejectedTopic, submission);
+  }
+};
 
 interface NewSubmission {
   sourceId: string;
