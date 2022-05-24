@@ -20,7 +20,11 @@ const worker: Worker = {
     try {
       await con.transaction(async (transaction) => {
         const post = await transaction.getRepository(Post).findOne(data.postId);
-        if (!post?.authorId || post?.authorId === data.userId) {
+        if (
+          (!post?.authorId && !post?.scoutId) ||
+          post?.authorId === data.userId ||
+          post?.scoutId === data.userId
+        ) {
           return;
         }
 
@@ -39,7 +43,7 @@ const worker: Worker = {
         const repo = transaction.getRepository(ReputationEvent);
         const event = repo.create({
           grantById: data.userId,
-          grantToId: post.authorId,
+          grantToId: post.scoutId || post.authorId,
           targetId: post.id,
           targetType: ReputationType.Post,
           reason: ReputationReason.PostUpvoted,
