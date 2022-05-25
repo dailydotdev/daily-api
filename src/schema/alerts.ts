@@ -70,6 +70,11 @@ export const typeDefs = /* GraphQL */ `
     Status to display for companion helper
     """
     companionHelper: Boolean
+
+    """
+    Status for displaying the companion popup onload
+    """
+    addCompanion: Boolean
   }
 
   extend type Mutation {
