@@ -3,8 +3,8 @@
 exports[`mutation updateUserAlerts should create user alerts when does not exist 1`] = `
 Object {
   "updateUserAlerts": Object {
-    "addCompanion": null,
     "companionHelper": true,
+    "displayCompanionPopup": null,
     "filter": false,
     "myFeed": null,
     "rankLastSeen": null,
@@ -15,8 +15,8 @@ Object {
 exports[`mutation updateUserAlerts should update alerts of user 1`] = `
 Object {
   "updateUserAlerts": Object {
-    "addCompanion": null,
     "companionHelper": false,
+    "displayCompanionPopup": null,
     "filter": false,
     "myFeed": "created",
     "rankLastSeen": "2020-09-22T12:15:51.247Z",

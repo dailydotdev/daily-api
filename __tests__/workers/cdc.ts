@@ -687,7 +687,7 @@ describe('alerts', () => {
     rankLastSeen: rankLastSeen.getTime(),
     myFeed: 'created',
     companionHelper: true,
-    addCompanion: null,
+    displayCompanionPopup: null,
   };
 
   it('should notify on alert.filter changed', async () => {

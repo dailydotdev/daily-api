@@ -47,7 +47,7 @@ export const typeDefs = /* GraphQL */ `
     """
     For existing users, we will display the companion popup onload
     """
-    addCompanion: Boolean
+    displayCompanionPopup: Boolean
   }
 
   input UpdateAlertsInput {
@@ -74,7 +74,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Status for displaying the companion popup onload
     """
-    addCompanion: Boolean
+    displayCompanionPopup: Boolean
   }
 
   extend type Mutation {
