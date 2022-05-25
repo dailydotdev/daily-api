@@ -18,6 +18,7 @@ import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
+import { standardizeURL } from '../common/standardizeUrl';
 
 export interface GQLPost {
   id: string;
@@ -518,11 +519,12 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ) => {
+      const standardizedUrl = standardizeURL(url);
       const res = await graphorm.query(ctx, info, (builder) => ({
         queryBuilder: builder.queryBuilder
           .where(
             `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false`,
-            { url },
+            { url: standardizedUrl },
           )
           .limit(1),
         ...builder,
