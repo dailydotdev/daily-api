@@ -5,7 +5,10 @@ export class AlertsAddCompanion1653461379025 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "alerts" ADD "addCompanion" boolean NOT NULL DEFAULT true`,
+      `ALTER TABLE "alerts" ADD "addCompanion" boolean NULL`,
+    );
+    await queryRunner.query(
+      `update "public"."alerts" set "addCompanion" = TRUE`,
     );
   }
 

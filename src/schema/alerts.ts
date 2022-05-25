@@ -47,7 +47,7 @@ export const typeDefs = /* GraphQL */ `
     """
     For existing users, we will display the companion popup onload
     """
-    addCompanion: Boolean!
+    addCompanion: Boolean
   }
 
   input UpdateAlertsInput {
