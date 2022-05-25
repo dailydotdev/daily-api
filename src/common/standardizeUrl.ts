@@ -10,13 +10,11 @@ const subtractDomain = (url: string): string => {
   return matches && matches[1];
 };
 
-const removeTrailingSlash = (url: string): string => url.replace(/\/$/, '');
-
 export const standardizeURL = (url: string): string => {
   const domain = subtractDomain(url);
   if (!isExcluded(domain)) {
-    return removeTrailingSlash(url.split('?')[0]);
+    return url.split('?')[0];
   }
 
-  return removeTrailingSlash(url);
+  return url;
 };
