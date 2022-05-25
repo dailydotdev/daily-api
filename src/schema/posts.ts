@@ -8,7 +8,12 @@ import { Connection, DeepPartial } from 'typeorm';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { defaultImage, getDiscussionLink, pickImageUrl } from '../common';
+import {
+  defaultImage,
+  getDiscussionLink,
+  pickImageUrl,
+  standardizeURL,
+} from '../common';
 import { HiddenPost, Post, Toc, Upvote, PostReport } from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError } from '../errors';
@@ -18,7 +23,6 @@ import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
-import { standardizeURL } from '../common/standardizeUrl';
 
 export interface GQLPost {
   id: string;
