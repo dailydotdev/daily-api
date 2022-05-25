@@ -17,6 +17,9 @@ export class Alerts {
 
   @Column({ type: 'bool', default: true })
   companionHelper: boolean;
+
+  @Column({ type: 'bool', default: true })
+  addCompanion: boolean;
 }
 
 export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
@@ -24,4 +27,5 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
   rankLastSeen: null,
   myFeed: null,
   companionHelper: true,
+  addCompanion: true,
 };

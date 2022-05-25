@@ -43,6 +43,11 @@ export const typeDefs = /* GraphQL */ `
     Once the user has seen it once, we set this value to false
     """
     companionHelper: Boolean!
+
+    """
+    For existing users, we will display the companion popup onload
+    """
+    addCompanion: Boolean!
   }
 
   input UpdateAlertsInput {

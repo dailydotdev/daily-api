@@ -40,6 +40,7 @@ describe('query userAlerts', () => {
       rankLastSeen
       myFeed
       companionHelper
+      addCompanion
     }
   }`;
 
@@ -74,6 +75,7 @@ describe('mutation updateUserAlerts', () => {
         rankLastSeen
         myFeed
         companionHelper
+        addCompanion
       }
     }
   `;
