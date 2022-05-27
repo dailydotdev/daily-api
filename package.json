@@ -74,6 +74,7 @@
     "reflect-metadata": "^0.1.13",
     "rss": "^1.2.2",
     "shortid": "^2.2.16",
+    "ts-ioredis-pool": "^1.0.1",
     "twit": "^2.2.11",
     "typeorm": "^0.2.41",
     "uuid": "^8.3.2",

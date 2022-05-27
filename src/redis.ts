@@ -1,5 +1,6 @@
 import { RedisPubSub } from 'graphql-redis-subscriptions';
 import Redis, { RedisOptions } from 'ioredis';
+import { IORedisPool, IORedisPoolOptions } from 'ts-ioredis-pool';
 
 export const redisOptions: RedisOptions = {
   host: process.env.REDIS_HOST,
@@ -7,7 +8,7 @@ export const redisOptions: RedisOptions = {
   password: process.env.REDIS_PASS,
 };
 
-export const redisClient: Redis.Redis = new Redis(redisOptions);
+// export const redisClient: Redis.Redis = new Redis(redisOptions);
 
 export const redisPubSub = new RedisPubSub({
   publisher: new Redis(redisOptions),
@@ -16,16 +17,31 @@ export const redisPubSub = new RedisPubSub({
 
 export function deleteKeysByPattern(pattern: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const stream = redisClient.scanStream({ match: pattern });
-    stream.on('data', (keys) => {
-      if (keys.length) {
-        redisClient.unlink(keys);
-      } else {
-        stream.destroy();
-        resolve();
-      }
+    return ioRedisPool.execute(async (client) => {
+      const stream = client.scanStream({ match: pattern });
+      stream.on('data', (keys) => {
+        if (keys.length) {
+          client.unlink(keys);
+        } else {
+          stream.destroy();
+          resolve();
+        }
+      });
+      stream.on('end', resolve);
+      stream.on('error', reject);
     });
-    stream.on('end', resolve);
-    stream.on('error', reject);
   });
 }
+
+const ioRedisPoolOpts = IORedisPoolOptions.fromUrl(
+  process.env.REDIS_URL as string,
+)
+  .withIORedisOptions(redisOptions)
+  .withPoolOptions({
+    min: 10,
+    max: 50,
+    evictionRunIntervalMillis: 60000,
+    idleTimeoutMillis: 30000,
+  });
+
+export const ioRedisPool = new IORedisPool(ioRedisPoolOpts);

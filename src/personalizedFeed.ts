@@ -1,11 +1,11 @@
 import { Connection } from 'typeorm';
 import { feedToFilters } from './common';
 import fetch from 'node-fetch';
-import { redisClient } from './redis';
 import { Context } from './Context';
 import { runInSpan } from './trace';
 import http from 'node:http';
 import https from 'node:https';
+import { ioRedisPool } from './redis';
 
 interface TinybirdResponse<T> {
   data: T[];
@@ -120,20 +120,22 @@ async function fetchAndCacheFeed(
   if (rawPostIds?.length) {
     const postIds = rawPostIds.map(({ post_id }) => post_id);
     setTimeout(async () => {
-      const pipeline = redisClient.pipeline();
-      pipeline.set(
-        `${key}:time`,
-        new Date().toISOString(),
-        'ex',
-        ONE_DAY_SECONDS,
-      );
-      pipeline.set(
-        `${key}:posts`,
-        JSON.stringify(postIds),
-        'ex',
-        ONE_DAY_SECONDS,
-      );
-      await pipeline.exec();
+      await ioRedisPool.execute(async (client) => {
+        const pipeline = client.pipeline();
+        pipeline.set(
+          `${key}:time`,
+          new Date().toISOString(),
+          'ex',
+          ONE_DAY_SECONDS,
+        );
+        pipeline.set(
+          `${key}:posts`,
+          JSON.stringify(postIds),
+          'ex',
+          ONE_DAY_SECONDS,
+        );
+        return await pipeline.exec();
+      });
     });
     return postIds;
   }
@@ -150,9 +152,10 @@ const shouldServeFromCache = async (
     return true;
   }
   const updateKey = `${getPersonalizedFeedKeyPrefix(feedId)}:update`;
-  const [lastGenerated, lastUpdated] = await redisClient.mget(
-    `${key}:time`,
-    updateKey,
+  const [lastGenerated, lastUpdated] = await ioRedisPool.execute(
+    async (client) => {
+      return await client.mget(`${key}:time`, updateKey);
+    },
   );
   const ttl = feedVersion != 8 ? 3 * 60 * 1000 : 60 * 1000;
   return !(
@@ -182,7 +185,9 @@ export async function generatePersonalizedFeed({
 }): Promise<string[]> {
   try {
     const key = getPersonalizedFeedKey(userId, feedId);
-    const idsPromise = redisClient.get(`${key}:posts`);
+    const idsPromise = ioRedisPool.execute(async (client) => {
+      return client.get(`${key}:posts`);
+    });
     if (
       await runInSpan(
         ctx?.span,
