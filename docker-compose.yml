@@ -9,6 +9,7 @@ volumes:
   redis:
 
 services:
+
   db:
     image: postgres:11.6-alpine
     environment:
@@ -23,13 +24,15 @@ services:
       - "postgres"
       - "-c"
       - "wal_level=logical"
+
   redis:
     image: redis:6
     command: redis-server --appendonly yes
     volumes:
-    - redis:/data
+      - redis:/data
     ports:
       - "6379:6379"
+
   debezium:
     image: debezium/server:1.6
     environment:
