@@ -751,10 +751,10 @@ const invalidateFeedCache = async (feedId: string): Promise<void> => {
   try {
     const key = getPersonalizedFeedKeyPrefix(feedId);
     await ioRedisPool.execute(async (client) => {
-      return await client.set(
+      return client.set(
         `${key}:update`,
         new Date().toISOString(),
-        'ex',
+        'EX',
         24 * 60 * 60,
       );
     });

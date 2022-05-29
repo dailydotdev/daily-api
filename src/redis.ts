@@ -1,4 +1,4 @@
-import { RedisPubSub } from 'graphql-redis-subscriptions';
+import { RedisPubSub } from '@dailydotdev/graphql-redis-subscriptions';
 import { IORedisPool, IORedisPoolOptions } from '@dailydotdev/ts-ioredis-pool';
 
 export const redisOptions = {

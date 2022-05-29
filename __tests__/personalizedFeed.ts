@@ -90,7 +90,7 @@ it('should fetch anonymous feed and serve consequent calls from cache', async ()
 it('should fetch anonymous feed even when cache is old', async () => {
   const key = getPersonalizedFeedKey();
   await ioRedisPool.execute(async (client) => {
-    return await client.set(
+    return client.set(
       `${key}:time`,
       new Date(new Date().getTime() - 60 * 60 * 1000).toISOString(),
     );
@@ -115,7 +115,7 @@ it('should fetch anonymous feed even when cache is old', async () => {
 it('should not fetch anonymous feed even when cache is still fresh', async () => {
   const key = getPersonalizedFeedKey();
   await ioRedisPool.execute(async (client) => {
-    return await client.set(`${key}:time`, new Date().toISOString());
+    return client.set(`${key}:time`, new Date().toISOString());
   });
   await setCache(key, ['7', '8']);
 
@@ -135,13 +135,13 @@ it('should not fetch anonymous feed even when cache is still fresh', async () =>
 it('should fetch anonymous feed when last updated time is greater than last generated time', async () => {
   const key = getPersonalizedFeedKey();
   await ioRedisPool.execute(async (client) => {
-    return await client.set(
+    return client.set(
       `${getPersonalizedFeedKeyPrefix()}:update`,
       new Date(new Date().getTime() - 10 * 1000).toISOString(),
     );
   });
   await ioRedisPool.execute(async (client) => {
-    return await client.set(
+    return client.set(
       `${key}:time`,
       new Date(new Date().getTime() - 60 * 1000).toISOString(),
     );

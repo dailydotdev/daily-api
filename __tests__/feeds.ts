@@ -995,10 +995,10 @@ describe('mutation updateFeedAdvancedSettings', () => {
   it('should add the new feed advanced settings', async () => {
     loggedUser = '1';
     await ioRedisPool.execute(async (client) => {
-      return await client.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
+      return client.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
     });
     await ioRedisPool.execute(async (client) => {
-      return await client.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
+      return client.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
     });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, AdvancedSettings, advancedSettings);
@@ -1014,7 +1014,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
     expect(res.data).toMatchSnapshot();
     expect(
       await ioRedisPool.execute(async (client) => {
-        return await client.get(`${getPersonalizedFeedKeyPrefix('1')}:update`);
+        return client.get(`${getPersonalizedFeedKeyPrefix('1')}:update`);
       }),
     ).toBeTruthy();
   });
@@ -1037,10 +1037,10 @@ describe('mutation updateFeedAdvancedSettings', () => {
   it('should update existing feed advanced settings', async () => {
     loggedUser = '1';
     await ioRedisPool.execute(async (client) => {
-      return await client.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
+      return client.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
     });
     await ioRedisPool.execute(async (client) => {
-      return await client.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
+      return client.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
     });
     await saveFeedFixtures();
     const res = await client.mutate(MUTATION, {
@@ -1056,7 +1056,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
     expect(res.data).toMatchSnapshot();
     expect(
       await ioRedisPool.execute(async (client) => {
-        return await client.get(`${getPersonalizedFeedKeyPrefix('1')}:update`);
+        return client.get(`${getPersonalizedFeedKeyPrefix('1')}:update`);
       }),
     ).toBeTruthy();
   });
@@ -1112,7 +1112,7 @@ describe('mutation addFiltersToFeed', () => {
   it('should add the new feed settings', async () => {
     loggedUser = '1';
     await ioRedisPool.execute(async (client) => {
-      return await client.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
+      return client.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
     });
     await ioRedisPool.execute(async (client) => {
       await client.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
@@ -1131,7 +1131,7 @@ describe('mutation addFiltersToFeed', () => {
     expect(res.data).toMatchSnapshot();
     expect(
       await ioRedisPool.execute(async (client) => {
-        return await client.get(`${getPersonalizedFeedKeyPrefix('1')}:update`);
+        return client.get(`${getPersonalizedFeedKeyPrefix('1')}:update`);
       }),
     ).toBeTruthy();
   });
@@ -1199,10 +1199,10 @@ describe('mutation removeFiltersFromFeed', () => {
   it('should remove existing filters', async () => {
     loggedUser = '1';
     await ioRedisPool.execute(async (client) => {
-      return await client.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
+      return client.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
     });
     await ioRedisPool.execute(async (client) => {
-      return await client.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
+      return client.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
     });
     await saveFeedFixtures();
     const res = await client.mutate(MUTATION, {
@@ -1217,7 +1217,7 @@ describe('mutation removeFiltersFromFeed', () => {
     expect(res.data).toMatchSnapshot();
     expect(
       await ioRedisPool.execute(async (client) => {
-        return await client.get(`${getPersonalizedFeedKeyPrefix('1')}:update`);
+        return client.get(`${getPersonalizedFeedKeyPrefix('1')}:update`);
       }),
     ).toBeTruthy();
   });

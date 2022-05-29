@@ -125,13 +125,13 @@ async function fetchAndCacheFeed(
         pipeline.set(
           `${key}:time`,
           new Date().toISOString(),
-          'ex',
+          'EX',
           ONE_DAY_SECONDS,
         );
         pipeline.set(
           `${key}:posts`,
           JSON.stringify(postIds),
-          'ex',
+          'EX',
           ONE_DAY_SECONDS,
         );
         return await pipeline.exec();
@@ -154,7 +154,7 @@ const shouldServeFromCache = async (
   const updateKey = `${getPersonalizedFeedKeyPrefix(feedId)}:update`;
   const [lastGenerated, lastUpdated] = await ioRedisPool.execute(
     async (client) => {
-      return await client.mget(`${key}:time`, updateKey);
+      return client.mget(`${key}:time`, updateKey);
     },
   );
   const ttl = feedVersion != 8 ? 3 * 60 * 1000 : 60 * 1000;
