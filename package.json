@@ -26,6 +26,7 @@
   "dependencies": {
     "@amplitude/node": "^1.8.3",
     "@binxhealth/pino-stackdriver": "^3.0.0",
+    "@dailydotdev/ts-ioredis-pool": "^1.0.2",
     "@google-cloud/pubsub": "^2.17.0",
     "@google-cloud/trace-agent": "^5.1.5",
     "@graphql-tools/schema": "^8.3.1",
@@ -57,7 +58,7 @@
     "graphql-tools": "^4.0.8",
     "he": "^1.2.0",
     "highlight.js": "^11.3.1",
-    "ioredis": "^4.28.2",
+    "ioredis": "^5.0.5",
     "isbot": "^3.3.3",
     "jsonexport": "^3.2.0",
     "jsonwebtoken": "^8.5.1",
