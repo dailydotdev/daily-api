@@ -597,6 +597,29 @@ describe('query postByUrl', () => {
     const res = await client.query(QUERY('http://p1.com'));
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should return post if query params attached', async () => {
+    const res = await client.query(QUERY('http://p1.com?query=param'));
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return post if query params on youtube link', async () => {
+    await saveFixtures(con, Post, [
+      {
+        id: 'yt1',
+        shortId: 'yt1',
+        title: 'Youtube video',
+        url: 'https://youtube.com/watch?v=123',
+        score: 0,
+        sourceId: 'a',
+        createdAt: new Date('2021-09-22T07:15:51.247Z'),
+        tagsStr: 'javascript,webdev',
+        deleted: false,
+      },
+    ]);
+    const res = await client.query(QUERY('https://youtube.com/watch?v=123'));
+    expect(res.data).toMatchSnapshot();
+  });
 });
 
 describe('query postUpvotes', () => {

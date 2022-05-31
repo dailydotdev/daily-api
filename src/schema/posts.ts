@@ -8,7 +8,12 @@ import { Connection, DeepPartial } from 'typeorm';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
-import { defaultImage, getDiscussionLink, pickImageUrl } from '../common';
+import {
+  defaultImage,
+  getDiscussionLink,
+  pickImageUrl,
+  standardizeURL,
+} from '../common';
 import { HiddenPost, Post, Toc, Upvote, PostReport } from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError } from '../errors';
@@ -566,11 +571,12 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ) => {
+      const standardizedUrl = standardizeURL(url);
       const res = await graphorm.query(ctx, info, (builder) => ({
         queryBuilder: builder.queryBuilder
           .where(
             `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false`,
-            { url },
+            { url: standardizedUrl },
           )
           .limit(1),
         ...builder,
