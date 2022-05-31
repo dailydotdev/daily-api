@@ -10,7 +10,7 @@ import commentUpvoteCanceledRep from './commentUpvoteCanceledRep';
 import commentCommentedThread from './commentCommentedThread';
 import commentFeaturedMail from './commentFeaturedMail';
 import postAuthorMatchedMail from './postAuthorMatchedMail';
-import communityLinkAcceptedMail from './communityLinkAcceptedMail';
+import postScoutMatchedMail from './postScoutMatchedMail';
 import communityLinkRejectedMail from './communityLinkRejectedMail';
 import postScoutMatchedSlack from './postScoutMatchedSlack';
 import commentCommentedAuthor from './commentCommentedAuthor';
@@ -50,7 +50,7 @@ export const workers: Worker[] = [
   commentCommentedThread,
   commentFeaturedMail,
   postAuthorMatchedMail,
-  communityLinkAcceptedMail,
+  postScoutMatchedMail,
   communityLinkRejectedMail,
   postScoutMatchedSlack,
   commentCommentedAuthor,

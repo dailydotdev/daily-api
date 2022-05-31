@@ -19,7 +19,7 @@ export const templateId = {
   commentUpvoted: 'd-92bca6102e3a4b41b6fc3f532f050429',
   devcardEligible: 'd-680e36a387084cac87923963ea0656db',
   postAuthorMatched: 'd-3d3402ec873640e788f549a0680c40bb',
-  communityLinkAccepted: 'no available tempalte yet',
+  postScoutMatched: 'no available tempalte yet',
   communityLinkRejected: 'no available tempalte yet',
   analyticsReport: 'd-97c75b0e2cf847399d20233455736ba0',
 };

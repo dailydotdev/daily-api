@@ -1,9 +1,13 @@
 import nock from 'nock';
+import { Connection, getConnection } from 'typeorm';
+
 import { mocked } from 'ts-jest/utils';
-import { expectSuccessfulBackground } from '../helpers';
+
+import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail, User as GatewayUser } from '../../src/common';
-import worker from '../../src/workers/communityLinkAcceptedMail';
-import { SubmissionStatus } from '../../src/entity';
+import worker from '../../src/workers/postScoutMatchedMail';
+import { Post, Source } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -13,8 +17,27 @@ jest.mock('../../src/common/mailing', () => ({
   sendEmail: jest.fn(),
 }));
 
+let con: Connection;
+
+beforeAll(async () => {
+  con = await getConnection();
+});
+
 beforeEach(async () => {
   jest.resetAllMocks();
+  await saveFixtures(con, Source, sourcesFixture);
+  await saveFixtures(con, Post, [
+    {
+      id: 'p1',
+      shortId: 'sp1',
+      title: 'P1',
+      url: 'http://p1.com',
+      score: 0,
+      sourceId: 'a',
+      createdAt: new Date(2020, 8, 27),
+      image: 'https://daily.dev/image.jpg',
+    },
+  ]);
 });
 
 const mockUsersMe = (user: GatewayUser): nock.Scope =>
@@ -25,7 +48,7 @@ const mockUsersMe = (user: GatewayUser): nock.Scope =>
     .matchHeader('logged-in', 'true')
     .reply(200, user);
 
-it('should send mail when the submission status is approved', async () => {
+it('should send post scout matched mail', async () => {
   const mockedUsers: GatewayUser[] = [
     {
       id: '1',
@@ -38,9 +61,8 @@ it('should send mail when the submission status is approved', async () => {
   ];
   mockedUsers.forEach(mockUsersMe);
   await expectSuccessfulBackground(worker, {
-    url: 'http://sample.abc.com',
-    userId: '1',
-    status: SubmissionStatus.Accepted,
+    postId: 'p1',
+    scoutId: '1',
   });
   expect(sendEmail).toBeCalledTimes(1);
   expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();

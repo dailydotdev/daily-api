@@ -1032,25 +1032,4 @@ describe('submission', () => {
       after,
     ]);
   });
-
-  it('should notify when the status turns to rejected', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      status: SubmissionStatus.Accepted,
-    };
-    await saveFixtures(con, User, [defaultUser]);
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: null,
-        op: 'u',
-        table: 'submission',
-      }),
-    );
-    expect(notifySubmissionChanged).toBeCalledTimes(1);
-    expect(mocked(notifySubmissionChanged).mock.calls[0].slice(1)).toEqual([
-      after,
-    ]);
-  });
 });

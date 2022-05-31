@@ -35,7 +35,6 @@ const postBannedOrRemovedTopic = pubsub.topic('post-banned-or-removed');
 const devcardEligibleTopic = pubsub.topic('devcard-eligible');
 const sourceFeedAddedTopic = pubsub.topic('source-feed-added');
 const sourceFeedRemovedTopic = pubsub.topic('source-feed-removed');
-const communityLinkAcceptedTopic = pubsub.topic('community-link-accepted');
 const communityLinkRejectedTopic = pubsub.topic('community-link-rejected');
 const communityLinkSubmittedTopic = pubsub.topic('community-link-submitted');
 
@@ -272,9 +271,6 @@ export const notifySubmissionChanged = async (
   log: EventLogger,
   submission: ChangeObject<Submission>,
 ): Promise<void> => {
-  if (submission.status === SubmissionStatus.Accepted) {
-    publishEvent(log, communityLinkAcceptedTopic, submission);
-  }
   if (submission.status === SubmissionStatus.Rejected) {
     publishEvent(log, communityLinkRejectedTopic, submission);
   }
