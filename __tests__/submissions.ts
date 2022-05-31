@@ -212,6 +212,12 @@ describe('mutation submitArticle', () => {
       .getRepository(Submission)
       .findOne({ url: request });
     expect(submission.status).toEqual(SubmissionStatus.NotStarted);
-    expect(res.data).toMatchSnapshot();
+    expect(res.data).toMatchSnapshot({
+      submitArticle: {
+        submission: {
+          id: expect.any(String),
+        },
+      },
+    });
   });
 });

@@ -7,7 +7,7 @@ Object {
     "reason": null,
     "result": "succeed",
     "submission": Object {
-      "id": "e23d89ae-5097-4d1d-a645-2bc2f2a3f27b",
+      "id": Any<String>,
       "status": "NOT_STARTED",
       "userId": "1",
     },
