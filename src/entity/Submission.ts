@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from './User';
+import { AddPostData } from './Post';
 
 export enum SubmissionStatus {
   NotStarted = 'NOT_STARTED',
@@ -45,23 +46,36 @@ export class Submission {
 
 export const validateAndApproveSubmission = async (
   entityManager: EntityManager,
-  id: string,
-): Promise<string> => {
-  if (!id) {
+  data: AddPostData,
+): Promise<{ scoutId?: string; rejected?: boolean }> => {
+  if (!data.submissionId) {
     return null;
   }
 
-  const submission = await entityManager.getRepository(Submission).findOne(id);
+  const submission = await entityManager
+    .getRepository(Submission)
+    .findOne(data.submissionId);
   if (!submission) {
     return null;
   }
 
+  if (data.authorId === submission.userId) {
+    await entityManager.getRepository(Submission).update(
+      { id: data.submissionId },
+      {
+        status: SubmissionStatus.Rejected,
+        reason: 'scout and author are the same',
+      },
+    );
+    return { rejected: true };
+  }
+
   await entityManager.getRepository(Submission).update(
-    { id },
+    { id: data.submissionId },
     {
       status: SubmissionStatus.Accepted,
     },
   );
 
-  return submission.userId;
+  return { scoutId: submission.userId };
 };

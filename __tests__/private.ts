@@ -27,6 +27,7 @@ const createDefaultUser = async () => {
     id: '1',
     name: 'Lee',
     image: 'https://daily.dev/lee.jpg',
+    twitter: 'leeTwitter',
   });
 };
 
@@ -98,6 +99,35 @@ describe('POST /p/newPost', () => {
     expect(submissions.length).toEqual(1);
     expect(submission.id).toEqual(uuid);
     expect(submission.status).toEqual(SubmissionStatus.Accepted);
+  });
+
+  it('should not accept post with same author and scout', async () => {
+    const uuid = randomUUID();
+    await createDefaultUser();
+    await createDefaultSubmission(uuid);
+    const { body } = await request(app.server)
+      .post('/p/newPost')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: 'p1',
+        title: 'Title',
+        url: 'https://post.com',
+        publicationId: 'a',
+        submissionId: uuid,
+        creatorTwitter: 'leeTwitter',
+      })
+      .expect(200);
+    expect(body).toEqual({
+      status: 'failed',
+      reason: 'scout and author are the same',
+    });
+    const submissions = await con.getRepository(Submission).find();
+    const [submission] = submissions;
+    expect(submissions.length).toEqual(1);
+    expect(submission.id).toEqual(uuid);
+    expect(submission.status).toEqual(SubmissionStatus.Rejected);
+    expect(submission.reason).toEqual('scout and author are the same');
   });
 
   it('should handle empty body', async () => {

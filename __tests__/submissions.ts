@@ -1,5 +1,5 @@
 import { Submission, SubmissionStatus } from '../src/entity/Submission';
-import { User } from '../src/entity';
+import { Post, Source, User } from '../src/entity';
 import { Connection, getConnection } from 'typeorm';
 import {
   disposeGraphQLTesting,
@@ -7,10 +7,12 @@ import {
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
+  saveFixtures,
   testMutationErrorCode,
 } from './helpers';
 import { DEFAULT_SUBMISSION_LIMIT } from '../src/schema/submissions';
 import { subDays } from 'date-fns';
+import { sourcesFixture } from './fixture/source';
 
 let con: Connection;
 let state: GraphQLTestingState;
@@ -82,10 +84,17 @@ describe('mutation submitArticle', () => {
   const MUTATION = `
     mutation SubmitArticle($url: String!) {
       submitArticle(url: $url) {
-        url
-        userId
-        status
+        result
         reason
+        post {
+          id
+          deleted
+        }
+        submission {
+          id
+          status
+          userId
+        }
       }
     }
   `;
@@ -102,21 +111,96 @@ describe('mutation submitArticle', () => {
     const request = 'https://abc.com/article';
     const repo = con.getRepository(Submission);
     await repo.save(repo.create({ url: request, userId: loggedUser }));
-    testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { url: request } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
+
+    const res = await client.mutate(MUTATION, { variables: { url: request } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      submitArticle: {
+        result: 'reject',
+        reason: `Article has been submitted already! Current status: NOT_STARTED`,
+        post: null,
+        submission: null,
+      },
+    });
+  });
+
+  it('should reject if the post already exists', async () => {
+    loggedUser = '1';
+    const request = 'http://p1.com';
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, [
+      {
+        id: 'p1',
+        shortId: 'sp1',
+        title: 'Post 1',
+        url: request,
+        canonicalUrl: request,
+        score: 0,
+        sourceId: 'a',
+        createdAt: new Date('2021-09-22T07:15:51.247Z'),
+        tagsStr: 'javascript,webdev',
+      },
+    ]);
+
+    const res = await client.mutate(MUTATION, { variables: { url: request } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      submitArticle: {
+        result: 'exists',
+        reason: null,
+        post: {
+          deleted: false,
+          id: 'p1',
+        },
+        submission: null,
+      },
+    });
+  });
+
+  it('should reject if the post was deleted', async () => {
+    loggedUser = '1';
+    const request = 'http://p8.com';
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, [
+      {
+        id: 'pdeleted',
+        shortId: 'spdeleted',
+        title: 'PDeleted',
+        url: request,
+        canonicalUrl: request,
+        score: 0,
+        sourceId: 'a',
+        createdAt: new Date('2021-09-22T07:15:51.247Z'),
+        tagsStr: 'javascript,webdev',
+        deleted: true,
+      },
+    ]);
+
+    const res = await client.mutate(MUTATION, { variables: { url: request } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      submitArticle: {
+        result: 'reject',
+        reason: 'post is deleted',
+        post: null,
+        submission: null,
+      },
+    });
   });
 
   it('should not allow invalid urls', async () => {
     loggedUser = '1';
     const request = 'test/sample/url';
-    testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { url: request } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
+    const res = await client.mutate(MUTATION, { variables: { url: request } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      submitArticle: {
+        result: 'reject',
+        reason: 'invalid URL',
+        post: null,
+        submission: null,
+      },
+    });
   });
 
   it('should create a submission entity if the url is valid', async () => {

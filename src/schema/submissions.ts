@@ -1,13 +1,20 @@
-import { Post, Submission, User } from './../entity';
+import { Submission, User } from './../entity';
 import { IResolvers } from 'graphql-tools';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { getDiscussionLink, isValidHttpUrl } from '../common';
-import { ValidationError } from 'apollo-server-errors';
+import { isValidHttpUrl } from '../common';
+import { getPostByUrl, GQLPost } from './posts';
 
 interface GQLArticleSubmission {
   url: string;
 }
+
+type GQLSubmitArticleResponse = {
+  result: 'succeed' | 'exists' | 'reject';
+  reason?: string;
+  post?: GQLPost;
+  submission?: GQLSubmission;
+};
 
 interface GQLSubmission {
   id: string;
@@ -42,6 +49,13 @@ export const typeDefs = /* GraphQL */ `
     reason: String
   }
 
+  type SubmitArticle {
+    result: String!
+    reason: String
+    post: Post
+    submission: Submission
+  }
+
   extend type Query {
     """
     Information regarding the access of submitting community links
@@ -52,7 +66,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Submit an article to surface on users feed
     """
-    submitArticle(url: String!): Submission @auth
+    submitArticle(url: String!): SubmitArticle @auth
   }
 `;
 
@@ -89,40 +103,35 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       _,
       { url }: GQLArticleSubmission,
       ctx,
-    ): Promise<GQLSubmission> => {
+      info,
+    ): Promise<GQLSubmitArticleResponse> => {
       if (!isValidHttpUrl(url)) {
-        throw new ValidationError('Invalid URL!');
+        return { result: 'reject', reason: 'invalid URL' };
       }
 
-      const postRepo = ctx.con.getRepository(Post);
-      const existingPost = await postRepo
-        .createQueryBuilder('post')
-        .where('url = :url or "canonicalUrl" = :url', { url })
-        .andWhere('deleted = false')
-        .leftJoinAndSelect('post.source', 'source')
-        .getOne();
+      const existingPost = await getPostByUrl(url, ctx, info);
       if (existingPost) {
-        const post = {
-          ...existingPost,
-          source: await existingPost.source,
-          commentsPermalink: getDiscussionLink(existingPost.id),
-        };
-        throw new ValidationError(JSON.stringify({ post }));
+        if (existingPost.deleted) {
+          return { result: 'reject', reason: 'post is deleted' };
+        }
+        return { result: 'exists', post: existingPost };
       }
 
       const submissionRepo = ctx.con.getRepository(Submission);
       const existingSubmission = await submissionRepo.findOne({ url });
 
       if (existingSubmission) {
-        throw new ValidationError(
-          'Article has been submitted already! Current status: ' +
-            existingSubmission.status,
-        );
+        return {
+          result: 'reject',
+          reason: `Article has been submitted already! Current status: ${existingSubmission.status}`,
+        };
       }
 
-      return submissionRepo.save(
+      const submission = await submissionRepo.save(
         submissionRepo.create({ url, userId: ctx.userId }),
       );
+
+      return { result: 'succeed', submission };
     },
   },
 });

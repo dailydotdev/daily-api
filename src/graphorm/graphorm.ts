@@ -505,6 +505,30 @@ export class GraphORM {
   }
 
   /**
+   * Queries the database to fulfill a Partial GraphQL request
+   * @param ctx GraphQL context of the request
+   * @param resolveInfo GraphQL resolve info of the request
+   * @param hierarchy Array of field names
+   * @param beforeQuery A callback function that is called before executing the query
+   */
+  queryByHierarchy<T>(
+    ctx: Context,
+    resolveInfo: GraphQLResolveInfo,
+    hierarchy: string[],
+    beforeQuery?: (builder: GraphORMBuilder) => GraphORMBuilder,
+  ): Promise<T[]> {
+    const parsedInfo = parseResolveInfo(resolveInfo) as ResolveTree;
+    if (parsedInfo) {
+      return this.queryResolveTree(
+        ctx,
+        this.getFieldByHierarchy(parsedInfo, hierarchy),
+        beforeQuery,
+      );
+    }
+    throw new Error('Resolve info is empty');
+  }
+
+  /**
    * Queries the database to fulfill a GraphQL request.
    * Response is returned in a Relay style pagination object.
    * @param ctx GraphQL context of the request

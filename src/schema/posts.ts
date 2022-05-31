@@ -18,6 +18,7 @@ import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
+import { GraphQLResolveInfo } from 'graphql';
 
 export interface GQLPost {
   id: string;
@@ -40,6 +41,7 @@ export interface GQLPost {
   numUpvotes: number;
   numComments: number;
   featuredComments?: GQLComment[];
+  deleted?: boolean;
   // Used only for pagination (not part of the schema)
   score: number;
   bookmarkedAt: Date;
@@ -277,6 +279,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the user is the scout
     """
     isScout: Int
+
+    """
+    Whether post is deleted
+    """
+    deleted: Boolean
   }
 
   type PostConnection {
@@ -508,6 +515,29 @@ export const reportReasons = new Map([
 
 export const getPostPermalink = (post: Pick<GQLPost, 'shortId'>): string =>
   `${process.env.URL_PREFIX}/r/${post.shortId}`;
+
+export const getPostByUrl = async (
+  url: string,
+  ctx: Context,
+  info: GraphQLResolveInfo,
+): Promise<GQLPost> => {
+  const res = await graphorm.queryByHierarchy<GQLPost>(
+    ctx,
+    info,
+    ['post'],
+    (builder) => ({
+      queryBuilder: builder.queryBuilder
+        .where(
+          `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url)`,
+          { url },
+        )
+        .limit(1),
+      ...builder,
+    }),
+  );
+
+  return res[0];
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {

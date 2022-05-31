@@ -3,10 +3,14 @@
 exports[`mutation submitArticle should create a submission entity if the url is valid 1`] = `
 Object {
   "submitArticle": Object {
+    "post": null,
     "reason": null,
-    "status": "NOT_STARTED",
-    "url": "https://daily.dev/amazing/article",
-    "userId": "1",
+    "result": "succeed",
+    "submission": Object {
+      "id": "e23d89ae-5097-4d1d-a645-2bc2f2a3f27b",
+      "status": "NOT_STARTED",
+      "userId": "1",
+    },
   },
 }
 `;

@@ -218,6 +218,7 @@ export interface AddPostData {
   tags?: string[];
   siteTwitter?: string;
   creatorTwitter?: string;
+  authorId?: string;
   readTime?: number;
   canonicalUrl?: string;
   keywords?: string[];
@@ -240,7 +241,11 @@ const parseReadTime = (
   return Math.floor(parseInt(readTime));
 };
 
-type Reason = 'exists' | 'author banned' | 'missing fields';
+type Reason =
+  | 'exists'
+  | 'author banned'
+  | 'missing fields'
+  | 'scout and author are the same';
 export type AddNewPostResult =
   | { status: 'ok'; postId: string }
   | { status: 'failed'; reason: Reason; error?: Error };
@@ -288,10 +293,6 @@ const fixAddPostData = (data: AddPostData): AddPostData => ({
   title: data.title && he.decode(data.title),
   createdAt: new Date(),
   readTime: parseReadTime(data.readTime),
-  creatorTwitter:
-    data.creatorTwitter === '' || data.creatorTwitter === '@'
-      ? null
-      : data.creatorTwitter,
   publishedAt: data.publishedAt && new Date(data.publishedAt),
 });
 
@@ -365,7 +366,6 @@ const addPostAndKeywordsToDb = async (
     entityManager,
     data.keywords,
   );
-  const authorId = await findAuthor(entityManager, data.creatorTwitter);
   await entityManager.getRepository(Post).insert({
     id: data.id,
     shortId: data.id,
@@ -383,8 +383,8 @@ const addPostAndKeywordsToDb = async (
     readTime: data.readTime,
     tagsStr: allowedKeywords?.join(',') || null,
     canonicalUrl: data.canonicalUrl,
-    authorId,
-    sentAnalyticsReport: !authorId,
+    authorId: data.authorId,
+    sentAnalyticsReport: !data.authorId,
     description: data.description,
     toc: data.toc,
     summary: data.summary,
@@ -426,18 +426,28 @@ export const addNewPost = async (
     return { status: 'failed', reason: 'missing fields' };
   }
 
-  const fixedData = fixAddPostData(data);
+  const creatorTwitter =
+    data.creatorTwitter === '' || data.creatorTwitter === '@'
+      ? null
+      : data.creatorTwitter;
 
   return con.transaction(async (entityManager) => {
+    const authorId = await findAuthor(entityManager, creatorTwitter);
+    const fixedData = fixAddPostData({ ...data, creatorTwitter, authorId });
+
     const reason = await shouldAddNewPost(entityManager, fixedData);
     if (reason) {
       return { status: 'failed', reason };
     }
 
-    const scoutId = await validateAndApproveSubmission(
+    const { scoutId, rejected } = (await validateAndApproveSubmission(
       entityManager,
-      fixedData?.submissionId,
-    );
+      fixedData,
+    )) || { scoutId: null, rejected: false };
+
+    if (rejected) {
+      return { status: 'failed', reason: 'scout and author are the same' };
+    }
 
     const combinedData = {
       ...fixedData,
