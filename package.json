@@ -65,7 +65,7 @@
     "markdown-it": "^12.3.2",
     "mercurius": "^8.12.0",
     "mercurius-cache": "^0.11.0",
-    "mercurius-upload": "^2.0.0",
+    "mercurius-upload": "^4.0.0",
     "node-fetch": "^2.6.7",
     "p-retry": "^4.6.1",
     "pg": "^8.7.1",
