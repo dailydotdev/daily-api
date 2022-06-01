@@ -29,8 +29,9 @@ export function deleteKeysByPattern(pattern: string): Promise<void> {
   });
 }
 
-const ioRedisPoolOpts = IORedisPoolOptions.fromUrl(
-  process.env.REDIS_URL as string,
+const ioRedisPoolOpts = IORedisPoolOptions.fromHostAndPort(
+  redisOptions.host,
+  redisOptions.port,
 )
   .withIORedisOptions(redisOptions)
   .withPoolOptions({
