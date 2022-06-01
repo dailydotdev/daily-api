@@ -47,7 +47,7 @@ import {
   generatePersonalizedFeed,
   getPersonalizedFeedKeyPrefix,
 } from '../personalizedFeed';
-import { redisClient } from '../redis';
+import { ioRedisPool } from '../redis';
 
 interface GQLTagsCategory {
   id: string;
@@ -750,12 +750,14 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
 const invalidateFeedCache = async (feedId: string): Promise<void> => {
   try {
     const key = getPersonalizedFeedKeyPrefix(feedId);
-    await redisClient.set(
-      `${key}:update`,
-      new Date().toISOString(),
-      'ex',
-      24 * 60 * 60,
-    );
+    await ioRedisPool.execute(async (client) => {
+      return client.set(
+        `${key}:update`,
+        new Date().toISOString(),
+        'EX',
+        24 * 60 * 60,
+      );
+    });
   } catch (err) {
     console.error(err);
   }

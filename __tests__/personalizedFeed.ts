@@ -1,6 +1,6 @@
 import { Connection, getConnection } from 'typeorm';
 import nock from 'nock';
-import { deleteKeysByPattern, redisClient } from '../src/redis';
+import { deleteKeysByPattern, ioRedisPool } from '../src/redis';
 import {
   generatePersonalizedFeed,
   getPersonalizedFeedKey,
@@ -35,7 +35,9 @@ beforeEach(async () => {
 });
 
 const setCache = (key: string, ids: string[]) =>
-  redisClient.set(`${key}:posts`, JSON.stringify(ids));
+  ioRedisPool.execute(async (client) => {
+    return client.set(`${key}:posts`, JSON.stringify(ids));
+  });
 
 it('should fetch anonymous feed and serve consequent pages from cache', async () => {
   nock('http://localhost:6000')
@@ -87,10 +89,12 @@ it('should fetch anonymous feed and serve consequent calls from cache', async ()
 
 it('should fetch anonymous feed even when cache is old', async () => {
   const key = getPersonalizedFeedKey();
-  await redisClient.set(
-    `${key}:time`,
-    new Date(new Date().getTime() - 60 * 60 * 1000).toISOString(),
-  );
+  await ioRedisPool.execute(async (client) => {
+    return client.set(
+      `${key}:time`,
+      new Date(new Date().getTime() - 60 * 60 * 1000).toISOString(),
+    );
+  });
   await setCache(key, ['7', '8']);
 
   nock('http://localhost:6000')
@@ -110,7 +114,9 @@ it('should fetch anonymous feed even when cache is old', async () => {
 
 it('should not fetch anonymous feed even when cache is still fresh', async () => {
   const key = getPersonalizedFeedKey();
-  await redisClient.set(`${key}:time`, new Date().toISOString());
+  await ioRedisPool.execute(async (client) => {
+    return client.set(`${key}:time`, new Date().toISOString());
+  });
   await setCache(key, ['7', '8']);
 
   nock('http://localhost:6000')
@@ -128,14 +134,18 @@ it('should not fetch anonymous feed even when cache is still fresh', async () =>
 
 it('should fetch anonymous feed when last updated time is greater than last generated time', async () => {
   const key = getPersonalizedFeedKey();
-  await redisClient.set(
-    `${getPersonalizedFeedKeyPrefix()}:update`,
-    new Date(new Date().getTime() - 10 * 1000).toISOString(),
-  );
-  await redisClient.set(
-    `${key}:time`,
-    new Date(new Date().getTime() - 60 * 1000).toISOString(),
-  );
+  await ioRedisPool.execute(async (client) => {
+    return client.set(
+      `${getPersonalizedFeedKeyPrefix()}:update`,
+      new Date(new Date().getTime() - 10 * 1000).toISOString(),
+    );
+  });
+  await ioRedisPool.execute(async (client) => {
+    return client.set(
+      `${key}:time`,
+      new Date(new Date().getTime() - 60 * 1000).toISOString(),
+    );
+  });
   await setCache(key, ['7', '8']);
 
   nock('http://localhost:6000')
