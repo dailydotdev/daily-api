@@ -1,7 +1,7 @@
 import '../src/config';
 import { Connection } from 'typeorm';
 import { createOrGetConnection } from '../src/db';
-import { redisClient, redisPubSub } from '../src/redis';
+import { ioRedisPool, redisPubSub } from '../src/redis';
 
 let con: Connection;
 
@@ -31,5 +31,5 @@ afterAll(async () => {
   await con.close();
   redisPubSub.getPublisher().disconnect();
   redisPubSub.getSubscriber().disconnect();
-  redisClient.disconnect();
+  await ioRedisPool.end();
 });
