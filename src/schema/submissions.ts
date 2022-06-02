@@ -1,3 +1,4 @@
+import { Connection } from 'typeorm';
 import { Submission, User } from './../entity';
 import { IResolvers } from 'graphql-tools';
 import { traceResolvers } from './trace';
@@ -32,6 +33,7 @@ interface GQLSubmissionAvailability {
 }
 
 export const DEFAULT_SUBMISSION_LIMIT = '3';
+export const DEFAULT_SUBMISSION_ACCESS_THRESHOLD = '250';
 
 export const typeDefs = /* GraphQL */ `
   type SubmissionAvailability {
@@ -70,6 +72,27 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+const submissionLimit = parseInt(
+  process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
+);
+
+const submissionAccessThreshold = parseInt(
+  process.env.SCOUT_SUBMISSION_ACCESS_THRESHOLD ||
+    DEFAULT_SUBMISSION_ACCESS_THRESHOLD,
+);
+
+const hasSubmissionAccess = (user: User) =>
+  user.reputation >= submissionAccessThreshold;
+
+const getSubmissionsToday = (con: Connection, timezone = 'utc') => {
+  const nowTimezone = `timezone('${timezone}', now())`;
+  const atTimezone = `at time zone '${timezone}'`;
+
+  return con.getRepository(Submission).find({
+    where: `date_trunc('day', "createdAt")::timestamptz ${atTimezone} = date_trunc('day', ${nowTimezone})::timestamptz`,
+  });
+};
+
 export const resolvers: IResolvers<unknown, Context> = traceResolvers({
   Query: {
     submissionAvailability: async (
@@ -77,25 +100,25 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       __,
       ctx,
     ): Promise<GQLSubmissionAvailability> => {
-      const limit = parseInt(
-        process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
-      );
-
-      const repo = ctx.getRepository(Submission);
       const user = await ctx.getRepository(User).findOne({ id: ctx.userId });
       if (!user) {
-        return { limit, hasAccess: false, todaySubmissionsCount: 0 };
+        return {
+          limit: submissionLimit,
+          hasAccess: false,
+          todaySubmissionsCount: 0,
+        };
       }
 
-      const timezone = user.timezone ?? 'utc';
-      const nowTimezone = `timezone('${timezone}', now())`;
-      const atTimezone = `at time zone '${timezone}'`;
-      const submissions = await repo.find({
-        where: `date_trunc('day', "createdAt")::timestamptz ${atTimezone} = date_trunc('day', ${nowTimezone})::timestamptz`,
-      });
-      const hasAccess = true; // subject for change on how we define the access
+      const submissionsToday = await getSubmissionsToday(
+        ctx.con,
+        user.timezone,
+      );
 
-      return { limit, todaySubmissionsCount: submissions.length, hasAccess };
+      return {
+        limit: submissionLimit,
+        todaySubmissionsCount: submissionsToday.length,
+        hasAccess: hasSubmissionAccess(user),
+      };
     },
   },
   Mutation: {
@@ -105,6 +128,22 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       ctx,
       info,
     ): Promise<GQLSubmitArticleResponse> => {
+      const user = await ctx.getRepository(User).findOne({ id: ctx.userId });
+
+      if (!user || !hasSubmissionAccess(user)) {
+        return { result: 'reject', reason: 'Access denied' };
+      }
+
+      const submissionRepo = ctx.con.getRepository(Submission);
+      const submissionsToday = await getSubmissionsToday(
+        ctx.con,
+        user.timezone,
+      );
+
+      if (submissionsToday.length >= submissionLimit) {
+        return { result: 'reject', reason: 'Submission limit reached' };
+      }
+
       if (!isValidHttpUrl(url)) {
         return { result: 'reject', reason: 'invalid URL' };
       }
@@ -117,7 +156,6 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         return { result: 'exists', post: existingPost };
       }
 
-      const submissionRepo = ctx.con.getRepository(Submission);
       const existingSubmission = await submissionRepo.findOne({ url });
 
       if (existingSubmission) {
