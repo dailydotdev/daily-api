@@ -76,7 +76,7 @@ const submissionLimit = parseInt(
   process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
 );
 
-const submissionAccessThreshold = parseInt(
+export const submissionAccessThreshold = parseInt(
   process.env.SCOUT_SUBMISSION_ACCESS_THRESHOLD ||
     DEFAULT_SUBMISSION_ACCESS_THRESHOLD,
 );

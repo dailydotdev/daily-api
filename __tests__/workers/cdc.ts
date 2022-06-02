@@ -25,6 +25,7 @@ import {
   notifySettingsUpdated,
   notifySubmissionChanged,
   notifySubmissionCreated,
+  notifySubmissionGrantedAccess,
   sendEmail,
   baseNotificationEmailData,
   pickImageUrl,
@@ -60,6 +61,7 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { Alerts } from '../../src/entity';
 import { randomUUID } from 'crypto';
+import { submissionAccessThreshold } from '../../src/schema/submissions';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -83,6 +85,7 @@ jest.mock('../../src/common', () => ({
   notifySettingsUpdated: jest.fn(),
   notifySubmissionChanged: jest.fn(),
   notifySubmissionCreated: jest.fn(),
+  notifySubmissionGrantedAccess: jest.fn(),
   sendEmail: jest.fn(),
 }));
 
@@ -428,6 +431,26 @@ describe('user', () => {
     );
     expect(notifyDevCardEligible).toBeCalledTimes(1);
     expect(mocked(notifyDevCardEligible).mock.calls[0].slice(1)).toEqual(['1']);
+  });
+
+  it('should notify on reputation passed threshold for community link submission', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      reputation: submissionAccessThreshold,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'user',
+      }),
+    );
+    expect(notifySubmissionGrantedAccess).toBeCalledTimes(1);
+    expect(
+      mocked(notifySubmissionGrantedAccess).mock.calls[0].slice(1),
+    ).toEqual(['1']);
   });
 });
 

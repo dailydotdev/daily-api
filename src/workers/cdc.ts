@@ -37,6 +37,7 @@ import {
   notifySubmissionChanged,
   notifyScoutMatched,
   notifySubmissionCreated,
+  notifySubmissionGrantedAccess,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -47,6 +48,7 @@ import { PostReport, Alerts } from '../entity';
 import { reportReasons } from '../schema/posts';
 import { updateAlerts } from '../schema/alerts';
 import { sendEmailToMentionedUser } from './commentMentionEmail';
+import { submissionAccessThreshold } from '../schema/submissions';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -168,6 +170,10 @@ const onUserChange = async (
       data.payload.after.devcardEligible
     ) {
       await notifyDevCardEligible(logger, data.payload.after.id);
+    }
+
+    if (data.payload.after.reputation >= submissionAccessThreshold) {
+      await notifySubmissionGrantedAccess(logger, data.payload.after.id);
     }
   }
 };

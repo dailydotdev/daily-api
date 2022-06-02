@@ -1,0 +1,28 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`should send mail when user has now the access to submit community links 1`] = `
+Array [
+  Object {
+    "asm": Object {
+      "groupId": 12850,
+    },
+    "category": "Notification",
+    "dynamicTemplateData": Object {},
+    "from": Object {
+      "email": "informer@daily.dev",
+      "name": "daily.dev",
+    },
+    "replyTo": Object {
+      "email": "hi@daily.dev",
+      "name": "daily.dev",
+    },
+    "templateId": "no available tempalte yet",
+    "to": "lee@acme.com",
+    "trackingSettings": Object {
+      "openTracking": Object {
+        "enable": true,
+      },
+    },
+  },
+]
+`;

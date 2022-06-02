@@ -21,6 +21,7 @@ export const templateId = {
   postAuthorMatched: 'd-3d3402ec873640e788f549a0680c40bb',
   postScoutMatched: 'no available tempalte yet',
   communityLinkRejected: 'no available tempalte yet',
+  communityLinkSubmissionAccess: 'no available tempalte yet',
   analyticsReport: 'd-97c75b0e2cf847399d20233455736ba0',
 };
 
