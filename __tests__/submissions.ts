@@ -29,9 +29,12 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   loggedUser = null;
-  await con
-    .getRepository(User)
-    .save({ id: '1', name: 'Lee', image: 'https://daily.dev/lee.jpg' });
+  await con.getRepository(User).save({
+    id: '1',
+    name: 'Lee',
+    image: 'https://daily.dev/lee.jpg',
+    reputation: 250,
+  });
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -118,6 +121,26 @@ describe('mutation submitArticle', () => {
       submitArticle: {
         result: 'reject',
         reason: `Article has been submitted already! Current status: NOT_STARTED`,
+        post: null,
+        submission: null,
+      },
+    });
+  });
+
+  it('should invalidate if the user has reached limit', async () => {
+    loggedUser = '1';
+    const request = 'https://abc.com/article';
+    const repo = con.getRepository(Submission);
+    await repo.save(repo.create({ url: `${request}1`, userId: loggedUser }));
+    await repo.save(repo.create({ url: `${request}2`, userId: loggedUser }));
+    await repo.save(repo.create({ url: `${request}3`, userId: loggedUser }));
+
+    const res = await client.mutate(MUTATION, { variables: { url: request } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      submitArticle: {
+        result: 'reject',
+        reason: 'Submission limit reached',
         post: null,
         submission: null,
       },
