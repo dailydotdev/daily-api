@@ -84,7 +84,8 @@ const submissionAccessThreshold = parseInt(
 const hasSubmissionAccess = (user: User) =>
   user.reputation >= submissionAccessThreshold;
 
-const getSubmissionsToday = (con: Connection, timezone = 'utc') => {
+const getSubmissionsToday = (con: Connection, userTimezone?: string) => {
+  const timezone = userTimezone ?? 'utc';
   const nowTimezone = `timezone('${timezone}', now())`;
   const atTimezone = `at time zone '${timezone}'`;
 
