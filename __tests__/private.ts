@@ -76,6 +76,13 @@ describe('POST /p/newPost', () => {
 
   it('should save a new post with the relevant scout id and update submission', async () => {
     const uuid = randomUUID();
+    await saveFixtures(con, Source, [
+      {
+        id: 'community',
+        name: 'Community recommendations',
+        image: 'sample.image.com',
+      },
+    ]);
     await createDefaultUser();
     await createDefaultSubmission(uuid);
     const { body } = await request(app.server)
@@ -86,7 +93,7 @@ describe('POST /p/newPost', () => {
         id: 'p1',
         title: 'Title',
         url: 'https://post.com',
-        publicationId: 'a',
+        publicationId: 'community',
         submissionId: uuid,
       })
       .expect(200);

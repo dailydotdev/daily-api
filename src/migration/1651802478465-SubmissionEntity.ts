@@ -23,9 +23,15 @@ export class SubmissionEntity1651802478465 implements MigrationInterface {
       `ALTER TABLE "submission" ADD CONSTRAINT "FK_7bd626272858ef6464aa2579094" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
     );
     await queryRunner.query(`ALTER TABLE "submission" REPLICA IDENTITY FULL`);
+    await queryRunner.query(
+      `INSERT INTO "public"."source" ("id", "name", "image") VALUES ('community', 'Community recommendations', 'https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/community')`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `DELETE FROM "public"."source" WHERE id = "community"`,
+    );
     await queryRunner.query(
       `ALTER TABLE "post" DROP CONSTRAINT "FK_a51326b93176f2b2ebf3eda9fef"`,
     );
