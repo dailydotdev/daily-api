@@ -20,11 +20,7 @@ const worker: Worker = {
     try {
       await con.transaction(async (transaction) => {
         const post = await transaction.getRepository(Post).findOne(data.postId);
-        if (
-          (!post?.authorId && !post?.scoutId) ||
-          post?.authorId === data.userId ||
-          post?.scoutId === data.userId
-        ) {
+        if (!post?.authorId && !post?.scoutId) {
           return;
         }
 
@@ -41,18 +37,37 @@ const worker: Worker = {
         }
 
         const repo = transaction.getRepository(ReputationEvent);
-        const event = repo.create({
+        const props = {
           grantById: data.userId,
-          grantToId: post.scoutId || post.authorId,
           targetId: post.id,
           targetType: ReputationType.Post,
           reason: ReputationReason.PostUpvoted,
-        });
+        };
+
+        const events = [];
+
+        if (post.scoutId && post.scoutId !== data.userId) {
+          events.push(
+            repo.create({
+              grantToId: post.scoutId,
+              ...props,
+            }),
+          );
+        }
+
+        if (post.authorId && post.authorId !== data.userId) {
+          events.push(
+            repo.create({
+              grantToId: post.authorId,
+              ...props,
+            }),
+          );
+        }
 
         await repo
           .createQueryBuilder()
           .insert()
-          .values(event)
+          .values(events)
           .orIgnore()
           .execute();
         logger.info(logDetails, 'increased reputation due to post upvote');
