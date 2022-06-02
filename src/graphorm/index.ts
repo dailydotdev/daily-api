@@ -53,8 +53,21 @@ const obj = new GraphORM({
         transform: nullIfNotLoggedIn,
       },
       views: {
-        transform: (value: number, ctx, parent: Post): number | null =>
-          parent?.authorId && ctx.userId === parent.authorId ? value : null,
+        transform: (value: number, ctx, parent: Post): number | null => {
+          const isAuthor = parent?.authorId && ctx.userId === parent.authorId;
+
+          if (isAuthor) {
+            return value;
+          }
+
+          const isScout = parent?.scoutId && ctx.userId === parent.scoutId;
+
+          if (isScout) {
+            return value;
+          }
+
+          return null;
+        },
       },
       bookmarkList: {
         relation: {
