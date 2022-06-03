@@ -1,11 +1,11 @@
 import 'reflect-metadata';
 import fastify, { FastifyRequest, FastifyInstance } from 'fastify';
-import helmet from 'fastify-helmet';
-import cors from 'fastify-cors';
+import helmet from '@fastify/helmet';
+import cors from '@fastify/cors';
 import mercurius from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
-// import fastifyWebsocket from 'fastify-websocket';
+// import fastifyWebsocket from '@fastify/websocket';
 
 import './config';
 

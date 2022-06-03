@@ -4,7 +4,7 @@ import fastify, {
   FastifyLoggerInstance,
   FastifyInstance,
 } from 'fastify';
-import fastifyStatic from 'fastify-static';
+import fastifyStatic from '@fastify/static';
 import { Connection, DeepPartial, getConnection, ObjectType } from 'typeorm';
 import request from 'supertest';
 import {
