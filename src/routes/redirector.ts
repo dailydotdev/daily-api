@@ -19,6 +19,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       if (!req.headers['user-agent'] || isbot(req.headers['user-agent'])) {
         return res.status(302).redirect(post.url);
       }
+      const hostname = new URL(post.url).hostname
       const userId = req.userId || req.cookies.da2;
       if (userId) {
         notifyView(
@@ -33,9 +34,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return res
         .type('text/html')
         .send(
-          `<html><head><meta http-equiv="refresh" content="0;URL=${post.url}${
-            req.query.a ? `#${req.query.a}` : ''
-          }"></head></html>`,
+          `<html><head><link href="${hostname}" rel="preconnect" pr="1.00" crossorigin><meta http-equiv="refresh" content="0;URL=${
+            post.url
+          }${req.query.a ? `#${req.query.a}` : ""}"></head></html>`
         );
     },
   );
