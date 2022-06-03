@@ -42,7 +42,7 @@
     "date-fns-tz": "^1.2.2",
     "fast-json-stringify": "^2.7.10",
     "fastify": "^3.24.1",
-    "fastify-cookie": "^5.4.0",
+    "@fastify/cookie": "^6.0.0",
     "fastify-cors": "^6.0.2",
     "fastify-helmet": "^5.3.2",
     "fastify-plugin": "^3.0.0",

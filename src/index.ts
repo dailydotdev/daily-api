@@ -20,6 +20,7 @@ import { schema } from './graphql';
 import { createOrGetConnection } from './db';
 import { stringifyHealthCheck } from './common';
 import { GraphQLError } from 'graphql';
+import { FastifyCookieOptions } from '@fastify/cookie';
 
 const userExtendKey = (
   source: unknown,
@@ -52,7 +53,9 @@ export default async function app(
     origin: process.env.NODE_ENV === 'production' ? /daily\.dev$/ : true,
     credentials: true,
   });
-  app.register(cookie, { secret: process.env.COOKIES_KEY });
+  app.register(cookie, {
+    secret: process.env.COOKIES_KEY,
+  }) as FastifyCookieOptions;
   app.register(trace, { enabled: isProd });
   app.register(auth, { secret: process.env.ACCESS_SECRET });
 
