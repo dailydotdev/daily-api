@@ -31,12 +31,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         );
       }
       return res
-        .type('text/html')
-        .send(
-          `<html><head><meta http-equiv="refresh" content="0;URL=${post.url}${
-            req.query.a ? `#${req.query.a}` : ''
-          }"></head></html>`,
-        );
+        .status(302)
+        .redirect(`${post.url}${req.query.a ? `#${req.query.a}` : ''}`);
     },
   );
 }
