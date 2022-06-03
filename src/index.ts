@@ -1,7 +1,6 @@
 import 'reflect-metadata';
 import fastify, { FastifyRequest, FastifyInstance } from 'fastify';
 import helmet from 'fastify-helmet';
-import cookie from 'fastify-cookie';
 import cors from 'fastify-cors';
 import mercurius from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
@@ -14,13 +13,12 @@ import trace from './trace';
 import auth from './auth';
 import compatibility from './compatibility';
 import routes from './routes';
-
 import { Context } from './Context';
 import { schema } from './graphql';
 import { createOrGetConnection } from './db';
 import { stringifyHealthCheck } from './common';
 import { GraphQLError } from 'graphql';
-import { FastifyCookieOptions } from '@fastify/cookie';
+import cookie, { FastifyCookieOptions } from '@fastify/cookie';
 
 const userExtendKey = (
   source: unknown,
