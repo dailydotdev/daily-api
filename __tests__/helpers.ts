@@ -157,9 +157,12 @@ export async function saveFixtures<Entity>(
   target: ObjectType<Entity>,
   entities: DeepPartial<Entity>[],
 ): Promise<void> {
-  await con
-    .getRepository(target)
-    .save(entities.map((e) => con.getRepository(target).create(e)));
+  await con.getRepository(target).save(
+    entities.map((e) => {
+      con.getRepository(target).create(e);
+      return e;
+    }),
+  );
 }
 
 export const mockMessage = (
