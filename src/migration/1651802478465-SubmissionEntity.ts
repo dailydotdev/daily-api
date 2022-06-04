@@ -36,7 +36,10 @@ export class SubmissionEntity1651802478465 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `DELETE FROM "public"."source" WHERE id = "community"`,
+      `DELETE FROM "public"."advanced_settings" WHERE title = 'Community recommendations'`,
+    );
+    await queryRunner.query(
+      `DELETE FROM "public"."source" WHERE id = 'community'`,
     );
     await queryRunner.query(
       `ALTER TABLE "post" DROP CONSTRAINT "FK_a51326b93176f2b2ebf3eda9fef"`,
