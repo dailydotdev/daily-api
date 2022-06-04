@@ -24,7 +24,13 @@ export class SubmissionEntity1651802478465 implements MigrationInterface {
     );
     await queryRunner.query(`ALTER TABLE "submission" REPLICA IDENTITY FULL`);
     await queryRunner.query(
-      `INSERT INTO "public"."source" ("id", "name", "image") VALUES ('community', 'Community recommendations', 'https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/community')`,
+      `INSERT INTO "public"."advanced_settings" ("title", "description") VALUES ('Community recommendations', '')`,
+    );
+    const [settings] = await queryRunner.query(
+      `SELECT "id" FROM "public"."advanced_settings" WHERE "title" = 'Community recommendations'`,
+    );
+    await queryRunner.query(
+      `INSERT INTO "public"."source" ("id", "name", "advancedSettings", "image") VALUES ('community', 'Community recommendations', '{${settings.id}}', 'https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/community')`,
     );
   }
 
