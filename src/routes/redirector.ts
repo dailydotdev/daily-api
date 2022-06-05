@@ -31,6 +31,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         );
       }
       return res
+        .header('Referrer-Policy', 'origin, origin-when-cross-origin')
         .status(302)
         .redirect(`${post.url}${req.query.a ? `#${req.query.a}` : ''}`);
     },
