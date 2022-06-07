@@ -4,7 +4,7 @@ import fastify, {
   FastifyLoggerInstance,
   FastifyInstance,
 } from 'fastify';
-import fastifyStatic from 'fastify-static';
+import fastifyStatic from '@fastify/static';
 import { Connection, DeepPartial, getConnection, ObjectType } from 'typeorm';
 import request from 'supertest';
 import {
@@ -157,9 +157,12 @@ export async function saveFixtures<Entity>(
   target: ObjectType<Entity>,
   entities: DeepPartial<Entity>[],
 ): Promise<void> {
-  await con
-    .getRepository(target)
-    .save(entities.map((e) => con.getRepository(target).create(e)));
+  await con.getRepository(target).save(
+    entities.map((e) => {
+      con.getRepository(target).create(e);
+      return e;
+    }),
+  );
 }
 
 export const mockMessage = (
