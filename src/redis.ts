@@ -12,21 +12,19 @@ export const redisPubSub = new RedisPubSub({
 });
 
 export function deleteKeysByPattern(pattern: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    return ioRedisPool.execute(async (client) => {
-      const stream = client.scanStream({ match: pattern });
-      stream.on('data', (keys) => {
-        if (keys.length) {
-          client.unlink(keys);
-        } else {
-          stream.destroy();
-          resolve();
-        }
-      });
-      stream.on('end', resolve);
-      stream.on('error', reject);
-    });
-  });
+  return ioRedisPool.execute(
+    (client) =>
+      new Promise((resolve, reject) => {
+        const stream = client.scanStream({ match: pattern });
+        stream.on('data', (keys) => {
+          if (keys.length) {
+            client.unlink(keys);
+          }
+        });
+        stream.on('end', resolve);
+        stream.on('error', reject);
+      }),
+  );
 }
 
 const ioRedisPoolOpts = IORedisPoolOptions.fromHostAndPort(
