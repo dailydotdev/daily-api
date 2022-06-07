@@ -84,12 +84,15 @@ export function queryPaginatedByDate<
         (queryBuilder && queryBuilder(defaultBuilder)) || defaultBuilder;
       const orderCondition = orderByKey === 'DESC' ? '<' : '>';
 
-      builder.queryBuilder.addOrderBy(`${builder.alias}."${key}"`, orderByKey);
+      builder.queryBuilder.addOrderBy(
+        `${builder.alias}."${String(key)}"`,
+        orderByKey,
+      );
       builder.queryBuilder.limit(page.limit);
 
       if (page.timestamp) {
         builder.queryBuilder = builder.queryBuilder.andWhere(
-          `${builder.alias}."${key}" ${orderCondition} :timestamp`,
+          `${builder.alias}."${String(key)}" ${orderCondition} :timestamp`,
           { timestamp: page.timestamp },
         );
       }
