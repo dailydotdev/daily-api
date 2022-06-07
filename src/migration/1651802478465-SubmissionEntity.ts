@@ -24,7 +24,7 @@ export class SubmissionEntity1651802478465 implements MigrationInterface {
     );
     await queryRunner.query(`ALTER TABLE "submission" REPLICA IDENTITY FULL`);
     await queryRunner.query(
-      `INSERT INTO "public"."advanced_settings" ("title", "description") VALUES ('Community recommendations', '')`,
+      `INSERT INTO "public"."advanced_settings" ("title", "description") VALUES ('Community recommendations', 'Show posts that are recommended by other community members.')`,
     );
     const [settings] = await queryRunner.query(
       `SELECT "id" FROM "public"."advanced_settings" WHERE "title" = 'Community recommendations'`,
