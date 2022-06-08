@@ -30,7 +30,7 @@ const obj = new GraphORM({
     requiredColumns: ['createdAt'],
   },
   Post: {
-    requiredColumns: ['id', 'shortId', 'createdAt', 'authorId'],
+    requiredColumns: ['id', 'shortId', 'createdAt', 'authorId', 'scoutId'],
     fields: {
       tags: {
         select: 'tagsStr',
@@ -61,7 +61,6 @@ const obj = new GraphORM({
           }
 
           const isScout = parent?.scoutId && ctx.userId === parent.scoutId;
-
           if (isScout) {
             return value;
           }
