@@ -51,6 +51,8 @@ describe('GET /r/:postId', () => {
       .set('user-agent', agent)
       .expect(200)
       .expect('content-type', 'text/html')
+      .expect('referrer-policy', 'origin, origin-when-cross-origin')
+      .expect('link', `<http://p1.com>; rel="preconnect"`)
       .expect(
         '<html><head><meta http-equiv="refresh" content="0;URL=http://p1.com"></head></html>',
       );
@@ -65,6 +67,8 @@ describe('GET /r/:postId', () => {
       .set('referer', 'https://daily.dev')
       .expect(200)
       .expect('content-type', 'text/html')
+      .expect('referrer-policy', 'origin, origin-when-cross-origin')
+      .expect('link', `<http://p1.com>; rel="preconnect"`)
       .expect(
         '<html><head><meta http-equiv="refresh" content="0;URL=http://p1.com"></head></html>',
       );
@@ -84,6 +88,8 @@ describe('GET /r/:postId', () => {
       .set('user-agent', agent)
       .expect(200)
       .expect('content-type', 'text/html')
+      .expect('referrer-policy', 'origin, origin-when-cross-origin')
+      .expect('link', `<http://p1.com>; rel="preconnect"`)
       .expect(
         '<html><head><meta http-equiv="refresh" content="0;URL=http://p1.com#id"></head></html>',
       );
