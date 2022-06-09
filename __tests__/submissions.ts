@@ -147,6 +147,22 @@ describe('mutation submitArticle', () => {
     });
   });
 
+  it('should invalidate if the user is ineligible for submission', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).update({ id: '1' }, { reputation: 10 });
+    const request = 'https://abc.com/article';
+    const res = await client.mutate(MUTATION, { variables: { url: request } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      submitArticle: {
+        result: 'reject',
+        reason: 'Access denied',
+        post: null,
+        submission: null,
+      },
+    });
+  });
+
   it('should reject if the post already exists', async () => {
     loggedUser = '1';
     const request = 'http://p1.com';

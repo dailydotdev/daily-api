@@ -131,7 +131,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
     ): Promise<GQLSubmitArticleResponse> => {
       const user = await ctx.getRepository(User).findOne({ id: ctx.userId });
 
-      if (!user || !hasSubmissionAccess(user)) {
+      if (!hasSubmissionAccess(user)) {
         return { result: 'reject', reason: 'Access denied' };
       }
 
