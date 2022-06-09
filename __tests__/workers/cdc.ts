@@ -23,7 +23,7 @@ import {
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
   notifySettingsUpdated,
-  notifySubmissionChanged,
+  notifySubmissionRejected,
   notifySubmissionCreated,
   notifySubmissionGrantedAccess,
   sendEmail,
@@ -83,7 +83,7 @@ jest.mock('../../src/common', () => ({
   notifySourceFeedAdded: jest.fn(),
   notifySourceFeedRemoved: jest.fn(),
   notifySettingsUpdated: jest.fn(),
-  notifySubmissionChanged: jest.fn(),
+  notifySubmissionRejected: jest.fn(),
   notifySubmissionCreated: jest.fn(),
   notifySubmissionGrantedAccess: jest.fn(),
   sendEmail: jest.fn(),
@@ -1050,8 +1050,8 @@ describe('submission', () => {
         table: 'submission',
       }),
     );
-    expect(notifySubmissionChanged).toBeCalledTimes(1);
-    expect(mocked(notifySubmissionChanged).mock.calls[0].slice(1)).toEqual([
+    expect(notifySubmissionRejected).toBeCalledTimes(1);
+    expect(mocked(notifySubmissionRejected).mock.calls[0].slice(1)).toEqual([
       after,
     ]);
   });

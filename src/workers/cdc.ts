@@ -10,6 +10,7 @@ import {
   SourceFeed,
   SourceRequest,
   Submission,
+  SubmissionStatus,
   Upvote,
   User,
 } from '../entity';
@@ -34,7 +35,7 @@ import {
   notifyUserReputationUpdated,
   increaseReputation,
   decreaseReputation,
-  notifySubmissionChanged,
+  notifySubmissionRejected,
   notifyScoutMatched,
   notifySubmissionCreated,
   notifySubmissionGrantedAccess,
@@ -343,7 +344,9 @@ const onSubmissionChange = async (
       submissionId: entity.id,
     });
   } else if (data.payload.op === 'u') {
-    await notifySubmissionChanged(logger, entity);
+    if (entity.status === SubmissionStatus.Rejected) {
+      await notifySubmissionRejected(logger, entity);
+    }
   }
 };
 
