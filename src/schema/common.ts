@@ -8,7 +8,8 @@ import {
 } from 'graphql-relay';
 import { GraphQLResolveInfo } from 'graphql';
 import { GraphQLUpload } from 'graphql-upload';
-import { GraphQLDateTime } from 'graphql-iso-date';
+import { GraphQLDateTime } from 'graphql-scalars';
+
 import { Context } from '../Context';
 
 export interface GQLEmptyResponse {

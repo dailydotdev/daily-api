@@ -1,12 +1,11 @@
 import 'reflect-metadata';
 import fastify, { FastifyRequest, FastifyInstance } from 'fastify';
-import helmet from 'fastify-helmet';
-import cookie from 'fastify-cookie';
-import cors from 'fastify-cors';
+import helmet from '@fastify/helmet';
+import cors from '@fastify/cors';
 import mercurius from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
-// import fastifyWebsocket from 'fastify-websocket';
+// import fastifyWebsocket from '@fastify/websocket';
 
 import './config';
 
@@ -14,12 +13,12 @@ import trace from './trace';
 import auth from './auth';
 import compatibility from './compatibility';
 import routes from './routes';
-
 import { Context } from './Context';
 import { schema } from './graphql';
 import { createOrGetConnection } from './db';
 import { stringifyHealthCheck } from './common';
 import { GraphQLError } from 'graphql';
+import cookie, { FastifyCookieOptions } from '@fastify/cookie';
 
 const userExtendKey = (
   source: unknown,
@@ -52,7 +51,9 @@ export default async function app(
     origin: process.env.NODE_ENV === 'production' ? /daily\.dev$/ : true,
     credentials: true,
   });
-  app.register(cookie, { secret: process.env.COOKIES_KEY });
+  app.register(cookie, {
+    secret: process.env.COOKIES_KEY,
+  }) as FastifyCookieOptions;
   app.register(trace, { enabled: isProd });
   app.register(auth, { secret: process.env.ACCESS_SECRET });
 
