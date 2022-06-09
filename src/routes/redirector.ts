@@ -31,6 +31,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         );
       }
       return res
+        .headers({
+          'Referrer-Policy': 'origin, origin-when-cross-origin',
+          Link: `<${post.url}>; rel="preconnect"`,
+        })
         .type('text/html')
         .send(
           `<html><head><meta http-equiv="refresh" content="0;URL=${post.url}${
