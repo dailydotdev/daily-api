@@ -1031,7 +1031,7 @@ describe('submission', () => {
     );
     expect(notifySubmissionCreated).toBeCalledTimes(1);
     expect(mocked(notifySubmissionCreated).mock.calls[0].slice(1)).toEqual([
-      { url: after.url, submissionId: after.id, sourceId: 'TBD' },
+      { url: after.url, submissionId: after.id, sourceId: 'community' },
     ]);
   });
 
