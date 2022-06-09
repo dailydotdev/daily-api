@@ -338,7 +338,7 @@ const onSubmissionChange = async (
   const entity = data.payload.after;
   if (data.payload.op === 'c') {
     await notifySubmissionCreated(logger, {
-      sourceId: 'TBD',
+      sourceId: 'community',
       url: entity.url,
       submissionId: entity.id,
     });
