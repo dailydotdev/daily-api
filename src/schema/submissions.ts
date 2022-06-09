@@ -166,9 +166,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         };
       }
 
-      const submission = await submissionRepo.save(
-        submissionRepo.create({ url, userId: ctx.userId }),
-      );
+      const submission = await submissionRepo.save({ url, userId: ctx.userId });
 
       return { result: 'succeed', submission };
     },
