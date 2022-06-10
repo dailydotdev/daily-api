@@ -28,8 +28,8 @@ export const templateId = {
 export const truncatePost = (post: Post): string =>
   post.title.length <= 80 ? post.title : `${post.title.substr(0, 77)}...`;
 
-export const formatPostCreatedAt = (post: Post): string =>
-  post.createdAt.toLocaleString('en-US', {
+export const formatMailDate = (date: Date): string =>
+  date.toLocaleString('en-US', {
     month: 'short',
     day: '2-digit',
     year: 'numeric',

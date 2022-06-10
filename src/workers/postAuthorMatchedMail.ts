@@ -3,7 +3,7 @@ import { messageToJson, Worker } from './worker';
 import { Post } from '../entity';
 import {
   fetchUser,
-  formatPostCreatedAt,
+  formatMailDate,
   getDiscussionLink,
   pickImageUrl,
 } from '../common';
@@ -32,7 +32,7 @@ const worker: Worker = {
         templateId: templateId.postAuthorMatched,
         dynamicTemplateData: {
           post_title: truncatePostToTweet(post),
-          published_at: formatPostCreatedAt(post),
+          published_at: formatMailDate(post.createdAt),
           source_image: source.image,
           post_image: post.image || pickImageUrl(post),
           discussion_link: getDiscussionLink(post.id),
