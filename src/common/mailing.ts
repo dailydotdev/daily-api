@@ -20,7 +20,7 @@ export const templateId = {
   devcardEligible: 'd-680e36a387084cac87923963ea0656db',
   postAuthorMatched: 'd-3d3402ec873640e788f549a0680c40bb',
   postScoutMatched: 'd-ee7d7cfc461a43b4be776f70940fa867',
-  communityLinkRejected: 'no available tempalte yet',
+  communityLinkRejected: 'd-43cf7ff439ff4391839e946940499b30',
   communityLinkSubmissionAccess: 'd-6d17b936f1f245e486f1a85323240332',
   analyticsReport: 'd-97c75b0e2cf847399d20233455736ba0',
 };

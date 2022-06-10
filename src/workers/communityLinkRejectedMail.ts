@@ -1,3 +1,5 @@
+import { formatMailDate } from './../common/mailing';
+import { SubmissionStatus } from './../entity/Submission';
 import { templateId } from '../common/mailing';
 import { messageToJson, Worker } from './worker';
 import { fetchUser } from '../common';
@@ -7,6 +9,7 @@ interface Data {
   url: string;
   status: string;
   userId: string;
+  createdAt: string;
 }
 
 // TODO:: Update the dynamic template data once available
@@ -15,6 +18,11 @@ const worker: Worker = {
   subscription: 'community-link-rejected-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
+
+    if (data.status !== SubmissionStatus.Rejected) {
+      return;
+    }
+
     try {
       const user = await fetchUser(data.userId);
       await sendEmail({
@@ -22,7 +30,8 @@ const worker: Worker = {
         to: user.email,
         templateId: templateId.communityLinkRejected,
         dynamicTemplateData: {
-          status: data.status,
+          submitted_at: formatMailDate(new Date(data.createdAt)),
+          first_name: user.name.split(' ')[0],
           url: data.url,
         },
       });

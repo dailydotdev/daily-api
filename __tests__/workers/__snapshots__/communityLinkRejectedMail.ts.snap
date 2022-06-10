@@ -8,7 +8,8 @@ Array [
     },
     "category": "Notification",
     "dynamicTemplateData": Object {
-      "status": "REJECTED",
+      "first_name": "Lee",
+      "submitted_at": "Sep 27, 2020",
       "url": "http://sample.abc.com",
     },
     "from": Object {
@@ -19,7 +20,7 @@ Array [
       "email": "hi@daily.dev",
       "name": "daily.dev",
     },
-    "templateId": "no available tempalte yet",
+    "templateId": "d-43cf7ff439ff4391839e946940499b30",
     "to": "lee@acme.com",
     "trackingSettings": Object {
       "openTracking": Object {

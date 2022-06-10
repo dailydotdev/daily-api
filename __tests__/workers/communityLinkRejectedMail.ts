@@ -40,6 +40,7 @@ it('should send mail when the submission status is rejected', async () => {
   await expectSuccessfulBackground(worker, {
     url: 'http://sample.abc.com',
     userId: '1',
+    createdAt: new Date(2020, 8, 27),
     status: SubmissionStatus.Rejected,
   });
   expect(sendEmail).toBeCalledTimes(1);
