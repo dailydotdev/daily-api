@@ -19,10 +19,7 @@ const worker: Worker = {
         ...baseNotificationEmailData,
         to: user.email,
         templateId: templateId.communityLinkSubmissionAccess,
-        dynamicTemplateData: {
-          // status: data.status,
-          // url: data.url,
-        },
+        dynamicTemplateData: { first_name: user.name.split(' ')[0] },
       });
       logger.info(
         { data, messageId: message.messageId },

@@ -7,7 +7,9 @@ Array [
       "groupId": 12850,
     },
     "category": "Notification",
-    "dynamicTemplateData": Object {},
+    "dynamicTemplateData": Object {
+      "first_name": "Lee",
+    },
     "from": Object {
       "email": "informer@daily.dev",
       "name": "daily.dev",
@@ -16,7 +18,7 @@ Array [
       "email": "hi@daily.dev",
       "name": "daily.dev",
     },
-    "templateId": "no available tempalte yet",
+    "templateId": "d-6d17b936f1f245e486f1a85323240332",
     "to": "lee@acme.com",
     "trackingSettings": Object {
       "openTracking": Object {
