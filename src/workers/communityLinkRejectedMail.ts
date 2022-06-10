@@ -12,8 +12,6 @@ interface Data {
   createdAt: string;
 }
 
-// TODO:: Update the dynamic template data once available
-
 const worker: Worker = {
   subscription: 'community-link-rejected-mail',
   handler: async (message, con, logger): Promise<void> => {

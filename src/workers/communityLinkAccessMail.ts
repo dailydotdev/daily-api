@@ -7,8 +7,6 @@ interface Data {
   userId: string;
 }
 
-// TODO:: Update the dynamic template data once available
-
 const worker: Worker = {
   subscription: 'community-link-access-mail',
   handler: async (message, _, logger): Promise<void> => {
