@@ -1,9 +1,9 @@
 import { templateId } from './../common/mailing';
 import { messageToJson, Worker } from './worker';
-import { Post } from '../entity';
+import { Post, Submission } from '../entity';
 import {
   fetchUser,
-  formatPostCreatedAt,
+  formatMailDate,
   getDiscussionLink,
   pickImageUrl,
 } from '../common';
@@ -25,16 +25,19 @@ const worker: Worker = {
     try {
       const user = await fetchUser(data.scoutId);
       const post = await con.getRepository(Post).findOne(data.postId);
-      const source = await post.source;
+      const submission = await con
+        .getRepository(Submission)
+        .findOne({ url: post.url, userId: user.id });
       await sendEmail({
         ...baseNotificationEmailData,
         to: user.email,
-        templateId: templateId.postAuthorMatched,
+        templateId: templateId.postScoutMatched,
         dynamicTemplateData: {
+          first_name: user.name.split(' ')[0],
           post_title: truncatePostToTweet(post),
-          published_at: formatPostCreatedAt(post),
-          source_image: source.image,
+          submitted_at: formatMailDate(submission.createdAt),
           post_image: post.image || pickImageUrl(post),
+          article_link: post.url,
           discussion_link: getDiscussionLink(post.id),
         },
       });

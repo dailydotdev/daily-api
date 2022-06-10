@@ -8,11 +8,12 @@ Array [
     },
     "category": "Notification",
     "dynamicTemplateData": Object {
+      "article_link": "http://p1.com",
       "discussion_link": "http://localhost:5002/posts/p1",
+      "first_name": "Lee",
       "post_image": "https://daily.dev/image.jpg",
       "post_title": "P1",
-      "published_at": "Sep 27, 2020",
-      "source_image": "http://image.com/a",
+      "submitted_at": "Sep 25, 2020",
     },
     "from": Object {
       "email": "informer@daily.dev",
@@ -22,7 +23,7 @@ Array [
       "email": "hi@daily.dev",
       "name": "daily.dev",
     },
-    "templateId": "d-3d3402ec873640e788f549a0680c40bb",
+    "templateId": "d-ee7d7cfc461a43b4be776f70940fa867",
     "to": "lee@acme.com",
     "trackingSettings": Object {
       "openTracking": Object {
