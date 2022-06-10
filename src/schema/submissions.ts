@@ -3,7 +3,7 @@ import { Submission, User } from './../entity';
 import { IResolvers } from 'graphql-tools';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { isValidHttpUrl } from '../common';
+import { isValidHttpUrl, standardizeURL } from '../common';
 import { getPostByUrl, GQLPost } from './posts';
 
 interface GQLArticleSubmission {
@@ -145,11 +145,13 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         return { result: 'reject', reason: 'Submission limit reached' };
       }
 
-      if (!isValidHttpUrl(url)) {
+      const cleanUrl = standardizeURL(url);
+
+      if (!isValidHttpUrl(cleanUrl)) {
         return { result: 'reject', reason: 'invalid URL' };
       }
 
-      const existingPost = await getPostByUrl(url, ctx, info);
+      const existingPost = await getPostByUrl(cleanUrl, ctx, info);
       if (existingPost) {
         if (existingPost.deleted) {
           return { result: 'reject', reason: 'post is deleted' };
@@ -157,7 +159,9 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         return { result: 'exists', post: existingPost };
       }
 
-      const existingSubmission = await submissionRepo.findOne({ url });
+      const existingSubmission = await submissionRepo.findOne({
+        url: cleanUrl,
+      });
 
       if (existingSubmission) {
         return {
@@ -166,7 +170,10 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         };
       }
 
-      const submission = await submissionRepo.save({ url, userId: ctx.userId });
+      const submission = await submissionRepo.save({
+        url: cleanUrl,
+        userId: ctx.userId,
+      });
 
       return { result: 'succeed', submission };
     },
