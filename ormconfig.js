@@ -12,6 +12,10 @@ module.exports = {
     process.env.TYPEORM_DATABASE ||
     (process.env.NODE_ENV === 'test' ? 'api_test' : 'api'),
   synchronize: false,
+  extra: {
+    max: 20,
+    idleTimeoutMillis: 120000,
+  },
   logging: false,
   entities: ['src/entity/**/*.ts', 'src/entity/**/*.js'],
   migrations: ['src/migration/**/*.ts', 'src/migration/**/*.js'],
