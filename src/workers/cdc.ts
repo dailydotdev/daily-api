@@ -184,7 +184,11 @@ const onUserChange = async (
           key: UserStateKey.CommunityLinkAccess,
           value: true,
         });
-      } catch (ex) {}
+      } catch (ex) {
+        if (ex.code !== '23505') {
+          throw ex;
+        }
+      }
     }
   }
 };
