@@ -52,6 +52,8 @@ import {
   SubmissionStatus,
   Upvote,
   User,
+  UserState,
+  UserStateKey,
 } from '../../src/entity';
 import { mocked } from 'ts-jest/utils';
 import { ChangeObject } from '../../src/types';
@@ -433,7 +435,7 @@ describe('user', () => {
     expect(mocked(notifyDevCardEligible).mock.calls[0].slice(1)).toEqual(['1']);
   });
 
-  it('should notify on reputation passed threshold for community link submission', async () => {
+  it('should create user state when the user had passed the reputation threshold for community link submission', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
       reputation: submissionAccessThreshold,
@@ -445,6 +447,26 @@ describe('user', () => {
         before: base,
         op: 'u',
         table: 'user',
+      }),
+    );
+    const [state] = await con.getRepository(UserState).find();
+    expect(state?.key).toEqual(UserStateKey.CommunityLinkAccess);
+  });
+});
+
+describe('user_state', () => {
+  type ObjectType = UserState;
+  it('should notify on user state is created with the right key', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          userId: defaultUser.id,
+          key: UserStateKey.CommunityLinkAccess,
+          value: false,
+        },
+        op: 'c',
+        table: 'user_state',
       }),
     );
     expect(notifySubmissionGrantedAccess).toBeCalledTimes(1);

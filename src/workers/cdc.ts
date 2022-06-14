@@ -1,3 +1,4 @@
+import { UserState, UserStateKey } from './../entity/UserState';
 import { ReputationEvent } from './../entity/ReputationEvent';
 import { CommentMention } from './../entity/CommentMention';
 import { messageToJson, Worker } from './worker';
@@ -173,8 +174,17 @@ const onUserChange = async (
       await notifyDevCardEligible(logger, data.payload.after.id);
     }
 
-    if (data.payload.after.reputation >= submissionAccessThreshold) {
-      await notifySubmissionGrantedAccess(logger, data.payload.after.id);
+    if (
+      data.payload.after.reputation >= submissionAccessThreshold &&
+      data.payload.before.reputation < submissionAccessThreshold
+    ) {
+      try {
+        await con.getRepository(UserState).insert({
+          userId: data.payload.after.id,
+          key: UserStateKey.CommunityLinkAccess,
+          value: true,
+        });
+      } catch (ex) {}
     }
   }
 };
@@ -350,6 +360,18 @@ const onSubmissionChange = async (
   }
 };
 
+const onUserStateChange = async (
+  con: Connection,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<UserState>,
+) => {
+  if (data.payload.op === 'c') {
+    if (data.payload.after.key === UserStateKey.CommunityLinkAccess) {
+      await notifySubmissionGrantedAccess(logger, data.payload.after.userId);
+    }
+  }
+};
+
 const getTableName = <Entity>(
   con: Connection,
   target: EntityTarget<Entity>,
@@ -407,6 +429,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Submission):
           await onSubmissionChange(con, logger, data);
+          break;
+        case getTableName(con, UserState):
+          await onUserStateChange(con, logger, data);
           break;
       }
     } catch (err) {
