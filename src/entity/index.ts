@@ -22,6 +22,7 @@ export * from './SourceRequest';
 export * from './TagSegment';
 export * from './View';
 export * from './User';
+export * from './UserState';
 export * from './Upvote';
 export * from './Comment';
 export * from './CommentUpvote';
