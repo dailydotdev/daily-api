@@ -1,18 +1,19 @@
 import { messageToJson, Worker } from './worker';
 import { Post } from '../entity';
 import { getDiscussionLink, webhook } from '../common';
-import { ChangeObject } from '../types';
 
 interface Data {
-  post: ChangeObject<Post>;
+  postId: string;
+  scoutId: string;
 }
 
 const worker: Worker = {
   subscription: 'post-scout-matched-slack',
-  handler: async (message, _, logger): Promise<void> => {
+  handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
-    const { post } = data;
     try {
+      const post = await con.getRepository(Post).findOneOrFail(data.postId);
+
       if (!post.scoutId) {
         return;
       }
