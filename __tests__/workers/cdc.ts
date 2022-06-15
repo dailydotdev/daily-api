@@ -452,6 +452,49 @@ describe('user', () => {
     const [state] = await con.getRepository(UserState).find();
     expect(state?.key).toEqual(UserStateKey.CommunityLinkAccess);
   });
+
+  it('should throw an error when creating user state and not related to duplicate entry', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      reputation: submissionAccessThreshold,
+    };
+    after.id = '1234567890123456789012345678901234567'; // 37 characters - exceeds limit
+    try {
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: base,
+          op: 'u',
+          table: 'user',
+        }),
+      );
+    } catch (ex) {
+      const state = await con.getRepository(UserState).find();
+      expect(state.length).toEqual(0);
+      expect(ex.code).not.toEqual('23505');
+    }
+  });
+
+  it('should handle the thrown error when user state already exists', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      reputation: submissionAccessThreshold,
+    };
+    const repo = con.getRepository(UserState);
+    await repo.save({ userId: '1', key: UserStateKey.CommunityLinkAccess });
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'user',
+      }),
+    );
+    const state = await con.getRepository(UserState).find();
+    expect(state.length).toEqual(1);
+  });
 });
 
 describe('user_state', () => {
