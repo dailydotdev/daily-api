@@ -1,8 +1,5 @@
 import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
-
-import { mocked } from 'ts-jest/utils';
-
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail, User as GatewayUser } from '../../src/common';
 import worker from '../../src/workers/postAuthorMatchedMail';
@@ -65,5 +62,5 @@ it('should send post author matched mail', async () => {
     authorId: '1',
   });
   expect(sendEmail).toBeCalledTimes(1);
-  expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
+  expect(jest.mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
 });

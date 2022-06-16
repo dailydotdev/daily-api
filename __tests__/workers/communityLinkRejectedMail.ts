@@ -1,5 +1,4 @@
 import nock from 'nock';
-import { mocked } from 'ts-jest/utils';
 import { expectSuccessfulBackground } from '../helpers';
 import { sendEmail, User as GatewayUser } from '../../src/common';
 import worker from '../../src/workers/communityLinkRejectedMail';
@@ -44,5 +43,5 @@ it('should send mail when the submission status is rejected', async () => {
     status: SubmissionStatus.Rejected,
   });
   expect(sendEmail).toBeCalledTimes(1);
-  expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
+  expect(jest.mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
 });

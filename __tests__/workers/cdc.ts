@@ -55,7 +55,6 @@ import {
   UserState,
   UserStateKey,
 } from '../../src/entity';
-import { mocked } from 'ts-jest/utils';
 import { ChangeObject } from '../../src/types';
 import { PostReport } from '../../src/entity';
 import { Connection, getConnection } from 'typeorm';
@@ -165,7 +164,7 @@ describe('source request', () => {
       }),
     );
     expect(notifySourceRequest).toBeCalledTimes(1);
-    expect(mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
+    expect(jest.mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
       'new',
       after,
     ]);
@@ -190,7 +189,7 @@ describe('source request', () => {
       }),
     );
     expect(notifySourceRequest).toBeCalledTimes(1);
-    expect(mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
+    expect(jest.mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
       'publish',
       after,
     ]);
@@ -214,7 +213,7 @@ describe('source request', () => {
       }),
     );
     expect(notifySourceRequest).toBeCalledTimes(1);
-    expect(mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
+    expect(jest.mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
       'decline',
       after,
     ]);
@@ -238,7 +237,7 @@ describe('source request', () => {
       }),
     );
     expect(notifySourceRequest).toBeCalledTimes(1);
-    expect(mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
+    expect(jest.mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
       'approve',
       after,
     ]);
@@ -265,7 +264,7 @@ describe('post upvote', () => {
       }),
     );
     expect(notifyPostUpvoted).toBeCalledTimes(1);
-    expect(mocked(notifyPostUpvoted).mock.calls[0].slice(1)).toEqual([
+    expect(jest.mocked(notifyPostUpvoted).mock.calls[0].slice(1)).toEqual([
       'p1',
       '1',
     ]);
@@ -282,10 +281,9 @@ describe('post upvote', () => {
       }),
     );
     expect(notifyPostUpvoteCanceled).toBeCalledTimes(1);
-    expect(mocked(notifyPostUpvoteCanceled).mock.calls[0].slice(1)).toEqual([
-      'p1',
-      '1',
-    ]);
+    expect(
+      jest.mocked(notifyPostUpvoteCanceled).mock.calls[0].slice(1),
+    ).toEqual(['p1', '1']);
   });
 });
 
@@ -309,7 +307,7 @@ describe('comment upvote', () => {
       }),
     );
     expect(notifyCommentUpvoted).toBeCalledTimes(1);
-    expect(mocked(notifyCommentUpvoted).mock.calls[0].slice(1)).toEqual([
+    expect(jest.mocked(notifyCommentUpvoted).mock.calls[0].slice(1)).toEqual([
       'c1',
       '1',
     ]);
@@ -326,10 +324,9 @@ describe('comment upvote', () => {
       }),
     );
     expect(notifyCommentUpvoteCanceled).toBeCalledTimes(1);
-    expect(mocked(notifyCommentUpvoteCanceled).mock.calls[0].slice(1)).toEqual([
-      'c1',
-      '1',
-    ]);
+    expect(
+      jest.mocked(notifyCommentUpvoteCanceled).mock.calls[0].slice(1),
+    ).toEqual(['c1', '1']);
   });
 });
 
@@ -361,7 +358,7 @@ describe('comment', () => {
       }),
     );
     expect(notifyPostCommented).toBeCalledTimes(1);
-    expect(mocked(notifyPostCommented).mock.calls[0].slice(1)).toEqual([
+    expect(jest.mocked(notifyPostCommented).mock.calls[0].slice(1)).toEqual([
       'p1',
       '1',
       'c1',
@@ -383,7 +380,7 @@ describe('comment', () => {
       }),
     );
     expect(notifyCommentCommented).toBeCalledTimes(1);
-    expect(mocked(notifyCommentCommented).mock.calls[0].slice(1)).toEqual([
+    expect(jest.mocked(notifyCommentCommented).mock.calls[0].slice(1)).toEqual([
       'p1',
       '1',
       'c2',
@@ -411,10 +408,9 @@ describe('user', () => {
       }),
     );
     expect(notifyUserReputationUpdated).toBeCalledTimes(1);
-    expect(mocked(notifyUserReputationUpdated).mock.calls[0].slice(1)).toEqual([
-      '1',
-      10,
-    ]);
+    expect(
+      jest.mocked(notifyUserReputationUpdated).mock.calls[0].slice(1),
+    ).toEqual(['1', 10]);
   });
 
   it('should notify on dev card eligibility', async () => {
@@ -432,7 +428,9 @@ describe('user', () => {
       }),
     );
     expect(notifyDevCardEligible).toBeCalledTimes(1);
-    expect(mocked(notifyDevCardEligible).mock.calls[0].slice(1)).toEqual(['1']);
+    expect(jest.mocked(notifyDevCardEligible).mock.calls[0].slice(1)).toEqual([
+      '1',
+    ]);
   });
 
   it('should create user state when the user had passed the reputation threshold for community link submission', async () => {
@@ -598,10 +596,9 @@ describe('post', () => {
       }),
     );
     expect(notifyPostAuthorMatched).toBeCalledTimes(1);
-    expect(mocked(notifyPostAuthorMatched).mock.calls[0].slice(1)).toEqual([
-      'p1',
-      'u1',
-    ]);
+    expect(jest.mocked(notifyPostAuthorMatched).mock.calls[0].slice(1)).toEqual(
+      ['p1', 'u1'],
+    );
   });
 
   it('should notify on send analytics report', async () => {
@@ -619,9 +616,9 @@ describe('post', () => {
       }),
     );
     expect(notifySendAnalyticsReport).toBeCalledTimes(1);
-    expect(mocked(notifySendAnalyticsReport).mock.calls[0].slice(1)).toEqual([
-      'p1',
-    ]);
+    expect(
+      jest.mocked(notifySendAnalyticsReport).mock.calls[0].slice(1),
+    ).toEqual(['p1']);
   });
 
   it('should notify on views threshold reached', async () => {
@@ -659,9 +656,9 @@ describe('post', () => {
       }),
     );
     expect(notifyPostBannedOrRemoved).toBeCalledTimes(1);
-    expect(mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1)).toEqual([
-      after,
-    ]);
+    expect(
+      jest.mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1),
+    ).toEqual([after]);
   });
 
   it('should notify on post removed', async () => {
@@ -679,9 +676,9 @@ describe('post', () => {
       }),
     );
     expect(notifyPostBannedOrRemoved).toBeCalledTimes(1);
-    expect(mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1)).toEqual([
-      after,
-    ]);
+    expect(
+      jest.mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1),
+    ).toEqual([after]);
   });
 
   it('should not notify on post removed when banned already', async () => {
@@ -800,7 +797,9 @@ describe('alerts', () => {
       }),
     );
     expect(notifyAlertsUpdated).toBeCalledTimes(1);
-    expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
+    expect(jest.mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
   });
 
   it('should notify on alert.rank changed', async () => {
@@ -818,7 +817,9 @@ describe('alerts', () => {
       }),
     );
     expect(notifyAlertsUpdated).toBeCalledTimes(1);
-    expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
+    expect(jest.mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
   });
 
   it('should notify on alert.myFeed changed', async () => {
@@ -836,7 +837,9 @@ describe('alerts', () => {
       }),
     );
     expect(notifyAlertsUpdated).toBeCalledTimes(1);
-    expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
+    expect(jest.mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
   });
 
   it('should notify on alerts created', async () => {
@@ -854,7 +857,9 @@ describe('alerts', () => {
       }),
     );
     expect(notifyAlertsUpdated).toBeCalledTimes(1);
-    expect(mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([after]);
+    expect(jest.mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
   });
 });
 
@@ -917,7 +922,7 @@ describe('settings', () => {
       }),
     );
     expect(notifySettingsUpdated).toBeCalledTimes(1);
-    expect(mocked(notifySettingsUpdated).mock.calls[0].slice(1)).toEqual([
+    expect(jest.mocked(notifySettingsUpdated).mock.calls[0].slice(1)).toEqual([
       after,
     ]);
   });
@@ -933,7 +938,7 @@ describe('settings', () => {
       }),
     );
     expect(notifySettingsUpdated).toBeCalledTimes(1);
-    expect(mocked(notifySettingsUpdated).mock.calls[0].slice(1)).toEqual([
+    expect(jest.mocked(notifySettingsUpdated).mock.calls[0].slice(1)).toEqual([
       base,
     ]);
   });
@@ -959,7 +964,7 @@ describe('source feed', () => {
       }),
     );
     expect(notifySourceFeedAdded).toBeCalledTimes(1);
-    expect(mocked(notifySourceFeedAdded).mock.calls[0].slice(1)).toEqual([
+    expect(jest.mocked(notifySourceFeedAdded).mock.calls[0].slice(1)).toEqual([
       base.sourceId,
       base.feed,
     ]);
@@ -976,10 +981,9 @@ describe('source feed', () => {
       }),
     );
     expect(notifySourceFeedRemoved).toBeCalledTimes(1);
-    expect(mocked(notifySourceFeedRemoved).mock.calls[0].slice(1)).toEqual([
-      base.sourceId,
-      base.feed,
-    ]);
+    expect(jest.mocked(notifySourceFeedRemoved).mock.calls[0].slice(1)).toEqual(
+      [base.sourceId, base.feed],
+    );
   });
 });
 
@@ -1096,9 +1100,9 @@ describe('submission', () => {
       }),
     );
     expect(notifySubmissionCreated).toBeCalledTimes(1);
-    expect(mocked(notifySubmissionCreated).mock.calls[0].slice(1)).toEqual([
-      { url: after.url, submissionId: after.id, sourceId: 'community' },
-    ]);
+    expect(jest.mocked(notifySubmissionCreated).mock.calls[0].slice(1)).toEqual(
+      [{ url: after.url, submissionId: after.id, sourceId: 'community' }],
+    );
   });
 
   it('should notify when the status turns to rejected', async () => {
@@ -1117,8 +1121,8 @@ describe('submission', () => {
       }),
     );
     expect(notifySubmissionRejected).toBeCalledTimes(1);
-    expect(mocked(notifySubmissionRejected).mock.calls[0].slice(1)).toEqual([
-      after,
-    ]);
+    expect(
+      jest.mocked(notifySubmissionRejected).mock.calls[0].slice(1),
+    ).toEqual([after]);
   });
 });

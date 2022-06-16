@@ -1,8 +1,5 @@
 import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
-
-import { mocked } from 'ts-jest/utils';
-
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail } from '../../src/common';
 import worker from '../../src/workers/commentCommented';
@@ -94,7 +91,7 @@ it('should send mail to author', async () => {
     parentCommentId: 'c1',
   });
   expect(sendEmail).toBeCalledTimes(1);
-  expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
+  expect(jest.mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
 });
 
 it('should not send mail when the author is the commenter user', async () => {

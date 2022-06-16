@@ -1,6 +1,4 @@
 import { Connection, getConnection } from 'typeorm';
-import { mocked } from 'ts-jest/utils';
-
 import cron from '../../src/cron/tweetTrending';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Post, Source } from '../../src/entity';
@@ -21,7 +19,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  mocked(tweet).mockClear();
+  jest.mocked(tweet).mockClear();
 });
 
 it('should tweet the latest post over the views threshold', async () => {
@@ -60,7 +58,7 @@ it('should tweet the latest post over the views threshold', async () => {
       createdAt: new Date(now.getTime() - 2000),
     },
   ]);
-  mocked(tweet).mockResolvedValue();
+  jest.mocked(tweet).mockResolvedValue();
   await expectSuccessfulCron(cron);
   expect(tweet).toBeCalledTimes(1);
   expect(tweet).toBeCalledWith('P2\n\n\nhttp://localhost:5002/posts/p2');
@@ -87,7 +85,7 @@ it('should tag the author and site and add hashtags', async () => {
       tagsStr: 'webdev,javascript',
     },
   ]);
-  mocked(tweet).mockResolvedValue();
+  jest.mocked(tweet).mockResolvedValue();
   await expectSuccessfulCron(cron);
   expect(tweet).toBeCalledTimes(1);
   expect(tweet).toBeCalledWith(
@@ -112,7 +110,7 @@ it('should fallback to source twitter', async () => {
       creatorTwitter: '@creator',
     },
   ]);
-  mocked(tweet).mockResolvedValue();
+  jest.mocked(tweet).mockResolvedValue();
   await expectSuccessfulCron(cron);
   expect(tweet).toBeCalledTimes(1);
   expect(tweet).toBeCalledWith(
