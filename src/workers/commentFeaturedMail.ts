@@ -1,7 +1,7 @@
 import { templateId } from './../common/mailing';
 import { messageToJson, Worker } from './worker';
 import { Comment } from '../entity';
-import { fetchUser, formatPostCreatedAt, pickImageUrl } from '../common';
+import { fetchUser, formatMailDate, pickImageUrl } from '../common';
 import { baseNotificationEmailData, sendEmail, truncatePost } from '../common';
 
 interface Data {
@@ -25,7 +25,7 @@ const worker: Worker = {
         templateId: templateId.commentFeatured,
         dynamicTemplateData: {
           post_title: truncatePost(post),
-          published_at: formatPostCreatedAt(post),
+          published_at: formatMailDate(post.createdAt),
           profile_image: user.image,
           source_image: source.image,
           post_image: post.image || pickImageUrl(post),

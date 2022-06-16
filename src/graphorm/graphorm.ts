@@ -83,6 +83,7 @@ export class GraphORM {
   findRelation(
     parentMetadata: EntityMetadata,
     childMetadata: EntityMetadata,
+    field: string,
   ): GraphORMRelation {
     const relation = childMetadata.relations.find(
       (rel) => rel.inverseEntityMetadata.name === parentMetadata.name,
@@ -95,9 +96,21 @@ export class GraphORM {
         childColumn: fk.columnNames[0],
       };
     }
-    const inverseRelation = parentMetadata.relations.find(
+    const inverseRelations = parentMetadata.relations.filter(
       (rel) => rel.inverseEntityMetadata.name === childMetadata.name,
     );
+    const inverseRelation =
+      inverseRelations.length === 1
+        ? inverseRelations[0]
+        : inverseRelations.find((rel) => {
+            const fk = rel.foreignKeys[0].columnNames[0];
+            // the issue came from when we reference a table twice in the same entity (ex. Author and Source) - always using the first element of the array won't work
+            // strip the id part to compare the reference as it is a common convention on ORMs (ex. on EF Core ORM)
+            // ex. when we're looking for the "author" - it is highliy likely the relevant FK is named "authorId" - so we remove the "Id" part for comparison
+            // else we will have to force utilizing the metadata that would come from the "JoinColumn" provided by typeorm but have to explicitly define it
+            return fk.substring(0, fk.length - 2) === field;
+          });
+
     if (inverseRelation) {
       const fk = inverseRelation.foreignKeys[0];
       return {
@@ -136,7 +149,11 @@ export class GraphORM {
       : childType;
     const relation =
       mapping?.relation ||
-      this.findRelation(metadata, ctx.con.getMetadata(paginatedType));
+      this.findRelation(
+        metadata,
+        ctx.con.getMetadata(paginatedType),
+        field.name,
+      );
     if (!relation) {
       throw new Error(`Could not find relation ${type}.${field.name}`);
     }
@@ -483,6 +500,30 @@ export class GraphORM {
     const parsedInfo = parseResolveInfo(resolveInfo) as ResolveTree;
     if (parsedInfo) {
       return this.queryResolveTree(ctx, parsedInfo, beforeQuery);
+    }
+    throw new Error('Resolve info is empty');
+  }
+
+  /**
+   * Queries the database to fulfill a Partial GraphQL request
+   * @param ctx GraphQL context of the request
+   * @param resolveInfo GraphQL resolve info of the request
+   * @param hierarchy Array of field names
+   * @param beforeQuery A callback function that is called before executing the query
+   */
+  queryByHierarchy<T>(
+    ctx: Context,
+    resolveInfo: GraphQLResolveInfo,
+    hierarchy: string[],
+    beforeQuery?: (builder: GraphORMBuilder) => GraphORMBuilder,
+  ): Promise<T[]> {
+    const parsedInfo = parseResolveInfo(resolveInfo) as ResolveTree;
+    if (parsedInfo) {
+      return this.queryResolveTree(
+        ctx,
+        this.getFieldByHierarchy(parsedInfo, hierarchy),
+        beforeQuery,
+      );
     }
     throw new Error('Resolve info is empty');
   }

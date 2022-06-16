@@ -39,6 +39,10 @@ const debeziumTopic = new gcp.pubsub.Topic('debezium-topic', {
   'alerts-updated',
   'settings-updated',
   'update-comments',
+  'post-scout-matched',
+  'community-link-submitted',
+  'community-link-rejected',
+  'community-link-access',
 ].map(
   (topic) =>
     new gcp.pubsub.Topic(topic, {

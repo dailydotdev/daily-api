@@ -23,6 +23,7 @@ import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
+import { GraphQLResolveInfo } from 'graphql';
 
 export interface GQLPost {
   id: string;
@@ -45,15 +46,19 @@ export interface GQLPost {
   numUpvotes: number;
   numComments: number;
   featuredComments?: GQLComment[];
+  deleted?: boolean;
   // Used only for pagination (not part of the schema)
   score: number;
   bookmarkedAt: Date;
   author?: GQLUser;
+  scout?: GQLUser;
   views?: number;
   discussionScore?: number;
   description?: string;
   toc?: Toc;
   summary?: string;
+  isScout?: number;
+  isAuthor?: number;
 }
 
 export type GQLPostNotification = Pick<
@@ -241,6 +246,11 @@ export const typeDefs = /* GraphQL */ `
     author: User
 
     """
+    Scout of the post who suggested the link (if they have a daily.dev account)
+    """
+    scout: User
+
+    """
     Number of times the article has been viewed (unique readers)
     """
     views: Int
@@ -264,6 +274,21 @@ export const typeDefs = /* GraphQL */ `
     Auto generated summary
     """
     summary: String
+
+    """
+    Whether the user is the author
+    """
+    isAuthor: Int
+
+    """
+    Whether the user is the scout
+    """
+    isScout: Int
+
+    """
+    Whether post is deleted
+    """
+    deleted: Boolean
   }
 
   type PostConnection {
@@ -495,6 +520,29 @@ export const reportReasons = new Map([
 
 export const getPostPermalink = (post: Pick<GQLPost, 'shortId'>): string =>
   `${process.env.URL_PREFIX}/r/${post.shortId}`;
+
+export const getPostByUrl = async (
+  url: string,
+  ctx: Context,
+  info: GraphQLResolveInfo,
+): Promise<GQLPost> => {
+  const res = await graphorm.queryByHierarchy<GQLPost>(
+    ctx,
+    info,
+    ['post'],
+    (builder) => ({
+      queryBuilder: builder.queryBuilder
+        .where(
+          `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url)`,
+          { url },
+        )
+        .limit(1),
+      ...builder,
+    }),
+  );
+
+  return res[0];
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {

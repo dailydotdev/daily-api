@@ -243,6 +243,42 @@ Object {
 }
 `;
 
+exports[`scout field should return null when scout is not set 1`] = `
+Object {
+  "post": Object {
+    "author": null,
+    "scout": null,
+  },
+}
+`;
+
+exports[`scout field should return the scout and author correctly 1`] = `
+Object {
+  "post": Object {
+    "author": Object {
+      "id": "2",
+      "name": "Lee",
+    },
+    "scout": Object {
+      "id": "1",
+      "name": "Ido",
+    },
+  },
+}
+`;
+
+exports[`scout field should return the scout when set 1`] = `
+Object {
+  "post": Object {
+    "author": null,
+    "scout": Object {
+      "id": "1",
+      "name": "Ido",
+    },
+  },
+}
+`;
+
 exports[`source field should return the public representation 1`] = `
 Object {
   "post": Object {

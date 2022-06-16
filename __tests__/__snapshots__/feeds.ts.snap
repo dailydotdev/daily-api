@@ -1240,13 +1240,16 @@ Object {
 }
 `;
 
-exports[`query authorFeed should return a single author feed 1`] = `
+
+exports[`query authorFeed should return a single author feed with scout and author setting 1`] = `
 Object {
   "authorFeed": Object {
     "edges": Array [
       Object {
         "node": Object {
           "id": "p3",
+          "isAuthor": 0,
+          "isScout": 1,
           "readTime": null,
           "source": Object {
             "id": "c",
@@ -1262,6 +1265,8 @@ Object {
       Object {
         "node": Object {
           "id": "p1",
+          "isAuthor": 1,
+          "isScout": 0,
           "readTime": null,
           "source": Object {
             "id": "a",

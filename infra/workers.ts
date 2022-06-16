@@ -51,6 +51,26 @@ export const workers: Worker[] = [
     subscription: 'post-author-matched-mail',
   },
   {
+    topic: 'community-link-accepted',
+    subscription: 'community-link-accepted-mail',
+  },
+  {
+    topic: 'community-link-rejected',
+    subscription: 'community-link-rejected-mail',
+  },
+  {
+    topic: 'community-link-access',
+    subscription: 'community-link-access-mail',
+  },
+  {
+    topic: 'post-scout-matched',
+    subscription: 'post-scout-matched-mail',
+  },
+  {
+    topic: 'post-scout-matched',
+    subscription: 'post-scout-matched-slack',
+  },
+  {
     topic: 'comment-commented',
     subscription: 'comment-commented-author-mail',
   },

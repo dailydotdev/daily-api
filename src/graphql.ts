@@ -9,6 +9,7 @@ import * as integrations from './schema/integrations';
 import * as notifications from './schema/notifications';
 import * as posts from './schema/posts';
 import * as settings from './schema/settings';
+import * as submissions from './schema/submissions';
 import * as sourceRequests from './schema/sourceRequests';
 import * as sources from './schema/sources';
 import * as tags from './schema/tags';
@@ -40,6 +41,7 @@ export const schema = urlDirective.transformer(
         users.typeDefs,
         keywords.typeDefs,
         alerts.typeDefs,
+        submissions.typeDefs,
       ],
       resolvers: merge(
         common.resolvers,
@@ -57,6 +59,7 @@ export const schema = urlDirective.transformer(
         users.resolvers,
         keywords.resolvers,
         alerts.resolvers,
+        submissions.resolvers,
       ),
     }),
   ),

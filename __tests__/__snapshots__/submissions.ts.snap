@@ -1,0 +1,16 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`mutation submitArticle should create a submission entity if the url is valid 1`] = `
+Object {
+  "submitArticle": Object {
+    "post": null,
+    "reason": null,
+    "result": "succeed",
+    "submission": Object {
+      "id": Any<String>,
+      "status": "NOT_STARTED",
+      "userId": "1",
+    },
+  },
+}
+`;

@@ -19,14 +19,17 @@ export const templateId = {
   commentUpvoted: 'd-92bca6102e3a4b41b6fc3f532f050429',
   devcardEligible: 'd-680e36a387084cac87923963ea0656db',
   postAuthorMatched: 'd-3d3402ec873640e788f549a0680c40bb',
+  postScoutMatched: 'd-ee7d7cfc461a43b4be776f70940fa867',
+  communityLinkRejected: 'd-43cf7ff439ff4391839e946940499b30',
+  communityLinkSubmissionAccess: 'd-6d17b936f1f245e486f1a85323240332',
   analyticsReport: 'd-97c75b0e2cf847399d20233455736ba0',
 };
 
 export const truncatePost = (post: Post): string =>
   post.title.length <= 80 ? post.title : `${post.title.substr(0, 77)}...`;
 
-export const formatPostCreatedAt = (post: Post): string =>
-  post.createdAt.toLocaleString('en-US', {
+export const formatMailDate = (date: Date): string =>
+  date.toLocaleString('en-US', {
     month: 'short',
     day: '2-digit',
     year: 'numeric',

@@ -1,6 +1,6 @@
 import { templateId } from './../common/mailing';
 import { messageToJson, Worker } from './worker';
-import { Post } from '../entity';
+import { Post, Submission } from '../entity';
 import {
   fetchUser,
   formatMailDate,
@@ -15,26 +15,29 @@ import {
 
 interface Data {
   postId: string;
-  authorId: string;
+  scoutId: string;
 }
 
 const worker: Worker = {
-  subscription: 'post-author-matched-mail',
+  subscription: 'post-scout-matched-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      const user = await fetchUser(data.authorId);
+      const user = await fetchUser(data.scoutId);
       const post = await con.getRepository(Post).findOne(data.postId);
-      const source = await post.source;
+      const submission = await con
+        .getRepository(Submission)
+        .findOne({ url: post.url, userId: user.id });
       await sendEmail({
         ...baseNotificationEmailData,
         to: user.email,
-        templateId: templateId.postAuthorMatched,
+        templateId: templateId.postScoutMatched,
         dynamicTemplateData: {
+          first_name: user.name.split(' ')[0],
           post_title: truncatePostToTweet(post),
-          published_at: formatMailDate(post.createdAt),
-          source_image: source.image,
+          submitted_at: formatMailDate(submission.createdAt),
           post_image: post.image || pickImageUrl(post),
+          article_link: post.url,
           discussion_link: getDiscussionLink(post.id),
         },
       });
@@ -43,7 +46,7 @@ const worker: Worker = {
           data,
           messageId: message.messageId,
         },
-        'post author matched email sent',
+        'post scout matched email sent',
       );
     } catch (err) {
       logger.error(
@@ -52,7 +55,7 @@ const worker: Worker = {
           messageId: message.messageId,
           err,
         },
-        'failed to send post author matched mail',
+        'failed to send post scout matched mail',
       );
     }
   },

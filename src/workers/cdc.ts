@@ -1,3 +1,4 @@
+import { UserState, UserStateKey } from './../entity/UserState';
 import { ReputationEvent } from './../entity/ReputationEvent';
 import { CommentMention } from './../entity/CommentMention';
 import { messageToJson, Worker } from './worker';
@@ -9,6 +10,8 @@ import {
   Settings,
   SourceFeed,
   SourceRequest,
+  Submission,
+  SubmissionStatus,
   Upvote,
   User,
 } from '../entity';
@@ -33,6 +36,10 @@ import {
   notifyUserReputationUpdated,
   increaseReputation,
   decreaseReputation,
+  notifySubmissionRejected,
+  notifyScoutMatched,
+  notifySubmissionCreated,
+  notifySubmissionGrantedAccess,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -43,6 +50,7 @@ import { PostReport, Alerts } from '../entity';
 import { reportReasons } from '../schema/posts';
 import { updateAlerts } from '../schema/alerts';
 import { sendEmailToMentionedUser } from './commentMentionEmail';
+import { submissionAccessThreshold } from '../schema/submissions';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -165,6 +173,23 @@ const onUserChange = async (
     ) {
       await notifyDevCardEligible(logger, data.payload.after.id);
     }
+
+    if (
+      data.payload.after.reputation >= submissionAccessThreshold &&
+      data.payload.before.reputation < submissionAccessThreshold
+    ) {
+      try {
+        await con.getRepository(UserState).insert({
+          userId: data.payload.after.id,
+          key: UserStateKey.CommunityLinkAccess,
+          value: true,
+        });
+      } catch (ex) {
+        if (ex.code !== '23505') {
+          throw ex;
+        }
+      }
+    }
   }
 };
 
@@ -203,6 +228,14 @@ const onPostChange = async (
         logger,
         data.payload.after.id,
         data.payload.after.authorId,
+      );
+    }
+
+    if (data.payload.after.scoutId) {
+      await notifyScoutMatched(
+        logger,
+        data.payload.after.id,
+        data.payload.after.scoutId,
       );
     }
   } else if (data.payload.op === 'u') {
@@ -312,6 +345,37 @@ const onReputationEventChange = async (
   }
 };
 
+const onSubmissionChange = async (
+  con: Connection,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<Submission>,
+) => {
+  const entity = data.payload.after;
+  if (data.payload.op === 'c') {
+    await notifySubmissionCreated(logger, {
+      sourceId: 'community',
+      url: entity.url,
+      submissionId: entity.id,
+    });
+  } else if (data.payload.op === 'u') {
+    if (entity.status === SubmissionStatus.Rejected) {
+      await notifySubmissionRejected(logger, entity);
+    }
+  }
+};
+
+const onUserStateChange = async (
+  con: Connection,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<UserState>,
+) => {
+  if (data.payload.op === 'c') {
+    if (data.payload.after.key === UserStateKey.CommunityLinkAccess) {
+      await notifySubmissionGrantedAccess(logger, data.payload.after.userId);
+    }
+  }
+};
+
 const getTableName = <Entity>(
   con: Connection,
   target: EntityTarget<Entity>,
@@ -366,6 +430,12 @@ const worker: Worker = {
           break;
         case getTableName(con, ReputationEvent):
           await onReputationEventChange(con, logger, data);
+          break;
+        case getTableName(con, Submission):
+          await onSubmissionChange(con, logger, data);
+          break;
+        case getTableName(con, UserState):
+          await onUserStateChange(con, logger, data);
           break;
       }
     } catch (err) {

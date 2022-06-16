@@ -3,7 +3,7 @@ import { feedToFilters } from '../src/common';
 import { FeedAdvancedSettings, AdvancedSettings } from '../src/entity';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
-import { Connection, getConnection, In } from 'typeorm';
+import { Connection, getConnection } from 'typeorm';
 import request from 'supertest';
 import _ from 'lodash';
 
@@ -230,13 +230,14 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
   ]);
 };
 
-const feedFields = `
+const feedFields = (extra = '') => `
 pageInfo {
   endCursor
   hasNextPage
 }
 edges {
   node {
+    ${extra}
     id
     url
     title
@@ -260,7 +261,7 @@ describe('query anonymousFeed', () => {
   const QUERY = `
   query AnonymousFeed($filters: FiltersInput, $ranking: Ranking, $first: Int, $version: Int) {
     anonymousFeed(filters: $filters, ranking: $ranking, first: $first, version: $version) {
-      ${feedFields}
+      ${feedFields()}
     }
   }
 `;
@@ -395,7 +396,7 @@ describe('query feed', () => {
   const QUERY = `
   query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean) {
     feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly) {
-      ${feedFields}
+      ${feedFields()}
     }
   }
 `;
@@ -533,7 +534,7 @@ describe('query sourceFeed', () => {
     first = 10,
   ): string => `{
     sourceFeed(source: "${source}", ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}) {
-      ${feedFields}
+      ${feedFields()}
     }
   }`;
 
@@ -551,7 +552,7 @@ describe('query tagFeed', () => {
     first = 10,
   ): string => `{
     tagFeed(tag: "${tag}", ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}) {
-      ${feedFields}
+      ${feedFields()}
     }
   }`;
 
@@ -568,7 +569,7 @@ describe('query keywordFeed', () => {
     first = 10,
   ): string => `{
     keywordFeed(keyword: "${keyword}", ranking: ${ranking}, first: ${first}) {
-      ${feedFields}
+      ${feedFields()}
     }
   }`;
 
@@ -630,7 +631,7 @@ describe('query searchPosts', () => {
   const QUERY = (query: string, now = new Date(), first = 10): string => `{
     searchPosts(query: "${query}", now: "${now.toISOString()}", first: ${first}) {
       query
-      ${feedFields}
+      ${feedFields()}
     }
   }
 `;
@@ -680,11 +681,14 @@ describe('query authorFeed', () => {
     first = 10,
   ): string => `{
     authorFeed(author: "${author}", ranking: ${ranking}, first: ${first}) {
-      ${feedFields}
+      ${feedFields(`
+      isAuthor
+      isScout
+      `)}
     }
   }`;
 
-  it('should return a single author feed', async () => {
+  it('should return a single author feed with scout and author setting', async () => {
     await con.getRepository(User).save([
       {
         id: '1',
@@ -693,9 +697,8 @@ describe('query authorFeed', () => {
         twitter: 'idoshamun',
       },
     ]);
-    await con
-      .getRepository(Post)
-      .update({ id: In(['p1', 'p3']) }, { authorId: '1' });
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    await con.getRepository(Post).update({ id: 'p3' }, { scoutId: '1' });
 
     const res = await client.query(QUERY('1'));
     expect(res.errors).toBeFalsy();
@@ -706,7 +709,7 @@ describe('query authorFeed', () => {
 describe('query mostUpvotedFeed', () => {
   const QUERY = (period = 7, first = 10): string => `{
     mostUpvotedFeed(first: ${first}, period: ${period}) {
-      ${feedFields}
+      ${feedFields()}
     }
   }`;
 
@@ -750,7 +753,7 @@ describe('query mostUpvotedFeed', () => {
 describe('query mostDiscussedFeed', () => {
   const QUERY = (first = 10): string => `{
     mostDiscussedFeed(first: ${first}) {
-      ${feedFields}
+      ${feedFields()}
     }
   }`;
 

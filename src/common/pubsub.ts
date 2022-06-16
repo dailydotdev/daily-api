@@ -1,6 +1,6 @@
 import { PubSub, Topic } from '@google-cloud/pubsub';
 import { FastifyLoggerInstance } from 'fastify';
-import { Post, SourceRequest, Alerts, Settings } from '../entity';
+import { Post, SourceRequest, Alerts, Settings, Submission } from '../entity';
 import { toLegacySourceRequest } from '../compatibility/entity';
 import { ChangeObject } from '../types';
 
@@ -18,6 +18,7 @@ const alertsUpdatedTopic = pubsub.topic('alerts-updated');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
+const postScoutMatchedTopic = pubsub.topic('post-scout-matched');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
 const postReachedViewsThresholdTopic = pubsub.topic(
   'post-reached-views-threshold',
@@ -27,6 +28,9 @@ const postBannedOrRemovedTopic = pubsub.topic('post-banned-or-removed');
 const devcardEligibleTopic = pubsub.topic('devcard-eligible');
 const sourceFeedAddedTopic = pubsub.topic('source-feed-added');
 const sourceFeedRemovedTopic = pubsub.topic('source-feed-removed');
+const communityLinkAccessTopic = pubsub.topic('community-link-access');
+const communityLinkRejectedTopic = pubsub.topic('community-link-rejected');
+const communityLinkSubmittedTopic = pubsub.topic('community-link-submitted');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
@@ -177,6 +181,16 @@ export const notifyPostAuthorMatched = async (
     authorId,
   });
 
+export const notifyScoutMatched = async (
+  log: EventLogger,
+  postId: string,
+  scoutId: string,
+): Promise<void> =>
+  publishEvent(log, postScoutMatchedTopic, {
+    postId,
+    scoutId,
+  });
+
 export const notifySendAnalyticsReport = async (
   log: EventLogger,
   postId: string,
@@ -246,3 +260,24 @@ export const notifySourceFeedRemoved = async (
     feed,
     sourceId,
   });
+
+export const notifySubmissionRejected = async (
+  log: EventLogger,
+  submission: ChangeObject<Submission>,
+): Promise<void> => publishEvent(log, communityLinkRejectedTopic, submission);
+
+interface NewSubmission {
+  sourceId: string;
+  url: string;
+  submissionId: string;
+}
+
+export const notifySubmissionCreated = async (
+  log: EventLogger,
+  submission: ChangeObject<NewSubmission>,
+): Promise<void> => publishEvent(log, communityLinkSubmittedTopic, submission);
+
+export const notifySubmissionGrantedAccess = async (
+  log: EventLogger,
+  userId: string,
+): Promise<void> => publishEvent(log, communityLinkAccessTopic, { userId });

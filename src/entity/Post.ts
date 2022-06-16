@@ -17,6 +17,7 @@ import { User } from './User';
 import { PostKeyword } from './PostKeyword';
 import { Keyword } from './Keyword';
 import { uniqueifyArray } from '../common';
+import { validateAndApproveSubmission } from './Submission';
 
 export type TocItem = { text: string; id?: string; children?: TocItem[] };
 export type Toc = TocItem[];
@@ -110,6 +111,16 @@ export class Post {
   comments: number;
 
   @Column({ length: 36, nullable: true })
+  @Index('IDX_post_scout')
+  scoutId: string | null;
+
+  @ManyToOne(() => User, {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  scout: Promise<User>;
+
+  @Column({ length: 36, nullable: true })
   @Index('IDX_post_author')
   authorId: string | null;
 
@@ -183,8 +194,16 @@ export const getAuthorPostStats = (
     .addSelect('sum(post.views)', 'numPostViews')
     .addSelect('sum(post.upvotes)', 'numPostUpvotes')
     .from(Post, 'post')
-    .where({ authorId, deleted: false })
+    .where('post.authorId = :authorId or post.scoutId = :authorId', {
+      authorId,
+    })
+    .andWhere({ deleted: false })
     .getRawOne<PostStats>();
+
+export interface RejectPostData {
+  submissionId: string;
+  reason?: string;
+}
 
 export interface AddPostData {
   id: string;
@@ -199,12 +218,15 @@ export interface AddPostData {
   tags?: string[];
   siteTwitter?: string;
   creatorTwitter?: string;
+  authorId?: string;
   readTime?: number;
   canonicalUrl?: string;
   keywords?: string[];
   description?: string;
   toc?: Toc;
   summary?: string;
+  submissionId?: string;
+  scoutId?: string;
 }
 
 const parseReadTime = (
@@ -219,10 +241,19 @@ const parseReadTime = (
   return Math.floor(parseInt(readTime));
 };
 
-type Reason = 'exists' | 'author banned' | 'missing fields';
+type Reason =
+  | 'exists'
+  | 'author banned'
+  | 'missing fields'
+  | 'scout and author are the same';
 export type AddNewPostResult =
   | { status: 'ok'; postId: string }
   | { status: 'failed'; reason: Reason; error?: Error };
+
+type RejectReason = 'missing submission id';
+export type RejectPostResult =
+  | { status: 'ok'; submissionId: string }
+  | { status: 'failed'; reason: RejectReason; error?: Error };
 
 const checkRequiredFields = (data: AddPostData): boolean => {
   return !!(data && data.title && data.url && data.publicationId);
@@ -262,10 +293,6 @@ const fixAddPostData = (data: AddPostData): AddPostData => ({
   title: data.title && he.decode(data.title),
   createdAt: new Date(),
   readTime: parseReadTime(data.readTime),
-  creatorTwitter:
-    data.creatorTwitter === '' || data.creatorTwitter === '@'
-      ? null
-      : data.creatorTwitter,
   publishedAt: data.publishedAt && new Date(data.publishedAt),
 });
 
@@ -339,7 +366,6 @@ const addPostAndKeywordsToDb = async (
     entityManager,
     data.keywords,
   );
-  const authorId = await findAuthor(entityManager, data.creatorTwitter);
   await entityManager.getRepository(Post).insert({
     id: data.id,
     shortId: data.id,
@@ -357,11 +383,12 @@ const addPostAndKeywordsToDb = async (
     readTime: data.readTime,
     tagsStr: allowedKeywords?.join(',') || null,
     canonicalUrl: data.canonicalUrl,
-    authorId,
-    sentAnalyticsReport: !authorId,
+    authorId: data.authorId,
+    sentAnalyticsReport: !data.authorId,
     description: data.description,
     toc: data.toc,
     summary: data.summary,
+    scoutId: data.scoutId,
   });
   if (data.tags?.length) {
     await entityManager.getRepository(PostTag).insert(
@@ -399,15 +426,37 @@ export const addNewPost = async (
     return { status: 'failed', reason: 'missing fields' };
   }
 
-  const fixedData = fixAddPostData(data);
+  const creatorTwitter =
+    data.creatorTwitter === '' || data.creatorTwitter === '@'
+      ? null
+      : data.creatorTwitter;
 
   return con.transaction(async (entityManager) => {
+    const authorId = await findAuthor(entityManager, creatorTwitter);
+    const fixedData = fixAddPostData({ ...data, creatorTwitter, authorId });
+
     const reason = await shouldAddNewPost(entityManager, fixedData);
     if (reason) {
       return { status: 'failed', reason };
     }
+
+    const { scoutId, rejected } = (await validateAndApproveSubmission(
+      entityManager,
+      fixedData,
+    )) || { scoutId: null, rejected: false };
+
+    if (rejected) {
+      return { status: 'failed', reason: 'scout and author are the same' };
+    }
+
+    const combinedData = {
+      ...fixedData,
+      scoutId,
+    };
+
     try {
-      const postId = await addPostAndKeywordsToDb(entityManager, fixedData);
+      const postId = await addPostAndKeywordsToDb(entityManager, combinedData);
+
       return { status: 'ok', postId };
     } catch (error) {
       // Unique

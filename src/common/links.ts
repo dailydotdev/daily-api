@@ -23,13 +23,11 @@ export const standardizeURL = (url: string): string => {
 };
 
 export function isValidHttpUrl(link: string): boolean {
-  let url: URL;
-
   try {
-    url = new URL(link);
+    const url = new URL(link);
+
+    return url.protocol === 'http:' || url.protocol === 'https:';
   } catch (_) {
     return false;
   }
-
-  return url.protocol === 'http:' || url.protocol === 'https:';
 }

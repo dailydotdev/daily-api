@@ -16,7 +16,7 @@ const worker: Worker = {
   subscription: 'post-banned-rep',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
-    const { id, authorId } = data.post;
+    const { id, authorId, scoutId } = data.post;
     try {
       await con.transaction(async (transaction) => {
         const reports = await transaction
@@ -31,15 +31,29 @@ const worker: Worker = {
             reason: ReputationReason.PostReportConfirmed,
           }),
         );
+
+        const ownerProps = {
+          targetId: id,
+          targetType: ReputationType.Post,
+          reason: ReputationReason.PostBanned,
+        };
+
         if (authorId) {
           const authorEvent = repo.create({
+            ...ownerProps,
             grantToId: authorId,
-            targetId: id,
-            targetType: ReputationType.Post,
-            reason: ReputationReason.PostBanned,
           });
           events.push(authorEvent);
         }
+
+        if (scoutId) {
+          const scoutEvent = repo.create({
+            ...ownerProps,
+            grantToId: scoutId,
+          });
+          events.push(scoutEvent);
+        }
+
         await repo
           .createQueryBuilder()
           .insert()
