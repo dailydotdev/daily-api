@@ -7,7 +7,6 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { Checkpoint } from '../../src/entity/Checkpoint';
 import { notifyCommentFeatured } from '../../src/common';
-import { mocked } from 'ts-jest/utils';
 
 let con: Connection;
 
@@ -90,6 +89,6 @@ it('should update featured comments', async () => {
   });
   expect(comments).toMatchSnapshot();
   expect(
-    mocked(notifyCommentFeatured).mock.calls.map((call) => call[1]),
+    jest.mocked(notifyCommentFeatured).mock.calls.map((call) => call[1]),
   ).toMatchSnapshot();
 });

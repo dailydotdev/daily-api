@@ -26,6 +26,7 @@ jobs:
           paths:
             - build
   test:
+    resource_class: medium
     docker:
       - image: cimg/node:16.15
       - image: postgres:11.6-alpine
@@ -61,6 +62,7 @@ jobs:
           name: Test
           command: npm run test -- --ci --reporters=default --reporters=jest-junit
           environment:
+            - NODE_OPTIONS: --max-old-space-size=4096
             - JEST_JUNIT_OUTPUT_DIR: ./test-results
       - store_test_results:
           path: ./test-results
