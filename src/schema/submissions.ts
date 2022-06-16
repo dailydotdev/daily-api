@@ -11,7 +11,7 @@ interface GQLArticleSubmission {
 }
 
 type GQLSubmitArticleResponse = {
-  result: 'succeed' | 'exists' | 'reject';
+  result: 'succeed' | 'exists' | 'rejected';
   reason?: string;
   post?: GQLPost;
   submission?: GQLSubmission;
@@ -132,7 +132,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       const user = await ctx.getRepository(User).findOne({ id: ctx.userId });
 
       if (!hasSubmissionAccess(user)) {
-        return { result: 'reject', reason: 'Access denied' };
+        return { result: 'rejected', reason: 'Access denied' };
       }
 
       const submissionRepo = ctx.con.getRepository(Submission);
@@ -142,19 +142,19 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       );
 
       if (submissionsToday.length >= submissionLimit) {
-        return { result: 'reject', reason: 'Submission limit reached' };
+        return { result: 'rejected', reason: 'Submission limit reached' };
       }
 
       const cleanUrl = standardizeURL(url);
 
       if (!isValidHttpUrl(cleanUrl)) {
-        return { result: 'reject', reason: 'invalid URL' };
+        return { result: 'rejected', reason: 'invalid URL' };
       }
 
       const existingPost = await getPostByUrl(cleanUrl, ctx, info);
       if (existingPost) {
         if (existingPost.deleted) {
-          return { result: 'reject', reason: 'post is deleted' };
+          return { result: 'rejected', reason: 'post is deleted' };
         }
         return { result: 'exists', post: existingPost };
       }
@@ -165,7 +165,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
 
       if (existingSubmission) {
         return {
-          result: 'reject',
+          result: 'rejected',
           reason: `Article has been submitted already! Current status: ${existingSubmission.status}`,
         };
       }

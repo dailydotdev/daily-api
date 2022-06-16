@@ -119,7 +119,7 @@ describe('mutation submitArticle', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data).toEqual({
       submitArticle: {
-        result: 'reject',
+        result: 'rejected',
         reason: `Article has been submitted already! Current status: NOT_STARTED`,
         post: null,
         submission: null,
@@ -139,7 +139,7 @@ describe('mutation submitArticle', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data).toEqual({
       submitArticle: {
-        result: 'reject',
+        result: 'rejected',
         reason: 'Submission limit reached',
         post: null,
         submission: null,
@@ -155,7 +155,7 @@ describe('mutation submitArticle', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data).toEqual({
       submitArticle: {
-        result: 'reject',
+        result: 'rejected',
         reason: 'Access denied',
         post: null,
         submission: null,
@@ -219,7 +219,7 @@ describe('mutation submitArticle', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data).toEqual({
       submitArticle: {
-        result: 'reject',
+        result: 'rejected',
         reason: 'post is deleted',
         post: null,
         submission: null,
@@ -234,7 +234,7 @@ describe('mutation submitArticle', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data).toEqual({
       submitArticle: {
-        result: 'reject',
+        result: 'rejected',
         reason: 'invalid URL',
         post: null,
         submission: null,
