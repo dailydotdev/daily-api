@@ -51,10 +51,6 @@ export const workers: Worker[] = [
     subscription: 'post-author-matched-mail',
   },
   {
-    topic: 'community-link-accepted',
-    subscription: 'community-link-accepted-mail',
-  },
-  {
     topic: 'community-link-rejected',
     subscription: 'community-link-rejected-mail',
   },
