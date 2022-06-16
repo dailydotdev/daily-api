@@ -469,6 +469,7 @@ describe('user', () => {
           table: 'user',
         }),
       );
+      expect(true).toBeFalsy(); // ensure the worker threw an error and not reach this code
     } catch (ex) {
       const state = await con.getRepository(UserState).find();
       expect(state.length).toEqual(0);
