@@ -513,7 +513,7 @@ describe('user_state', () => {
     );
     expect(notifySubmissionGrantedAccess).toBeCalledTimes(1);
     expect(
-      mocked(notifySubmissionGrantedAccess).mock.calls[0].slice(1),
+      jest.mocked(notifySubmissionGrantedAccess).mock.calls[0].slice(1),
     ).toEqual(['1']);
   });
 });
@@ -637,7 +637,7 @@ describe('post', () => {
     );
     expect(notifyPostReachedViewsThreshold).toBeCalledTimes(1);
     expect(
-      mocked(notifyPostReachedViewsThreshold).mock.calls[0].slice(1),
+      jest.mocked(notifyPostReachedViewsThreshold).mock.calls[0].slice(1),
     ).toEqual(['p1', 250]);
   });
 
