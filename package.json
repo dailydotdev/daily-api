@@ -19,7 +19,7 @@
     "dev:background": "MODE=background npm run dev",
     "lint": "eslint . --ext .js,.ts --max-warnings 0",
     "start": "node index.js | pino-stackdriver",
-    "pretest": "cross-env NODE_OPTIONS=--max-old-space-size=6144 && npm run lint && cross-env NODE_ENV=test npm run db:migrate:reset",
+    "pretest": "cross-env NODE_OPTIONS=--max-old-space-size=8192 && npm run lint && cross-env NODE_ENV=test npm run db:migrate:reset",
     "test": "jest --testEnvironment=node --runInBand",
     "typeorm": "ts-node ./node_modules/typeorm/cli.js"
   },
