@@ -91,7 +91,6 @@ describe('mutation submitArticle', () => {
         reason
         post {
           id
-          deleted
         }
         submission {
           id
@@ -188,7 +187,6 @@ describe('mutation submitArticle', () => {
         result: 'exists',
         reason: null,
         post: {
-          deleted: false,
           id: 'p1',
         },
         submission: null,

@@ -284,11 +284,6 @@ export const typeDefs = /* GraphQL */ `
     Whether the user is the scout
     """
     isScout: Int
-
-    """
-    Whether post is deleted
-    """
-    deleted: Boolean
   }
 
   type PostConnection {
@@ -532,6 +527,7 @@ export const getPostByUrl = async (
     ['post'],
     (builder) => ({
       queryBuilder: builder.queryBuilder
+        .addSelect(`"${builder.alias}"."deleted"`)
         .where(
           `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url)`,
           { url },
