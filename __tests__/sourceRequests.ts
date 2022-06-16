@@ -5,7 +5,6 @@ import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
-import { mocked } from 'ts-jest/utils';
 import {
   authorizeRequest,
   disposeGraphQLTesting,
@@ -258,7 +257,7 @@ describe('mutation uploadSourceRequestLogo', () => {
     const req = await con
       .getRepository(SourceRequest)
       .save(sourceRequestFixture[2]);
-    mocked(uploadLogo).mockResolvedValue('http://image.com');
+    jest.mocked(uploadLogo).mockResolvedValue('http://image.com');
     const res = await authorizeRequest(
       request(app.server)
         .post('/graphql')

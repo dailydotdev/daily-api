@@ -6,7 +6,6 @@ import worker from '../../src/workers/postCommentedAuthorTweet';
 import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
-import { mocked } from 'ts-jest/utils';
 
 jest.mock('../../src/common/twitter', () => ({
   ...(jest.requireActual('../../src/common/twitter') as Record<
@@ -41,12 +40,12 @@ it('should tweet about the new comment', async () => {
     commentId: 'c1',
   });
   expect(tweet).toBeCalledTimes(1);
-  expect(mocked(tweet).mock.calls[0][0]).toContain('@idoshamun');
-  expect(mocked(tweet).mock.calls[0][0]).toContain(
+  expect(jest.mocked(tweet).mock.calls[0][0]).toContain('@idoshamun');
+  expect(jest.mocked(tweet).mock.calls[0][0]).toContain(
     'http://localhost:5002/posts/p1?author=true',
   );
-  expect(mocked(tweet).mock.calls[0][0]).toContain('23');
-  expect(mocked(tweet).mock.calls[0][1]).toEqual('AUTHOR_TWITTER');
+  expect(jest.mocked(tweet).mock.calls[0][0]).toContain('23');
+  expect(jest.mocked(tweet).mock.calls[0][1]).toEqual('AUTHOR_TWITTER');
 });
 
 it('should not tweet when no creator twitter', async () => {

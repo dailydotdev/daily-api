@@ -1,8 +1,5 @@
 import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
-
-import { mocked } from 'ts-jest/utils';
-
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail } from '../../src/common';
 import { User as GatewayUser } from '../../src/common/users';
@@ -131,7 +128,7 @@ it('should send mail to the thread followers', async () => {
     parentCommentId: 'c1',
   });
   expect(sendEmail).toBeCalledTimes(1);
-  expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
+  expect(jest.mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
 });
 
 it('should send mail to the thread followers without the post author', async () => {
@@ -179,5 +176,5 @@ it('should send mail to the thread followers without the post author', async () 
     parentCommentId: 'c1',
   });
   expect(sendEmail).toBeCalledTimes(1);
-  expect(mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
+  expect(jest.mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
 });
