@@ -897,7 +897,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             'isAuthor',
           )
           .andWhere(
-            `${alias}.authorId = :author or ${alias}.scoutId = :author`,
+            `(${alias}.authorId = :author or ${alias}.scoutId = :author)`,
             {
               author,
             },
