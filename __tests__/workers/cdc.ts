@@ -1084,7 +1084,7 @@ describe('submission', () => {
     userId: '1',
     url: '',
     reason: '',
-    status: SubmissionStatus.NotStarted,
+    status: SubmissionStatus.Started,
     createdAt: Date.now(),
   };
 

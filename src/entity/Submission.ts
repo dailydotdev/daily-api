@@ -10,7 +10,6 @@ import { User } from './User';
 import { AddPostData } from './Post';
 
 export enum SubmissionStatus {
-  NotStarted = 'NOT_STARTED',
   Started = 'STARTED',
   Accepted = 'ACCEPTED',
   Rejected = 'REJECTED',
@@ -31,7 +30,7 @@ export class Submission {
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
-  @Column({ default: SubmissionStatus.NotStarted })
+  @Column({ default: SubmissionStatus.Started })
   status: string;
 
   @Column({ type: 'text' })

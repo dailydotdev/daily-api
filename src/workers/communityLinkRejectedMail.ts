@@ -24,7 +24,7 @@ const worker: Worker = {
         dynamicTemplateData: {
           submitted_at: formatMailDate(new Date(data.createdAt)),
           first_name: user.name.split(' ')[0],
-          url: data.url,
+          article_link: data.url,
         },
       });
       logger.info(
