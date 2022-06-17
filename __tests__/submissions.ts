@@ -248,7 +248,7 @@ describe('mutation submitArticle', () => {
     const submission = await con
       .getRepository(Submission)
       .findOne({ url: request });
-    expect(submission.status).toEqual(SubmissionStatus.NotStarted);
+    expect(submission.status).toEqual(SubmissionStatus.Started);
     expect(res.data).toMatchSnapshot({
       submitArticle: {
         submission: {
