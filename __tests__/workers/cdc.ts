@@ -25,7 +25,7 @@ import {
   notifySettingsUpdated,
   notifySubmissionRejected,
   notifySubmissionCreated,
-  notifySubmissionGrantedAccess,
+  // notifySubmissionGrantedAccess,
   sendEmail,
   baseNotificationEmailData,
   pickImageUrl,
