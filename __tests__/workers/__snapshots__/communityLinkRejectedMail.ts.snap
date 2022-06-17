@@ -8,9 +8,9 @@ Array [
     },
     "category": "Notification",
     "dynamicTemplateData": Object {
+      "article_link": "http://sample.abc.com",
       "first_name": "Lee",
       "submitted_at": "Sep 27, 2020",
-      "url": "http://sample.abc.com",
     },
     "from": Object {
       "email": "informer@daily.dev",
