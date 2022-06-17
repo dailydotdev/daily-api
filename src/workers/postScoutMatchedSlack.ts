@@ -30,7 +30,7 @@ const worker: Worker = {
                 value: post.scoutId,
               },
             ],
-            color: '#FF1E1F',
+            color: '#CE3DF3',
           },
         ],
       });
