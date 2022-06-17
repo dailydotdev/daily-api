@@ -8,7 +8,7 @@ Object {
     "result": "succeed",
     "submission": Object {
       "id": Any<String>,
-      "status": "NOT_STARTED",
+      "status": "STARTED",
       "userId": "1",
     },
   },
