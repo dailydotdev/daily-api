@@ -107,6 +107,46 @@ exports[`query commentPreview should return markdown equivalent of the content 2
 "
 `;
 
+exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 1`] = `
+"<h1>Test</h1>
+"
+`;
+
+exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 2`] = `
+"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a></p>
+"
+`;
+
+exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 3`] = `
+"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a>.</p>
+"
+`;
+
+exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 4`] = `
+"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a>/<a href=\\"http://localhost:5002/Hansel\\" data-mention-id=\\"5\\" data-mention-username=\\"Hansel\\">@Hansel</a></p>
+"
+`;
+
+exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 5`] = `
+"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a>,<a href=\\"http://localhost:5002/Hansel\\" data-mention-id=\\"5\\" data-mention-username=\\"Hansel\\">@Hansel</a>,<a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a></p>
+"
+`;
+
+exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 6`] = `
+"<p>@Lee@Hansel@Solevilla</p>
+"
+`;
+
+exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 7`] = `
+"<p>Hi@Solevilla</p>
+"
+`;
+
+exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 8`] = `
+"<p>Hi!<a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a></p>
+"
+`;
+
 exports[`query commentUpvotes should return users that upvoted the comment by id in descending order 1`] = `
 Object {
   "commentUpvotes": Object {
@@ -368,11 +408,6 @@ Array [
     "username": "Hansel",
   },
   Object {
-    "image": "https://daily.dev/lee.jpg",
-    "name": "Lee",
-    "username": "Lee",
-  },
-  Object {
     "image": "https://daily.dev/nimrod.jpg",
     "name": "Nimrod",
     "username": "Nimrod",
@@ -381,6 +416,11 @@ Array [
     "image": "https://daily.dev/samson.jpg",
     "name": "Samson",
     "username": "Samson",
+  },
+  Object {
+    "image": "https://daily.dev/solevilla.jpg",
+    "name": "Solevilla",
+    "username": "Solevilla",
   },
   Object {
     "image": "https://daily.dev/tsahi.jpg",
