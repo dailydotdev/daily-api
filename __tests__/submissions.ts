@@ -119,7 +119,7 @@ describe('mutation submitArticle', () => {
     expect(res.data).toEqual({
       submitArticle: {
         result: 'rejected',
-        reason: `Article has been submitted already! Current status: NOT_STARTED`,
+        reason: `Article has been submitted already! Current status: STARTED`,
         post: null,
         submission: null,
       },
@@ -248,7 +248,7 @@ describe('mutation submitArticle', () => {
     const submission = await con
       .getRepository(Submission)
       .findOne({ url: request });
-    expect(submission.status).toEqual(SubmissionStatus.NotStarted);
+    expect(submission.status).toEqual(SubmissionStatus.Started);
     expect(res.data).toMatchSnapshot({
       submitArticle: {
         submission: {
