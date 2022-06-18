@@ -322,10 +322,16 @@ describe('query commentPreview', () => {
     expect(mention6.data.commentPreview).toMatchSnapshot();
 
     const mention7 = await client.query(QUERY, {
-      variables: { content: 'Hi@Solevilla' },
+      variables: { content: 'Hi @Solevilla' },
     });
     expect(mention7.errors).toBeFalsy();
-    expect(mention7.data.commentPreview).toMatchSnapshot(); // expect to display no mention
+    expect(mention7.data.commentPreview).toMatchSnapshot();
+
+    const mention8 = await client.query(QUERY, {
+      variables: { content: 'Hi @Solevilla!' },
+    });
+    expect(mention8.errors).toBeFalsy();
+    expect(mention8.data.commentPreview).toMatchSnapshot();
   });
 
   it('should only render markdown not HTML', async () => {

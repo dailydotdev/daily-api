@@ -148,7 +148,12 @@ exports[`query commentPreview should return markdown equivalent of the content w
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 9`] = `
-"<p>Hi@Solevilla</p>
+"<p>Hi <a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a></p>
+"
+`;
+
+exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 10`] = `
+"<p>Hi <a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a>!</p>
 "
 `;
 
