@@ -147,6 +147,11 @@ exports[`query commentPreview should return markdown equivalent of the content w
 "
 `;
 
+exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 9`] = `
+"<p>Hi@Solevilla</p>
+"
+`;
+
 exports[`query commentUpvotes should return users that upvoted the comment by id in descending order 1`] = `
 Object {
   "commentUpvotes": Object {
@@ -408,6 +413,11 @@ Array [
     "username": "Hansel",
   },
   Object {
+    "image": "https://daily.dev/lee.jpg",
+    "name": "Lee",
+    "username": "Lee",
+  },
+  Object {
     "image": "https://daily.dev/nimrod.jpg",
     "name": "Nimrod",
     "username": "Nimrod",
@@ -416,11 +426,6 @@ Array [
     "image": "https://daily.dev/samson.jpg",
     "name": "Samson",
     "username": "Samson",
-  },
-  Object {
-    "image": "https://daily.dev/solevilla.jpg",
-    "name": "Solevilla",
-    "username": "Solevilla",
   },
   Object {
     "image": "https://daily.dev/tsahi.jpg",
