@@ -157,6 +157,11 @@ exports[`query commentPreview should return markdown equivalent of the content w
 "
 `;
 
+exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 11`] = `
+"<p>Hi <a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a>! This is normal comment, let’s tag <a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a> as well</p>
+"
+`;
+
 exports[`query commentUpvotes should return users that upvoted the comment by id in descending order 1`] = `
 Object {
   "commentUpvotes": Object {

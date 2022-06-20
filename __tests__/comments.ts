@@ -332,6 +332,15 @@ describe('query commentPreview', () => {
     });
     expect(mention8.errors).toBeFalsy();
     expect(mention8.data.commentPreview).toMatchSnapshot();
+
+    const mention9 = await client.query(QUERY, {
+      variables: {
+        content:
+          "Hi @Solevilla! This is normal comment, let's tag @Lee as well",
+      },
+    });
+    expect(mention9.errors).toBeFalsy();
+    expect(mention9.data.commentPreview).toMatchSnapshot();
   });
 
   it('should only render markdown not HTML', async () => {
