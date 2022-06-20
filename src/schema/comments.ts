@@ -20,7 +20,7 @@ import graphorm from '../graphorm';
 import { GQLPost } from './posts';
 import { Roles } from '../roles';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
-import { markdown, splitBySpecialChars } from '../common/markdown';
+import { markdown, mentionSpecialCharacters } from '../common/markdown';
 
 export interface GQLComment {
   id: string;
@@ -318,20 +318,14 @@ const getMentions = async (
   content: string,
   userId: string,
 ): Promise<MentionedUser[]> => {
-  const words = content.split(' ');
+  const replaced = content.replace(mentionSpecialCharacters, ' ');
+  const words = replaced.split(' ');
   const result = words.reduce((list, word) => {
-    const mentionIndex = word.indexOf('@');
-
-    if (mentionIndex === -1 || word.length === 1) {
+    if (word.length === 1 || word.charAt(0) !== '@') {
       return list;
     }
 
-    const sections = splitBySpecialChars(word, mentionIndex);
-    const mentions = sections
-      .filter((section) => section.charAt(0) === '@' && section.length > 1)
-      .map((mention) => mention.substring(1));
-
-    return list.concat(mentions);
+    return list.concat(word.substring(1));
   }, []);
 
   if (result.length === 0) {
