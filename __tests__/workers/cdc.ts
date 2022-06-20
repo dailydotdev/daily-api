@@ -25,7 +25,7 @@ import {
   notifySettingsUpdated,
   notifySubmissionRejected,
   notifySubmissionCreated,
-  notifySubmissionGrantedAccess,
+  // notifySubmissionGrantedAccess,
   sendEmail,
   baseNotificationEmailData,
   pickImageUrl,
@@ -496,27 +496,27 @@ describe('user', () => {
   });
 });
 
-describe('user_state', () => {
-  type ObjectType = UserState;
-  it('should notify on user state is created with the right key', async () => {
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after: {
-          userId: defaultUser.id,
-          key: UserStateKey.CommunityLinkAccess,
-          value: false,
-        },
-        op: 'c',
-        table: 'user_state',
-      }),
-    );
-    expect(notifySubmissionGrantedAccess).toBeCalledTimes(1);
-    expect(
-      jest.mocked(notifySubmissionGrantedAccess).mock.calls[0].slice(1),
-    ).toEqual(['1']);
-  });
-});
+// describe('user_state', () => {
+//   type ObjectType = UserState;
+//   it('should notify on user state is created with the right key', async () => {
+//     await expectSuccessfulBackground(
+//       worker,
+//       mockChangeMessage<ObjectType>({
+//         after: {
+//           userId: defaultUser.id,
+//           key: UserStateKey.CommunityLinkAccess,
+//           value: false,
+//         },
+//         op: 'c',
+//         table: 'user_state',
+//       }),
+//     );
+//     expect(notifySubmissionGrantedAccess).toBeCalledTimes(1);
+//     expect(
+//       jest.mocked(notifySubmissionGrantedAccess).mock.calls[0].slice(1),
+//     ).toEqual(['1']);
+//   });
+// });
 
 describe('comment mention', () => {
   type ObjectType = CommentMention;
