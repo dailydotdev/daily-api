@@ -43,6 +43,22 @@ const defaultTextRender = markdown.renderer.rules.text;
 
 type MarkdownMention = Pick<User, 'id' | 'username'>;
 
+export const mentionSpecialCharacters = new RegExp('[^a-zA-Z0-9_@]', 'g');
+
+type ReplacedCharacters = string[];
+
+// in order to easily identify whether a comment mention is valid or not, we replace special characters with space
+// then while we reconstruct the word as the length changes afterwards, we passed the reference to which were those replaced characters
+const getReplacedCharacters = (word: string): [string, ReplacedCharacters] => {
+  const specialCharacters = [];
+  let match: RegExpExecArray;
+  while ((match = mentionSpecialCharacters.exec(word)) != null) {
+    specialCharacters.push(word.charAt(match.index));
+  }
+
+  return [word.replace(mentionSpecialCharacters, ' '), specialCharacters];
+};
+
 markdown.renderer.rules.text = function (tokens, idx, options, env, self) {
   const content = defaultTextRender(tokens, idx, options, env, self);
   const mentions = env?.mentions as MarkdownMention[];
@@ -50,9 +66,24 @@ markdown.renderer.rules.text = function (tokens, idx, options, env, self) {
     return content;
   }
 
-  const words = content.split(' ').map((word) => {
-    const mention = mentions.find(({ username }) => word === `@${username}`);
-    return mention ? getMentionLink(mention) : word;
+  const words = content.split(' ').map((word: string) => {
+    if (word.indexOf('@') === -1) {
+      return word;
+    }
+
+    const [replaced, specialCharacters] = getReplacedCharacters(word);
+    const result = replaced.split(' ').reduce((result, section, i) => {
+      const removed = specialCharacters[i] ?? '';
+      if (section.indexOf('@') === -1) {
+        return result + section + removed;
+      }
+
+      const user = mentions.find(({ username }) => `@${username}` === section);
+      const reconstructed = user ? getMentionLink(user) : section;
+      return result + reconstructed + removed;
+    }, '');
+
+    return result;
   });
 
   return words.join(' ');

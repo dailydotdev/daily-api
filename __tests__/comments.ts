@@ -271,6 +271,78 @@ describe('query commentPreview', () => {
     expect(withMention.data.commentPreview).toMatchSnapshot();
   });
 
+  it('should return markdown equivalent of the content with special characters on mention', async () => {
+    loggedUser = '1';
+    await saveCommentMentionFixtures();
+    const content = '# Test';
+    const res = await client.query(QUERY, { variables: { content } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.commentPreview).toMatchSnapshot();
+
+    const mention0 = await client.query(QUERY, {
+      variables: { content: '@Lee' },
+    });
+    expect(mention0.errors).toBeFalsy();
+    expect(mention0.data.commentPreview).toMatchSnapshot();
+
+    const mention1 = await client.query(QUERY, {
+      variables: { content: '@Lee.' },
+    });
+    expect(mention1.errors).toBeFalsy();
+    expect(mention1.data.commentPreview).toMatchSnapshot();
+
+    const mention2 = await client.query(QUERY, {
+      variables: { content: '@Lee/@Hansel' },
+    });
+    expect(mention2.errors).toBeFalsy();
+    expect(mention2.data.commentPreview).toMatchSnapshot();
+
+    const mention3 = await client.query(QUERY, {
+      variables: { content: '@Lee,@Hansel,@Solevilla' },
+    });
+    expect(mention3.errors).toBeFalsy();
+    expect(mention3.data.commentPreview).toMatchSnapshot();
+
+    const mention4 = await client.query(QUERY, {
+      variables: { content: '@Lee@Hansel@Solevilla' },
+    });
+    expect(mention4.errors).toBeFalsy();
+    expect(mention4.data.commentPreview).toMatchSnapshot(); // expect to display no mention
+
+    const mention5 = await client.query(QUERY, {
+      variables: { content: 'Hi@Solevilla' },
+    });
+    expect(mention5.errors).toBeFalsy();
+    expect(mention5.data.commentPreview).toMatchSnapshot(); // expect to display no mention
+
+    const mention6 = await client.query(QUERY, {
+      variables: { content: 'Hi!@Solevilla' },
+    });
+    expect(mention6.errors).toBeFalsy();
+    expect(mention6.data.commentPreview).toMatchSnapshot();
+
+    const mention7 = await client.query(QUERY, {
+      variables: { content: 'Hi @Solevilla' },
+    });
+    expect(mention7.errors).toBeFalsy();
+    expect(mention7.data.commentPreview).toMatchSnapshot();
+
+    const mention8 = await client.query(QUERY, {
+      variables: { content: 'Hi @Solevilla!' },
+    });
+    expect(mention8.errors).toBeFalsy();
+    expect(mention8.data.commentPreview).toMatchSnapshot();
+
+    const mention9 = await client.query(QUERY, {
+      variables: {
+        content:
+          "Hi @Solevilla! This is normal comment, let's tag @Lee as well",
+      },
+    });
+    expect(mention9.errors).toBeFalsy();
+    expect(mention9.data.commentPreview).toMatchSnapshot();
+  });
+
   it('should only render markdown not HTML', async () => {
     loggedUser = '1';
     await saveCommentMentionFixtures();
