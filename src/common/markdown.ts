@@ -47,18 +47,16 @@ export const mentionSpecialCharacters = new RegExp('[^a-zA-Z0-9_@]', 'g');
 
 type ReplacedCharacters = string[];
 
+// in order to easily identify whether a comment mention is valid or not, we replace special characters with space
+// then while we reconstruct the word as the length changes afterwards, we passed the reference to which were those replaced characters
 const getReplacedCharacters = (word: string): [string, ReplacedCharacters] => {
   const specialCharacters = [];
-  word.split('').forEach((char) => {
-    const matched = char.match(mentionSpecialCharacters);
-    if (matched?.[0]?.length) {
-      specialCharacters.push(char);
-    }
-  });
+  let match: RegExpExecArray;
+  while ((match = mentionSpecialCharacters.exec(word)) != null) {
+    specialCharacters.push(word.charAt(match.index));
+  }
 
-  const result = word.replace(mentionSpecialCharacters, ' ');
-
-  return [result, specialCharacters];
+  return [word.replace(mentionSpecialCharacters, ' '), specialCharacters];
 };
 
 markdown.renderer.rules.text = function (tokens, idx, options, env, self) {
