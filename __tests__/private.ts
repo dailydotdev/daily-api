@@ -172,7 +172,7 @@ describe('POST /p/rejectPost', () => {
     expect(submission.status).toEqual(SubmissionStatus.Rejected);
   });
 
-  it('should not update already rejected post', async () => {
+  it('should not update already approved post', async () => {
     const uuid = randomUUID();
     await createDefaultUser();
     const repo = con.getRepository(Submission);
