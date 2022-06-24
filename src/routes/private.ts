@@ -31,13 +31,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     try {
-      await con.getRepository(Submission).update(
-        { id: data.submissionId },
-        {
-          status: SubmissionStatus.Rejected,
-          reason: data.reason,
-        },
-      );
+      const repo = con.getRepository(Submission);
+      const submission = await repo.findOne({ id: data.submissionId });
+      if (submission.status === SubmissionStatus.Started) {
+        await repo.save({ ...submission, status: SubmissionStatus.Rejected });
+      }
       return res
         .status(200)
         .send({ status: 'ok', submissionId: data.submissionId });

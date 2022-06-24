@@ -172,6 +172,30 @@ describe('POST /p/rejectPost', () => {
     expect(submission.status).toEqual(SubmissionStatus.Rejected);
   });
 
+  it('should not update already rejected post', async () => {
+    const uuid = randomUUID();
+    await createDefaultUser();
+    const repo = con.getRepository(Submission);
+    await repo.save({
+      id: uuid,
+      url: 'http://sample.article/test',
+      userId: '1',
+      status: SubmissionStatus.Accepted,
+    });
+    const { body } = await request(app.server)
+      .post('/p/rejectPost')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({ submissionId: uuid })
+      .expect(200);
+    const submissions = await con.getRepository(Submission).find();
+    const [submission] = submissions;
+    expect(submissions.length).toEqual(1);
+    expect(body).toEqual({ status: 'ok', submissionId: submission.id });
+    expect(submission.id).toEqual(uuid);
+    expect(submission.status).toEqual(SubmissionStatus.Accepted);
+  });
+
   it('should handle empty body', async () => {
     const { body } = await request(app.server)
       .post('/p/rejectPost')
