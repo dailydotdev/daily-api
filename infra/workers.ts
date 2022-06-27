@@ -43,10 +43,6 @@ export const workers: Worker[] = [
     subscription: 'comment-commented-thread',
   },
   {
-    topic: 'comment-featured',
-    subscription: 'comment-featured-mail',
-  },
-  {
     topic: 'post-author-matched',
     subscription: 'post-author-matched-mail',
   },
