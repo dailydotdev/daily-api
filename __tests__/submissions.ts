@@ -81,6 +81,28 @@ describe('query submissionAvailability', () => {
     expect(res.data.submissionAvailability.hasAccess).toEqual(true);
     expect(res.data.submissionAvailability.todaySubmissionsCount).toEqual(1);
   });
+
+  it('should return submissions count today, limit, and if has access in consideration of timezone', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).update({ id: '1' }, { timezone: 'BST' });
+    const repo = con.getRepository(Submission);
+    await repo.save([
+      { url: 'http://abc.com/1', userId: '1' },
+      {
+        url: 'http://abc.com/2',
+        userId: '1',
+        createdAt: subDays(new Date(), 1),
+      },
+    ]);
+    const res = await client.query(QUERY);
+    const limit = parseInt(
+      process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
+    );
+    expect(res.errors).toBeFalsy();
+    expect(res.data.submissionAvailability.limit).toEqual(limit);
+    expect(res.data.submissionAvailability.hasAccess).toEqual(true);
+    expect(res.data.submissionAvailability.todaySubmissionsCount).toEqual(1);
+  });
 });
 
 describe('mutation submitArticle', () => {
