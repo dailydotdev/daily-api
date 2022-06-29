@@ -86,11 +86,10 @@ const hasSubmissionAccess = (user: User) =>
 
 const getSubmissionsToday = (con: Connection, userTimezone?: string) => {
   const timezone = userTimezone ?? 'utc';
-  const nowTimezone = `timezone('${timezone}', now())`;
   const atTimezone = `at time zone '${timezone}'`;
 
   return con.getRepository(Submission).find({
-    where: `date_trunc('day', "createdAt")::timestamptz ${atTimezone} = date_trunc('day', ${nowTimezone})::timestamptz`,
+    where: `date_trunc('day', "createdAt")::timestamptz ${atTimezone} = date_trunc('day', now())::timestamptz ${atTimezone}`,
   });
 };
 
