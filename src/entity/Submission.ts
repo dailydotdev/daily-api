@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { User } from './User';
 import { AddPostData } from './Post';
+import { SubmissionFailErrorKeys } from '../errors';
 
 export enum SubmissionStatus {
   Started = 'STARTED',
@@ -34,7 +35,7 @@ export class Submission {
   status: string;
 
   @Column({ type: 'text' })
-  reason: string;
+  reason: SubmissionFailErrorKeys;
 
   @ManyToOne(() => User, {
     lazy: true,
@@ -63,7 +64,7 @@ export const validateAndApproveSubmission = async (
       { id: data.submissionId },
       {
         status: SubmissionStatus.Rejected,
-        reason: 'scout and author are the same',
+        reason: 'SCOUT_IS_AUTHOR',
       },
     );
     return { rejected: true };

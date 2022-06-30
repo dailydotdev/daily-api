@@ -18,6 +18,7 @@ import { PostKeyword } from './PostKeyword';
 import { Keyword } from './Keyword';
 import { uniqueifyArray } from '../common';
 import { validateAndApproveSubmission } from './Submission';
+import { SubmissionFailErrorKeys } from '../errors';
 
 export type TocItem = { text: string; id?: string; children?: TocItem[] };
 export type Toc = TocItem[];
@@ -241,11 +242,7 @@ const parseReadTime = (
   return Math.floor(parseInt(readTime));
 };
 
-type Reason =
-  | 'exists'
-  | 'author banned'
-  | 'missing fields'
-  | 'scout and author are the same';
+type Reason = SubmissionFailErrorKeys;
 export type AddNewPostResult =
   | { status: 'ok'; postId: string }
   | { status: 'failed'; reason: Reason; error?: Error };
@@ -275,14 +272,14 @@ const shouldAddNewPost = async (
     )
     .getRawOne();
   if (p) {
-    return 'exists';
+    return 'POST_EXISTS';
   }
   if (bannedAuthors.indexOf(data.creatorTwitter) > -1) {
-    return 'author banned';
+    return 'AUTHOR_BANNED';
   }
 
   if (!data.title) {
-    return 'missing fields';
+    return 'MISSING_FIELDS';
   }
 };
 
@@ -423,7 +420,7 @@ export const addNewPost = async (
   data: AddPostData,
 ): Promise<AddNewPostResult> => {
   if (!checkRequiredFields(data)) {
-    return { status: 'failed', reason: 'missing fields' };
+    return { status: 'failed', reason: 'MISSING_FIELDS' };
   }
 
   const creatorTwitter =
@@ -446,7 +443,7 @@ export const addNewPost = async (
     )) || { scoutId: null, rejected: false };
 
     if (rejected) {
-      return { status: 'failed', reason: 'scout and author are the same' };
+      return { status: 'failed', reason: 'SCOUT_IS_AUTHOR' };
     }
 
     const combinedData = {
@@ -461,11 +458,11 @@ export const addNewPost = async (
     } catch (error) {
       // Unique
       if (error?.code === '23505') {
-        return { status: 'failed', reason: 'exists', error };
+        return { status: 'failed', reason: 'POST_EXISTS', error };
       }
       // Null violation
       if (error?.code === '23502') {
-        return { status: 'failed', reason: 'missing fields', error };
+        return { status: 'failed', reason: 'MISSING_FIELDS', error };
       }
       throw error;
     }

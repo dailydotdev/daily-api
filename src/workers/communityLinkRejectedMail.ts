@@ -3,12 +3,10 @@ import { templateId } from '../common/mailing';
 import { messageToJson, Worker } from './worker';
 import { fetchUser } from '../common';
 import { baseNotificationEmailData, sendEmail } from '../common';
+import { SubmissionFailErrorMessage } from '../errors';
+import { Submission } from '../entity';
 
-interface Data {
-  url: string;
-  userId: string;
-  createdAt: string;
-}
+type Data = Pick<Submission, 'url' | 'userId' | 'createdAt' | 'reason'>;
 
 const worker: Worker = {
   subscription: 'community-link-rejected-mail',
@@ -25,6 +23,9 @@ const worker: Worker = {
           submitted_at: formatMailDate(new Date(data.createdAt)),
           first_name: user.name.split(' ')[0],
           article_link: data.url,
+          reason:
+            SubmissionFailErrorMessage[data?.reason] ??
+            SubmissionFailErrorMessage.GENERIC_ERROR,
         },
       });
       logger.info(

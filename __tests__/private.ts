@@ -127,14 +127,14 @@ describe('POST /p/newPost', () => {
       .expect(200);
     expect(body).toEqual({
       status: 'failed',
-      reason: 'scout and author are the same',
+      reason: 'SCOUT_IS_AUTHOR',
     });
     const submissions = await con.getRepository(Submission).find();
     const [submission] = submissions;
     expect(submissions.length).toEqual(1);
     expect(submission.id).toEqual(uuid);
     expect(submission.status).toEqual(SubmissionStatus.Rejected);
-    expect(submission.reason).toEqual('scout and author are the same');
+    expect(submission.reason).toEqual('SCOUT_IS_AUTHOR');
   });
 
   it('should handle empty body', async () => {
@@ -145,7 +145,7 @@ describe('POST /p/newPost', () => {
       .expect(200);
     const posts = await con.getRepository(Post).find();
     expect(posts.length).toEqual(0);
-    expect(body).toEqual({ status: 'failed', reason: 'missing fields' });
+    expect(body).toEqual({ status: 'failed', reason: 'MISSING_FIELDS' });
   });
 });
 
