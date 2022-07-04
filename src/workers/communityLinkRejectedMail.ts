@@ -22,7 +22,7 @@ const worker: Worker = {
         to: user.email,
         templateId: templateId.communityLinkRejected,
         dynamicTemplateData: {
-          submitted_at: formatMailDate(data.createdAt),
+          submitted_at: formatMailDate(new Date(data.createdAt)),
           first_name: user.name.split(' ')[0],
           article_link: data.url,
         },
