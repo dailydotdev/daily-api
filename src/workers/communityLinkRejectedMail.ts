@@ -5,16 +5,16 @@ import { fetchUser } from '../common';
 import { baseNotificationEmailData, sendEmail } from '../common';
 
 interface Data {
+  id: string;
   url: string;
   userId: string;
-  createdAt: string;
+  createdAt: Date;
 }
 
 const worker: Worker = {
   subscription: 'community-link-rejected-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
-
     try {
       const user = await fetchUser(data.userId);
       await sendEmail({
@@ -22,7 +22,7 @@ const worker: Worker = {
         to: user.email,
         templateId: templateId.communityLinkRejected,
         dynamicTemplateData: {
-          submitted_at: formatMailDate(new Date(data.createdAt)),
+          submitted_at: formatMailDate(data.createdAt),
           first_name: user.name.split(' ')[0],
           article_link: data.url,
         },
