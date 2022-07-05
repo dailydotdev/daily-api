@@ -10,6 +10,7 @@ Array [
     "dynamicTemplateData": Object {
       "article_link": "http://sample.abc.com",
       "first_name": "Lee",
+      "reason": "Unfortunately there was an error and we were unable to gather the required information from the URL submitted to add",
       "submitted_at": "Sep 27, 2020",
     },
     "from": Object {

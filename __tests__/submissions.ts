@@ -13,6 +13,7 @@ import {
 import { DEFAULT_SUBMISSION_LIMIT } from '../src/schema/submissions';
 import { subDays } from 'date-fns';
 import { sourcesFixture } from './fixture/source';
+import { SubmissionFailErrorMessage } from '../src/errors';
 
 let con: Connection;
 let state: GraphQLTestingState;
@@ -119,7 +120,7 @@ describe('mutation submitArticle', () => {
     expect(res.data).toEqual({
       submitArticle: {
         result: 'rejected',
-        reason: `Article has been submitted already! Current status: STARTED`,
+        reason: SubmissionFailErrorMessage.EXISTS_STARTED,
         post: null,
         submission: null,
       },
@@ -139,7 +140,7 @@ describe('mutation submitArticle', () => {
     expect(res.data).toEqual({
       submitArticle: {
         result: 'rejected',
-        reason: 'Submission limit reached',
+        reason: SubmissionFailErrorMessage.LIMIT_REACHED,
         post: null,
         submission: null,
       },
@@ -155,7 +156,7 @@ describe('mutation submitArticle', () => {
     expect(res.data).toEqual({
       submitArticle: {
         result: 'rejected',
-        reason: 'Access denied',
+        reason: SubmissionFailErrorMessage.ACCESS_DENIED,
         post: null,
         submission: null,
       },
@@ -218,7 +219,7 @@ describe('mutation submitArticle', () => {
     expect(res.data).toEqual({
       submitArticle: {
         result: 'rejected',
-        reason: 'post is deleted',
+        reason: SubmissionFailErrorMessage.POST_DELETED,
         post: null,
         submission: null,
       },
@@ -233,7 +234,7 @@ describe('mutation submitArticle', () => {
     expect(res.data).toEqual({
       submitArticle: {
         result: 'rejected',
-        reason: 'invalid URL',
+        reason: SubmissionFailErrorMessage.INVALID_URL,
         post: null,
         submission: null,
       },

@@ -24,7 +24,7 @@ const worker: Worker = {
           },
           'failed to add post to db',
         );
-      } else if (res.reason === 'exists') {
+      } else if (res.reason === 'POST_EXISTS') {
         logger.info(
           {
             post: data,
@@ -32,7 +32,7 @@ const worker: Worker = {
           },
           'post url already exists',
         );
-      } else if (res.reason === 'author banned') {
+      } else if (res.reason === 'AUTHOR_BANNED') {
         logger.info(
           {
             post: data,

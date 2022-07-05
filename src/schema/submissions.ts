@@ -5,6 +5,7 @@ import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { isValidHttpUrl, standardizeURL } from '../common';
 import { getPostByUrl, GQLPost } from './posts';
+import { SubmissionFailErrorMessage } from '../errors';
 
 interface GQLArticleSubmission {
   url: string;
@@ -132,7 +133,10 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       const user = await ctx.getRepository(User).findOne({ id: ctx.userId });
 
       if (!hasSubmissionAccess(user)) {
-        return { result: 'rejected', reason: 'Access denied' };
+        return {
+          result: 'rejected',
+          reason: SubmissionFailErrorMessage.ACCESS_DENIED,
+        };
       }
 
       const submissionRepo = ctx.con.getRepository(Submission);
@@ -142,19 +146,28 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       );
 
       if (submissionsToday.length >= submissionLimit) {
-        return { result: 'rejected', reason: 'Submission limit reached' };
+        return {
+          result: 'rejected',
+          reason: SubmissionFailErrorMessage.LIMIT_REACHED,
+        };
       }
 
       const cleanUrl = standardizeURL(url);
 
       if (!isValidHttpUrl(cleanUrl)) {
-        return { result: 'rejected', reason: 'invalid URL' };
+        return {
+          result: 'rejected',
+          reason: SubmissionFailErrorMessage.INVALID_URL,
+        };
       }
 
       const existingPost = await getPostByUrl(cleanUrl, ctx, info);
       if (existingPost) {
         if (existingPost.deleted) {
-          return { result: 'rejected', reason: 'post is deleted' };
+          return {
+            result: 'rejected',
+            reason: SubmissionFailErrorMessage.POST_DELETED,
+          };
         }
         return { result: 'exists', post: existingPost };
       }
@@ -166,7 +179,8 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       if (existingSubmission) {
         return {
           result: 'rejected',
-          reason: `Article has been submitted already! Current status: ${existingSubmission.status}`,
+          reason:
+            SubmissionFailErrorMessage[`EXISTS_${existingSubmission.status}`],
         };
       }
 
