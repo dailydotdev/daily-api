@@ -39,11 +39,11 @@ export const SubmissionFailErrorMessage: Record<
   POST_DELETED:
     'This post has previously appeared in the daily.dev feed but was deleted and cannot be added to the feed again.',
   EXISTS_STARTED:
-    'This article has already been submitted and is currently being processed. Current status: Started',
+    'This article has already been submitted and is currently being processed.',
   EXISTS_ACCEPTED:
-    'This article has already been submitted and is currently being processed. Current status: Accepted',
+    'This article has already been submitted and is currently being added to the daily.dev feed',
   EXISTS_REJECTED:
-    'This article has already been submitted and is currently being processed. Current status: Rejected',
+    'This article has already been submitted but did not meet our technical requirements, it cannot be submitted again',
 };
 
 export class NotFoundError extends ApolloError {
