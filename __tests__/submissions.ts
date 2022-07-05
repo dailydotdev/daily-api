@@ -85,6 +85,12 @@ describe('query submissionAvailability', () => {
 
   it('should return submissions count today, limit, and if has access in consideration of timezone', async () => {
     loggedUser = '1';
+    await con.getRepository(User).save({
+      id: '2',
+      name: 'Hansel',
+      image: 'https://daily.dev/hansel.jpg',
+      reputation: 250,
+    });
     await con.getRepository(User).update({ id: '1' }, { timezone: 'BST' });
     const repo = con.getRepository(Submission);
     await repo.save([
@@ -94,6 +100,7 @@ describe('query submissionAvailability', () => {
         userId: '1',
         createdAt: subDays(new Date(), 1),
       },
+      { url: 'http://abc.com/3', userId: '2' },
     ]);
     const res = await client.query(QUERY);
     const limit = parseInt(
