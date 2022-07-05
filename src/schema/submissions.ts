@@ -85,13 +85,19 @@ export const submissionAccessThreshold = parseInt(
 const hasSubmissionAccess = (user: User) =>
   user.reputation >= submissionAccessThreshold;
 
-const getSubmissionsToday = (con: Connection, userTimezone?: string) => {
-  const timezone = userTimezone ?? 'utc';
+const getSubmissionsToday = (con: Connection, user: User) => {
+  const timezone = user.timezone ?? 'utc';
   const atTimezone = `at time zone '${timezone}'`;
 
-  return con.getRepository(Submission).find({
-    where: `date_trunc('day', "createdAt")::timestamptz ${atTimezone} = date_trunc('day', now())::timestamptz ${atTimezone}`,
-  });
+  return con
+    .getRepository(Submission)
+    .createQueryBuilder()
+    .select('*')
+    .where(
+      `date_trunc('day', "createdAt")::timestamptz ${atTimezone} = date_trunc('day', now())::timestamptz ${atTimezone}`,
+    )
+    .andWhere('"userId" = :id', { id: user.id })
+    .execute();
 };
 
 export const resolvers: IResolvers<unknown, Context> = traceResolvers({
@@ -110,10 +116,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         };
       }
 
-      const submissionsToday = await getSubmissionsToday(
-        ctx.con,
-        user.timezone,
-      );
+      const submissionsToday = await getSubmissionsToday(ctx.con, user);
 
       return {
         limit: submissionLimit,
@@ -139,10 +142,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       }
 
       const submissionRepo = ctx.con.getRepository(Submission);
-      const submissionsToday = await getSubmissionsToday(
-        ctx.con,
-        user.timezone,
-      );
+      const submissionsToday = await getSubmissionsToday(ctx.con, user);
 
       if (submissionsToday.length >= submissionLimit) {
         return {
