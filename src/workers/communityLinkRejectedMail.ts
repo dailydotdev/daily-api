@@ -12,7 +12,6 @@ const worker: Worker = {
   subscription: 'community-link-rejected-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
-
     try {
       const user = await fetchUser(data.userId);
       await sendEmail({
