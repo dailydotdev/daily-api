@@ -1083,7 +1083,7 @@ describe('submission', () => {
     id,
     userId: '1',
     url: '',
-    reason: '',
+    reason: null,
     status: SubmissionStatus.Started,
     createdAt: Date.now(),
   };

@@ -3,18 +3,16 @@ import { templateId } from '../common/mailing';
 import { messageToJson, Worker } from './worker';
 import { fetchUser } from '../common';
 import { baseNotificationEmailData, sendEmail } from '../common';
+import { SubmissionFailErrorMessage } from '../errors';
+import { Submission } from '../entity';
 
-interface Data {
-  url: string;
-  userId: string;
-  createdAt: string;
-}
+type Data = Pick<Submission, 'url' | 'userId' | 'createdAt' | 'reason'>;
 
 const worker: Worker = {
   subscription: 'community-link-rejected-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
-
+    const date = new Date(data.createdAt);
     try {
       const user = await fetchUser(data.userId);
       await sendEmail({
@@ -22,9 +20,12 @@ const worker: Worker = {
         to: user.email,
         templateId: templateId.communityLinkRejected,
         dynamicTemplateData: {
-          submitted_at: formatMailDate(new Date(data.createdAt)),
+          submitted_at: formatMailDate(new Date(date.getTime() / 1000)),
           first_name: user.name.split(' ')[0],
           article_link: data.url,
+          reason:
+            SubmissionFailErrorMessage[data?.reason] ??
+            SubmissionFailErrorMessage.GENERIC_ERROR,
         },
       });
       logger.info(

@@ -7,6 +7,7 @@ import {
   SubmissionStatus,
 } from '../entity';
 import { getConnection } from 'typeorm';
+import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.post<{ Body: AddPostData }>('/newPost', async (req, res) => {
@@ -34,7 +35,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const repo = con.getRepository(Submission);
       const submission = await repo.findOne({ id: data.submissionId });
       if (submission.status === SubmissionStatus.Started) {
-        await repo.save({ ...submission, status: SubmissionStatus.Rejected });
+        await repo.save({
+          ...submission,
+          status: SubmissionStatus.Rejected,
+          reason:
+            data?.reason in SubmissionFailErrorMessage
+              ? <SubmissionFailErrorKeys>data?.reason
+              : 'GENERIC_ERROR',
+        });
       }
       return res
         .status(200)
