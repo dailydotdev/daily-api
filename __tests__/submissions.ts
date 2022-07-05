@@ -91,6 +91,12 @@ describe('query submissionAvailability', () => {
       image: 'https://daily.dev/hansel.jpg',
       reputation: 250,
     });
+    await con.getRepository(User).save({
+      id: '3',
+      name: 'Solevilla',
+      image: 'https://daily.dev/solevilla.jpg',
+      reputation: 250,
+    });
     await con.getRepository(User).update({ id: '1' }, { timezone: 'BST' });
     const repo = con.getRepository(Submission);
     await repo.save([
@@ -101,6 +107,7 @@ describe('query submissionAvailability', () => {
         createdAt: subDays(new Date(), 1),
       },
       { url: 'http://abc.com/3', userId: '2' },
+      { url: 'http://abc.com/4', userId: '3' },
     ]);
     const res = await client.query(QUERY);
     const limit = parseInt(
