@@ -7,10 +7,6 @@ export const workers: Worker[] = [
     subscription: 'add-views-v2',
   },
   {
-    topic: 'post-image-processed',
-    subscription: 'add-posts-v2',
-  },
-  {
     topic: 'user-registered',
     subscription: 'user-registered-api',
   },
