@@ -12,6 +12,7 @@ const worker: Worker = {
   subscription: 'community-link-rejected-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
+    const date = new Date(data.createdAt);
     try {
       const user = await fetchUser(data.userId);
       await sendEmail({
@@ -19,7 +20,7 @@ const worker: Worker = {
         to: user.email,
         templateId: templateId.communityLinkRejected,
         dynamicTemplateData: {
-          submitted_at: formatMailDate(new Date(data.createdAt)),
+          submitted_at: formatMailDate(new Date(date.getTime() / 1000)),
           first_name: user.name.split(' ')[0],
           article_link: data.url,
           reason:
