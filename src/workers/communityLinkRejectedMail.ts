@@ -5,7 +5,6 @@ import { fetchUser } from '../common';
 import { baseNotificationEmailData, sendEmail } from '../common';
 
 interface Data {
-  id: string;
   url: string;
   userId: string;
   createdAt: Date;
