@@ -1,6 +1,5 @@
 import { Worker } from './worker';
 import newView from './newView';
-import newPost from './newPost';
 import newUser from './newUser';
 import updateUser from './updateUser';
 import commentUpvoted from './commentUpvoted';
@@ -39,7 +38,6 @@ export { Worker } from './worker';
 
 export const workers: Worker[] = [
   newView,
-  newPost,
   newUser,
   updateUser,
   deleteUser,
