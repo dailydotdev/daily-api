@@ -444,7 +444,7 @@ export const resolvers: IResolvers<any, Context> = {
         ctx,
         info,
         args,
-        { key: 'createdAt' },
+        { key: 'createdAt', maxSize: 500 },
         {
           queryBuilder: (builder) => {
             builder.queryBuilder = builder.queryBuilder
