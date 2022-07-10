@@ -25,7 +25,6 @@ const postReachedViewsThresholdTopic = pubsub.topic(
 );
 const viewsTopic = pubsub.topic('views');
 const postBannedOrRemovedTopic = pubsub.topic('post-banned-or-removed');
-const devcardEligibleTopic = pubsub.topic('devcard-eligible');
 const sourceFeedAddedTopic = pubsub.topic('source-feed-added');
 const sourceFeedRemovedTopic = pubsub.topic('source-feed-removed');
 const communityLinkAccessTopic = pubsub.topic('community-link-access');
@@ -231,14 +230,6 @@ export const notifyPostBannedOrRemoved = async (
 ): Promise<void> =>
   publishEvent(log, postBannedOrRemovedTopic, {
     post,
-  });
-
-export const notifyDevCardEligible = async (
-  log: EventLogger,
-  userId: string,
-): Promise<void> =>
-  publishEvent(log, devcardEligibleTopic, {
-    userId,
   });
 
 export const notifySourceFeedAdded = async (

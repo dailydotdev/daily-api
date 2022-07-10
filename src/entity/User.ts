@@ -51,9 +51,6 @@ export class User {
   @Column({ length: 39, nullable: true })
   hashnode?: string;
 
-  @Column({ default: false })
-  devcardEligible: boolean;
-
   @Column({ type: 'text', nullable: true })
   timezone?: string;
 

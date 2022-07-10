@@ -17,7 +17,6 @@ export const templateId = {
   commentMentionedUser: 'd-6949e2e50def4c6698900032973d469b',
   commentFeatured: 'd-5888ea6c1baf482b9373fba25f0363ea',
   commentUpvoted: 'd-92bca6102e3a4b41b6fc3f532f050429',
-  devcardEligible: 'd-680e36a387084cac87923963ea0656db',
   postAuthorMatched: 'd-3d3402ec873640e788f549a0680c40bb',
   postScoutMatched: 'd-ee7d7cfc461a43b4be776f70940fa867',
   communityLinkRejected: 'd-43cf7ff439ff4391839e946940499b30',
