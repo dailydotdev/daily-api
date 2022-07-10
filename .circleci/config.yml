@@ -1,8 +1,8 @@
 version: 2.1
 orbs:
   gcp-gcr: circleci/gcp-gcr@0.13.0
-  gcp-cli: circleci/gcp-cli@2.1.0
-  pulumi: pulumi/pulumi@2.0.0
+  pulumi: pulumi/pulumi@2.1.0
+  gcp-cli: circleci/gcp-cli@2.4.1
 jobs:
   build:
     docker:
@@ -91,18 +91,23 @@ jobs:
       - run:
           name: Install dependencies
           command: npm i
-          working_directory: infra
+          working_directory: .infra
       - run:
           name: Pulumi preview
           command: pulumi preview --suppress-outputs --stack dailydotdev/prod -c tag=$CIRCLE_SHA1
-          working_directory: infra
+          working_directory: .infra
   pulumi_up:
     docker:
       - image: cimg/node:14.19
+    environment:
+      USE_GKE_GCLOUD_AUTH_PLUGIN: 'True'
     steps:
       - checkout
       - gcp-cli/install
       - gcp-cli/initialize
+      - run:
+          name: Install GKE Auth plugin
+          command: gcloud components install gke-gcloud-auth-plugin
       - run:
           name: Get cluster credentials
           command: gcloud container clusters get-credentials prod
@@ -110,15 +115,15 @@ jobs:
       - run:
           name: Install dependencies
           command: npm i
-          working_directory: infra
+          working_directory: .infra
       - run:
           name: Pulumi refresh
           command: pulumi refresh -y --suppress-outputs --stack dailydotdev/prod
-          working_directory: infra
+          working_directory: .infra
       - run:
           name: Pulumi up
           command: pulumi up -y --suppress-outputs --stack dailydotdev/prod -c tag=$CIRCLE_SHA1
-          working_directory: infra
+          working_directory: .infra
 workflows:
   build:
     jobs:
