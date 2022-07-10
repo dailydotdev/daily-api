@@ -10,8 +10,6 @@ config:
       secure: AAABAL5qiFJLFYiP0HSlNEX/cakMT+FFwUXOVSyim56JDgGrTLrkYtkB
     algoliaKey:
       secure: AAABAGn2bvhAkQJ6kvEVRaS8pTG3B51Wspk8XUlHtyUSpfM3km2D9hEgN/rB3oED7W1/IjmCuSnfFMBDG4hl2g==
-    amplitudeKey:
-      secure: AAABAITu+/Mht1lO7s/qTTEJz4OKpi1fqUmtrExQ3IOoHw67nUou7N2iW2apAzfzBJq6YhDnDk4OhX562+KEUg==
     authorTwitterAccessTokenKey:
       secure: AAABADnvoAQhCnUKTmRoO0HRTKYMHDy5NbVP0QyGhMwAWVn7QlxCyBqW3FxugkakzUxaOhL/kQu2IkGRVQgEXceLYgcEcKhzrCLowUh3quyQdg==
     authorTwitterAccessTokenSecret:
