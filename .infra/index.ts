@@ -295,7 +295,7 @@ const k8sManagedCert = new k8s.apiextensions.CustomResource(
   },
 );
 
-new k8s.networking.v1beta1.Ingress(`${name}-k8s-ingress`, {
+new k8s.networking.v1.Ingress(`${name}-k8s-ingress`, {
   metadata: {
     name,
     namespace,
@@ -313,9 +313,14 @@ new k8s.networking.v1beta1.Ingress(`${name}-k8s-ingress`, {
           paths: [
             {
               path: '/*',
+              pathType: 'ImplementationSpecific',
               backend: {
-                serviceName: k8sService.metadata.name,
-                servicePort: 'http',
+                service: {
+                  name: k8sService.metadata.name,
+                  port: {
+                    name: 'http',
+                  },
+                },
               },
             },
           ],
