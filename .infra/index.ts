@@ -70,6 +70,17 @@ const redis = new gcp.redis.Instance(`${name}-redis`, {
   region: location,
   authEnabled: true,
   redisVersion: 'REDIS_6_X',
+  maintenancePolicy: {
+    weeklyMaintenanceWindows: [
+      {
+        day: 'SUNDAY',
+        startTime: {
+          hours: 7,
+          minutes: 0,
+        },
+      },
+    ],
+  },
 });
 
 export const redisHost = redis.host;
