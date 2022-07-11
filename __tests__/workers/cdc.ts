@@ -104,6 +104,7 @@ const defaultUser: ChangeObject<User> = {
   name: 'Ido',
   image: 'https://daily.dev/image.jpg',
   reputation: 5,
+  devcardEligible: false,
   profileConfirmed: false,
   twitter: null,
   username: 'idoshamun',
