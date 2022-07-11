@@ -28,6 +28,7 @@ const worker: Worker = {
       const submission = await con
         .getRepository(Submission)
         .findOne({ url: post.url, userId: user.id });
+      const link = getDiscussionLink(post.id);
       await sendEmail({
         ...baseNotificationEmailData,
         to: user.email,
@@ -38,7 +39,7 @@ const worker: Worker = {
           submitted_at: formatMailDate(submission.createdAt),
           post_image: post.image || pickImageUrl(post),
           article_link: post.url,
-          discussion_link: getDiscussionLink(post.id),
+          discussion_link: link,
         },
       });
       logger.info(
