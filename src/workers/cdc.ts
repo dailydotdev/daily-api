@@ -19,7 +19,6 @@ import {
   notifyCommentCommented,
   notifyCommentUpvoteCanceled,
   notifyCommentUpvoted,
-  notifyDevCardEligible,
   notifyPostAuthorMatched,
   notifyPostBannedOrRemoved,
   notifyPostCommented,
@@ -166,12 +165,6 @@ const onUserChange = async (
         data.payload.after.id,
         data.payload.after.reputation,
       );
-    }
-    if (
-      !data.payload.before.devcardEligible &&
-      data.payload.after.devcardEligible
-    ) {
-      await notifyDevCardEligible(logger, data.payload.after.id);
     }
 
     if (

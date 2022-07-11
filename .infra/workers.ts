@@ -115,18 +115,6 @@ export const workers: Worker[] = [
     subscription: 'pub-request-rep',
   },
   {
-    topic: 'views',
-    subscription: 'check-devcard-eligibility',
-  },
-  {
-    topic: 'devcard-eligible',
-    subscription: 'devcard-eligible-amplitude',
-  },
-  {
-    topic: 'devcard-eligible',
-    subscription: 'devcard-eligible-email',
-  },
-  {
     topic: 'username-changed',
     subscription: 'username-changed-api',
   },

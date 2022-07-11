@@ -17,7 +17,6 @@ import {
   notifySendAnalyticsReport,
   notifyPostReachedViewsThreshold,
   notifyPostBannedOrRemoved,
-  notifyDevCardEligible,
   notifyPostReport,
   notifyAlertsUpdated,
   notifySourceFeedAdded,
@@ -78,7 +77,6 @@ jest.mock('../../src/common', () => ({
   notifySendAnalyticsReport: jest.fn(),
   notifyPostReachedViewsThreshold: jest.fn(),
   notifyPostBannedOrRemoved: jest.fn(),
-  notifyDevCardEligible: jest.fn(),
   notifyPostReport: jest.fn(),
   notifyAlertsUpdated: jest.fn(),
   notifySourceFeedAdded: jest.fn(),
@@ -411,26 +409,6 @@ describe('user', () => {
     expect(
       jest.mocked(notifyUserReputationUpdated).mock.calls[0].slice(1),
     ).toEqual(['1', 10]);
-  });
-
-  it('should notify on dev card eligibility', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      devcardEligible: true,
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: base,
-        op: 'u',
-        table: 'user',
-      }),
-    );
-    expect(notifyDevCardEligible).toBeCalledTimes(1);
-    expect(jest.mocked(notifyDevCardEligible).mock.calls[0].slice(1)).toEqual([
-      '1',
-    ]);
   });
 
   it('should create user state when the user had passed the reputation threshold for community link submission', async () => {

@@ -26,9 +26,6 @@ import postUpvotedRedis from './postUpvotedRedis';
 import postBannedRep from './postBannedRep';
 import postBannedEmail from './postBannedEmail';
 import sourceRequestApprovedRep from './sourceRequestApprovedRep';
-import checkDevCardEligibility from './checkDevCardEligibility';
-import devCardEligibleAmplitude from './devCardEligibleAmplitude';
-import devCardEligibleEmail from './devCardEligibleEmail';
 import usernameChanged from './usernameChanged';
 import updateComments from './updateComments';
 import deleteUser from './deleteUser';
@@ -65,9 +62,6 @@ export const workers: Worker[] = [
   postBannedRep,
   postBannedEmail,
   sourceRequestApprovedRep,
-  checkDevCardEligibility,
-  devCardEligibleAmplitude,
-  devCardEligibleEmail,
   usernameChanged,
   updateComments,
   cdc,
