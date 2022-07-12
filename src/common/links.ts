@@ -1,4 +1,9 @@
-const excludeFromStandardization = ['youtube.com', 'developer.apple.com'];
+const excludeFromStandardization = [
+  'youtube.com',
+  'developer.apple.com',
+  'news.ycombinator.com',
+  'play.google.com',
+];
 
 const isExcluded = (url: string) =>
   excludeFromStandardization.some((e) => url.includes(e));
