@@ -168,6 +168,13 @@ const { labels } = createAutoscaledExposedApplication({
         requests: limits,
         limits,
       },
+      lifecycle: {
+        preStop: {
+          exec: {
+            command: ["/bin/bash", "-c", "sleep 10"],
+          }
+        }
+      }
     },
   ],
   minReplicas: 3,
