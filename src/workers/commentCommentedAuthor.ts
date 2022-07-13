@@ -21,22 +21,33 @@ const worker: Worker = {
         return;
       }
       const post = await comment.post;
-      if (post.authorId && post.authorId !== data.userId) {
-        const [author, commenter] = await Promise.all([
-          fetchUser(post.authorId),
-          fetchUser(data.userId),
-        ]);
-        await sendEmail(
-          getCommentedAuthorMailParams(post, comment, author, commenter),
-        );
-        logger.info(
-          {
-            data,
-            messageId: message.messageId,
-          },
-          'comment commented author email sent',
-        );
+      if (!post?.authorId && !post?.scoutId) {
+        return;
       }
+
+      const requests = [fetchUser(data.userId)];
+      if (post?.authorId && post?.authorId !== data.userId) {
+        requests.push(fetchUser(post.authorId));
+      }
+      if (post?.scoutId && post?.scoutId !== data.userId) {
+        requests.push(fetchUser(post.scoutId));
+      }
+      const [commenter, ...authorScout] = await Promise.all(requests);
+
+      await Promise.all(
+        authorScout.map((author) =>
+          sendEmail(
+            getCommentedAuthorMailParams(post, comment, author, commenter),
+          ),
+        ),
+      );
+      logger.info(
+        {
+          data,
+          messageId: message.messageId,
+        },
+        'comment commented author email sent',
+      );
     } catch (err) {
       logger.error(
         {
