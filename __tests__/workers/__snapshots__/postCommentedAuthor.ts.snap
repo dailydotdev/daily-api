@@ -1,6 +1,111 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`should send mail to both post scout and author 1`] = `
+Array [
+  Object {
+    "asm": Object {
+      "groupId": 12850,
+    },
+    "category": "Notification",
+    "dynamicTemplateData": Object {
+      "discussion_link": "http://localhost:5002/posts/p1",
+      "full_name": "Ido",
+      "new_comment": "parent comment",
+      "post_image": "https://daily.dev/image.jpg",
+      "post_title": "P1",
+      "profile_image": "https://daily.dev/ido.jpg",
+      "user_reputation": 3,
+    },
+    "from": Object {
+      "email": "informer@daily.dev",
+      "name": "daily.dev",
+    },
+    "replyTo": Object {
+      "email": "hi@daily.dev",
+      "name": "daily.dev",
+    },
+    "templateId": "d-aba78d1947b14307892713ad6c2cafc5",
+    "to": "tsahi@daily.dev",
+    "trackingSettings": Object {
+      "openTracking": Object {
+        "enable": true,
+      },
+    },
+  },
+]
+`;
+
+exports[`should send mail to both post scout and author 2`] = `
+Array [
+  Object {
+    "asm": Object {
+      "groupId": 12850,
+    },
+    "category": "Notification",
+    "dynamicTemplateData": Object {
+      "discussion_link": "http://localhost:5002/posts/p1",
+      "full_name": "Ido",
+      "new_comment": "parent comment",
+      "post_image": "https://daily.dev/image.jpg",
+      "post_title": "P1",
+      "profile_image": "https://daily.dev/ido.jpg",
+      "user_reputation": 3,
+    },
+    "from": Object {
+      "email": "informer@daily.dev",
+      "name": "daily.dev",
+    },
+    "replyTo": Object {
+      "email": "hi@daily.dev",
+      "name": "daily.dev",
+    },
+    "templateId": "d-aba78d1947b14307892713ad6c2cafc5",
+    "to": "nimrod@daily.dev",
+    "trackingSettings": Object {
+      "openTracking": Object {
+        "enable": true,
+      },
+    },
+  },
+]
+`;
+
 exports[`should send mail to the post author 1`] = `
+Array [
+  Object {
+    "asm": Object {
+      "groupId": 12850,
+    },
+    "category": "Notification",
+    "dynamicTemplateData": Object {
+      "discussion_link": "http://localhost:5002/posts/p1",
+      "full_name": "Ido",
+      "new_comment": "parent comment",
+      "post_image": "https://daily.dev/image.jpg",
+      "post_title": "P1",
+      "profile_image": "https://daily.dev/ido.jpg",
+      "user_reputation": 3,
+    },
+    "from": Object {
+      "email": "informer@daily.dev",
+      "name": "daily.dev",
+    },
+    "replyTo": Object {
+      "email": "hi@daily.dev",
+      "name": "daily.dev",
+    },
+    "templateId": "d-aba78d1947b14307892713ad6c2cafc5",
+    "to": "nimrod@daily.dev",
+    "trackingSettings": Object {
+      "openTracking": Object {
+        "enable": true,
+      },
+    },
+  },
+]
+`;
+
+exports[`should send mail to the post scout 1`] = `
 Array [
   Object {
     "asm": Object {
