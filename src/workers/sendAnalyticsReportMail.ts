@@ -2,7 +2,7 @@ import { templateId } from './../common/mailing';
 import { differenceInHours } from 'date-fns';
 import { messageToJson, Worker } from './worker';
 import { getAuthorPostStats, Post } from '../entity';
-import { fetchUser, pickImageUrl, User } from '../common';
+import { getAuthorScout, hasAuthorScout, pickImageUrl } from '../common';
 import {
   baseNotificationEmailData,
   sendEmail,
@@ -19,19 +19,11 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     try {
       const post = await con.getRepository(Post).findOne(data.postId);
-      if (!post.authorId && !post.scoutId) {
+      if (!hasAuthorScout(post)) {
         return;
       }
 
-      const requests: Promise<User>[] = [];
-      if (post.authorId) {
-        requests.push(fetchUser(post.authorId));
-      }
-
-      if (post.scoutId) {
-        requests.push(fetchUser(post.scoutId));
-      }
-
+      const requests = getAuthorScout(post);
       const users = await Promise.all(requests);
       const source = await post.source;
       const stats = await Promise.all(

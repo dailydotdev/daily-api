@@ -344,24 +344,18 @@ export const getUserReadingRank = async (
   };
 };
 
-export const getCommenterAuthorScout = (
-  commenterId: string,
+export const getAuthorScout = (
   post: Post,
+  excludeIds: string[] = [],
 ): Promise<User>[] => {
   const requests: Promise<User>[] = [];
-  if (post?.authorId && post?.authorId !== commenterId) {
+  if (post?.authorId && !excludeIds.includes(post?.authorId)) {
     requests.push(fetchUser(post.authorId));
   }
 
-  if (post?.scoutId && post?.scoutId !== commenterId) {
+  if (post?.scoutId && !excludeIds.includes(post?.scoutId)) {
     requests.push(fetchUser(post.scoutId));
   }
-
-  if (requests.length === 0) {
-    return [];
-  }
-
-  requests.unshift(fetchUser(commenterId));
 
   return requests;
 };

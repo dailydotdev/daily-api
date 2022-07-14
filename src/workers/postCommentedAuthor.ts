@@ -2,9 +2,10 @@ import { messageToJson, Worker } from './worker';
 import { Comment } from '../entity';
 import {
   getCommentedAuthorMailParams,
-  getCommenterAuthorScout,
+  getAuthorScout,
   hasAuthorScout,
   sendEmail,
+  fetchUser,
 } from '../common';
 
 interface Data {
@@ -29,12 +30,13 @@ const worker: Worker = {
         return;
       }
 
-      const requests = getCommenterAuthorScout(data.userId, post);
+      const requests = getAuthorScout(post, [data.userId]);
 
       if (requests.length === 0) {
         return;
       }
 
+      requests.unshift(fetchUser(data.userId));
       const [commenter, ...authorScout] = await Promise.all(requests);
 
       await Promise.all(
