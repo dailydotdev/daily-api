@@ -1,7 +1,11 @@
 import { messageToJson, Worker } from './worker';
 import { Comment } from '../entity';
-import { getCommentedAuthorMailParams, sendEmail, User } from '../common';
-import { fetchUser } from '../common';
+import {
+  getCommentedAuthorMailParams,
+  getCommenterAuthorScout,
+  hasAuthorScout,
+  sendEmail,
+} from '../common';
 
 interface Data {
   userId: string;
@@ -21,24 +25,16 @@ const worker: Worker = {
         return;
       }
       const post = await comment.post;
-      if (!post?.authorId && !post?.scoutId) {
+      if (!hasAuthorScout(post)) {
         return;
       }
 
-      const requests: Promise<User>[] = [];
-      if (post?.authorId && post?.authorId !== data.userId) {
-        requests.push(fetchUser(post.authorId));
-      }
-
-      if (post?.scoutId && post?.scoutId !== data.userId) {
-        requests.push(fetchUser(post.scoutId));
-      }
+      const requests = getCommenterAuthorScout(data.userId, post);
 
       if (requests.length === 0) {
         return;
       }
 
-      requests.unshift(fetchUser(data.userId));
       const [commenter, ...authorScout] = await Promise.all(requests);
 
       await Promise.all(
