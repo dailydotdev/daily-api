@@ -39,6 +39,7 @@ import {
   notifyScoutMatched,
   notifySubmissionCreated,
   notifySubmissionGrantedAccess,
+  notifySourceRequestCreated,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -61,7 +62,7 @@ const onSourceRequestChange = async (
 ): Promise<void> => {
   if (data.payload.op === 'c') {
     // New source request
-    await notifySourceRequest(logger, 'new', data.payload.after);
+    await notifySourceRequestCreated(logger, data.payload.after);
   } else if (data.payload.op === 'u') {
     if (!data.payload.before.closed && data.payload.after.closed) {
       if (data.payload.after.approved) {

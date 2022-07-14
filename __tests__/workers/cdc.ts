@@ -30,6 +30,7 @@ import {
   pickImageUrl,
   truncatePost,
   getDiscussionLink,
+  notifySourceRequestCreated,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -66,6 +67,7 @@ import { submissionAccessThreshold } from '../../src/schema/submissions';
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
   notifySourceRequest: jest.fn(),
+  notifySourceRequestCreated: jest.fn(),
   notifyPostUpvoted: jest.fn(),
   notifyPostUpvoteCanceled: jest.fn(),
   notifyCommentUpvoteCanceled: jest.fn(),
@@ -161,11 +163,10 @@ describe('source request', () => {
         table: 'source_request',
       }),
     );
-    expect(notifySourceRequest).toBeCalledTimes(1);
-    expect(jest.mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
-      'new',
-      after,
-    ]);
+    expect(notifySourceRequestCreated).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifySourceRequestCreated).mock.calls[0].slice(1),
+    ).toEqual([after]);
   });
 
   it('should notify on source request published', async () => {

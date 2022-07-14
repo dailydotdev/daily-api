@@ -22,6 +22,7 @@ export const templateId = {
   communityLinkRejected: 'd-43cf7ff439ff4391839e946940499b30',
   communityLinkSubmissionAccess: 'd-6d17b936f1f245e486f1a85323240332',
   analyticsReport: 'd-97c75b0e2cf847399d20233455736ba0',
+  sourceRequestSubmitted: 'd-9254665878014627b4fd71593f09d975',
 };
 
 export const truncatePost = (post: Post): string =>

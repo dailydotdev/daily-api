@@ -1,0 +1,33 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`should send mail when the source request is submitted 1`] = `
+Array [
+  Object {
+    "asm": Object {
+      "groupId": 12850,
+    },
+    "category": "Notification",
+    "dynamicTemplateData": Object {
+      "first_name": "Lee",
+      "rss_link": "https://demo.com/sitemap.xml",
+      "source_name": "Demo",
+      "timestamp": "Sep 27, 2020",
+    },
+    "from": Object {
+      "email": "informer@daily.dev",
+      "name": "daily.dev",
+    },
+    "replyTo": Object {
+      "email": "hi@daily.dev",
+      "name": "daily.dev",
+    },
+    "templateId": "d-9254665878014627b4fd71593f09d975",
+    "to": "lee@acme.com",
+    "trackingSettings": Object {
+      "openTracking": Object {
+        "enable": true,
+      },
+    },
+  },
+]
+`;

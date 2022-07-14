@@ -51,6 +51,10 @@ export const workers: Worker[] = [
     subscription: 'community-link-access-mail',
   },
   {
+    topic: 'source-request-submitted',
+    subscription: 'source-request-submitted-mail',
+  },
+  {
     topic: 'post-scout-matched',
     subscription: 'post-scout-matched-mail',
   },

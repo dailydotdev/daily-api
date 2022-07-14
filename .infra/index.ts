@@ -43,6 +43,7 @@ const debeziumTopic = new gcp.pubsub.Topic('debezium-topic', {
   'community-link-submitted',
   'community-link-rejected',
   'community-link-access',
+  'source-request-submitted',
 ].map(
   (topic) =>
     new gcp.pubsub.Topic(topic, {
@@ -171,10 +172,10 @@ const { labels } = createAutoscaledExposedApplication({
       lifecycle: {
         preStop: {
           exec: {
-            command: ["/bin/bash", "-c", "sleep 20"],
-          }
-        }
-      }
+            command: ['/bin/bash', '-c', 'sleep 20'],
+          },
+        },
+      },
     },
   ],
   minReplicas: 3,

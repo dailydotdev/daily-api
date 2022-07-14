@@ -30,6 +30,7 @@ const sourceFeedRemovedTopic = pubsub.topic('source-feed-removed');
 const communityLinkAccessTopic = pubsub.topic('community-link-access');
 const communityLinkRejectedTopic = pubsub.topic('community-link-rejected');
 const communityLinkSubmittedTopic = pubsub.topic('community-link-submitted');
+const sourceRequestSubmittedTopic = pubsub.topic('source-request-submitted');
 
 type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
 // Need to support console as well
@@ -262,6 +263,12 @@ interface NewSubmission {
   url: string;
   submissionId: string;
 }
+
+export const notifySourceRequestCreated = async (
+  log: EventLogger,
+  sourceRequest: ChangeObject<SourceRequest>,
+): Promise<void> =>
+  publishEvent(log, sourceRequestSubmittedTopic, sourceRequest);
 
 export const notifySubmissionCreated = async (
   log: EventLogger,
