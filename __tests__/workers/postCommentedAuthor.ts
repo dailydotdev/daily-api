@@ -97,6 +97,99 @@ it('should send mail to the post author', async () => {
   expect(jest.mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
 });
 
+it('should send mail to the post scout', async () => {
+  nock(process.env.GATEWAY_URL)
+    .get('/v1/users/me')
+    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
+    .matchHeader('user-id', '3')
+    .matchHeader('logged-in', 'true')
+    .reply(200, {
+      id: '3',
+      email: 'nimrod@daily.dev',
+      name: 'Nimrod',
+      image: 'https://daily.dev/nimrod.jpg',
+      reputation: 5,
+    });
+
+  nock(process.env.GATEWAY_URL)
+    .get('/v1/users/me')
+    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
+    .matchHeader('user-id', '1')
+    .matchHeader('logged-in', 'true')
+    .reply(200, {
+      id: '1',
+      email: 'ido@daily.dev',
+      name: 'Ido',
+      image: 'https://daily.dev/ido.jpg',
+      reputation: 3,
+    });
+
+  await con
+    .getRepository(Post)
+    .update('p1', { scoutId: '3', image: 'https://daily.dev/image.jpg' });
+  await expectSuccessfulBackground(worker, {
+    postId: 'p1',
+    userId: '1',
+    commentId: 'c1',
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  expect(jest.mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
+});
+
+it('should send mail to both post scout and author', async () => {
+  nock(process.env.GATEWAY_URL)
+    .get('/v1/users/me')
+    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
+    .matchHeader('user-id', '3')
+    .matchHeader('logged-in', 'true')
+    .reply(200, {
+      id: '3',
+      email: 'nimrod@daily.dev',
+      name: 'Nimrod',
+      image: 'https://daily.dev/nimrod.jpg',
+      reputation: 5,
+    });
+
+  nock(process.env.GATEWAY_URL)
+    .get('/v1/users/me')
+    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
+    .matchHeader('user-id', '2')
+    .matchHeader('logged-in', 'true')
+    .reply(200, {
+      id: '2',
+      email: 'tsahi@daily.dev',
+      name: 'Tsahi',
+      image: 'https://daily.dev/tsahi.jpg',
+      reputation: 5,
+    });
+
+  nock(process.env.GATEWAY_URL)
+    .get('/v1/users/me')
+    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
+    .matchHeader('user-id', '1')
+    .matchHeader('logged-in', 'true')
+    .reply(200, {
+      id: '1',
+      email: 'ido@daily.dev',
+      name: 'Ido',
+      image: 'https://daily.dev/ido.jpg',
+      reputation: 3,
+    });
+
+  await con.getRepository(Post).update('p1', {
+    authorId: '2',
+    scoutId: '3',
+    image: 'https://daily.dev/image.jpg',
+  });
+  await expectSuccessfulBackground(worker, {
+    postId: 'p1',
+    userId: '1',
+    commentId: 'c1',
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  expect(jest.mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
+});
+
 it('should not send mail when no post author', async () => {
   await expectSuccessfulBackground(worker, {
     postId: 'p1',

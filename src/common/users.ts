@@ -343,3 +343,19 @@ export const getUserReadingRank = async (
     tags,
   };
 };
+
+export const getAuthorScout = (
+  post: Post,
+  excludeIds: string[] = [],
+): Promise<User>[] => {
+  const requests: Promise<User>[] = [];
+  if (post?.authorId && !excludeIds.includes(post?.authorId)) {
+    requests.push(fetchUser(post.authorId));
+  }
+
+  if (post?.scoutId && !excludeIds.includes(post?.scoutId)) {
+    requests.push(fetchUser(post.scoutId));
+  }
+
+  return requests;
+};

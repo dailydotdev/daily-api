@@ -2,43 +2,128 @@
 
 exports[`should send analytics reports 1`] = `
 Array [
-  Object {
-    "asm": Object {
-      "groupId": 12850,
-    },
-    "category": "Notification",
-    "dynamicTemplateData": Object {
-      "first_name": "Ido",
-      "full_name": "Ido Shamun",
-      "live_hours": 10,
-      "post_comments": "2",
-      "post_image": "http://image.com/p",
-      "post_title": "P1",
-      "post_upvotes": "6",
-      "post_upvotes_total": "11",
-      "post_views": "11",
-      "post_views_total": "21",
-      "profile_image": "https://daily.dev/ido.jpg",
-      "profile_link": "https://daily.dev/ido",
-      "source_image": "http://image.com/a",
-      "user_handle": "idoshamun",
-      "user_reputation": "5",
-    },
-    "from": Object {
-      "email": "informer@daily.dev",
-      "name": "daily.dev",
-    },
-    "replyTo": Object {
-      "email": "hi@daily.dev",
-      "name": "daily.dev",
-    },
-    "templateId": "d-97c75b0e2cf847399d20233455736ba0",
-    "to": "ido@acme.com",
-    "trackingSettings": Object {
-      "openTracking": Object {
-        "enable": true,
+  Array [
+    Object {
+      "asm": Object {
+        "groupId": 12850,
+      },
+      "category": "Notification",
+      "dynamicTemplateData": Object {
+        "first_name": "Ido",
+        "full_name": "Ido Shamun",
+        "live_hours": 30,
+        "post_comments": "1",
+        "post_image": "https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/5",
+        "post_title": "P2",
+        "post_upvotes": "5",
+        "post_upvotes_total": "11",
+        "post_views": "10",
+        "post_views_total": "21",
+        "profile_image": "https://daily.dev/ido.jpg",
+        "profile_link": "https://daily.dev/ido",
+        "source_image": "http://image.com/a",
+        "user_handle": "idoshamun",
+        "user_reputation": "5",
+      },
+      "from": Object {
+        "email": "informer@daily.dev",
+        "name": "daily.dev",
+      },
+      "replyTo": Object {
+        "email": "hi@daily.dev",
+        "name": "daily.dev",
+      },
+      "templateId": "d-97c75b0e2cf847399d20233455736ba0",
+      "to": "ido@acme.com",
+      "trackingSettings": Object {
+        "openTracking": Object {
+          "enable": true,
+        },
       },
     },
-  },
+  ],
+]
+`;
+
+exports[`should send analytics reports to both scout and author 1`] = `
+Array [
+  Array [
+    Object {
+      "asm": Object {
+        "groupId": 12850,
+      },
+      "category": "Notification",
+      "dynamicTemplateData": Object {
+        "first_name": "Ido",
+        "full_name": "Ido Shamun",
+        "live_hours": 10,
+        "post_comments": "2",
+        "post_image": "http://image.com/p",
+        "post_title": "P1",
+        "post_upvotes": "6",
+        "post_upvotes_total": "11",
+        "post_views": "11",
+        "post_views_total": "21",
+        "profile_image": "https://daily.dev/ido.jpg",
+        "profile_link": "https://daily.dev/ido",
+        "source_image": "http://image.com/a",
+        "user_handle": "idoshamun",
+        "user_reputation": "5",
+      },
+      "from": Object {
+        "email": "informer@daily.dev",
+        "name": "daily.dev",
+      },
+      "replyTo": Object {
+        "email": "hi@daily.dev",
+        "name": "daily.dev",
+      },
+      "templateId": "d-97c75b0e2cf847399d20233455736ba0",
+      "to": "ido@acme.com",
+      "trackingSettings": Object {
+        "openTracking": Object {
+          "enable": true,
+        },
+      },
+    },
+    Object {
+      "asm": Object {
+        "groupId": 12850,
+      },
+      "category": "Notification",
+      "dynamicTemplateData": Object {
+        "first_name": "Lee",
+        "full_name": "Lee Solevilla",
+        "live_hours": 10,
+        "post_comments": "2",
+        "post_image": "http://image.com/p",
+        "post_title": "P1",
+        "post_upvotes": "6",
+        "post_upvotes_total": "6",
+        "post_views": "11",
+        "post_views_total": "11",
+        "profile_image": "https://daily.dev/lee.jpg",
+        "profile_link": "https://daily.dev/lee",
+        "source_image": "http://image.com/a",
+        "user_handle": "lee",
+        "user_reputation": "5",
+      },
+      "from": Object {
+        "email": "informer@daily.dev",
+        "name": "daily.dev",
+      },
+      "replyTo": Object {
+        "email": "hi@daily.dev",
+        "name": "daily.dev",
+      },
+      "templateId": "d-97c75b0e2cf847399d20233455736ba0",
+      "to": "lee@acme.com",
+      "trackingSettings": Object {
+        "openTracking": Object {
+          "enable": true,
+        },
+      },
+    },
+  ],
 ]
 `;

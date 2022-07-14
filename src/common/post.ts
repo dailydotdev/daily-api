@@ -1,6 +1,6 @@
 import { User } from './../entity/User';
 import { Connection } from 'typeorm';
-import { Comment } from '../entity';
+import { Comment, Post } from '../entity';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL.split(','),
@@ -46,3 +46,6 @@ export const getPostCommenterIds = async (
 
   return result.map((comment) => comment.userId);
 };
+
+export const hasAuthorScout = (post: Post): boolean =>
+  !!post?.authorId || !!post?.scoutId;
