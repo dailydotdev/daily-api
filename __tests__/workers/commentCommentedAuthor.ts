@@ -187,9 +187,8 @@ it('should send mail to both post scout and author', async () => {
     userId: '1',
     commentId: 'c1',
   });
-  expect(sendEmail).toBeCalledTimes(2);
+  expect(sendEmail).toBeCalledTimes(1);
   expect(jest.mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
-  expect(jest.mocked(sendEmail).mock.calls[1]).toMatchSnapshot();
 });
 
 it('should not send mail when no post author', async () => {

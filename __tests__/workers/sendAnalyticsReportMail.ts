@@ -84,14 +84,16 @@ it('should send analytics reports', async () => {
   mockedUsers.forEach(mockUsersMe);
 
   await expectSuccessfulBackground(worker, {
-    postId: 'p1',
+    postId: 'p2',
   });
   expect(sendEmail).toBeCalledTimes(1);
   expect(jest.mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
 });
 
 it('should send analytics reports to both scout and author', async () => {
-  await con.getRepository(Post).update({ id: 'p1' }, { scoutId: '2' });
+  await con
+    .getRepository(Post)
+    .update({ id: 'p1' }, { scoutId: '2', sentAnalyticsReport: true });
   const mockedUsers: GatewayUser[] = [
     {
       id: '1',
@@ -117,7 +119,6 @@ it('should send analytics reports to both scout and author', async () => {
   await expectSuccessfulBackground(worker, {
     postId: 'p1',
   });
-  expect(sendEmail).toBeCalledTimes(2);
+  expect(sendEmail).toBeCalledTimes(1);
   expect(jest.mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
-  expect(jest.mocked(sendEmail).mock.calls[1]).toMatchSnapshot();
 });

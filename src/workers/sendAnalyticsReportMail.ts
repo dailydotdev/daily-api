@@ -29,33 +29,29 @@ const worker: Worker = {
       const stats = await Promise.all(
         users.map((user) => getAuthorPostStats(con, user.id)),
       );
-      await Promise.all(
-        users.map((user, i) =>
-          sendEmail({
-            ...baseNotificationEmailData,
-            to: user.email,
-            templateId: templateId.analyticsReport,
-            dynamicTemplateData: {
-              first_name: user.name.split(' ')[0],
-              source_image: source.image,
-              post_image: post.image || pickImageUrl(post),
-              post_title: truncatePostToTweet(post),
-              live_hours: differenceInHours(new Date(), post.createdAt),
-              post_views: post.views?.toLocaleString() ?? 0,
-              post_views_total: stats[i].numPostViews?.toLocaleString() ?? 0,
-              post_upvotes: post.upvotes?.toLocaleString() ?? 0,
-              post_upvotes_total:
-                stats[i].numPostUpvotes?.toLocaleString() ?? 0,
-              post_comments: post.comments?.toLocaleString() ?? 0,
-              user_reputation: user.reputation?.toLocaleString() ?? 0,
-              profile_image: user.image,
-              full_name: user.name,
-              user_handle: user.username,
-              profile_link: user.permalink,
-            },
-          }),
-        ),
-      );
+      const emails = users.map((user, i) => ({
+        ...baseNotificationEmailData,
+        to: user.email,
+        templateId: templateId.analyticsReport,
+        dynamicTemplateData: {
+          first_name: user.name.split(' ')[0],
+          source_image: source.image,
+          post_image: post.image || pickImageUrl(post),
+          post_title: truncatePostToTweet(post),
+          live_hours: differenceInHours(new Date(), post.createdAt),
+          post_views: post.views?.toLocaleString() ?? 0,
+          post_views_total: stats[i].numPostViews?.toLocaleString() ?? 0,
+          post_upvotes: post.upvotes?.toLocaleString() ?? 0,
+          post_upvotes_total: stats[i].numPostUpvotes?.toLocaleString() ?? 0,
+          post_comments: post.comments?.toLocaleString() ?? 0,
+          user_reputation: user.reputation?.toLocaleString() ?? 0,
+          profile_image: user.image,
+          full_name: user.name,
+          user_handle: user.username,
+          profile_link: user.permalink,
+        },
+      }));
+      await sendEmail(emails);
       logger.info(
         {
           data,

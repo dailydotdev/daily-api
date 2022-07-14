@@ -60,9 +60,9 @@ export const baseNotificationEmailData: Pick<
   category: 'Notification',
 };
 
-export const sendEmail = async (data: MailDataRequired): Promise<void> => {
+export const sendEmail: typeof sgMail.send = (data) => {
   if (process.env.SENDGRID_API_KEY) {
-    await sgMail.send(data);
+    return sgMail.send(data);
   }
 };
 

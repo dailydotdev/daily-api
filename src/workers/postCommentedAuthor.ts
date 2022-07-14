@@ -38,14 +38,10 @@ const worker: Worker = {
 
       requests.unshift(fetchUser(data.userId));
       const [commenter, ...authorScout] = await Promise.all(requests);
-
-      await Promise.all(
-        authorScout.map((author) =>
-          sendEmail(
-            getCommentedAuthorMailParams(post, comment, author, commenter),
-          ),
-        ),
+      const emails = authorScout.map((author) =>
+        getCommentedAuthorMailParams(post, comment, author, commenter),
       );
+      await sendEmail(emails);
       logger.info(
         {
           data,
