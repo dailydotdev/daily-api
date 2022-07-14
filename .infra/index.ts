@@ -171,7 +171,7 @@ const { labels } = createAutoscaledExposedApplication({
       lifecycle: {
         preStop: {
           exec: {
-            command: ["/bin/bash", "-c", "sleep 10"],
+            command: ["/bin/bash", "-c", "sleep 20"],
           }
         }
       }
