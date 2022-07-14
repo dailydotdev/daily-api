@@ -19,7 +19,7 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     try {
       const post = await con.getRepository(Post).findOne(data.postId);
-      if (!hasAuthorScout(post)) {
+      if (!post.sentAnalyticsReport || !hasAuthorScout(post)) {
         return;
       }
 
