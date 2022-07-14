@@ -50,6 +50,7 @@ beforeEach(async () => {
       shortId: 'sp2',
       title: 'P2',
       url: 'http://p2.com',
+      image: 'http://image.com/p2',
       sourceId: 'a',
       createdAt: sub(now, { hours: 30 }),
       authorId: '1',

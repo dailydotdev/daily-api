@@ -38,7 +38,7 @@ import {
   notifySubmissionRejected,
   notifyScoutMatched,
   notifySubmissionCreated,
-  // notifySubmissionGrantedAccess,
+  notifySubmissionGrantedAccess,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -364,7 +364,7 @@ const onUserStateChange = async (
 ) => {
   if (data.payload.op === 'c') {
     if (data.payload.after.key === UserStateKey.CommunityLinkAccess) {
-      // await notifySubmissionGrantedAccess(logger, data.payload.after.userId);
+      await notifySubmissionGrantedAccess(logger, data.payload.after.userId);
     }
   }
 };
