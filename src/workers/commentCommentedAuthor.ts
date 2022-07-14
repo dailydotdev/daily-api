@@ -1,7 +1,12 @@
 import { messageToJson, Worker } from './worker';
 import { Comment } from '../entity';
-import { getCommentedAuthorMailParams, sendEmail } from '../common';
-import { fetchUser } from '../common';
+import {
+  getCommentedAuthorMailParams,
+  getAuthorScout,
+  hasAuthorScout,
+  sendEmail,
+  fetchUser,
+} from '../common';
 
 interface Data {
   userId: string;
@@ -21,22 +26,29 @@ const worker: Worker = {
         return;
       }
       const post = await comment.post;
-      if (post.authorId && post.authorId !== data.userId) {
-        const [author, commenter] = await Promise.all([
-          fetchUser(post.authorId),
-          fetchUser(data.userId),
-        ]);
-        await sendEmail(
-          getCommentedAuthorMailParams(post, comment, author, commenter),
-        );
-        logger.info(
-          {
-            data,
-            messageId: message.messageId,
-          },
-          'comment commented author email sent',
-        );
+      if (!hasAuthorScout(post)) {
+        return;
       }
+
+      const requests = getAuthorScout(post, [data.userId]);
+
+      if (requests.length === 0) {
+        return;
+      }
+
+      requests.unshift(fetchUser(data.userId));
+      const [commenter, ...authorScout] = await Promise.all(requests);
+      const emails = authorScout.map((author) =>
+        getCommentedAuthorMailParams(post, comment, author, commenter),
+      );
+      await sendEmail(emails);
+      logger.info(
+        {
+          data,
+          messageId: message.messageId,
+        },
+        'comment commented author email sent',
+      );
     } catch (err) {
       logger.error(
         {

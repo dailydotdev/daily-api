@@ -25,9 +25,10 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   jest.resetAllMocks();
-  await con
-    .getRepository(User)
-    .save([{ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' }]);
+  await con.getRepository(User).save([
+    { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
+    { id: '2', name: 'Lee', image: 'https://daily.dev/lee.jpg' },
+  ]);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, [
     {
@@ -78,6 +79,39 @@ it('should send analytics reports', async () => {
       reputation: 5,
       permalink: 'https://daily.dev/ido',
       username: 'idoshamun',
+    },
+  ];
+  mockedUsers.forEach(mockUsersMe);
+
+  await expectSuccessfulBackground(worker, {
+    postId: 'p2',
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  expect(jest.mocked(sendEmail).mock.calls[0]).toMatchSnapshot();
+});
+
+it('should send analytics reports to both scout and author', async () => {
+  await con
+    .getRepository(Post)
+    .update({ id: 'p1' }, { scoutId: '2', sentAnalyticsReport: true });
+  const mockedUsers: GatewayUser[] = [
+    {
+      id: '1',
+      email: 'ido@acme.com',
+      name: 'Ido Shamun',
+      image: 'https://daily.dev/ido.jpg',
+      reputation: 5,
+      permalink: 'https://daily.dev/ido',
+      username: 'idoshamun',
+    },
+    {
+      id: '2',
+      email: 'lee@acme.com',
+      name: 'Lee Solevilla',
+      image: 'https://daily.dev/lee.jpg',
+      reputation: 5,
+      permalink: 'https://daily.dev/lee',
+      username: 'lee',
     },
   ];
   mockedUsers.forEach(mockUsersMe);
