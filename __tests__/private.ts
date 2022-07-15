@@ -3,6 +3,7 @@ import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
 import { saveFixtures } from './helpers';
 import {
+  COMMUNITY_PICKS_SOURCE,
   Post,
   Source,
   Submission,
@@ -78,7 +79,7 @@ describe('POST /p/newPost', () => {
     const uuid = randomUUID();
     await saveFixtures(con, Source, [
       {
-        id: 'community',
+        id: COMMUNITY_PICKS_SOURCE,
         name: 'Community recommendations',
         image: 'sample.image.com',
       },
@@ -93,7 +94,7 @@ describe('POST /p/newPost', () => {
         id: 'p1',
         title: 'Title',
         url: 'https://post.com',
-        publicationId: 'community',
+        publicationId: COMMUNITY_PICKS_SOURCE,
         submissionId: uuid,
       })
       .expect(200);

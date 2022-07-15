@@ -5,6 +5,7 @@ import { messageToJson, Worker } from './worker';
 import {
   Comment,
   CommentUpvote,
+  COMMUNITY_PICKS_SOURCE,
   Feed,
   Post,
   Settings,
@@ -346,7 +347,7 @@ const onSubmissionChange = async (
   const entity = data.payload.after;
   if (data.payload.op === 'c') {
     await notifySubmissionCreated(logger, {
-      sourceId: 'community',
+      sourceId: COMMUNITY_PICKS_SOURCE,
       url: entity.url,
       submissionId: entity.id,
     });

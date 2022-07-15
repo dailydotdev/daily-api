@@ -3,6 +3,8 @@ import { SourceDisplay } from './SourceDisplay';
 import { SourceFeed } from './SourceFeed';
 import { Post } from './Post';
 
+export const COMMUNITY_PICKS_SOURCE = 'community';
+
 @Entity()
 export class Source {
   @PrimaryColumn({ type: 'text' })
