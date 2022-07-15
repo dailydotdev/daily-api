@@ -41,6 +41,7 @@ import {
   Comment,
   CommentMention,
   CommentUpvote,
+  COMMUNITY_PICKS_SOURCE,
   Feed,
   Post,
   Settings,
@@ -1079,7 +1080,13 @@ describe('submission', () => {
     );
     expect(notifySubmissionCreated).toBeCalledTimes(1);
     expect(jest.mocked(notifySubmissionCreated).mock.calls[0].slice(1)).toEqual(
-      [{ url: after.url, submissionId: after.id, sourceId: 'community' }],
+      [
+        {
+          url: after.url,
+          submissionId: after.id,
+          sourceId: COMMUNITY_PICKS_SOURCE,
+        },
+      ],
     );
   });
 
