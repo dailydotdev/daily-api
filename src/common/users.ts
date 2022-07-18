@@ -333,6 +333,7 @@ export const getUserReadingRank = async (
   ]);
   const rankThisWeek = version === 1 ? rankFromProgress(thisWeek) : thisWeek;
   const rankLastWeek = version === 1 ? rankFromProgress(lastWeek) : lastWeek;
+
   return {
     lastReadTime,
     currentRank: rankThisWeek > rankLastWeek ? rankThisWeek : rankLastWeek,
