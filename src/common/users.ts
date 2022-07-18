@@ -292,16 +292,15 @@ export const getUserReadingRank = async (
   if (!timezone) {
     timezone = 'utc';
   }
-  const nowTimezone = `timezone('${timezone}', now())`;
   const atTimezone = `at time zone '${timezone}'`;
   const req = con
     .createQueryBuilder()
     .select(
-      `count(distinct extract(dow from "timestamp"::timestamptz ${atTimezone})) filter(where "timestamp"::timestamptz ${atTimezone} >= date_trunc('week', ${nowTimezone}))`,
+      `count(distinct extract(dow from "timestamp"::timestamptz ${atTimezone})) filter(where "timestamp"::timestamptz ${atTimezone} >= date_trunc('week', now())::timestamptz ${atTimezone})`,
       'thisWeek',
     )
     .addSelect(
-      `count(distinct extract(dow from "timestamp"::timestamptz ${atTimezone})) filter(where "timestamp"::timestamptz ${atTimezone} BETWEEN (date_trunc('week', ${nowTimezone} - interval '7 days')) AND (date_trunc('week', ${nowTimezone})))`,
+      `count(distinct extract(dow from "timestamp"::timestamptz ${atTimezone})) filter(where "timestamp"::timestamptz ${atTimezone} BETWEEN (date_trunc('week', now() - interval '7 days')::timestamptz ${atTimezone}) AND (date_trunc('week', now())::timestamptz ${atTimezone}))`,
       'lastWeek',
     )
     .addSelect(`MAX("timestamp"::timestamptz ${atTimezone})`, 'lastReadTime')
@@ -333,7 +332,6 @@ export const getUserReadingRank = async (
   ]);
   const rankThisWeek = version === 1 ? rankFromProgress(thisWeek) : thisWeek;
   const rankLastWeek = version === 1 ? rankFromProgress(lastWeek) : lastWeek;
-
   return {
     lastReadTime,
     currentRank: rankThisWeek > rankLastWeek ? rankThisWeek : rankLastWeek,
