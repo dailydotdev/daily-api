@@ -314,6 +314,10 @@ const mergeKeywords = async (
         })
         .filter((keyword) => !keyword.match(/^\d+$/)),
     );
+    // with the new system, a keyword needs to be added irrespective of 
+    keywords.forEach(keyword => {
+      if(mergedKeywords.indexOf(keyword) === -1) mergedKeywords.push(keyword);
+    })
     const allowedKeywords = await entityManager.getRepository(Keyword).find({
       where: {
         status: 'allow',
