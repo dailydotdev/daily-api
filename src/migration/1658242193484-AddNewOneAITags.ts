@@ -3593,508 +3593,508 @@ export class AddNewOneAITags1658242193484 implements MigrationInterface {
         );
 
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('a-b-testing','synonym', 'ab-testing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('a-b-testing','synonym', 'ab-testing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('activemq','synonym', 'apache-activemq') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('activemq','synonym', 'apache-activemq') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('agile-development','synonym', 'agile') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('agile-development','synonym', 'agile') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('airflow','synonym', 'apache-airflow') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('airflow','synonym', 'apache-airflow') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('alpine','synonym', 'alpinejs') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('alpine','synonym', 'alpinejs') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('amazon-s3','synonym', 'aws-s3') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('amazon-s3','synonym', 'aws-s3') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('amazon-web-services','synonym', 'aws') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('amazon-web-services','synonym', 'aws') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('android-apps','synonym', 'android') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('android-apps','synonym', 'android') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('angularjs','synonym', 'angular') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('angularjs','synonym', 'angular') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('apollo-client','synonym', 'apollo') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('apollo-client','synonym', 'apollo') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('application-security','synonym', 'appsec') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('application-security','synonym', 'appsec') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('artificial-intelligence','synonym', 'ai') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('artificial-intelligence','synonym', 'ai') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('asp.net','synonym', 'aspnet') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('asp.net','synonym', 'aspnet') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('augmented-reality','synonym', 'ar') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('augmented-reality','synonym', 'ar') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('automation-testing','synonym', 'testing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('automation-testing','synonym', 'testing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('azure-active-directory','synonym', 'active-directory') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('azure-active-directory','synonym', 'active-directory') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('bigquery','synonym', 'google-bigquery') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('bigquery','synonym', 'google-bigquery') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('bot','synonym', 'bots') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('bot','synonym', 'bots') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('business-intelligence','synonym', 'bi') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('business-intelligence','synonym', 'bi') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('careers','synonym', 'career') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('careers','synonym', 'career') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('cassandra','synonym', 'apache-cassandra') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('cassandra','synonym', 'apache-cassandra') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('chatbot','synonym', 'bots') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('chatbot','synonym', 'bots') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('chatbots','synonym', 'bots') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('chatbots','synonym', 'bots') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('chrome','synonym', 'google-chrome') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('chrome','synonym', 'google-chrome') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('ci-cd-pipeline','synonym', 'cicd') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('ci-cd-pipeline','synonym', 'cicd') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('classification-models','synonym', 'classification') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('classification-models','synonym', 'classification') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('clean-architecture','synonym', 'architecture') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('clean-architecture','synonym', 'architecture') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('cloud-computing','synonym', 'cloud') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('cloud-computing','synonym', 'cloud') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('cloud-functions','synonym', 'gcp-cloud-functions') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('cloud-functions','synonym', 'gcp-cloud-functions') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('cloud-native','synonym', 'cloud') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('cloud-native','synonym', 'cloud') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('cloud-security','synonym', 'security') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('cloud-security','synonym', 'security') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('cloud-services','synonym', 'cloud') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('cloud-services','synonym', 'cloud') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('cloudformation','synonym', 'aws-cloudformation') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('cloudformation','synonym', 'aws-cloudformation') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('cloudwatch','synonym', 'aws-cloudwatch') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('cloudwatch','synonym', 'aws-cloudwatch') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('command-line','synonym', 'cli') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('command-line','synonym', 'cli') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('confluent','synonym', 'confluent-cloud') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('confluent','synonym', 'confluent-cloud') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('continuous-delivery','synonym', 'cicd') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('continuous-delivery','synonym', 'cicd') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('continuous-deployment','synonym', 'cicd') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('continuous-deployment','synonym', 'cicd') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('continuous-integration','synonym', 'cicd') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('continuous-integration','synonym', 'cicd') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('conversational-ai','synonym', 'ai') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('conversational-ai','synonym', 'ai') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('cpp','synonym', 'c++') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('cpp','synonym', 'c++') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('cpu','synonym', 'computing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('cpu','synonym', 'computing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('cryptocurrency','synonym', 'crypto') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('cryptocurrency','synonym', 'crypto') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('cryptocurrency-exchange','synonym', 'crypto') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('cryptocurrency-exchange','synonym', 'crypto') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('csharp','synonym', 'c#') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('csharp','synonym', 'c#') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('cybersecurity','synonym', 'cyber') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('cybersecurity','synonym', 'cyber') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('daily.dev','synonym', 'dailydev') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('daily.dev','synonym', 'dailydev') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('data-analytics','synonym', 'data-analysis') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('data-analytics','synonym', 'data-analysis') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('data-scientist','synonym', 'data-science') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('data-scientist','synonym', 'data-science') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('deployment','synonym', 'cicd') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('deployment','synonym', 'cicd') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('developer-relations','synonym', 'devrel') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('developer-relations','synonym', 'devrel') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('docker-image','synonym', 'docker') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('docker-image','synonym', 'docker') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('dotnet','synonym', '.net') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('dotnet','synonym', '.net') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('dotnet-5','synonym', '.net') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('dotnet-5','synonym', '.net') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('dotnet-6','synonym', '.net') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('dotnet-6','synonym', '.net') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('dotnet-core','synonym', '.net-core') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('dotnet-core','synonym', '.net-core') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('dynamodb','synonym', 'aws-dynamodb') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('dynamodb','synonym', 'aws-dynamodb') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('ec2','synonym', 'aws-ec2') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('ec2','synonym', 'aws-ec2') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('elastic','synonym', 'elk') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('elastic','synonym', 'elk') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('elasticsearch','synonym', 'elk') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('elasticsearch','synonym', 'elk') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('embedded-systems','synonym', 'embedded') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('embedded-systems','synonym', 'embedded') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('ember','synonym', 'emberjs') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('ember','synonym', 'emberjs') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('es6','synonym', 'javascript') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('es6','synonym', 'javascript') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('event-driven-architecture','synonym', 'architecture') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('event-driven-architecture','synonym', 'architecture') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('fauna','synonym', 'faunadb') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('fauna','synonym', 'faunadb') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('flink','synonym', 'apache-flink') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('flink','synonym', 'apache-flink') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('front-end-development','synonym', 'frontend') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('front-end-development','synonym', 'frontend') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('funding','synonym', 'venture-capital') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('funding','synonym', 'venture-capital') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('fundraising','synonym', 'venture-capital') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('fundraising','synonym', 'venture-capital') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('go','synonym', 'golang') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('go','synonym', 'golang') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('google-cloud','synonym', 'gcp') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('google-cloud','synonym', 'gcp') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('google-cloud-platform','synonym', 'gcp') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('google-cloud-platform','synonym', 'gcp') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('hacker','synonym', 'security') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('hacker','synonym', 'security') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('hacking','synonym', 'security') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('hacking','synonym', 'security') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('hadoop','synonym', 'apache-hadoop') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('hadoop','synonym', 'apache-hadoop') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('hooks','synonym', 'react-hooks') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('hooks','synonym', 'react-hooks') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('html5','synonym', 'html') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('html5','synonym', 'html') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('image-classification','synonym', 'computer-vision') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('image-classification','synonym', 'computer-vision') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('image-recognition','synonym', 'computer-vision') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('image-recognition','synonym', 'computer-vision') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('influxdb-enterprise','synonym', 'influxdb') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('influxdb-enterprise','synonym', 'influxdb') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('infrastructure-as-code','synonym', 'iac') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('infrastructure-as-code','synonym', 'iac') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('internet-of-things','synonym', 'iot') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('internet-of-things','synonym', 'iot') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('investment','synonym', 'venture-capital') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('investment','synonym', 'venture-capital') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('investors','synonym', 'venture-capital') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('investors','synonym', 'venture-capital') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('js','synonym', 'javascript') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('js','synonym', 'javascript') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('jupyter-notebook','synonym', 'jupyter') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('jupyter-notebook','synonym', 'jupyter') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('k-means-clustering','synonym', 'unsupervised-learning') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('k-means-clustering','synonym', 'unsupervised-learning') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('k8s','synonym', 'kubernetes') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('k8s','synonym', 'kubernetes') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('kibana','synonym', 'elk') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('kibana','synonym', 'elk') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('kubernetes-cluster','synonym', 'kubernetes') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('kubernetes-cluster','synonym', 'kubernetes') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('lambda','synonym', 'aws-lambda') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('lambda','synonym', 'aws-lambda') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('low-code','synonym', 'nocode') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('low-code','synonym', 'nocode') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('macos','synonym', 'mac') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('macos','synonym', 'mac') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('mathematics','synonym', 'math') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('mathematics','synonym', 'math') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('microsoft-azure','synonym', 'azure') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('microsoft-azure','synonym', 'azure') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('ml','synonym', 'machine-learning') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('ml','synonym', 'machine-learning') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('mobile-app','synonym', 'mobile') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('mobile-app','synonym', 'mobile') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('mobile-app-development','synonym', 'mobile') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('mobile-app-development','synonym', 'mobile') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('mobile-apps','synonym', 'mobile') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('mobile-apps','synonym', 'mobile') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('mobile-development','synonym', 'mobile') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('mobile-development','synonym', 'mobile') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('natural-language','synonym', 'nlp') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('natural-language','synonym', 'nlp') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('nfts','synonym', 'nft') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('nfts','synonym', 'nft') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('no-code','synonym', 'nocode') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('no-code','synonym', 'nocode') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('nosql-database','synonym', 'nosql') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('nosql-database','synonym', 'nosql') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('open-source-software','synonym', 'open-source') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('open-source-software','synonym', 'open-source') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('postgres','synonym', 'postgresql') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('postgres','synonym', 'postgresql') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('prisma client','synonym', 'prisma') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('prisma client','synonym', 'prisma') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('probability','synonym', 'statistics') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('probability','synonym', 'statistics') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('product-market-fit','synonym', 'startup') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('product-market-fit','synonym', 'startup') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('python-programming','synonym', 'python') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('python-programming','synonym', 'python') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('python3','synonym', 'python') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('python3','synonym', 'python') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('quantum','synonym', 'quantum-computing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('quantum','synonym', 'quantum-computing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('rds','synonym', 'aws-rds') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('rds','synonym', 'aws-rds') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('react-hook','synonym', 'react-hooks') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('react-hook','synonym', 'react-hooks') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('reactjs','synonym', 'react') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('reactjs','synonym', 'react') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('redux-thunk','synonym', 'redux') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('redux-thunk','synonym', 'redux') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('remote-working','synonym', 'remote-work') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('remote-working','synonym', 'remote-work') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('responsive-design','synonym', 'ui-design') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('responsive-design','synonym', 'ui-design') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('rest','synonym', 'rest-api') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('rest','synonym', 'rest-api') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('resume','synonym', 'career') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('resume','synonym', 'career') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('robots','synonym', 'robotics') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('robots','synonym', 'robotics') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('ruby-on-rails','synonym', 'rails') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('ruby-on-rails','synonym', 'rails') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('s3','synonym', 'aws-s3') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('s3','synonym', 'aws-s3') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('sagemaker','synonym', 'aws-sagemaker') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('sagemaker','synonym', 'aws-sagemaker') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('scikit-learn','synonym', 'scikit') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('scikit-learn','synonym', 'scikit') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('selenium-webdriver','synonym', 'selenium') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('selenium-webdriver','synonym', 'selenium') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('self-driving-cars','synonym', 'autonomous-cars') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('self-driving-cars','synonym', 'autonomous-cars') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('silicon-valley','synonym', 'startup') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('silicon-valley','synonym', 'startup') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('snapchat','synonym', 'snap') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('snapchat','synonym', 'snap') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('software-architecture','synonym', 'architecture') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('software-architecture','synonym', 'architecture') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('software-testing','synonym', 'testing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('software-testing','synonym', 'testing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('spac','synonym', 'ipo') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('spac','synonym', 'ipo') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('sql-server','synonym', 'microsoft-sql-server') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('sql-server','synonym', 'microsoft-sql-server') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('startups','synonym', 'startup') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('startups','synonym', 'startup') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('stock-market','synonym', 'investing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('stock-market','synonym', 'investing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('swagger','synonym', 'openapi') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('swagger','synonym', 'openapi') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('tailwind','synonym', 'tailwind-css') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('tailwind','synonym', 'tailwind-css') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('technical-interview','synonym', 'interview-questions') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('technical-interview','synonym', 'interview-questions') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('test-automation','synonym', 'testing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('test-automation','synonym', 'testing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('test-driven-development','synonym', 'tdd') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('test-driven-development','synonym', 'tdd') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('the-pulumi-service','synonym', 'pulumi') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('the-pulumi-service','synonym', 'pulumi') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('two-factor-authentication','synonym', 'authentication') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('two-factor-authentication','synonym', 'authentication') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('ubuntu-20-04','synonym', 'ubuntu') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('ubuntu-20-04','synonym', 'ubuntu') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('unit-testing','synonym', 'testing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('unit-testing','synonym', 'testing') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('user-experience','synonym', 'ux') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('user-experience','synonym', 'ux') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('ux-design','synonym', 'ux') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('ux-design','synonym', 'ux') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('vba','synonym', 'vb') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('vba','synonym', 'vb') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('vc','synonym', 'venture-capital') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('vc','synonym', 'venture-capital') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('virtual-reality','synonym', 'vr') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('virtual-reality','synonym', 'vr') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('visual-basic','synonym', 'vb') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('visual-basic','synonym', 'vb') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('visual-design','synonym', 'ui-design') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('visual-design','synonym', 'ui-design') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('visual-studio-2019','synonym', 'visual-studio') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('visual-studio-2019','synonym', 'visual-studio') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('visual-studio-2022','synonym', 'visual-studio') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('visual-studio-2022','synonym', 'visual-studio') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('visual-studio-code','synonym', 'vscode') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('visual-studio-code','synonym', 'vscode') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('vs-code','synonym', 'vscode') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('vs-code','synonym', 'vscode') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('vue','synonym', 'vuejs') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('vue','synonym', 'vuejs') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('vue-3','synonym', 'vuejs') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('vue-3','synonym', 'vuejs') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('web-design','synonym', 'ui-design') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('web-design','synonym', 'ui-design') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('web-developer','synonym', 'webdev') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('web-developer','synonym', 'webdev') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('web-development','synonym', 'webdev') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('web-development','synonym', 'webdev') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('web-scraping','synonym', 'crawling') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('web-scraping','synonym', 'crawling') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('windows-10','synonym', 'windows') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('windows-10','synonym', 'windows') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('windows-11','synonym', 'windows') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('windows-11','synonym', 'windows') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('wordpress-plugins','synonym', 'wordpress') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('wordpress-plugins','synonym', 'wordpress') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('wordpress-themes','synonym', 'wordpress') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('wordpress-themes','synonym', 'wordpress') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('wordpress-website','synonym', 'wordpress') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('wordpress-website','synonym', 'wordpress') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('work-from-home','synonym', 'remote-work') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('work-from-home','synonym', 'remote-work') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status", "synomym") VALUES ('working-from-home','synonym', 'remote-work') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
+            `INSERT INTO "public"."keyword" ("value", "status", "synonym") VALUES ('working-from-home','synonym', 'remote-work') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
     }
 
