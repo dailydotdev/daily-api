@@ -4,7 +4,7 @@ export class addOneAITags1658220315650 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(
-            `INSERT INTO "public"."keyword" ("value", "status") VALUES ('application', 'deny') ON CONFLICT ("value") DO UPDATE`,
+            `INSERT INTO "public"."keyword" ("value", "status") VALUES ('application', 'deny') ON CONFLICT ("value") DO UPDATE SET value = EXCLUDED.value`,
         );            
         await queryRunner.query(
             `INSERT INTO "public"."keyword" ("value", "status") VALUES ('company', 'deny') ON CONFLICT ("value") DO UPDATE`,
