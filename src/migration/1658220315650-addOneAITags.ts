@@ -1,4 +1,4 @@
-import {MigrationInterface, QueryRunner, UpdateDateColumn} from "typeorm";
+import {MigrationInterface, QueryRunner} from "typeorm";
 
 export class addOneAITags1658220315650 implements MigrationInterface {
 
