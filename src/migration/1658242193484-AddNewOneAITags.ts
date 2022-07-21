@@ -648,7 +648,12 @@ export class AddNewOneAITags1658242193484 implements MigrationInterface {
             ('electricity','deny'),
             ('smashing','deny'),
             ('lambda-function','deny'),
-            ('ui','deny'),
+            ('ui','deny') 
+            ON CONFLICT ("value") DO UPDATE SET status = EXCLUDED.status`,
+            );
+            
+            await queryRunner.query(
+            `INSERT INTO "public"."keyword" ("value", "status") VALUES 
             ('3d','pending'),
             ('ab-testing','pending'),
             ('accessibility','pending'),
