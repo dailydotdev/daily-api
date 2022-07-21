@@ -8,7 +8,6 @@ export class AddNewOneAITags1658242193484 implements MigrationInterface {
             ('application', 'deny'),
             ('company', 'deny'),
             ('app', 'deny'),
-            ('company', 'deny'),
             ('app', 'deny'),
             ('system', 'deny'),
             ('api', 'deny'),
@@ -651,7 +650,7 @@ export class AddNewOneAITags1658242193484 implements MigrationInterface {
             ('ui','deny') 
             ON CONFLICT ("value") DO UPDATE SET status = EXCLUDED.status`,
             );
-            
+
             await queryRunner.query(
             `INSERT INTO "public"."keyword" ("value", "status") VALUES 
             ('3d','pending'),
