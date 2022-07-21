@@ -8,7 +8,6 @@ export class AddNewOneAITags1658242193484 implements MigrationInterface {
             ('application', 'deny'),
             ('company', 'deny'),
             ('app', 'deny'),
-            ('app', 'deny'),
             ('system', 'deny'),
             ('api', 'deny'),
             ('work', 'deny'),
