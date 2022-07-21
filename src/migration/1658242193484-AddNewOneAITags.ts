@@ -1202,8 +1202,7 @@ export class AddNewOneAITags1658242193484 implements MigrationInterface {
             ('xgboost','pending'),
             ('yarn','pending'),
             ('zoom','pending'),
-            ('firmware','pending'),
-            ON CONFLICT ("value") DO UPDATE SET status = EXCLUDED.status`,
+            ('firmware','pending') ON CONFLICT ("value") DO UPDATE SET status = EXCLUDED.status`,
             );
             
             await queryRunner.query(
@@ -1490,8 +1489,7 @@ export class AddNewOneAITags1658242193484 implements MigrationInterface {
                 ('wordpress-themes','synonym','wordpress'),
                 ('wordpress-website','synonym','wordpress'),
                 ('work-from-home','synonym','remote-work'),
-                ('working-from-home','synonym','remote-work'),
-                ON CONFLICT ("value") DO UPDATE SET status = EXCLUDED.status,
+                ('working-from-home','synonym','remote-work') ON CONFLICT ("value") DO UPDATE SET status = EXCLUDED.status,
                 synonym = EXCLUDED.synonym`,
             );
         }
