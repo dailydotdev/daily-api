@@ -51,10 +51,6 @@ export const workers: Worker[] = [
     subscription: 'community-link-access-mail',
   },
   {
-    topic: 'source-request-submitted',
-    subscription: 'source-request-submitted-mail',
-  },
-  {
     topic: 'post-scout-matched',
     subscription: 'post-scout-matched-mail',
   },
@@ -113,6 +109,10 @@ export const workers: Worker[] = [
   {
     topic: 'post-banned-or-removed',
     subscription: 'post-banned-email',
+  },
+  {
+    topic: 'pub-request',
+    subscription: 'source-request-mail',
   },
   {
     topic: 'pub-request',

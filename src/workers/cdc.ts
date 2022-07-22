@@ -39,7 +39,7 @@ import {
   notifyScoutMatched,
   notifySubmissionCreated,
   notifySubmissionGrantedAccess,
-  notifySourceRequestCreated,
+  NotificationReason,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -62,19 +62,35 @@ const onSourceRequestChange = async (
 ): Promise<void> => {
   if (data.payload.op === 'c') {
     // New source request
-    await notifySourceRequestCreated(logger, data.payload.after);
+    await notifySourceRequest(
+      logger,
+      NotificationReason.New,
+      data.payload.after,
+    );
   } else if (data.payload.op === 'u') {
     if (!data.payload.before.closed && data.payload.after.closed) {
       if (data.payload.after.approved) {
         // Source request published
-        await notifySourceRequest(logger, 'publish', data.payload.after);
+        await notifySourceRequest(
+          logger,
+          NotificationReason.Publish,
+          data.payload.after,
+        );
       } else {
         // Source request declined
-        await notifySourceRequest(logger, 'decline', data.payload.after);
+        await notifySourceRequest(
+          logger,
+          NotificationReason.Decline,
+          data.payload.after,
+        );
       }
     } else if (!data.payload.before.approved && data.payload.after.approved) {
       // Source request approved
-      await notifySourceRequest(logger, 'approve', data.payload.after);
+      await notifySourceRequest(
+        logger,
+        NotificationReason.Approve,
+        data.payload.after,
+      );
     }
   }
 };

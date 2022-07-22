@@ -30,7 +30,7 @@ import usernameChanged from './usernameChanged';
 import updateComments from './updateComments';
 import deleteUser from './deleteUser';
 import cdc from './cdc';
-import sourceRequestSubmittedMail from './sourceRequestSubmittedMail';
+import sourceRequestSubmittedMail from './sourceRequestMail';
 
 export { Worker } from './worker';
 
