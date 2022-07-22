@@ -5,7 +5,7 @@ import {
 } from './../entity/ReputationEvent';
 import { messageToJson, Worker } from './worker';
 import { PostReport } from '../entity/PostReport';
-import { Post } from '../entity';
+import { COMMUNITY_PICKS_SOURCE, Post } from '../entity';
 import { ChangeObject } from '../types';
 
 interface Data {
@@ -17,6 +17,10 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     const { id, authorId, scoutId } = data.post;
+    // Skipping penalizing community picks during the beta phase
+    if (data.post.sourceId === COMMUNITY_PICKS_SOURCE) {
+      return;
+    }
     try {
       await con.transaction(async (transaction) => {
         const reports = await transaction

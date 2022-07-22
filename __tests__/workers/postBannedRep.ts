@@ -3,7 +3,7 @@ import { Connection, getConnection } from 'typeorm';
 
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postBannedRep';
-import { Post, Source, User } from '../../src/entity';
+import { COMMUNITY_PICKS_SOURCE, Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { PostReport } from '../../src/entity/PostReport';
@@ -48,4 +48,16 @@ it('should create a reputation event that increases reputation', async () => {
     .find({ where: { targetId: 'p1', grantById: '' } });
   expect(events[0].amount).toEqual(100);
   expect(events[1].amount).toEqual(100);
+});
+
+it('should ignore banning of community picks', async () => {
+  const post = await con.getRepository(Post).findOne('p1');
+  post.sourceId = COMMUNITY_PICKS_SOURCE;
+  await expectSuccessfulBackground(worker, {
+    post,
+  });
+  const events = await con
+    .getRepository(ReputationEvent)
+    .find({ where: { targetId: 'p1', grantById: '' } });
+  expect(events.length).toEqual(0);
 });
