@@ -30,7 +30,7 @@ import usernameChanged from './usernameChanged';
 import updateComments from './updateComments';
 import deleteUser from './deleteUser';
 import cdc from './cdc';
-import sourceRequestSubmittedMail from './sourceRequestMail';
+import sourceRequestMail from './sourceRequestMail';
 
 export { Worker } from './worker';
 
@@ -48,7 +48,7 @@ export const workers: Worker[] = [
   postScoutMatchedMail,
   communityLinkAccessMail,
   communityLinkRejectedMail,
-  sourceRequestSubmittedMail,
+  sourceRequestMail,
   postScoutMatchedSlack,
   commentCommentedAuthor,
   commentCommentedSlackMessage,
