@@ -5,23 +5,24 @@ import {
 } from '../entity/ReputationEvent';
 import { messageToJson, Worker } from './worker';
 import { SourceRequest } from '../entity';
-import { ChangeObject } from '../types';
+import { NotificationReason } from '../common';
 
 interface Data {
-  type: string;
-  pubRequest: ChangeObject<SourceRequest>;
+  reason: NotificationReason;
+  sourceRequest: Pick<SourceRequest, 'id' | 'userId'>;
 }
 
 const worker: Worker = {
   subscription: 'pub-request-rep',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
+    const { reason, sourceRequest }: Data = messageToJson(message);
 
-    if (data.type !== 'approve') {
+    if (reason !== NotificationReason.Approve) {
       return;
     }
 
-    const { id, userId } = data.pubRequest;
+    const { id, userId } = sourceRequest;
     try {
       const repo = con.getRepository(ReputationEvent);
       const event = repo.create({

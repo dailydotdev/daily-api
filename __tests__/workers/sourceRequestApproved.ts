@@ -4,6 +4,7 @@ import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/sourceRequestApprovedRep';
 import { Source, SourceRequest, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
+import { NotificationReason } from '../../src/common';
 
 let con: Connection;
 
@@ -36,8 +37,11 @@ beforeEach(async () => {
 
 it('should create a reputation event that increases reputation', async () => {
   await expectSuccessfulBackground(worker, {
-    pubRequest: { id, userId: '1' },
-    type: 'approve',
+    reason: NotificationReason.Approve,
+    sourceRequest: {
+      id,
+      userId: '1',
+    },
   });
   const event = await con
     .getRepository(ReputationEvent)
@@ -47,8 +51,11 @@ it('should create a reputation event that increases reputation', async () => {
 
 it('should not create a reputation event that increases reputation when type is not approve', async () => {
   await expectSuccessfulBackground(worker, {
-    pubRequest: { id, userId: '1' },
-    type: 'publish',
+    sourceRequest: {
+      id,
+      userId: '1',
+    },
+    type: NotificationReason.Publish,
   });
   const event = await con.getRepository(ReputationEvent).find();
   expect(event.length).toEqual(0);
