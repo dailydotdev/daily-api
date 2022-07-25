@@ -1,7 +1,6 @@
 import { PubSub, Topic } from '@google-cloud/pubsub';
 import { FastifyLoggerInstance } from 'fastify';
 import { Post, SourceRequest, Alerts, Settings, Submission } from '../entity';
-import { toLegacySourceRequest } from '../compatibility/entity';
 import { ChangeObject } from '../types';
 
 const pubsub = new PubSub();
@@ -31,7 +30,14 @@ const communityLinkAccessTopic = pubsub.topic('community-link-access');
 const communityLinkRejectedTopic = pubsub.topic('community-link-rejected');
 const communityLinkSubmittedTopic = pubsub.topic('community-link-submitted');
 
-type NotificationReason = 'new' | 'publish' | 'approve' | 'decline';
+export enum NotificationReason {
+  New = 'new',
+  Publish = 'publish',
+  Approve = 'approve',
+  Decline = 'decline',
+  Exists = 'exists',
+}
+
 // Need to support console as well
 export type EventLogger = Omit<FastifyLoggerInstance, 'fatal'>;
 
@@ -57,11 +63,11 @@ const publishEvent = async (
 export const notifySourceRequest = async (
   log: EventLogger,
   reason: NotificationReason,
-  sourceReq: ChangeObject<SourceRequest>,
+  sourceRequest: ChangeObject<SourceRequest>,
 ): Promise<void> =>
   publishEvent(log, sourceRequestTopic, {
-    type: reason,
-    pubRequest: toLegacySourceRequest(sourceReq),
+    reason,
+    sourceRequest,
   });
 
 export const notifyPostUpvoted = async (

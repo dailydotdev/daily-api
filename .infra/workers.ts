@@ -112,6 +112,10 @@ export const workers: Worker[] = [
   },
   {
     topic: 'pub-request',
+    subscription: 'source-request-mail',
+  },
+  {
+    topic: 'pub-request',
     subscription: 'pub-request-rep',
   },
   {
