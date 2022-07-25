@@ -1312,7 +1312,7 @@ export class AddNewOneAITags1658242193484 implements MigrationInterface {
                 ('nfts','synonym','nft'),
                 ('no-code','synonym','nocode'),
                 ('nosql-database','synonym','nosql'),
-                ('openapi','synonym', 'open-api'),
+                ('open-api','synonym', 'openapi'),
                 ('open-source-software','synonym','open-source'),
                 ('postgres','synonym','postgresql'),
                 ('prismaclient','synonym','prisma'),
