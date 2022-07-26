@@ -166,7 +166,7 @@ describe('POST /p/newPost', () => {
     expect(body).toEqual({ status: 'ok', postId: posts[0].id });
     expect(posts[0].scoutId).toEqual('1');
     expect(posts[0].tagsStr).toEqual(
-      'alpinejs,ab-testing,alpine,a-b-testing,mongodb',
+      'mongodb,alpinejs,ab-testing',
     );
     const keywords = await con.getRepository(Keyword).find({
       where: {
