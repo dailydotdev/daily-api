@@ -109,6 +109,48 @@ describe('POST /p/newPost', () => {
     expect(submission.status).toEqual(SubmissionStatus.Accepted);
   });
 
+  it('should save a new post with the relevant keywords', async () => {
+    const uuid = randomUUID();
+    await saveFixtures(con, Source, [
+      {
+        id: COMMUNITY_PICKS_SOURCE,
+        name: 'Community recommendations',
+        image: 'sample.image.com',
+      },
+    ]);
+    await createDefaultUser();
+    await createDefaultSubmission(uuid);
+    const { body } = await request(app.server)
+      .post('/p/newPost')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: 'p1',
+        title: 'Title',
+        url: 'https://post.com',
+        publicationId: COMMUNITY_PICKS_SOURCE,
+        submissionId: uuid,
+        keywords: ['open-source-software', 'no-code', 'mongodb'],
+      })
+      .expect(200);
+    const posts = await con.getRepository(Post).find();
+    expect(posts.length).toEqual(1);
+    expect(body).toEqual({ status: 'ok', postId: posts[0].id });
+    expect(posts[0].scoutId).toEqual('1');
+    expect(posts[0].keywords).toEqual([
+      'open-source',
+      'nocode',
+      'open-source-software',
+      'no-code',
+      'mongodb',
+    ]);
+    const submissions = await con.getRepository(Submission).find();
+    const [submission] = submissions;
+    expect(submissions.length).toEqual(1);
+    expect(submission.id).toEqual(uuid);
+    expect(submission.status).toEqual(SubmissionStatus.Accepted);
+  });
+
   it('should not accept post with same author and scout', async () => {
     const uuid = randomUUID();
     await createDefaultUser();

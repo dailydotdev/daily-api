@@ -304,20 +304,14 @@ const mergeKeywords = async (
         value: In(keywords),
       },
     });
-    const mergedKeywords = uniqueifyArray(
-      keywords
-        .map((keyword) => {
-          const synonym = synonymKeywords.find(
-            (synonym) => synonym.value === keyword && synonym.synonym,
-          );
-          return synonym?.synonym ?? keyword;
-        })
-        .filter((keyword) => !keyword.match(/^\d+$/)),
+    const additionalKeywords = synonymKeywords.map(
+      (synonym) => synonym.synonym,
     );
-    // with the new system, a keyword needs to be added irrespective of a synonym
-    keywords.forEach((keyword) => {
-      if (mergedKeywords.indexOf(keyword) === -1) mergedKeywords.push(keyword);
-    });
+    const mergedKeywords = uniqueifyArray(
+      [...keywords, ...additionalKeywords].filter(
+        (keyword) => !keyword.match(/^\d+$/),
+      ),
+    );
     const allowedKeywords = await entityManager.getRepository(Keyword).find({
       where: {
         status: 'allow',
