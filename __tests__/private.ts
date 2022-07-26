@@ -130,7 +130,7 @@ describe('POST /p/newPost', () => {
         url: 'https://post.com',
         publicationId: COMMUNITY_PICKS_SOURCE,
         submissionId: uuid,
-        keywords: ['open-source-software', 'no-code', 'mongodb'],
+        keywords: ['alpine', 'a-b-testing', 'mongodb'],
       })
       .expect(200);
     const posts = await con.getRepository(Post).find();
@@ -138,7 +138,7 @@ describe('POST /p/newPost', () => {
     expect(body).toEqual({ status: 'ok', postId: posts[0].id });
     expect(posts[0].scoutId).toEqual('1');
     expect(posts[0].tagsStr).toEqual(
-      'open-source,nocode,open-source-software,no-code,mongodb',
+      'alpinejs,ab-testing,alpine,a-b-testing,mongodb',
     );
   });
 

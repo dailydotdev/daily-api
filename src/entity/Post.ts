@@ -298,6 +298,7 @@ const mergeKeywords = async (
   keywords?: string[],
 ): Promise<{ mergedKeywords: string[]; allowedKeywords: string[] }> => {
   if (keywords?.length) {
+    console.log(`keywords:${keywords}`);
     const synonymKeywords = await entityManager.getRepository(Keyword).find({
       where: {
         status: 'synonym',
