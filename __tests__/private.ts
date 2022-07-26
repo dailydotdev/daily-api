@@ -4,6 +4,7 @@ import { FastifyInstance } from 'fastify';
 import { saveFixtures } from './helpers';
 import {
   COMMUNITY_PICKS_SOURCE,
+  Keyword,
   Post,
   Source,
   Submission,
@@ -37,6 +38,37 @@ const createDefaultSubmission = async (id: string = randomUUID()) => {
   await repo.save(
     repo.create({ id, url: 'http://sample.article/test', userId: '1' }),
   );
+};
+
+const createDefaultKeywords = async () => {
+  const repo = con.getRepository(Keyword);
+  await repo.insert(
+    {
+      value: 'mongodb',
+      status: 'allow'
+  });
+  await repo.insert(
+    {
+      value: 'alpinejs',
+      status: 'allow'
+  });
+  await repo.insert(
+    {
+      value: 'ab-testing',
+      status: 'allow'
+  });
+  await repo.insert(
+    {
+      value: 'alpine',
+      status: 'synonym',
+      synonym: 'alpinejs'
+  });
+  await repo.insert(
+    {
+      value:'a-b-testing',
+      status:'synonym',
+      synonym:'ab-testing'
+  });
 };
 
 afterAll(() => app.close());
@@ -120,6 +152,7 @@ describe('POST /p/newPost', () => {
     ]);
     await createDefaultUser();
     await createDefaultSubmission(uuid);
+    await createDefaultKeywords();
     const { body } = await request(app.server)
       .post('/p/newPost')
       .set('Content-type', 'application/json')
@@ -140,6 +173,12 @@ describe('POST /p/newPost', () => {
     expect(posts[0].tagsStr).toEqual(
       'alpinejs,ab-testing,alpine,a-b-testing,mongodb',
     );
+    const keywords = await con.getRepository(Keyword).find({
+      where: {
+        value: 'alpine',
+      },
+    });
+    expect(keywords[0].occurrences).toEqual(1);
   });
 
   it('should not accept post with same author and scout', async () => {
