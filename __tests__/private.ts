@@ -4,6 +4,7 @@ import { FastifyInstance } from 'fastify';
 import { saveFixtures } from './helpers';
 import {
   COMMUNITY_PICKS_SOURCE,
+  Keyword,
   Post,
   Source,
   Submission,
@@ -137,18 +138,7 @@ describe('POST /p/newPost', () => {
     expect(posts.length).toEqual(1);
     expect(body).toEqual({ status: 'ok', postId: posts[0].id });
     expect(posts[0].scoutId).toEqual('1');
-    expect(posts[0].keywords).toEqual([
-      'open-source',
-      'nocode',
-      'open-source-software',
-      'no-code',
-      'mongodb',
-    ]);
-    const submissions = await con.getRepository(Submission).find();
-    const [submission] = submissions;
-    expect(submissions.length).toEqual(1);
-    expect(submission.id).toEqual(uuid);
-    expect(submission.status).toEqual(SubmissionStatus.Accepted);
+    expect(posts[0].tagsStr).toEqual('open-source,nocode,open-source-software,no-code,mongodb');
   });
 
   it('should not accept post with same author and scout', async () => {
