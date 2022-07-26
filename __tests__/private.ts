@@ -165,14 +165,13 @@ describe('POST /p/newPost', () => {
     expect(posts.length).toEqual(1);
     expect(body).toEqual({ status: 'ok', postId: posts[0].id });
     expect(posts[0].scoutId).toEqual('1');
-    expect(posts[0].tagsStr).toEqual(
-      'mongodb,alpinejs,ab-testing',
-    );
+    expect(posts[0].tagsStr).toEqual('mongodb,alpinejs,ab-testing');
     const keywords = await con.getRepository(Keyword).find({
       where: {
         value: 'alpine',
       },
     });
+    console.log(keywords[0]);
     expect(keywords[0].occurrences).toEqual(1);
   });
 
