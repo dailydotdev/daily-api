@@ -42,32 +42,27 @@ const createDefaultSubmission = async (id: string = randomUUID()) => {
 
 const createDefaultKeywords = async () => {
   const repo = con.getRepository(Keyword);
-  await repo.insert(
-    {
-      value: 'mongodb',
-      status: 'allow'
+  await repo.insert({
+    value: 'mongodb',
+    status: 'allow',
   });
-  await repo.insert(
-    {
-      value: 'alpinejs',
-      status: 'allow'
+  await repo.insert({
+    value: 'alpinejs',
+    status: 'allow',
   });
-  await repo.insert(
-    {
-      value: 'ab-testing',
-      status: 'allow'
+  await repo.insert({
+    value: 'ab-testing',
+    status: 'allow',
   });
-  await repo.insert(
-    {
-      value: 'alpine',
-      status: 'synonym',
-      synonym: 'alpinejs'
+  await repo.insert({
+    value: 'alpine',
+    status: 'synonym',
+    synonym: 'alpinejs',
   });
-  await repo.insert(
-    {
-      value:'a-b-testing',
-      status:'synonym',
-      synonym:'ab-testing'
+  await repo.insert({
+    value: 'a-b-testing',
+    status: 'synonym',
+    synonym: 'ab-testing',
   });
 };
 
