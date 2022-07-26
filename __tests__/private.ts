@@ -4,6 +4,7 @@ import { FastifyInstance } from 'fastify';
 import { saveFixtures } from './helpers';
 import {
   COMMUNITY_PICKS_SOURCE,
+  Keyword,
   Post,
   Source,
   Submission,
@@ -37,6 +38,32 @@ const createDefaultSubmission = async (id: string = randomUUID()) => {
   await repo.save(
     repo.create({ id, url: 'http://sample.article/test', userId: '1' }),
   );
+};
+
+const createDefaultKeywords = async () => {
+  const repo = con.getRepository(Keyword);
+  await repo.insert({
+    value: 'mongodb',
+    status: 'allow',
+  });
+  await repo.insert({
+    value: 'alpinejs',
+    status: 'allow',
+  });
+  await repo.insert({
+    value: 'ab-testing',
+    status: 'allow',
+  });
+  await repo.insert({
+    value: 'alpine',
+    status: 'synonym',
+    synonym: 'alpinejs',
+  });
+  await repo.insert({
+    value: 'a-b-testing',
+    status: 'synonym',
+    synonym: 'ab-testing',
+  });
 };
 
 afterAll(() => app.close());
@@ -107,6 +134,47 @@ describe('POST /p/newPost', () => {
     expect(submissions.length).toEqual(1);
     expect(submission.id).toEqual(uuid);
     expect(submission.status).toEqual(SubmissionStatus.Accepted);
+  });
+
+  it('should save a new post with the relevant keywords', async () => {
+    const uuid = randomUUID();
+    await saveFixtures(con, Source, [
+      {
+        id: COMMUNITY_PICKS_SOURCE,
+        name: 'Community recommendations',
+        image: 'sample.image.com',
+      },
+    ]);
+    await createDefaultUser();
+    await createDefaultSubmission(uuid);
+    await createDefaultKeywords();
+    const { body } = await request(app.server)
+      .post('/p/newPost')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: 'p1',
+        title: 'Title',
+        url: 'https://post.com',
+        publicationId: COMMUNITY_PICKS_SOURCE,
+        submissionId: uuid,
+        keywords: ['alpine', 'a-b-testing', 'mongodb'],
+      })
+      .expect(200);
+    const posts = await con.getRepository(Post).find();
+    expect(posts.length).toEqual(1);
+    expect(body).toEqual({ status: 'ok', postId: posts[0].id });
+    expect(posts[0].scoutId).toEqual('1');
+    expect(posts[0].tagsStr).toEqual('mongodb,alpinejs,ab-testing');
+    const keywords = await con.getRepository(Keyword).find({
+      where: {
+        value: 'alpine',
+      },
+    });
+    // since I am adding a post which has `alpine`
+    // as a tag, occurences of `alpine` in the db
+    // should increase from 1 to 2
+    expect(keywords[0].occurrences).toEqual(2);
   });
 
   it('should not accept post with same author and scout', async () => {
