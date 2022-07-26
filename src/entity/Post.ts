@@ -304,14 +304,17 @@ const mergeKeywords = async (
         value: In(keywords),
       },
     });
+    console.log(`synonym keywords: ${synonymKeywords}`);
     const additionalKeywords = synonymKeywords.map(
       (synonym) => synonym.synonym,
     );
+    console.log(`additional keywords: ${additionalKeywords}`);
     const mergedKeywords = uniqueifyArray(
       [...keywords, ...additionalKeywords].filter(
         (keyword) => !keyword.match(/^\d+$/),
       ),
     );
+    console.log(`merged keywords: ${mergedKeywords}`);
     const allowedKeywords = await entityManager.getRepository(Keyword).find({
       where: {
         status: 'allow',
