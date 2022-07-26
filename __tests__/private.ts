@@ -171,8 +171,10 @@ describe('POST /p/newPost', () => {
         value: 'alpine',
       },
     });
-    console.log(keywords[0]);
-    expect(keywords[0].occurrences).toEqual(1);
+    // since I am adding a post which has `alpine`
+    // as a tag, occurences of `alpine` in the db
+    // should increase from 1 to 2
+    expect(keywords[0].occurrences).toEqual(2);
   });
 
   it('should not accept post with same author and scout', async () => {
