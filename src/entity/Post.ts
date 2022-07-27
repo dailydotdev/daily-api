@@ -20,6 +20,7 @@ import { uniqueifyArray } from '../common';
 import { validateAndApproveSubmission } from './Submission';
 import { SubmissionFailErrorKeys } from '../errors';
 import { Logger } from 'pino';
+import {FastifyLoggerInstance} from "fastify";
 
 export type TocItem = { text: string; id?: string; children?: TocItem[] };
 export type Toc = TocItem[];
@@ -357,7 +358,7 @@ const findAuthor = async (
 const addPostAndKeywordsToDb = async (
   entityManager: EntityManager,
   data: AddPostData,
-  logger: Logger,
+  logger: FastifyLoggerInstance,
 ): Promise<string> => {
   const { allowedKeywords, mergedKeywords } = await mergeKeywords(
     entityManager,
@@ -427,7 +428,7 @@ const addPostAndKeywordsToDb = async (
 export const addNewPost = async (
   con: Connection,
   data: AddPostData,
-  logger: Logger,
+  logger: FastifyLoggerInstance,
 ): Promise<AddNewPostResult> => {
   if (!checkRequiredFields(data)) {
     return { status: 'failed', reason: 'MISSING_FIELDS' };

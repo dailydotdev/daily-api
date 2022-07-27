@@ -8,7 +8,6 @@ import {
 } from '../entity';
 import { getConnection } from 'typeorm';
 import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
-import pino from 'pino';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.post<{ Body: AddPostData }>('/newPost', async (req, res) => {
@@ -16,8 +15,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return res.status(404).send();
     }
     const con = getConnection();
-    const logger = pino();
-    const operationResult = await addNewPost(con, req.body, logger);
+    const operationResult = await addNewPost(con, req.body, req.log);
     return res.status(200).send(operationResult);
   });
   fastify.post<{ Body: RejectPostData }>('/rejectPost', async (req, res) => {
