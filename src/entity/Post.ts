@@ -19,6 +19,7 @@ import { Keyword } from './Keyword';
 import { uniqueifyArray } from '../common';
 import { validateAndApproveSubmission } from './Submission';
 import { SubmissionFailErrorKeys } from '../errors';
+import { FastifyLoggerInstance } from 'fastify';
 
 export type TocItem = { text: string; id?: string; children?: TocItem[] };
 export type Toc = TocItem[];
@@ -356,11 +357,21 @@ const findAuthor = async (
 const addPostAndKeywordsToDb = async (
   entityManager: EntityManager,
   data: AddPostData,
+  logger: FastifyLoggerInstance,
 ): Promise<string> => {
   const { allowedKeywords, mergedKeywords } = await mergeKeywords(
     entityManager,
     data.keywords,
   );
+  if (allowedKeywords.length > 5) {
+    logger.info(
+      {
+        url: data.url,
+        keywords: allowedKeywords,
+      },
+      'created an article with more than 5 keywords',
+    );
+  }
   await entityManager.getRepository(Post).insert({
     id: data.id,
     shortId: data.id,
@@ -416,6 +427,7 @@ const addPostAndKeywordsToDb = async (
 export const addNewPost = async (
   con: Connection,
   data: AddPostData,
+  logger: FastifyLoggerInstance,
 ): Promise<AddNewPostResult> => {
   if (!checkRequiredFields(data)) {
     return { status: 'failed', reason: 'MISSING_FIELDS' };
@@ -450,7 +462,11 @@ export const addNewPost = async (
     };
 
     try {
-      const postId = await addPostAndKeywordsToDb(entityManager, combinedData);
+      const postId = await addPostAndKeywordsToDb(
+        entityManager,
+        combinedData,
+        logger,
+      );
 
       return { status: 'ok', postId };
     } catch (error) {
