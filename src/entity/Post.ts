@@ -19,6 +19,7 @@ import { Keyword } from './Keyword';
 import { uniqueifyArray } from '../common';
 import { validateAndApproveSubmission } from './Submission';
 import { SubmissionFailErrorKeys } from '../errors';
+import pino from 'pino';
 
 export type TocItem = { text: string; id?: string; children?: TocItem[] };
 export type Toc = TocItem[];
@@ -361,6 +362,16 @@ const addPostAndKeywordsToDb = async (
     entityManager,
     data.keywords,
   );
+  if (allowedKeywords.length > 5) {
+    const logger = pino();
+    logger.info(
+      {
+        url: data.url,
+        keywords: allowedKeywords,
+      },
+      'created an article with more than 5 keywords',
+    );
+  }
   await entityManager.getRepository(Post).insert({
     id: data.id,
     shortId: data.id,
