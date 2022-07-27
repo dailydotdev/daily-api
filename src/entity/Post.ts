@@ -20,6 +20,7 @@ import { uniqueifyArray } from '../common';
 import { validateAndApproveSubmission } from './Submission';
 import { SubmissionFailErrorKeys } from '../errors';
 import pino from 'pino';
+import Logger = pino.Logger;
 
 export type TocItem = { text: string; id?: string; children?: TocItem[] };
 export type Toc = TocItem[];
@@ -357,13 +358,13 @@ const findAuthor = async (
 const addPostAndKeywordsToDb = async (
   entityManager: EntityManager,
   data: AddPostData,
+  logger: Logger,
 ): Promise<string> => {
   const { allowedKeywords, mergedKeywords } = await mergeKeywords(
     entityManager,
     data.keywords,
   );
   if (allowedKeywords.length > 5) {
-    const logger = pino();
     logger.info(
       {
         url: data.url,
@@ -427,6 +428,7 @@ const addPostAndKeywordsToDb = async (
 export const addNewPost = async (
   con: Connection,
   data: AddPostData,
+  logger: Logger,
 ): Promise<AddNewPostResult> => {
   if (!checkRequiredFields(data)) {
     return { status: 'failed', reason: 'MISSING_FIELDS' };
@@ -461,7 +463,11 @@ export const addNewPost = async (
     };
 
     try {
-      const postId = await addPostAndKeywordsToDb(entityManager, combinedData);
+      const postId = await addPostAndKeywordsToDb(
+        entityManager,
+        combinedData,
+        logger,
+      );
 
       return { status: 'ok', postId };
     } catch (error) {
