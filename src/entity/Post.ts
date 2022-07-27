@@ -19,8 +19,7 @@ import { Keyword } from './Keyword';
 import { uniqueifyArray } from '../common';
 import { validateAndApproveSubmission } from './Submission';
 import { SubmissionFailErrorKeys } from '../errors';
-import { Logger } from 'pino';
-import {FastifyLoggerInstance} from "fastify";
+import { FastifyLoggerInstance } from 'fastify';
 
 export type TocItem = { text: string; id?: string; children?: TocItem[] };
 export type Toc = TocItem[];
