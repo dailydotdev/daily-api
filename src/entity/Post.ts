@@ -19,8 +19,7 @@ import { Keyword } from './Keyword';
 import { uniqueifyArray } from '../common';
 import { validateAndApproveSubmission } from './Submission';
 import { SubmissionFailErrorKeys } from '../errors';
-import pino from 'pino';
-import Logger = pino.Logger;
+import { Logger } from 'pino';
 
 export type TocItem = { text: string; id?: string; children?: TocItem[] };
 export type Toc = TocItem[];
