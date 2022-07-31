@@ -194,6 +194,10 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     """
+    Check if email exists
+    """
+    userByEmail(email: String!): User
+    """
     Get the statistics of the user
     """
     userStats(id: ID!): UserStats
@@ -349,6 +353,11 @@ const timestampAtTimezone = `"timestamp"::timestamptz ${userTimezone}`;
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Query: traceResolverObject<any, any>({
+    userByEmail: (
+      _,
+      { email }: { email: string },
+      ctx: Context,
+    ): Promise<User> => ctx.con.getRepository(User).findOne({ email }),
     userStats: async (
       source,
       { id }: { id: string },
