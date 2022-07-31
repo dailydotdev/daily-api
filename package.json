@@ -18,7 +18,7 @@
     "dev": "nodemon ./index.ts | pino-pretty",
     "dev:background": "MODE=background npm run dev",
     "lint": "eslint . --ext .js,.ts --max-warnings 0",
-`    "start": "node index.js",
+    "start": "node index.js",
     "pretest": "npm run lint && cross-env NODE_ENV=test npm run db:migrate:reset",
     "test": "jest --testEnvironment=node --runInBand",
     "typeorm": "ts-node ./node_modules/typeorm/cli.js"
