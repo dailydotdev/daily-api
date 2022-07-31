@@ -5,6 +5,7 @@ import cors from '@fastify/cors';
 import mercurius from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
+import { createStream } from '@binxhealth/pino-stackdriver';
 // import fastifyWebsocket from '@fastify/websocket';
 
 import './config';
@@ -44,7 +45,9 @@ export default async function app(
   const connection = await createOrGetConnection();
 
   const app = fastify({
-    logger: true,
+    logger: {
+      stream: createStream(),
+    },
     disableRequestLogging: true,
     trustProxy: isProd,
   });
