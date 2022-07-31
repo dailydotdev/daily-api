@@ -308,6 +308,14 @@ Object {
 }
 `;
 
+exports[`query userByEmail should return user info with name, username, and image 1`] = `
+Object {
+  "image": "https://daily.dev/ido.jpg",
+  "name": "Ido",
+  "username": null,
+}
+`;
+
 exports[`query userMostReadTags should return the user most read tags 1`] = `
 Array [
   Object {

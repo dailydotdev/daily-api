@@ -51,6 +51,7 @@ beforeEach(async () => {
       name: 'Ido',
       image: 'https://daily.dev/ido.jpg',
       timezone: 'utc',
+      email: 'ido@daily.dev',
     },
     {
       id: '2',
@@ -325,6 +326,23 @@ describe('query user', () => {
     const res = await client.query(QUERY, { variables: { id: requestUserId } });
     expect(res.errors).toBeFalsy();
     expect(res.data.user).toMatchSnapshot();
+  });
+});
+
+describe('query userByEmail', () => {
+  const QUERY = `query UserByEmail($email: String!) {
+    userByEmail(email: $email) {
+      name
+      username
+      image
+    }
+  }`;
+
+  it('should return user info with name, username, and image', async () => {
+    const email = 'ido@daily.dev';
+    const res = await client.query(QUERY, { variables: { email } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userByEmail).toMatchSnapshot();
   });
 });
 
