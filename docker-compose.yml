@@ -16,7 +16,6 @@ services:
       - POSTGRES_MULTIPLE_DATABASES=api,api_test
       - POSTGRES_PASSWORD=12345
     volumes:
-      - ./pg-init-scripts:/docker-entrypoint-initdb.d
       - db:/var/lib/postgresql/data
     ports:
       - "5432:5432"
@@ -24,6 +23,11 @@ services:
       - "postgres"
       - "-c"
       - "wal_level=logical"
+    healthcheck:
+      test: pg_isready -U postgres -d $$POSTGRES_DB
+      interval: 1s
+      timeout: 3s
+      retries: 60
 
   redis:
     image: redis:6
@@ -32,6 +36,11 @@ services:
       - redis:/data
     ports:
       - "6379:6379"
+    healthcheck:
+      test: redis-cli ping
+      interval: 1s
+      timeout: 3s
+      retries: 60
 
   debezium:
     image: debezium/server:1.6
@@ -40,3 +49,5 @@ services:
     volumes:
       - ./debezium/conf:/debezium/conf
       - ./debezium/data:/debezium/data
+    depends_on:
+      - db
