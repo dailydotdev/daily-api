@@ -328,6 +328,31 @@ describe('query user', () => {
   });
 });
 
+describe('query usernameExists', () => {
+  const QUERY = `
+    query UsernameExists($username: String!) {
+      usernameExists(username: $username) {
+        isTaken
+      }
+    }
+  `;
+
+  it('should return value of true if the username is already taken', async () => {
+    const username = 'sample';
+    await con.getRepository(User).update({ id: '1' }, { username });
+    const res = await client.query(QUERY, { variables: { username } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.usernameExists.isTaken).toEqual(true);
+  });
+
+  it('should return value of false if the username is not yet taken', async () => {
+    const username = 'sample';
+    const res = await client.query(QUERY, { variables: { username } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.usernameExists.isTaken).toEqual(false);
+  });
+});
+
 describe('query userReadingRank', () => {
   const QUERY = `query UserReadingRank($id: ID!, $version: Int, $limit: Int){
     userReadingRank(id: $id, version: $version, limit: $limit) {
