@@ -193,7 +193,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type UsernameExists {
-    result: Boolean!
+    isTaken: Boolean!
   }
 
   extend type Query {
@@ -361,10 +361,10 @@ export const resolvers: IResolvers<any, Context> = {
       _,
       { username }: { username: string },
       ctx: Context,
-    ): Promise<{ result: boolean }> => {
+    ): Promise<{ isTaken: boolean }> => {
       const user = await ctx.con.getRepository(User).findOne({ username });
 
-      return { result: !!user };
+      return { isTaken: !!user };
     },
     userStats: async (
       source,
