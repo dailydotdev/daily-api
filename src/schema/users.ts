@@ -192,7 +192,15 @@ export const typeDefs = /* GraphQL */ `
     edges: [ReadingHistoryEdge]!
   }
 
+  type UsernameExists {
+    result: Boolean!
+  }
+
   extend type Query {
+    """
+    Check if username exists
+    """
+    usernameExists(username: String!): UsernameExists
     """
     Get the statistics of the user
     """
@@ -349,6 +357,15 @@ const timestampAtTimezone = `"timestamp"::timestamptz ${userTimezone}`;
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Query: traceResolverObject<any, any>({
+    usernameExists: async (
+      _,
+      { username }: { username: string },
+      ctx: Context,
+    ): Promise<{ result: boolean }> => {
+      const user = await ctx.con.getRepository(User).findOne({ username });
+
+      return { result: !!user };
+    },
     userStats: async (
       source,
       { id }: { id: string },
