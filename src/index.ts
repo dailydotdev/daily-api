@@ -35,7 +35,7 @@ const trackingExtendKey = (
   ctx.trackingId ? `tracking:${ctx.trackingId}` : undefined;
 
 // readiness probe is set failureThreshold: 2, periodSeconds: 2 (4s) + small delay
-const GRACEFUL_DELAY = 2 * 2 * 1000 + 5000;
+const GRACEFUL_DELAY = 2 * 2 * 1000 + 2000;
 
 export default async function app(
   contextFn?: (request: FastifyRequest) => Context,
@@ -79,7 +79,11 @@ export default async function app(
     res.code(500).send({ statusCode: 500, error: 'Internal Server Error' });
   });
 
-  app.get('/readiness', (req, res) => {
+  /**
+   * `/health` can't be changed as ingress takes time to update its health check,
+   * and it can cause downtime
+   */
+  app.get('/health', (req, res) => {
     res.type('application/health+json');
     if (isTerminating) {
       res.status(500).send(stringifyHealthCheck({ status: 'terminating' }));

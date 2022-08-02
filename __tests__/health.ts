@@ -15,7 +15,7 @@ describe('health checks', () => {
 
   it('should return status code 200 for readiness probe', () =>
     request(app.server)
-      .get('/readiness')
+      .get('/health')
       .expect('content-type', 'application/health+json; charset=utf-8')
       .expect(200, { status: 'ok' }));
 

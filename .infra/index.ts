@@ -142,7 +142,7 @@ const limits: pulumi.Input<{
 };
 
 const readinessProbe: k8s.types.input.core.v1.Probe = {
-  httpGet: { path: '/readiness', port: 'http' },
+  httpGet: { path: '/health', port: 'http' },
   failureThreshold: 2,
   periodSeconds: 2,
 };
