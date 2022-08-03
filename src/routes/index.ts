@@ -6,6 +6,7 @@ import settings from './settings';
 import redirector from './redirector';
 import devcards from './devcards';
 import privateRoutes from './private';
+import whoami from './whoami';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -14,4 +15,5 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(redirector, { prefix: '/r' });
   fastify.register(devcards, { prefix: '/devcards' });
   fastify.register(privateRoutes, { prefix: '/p' });
+  fastify.register(whoami, { prefix: '/whoami' });
 }
