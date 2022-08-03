@@ -1,0 +1,98 @@
+import { DeepPartial } from 'typeorm';
+import { User } from '../../src/entity';
+import { User as GatewayUser } from '../../src/common';
+export const userCreatedDate = '2022-06-28T14:48:47.891Z';
+
+export const gatewayUsersFixture: GatewayUser[] = [
+  {
+    id: '1',
+    email: 'ido@daily.dev',
+    name: 'Ido',
+    image: 'https://daily.dev/ido.jpg',
+    reputation: 5,
+    permalink: 'https://daily.dev/ido',
+    username: 'idoshamun',
+    infoConfirmed: true,
+  },
+  {
+    id: '2',
+    email: 'tsahi@daily.dev',
+    name: 'Tsahi',
+    image: 'https://daily.dev/tsahi.jpg',
+    reputation: 5,
+    permalink: 'https://daily.dev/tsahi',
+    username: 'tsahi',
+    infoConfirmed: true,
+  },
+  {
+    id: '3',
+    email: 'nimrod@daily.dev',
+    name: 'Nimrod',
+    image: 'https://daily.dev/nimrod.jpg',
+    reputation: 5,
+    permalink: 'https://daily.dev/nimrod',
+    username: 'nimrod',
+    infoConfirmed: true,
+  },
+  {
+    id: '4',
+    email: 'lee@daily.dev',
+    name: 'Lee',
+    image: 'https://daily.dev/lee.jpg',
+    reputation: 0,
+    permalink: 'https://daily.dev/lee',
+    username: 'lee',
+    infoConfirmed: true,
+  },
+];
+
+export const usersFixture: DeepPartial<User>[] = [
+  {
+    id: '1',
+    bio: null,
+    github: null,
+    hashnode: null,
+    name: 'Ido',
+    image: 'https://daily.dev/ido.jpg',
+    createdAt: new Date(userCreatedDate),
+    twitter: null,
+    username: 'idoshamun',
+    infoConfirmed: true,
+  },
+  {
+    id: '2',
+    bio: null,
+    github: null,
+    hashnode: null,
+    name: 'Tsahi',
+    image: 'https://daily.dev/tsahi.jpg',
+    createdAt: new Date(userCreatedDate),
+    twitter: null,
+    username: 'tsahidaily',
+    infoConfirmed: true,
+  },
+  {
+    id: '3',
+    bio: null,
+    github: null,
+    hashnode: null,
+    name: 'Nimrod',
+    image: 'https://daily.dev/nimrod.jpg',
+    createdAt: new Date(userCreatedDate),
+    twitter: null,
+    username: 'nimroddaily',
+    infoConfirmed: true,
+  },
+  {
+    id: '4',
+    bio: null,
+    github: null,
+    hashnode: null,
+    name: 'Lee',
+    image: 'https://daily.dev/lee.jpg',
+    createdAt: new Date(userCreatedDate),
+    twitter: null,
+    username: 'lee',
+    infoConfirmed: true,
+  },
+];

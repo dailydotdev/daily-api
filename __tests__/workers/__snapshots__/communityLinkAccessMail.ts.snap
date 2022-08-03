@@ -8,7 +8,7 @@ Array [
     },
     "category": "Notification",
     "dynamicTemplateData": Object {
-      "first_name": "Lee",
+      "first_name": "Ido",
     },
     "from": Object {
       "email": "informer@daily.dev",
@@ -19,7 +19,7 @@ Array [
       "name": "daily.dev",
     },
     "templateId": "d-6d17b936f1f245e486f1a85323240332",
-    "to": "lee@acme.com",
+    "to": "ido@daily.dev",
     "trackingSettings": Object {
       "openTracking": Object {
         "enable": true,

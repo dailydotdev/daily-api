@@ -21,7 +21,7 @@ Array [
           "source_name": "A",
           "timestamp": "May 6, 2021, 1:36:26 PM GMT+0",
         },
-        "to": "ido@acme.com",
+        "to": "ido@daily.dev",
       },
       Object {
         "dynamicTemplateData": Object {
@@ -32,7 +32,7 @@ Array [
           "source_name": "A",
           "timestamp": "May 5, 2021, 12:36:26 PM GMT+0",
         },
-        "to": "tsahi@acme.com",
+        "to": "tsahi@daily.dev",
       },
     ],
     "replyTo": Object {

@@ -10,7 +10,7 @@ Array [
       "category": "Notification",
       "dynamicTemplateData": Object {
         "first_name": "Ido",
-        "full_name": "Ido Shamun",
+        "full_name": "Ido",
         "live_hours": 30,
         "post_comments": "1",
         "post_image": "http://image.com/p2",
@@ -34,7 +34,7 @@ Array [
         "name": "daily.dev",
       },
       "templateId": "d-97c75b0e2cf847399d20233455736ba0",
-      "to": "ido@acme.com",
+      "to": "ido@daily.dev",
       "trackingSettings": Object {
         "openTracking": Object {
           "enable": true,
@@ -55,7 +55,7 @@ Array [
       "category": "Notification",
       "dynamicTemplateData": Object {
         "first_name": "Ido",
-        "full_name": "Ido Shamun",
+        "full_name": "Ido",
         "live_hours": 10,
         "post_comments": "2",
         "post_image": "http://image.com/p",
@@ -79,7 +79,7 @@ Array [
         "name": "daily.dev",
       },
       "templateId": "d-97c75b0e2cf847399d20233455736ba0",
-      "to": "ido@acme.com",
+      "to": "ido@daily.dev",
       "trackingSettings": Object {
         "openTracking": Object {
           "enable": true,
@@ -92,8 +92,8 @@ Array [
       },
       "category": "Notification",
       "dynamicTemplateData": Object {
-        "first_name": "Lee",
-        "full_name": "Lee Solevilla",
+        "first_name": "Tsahi",
+        "full_name": "Tsahi",
         "live_hours": 10,
         "post_comments": "2",
         "post_image": "http://image.com/p",
@@ -102,10 +102,10 @@ Array [
         "post_upvotes_total": "6",
         "post_views": "11",
         "post_views_total": "11",
-        "profile_image": "https://daily.dev/lee.jpg",
-        "profile_link": "https://daily.dev/lee",
+        "profile_image": "https://daily.dev/tsahi.jpg",
+        "profile_link": "https://daily.dev/tsahi",
         "source_image": "http://image.com/a",
-        "user_handle": "lee",
+        "user_handle": "tsahi",
         "user_reputation": "5",
       },
       "from": Object {
@@ -117,7 +117,7 @@ Array [
         "name": "daily.dev",
       },
       "templateId": "d-97c75b0e2cf847399d20233455736ba0",
-      "to": "lee@acme.com",
+      "to": "tsahi@daily.dev",
       "trackingSettings": Object {
         "openTracking": Object {
           "enable": true,

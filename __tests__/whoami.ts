@@ -10,27 +10,13 @@ import {
   initializeGraphQLTesting,
   MockContext,
 } from './helpers';
-import { GQLUser } from '../src/schema/users';
+import { userCreatedDate, usersFixture } from './fixture/user';
 
 let app: FastifyInstance;
 let con: Connection;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
-
-const createdDate = '2022-06-28T14:48:47.891Z';
-const defaultUser: GQLUser = {
-  id: '1',
-  bio: null,
-  github: null,
-  hashnode: null,
-  name: 'Ido',
-  image: 'https://daily.dev/image.jpg',
-  createdAt: new Date(createdDate),
-  twitter: null,
-  username: 'idoshamun',
-  infoConfirmed: true,
-};
 
 beforeAll(async () => {
   con = getConnection();
@@ -45,7 +31,7 @@ afterAll(() => disposeGraphQLTesting(state));
 
 beforeEach(async () => {
   loggedUser = null;
-  await con.getRepository(User).save({ ...defaultUser });
+  await con.getRepository(User).save({ ...usersFixture[0] });
 });
 
 describe('query whoami', () => {
@@ -75,8 +61,8 @@ describe('query whoami', () => {
 
     const res = await client.query(QUERY);
     expect(res.data.whoami).toEqual({
-      ...defaultUser,
-      createdAt: createdDate,
+      ...usersFixture[0],
+      createdAt: userCreatedDate,
     });
   });
 });
@@ -89,8 +75,8 @@ describe('dedicated api routes', () => {
         request(app.server).get('/whoami'),
       ).expect(200);
       expect(res.body).toEqual({
-        ...defaultUser,
-        createdAt: createdDate,
+        ...usersFixture[0],
+        createdAt: userCreatedDate,
       });
     });
   });

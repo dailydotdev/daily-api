@@ -3,6 +3,7 @@ import { expectSuccessfulBackground } from '../helpers';
 import { sendEmail, User as GatewayUser } from '../../src/common';
 import worker from '../../src/workers/communityLinkRejectedMail';
 import { SubmissionStatus } from '../../src/entity';
+import { gatewayUsersFixture } from '../fixture/user';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -25,16 +26,7 @@ const mockUsersMe = (user: GatewayUser): nock.Scope =>
     .reply(200, user);
 
 it('should send mail when the submission status is rejected', async () => {
-  const mockedUsers: GatewayUser[] = [
-    {
-      id: '1',
-      email: 'lee@acme.com',
-      name: 'Lee',
-      image: 'https://daily.dev/lee.jpg',
-      reputation: 5,
-      permalink: 'https://daily.dev/lee',
-    },
-  ];
+  const mockedUsers: GatewayUser[] = [gatewayUsersFixture[0]];
   mockedUsers.forEach(mockUsersMe);
   await expectSuccessfulBackground(worker, {
     url: 'http://sample.abc.com',
