@@ -5,8 +5,10 @@ import {
   baseNotificationEmailData,
   sendEmail,
   truncateComment,
+  truncatePostToTweet,
 } from '../common';
 import { fetchUser, getDiscussionLink } from '../common';
+import { format } from 'date-fns';
 
 interface Data {
   userId: string;
@@ -48,21 +50,25 @@ const worker: Worker = {
         const link = getDiscussionLink(post.id);
         await sendEmail({
           ...baseNotificationEmailData,
-          to: followers.filter((user) => user?.email).map((user) => user.email),
           templateId: templateId.commentCommentedThread,
-          dynamicTemplateData: {
-            profile_image_commenter: author.image,
-            profile_image_replier: commenter.image,
-            full_name_commenter: author.name,
-            full_name_replier: commenter.name,
-            main_comment: truncateComment(parent),
-            new_comment: truncateComment(comment),
-            main_comment_link: link,
-            post_title: post.title,
-            discussion_link: link,
-            user_reputation_commenter: author.reputation,
-            user_reputation_replier: commenter.reputation,
-          },
+          personalizations: followers
+            .filter((user) => user?.email)
+            .map((user) => ({
+              to: user.email,
+              dynamicTemplateData: {
+                profile_image_commenter: author.image,
+                profile_image_replier: commenter.image,
+                full_name_commenter: author.name,
+                full_name_replier: commenter.name,
+                main_comment: truncateComment(parent),
+                new_comment: truncateComment(comment),
+                main_comment_link: link,
+                post_title: post.title,
+                discussion_link: link,
+                user_reputation_commenter: author.reputation,
+                user_reputation_replier: commenter.reputation,
+              },
+            })),
         });
         logger.info(
           {
