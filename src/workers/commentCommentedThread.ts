@@ -5,10 +5,8 @@ import {
   baseNotificationEmailData,
   sendEmail,
   truncateComment,
-  truncatePostToTweet,
 } from '../common';
 import { fetchUser, getDiscussionLink } from '../common';
-import { format } from 'date-fns';
 
 interface Data {
   userId: string;
