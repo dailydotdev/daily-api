@@ -8,7 +8,7 @@ Array [
     },
     "category": "Notification",
     "dynamicTemplateData": Object {
-      "first_name": "Lee",
+      "first_name": "Ido",
       "rss_link": "https://demo.com/sitemap.xml",
       "source_name": "Demo",
       "timestamp": "Sep 27, 2020",
@@ -22,7 +22,7 @@ Array [
       "name": "daily.dev",
     },
     "templateId": "d-d79367f86f1e4ca5afdf4c1d39ff7214",
-    "to": "lee@acme.com",
+    "to": "ido@daily.dev",
     "trackingSettings": Object {
       "openTracking": Object {
         "enable": true,
@@ -40,7 +40,7 @@ Array [
     },
     "category": "Notification",
     "dynamicTemplateData": Object {
-      "first_name": "Lee",
+      "first_name": "Ido",
       "rss_link": "https://demo.com/sitemap.xml",
       "source_name": "Demo",
       "timestamp": "Sep 27, 2020",
@@ -54,7 +54,7 @@ Array [
       "name": "daily.dev",
     },
     "templateId": "d-48de63612ff944cb8156fec17f47f066",
-    "to": "lee@acme.com",
+    "to": "ido@daily.dev",
     "trackingSettings": Object {
       "openTracking": Object {
         "enable": true,
@@ -72,7 +72,7 @@ Array [
     },
     "category": "Notification",
     "dynamicTemplateData": Object {
-      "first_name": "Lee",
+      "first_name": "Ido",
       "rss_link": "https://demo.com/sitemap.xml",
       "source_name": "Demo",
       "timestamp": "Sep 27, 2020",
@@ -86,7 +86,7 @@ Array [
       "name": "daily.dev",
     },
     "templateId": "d-d79367f86f1e4ca5afdf4c1d39ff7214",
-    "to": "lee@acme.com",
+    "to": "ido@daily.dev",
     "trackingSettings": Object {
       "openTracking": Object {
         "enable": true,
@@ -104,7 +104,7 @@ Array [
     },
     "category": "Notification",
     "dynamicTemplateData": Object {
-      "first_name": "Lee",
+      "first_name": "Ido",
       "rss_link": "https://demo.com/sitemap.xml",
       "source_name": "Demo",
       "timestamp": "Sep 27, 2020",
@@ -118,7 +118,7 @@ Array [
       "name": "daily.dev",
     },
     "templateId": "d-9254665878014627b4fd71593f09d975",
-    "to": "lee@acme.com",
+    "to": "ido@daily.dev",
     "trackingSettings": Object {
       "openTracking": Object {
         "enable": true,

@@ -18,6 +18,7 @@ export interface User {
   email: string;
   name: string;
   image: string;
+  infoConfirmed: boolean;
   premium?: boolean;
   reputation: number;
   permalink: string;

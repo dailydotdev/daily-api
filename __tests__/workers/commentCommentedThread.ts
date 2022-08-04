@@ -7,6 +7,7 @@ import worker from '../../src/workers/commentCommentedThread';
 import { Comment, Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
+import { gatewayUsersFixture, usersFixture } from '../fixture/user';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -26,12 +27,7 @@ beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
-  await con.getRepository(User).save([
-    { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
-    { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
-    { id: '3', name: 'Nimrod', image: 'https://daily.dev/nimrod.jpg' },
-    { id: '4', name: 'John', image: 'https://daily.dev/john.jpg' },
-  ]);
+  await saveFixtures(con, User, usersFixture);
   await con.getRepository(Comment).save([
     {
       id: 'c1',
@@ -85,40 +81,7 @@ const mockUsersMe = (user: GatewayUser): nock.Scope =>
     .reply(200, user);
 
 it('should send mail to the thread followers', async () => {
-  const mockedUsers: GatewayUser[] = [
-    {
-      id: '1',
-      email: 'ido@acme.com',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-      reputation: 5,
-      permalink: 'https://daily.dev/ido',
-    },
-    {
-      id: '2',
-      email: 'tsahi@acme.com',
-      name: 'Tsahi',
-      image: 'https://daily.dev/tsahi.jpg',
-      reputation: 3,
-      permalink: 'https://daily.dev/tsahi',
-    },
-    {
-      id: '3',
-      email: 'nimrod@acme.com',
-      name: 'Nimrod',
-      image: 'https://daily.dev/nimrod.jpg',
-      reputation: 1,
-      permalink: 'https://daily.dev/nimrod',
-    },
-    {
-      id: '4',
-      email: 'john@acme.com',
-      name: 'John',
-      image: 'https://daily.dev/john.jpg',
-      reputation: 0,
-      permalink: 'https://daily.dev/john',
-    },
-  ];
+  const mockedUsers: GatewayUser[] = gatewayUsersFixture;
   mockedUsers.forEach(mockUsersMe);
 
   await expectSuccessfulBackground(worker, {
@@ -132,40 +95,7 @@ it('should send mail to the thread followers', async () => {
 });
 
 it('should send mail to the thread followers without the post author', async () => {
-  const mockedUsers: GatewayUser[] = [
-    {
-      id: '1',
-      email: 'ido@acme.com',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-      reputation: 5,
-      permalink: 'https://daily.dev/ido',
-    },
-    {
-      id: '2',
-      email: 'tsahi@acme.com',
-      name: 'Tsahi',
-      image: 'https://daily.dev/tsahi.jpg',
-      reputation: 3,
-      permalink: 'https://daily.dev/tsahi',
-    },
-    {
-      id: '3',
-      email: 'nimrod@acme.com',
-      name: 'Nimrod',
-      image: 'https://daily.dev/nimrod.jpg',
-      reputation: 1,
-      permalink: 'https://daily.dev/nimrod',
-    },
-    {
-      id: '4',
-      email: 'john@acme.com',
-      name: 'John',
-      image: 'https://daily.dev/john.jpg',
-      reputation: 0,
-      permalink: 'https://daily.dev/john',
-    },
-  ];
+  const mockedUsers: GatewayUser[] = gatewayUsersFixture;
   mockedUsers.forEach(mockUsersMe);
 
   await con.getRepository(Post).update('p1', { authorId: '2' });

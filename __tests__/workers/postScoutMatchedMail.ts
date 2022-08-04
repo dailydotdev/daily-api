@@ -11,6 +11,8 @@ import {
   User,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
+import { gatewayUsersFixture } from '../fixture/user';
+import { postsFixture } from '../fixture/post';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -26,31 +28,13 @@ beforeAll(async () => {
   con = await getConnection();
 });
 
-const defaultPost = {
-  id: 'p1',
-  shortId: 'sp1',
-  title: 'P1',
-  url: 'http://p1.com',
-  score: 0,
-  sourceId: 'a',
-  scoutId: '1',
-  createdAt: new Date(2020, 8, 27),
-  image: 'https://daily.dev/image.jpg',
-};
-
-const defaultUser = {
-  id: '1',
-  email: 'lee@acme.com',
-  name: 'Lee',
-  image: 'https://daily.dev/lee.jpg',
-  reputation: 5,
-  permalink: 'https://daily.dev/lee',
-};
+const defaultPost = postsFixture[0];
+const defaultUser = gatewayUsersFixture[0];
 
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, User, [defaultUser]);
+  await saveFixtures(con, User, [{ ...defaultUser }]);
   await saveFixtures(con, Post, [defaultPost]);
 });
 
