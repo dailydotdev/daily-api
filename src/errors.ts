@@ -1,5 +1,11 @@
 import { ApolloError } from 'apollo-server-errors';
 
+export type UserFailErrorKeys =
+  | 'GENERIC_ERROR'
+  | 'MISSING_FIELDS'
+  | 'USER_EXISTS'
+  | 'USERNAME_EMAIL_EXISTS';
+
 export type SubmissionFailErrorKeys =
   | 'GENERIC_ERROR'
   | 'PAYWALL'

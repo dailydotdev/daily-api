@@ -1,6 +1,16 @@
-import { Column, Entity, Index, OneToMany, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  Connection,
+  Entity,
+  EntityManager,
+  Index,
+  OneToMany,
+  PrimaryColumn,
+} from 'typeorm';
 import { Post } from './Post';
 import { DevCard } from './DevCard';
+import { FastifyLoggerInstance } from 'fastify';
+import { UserFailErrorKeys } from '../errors';
 
 @Entity()
 export class User {
@@ -74,3 +84,88 @@ export class User {
   @OneToMany(() => DevCard, (devcard) => devcard.user, { lazy: true })
   devCards: Promise<DevCard[]>;
 }
+
+export type AddUserData = Pick<
+  User,
+  'id' | 'name' | 'image' | 'username' | 'email' | 'createdAt'
+>;
+type AddNewUserResult =
+  | { status: 'ok'; userId: string }
+  | { status: 'failed'; reason: UserFailErrorKeys; error?: Error };
+
+const checkRequiredFields = (data: AddUserData): boolean => {
+  return !!(
+    data &&
+    data.id &&
+    data.name &&
+    data.image &&
+    data.username &&
+    data.email
+  );
+};
+
+const checkUsernameAndEmail = async (
+  entityManager: EntityManager,
+  data: AddUserData,
+): Promise<boolean> => {
+  const { email, username } = data;
+  const user = await entityManager
+    .getRepository(User)
+    .createQueryBuilder()
+    .select('id')
+    .where('email = :email or username = :username', {
+      email,
+      username,
+    })
+    .getRawOne();
+  return !user;
+};
+
+export const addNewUser = async (
+  con: Connection,
+  data: AddUserData,
+  logger: FastifyLoggerInstance,
+): Promise<AddNewUserResult> => {
+  if (!checkRequiredFields(data)) {
+    return { status: 'failed', reason: 'MISSING_FIELDS' };
+  }
+
+  return con.transaction(async (entityManager) => {
+    const isUniqueUser = await checkUsernameAndEmail(entityManager, data);
+    if (!isUniqueUser) {
+      return { status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' };
+    }
+
+    try {
+      await entityManager.getRepository(User).insert({
+        id: data.id,
+        name: data.name,
+        image: data.image,
+        username: data.username,
+        email: data.email,
+        profileConfirmed: true,
+        infoConfirmed: true,
+        createdAt: data.createdAt,
+      });
+
+      logger.info(`Created profile for user with ID: ${data.id}`);
+      return { status: 'ok', userId: data.id };
+    } catch (error) {
+      logger.error(
+        {
+          data,
+          userId: data.id,
+          error,
+        },
+        'failed to create user profile',
+      );
+
+      // Unique
+      if (error?.code === '23505') {
+        return { status: 'failed', reason: 'USER_EXISTS' };
+      }
+
+      throw error;
+    }
+  });
+};

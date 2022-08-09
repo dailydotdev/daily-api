@@ -14,6 +14,7 @@ import {
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
 import { randomUUID } from 'crypto';
+import { usersFixture } from './fixture/user';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -25,12 +26,9 @@ beforeAll(async () => {
 });
 
 const createDefaultUser = async () => {
-  await con.getRepository(User).save({
-    id: '1',
-    name: 'Lee',
-    image: 'https://daily.dev/lee.jpg',
-    twitter: 'leeTwitter',
-  });
+  await con
+    .getRepository(User)
+    .save({ ...usersFixture[0], twitter: 'leeTwitter' });
 };
 
 const createDefaultSubmission = async (id: string = randomUUID()) => {
@@ -272,5 +270,95 @@ describe('POST /p/rejectPost', () => {
       .send()
       .expect(200);
     expect(body).toEqual({ status: 'failed', reason: 'missing submission id' });
+  });
+});
+
+describe('POST /p/newUser', () => {
+  it('should return not found when not authorized', () => {
+    return request(app.server).post('/p/newUser').expect(404);
+  });
+
+  it('should handle empty body', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send()
+      .expect(200);
+    expect(body).toEqual({ status: 'failed', reason: 'MISSING_FIELDS' });
+  });
+
+  it('should handle existing user ID', async () => {
+    await createDefaultUser();
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: 'randomName',
+        email: 'randomNewEmail@gmail.com',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USER_EXISTS' });
+  });
+
+  it('should handle existing username', async () => {
+    await createDefaultUser();
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: 'randomNewEmail@gmail.com',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' });
+  });
+
+  it('should handle existing email', async () => {
+    await createDefaultUser();
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: 'randomName',
+        email: usersFixture[0].email,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' });
+  });
+
+  it('should add a new user', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const users = await con.getRepository(User).find();
+    expect(users.length).toEqual(1);
+    expect(users[0].id).toEqual(usersFixture[0].id);
   });
 });

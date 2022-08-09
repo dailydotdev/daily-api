@@ -60,8 +60,10 @@ describe('query whoami', () => {
     loggedUser = '1';
 
     const res = await client.query(QUERY);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { email, ...user } = usersFixture[0];
     expect(res.data.whoami).toEqual({
-      ...usersFixture[0],
+      ...user,
       createdAt: userCreatedDate,
     });
   });
@@ -74,8 +76,11 @@ describe('dedicated api routes', () => {
       const res = await authorizeRequest(
         request(app.server).get('/whoami'),
       ).expect(200);
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { email, ...user } = usersFixture[0];
       expect(res.body).toEqual({
-        ...usersFixture[0],
+        ...user,
         createdAt: userCreatedDate,
       });
     });

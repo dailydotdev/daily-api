@@ -54,6 +54,7 @@ export const usersFixture: DeepPartial<User>[] = [
     hashnode: null,
     name: 'Ido',
     image: 'https://daily.dev/ido.jpg',
+    email: 'ido@daily.dev',
     createdAt: new Date(userCreatedDate),
     twitter: null,
     username: 'idoshamun',
