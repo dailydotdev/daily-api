@@ -348,7 +348,7 @@ new k8s.networking.v1.Ingress(`${name}-k8s-ingress`, {
   },
 });
 
-createAutoscaledApplication({
+createAutoscaledExposedApplication({
   resourcePrefix: 'private-',
   name: `${name}-private`,
   namespace: namespace,
@@ -375,8 +375,8 @@ createAutoscaledApplication({
       },
     },
   ],
-  minReplicas: 1,
-  maxReplicas: 3,
+  minReplicas: 2,
+  maxReplicas: 4,
   metrics: getMemoryAndCpuMetrics(60),
   deploymentDependsOn: [migrationJob],
 });

@@ -15,6 +15,7 @@ declare module 'fastify' {
     roles?: Roles[];
     service?: boolean;
   }
+
   /* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
