@@ -55,7 +55,10 @@ const plugin = async (
   fastify.decorateRequest('roles', null);
   // Machine-to-machine authentication
   fastify.addHook('preHandler', async (req) => {
-    if (req.headers['authorization'] === `Service ${opts.secret}`) {
+    if (
+      req.headers['authorization'] === `Service ${opts.secret}` &&
+      process.env.ENABLE_PRIVATE_ROUTES === 'true'
+    ) {
       req.service = true;
       if (req.headers['user-id'] && req.headers['logged-in'] === 'true') {
         req.userId = req.headers['user-id'] as string;
