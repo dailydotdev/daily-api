@@ -1,7 +1,9 @@
 import { FastifyInstance } from 'fastify';
 import {
   addNewPost,
+  addNewUser,
   AddPostData,
+  AddUserData,
   RejectPostData,
   Submission,
   SubmissionStatus,
@@ -50,5 +52,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     } catch (error) {
       throw error;
     }
+  });
+  fastify.post<{ Body: AddUserData }>('/newUser', async (req, res) => {
+    if (!req.service) {
+      return res.status(404).send();
+    }
+
+    const con = getConnection();
+    const operationResult = await addNewUser(con, req.body, req.log);
+    return res.status(200).send(operationResult);
   });
 }
