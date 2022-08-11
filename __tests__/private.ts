@@ -362,3 +362,39 @@ describe('POST /p/newUser', () => {
     expect(users[0].id).toEqual(usersFixture[0].id);
   });
 });
+
+describe('POST /p/checkUsername', () => {
+  it('should return unauthorized when not token is missing', () => {
+    return request(app.server).get('/p/checkUsername').expect(401);
+  });
+
+  it('should handle when username query is empty', async () => {
+    return request(app.server)
+      .get('/p/checkUsername')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send()
+      .expect(400);
+  });
+
+  it('should return correct response if exists', async () => {
+    await createDefaultUser();
+    const { body } = await request(app.server)
+      .get('/p/checkUsername?search=idoshamun')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send()
+      .expect(200);
+
+    expect(body).toEqual({ isTaken: true });
+  });
+
+  it('should return correct response if username is available for use', async () => {
+    await createDefaultUser();
+    const { body } = await request(app.server)
+      .get('/p/checkUsername?search=sshanzel')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send()
+      .expect(200);
+
+    expect(body).toEqual({ isTaken: false });
+  });
+});
