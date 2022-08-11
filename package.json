@@ -54,7 +54,7 @@
     "graphql-relay": "^0.9.0",
     "graphql-scalars": "^1.17.0",
     "graphql-subscriptions": "^2.0.0",
-    "graphql-tools": "^4.0.8",
+    "graphql-tools": "^8.3.3",
     "he": "^1.2.0",
     "highlight.js": "^11.6.0",
     "isbot": "^3.3.3",
