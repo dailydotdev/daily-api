@@ -21,6 +21,7 @@ const worker: Worker = {
         image: data.image,
         createdAt: data.createdAt,
         email: data.email,
+        referral: data.referral,
       });
       logger.info(
         {

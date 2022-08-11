@@ -16,6 +16,7 @@ User {
   "name": "Ido",
   "portfolio": null,
   "profileConfirmed": false,
+  "referral": null,
   "reputation": 10,
   "timezone": null,
   "title": null,

@@ -33,6 +33,8 @@ it('should update an existing user', async () => {
       username: 'idoshamun',
       twitter: 'idoshamun',
       github: 'idoshamun',
+      referral: 'nimrod',
+      infoConfirmed: 1,
     },
   });
   const users = await con.getRepository(User).find();
