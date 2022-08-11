@@ -204,15 +204,7 @@ export const typeDefs = /* GraphQL */ `
     edges: [ReadingHistoryEdge]!
   }
 
-  type UsernameExists {
-    isTaken: Boolean!
-  }
-
   extend type Query {
-    """
-    Check if username exists
-    """
-    usernameExists(username: String!): UsernameExists
     """
     Get user based on logged in session
     """
@@ -373,15 +365,6 @@ const timestampAtTimezone = `"timestamp"::timestamptz ${userTimezone}`;
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Query: traceResolverObject<any, any>({
-    usernameExists: async (
-      _,
-      { username }: { username: string },
-      ctx: Context,
-    ): Promise<{ isTaken: boolean }> => {
-      const user = await ctx.con.getRepository(User).findOne({ username });
-
-      return { isTaken: !!user };
-    },
     whoami: async (_, __, ctx: Context, info: GraphQLResolveInfo) => {
       const res = await graphorm.query<GQLUser>(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder
