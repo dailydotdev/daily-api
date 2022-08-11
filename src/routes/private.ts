@@ -7,9 +7,14 @@ import {
   RejectPostData,
   Submission,
   SubmissionStatus,
+  User,
 } from '../entity';
 import { getConnection } from 'typeorm';
 import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
+
+interface SearchUsername {
+  search: string;
+}
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.post<{ Body: AddPostData }>('/newPost', async (req, res) => {
@@ -62,4 +67,22 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const operationResult = await addNewUser(con, req.body, req.log);
     return res.status(200).send(operationResult);
   });
+  fastify.get<{ Querystring: SearchUsername }>(
+    '/checkUsername',
+    async (req, res) => {
+      if (!req.service) {
+        return res.status(401).send();
+      }
+
+      const { search } = req.query;
+
+      if (!search) {
+        return res.status(400).send();
+      }
+
+      const con = getConnection();
+      const user = await con.getRepository(User).findOne({ username: search });
+      return res.status(200).send({ isTaken: !!user });
+    },
+  );
 }
