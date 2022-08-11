@@ -41,7 +41,7 @@ export class User {
   @Column({ default: 10 })
   reputation: number;
 
-  @Column({ length: 15, nullable: true })
+  @Column({ length: 39, nullable: true })
   @Index()
   username?: string;
 
@@ -77,6 +77,9 @@ export class User {
 
   @Column({ nullable: true })
   updatedAt?: Date;
+
+  @Column({ type: 'text', nullable: true })
+  referral?: string;
 
   @OneToMany(() => Post, (post) => post.author, { lazy: true })
   posts: Promise<Post[]>;

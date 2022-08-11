@@ -8,16 +8,17 @@ interface UserData {
   image: string;
   company?: string;
   title?: string;
-  infoConfirmed: boolean;
+  infoConfirmed: number;
   username?: string;
   bio?: string;
   twitter?: string;
   github?: string;
   createdAt: Date;
-  acceptedMarketing: boolean;
+  acceptedMarketing: number;
   portfolio?: string;
   hashnode?: string;
   timezone?: string;
+  referral?: string;
 }
 
 interface Data {
@@ -40,14 +41,15 @@ const worker: Worker = {
         createdAt: data.user.createdAt,
         email: data.newProfile.email,
         company: data.newProfile.company,
-        acceptedMarketing: data.newProfile.acceptedMarketing,
+        acceptedMarketing: data.newProfile.acceptedMarketing === 1,
         bio: data.newProfile.bio,
-        infoConfirmed: data.newProfile.infoConfirmed,
+        infoConfirmed: data.newProfile.infoConfirmed === 1,
         portfolio: data.newProfile.portfolio,
         github: data.newProfile.github,
         title: data.newProfile.title,
         hashnode: data.newProfile.hashnode,
         timezone: data.newProfile.timezone,
+        referral: data.newProfile.referral,
         updatedAt: new Date(),
       });
       logger.info(
