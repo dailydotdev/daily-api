@@ -10,7 +10,7 @@ Array [
     "dynamicTemplateData": Object {
       "article_link": "http://p1.com",
       "discussion_link": "http://localhost:5002/posts/p1",
-      "first_name": "Lee",
+      "first_name": "Ido",
       "post_image": "https://daily.dev/image.jpg",
       "post_title": "P1",
       "submitted_at": "Sep 25, 2020",
@@ -24,7 +24,7 @@ Array [
       "name": "daily.dev",
     },
     "templateId": "d-ee7d7cfc461a43b4be776f70940fa867",
-    "to": "lee@acme.com",
+    "to": "ido@daily.dev",
     "trackingSettings": Object {
       "openTracking": Object {
         "enable": true,

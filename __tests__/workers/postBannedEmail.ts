@@ -8,6 +8,7 @@ import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { PostReport } from '../../src/entity/PostReport';
+import { gatewayUsersFixture } from '../fixture/user';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -57,22 +58,8 @@ const mockUsersMe = (user: GatewayUser): nock.Scope =>
 
 it('should send mail to the reporters', async () => {
   const mockedUsers: GatewayUser[] = [
-    {
-      id: '1',
-      email: 'ido@acme.com',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-      reputation: 5,
-      permalink: 'https://daily.dev/ido',
-    },
-    {
-      id: '2',
-      email: 'tsahi@acme.com',
-      name: 'Tsahi',
-      image: 'https://daily.dev/tsahi.jpg',
-      reputation: 3,
-      permalink: 'https://daily.dev/tsahi',
-    },
+    gatewayUsersFixture[0],
+    gatewayUsersFixture[1],
   ];
   mockedUsers.forEach(mockUsersMe);
 

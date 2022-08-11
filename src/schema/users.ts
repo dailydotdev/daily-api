@@ -25,11 +25,15 @@ import {
 } from '../common';
 import { getSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
+import graphorm from '../graphorm';
+import { GraphQLResolveInfo } from 'graphql';
 
 export interface GQLUser {
   id: string;
   name: string;
   image: string;
+  infoConfirmed: boolean;
+  createdAt?: Date;
   username?: string;
   bio?: string;
   twitter?: string;
@@ -116,6 +120,14 @@ export const typeDefs = /* GraphQL */ `
     Hashnode handle of the user
     """
     hashnode: String
+    """
+    Date when the user joined
+    """
+    createdAt: DateTime!
+    """
+    If the user is confirmed
+    """
+    infoConfirmed: Boolean
   }
 
   type TagsReadingStatus {
@@ -201,6 +213,10 @@ export const typeDefs = /* GraphQL */ `
     Check if username exists
     """
     usernameExists(username: String!): UsernameExists
+    """
+    Get user based on logged in session
+    """
+    whoami: User @auth
     """
     Get the statistics of the user
     """
@@ -365,6 +381,15 @@ export const resolvers: IResolvers<any, Context> = {
       const user = await ctx.con.getRepository(User).findOne({ username });
 
       return { isTaken: !!user };
+    },
+    whoami: async (_, __, ctx: Context, info: GraphQLResolveInfo) => {
+      const res = await graphorm.query<GQLUser>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`${builder.alias}.id = :id`, { id: ctx.userId })
+          .limit(1);
+        return builder;
+      });
+      return res[0];
     },
     userStats: async (
       source,

@@ -6,6 +6,7 @@ import worker from '../../src/workers/sendAnalyticsReportMail';
 import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { sub } from 'date-fns';
+import { gatewayUsersFixture } from '../fixture/user';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -71,17 +72,7 @@ const mockUsersMe = (user: GatewayUser): nock.Scope =>
     .reply(200, user);
 
 it('should send analytics reports', async () => {
-  const mockedUsers: GatewayUser[] = [
-    {
-      id: '1',
-      email: 'ido@acme.com',
-      name: 'Ido Shamun',
-      image: 'https://daily.dev/ido.jpg',
-      reputation: 5,
-      permalink: 'https://daily.dev/ido',
-      username: 'idoshamun',
-    },
-  ];
+  const mockedUsers: GatewayUser[] = [gatewayUsersFixture[0]];
   mockedUsers.forEach(mockUsersMe);
 
   await expectSuccessfulBackground(worker, {
@@ -96,24 +87,8 @@ it('should send analytics reports to both scout and author', async () => {
     .getRepository(Post)
     .update({ id: 'p1' }, { scoutId: '2', sentAnalyticsReport: true });
   const mockedUsers: GatewayUser[] = [
-    {
-      id: '1',
-      email: 'ido@acme.com',
-      name: 'Ido Shamun',
-      image: 'https://daily.dev/ido.jpg',
-      reputation: 5,
-      permalink: 'https://daily.dev/ido',
-      username: 'idoshamun',
-    },
-    {
-      id: '2',
-      email: 'lee@acme.com',
-      name: 'Lee Solevilla',
-      image: 'https://daily.dev/lee.jpg',
-      reputation: 5,
-      permalink: 'https://daily.dev/lee',
-      username: 'lee',
-    },
+    gatewayUsersFixture[0],
+    gatewayUsersFixture[1],
   ];
   mockedUsers.forEach(mockUsersMe);
 

@@ -348,6 +348,39 @@ new k8s.networking.v1.Ingress(`${name}-k8s-ingress`, {
   },
 });
 
+createAutoscaledExposedApplication({
+  resourcePrefix: 'private-',
+  name: `${name}-private`,
+  namespace: namespace,
+  version: imageTag,
+  serviceAccount: k8sServiceAccount,
+  containers: [
+    {
+      name: 'app',
+      image,
+      ports: [{ name: 'http', containerPort: 3000, protocol: 'TCP' }],
+      readinessProbe: probe,
+      livenessProbe: probe,
+      env: [
+        ...containerEnvVars,
+        { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
+        {
+          name: 'NODE_OPTIONS',
+          value: `--max-old-space-size=${Math.floor(memory * 0.9).toFixed(0)}`,
+        },
+      ],
+      resources: {
+        requests: limits,
+        limits,
+      },
+    },
+  ],
+  minReplicas: 2,
+  maxReplicas: 4,
+  metrics: getMemoryAndCpuMetrics(60),
+  deploymentDependsOn: [migrationJob],
+});
+
 const getDebeziumProps = async (): Promise<string> => {
   return (await readFile('./application.properties', 'utf-8'))
     .replace('%database_pass%', config.require('debeziumDbPass'))

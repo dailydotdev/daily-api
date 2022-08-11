@@ -23,7 +23,7 @@ Array [
       "name": "daily.dev",
     },
     "templateId": "d-3d3402ec873640e788f549a0680c40bb",
-    "to": "ido@acme.com",
+    "to": "ido@daily.dev",
     "trackingSettings": Object {
       "openTracking": Object {
         "enable": true,

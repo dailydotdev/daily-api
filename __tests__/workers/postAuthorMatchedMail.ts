@@ -5,6 +5,7 @@ import { sendEmail, User as GatewayUser } from '../../src/common';
 import worker from '../../src/workers/postAuthorMatchedMail';
 import { Post, Source } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
+import { gatewayUsersFixture } from '../fixture/user';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -46,16 +47,7 @@ const mockUsersMe = (user: GatewayUser): nock.Scope =>
     .reply(200, user);
 
 it('should send post author matched mail', async () => {
-  const mockedUsers: GatewayUser[] = [
-    {
-      id: '1',
-      email: 'ido@acme.com',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-      reputation: 5,
-      permalink: 'https://daily.dev/ido',
-    },
-  ];
+  const mockedUsers: GatewayUser[] = [gatewayUsersFixture[0]];
   mockedUsers.forEach(mockUsersMe);
   await expectSuccessfulBackground(worker, {
     postId: 'p1',
