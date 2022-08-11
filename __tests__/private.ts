@@ -364,7 +364,7 @@ describe('POST /p/newUser', () => {
 });
 
 describe('POST /p/checkUsername', () => {
-  it('should return unauthorized when not token is missing', () => {
+  it('should return unauthorized when token is missing', () => {
     return request(app.server).get('/p/checkUsername').expect(401);
   });
 
