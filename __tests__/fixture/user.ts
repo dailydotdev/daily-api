@@ -50,7 +50,7 @@ export const usersFixture: DeepPartial<User>[] = [
   {
     id: '1',
     bio: null,
-    github: null,
+    github: 'idogithub',
     hashnode: null,
     name: 'Ido',
     image: 'https://daily.dev/ido.jpg',

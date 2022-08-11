@@ -90,7 +90,7 @@ export class User {
 
 export type AddUserData = Pick<
   User,
-  'id' | 'name' | 'image' | 'username' | 'email' | 'createdAt'
+  'id' | 'name' | 'image' | 'username' | 'email' | 'createdAt' | 'github'
 >;
 type AddNewUserResult =
   | { status: 'ok'; userId: string }
@@ -149,6 +149,7 @@ export const addNewUser = async (
         profileConfirmed: true,
         infoConfirmed: true,
         createdAt: data.createdAt,
+        ...(data?.github && { github: data.github }),
       });
 
       logger.info(`Created profile for user with ID: ${data.id}`);
