@@ -43,7 +43,7 @@ export const injectGraphql = async (
     return res.status(graphqlRes.statusCode).send(graphqlRes.rawPayload);
   }
 
-  const json = graphqlRes.json();
+  const json = await graphqlRes.json();
   const errors = json['errors'] as GraphQLError[];
   const code = errors?.[0]?.extensions?.code;
   if (code === 'UNAUTHENTICATED') {
