@@ -1486,3 +1486,46 @@ describe('query search reading history', () => {
     expect(res.data).toMatchSnapshot();
   });
 });
+
+describe('mutation updateUserProfile', () => {
+  const MUTATION = `
+    mutation updateUserProfile($data: UpdateUserInput!) {
+      updateUserProfile(data: $data) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { username: 'Test' } } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not allow invalid user links', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { twitter: 'http://' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should update user profile', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+    const user = await repo.findOne({ id: loggedUser });
+    const timezone = 'Asia/Manila';
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { timezone } },
+    });
+    expect(res.errors?.length).toBeFalsy();
+    const updatedUser = await repo.findOne({ id: loggedUser });
+    expect(updatedUser?.timezone).not.toEqual(user?.timezone);
+    expect(updatedUser?.timezone).toEqual(timezone);
+    expect(updatedUser).toMatchSnapshot();
+  });
+});
