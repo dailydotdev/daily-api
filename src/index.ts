@@ -5,6 +5,7 @@ import cors from '@fastify/cors';
 import mercurius from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
+import { NoSchemaIntrospectionCustomRule } from 'graphql';
 // import fastifyWebsocket from '@fastify/websocket';
 
 import './config';
@@ -90,7 +91,9 @@ export default async function app(
             new Context(request, connection),
         }
       : undefined,
+    // Disable GraphQL introspection in production
     graphiql: !isProd,
+    validationRules: isProd && [NoSchemaIntrospectionCustomRule],
     errorFormatter(execution) {
       if (execution.errors?.length > 0) {
         return {

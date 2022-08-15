@@ -11,7 +11,11 @@ import {
   PostStats,
   View,
 } from '../entity';
-import { AuthenticationError, ValidationError } from 'apollo-server-errors';
+import {
+  AuthenticationError,
+  ValidationError,
+  ForbiddenError,
+} from 'apollo-server-errors';
 import { IResolvers } from 'graphql-tools';
 import { FileUpload } from 'graphql-upload';
 import { Context } from '../Context';
@@ -450,6 +454,9 @@ export const resolvers: IResolvers<any, Context> = {
           .limit(1);
         return builder;
       });
+      if (!res[0]) {
+        throw new ForbiddenError('user not found');
+      }
       return res[0];
     },
     userStats: async (
