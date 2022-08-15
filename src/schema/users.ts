@@ -11,7 +11,7 @@ import {
   PostStats,
   View,
 } from '../entity';
-import { ValidationError } from 'apollo-server-errors';
+import { AuthenticationError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from 'graphql-tools';
 import { FileUpload } from 'graphql-upload';
 import { Context } from '../Context';
@@ -27,6 +27,23 @@ import { getSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
+
+export interface GQLUserInput {
+  name: string;
+  username?: string;
+  bio?: string;
+  company?: string;
+  title: string;
+  twitter?: string;
+  github?: string;
+  hashnode?: string;
+  portfolio?: string;
+}
+
+interface GQLUserParameters {
+  data: GQLUserInput;
+  upload: FileUpload;
+}
 
 export interface GQLUser {
   id: string;
@@ -128,6 +145,60 @@ export const typeDefs = /* GraphQL */ `
     If the user is confirmed
     """
     infoConfirmed: Boolean
+    """
+    Timezone
+    """
+    timezone: String
+  }
+
+  """
+  Update user profile input
+  """
+  input UserInput {
+    """
+    Full name of the user
+    """
+    name: String
+    """
+    Profile image of the user
+    """
+    image: Upload
+    """
+    Username (handle) of the user
+    """
+    username: String
+    """
+    Bio of the user
+    """
+    bio: String
+    """
+    Twitter handle of the user
+    """
+    twitter: String
+    """
+    Github handle of the user
+    """
+    github: String
+    """
+    Hashnode handle of the user
+    """
+    hashnode: String
+    """
+    Preferred timezone of the user that affects data
+    """
+    timezone: String
+    """
+    Current company of the user
+    """
+    company: String
+    """
+    Title of user from their company
+    """
+    title: String
+    """
+    User website
+    """
+    portfolio: String
   }
 
   type TagsReadingStatus {
@@ -297,6 +368,11 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Mutation {
+    """
+    Update user profile information
+    """
+    updateUserProfile(data: UserInput, upload: Upload): EmptyResponse @auth
+
     """
     Generates or updates the user's Dev Card preferences
     """
@@ -563,6 +639,44 @@ export const resolvers: IResolvers<any, Context> = {
           '',
         )}.png?r=${randomStr}`,
       };
+    },
+    updateUserProfile: async (
+      _,
+      { data }: GQLUserParameters,
+      ctx,
+    ): Promise<void> => {
+      const repo = ctx.con.getRepository(User);
+      const user = await repo.findOne({ id: ctx.userId });
+
+      if (!user) {
+        throw new AuthenticationError(
+          JSON.stringify({ auth: 'User not found' }),
+        );
+      }
+
+      if (data.username && user.username != data.username) {
+        const takenUsername = await repo.findOne({ username: data.username });
+        if (takenUsername) {
+          throw new ValidationError(
+            JSON.stringify({ username: 'Username is already taken' }),
+          );
+        }
+      }
+
+      const links = ['twitter', 'github', 'hashnode', 'portfolio'];
+      const linksValidity = links.reduce(
+        (result, link) =>
+          data[link] === null || isValidHttpUrl(data[link])
+            ? result
+            : { ...result, [link]: 'URL is invalid' },
+        {},
+      );
+
+      if (Object.keys(linksValidity).length) {
+        throw new ValidationError(JSON.stringify(linksValidity));
+      }
+
+      await ctx.con.getRepository(User).update({ id: ctx.userId }, data);
     },
     hideReadHistory: (
       _,
