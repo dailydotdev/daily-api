@@ -28,7 +28,7 @@ import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
 
-export interface GQLUserInput {
+export interface GQLUpdateUserInput {
   name: string;
   username?: string;
   bio?: string;
@@ -41,7 +41,7 @@ export interface GQLUserInput {
 }
 
 interface GQLUserParameters {
-  data: GQLUserInput;
+  data: GQLUpdateUserInput;
   upload: FileUpload;
 }
 
@@ -154,7 +154,7 @@ export const typeDefs = /* GraphQL */ `
   """
   Update user profile input
   """
-  input UserInput {
+  input UpdateUserInput {
     """
     Full name of the user
     """
@@ -371,7 +371,8 @@ export const typeDefs = /* GraphQL */ `
     """
     Update user profile information
     """
-    updateUserProfile(data: UserInput, upload: Upload): EmptyResponse @auth
+    updateUserProfile(data: UpdateUserInput, upload: Upload): EmptyResponse
+      @auth
 
     """
     Generates or updates the user's Dev Card preferences
