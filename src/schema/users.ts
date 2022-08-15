@@ -27,6 +27,7 @@ import { getSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
+import { isNullOrUndefined } from '../common/object';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -667,7 +668,7 @@ export const resolvers: IResolvers<any, Context> = {
       const links = ['twitter', 'github', 'hashnode', 'portfolio'];
       const linksValidity = links.reduce(
         (result, link) =>
-          data[link] === null || isValidHttpUrl(data[link])
+          isNullOrUndefined(data[link]) || isValidHttpUrl(data[link])
             ? result
             : { ...result, [link]: 'URL is invalid' },
         {},
