@@ -53,7 +53,7 @@ interface GQLUserParameters {
 export interface GQLUser {
   id: string;
   name: string;
-  image: string;
+  image?: string;
   infoConfirmed: boolean;
   createdAt?: Date;
   username?: string;
@@ -376,8 +376,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Update user profile information
     """
-    updateUserProfile(data: UpdateUserInput, upload: Upload): EmptyResponse
-      @auth
+    updateUserProfile(data: UpdateUserInput, upload: Upload): User @auth
 
     """
     Generates or updates the user's Dev Card preferences
@@ -653,7 +652,7 @@ export const resolvers: IResolvers<any, Context> = {
       _,
       { data }: GQLUserParameters,
       ctx,
-    ): Promise<void> => {
+    ): Promise<GQLUser> => {
       const repo = ctx.con.getRepository(User);
       const user = await repo.findOne({ id: ctx.userId });
 
@@ -685,7 +684,7 @@ export const resolvers: IResolvers<any, Context> = {
         throw new ValidationError(JSON.stringify(linksValidity));
       }
 
-      await ctx.con.getRepository(User).update({ id: ctx.userId }, data);
+      return ctx.con.getRepository(User).save({ ...user, ...data });
     },
     hideReadHistory: (
       _,

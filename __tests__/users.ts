@@ -51,6 +51,7 @@ beforeEach(async () => {
       name: 'Ido',
       image: 'https://daily.dev/ido.jpg',
       timezone: 'utc',
+      createdAt: new Date(),
     },
     {
       id: '2',
@@ -1491,7 +1492,18 @@ describe('mutation updateUserProfile', () => {
   const MUTATION = `
     mutation updateUserProfile($data: UpdateUserInput!) {
       updateUserProfile(data: $data) {
-        _
+        id
+        name
+        image
+        username
+        permalink
+        bio
+        twitter
+        github
+        hashnode
+        createdAt
+        infoConfirmed
+        timezone
       }
     }
   `;
@@ -1526,6 +1538,6 @@ describe('mutation updateUserProfile', () => {
     const updatedUser = await repo.findOne({ id: loggedUser });
     expect(updatedUser?.timezone).not.toEqual(user?.timezone);
     expect(updatedUser?.timezone).toEqual(timezone);
-    expect(updatedUser).toMatchSnapshot();
+    expect(res.data.updateUserProfile).toMatchSnapshot();
   });
 });

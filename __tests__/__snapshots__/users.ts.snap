@@ -39,27 +39,18 @@ Array [
 `;
 
 exports[`mutation updateUserProfile should update user profile 1`] = `
-User {
-  "acceptedMarketing": false,
+Object {
   "bio": null,
-  "company": null,
-  "createdAt": null,
-  "devcardEligible": false,
-  "email": null,
+  "createdAt": "2022-08-15T17:26:42.924Z",
   "github": null,
   "hashnode": null,
   "id": "1",
   "image": "https://daily.dev/ido.jpg",
   "infoConfirmed": false,
   "name": "Ido",
-  "portfolio": null,
-  "profileConfirmed": false,
-  "referral": null,
-  "reputation": 10,
+  "permalink": "http://localhost:5002/1",
   "timezone": "Asia/Manila",
-  "title": null,
   "twitter": null,
-  "updatedAt": null,
   "username": null,
 }
 `;
