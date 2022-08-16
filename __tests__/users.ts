@@ -1572,7 +1572,7 @@ describe('mutation updateUserProfile', () => {
     const user = await repo.findOne({ id: loggedUser });
     const timezone = 'Asia/Manila';
     const res = await client.mutate(MUTATION, {
-      variables: { data: { timezone } },
+      variables: { data: { timezone, username: 'a1' } },
     });
     expect(res.errors?.length).toBeFalsy();
     const updatedUser = await repo.findOne({ id: loggedUser });

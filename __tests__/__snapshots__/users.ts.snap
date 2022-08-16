@@ -48,10 +48,10 @@ Object {
   "image": "https://daily.dev/ido.jpg",
   "infoConfirmed": false,
   "name": "Ido",
-  "permalink": "http://localhost:5002/1",
+  "permalink": "http://localhost:5002/a1",
   "timezone": "Asia/Manila",
   "twitter": null,
-  "username": null,
+  "username": "a1",
 }
 `;
 

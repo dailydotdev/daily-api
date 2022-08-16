@@ -663,6 +663,37 @@ export const resolvers: IResolvers<any, Context> = {
         );
       }
 
+      const isUsernameValid = new RegExp(/^@?(\w){1,15}$/).test(data.username);
+      const isGithubValid = new RegExp(/^@?([\w-]){1,39}$/i).test(data.github);
+      const isTwitterValid = new RegExp(/^@?(\w){1,15}$/).test(data.twitter);
+      const isHashnodeValid = new RegExp(/^@?([\w-]){1,39}$/i).test(
+        data.hashnode,
+      );
+
+      if (data.username && !isUsernameValid) {
+        throw new ValidationError(
+          JSON.stringify({ username: 'username is invalid' }),
+        );
+      }
+
+      if (data.github && !isGithubValid) {
+        throw new ValidationError(
+          JSON.stringify({ github: 'github is invalid' }),
+        );
+      }
+
+      if (data.twitter && !isTwitterValid) {
+        throw new ValidationError(
+          JSON.stringify({ twitter: 'twitter is invalid' }),
+        );
+      }
+
+      if (data.hashnode && !isHashnodeValid) {
+        throw new ValidationError(
+          JSON.stringify({ hashnode: 'hashnode is invalid' }),
+        );
+      }
+
       const avatar = upload
         ? await uploadAvatar(user.id, upload.createReadStream())
         : user.image;
