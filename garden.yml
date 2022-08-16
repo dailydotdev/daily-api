@@ -1,0 +1,54 @@
+kind: Module
+type: container
+name: api
+dockerfile: "${var.dev ? 'Dockerfile.dev' : 'Dockerfile.multistage'}"
+
+tasks:
+  - name: api-migrate
+    args: "${var.dev ? [ 'npm', 'run', 'db:migrate:latest' ] : ['node', './node_modules/typeorm/cli.js', 'migration:run']}"
+    env: &env
+      PORT: 5000
+      TYPEORM_HOST: postgres
+      TYPEORM_DATABASE: ${var.api-database}
+      TYPEORM_USER: ${var.postgres-username}
+      TYPEORM_PASSWORD: ${var.postgres-password}
+      REDIS_HOST: redis
+      TZ: UTC
+      ACCESS_SECRET: 'topsecret'
+      GATEWAY_URL: http://daily-gateway:4000
+      GATEWAY_SECRET: topsecret
+      DEFAULT_IMAGE_URL: https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/2,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/3,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/4,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/5,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/6,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/7,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/8
+      DEFAULT_IMAGE_RATIO: 1
+      URL_PREFIX: http://localhost:4000
+      COMMENTS_PREFIX: http://localhost:5002
+      FLAGSMITH_KEY: secret
+      REDIS_PORT: 6379
+      COOKIES_KEY: topsecret
+      JWT_SECRET: '|r+.2!!!.Qf_-|63*%.D'
+      JWT_AUDIENCE: 'Daily Staging'
+      JWT_ISSUER: 'Daily API Staging'
+    dependencies:
+      - postgres
+
+services:
+  - name: api
+    devMode:
+      sync:
+        - source: src
+          target: /opt/app/src
+          exclude: [ node_modules ]
+          mode: one-way
+    dependencies:
+      - redis
+      - postgres
+      - api-migrate
+    ports:
+      - name: http
+        containerPort: 5000
+        servicePort: 80
+    healthCheck:
+      httpGet:
+        path: /health
+        port: http
+    env:
+      <<: *env

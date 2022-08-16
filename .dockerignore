@@ -1,6 +1,5 @@
 .idea/
 .garden/
-build/
 node_modules/
 .env.development
 .env.production
