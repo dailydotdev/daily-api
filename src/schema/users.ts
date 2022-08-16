@@ -31,7 +31,7 @@ import { getSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
-import { isNullOrUndefined } from '../common/object';
+import { TypeOrmError } from '../errors';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -662,29 +662,41 @@ export const resolvers: IResolvers<any, Context> = {
         );
       }
 
-      if (data.username && user.username != data.username) {
-        const takenUsername = await repo.findOne({ username: data.username });
-        if (takenUsername) {
-          throw new ValidationError(
-            JSON.stringify({ username: 'Username is already taken' }),
-          );
+      try {
+        const result = await ctx.con
+          .getRepository(User)
+          .save({ ...user, ...data });
+
+        return result;
+      } catch (err) {
+        if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
+          if (err.message.indexOf('users_username_unique') > -1) {
+            throw new ValidationError(
+              JSON.stringify({ username: 'username already exists' }),
+            );
+          }
+          if (err.message.indexOf('users_twitter_unique') > -1) {
+            throw new ValidationError(
+              JSON.stringify({
+                twitter: 'twitter handle already exists',
+              }),
+            );
+          }
+          if (err.message.indexOf('users_github_unique') > -1) {
+            throw new ValidationError(
+              JSON.stringify({ github: 'github handle already exists' }),
+            );
+          }
+          if (err.message.indexOf('users_hashnode_unique') > -1) {
+            throw new ValidationError(
+              JSON.stringify({
+                hashnode: 'hashnode handle already exists',
+              }),
+            );
+          }
         }
+        throw err;
       }
-
-      const links = ['twitter', 'github', 'hashnode', 'portfolio'];
-      const linksValidity = links.reduce(
-        (result, link) =>
-          isNullOrUndefined(data[link]) || isValidHttpUrl(data[link])
-            ? result
-            : { ...result, [link]: 'URL is invalid' },
-        {},
-      );
-
-      if (Object.keys(linksValidity).length) {
-        throw new ValidationError(JSON.stringify(linksValidity));
-      }
-
-      return ctx.con.getRepository(User).save({ ...user, ...data });
     },
     hideReadHistory: (
       _,
