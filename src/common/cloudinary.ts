@@ -47,5 +47,5 @@ export const uploadDevCardBackground = (name: string, stream: Readable) =>
 
 const avatarPreset = 'avatar';
 
-export const uploadAvatar = (name: string, stream: Readable) =>
-  uploadFile(`${avatarPreset}_${name}`, avatarPreset, stream);
+export const uploadAvatar = (userId: string, stream: Readable) =>
+  uploadFile(`${avatarPreset}_${userId}`, avatarPreset, stream);
