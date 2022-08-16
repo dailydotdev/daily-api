@@ -59,6 +59,16 @@ beforeEach(async () => {
       image: 'https://daily.dev/tsahi.jpg',
       timezone: userTimezone,
     },
+    {
+      id: '3',
+      name: 'Lee',
+      image: 'https://daily.dev/lee.jpg',
+      timezone: userTimezone,
+      username: 'lee',
+      twitter: 'lee',
+      github: 'lee',
+      hashnode: 'lee',
+    },
   ]);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, [
@@ -1515,12 +1525,42 @@ describe('mutation updateUserProfile', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not allow invalid user links', async () => {
+  it('should not allow duplicated github', async () => {
     loggedUser = '1';
 
     testMutationErrorCode(
       client,
-      { mutation: MUTATION, variables: { data: { twitter: 'http://' } } },
+      { mutation: MUTATION, variables: { data: { github: 'lee' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow duplicated twitter', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { twitter: 'lee' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow duplicated hashnode', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { hashnode: 'lee' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow duplicated username', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { username: 'lee' } } },
       'GRAPHQL_VALIDATION_FAILED',
     );
   });
