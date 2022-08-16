@@ -1565,6 +1565,46 @@ describe('mutation updateUserProfile', () => {
     );
   });
 
+  it('should not allow invalid github handle', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { github: '#a1' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow invalid twitter handle', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { twitter: '#a1' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow invalid hashnode handle', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { hashnode: '#a1' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow invalid username handle', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { username: '#a1' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should update user profile', async () => {
     loggedUser = '1';
 
