@@ -20,15 +20,16 @@ export const uploadLogo = (name: string, stream: Readable): Promise<string> =>
     stream.pipe(outStream);
   });
 
-export const uploadDevCardBackground = (
+export const uploadFile = (
   name: string,
+  preset: string,
   stream: Readable,
 ): Promise<string> =>
   new Promise((resolve, reject) => {
     const outStream = cloudinary.v2.uploader.upload_stream(
       {
         public_id: name,
-        upload_preset: 'devcard',
+        upload_preset: preset,
       },
       (err, callResult) => {
         if (err) {
@@ -40,3 +41,11 @@ export const uploadDevCardBackground = (
     );
     stream.pipe(outStream);
   });
+
+export const uploadDevCardBackground = (name: string, stream: Readable) =>
+  uploadFile(name, 'devcard', stream);
+
+const avatarPreset = 'avatar';
+
+export const uploadAvatar = (name: string, stream: Readable) =>
+  uploadFile(`${avatarPreset}_${name}`, avatarPreset, stream);

@@ -25,6 +25,7 @@ import {
   getUserReadingRank,
   isValidHttpUrl,
   TagsReadingStatus,
+  uploadAvatar,
   uploadDevCardBackground,
 } from '../common';
 import { getSearchQuery } from './common';
@@ -650,7 +651,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     updateUserProfile: async (
       _,
-      { data }: GQLUserParameters,
+      { data, upload }: GQLUserParameters,
       ctx,
     ): Promise<GQLUser> => {
       const repo = ctx.con.getRepository(User);
@@ -662,10 +663,14 @@ export const resolvers: IResolvers<any, Context> = {
         );
       }
 
+      const avatar = upload
+        ? await uploadAvatar(user.id, upload.createReadStream())
+        : user.image;
+
       try {
         const result = await ctx.con
           .getRepository(User)
-          .save({ ...user, ...data });
+          .save({ ...user, ...data, avatar });
 
         return result;
       } catch (err) {
