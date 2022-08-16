@@ -1538,6 +1538,8 @@ describe('mutation updateUserProfile', () => {
     const updatedUser = await repo.findOne({ id: loggedUser });
     expect(updatedUser?.timezone).not.toEqual(user?.timezone);
     expect(updatedUser?.timezone).toEqual(timezone);
-    expect(res.data.updateUserProfile).toMatchSnapshot();
+    expect(res.data.updateUserProfile).toMatchSnapshot({
+      createdAt: expect.any(String),
+    });
   });
 });
