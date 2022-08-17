@@ -39,6 +39,9 @@ export interface GQLUser {
   twitter?: string;
   github?: string;
   hashnode?: string;
+  portfolio?: string;
+  reputation?: number;
+  timezone?: string;
 }
 
 export interface GQLView {
@@ -121,6 +124,10 @@ export const typeDefs = /* GraphQL */ `
     """
     hashnode: String
     """
+    Portfolio URL of the user
+    """
+    portfolio: String
+    """
     Date when the user joined
     """
     createdAt: DateTime!
@@ -128,6 +135,14 @@ export const typeDefs = /* GraphQL */ `
     If the user is confirmed
     """
     infoConfirmed: Boolean
+    """
+    Timezone of the user
+    """
+    timezone: String
+    """
+    Reputation of the user
+    """
+    reputation: Int
   }
 
   type TagsReadingStatus {
@@ -403,7 +418,26 @@ export const resolvers: IResolvers<any, Context> = {
           : null,
       };
     },
-    user: (_, { id }: { id: string }): Promise<GQLUser> => fetchUserById(id),
+    user: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUser> => {
+      const res = await graphorm.query<GQLUser>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(
+            `("${builder.alias}"."id" = :id OR "${builder.alias}"."username" = :id)`,
+            { id },
+          )
+          .limit(1);
+        return builder;
+      });
+      if (!res[0]) {
+        throw new ForbiddenError('user not found');
+      }
+      return res[0];
+    },
     userReadingRank: async (
       _,
       { id, version = 1, limit = 6 }: ReadingRankArgs,
