@@ -18,6 +18,7 @@ config:
       secure: AAABAAhNlDbsmMbZIM69Qsp42iiO391hkGUPpk4UOKinybiblWU61Vjl8+5NrdQm7w0hW61f1bRQ
     authorTwitterConsumerSecret:
       secure: AAABAJaYEBcPVRfyNM1u62z/5oG+4dmHzyyHXf0PsGjVyIZBlWvYCcm6vCC6h9/8CVTpc+CTkw6AIKTlokU4Lgx2KLxFj4l9J37YYHWdED0LDQ==
+    cdcWorkerMaxMessages: 1
     cloudinaryUrl:
       secure: AAABANjdKplLPf64fvQRXN0mUtB6I7yh0lG44SsBC6BcKsH3MulzTCJ8adEN4BQYlytY0otXJOJL+fqNjzgYG+WIXO2GPecSvPeFem5ZyFVrbfxX42wyb2iwVHDyegOb5cY=
     commentsPrefix:
