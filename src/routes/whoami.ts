@@ -15,6 +15,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         github
         hashnode
         infoConfirmed
+        timezone
       }
     }`;
 

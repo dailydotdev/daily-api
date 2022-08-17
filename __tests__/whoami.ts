@@ -47,6 +47,7 @@ describe('query whoami', () => {
       github
       hashnode
       infoConfirmed
+      timezone
     }
   }`;
 
@@ -64,6 +65,7 @@ describe('query whoami', () => {
     const { email, ...user } = usersFixture[0];
     expect(res.data.whoami).toEqual({
       ...user,
+      timezone: null,
       createdAt: userCreatedDate,
     });
   });
@@ -81,6 +83,7 @@ describe('dedicated api routes', () => {
       const { email, ...user } = usersFixture[0];
       expect(res.body).toEqual({
         ...user,
+        timezone: null,
         createdAt: userCreatedDate,
       });
     });

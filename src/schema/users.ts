@@ -1,3 +1,4 @@
+import { validateRegex, ValidateRegex } from './../common/object';
 import { fetchUserById } from './../common/users';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
@@ -11,7 +12,11 @@ import {
   PostStats,
   View,
 } from '../entity';
-import { ForbiddenError, ValidationError } from 'apollo-server-errors';
+import {
+  AuthenticationError,
+  ValidationError,
+  ForbiddenError,
+} from 'apollo-server-errors';
 import { IResolvers } from 'graphql-tools';
 import { FileUpload } from 'graphql-upload';
 import { Context } from '../Context';
@@ -21,17 +26,37 @@ import {
   getUserReadingRank,
   isValidHttpUrl,
   TagsReadingStatus,
+  uploadAvatar,
   uploadDevCardBackground,
 } from '../common';
 import { getSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
+import { TypeOrmError } from '../errors';
+
+export interface GQLUpdateUserInput {
+  name: string;
+  username?: string;
+  bio?: string;
+  company?: string;
+  title: string;
+  twitter?: string;
+  github?: string;
+  hashnode?: string;
+  portfolio?: string;
+  acceptedMarketing?: boolean;
+}
+
+interface GQLUserParameters {
+  data: GQLUpdateUserInput;
+  upload: Promise<FileUpload>;
+}
 
 export interface GQLUser {
   id: string;
   name: string;
-  image: string;
+  image?: string;
   infoConfirmed: boolean;
   createdAt?: Date;
   username?: string;
@@ -128,6 +153,64 @@ export const typeDefs = /* GraphQL */ `
     If the user is confirmed
     """
     infoConfirmed: Boolean
+    """
+    Timezone
+    """
+    timezone: String
+  }
+
+  """
+  Update user profile input
+  """
+  input UpdateUserInput {
+    """
+    Full name of the user
+    """
+    name: String
+    """
+    Profile image of the user
+    """
+    image: Upload
+    """
+    Username (handle) of the user
+    """
+    username: String
+    """
+    Bio of the user
+    """
+    bio: String
+    """
+    Twitter handle of the user
+    """
+    twitter: String
+    """
+    Github handle of the user
+    """
+    github: String
+    """
+    Hashnode handle of the user
+    """
+    hashnode: String
+    """
+    Preferred timezone of the user that affects data
+    """
+    timezone: String
+    """
+    Current company of the user
+    """
+    company: String
+    """
+    Title of user from their company
+    """
+    title: String
+    """
+    User website
+    """
+    portfolio: String
+    """
+    If the user has accepted marketing
+    """
+    acceptedMarketing: Boolean
   }
 
   type TagsReadingStatus {
@@ -297,6 +380,11 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Mutation {
+    """
+    Update user profile information
+    """
+    updateUserProfile(data: UpdateUserInput, upload: Upload): User @auth
+
     """
     Generates or updates the user's Dev Card preferences
     """
@@ -566,6 +654,70 @@ export const resolvers: IResolvers<any, Context> = {
           '',
         )}.png?r=${randomStr}`,
       };
+    },
+    updateUserProfile: async (
+      _,
+      { data, upload }: GQLUserParameters,
+      ctx,
+    ): Promise<GQLUser> => {
+      const repo = ctx.con.getRepository(User);
+      const user = await repo.findOne({ id: ctx.userId });
+
+      if (!user) {
+        throw new AuthenticationError('Unauthorized!');
+      }
+
+      const regexParams: ValidateRegex[] = [
+        ['username', data.username, new RegExp(/^@?(\w){1,39}$/)],
+        ['github', data.github, new RegExp(/^@?([\w-]){1,39}$/i)],
+        ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
+        ['hashnode', data.hashnode, new RegExp(/^@?([\w-]){1,39}$/i)],
+      ];
+      const regexResult = validateRegex(regexParams);
+      if (Object.keys(regexResult).length) {
+        throw new ValidationError(JSON.stringify(regexResult));
+      }
+
+      const avatar =
+        upload && process.env.CLOUDINARY_URL
+          ? await uploadAvatar(user.id, (await upload).createReadStream())
+          : user.image;
+
+      try {
+        const result = await ctx.con
+          .getRepository(User)
+          .save({ ...user, ...data, image: avatar });
+
+        return result;
+      } catch (err) {
+        if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
+          if (err.message.indexOf('users_username_unique') > -1) {
+            throw new ValidationError(
+              JSON.stringify({ username: 'username already exists' }),
+            );
+          }
+          if (err.message.indexOf('users_twitter_unique') > -1) {
+            throw new ValidationError(
+              JSON.stringify({
+                twitter: 'twitter handle already exists',
+              }),
+            );
+          }
+          if (err.message.indexOf('users_github_unique') > -1) {
+            throw new ValidationError(
+              JSON.stringify({ github: 'github handle already exists' }),
+            );
+          }
+          if (err.message.indexOf('users_hashnode_unique') > -1) {
+            throw new ValidationError(
+              JSON.stringify({
+                hashnode: 'hashnode handle already exists',
+              }),
+            );
+          }
+        }
+        throw err;
+      }
     },
     hideReadHistory: (
       _,
