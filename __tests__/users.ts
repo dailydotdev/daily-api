@@ -321,7 +321,6 @@ describe('query user', () => {
 
   it('should return user info with name, username, and image', async () => {
     const requestUserId = '1';
-    mockInfo(requestUserId);
     const res = await client.query(QUERY, { variables: { id: requestUserId } });
     expect(res.errors).toBeFalsy();
     expect(res.data.user).toMatchSnapshot();

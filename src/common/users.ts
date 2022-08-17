@@ -45,17 +45,6 @@ export const fetchUser = async (userId: string): Promise<User | null> => {
   return res.json();
 };
 
-export const fetchUserById = async (userId: string): Promise<User> => {
-  const res = await fetch(`${process.env.GATEWAY_URL}/v1/users/${userId}`, {
-    method: 'GET',
-    headers: authorizedHeaders(userId),
-  });
-  if (res.status !== 200) {
-    return null;
-  }
-  return res.json();
-};
-
 export const fetchUserInfo = async (userId: string): Promise<UserInfo> => {
   const res = await fetch(`${process.env.GATEWAY_URL}/v1/users/me/info`, {
     method: 'GET',

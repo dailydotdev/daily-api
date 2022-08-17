@@ -1,4 +1,3 @@
-import { fetchUserById } from './../common/users';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
