@@ -307,18 +307,6 @@ describe('query user', () => {
     }
   }`;
 
-  const mockInfo = (id: string): nock.Scope =>
-    nock(process.env.GATEWAY_URL)
-      .get('/v1/users/' + id)
-      .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-      .matchHeader('user-id', '1')
-      .matchHeader('logged-in', 'true')
-      .reply(200, {
-        image: 'lee.image.com',
-        name: 'Lee Hansel',
-        username: 'lee',
-      });
-
   it('should return user info with name, username, and image', async () => {
     const requestUserId = '1';
     const res = await client.query(QUERY, { variables: { id: requestUserId } });
