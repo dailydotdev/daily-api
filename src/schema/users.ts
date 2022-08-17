@@ -45,6 +45,7 @@ export interface GQLUpdateUserInput {
   github?: string;
   hashnode?: string;
   portfolio?: string;
+  acceptedMarketing?: boolean;
 }
 
 interface GQLUserParameters {
@@ -206,6 +207,10 @@ export const typeDefs = /* GraphQL */ `
     User website
     """
     portfolio: String
+    """
+    If the user has accepted marketing
+    """
+    acceptedMarketing: Boolean
   }
 
   type TagsReadingStatus {
