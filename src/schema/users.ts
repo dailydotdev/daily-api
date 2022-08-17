@@ -50,7 +50,7 @@ export interface GQLUpdateUserInput {
 
 interface GQLUserParameters {
   data: GQLUpdateUserInput;
-  upload: FileUpload;
+  upload: Promise<FileUpload>;
 }
 
 export interface GQLUser {
@@ -679,7 +679,7 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       const avatar = upload
-        ? await uploadAvatar(user.id, upload.createReadStream())
+        ? await uploadAvatar(user.id, (await upload).createReadStream())
         : user.image;
 
       try {
