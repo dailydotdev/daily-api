@@ -1,3 +1,4 @@
+import { validateRegex, ValidateRegex } from './../common/object';
 import { fetchUserById } from './../common/users';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
@@ -663,35 +664,15 @@ export const resolvers: IResolvers<any, Context> = {
         );
       }
 
-      const isUsernameValid = new RegExp(/^@?(\w){1,39}$/).test(data.username);
-      const isGithubValid = new RegExp(/^@?([\w-]){1,39}$/i).test(data.github);
-      const isTwitterValid = new RegExp(/^@?(\w){1,15}$/).test(data.twitter);
-      const isHashnodeValid = new RegExp(/^@?([\w-]){1,39}$/i).test(
-        data.hashnode,
-      );
-
-      if (data.username && !isUsernameValid) {
-        throw new ValidationError(
-          JSON.stringify({ username: 'username is invalid' }),
-        );
-      }
-
-      if (data.github && !isGithubValid) {
-        throw new ValidationError(
-          JSON.stringify({ github: 'github is invalid' }),
-        );
-      }
-
-      if (data.twitter && !isTwitterValid) {
-        throw new ValidationError(
-          JSON.stringify({ twitter: 'twitter is invalid' }),
-        );
-      }
-
-      if (data.hashnode && !isHashnodeValid) {
-        throw new ValidationError(
-          JSON.stringify({ hashnode: 'hashnode is invalid' }),
-        );
+      const regexParams: ValidateRegex[] = [
+        ['username', data.username, new RegExp(/^@?(\w){1,39}$/)],
+        ['github', data.github, new RegExp(/^@?([\w-]){1,39}$/i)],
+        ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
+        ['hashnode', data.hashnode, new RegExp(/^@?([\w-]){1,39}$/i)],
+      ];
+      const regexResult = validateRegex(regexParams);
+      if (Object.keys(regexResult).length) {
+        throw new ValidationError(JSON.stringify(regexResult));
       }
 
       const avatar = upload
