@@ -678,9 +678,10 @@ export const resolvers: IResolvers<any, Context> = {
         throw new ValidationError(JSON.stringify(regexResult));
       }
 
-      const avatar = upload
-        ? await uploadAvatar(user.id, (await upload).createReadStream())
-        : user.image;
+      const avatar =
+        upload && process.env.CLOUDINARY_URL
+          ? await uploadAvatar(user.id, (await upload).createReadStream())
+          : user.image;
 
       try {
         const result = await ctx.con
