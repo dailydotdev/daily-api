@@ -394,7 +394,7 @@ const getTableName = <Entity>(
 
 const worker: Worker = {
   subscription: 'api-cdc',
-  maxMessages: 10,
+  // maxMessages: 10,
   handler: async (message, con, logger): Promise<void> => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
