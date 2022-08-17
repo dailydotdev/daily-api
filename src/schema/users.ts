@@ -701,7 +701,7 @@ export const resolvers: IResolvers<any, Context> = {
       try {
         const result = await ctx.con
           .getRepository(User)
-          .save({ ...user, ...data, avatar });
+          .save({ ...user, ...data, image: avatar });
 
         return result;
       } catch (err) {
