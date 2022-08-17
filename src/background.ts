@@ -21,7 +21,7 @@ const subscribe = (
     logger: FastifyLoggerInstance,
     pubsub: PubSub,
   ) => Promise<void>,
-  maxMessages?: number,
+  maxMessages = 1,
 ): void => {
   logger.info(`subscribing to ${subscription}`);
   const sub = pubsub.subscription(subscription, {
