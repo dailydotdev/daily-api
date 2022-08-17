@@ -663,7 +663,7 @@ export const resolvers: IResolvers<any, Context> = {
         );
       }
 
-      const isUsernameValid = new RegExp(/^@?(\w){1,15}$/).test(data.username);
+      const isUsernameValid = new RegExp(/^@?(\w){1,39}$/).test(data.username);
       const isGithubValid = new RegExp(/^@?([\w-]){1,39}$/i).test(data.github);
       const isTwitterValid = new RegExp(/^@?(\w){1,15}$/).test(data.twitter);
       const isHashnodeValid = new RegExp(/^@?([\w-]){1,39}$/i).test(
