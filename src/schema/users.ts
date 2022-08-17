@@ -659,9 +659,7 @@ export const resolvers: IResolvers<any, Context> = {
       const user = await repo.findOne({ id: ctx.userId });
 
       if (!user) {
-        throw new AuthenticationError(
-          JSON.stringify({ auth: 'User not found' }),
-        );
+        throw new AuthenticationError('Unauthorized!');
       }
 
       const regexParams: ValidateRegex[] = [
