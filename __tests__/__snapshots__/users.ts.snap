@@ -38,6 +38,23 @@ Array [
 ]
 `;
 
+exports[`mutation updateUserProfile should update user profile 1`] = `
+Object {
+  "bio": null,
+  "createdAt": Any<String>,
+  "github": null,
+  "hashnode": null,
+  "id": "1",
+  "image": "https://daily.dev/ido.jpg",
+  "infoConfirmed": false,
+  "name": "Ido",
+  "permalink": "http://localhost:5002/a1",
+  "timezone": "Asia/Manila",
+  "twitter": null,
+  "username": "a1",
+}
+`;
+
 exports[`query readHistory should return the reading history of user in descending order 1`] = `
 Object {
   "readHistory": Object {

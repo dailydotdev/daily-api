@@ -42,23 +42,25 @@ export class User {
   reputation: number;
 
   @Column({ length: 39, nullable: true })
-  @Index()
+  @Index('users_username_unique', { unique: true })
   username?: string;
 
   @Column({ type: 'text', nullable: true })
   bio?: string;
 
   @Column({ length: 15, nullable: true })
-  @Index()
+  @Index('users_twitter_unique', { unique: true })
   twitter?: string;
 
   @Column({ length: 39, nullable: true })
+  @Index('users_github_unique', { unique: true })
   github?: string;
 
   @Column({ type: 'text', nullable: true })
   portfolio?: string;
 
   @Column({ length: 39, nullable: true })
+  @Index('users_hashnode_unique', { unique: true })
   hashnode?: string;
 
   @Column({ default: false })

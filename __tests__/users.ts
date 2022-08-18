@@ -51,12 +51,23 @@ beforeEach(async () => {
       name: 'Ido',
       image: 'https://daily.dev/ido.jpg',
       timezone: 'utc',
+      createdAt: new Date(),
     },
     {
       id: '2',
       name: 'Tsahi',
       image: 'https://daily.dev/tsahi.jpg',
       timezone: userTimezone,
+    },
+    {
+      id: '3',
+      name: 'Lee',
+      image: 'https://daily.dev/lee.jpg',
+      timezone: userTimezone,
+      username: 'lee',
+      twitter: 'lee',
+      github: 'lee',
+      hashnode: 'lee',
     },
   ]);
   await saveFixtures(con, Source, sourcesFixture);
@@ -1471,5 +1482,131 @@ describe('query search reading history', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('mutation updateUserProfile', () => {
+  const MUTATION = `
+    mutation updateUserProfile($data: UpdateUserInput!) {
+      updateUserProfile(data: $data) {
+        id
+        name
+        image
+        username
+        permalink
+        bio
+        twitter
+        github
+        hashnode
+        createdAt
+        infoConfirmed
+        timezone
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { username: 'Test' } } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not allow duplicated github', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { github: 'lee' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow duplicated twitter', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { twitter: 'lee' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow duplicated hashnode', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { hashnode: 'lee' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow duplicated username', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { username: 'lee' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow invalid github handle', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { github: '#a1' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow invalid twitter handle', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { twitter: '#a1' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow invalid hashnode handle', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { hashnode: '#a1' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not allow invalid username handle', async () => {
+    loggedUser = '1';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { username: '#a1' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should update user profile', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+    const user = await repo.findOne({ id: loggedUser });
+    const timezone = 'Asia/Manila';
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { timezone, username: 'a1' } },
+    });
+    expect(res.errors?.length).toBeFalsy();
+    const updatedUser = await repo.findOne({ id: loggedUser });
+    expect(updatedUser?.timezone).not.toEqual(user?.timezone);
+    expect(updatedUser?.timezone).toEqual(timezone);
+    expect(res.data.updateUserProfile).toMatchSnapshot({
+      createdAt: expect.any(String),
+    });
   });
 });
