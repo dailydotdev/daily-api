@@ -1,13 +1,11 @@
-import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail } from '../../src/common';
-import { User as GatewayUser } from '../../src/common/users';
 import worker from '../../src/workers/commentCommentedThread';
 import { Comment, Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
-import { gatewayUsersFixture, usersFixture } from '../fixture/user';
+import { usersFixture } from '../fixture/user';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -72,18 +70,7 @@ beforeEach(async () => {
   ]);
 });
 
-const mockUsersMe = (user: GatewayUser): nock.Scope =>
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', user.id)
-    .matchHeader('logged-in', 'true')
-    .reply(200, user);
-
 it('should send mail to the thread followers', async () => {
-  const mockedUsers: GatewayUser[] = gatewayUsersFixture;
-  mockedUsers.forEach(mockUsersMe);
-
   await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: '4',
@@ -95,9 +82,6 @@ it('should send mail to the thread followers', async () => {
 });
 
 it('should send mail to the thread followers without the post author', async () => {
-  const mockedUsers: GatewayUser[] = gatewayUsersFixture;
-  mockedUsers.forEach(mockUsersMe);
-
   await con.getRepository(Post).update('p1', { authorId: '2' });
   await expectSuccessfulBackground(worker, {
     postId: 'p1',

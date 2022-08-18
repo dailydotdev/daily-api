@@ -14,6 +14,7 @@ User {
   "image": "https://daily.dev/image.jpg",
   "infoConfirmed": false,
   "name": "Ido",
+  "permalink": "http://localhost:5002/abc",
   "portfolio": null,
   "profileConfirmed": false,
   "referral": null,

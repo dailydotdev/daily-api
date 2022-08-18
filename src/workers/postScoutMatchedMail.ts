@@ -23,7 +23,7 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      const user = await fetchUser(data.scoutId);
+      const user = await fetchUser(data.scoutId, con);
       const post = await con.getRepository(Post).findOne(data.postId);
       const submission = await con
         .getRepository(Submission)

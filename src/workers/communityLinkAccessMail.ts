@@ -9,10 +9,10 @@ interface Data {
 
 const worker: Worker = {
   subscription: 'community-link-access-mail',
-  handler: async (message, _, logger): Promise<void> => {
+  handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      const user = await fetchUser(data.userId);
+      const user = await fetchUser(data.userId, con);
       await sendEmail({
         ...baseNotificationEmailData,
         to: user.email,
@@ -25,6 +25,7 @@ const worker: Worker = {
           data.userId,
       );
     } catch (err) {
+      console.log(err);
       logger.error(
         { data, messageId: message.messageId, err },
         'failed to send mail relating to granting access for submitting community links',

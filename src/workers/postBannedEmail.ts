@@ -35,7 +35,7 @@ const worker: Worker = {
       const reportsWithUser = await Promise.all(
         reports.map(async (report) => ({
           ...report,
-          user: await fetchUser(report.userId),
+          user: await fetchUser(report.userId, con),
         })),
       );
       if (reportsWithUser.length) {

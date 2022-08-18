@@ -1,4 +1,5 @@
 import {
+  AfterLoad,
   Column,
   Connection,
   Entity,
@@ -18,13 +19,13 @@ export class User {
   id: string;
 
   @Column({ type: 'text', nullable: true })
-  name?: string;
+  name: string;
 
   @Column({ type: 'text', nullable: true })
-  email?: string;
+  email: string;
 
   @Column({ type: 'text', nullable: true })
-  image?: string;
+  image: string;
 
   @Column({ type: 'text', nullable: true })
   company?: string;
@@ -86,6 +87,14 @@ export class User {
 
   @OneToMany(() => DevCard, (devcard) => devcard.user, { lazy: true })
   devCards: Promise<DevCard[]>;
+
+  permalink: string;
+  @AfterLoad()
+  setComputed() {
+    this.permalink = `${process.env.COMMENTS_PREFIX}/${
+      this.username ?? this.id
+    }`;
+  }
 }
 
 export type AddUserData = Pick<

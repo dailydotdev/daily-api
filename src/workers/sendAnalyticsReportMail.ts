@@ -23,7 +23,7 @@ const worker: Worker = {
         return;
       }
 
-      const requests = getAuthorScout(post);
+      const requests = getAuthorScout(con, post);
       const users = await Promise.all(requests);
       const source = await post.source;
       const stats = await Promise.all(

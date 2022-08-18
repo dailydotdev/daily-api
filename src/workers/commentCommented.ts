@@ -27,8 +27,8 @@ const worker: Worker = {
       }
       const parent = await comment.parent;
       const [author, commenter] = await Promise.all([
-        fetchUser(parent.userId),
-        fetchUser(data.userId),
+        fetchUser(parent.userId, con),
+        fetchUser(data.userId, con),
       ]);
       const post = await comment.post;
       if (

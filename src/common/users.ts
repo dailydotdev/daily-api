@@ -8,11 +8,6 @@ import { CommentMention, Comment, View } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { User as DbUser } from './../entity/User';
 
-interface UserInfo {
-  name?: string;
-  email?: string;
-}
-
 export interface User {
   id: string;
   email: string;
@@ -34,31 +29,12 @@ const authorizedHeaders = (userId: string): { [key: string]: string } => ({
   'logged-in': 'true',
 });
 
-export const fetchUser = async (userId: string): Promise<User | null> => {
-  const res = await fetch(`${process.env.GATEWAY_URL}/v1/users/me`, {
-    method: 'GET',
-    headers: authorizedHeaders(userId),
-  });
-  if (res.status !== 200) {
-    return null;
-  }
-  return res.json();
-};
-
-export const fetchUserInfo = async (userId: string): Promise<UserInfo> => {
-  const res = await fetch(`${process.env.GATEWAY_URL}/v1/users/me/info`, {
-    method: 'GET',
-    headers: authorizedHeaders(userId),
-  });
-  return res.json();
-};
-
-export const fetchUserRoles = async (userId: string): Promise<string[]> => {
-  const res = await fetch(`${process.env.GATEWAY_URL}/v1/users/me/roles`, {
-    method: 'GET',
-    headers: authorizedHeaders(userId),
-  });
-  return res.json();
+export const fetchUser = async (
+  userId: string,
+  con: Connection,
+): Promise<User | null> => {
+  const user = await con.getRepository(DbUser).findOneOrFail({ id: userId });
+  return user;
 };
 
 export const fetchUserFeatures = async (userId: string): Promise<IFlags> => {
@@ -334,16 +310,17 @@ export const getUserReadingRank = async (
 };
 
 export const getAuthorScout = (
+  con: Connection,
   post: Post,
   excludeIds: string[] = [],
 ): Promise<User>[] => {
   const requests: Promise<User>[] = [];
   if (post?.authorId && !excludeIds.includes(post?.authorId)) {
-    requests.push(fetchUser(post.authorId));
+    requests.push(fetchUser(post.authorId, con));
   }
 
   if (post?.scoutId && !excludeIds.includes(post?.scoutId)) {
-    requests.push(fetchUser(post.scoutId));
+    requests.push(fetchUser(post.scoutId, con));
   }
 
   return requests;

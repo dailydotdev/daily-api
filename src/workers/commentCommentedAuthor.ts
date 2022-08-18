@@ -30,13 +30,13 @@ const worker: Worker = {
         return;
       }
 
-      const requests = getAuthorScout(post, [data.userId]);
+      const requests = getAuthorScout(con, post, [data.userId]);
 
       if (requests.length === 0) {
         return;
       }
 
-      requests.unshift(fetchUser(data.userId));
+      requests.unshift(fetchUser(data.userId, con));
       const [commenter, ...authorScout] = await Promise.all(requests);
       const emails = authorScout.map((author) =>
         getCommentedAuthorMailParams(post, comment, author, commenter),

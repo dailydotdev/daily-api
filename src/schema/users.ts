@@ -26,6 +26,7 @@ import { getSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
+import { NotFoundError } from '../errors';
 
 export interface GQLUser {
   id: string;
@@ -387,7 +388,7 @@ export const resolvers: IResolvers<any, Context> = {
         return builder;
       });
       if (!res[0]) {
-        throw new ForbiddenError('user not found');
+        throw new NotFoundError('user not found');
       }
       return res[0];
     },

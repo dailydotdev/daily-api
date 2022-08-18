@@ -1,13 +1,20 @@
 import { Connection, getConnection, DeepPartial } from 'typeorm';
-import nock from 'nock';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
 import appFunc from '../src';
-import { Bookmark, Post, Source, PostKeyword, Settings } from '../src/entity';
+import {
+  Bookmark,
+  Post,
+  Source,
+  PostKeyword,
+  Settings,
+  User,
+} from '../src/entity';
 import { saveFixtures } from './helpers';
 import { sourcesFixture } from './fixture/source';
 import { postKeywordsFixture } from './fixture/post';
+import { usersFixture } from './fixture/user';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -106,45 +113,23 @@ beforeEach(async () => {
   await saveFixtures(con, Bookmark, bookmarksFixture);
 });
 
-const mockUser = (): nock.Scope =>
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '1',
-      email: 'ido@daily.dev',
-      name: 'Ido',
-      username: 'idoshamun',
-    });
-
-const mockFailedUser = (): nock.Scope =>
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(401);
-
 describe('GET /rss/b/:slug', () => {
   const slug = uuidv4();
   const path = `/rss/b/${slug}`;
 
   it('should fail when user does not exist', async () => {
-    mockFailedUser();
     await con.getRepository(Settings).save({ userId: '1', bookmarkSlug: slug });
-    return request(app.server).get(path).expect(404);
+    return request(app.server).get(path).expect(500);
   });
 
   it('should fail when bookmarks are private', async () => {
-    mockUser();
+    await con.getRepository(User).save([usersFixture[0]]);
     await con.getRepository(Settings).save({ userId: '1', bookmarkSlug: null });
     return request(app.server).get(path).expect(404);
   });
 
   it('should return rss feed of bookmarks', async () => {
-    mockUser();
+    await con.getRepository(User).save([usersFixture[0]]);
     await con.getRepository(Settings).save({ userId: '1', bookmarkSlug: slug });
     const res = await request(app.server)
       .get(path)

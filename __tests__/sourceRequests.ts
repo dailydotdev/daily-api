@@ -1,6 +1,5 @@
 import { GraphQLResponse } from 'apollo-server-types';
 import { Connection, getConnection } from 'typeorm';
-import nock from 'nock';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import _ from 'lodash';
@@ -18,7 +17,7 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import { Roles } from '../src/roles';
-import { Source, SourceRequest } from '../src/entity';
+import { Source, SourceRequest, User } from '../src/entity';
 import { sourceRequestFixture } from './fixture/sourceRequest';
 import { uploadLogo } from '../src/common';
 import {
@@ -26,6 +25,7 @@ import {
   GQLRequestSourceInput,
   GQLUpdateSourceRequestInput,
 } from '../src/schema/sourceRequests';
+import { usersFixture } from './fixture/user';
 
 let app: FastifyInstance;
 let con: Connection;
@@ -38,14 +38,6 @@ jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
   uploadLogo: jest.fn(),
 }));
-
-const mockInfo = (): nock.Scope =>
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me/info')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, { email: 'ido@daily.dev', name: 'Ido' });
 
 const testModeratorAuthorization = (mutation: Mutation): Promise<void> => {
   roles = [];
@@ -109,7 +101,7 @@ describe('mutation requestSource', () => {
   });
 
   it('should add new source request', async () => {
-    mockInfo();
+    await con.getRepository(User).save([usersFixture[0]]);
     loggedUser = '1';
     const data: GQLRequestSourceInput = { sourceUrl: 'http://source.com' };
     const res = await client.mutate(MUTATION, { variables: { data } });
@@ -353,8 +345,8 @@ describe('compatibility routes', () => {
         .expect(401);
     });
 
-    it('should return bad request when url is not valid', () => {
-      mockInfo();
+    it('should return bad request when url is not valid', async () => {
+      await con.getRepository(User).save([usersFixture[0]]);
       loggedUser = '1';
       return authorizeRequest(
         request(app.server).post('/v1/publications/request'),
@@ -363,8 +355,8 @@ describe('compatibility routes', () => {
         .expect(400);
     });
 
-    it('should request new source', () => {
-      mockInfo();
+    it('should request new source', async () => {
+      await con.getRepository(User).save([usersFixture[0]]);
       loggedUser = '1';
       return authorizeRequest(
         request(app.server).post('/v1/publications/request'),
@@ -373,8 +365,8 @@ describe('compatibility routes', () => {
         .expect(204);
     });
 
-    it('should request new source (/requests)', () => {
-      mockInfo();
+    it('should request new source (/requests)', async () => {
+      await con.getRepository(User).save([usersFixture[0]]);
       loggedUser = '1';
       return authorizeRequest(
         request(app.server).post('/v1/publications/requests'),

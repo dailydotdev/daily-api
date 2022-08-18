@@ -52,7 +52,7 @@ const generateRSS =
     const con = getConnection();
     const state = stateFactory ? await stateFactory(req, con) : null;
     const userId = await extractUserId(req, state);
-    const user = userId && (await fetchUser(userId));
+    const user = userId && (await fetchUser(userId, con));
     if (!user) {
       return res.status(404).send();
     }

@@ -14,7 +14,7 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     const date = new Date(data.createdAt);
     try {
-      const user = await fetchUser(data.userId);
+      const user = await fetchUser(data.userId, con);
       await sendEmail({
         ...baseNotificationEmailData,
         to: user.email,

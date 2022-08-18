@@ -1,4 +1,3 @@
-import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail } from '../../src/common';
@@ -6,6 +5,7 @@ import worker from '../../src/workers/postCommentedAuthor';
 import { Comment, Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
+import { usersFixture } from '../fixture/user';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -25,11 +25,7 @@ beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
-  await con.getRepository(User).save([
-    { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
-    { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
-    { id: '3', name: 'Nimrod', image: 'https://daily.dev/nimrod.jpg' },
-  ]);
+  await saveFixtures(con, User, usersFixture);
   await con.getRepository(Comment).save([
     {
       id: 'c1',
@@ -59,32 +55,6 @@ beforeEach(async () => {
 });
 
 it('should send mail to the post author', async () => {
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '3')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '3',
-      email: 'nimrod@daily.dev',
-      name: 'Nimrod',
-      image: 'https://daily.dev/nimrod.jpg',
-      reputation: 5,
-    });
-
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '1',
-      email: 'ido@daily.dev',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-      reputation: 3,
-    });
-
   await con
     .getRepository(Post)
     .update('p1', { authorId: '3', image: 'https://daily.dev/image.jpg' });
@@ -98,32 +68,6 @@ it('should send mail to the post author', async () => {
 });
 
 it('should send mail to the post scout', async () => {
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '3')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '3',
-      email: 'nimrod@daily.dev',
-      name: 'Nimrod',
-      image: 'https://daily.dev/nimrod.jpg',
-      reputation: 5,
-    });
-
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '1',
-      email: 'ido@daily.dev',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-      reputation: 3,
-    });
-
   await con
     .getRepository(Post)
     .update('p1', { scoutId: '3', image: 'https://daily.dev/image.jpg' });
@@ -137,45 +81,6 @@ it('should send mail to the post scout', async () => {
 });
 
 it('should send mail to both post scout and author', async () => {
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '3')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '3',
-      email: 'nimrod@daily.dev',
-      name: 'Nimrod',
-      image: 'https://daily.dev/nimrod.jpg',
-      reputation: 5,
-    });
-
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '2')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '2',
-      email: 'tsahi@daily.dev',
-      name: 'Tsahi',
-      image: 'https://daily.dev/tsahi.jpg',
-      reputation: 5,
-    });
-
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '1',
-      email: 'ido@daily.dev',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-      reputation: 3,
-    });
-
   await con.getRepository(Post).update('p1', {
     authorId: '2',
     scoutId: '3',
