@@ -59,3 +59,7 @@ export class NotFoundError extends ApolloError {
     Object.defineProperty(this, 'name', { value: 'NotFoundError' });
   }
 }
+
+export enum TypeOrmError {
+  DUPLICATE_ENTRY = '23505',
+}
