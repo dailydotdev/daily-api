@@ -119,7 +119,7 @@ describe('GET /rss/b/:slug', () => {
 
   it('should fail when user does not exist', async () => {
     await con.getRepository(Settings).save({ userId: '1', bookmarkSlug: slug });
-    return request(app.server).get(path).expect(500);
+    return request(app.server).get(path).expect(404);
   });
 
   it('should fail when bookmarks are private', async () => {
