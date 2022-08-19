@@ -33,7 +33,10 @@ export const fetchUser = async (
   userId: string,
   con: Connection,
 ): Promise<User | null> => {
-  const user = await con.getRepository(DbUser).findOneOrFail({ id: userId });
+  const user = await con.getRepository(DbUser).findOne({ id: userId });
+  if (!user) {
+    return null;
+  }
   return user;
 };
 

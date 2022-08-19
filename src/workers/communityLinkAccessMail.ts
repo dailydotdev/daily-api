@@ -25,7 +25,6 @@ const worker: Worker = {
           data.userId,
       );
     } catch (err) {
-      console.log(err);
       logger.error(
         { data, messageId: message.messageId, err },
         'failed to send mail relating to granting access for submitting community links',
