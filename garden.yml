@@ -2,7 +2,8 @@ kind: Module
 type: container
 name: api
 dockerfile: "${var.dev ? 'Dockerfile.dev' : 'Dockerfile.multistage'}"
-
+exclude:
+  - debezium/**/*
 tasks:
   - name: api-migrate
     args: "${var.dev ? [ 'npm', 'run', 'db:migrate:latest' ] : ['node', './node_modules/typeorm/cli.js', 'migration:run']}"
@@ -13,6 +14,10 @@ tasks:
       TYPEORM_USER: ${var.postgres-username}
       TYPEORM_PASSWORD: ${var.postgres-password}
       REDIS_HOST: redis
+      PUBSUB_EMULATOR_HOST: ${var.pubsub-host}
+      PUBSUB_PROJECT_ID: ${var.gcloud-project}
+      GCLOUD_PROJECT: ${var.gcloud-project}
+      ENABLE_PRIVATE_ROUTES: true
       TZ: UTC
       ACCESS_SECRET: 'topsecret'
       GATEWAY_URL: http://daily-gateway:4000
@@ -29,10 +34,15 @@ tasks:
       JWT_ISSUER: 'Daily API Staging'
     dependencies:
       - postgres
-
+  - name: api-pubsub-init
+    args: "${var.dev ? [ 'npm', 'run', 'cloud:init' ] : ['node', './bin/initPubsub.js']}"
+    env:
+      <<: *env
+    dependencies:
+      - pubsub
 services:
   - name: api
-    devMode:
+    devMode: &devMode
       sync:
         - source: src
           target: /opt/app/src
@@ -42,6 +52,8 @@ services:
       - redis
       - postgres
       - api-migrate
+      - pubsub
+      - api-debezium
     ports:
       - name: http
         containerPort: 5000
@@ -51,4 +63,13 @@ services:
         path: /health
         port: http
     env:
+      <<: *env
+  - name: api-bg
+    devMode:
+      <<: *devMode
+    dependencies:
+      - api-pubsub-init
+      - api
+    env:
+      MODE: background
       <<: *env

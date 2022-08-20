@@ -6,8 +6,8 @@ sources:
     repositoryUrl: git@github.com:dailydotdev/garden-dependencies.git#main
 environments:
   - name: default
-    variables:
-      dev: true
+#    variables:
+#      dev: true
 providers:
   - name: local-kubernetes
 variables:
@@ -16,4 +16,7 @@ variables:
   postgres-username: postgres
   postgres-password: 12345
   postgres-healthcheck-database: api
+  pubsub-host: "pubsub:8681"
+  gcloud-project: local
+  debezium-tag: "2.0"
 

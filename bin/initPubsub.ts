@@ -1,5 +1,5 @@
 import '../src/config';
-import { workers } from '../infra/workers';
+import { workers } from '../.infra/workers';
 import { PubSub, ServiceError } from '@google-cloud/pubsub';
 import { Status } from '@grpc/grpc-js/build/src/constants';
 
