@@ -56,7 +56,7 @@ services:
         - source: src
           target: /opt/app/src
           exclude: [ node_modules ]
-          mode: one-way
+          mode: one-way-replica
     dependencies:
       - redis
       - postgres
