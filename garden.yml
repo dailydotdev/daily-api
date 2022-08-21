@@ -18,14 +18,16 @@ tasks:
       PUBSUB_PROJECT_ID: ${var.gcloud-project}
       GCLOUD_PROJECT: ${var.gcloud-project}
       ENABLE_PRIVATE_ROUTES: true
+      ENABLE_SUBSCRIPTIONS: true
+      ENABLE_PUBSUB: true
       TZ: UTC
       ACCESS_SECRET: 'topsecret'
-      GATEWAY_URL: http://daily-gateway:4000
+      GATEWAY_URL: http://gateway
       GATEWAY_SECRET: topsecret
       DEFAULT_IMAGE_URL: https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/2,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/3,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/4,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/5,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/6,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/7,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/8
       DEFAULT_IMAGE_RATIO: 1
-      URL_PREFIX: http://localhost:4000
-      COMMENTS_PREFIX: http://localhost:5002
+      URL_PREFIX: "http://${var.hostname}"
+      COMMENTS_PREFIX: "http://${var.hostname}"
       FLAGSMITH_KEY: secret
       REDIS_PORT: 6379
       COOKIES_KEY: topsecret
@@ -40,6 +42,13 @@ tasks:
       <<: *env
     dependencies:
       - pubsub
+  - name: api-seed
+    args: "${var.dev ? [ 'npm', 'run', 'db:seed:import' ] : ['node', './bin/import.js']}"
+    disabled: true
+    env:
+      <<: *env
+    dependencies:
+      - api-migrate
 services:
   - name: api
     devMode: &devMode
@@ -58,6 +67,11 @@ services:
       - name: http
         containerPort: 5000
         servicePort: 80
+    ingresses:
+      - path: /graphql
+        port: http
+      - path: /r
+        port: http
     healthCheck:
       httpGet:
         path: /health
