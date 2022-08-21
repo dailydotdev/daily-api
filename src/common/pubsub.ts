@@ -46,7 +46,10 @@ const publishEvent = async (
   topic: Topic,
   payload: Record<string, unknown>,
 ): Promise<void> => {
-  if (process.env.NODE_ENV === 'production') {
+  if (
+    process.env.NODE_ENV === 'production' ||
+    process.env.ENABLE_PUBSUB === 'true'
+  ) {
     try {
       await topic.publishMessage({
         json: payload,
