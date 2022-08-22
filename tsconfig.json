@@ -10,8 +10,6 @@
     "esModuleInterop": true
   },
   "exclude": [
-    "__tests__",
-    "infra",
-    "bin/initPubsub.ts"
+    "__tests__"
   ]
 }

@@ -1,4 +1,8 @@
-import { CronPubSub } from '@dailydotdev/pulumi-common';
+interface CronPubSub {
+  topic?: string;
+  name: string;
+  schedule: string;
+}
 
 export const crons: CronPubSub[] = [
   {
