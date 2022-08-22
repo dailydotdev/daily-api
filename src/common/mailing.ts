@@ -1,4 +1,5 @@
 import sgMail from '@sendgrid/mail';
+import client from '@sendgrid/client';
 import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { Comment, Post } from '../entity';
 import { getDiscussionLink } from './links';
@@ -90,4 +91,96 @@ export const getCommentedAuthorMailParams = (
       user_reputation: commenter.reputation,
     },
   };
+};
+
+// taken from sendgrid library itself
+type HttpMethod =
+  | 'get'
+  | 'GET'
+  | 'post'
+  | 'POST'
+  | 'put'
+  | 'PUT'
+  | 'patch'
+  | 'PATCH'
+  | 'delete'
+  | 'DELETE';
+
+interface EmailContact {
+  id: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  custom_fields: Record<string, string>;
+}
+
+const profileToContact = (profile: User, contactId: string) => {
+  const contact: EmailContact = {
+    id: contactId,
+    email: profile.email,
+    custom_fields: { e1_T: profile.id },
+  };
+
+  const name = profile.name && profile.name.trim();
+  if (name && name.length && name.length < 50) {
+    const [firstName, ...lastName] = name.trim().split(' ');
+    contact.first_name = firstName;
+    if (lastName.length) {
+      contact.last_name = lastName.join(' ');
+    }
+  }
+
+  return contact;
+};
+
+export const addUserToContacts = (
+  profile: User,
+  lists: string[],
+  contactId: string,
+) => {
+  const request = {
+    method: 'PUT' as HttpMethod,
+    url: '/v3/marketing/contacts',
+    body: {
+      list_ids: lists || undefined,
+      contacts: [profileToContact(profile, contactId)],
+    },
+  };
+  return client.request(request);
+};
+
+export const removeUserFromList = (list: string, contactId: string) => {
+  const request = {
+    method: 'DELETE' as HttpMethod,
+    url: `/v3/marketing/lists/${list}/contacts?contact_ids=${contactId}`,
+  };
+  return client.request(request);
+};
+
+export const removeUserContact = (contactId: string[]) => {
+  const request = {
+    method: 'DELETE' as HttpMethod,
+    url: `/v3/marketing/contacts?ids=${contactId}`,
+  };
+  return client.request(request);
+};
+
+export const updateUserContact = async (
+  newProfile: User,
+  oldEmail: string,
+  lists: string[],
+) => {
+  const contactId = await getContactIdByEmail(oldEmail);
+  return addUserToContacts(newProfile, lists, contactId);
+};
+
+export const getContactIdByEmail = async (email: string) => {
+  const request = {
+    method: 'POST' as HttpMethod,
+    url: '/v3/marketing/contacts/search',
+    body: { query: `email = '${email}'` },
+  };
+  const [, body] = await client.request(request);
+
+  return body && body.result && body.result.length ? body.result[0].id : null;
 };
