@@ -16,5 +16,4 @@ it('should remove from mailing list', async () => {
   await expectSuccessfulBackground(worker, { id: '1', email: 'lee@daily.dev' });
   expect(getContactIdByEmail).toBeCalledTimes(1);
   expect(removeUserContact).toBeCalledTimes(1);
-  expect(jest.mocked(removeUserContact).mock.calls[0]).toMatchSnapshot();
 });
