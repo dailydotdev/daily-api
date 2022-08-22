@@ -15,6 +15,14 @@ export const workers: Worker[] = [
     subscription: 'user-updated-api',
   },
   {
+    topic: 'user-updated',
+    subscription: 'user-updated-mailing',
+  },
+  {
+    topic: 'user-updated',
+    subscription: 'user-deleted-mailing',
+  },
+  {
     topic: 'user-deleted',
     subscription: 'user-deleted-api',
   },
