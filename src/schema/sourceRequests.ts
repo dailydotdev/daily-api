@@ -11,8 +11,8 @@ import {
 } from './common';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { Source, SourceFeed, SourceRequest } from '../entity';
-import { fetchUserInfo, getRelayNodeInfo, uploadLogo } from '../common';
+import { Source, SourceFeed, SourceRequest, User } from '../entity';
+import { getRelayNodeInfo, uploadLogo } from '../common';
 import { GraphQLResolveInfo } from 'graphql';
 import { FileUpload } from 'graphql-upload';
 
@@ -316,7 +316,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { data }: GQLDataInput<GQLRequestSourceInput>,
       ctx,
     ): Promise<GQLSourceRequest> => {
-      const info = await fetchUserInfo(ctx.userId);
+      const info = await ctx
+        .getRepository(User)
+        .findOneOrFail({ id: ctx.userId });
       const repo = ctx.getRepository(SourceRequest);
       const sourceReq = repo.create({
         sourceUrl: data.sourceUrl,

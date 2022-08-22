@@ -1,5 +1,4 @@
 import { validateRegex, ValidateRegex } from './../common/object';
-import { fetchUserById } from './../common/users';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -33,7 +32,7 @@ import { getSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
-import { TypeOrmError } from '../errors';
+import { TypeOrmError, NotFoundError } from '../errors';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -56,7 +55,7 @@ interface GQLUserParameters {
 export interface GQLUser {
   id: string;
   name: string;
-  image?: string;
+  image: string;
   infoConfirmed: boolean;
   createdAt?: Date;
   username?: string;
@@ -64,6 +63,9 @@ export interface GQLUser {
   twitter?: string;
   github?: string;
   hashnode?: string;
+  portfolio?: string;
+  reputation?: number;
+  timezone?: string;
 }
 
 export interface GQLView {
@@ -146,6 +148,10 @@ export const typeDefs = /* GraphQL */ `
     """
     hashnode: String
     """
+    Portfolio URL of the user
+    """
+    portfolio: String
+    """
     Date when the user joined
     """
     createdAt: DateTime!
@@ -154,9 +160,13 @@ export const typeDefs = /* GraphQL */ `
     """
     infoConfirmed: Boolean
     """
-    Timezone
+    Timezone of the user
     """
     timezone: String
+    """
+    Reputation of the user
+    """
+    reputation: Int
   }
 
   """
@@ -461,7 +471,7 @@ export const resolvers: IResolvers<any, Context> = {
         return builder;
       });
       if (!res[0]) {
-        throw new ForbiddenError('user not found');
+        throw new NotFoundError('user not found');
       }
       return res[0];
     },
@@ -491,7 +501,26 @@ export const resolvers: IResolvers<any, Context> = {
           : null,
       };
     },
-    user: (_, { id }: { id: string }): Promise<GQLUser> => fetchUserById(id),
+    user: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUser> => {
+      const res = await graphorm.query<GQLUser>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(
+            `("${builder.alias}"."id" = :id OR "${builder.alias}"."username" = :id)`,
+            { id },
+          )
+          .limit(1);
+        return builder;
+      });
+      if (!res[0]) {
+        throw new ForbiddenError('user not found');
+      }
+      return res[0];
+    },
     userReadingRank: async (
       _,
       { id, version = 1, limit = 6 }: ReadingRankArgs,

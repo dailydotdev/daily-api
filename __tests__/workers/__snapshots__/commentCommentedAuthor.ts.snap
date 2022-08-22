@@ -15,7 +15,7 @@ Array [
         "post_image": "https://daily.dev/image.jpg",
         "post_title": "P1",
         "profile_image": "https://daily.dev/ido.jpg",
-        "user_reputation": 3,
+        "user_reputation": 10,
       },
       "from": Object {
         "email": "informer@daily.dev",
@@ -45,7 +45,7 @@ Array [
         "post_image": "https://daily.dev/image.jpg",
         "post_title": "P1",
         "profile_image": "https://daily.dev/ido.jpg",
-        "user_reputation": 3,
+        "user_reputation": 10,
       },
       "from": Object {
         "email": "informer@daily.dev",
@@ -82,7 +82,7 @@ Array [
         "post_image": "https://daily.dev/image.jpg",
         "post_title": "P1",
         "profile_image": "https://daily.dev/tsahi.jpg",
-        "user_reputation": 3,
+        "user_reputation": 10,
       },
       "from": Object {
         "email": "informer@daily.dev",
@@ -119,7 +119,7 @@ Array [
         "post_image": "https://daily.dev/image.jpg",
         "post_title": "P1",
         "profile_image": "https://daily.dev/ido.jpg",
-        "user_reputation": 3,
+        "user_reputation": 10,
       },
       "from": Object {
         "email": "informer@daily.dev",

@@ -40,9 +40,9 @@ const worker: Worker = {
         })
         .getRawMany();
       const [author, commenter, ...followers] = await Promise.all([
-        fetchUser(parent.userId),
-        fetchUser(data.userId),
-        ...threadFollowers.map(({ userId }) => fetchUser(userId)),
+        fetchUser(parent.userId, con),
+        fetchUser(data.userId, con),
+        ...threadFollowers.map(({ userId }) => fetchUser(userId, con)),
       ]);
       if (followers.length) {
         const link = getDiscussionLink(post.id);

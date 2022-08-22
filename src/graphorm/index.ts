@@ -22,6 +22,12 @@ const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
 const obj = new GraphORM({
   User: {
     requiredColumns: ['id', 'username'],
+    fields: {
+      infoConfirmed: {
+        select: 'infoConfirmed',
+        transform: nullIfNotLoggedIn,
+      },
+    },
   },
   CommentUpvote: {
     requiredColumns: ['createdAt'],

@@ -1,11 +1,10 @@
-import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
-import { sendEmail, User as GatewayUser } from '../../src/common';
+import { sendEmail } from '../../src/common';
 import worker from '../../src/workers/commentFeaturedMail';
 import { Comment, Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { gatewayUsersFixture } from '../fixture/user';
+import { usersFixture } from '../fixture/user';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -36,10 +35,7 @@ beforeEach(async () => {
       image: 'https://daily.dev/image.jpg',
     },
   ]);
-  await con.getRepository(User).save([
-    { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
-    { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
-  ]);
+  await con.getRepository(User).save([usersFixture[0], usersFixture[1]]);
   await con.getRepository(Comment).save([
     {
       id: 'c1',
@@ -60,18 +56,7 @@ beforeEach(async () => {
   ]);
 });
 
-const mockUsersMe = (user: GatewayUser): nock.Scope =>
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', user.id)
-    .matchHeader('logged-in', 'true')
-    .reply(200, user);
-
 it('should send featured comment mail', async () => {
-  const mockedUsers: GatewayUser[] = [gatewayUsersFixture[0]];
-  mockedUsers.forEach(mockUsersMe);
-
   await expectSuccessfulBackground(worker, {
     commentId: 'c1',
   });

@@ -20,7 +20,7 @@ const templateIds = {
 
 const worker: Worker = {
   subscription: 'source-request-mail',
-  handler: async (message, _, logger): Promise<void> => {
+  handler: async (message, con, logger): Promise<void> => {
     const { reason, sourceRequest }: Data = messageToJson(message);
 
     const date = new Date(sourceRequest.createdAt);
@@ -34,7 +34,7 @@ const worker: Worker = {
       }
       if (!mailTemplateId) return;
 
-      const user = await fetchUser(sourceRequest.userId);
+      const user = await fetchUser(sourceRequest.userId, con);
       await sendEmail({
         ...baseNotificationEmailData,
         to: user.email,

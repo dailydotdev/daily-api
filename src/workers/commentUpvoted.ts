@@ -39,7 +39,7 @@ const worker: Worker = {
         );
         return;
       }
-      const author = await fetchUser(comment.userId);
+      const author = await fetchUser(comment.userId, con);
       const post = await comment.post;
       const title = upvoteTitles[comment.upvotes];
       if (title && author.id !== data.userId) {

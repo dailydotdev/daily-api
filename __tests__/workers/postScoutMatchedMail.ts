@@ -1,7 +1,6 @@
-import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
-import { sendEmail, User as GatewayUser } from '../../src/common';
+import { sendEmail } from '../../src/common';
 import worker from '../../src/workers/postScoutMatchedMail';
 import {
   Post,
@@ -11,7 +10,7 @@ import {
   User,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { gatewayUsersFixture } from '../fixture/user';
+import { usersFixture } from '../fixture/user';
 import { postsFixture } from '../fixture/post';
 
 jest.mock('../../src/common/mailing', () => ({
@@ -29,7 +28,7 @@ beforeAll(async () => {
 });
 
 const defaultPost = postsFixture[0];
-const defaultUser = gatewayUsersFixture[0];
+const defaultUser = usersFixture[0];
 
 beforeEach(async () => {
   jest.resetAllMocks();
@@ -38,23 +37,13 @@ beforeEach(async () => {
   await saveFixtures(con, Post, [defaultPost]);
 });
 
-const mockUsersMe = (user: GatewayUser): nock.Scope =>
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', user.id)
-    .matchHeader('logged-in', 'true')
-    .reply(200, user);
-
 it('should send post scout matched mail', async () => {
-  const mockedUsers: GatewayUser[] = [defaultUser];
   await con.getRepository(Submission).save({
     status: SubmissionStatus.Accepted,
     url: defaultPost.url,
     userId: '1',
     createdAt: new Date(2020, 8, 25),
   });
-  mockedUsers.forEach(mockUsersMe);
   await expectSuccessfulBackground(worker, {
     postId: 'p1',
     scoutId: '1',

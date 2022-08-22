@@ -319,9 +319,9 @@ Object {
 
 exports[`query user should return user info with name, username, and image 1`] = `
 Object {
-  "image": "lee.image.com",
-  "name": "Lee Hansel",
-  "username": "lee",
+  "image": "https://daily.dev/ido.jpg",
+  "name": "Ido",
+  "username": null,
 }
 `;
 

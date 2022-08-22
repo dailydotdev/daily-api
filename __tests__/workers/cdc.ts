@@ -103,6 +103,8 @@ beforeEach(async () => {
 const defaultUser: ChangeObject<User> = {
   id: '1',
   name: 'Ido',
+  email: 'ido@daily.dev',
+  permalink: 'https://app.daily.dev/idoshamun',
   image: 'https://daily.dev/image.jpg',
   reputation: 5,
   devcardEligible: false,

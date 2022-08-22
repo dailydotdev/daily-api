@@ -1,4 +1,3 @@
-import nock from 'nock';
 import { Connection, getConnection } from 'typeorm';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail } from '../../src/common';
@@ -6,6 +5,7 @@ import worker from '../../src/workers/commentCommented';
 import { Comment, Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
+import { usersFixture } from '../fixture/user';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -25,10 +25,7 @@ beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
-  await con.getRepository(User).save([
-    { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
-    { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
-  ]);
+  await con.getRepository(User).save(usersFixture);
   await con.getRepository(Comment).save([
     {
       id: 'c1',
@@ -58,32 +55,6 @@ beforeEach(async () => {
 });
 
 it('should send mail to author', async () => {
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '1',
-      email: 'ido@daily.dev',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-      reputation: 5,
-    });
-
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '2')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '2',
-      email: 'tsahi@daily.dev',
-      name: 'Tsahi',
-      image: 'https://daily.dev/tsahi.jpg',
-      reputation: 3,
-    });
-
   await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: '2',
@@ -95,30 +66,6 @@ it('should send mail to author', async () => {
 });
 
 it('should not send mail when the author is the commenter user', async () => {
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '1',
-      email: 'ido@daily.dev',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-    });
-
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '1',
-      email: 'ido@daily.dev',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-    });
-
   await expectSuccessfulBackground(worker, {
     postId: 'p1',
     userId: '1',
@@ -129,32 +76,6 @@ it('should not send mail when the author is the commenter user', async () => {
 });
 
 it('should not send mail when the author is the post author', async () => {
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '1')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '1',
-      email: 'ido@daily.dev',
-      name: 'Ido',
-      image: 'https://daily.dev/ido.jpg',
-      reputation: 5,
-    });
-
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', '2')
-    .matchHeader('logged-in', 'true')
-    .reply(200, {
-      id: '2',
-      email: 'tsahi@daily.dev',
-      name: 'Tsahi',
-      image: 'https://daily.dev/tsahi.jpg',
-      reputation: 3,
-    });
-
   await con.getRepository(Post).update('p1', { authorId: '1' });
   await expectSuccessfulBackground(worker, {
     postId: 'p1',

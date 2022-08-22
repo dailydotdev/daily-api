@@ -1,12 +1,9 @@
-import nock from 'nock';
 import { expectSuccessfulBackground } from '../helpers';
-import {
-  NotificationReason,
-  sendEmail,
-  User as GatewayUser,
-} from '../../src/common';
+import { NotificationReason, sendEmail } from '../../src/common';
 import worker from '../../src/workers/sourceRequestMail';
-import { gatewayUsersFixture } from '../fixture/user';
+import { usersFixture } from '../fixture/user';
+import { Connection, getConnection } from 'typeorm';
+import { User } from '../../src/entity';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -16,21 +13,18 @@ jest.mock('../../src/common/mailing', () => ({
   sendEmail: jest.fn(),
 }));
 
-beforeEach(async () => {
-  jest.resetAllMocks();
+let con: Connection;
+
+beforeAll(async () => {
+  con = await getConnection();
 });
 
-const mockUsersMe = (user: GatewayUser): nock.Scope =>
-  nock(process.env.GATEWAY_URL)
-    .get('/v1/users/me')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .matchHeader('user-id', user.id)
-    .matchHeader('logged-in', 'true')
-    .reply(200, user);
+beforeEach(async () => {
+  jest.resetAllMocks();
+  await con.getRepository(User).save([usersFixture[0]]);
+});
 
 it('should send mail when the source request is submitted', async () => {
-  const mockedUsers: GatewayUser[] = [gatewayUsersFixture[0]];
-  mockedUsers.forEach(mockUsersMe);
   await expectSuccessfulBackground(worker, {
     reason: NotificationReason.New,
     sourceRequest: {
@@ -45,8 +39,6 @@ it('should send mail when the source request is submitted', async () => {
 });
 
 it('should send mail when the source request is declined', async () => {
-  const mockedUsers: GatewayUser[] = [gatewayUsersFixture[0]];
-  mockedUsers.forEach(mockUsersMe);
   await expectSuccessfulBackground(worker, {
     reason: NotificationReason.Decline,
     sourceRequest: {
@@ -61,8 +53,6 @@ it('should send mail when the source request is declined', async () => {
 });
 
 it('should send mail when the source request is declined and existed', async () => {
-  const mockedUsers: GatewayUser[] = [gatewayUsersFixture[0]];
-  mockedUsers.forEach(mockUsersMe);
   await expectSuccessfulBackground(worker, {
     reason: NotificationReason.Decline,
     sourceRequest: {
@@ -78,8 +68,6 @@ it('should send mail when the source request is declined and existed', async () 
 });
 
 it('should send mail when the source request is approved', async () => {
-  const mockedUsers: GatewayUser[] = [gatewayUsersFixture[0]];
-  mockedUsers.forEach(mockUsersMe);
   await expectSuccessfulBackground(worker, {
     reason: NotificationReason.Approve,
     sourceRequest: {

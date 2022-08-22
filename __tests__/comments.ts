@@ -414,6 +414,7 @@ describe('function updateMentions', () => {
     expect(saved).toMatchSnapshot({ createdAt: expect.any(Date) });
     const user = await con.getRepository(User).findOne('7');
     const previous = user.username;
+    delete user.permalink;
     user.username = 'sshanzel';
     const updated = await con.transaction(async (transaction) => {
       await transaction.getRepository(User).update({ id: user.id }, user);
