@@ -11,9 +11,10 @@ RUN \
   apk --no-cache add \
   libc6-compat
 
-RUN npm i --only=prod
+RUN npm i -g nodemon
+RUN npm i
 
-COPY build .
+COPY . .
 
-CMD ["npm", "run", "start"]
+CMD ["npm", "run", "dev"]
 

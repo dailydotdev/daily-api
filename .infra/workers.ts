@@ -1,5 +1,10 @@
-import { Worker } from '@dailydotdev/pulumi-common';
 import { crons } from './crons';
+
+interface Worker {
+  topic: string;
+  subscription: string;
+  args?: { enableMessageOrdering?: boolean };
+}
 
 export const workers: Worker[] = [
   {
