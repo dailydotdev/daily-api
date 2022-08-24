@@ -10,6 +10,17 @@ import {
   getAuthorPostStats,
   PostStats,
   View,
+  Alerts,
+  BookmarkList,
+  Bookmark,
+  CommentUpvote,
+  Feed,
+  HiddenPost,
+  PostReport,
+  Settings,
+  SourceDisplay,
+  SourceRequest,
+  Upvote,
 } from '../entity';
 import {
   AuthenticationError,
@@ -404,6 +415,11 @@ export const typeDefs = /* GraphQL */ `
     Hide user's read history
     """
     hideReadHistory(postId: String!, timestamp: DateTime!): EmptyResponse @auth
+
+    """
+    Delete user's account
+    """
+    deleteUser: EmptyResponse @auth
   }
 `;
 
@@ -745,6 +761,35 @@ export const resolvers: IResolvers<any, Context> = {
             );
           }
         }
+        throw err;
+      }
+    },
+    deleteUser: async (_, __, ctx: Context): Promise<unknown> => {
+      const userId = ctx.userId;
+      console.log('deletign user: ', userId);
+      try {
+        await ctx.con.transaction(async (entityManager): Promise<void> => {
+          await entityManager.getRepository(View).delete({ userId });
+          await entityManager.getRepository(Alerts).delete({ userId });
+          await entityManager.getRepository(BookmarkList).delete({ userId });
+          await entityManager.getRepository(Bookmark).delete({ userId });
+          await entityManager.getRepository(CommentUpvote).delete({ userId });
+          await entityManager.getRepository(Comment).delete({ userId });
+          await entityManager.getRepository(DevCard).delete({ userId });
+          await entityManager.getRepository(Feed).delete({ userId });
+          await entityManager.getRepository(HiddenPost).delete({ userId });
+          await entityManager.getRepository(PostReport).delete({ userId });
+          await entityManager.getRepository(Settings).delete({ userId });
+          await entityManager.getRepository(SourceDisplay).delete({ userId });
+          await entityManager.getRepository(SourceRequest).delete({ userId });
+          await entityManager.getRepository(Upvote).delete({ userId });
+          await entityManager
+            .getRepository(Post)
+            .update({ authorId: userId }, { authorId: null });
+          await entityManager.getRepository(User).delete(userId);
+        });
+        return true;
+      } catch (err) {
         throw err;
       }
     },

@@ -35,12 +35,15 @@ interface UserData {
   portfolio?: string;
   hashnode?: string;
   timezone?: string;
+  kratosUser?: boolean;
 }
 
 const worker: Worker = {
   subscription: 'user-deleted-api',
   handler: async (message, con, logger): Promise<void> => {
     const data: UserData = messageToJson(message);
+    // Kratos users are already deleted, this is only to support gateway deletion
+    if (data.kratosUser) return;
     try {
       await con.transaction(async (entityManager): Promise<void> => {
         await entityManager.getRepository(View).delete({ userId: data.id });
