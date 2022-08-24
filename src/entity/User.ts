@@ -11,7 +11,7 @@ import {
 import { Post } from './Post';
 import { DevCard } from './DevCard';
 import { FastifyLoggerInstance } from 'fastify';
-import { UserFailErrorKeys } from '../errors';
+import { UpdateUserFailErrorKeys, UserFailErrorKeys } from '../errors';
 
 @Entity()
 export class User {
@@ -103,6 +103,7 @@ export type AddUserData = Pick<
   User,
   'id' | 'name' | 'image' | 'username' | 'email' | 'createdAt' | 'github'
 >;
+export type UpdateUserEmailData = Pick<User, 'id' | 'email'>;
 type AddNewUserResult =
   | { status: 'ok'; userId: string }
   | { status: 'failed'; reason: UserFailErrorKeys; error?: Error };
@@ -133,6 +134,45 @@ const checkUsernameAndEmail = async (
     })
     .getRawOne();
   return !user;
+};
+
+type UpdateUserEmailResult =
+  | { status: 'ok'; userId: string }
+  | { status: 'failed'; reason: UpdateUserFailErrorKeys; error?: Error };
+export const updateUserEmail = async (
+  con: Connection,
+  data: UpdateUserEmailData,
+  logger: FastifyLoggerInstance,
+): Promise<UpdateUserEmailResult> => {
+  if (!data.email || !data.id) {
+    return { status: 'failed', reason: 'MISSING_FIELDS' };
+  }
+
+  return con.transaction(async (entityManager) => {
+    try {
+      await entityManager
+        .getRepository(User)
+        .update({ id: data.id }, { email: data.email });
+      logger.info(`Updated email for user with ID: ${data.id}`);
+      return { status: 'ok', userId: data.id };
+    } catch (error) {
+      logger.error(
+        {
+          data,
+          userId: data.id,
+          error,
+        },
+        'failed to create user profile',
+      );
+
+      // Unique
+      if (error?.code === '23505') {
+        return { status: 'failed', reason: 'USER_DOESNT_EXISTS' };
+      }
+
+      throw error;
+    }
+  });
 };
 
 export const addNewUser = async (
