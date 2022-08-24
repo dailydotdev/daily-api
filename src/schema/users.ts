@@ -33,6 +33,7 @@ import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
 import { TypeOrmError, NotFoundError } from '../errors';
+import { deleteUser } from '../workers/deleteUser';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -404,6 +405,11 @@ export const typeDefs = /* GraphQL */ `
     Hide user's read history
     """
     hideReadHistory(postId: String!, timestamp: DateTime!): EmptyResponse @auth
+
+    """
+    Delete user's account
+    """
+    deleteUser: EmptyResponse @auth
   }
 `;
 
@@ -747,6 +753,10 @@ export const resolvers: IResolvers<any, Context> = {
         }
         throw err;
       }
+    },
+    deleteUser: async (_, __, ctx: Context): Promise<unknown> => {
+      const userId = ctx.userId;
+      return await deleteUser(ctx.con, ctx.log, userId);
     },
     hideReadHistory: (
       _,
