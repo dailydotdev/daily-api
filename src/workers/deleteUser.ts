@@ -17,6 +17,8 @@ import { Settings } from '../entity/Settings';
 import { SourceDisplay } from '../entity/SourceDisplay';
 import { SourceRequest } from '../entity/SourceRequest';
 import { Upvote } from '../entity/Upvote';
+import { FastifyLoggerInstance } from 'fastify';
+import { Connection } from 'typeorm';
 
 interface UserData {
   id: string;
@@ -38,63 +40,64 @@ interface UserData {
   kratosUser?: boolean;
 }
 
+export const deleteUser = async (
+  con: Connection,
+  logger: FastifyLoggerInstance,
+  userId: string,
+  messageId?: string,
+) => {
+  try {
+    await con.transaction(async (entityManager): Promise<void> => {
+      await entityManager.getRepository(View).delete({ userId });
+      await entityManager.getRepository(Alerts).delete({ userId });
+      await entityManager.getRepository(BookmarkList).delete({ userId });
+      await entityManager.getRepository(Bookmark).delete({ userId });
+      await entityManager.getRepository(CommentUpvote).delete({ userId });
+      await entityManager.getRepository(Comment).delete({ userId });
+      await entityManager.getRepository(DevCard).delete({ userId });
+      await entityManager.getRepository(Feed).delete({ userId });
+      await entityManager.getRepository(HiddenPost).delete({ userId });
+      await entityManager.getRepository(PostReport).delete({ userId });
+      await entityManager.getRepository(Settings).delete({ userId });
+      await entityManager.getRepository(SourceDisplay).delete({ userId });
+      await entityManager.getRepository(SourceRequest).delete({ userId });
+      await entityManager.getRepository(Upvote).delete({ userId });
+      await entityManager
+        .getRepository(Post)
+        .update({ authorId: userId }, { authorId: null });
+      await entityManager.getRepository(User).delete(userId);
+    });
+    if (logger) {
+      logger.info(
+        {
+          userId,
+          messageId,
+        },
+        'deleted user',
+      );
+    }
+  } catch (err) {
+    if (logger) {
+      logger.error(
+        {
+          userId,
+          messageId,
+          err,
+        },
+        'failed to delete user',
+      );
+    }
+    throw err;
+  }
+};
+
 const worker: Worker = {
   subscription: 'user-deleted-api',
   handler: async (message, con, logger): Promise<void> => {
     const data: UserData = messageToJson(message);
     // Kratos users are already deleted, this is only to support gateway deletion
     if (data.kratosUser) return;
-    try {
-      await con.transaction(async (entityManager): Promise<void> => {
-        await entityManager.getRepository(View).delete({ userId: data.id });
-        await entityManager.getRepository(Alerts).delete({ userId: data.id });
-        await entityManager
-          .getRepository(BookmarkList)
-          .delete({ userId: data.id });
-        await entityManager.getRepository(Bookmark).delete({ userId: data.id });
-        await entityManager
-          .getRepository(CommentUpvote)
-          .delete({ userId: data.id });
-        await entityManager.getRepository(Comment).delete({ userId: data.id });
-        await entityManager.getRepository(DevCard).delete({ userId: data.id });
-        await entityManager.getRepository(Feed).delete({ userId: data.id });
-        await entityManager
-          .getRepository(HiddenPost)
-          .delete({ userId: data.id });
-        await entityManager
-          .getRepository(PostReport)
-          .delete({ userId: data.id });
-        await entityManager.getRepository(Settings).delete({ userId: data.id });
-        await entityManager
-          .getRepository(SourceDisplay)
-          .delete({ userId: data.id });
-        await entityManager
-          .getRepository(SourceRequest)
-          .delete({ userId: data.id });
-        await entityManager.getRepository(Upvote).delete({ userId: data.id });
-        await entityManager
-          .getRepository(Post)
-          .update({ authorId: data.id }, { authorId: null });
-        await entityManager.getRepository(User).delete(data.id);
-      });
-      logger.info(
-        {
-          userId: data.id,
-          messageId: message.messageId,
-        },
-        'deleted user',
-      );
-    } catch (err) {
-      logger.error(
-        {
-          userId: data.id,
-          messageId: message.messageId,
-          err,
-        },
-        'failed to delete user',
-      );
-      throw err;
-    }
+    await deleteUser(con, logger, data.id, message.messageId);
   },
 };
 
