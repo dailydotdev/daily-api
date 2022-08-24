@@ -7,6 +7,8 @@ import {
   RejectPostData,
   Submission,
   SubmissionStatus,
+  updateUserEmail,
+  UpdateUserEmailData,
   User,
 } from '../entity';
 import { getConnection } from 'typeorm';
@@ -67,11 +69,23 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const operationResult = await addNewUser(con, req.body, req.log);
     return res.status(200).send(operationResult);
   });
+  fastify.post<{ Body: UpdateUserEmailData }>(
+    '/updateUserEmail',
+    async (req, res) => {
+      if (!req.service) {
+        return res.status(404).send();
+      }
+
+      const con = getConnection();
+      const operationResult = await updateUserEmail(con, req.body, req.log);
+      return res.status(200).send(operationResult);
+    },
+  );
   fastify.get<{ Querystring: SearchUsername }>(
     '/checkUsername',
     async (req, res) => {
       if (!req.service) {
-        return res.status(401).send();
+        return res.status(404).send();
       }
 
       const { search } = req.query;
