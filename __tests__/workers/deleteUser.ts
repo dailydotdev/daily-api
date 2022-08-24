@@ -1,6 +1,14 @@
 import { Connection, getConnection } from 'typeorm';
 
-import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import {
+  expectSuccessfulBackground,
+  GraphQLTestClient,
+  GraphQLTestingState,
+  initializeGraphQLTesting,
+  MockContext,
+  saveFixtures,
+  testMutationErrorCode,
+} from '../helpers';
 import worker from '../../src/workers/deleteUser';
 import {
   AdvancedSettings,
@@ -29,9 +37,16 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 
 let con: Connection;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
+let loggedUser: string = null;
 
 beforeAll(async () => {
   con = await getConnection();
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser),
+  );
+  client = state.client;
 });
 
 beforeEach(async () => {
@@ -63,6 +78,7 @@ beforeEach(async () => {
     score: 10,
     sourceId: 'p',
     authorId: 'u1',
+    scoutId: 'u1',
     createdAt: new Date(now.getTime() - 5000),
   });
   await saveFixtures(con, View, [
@@ -419,4 +435,61 @@ it('should clear author from posts for the deleted user', async () => {
     .getRepository(Post)
     .find({ where: { authorId: 'u1' } });
   expect(authorPosts.length).toEqual(0);
+});
+
+it('should clear scout from posts for the deleted user', async () => {
+  const sanityCheck = await con
+    .getRepository(Post)
+    .find({ where: { scoutId: 'u1' } });
+  expect(sanityCheck.length).toEqual(1);
+  await expectSuccessfulBackground(worker, {
+    id: 'u1',
+    name: 'ido',
+    image: 'https://daily.dev/image.jpg',
+    createdAt: new Date(2021, 7, 11),
+  });
+  const scoutPosts = await con
+    .getRepository(Post)
+    .find({ where: { scoutId: 'u1' } });
+  expect(scoutPosts.length).toEqual(0);
+});
+
+describe('mutation deleteUser', () => {
+  const MUTATION = `
+    mutation DeleteUser {
+      deleteUser {
+        _
+      }
+    }
+  `;
+
+  it('should not delete when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should delete the user', async () => {
+    loggedUser = 'u1';
+
+    await client.mutate(MUTATION, {});
+
+    const users = await con.getRepository(User).find();
+    expect(users.length).toEqual(1);
+
+    const views = await con.getRepository(View).find();
+    expect(views.length).toEqual(0);
+
+    await expectSuccessfulBackground(worker, {
+      id: 'u1',
+      name: 'ido',
+      image: 'https://daily.dev/image.jpg',
+      createdAt: new Date(2021, 7, 11),
+    });
+    const usersBG = await con.getRepository(User).find();
+    expect(usersBG.length).toEqual(1);
+  });
 });

@@ -41,6 +41,7 @@ import {
   notifySubmissionCreated,
   notifySubmissionGrantedAccess,
   NotificationReason,
+  notifyUserDeleted,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -384,6 +385,9 @@ const onUserStateChange = async (
     if (data.payload.after.key === UserStateKey.CommunityLinkAccess) {
       await notifySubmissionGrantedAccess(logger, data.payload.after.userId);
     }
+  }
+  if (data.payload.op === 'd') {
+    await notifyUserDeleted(logger, data.payload.before.userId, true);
   }
 };
 
