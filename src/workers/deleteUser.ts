@@ -65,6 +65,9 @@ export const deleteUser = async (
       await entityManager
         .getRepository(Post)
         .update({ authorId: userId }, { authorId: null });
+      await entityManager
+        .getRepository(Post)
+        .update({ scoutId: userId }, { scoutId: null });
       await entityManager.getRepository(User).delete(userId);
     });
     if (logger) {
