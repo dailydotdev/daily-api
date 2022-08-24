@@ -73,7 +73,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     '/updateUserEmail',
     async (req, res) => {
       if (!req.service) {
-        return res.status(401).send();
+        return res.status(404).send();
       }
 
       const con = getConnection();
@@ -85,7 +85,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     '/checkUsername',
     async (req, res) => {
       if (!req.service) {
-        return res.status(401).send();
+        return res.status(404).send();
       }
 
       const { search } = req.query;

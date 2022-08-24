@@ -388,7 +388,7 @@ describe('POST /p/newUser', () => {
 
 describe('POST /p/checkUsername', () => {
   it('should return unauthorized when token is missing', () => {
-    return request(app.server).get('/p/checkUsername').expect(401);
+    return request(app.server).get('/p/checkUsername').expect(404);
   });
 
   it('should handle when username query is empty', async () => {
@@ -424,7 +424,7 @@ describe('POST /p/checkUsername', () => {
 
 describe('POST /p/updateUserEmail', () => {
   it('should return unauthorized when token is missing', () => {
-    return request(app.server).post('/p/updateUserEmail').expect(401);
+    return request(app.server).post('/p/updateUserEmail').expect(404);
   });
 
   it('should handle when id is empty', async () => {
@@ -445,6 +445,23 @@ describe('POST /p/updateUserEmail', () => {
       .send({ id: '1' })
       .expect(200);
     expect(body).toEqual({ status: 'failed', reason: 'MISSING_FIELDS' });
+  });
+
+  it("should return correct response if user doesn't exist", async () => {
+    const newEmail = 'somenewemail@gmail.com';
+    const { body } = await request(app.server)
+      .post('/p/updateUserEmail')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        email: newEmail,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USER_DOESNT_EXIST' });
+
+    const users = await con.getRepository(User).find();
+    expect(users.length).toBe(0);
   });
 
   it('should return correct response if exists', async () => {

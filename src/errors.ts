@@ -6,7 +6,7 @@ export type UserFailErrorKeys =
   | 'USER_EXISTS'
   | 'USERNAME_EMAIL_EXISTS';
 
-export type UpdateUserFailErrorKeys = 'MISSING_FIELDS' | 'USER_DOESNT_EXISTS';
+export type UpdateUserFailErrorKeys = 'MISSING_FIELDS' | 'USER_DOESNT_EXIST';
 
 export type SubmissionFailErrorKeys =
   | 'GENERIC_ERROR'

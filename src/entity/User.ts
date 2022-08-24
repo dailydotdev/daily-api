@@ -150,9 +150,16 @@ export const updateUserEmail = async (
 
   return con.transaction(async (entityManager) => {
     try {
-      await entityManager
+      const res = await entityManager
         .getRepository(User)
         .update({ id: data.id }, { email: data.email });
+      if (res.affected === 0) {
+        logger.info(
+          `Failed to update email user not found with ID: ${data.id}`,
+        );
+        return { status: 'failed', reason: 'USER_DOESNT_EXIST' };
+      }
+
       logger.info(`Updated email for user with ID: ${data.id}`);
       return { status: 'ok', userId: data.id };
     } catch (error) {
@@ -162,13 +169,8 @@ export const updateUserEmail = async (
           userId: data.id,
           error,
         },
-        'failed to create user profile',
+        'failed to update user email',
       );
-
-      // Unique
-      if (error?.code === '23505') {
-        return { status: 'failed', reason: 'USER_DOESNT_EXISTS' };
-      }
 
       throw error;
     }
