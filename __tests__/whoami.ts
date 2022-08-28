@@ -85,6 +85,7 @@ describe('dedicated api routes', () => {
         ...user,
         timezone: null,
         createdAt: userCreatedDate,
+        reputation: 10,
       });
     });
   });
