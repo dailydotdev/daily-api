@@ -16,6 +16,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         hashnode
         infoConfirmed
         timezone
+        reputation
       }
     }`;
 

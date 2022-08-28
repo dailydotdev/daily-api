@@ -43,7 +43,7 @@ export default async function app(
   const app = fastify({
     logger: true,
     disableRequestLogging: true,
-    trustProxy: isProd,
+    trustProxy: true,
   });
   app.server.keepAliveTimeout = 650 * 1000;
 

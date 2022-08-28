@@ -56,7 +56,7 @@ interface GQLUserParameters {
 export interface GQLUser {
   id: string;
   name: string;
-  image: string;
+  image?: string;
   infoConfirmed: boolean;
   createdAt?: Date;
   username?: string;
@@ -123,7 +123,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Profile image of the user
     """
-    image: String!
+    image: String
     """
     Username (handle) of the user
     """
@@ -571,26 +571,20 @@ export const resolvers: IResolvers<any, Context> = {
 
       return ctx.con.query(
         `
-        select ${rankColumn} as "rank",
-               count(*)                                    as "count"
-        from (
-               select date_trunc('week', ${timestampAtTimezone}) ${userTimezone} as "timestamp",
-                      count(*)                        as days
-               from (
-                      select date_trunc('day', ${timestampAtTimezone}) ${userTimezone} as "timestamp",
-                      min("user".timezone) as "timezone"
+          select ${rankColumn} as "rank",
+                 count(*)      as "count"
+          from (select date_trunc('week', ${timestampAtTimezone}) ${userTimezone} as "timestamp", count(*) as days
+                from (select date_trunc('day', ${timestampAtTimezone}) ${userTimezone} as "timestamp", min("user".timezone) as "timezone"
                       from "view"
-                      join "user" on "user".id = view."userId"
+                             join "user" on "user".id = view."userId"
                       where "userId" = $1
                         and "timestamp" >= $2
                         and "timestamp" < $3
                       group by 1
-                      having count(*) > 0
-                    ) as days
-               group by 1
-             ) as weeks
-        group by 1;
-      `,
+                      having count(*) > 0) as days
+                group by 1) as weeks
+          group by 1;
+        `,
         [id, start, end],
       );
     },
@@ -624,14 +618,17 @@ export const resolvers: IResolvers<any, Context> = {
     ) => {
       const hits: { title: string }[] = await ctx.con.query(
         `
-        WITH search AS (${getSearchQuery('$2')})
-        select distinct(ts_headline(process_text(title), search.query,
-        ('StartSel = <strong>, StopSel = </strong>'))) as title
-        from post INNER JOIN view ON view."postId" = post.id AND view."userId" = $1, search
-        where tsv @@ search.query
-        and post.deleted = false
-        order by title desc
-        limit 5;
+          WITH search AS (${getSearchQuery('$2')})
+          select distinct(ts_headline(process_text(title), search.query,
+                                      ('StartSel = <strong>, StopSel = </strong>'))) as title
+          from post
+                 INNER JOIN view
+                            ON view."postId" = post.id AND view."userId" = $1,
+               search
+          where tsv @@ search.query
+            and post.deleted = false
+          order by title desc
+            limit 5;
         `,
         [ctx.userId, query],
       );

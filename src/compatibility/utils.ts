@@ -59,6 +59,10 @@ export const injectGraphql = async (
     return res.status(404).send();
   }
   if (code) {
+    req.log.warn(
+      { graphqlResponse: json },
+      'unexpected error when injecting graphql request',
+    );
     return res.status(500).send();
   }
 
