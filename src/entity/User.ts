@@ -118,7 +118,7 @@ type AddNewUserResult =
   | { status: 'failed'; reason: UserFailErrorKeys; error?: Error };
 
 const checkRequiredFields = (data: AddUserData): boolean => {
-  return !!(data && data.id && data.name && data.image);
+  return !!(data && data.id && data.image);
 };
 
 const checkUsernameAndEmail = async (
@@ -185,7 +185,6 @@ export const addNewUser = async (
   logger: FastifyLoggerInstance,
 ): Promise<AddNewUserResult> => {
   if (!checkRequiredFields(data)) {
-    console.log(data);
     return { status: 'failed', reason: 'MISSING_FIELDS' };
   }
 
