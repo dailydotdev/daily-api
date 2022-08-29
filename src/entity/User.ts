@@ -118,7 +118,7 @@ type AddNewUserResult =
   | { status: 'failed'; reason: UserFailErrorKeys; error?: Error };
 
 const checkRequiredFields = (data: AddUserData): boolean => {
-  return !!(data && data.id && data.image);
+  return !!(data && data.id);
 };
 
 const checkUsernameAndEmail = async (
