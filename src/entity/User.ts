@@ -101,7 +101,16 @@ export class User {
 
 export type AddUserData = Pick<
   User,
-  'id' | 'name' | 'image' | 'username' | 'email' | 'createdAt' | 'github'
+  | 'id'
+  | 'name'
+  | 'image'
+  | 'username'
+  | 'email'
+  | 'createdAt'
+  | 'github'
+  | 'referral'
+  | 'infoConfirmed'
+  | 'profileConfirmed'
 >;
 export type UpdateUserEmailData = Pick<User, 'id' | 'email'>;
 type AddNewUserResult =
@@ -109,14 +118,7 @@ type AddNewUserResult =
   | { status: 'failed'; reason: UserFailErrorKeys; error?: Error };
 
 const checkRequiredFields = (data: AddUserData): boolean => {
-  return !!(
-    data &&
-    data.id &&
-    data.name &&
-    data.image &&
-    data.username &&
-    data.email
-  );
+  return !!(data && data.id);
 };
 
 const checkUsernameAndEmail = async (
@@ -199,9 +201,10 @@ export const addNewUser = async (
         image: data.image,
         username: data.username,
         email: data.email,
-        profileConfirmed: true,
-        infoConfirmed: true,
+        profileConfirmed: data.profileConfirmed,
+        infoConfirmed: data.infoConfirmed,
         createdAt: data.createdAt,
+        referral: data.referral,
         ...(data?.github && { github: data.github }),
       });
 
