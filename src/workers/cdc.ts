@@ -33,7 +33,6 @@ import {
   notifySourceFeedRemoved,
   notifySourceRequest,
   notifySettingsUpdated,
-  notifyUserReputationUpdated,
   increaseReputation,
   decreaseReputation,
   notifySubmissionRejected,
@@ -42,6 +41,7 @@ import {
   notifySubmissionGrantedAccess,
   NotificationReason,
   notifyUserDeleted,
+  notifyUserUpdated,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -178,14 +178,7 @@ const onUserChange = async (
   data: ChangeMessage<User>,
 ): Promise<void> => {
   if (data.payload.op === 'u') {
-    if (data.payload.before.reputation !== data.payload.after.reputation) {
-      await notifyUserReputationUpdated(
-        logger,
-        data.payload.after.id,
-        data.payload.after.reputation,
-      );
-    }
-
+    await notifyUserUpdated(logger, data.payload.before, data.payload.after);
     if (
       data.payload.after.reputation >= submissionAccessThreshold &&
       data.payload.before.reputation < submissionAccessThreshold
