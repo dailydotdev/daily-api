@@ -176,6 +176,9 @@ export const updateUserContact = async (
 };
 
 export const getContactIdByEmail = async (email: string) => {
+  if (!email || !email.trim()) {
+    return null;
+  }
   const request = {
     method: 'POST' as HttpMethod,
     url: '/v3/marketing/contacts/search',
