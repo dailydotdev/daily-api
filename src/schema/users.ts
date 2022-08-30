@@ -728,7 +728,14 @@ export const resolvers: IResolvers<any, Context> = {
         }
       }
 
+      ['name', 'username', 'twitter', 'github', 'hashnode'].forEach((key) => {
+        if (data[key]) {
+          data[key] = data[key].replace('@', '').trim();
+        }
+      });
+
       const regexParams: ValidateRegex[] = [
+        ['name', data.name, new RegExp(/^([\w\s]+)$/)],
         ['username', data.username, new RegExp(/^@?(\w){1,39}$/)],
         ['github', data.github, new RegExp(/^@?([\w-]){1,39}$/i)],
         ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
