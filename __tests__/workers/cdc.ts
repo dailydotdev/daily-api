@@ -12,7 +12,6 @@ import {
   notifyCommentCommented,
   notifyPostCommented,
   notifyCommentUpvoteCanceled,
-  notifyUserReputationUpdated,
   notifyPostAuthorMatched,
   notifySendAnalyticsReport,
   notifyPostReachedViewsThreshold,
@@ -73,7 +72,6 @@ jest.mock('../../src/common', () => ({
   notifyCommentUpvoted: jest.fn(),
   notifyCommentCommented: jest.fn(),
   notifyPostCommented: jest.fn(),
-  notifyUserReputationUpdated: jest.fn(),
   notifyPostAuthorMatched: jest.fn(),
   notifySendAnalyticsReport: jest.fn(),
   notifyPostReachedViewsThreshold: jest.fn(),
@@ -393,26 +391,6 @@ describe('comment', () => {
 describe('user', () => {
   type ObjectType = User;
   const base: ChangeObject<ObjectType> = { ...defaultUser };
-
-  it('should notify on new user reputation change', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      reputation: 10,
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: base,
-        op: 'u',
-        table: 'user',
-      }),
-    );
-    expect(notifyUserReputationUpdated).toBeCalledTimes(1);
-    expect(
-      jest.mocked(notifyUserReputationUpdated).mock.calls[0].slice(1),
-    ).toEqual(['1', 10]);
-  });
 
   it('should create user state when the user had passed the reputation threshold for community link submission', async () => {
     const after: ChangeObject<ObjectType> = {
