@@ -7,13 +7,17 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       whoami {
         id
         name
+        email
         image
         createdAt
+        company
         username
         bio
+        title
         twitter
         github
         hashnode
+        portfolio
         infoConfirmed
         timezone
         reputation
