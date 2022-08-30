@@ -22,7 +22,6 @@ export class User {
   name: string;
 
   @Column({ type: 'text', nullable: true })
-  @Index('users_email_unique', { unique: true })
   email: string;
 
   @Column({ type: 'text', nullable: true })

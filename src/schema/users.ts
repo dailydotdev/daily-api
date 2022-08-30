@@ -716,6 +716,15 @@ export const resolvers: IResolvers<any, Context> = {
       if (!ctx.service) {
         // Only accept email changes from Service calls
         delete data.email;
+      } else {
+        const emailCheck = await repo.find({ email: data.email });
+        if (emailCheck.length) {
+          if (emailCheck.some(({ id }) => id !== user.id)) {
+            throw new ValidationError(
+              JSON.stringify({ email: 'email already used' }),
+            );
+          }
+        }
       }
 
       const regexParams: ValidateRegex[] = [
