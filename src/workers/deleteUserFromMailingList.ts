@@ -7,7 +7,7 @@ interface Data {
 }
 
 const worker: Worker = {
-  subscription: 'user-deleted-mailing-api',
+  subscription: 'user-deleted-api-mailing',
   handler: async (message, _, log) => {
     const data = messageToJson<Data>(message);
     if (!data.email) {
