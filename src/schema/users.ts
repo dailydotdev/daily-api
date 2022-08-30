@@ -716,6 +716,7 @@ export const resolvers: IResolvers<any, Context> = {
       if (!ctx.service) {
         // Only accept email changes from Service calls
         delete data.email;
+        delete data.infoConfirmed;
       } else {
         const emailCheck = await repo.find({ email: data.email });
         if (emailCheck.length) {
