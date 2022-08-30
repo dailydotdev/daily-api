@@ -17,10 +17,6 @@ export const workers: Worker[] = [
   },
   {
     topic: 'user-updated',
-    subscription: 'user-updated-api',
-  },
-  {
-    topic: 'user-updated',
     subscription: 'user-updated-api-mailing',
   },
   {

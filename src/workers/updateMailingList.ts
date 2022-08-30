@@ -12,7 +12,7 @@ interface Data {
 }
 
 const worker: Worker = {
-  subscription: 'user-updated-mailing',
+  subscription: 'user-updated-mailing-api',
   handler: async (message, con, log) => {
     const data = messageToJson<Data>(message);
     const { user: oldProfile, newProfile } = data;
