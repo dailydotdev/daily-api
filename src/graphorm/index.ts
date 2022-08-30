@@ -1,5 +1,12 @@
 import { GraphORM, QueryBuilder } from './graphorm';
-import { Bookmark, CommentUpvote, FeedSource, FeedTag, Post } from '../entity';
+import {
+  Bookmark,
+  CommentUpvote,
+  FeedSource,
+  FeedTag,
+  Post,
+  User,
+} from '../entity';
 import { Context } from '../Context';
 import { GQLBookmarkList } from '../schema/bookmarks';
 import { base64 } from '../common';
@@ -19,13 +26,20 @@ const existsByUserAndPost =
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;
 
+const nullIfNotSameUser = <T>(value: T, ctx: Context, parent: User): T | null =>
+  ctx.userId === parent.id ? value : null;
+
 const obj = new GraphORM({
   User: {
     requiredColumns: ['id', 'username'],
     fields: {
       infoConfirmed: {
         select: 'infoConfirmed',
-        transform: nullIfNotLoggedIn,
+        transform: nullIfNotSameUser,
+      },
+      email: {
+        select: 'email',
+        transform: nullIfNotSameUser,
       },
     },
   },
