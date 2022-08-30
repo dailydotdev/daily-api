@@ -183,6 +183,10 @@ export const typeDefs = /* GraphQL */ `
     Reputation of the user
     """
     reputation: Int
+    """
+    If the user has accepted marketing
+    """
+    acceptedMarketing: Boolean
   }
 
   """

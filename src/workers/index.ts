@@ -31,6 +31,8 @@ import updateComments from './updateComments';
 import deleteUser from './deleteUser';
 import cdc from './cdc';
 import sourceRequestMail from './sourceRequestMail';
+import updateMailingList from './updateMailingList';
+import deleteUserFromMailingList from './deleteUserFromMailingList';
 
 export { Worker } from './worker';
 
@@ -39,6 +41,8 @@ export const workers: Worker[] = [
   newUser,
   updateUser,
   deleteUser,
+  updateMailingList,
+  deleteUserFromMailingList,
   commentUpvoted,
   commentCommented,
   commentUpvotedRep,

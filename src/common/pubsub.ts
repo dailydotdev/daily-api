@@ -1,6 +1,13 @@
 import { PubSub, Topic } from '@google-cloud/pubsub';
 import { FastifyLoggerInstance } from 'fastify';
-import { Post, SourceRequest, Alerts, Settings, Submission } from '../entity';
+import {
+  Post,
+  SourceRequest,
+  Alerts,
+  Settings,
+  Submission,
+  User,
+} from '../entity';
 import { ChangeObject } from '../types';
 
 const pubsub = new PubSub();
@@ -12,8 +19,8 @@ const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-commented');
 const commentFeaturedTopic = pubsub.topic('comment-featured');
 const commentsUpdateTopic = pubsub.topic('update-comments');
-const userReputationUpdatedTopic = pubsub.topic('user-reputation-updated');
 const userDeletedTopic = pubsub.topic('user-deleted');
+const userUpdatedTopic = pubsub.topic('user-updated');
 const alertsUpdatedTopic = pubsub.topic('alerts-updated');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
@@ -150,16 +157,6 @@ export const notifyCommentsUpdate = async (
     commentIds,
   });
 
-export const notifyUserReputationUpdated = async (
-  log: EventLogger,
-  userId: string,
-  reputation: number,
-): Promise<void> =>
-  publishEvent(log, userReputationUpdatedTopic, {
-    userId,
-    reputation,
-  });
-
 export const notifyUserDeleted = async (
   log: EventLogger,
   userId: string,
@@ -169,6 +166,12 @@ export const notifyUserDeleted = async (
     id: userId,
     kratosUser,
   });
+
+export const notifyUserUpdated = (
+  log: EventLogger,
+  user: ChangeObject<User>,
+  newProfile: ChangeObject<User>,
+): Promise<void> => publishEvent(log, userUpdatedTopic, { user, newProfile });
 
 export const notifyAlertsUpdated = (
   log: EventLogger,

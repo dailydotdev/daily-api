@@ -87,6 +87,7 @@ describe('dedicated api routes', () => {
         timezone: null,
         createdAt: userCreatedDate,
         reputation: 10,
+        acceptedMarketing: false,
       });
     });
   });
