@@ -124,6 +124,18 @@ export const typeDefs = /* GraphQL */ `
     """
     name: String!
     """
+    Email for the user
+    """
+    email: String
+    """
+    Current company of the user
+    """
+    company: String
+    """
+    Title of user from their company
+    """
+    title: String
+    """
     Profile image of the user
     """
     image: String

@@ -79,10 +79,11 @@ describe('dedicated api routes', () => {
         request(app.server).get('/whoami'),
       ).expect(200);
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { email, ...user } = usersFixture[0];
       expect(res.body).toEqual({
-        ...user,
+        ...usersFixture[0],
+        company: null,
+        portfolio: null,
+        title: null,
         timezone: null,
         createdAt: userCreatedDate,
         reputation: 10,
