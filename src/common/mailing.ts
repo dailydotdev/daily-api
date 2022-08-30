@@ -7,6 +7,7 @@ import { pickImageUrl } from './post';
 import { User } from './users';
 
 if (process.env.SENDGRID_API_KEY) {
+  client.setApiKey(process.env.SENDGRID_API_KEY);
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 }
 

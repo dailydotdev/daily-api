@@ -8,14 +8,14 @@ import { messageToJson, Worker } from './worker';
 
 interface Data {
   newProfile: User;
-  oldProfile: User;
+  user: User;
 }
 
 const worker: Worker = {
   subscription: 'user-updated-mailing-api',
   handler: async (message, con, log) => {
     const data = messageToJson<Data>(message);
-    const { oldProfile, newProfile } = data;
+    const { user: oldProfile, newProfile } = data;
     if (!newProfile.email || !newProfile.email.length) {
       log.warn(
         { messageId: message.messageId, userId: oldProfile.id },
