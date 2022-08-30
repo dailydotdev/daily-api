@@ -15,6 +15,10 @@ export class Context {
     this.loader = new GraphQLDatabaseLoader(con);
   }
 
+  get service(): boolean | null {
+    return this.req.service;
+  }
+
   get userId(): string | null {
     return this.req.userId;
   }

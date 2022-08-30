@@ -37,15 +37,18 @@ import { deleteUser } from '../workers/deleteUser';
 
 export interface GQLUpdateUserInput {
   name: string;
+  email?: string;
   username?: string;
   bio?: string;
   company?: string;
   title: string;
+  image?: string;
   twitter?: string;
   github?: string;
   hashnode?: string;
   portfolio?: string;
   acceptedMarketing?: boolean;
+  infoConfirmed?: boolean;
 }
 
 interface GQLUserParameters {
@@ -179,9 +182,13 @@ export const typeDefs = /* GraphQL */ `
     """
     name: String
     """
+    Email for the user
+    """
+    email: String
+    """
     Profile image of the user
     """
-    image: Upload
+    image: String
     """
     Username (handle) of the user
     """
@@ -222,6 +229,10 @@ export const typeDefs = /* GraphQL */ `
     If the user has accepted marketing
     """
     acceptedMarketing: Boolean
+    """
+    If the user's info is confirmed
+    """
+    infoConfirmed: Boolean
   }
 
   type TagsReadingStatus {
@@ -702,6 +713,11 @@ export const resolvers: IResolvers<any, Context> = {
         throw new AuthenticationError('Unauthorized!');
       }
 
+      if (!ctx.service) {
+        // Only accept email changes from Service calls
+        delete data.email;
+      }
+
       const regexParams: ValidateRegex[] = [
         ['username', data.username, new RegExp(/^@?(\w){1,39}$/)],
         ['github', data.github, new RegExp(/^@?([\w-]){1,39}$/i)],
@@ -726,6 +742,11 @@ export const resolvers: IResolvers<any, Context> = {
         return result;
       } catch (err) {
         if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
+          if (err.message.indexOf('users_email_unique') > -1) {
+            throw new ValidationError(
+              JSON.stringify({ email: 'email already used' }),
+            );
+          }
           if (err.message.indexOf('users_username_unique') > -1) {
             throw new ValidationError(
               JSON.stringify({ username: 'username already exists' }),

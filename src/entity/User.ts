@@ -22,6 +22,7 @@ export class User {
   name: string;
 
   @Column({ type: 'text', nullable: true })
+  @Index('users_email_unique', { unique: true })
   email: string;
 
   @Column({ type: 'text', nullable: true })
@@ -185,6 +186,7 @@ export const addNewUser = async (
   logger: FastifyLoggerInstance,
 ): Promise<AddNewUserResult> => {
   if (!checkRequiredFields(data)) {
+    logger.info({ message: 'Missing fields', data });
     return { status: 'failed', reason: 'MISSING_FIELDS' };
   }
 
