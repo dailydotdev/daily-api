@@ -19,6 +19,7 @@ export interface User {
   permalink: string;
   username?: string;
   timezone?: string;
+  acceptedMarketing?: boolean;
 }
 
 export type CustomObject<T> = Record<string, T> | Record<number, T>;

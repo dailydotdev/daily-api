@@ -37,15 +37,18 @@ import { deleteUser } from '../workers/deleteUser';
 
 export interface GQLUpdateUserInput {
   name: string;
+  email?: string;
   username?: string;
   bio?: string;
   company?: string;
   title: string;
+  image?: string;
   twitter?: string;
   github?: string;
   hashnode?: string;
   portfolio?: string;
   acceptedMarketing?: boolean;
+  infoConfirmed?: boolean;
 }
 
 interface GQLUserParameters {
@@ -179,9 +182,13 @@ export const typeDefs = /* GraphQL */ `
     """
     name: String
     """
+    Email for the user
+    """
+    email: String
+    """
     Profile image of the user
     """
-    image: Upload
+    image: String
     """
     Username (handle) of the user
     """
@@ -222,6 +229,10 @@ export const typeDefs = /* GraphQL */ `
     If the user has accepted marketing
     """
     acceptedMarketing: Boolean
+    """
+    If the user's info is confirmed
+    """
+    infoConfirmed: Boolean
   }
 
   type TagsReadingStatus {
@@ -699,7 +710,29 @@ export const resolvers: IResolvers<any, Context> = {
         throw new AuthenticationError('Unauthorized!');
       }
 
+      if (!ctx.service) {
+        // Only accept email changes from Service calls
+        delete data.email;
+        delete data.infoConfirmed;
+      } else {
+        const emailCheck = await repo.find({ email: data.email });
+        if (emailCheck.length) {
+          if (emailCheck.some(({ id }) => id !== user.id)) {
+            throw new ValidationError(
+              JSON.stringify({ email: 'email already used' }),
+            );
+          }
+        }
+      }
+
+      ['name', 'username', 'twitter', 'github', 'hashnode'].forEach((key) => {
+        if (data[key]) {
+          data[key] = data[key].replace('@', '').trim();
+        }
+      });
+
       const regexParams: ValidateRegex[] = [
+        ['name', data.name, new RegExp(/^([\w\s]+)$/)],
         ['username', data.username, new RegExp(/^@?(\w){1,39}$/)],
         ['github', data.github, new RegExp(/^@?([\w-]){1,39}$/i)],
         ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
@@ -723,6 +756,11 @@ export const resolvers: IResolvers<any, Context> = {
         return result;
       } catch (err) {
         if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
+          if (err.message.indexOf('users_email_unique') > -1) {
+            throw new ValidationError(
+              JSON.stringify({ email: 'email already used' }),
+            );
+          }
           if (err.message.indexOf('users_username_unique') > -1) {
             throw new ValidationError(
               JSON.stringify({ username: 'username already exists' }),

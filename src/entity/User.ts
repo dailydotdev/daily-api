@@ -185,6 +185,7 @@ export const addNewUser = async (
   logger: FastifyLoggerInstance,
 ): Promise<AddNewUserResult> => {
   if (!checkRequiredFields(data)) {
+    logger.info({ data }, 'missing fields when adding new user');
     return { status: 'failed', reason: 'MISSING_FIELDS' };
   }
 
