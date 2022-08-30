@@ -10,7 +10,7 @@ const worker: Worker = {
   subscription: 'user-deleted-api-mailing',
   handler: async (message, _, log) => {
     const data = messageToJson<Data>(message);
-    if (!data.email) {
+    if (!data.email || !data.email.trim()) {
       log.warn(
         { messageId: message.messageId, userId: data.id },
         'no email in user-deleted message',

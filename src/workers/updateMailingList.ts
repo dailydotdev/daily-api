@@ -30,7 +30,7 @@ const worker: Worker = {
 
     try {
       const lists = ['85a1951f-5f0c-459f-bf5e-e5c742986a50'];
-      if (!newProfile.acceptedMarketing) {
+      if (!newProfile.acceptedMarketing && oldProfile.email?.trim?.()) {
         const contactId = await getContactIdByEmail(oldProfile.email);
         if (contactId) {
           await removeUserFromList(
