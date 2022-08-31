@@ -42,6 +42,7 @@ import {
   NotificationReason,
   notifyUserDeleted,
   notifyUserUpdated,
+  notifyUsernameChanged,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection } from 'typeorm';
@@ -194,6 +195,14 @@ const onUserChange = async (
           throw ex;
         }
       }
+    }
+    if (data.payload.before.username !== data.payload.after.username) {
+      await notifyUsernameChanged(
+        logger,
+        data.payload.before.id,
+        data.payload.before.username,
+        data.payload.after.username,
+      );
     }
   }
 };

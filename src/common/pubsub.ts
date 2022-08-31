@@ -21,6 +21,7 @@ const commentFeaturedTopic = pubsub.topic('comment-featured');
 const commentsUpdateTopic = pubsub.topic('update-comments');
 const userDeletedTopic = pubsub.topic('user-deleted');
 const userUpdatedTopic = pubsub.topic('user-updated');
+const usernameChangedTopic = pubsub.topic('username-changed');
 const alertsUpdatedTopic = pubsub.topic('alerts-updated');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
@@ -172,6 +173,14 @@ export const notifyUserUpdated = (
   user: ChangeObject<User>,
   newProfile: ChangeObject<User>,
 ): Promise<void> => publishEvent(log, userUpdatedTopic, { user, newProfile });
+
+export const notifyUsernameChanged = (
+  log: EventLogger,
+  userId: string,
+  oldUsername: string,
+  newUsername: string,
+): Promise<void> =>
+  publishEvent(log, usernameChangedTopic, { userId, oldUsername, newUsername });
 
 export const notifyAlertsUpdated = (
   log: EventLogger,
