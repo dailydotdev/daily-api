@@ -62,7 +62,7 @@ export const injectGraphql = async (
   if (code === 'NOT_FOUND') {
     return res.status(404).send();
   }
-  if (code || errors.length) {
+  if (code || errors?.length) {
     req.log.warn(
       { graphqlResponse: json },
       'unexpected graphql error when injecting graphql request',
