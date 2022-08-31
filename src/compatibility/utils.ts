@@ -26,46 +26,55 @@ export const injectGraphql = async (
   req: FastifyRequest,
   res: FastifyReply,
 ): Promise<FastifyReply> => {
-  const traceContext = generateTraceContext(req.span.getTraceContext());
-  const reqHeaders = {
-    ...req.headers,
-    [Constants.TRACE_CONTEXT_HEADER_NAME]: traceContext,
-  };
-  delete reqHeaders['content-length'];
-  const graphqlRes = await fastify.inject({
-    method: 'POST',
-    url: '/graphql',
-    headers: reqHeaders,
-    payload,
-  });
+  try {
+    const traceContext = generateTraceContext(req.span.getTraceContext());
+    const reqHeaders = {
+      ...req.headers,
+      [Constants.TRACE_CONTEXT_HEADER_NAME]: traceContext,
+    };
+    delete reqHeaders['content-length'];
+    const graphqlRes = await fastify.inject({
+      method: 'POST',
+      url: '/graphql',
+      headers: reqHeaders,
+      payload,
+    });
 
-  if (graphqlRes.statusCode !== 200) {
-    return res.status(graphqlRes.statusCode).send(graphqlRes.rawPayload);
-  }
+    if (graphqlRes.statusCode !== 200) {
+      req.log.warn(
+        { graphqlResponse: graphqlRes.body },
+        'unexpected status code when injecting graphql request',
+      );
+      return res.status(graphqlRes.statusCode).send(graphqlRes.rawPayload);
+    }
 
-  const json = await graphqlRes.json();
-  const errors = json['errors'] as GraphQLError[];
-  const code = errors?.[0]?.extensions?.code;
-  if (code === 'UNAUTHENTICATED') {
-    return res.status(401).send();
-  }
-  if (code === 'FORBIDDEN') {
-    return res.status(403).send();
-  }
-  if (code === 'VALIDATION_ERROR' || code === 'GRAPHQL_VALIDATION_FAILED') {
-    return res.status(400).send();
-  }
-  if (code === 'NOT_FOUND') {
-    return res.status(404).send();
-  }
-  if (code) {
-    req.log.warn(
-      { graphqlResponse: json },
-      'unexpected error when injecting graphql request',
-    );
+    const json = await graphqlRes.json();
+    const errors = json['errors'] as GraphQLError[];
+    const code = errors?.[0]?.extensions?.code;
+    if (code === 'UNAUTHENTICATED') {
+      return res.status(401).send();
+    }
+    if (code === 'FORBIDDEN') {
+      return res.status(403).send();
+    }
+    if (code === 'VALIDATION_ERROR' || code === 'GRAPHQL_VALIDATION_FAILED') {
+      return res.status(400).send();
+    }
+    if (code === 'NOT_FOUND') {
+      return res.status(404).send();
+    }
+    if (code) {
+      req.log.warn(
+        { graphqlResponse: json },
+        'unexpected graphql error when injecting graphql request',
+      );
+      return res.status(500).send();
+    }
+
+    const resBody = extractResponse(json);
+    return res.status(resBody ? 200 : 204).send(resBody);
+  } catch (err) {
+    req.log.warn({ err }, 'failed to inject graphql request');
     return res.status(500).send();
   }
-
-  const resBody = extractResponse(json);
-  return res.status(resBody ? 200 : 204).send(resBody);
 };
