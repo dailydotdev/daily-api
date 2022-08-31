@@ -12,10 +12,6 @@ export const workers: Worker[] = [
     subscription: 'add-views-v2',
   },
   {
-    topic: 'user-registered',
-    subscription: 'user-registered-api',
-  },
-  {
     topic: 'user-updated',
     subscription: 'user-updated-api-mailing',
   },
