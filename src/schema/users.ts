@@ -122,7 +122,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Full name of the user
     """
-    name: String!
+    name: String
     """
     Email for the user
     """

@@ -28,13 +28,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     return injectGraphql(
       fastify,
       { query },
-      (obj) => {
-        const whoami = obj['data']['whoami'];
-        if (!whoami) {
-          req.log.warn({ payload: obj }, 'empty whoami response');
-        }
-        return whoami;
-      },
+      (obj) => obj['data']['whoami'],
       req,
       res,
     );
