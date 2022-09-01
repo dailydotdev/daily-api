@@ -149,8 +149,8 @@ const readinessProbe: k8s.types.input.core.v1.Probe = {
 
 const livenessProbe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/liveness', port: 'http' },
-  failureThreshold: 2,
-  periodSeconds: 2,
+  failureThreshold: 3,
+  periodSeconds: 5,
 };
 
 const { labels } = createAutoscaledExposedApplication({
