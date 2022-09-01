@@ -29,6 +29,7 @@ import {
   pickImageUrl,
   truncatePost,
   getDiscussionLink,
+  notifyUsernameChanged,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -72,6 +73,7 @@ jest.mock('../../src/common', () => ({
   notifyCommentUpvoted: jest.fn(),
   notifyCommentCommented: jest.fn(),
   notifyPostCommented: jest.fn(),
+  notifyUsernameChanged: jest.fn(),
   notifyPostAuthorMatched: jest.fn(),
   notifySendAnalyticsReport: jest.fn(),
   notifyPostReachedViewsThreshold: jest.fn(),
@@ -391,6 +393,28 @@ describe('comment', () => {
 describe('user', () => {
   type ObjectType = User;
   const base: ChangeObject<ObjectType> = { ...defaultUser };
+
+  it('should notify on username change', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      username: 'newidoshamun',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        table: 'user',
+        op: 'u',
+      }),
+    );
+    expect(notifyUsernameChanged).toBeCalledTimes(1);
+    expect(jest.mocked(notifyUsernameChanged).mock.calls[0].slice(1)).toEqual([
+      '1',
+      'idoshamun',
+      'newidoshamun',
+    ]);
+  });
 
   it('should create user state when the user had passed the reputation threshold for community link submission', async () => {
     const after: ChangeObject<ObjectType> = {
