@@ -1505,8 +1505,8 @@ describe('mutation updateUserProfile', () => {
     }
   `;
 
-  it('should not authorize when not logged in', () =>
-    testMutationErrorCode(
+  it('should not authorize when not logged in', async () =>
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { data: { username: 'Test' } } },
       'UNAUTHENTICATED',
@@ -1515,7 +1515,7 @@ describe('mutation updateUserProfile', () => {
   it('should not allow duplicated github', async () => {
     loggedUser = '1';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { data: { github: 'lee' } } },
       'GRAPHQL_VALIDATION_FAILED',
@@ -1525,7 +1525,7 @@ describe('mutation updateUserProfile', () => {
   it('should not allow duplicated twitter', async () => {
     loggedUser = '1';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { data: { twitter: 'lee' } } },
       'GRAPHQL_VALIDATION_FAILED',
@@ -1535,7 +1535,7 @@ describe('mutation updateUserProfile', () => {
   it('should not allow duplicated hashnode', async () => {
     loggedUser = '1';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { data: { hashnode: 'lee' } } },
       'GRAPHQL_VALIDATION_FAILED',
@@ -1545,7 +1545,7 @@ describe('mutation updateUserProfile', () => {
   it('should not allow duplicated username', async () => {
     loggedUser = '1';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { data: { username: 'lee' } } },
       'GRAPHQL_VALIDATION_FAILED',
@@ -1555,7 +1555,7 @@ describe('mutation updateUserProfile', () => {
   it('should not allow invalid github handle', async () => {
     loggedUser = '1';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { data: { github: '#a1' } } },
       'GRAPHQL_VALIDATION_FAILED',
@@ -1565,7 +1565,7 @@ describe('mutation updateUserProfile', () => {
   it('should not allow invalid twitter handle', async () => {
     loggedUser = '1';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { data: { twitter: '#a1' } } },
       'GRAPHQL_VALIDATION_FAILED',
@@ -1575,7 +1575,7 @@ describe('mutation updateUserProfile', () => {
   it('should not allow invalid hashnode handle', async () => {
     loggedUser = '1';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { data: { hashnode: '#a1' } } },
       'GRAPHQL_VALIDATION_FAILED',
@@ -1585,7 +1585,7 @@ describe('mutation updateUserProfile', () => {
   it('should not allow invalid username handle', async () => {
     loggedUser = '1';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { data: { username: '#a1' } } },
       'GRAPHQL_VALIDATION_FAILED',
