@@ -196,7 +196,7 @@ const onUserChange = async (
         }
       }
     }
-    if (data.payload.before.username !== data.payload.after.username) {
+    if (data.payload.before.infoConfirmed && data.payload.before.username !== data.payload.after.username) {
       await notifyUsernameChanged(
         logger,
         data.payload.before.id,
