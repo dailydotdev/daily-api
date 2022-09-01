@@ -21,6 +21,9 @@ import { stringifyHealthCheck } from './common';
 import { GraphQLError } from 'graphql';
 import cookie, { FastifyCookieOptions } from '@fastify/cookie';
 
+// readiness probe is set failureThreshold: 2, periodSeconds: 2 (4s) + small delay
+const GRACEFUL_DELAY = 2 * 2 * 1000 + 3000;
+
 const userExtendKey = (
   source: unknown,
   args: unknown,
@@ -37,6 +40,7 @@ const trackingExtendKey = (
 export default async function app(
   contextFn?: (request: FastifyRequest) => Context,
 ): Promise<FastifyInstance> {
+  let isTerminating = false;
   const isProd = process.env.NODE_ENV === 'production';
   const connection = await createOrGetConnection();
 
@@ -46,6 +50,12 @@ export default async function app(
     trustProxy: true,
   });
   app.server.keepAliveTimeout = 650 * 1000;
+
+  process.on('SIGTERM', () => {
+    app.log.info('starting termination');
+    isTerminating = true;
+    setTimeout(() => process.exit(0), GRACEFUL_DELAY);
+  });
 
   app.register(helmet);
   app.register(cors, {
@@ -64,6 +74,15 @@ export default async function app(
   });
 
   app.get('/health', (req, res) => {
+    res.type('application/health+json');
+    if (isTerminating) {
+      res.status(500).send(stringifyHealthCheck({ status: 'terminating' }));
+    } else {
+      res.send(stringifyHealthCheck({ status: 'ok' }));
+    }
+  });
+
+  app.get('/liveness', (req, res) => {
     res.type('application/health+json');
     res.send(stringifyHealthCheck({ status: 'ok' }));
   });

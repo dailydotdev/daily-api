@@ -141,8 +141,16 @@ const limits: pulumi.Input<{
   memory: `${memory}Mi`,
 };
 
-const probe: k8s.types.input.core.v1.Probe = {
+const readinessProbe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
+  failureThreshold: 2,
+  periodSeconds: 2,
+};
+
+const livenessProbe: k8s.types.input.core.v1.Probe = {
+  httpGet: { path: '/liveness', port: 'http' },
+  failureThreshold: 2,
+  periodSeconds: 2,
 };
 
 const { labels } = createAutoscaledExposedApplication({
@@ -155,8 +163,8 @@ const { labels } = createAutoscaledExposedApplication({
       name: 'app',
       image,
       ports: [{ name: 'http', containerPort: 3000, protocol: 'TCP' }],
-      readinessProbe: probe,
-      livenessProbe: probe,
+      readinessProbe,
+      livenessProbe,
       env: [
         ...containerEnvVars,
         {
@@ -167,13 +175,6 @@ const { labels } = createAutoscaledExposedApplication({
       resources: {
         requests: limits,
         limits,
-      },
-      lifecycle: {
-        preStop: {
-          exec: {
-            command: ['/bin/bash', '-c', 'sleep 20'],
-          },
-        },
       },
     },
   ],
@@ -195,8 +196,8 @@ const { labels: wsLabels } = createAutoscaledApplication({
       name: 'app',
       image,
       ports: [{ name: 'http', containerPort: 3000, protocol: 'TCP' }],
-      readinessProbe: probe,
-      livenessProbe: probe,
+      readinessProbe,
+      livenessProbe,
       env: [
         ...containerEnvVars,
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
@@ -359,8 +360,8 @@ createAutoscaledExposedApplication({
       name: 'app',
       image,
       ports: [{ name: 'http', containerPort: 3000, protocol: 'TCP' }],
-      readinessProbe: probe,
-      livenessProbe: probe,
+      readinessProbe,
+      livenessProbe,
       env: [
         ...containerEnvVars,
         { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
@@ -372,13 +373,6 @@ createAutoscaledExposedApplication({
       resources: {
         requests: limits,
         limits,
-      },
-      lifecycle: {
-        preStop: {
-          exec: {
-            command: ['/bin/bash', '-c', 'sleep 20'],
-          },
-        },
       },
     },
   ],
