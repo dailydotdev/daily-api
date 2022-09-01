@@ -9,10 +9,10 @@ export const crons: CronPubSub[] = [
     name: 'check-analytics-report',
     schedule: '0 */1 * * *',
   },
-  {
-    name: 'hashnode-badge',
-    schedule: '0 7 * * *',
-  },
+  // {
+  //   name: 'hashnode-badge',
+  //   schedule: '0 7 * * *',
+  // },
   {
     name: 'update-views',
     schedule: '*/10 * * * *',
