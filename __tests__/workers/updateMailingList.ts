@@ -20,7 +20,7 @@ it('should remove from mailing list', async () => {
       email: 'lee@daily.dev',
       acceptedMarketing: false,
     },
-    oldProfile: { ...gatewayUsersFixture[0], acceptedMarketing: true },
+    user: { ...gatewayUsersFixture[0], acceptedMarketing: true },
   });
   expect(getContactIdByEmail).toBeCalledTimes(1);
   expect(updateUserContact).toBeCalledTimes(1);
@@ -34,7 +34,7 @@ it('should update mailing list', async () => {
       email: 'lee@daily.dev',
       acceptedMarketing: true,
     },
-    oldProfile: gatewayUsersFixture[0],
+    user: gatewayUsersFixture[0],
   });
   expect(updateUserContact).toBeCalledTimes(1);
   expect(jest.mocked(updateUserContact).mock.calls[0]).toMatchSnapshot();
