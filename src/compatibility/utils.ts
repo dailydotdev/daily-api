@@ -40,6 +40,10 @@ export const injectGraphql = async (
   });
 
   if (graphqlRes.statusCode !== 200) {
+    req.log.warn(
+      { graphqlResponse: graphqlRes.body },
+      'unexpected status code when injecting graphql request',
+    );
     return res.status(graphqlRes.statusCode).send(graphqlRes.rawPayload);
   }
 
@@ -58,10 +62,10 @@ export const injectGraphql = async (
   if (code === 'NOT_FOUND') {
     return res.status(404).send();
   }
-  if (code) {
+  if (code || errors?.length) {
     req.log.warn(
       { graphqlResponse: json },
-      'unexpected error when injecting graphql request',
+      'unexpected graphql error when injecting graphql request',
     );
     return res.status(500).send();
   }
