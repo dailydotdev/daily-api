@@ -355,6 +355,7 @@ createAutoscaledExposedApplication({
   namespace: namespace,
   version: imageTag,
   serviceAccount: k8sServiceAccount,
+  serviceType: 'ClusterIP',
   containers: [
     {
       name: 'app',
