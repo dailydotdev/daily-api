@@ -1,6 +1,5 @@
 import { Cron } from './cron';
 import updateViews from './updateViews';
-import hashnodeBadge from './hashnodeBadge';
 import checkAnalyticsReport from './checkAnalyticsReport';
 import viewsThreshold from './viewsThreshold';
 import updateTrending from './updateTrending';
@@ -10,7 +9,6 @@ import exportToTinybird from './exportToTinybird';
 
 export const crons: Cron[] = [
   updateViews,
-  hashnodeBadge,
   checkAnalyticsReport,
   viewsThreshold,
   updateTrending,
