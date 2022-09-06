@@ -765,9 +765,16 @@ export const resolvers: IResolvers<any, Context> = {
           : user.image;
 
       try {
-        const result = await ctx.con
-          .getRepository(User)
-          .save({ ...user, ...data, image: avatar });
+        const updatedUser = { ...user, ...data, image: avatar };
+        if (
+          !user.infoConfirmed &&
+          updatedUser.email &&
+          updatedUser.username &&
+          updatedUser.name
+        ) {
+          updatedUser.infoConfirmed = true;
+        }
+        const result = await ctx.con.getRepository(User).save(updatedUser);
 
         return result;
       } catch (err) {
