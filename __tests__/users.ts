@@ -1609,4 +1609,20 @@ describe('mutation updateUserProfile', () => {
       createdAt: expect.any(String),
     });
   });
+
+  it('should update user profile and set info confirmed', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+    await repo.update({ id: loggedUser }, { email: 'sample@daily.dev' });
+    const user = await repo.findOne({ id: loggedUser });
+    const username = 'a1';
+    expect(user?.infoConfirmed).toBeFalsy();
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { username } },
+    });
+    expect(res.errors?.length).toBeFalsy();
+    const updatedUser = await repo.findOne({ id: loggedUser });
+    expect(updatedUser?.infoConfirmed).toBeTruthy();
+  });
 });
