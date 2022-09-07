@@ -748,7 +748,7 @@ export const resolvers: IResolvers<any, Context> = {
       });
 
       const regexParams: ValidateRegex[] = [
-        ['name', data.name, new RegExp(/^([\w\s]+)$/)],
+        ['name', data.name, new RegExp(/^(.*){1,60}$/)],
         ['username', data.username, new RegExp(/^@?(\w){1,39}$/)],
         ['github', data.github, new RegExp(/^@?([\w-]){1,39}$/i)],
         ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
@@ -774,9 +774,7 @@ export const resolvers: IResolvers<any, Context> = {
         ) {
           updatedUser.infoConfirmed = true;
         }
-        const result = await ctx.con.getRepository(User).save(updatedUser);
-
-        return result;
+        return await ctx.con.getRepository(User).save(updatedUser);
       } catch (err) {
         if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
           if (err.message.indexOf('users_email_unique') > -1) {
