@@ -26,7 +26,6 @@ import postBannedEmail from './postBannedEmail';
 import sourceRequestApprovedRep from './sourceRequestApprovedRep';
 import usernameChanged from './usernameChanged';
 import updateComments from './updateComments';
-import deleteUser from './deleteUser';
 import cdc from './cdc';
 import sourceRequestMail from './sourceRequestMail';
 import updateMailingList from './updateMailingList';
@@ -36,7 +35,6 @@ export { Worker } from './worker';
 
 export const workers: Worker[] = [
   newView,
-  deleteUser,
   updateMailingList,
   deleteUserFromMailingList,
   commentUpvoted,
