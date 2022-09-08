@@ -506,9 +506,9 @@ export const sourceFeedBuilder = (
   builder: SelectQueryBuilder<Post>,
   alias: string,
 ): SelectQueryBuilder<Post> =>
-  builder.andWhere(`${alias}.sourceId = :sourceId`, {
-    sourceId,
-  });
+  builder
+    .andWhere(`${alias}.sourceId = :sourceId`, { sourceId })
+    .andWhere(`${alias}.banned = false`);
 
 export const tagFeedBuilder = (
   ctx: Context,
