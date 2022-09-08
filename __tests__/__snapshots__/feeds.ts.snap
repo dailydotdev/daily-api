@@ -1240,7 +1240,6 @@ Object {
 }
 `;
 
-
 exports[`query authorFeed should return a single author feed with scout and author setting 1`] = `
 Object {
   "authorFeed": Object {
@@ -2292,6 +2291,34 @@ Object {
       "hasNextPage": false,
     },
     "query": "p1",
+  },
+}
+`;
+
+exports[`query sourceFeed should not display a banned post 1`] = `
+Object {
+  "sourceFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p2",
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P2",
+          "url": "http://p2.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "c2NvcmU6Nw==",
+      "hasNextPage": false,
+    },
   },
 }
 `;
