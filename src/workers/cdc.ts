@@ -208,6 +208,9 @@ const onUserChange = async (
       );
     }
   }
+  if (data.payload.op === 'd') {
+    await notifyUserDeleted(logger, data.payload.before.id, true);
+  }
 };
 
 const onAlertsChange = async (
@@ -390,9 +393,6 @@ const onUserStateChange = async (
     if (data.payload.after.key === UserStateKey.CommunityLinkAccess) {
       await notifySubmissionGrantedAccess(logger, data.payload.after.userId);
     }
-  }
-  if (data.payload.op === 'd') {
-    await notifyUserDeleted(logger, data.payload.before.userId, true);
   }
 };
 
