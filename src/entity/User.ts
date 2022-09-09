@@ -204,6 +204,7 @@ export const addNewUser = async (
         email: data.email,
         profileConfirmed: data.profileConfirmed,
         infoConfirmed: data.infoConfirmed,
+        acceptedMarketing: true,
         createdAt: data.createdAt,
         referral: data.referral,
         ...(data?.github && { github: data.github }),
