@@ -20,10 +20,6 @@ export const workers: Worker[] = [
     subscription: 'user-deleted-api-mailing',
   },
   {
-    topic: 'user-deleted',
-    subscription: 'user-deleted-api',
-  },
-  {
     topic: 'comment-upvoted',
     subscription: 'comment-upvoted-mail',
   },

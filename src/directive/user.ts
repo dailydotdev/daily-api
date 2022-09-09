@@ -1,44 +1,23 @@
-import { messageToJson, Worker } from './worker';
+import { Connection } from 'typeorm';
+import { FastifyLoggerInstance } from 'fastify';
 import {
   Alerts,
   Bookmark,
   BookmarkList,
   Comment,
+  CommentUpvote,
+  DevCard,
+  Feed,
+  HiddenPost,
   Post,
+  PostReport,
+  Settings,
+  SourceDisplay,
+  SourceRequest,
+  Upvote,
   User,
   View,
 } from '../entity';
-import { CommentUpvote } from '../entity/CommentUpvote';
-import { DevCard } from '../entity/DevCard';
-import { Feed } from '../entity/Feed';
-import { HiddenPost } from '../entity/HiddenPost';
-import { PostReport } from '../entity/PostReport';
-import { Settings } from '../entity/Settings';
-import { SourceDisplay } from '../entity/SourceDisplay';
-import { SourceRequest } from '../entity/SourceRequest';
-import { Upvote } from '../entity/Upvote';
-import { FastifyLoggerInstance } from 'fastify';
-import { Connection } from 'typeorm';
-
-interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  image: string;
-  company?: string;
-  title?: string;
-  infoConfirmed: boolean;
-  username?: string;
-  bio?: string;
-  twitter?: string;
-  github?: string;
-  createdAt: Date;
-  acceptedMarketing: boolean;
-  portfolio?: string;
-  hashnode?: string;
-  timezone?: string;
-  kratosUser?: boolean;
-}
 
 export const deleteUser = async (
   con: Connection,
@@ -93,15 +72,3 @@ export const deleteUser = async (
     throw err;
   }
 };
-
-const worker: Worker = {
-  subscription: 'user-deleted-api',
-  handler: async (message, con, logger): Promise<void> => {
-    const data: UserData = messageToJson(message);
-    // Kratos users are already deleted, this is only to support gateway deletion
-    if (data.kratosUser) return;
-    await deleteUser(con, logger, data.id, message.messageId);
-  },
-};
-
-export default worker;

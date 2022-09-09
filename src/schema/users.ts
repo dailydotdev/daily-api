@@ -33,7 +33,7 @@ import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
 import { TypeOrmError, NotFoundError } from '../errors';
-import { deleteUser } from '../workers/deleteUser';
+import { deleteUser } from '../directive/user';
 
 export interface GQLUpdateUserInput {
   name: string;
