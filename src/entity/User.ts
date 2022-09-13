@@ -12,6 +12,7 @@ import { Post } from './Post';
 import { DevCard } from './DevCard';
 import { FastifyLoggerInstance } from 'fastify';
 import { UpdateUserFailErrorKeys, UserFailErrorKeys } from '../errors';
+import { fallbackImages } from '../config';
 
 @Entity()
 export class User {
@@ -199,7 +200,7 @@ export const addNewUser = async (
       await entityManager.getRepository(User).insert({
         id: data.id,
         name: data.name,
-        image: data.image,
+        image: data.image ?? fallbackImages.avatar,
         username: data.username,
         email: data.email,
         profileConfirmed: data.profileConfirmed,
