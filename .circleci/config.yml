@@ -97,6 +97,7 @@ jobs:
           command: pulumi preview --suppress-outputs --stack dailydotdev/prod -c tag=$CIRCLE_SHA1
           working_directory: .infra
   pulumi_up:
+    circleci_ip_ranges: true
     docker:
       - image: cimg/node:14.19
     environment:

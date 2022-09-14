@@ -4,9 +4,9 @@
     "@types/node": "^15.14.9"
   },
   "dependencies": {
-    "@dailydotdev/pulumi-common": "^1.12.1",
+    "@dailydotdev/pulumi-common": "^1.13.3",
     "@pulumi/gcp": "^6.30.0",
-    "@pulumi/kubernetes": "^3.10.1",
-    "@pulumi/pulumi": "^3.18.1"
+    "@pulumi/kubernetes": "^3.21.2",
+    "@pulumi/pulumi": "^3.39.4"
   }
 }

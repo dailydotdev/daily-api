@@ -1,29 +1,20 @@
 import * as gcp from '@pulumi/gcp';
 import * as k8s from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
-import { Input, Output } from '@pulumi/pulumi';
+import { Input } from '@pulumi/pulumi';
 import { workers } from './workers';
 import { crons } from './crons';
 import {
   config,
-  createMigrationJob,
   createServiceAccountAndGrantRoles,
   createSubscriptionsFromWorkers,
-  createAutoscaledExposedApplication,
-  deployDebeziumToKubernetes,
   getImageTag,
   location,
-  bindK8sServiceAccountToGCP,
-  getMemoryAndCpuMetrics,
   addLabelsToWorkers,
-  convertRecordToContainerEnvVars,
-  createKubernetesSecretFromRecord,
-  createAutoscaledApplication,
-  getPubSubUndeliveredMessagesMetric,
-  getFullSubscriptionLabel,
   createPubSubCronJobs,
+  nodeOptions,
+  deployApplicationSuite,
 } from '@dailydotdev/pulumi-common';
-import { readFile } from 'fs/promises';
 
 const imageTag = getImageTag();
 const name = 'api';
@@ -95,35 +86,7 @@ const envVars: Record<string, Input<string>> = {
   redisHost,
 };
 
-const containerEnvVars = convertRecordToContainerEnvVars({
-  secretName: name,
-  data: envVars,
-});
-
-createKubernetesSecretFromRecord({
-  data: envVars,
-  resourceName: 'k8s-secret',
-  name,
-  namespace,
-});
-
 const image = `us.gcr.io/daily-ops/daily-${name}:${imageTag}`;
-
-const k8sServiceAccount = bindK8sServiceAccountToGCP(
-  '',
-  name,
-  namespace,
-  serviceAccount,
-);
-
-const migrationJob = createMigrationJob(
-  `${name}-migration`,
-  namespace,
-  image,
-  ['node', './node_modules/typeorm/cli.js', 'migration:run'],
-  containerEnvVars,
-  k8sServiceAccount,
-);
 
 createSubscriptionsFromWorkers(
   name,
@@ -132,8 +95,7 @@ createSubscriptionsFromWorkers(
 );
 createPubSubCronJobs(name, crons);
 
-const memory = 2048;
-
+const memory = 1024;
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
@@ -141,126 +103,95 @@ const limits: pulumi.Input<{
   memory: `${memory}Mi`,
 };
 
+const wsMemory = 2048;
+const wsLimits: pulumi.Input<{
+  [key: string]: pulumi.Input<string>;
+}> = {
+  cpu: '1',
+  memory: `${wsMemory}Mi`,
+};
+
+const bgLimits: pulumi.Input<{
+  [key: string]: pulumi.Input<string>;
+}> = { cpu: '500m', memory: '256Mi' };
+
 const probe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
 };
 
-const { labels } = createAutoscaledExposedApplication({
+const [legacyApps, vpcNativeApps] = deployApplicationSuite({
   name,
-  namespace: namespace,
-  version: imageTag,
-  serviceAccount: k8sServiceAccount,
-  containers: [
-    {
-      name: 'app',
-      image,
-      ports: [{ name: 'http', containerPort: 3000, protocol: 'TCP' }],
-      readinessProbe: probe,
-      livenessProbe: probe,
-      env: [
-        ...containerEnvVars,
-        {
-          name: 'NODE_OPTIONS',
-          value: `--max-old-space-size=${Math.floor(memory * 0.9).toFixed(0)}`,
-        },
-      ],
-      resources: {
-        requests: limits,
-        limits,
-      },
-      lifecycle: {
-        preStop: {
-          exec: {
-            command: ['/bin/bash', '-c', 'sleep 20'],
-          },
-        },
-      },
-    },
-  ],
-  minReplicas: 3,
-  maxReplicas: 15,
-  metrics: getMemoryAndCpuMetrics(60),
-  enableCdn: true,
-  deploymentDependsOn: [migrationJob],
-});
-
-const { labels: wsLabels } = createAutoscaledApplication({
-  resourcePrefix: 'ws-',
-  name: `${name}-ws`,
-  namespace: namespace,
-  version: imageTag,
-  serviceAccount: k8sServiceAccount,
-  containers: [
-    {
-      name: 'app',
-      image,
-      ports: [{ name: 'http', containerPort: 3000, protocol: 'TCP' }],
-      readinessProbe: probe,
-      livenessProbe: probe,
-      env: [
-        ...containerEnvVars,
-        { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
-        {
-          name: 'NODE_OPTIONS',
-          value: `--max-old-space-size=${Math.floor(memory * 0.9).toFixed(0)}`,
-        },
-      ],
-      resources: {
-        requests: limits,
-        limits,
-      },
-    },
-  ],
-  minReplicas: 3,
-  maxReplicas: 15,
-  metrics: getMemoryAndCpuMetrics(60),
-  deploymentDependsOn: [migrationJob],
-});
-
-const bgLimits: pulumi.Input<{
-  [key: string]: pulumi.Input<string>;
-}> = { cpu: '1', memory: '256Mi' };
-
-createAutoscaledApplication({
-  resourcePrefix: 'bg-',
-  name: `${name}-bg`,
   namespace,
-  version: imageTag,
-  serviceAccount: k8sServiceAccount,
-  containers: [
+  image,
+  imageTag,
+  serviceAccount,
+  secrets: envVars,
+  migration: {
+    args: ['node', './node_modules/typeorm/cli.js', 'migration:run'],
+  },
+  debezium: {
+    topic: debeziumTopic,
+    topicName: debeziumTopicName,
+    propsPath: './application.properties',
+    propsVars: {
+      database_pass: config.require('debeziumDbPass'),
+      database_user: config.require('debeziumDbUser'),
+      database_dbname: name,
+      hostname: envVars.typeormHost as string,
+    },
+  },
+  apps: [
     {
-      name: 'app',
-      image,
-      env: [...containerEnvVars, { name: 'MODE', value: 'background' }],
-      resources: {
-        requests: bgLimits,
-        limits: bgLimits,
-      },
+      port: 3000,
+      env: [nodeOptions(memory)],
+      minReplicas: 3,
+      maxReplicas: 15,
+      limits,
+      readinessProbe: probe,
+      metric: { type: 'memory_cpu', cpu: 60 },
+      createService: true,
+      enableCdn: true,
+    },
+    {
+      nameSuffix: 'ws',
+      port: 3000,
+      env: [
+        nodeOptions(wsMemory),
+        { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
+      ],
+      minReplicas: 3,
+      maxReplicas: 15,
+      limits: wsLimits,
+      readinessProbe: probe,
+      metric: { type: 'memory_cpu', cpu: 60 },
+    },
+    {
+      nameSuffix: 'bg',
+      env: [{ name: 'MODE', value: 'background' }],
+      minReplicas: 3,
+      maxReplicas: 10,
+      limits: bgLimits,
+      metric: { type: 'pubsub', labels: { app: name }, targetAverageValue: 50 },
+    },
+    {
+      nameSuffix: 'private',
+      port: 3000,
+      env: [
+        nodeOptions(memory),
+        { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
+      ],
+      minReplicas: 2,
+      maxReplicas: 4,
+      limits,
+      readinessProbe: probe,
+      metric: { type: 'memory_cpu', cpu: 60 },
+      createService: true,
+      serviceType: 'ClusterIP',
     },
   ],
-  minReplicas: 6,
-  maxReplicas: 10,
-  metrics: [
-    {
-      external: {
-        metric: {
-          name: getPubSubUndeliveredMessagesMetric(),
-          selector: {
-            matchLabels: {
-              [getFullSubscriptionLabel('app')]: name,
-            },
-          },
-        },
-        target: {
-          type: 'Value',
-          averageValue: '50',
-        },
-      },
-      type: 'External',
-    },
-  ],
-  deploymentDependsOn: [migrationJob],
 });
+const { labels } = legacyApps[0];
+const { labels: wsLabels } = legacyApps[1];
 
 const k8sBackendConfig = new k8s.apiextensions.CustomResource(
   `${name}-k8s-backend-config`,
@@ -347,62 +278,3 @@ new k8s.networking.v1.Ingress(`${name}-k8s-ingress`, {
     ],
   },
 });
-
-createAutoscaledExposedApplication({
-  resourcePrefix: 'private-',
-  name: `${name}-private`,
-  namespace: namespace,
-  version: imageTag,
-  serviceAccount: k8sServiceAccount,
-  serviceType: 'ClusterIP',
-  containers: [
-    {
-      name: 'app',
-      image,
-      ports: [{ name: 'http', containerPort: 3000, protocol: 'TCP' }],
-      readinessProbe: probe,
-      livenessProbe: probe,
-      env: [
-        ...containerEnvVars,
-        { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
-        {
-          name: 'NODE_OPTIONS',
-          value: `--max-old-space-size=${Math.floor(memory * 0.9).toFixed(0)}`,
-        },
-      ],
-      resources: {
-        requests: limits,
-        limits,
-      },
-      lifecycle: {
-        preStop: {
-          exec: {
-            command: ['/bin/bash', '-c', 'sleep 20'],
-          },
-        },
-      },
-    },
-  ],
-  minReplicas: 2,
-  maxReplicas: 4,
-  metrics: getMemoryAndCpuMetrics(60),
-  deploymentDependsOn: [migrationJob],
-});
-
-const getDebeziumProps = async (): Promise<string> => {
-  return (await readFile('./application.properties', 'utf-8'))
-    .replace('%database_pass%', config.require('debeziumDbPass'))
-    .replace('%database_user%', config.require('debeziumDbUser'))
-    .replace('%database_dbname%', name)
-    .replace('%hostname%', envVars.typeormHost as string)
-    .replace('%topic%', debeziumTopicName);
-};
-
-deployDebeziumToKubernetes(
-  name,
-  namespace,
-  debeziumTopic,
-  Output.create(getDebeziumProps()),
-  `${location}-f`,
-  { diskType: 'pd-ssd', diskSize: 100, image: 'debezium/server:1.6' },
-);
