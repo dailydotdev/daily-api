@@ -180,6 +180,9 @@ export const updateUserEmail = async (
   });
 };
 
+const isInfoConfirmed = (user: AddUserData) =>
+  !!(user.name && user.email && user.username);
+
 export const addNewUser = async (
   con: Connection,
   data: AddUserData,
@@ -204,7 +207,7 @@ export const addNewUser = async (
         username: data.username,
         email: data.email,
         profileConfirmed: data.profileConfirmed,
-        infoConfirmed: data.infoConfirmed,
+        infoConfirmed: isInfoConfirmed(data),
         createdAt: data.createdAt,
         referral: data.referral,
         ...(data?.github && { github: data.github }),
