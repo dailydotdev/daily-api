@@ -363,6 +363,27 @@ describe('POST /p/newUser', () => {
     expect(users[0].infoConfirmed).toBeTruthy();
   });
 
+  it('should add a new user with false info confirmed if data is incomplete', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        email: usersFixture[0].email,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const users = await con.getRepository(User).find();
+    expect(users.length).toEqual(1);
+    expect(users[0].id).toEqual(usersFixture[0].id);
+    expect(users[0].infoConfirmed).toBeFalsy();
+  });
+
   it('should add a new user with GitHub handle', async () => {
     const { body } = await request(app.server)
       .post('/p/newUser')
