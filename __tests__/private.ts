@@ -360,6 +360,7 @@ describe('POST /p/newUser', () => {
     const users = await con.getRepository(User).find();
     expect(users.length).toEqual(1);
     expect(users[0].id).toEqual(usersFixture[0].id);
+    expect(users[0].infoConfirmed).toBeTruthy();
   });
 
   it('should add a new user with GitHub handle', async () => {
