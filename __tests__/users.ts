@@ -136,6 +136,7 @@ beforeEach(async () => {
       createdAt: new Date(now.getTime() - 5000),
       views: 40,
       image: 'sample.image.test',
+      scoutId: '1',
     },
     {
       id: 'p7',
@@ -1624,5 +1625,52 @@ describe('mutation updateUserProfile', () => {
     expect(res.errors?.length).toBeFalsy();
     const updatedUser = await repo.findOne({ id: loggedUser });
     expect(updatedUser?.infoConfirmed).toBeTruthy();
+  });
+});
+
+describe('mutation deleteUser', () => {
+  const MUTATION = `
+    mutation deleteUser {
+      deleteUser {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', async () =>
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should delete user from database', async () => {
+    loggedUser = '1';
+
+    await client.mutate(MUTATION);
+
+    const users = await con.getRepository(User).find();
+    expect(users.length).toEqual(2);
+
+    const userOne = await con.getRepository(User).findOne(1);
+    expect(userOne).toEqual(undefined);
+  });
+
+  it('should delete author ID from post', async () => {
+    loggedUser = '1';
+
+    await client.mutate(MUTATION);
+
+    const post = await con.getRepository(Post).findOne('p1');
+    expect(post.authorId).toEqual(null);
+  });
+
+  it('should delete scout ID from post', async () => {
+    loggedUser = '1';
+
+    await client.mutate(MUTATION);
+
+    const post = await con.getRepository(Post).findOne('p6');
+    expect(post.authorId).toEqual(null);
   });
 });
