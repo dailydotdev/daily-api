@@ -112,6 +112,7 @@ export type AddUserData = Pick<
   | 'referral'
   | 'infoConfirmed'
   | 'profileConfirmed'
+  | 'acceptedMarketing'
 >;
 export type UpdateUserEmailData = Pick<User, 'id' | 'email'>;
 type AddNewUserResult =
@@ -210,6 +211,7 @@ export const addNewUser = async (
         infoConfirmed: isInfoConfirmed(data),
         createdAt: data.createdAt,
         referral: data.referral,
+        acceptedMarketing: data.acceptedMarketing,
         ...(data?.github && { github: data.github }),
       });
 
