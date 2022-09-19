@@ -20,7 +20,7 @@ const worker: Worker = {
         return;
       }
       const post = await comment.post;
-      await notifyNewComment(post, data.userId, comment.content);
+      await notifyNewComment(post, data.userId, comment.content, comment.id);
       logger.info(
         {
           data,

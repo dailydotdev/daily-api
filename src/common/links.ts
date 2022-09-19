@@ -15,8 +15,10 @@ const subtractDomain = (url: string): string => {
   return matches && matches[1];
 };
 
-export const getDiscussionLink = (postId: string): string =>
-  `${process.env.COMMENTS_PREFIX}/posts/${postId}`;
+export const getDiscussionLink = (postId: string, commentId = ''): string =>
+  `${process.env.COMMENTS_PREFIX}/posts/${postId}${
+    commentId && `#${commentId}`
+  }`;
 
 export const standardizeURL = (url: string): string => {
   const domain = subtractDomain(url);
