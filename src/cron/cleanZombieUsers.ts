@@ -4,7 +4,7 @@ import { LessThan } from 'typeorm';
 import { subHours } from 'date-fns';
 
 const cron: Cron = {
-  subscription: 'clean-zombie-users',
+  subscription: 'clean-zombie-users-sub',
   handler: async (con, logger) => {
     logger.info('cleaning zombie users...');
     const timeThreshold = subHours(new Date(), 1);
