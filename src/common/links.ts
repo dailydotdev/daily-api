@@ -17,7 +17,7 @@ const subtractDomain = (url: string): string => {
 
 export const getDiscussionLink = (postId: string, commentId = ''): string =>
   `${process.env.COMMENTS_PREFIX}/posts/${postId}${
-    commentId && `#${commentId}`
+    commentId && `#c-${commentId}`
   }`;
 
 export const standardizeURL = (url: string): string => {
