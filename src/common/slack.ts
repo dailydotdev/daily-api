@@ -10,13 +10,14 @@ export const notifyNewComment = async (
   post: Post,
   userId: string,
   comment: string,
+  commentId: string,
 ): Promise<void> => {
   await webhook.send({
     text: 'New comment',
     attachments: [
       {
         title: comment,
-        title_link: getDiscussionLink(post.id),
+        title_link: getDiscussionLink(post.id, commentId),
         fields: [
           {
             title: 'User',
