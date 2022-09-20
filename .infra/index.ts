@@ -89,12 +89,12 @@ const envVars: Record<string, Input<string>> = {
 
 const image = `us.gcr.io/daily-ops/daily-${name}:${imageTag}`;
 
+const cronJobs = createPubSubCronJobs(name, crons);
 createSubscriptionsFromWorkers(
   name,
   addLabelsToWorkers(workers, { app: name }),
-  { dependsOn: [debeziumTopic] },
+  { dependsOn: [debeziumTopic, ...cronJobs] },
 );
-createPubSubCronJobs(name, crons);
 
 const memory = 1024;
 const limits: pulumi.Input<{
