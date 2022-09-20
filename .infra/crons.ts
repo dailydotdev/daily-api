@@ -37,4 +37,8 @@ export const crons: CronPubSub[] = [
     name: 'export-to-tinybird',
     schedule: '* * * * *',
   },
+  {
+    name: 'clean-zombie-users',
+    schedule: '32 */1 * * *',
+  },
 ];

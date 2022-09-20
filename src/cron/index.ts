@@ -6,6 +6,7 @@ import updateTrending from './updateTrending';
 import updateTagsStr from './updateTagsStr';
 import updateDiscussionScore from './updateDiscussionScore';
 import exportToTinybird from './exportToTinybird';
+import cleanZombieUsers from './cleanZombieUsers';
 
 export const crons: Cron[] = [
   updateViews,
@@ -15,4 +16,5 @@ export const crons: Cron[] = [
   updateTagsStr,
   updateDiscussionScore,
   exportToTinybird,
+  cleanZombieUsers,
 ];
