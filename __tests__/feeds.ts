@@ -765,8 +765,8 @@ describe('query mostDiscussedFeed', () => {
 
   it('should return a most discussed feed', async () => {
     const repo = con.getRepository(Post);
-    await repo.update({ id: 'p1' }, { discussionScore: 20 });
-    await repo.update({ id: 'p3' }, { discussionScore: 15 });
+    await repo.update({ id: 'p1' }, { comments: 5 });
+    await repo.update({ id: 'p3' }, { comments: 2 });
 
     const res = await client.query(QUERY());
     expect(res.errors).toBeFalsy();
