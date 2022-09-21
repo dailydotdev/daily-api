@@ -642,45 +642,6 @@ const applyFeedPaging = (
   return newBuilder;
 };
 
-const discussedPageGenerator: PageGenerator<
-  GQLPost,
-  ConnectionArguments,
-  FeedPage
-> = {
-  connArgsToPage: ({ first, after }: FeedArgs) => {
-    const cursor = getCursorFromAfter(after);
-    // Increment by one to determine if there's one more page
-    const limit = Math.min(first || 30, 50) + 1;
-    if (cursor) {
-      return { limit, score: parseInt(cursor) };
-    }
-    return { limit };
-  },
-  nodeToCursor: (page, args, node) => base64(`score:${node.discussionScore}`),
-  hasNextPage: (page, nodesSize) => page.limit === nodesSize,
-  hasPreviousPage: (page) => !!page.score,
-  transformNodes: (page, nodes) => nodes.slice(0, page.limit - 1),
-};
-
-const applyDiscussedPaging = (
-  ctx: Context,
-  args: ConnectionArguments,
-  page: FeedPage,
-  builder: SelectQueryBuilder<Post>,
-  alias,
-): SelectQueryBuilder<Post> => {
-  let newBuilder = builder
-    .addSelect(`${alias}."discussionScore"`)
-    .limit(page.limit)
-    .orderBy(`${alias}."discussionScore"`, 'DESC');
-  if (page.score) {
-    newBuilder = newBuilder.andWhere(`${alias}."discussionScore" < :score`, {
-      score: page.score,
-    });
-  }
-  return newBuilder;
-};
-
 const getFeedSettings = async (
   ctx: Context,
   info: GraphQLResolveInfo,
@@ -930,10 +891,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     mostDiscussedFeed: feedResolver(
       (ctx, args, builder, alias) =>
         builder
-          .andWhere(`${alias}."discussionScore" > 0`)
-          .orderBy(`${alias}."discussionScore"`, 'DESC'),
-      discussedPageGenerator,
-      applyDiscussedPaging,
+          .andWhere(`${alias}."createdAt" > now() - interval '30 days'`)
+          .andWhere(`${alias}."comments" >= 1`)
+          .orderBy(`${alias}."comments"`, 'DESC'),
+      offsetPageGenerator(30, 50, 100),
+      (ctx, args, { limit, offset }, builder) =>
+        builder.limit(limit).offset(offset),
       { removeHiddenPosts: true },
     ),
     randomTrendingPosts: randomPostsResolver(
@@ -962,17 +925,16 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ) => {
         const similarPostsQuery = `select post.id
                                    from post
-                                          inner join (
-                                     select count(*)           as similar,
-                                            min(k.occurrences) as occurrences,
-                                            pk."postId"
-                                     from post_keyword pk
-                                            inner join post_keyword pk2 on pk.keyword = pk2.keyword
-                                            inner join keyword k on pk.keyword = k.value
-                                     where pk2."postId" = :postId
-                                       and k.status = 'allow'
-                                     group by pk."postId"
-                                   ) k on k."postId" = post.id
+                                          inner join (select count(*)           as similar,
+                                                             min(k.occurrences) as occurrences,
+                                                             pk."postId"
+                                                      from post_keyword pk
+                                                             inner join post_keyword pk2 on pk.keyword = pk2.keyword
+                                                             inner join keyword k on pk.keyword = k.value
+                                                      where pk2."postId" = :postId
+                                                        and k.status = 'allow'
+                                                      group by pk."postId") k
+                                                     on k."postId" = post.id
                                    where post.id != :postId
                                      and post."createdAt" >= now() - interval '6 month'
                                      and post."upvotes" > 0
@@ -999,16 +961,15 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         if (tags?.length > 0) {
           similarPostsQuery = `select post.id
                                from post
-                                      inner join (
-                                 select count(*)           as similar,
-                                        min(k.occurrences) as occurrences,
-                                        pk."postId"
-                                 from post_keyword pk
-                                        inner join keyword k on pk.keyword = k.value
-                                 where k.value in (:...tags)
-                                   and k.status = 'allow'
-                                 group by pk."postId"
-                               ) k on k."postId" = post.id
+                                      inner join (select count(*)           as similar,
+                                                         min(k.occurrences) as occurrences,
+                                                         pk."postId"
+                                                  from post_keyword pk
+                                                         inner join keyword k on pk.keyword = k.value
+                                                  where k.value in (:...tags)
+                                                    and k.status = 'allow'
+                                                  group by pk."postId") k
+                                                 on k."postId" = post.id
                                where post.id != :postId
                                  and post."createdAt" >= now() - interval '6 month'
                                order by (pow(post.upvotes, k.similar) * 1000 /
