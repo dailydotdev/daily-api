@@ -113,6 +113,7 @@ export type AddUserData = Pick<
   | 'infoConfirmed'
   | 'profileConfirmed'
   | 'acceptedMarketing'
+  | 'timezone'
 >;
 export type UpdateUserEmailData = Pick<User, 'id' | 'email'>;
 type AddNewUserResult =
@@ -212,6 +213,7 @@ export const addNewUser = async (
         createdAt: data.createdAt,
         referral: data.referral,
         acceptedMarketing: data.acceptedMarketing,
+        timezone: data.timezone,
         ...(data?.github && { github: data.github }),
       });
 
