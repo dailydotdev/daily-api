@@ -762,7 +762,7 @@ export const resolvers: IResolvers<any, Context> = {
       const avatar =
         upload && process.env.CLOUDINARY_URL
           ? await uploadAvatar(user.id, (await upload).createReadStream())
-          : user.image;
+          : data.image || user.image;
 
       try {
         const updatedUser = { ...user, ...data, image: avatar };
