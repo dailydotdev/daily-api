@@ -7,5 +7,5 @@ dotenv.config({ path: '.env' });
 
 export const fallbackImages = {
   avatar:
-    'https://daily-now-res.cloudinary.com/image/upload/t_logo,f_auto/v1664367305/placeholders/placeholder3',
+    'https://daily-now-res.cloudinary.com/image/upload/f_auto/v1664367305/placeholders/placeholder3',
 };

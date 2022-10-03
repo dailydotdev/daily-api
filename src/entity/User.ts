@@ -92,6 +92,7 @@ export class User {
   devCards: Promise<DevCard[]>;
 
   permalink: string;
+
   @AfterLoad()
   setComputed() {
     this.permalink = `${process.env.COMMENTS_PREFIX}/${
@@ -137,6 +138,19 @@ const checkUsernameAndEmail = async (
       email,
       username,
     })
+    .getRawOne();
+  return !user;
+};
+
+const checkGitHubHandle = async (
+  entityManager: EntityManager,
+  github: string,
+): Promise<boolean> => {
+  const user = await entityManager
+    .getRepository(User)
+    .createQueryBuilder()
+    .select('id')
+    .where({ github })
     .getRawOne();
   return !user;
 };
@@ -201,6 +215,15 @@ export const addNewUser = async (
       return { status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' };
     }
 
+    // Clear GitHub handle in case it already exists
+    let github = data.github;
+    if (github) {
+      const isGitHubAvailable = await checkGitHubHandle(entityManager, github);
+      if (!isGitHubAvailable) {
+        github = null;
+      }
+    }
+
     try {
       await entityManager.getRepository(User).insert({
         id: data.id,
@@ -214,7 +237,7 @@ export const addNewUser = async (
         referral: data.referral,
         acceptedMarketing: data.acceptedMarketing,
         timezone: data.timezone,
-        ...(data?.github && { github: data.github }),
+        github,
       });
 
       logger.info(`Created profile for user with ID: ${data.id}`);

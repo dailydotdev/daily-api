@@ -406,6 +406,33 @@ describe('POST /p/newUser', () => {
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].github).toEqual(usersFixture[0].github);
   });
+
+  it('should ignore GitHub handle if it already exists', async () => {
+    await con
+      .getRepository(User)
+      .save({ ...usersFixture[1], github: usersFixture[0].github });
+
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        github: usersFixture[0].github,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
+    expect(users.length).toEqual(2);
+    expect(users[0].id).toEqual(usersFixture[0].id);
+    expect(users[0].github).toEqual(null);
+  });
 });
 
 describe('POST /p/checkUsername', () => {
