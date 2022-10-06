@@ -471,10 +471,12 @@ export const resolvers: IResolvers<any, Context> = {
         { key: 'createdAt' },
         {
           queryBuilder: (builder) => {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
-              `${builder.alias}."userId" = :userId`,
-              { userId: args.userId },
-            );
+            builder.queryBuilder = builder.queryBuilder
+              .andWhere(`${builder.alias}."userId" = :userId`, {
+                userId: args.userId,
+              })
+              .innerJoin(Post, 'p', `"${builder.alias}"."postId" = p.id`)
+              .andWhere(`p.deleted = false`);
 
             return builder;
           },
