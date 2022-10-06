@@ -1,12 +1,11 @@
-import { ReputationEvent } from './../../src/entity/ReputationEvent';
 import { Connection, getConnection } from 'typeorm';
 
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postBannedRep';
-import { COMMUNITY_PICKS_SOURCE, Post, Source, User } from '../../src/entity';
+import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
-import { PostReport } from '../../src/entity/PostReport';
+import { PostReport, ReputationEvent } from '../../src/entity';
 
 let con: Connection;
 
