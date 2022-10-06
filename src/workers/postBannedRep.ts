@@ -17,10 +17,6 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     const { id, authorId, scoutId } = data.post;
-    // Skipping penalizing community picks during the beta phase
-    if (data.post.sourceId === COMMUNITY_PICKS_SOURCE) {
-      return;
-    }
     try {
       await con.transaction(async (transaction) => {
         const reports = await transaction
@@ -42,20 +38,23 @@ const worker: Worker = {
           reason: ReputationReason.PostBanned,
         };
 
-        if (authorId) {
-          const authorEvent = repo.create({
-            ...ownerProps,
-            grantToId: authorId,
-          });
-          events.push(authorEvent);
-        }
+        // Skipping penalizing community picks during the beta phase
+        if (data.post.sourceId !== COMMUNITY_PICKS_SOURCE) {
+          if (authorId) {
+            const authorEvent = repo.create({
+              ...ownerProps,
+              grantToId: authorId,
+            });
+            events.push(authorEvent);
+          }
 
-        if (scoutId) {
-          const scoutEvent = repo.create({
-            ...ownerProps,
-            grantToId: scoutId,
-          });
-          events.push(scoutEvent);
+          if (scoutId) {
+            const scoutEvent = repo.create({
+              ...ownerProps,
+              grantToId: scoutId,
+            });
+            events.push(scoutEvent);
+          }
         }
 
         await repo
