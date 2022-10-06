@@ -522,6 +522,8 @@ export const resolvers: IResolvers<any, Context> = {
           .addSelect('sum(comment.upvotes)', 'numCommentUpvotes')
           .from(Comment, 'comment')
           .where({ userId: id })
+          .innerJoin(Post, 'p', `comment.postId = p.id`)
+          .andWhere(`p.deleted = false`)
           .getRawOne<CommentStats>(),
       ]);
       return {
