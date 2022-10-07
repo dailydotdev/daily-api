@@ -95,7 +95,15 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       }
 
       const con = getConnection();
-      const user = await con.getRepository(User).findOne({ username: search });
+
+      const user = await con
+        .getRepository(User)
+        .createQueryBuilder()
+        .select('id')
+        .where('LOWER(username) = LOWER(:search)', {
+          search,
+        })
+        .getRawOne();
       return res.status(200).send({ isTaken: !!user });
     },
   );

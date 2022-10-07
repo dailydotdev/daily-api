@@ -134,7 +134,7 @@ const checkUsernameAndEmail = async (
     .getRepository(User)
     .createQueryBuilder()
     .select('id')
-    .where('email = :email or username = :username', {
+    .where('email = :email or LOWER(username) = LOWER(:username)', {
       email,
       username,
     })
@@ -229,7 +229,7 @@ export const addNewUser = async (
         id: data.id,
         name: data.name,
         image: data.image ?? fallbackImages.avatar,
-        username: data.username,
+        username: data.username.toLowerCase(),
         email: data.email,
         profileConfirmed: data.profileConfirmed,
         infoConfirmed: isInfoConfirmed(data),

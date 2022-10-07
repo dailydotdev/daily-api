@@ -28,7 +28,7 @@ beforeAll(async () => {
 const createDefaultUser = async () => {
   await con
     .getRepository(User)
-    .save({ ...usersFixture[0], twitter: 'leeTwitter' });
+    .save({ ...usersFixture[0], twitter: 'leeTwitter', username: 'Idoshamun' });
 };
 
 const createDefaultSubmission = async (id: string = randomUUID()) => {
@@ -350,7 +350,7 @@ describe('POST /p/newUser', () => {
         id: usersFixture[0].id,
         name: usersFixture[0].name,
         image: usersFixture[0].image,
-        username: usersFixture[0].username,
+        username: 'IdOShAmUn',
         email: usersFixture[0].email,
       })
       .expect(200);
@@ -361,6 +361,7 @@ describe('POST /p/newUser', () => {
     expect(users.length).toEqual(1);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].infoConfirmed).toBeTruthy();
+    expect(users[0].username).toEqual(usersFixture[0].username);
   });
 
   it('should add a new user with false info confirmed if data is incomplete', async () => {
