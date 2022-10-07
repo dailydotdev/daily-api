@@ -229,7 +229,7 @@ export const addNewUser = async (
         id: data.id,
         name: data.name,
         image: data.image ?? fallbackImages.avatar,
-        username: data.username.toLowerCase(),
+        username: data.username?.toLowerCase(),
         email: data.email,
         profileConfirmed: data.profileConfirmed,
         infoConfirmed: isInfoConfirmed(data),
