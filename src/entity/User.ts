@@ -43,7 +43,18 @@ export class User {
   @Column({ default: 10 })
   reputation: number;
 
-  @Column({ length: 39, nullable: true })
+  @Column({
+    length: 39,
+    nullable: true,
+    transformer: {
+      to(value) {
+        return value.toLowerCase();
+      },
+      from(value) {
+        return value;
+      },
+    },
+  })
   @Index('users_username_unique', { unique: true })
   username?: string;
 
@@ -229,7 +240,7 @@ export const addNewUser = async (
         id: data.id,
         name: data.name,
         image: data.image ?? fallbackImages.avatar,
-        username: data.username?.toLowerCase(),
+        username: data.username,
         email: data.email,
         profileConfirmed: data.profileConfirmed,
         infoConfirmed: isInfoConfirmed(data),
