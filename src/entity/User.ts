@@ -48,7 +48,7 @@ export class User {
     nullable: true,
     transformer: {
       to(value) {
-        return value.toLowerCase();
+        return value?.toLowerCase();
       },
       from(value) {
         return value;
