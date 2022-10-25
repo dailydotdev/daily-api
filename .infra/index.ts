@@ -21,27 +21,6 @@ const imageTag = getImageTag();
 const name = 'api';
 const debeziumTopicName = `${name}.changes`;
 
-const debeziumTopic = new gcp.pubsub.Topic('debezium-topic', {
-  name: debeziumTopicName,
-});
-
-[
-  'source-feed-added',
-  'source-feed-removed',
-  'alerts-updated',
-  'settings-updated',
-  'update-comments',
-  'post-scout-matched',
-  'community-link-submitted',
-  'community-link-rejected',
-  'community-link-access',
-].map(
-  (topic) =>
-    new gcp.pubsub.Topic(topic, {
-      name: topic,
-    }),
-);
-
 const { serviceAccount } = createServiceAccountAndGrantRoles(
   `${name}-sa`,
   name,
@@ -93,7 +72,7 @@ const cronJobs = createPubSubCronJobs(name, crons);
 createSubscriptionsFromWorkers(
   name,
   addLabelsToWorkers(workers, { app: name }),
-  { dependsOn: [debeziumTopic, ...cronJobs] },
+  { dependsOn: cronJobs },
 );
 
 const memory = 1024;
@@ -121,7 +100,7 @@ const probe: k8s.types.input.core.v1.Probe = {
 };
 
 const vpcNativeProvider = getVpcNativeCluster();
-const [legacyApps, vpcNativeApps] = deployApplicationSuite(
+const [apps] = deployApplicationSuite(
   {
     name,
     namespace,
@@ -133,7 +112,6 @@ const [legacyApps, vpcNativeApps] = deployApplicationSuite(
       args: ['node', './node_modules/typeorm/cli.js', 'migration:run'],
     },
     debezium: {
-      topic: debeziumTopic,
       topicName: debeziumTopicName,
       propsPath: './application.properties',
       propsVars: {
@@ -151,7 +129,7 @@ const [legacyApps, vpcNativeApps] = deployApplicationSuite(
         maxReplicas: 15,
         limits,
         readinessProbe: probe,
-        metric: { type: 'memory_cpu', cpu: 60 },
+        metric: { type: 'memory_cpu', cpu: 70 },
         createService: true,
         enableCdn: true,
       },
@@ -177,7 +155,7 @@ const [legacyApps, vpcNativeApps] = deployApplicationSuite(
         metric: {
           type: 'pubsub',
           labels: { app: name },
-          targetAverageValue: 50,
+          targetAverageValue: 100,
         },
       },
       {
@@ -191,7 +169,7 @@ const [legacyApps, vpcNativeApps] = deployApplicationSuite(
         maxReplicas: 4,
         limits,
         readinessProbe: probe,
-        metric: { type: 'memory_cpu', cpu: 60 },
+        metric: { type: 'memory_cpu', cpu: 70 },
         createService: true,
         serviceType: 'ClusterIP',
       },
@@ -199,8 +177,8 @@ const [legacyApps, vpcNativeApps] = deployApplicationSuite(
   },
   vpcNativeProvider,
 );
-const { labels } = legacyApps[0];
-const { labels: wsLabels } = legacyApps[1];
+const { labels } = apps[0];
+const { labels: wsLabels } = apps[1];
 
 const subsServiceName = `${name}-subs`;
 
