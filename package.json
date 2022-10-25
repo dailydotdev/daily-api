@@ -103,7 +103,7 @@
     "jest": "^28.1.3",
     "jest-junit": "^13.0.0",
     "jest-mock-extended": "^2.0.7",
-    "mercurius-integration-testing": "^3.2.0",
+    "mercurius-integration-testing": "^4.0.0",
     "nock": "^13.2.9",
     "nodemon": "^2.0.19",
     "pino-pretty": "^8.1.0",
