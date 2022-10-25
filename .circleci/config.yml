@@ -84,7 +84,7 @@ jobs:
           registry-url: us.gcr.io
   pulumi_preview:
     docker:
-      - image: cimg/node:14.19
+      - image: cimg/node:16.15
     steps:
       - checkout
       - pulumi/login
@@ -99,7 +99,7 @@ jobs:
   pulumi_up:
     circleci_ip_ranges: true
     docker:
-      - image: cimg/node:14.19
+      - image: cimg/node:16.15
     environment:
       USE_GKE_GCLOUD_AUTH_PLUGIN: 'True'
     steps:
