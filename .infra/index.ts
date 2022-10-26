@@ -11,7 +11,6 @@ import {
   getImageTag,
   location,
   addLabelsToWorkers,
-  createPubSubCronJobs,
   nodeOptions,
   deployApplicationSuite,
   getVpcNativeCluster,
