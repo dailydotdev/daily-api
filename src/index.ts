@@ -1,9 +1,5 @@
 import 'reflect-metadata';
-import fastify, {
-  FastifyRequest,
-  FastifyInstance,
-  FastifyError,
-} from 'fastify';
+import fastify, { FastifyRequest, FastifyInstance } from 'fastify';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
 import mercurius, { MercuriusError } from 'mercurius';
