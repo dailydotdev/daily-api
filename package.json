@@ -26,7 +26,6 @@
     "typeorm": "ts-node ./node_modules/typeorm/cli.js"
   },
   "dependencies": {
-    "@binxhealth/pino-stackdriver": "^3.0.0",
     "@dailydotdev/graphql-redis-subscriptions": "^2.4.3",
     "@dailydotdev/ts-ioredis-pool": "^1.0.2",
     "@fastify/cookie": "^8.3.0",
