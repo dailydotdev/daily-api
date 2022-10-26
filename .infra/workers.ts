@@ -1,5 +1,3 @@
-import { crons } from './crons';
-
 interface Worker {
   topic: string;
   subscription: string;
@@ -132,10 +130,4 @@ export const workers: Worker[] = [
     subscription: 'api-cdc',
     args: { enableMessageOrdering: true },
   },
-  ...crons.map(
-    (cron): Worker => ({
-      topic: cron.topic || cron.name,
-      subscription: `${cron.topic || cron.name}-sub`,
-    }),
-  ),
 ];
