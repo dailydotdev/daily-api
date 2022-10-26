@@ -1,7 +1,7 @@
 import { Cron } from './cron';
 
 const cron: Cron = {
-  subscription: 'update-discussion-score-sub',
+  name: 'update-discussion-score',
   handler: async (con) => {
     await con.transaction(async (entityManager): Promise<void> => {
       await entityManager.query(

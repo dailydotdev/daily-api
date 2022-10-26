@@ -190,25 +190,15 @@ export const expectSuccessfulBackground = (
   data: Record<string, unknown>,
 ): Promise<void> => invokeBackground(worker, data);
 
-export const invokeCron = async (
-  cron: Cron,
-  data: Record<string, unknown> = undefined,
-): Promise<void> => {
+export const invokeCron = async (cron: Cron): Promise<void> => {
   const con = await getConnection();
   const pubsub = new PubSub();
   const logger = pino();
-  await cron.handler(
-    con,
-    logger,
-    pubsub,
-    data ? mockMessage(data).message.data : Buffer.from(''),
-  );
+  await cron.handler(con, logger, pubsub);
 };
 
-export const expectSuccessfulCron = (
-  cron: Cron,
-  data: Record<string, unknown> = undefined,
-): Promise<void> => invokeCron(cron, data);
+export const expectSuccessfulCron = (cron: Cron): Promise<void> =>
+  invokeCron(cron);
 
 export const setupStaticServer = async (
   rss?: string,

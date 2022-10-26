@@ -6,7 +6,6 @@ import './config';
 
 import { createOrGetConnection } from './db';
 import { workers } from './workers';
-import { crons } from './cron';
 import { Connection } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 
@@ -68,17 +67,6 @@ export default async function app(): Promise<void> {
           logger,
           pubsub,
         ),
-    ),
-  );
-
-  crons.forEach((cron) =>
-    subscribe(
-      logger,
-      pubsub,
-      connection,
-      cron.subscription,
-      (message, con, logger, pubsub) =>
-        cron.handler(con, logger, pubsub, message.data),
     ),
   );
 }

@@ -51,6 +51,7 @@ tasks:
       - api-migrate
 services:
   - name: api
+    args: "${var.dev ? [ 'npm', 'run', 'dev' ] : ['npm', 'run', 'start']}"
     devMode: &devMode
       sync:
         - source: src
@@ -78,11 +79,11 @@ services:
     env:
       <<: *env
   - name: api-bg
+    args: "${var.dev ? [ 'npm', 'run', 'dev:background' ] : ['npm', 'run', 'start:background']}"
     devMode:
       <<: *devMode
     dependencies:
       - api-pubsub-init
       - api
     env:
-      MODE: background
       <<: *env

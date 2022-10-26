@@ -2,7 +2,7 @@ import { Post } from '../entity';
 import { Cron } from './cron';
 
 const cron: Cron = {
-  subscription: 'check-analytics-report-sub',
+  name: 'check-analytics-report',
   handler: async (con) => {
     await con
       .createQueryBuilder()

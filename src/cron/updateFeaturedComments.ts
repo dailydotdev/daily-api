@@ -7,7 +7,7 @@ const FEATURED_LIMIT = 3;
 type UpdateResult = [{ id: string }[]];
 
 const cron: Cron = {
-  subscription: 'update-featured-comments-sub',
+  name: 'update-featured-comments',
   handler: async (con, logger) => {
     const checkpointKey = 'last_featured_comments_update';
     const before = new Date();

@@ -1,5 +1,4 @@
 interface CronPubSub {
-  topic?: string;
   name: string;
   schedule: string;
 }
