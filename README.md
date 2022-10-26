@@ -7,7 +7,7 @@
   <a href="https://circleci.com/gh/dailydotdev/daily-api">
     <img src="https://img.shields.io/circleci/build/github/dailydotdev/daily-api/master.svg" alt="Build Status">
   </a>
-  <a href="https://github.com/dailydotdev/daily-api/blob/master/LICENSE">
+  <a href="https://github.com/dailydotdev/daily-api/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/dailydotdev/daily-api.svg" alt="License">
   </a>
   <a href="https://stackshare.io/daily/daily">

@@ -148,7 +148,7 @@ workflows:
             branches:
               ignore:
                 - /pull\/[0-9]+/
-                - master
+                - main
       - pulumi_up:
           requires:
             - build_and_push_docker
@@ -156,7 +156,7 @@ workflows:
           filters:
             branches:
               only:
-                - master
+                - main
       - gcp-gcr/add-image-tag:
           requires:
             - build_and_push_docker
@@ -168,4 +168,4 @@ workflows:
           filters:
             branches:
               only:
-                - master
+                - main
