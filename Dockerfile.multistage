@@ -1,4 +1,4 @@
-FROM node:16-alpine AS builder
+FROM node:18-alpine AS builder
 RUN apk add g++ make python3
 
 RUN mkdir -p /opt/app
@@ -16,7 +16,7 @@ RUN npm i
 COPY . .
 RUN npm run build
 
-FROM node:16-alpine
+FROM node:18-alpine
 RUN apk add g++ make python3
 
 RUN mkdir -p /opt/app
