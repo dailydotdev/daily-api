@@ -16,8 +16,8 @@ import {
   ValidationError,
   ForbiddenError,
 } from 'apollo-server-errors';
-import { IResolvers } from 'graphql-tools';
-import { FileUpload } from 'graphql-upload';
+import { IResolvers } from '@graphql-tools/utils';
+import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { queryPaginatedByDate } from '../common/datePageGenerator';

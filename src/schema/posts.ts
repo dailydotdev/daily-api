@@ -3,7 +3,7 @@ import {
   ConnectionArguments,
 } from 'graphql-relay';
 import { ValidationError } from 'apollo-server-errors';
-import { IResolvers } from 'graphql-tools';
+import { IResolvers } from '@graphql-tools/utils';
 import { Connection, DeepPartial } from 'typeorm';
 import { GQLSource } from './sources';
 import { Context } from '../Context';

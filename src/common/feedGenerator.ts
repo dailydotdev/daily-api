@@ -3,7 +3,7 @@ import { fetchUserFeatures } from './users';
 import { AdvancedSettings, FeedAdvancedSettings } from '../entity';
 import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
-import { IFieldResolver } from 'graphql-tools';
+import { IFieldResolver } from '@graphql-tools/utils';
 import {
   Bookmark,
   FeedTag,

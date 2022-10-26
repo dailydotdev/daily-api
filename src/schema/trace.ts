@@ -1,9 +1,8 @@
 import {
   IFieldResolver,
-  MergeInfo,
   IResolvers,
-  IResolverObject,
-} from 'graphql-tools';
+  IObjectTypeResolver,
+} from '@graphql-tools/utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { isFunction, isObject } from 'lodash';
 import { Context } from '../Context';
@@ -15,9 +14,7 @@ export function traceResolver<TSource, TArgs, TReturn>(
     source: TSource,
     args: TArgs,
     context: Context,
-    info: GraphQLResolveInfo & {
-      mergeInfo: MergeInfo;
-    },
+    info: GraphQLResolveInfo,
   ): Promise<TReturn> => {
     const name = `${info.parentType.name}.${info.fieldName}`;
     const childSpan = context.span.createChildSpan({ name });
@@ -37,8 +34,8 @@ export function traceResolver<TSource, TArgs, TReturn>(
 }
 
 export function traceResolverObject<TSource, TArgs>(
-  object: IResolverObject<TSource, Context, TArgs>,
-): IResolverObject<TSource, Context, TArgs> {
+  object: IObjectTypeResolver<TSource, Context, TArgs>,
+): IObjectTypeResolver<TSource, Context, TArgs> {
   for (const prop in object) {
     const value = object[prop];
     if (isFunction(value)) {
@@ -54,7 +51,7 @@ export function traceResolvers<TSource>(
   for (const prop in resolvers) {
     const value = resolvers[prop];
     if (isObject(value)) {
-      resolvers[prop] = traceResolverObject(value as IResolverObject);
+      resolvers[prop] = traceResolverObject(value as IObjectTypeResolver);
     }
   }
   return resolvers;

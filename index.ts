@@ -8,7 +8,10 @@ const isBackground = process.env.MODE === 'background';
     return backgroundFunc();
   }
   const app = await foregroundFunc();
-  return app.listen(parseInt(process.env.PORT) || 3000, '0.0.0.0');
+  return app.listen({
+    port: parseInt(process.env.PORT) || 3000,
+    host: '0.0.0.0',
+  });
 })().catch((err) => {
   console.error(err);
   process.exit(1);
