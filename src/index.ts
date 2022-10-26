@@ -105,9 +105,13 @@ export default async function app(
     errorFormatter(execution) {
       if (execution.errors?.length > 0) {
         const flatErrors = execution.errors.flatMap<GraphQLError>((error) => {
-          return error.originalError.name === 'FastifyError'
-            ? (error.originalError as MercuriusError<GraphQLError>).errors
-            : error;
+          if (error.originalError.name === 'FastifyError') {
+            return (
+              (error.originalError as MercuriusError<GraphQLError>).errors ||
+              error
+            );
+          }
+          return error;
         });
         return {
           statusCode: 200,
@@ -115,15 +119,7 @@ export default async function app(
             data: execution.data,
             errors: flatErrors.map((error): GraphQLError => {
               const newError = error as Mutable<GraphQLError>;
-              if (isProd) {
-                newError.originalError = undefined;
-              }
-              if (
-                !error.originalError ||
-                (error.name === 'FastifyError' &&
-                  (error.originalError as FastifyError).code ==
-                    'MER_ERR_GQL_VALIDATION')
-              ) {
+              if (!error.originalError) {
                 newError.extensions = {
                   code: 'GRAPHQL_VALIDATION_FAILED',
                 };
@@ -132,6 +128,9 @@ export default async function app(
                 newError.extensions = {
                   code: 'NOT_FOUND',
                 };
+              }
+              if (isProd) {
+                newError.originalError = undefined;
               }
               return newError;
             }),
