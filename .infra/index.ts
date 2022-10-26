@@ -68,11 +68,9 @@ const envVars: Record<string, Input<string>> = {
 
 const image = `us.gcr.io/daily-ops/daily-${name}:${imageTag}`;
 
-const cronJobs = createPubSubCronJobs(name, crons);
 createSubscriptionsFromWorkers(
   name,
   addLabelsToWorkers(workers, { app: name }),
-  { dependsOn: cronJobs },
 );
 
 const memory = 1024;
@@ -148,7 +146,7 @@ const [apps] = deployApplicationSuite(
       },
       {
         nameSuffix: 'bg',
-        env: [{ name: 'MODE', value: 'background' }],
+        args: ['npm', 'run', 'start:background'],
         minReplicas: 3,
         maxReplicas: 10,
         limits: bgLimits,
@@ -174,6 +172,11 @@ const [apps] = deployApplicationSuite(
         serviceType: 'ClusterIP',
       },
     ],
+    crons: crons.map((cron) => ({
+      args: ['node', 'bin/cli', 'cron', cron.name],
+      schedule: cron.schedule,
+      limits: bgLimits,
+    })),
   },
   vpcNativeProvider,
 );
