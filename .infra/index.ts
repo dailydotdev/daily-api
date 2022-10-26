@@ -173,6 +173,7 @@ const [apps] = deployApplicationSuite(
       },
     ],
     crons: crons.map((cron) => ({
+      nameSuffix: cron.name,
       args: ['node', 'bin/cli', 'cron', cron.name],
       schedule: cron.schedule,
       limits: bgLimits,
