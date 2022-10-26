@@ -1,4 +1,9 @@
-import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import {
+  FastifyInstance,
+  FastifyReply,
+  FastifyRequest,
+  RouteGenericInterface,
+} from 'fastify';
 import { getConnection, SelectQueryBuilder, Connection } from 'typeorm';
 import rateLimit from '@fastify/rate-limit';
 import RSS from 'rss';
@@ -9,12 +14,6 @@ import {
   User,
 } from '../common';
 import { Post, Bookmark, Settings } from '../entity';
-import { RouteGenericInterface, RouteHandlerMethod } from 'fastify/types/route';
-import {
-  RawReplyDefaultExpression,
-  RawRequestDefaultExpression,
-  RawServerDefault,
-} from 'fastify/types/utils';
 
 interface RssItem {
   id: string;
@@ -42,13 +41,11 @@ const generateRSS =
       req: FastifyRequest<RouteGeneric>,
       con: Connection,
     ) => Promise<State>,
-  ): RouteHandlerMethod<
-    RawServerDefault,
-    RawRequestDefaultExpression,
-    RawReplyDefaultExpression,
-    RouteGeneric
-  > =>
-  async (req, res): Promise<FastifyReply> => {
+  ) =>
+  async (
+    req: FastifyRequest<RouteGeneric>,
+    res: FastifyReply,
+  ): Promise<FastifyReply> => {
     const con = getConnection();
     const state = stateFactory ? await stateFactory(req, con) : null;
     const userId = await extractUserId(req, state);
@@ -99,6 +96,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rateLimit, {
     max: 100,
     timeWindow: '1 minute',
+  });
+
+  fastify.get('/', async (req, res): Promise<FastifyReply> => {
+    return res.send();
   });
 
   // fastify.get(

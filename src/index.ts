@@ -115,7 +115,15 @@ export default async function app(
                   code: 'NOT_FOUND',
                 };
               }
-              return newError;
+              return new GraphQLError(
+                newError.message,
+                newError.nodes,
+                newError.source,
+                newError.positions,
+                newError.path,
+                newError.originalError,
+                newError.extensions,
+              );
             }),
           },
         };

@@ -1,7 +1,7 @@
 import { Connection } from 'typeorm';
 import { ALERTS_DEFAULT, Alerts } from '../entity';
 
-import { IResolvers } from 'graphql-tools';
+import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 

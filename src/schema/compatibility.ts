@@ -1,4 +1,4 @@
-import { IFieldResolver, IResolvers } from 'graphql-tools';
+import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { GQLPost } from './posts';

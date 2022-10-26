@@ -1,4 +1,4 @@
-import { IResolvers } from 'graphql-tools';
+import { IResolvers } from '@graphql-tools/utils';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import { Keyword, KeywordStatus, PostKeyword } from '../entity';

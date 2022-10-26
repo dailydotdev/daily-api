@@ -18,7 +18,7 @@ import * as alerts from './schema/alerts';
 import * as keywords from './schema/keywords';
 import * as authDirective from './directive/auth';
 import * as urlDirective from './directive/url';
-import { makeExecutableSchema } from 'graphql-tools';
+import { makeExecutableSchema } from '@graphql-tools/schema';
 
 export const schema = urlDirective.transformer(
   authDirective.transformer(

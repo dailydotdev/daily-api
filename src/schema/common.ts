@@ -1,4 +1,4 @@
-import { IFieldResolver, IResolvers, MergeInfo } from 'graphql-tools';
+import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
 import {
   Connection,
   ConnectionArguments,
@@ -7,7 +7,7 @@ import {
   offsetToCursor,
 } from 'graphql-relay';
 import { GraphQLResolveInfo } from 'graphql';
-import { GraphQLUpload } from 'graphql-upload';
+import GraphQLUpload from 'graphql-upload/GraphQLUpload.js';
 import { GraphQLDateTime } from 'graphql-scalars';
 
 import { Context } from '../Context';
@@ -141,8 +141,8 @@ export interface PageGenerator<
 export const getSearchQuery = (
   param: string,
 ): string => `SELECT to_tsquery('english',
-string_agg(lexeme || ':*', ' & ' order by positions)) AS query
-FROM unnest(to_tsvector('english', process_text(${param})))`;
+                                string_agg(lexeme || ':*', ' & ' order by positions)) AS query
+              FROM unnest(to_tsvector('english', process_text(${param})))`;
 
 export const offsetPageGenerator = <TReturn>(
   defaultLimit: number,
@@ -198,9 +198,7 @@ type PaginationResolver<
   args: ConnectionArguments,
   context: Context,
   page: TPage,
-  info: GraphQLResolveInfo & {
-    mergeInfo: MergeInfo;
-  },
+  info: GraphQLResolveInfo,
 ) => Promise<PaginationResponse<TReturn, TExtra>>;
 
 export function connectionFromNodes<

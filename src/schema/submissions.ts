@@ -1,6 +1,6 @@
 import { Connection } from 'typeorm';
 import { Submission, User } from './../entity';
-import { IResolvers } from 'graphql-tools';
+import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { isValidHttpUrl, standardizeURL } from '../common';

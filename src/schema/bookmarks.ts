@@ -1,4 +1,4 @@
-import { IResolvers } from 'graphql-tools';
+import { IResolvers } from '@graphql-tools/utils';
 import { ConnectionArguments } from 'graphql-relay';
 import {
   GQLEmptyResponse,
@@ -20,6 +20,7 @@ import {
 import { SelectQueryBuilder } from 'typeorm';
 import { GQLPost } from './posts';
 import { Connection } from 'graphql-relay';
+
 interface GQLAddBookmarkInput {
   postIds: string[];
 }

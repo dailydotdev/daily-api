@@ -50,13 +50,18 @@ export const injectGraphql = async (
   const json = await graphqlRes.json();
   const errors = json['errors'] as GraphQLError[];
   const code = errors?.[0]?.extensions?.code;
+  const msg = errors?.[0]?.message;
   if (code === 'UNAUTHENTICATED') {
     return res.status(401).send();
   }
   if (code === 'FORBIDDEN') {
     return res.status(403).send();
   }
-  if (code === 'VALIDATION_ERROR' || code === 'GRAPHQL_VALIDATION_FAILED') {
+  if (
+    code === 'VALIDATION_ERROR' ||
+    code === 'GRAPHQL_VALIDATION_FAILED' ||
+    msg === 'Graphql validation error'
+  ) {
     return res.status(400).send();
   }
   if (code === 'NOT_FOUND') {

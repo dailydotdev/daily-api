@@ -3,7 +3,7 @@ import { FeedAdvancedSettings, AdvancedSettings } from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
 
-import { IFieldResolver, IResolvers } from 'graphql-tools';
+import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import {

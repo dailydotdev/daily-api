@@ -1,5 +1,5 @@
 import { ForbiddenError } from 'apollo-server-errors';
-import { IResolvers } from 'graphql-tools';
+import { IResolvers } from '@graphql-tools/utils';
 import { ConnectionArguments } from 'graphql-relay';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
