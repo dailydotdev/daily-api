@@ -128,6 +128,10 @@ describe('GET /rss/b/:slug', () => {
     return request(app.server).get(path).expect(404);
   });
 
+  it('should fail when slug is not a valid uuid', async () => {
+    return request(app.server).get('/rss/b/1').expect(404);
+  });
+
   it('should return rss feed of bookmarks', async () => {
     await con.getRepository(User).save([usersFixture[0]]);
     await con.getRepository(Settings).save({ userId: '1', bookmarkSlug: slug });

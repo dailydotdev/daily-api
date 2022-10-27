@@ -46,48 +46,55 @@ const generateRSS =
     req: FastifyRequest<RouteGeneric>,
     res: FastifyReply,
   ): Promise<FastifyReply> => {
-    const con = getConnection();
-    const state = stateFactory ? await stateFactory(req, con) : null;
-    const userId = await extractUserId(req, state);
-    const user = userId && (await fetchUser(userId, con));
-    if (!user) {
-      return res.status(404).send();
+    try {
+      const con = getConnection();
+      const state = stateFactory ? await stateFactory(req, con) : null;
+      const userId = await extractUserId(req, state);
+      const user = userId && (await fetchUser(userId, con));
+      if (!user) {
+        return res.status(404).send();
+      }
+      const feed = new RSS({
+        title: `${title(user, state)} by daily.dev`,
+        generator: 'daily.dev RSS',
+        feed_url: `${process.env.URL_PREFIX}${req.raw.url}`,
+        site_url: getUserProfileUrl(user.username),
+      });
+      const builder = query(
+        req,
+        user,
+        con
+          .createQueryBuilder()
+          .select([
+            'post."id"',
+            'post."shortId"',
+            'post."title"',
+            'post."tagsStr"',
+          ])
+          .from(Post, 'post')
+          .orderBy(orderBy, 'DESC')
+          .limit(20),
+      );
+      const items = await builder.getRawMany<RssItem>();
+      items.forEach((x) =>
+        feed.item({
+          title: x.title,
+          url: `${getDiscussionLink(
+            x.id,
+          )}?utm_source=rss&utm_medium=bookmarks&utm_campaign=${userId}`,
+          date: x.publishedAt,
+          guid: x.id,
+          description: '',
+          categories: x.tagsStr?.split(','),
+        }),
+      );
+      return res.type('application/rss+xml').send(feed.xml());
+    } catch (err) {
+      if (err.name === 'QueryFailedError' && err.code === '22P02') {
+        return res.status(404).send();
+      }
+      throw err;
     }
-    const feed = new RSS({
-      title: `${title(user, state)} by daily.dev`,
-      generator: 'daily.dev RSS',
-      feed_url: `${process.env.URL_PREFIX}${req.raw.url}`,
-      site_url: getUserProfileUrl(user.username),
-    });
-    const builder = query(
-      req,
-      user,
-      con
-        .createQueryBuilder()
-        .select([
-          'post."id"',
-          'post."shortId"',
-          'post."title"',
-          'post."tagsStr"',
-        ])
-        .from(Post, 'post')
-        .orderBy(orderBy, 'DESC')
-        .limit(20),
-    );
-    const items = await builder.getRawMany<RssItem>();
-    items.forEach((x) =>
-      feed.item({
-        title: x.title,
-        url: `${getDiscussionLink(
-          x.id,
-        )}?utm_source=rss&utm_medium=bookmarks&utm_campaign=${userId}`,
-        date: x.publishedAt,
-        guid: x.id,
-        description: '',
-        categories: x.tagsStr?.split(','),
-      }),
-    );
-    return res.type('application/rss+xml').send(feed.xml());
   };
 
 const extractFirstName = (user: User): string => user.name.split(' ')[0];
