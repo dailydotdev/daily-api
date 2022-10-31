@@ -1,0 +1,31 @@
+config:
+  api:debeziumDbPass: "12345"
+  api:debeziumDbUser: postgres
+  api:env:
+    accessSecret: topsecret
+    commentsPrefix: http://temp
+    cookiesKey: topsecret
+    defaultImageRatio: 1
+    defaultImageUrl: https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/2,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/3,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/4,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/5,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/6,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/7,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/8
+    enablePubsub: true
+    flagsmithKey: secret
+    gatewaySecret: topsecret
+    gatewayUrl: http://gateway
+    gcloudProject: local
+    jwtAudience: Daily Staging
+    jwtIssuer: Daily API Staging
+    jwtSecret: '|r+.2!!!.Qf_-|63*%.D'
+    pubsubEmulatorHost: pubsub:8085
+    pubsubProjectId: local
+    redisHost: redis
+    redisPort: 6379
+    typeormDatabase: api
+    typeormHost: postgres
+    typeormPassword: 12345
+    typeormUser: postgres
+    tz: UTC
+    urlPrefix: http://temp
+  api:image: api-image:tilt-5eb05a93e040dbcd
+  api:k8s:
+    namespace: local
+  api:tag: af2de0fcfc43ff16b469d04aa6b4f5a09d0845c4
