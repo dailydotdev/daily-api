@@ -25,7 +25,5 @@ config:
     typeormUser: postgres
     tz: UTC
     urlPrefix: http://temp
-  api:image: api-image:tilt-5eb05a93e040dbcd
   api:k8s:
     namespace: local
-  api:tag: af2de0fcfc43ff16b469d04aa6b4f5a09d0845c4
