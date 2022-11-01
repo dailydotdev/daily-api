@@ -433,6 +433,56 @@ describe('POST /p/newUser', () => {
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].github).toEqual(null);
   });
+
+  it('should add a new user with Twitter handle', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        twitter: usersFixture[0].twitter,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const users = await con.getRepository(User).find();
+    expect(users.length).toEqual(1);
+    expect(users[0].id).toEqual(usersFixture[0].id);
+    expect(users[0].twitter).toEqual(usersFixture[0].twitter);
+  });
+
+  it('should ignore Twitter handle if it already exists', async () => {
+    await con
+      .getRepository(User)
+      .save({ ...usersFixture[1], twitter: usersFixture[0].twitter });
+
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        twitter: usersFixture[0].twitter,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
+    expect(users.length).toEqual(2);
+    expect(users[0].id).toEqual(usersFixture[0].id);
+    expect(users[0].twitter).toEqual(null);
+  });
 });
 
 describe('POST /p/checkUsername', () => {
