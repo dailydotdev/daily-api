@@ -457,7 +457,7 @@ describe('POST /p/newUser', () => {
     expect(users[0].twitter).toEqual(usersFixture[0].twitter);
   });
 
-  it('should ignore GitHub handle if it already exists', async () => {
+  it('should ignore Twitter handle if it already exists', async () => {
     await con
       .getRepository(User)
       .save({ ...usersFixture[1], twitter: usersFixture[0].twitter });
