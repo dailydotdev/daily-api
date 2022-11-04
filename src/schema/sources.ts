@@ -164,7 +164,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     source: async (_, { id }: { id: string }, ctx): Promise<GQLSource> => {
       const res = await ctx.con
         .getRepository(Source)
-        .findOneOrFail({ id, private: false });
+        .findOneByOrFail({ id, private: false });
       return sourceToGQL(res);
     },
   },

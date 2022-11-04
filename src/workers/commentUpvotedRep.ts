@@ -21,7 +21,7 @@ const worker: Worker = {
       await con.transaction(async (transaction) => {
         const comment = await transaction
           .getRepository(Comment)
-          .findOne(data.commentId);
+          .findOneBy({ id: data.commentId });
 
         if (!comment) {
           logger.info(logDetails, 'comment does not exist');
@@ -30,7 +30,7 @@ const worker: Worker = {
 
         const grantBy = await transaction
           .getRepository(User)
-          .findOne(data.userId);
+          .findOneBy({ id: data.userId });
 
         if (
           comment.userId === grantBy.id ||

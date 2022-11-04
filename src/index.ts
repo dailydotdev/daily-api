@@ -16,7 +16,7 @@ import compatibility from './compatibility';
 import routes from './routes';
 import { Context } from './Context';
 import { schema } from './graphql';
-import { createOrGetConnection } from './db';
+import createOrGetConnection from './db';
 import { stringifyHealthCheck } from './common';
 import { GraphQLError } from 'graphql';
 import cookie, { FastifyCookieOptions } from '@fastify/cookie';

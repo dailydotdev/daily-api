@@ -1,4 +1,3 @@
-import { Connection, getConnection } from 'typeorm';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail } from '../../src/common';
 import worker from '../../src/workers/postBannedEmail';
@@ -7,6 +6,8 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { PostReport } from '../../src/entity/PostReport';
 import { usersFixture } from '../fixture/user';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -16,10 +17,10 @@ jest.mock('../../src/common/mailing', () => ({
   sendEmail: jest.fn(),
 }));
 
-let con: Connection;
+let con: DataSource;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(async () => {
@@ -44,7 +45,7 @@ beforeEach(async () => {
 });
 
 it('should send mail to the reporters', async () => {
-  const post = await con.getRepository(Post).findOne('p1');
+  const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   await expectSuccessfulBackground(worker, {
     post,
   });

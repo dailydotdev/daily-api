@@ -1,4 +1,3 @@
-import { Connection, getConnection } from 'typeorm';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,15 +12,17 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import { Settings } from '../src/entity';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../src/db';
 
 let app: FastifyInstance;
-let con: Connection;
+let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
     () => new MockContext(con, loggedUser),
   );
@@ -344,7 +345,8 @@ describe('compatibility routes', () => {
         request(app.server).post('/v1/settings').send({ theme: 'bright' }),
       ).expect(204);
       expect(
-        await con.getRepository(Settings).findOne('1', {
+        await con.getRepository(Settings).findOne({
+          where: { userId: '1' },
           select: ['userId', 'theme', 'insaneMode'],
         }),
       ).toMatchSnapshot();

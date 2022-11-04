@@ -3,7 +3,6 @@ import { feedToFilters } from '../src/common';
 import { FeedAdvancedSettings, AdvancedSettings } from '../src/entity';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
-import { Connection, getConnection } from 'typeorm';
 import request from 'supertest';
 import _ from 'lodash';
 
@@ -43,9 +42,11 @@ import {
   getPersonalizedFeedKey,
   getPersonalizedFeedKeyPrefix,
 } from '../src/personalizedFeed';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../src/db';
 
 let app: FastifyInstance;
-let con: Connection;
+let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
@@ -64,7 +65,7 @@ const mockFeatures = (data: IFlags = defaultFeatures) => {
 };
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
     () => new MockContext(con, loggedUser),
   );

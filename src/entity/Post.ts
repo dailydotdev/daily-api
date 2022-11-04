@@ -1,6 +1,6 @@
 import {
   Column,
-  Connection,
+  DataSource,
   Entity,
   EntityManager,
   In,
@@ -187,7 +187,7 @@ export type PostStats = {
 };
 
 export const getAuthorPostStats = (
-  con: Connection,
+  con: DataSource,
   authorId: string,
 ): Promise<PostStats> =>
   con
@@ -425,7 +425,7 @@ const addPostAndKeywordsToDb = async (
 };
 
 export const addNewPost = async (
-  con: Connection,
+  con: DataSource,
   data: AddPostData,
   logger: FastifyLoggerInstance,
 ): Promise<AddNewPostResult> => {

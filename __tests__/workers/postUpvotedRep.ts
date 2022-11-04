@@ -1,15 +1,16 @@
 import { ReputationEvent } from './../../src/entity/ReputationEvent';
-import { Connection, getConnection } from 'typeorm';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postUpvotedRep';
 import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
-let con: Connection;
+let con: DataSource;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(async () => {
@@ -52,8 +53,8 @@ it('should not create a reputation event when the upvoting user is ineligible', 
   });
   const event = await con
     .getRepository(ReputationEvent)
-    .findOne({ where: { targetId: 'p1', grantById: '2', grantToId: '1' } });
-  expect(event).toEqual(undefined);
+    .findOneBy({ targetId: 'p1', grantById: '2', grantToId: '1' });
+  expect(event).toEqual(null);
 });
 
 it('should not create a reputation event when the author is the upvote user', async () => {
@@ -64,6 +65,6 @@ it('should not create a reputation event when the author is the upvote user', as
 
   const event = await con
     .getRepository(ReputationEvent)
-    .findOne({ where: { targetId: 'p1', grantById: '2', grantToId: '1' } });
-  expect(event).toEqual(undefined);
+    .findOneBy({ targetId: 'p1', grantById: '2', grantToId: '1' });
+  expect(event).toEqual(null);
 });

@@ -19,14 +19,16 @@ const worker: Worker = {
     const logDetails = { data, messageId: message.messageId };
     try {
       await con.transaction(async (transaction) => {
-        const post = await transaction.getRepository(Post).findOne(data.postId);
+        const post = await transaction
+          .getRepository(Post)
+          .findOneBy({ id: data.postId });
         if (!post?.authorId && !post?.scoutId) {
           return;
         }
 
         const grantBy = await transaction
           .getRepository(User)
-          .findOne(data.userId);
+          .findOneBy({ id: data.userId });
 
         if (grantBy.reputation < REPUTATION_THRESHOLD) {
           logger.info(

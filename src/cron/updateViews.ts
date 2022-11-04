@@ -6,7 +6,9 @@ const cron: Cron = {
   handler: async (con) => {
     const checkpointKey = 'last_views_update';
     const before = new Date();
-    let checkpoint = await con.getRepository(Checkpoint).findOne(checkpointKey);
+    let checkpoint = await con
+      .getRepository(Checkpoint)
+      .findOneBy({ key: checkpointKey });
     const after = checkpoint?.timestamp || new Date(0);
 
     await con.transaction(async (entityManager): Promise<void> => {

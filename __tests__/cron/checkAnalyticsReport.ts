@@ -1,17 +1,18 @@
-import { Connection, getConnection } from 'typeorm';
 import { sub } from 'date-fns';
 
 import cron from '../../src/cron/checkAnalyticsReport';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
-let con: Connection;
+let con: DataSource;
 
 const now = new Date();
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(async () => {
@@ -76,7 +77,7 @@ it('should publish message for every post that needs analytics report', async ()
   await expectSuccessfulCron(cron);
   const posts = await con
     .getRepository(Post)
-    .find({ sentAnalyticsReport: true });
+    .findBy({ sentAnalyticsReport: true });
   expect(posts.length).toEqual(3);
   expect(posts.map(({ id }) => id)).toEqual(
     expect.arrayContaining(['p3', 'p4', 'p5']),

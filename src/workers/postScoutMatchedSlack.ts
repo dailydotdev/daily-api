@@ -12,7 +12,9 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      const post = await con.getRepository(Post).findOneOrFail(data.postId);
+      const post = await con
+        .getRepository(Post)
+        .findOneByOrFail({ id: data.postId });
 
       if (!post.scoutId) {
         return;

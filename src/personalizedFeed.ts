@@ -1,4 +1,3 @@
-import { Connection } from 'typeorm';
 import { feedToFilters } from './common';
 import fetch from 'node-fetch';
 import { Context } from './Context';
@@ -6,6 +5,7 @@ import { runInSpan } from './trace';
 import http from 'node:http';
 import https from 'node:https';
 import { ioRedisPool } from './redis';
+import { DataSource } from 'typeorm';
 
 interface TinybirdResponse<T> {
   data: T[];
@@ -26,7 +26,7 @@ const fetchOptions = {
 };
 
 export async function fetchTinybirdFeed(
-  con: Connection,
+  con: DataSource,
   pageSize: number,
   feedVersion: number,
   userId?: string,
@@ -100,7 +100,7 @@ export const getPersonalizedFeedKey = (
 const ONE_DAY_SECONDS = 24 * 60 * 60;
 
 async function fetchAndCacheFeed(
-  con: Connection,
+  con: DataSource,
   pageSize: number,
   feedVersion: number,
   userId?: string,
@@ -175,7 +175,7 @@ export async function generatePersonalizedFeed({
   feedId,
   ctx,
 }: {
-  con: Connection;
+  con: DataSource;
   pageSize: number;
   offset: number;
   feedVersion: number;

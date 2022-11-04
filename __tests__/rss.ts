@@ -1,4 +1,4 @@
-import { Connection, getConnection, DeepPartial } from 'typeorm';
+import { DataSource, DeepPartial } from 'typeorm';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
@@ -15,9 +15,10 @@ import { saveFixtures } from './helpers';
 import { sourcesFixture } from './fixture/source';
 import { postKeywordsFixture } from './fixture/post';
 import { usersFixture } from './fixture/user';
+import createOrGetConnection from '../src/db';
 
 let app: FastifyInstance;
-let con: Connection;
+let con: DataSource;
 
 const now = new Date(1591192264260);
 export const postsFixture: DeepPartial<Post>[] = [
@@ -99,7 +100,7 @@ const bookmarksFixture = [
 // };
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
   app = await appFunc();
   return app.ready();
 });

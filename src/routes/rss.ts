@@ -4,7 +4,7 @@ import {
   FastifyRequest,
   RouteGenericInterface,
 } from 'fastify';
-import { getConnection, SelectQueryBuilder, Connection } from 'typeorm';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import rateLimit from '@fastify/rate-limit';
 import RSS from 'rss';
 import {
@@ -14,6 +14,7 @@ import {
   User,
 } from '../common';
 import { Post, Bookmark, Settings } from '../entity';
+import createOrGetConnection from '../db';
 
 interface RssItem {
   id: string;
@@ -39,7 +40,7 @@ const generateRSS =
     ) => SelectQueryBuilder<Post>,
     stateFactory?: (
       req: FastifyRequest<RouteGeneric>,
-      con: Connection,
+      con: DataSource,
     ) => Promise<State>,
   ) =>
   async (
@@ -47,7 +48,7 @@ const generateRSS =
     res: FastifyReply,
   ): Promise<FastifyReply> => {
     try {
-      const con = getConnection();
+      const con = await createOrGetConnection();
       const state = stateFactory ? await stateFactory(req, con) : null;
       const userId = await extractUserId(req, state);
       const user = userId && (await fetchUser(userId, con));
@@ -140,7 +141,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           .innerJoin(Bookmark, 'bookmark', 'post.id = bookmark.postId')
           .where('bookmark.userId = :userId', { userId: user.id }),
       (req, con) =>
-        con.getRepository(Settings).findOne({ bookmarkSlug: req.params.slug }),
+        con
+          .getRepository(Settings)
+          .findOneBy({ bookmarkSlug: req.params.slug }),
     ),
   );
 

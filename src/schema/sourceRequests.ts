@@ -266,7 +266,7 @@ const findOrFail = async (
   ctx: Context,
   id: string,
 ): Promise<GQLSourceRequest> => {
-  const req = await ctx.getRepository(SourceRequest).findOneOrFail(id);
+  const req = await ctx.getRepository(SourceRequest).findOneByOrFail({ id });
   if (req.closed) {
     throw new ForbiddenError(
       'Access denied! Source request is already closed!',
@@ -318,7 +318,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ): Promise<GQLSourceRequest> => {
       const info = await ctx
         .getRepository(User)
-        .findOneOrFail({ id: ctx.userId });
+        .findOneByOrFail({ id: ctx.userId });
       const repo = ctx.getRepository(SourceRequest);
       const sourceReq = repo.create({
         sourceUrl: data.sourceUrl,

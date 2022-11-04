@@ -18,7 +18,7 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      const post = await con.getRepository(Post).findOne(data.postId);
+      const post = await con.getRepository(Post).findOneBy({ id: data.postId });
       if (!post.sentAnalyticsReport || !hasAuthorScout(post)) {
         return;
       }

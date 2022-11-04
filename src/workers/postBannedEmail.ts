@@ -31,7 +31,7 @@ const worker: Worker = {
     try {
       const reports = await con
         .getRepository(PostReport)
-        .find({ postId: post.id });
+        .findBy({ postId: post.id });
       const reportsWithUser = await Promise.all(
         reports.map(async (report) => ({
           ...report,
@@ -39,7 +39,9 @@ const worker: Worker = {
         })),
       );
       if (reportsWithUser.length) {
-        const source = await con.getRepository(Source).findOne(post.sourceId);
+        const source = await con
+          .getRepository(Source)
+          .findOneBy({ id: post.sourceId });
         await sendEmail({
           ...baseNotificationEmailData,
           templateId: templateId.postBanned,

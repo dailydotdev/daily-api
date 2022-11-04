@@ -1,14 +1,14 @@
 import { FastifyInstance } from 'fastify';
 import isbot from 'isbot';
-import { getConnection } from 'typeorm';
 import { Post } from '../entity';
 import { notifyView } from '../common';
+import createOrGetConnection from '../db';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { postId: string }; Querystring: { a?: string } }>(
     '/:postId',
     async (req, res) => {
-      const con = getConnection();
+      const con = await createOrGetConnection();
       const post = await con.getRepository(Post).findOne({
         select: ['id', 'url', 'tagsStr'],
         where: [{ id: req.params.postId }, { shortId: req.params.postId }],

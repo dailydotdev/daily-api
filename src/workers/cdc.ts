@@ -45,7 +45,7 @@ import {
   notifyUsernameChanged,
 } from '../common';
 import { ChangeMessage } from '../types';
-import { Connection } from 'typeorm';
+import { Connection, DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { viewsThresholds } from '../cron/viewsThreshold';
@@ -59,7 +59,7 @@ const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
 
 const onSourceRequestChange = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<SourceRequest>,
 ): Promise<void> => {
@@ -99,7 +99,7 @@ const onSourceRequestChange = async (
 };
 
 const onPostUpvoteChange = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<Upvote>,
 ): Promise<void> => {
@@ -119,7 +119,7 @@ const onPostUpvoteChange = async (
 };
 
 const onCommentUpvoteChange = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<CommentUpvote>,
 ): Promise<void> => {
@@ -139,7 +139,7 @@ const onCommentUpvoteChange = async (
 };
 
 const onCommentMentionChange = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<CommentMention>,
 ): Promise<void> => {
@@ -149,7 +149,7 @@ const onCommentMentionChange = async (
 };
 
 const onCommentChange = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<Comment>,
 ): Promise<void> => {
@@ -174,7 +174,7 @@ const onCommentChange = async (
 };
 
 const onUserChange = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<User>,
 ): Promise<void> => {
@@ -214,7 +214,7 @@ const onUserChange = async (
 };
 
 const onAlertsChange = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<Alerts>,
 ): Promise<void> => {
@@ -238,7 +238,7 @@ const onSettingsChange = async (
 };
 
 const onPostChange = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<Post>,
 ): Promise<void> => {
@@ -302,14 +302,14 @@ const onPostChange = async (
 };
 
 const onPostReportChange = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<PostReport>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
     const post = await con
       .getRepository(Post)
-      .findOne(data.payload.after.postId);
+      .findOneBy({ id: data.payload.after.postId });
     if (post) {
       await notifyPostReport(
         data.payload.after.userId,
@@ -322,7 +322,7 @@ const onPostReportChange = async (
 };
 
 const onSourceFeedChange = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<SourceFeed>,
 ): Promise<void> => {
@@ -342,7 +342,7 @@ const onSourceFeedChange = async (
 };
 
 const onFeedChange = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<Feed>,
 ) => {
@@ -352,7 +352,7 @@ const onFeedChange = async (
 };
 
 const onReputationEventChange = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<ReputationEvent>,
 ) => {
@@ -366,7 +366,7 @@ const onReputationEventChange = async (
 };
 
 const onSubmissionChange = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<Submission>,
 ) => {
@@ -385,7 +385,7 @@ const onSubmissionChange = async (
 };
 
 const onUserStateChange = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<UserState>,
 ) => {
@@ -397,7 +397,7 @@ const onUserStateChange = async (
 };
 
 const getTableName = <Entity>(
-  con: Connection,
+  con: DataSource,
   target: EntityTarget<Entity>,
 ): string => con.getRepository(target).metadata.tableName;
 
