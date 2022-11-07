@@ -3,7 +3,7 @@ config:
   api:debeziumDbUser: postgres
   api:env:
     accessSecret: topsecret
-    commentsPrefix: http://temp
+    commentsPrefix: http://webapp.local.daily
     cookiesKey: topsecret
     defaultImageRatio: 1
     defaultImageUrl: https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/2,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/3,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/4,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/5,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/6,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/7,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/8
@@ -24,6 +24,7 @@ config:
     typeormPassword: 12345
     typeormUser: postgres
     tz: UTC
-    urlPrefix: http://temp
+    urlPrefix: http://api.local.daily
+  api:image: api-image:tilt-20cd5fe7656d441d
   api:k8s:
     namespace: local
