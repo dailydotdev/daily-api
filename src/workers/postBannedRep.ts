@@ -21,7 +21,7 @@ const worker: Worker = {
       await con.transaction(async (transaction) => {
         const reports = await transaction
           .getRepository(PostReport)
-          .find({ postId: id });
+          .findBy({ postId: id });
         const repo = transaction.getRepository(ReputationEvent);
         const events = reports.map(({ userId }) =>
           repo.create({

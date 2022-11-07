@@ -1,5 +1,5 @@
 import { writeFileSync } from 'fs';
-import { createOrGetConnection } from '../src/db';
+import createOrGetConnection from '../src/db';
 
 const start = async (): Promise<void> => {
   const con = await createOrGetConnection();

@@ -1,4 +1,3 @@
-import { Connection, getConnection } from 'typeorm';
 import nock from 'nock';
 import { deleteKeysByPattern, ioRedisPool } from '../src/redis';
 import {
@@ -9,8 +8,10 @@ import {
 import { Feed, FeedSource, FeedTag, Source } from '../src/entity';
 import { saveFixtures } from './helpers';
 import { sourcesFixture } from './fixture/source';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../src/db';
 
-let con: Connection;
+let con: DataSource;
 
 const tinybirdResponse = {
   data: [
@@ -24,7 +25,7 @@ const tinybirdResponse = {
 };
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(async () => {

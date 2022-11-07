@@ -1,4 +1,3 @@
-import { Connection, getConnection } from 'typeorm';
 import { startOfYesterday, startOfToday, add, sub } from 'date-fns';
 import nock from 'nock';
 
@@ -6,14 +5,16 @@ import cron from '../../src/cron/hashnodeBadge';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Post, Source } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
-let con: Connection;
+let con: DataSource;
 
 const today = startOfToday();
 const yesterday = startOfYesterday();
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(async () => {

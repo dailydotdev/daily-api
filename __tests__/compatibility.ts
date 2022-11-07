@@ -1,4 +1,3 @@
-import { Connection, getConnection } from 'typeorm';
 import {
   disposeGraphQLTesting,
   GraphQLTestClient,
@@ -10,14 +9,16 @@ import {
 import { Bookmark, Post, PostKeyword, Source } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postKeywordsFixture, postsFixture } from './fixture/post';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../src/db';
 
-let con: Connection;
+let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
     () => new MockContext(con, loggedUser),
   );

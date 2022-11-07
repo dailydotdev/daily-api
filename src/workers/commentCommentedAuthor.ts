@@ -21,7 +21,7 @@ const worker: Worker = {
     try {
       const comment = await con
         .getRepository(Comment)
-        .findOne(data.childCommentId, { relations: ['post'] });
+        .findOne({ where: { id: data.childCommentId }, relations: ['post'] });
       if (!comment) {
         return;
       }

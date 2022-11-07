@@ -264,7 +264,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       if (listId) {
         await ctx.con
           .getRepository(BookmarkList)
-          .findOneOrFail({ userId: ctx.userId, id: listId });
+          .findOneByOrFail({ userId: ctx.userId, id: listId });
       }
       await ctx.con
         .getRepository(Bookmark)
@@ -315,7 +315,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
     ): Promise<GQLBookmarkList> => {
       const repo = ctx.con.getRepository(BookmarkList);
-      const list = await repo.findOneOrFail({ userId: ctx.userId, id });
+      const list = await repo.findOneByOrFail({ userId: ctx.userId, id });
       list.name = name;
       return repo.save(list);
     },

@@ -2,7 +2,6 @@ import nock from 'nock';
 import { keywordsFixture } from './fixture/keywords';
 import { Keyword } from './../src/entity/Keyword';
 import { PostKeyword } from './../src/entity/PostKeyword';
-import { Connection, getConnection } from 'typeorm';
 import {
   addDays,
   addHours,
@@ -24,15 +23,17 @@ import {
 import { Comment, Post, Source, User, View, DevCard } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../src/db';
 
-let con: Connection;
+let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 const userTimezone = 'Pacific/Midway';
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
     () => new MockContext(con, loggedUser),
   );
@@ -1597,13 +1598,14 @@ describe('mutation updateUserProfile', () => {
     loggedUser = '1';
 
     const repo = con.getRepository(User);
-    const user = await repo.findOne({ id: loggedUser });
+    const user = await repo.findOneBy({ id: loggedUser });
     const timezone = 'Asia/Manila';
     const res = await client.mutate(MUTATION, {
       variables: { data: { timezone, username: 'a1' } },
     });
+
     expect(res.errors?.length).toBeFalsy();
-    const updatedUser = await repo.findOne({ id: loggedUser });
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
     expect(updatedUser?.timezone).not.toEqual(user?.timezone);
     expect(updatedUser?.timezone).toEqual(timezone);
     expect(res.data.updateUserProfile).toMatchSnapshot({
@@ -1616,15 +1618,45 @@ describe('mutation updateUserProfile', () => {
 
     const repo = con.getRepository(User);
     await repo.update({ id: loggedUser }, { email: 'sample@daily.dev' });
-    const user = await repo.findOne({ id: loggedUser });
+    const user = await repo.findOneBy({ id: loggedUser });
     const username = 'a1';
     expect(user?.infoConfirmed).toBeFalsy();
     const res = await client.mutate(MUTATION, {
       variables: { data: { username } },
     });
     expect(res.errors?.length).toBeFalsy();
-    const updatedUser = await repo.findOne({ id: loggedUser });
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
     expect(updatedUser?.infoConfirmed).toBeTruthy();
+  });
+
+  it('should update user profile and change email', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+    const user = await repo.findOneBy({ id: loggedUser });
+
+    const email = 'sample@daily.dev';
+    expect(user?.infoConfirmed).toBeFalsy();
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { email } },
+    });
+    expect(res.errors?.length).toBeFalsy();
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser?.email).toEqual(email);
+  });
+
+  it('should not update user profile if email exists', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+    const email = 'sample@daily.dev';
+    await repo.update({ id: '2' }, { email });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { email } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
   });
 });
 
@@ -1652,8 +1684,8 @@ describe('mutation deleteUser', () => {
     const users = await con.getRepository(User).find();
     expect(users.length).toEqual(2);
 
-    const userOne = await con.getRepository(User).findOne(1);
-    expect(userOne).toEqual(undefined);
+    const userOne = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(userOne).toEqual(null);
   });
 
   it('should delete author ID from post', async () => {
@@ -1661,7 +1693,7 @@ describe('mutation deleteUser', () => {
 
     await client.mutate(MUTATION);
 
-    const post = await con.getRepository(Post).findOne('p1');
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.authorId).toEqual(null);
   });
 
@@ -1670,7 +1702,7 @@ describe('mutation deleteUser', () => {
 
     await client.mutate(MUTATION);
 
-    const post = await con.getRepository(Post).findOne('p6');
+    const post = await con.getRepository(Post).findOneBy({ id: 'p6' });
     expect(post.authorId).toEqual(null);
   });
 });

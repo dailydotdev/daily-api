@@ -1,5 +1,4 @@
 import { GraphQLResponse } from 'apollo-server-types';
-import { Connection, getConnection } from 'typeorm';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import _ from 'lodash';
@@ -26,9 +25,11 @@ import {
   GQLUpdateSourceRequestInput,
 } from '../src/schema/sourceRequests';
 import { usersFixture } from './fixture/user';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../src/db';
 
 let app: FastifyInstance;
-let con: Connection;
+let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
@@ -52,7 +53,7 @@ const testNotFound = (mutation: Mutation): Promise<void> => {
 };
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
     () => new MockContext(con, loggedUser, false, roles),
   );
@@ -298,7 +299,9 @@ describe('mutation publishSourceRequest', () => {
       .save(sourceRequestFixture[2]);
     const res = await client.mutate(MUTATION(req.id));
     expect(res.data).toMatchSnapshot();
-    const source = await con.getRepository(Source).findOneOrFail(req.sourceId);
+    const source = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: req.sourceId });
     expect(source).toMatchSnapshot();
     expect(await source.feeds).toMatchSnapshot();
   });
@@ -407,7 +410,8 @@ describe('compatibility routes', () => {
         .send({ url: 'http://source.com', pubImage: 'http://image.com' })
         .expect(204);
       expect(
-        await con.getRepository(SourceRequest).findOne(req.id, {
+        await con.getRepository(SourceRequest).findOne({
+          where: { id: req.id },
           select: ['sourceUrl', 'sourceImage', 'sourceName', 'sourceTwitter'],
         }),
       ).toMatchSnapshot();
@@ -429,7 +433,8 @@ describe('compatibility routes', () => {
         .send({ reason: 'not-active' })
         .expect(204);
       expect(
-        await con.getRepository(SourceRequest).findOne(req.id, {
+        await con.getRepository(SourceRequest).findOne({
+          where: { id: req.id },
           select: ['approved', 'closed', 'reason'],
         }),
       ).toMatchSnapshot();
@@ -451,7 +456,8 @@ describe('compatibility routes', () => {
         .send()
         .expect(204);
       expect(
-        await con.getRepository(SourceRequest).findOne(req.id, {
+        await con.getRepository(SourceRequest).findOne({
+          where: { id: req.id },
           select: ['approved', 'closed', 'reason'],
         }),
       ).toMatchSnapshot();
@@ -473,7 +479,8 @@ describe('compatibility routes', () => {
         .send()
         .expect(204);
       expect(
-        await con.getRepository(SourceRequest).findOne(req.id, {
+        await con.getRepository(SourceRequest).findOne({
+          where: { id: req.id },
           select: ['approved', 'closed'],
         }),
       ).toMatchSnapshot();

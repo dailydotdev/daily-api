@@ -57,12 +57,13 @@ import {
 } from '../../src/entity';
 import { ChangeObject } from '../../src/types';
 import { PostReport } from '../../src/entity';
-import { Connection, getConnection } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { Alerts } from '../../src/entity';
 import { randomUUID } from 'crypto';
 import { submissionAccessThreshold } from '../../src/schema/submissions';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -89,10 +90,10 @@ jest.mock('../../src/common', () => ({
   sendEmail: jest.fn(),
 }));
 
-let con: Connection;
+let con: DataSource;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(async () => {
@@ -524,12 +525,14 @@ describe('comment mention', () => {
         table: 'comment_mention',
       }),
     );
-    const comment = await con.getRepository(Comment).findOne(base.commentId);
+    const comment = await con
+      .getRepository(Comment)
+      .findOneBy({ id: base.commentId });
     const post = await comment.post;
     const commenter = await comment.user;
     const mentioned = await con
       .getRepository(User)
-      .findOne(base.mentionedUserId);
+      .findOneBy({ id: base.mentionedUserId });
     const [first_name] = mentioned.name.split(' ');
     const params = {
       ...baseNotificationEmailData,
@@ -688,7 +691,7 @@ describe('post', () => {
   it('should update post metadata changed at', async () => {
     await saveFixtures(con, Source, sourcesFixture);
     await saveFixtures(con, Post, postsFixture);
-    const oldPost = await con.getRepository(Post).findOne({ id: 'p1' });
+    const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
     const localBase: ChangeObject<Post> = {
       ...oldPost,
       createdAt: 0,
@@ -709,7 +712,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    const updatedPost = await con.getRepository(Post).findOne({ id: 'p1' });
+    const updatedPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(updatedPost.metadataChangedAt.getTime()).toBeGreaterThan(
       oldPost.metadataChangedAt.getTime(),
     );
@@ -742,7 +745,7 @@ describe('post report', () => {
         table: 'post_report',
       }),
     );
-    const post = await con.getRepository(Post).findOne('p1');
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(notifyPostReport).toBeCalledTimes(1);
     expect(notifyPostReport).toBeCalledWith(
       'u1',
@@ -864,7 +867,7 @@ describe('feed', () => {
         table: 'feed',
       }),
     );
-    const alerts = await repo.findOne({ userId: base.userId });
+    const alerts = await repo.findOneBy({ userId: base.userId });
     expect(alerts.myFeed).toEqual('created');
   });
 });
@@ -994,7 +997,9 @@ describe('reputation event', () => {
         table: 'reputation_event',
       }),
     );
-    const user = await con.getRepository(User).findOne(defaultUser.id);
+    const user = await con
+      .getRepository(User)
+      .findOneBy({ id: defaultUser.id });
     expect(user.reputation).toEqual(55);
   });
 
@@ -1016,7 +1021,9 @@ describe('reputation event', () => {
         table: 'reputation_event',
       }),
     );
-    const user = await con.getRepository(User).findOne(defaultUser.id);
+    const user = await con
+      .getRepository(User)
+      .findOneBy({ id: defaultUser.id });
     expect(user.reputation).toEqual(0);
   });
 
@@ -1038,7 +1045,9 @@ describe('reputation event', () => {
         table: 'reputation_event',
       }),
     );
-    const user = await con.getRepository(User).findOne(defaultUser.id);
+    const user = await con
+      .getRepository(User)
+      .findOneBy({ id: defaultUser.id });
     expect(user.reputation).toEqual(105);
   });
 
@@ -1054,7 +1063,9 @@ describe('reputation event', () => {
         table: 'reputation_event',
       }),
     );
-    const user = await con.getRepository(User).findOne(defaultUser.id);
+    const user = await con
+      .getRepository(User)
+      .findOneBy({ id: defaultUser.id });
     expect(user.reputation).toEqual(5);
   });
 });

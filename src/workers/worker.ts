@@ -1,6 +1,6 @@
-import { Connection } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import { PubSub } from '@google-cloud/pubsub';
+import { DataSource } from 'typeorm';
 
 export interface Message {
   messageId: string;
@@ -14,7 +14,7 @@ export interface Worker {
   subscription: string;
   handler: (
     message: Message,
-    con: Connection,
+    con: DataSource,
     logger: FastifyLoggerInstance,
     pubsub: PubSub,
   ) => Promise<void>;

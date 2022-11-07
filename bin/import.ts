@@ -1,8 +1,8 @@
 import { readFileSync } from 'fs';
-import { Connection } from 'typeorm';
-import { createOrGetConnection } from '../src/db';
+import createOrGetConnection from '../src/db';
+import { DataSource } from 'typeorm';
 
-const importEntity = async (con: Connection, name: string): Promise<void> => {
+const importEntity = async (con: DataSource, name: string): Promise<void> => {
   console.log(`importing ${name}`);
   const entities = JSON.parse(readFileSync(`./seeds/${name}.json`).toString());
   const repository = con.getRepository(name);

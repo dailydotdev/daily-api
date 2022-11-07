@@ -24,10 +24,10 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     try {
       const user = await fetchUser(data.scoutId, con);
-      const post = await con.getRepository(Post).findOne(data.postId);
+      const post = await con.getRepository(Post).findOneBy({ id: data.postId });
       const submission = await con
         .getRepository(Submission)
-        .findOne({ url: post.url, userId: user.id });
+        .findOneBy({ url: post.url, userId: user.id });
       const link = getDiscussionLink(post.id);
       await sendEmail({
         ...baseNotificationEmailData,

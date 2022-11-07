@@ -1,5 +1,3 @@
-import { Connection, getConnection } from 'typeorm';
-
 import cron from '../../src/cron/updateFeaturedComments';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Post, Source, User, Comment, CommentUpvote } from '../../src/entity';
@@ -7,8 +5,10 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { Checkpoint } from '../../src/entity/Checkpoint';
 import { notifyCommentFeatured } from '../../src/common';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
-let con: Connection;
+let con: DataSource;
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -16,7 +16,7 @@ jest.mock('../../src/common', () => ({
 }));
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(async () => {

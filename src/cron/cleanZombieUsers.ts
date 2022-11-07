@@ -10,7 +10,7 @@ const cron: Cron = {
     const timeThreshold = subHours(new Date(), 1);
     const { affected } = await con.getRepository(User).delete({
       infoConfirmed: false,
-      createdAt: LessThan(timeThreshold.toISOString()),
+      createdAt: LessThan(timeThreshold),
     });
     logger.info({ count: affected }, 'zombies users cleaned! 🧟');
   },

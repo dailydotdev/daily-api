@@ -1,4 +1,4 @@
-import { Connection, EntitySchema, ObjectType, Repository } from 'typeorm';
+import { DataSource, EntitySchema, ObjectType, Repository } from 'typeorm';
 import { FastifyRequest, FastifyLoggerInstance } from 'fastify';
 import { RootSpan } from '@google-cloud/trace-agent/build/src/plugin-types';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
@@ -6,10 +6,10 @@ import { Roles } from './roles';
 
 export class Context {
   req: FastifyRequest;
-  con: Connection;
+  con: DataSource;
   loader: GraphQLDatabaseLoader;
 
-  constructor(req: FastifyRequest, con: Connection) {
+  constructor(req: FastifyRequest, con) {
     this.req = req;
     this.con = con;
     this.loader = new GraphQLDatabaseLoader(con);

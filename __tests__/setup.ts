@@ -1,9 +1,8 @@
 import '../src/config';
-import { Connection } from 'typeorm';
-import { createOrGetConnection } from '../src/db';
+import createOrGetConnection from '../src/db';
 import { ioRedisPool, redisPubSub } from '../src/redis';
 
-let con: Connection;
+let con;
 
 const cleanDatabase = async (): Promise<void> => {
   for (const entity of con.entityMetadatas) {

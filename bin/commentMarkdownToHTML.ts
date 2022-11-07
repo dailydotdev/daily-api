@@ -1,7 +1,7 @@
 import '../src/config';
-import { createOrGetConnection } from '../src/db';
 import { Comment } from '../src/entity';
 import { markdown } from '../src/common/markdown';
+import createOrGetConnection from '../src/db';
 
 interface Row {
   id: string;

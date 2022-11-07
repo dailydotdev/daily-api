@@ -1,4 +1,3 @@
-import { Connection, getConnection } from 'typeorm';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { sendEmail } from '../../src/common';
 import worker from '../../src/workers/sendAnalyticsReportMail';
@@ -6,6 +5,8 @@ import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { sub } from 'date-fns';
 import { usersFixture } from '../fixture/user';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -15,12 +16,12 @@ jest.mock('../../src/common/mailing', () => ({
   sendEmail: jest.fn(),
 }));
 
-let con: Connection;
+let con: DataSource;
 
 const now = new Date();
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(async () => {

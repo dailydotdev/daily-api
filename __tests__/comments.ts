@@ -1,5 +1,4 @@
 import { CommentMention } from './../src/entity/CommentMention';
-import { Connection, getConnection } from 'typeorm';
 import {
   disposeGraphQLTesting,
   GraphQLTestClient,
@@ -22,14 +21,16 @@ import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { getMentionLink } from '../src/common/markdown';
 import { saveComment, updateMentions } from '../src/schema/comments';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../src/db';
 
-let con: Connection;
+let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
     () => new MockContext(con, loggedUser),
   );
@@ -412,14 +413,14 @@ describe('function updateMentions', () => {
       .create({ id: 'cm', postId: 'p1', userId: '1', content: '@Solevilla' });
     const saved = await saveComment(con, comment);
     expect(saved).toMatchSnapshot({ createdAt: expect.any(Date) });
-    const user = await con.getRepository(User).findOne('7');
+    const user = await con.getRepository(User).findOneBy({ id: '7' });
     const previous = user.username;
     delete user.permalink;
     user.username = 'sshanzel';
     const updated = await con.transaction(async (transaction) => {
       await transaction.getRepository(User).update({ id: user.id }, user);
       await updateMentions(transaction, previous, user.username, ['cm']);
-      return transaction.getRepository(Comment).findOne('cm');
+      return transaction.getRepository(Comment).findOneBy({ id: 'cm' });
     });
     expect(updated).toMatchSnapshot({ createdAt: expect.any(Date) });
   });
@@ -500,7 +501,7 @@ describe('mutation commentOnPost', () => {
       contentHtml: `<h1>my comment <a href=\"http://daily.dev\" target=\"_blank\" rel=\"noopener nofollow\">http://daily.dev</a></h1>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
-    const post = await con.getRepository(Post).findOne('p1');
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.comments).toEqual(1);
   });
 
@@ -522,7 +523,7 @@ describe('mutation commentOnPost', () => {
       contentHtml: `<p>${getMentionLink({ id: '4', username: 'Lee' })}</p>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
-    const post = await con.getRepository(Post).findOne('p1');
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.comments).toEqual(1);
   });
 
@@ -545,7 +546,7 @@ describe('mutation commentOnPost', () => {
       contentHtml: `<p>${mention}</p>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
-    const post = await con.getRepository(Post).findOne('p1');
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.comments).toEqual(1);
   });
 });
@@ -643,7 +644,7 @@ describe('mutation commentOnComment', () => {
     expect(actual.length).toEqual(6);
     expect(actual[0]).toMatchSnapshot({ id: expect.any(String) });
     expect(res.data.commentOnComment.id).toEqual(actual[0].id);
-    const post = await con.getRepository(Post).findOne('p1');
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.comments).toEqual(1);
     expect(actual.find((c) => c.id === 'c1').comments).toEqual(1);
   });
@@ -700,7 +701,7 @@ describe('mutation deleteComment', () => {
       .find({ select: ['id', 'comments'], where: { postId: 'p1' } });
     expect(actual.length).toEqual(4);
     expect(actual.find((c) => c.id === 'c1').comments).toEqual(-1);
-    const post = await con.getRepository(Post).findOne('p1');
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.comments).toEqual(-1);
   });
 
@@ -708,9 +709,9 @@ describe('mutation deleteComment', () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, { variables: { id: 'c1' } });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Comment).find({ postId: 'p1' });
+    const actual = await con.getRepository(Comment).findBy({ postId: 'p1' });
     expect(actual.length).toEqual(3);
-    const post = await con.getRepository(Post).findOne('p1');
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.comments).toEqual(-2);
   });
 });
@@ -765,7 +766,7 @@ describe('mutation upvoteComment', () => {
       .getRepository(CommentUpvote)
       .find({ select: ['commentId', 'userId'] });
     expect(actual).toMatchSnapshot();
-    const comment = await con.getRepository(Comment).findOne('c1');
+    const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
     expect(comment.upvotes).toEqual(1);
   });
 
@@ -779,7 +780,7 @@ describe('mutation upvoteComment', () => {
       select: ['commentId', 'userId'],
     });
     expect(actual).toMatchSnapshot();
-    const comment = await con.getRepository(Comment).findOne('c1');
+    const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
     expect(comment.upvotes).toEqual(0);
   });
 });
@@ -810,7 +811,7 @@ describe('mutation cancelCommentUpvote', () => {
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(CommentUpvote).find();
     expect(actual).toEqual([]);
-    const comment = await con.getRepository(Comment).findOne('c1');
+    const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
     expect(comment.upvotes).toEqual(-1);
   });
 
@@ -820,7 +821,7 @@ describe('mutation cancelCommentUpvote', () => {
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(CommentUpvote).find();
     expect(actual).toEqual([]);
-    const comment = await con.getRepository(Comment).findOne('c1');
+    const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
     expect(comment.upvotes).toEqual(0);
   });
 });

@@ -19,9 +19,10 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      const comment = await con
-        .getRepository(Comment)
-        .findOne(data.childCommentId, { relations: ['post', 'parent'] });
+      const comment = await con.getRepository(Comment).findOne({
+        where: { id: data.childCommentId },
+        relations: ['post', 'parent'],
+      });
       if (!comment) {
         return;
       }

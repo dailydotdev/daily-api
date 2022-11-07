@@ -1,6 +1,5 @@
 import { Submission, SubmissionStatus } from '../src/entity/Submission';
 import { Post, Source, User } from '../src/entity';
-import { Connection, getConnection } from 'typeorm';
 import {
   disposeGraphQLTesting,
   GraphQLTestClient,
@@ -14,14 +13,16 @@ import { DEFAULT_SUBMISSION_LIMIT } from '../src/schema/submissions';
 import { subDays } from 'date-fns';
 import { sourcesFixture } from './fixture/source';
 import { SubmissionFailErrorMessage } from '../src/errors';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../src/db';
 
-let con: Connection;
+let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
     () => new MockContext(con, loggedUser),
   );
@@ -52,6 +53,8 @@ describe('query submissionAvailability', () => {
   `;
 
   it('should return default values if not logged in', async () => {
+    loggedUser = '0';
+
     const res = await client.query(QUERY);
     const limit = parseInt(
       process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
@@ -284,7 +287,7 @@ describe('mutation submitArticle', () => {
     expect(res.errors).toBeFalsy();
     const submission = await con
       .getRepository(Submission)
-      .findOne({ url: request });
+      .findOneBy({ url: request });
     expect(submission.status).toEqual(SubmissionStatus.Started);
     expect(res.data).toMatchSnapshot({
       submitArticle: {

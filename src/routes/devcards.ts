@@ -1,9 +1,9 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
 import fetch from 'node-fetch';
-import { getConnection } from 'typeorm';
 import { DevCard } from '../entity';
 import { generateDevCard } from '../templates/devcard';
 import { getDevCardData } from '../common/devcard';
+import createOrGetConnection from '../db';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { id: string } }>(
@@ -13,9 +13,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       if (['png', 'svg'].indexOf(format) < 0) {
         return res.status(404).send();
       }
-      const con = getConnection();
+      const con = await createOrGetConnection();
       try {
-        const devCard = await con.getRepository(DevCard).findOne(id);
+        const devCard = await con.getRepository(DevCard).findOneBy({ id });
         if (!devCard) {
           return res.status(404).send();
         }

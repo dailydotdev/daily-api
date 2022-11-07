@@ -1,4 +1,3 @@
-import { Connection, getConnection } from 'typeorm';
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
 import { saveFixtures } from './helpers';
@@ -15,12 +14,14 @@ import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../src/db';
 
 let app: FastifyInstance;
-let con: Connection;
+let con: DataSource;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
   app = await appFunc();
   return app.ready();
 });
@@ -579,7 +580,7 @@ describe('POST /p/updateUserEmail', () => {
 
     const user = await con
       .getRepository(User)
-      .findOne({ id: usersFixture[0].id });
+      .findOneBy({ id: usersFixture[0].id });
     expect(user.email).toBe(newEmail);
   });
 });

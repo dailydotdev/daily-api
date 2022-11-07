@@ -3,7 +3,8 @@ import { sendEmail } from '../../src/common';
 import worker from '../../src/workers/communityLinkAccessMail';
 import { SubmissionStatus, User } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
-import { Connection, getConnection } from 'typeorm';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -13,10 +14,10 @@ jest.mock('../../src/common/mailing', () => ({
   sendEmail: jest.fn(),
 }));
 
-let con: Connection;
+let con: DataSource;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(async () => {

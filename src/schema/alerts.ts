@@ -1,9 +1,9 @@
-import { Connection } from 'typeorm';
 import { ALERTS_DEFAULT, Alerts } from '../entity';
 
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
+import { DataSource } from 'typeorm';
 
 interface GQLAlerts {
   filter: boolean;
@@ -83,12 +83,12 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 export const updateAlerts = async (
-  con: Connection,
+  con: DataSource,
   userId: string,
   data: GQLUpdateAlertsInput,
 ): Promise<GQLAlerts> => {
   const repo = con.getRepository(Alerts);
-  const alerts = await repo.findOne(userId);
+  const alerts = await repo.findOneBy({ userId });
 
   if (!alerts) {
     return repo.save({ userId, ...data });
@@ -110,7 +110,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     userAlerts: async (_, __, ctx): Promise<GQLAlerts> => {
       if (ctx.userId) {
         const repo = ctx.getRepository(Alerts);
-        const alerts = await repo.findOne(ctx.userId);
+        const alerts = await repo.findOneBy({ userId: ctx.userId });
 
         if (alerts) {
           return alerts;

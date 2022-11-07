@@ -1,11 +1,13 @@
-import {
-  Connection,
-  createConnection,
-  getConnection,
-  getConnectionManager,
-} from 'typeorm';
+import { AppDataSource } from './data-source';
+import { DataSource } from 'typeorm';
 
-export const createOrGetConnection = (): Promise<Connection> =>
-  getConnectionManager().has('default')
-    ? Promise.resolve(getConnection())
-    : createConnection();
+let connection: DataSource;
+
+const createOrGetConnection = async () => {
+  if (!connection) {
+    connection = await AppDataSource.initialize();
+  }
+  return connection;
+};
+
+export default createOrGetConnection;

@@ -1,6 +1,6 @@
 import { User } from './../entity/User';
-import { Connection } from 'typeorm';
 import { Comment, Post } from '../entity';
+import { DataSource } from 'typeorm';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL.split(','),
@@ -22,7 +22,7 @@ interface PostCommentersProps {
 }
 
 export const getPostCommenterIds = async (
-  con: Connection,
+  con: DataSource,
   postId: string,
   { userId, limit = 4 }: PostCommentersProps,
 ): Promise<string[]> => {

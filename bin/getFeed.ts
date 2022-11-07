@@ -1,6 +1,6 @@
 import '../src/config';
-import { createOrGetConnection } from '../src/db';
 import { fetchTinybirdFeed } from '../src/personalizedFeed';
+import createOrGetConnection from '../src/db';
 
 (async (): Promise<void> => {
   const userId = process.env.USER_ID;

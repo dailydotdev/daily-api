@@ -1,9 +1,9 @@
-import { Connection, ViewColumn, ViewEntity } from 'typeorm';
+import { DataSource, ViewColumn, ViewEntity } from 'typeorm';
 import { Post } from './Post';
 import { View } from './View';
 
 @ViewEntity({
-  expression: (connection: Connection) =>
+  expression: (connection: DataSource) =>
     connection
       .createQueryBuilder()
       .select('view.*')

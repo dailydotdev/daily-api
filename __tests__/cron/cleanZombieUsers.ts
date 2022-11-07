@@ -1,14 +1,14 @@
-import { Connection, getConnection, Not } from 'typeorm';
-
 import cron from '../../src/cron/cleanZombieUsers';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { User } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
+import { DataSource, Not } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
-let con: Connection;
+let con: DataSource;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(async () => {

@@ -4,7 +4,7 @@ import {
 } from 'graphql-relay';
 import { ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { Connection, DeepPartial } from 'typeorm';
+import { DataSource, DeepPartial } from 'typeorm';
 import { GQLSource } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
@@ -76,12 +76,12 @@ export interface GQLPostUpvoteArgs extends ConnectionArguments {
 }
 
 export const getPostNotification = async (
-  con: Connection,
+  con: DataSource,
   postId: string,
 ): Promise<GQLPostNotification> => {
   const post = await con
     .getRepository(Post)
-    .findOne(postId, { select: ['id', 'upvotes', 'comments'] });
+    .findOne({ where: { id: postId }, select: ['id', 'upvotes', 'comments'] });
   if (!post) {
     return null;
   }
@@ -486,7 +486,7 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 const saveHiddenPost = async (
-  con: Connection,
+  con: DataSource,
   hiddenPost: DeepPartial<HiddenPost>,
 ): Promise<boolean> => {
   try {
@@ -639,7 +639,7 @@ export const resolvers: IResolvers<any, Context> = {
         postId: id,
       });
       if (added) {
-        const post = await ctx.getRepository(Post).findOneOrFail(id);
+        const post = await ctx.getRepository(Post).findOneByOrFail({ id });
         if (!post.banned) {
           try {
             await ctx.getRepository(PostReport).insert({
@@ -675,7 +675,7 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      const post = await ctx.getRepository(Post).findOneOrFail(id);
+      const post = await ctx.getRepository(Post).findOneByOrFail({ id });
       if (!post.banned) {
         await ctx.getRepository(Post).update({ id }, { banned: true });
       }
@@ -714,7 +714,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
-        const upvote = await entityManager.getRepository(Upvote).findOne({
+        const upvote = await entityManager.getRepository(Upvote).findOneBy({
           postId: id,
           userId: ctx.userId,
         });

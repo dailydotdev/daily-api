@@ -54,7 +54,7 @@ export const validateAndApproveSubmission = async (
 
   const submission = await entityManager
     .getRepository(Submission)
-    .findOne(data.submissionId);
+    .findOneBy({ id: data.submissionId });
   if (!submission) {
     return null;
   }

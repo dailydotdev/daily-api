@@ -24,7 +24,7 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     try {
       const user = await fetchUser(data.authorId, con);
-      const post = await con.getRepository(Post).findOne(data.postId);
+      const post = await con.getRepository(Post).findOneBy({ id: data.postId });
       const source = await post.source;
       await sendEmail({
         ...baseNotificationEmailData,

@@ -1,6 +1,5 @@
 import { FastifyInstance } from 'fastify';
 import { Alerts, ALERTS_DEFAULT } from '../src/entity';
-import { Connection, getConnection } from 'typeorm';
 import request from 'supertest';
 import {
   authorizeRequest,
@@ -11,15 +10,17 @@ import {
   MockContext,
   testMutationErrorCode,
 } from './helpers';
+import createOrGetConnection from '../src/db';
+import { DataSource } from 'typeorm';
 
 let app: FastifyInstance;
-let con: Connection;
+let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 
 beforeAll(async () => {
-  con = getConnection();
+  con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
     () => new MockContext(con, loggedUser),
   );

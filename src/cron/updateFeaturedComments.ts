@@ -11,7 +11,9 @@ const cron: Cron = {
   handler: async (con, logger) => {
     const checkpointKey = 'last_featured_comments_update';
     const before = new Date();
-    let checkpoint = await con.getRepository(Checkpoint).findOne(checkpointKey);
+    let checkpoint = await con
+      .getRepository(Checkpoint)
+      .findOneBy({ key: checkpointKey });
     const after = checkpoint?.timestamp || new Date(0);
 
     const newFeatured = await con.transaction(

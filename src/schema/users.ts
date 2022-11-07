@@ -456,7 +456,9 @@ const readHistoryResolver = async (
   ctx: Context,
   info,
 ): Promise<Connection<GQLView>> => {
-  const user = await ctx.con.getRepository(User).findOneOrFail(ctx.userId);
+  const user = await ctx.con
+    .getRepository(User)
+    .findOneByOrFail({ id: ctx.userId });
   const queryBuilder = (builder: GraphORMBuilder): GraphORMBuilder => {
     builder.queryBuilder = builder.queryBuilder
       .andWhere(`"${builder.alias}"."userId" = :userId`, {
@@ -516,7 +518,7 @@ export const resolvers: IResolvers<any, Context> = {
       const isSameUser = ctx.userId === id;
       const [postStats, commentStats] = await Promise.all([
         getAuthorPostStats(ctx.con, id),
-        ctx.con
+        await ctx.con
           .createQueryBuilder()
           .select('count(*)', 'numComments')
           .addSelect('sum(comment.upvotes)', 'numCommentUpvotes')
@@ -524,7 +526,7 @@ export const resolvers: IResolvers<any, Context> = {
           .where({ userId: id })
           .innerJoin(Post, 'p', `comment.postId = p.id`)
           .andWhere(`p.deleted = false`)
-          .getRawOne<CommentStats>(),
+          .getRawOne(),
       ]);
       return {
         numPosts: postStats?.numPosts ?? 0,
@@ -562,7 +564,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLReadingRank> => {
       const isSameUser = ctx.userId === id;
-      const user = await ctx.con.getRepository(User).findOneOrFail(id);
+      const user = await ctx.con.getRepository(User).findOneByOrFail({ id });
       const rank = await getUserReadingRank(
         ctx.con,
         id,
@@ -580,7 +582,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLMostReadTag[]> => {
       const start = after ?? new Date(0).toISOString();
       const end = before ?? new Date().toISOString();
-      const user = await ctx.con.getRepository(User).findOneOrFail(id);
+      const user = await ctx.con.getRepository(User).findOneByOrFail({ id });
 
       return getMostReadTags(ctx.con, {
         limit,
@@ -687,7 +689,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<{ imageUrl: string }> => {
       const repo = ctx.con.getRepository(DevCard);
-      let devCard: DevCard = await repo.findOne({ userId: ctx.userId });
+      let devCard: DevCard = await repo.findOneBy({ userId: ctx.userId });
       if (!devCard) {
         devCard = await repo.save({ userId: ctx.userId });
       } else if (!file && !url) {
@@ -722,7 +724,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
     ): Promise<GQLUser> => {
       const repo = ctx.con.getRepository(User);
-      const user = await repo.findOne({ id: ctx.userId });
+      const user = await repo.findOneBy({ id: ctx.userId });
 
       if (!user) {
         throw new AuthenticationError('Unauthorized!');
@@ -732,8 +734,8 @@ export const resolvers: IResolvers<any, Context> = {
         // Only accept email changes from Service calls
         delete data.email;
         delete data.infoConfirmed;
-      } else {
-        const emailCheck = await repo.find({ email: data.email });
+      } else if (data.email !== undefined) {
+        const emailCheck = await repo.findBy({ email: data.email });
         if (emailCheck.length) {
           if (emailCheck.some(({ id }) => id !== user.id)) {
             throw new ValidationError(

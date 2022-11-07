@@ -102,7 +102,7 @@ export const getExcludedAdvancedSettings = async (
   const [features, advancedSettings, feedAdvancedSettings] = await Promise.all([
     getUserFeaturesSettings(userId),
     con.getRepository(AdvancedSettings).find(),
-    con.getRepository(FeedAdvancedSettings).find({ feedId }),
+    con.getRepository(FeedAdvancedSettings).findBy({ feedId }),
   ]);
   const settings = getFeatureAdvancedSettings(features, advancedSettings);
   const userSettings = mapArrayToOjbect(

@@ -16,7 +16,9 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      const comment = await con.getRepository(Comment).findOne(data.commentId);
+      const comment = await con
+        .getRepository(Comment)
+        .findOneBy({ id: data.commentId });
       if (comment.userId !== data.userId) {
         await con
           .getRepository(ReputationEvent)
