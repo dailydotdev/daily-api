@@ -6,7 +6,7 @@ exclude:
   - debezium/**/*
 tasks:
   - name: api-migrate
-    args: "${var.dev ? [ 'npm', 'run', 'db:migrate:latest' ] : ['node', './node_modules/typeorm/cli.js', 'migration:run']}"
+    args: "${var.dev ? [ 'npm', 'run', 'db:migrate:latest' ] : ['node', './node_modules/typeorm/cli.js', 'migration:run', '-d', 'src/data-source.js']}"
     env: &env
       PORT: 5000
       TYPEORM_HOST: postgres

@@ -207,7 +207,13 @@ const [apps] = deployApplicationSuite(
     migration: {
       args: isAdhocEnv
         ? ['npm', 'run', 'db:migrate:latest']
-        : ['node', './node_modules/typeorm/cli.js', 'migration:run'],
+        : [
+            'node',
+            './node_modules/typeorm/cli.js',
+            'migration:run',
+            '-d',
+            'src/data-source.js',
+          ],
     },
     debezium: {
       topicName: debeziumTopicName,
