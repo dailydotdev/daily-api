@@ -22,4 +22,4 @@ pulumi_resource(
   deps=['.infra/index.ts', '.infra/workers.ts'],
   image_deps=['api-image'],
   image_configs=['image'],
-  port_forwards=['3000:3000'])
+)
