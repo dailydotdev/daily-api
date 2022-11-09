@@ -17,6 +17,7 @@ import {
   ApplicationArgs,
   Redis,
   detectIsAdhocEnv,
+  SqlDatabase,
 } from '@dailydotdev/pulumi-common';
 
 const isAdhocEnv = detectIsAdhocEnv();
@@ -37,6 +38,16 @@ const { serviceAccount } = createServiceAccountAndGrantRoles(
   ],
   isAdhocEnv,
 );
+
+const dependsOn: pulumi.Resource[] = [];
+if (isAdhocEnv) {
+  const db = new SqlDatabase('database', {
+    isAdhocEnv,
+    name,
+    instance: 'postgres',
+  });
+  dependsOn.push(db);
+}
 
 // Provision Redis (Memorystore)
 const redis = new Redis(`${name}-redis`, {
@@ -235,6 +246,7 @@ const [apps] = deployApplicationSuite(
           limits: bgLimits,
         })),
     isAdhocEnv,
+    dependsOn,
   },
   vpcNativeProvider,
 );
