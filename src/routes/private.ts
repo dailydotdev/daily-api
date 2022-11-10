@@ -11,8 +11,8 @@ import {
   UpdateUserEmailData,
   User,
 } from '../entity';
-import { getConnection } from 'typeorm';
 import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
+import createOrGetConnection from '../db';
 
 interface SearchUsername {
   search: string;
@@ -23,7 +23,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     if (!req.service) {
       return res.status(404).send();
     }
-    const con = getConnection();
+    const con = await createOrGetConnection();
     const operationResult = await addNewPost(con, req.body, req.log);
     return res.status(200).send(operationResult);
   });
@@ -32,7 +32,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return res.status(404).send();
     }
 
-    const con = getConnection();
+    const con = await createOrGetConnection();
     const data = req.body;
     if (!data && !data?.submissionId) {
       return res
@@ -42,7 +42,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
     try {
       const repo = con.getRepository(Submission);
-      const submission = await repo.findOne({ id: data.submissionId });
+      const submission = await repo.findOneBy({ id: data.submissionId });
       if (submission.status === SubmissionStatus.Started) {
         await repo.save({
           ...submission,
@@ -65,7 +65,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return res.status(404).send();
     }
 
-    const con = getConnection();
+    const con = await createOrGetConnection();
     const operationResult = await addNewUser(con, req.body, req.log);
     return res.status(200).send(operationResult);
   });
@@ -76,7 +76,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         return res.status(404).send();
       }
 
-      const con = getConnection();
+      const con = await createOrGetConnection();
       const operationResult = await updateUserEmail(con, req.body, req.log);
       return res.status(200).send(operationResult);
     },
@@ -94,7 +94,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         return res.status(400).send();
       }
 
-      const con = getConnection();
+      const con = await createOrGetConnection();
 
       const user = await con
         .getRepository(User)

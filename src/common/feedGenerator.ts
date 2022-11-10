@@ -3,7 +3,7 @@ import { fetchUserFeatures } from './users';
 import { AdvancedSettings, FeedAdvancedSettings } from '../entity';
 import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
-import { IFieldResolver } from 'graphql-tools';
+import { IFieldResolver } from '@graphql-tools/utils';
 import {
   Bookmark,
   FeedTag,
@@ -102,7 +102,7 @@ export const getExcludedAdvancedSettings = async (
   const [features, advancedSettings, feedAdvancedSettings] = await Promise.all([
     getUserFeaturesSettings(userId),
     con.getRepository(AdvancedSettings).find(),
-    con.getRepository(FeedAdvancedSettings).find({ feedId }),
+    con.getRepository(FeedAdvancedSettings).findBy({ feedId }),
   ]);
   const settings = getFeatureAdvancedSettings(features, advancedSettings);
   const userSettings = mapArrayToOjbect(

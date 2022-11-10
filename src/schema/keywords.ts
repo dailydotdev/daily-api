@@ -1,4 +1,4 @@
-import { IResolvers } from 'graphql-tools';
+import { IResolvers } from '@graphql-tools/utils';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import { Keyword, KeywordStatus, PostKeyword } from '../entity';
@@ -125,8 +125,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     countPendingKeywords: async (source, args, ctx): Promise<number> => {
       return ctx.con.getRepository(Keyword).count({
-        occurrences: MoreThanOrEqual(PENDING_THRESHOLD),
-        status: 'pending',
+        where: {
+          occurrences: MoreThanOrEqual(PENDING_THRESHOLD),
+          status: 'pending',
+        },
       });
     },
     searchKeywords: async (

@@ -1,10 +1,10 @@
 import { subYears } from 'date-fns';
 import { getUserReadingRank, ReadingRank, getUserReadingTags } from './users';
 import { Post, Source, View } from '../entity';
-import { Connection } from 'typeorm';
 import { User } from '../entity/User';
 import { ReadingDaysArgs } from './users';
 import { ActiveView } from '../entity/ActiveView';
+import { DataSource } from 'typeorm';
 
 export interface MostReadTag {
   value: string;
@@ -13,7 +13,7 @@ export interface MostReadTag {
 }
 
 export const getMostReadTags = async (
-  con: Connection,
+  con: DataSource,
   args: ReadingDaysArgs,
 ): Promise<MostReadTag[]> => {
   const result = await getUserReadingTags(con, args);
@@ -26,7 +26,7 @@ export const getMostReadTags = async (
 };
 
 const getFavoriteSourcesLogos = async (
-  con: Connection,
+  con: DataSource,
   userId: string,
 ): Promise<string[]> => {
   const sources = await con
@@ -68,14 +68,14 @@ type DevCardData = {
 
 export async function getDevCardData(
   userId: string,
-  con: Connection,
+  con: DataSource,
 ): Promise<DevCardData> {
   const now = new Date();
   const start = subYears(now, 1).toISOString();
   const end = now.toISOString();
-  const user = await con.getRepository(User).findOneOrFail(userId);
+  const user = await con.getRepository(User).findOneByOrFail({ id: userId });
   const [articlesRead, tags, sourcesLogos, rank] = await Promise.all([
-    con.getRepository(ActiveView).count({ userId }),
+    con.getRepository(ActiveView).countBy({ userId }),
     getMostReadTags(con, { userId, limit: 4, dateRange: { start, end } }),
     getFavoriteSourcesLogos(con, userId),
     getUserReadingRank(con, userId, user?.timezone, 2),

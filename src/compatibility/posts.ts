@@ -1,8 +1,8 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { offsetToCursor } from 'graphql-relay';
-import { getConnection } from 'typeorm';
 import { GraphqlPayload, injectGraphql, postFields } from './utils';
 import { Post } from '../entity';
+import createOrGetConnection from '../db';
 
 const getPaginationParams = (
   req: FastifyRequest<{
@@ -201,7 +201,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.get<{ Params: { id: string } }>('/:id', async (req, res) => {
-    const con = getConnection();
+    const con = await createOrGetConnection();
     const post = await con.getRepository(Post).findOne({
       select: ['id', 'title', 'url'],
       where: [{ id: req.params.id }, { shortId: req.params.id }],

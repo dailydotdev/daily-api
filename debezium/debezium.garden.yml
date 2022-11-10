@@ -14,10 +14,10 @@ services:
       - name: http
         containerPort: 8080
         servicePort: 80
-    healthCheck:
-      httpGet:
-        path: /q/health
-        port: http
+#    healthCheck:
+#      httpGet:
+#        path: /q/health
+#        port: http
     env:
       CONFIG_FILE: /conf/config.toml
     dependencies:

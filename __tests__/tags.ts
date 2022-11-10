@@ -1,5 +1,4 @@
 import { FastifyInstance } from 'fastify';
-import { Connection, getConnection } from 'typeorm';
 import request from 'supertest';
 import {
   disposeGraphQLTesting,
@@ -11,15 +10,17 @@ import {
 } from './helpers';
 import { Keyword } from '../src/entity';
 import { keywordsFixture } from './fixture/keywords';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../src/db';
 
 let app: FastifyInstance;
-let con: Connection;
+let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
     () => new MockContext(con, loggedUser),
   );

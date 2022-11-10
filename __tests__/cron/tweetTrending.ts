@@ -1,10 +1,11 @@
-import { Connection, getConnection } from 'typeorm';
 import cron from '../../src/cron/tweetTrending';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Post, Source } from '../../src/entity';
 import { tweet } from '../../src/common';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
-let con: Connection;
+let con: DataSource;
 
 jest.mock('../../src/common/twitter', () => ({
   ...(jest.requireActual('../../src/common/twitter') as Record<
@@ -15,7 +16,7 @@ jest.mock('../../src/common/twitter', () => ({
 }));
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(() => {
@@ -62,7 +63,7 @@ it('should tweet the latest post over the views threshold', async () => {
   await expectSuccessfulCron(cron);
   expect(tweet).toBeCalledTimes(1);
   expect(tweet).toBeCalledWith('P2\n\n\nhttp://localhost:5002/posts/p2');
-  const post = await con.getRepository(Post).findOne('p2');
+  const post = await con.getRepository(Post).findOneBy({ id: 'p2' });
   expect(post.tweeted).toEqual(true);
 });
 

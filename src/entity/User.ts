@@ -1,7 +1,7 @@
 import {
   AfterLoad,
   Column,
-  Connection,
+  DataSource,
   Entity,
   EntityManager,
   Index,
@@ -121,6 +121,7 @@ export type AddUserData = Pick<
   | 'email'
   | 'createdAt'
   | 'github'
+  | 'twitter'
   | 'referral'
   | 'infoConfirmed'
   | 'profileConfirmed'
@@ -166,11 +167,24 @@ const checkGitHubHandle = async (
   return !user;
 };
 
+const checkTwitterHandle = async (
+  entityManager: EntityManager,
+  twitter: string,
+): Promise<boolean> => {
+  const user = await entityManager
+    .getRepository(User)
+    .createQueryBuilder()
+    .select('id')
+    .where({ twitter })
+    .getRawOne();
+  return !user;
+};
+
 type UpdateUserEmailResult =
   | { status: 'ok'; userId: string }
   | { status: 'failed'; reason: UpdateUserFailErrorKeys; error?: Error };
 export const updateUserEmail = async (
-  con: Connection,
+  con: DataSource,
   data: UpdateUserEmailData,
   logger: FastifyLoggerInstance,
 ): Promise<UpdateUserEmailResult> => {
@@ -211,7 +225,7 @@ const isInfoConfirmed = (user: AddUserData) =>
   !!(user.name && user.email && user.username);
 
 export const addNewUser = async (
-  con: Connection,
+  con: DataSource,
   data: AddUserData,
   logger: FastifyLoggerInstance,
 ): Promise<AddNewUserResult> => {
@@ -235,6 +249,18 @@ export const addNewUser = async (
       }
     }
 
+    // Clear Twitter handle in case it already exists
+    let twitter = data.twitter;
+    if (twitter) {
+      const isTwitterAvailable = await checkTwitterHandle(
+        entityManager,
+        twitter,
+      );
+      if (!isTwitterAvailable) {
+        twitter = null;
+      }
+    }
+
     try {
       await entityManager.getRepository(User).insert({
         id: data.id,
@@ -249,6 +275,7 @@ export const addNewUser = async (
         acceptedMarketing: data.acceptedMarketing,
         timezone: data.timezone,
         github,
+        twitter,
       });
 
       logger.info(`Created profile for user with ID: ${data.id}`);

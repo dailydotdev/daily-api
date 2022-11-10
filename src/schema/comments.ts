@@ -1,7 +1,7 @@
 import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import { IResolvers } from 'graphql-tools';
+import { IResolvers } from '@graphql-tools/utils';
 import { Connection as ORMConnection, EntityManager, In, Not } from 'typeorm';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
@@ -598,7 +598,7 @@ export const resolvers: IResolvers<any, Context> = {
         const comment = await ctx.con.transaction(async (entityManager) => {
           const parentComment = await entityManager
             .getRepository(Comment)
-            .findOneOrFail({ id: commentId });
+            .findOneByOrFail({ id: commentId });
           if (parentComment.parentId) {
             throw new ForbiddenError('Cannot comment on a sub-comment');
           }
@@ -633,7 +633,7 @@ export const resolvers: IResolvers<any, Context> = {
 
       await ctx.con.transaction(async (entityManager) => {
         const repo = entityManager.getRepository(Comment);
-        const comment = await repo.findOneOrFail({ id });
+        const comment = await repo.findOneByOrFail({ id });
         if (comment.userId !== ctx.userId) {
           throw new ForbiddenError("Cannot edit someone else's comment");
         }
@@ -650,7 +650,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
         const repo = entityManager.getRepository(Comment);
-        const comment = await repo.findOneOrFail({ id });
+        const comment = await repo.findOneByOrFail({ id });
         if (
           comment.userId !== ctx.userId &&
           ctx.roles.indexOf(Roles.Moderator) < 0
@@ -662,7 +662,7 @@ export const resolvers: IResolvers<any, Context> = {
         }
         const childComments = await entityManager
           .getRepository(Comment)
-          .count({ parentId: comment.id });
+          .countBy({ parentId: comment.id });
         await entityManager
           .getRepository(Post)
           .decrement({ id: comment.postId }, 'comments', 1 + childComments);
@@ -705,7 +705,7 @@ export const resolvers: IResolvers<any, Context> = {
       await ctx.con.transaction(async (entityManager): Promise<boolean> => {
         const upvote = await entityManager
           .getRepository(CommentUpvote)
-          .findOne({
+          .findOneBy({
             commentId: id,
             userId: ctx.userId,
           });

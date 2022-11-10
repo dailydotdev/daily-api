@@ -5,7 +5,7 @@ import fastify, {
   FastifyInstance,
 } from 'fastify';
 import fastifyStatic from '@fastify/static';
-import { Connection, DeepPartial, getConnection, ObjectType } from 'typeorm';
+import { DataSource, DeepPartial, ObjectType } from 'typeorm';
 import request from 'supertest';
 import {
   RootSpan,
@@ -24,6 +24,7 @@ import { PubSub } from '@google-cloud/pubsub';
 import pino from 'pino';
 import { createMercuriusTestClient } from 'mercurius-integration-testing';
 import appFunc from '../src';
+import createOrGetConnection from '../src/db';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -33,7 +34,7 @@ export class MockContext extends Context {
   logger: FastifyLoggerInstance;
 
   constructor(
-    con: Connection,
+    con: DataSource,
     userId: string = null,
     premium = false,
     roles = [],
@@ -153,7 +154,7 @@ export const testQueryErrorCode = async (
   });
 
 export async function saveFixtures<Entity>(
-  con: Connection,
+  con: DataSource,
   target: ObjectType<Entity>,
   entities: DeepPartial<Entity>[],
 ): Promise<void> {
@@ -179,7 +180,7 @@ export const invokeBackground = async (
   worker: Worker,
   data: Record<string, unknown>,
 ): Promise<void> => {
-  const con = await getConnection();
+  const con = await createOrGetConnection();
   const pubsub = new PubSub();
   const logger = pino();
   await worker.handler(mockMessage(data).message, con, logger, pubsub);
@@ -190,25 +191,15 @@ export const expectSuccessfulBackground = (
   data: Record<string, unknown>,
 ): Promise<void> => invokeBackground(worker, data);
 
-export const invokeCron = async (
-  cron: Cron,
-  data: Record<string, unknown> = undefined,
-): Promise<void> => {
-  const con = await getConnection();
+export const invokeCron = async (cron: Cron): Promise<void> => {
+  const con = await createOrGetConnection();
   const pubsub = new PubSub();
   const logger = pino();
-  await cron.handler(
-    con,
-    logger,
-    pubsub,
-    data ? mockMessage(data).message.data : Buffer.from(''),
-  );
+  await cron.handler(con, logger, pubsub);
 };
 
-export const expectSuccessfulCron = (
-  cron: Cron,
-  data: Record<string, unknown> = undefined,
-): Promise<void> => invokeCron(cron, data);
+export const expectSuccessfulCron = (cron: Cron): Promise<void> =>
+  invokeCron(cron);
 
 export const setupStaticServer = async (
   rss?: string,

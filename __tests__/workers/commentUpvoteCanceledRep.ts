@@ -3,17 +3,18 @@ import {
   ReputationType,
   ReputationReason,
 } from './../../src/entity/ReputationEvent';
-import { Connection, getConnection } from 'typeorm';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/commentUpvoteCanceledRep';
 import { Comment, Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
-let con: Connection;
+let con: DataSource;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(async () => {
@@ -55,12 +56,12 @@ it('should delete the reputation event relevant to granting of reputation', asyn
     userId: '2',
     commentId: 'c1',
   });
-  const deleted = await repo.findOne({
+  const deleted = await repo.findOneBy({
     grantById: '2',
     grantToId: '1',
     targetId: 'c1',
     targetType: ReputationType.Post,
     reason: ReputationReason.PostUpvoted,
   });
-  expect(deleted).toEqual(undefined);
+  expect(deleted).toEqual(null);
 });

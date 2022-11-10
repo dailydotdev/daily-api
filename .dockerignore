@@ -1,5 +1,7 @@
 .idea/
 .garden/
+.infra/
+.circleci/
 node_modules/
 .env.development
 .env.production

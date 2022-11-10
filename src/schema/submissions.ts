@@ -1,6 +1,6 @@
-import { Connection } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { Submission, User } from './../entity';
-import { IResolvers } from 'graphql-tools';
+import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { isValidHttpUrl, standardizeURL } from '../common';
@@ -85,7 +85,7 @@ export const submissionAccessThreshold = parseInt(
 const hasSubmissionAccess = (user: User) =>
   user.reputation >= submissionAccessThreshold;
 
-const getSubmissionsToday = (con: Connection, user: User) => {
+const getSubmissionsToday = (con: DataSource, user: User) => {
   const timezone = user.timezone ?? 'utc';
   const atTimezone = `at time zone '${timezone}'`;
 
@@ -107,7 +107,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       __,
       ctx,
     ): Promise<GQLSubmissionAvailability> => {
-      const user = await ctx.getRepository(User).findOne({ id: ctx.userId });
+      const user = await ctx.getRepository(User).findOneBy({ id: ctx.userId });
       if (!user) {
         return {
           limit: submissionLimit,
@@ -132,7 +132,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       ctx,
       info,
     ): Promise<GQLSubmitArticleResponse> => {
-      const user = await ctx.getRepository(User).findOne({ id: ctx.userId });
+      const user = await ctx.getRepository(User).findOneBy({ id: ctx.userId });
 
       if (!hasSubmissionAccess(user)) {
         return {
@@ -171,7 +171,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         return { result: 'exists', post: existingPost };
       }
 
-      const existingSubmission = await submissionRepo.findOne({
+      const existingSubmission = await submissionRepo.findOneBy({
         url: cleanUrl,
       });
 

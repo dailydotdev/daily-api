@@ -1,5 +1,4 @@
 import { FastifyInstance } from 'fastify';
-import { Connection, getConnection } from 'typeorm';
 import request from 'supertest';
 import _ from 'lodash';
 import {
@@ -29,9 +28,11 @@ import {
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../src/db';
 
 let app: FastifyInstance;
-let con: Connection;
+let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
@@ -39,7 +40,7 @@ let premiumUser = false;
 let roles: Roles[] = [];
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
     () => new MockContext(con, loggedUser, premiumUser, roles),
   );
@@ -747,11 +748,11 @@ describe('mutation unhidePost', () => {
     loggedUser = '1';
     const repo = con.getRepository(HiddenPost);
     await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
-    const initial = await repo.find({ userId: loggedUser });
+    const initial = await repo.findBy({ userId: loggedUser });
     expect(initial.length).toBeGreaterThan(0);
     const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
-    const actual = await repo.find({ userId: loggedUser });
+    const actual = await repo.findBy({ userId: loggedUser });
     expect(actual.length).toEqual(0);
   });
 });
@@ -792,7 +793,7 @@ describe('mutation deletePost', () => {
     roles = [Roles.Moderator];
     const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Post).findOne('p1');
+    const actual = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(actual.deleted).toBeTruthy();
   });
 
@@ -841,7 +842,7 @@ describe('mutation banPost', () => {
     roles = [Roles.Moderator];
     const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
-    const post = await con.getRepository(Post).findOne('p1');
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.banned).toEqual(true);
   });
 
@@ -894,7 +895,9 @@ describe('mutation reportPost', () => {
       .getRepository(HiddenPost)
       .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
     expect(actual).toMatchSnapshot();
-    expect(await con.getRepository(PostReport).findOne()).toEqual({
+    expect(
+      await con.getRepository(PostReport).findOneBy({ postId: 'p1' }),
+    ).toEqual({
       postId: 'p1',
       userId: '1',
       createdAt: expect.anything(),
@@ -913,7 +916,9 @@ describe('mutation reportPost', () => {
       .getRepository(HiddenPost)
       .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
     expect(actual).toMatchSnapshot();
-    expect(await con.getRepository(PostReport).findOne()).toEqual({
+    expect(
+      await con.getRepository(PostReport).findOneBy({ postId: 'p1' }),
+    ).toEqual({
       postId: 'p1',
       userId: '1',
       createdAt: expect.anything(),
@@ -988,7 +993,7 @@ describe('mutation upvote', () => {
       .getRepository(Upvote)
       .find({ select: ['postId', 'userId'] });
     expect(actual).toMatchSnapshot();
-    const post = await con.getRepository(Post).findOne('p1');
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.upvotes).toEqual(1);
   });
 
@@ -1002,7 +1007,7 @@ describe('mutation upvote', () => {
       select: ['postId', 'userId'],
     });
     expect(actual).toMatchSnapshot();
-    const post = await con.getRepository(Post).findOne('p1');
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.upvotes).toEqual(0);
   });
 });
@@ -1033,7 +1038,7 @@ describe('mutation cancelUpvote', () => {
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Upvote).find();
     expect(actual).toEqual([]);
-    const post = await con.getRepository(Post).findOne('p1');
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.upvotes).toEqual(-1);
   });
 
@@ -1043,7 +1048,7 @@ describe('mutation cancelUpvote', () => {
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Upvote).find();
     expect(actual).toEqual([]);
-    const post = await con.getRepository(Post).findOne('p1');
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.upvotes).toEqual(0);
   });
 });

@@ -1,11 +1,11 @@
-import { Connection, getConnection } from 'typeorm';
-
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { tweet } from '../../src/common';
 import worker from '../../src/workers/postReachedViewsThresholdTweet';
 import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
 jest.mock('../../src/common/twitter', () => ({
   ...(jest.requireActual('../../src/common/twitter') as Record<
@@ -15,10 +15,10 @@ jest.mock('../../src/common/twitter', () => ({
   tweet: jest.fn(),
 }));
 
-let con: Connection;
+let con: DataSource;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(async () => {

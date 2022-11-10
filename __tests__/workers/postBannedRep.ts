@@ -1,16 +1,16 @@
-import { Connection, getConnection } from 'typeorm';
-
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postBannedRep';
 import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { PostReport, ReputationEvent } from '../../src/entity';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
-let con: Connection;
+let con: DataSource;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(async () => {
@@ -38,7 +38,7 @@ beforeEach(async () => {
 });
 
 it('should create a reputation event that increases reputation', async () => {
-  const post = await con.getRepository(Post).findOne('p1');
+  const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   await expectSuccessfulBackground(worker, {
     post,
   });

@@ -3,7 +3,7 @@ import { FeedAdvancedSettings, AdvancedSettings } from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
 
-import { IFieldResolver, IResolvers } from 'graphql-tools';
+import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
@@ -1088,7 +1088,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ): Promise<GQLFeedSettings> => {
       const feedId = ctx.userId;
       await ctx.con.transaction(async (manager): Promise<void> => {
-        await ctx.getRepository(Feed).findOneOrFail(feedId);
+        await ctx.getRepository(Feed).findOneByOrFail({ id: feedId });
         if (filters?.excludeSources?.length) {
           await manager.getRepository(FeedSource).delete({
             feedId,
@@ -1118,7 +1118,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ): Promise<GQLFeedAdvancedSettings[]> => {
       const feedId = ctx.userId;
       const feedRepo = ctx.con.getRepository(Feed);
-      const feed = await feedRepo.findOne({ id: feedId });
+      const feed = await feedRepo.findOneBy({ id: feedId });
       const feedAdvSettingsrepo = ctx.con.getRepository(FeedAdvancedSettings);
 
       if (!feed) {

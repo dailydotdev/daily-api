@@ -1,7 +1,7 @@
 import '../src/config';
 import shortid from 'shortid';
-import { createOrGetConnection } from '../src/db';
 import { Post } from '../src/entity';
+import createOrGetConnection from '../src/db';
 
 interface Row {
   id: string;

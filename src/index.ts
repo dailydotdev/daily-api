@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import fastify, { FastifyRequest, FastifyInstance } from 'fastify';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
-import mercurius from 'mercurius';
+import mercurius, { MercuriusError } from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
 import { NoSchemaIntrospectionCustomRule } from 'graphql';
@@ -16,10 +16,14 @@ import compatibility from './compatibility';
 import routes from './routes';
 import { Context } from './Context';
 import { schema } from './graphql';
-import { createOrGetConnection } from './db';
+import createOrGetConnection from './db';
 import { stringifyHealthCheck } from './common';
 import { GraphQLError } from 'graphql';
 import cookie, { FastifyCookieOptions } from '@fastify/cookie';
+
+type Mutable<Type> = {
+  -readonly [Key in keyof Type]: Type[Key];
+};
 
 const userExtendKey = (
   source: unknown,
@@ -96,15 +100,21 @@ export default async function app(
     validationRules: isProd && [NoSchemaIntrospectionCustomRule],
     errorFormatter(execution) {
       if (execution.errors?.length > 0) {
+        const flatErrors = execution.errors.flatMap<GraphQLError>((error) => {
+          if (error.originalError.name === 'FastifyError') {
+            return (
+              (error.originalError as MercuriusError<GraphQLError>).errors ||
+              error
+            );
+          }
+          return error;
+        });
         return {
           statusCode: 200,
           response: {
             data: execution.data,
-            errors: execution.errors.map((error): GraphQLError => {
-              const newError = { ...error };
-              if (isProd) {
-                newError.originalError = undefined;
-              }
+            errors: flatErrors.map((error): GraphQLError => {
+              const newError = error as Mutable<GraphQLError>;
               if (!error.originalError) {
                 newError.extensions = {
                   code: 'GRAPHQL_VALIDATION_FAILED',
@@ -114,6 +124,9 @@ export default async function app(
                 newError.extensions = {
                   code: 'NOT_FOUND',
                 };
+              }
+              if (isProd) {
+                newError.originalError = undefined;
               }
               return newError;
             }),

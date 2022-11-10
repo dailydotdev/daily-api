@@ -1,10 +1,10 @@
-import { Connection, DeepPartial } from 'typeorm';
+import { DataSource, DeepPartial } from 'typeorm';
 import { View } from '../entity';
 import { messageToJson, Worker } from './worker';
 
 const ONE_WEEK = 604800000;
 
-const addView = async (con: Connection, entity: View): Promise<boolean> => {
+const addView = async (con: DataSource, entity: View): Promise<boolean> => {
   const repo = con.getRepository(View);
   const existing = await repo.findOne({
     where: {

@@ -5,7 +5,7 @@ type UpdateResult = { id: string }[];
 export const viewsThresholds = [250, 500];
 
 const cron: Cron = {
-  subscription: 'views-threshold-sub',
+  name: 'views-threshold',
   handler: async (con) => {
     await con.transaction(
       async (entityManager): Promise<UpdateResult[]> =>

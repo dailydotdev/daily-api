@@ -17,7 +17,7 @@ const worker: Worker = {
     try {
       const commentMentions = await con
         .getRepository(CommentMention)
-        .find({ mentionedUserId: userId });
+        .findBy({ mentionedUserId: userId });
       const commentIds = commentMentions.map((mention) => mention.commentId);
       const slices = commentIds.length / limit + 1;
       const batches = [];

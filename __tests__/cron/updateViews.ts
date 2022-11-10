@@ -1,14 +1,14 @@
-import { Connection, getConnection } from 'typeorm';
-
 import cron from '../../src/cron/updateViews';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { Post, Source, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
-let con: Connection;
+let con: DataSource;
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
 });
 
 beforeEach(async () => {

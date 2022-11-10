@@ -1,4 +1,3 @@
-import { Connection, getConnection } from 'typeorm';
 import faker from 'faker';
 import _ from 'lodash';
 import {
@@ -9,14 +8,16 @@ import {
   MockContext,
 } from './helpers';
 import { Integration } from '../src/entity';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../src/db';
 
-let con: Connection;
+let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let integrations: Integration[];
 
 beforeAll(async () => {
-  con = getConnection();
+  con = await createOrGetConnection();
   state = await initializeGraphQLTesting(() => new MockContext(con));
   client = state.client;
 });

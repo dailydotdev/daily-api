@@ -1,5 +1,10 @@
-import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { getConnection, SelectQueryBuilder, Connection } from 'typeorm';
+import {
+  FastifyInstance,
+  FastifyReply,
+  FastifyRequest,
+  RouteGenericInterface,
+} from 'fastify';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import rateLimit from '@fastify/rate-limit';
 import RSS from 'rss';
 import {
@@ -9,12 +14,7 @@ import {
   User,
 } from '../common';
 import { Post, Bookmark, Settings } from '../entity';
-import { RouteGenericInterface, RouteHandlerMethod } from 'fastify/types/route';
-import {
-  RawReplyDefaultExpression,
-  RawRequestDefaultExpression,
-  RawServerDefault,
-} from 'fastify/types/utils';
+import createOrGetConnection from '../db';
 
 interface RssItem {
   id: string;
@@ -40,57 +40,62 @@ const generateRSS =
     ) => SelectQueryBuilder<Post>,
     stateFactory?: (
       req: FastifyRequest<RouteGeneric>,
-      con: Connection,
+      con: DataSource,
     ) => Promise<State>,
-  ): RouteHandlerMethod<
-    RawServerDefault,
-    RawRequestDefaultExpression,
-    RawReplyDefaultExpression,
-    RouteGeneric
-  > =>
-  async (req, res): Promise<FastifyReply> => {
-    const con = getConnection();
-    const state = stateFactory ? await stateFactory(req, con) : null;
-    const userId = await extractUserId(req, state);
-    const user = userId && (await fetchUser(userId, con));
-    if (!user) {
-      return res.status(404).send();
+  ) =>
+  async (
+    req: FastifyRequest<RouteGeneric>,
+    res: FastifyReply,
+  ): Promise<FastifyReply> => {
+    try {
+      const con = await createOrGetConnection();
+      const state = stateFactory ? await stateFactory(req, con) : null;
+      const userId = await extractUserId(req, state);
+      const user = userId && (await fetchUser(userId, con));
+      if (!user) {
+        return res.status(404).send();
+      }
+      const feed = new RSS({
+        title: `${title(user, state)} by daily.dev`,
+        generator: 'daily.dev RSS',
+        feed_url: `${process.env.URL_PREFIX}${req.raw.url}`,
+        site_url: getUserProfileUrl(user.username),
+      });
+      const builder = query(
+        req,
+        user,
+        con
+          .createQueryBuilder()
+          .select([
+            'post."id"',
+            'post."shortId"',
+            'post."title"',
+            'post."tagsStr"',
+          ])
+          .from(Post, 'post')
+          .orderBy(orderBy, 'DESC')
+          .limit(20),
+      );
+      const items = await builder.getRawMany<RssItem>();
+      items.forEach((x) =>
+        feed.item({
+          title: x.title,
+          url: `${getDiscussionLink(
+            x.id,
+          )}?utm_source=rss&utm_medium=bookmarks&utm_campaign=${userId}`,
+          date: x.publishedAt,
+          guid: x.id,
+          description: '',
+          categories: x.tagsStr?.split(','),
+        }),
+      );
+      return res.type('application/rss+xml').send(feed.xml());
+    } catch (err) {
+      if (err.name === 'QueryFailedError' && err.code === '22P02') {
+        return res.status(404).send();
+      }
+      throw err;
     }
-    const feed = new RSS({
-      title: `${title(user, state)} by daily.dev`,
-      generator: 'daily.dev RSS',
-      feed_url: `${process.env.URL_PREFIX}${req.raw.url}`,
-      site_url: getUserProfileUrl(user.username),
-    });
-    const builder = query(
-      req,
-      user,
-      con
-        .createQueryBuilder()
-        .select([
-          'post."id"',
-          'post."shortId"',
-          'post."title"',
-          'post."tagsStr"',
-        ])
-        .from(Post, 'post')
-        .orderBy(orderBy, 'DESC')
-        .limit(20),
-    );
-    const items = await builder.getRawMany<RssItem>();
-    items.forEach((x) =>
-      feed.item({
-        title: x.title,
-        url: `${getDiscussionLink(
-          x.id,
-        )}?utm_source=rss&utm_medium=bookmarks&utm_campaign=${userId}`,
-        date: x.publishedAt,
-        guid: x.id,
-        description: '',
-        categories: x.tagsStr?.split(','),
-      }),
-    );
-    return res.type('application/rss+xml').send(feed.xml());
   };
 
 const extractFirstName = (user: User): string => user.name.split(' ')[0];
@@ -99,6 +104,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rateLimit, {
     max: 100,
     timeWindow: '1 minute',
+  });
+
+  fastify.get('/', async (req, res): Promise<FastifyReply> => {
+    return res.send();
   });
 
   // fastify.get(
@@ -132,7 +141,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           .innerJoin(Bookmark, 'bookmark', 'post.id = bookmark.postId')
           .where('bookmark.userId = :userId', { userId: user.id }),
       (req, con) =>
-        con.getRepository(Settings).findOne({ bookmarkSlug: req.params.slug }),
+        con
+          .getRepository(Settings)
+          .findOneBy({ bookmarkSlug: req.params.slug }),
     ),
   );
 

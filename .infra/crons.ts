@@ -1,10 +1,9 @@
-interface CronPubSub {
-  topic?: string;
+interface Cron {
   name: string;
   schedule: string;
 }
 
-export const crons: CronPubSub[] = [
+export const crons: Cron[] = [
   {
     name: 'check-analytics-report',
     schedule: '0 */1 * * *',

@@ -4,20 +4,19 @@ import pino from 'pino';
 
 import './config';
 
-import { createOrGetConnection } from './db';
 import { workers } from './workers';
-import { crons } from './cron';
-import { Connection } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
+import createOrGetConnection from './db';
 
 const subscribe = (
   logger: pino.Logger,
   pubsub: PubSub,
-  connection: Connection,
+  connection: DataSource,
   subscription: string,
   handler: (
     message: Message,
-    con: Connection,
+    con: DataSource,
     logger: FastifyLoggerInstance,
     pubsub: PubSub,
   ) => Promise<void>,
@@ -68,17 +67,6 @@ export default async function app(): Promise<void> {
           logger,
           pubsub,
         ),
-    ),
-  );
-
-  crons.forEach((cron) =>
-    subscribe(
-      logger,
-      pubsub,
-      connection,
-      cron.subscription,
-      (message, con, logger, pubsub) =>
-        cron.handler(con, logger, pubsub, message.data),
     ),
   );
 }

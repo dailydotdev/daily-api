@@ -4,11 +4,13 @@ import { Keyword } from '../entity';
 import { MoreThanOrEqual, Not } from 'typeorm';
 
 const cron: Cron = {
-  subscription: 'update-tags-str-sub',
+  name: 'update-tags-str',
   handler: async (con) => {
     const checkpointKey = 'last_tags_str_update';
     const before = new Date();
-    let checkpoint = await con.getRepository(Checkpoint).findOne(checkpointKey);
+    let checkpoint = await con
+      .getRepository(Checkpoint)
+      .findOneBy({ key: checkpointKey });
     const after = checkpoint?.timestamp || new Date();
 
     await con.transaction(async (entityManager): Promise<void> => {

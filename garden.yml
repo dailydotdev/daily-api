@@ -6,7 +6,7 @@ exclude:
   - debezium/**/*
 tasks:
   - name: api-migrate
-    args: "${var.dev ? [ 'npm', 'run', 'db:migrate:latest' ] : ['node', './node_modules/typeorm/cli.js', 'migration:run']}"
+    args: "${var.dev ? [ 'npm', 'run', 'db:migrate:latest' ] : ['node', './node_modules/typeorm/cli.js', 'migration:run', '-d', 'src/data-source.js']}"
     env: &env
       PORT: 5000
       TYPEORM_HOST: postgres
@@ -51,6 +51,7 @@ tasks:
       - api-migrate
 services:
   - name: api
+    args: "${var.dev ? [ 'npm', 'run', 'dev' ] : ['npm', 'run', 'start']}"
     devMode: &devMode
       sync:
         - source: src
@@ -78,11 +79,11 @@ services:
     env:
       <<: *env
   - name: api-bg
+    args: "${var.dev ? [ 'npm', 'run', 'dev:background' ] : ['npm', 'run', 'start:background']}"
     devMode:
       <<: *devMode
     dependencies:
       - api-pubsub-init
       - api
     env:
-      MODE: background
       <<: *env

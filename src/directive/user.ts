@@ -1,4 +1,4 @@
-import { Connection } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import {
   Alerts,
@@ -20,7 +20,7 @@ import {
 } from '../entity';
 
 export const deleteUser = async (
-  con: Connection,
+  con: DataSource,
   logger: FastifyLoggerInstance,
   userId: string,
   messageId?: string,

@@ -1,4 +1,3 @@
-import { Connection, getConnection } from 'typeorm';
 import faker from 'faker';
 import {
   disposeGraphQLTesting,
@@ -10,15 +9,17 @@ import {
 import { Banner, Notification } from '../src/entity';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../src/db';
 
-let con: Connection;
+let con: DataSource;
 let state: GraphQLTestingState;
 let app: FastifyInstance;
 let client: GraphQLTestClient;
 let notifications: Notification[];
 
 beforeAll(async () => {
-  con = await getConnection();
+  con = await createOrGetConnection();
   state = await initializeGraphQLTesting(() => new MockContext(con));
   app = state.app;
   client = state.client;

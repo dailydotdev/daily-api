@@ -7,7 +7,7 @@
   <a href="https://circleci.com/gh/dailydotdev/daily-api">
     <img src="https://img.shields.io/circleci/build/github/dailydotdev/daily-api/master.svg" alt="Build Status">
   </a>
-  <a href="https://github.com/dailydotdev/daily-api/blob/master/LICENSE">
+  <a href="https://github.com/dailydotdev/daily-api/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/dailydotdev/daily-api.svg" alt="License">
   </a>
   <a href="https://stackshare.io/daily/daily">
@@ -22,7 +22,7 @@ along with other very useful endpoints.
 
 ## Stack
 
-- Node v12.19.0 (a `.nvmrc` is presented for [nvm](https://github.com/nvm-sh/nvm) users).
+- Node v18 (a `.nvmrc` is presented for [nvm](https://github.com/nvm-sh/nvm) users).
 - NPM for managing dependencies.
 - Fastify as the web framework
 - Apollo for GraphQL

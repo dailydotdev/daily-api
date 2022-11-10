@@ -1,9 +1,9 @@
-import { Connection } from 'typeorm';
 import { EventLogger } from './pubsub';
 import { User } from '../entity';
+import { DataSource } from 'typeorm';
 
 export const increaseReputation = async (
-  con: Connection,
+  con: DataSource,
   log: EventLogger,
   userId: string,
   delta: number,
@@ -17,7 +17,7 @@ export const increaseReputation = async (
 };
 
 export const decreaseReputation = async (
-  con: Connection,
+  con: DataSource,
   log: EventLogger,
   userId: string,
   delta: number,

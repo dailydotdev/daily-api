@@ -3,7 +3,7 @@ import { Post } from './../entity/Post';
 import { IFlags } from 'flagsmith-nodejs';
 import { isSameDay } from 'date-fns';
 import fetch from 'node-fetch';
-import { Connection, In, Not } from 'typeorm';
+import { DataSource, In, Not } from 'typeorm';
 import { CommentMention, Comment, View } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { User as DbUser } from './../entity/User';
@@ -32,9 +32,9 @@ const authorizedHeaders = (userId: string): { [key: string]: string } => ({
 
 export const fetchUser = async (
   userId: string,
-  con: Connection,
+  con: DataSource,
 ): Promise<User | null> => {
-  const user = await con.getRepository(DbUser).findOne({ id: userId });
+  const user = await con.getRepository(DbUser).findOneBy({ id: userId });
   if (!user) {
     return null;
   }
@@ -108,7 +108,7 @@ interface RecentMentionsProps {
 }
 
 export const getRecentMentionsIds = async (
-  con: Connection,
+  con: DataSource,
   userId: string,
   { limit = 5, query, excludeIds }: RecentMentionsProps,
 ): Promise<string[]> => {
@@ -142,7 +142,7 @@ export const getRecentMentionsIds = async (
 };
 
 export const getUserIdsByNameOrUsername = async (
-  con: Connection,
+  con: DataSource,
   { query, limit = 5, excludeIds }: RecentMentionsProps,
 ): Promise<string[]> => {
   let queryBuilder = con
@@ -167,7 +167,7 @@ export const getUserIdsByNameOrUsername = async (
 };
 
 export const recommendUsersByQuery = async (
-  con: Connection,
+  con: DataSource,
   userId: string,
   { query, limit }: RecentMentionsProps,
 ): Promise<string[]> => {
@@ -188,13 +188,13 @@ export const recommendUsersByQuery = async (
 };
 
 export const recommendUsersToMention = async (
-  con: Connection,
+  con: DataSource,
   postId: string,
   userId: string,
   { limit }: RecentMentionsProps,
 ): Promise<string[]> => {
   const [post, commenterIds] = await Promise.all([
-    con.getRepository(Post).findOne({ id: postId, authorId: Not(userId) }),
+    con.getRepository(Post).findOneBy({ id: postId, authorId: Not(userId) }),
     getPostCommenterIds(con, postId, { limit, userId }),
   ]);
 
@@ -220,7 +220,7 @@ export const recommendUsersToMention = async (
 };
 
 export const getUserReadingTags = (
-  con: Connection,
+  con: DataSource,
   { userId, dateRange: { start, end }, limit = 8 }: ReadingDaysArgs,
 ): Promise<TagsReadingStatus[]> => {
   return con.query(
@@ -253,7 +253,7 @@ export const getUserReadingTags = (
 };
 
 export const getUserReadingRank = async (
-  con: Connection,
+  con: DataSource,
   userId: string,
   timezone = 'utc',
   version = 1,
@@ -314,7 +314,7 @@ export const getUserReadingRank = async (
 };
 
 export const getAuthorScout = (
-  con: Connection,
+  con: DataSource,
   post: Post,
   excludeIds: string[] = [],
 ): Promise<User>[] => {

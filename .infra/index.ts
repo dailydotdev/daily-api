@@ -8,39 +8,23 @@ import {
   config,
   createServiceAccountAndGrantRoles,
   createSubscriptionsFromWorkers,
-  getImageTag,
+  getImageAndTag,
   location,
   addLabelsToWorkers,
-  createPubSubCronJobs,
   nodeOptions,
   deployApplicationSuite,
   getVpcNativeCluster,
+  ApplicationArgs,
+  Redis,
+  detectIsAdhocEnv,
+  SqlDatabase,
 } from '@dailydotdev/pulumi-common';
 
-const imageTag = getImageTag();
+const isAdhocEnv = detectIsAdhocEnv();
 const name = 'api';
 const debeziumTopicName = `${name}.changes`;
 
-const debeziumTopic = new gcp.pubsub.Topic('debezium-topic', {
-  name: debeziumTopicName,
-});
-
-[
-  'source-feed-added',
-  'source-feed-removed',
-  'alerts-updated',
-  'settings-updated',
-  'update-comments',
-  'post-scout-matched',
-  'community-link-submitted',
-  'community-link-rejected',
-  'community-link-access',
-].map(
-  (topic) =>
-    new gcp.pubsub.Topic(topic, {
-      name: topic,
-    }),
-);
+const { image, imageTag } = getImageAndTag(`us.gcr.io/daily-ops/daily-${name}`);
 
 const { serviceAccount } = createServiceAccountAndGrantRoles(
   `${name}-sa`,
@@ -52,10 +36,22 @@ const { serviceAccount } = createServiceAccountAndGrantRoles(
     { name: 'secret', role: 'roles/secretmanager.secretAccessor' },
     { name: 'pubsub', role: 'roles/pubsub.editor' },
   ],
+  isAdhocEnv,
 );
 
+const dependsOn: pulumi.Resource[] = [];
+if (isAdhocEnv) {
+  const db = new SqlDatabase('database', {
+    isAdhocEnv,
+    name,
+    instance: 'postgres',
+  });
+  dependsOn.push(db);
+}
+
 // Provision Redis (Memorystore)
-const redis = new gcp.redis.Instance(`${name}-redis`, {
+const redis = new Redis(`${name}-redis`, {
+  isAdhocEnv,
   name: `${name}-redis`,
   tier: 'STANDARD_HA',
   memorySizeGb: 10,
@@ -87,13 +83,10 @@ const envVars: Record<string, Input<string>> = {
   redisHost,
 };
 
-const image = `us.gcr.io/daily-ops/daily-${name}:${imageTag}`;
-
-const cronJobs = createPubSubCronJobs(name, crons);
 createSubscriptionsFromWorkers(
   name,
+  isAdhocEnv,
   addLabelsToWorkers(workers, { app: name }),
-  { dependsOn: [debeziumTopic, ...cronJobs] },
 );
 
 const memory = 1024;
@@ -120,8 +113,101 @@ const probe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
 };
 
-const vpcNativeProvider = getVpcNativeCluster();
-const [legacyApps, vpcNativeApps] = deployApplicationSuite(
+let appsArgs: ApplicationArgs[];
+if (isAdhocEnv) {
+  appsArgs = [
+    {
+      args: ['npm', 'run', 'dev'],
+      port: 3000,
+      env: [
+        nodeOptions(memory),
+        {
+          name: 'PORT',
+          value: '3000',
+        },
+        {
+          name: 'ENABLE_SUBSCRIPTIONS',
+          value: 'true',
+        },
+        { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
+      ],
+      minReplicas: 3,
+      maxReplicas: 15,
+      limits,
+      metric: { type: 'memory_cpu', cpu: 70 },
+      createService: true,
+    },
+    {
+      nameSuffix: 'bg',
+      args: ['npm', 'run', 'dev:background'],
+      minReplicas: 3,
+      maxReplicas: 10,
+      limits: bgLimits,
+      metric: {
+        type: 'pubsub',
+        labels: { app: name },
+        targetAverageValue: 100,
+      },
+    },
+  ];
+} else {
+  appsArgs = [
+    {
+      port: 3000,
+      env: [nodeOptions(memory)],
+      minReplicas: 3,
+      maxReplicas: 15,
+      limits,
+      readinessProbe: probe,
+      metric: { type: 'memory_cpu', cpu: 70 },
+      createService: true,
+      enableCdn: true,
+    },
+    {
+      nameSuffix: 'ws',
+      port: 3000,
+      env: [
+        nodeOptions(wsMemory),
+        { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
+      ],
+      minReplicas: 3,
+      maxReplicas: 15,
+      limits: wsLimits,
+      readinessProbe: probe,
+      metric: { type: 'memory_cpu', cpu: 60 },
+    },
+    {
+      nameSuffix: 'bg',
+      args: ['npm', 'run', 'start:background'],
+      minReplicas: 3,
+      maxReplicas: 10,
+      limits: bgLimits,
+      metric: {
+        type: 'pubsub',
+        labels: { app: name },
+        targetAverageValue: 100,
+      },
+    },
+    {
+      nameSuffix: 'private',
+      port: 3000,
+      env: [
+        nodeOptions(memory),
+        { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
+      ],
+      minReplicas: 2,
+      maxReplicas: 4,
+      limits,
+      readinessProbe: probe,
+      metric: { type: 'memory_cpu', cpu: 70 },
+      createService: true,
+      serviceType: 'ClusterIP',
+    },
+  ];
+}
+
+const vpcNativeProvider = isAdhocEnv ? undefined : getVpcNativeCluster();
+const [apps] = deployApplicationSuite(
   {
     name,
     namespace,
@@ -130,10 +216,17 @@ const [legacyApps, vpcNativeApps] = deployApplicationSuite(
     serviceAccount,
     secrets: envVars,
     migration: {
-      args: ['node', './node_modules/typeorm/cli.js', 'migration:run'],
+      args: isAdhocEnv
+        ? ['npm', 'run', 'db:migrate:latest']
+        : [
+            'node',
+            './node_modules/typeorm/cli.js',
+            'migration:run',
+            '-d',
+            'src/data-source.js',
+          ],
     },
     debezium: {
-      topic: debeziumTopic,
       topicName: debeziumTopicName,
       propsPath: './application.properties',
       propsVars: {
@@ -143,208 +236,169 @@ const [legacyApps, vpcNativeApps] = deployApplicationSuite(
         hostname: envVars.typeormHost as string,
       },
     },
-    apps: [
-      {
-        port: 3000,
-        env: [nodeOptions(memory)],
-        minReplicas: 3,
-        maxReplicas: 15,
-        limits,
-        readinessProbe: probe,
-        metric: { type: 'memory_cpu', cpu: 60 },
-        createService: true,
-        enableCdn: true,
-      },
-      {
-        nameSuffix: 'ws',
-        port: 3000,
-        env: [
-          nodeOptions(wsMemory),
-          { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
-        ],
-        minReplicas: 3,
-        maxReplicas: 15,
-        limits: wsLimits,
-        readinessProbe: probe,
-        metric: { type: 'memory_cpu', cpu: 60 },
-      },
-      {
-        nameSuffix: 'bg',
-        env: [{ name: 'MODE', value: 'background' }],
-        minReplicas: 3,
-        maxReplicas: 10,
-        limits: bgLimits,
-        metric: {
-          type: 'pubsub',
-          labels: { app: name },
-          targetAverageValue: 50,
-        },
-      },
-      {
-        nameSuffix: 'private',
-        port: 3000,
-        env: [
-          nodeOptions(memory),
-          { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
-        ],
-        minReplicas: 2,
-        maxReplicas: 4,
-        limits,
-        readinessProbe: probe,
-        metric: { type: 'memory_cpu', cpu: 60 },
-        createService: true,
-        serviceType: 'ClusterIP',
-      },
-    ],
+    apps: appsArgs,
+    crons: isAdhocEnv
+      ? []
+      : crons.map((cron) => ({
+          nameSuffix: cron.name,
+          args: ['node', 'bin/cli', 'cron', cron.name],
+          schedule: cron.schedule,
+          limits: bgLimits,
+        })),
+    isAdhocEnv,
+    dependsOn,
   },
   vpcNativeProvider,
 );
-const { labels } = legacyApps[0];
-const { labels: wsLabels } = legacyApps[1];
 
-const subsServiceName = `${name}-subs`;
+if (vpcNativeProvider) {
+  const { labels } = apps[0];
+  const { labels: wsLabels } = apps[1];
 
-const deploySubsService = (
-  provider?: ProviderResource,
-  resourcePrefix: string = '',
-): void => {
-  const k8sBackendConfig = new k8s.apiextensions.CustomResource(
-    `${resourcePrefix}${name}-k8s-backend-config`,
+  const subsServiceName = `${name}-subs`;
+
+  const deploySubsService = (
+    provider?: ProviderResource,
+    resourcePrefix: string = '',
+  ): void => {
+    const k8sBackendConfig = new k8s.apiextensions.CustomResource(
+      `${resourcePrefix}${name}-k8s-backend-config`,
+      {
+        apiVersion: 'cloud.google.com/v1',
+        kind: 'BackendConfig',
+        metadata: {
+          name: `${name}-subs`,
+          namespace,
+          labels,
+        },
+        spec: {
+          timeoutSec: 43200,
+        },
+      },
+      { provider },
+    );
+
+    new k8s.core.v1.Service(
+      `${resourcePrefix}${name}-k8s-service`,
+      {
+        metadata: {
+          name: subsServiceName,
+          namespace,
+          labels,
+          annotations: {
+            'cloud.google.com/backend-config':
+              k8sBackendConfig.metadata.name.apply(
+                (name) => `{"default": "${name}"}`,
+              ),
+          },
+        },
+        spec: {
+          type: provider ? 'ClusterIP' : 'NodePort',
+          ports: [
+            { port: 80, targetPort: 'http', protocol: 'TCP', name: 'http' },
+          ],
+          selector: wsLabels,
+        },
+      },
+      { provider },
+    );
+  };
+  deploySubsService();
+  deploySubsService(vpcNativeProvider.provider, 'vpc-native-');
+
+  const k8sManagedCert = new k8s.apiextensions.CustomResource(
+    `${name}-k8s-managed-cert`,
     {
-      apiVersion: 'cloud.google.com/v1',
-      kind: 'BackendConfig',
+      apiVersion: 'networking.gke.io/v1beta2',
+      kind: 'ManagedCertificate',
       metadata: {
         name: `${name}-subs`,
         namespace,
         labels,
       },
       spec: {
-        timeoutSec: 43200,
+        domains: [subsHost],
       },
     },
-    { provider },
   );
 
-  new k8s.core.v1.Service(
-    `${resourcePrefix}${name}-k8s-service`,
-    {
-      metadata: {
-        name: subsServiceName,
-        namespace,
-        labels,
-        annotations: {
-          'cloud.google.com/backend-config':
-            k8sBackendConfig.metadata.name.apply(
-              (name) => `{"default": "${name}"}`,
-            ),
-        },
-      },
-      spec: {
-        type: provider ? 'ClusterIP' : 'NodePort',
-        ports: [
-          { port: 80, targetPort: 'http', protocol: 'TCP', name: 'http' },
-        ],
-        selector: wsLabels,
-      },
-    },
-    { provider },
-  );
-};
-deploySubsService();
-deploySubsService(vpcNativeProvider.provider, 'vpc-native-');
-
-const k8sManagedCert = new k8s.apiextensions.CustomResource(
-  `${name}-k8s-managed-cert`,
-  {
-    apiVersion: 'networking.gke.io/v1beta2',
-    kind: 'ManagedCertificate',
-    metadata: {
-      name: `${name}-subs`,
-      namespace,
-      labels,
-    },
-    spec: {
-      domains: [subsHost],
-    },
-  },
-);
-
-const subsIngressSpec: k8s.types.input.networking.v1.IngressSpec = {
-  rules: [
-    {
-      host: subsHost,
-      http: {
-        paths: [
-          {
-            path: '/*',
-            pathType: 'ImplementationSpecific',
-            backend: {
-              service: {
-                name: subsServiceName,
-                port: {
-                  name: 'http',
+  const subsIngressSpec: k8s.types.input.networking.v1.IngressSpec = {
+    rules: [
+      {
+        host: subsHost,
+        http: {
+          paths: [
+            {
+              path: '/*',
+              pathType: 'ImplementationSpecific',
+              backend: {
+                service: {
+                  name: subsServiceName,
+                  port: {
+                    name: 'http',
+                  },
                 },
               },
             },
-          },
-        ],
+          ],
+        },
       },
-    },
-  ],
-};
+    ],
+  };
 
-new k8s.networking.v1.Ingress(`${name}-k8s-ingress`, {
-  metadata: {
-    name,
-    namespace,
-    labels,
-    annotations: {
-      'kubernetes.io/ingress.global-static-ip-name': 'api-subscriptions',
-      'networking.gke.io/managed-certificates': k8sManagedCert.metadata.name,
-    },
-  },
-  spec: subsIngressSpec,
-});
-
-const subsAddress = new gcp.compute.GlobalAddress(
-  `vpc-native-subs-ingress-address`,
-  {
-    name: `vpc-native-${name}-subs-ip`,
-    addressType: 'EXTERNAL',
-  },
-);
-
-const vpcNativeManagedCert = new k8s.apiextensions.CustomResource(
-  `vpc-native-k8s-managed-cert`,
-  {
-    apiVersion: 'networking.gke.io/v1beta2',
-    kind: 'ManagedCertificate',
+  new k8s.networking.v1.Ingress(`${name}-k8s-ingress`, {
     metadata: {
-      name: `${name}-subs`,
-      namespace,
-      labels,
-    },
-    spec: {
-      domains: [subsHost],
-    },
-  },
-  { provider: vpcNativeProvider.provider },
-);
-
-new k8s.networking.v1.Ingress(
-  `vpc-native-subs-ingress`,
-  {
-    metadata: {
-      name: `${name}-subs`,
+      name,
       namespace,
       labels,
       annotations: {
-        'kubernetes.io/ingress.global-static-ip-name': subsAddress.name,
-        'networking.gke.io/managed-certificates':
-          vpcNativeManagedCert.metadata.name,
+        'kubernetes.io/ingress.global-static-ip-name': 'api-subscriptions',
+        'networking.gke.io/managed-certificates': k8sManagedCert.metadata.name,
       },
     },
     spec: subsIngressSpec,
-  },
-  { provider: vpcNativeProvider.provider },
-);
+  });
+
+  const subsAddress = new gcp.compute.GlobalAddress(
+    `vpc-native-subs-ingress-address`,
+    {
+      name: `vpc-native-${name}-subs-ip`,
+      addressType: 'EXTERNAL',
+    },
+  );
+
+  const vpcNativeManagedCert = new k8s.apiextensions.CustomResource(
+    `vpc-native-k8s-managed-cert`,
+    {
+      apiVersion: 'networking.gke.io/v1beta2',
+      kind: 'ManagedCertificate',
+      metadata: {
+        name: `${name}-subs`,
+        namespace,
+        labels,
+      },
+      spec: {
+        domains: [subsHost],
+      },
+    },
+    { provider: vpcNativeProvider.provider },
+  );
+
+  new k8s.networking.v1.Ingress(
+    `vpc-native-subs-ingress`,
+    {
+      metadata: {
+        name: `${name}-subs`,
+        namespace,
+        labels,
+        annotations: {
+          'kubernetes.io/ingress.global-static-ip-name': subsAddress.name,
+          'networking.gke.io/managed-certificates':
+            vpcNativeManagedCert.metadata.name,
+        },
+      },
+      spec: subsIngressSpec,
+    },
+    { provider: vpcNativeProvider.provider },
+  );
+}

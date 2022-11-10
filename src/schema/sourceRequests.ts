@@ -1,5 +1,5 @@
 import { ForbiddenError } from 'apollo-server-errors';
-import { IResolvers } from 'graphql-tools';
+import { IResolvers } from '@graphql-tools/utils';
 import { v4 as uuidv4 } from 'uuid';
 import {
   forwardPagination,
@@ -14,7 +14,7 @@ import { Context } from '../Context';
 import { Source, SourceFeed, SourceRequest, User } from '../entity';
 import { getRelayNodeInfo, uploadLogo } from '../common';
 import { GraphQLResolveInfo } from 'graphql';
-import { FileUpload } from 'graphql-upload';
+import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 
 export interface GQLSourceRequest {
   id: string;
@@ -266,7 +266,7 @@ const findOrFail = async (
   ctx: Context,
   id: string,
 ): Promise<GQLSourceRequest> => {
-  const req = await ctx.getRepository(SourceRequest).findOneOrFail(id);
+  const req = await ctx.getRepository(SourceRequest).findOneByOrFail({ id });
   if (req.closed) {
     throw new ForbiddenError(
       'Access denied! Source request is already closed!',
@@ -318,7 +318,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ): Promise<GQLSourceRequest> => {
       const info = await ctx
         .getRepository(User)
-        .findOneOrFail({ id: ctx.userId });
+        .findOneByOrFail({ id: ctx.userId });
       const repo = ctx.getRepository(SourceRequest);
       const sourceReq = repo.create({
         sourceUrl: data.sourceUrl,
