@@ -410,7 +410,7 @@ describe('function updateMentions', () => {
     await saveCommentMentionFixtures();
     const comment = con
       .getRepository(Comment)
-      .create({ id: 'cm', postId: 'p1', userId: '1', content: '@Solevilla' });
+      .create({ id: 'cm', postId: 'p1', userId: '1', content: '@solevilla' });
     const saved = await saveComment(con, comment);
     expect(saved).toMatchSnapshot({ createdAt: expect.any(Date) });
     const user = await con.getRepository(User).findOneBy({ id: '7' });
@@ -520,7 +520,7 @@ describe('mutation commentOnPost', () => {
     expect(actual.length).toEqual(6);
     expect(actual[0]).toMatchSnapshot({
       id: expect.any(String),
-      contentHtml: `<p>${getMentionLink({ id: '4', username: 'Lee' })}</p>\n`,
+      contentHtml: `<p>${getMentionLink({ id: '4', username: 'lee' })}</p>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });

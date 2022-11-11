@@ -3,8 +3,8 @@
 exports[`function updateMentions should update mentions based on passed comment ids utilizing old and new username 1`] = `
 Object {
   "comments": 0,
-  "content": "@Solevilla",
-  "contentHtml": "<p><a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a></p>
+  "content": "@solevilla",
+  "contentHtml": "<p><a href=\\"http://localhost:5002/solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"solevilla\\">@solevilla</a></p>
 ",
   "createdAt": Any<Date>,
   "featured": false,
@@ -67,7 +67,7 @@ Object {
 exports[`mutation commentOnPost should comment markdown on a post with user mention 1`] = `
 Object {
   "content": "@Lee",
-  "contentHtml": "<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a></p>
+  "contentHtml": "<p><a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"4\\" data-mention-username=\\"lee\\">@lee</a></p>
 ",
   "id": Any<String>,
   "parentId": null,
@@ -103,7 +103,7 @@ exports[`query commentPreview should return markdown equivalent of the content 1
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content 2`] = `
-"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a></p>
+"<p><a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"4\\" data-mention-username=\\"lee\\">@lee</a></p>
 "
 `;
 
@@ -113,22 +113,22 @@ exports[`query commentPreview should return markdown equivalent of the content w
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 2`] = `
-"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a></p>
+"<p><a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"4\\" data-mention-username=\\"lee\\">@lee</a></p>
 "
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 3`] = `
-"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a>.</p>
+"<p><a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"4\\" data-mention-username=\\"lee\\">@lee</a>.</p>
 "
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 4`] = `
-"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a>/<a href=\\"http://localhost:5002/Hansel\\" data-mention-id=\\"5\\" data-mention-username=\\"Hansel\\">@Hansel</a></p>
+"<p><a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"4\\" data-mention-username=\\"lee\\">@lee</a>/<a href=\\"http://localhost:5002/hansel\\" data-mention-id=\\"5\\" data-mention-username=\\"hansel\\">@hansel</a></p>
 "
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 5`] = `
-"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a>,<a href=\\"http://localhost:5002/Hansel\\" data-mention-id=\\"5\\" data-mention-username=\\"Hansel\\">@Hansel</a>,<a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a></p>
+"<p><a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"4\\" data-mention-username=\\"lee\\">@lee</a>,<a href=\\"http://localhost:5002/hansel\\" data-mention-id=\\"5\\" data-mention-username=\\"hansel\\">@hansel</a>,<a href=\\"http://localhost:5002/solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"solevilla\\">@solevilla</a></p>
 "
 `;
 
@@ -143,22 +143,22 @@ exports[`query commentPreview should return markdown equivalent of the content w
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 8`] = `
-"<p>Hi!<a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a></p>
+"<p>Hi!<a href=\\"http://localhost:5002/solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"solevilla\\">@solevilla</a></p>
 "
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 9`] = `
-"<p>Hi <a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a></p>
+"<p>Hi <a href=\\"http://localhost:5002/solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"solevilla\\">@solevilla</a></p>
 "
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 10`] = `
-"<p>Hi <a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a>!</p>
+"<p>Hi <a href=\\"http://localhost:5002/solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"solevilla\\">@solevilla</a>!</p>
 "
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 11`] = `
-"<p>Hi <a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a>! This is normal comment, let’s tag <a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a> as well</p>
+"<p>Hi <a href=\\"http://localhost:5002/solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"solevilla\\">@solevilla</a>! This is normal comment, let’s tag <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"4\\" data-mention-username=\\"lee\\">@lee</a> as well</p>
 "
 `;
 
@@ -420,27 +420,27 @@ Array [
   Object {
     "image": "https://daily.dev/Hansel.jpg",
     "name": "Hansel",
-    "username": "Hansel",
+    "username": "hansel",
   },
   Object {
     "image": "https://daily.dev/lee.jpg",
     "name": "Lee",
-    "username": "Lee",
+    "username": "lee",
   },
   Object {
     "image": "https://daily.dev/nimrod.jpg",
     "name": "Nimrod",
-    "username": "Nimrod",
+    "username": "nimrod",
   },
   Object {
     "image": "https://daily.dev/samson.jpg",
     "name": "Samson",
-    "username": "Samson",
+    "username": "samson",
   },
   Object {
     "image": "https://daily.dev/tsahi.jpg",
     "name": "Tsahi",
-    "username": "Tsahi",
+    "username": "tsahi",
   },
 ]
 `;
@@ -450,12 +450,12 @@ Array [
   Object {
     "image": "https://daily.dev/samson.jpg",
     "name": "Samson",
-    "username": "Samson",
+    "username": "samson",
   },
   Object {
     "image": "https://daily.dev/solevilla.jpg",
     "name": "Solevilla",
-    "username": "Solevilla",
+    "username": "solevilla",
   },
   Object {
     "image": "sample/image",

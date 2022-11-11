@@ -325,7 +325,7 @@ const getMentions = async (
       return list;
     }
 
-    return list.concat(word.substring(1));
+    return list.concat(word.substring(1).toLowerCase());
   }, []);
 
   if (result.length === 0) {

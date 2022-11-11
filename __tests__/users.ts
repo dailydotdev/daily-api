@@ -1629,6 +1629,30 @@ describe('mutation updateUserProfile', () => {
     expect(updatedUser?.infoConfirmed).toBeTruthy();
   });
 
+  it('should not update user profile if username exists', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { username: 'Lee' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should update username to lowercase', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(User);
+
+    const username = 'iDoShAmUn';
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { username } },
+    });
+    expect(res.errors?.length).toBeFalsy();
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
+    console.log(updatedUser);
+    expect(updatedUser.username).toEqual('idoshamun');
+  });
+
   it('should update user profile and change email', async () => {
     loggedUser = '1';
 

@@ -78,7 +78,9 @@ markdown.renderer.rules.text = function (tokens, idx, options, env, self) {
         return result + section + removed;
       }
 
-      const user = mentions.find(({ username }) => `@${username}` === section);
+      const user = mentions.find(
+        ({ username }) => `@${username}` === section.toLowerCase(),
+      );
       const reconstructed = user ? getMentionLink(user) : section;
       return result + reconstructed + removed;
     }, '');

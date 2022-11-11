@@ -48,7 +48,10 @@ export class User {
     nullable: true,
     transformer: {
       to(value) {
-        return value?.toLowerCase();
+        if (typeof value === 'string') {
+          return value?.toLowerCase();
+        }
+        return value;
       },
       from(value) {
         return value;

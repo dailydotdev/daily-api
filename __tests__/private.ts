@@ -351,7 +351,7 @@ describe('POST /p/newUser', () => {
         id: usersFixture[0].id,
         name: usersFixture[0].name,
         image: usersFixture[0].image,
-        username: 'IdOShAmUn',
+        username: 'Idoshamun',
         email: usersFixture[0].email,
       })
       .expect(200);
@@ -363,6 +363,25 @@ describe('POST /p/newUser', () => {
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].infoConfirmed).toBeTruthy();
     expect(users[0].username).toEqual(usersFixture[0].username);
+  });
+
+  it('should not add a new user with case sensitive username match', async () => {
+    await createDefaultUser();
+
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: 'IdOsHaMun',
+        email: usersFixture[0].email,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' });
   });
 
   it('should add a new user with false info confirmed if data is incomplete', async () => {
