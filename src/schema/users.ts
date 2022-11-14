@@ -770,7 +770,6 @@ export const resolvers: IResolvers<any, Context> = {
 
       try {
         const updatedUser = { ...user, ...data, image: avatar };
-        updatedUser.username = updatedUser.username;
         if (
           !user.infoConfirmed &&
           updatedUser.email &&
