@@ -544,9 +544,20 @@ describe('query sourceFeed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should not display a banned post', async () => {
+  it('should display a banned post in source feed', async () => {
     await con.getRepository(Post).update({ id: 'p5' }, { banned: true });
     const res = await client.query(QUERY('b'));
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should not display a banned post for community source', async () => {
+    await con
+      .getRepository(Post)
+      .update({ id: 'p6' }, { sourceId: 'community' });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p5' }, { banned: true, sourceId: 'community' });
+    const res = await client.query(QUERY('community'));
     expect(res.data).toMatchSnapshot();
   });
 });
