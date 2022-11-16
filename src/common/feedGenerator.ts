@@ -505,10 +505,15 @@ export const sourceFeedBuilder = (
   sourceId: string,
   builder: SelectQueryBuilder<Post>,
   alias: string,
-): SelectQueryBuilder<Post> =>
-  builder
-    .andWhere(`${alias}.sourceId = :sourceId`, { sourceId })
-    .andWhere(`${alias}.banned = false`);
+): SelectQueryBuilder<Post> => {
+  builder.andWhere(`${alias}.sourceId = :sourceId`, { sourceId });
+
+  if (sourceId === 'community') {
+    builder.andWhere(`${alias}.banned = false`);
+  }
+
+  return builder;
+};
 
 export const tagFeedBuilder = (
   ctx: Context,

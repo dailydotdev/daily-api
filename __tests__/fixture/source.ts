@@ -12,4 +12,9 @@ export const sourcesFixture: DeepPartial<Source>[] = [
     private: true,
     active: false,
   },
+  {
+    id: 'community',
+    name: 'Community Picks',
+    image: 'http://image.com/c',
+  },
 ];
