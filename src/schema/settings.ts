@@ -243,7 +243,7 @@ const getOrCreateSettings = async (
   userId: string,
 ): Promise<Settings> => {
   const repo = manager.getRepository(Settings);
-  const settings = await repo.findOne(userId);
+  const settings = await repo.findOneBy({ userId });
 
   if (!settings) {
     return repo.save({ userId });
