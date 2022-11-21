@@ -258,17 +258,18 @@ const getBookmarkSettings = async (
   enabled: boolean,
 ) => {
   const repo = con.getRepository(Settings);
-  const settings = await getOrCreateSettings(con, userId);
+  const settings = await repo.findOneBy({ userId });
+  const bookmarkSlug = enabled ? uuidv4() : null;
+
+  if (!settings) {
+    return repo.save({ userId, bookmarkSlug });
+  }
 
   if (!!settings.bookmarkSlug === enabled) {
     return settings;
   }
 
-  if (enabled) {
-    return repo.save(repo.merge(settings, { bookmarkSlug: uuidv4() }));
-  }
-
-  return repo.save(repo.merge(settings, { bookmarkSlug: null }));
+  return repo.save(repo.merge(settings, { bookmarkSlug }));
 };
 
 type PartialBookmarkSharing = Pick<GQLBookmarksSharing, 'slug'>;
@@ -301,14 +302,25 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { enabled }: { enabled: boolean },
       { con, userId },
     ): Promise<PartialBookmarkSharing> => {
-      const transaction = await getBookmarkSettings(con, userId, enabled);
+      const settings = await con.transaction(
+        async (manager): Promise<Settings> =>
+          getBookmarkSettings(manager, userId, enabled),
+      );
 
-      return { slug: transaction?.bookmarkSlug };
+      return { slug: settings.bookmarkSlug };
     },
   },
   Query: {
-    userSettings: async (_, __, ctx): Promise<GQLSettings> =>
-      getOrCreateSettings(ctx.con, ctx.userId),
+    userSettings: async (_, __, { con, userId }): Promise<GQLSettings> => {
+      const repo = con.getRepository(Settings);
+      const settings = await repo.findOneBy({ userId });
+
+      if (!settings) {
+        return repo.save({ userId });
+      }
+
+      return settings;
+    },
     bookmarksSharing: async (_, __, ctx): Promise<PartialBookmarkSharing> => {
       const settings = await ctx.con
         .getRepository(Settings)
