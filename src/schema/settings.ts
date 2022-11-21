@@ -295,7 +295,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
         return repo.save(repo.merge(settings, data));
       });
-    },,
+    },
     setBookmarksSharing: async (
       _,
       { enabled }: { enabled: boolean },
