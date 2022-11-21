@@ -4,7 +4,6 @@ import { Context } from '../Context';
 import { Settings } from '../entity';
 import { isValidHttpUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
-import { Connection, EntityManager } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 
 interface GQLSettings {
