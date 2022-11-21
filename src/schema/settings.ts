@@ -279,16 +279,23 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     updateUserSettings: async (
       _,
       { data }: { data: GQLUpdateSettingsInput },
-      ctx,
+      { con, userId },
     ): Promise<GQLSettings> => {
       if (data.customLinks?.length && !data.customLinks.every(isValidHttpUrl)) {
         throw new ValidationError('One of the links is invalid');
       }
 
-      const repo = ctx.getRepository(Settings);
-      const settings = await getOrCreateSettings(ctx.con, ctx.userId);
-      return repo.save(repo.merge(settings, data));
-    },
+      return con.transaction(async (manager): Promise<Settings> => {
+        const repo = manager.getRepository(Settings);
+        const settings = await repo.findOneBy({ userId });
+
+        if (!settings) {
+          return repo.save({ ...data, userId });
+        }
+
+        return repo.save(repo.merge(settings, data));
+      });
+    },,
     setBookmarksSharing: async (
       _,
       { enabled }: { enabled: boolean },
