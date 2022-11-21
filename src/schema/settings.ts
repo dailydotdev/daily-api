@@ -238,20 +238,6 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-const getOrCreateSettings = async (
-  manager: Connection | EntityManager,
-  userId: string,
-): Promise<Settings> => {
-  const repo = manager.getRepository(Settings);
-  const settings = await repo.findOneBy({ userId });
-
-  if (!settings) {
-    return repo.save({ userId });
-  }
-
-  return settings;
-};
-
 const getBookmarkSettings = async (
   con: Connection | EntityManager,
   userId: string,
