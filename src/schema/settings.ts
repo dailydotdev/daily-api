@@ -238,26 +238,6 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-const getBookmarkSettings = async (
-  con: Connection | EntityManager,
-  userId: string,
-  enabled: boolean,
-) => {
-  const repo = con.getRepository(Settings);
-  const settings = await repo.findOneBy({ userId });
-  const bookmarkSlug = enabled ? uuidv4() : null;
-
-  if (!settings) {
-    return repo.save({ userId, bookmarkSlug });
-  }
-
-  if (!!settings.bookmarkSlug === enabled) {
-    return settings;
-  }
-
-  return repo.save(repo.merge(settings, { bookmarkSlug }));
-};
-
 type PartialBookmarkSharing = Pick<GQLBookmarksSharing, 'slug'>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -289,8 +269,21 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { con, userId },
     ): Promise<PartialBookmarkSharing> => {
       const settings = await con.transaction(
-        async (manager): Promise<Settings> =>
-          getBookmarkSettings(manager, userId, enabled),
+        async (manager): Promise<Settings> => {
+          const repo = manager.getRepository(Settings);
+          const settings = await repo.findOneBy({ userId });
+          const bookmarkSlug = enabled ? uuidv4() : null;
+
+          if (!settings) {
+            return repo.save({ userId, bookmarkSlug });
+          }
+
+          if (!!settings.bookmarkSlug === enabled) {
+            return settings;
+          }
+
+          return repo.save(repo.merge(settings, { bookmarkSlug }));
+        },
       );
 
       return { slug: settings.bookmarkSlug };
