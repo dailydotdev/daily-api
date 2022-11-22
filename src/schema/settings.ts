@@ -4,7 +4,6 @@ import { Context } from '../Context';
 import { Settings } from '../entity';
 import { isValidHttpUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
-import { EntityManager } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 
 interface GQLSettings {
@@ -238,20 +237,6 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-const getOrCreateSettings = async (
-  manager: EntityManager,
-  userId: string,
-): Promise<Settings> => {
-  const repo = manager.getRepository(Settings);
-  const settings = await repo.findOneBy({ userId });
-
-  if (!settings) {
-    return repo.save({ userId });
-  }
-
-  return settings;
-};
-
 type PartialBookmarkSharing = Pick<GQLBookmarksSharing, 'slug'>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -260,15 +245,19 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     updateUserSettings: async (
       _,
       { data }: { data: GQLUpdateSettingsInput },
-      ctx,
+      { con, userId },
     ): Promise<GQLSettings> => {
       if (data.customLinks?.length && !data.customLinks.every(isValidHttpUrl)) {
         throw new ValidationError('One of the links is invalid');
       }
 
-      return ctx.con.transaction(async (manager): Promise<Settings> => {
+      return con.transaction(async (manager): Promise<Settings> => {
         const repo = manager.getRepository(Settings);
-        const settings = await getOrCreateSettings(manager, ctx.userId);
+        const settings = await repo.findOneBy({ userId });
+
+        if (!settings) {
+          return repo.save({ ...data, userId });
+        }
 
         return repo.save(repo.merge(settings, data));
       });
@@ -276,32 +265,39 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     setBookmarksSharing: async (
       _,
       { enabled }: { enabled: boolean },
-      ctx,
+      { con, userId },
     ): Promise<PartialBookmarkSharing> => {
-      const settings = await ctx.con.transaction(
+      const settings = await con.transaction(
         async (manager): Promise<Settings> => {
           const repo = manager.getRepository(Settings);
-          const settings = await getOrCreateSettings(manager, ctx.userId);
+          const settings = await repo.findOneBy({ userId });
+          const bookmarkSlug = enabled ? uuidv4() : null;
+
+          if (!settings) {
+            return repo.save({ userId, bookmarkSlug });
+          }
 
           if (!!settings.bookmarkSlug === enabled) {
             return settings;
           }
-          if (enabled) {
-            return repo.save(repo.merge(settings, { bookmarkSlug: uuidv4() }));
-          } else {
-            return repo.save(repo.merge(settings, { bookmarkSlug: null }));
-          }
+
+          return repo.save(repo.merge(settings, { bookmarkSlug }));
         },
       );
-      return { slug: settings?.bookmarkSlug };
+
+      return { slug: settings.bookmarkSlug };
     },
   },
   Query: {
-    userSettings: async (_, __, ctx): Promise<GQLSettings> => {
-      return ctx.con.transaction(
-        async (manager): Promise<Settings> =>
-          getOrCreateSettings(manager, ctx.userId),
-      );
+    userSettings: async (_, __, { con, userId }): Promise<GQLSettings> => {
+      const repo = con.getRepository(Settings);
+      const settings = await repo.findOneBy({ userId });
+
+      if (!settings) {
+        return repo.save({ userId });
+      }
+
+      return settings;
     },
     bookmarksSharing: async (_, __, ctx): Promise<PartialBookmarkSharing> => {
       const settings = await ctx.con
