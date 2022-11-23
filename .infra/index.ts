@@ -303,24 +303,7 @@ if (vpcNativeProvider) {
       { provider },
     );
   };
-  deploySubsService();
   deploySubsService(vpcNativeProvider.provider, 'vpc-native-');
-
-  const k8sManagedCert = new k8s.apiextensions.CustomResource(
-    `${name}-k8s-managed-cert`,
-    {
-      apiVersion: 'networking.gke.io/v1beta2',
-      kind: 'ManagedCertificate',
-      metadata: {
-        name: `${name}-subs`,
-        namespace,
-        labels,
-      },
-      spec: {
-        domains: [subsHost],
-      },
-    },
-  );
 
   const subsIngressSpec: k8s.types.input.networking.v1.IngressSpec = {
     rules: [
@@ -345,19 +328,6 @@ if (vpcNativeProvider) {
       },
     ],
   };
-
-  new k8s.networking.v1.Ingress(`${name}-k8s-ingress`, {
-    metadata: {
-      name,
-      namespace,
-      labels,
-      annotations: {
-        'kubernetes.io/ingress.global-static-ip-name': 'api-subscriptions',
-        'networking.gke.io/managed-certificates': k8sManagedCert.metadata.name,
-      },
-    },
-    spec: subsIngressSpec,
-  });
 
   const subsAddress = new gcp.compute.GlobalAddress(
     `vpc-native-subs-ingress-address`,
