@@ -29,7 +29,7 @@ interface AuthPayload {
   roles?: Roles[];
 }
 
-const verifyJwt = (token: string): Promise<AuthPayload | null> =>
+export const verifyJwt = (token: string): Promise<AuthPayload | null> =>
   new Promise((resolve, reject) => {
     jwt.verify(
       token,
