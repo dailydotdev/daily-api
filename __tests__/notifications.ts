@@ -1,4 +1,3 @@
-import faker from 'faker';
 import {
   disposeGraphQLTesting,
   GraphQLTestClient,
@@ -7,26 +6,17 @@ import {
   MockContext,
 } from './helpers';
 import { Banner } from '../src/entity';
-import { FastifyInstance } from 'fastify';
-import request from 'supertest';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 
 let con: DataSource;
 let state: GraphQLTestingState;
-let app: FastifyInstance;
 let client: GraphQLTestClient;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(() => new MockContext(con));
-  app = state.app;
   client = state.client;
-});
-
-beforeEach(async () => {
-  const now = new Date();
-  const randomDate = (): Date => faker.date.past(null, now);
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -65,4 +55,3 @@ describe('query banner', () => {
     expect(res.data).toMatchSnapshot();
   });
 });
-
