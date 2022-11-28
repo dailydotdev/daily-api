@@ -6,7 +6,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
 } from './helpers';
-import { Banner, Notification } from '../src/entity';
+import { Banner } from '../src/entity';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
@@ -16,7 +16,6 @@ let con: DataSource;
 let state: GraphQLTestingState;
 let app: FastifyInstance;
 let client: GraphQLTestClient;
-let notifications: Notification[];
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -28,31 +27,9 @@ beforeAll(async () => {
 beforeEach(async () => {
   const now = new Date();
   const randomDate = (): Date => faker.date.past(null, now);
-  notifications = Array.from(Array(8))
-    .map(() => new Notification(randomDate(), faker.random.words(5)))
-    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-  await con.getRepository(Notification).save(notifications);
 });
 
 afterAll(() => disposeGraphQLTesting(state));
-
-describe('query latestNotifications', () => {
-  const QUERY = `{
-  latestNotifications {
-    timestamp
-    html
-  }
-}`;
-
-  it('should return the newest notifications', async () => {
-    const expected = notifications
-      .slice(0, 5)
-      .map((n) => ({ html: n.html, timestamp: n.timestamp.toISOString() }));
-
-    const res = await client.query(QUERY);
-    expect(res.data.latestNotifications).toEqual(expected);
-  });
-});
 
 describe('query banner', () => {
   const QUERY = (lastSeen: Date): string => `{
@@ -89,12 +66,3 @@ describe('query banner', () => {
   });
 });
 
-describe('compatibility route /notifications', () => {
-  it('should return the newest notifications', async () => {
-    const expected = notifications
-      .slice(0, 5)
-      .map((n) => ({ html: n.html, timestamp: n.timestamp.toISOString() }));
-
-    return request(app.server).get('/v1/notifications').expect(200, expected);
-  });
-});
