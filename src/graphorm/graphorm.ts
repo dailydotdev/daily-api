@@ -187,7 +187,7 @@ export class GraphORM {
           `"${childBuilder.alias}"."${relation.sort}"`,
           relation.order ?? 'ASC',
         );
-      } else {
+      } else if (!relation.isMany) {
         childBuilder.queryBuilder = childBuilder.queryBuilder.limit(1);
       }
 
