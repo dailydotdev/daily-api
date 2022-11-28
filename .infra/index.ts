@@ -146,7 +146,7 @@ if (isAdhocEnv) {
       metric: {
         type: 'pubsub',
         labels: { app: name },
-        targetAverageValue: 100,
+        targetAverageValue: 50,
       },
     },
   ];
