@@ -12,8 +12,6 @@ export type GraphORMBuilder = { queryBuilder: QueryBuilder; alias: string };
 
 export interface GraphORMPagination {
   limit: number;
-  sort: string;
-  order: 'ASC' | 'DESC';
   hasPreviousPage: (nodeSize: number) => boolean;
   hasNextPage: (nodeSize: number) => boolean;
   nodeToCursor: (node: any, index: number) => string;
@@ -29,6 +27,8 @@ export interface GraphORMRelation {
     childAlias: string,
     qb: QueryBuilder,
   ) => QueryBuilder;
+  sort?: string;
+  order?: 'ASC' | 'DESC';
 }
 
 export interface GraphORMField {
@@ -182,17 +182,19 @@ export class GraphORM {
           `"${childBuilder.alias}"."${relation.childColumn}" = "${alias}"."${relation.parentColumn}"`,
         );
       }
-      if (!relation.isMany) {
+      if (relation.isMany && relation.sort) {
+        childBuilder.queryBuilder = childBuilder.queryBuilder.orderBy(
+          `"${childBuilder.alias}"."${relation.sort}"`,
+          relation.order ?? 'ASC',
+        );
+      } else if (!relation.isMany) {
         childBuilder.queryBuilder = childBuilder.queryBuilder.limit(1);
       }
 
       if (pagination) {
-        childBuilder.queryBuilder = childBuilder.queryBuilder
-          .limit(pagination.limit)
-          .orderBy(
-            `"${childBuilder.alias}"."${pagination.sort}"`,
-            pagination.order,
-          );
+        childBuilder.queryBuilder = childBuilder.queryBuilder.limit(
+          pagination.limit,
+        );
       }
 
       // Apply custom query if any

@@ -159,10 +159,10 @@ const obj = new GraphORM({
           isMany: true,
           childColumn: 'parentId',
           parentColumn: 'id',
-        },
-        pagination: {
           order: 'ASC',
           sort: 'createdAt',
+        },
+        pagination: {
           limit: 50,
           hasNextPage: (size): boolean => size === 50,
           hasPreviousPage: (): boolean => false,
@@ -222,6 +222,22 @@ const obj = new GraphORM({
           isMany: false,
           parentColumn: 'postId',
           childColumn: 'id',
+        },
+      },
+    },
+  },
+  Notification: {
+    fields: {
+      avatars: {
+        relation: {
+          isMany: true,
+          sort: 'order',
+        },
+      },
+      attachments: {
+        relation: {
+          isMany: true,
+          sort: 'order',
         },
       },
     },
