@@ -55,7 +55,7 @@ export const workers: Worker[] = [
   postUpvotedRep,
   postUpvoteCanceledRep,
   sendAnalyticsReportMail,
-//   postCommentedAuthorTweet,
+  //   postCommentedAuthorTweet,
   postReachedViewsThresholdTweet,
   postCommentedRedis,
   postUpvotedRedis,
