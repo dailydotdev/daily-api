@@ -17,6 +17,9 @@ export class NotificationAvatar {
   type: NotificationAvatarType;
 
   @Column({ type: 'text' })
+  name: string;
+
+  @Column({ type: 'text' })
   image: string;
 
   @Column({ type: 'text' })
