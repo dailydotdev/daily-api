@@ -11,10 +11,14 @@ export class Notification1669639147706 implements MigrationInterface {
                                "type"           text    NOT NULL,
                                "image"          text    NOT NULL,
                                "title"          text    NOT NULL,
+                               "referenceId"    text    NOT NULL,
                                CONSTRAINT "PK_d2f110b41b98a931e0f9a6caf97" PRIMARY KEY ("notificationId", "order")
                              )`);
     await queryRunner.query(
       `CREATE INDEX "IDX_notification_attch_id" ON "notification_attachment" ("notificationId") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_notification_attch_type_reference_id" ON "notification_attachment" ("type", "referenceId") `,
     );
     await queryRunner.query(`CREATE TABLE "notification"
                              (

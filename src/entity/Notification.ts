@@ -12,7 +12,7 @@ import { NotificationAttachment } from './NotificationAttachment';
 
 export type NotificationType =
   | 'community_picks_failed'
-  | 'community_picks_success'
+  | 'community_picks_succeeded'
   | 'community_picks_granted'
   | 'article_picked'
   | 'article_new_comment'

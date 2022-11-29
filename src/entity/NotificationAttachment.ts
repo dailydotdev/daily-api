@@ -4,6 +4,7 @@ import { Notification } from './Notification';
 export type NotificationAttachmentType = 'post';
 
 @Entity()
+@Index('IDX_notification_attch_type_reference_id', ['type', 'referenceId'])
 export class NotificationAttachment {
   @PrimaryColumn({ type: 'uuid' })
   @Index('IDX_notification_attch_id')
@@ -20,6 +21,9 @@ export class NotificationAttachment {
 
   @Column({ type: 'text' })
   title: string;
+
+  @Column({ type: 'text' })
+  referenceId: string;
 
   @ManyToOne(() => Notification, {
     lazy: true,
