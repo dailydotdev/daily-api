@@ -81,10 +81,10 @@ export const workers: Worker[] = [
     topic: 'send-analytics-report',
     subscription: 'send-analytics-report-mail',
   },
-  {
+  /*{
     topic: 'post-commented',
     subscription: 'post-commented-author-tweet',
-  },
+  },*/
   {
     topic: 'post-reached-views-threshold',
     subscription: 'post-reached-views-threshold-tweet',
