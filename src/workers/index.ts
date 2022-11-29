@@ -17,8 +17,8 @@ import postCommentedSlackMessage from './postCommentedSlackMessage';
 import postUpvotedRep from './postUpvotedRep';
 import postUpvoteCanceledRep from './postUpvoteCanceledRep';
 import sendAnalyticsReportMail from './sendAnalyticsReportMail';
-import postCommentedAuthorTweet from './postCommentedAuthorTweet';
-import postReachedViewsThresholdTweet from './postReachedViewsThresholdTweet';
+// import postCommentedAuthorTweet from './postCommentedAuthorTweet';
+// import postReachedViewsThresholdTweet from './postReachedViewsThresholdTweet';
 import postCommentedRedis from './postCommentedRedis';
 import postUpvotedRedis from './postUpvotedRedis';
 import postBannedRep from './postBannedRep';
@@ -55,8 +55,8 @@ export const workers: Worker[] = [
   postUpvotedRep,
   postUpvoteCanceledRep,
   sendAnalyticsReportMail,
-  postCommentedAuthorTweet,
-  postReachedViewsThresholdTweet,
+  //   postCommentedAuthorTweet,
+  // postReachedViewsThresholdTweet,
   postCommentedRedis,
   postUpvotedRedis,
   postBannedRep,
