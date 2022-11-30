@@ -3,6 +3,7 @@ import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { Banner, Notification } from '../entity';
 import { ConnectionArguments } from 'graphql-relay';
+import { IsNull } from 'typeorm';
 
 interface GQLBanner {
   timestamp: Date;
@@ -155,6 +156,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         where: {
           userId: ctx.userId,
           public: true,
+          readAt: IsNull(),
         },
       }),
     banner: async (
