@@ -6,13 +6,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
 } from './helpers';
-import {
-  Banner,
-  Notification,
-  NotificationType,
-  Settings,
-  User,
-} from '../src/entity';
+import { Banner, Notification, NotificationType, User } from '../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import request from 'supertest';
