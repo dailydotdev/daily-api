@@ -1,7 +1,8 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { Banner } from '../entity';
+import { Banner, Notification } from '../entity';
+import { ConnectionArguments } from 'graphql-relay';
 
 interface GQLBanner {
   timestamp: Date;
@@ -127,6 +128,10 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     """
+    Get the active notification count for a user
+    """
+    notificationCount: Int @auth
+    """
     Get a banner to show, if any
     """
     banner(
@@ -141,6 +146,17 @@ export const typeDefs = /* GraphQL */ `
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
+    notificationCount: async (
+      source,
+      args: ConnectionArguments,
+      ctx,
+    ): Promise<number> =>
+      ctx.getRepository(Notification).count({
+        where: {
+          userId: ctx.userId,
+          public: true,
+        },
+      }),
     banner: async (
       source,
       { lastSeen }: { lastSeen: Date },
