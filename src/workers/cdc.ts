@@ -7,6 +7,7 @@ import {
   CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
   Feed,
+  Notification,
   Post,
   Settings,
   SourceFeed,
@@ -43,6 +44,7 @@ import {
   notifyUserDeleted,
   notifyUserUpdated,
   notifyUsernameChanged,
+  notifyNotificationsUpdated,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection, DataSource } from 'typeorm';
@@ -222,6 +224,18 @@ const onAlertsChange = async (
     await notifyAlertsUpdated(logger, data.payload.after);
   } else if (data.payload.op === 'c') {
     await notifyAlertsUpdated(logger, data.payload.after);
+  }
+};
+
+const onNotificationsChange = async (
+  con: DataSource,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<Notification>,
+): Promise<void> => {
+  if (data.payload.op === 'u') {
+    await notifyNotificationsUpdated(logger, data.payload.after);
+  } else if (data.payload.op === 'c') {
+    await notifyNotificationsUpdated(logger, data.payload.after);
   }
 };
 
@@ -441,6 +455,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Alerts):
           await onAlertsChange(con, logger, data);
+          break;
+        case getTableName(con, Notification):
+          await onNotificationsChange(con, logger, data);
           break;
         case getTableName(con, SourceFeed):
           await onSourceFeedChange(con, logger, data);

@@ -7,6 +7,7 @@ import {
   Settings,
   Submission,
   User,
+  Notification,
 } from '../entity';
 import { ChangeObject } from '../types';
 
@@ -24,6 +25,7 @@ const userUpdatedTopic = pubsub.topic('user-updated');
 const usernameChangedTopic = pubsub.topic('username-changed');
 const alertsUpdatedTopic = pubsub.topic('alerts-updated');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
+const notificationsUpdatedTopic = pubsub.topic('notifications-updated');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
 const postScoutMatchedTopic = pubsub.topic('post-scout-matched');
@@ -191,6 +193,11 @@ export const notifySettingsUpdated = (
   log: EventLogger,
   settings: ChangeObject<Settings>,
 ): Promise<void> => publishEvent(log, settingsUpdatedTopic, settings);
+
+export const notifyNotificationsUpdated = (
+  log: EventLogger,
+  notifications: ChangeObject<Notification>,
+): Promise<void> => publishEvent(log, notificationsUpdatedTopic, notifications);
 
 export const notifyCommentUpvoteCanceled = async (
   log: EventLogger,
