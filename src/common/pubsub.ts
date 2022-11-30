@@ -196,8 +196,9 @@ export const notifySettingsUpdated = (
 
 export const notifyNotificationsUpdated = (
   log: EventLogger,
-  notifications: ChangeObject<Notification>,
-): Promise<void> => publishEvent(log, notificationsUpdatedTopic, notifications);
+  notificationCount: ChangeObject<{ notificationCount: number }>,
+): Promise<void> =>
+  publishEvent(log, notificationsUpdatedTopic, notificationCount);
 
 export const notifyCommentUpvoteCanceled = async (
   log: EventLogger,

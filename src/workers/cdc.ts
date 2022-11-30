@@ -47,7 +47,7 @@ import {
   notifyNotificationsUpdated,
 } from '../common';
 import { ChangeMessage } from '../types';
-import { Connection, DataSource } from 'typeorm';
+import { Connection, DataSource, IsNull } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { viewsThresholds } from '../cron/viewsThreshold';
@@ -232,10 +232,15 @@ const onNotificationsChange = async (
   logger: FastifyLoggerInstance,
   data: ChangeMessage<Notification>,
 ): Promise<void> => {
-  if (data.payload.op === 'u') {
-    await notifyNotificationsUpdated(logger, data.payload.after);
-  } else if (data.payload.op === 'c') {
-    await notifyNotificationsUpdated(logger, data.payload.after);
+  if (['u', 'c'].includes(data.payload.op)) {
+    const notificationCount = await con.getRepository(Notification).count({
+      where: {
+        userId: data.payload.after.userId,
+        public: true,
+        readAt: IsNull(),
+      },
+    });
+    await notifyNotificationsUpdated(logger, { notificationCount });
   }
 };
 
