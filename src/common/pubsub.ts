@@ -7,7 +7,6 @@ import {
   Settings,
   Submission,
   User,
-  Notification,
 } from '../entity';
 import { ChangeObject } from '../types';
 
