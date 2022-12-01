@@ -114,7 +114,7 @@ describe('query notifications', () => {
     await con
       .getRepository(Notification)
       .save([
-        notificationFixture,
+        { ...notificationFixture },
         { ...notificationFixture, userId: '2', title: 'notification #2' },
       ]);
     const res = await client.query(QUERY);
@@ -126,7 +126,7 @@ describe('query notifications', () => {
     await con
       .getRepository(Notification)
       .save([
-        notificationFixture,
+        { ...notificationFixture },
         { ...notificationFixture, public: false, title: 'notification #2' },
       ]);
     const res = await client.query(QUERY);
@@ -137,7 +137,7 @@ describe('query notifications', () => {
     loggedUser = '1';
     const { id } = await con
       .getRepository(Notification)
-      .save(notificationFixture);
+      .save({ ...notificationFixture });
     await con.getRepository(NotificationAttachment).save([
       {
         notificationId: id,
