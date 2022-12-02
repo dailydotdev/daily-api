@@ -232,12 +232,16 @@ const obj = new GraphORM({
         relation: {
           isMany: true,
           sort: 'order',
+          childColumn: 'notificationId',
+          parentColumn: 'id',
         },
       },
       attachments: {
         relation: {
           isMany: true,
           sort: 'order',
+          childColumn: 'notificationId',
+          parentColumn: 'id',
         },
       },
     },

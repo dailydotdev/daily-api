@@ -4,6 +4,9 @@ import { Context } from '../Context';
 import { Banner, Notification } from '../entity';
 import { ConnectionArguments } from 'graphql-relay';
 import { IsNull } from 'typeorm';
+import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
+import graphorm from '../graphorm';
+import { createDatePageGenerator } from '../common/datePageGenerator';
 
 interface GQLBanner {
   timestamp: Date;
@@ -92,6 +95,20 @@ export const typeDefs = /* GraphQL */ `
     attachments: [NotificationAttachment!]
   }
 
+  type NotificationEdge {
+    node: Notification!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type NotificationConnection {
+    pageInfo: PageInfo!
+    edges: [NotificationEdge!]!
+  }
+
   """
   Information for displaying promotions and announcements
   """
@@ -141,8 +158,27 @@ export const typeDefs = /* GraphQL */ `
       """
       lastSeen: DateTime
     ): Banner @cacheControl(maxAge: 60)
+
+    notifications(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): NotificationConnection! @auth
   }
 `;
+
+const notificationsPageGenerator = createDatePageGenerator<
+  Notification,
+  'createdAt'
+>({
+  key: 'createdAt',
+});
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
@@ -170,5 +206,37 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         .where('timestamp > :last', { last: lastSeen })
         .orderBy('timestamp', 'DESC')
         .getOne(),
+    notifications: async (
+      source,
+      args: ConnectionArguments,
+      ctx,
+      info,
+    ): Promise<ConnectionRelay<Notification>> => {
+      const page = notificationsPageGenerator.connArgsToPage(args);
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) =>
+          notificationsPageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => notificationsPageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          notificationsPageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .andWhere(`${builder.alias}."userId" = :user`, { user: ctx.userId })
+            .andWhere(`${builder.alias}."public" = true`)
+            .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+          builder.queryBuilder.limit(page.limit);
+          if (page.timestamp) {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}."createdAt" < :timestamp`,
+              { timestamp: page.timestamp },
+            );
+          }
+          return builder;
+        },
+      );
+    },
   },
 });
