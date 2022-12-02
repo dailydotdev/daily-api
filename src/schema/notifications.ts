@@ -131,7 +131,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the active notification count for a user
     """
-    notificationCount: Int @auth
+    unreadNotificationsCount: Int @auth
     """
     Get a banner to show, if any
     """
