@@ -183,7 +183,7 @@ const notificationsPageGenerator = createDatePageGenerator<
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
-    notificationCount: async (
+    unreadNotificationsCount: async (
       source,
       args: ConnectionArguments,
       ctx,
