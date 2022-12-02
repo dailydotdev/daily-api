@@ -6,6 +6,8 @@ import { Connection as ConnectionRelay } from 'graphql-relay/connection/connecti
 import graphorm from '../graphorm';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { ConnectionArguments } from 'graphql-relay';
+import { GQLEmptyResponse } from './common';
+import { IsNull } from 'typeorm';
 
 interface GQLBanner {
   timestamp: Date;
@@ -166,6 +168,10 @@ export const typeDefs = /* GraphQL */ `
       first: Int
     ): NotificationConnection! @auth
   }
+
+  extend type Mutation {
+    readNotifications: EmptyResponse @auth
+  }
 `;
 
 const notificationsPageGenerator = createDatePageGenerator<
@@ -220,6 +226,18 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           return builder;
         },
       );
+    },
+  },
+  Mutation: {
+    readNotifications: async (source, _, ctx): Promise<GQLEmptyResponse> => {
+      await ctx.getRepository(Notification).update(
+        {
+          userId: ctx.userId,
+          readAt: IsNull(),
+        },
+        { readAt: new Date() },
+      );
+      return { _: true };
     },
   },
 });
