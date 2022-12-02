@@ -233,14 +233,16 @@ const onNotificationsChange = async (
   data: ChangeMessage<Notification>,
 ): Promise<void> => {
   if (['u', 'c'].includes(data.payload.op)) {
-    const notificationCount = await con.getRepository(Notification).count({
-      where: {
-        userId: data.payload.after.userId,
-        public: true,
-        readAt: IsNull(),
-      },
-    });
-    await notifyNotificationsUpdated(logger, { notificationCount });
+    const unreadNotificationsCount = await con
+      .getRepository(Notification)
+      .count({
+        where: {
+          userId: data.payload.after.userId,
+          public: true,
+          readAt: IsNull(),
+        },
+      });
+    await notifyNotificationsUpdated(logger, { unreadNotificationsCount });
   }
 };
 

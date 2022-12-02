@@ -60,7 +60,7 @@ describe('notifications route', () => {
 
   it('should return 0 notifications by default', async () => {
     loggedUser = '1';
-    const expected = { notificationCount: 0 };
+    const expected = { unreadNotificationsCount: 0 };
     const res = await authorizeRequest(
       request(app.server).get('/notifications'),
     ).expect(200);
@@ -87,7 +87,7 @@ describe('notifications route', () => {
     ];
     await repo.save(settings);
 
-    const expected = { notificationCount: 1 };
+    const expected = { unreadNotificationsCount: 1 };
     const res = await authorizeRequest(
       request(app.server).get('/notifications'),
     ).expect(200);
@@ -97,13 +97,13 @@ describe('notifications route', () => {
 
 describe('query notification count', () => {
   const QUERY = (): string => `{
-  notificationCount
+  unreadNotificationsCount
 }`;
 
   it('should return empty response by default', async () => {
     loggedUser = '1';
     const res = await client.query(QUERY());
-    expect(res.data).toEqual({ notificationCount: 0 });
+    expect(res.data).toEqual({ unreadNotificationsCount: 0 });
   });
 
   it('should return 1 if unread notifications', async () => {
@@ -126,7 +126,7 @@ describe('query notification count', () => {
       },
     ]);
     const res = await client.query(QUERY());
-    expect(res.data).toEqual({ notificationCount: 1 });
+    expect(res.data).toEqual({ unreadNotificationsCount: 1 });
   });
 });
 
