@@ -1,13 +1,14 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { Banner, Notification } from '../entity';
+import { Banner, getUnreadNotificationsCount, Notification } from '../entity';
+import { ConnectionArguments } from 'graphql-relay';
+import { IsNull } from 'typeorm';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
 import graphorm from '../graphorm';
 import { createDatePageGenerator } from '../common/datePageGenerator';
-import { ConnectionArguments } from 'graphql-relay';
 import { GQLEmptyResponse } from './common';
-import { IsNull } from 'typeorm';
+import { notifyNotificationsRead } from '../common';
 
 interface GQLBanner {
   timestamp: Date;
@@ -147,6 +148,10 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     """
+    Get the active notification count for a user
+    """
+    unreadNotificationsCount: Int @auth
+    """
     Get a banner to show, if any
     """
     banner(
@@ -184,6 +189,12 @@ const notificationsPageGenerator = createDatePageGenerator<
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
+    unreadNotificationsCount: async (
+      source,
+      args: ConnectionArguments,
+      ctx,
+    ): Promise<number> =>
+      await getUnreadNotificationsCount(ctx.con, ctx.userId),
     banner: async (
       source,
       { lastSeen }: { lastSeen: Date },
@@ -237,6 +248,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
         { readAt: new Date() },
       );
+      await notifyNotificationsRead(ctx.log, {
+        unreadNotificationsCount: 0,
+      });
       return { _: true };
     },
   },

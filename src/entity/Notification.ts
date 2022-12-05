@@ -1,7 +1,9 @@
 import {
   Column,
+  DataSource,
   Entity,
   Index,
+  IsNull,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -79,3 +81,15 @@ export class Notification {
   )
   attachments: Promise<NotificationAttachment[]>;
 }
+
+export const getUnreadNotificationsCount = async (
+  con: DataSource,
+  userId: string,
+) =>
+  await con.getRepository(Notification).count({
+    where: {
+      userId,
+      public: true,
+      readAt: IsNull(),
+    },
+  });
