@@ -7,6 +7,7 @@ import {
   CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
   Feed,
+  getUnreadNotificationsCount,
   Notification,
   Post,
   Settings,
@@ -44,7 +45,7 @@ import {
   notifyUserDeleted,
   notifyUserUpdated,
   notifyUsernameChanged,
-  notifyNotificationsUpdated,
+  notifyNotificationsRead,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { Connection, DataSource, IsNull } from 'typeorm';
@@ -232,17 +233,12 @@ const onNotificationsChange = async (
   logger: FastifyLoggerInstance,
   data: ChangeMessage<Notification>,
 ): Promise<void> => {
-  if (['c'].includes(data.payload.op)) {
-    const unreadNotificationsCount = await con
-      .getRepository(Notification)
-      .count({
-        where: {
-          userId: data.payload.after.userId,
-          public: true,
-          readAt: IsNull(),
-        },
-      });
-    await notifyNotificationsUpdated(logger, { unreadNotificationsCount });
+  if (data.payload.op === 'c') {
+    const unreadNotificationsCount = await getUnreadNotificationsCount(
+      con,
+      data.payload.after.userId,
+    );
+    await notifyNotificationsRead(logger, { unreadNotificationsCount });
   }
 };
 

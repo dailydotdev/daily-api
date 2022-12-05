@@ -24,7 +24,7 @@ const userUpdatedTopic = pubsub.topic('user-updated');
 const usernameChangedTopic = pubsub.topic('username-changed');
 const alertsUpdatedTopic = pubsub.topic('alerts-updated');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
-const notificationsUpdatedTopic = pubsub.topic('api.v1.notifications-read');
+const notificationsReadTopic = pubsub.topic('api.v1.notifications-read');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
 const postScoutMatchedTopic = pubsub.topic('post-scout-matched');
@@ -193,11 +193,11 @@ export const notifySettingsUpdated = (
   settings: ChangeObject<Settings>,
 ): Promise<void> => publishEvent(log, settingsUpdatedTopic, settings);
 
-export const notifyNotificationsUpdated = (
+export const notifyNotificationsRead = (
   log: EventLogger,
   unreadNotificationsCount: ChangeObject<{ unreadNotificationsCount: number }>,
 ): Promise<void> =>
-  publishEvent(log, notificationsUpdatedTopic, unreadNotificationsCount);
+  publishEvent(log, notificationsReadTopic, unreadNotificationsCount);
 
 export const notifyCommentUpvoteCanceled = async (
   log: EventLogger,

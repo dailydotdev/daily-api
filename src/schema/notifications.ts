@@ -1,14 +1,14 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { Banner, Notification } from '../entity';
+import { Banner, getUnreadNotificationsCount, Notification } from '../entity';
 import { ConnectionArguments } from 'graphql-relay';
 import { IsNull } from 'typeorm';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
 import graphorm from '../graphorm';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { GQLEmptyResponse } from './common';
-import { notifyNotificationsUpdated } from '../common';
+import { notifyNotificationsRead } from '../common';
 
 interface GQLBanner {
   timestamp: Date;
@@ -193,14 +193,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       source,
       args: ConnectionArguments,
       ctx,
-    ): Promise<number> =>
-      ctx.getRepository(Notification).count({
-        where: {
-          userId: ctx.userId,
-          public: true,
-          readAt: IsNull(),
-        },
-      }),
+    ): Promise<number> => await getUnreadNotificationsCount(ctx, ctx.userId),
     banner: async (
       source,
       { lastSeen }: { lastSeen: Date },
@@ -254,7 +247,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
         { readAt: new Date() },
       );
-      await notifyNotificationsUpdated(ctx.log, {
+      await notifyNotificationsRead(ctx.log, {
         unreadNotificationsCount: 0,
       });
       return { _: true };
