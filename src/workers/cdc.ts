@@ -48,7 +48,7 @@ import {
   notifyNotificationsRead,
 } from '../common';
 import { ChangeMessage } from '../types';
-import { Connection, DataSource, IsNull } from 'typeorm';
+import { Connection, DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { viewsThresholds } from '../cron/viewsThreshold';
