@@ -193,7 +193,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       source,
       args: ConnectionArguments,
       ctx,
-    ): Promise<number> => await getUnreadNotificationsCount(ctx, ctx.userId),
+    ): Promise<number> =>
+      await getUnreadNotificationsCount(ctx.con, ctx.userId),
     banner: async (
       source,
       { lastSeen }: { lastSeen: Date },
