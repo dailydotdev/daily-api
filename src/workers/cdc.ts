@@ -232,7 +232,7 @@ const onNotificationsChange = async (
   logger: FastifyLoggerInstance,
   data: ChangeMessage<Notification>,
 ): Promise<void> => {
-  if (['u', 'c'].includes(data.payload.op)) {
+  if (['c'].includes(data.payload.op)) {
     const unreadNotificationsCount = await con
       .getRepository(Notification)
       .count({

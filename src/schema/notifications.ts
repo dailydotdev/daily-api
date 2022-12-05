@@ -7,9 +7,8 @@ import { IsNull } from 'typeorm';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
 import graphorm from '../graphorm';
 import { createDatePageGenerator } from '../common/datePageGenerator';
-import { ConnectionArguments } from 'graphql-relay';
 import { GQLEmptyResponse } from './common';
-import { IsNull } from 'typeorm';
+import { notifyNotificationsUpdated } from '../common';
 
 interface GQLBanner {
   timestamp: Date;
@@ -255,6 +254,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
         { readAt: new Date() },
       );
+      await notifyNotificationsUpdated(ctx.log, {
+        unreadNotificationsCount: 0,
+      });
       return { _: true };
     },
   },
