@@ -5,6 +5,7 @@ import {
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
+  testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
 import {
@@ -287,5 +288,51 @@ describe('query notifications', () => {
       },
     });
     expect(res2.data).toMatchSnapshot();
+  });
+});
+
+describe('mutation readNotifications', () => {
+  const QUERY = `
+  mutation ReadNotifications {
+    readNotifications {
+      _
+    }
+}`;
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(client, { mutation: QUERY }, 'UNAUTHENTICATED'));
+
+  it('should set unread notifications as read', async () => {
+    loggedUser = '1';
+    await con.getRepository(Notification).save([
+      { ...notificationFixture },
+      {
+        ...notificationFixture,
+        readAt: new Date(),
+        createdAt: subDays(notificationFixture.createdAt as Date, 1),
+      },
+      {
+        ...notificationFixture,
+        createdAt: subDays(notificationFixture.createdAt as Date, 2),
+      },
+      {
+        ...notificationFixture,
+        readAt: new Date(),
+        createdAt: subDays(notificationFixture.createdAt as Date, 3),
+      },
+      {
+        ...notificationFixture,
+        userId: '2',
+      },
+    ]);
+    await client.mutate(QUERY);
+    const res1 = await con
+      .getRepository(Notification)
+      .find({ where: { userId: '1' }, order: { createdAt: 'desc' } });
+    res1.map((notification) => expect(notification.readAt).toBeTruthy());
+    const res2 = await con
+      .getRepository(Notification)
+      .find({ where: { userId: '2' }, order: { createdAt: 'desc' } });
+    res2.map((notification) => expect(notification.readAt).toBeFalsy());
   });
 });
