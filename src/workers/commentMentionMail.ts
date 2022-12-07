@@ -5,6 +5,8 @@ import { Comment, User } from '../entity';
 import { getDiscussionLink, pickImageUrl } from '../common';
 import { baseNotificationEmailData, sendEmail, truncatePost } from '../common';
 import { DataSource } from 'typeorm';
+import { ChangeObject } from '../types';
+import { messageToJson, Worker } from './worker';
 
 const removeFirstWordIfMention = (comment: string, username: string) => {
   const mention = `@${username}`;
@@ -18,7 +20,7 @@ const removeFirstWordIfMention = (comment: string, username: string) => {
   return firstWord === mention ? content.join(' ') : comment;
 };
 
-export const sendEmailToMentionedUser = async (
+const sendEmailToMentionedUser = async (
   con: DataSource,
   { commentId, mentionedUserId }: CommentMention,
   logger: FastifyLoggerInstance,
@@ -64,3 +66,17 @@ export const sendEmailToMentionedUser = async (
   });
   logger.info('comment mention email sent to: ' + commenter.id);
 };
+
+interface Data {
+  commentMention: ChangeObject<CommentMention>;
+}
+
+const worker: Worker = {
+  subscription: 'comment-mention-mail',
+  handler: async (message, con, logger): Promise<void> => {
+    const data: Data = messageToJson(message);
+    await sendEmailToMentionedUser(con, data.commentMention, logger);
+  },
+};
+
+export default worker;
