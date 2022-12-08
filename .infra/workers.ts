@@ -130,4 +130,12 @@ export const workers: Worker[] = [
     subscription: 'api-cdc',
     args: { enableMessageOrdering: true },
   },
+  {
+    topic: 'api.v1.new-notification',
+    subscription: 'api.unread-notification-count',
+  },
+  {
+    topic: 'api.v1.new-notification',
+    subscription: 'api.new-notification-redis',
+  },
 ];

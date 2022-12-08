@@ -7,7 +7,6 @@ import {
   CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
   Feed,
-  getUnreadNotificationsCount,
   Notification,
   Post,
   Settings,
@@ -45,10 +44,10 @@ import {
   notifyUserDeleted,
   notifyUserUpdated,
   notifyUsernameChanged,
-  notifyNotificationsRead,
+  notifyNewNotification,
 } from '../common';
 import { ChangeMessage } from '../types';
-import { Connection, DataSource } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { viewsThresholds } from '../cron/viewsThreshold';
@@ -234,16 +233,12 @@ const onNotificationsChange = async (
   data: ChangeMessage<Notification>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
-    const unreadNotificationsCount = await getUnreadNotificationsCount(
-      con,
-      data.payload.after.userId,
-    );
-    await notifyNotificationsRead(logger, { unreadNotificationsCount });
+    await notifyNewNotification(logger, data.payload.after);
   }
 };
 
 const onSettingsChange = async (
-  _: Connection,
+  _: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<Settings>,
 ): Promise<void> => {

@@ -1,6 +1,6 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
-import { Context } from '../Context';
+import { Context, SubscriptionContext } from '../Context';
 import { Banner, getUnreadNotificationsCount, Notification } from '../entity';
 import { ConnectionArguments } from 'graphql-relay';
 import { IsNull } from 'typeorm';
@@ -9,6 +9,8 @@ import graphorm from '../graphorm';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { GQLEmptyResponse } from './common';
 import { notifyNotificationsRead } from '../common';
+import { redisPubSub } from '../redis';
+import { GQLPostNotification } from './posts';
 
 interface GQLBanner {
   timestamp: Date;
@@ -177,6 +179,13 @@ export const typeDefs = /* GraphQL */ `
   extend type Mutation {
     readNotifications: EmptyResponse @auth
   }
+
+  extend type Subscription {
+    """
+    Get notified when there's a new notification
+    """
+    newNotifications: Notification @auth
+  }
 `;
 
 const notificationsPageGenerator = createDatePageGenerator<
@@ -252,6 +261,28 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         unreadNotificationsCount: 0,
       });
       return { _: true };
+    },
+  },
+  Subscription: {
+    //TODO: decide on a proper data model
+    newNotifications: {
+      subscribe: async (
+        source,
+        args,
+        ctx: SubscriptionContext,
+      ): Promise<AsyncIterator<{ newNotifications: Notification }>> => {
+        const it = {
+          [Symbol.asyncIterator]: () =>
+            redisPubSub.asyncIterator<Notification>(
+              `events.notifications.${ctx.userId}.new`,
+            ),
+        };
+        return (async function* () {
+          for await (const value of it) {
+            yield { newNotifications: value };
+          }
+        })();
+      },
     },
   },
 });
