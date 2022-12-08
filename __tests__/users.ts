@@ -1601,7 +1601,7 @@ describe('mutation updateUserProfile', () => {
     const user = await repo.findOneBy({ id: loggedUser });
     const timezone = 'Asia/Manila';
     const res = await client.mutate(MUTATION, {
-      variables: { data: { timezone, username: 'a1' } },
+      variables: { data: { timezone, username: 'a1', name: 'Ido' } },
     });
 
     expect(res.errors?.length).toBeFalsy();
@@ -1622,7 +1622,7 @@ describe('mutation updateUserProfile', () => {
     const username = 'a1';
     expect(user?.infoConfirmed).toBeFalsy();
     const res = await client.mutate(MUTATION, {
-      variables: { data: { username } },
+      variables: { data: { username, name: user.name } },
     });
     expect(res.errors?.length).toBeFalsy();
     const updatedUser = await repo.findOneBy({ id: loggedUser });
@@ -1638,11 +1638,31 @@ describe('mutation updateUserProfile', () => {
     const email = 'sample@daily.dev';
     expect(user?.infoConfirmed).toBeFalsy();
     const res = await client.mutate(MUTATION, {
-      variables: { data: { email } },
+      variables: { data: { email, username: 'u1', name: user.name } },
     });
     expect(res.errors?.length).toBeFalsy();
     const updatedUser = await repo.findOneBy({ id: loggedUser });
     expect(updatedUser?.email).toEqual(email);
+  });
+
+  it('should not update if username is empty', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { name: 'Ido' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update if name is empty', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { username: 'u1' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
   });
 
   it('should not update user profile if email exists', async () => {
