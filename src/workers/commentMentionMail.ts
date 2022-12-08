@@ -72,7 +72,7 @@ interface Data {
 }
 
 const worker: Worker = {
-  subscription: 'comment-mention-mail',
+  subscription: 'api.comment-mention-mail',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     await sendEmailToMentionedUser(con, data.commentMention, logger);

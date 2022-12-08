@@ -132,7 +132,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.new-comment-mention',
-    subscription: 'comment-mention-mail',
+    subscription: 'api.comment-mention-mail',
   },
   // Notifications
   {
