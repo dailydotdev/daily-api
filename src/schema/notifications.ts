@@ -10,7 +10,6 @@ import { createDatePageGenerator } from '../common/datePageGenerator';
 import { GQLEmptyResponse } from './common';
 import { notifyNotificationsRead } from '../common';
 import { redisPubSub } from '../redis';
-import { GQLPostNotification } from './posts';
 
 interface GQLBanner {
   timestamp: Date;
