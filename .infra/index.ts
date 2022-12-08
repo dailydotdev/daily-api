@@ -140,7 +140,7 @@ if (isAdhocEnv) {
     {
       nameSuffix: 'bg',
       args: ['npm', 'run', 'dev:background'],
-      minReplicas: 3,
+      minReplicas: 4,
       maxReplicas: 10,
       limits: bgLimits,
       metric: {
