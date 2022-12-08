@@ -23,7 +23,7 @@ export const getDiscussionLink = (postId: string, commentId = ''): string =>
 export const getSourceLink = (sourceId: string): string =>
   `${process.env.COMMENTS_PREFIX}/sources/${sourceId}`;
 
-export const scoutArticleLink = `${process.env.COMMENTS_PREFIX}/scout`;
+export const scoutArticleLink = `${process.env.COMMENTS_PREFIX}?scout=true`;
 
 export const standardizeURL = (url: string): string => {
   const domain = subtractDomain(url);

@@ -7,7 +7,7 @@ import {
 import { DeepPartial, EntityManager } from 'typeorm';
 import { NotificationBuilder } from './builder';
 import { NotificationBaseContext, NotificationBundle } from './types';
-import { generateNotificationMap } from './generate';
+import { generateNotificationMap, notificationTitleMap } from './generate';
 
 export * from './types';
 
@@ -15,10 +15,10 @@ export function generateNotification(
   type: NotificationType,
   ctx: NotificationBaseContext,
 ): NotificationBundle {
-  return generateNotificationMap[type](
-    NotificationBuilder.new(type, ctx.userId),
-    ctx,
-  ).build();
+  const builder = NotificationBuilder.new(type, ctx.userId).title(
+    notificationTitleMap[type](ctx),
+  );
+  return generateNotificationMap[type](builder, ctx).build();
 }
 
 const concatNotificationChildren = <
