@@ -477,7 +477,7 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
   }
 
-  type Subscription {
+  extend type Subscription {
     """
     Get notified when one of the given posts is upvoted or comments
     """
@@ -746,13 +746,6 @@ export const resolvers: IResolvers<any, Context> = {
         };
         return (async function* () {
           for await (const value of it) {
-            // const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
-            //   queryBuilder: builder.queryBuilder.where(
-            //     `"${builder.alias}"."id" = :id`,
-            //     { id: value.postId },
-            //   ),
-            //   ...builder,
-            // }));
             yield { postsEngaged: value };
           }
         })();

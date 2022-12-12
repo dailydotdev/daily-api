@@ -30,6 +30,8 @@ import cdc from './cdc';
 import sourceRequestMail from './sourceRequestMail';
 import updateMailingList from './updateMailingList';
 import deleteUserFromMailingList from './deleteUserFromMailingList';
+import unreadNotificationCount from './unreadNotificationCount';
+import newNotificationRealTime from './newNotificationRealTime';
 import commentMentionMail from './commentMentionMail';
 import { workers as notificationWorkers } from './notifications';
 
@@ -66,6 +68,8 @@ export const workers: Worker[] = [
   sourceRequestApprovedRep,
   usernameChanged,
   updateComments,
+  unreadNotificationCount,
+  newNotificationRealTime,
   cdc,
   commentMentionMail,
   ...notificationWorkers,

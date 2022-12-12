@@ -25,6 +25,7 @@ import {
   notifySubmissionCreated,
   notifySubmissionGrantedAccess,
   notifyUsernameChanged,
+  notifyNewNotification,
   notifyNewCommentMention,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
@@ -39,6 +40,7 @@ import {
   CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
   Feed,
+  Notification,
   Post,
   Settings,
   Source,
@@ -84,6 +86,8 @@ jest.mock('../../src/common', () => ({
   notifySubmissionCreated: jest.fn(),
   notifySubmissionGrantedAccess: jest.fn(),
   notifyNewCommentMention: jest.fn(),
+  notifyNewNotification: jest.fn(),
+  sendEmail: jest.fn(),
 }));
 
 let con: DataSource;
@@ -1069,5 +1073,37 @@ describe('submission', () => {
     expect(
       jest.mocked(notifySubmissionRejected).mock.calls[0].slice(1),
     ).toEqual([after]);
+  });
+});
+
+describe('notification', () => {
+  type ObjectType = Notification;
+  const id = randomUUID();
+  const base: ChangeObject<ObjectType> = {
+    id,
+    userId: '1',
+    type: 'community_picks_granted',
+    title: 'hello',
+    targetUrl: 'target',
+    icon: 'icon',
+    public: true,
+    createdAt: Date.now(),
+  };
+
+  it('should notify new notification', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'notification',
+      }),
+    );
+    expect(notifyNewNotification).toBeCalledTimes(1);
+    expect(jest.mocked(notifyNewNotification).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
   });
 });

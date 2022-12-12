@@ -7,6 +7,7 @@ import {
   Settings,
   Submission,
   User,
+  Notification,
   CommentMention,
 } from '../entity';
 import { ChangeObject } from '../types';
@@ -40,6 +41,7 @@ const sourceFeedRemovedTopic = pubsub.topic('source-feed-removed');
 const communityLinkAccessTopic = pubsub.topic('community-link-access');
 const communityLinkRejectedTopic = pubsub.topic('community-link-rejected');
 const communityLinkSubmittedTopic = pubsub.topic('community-link-submitted');
+const newNotificationTopic = pubsub.topic('api.v1.new-notification');
 const newCommentMentionTopic = pubsub.topic('api.v1.new-comment-mention');
 
 export enum NotificationReason {
@@ -313,6 +315,11 @@ export const notifySubmissionGrantedAccess = async (
   log: EventLogger,
   userId: string,
 ): Promise<void> => publishEvent(log, communityLinkAccessTopic, { userId });
+
+export const notifyNewNotification = async (
+  log: EventLogger,
+  notification: ChangeObject<Notification>,
+): Promise<void> => publishEvent(log, newNotificationTopic, { notification });
 
 export const notifyNewCommentMention = async (
   log: EventLogger,

@@ -131,6 +131,14 @@ export const workers: Worker[] = [
     args: { enableMessageOrdering: true },
   },
   {
+    topic: 'api.v1.new-notification',
+    subscription: 'api.unread-notification-count',
+  },
+  {
+    topic: 'api.v1.new-notification',
+    subscription: 'api.new-notification-real-time',
+  },
+  {
     topic: 'api.v1.new-comment-mention',
     subscription: 'api.comment-mention-mail',
   },
