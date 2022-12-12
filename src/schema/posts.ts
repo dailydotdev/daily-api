@@ -477,7 +477,7 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
   }
 
-  type Subscription {
+  extend type Subscription {
     """
     Get notified when one of the given posts is upvoted or comments
     """

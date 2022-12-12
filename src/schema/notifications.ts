@@ -179,7 +179,7 @@ export const typeDefs = /* GraphQL */ `
     readNotifications: EmptyResponse @auth
   }
 
-  extend type Subscription {
+  type Subscription {
     """
     Get notified when there's a new notification
     """
@@ -263,7 +263,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
   },
   Subscription: {
-    //TODO: decide on a proper data model
     newNotifications: {
       subscribe: async (
         source,
