@@ -20,10 +20,11 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await saveFixtures(con, User, [usersFixture[0]]);
+  jest.resetAllMocks();
+  await saveFixtures(con, User, usersFixture);
 });
 
-it('should notify notifications read with the updated value', async () => {
+it('should notify notifications read with zero', async () => {
   await expectSuccessfulBackground(worker, {
     notification: { userId: '1' },
   });
@@ -33,7 +34,7 @@ it('should notify notifications read with the updated value', async () => {
   ]);
 });
 
-it('should notify notifications read with the updated value', async () => {
+it('should notify notifications read with 1', async () => {
   await con.getRepository(Notification).save([
     { ...notificationFixture },
     {
