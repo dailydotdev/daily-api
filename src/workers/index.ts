@@ -32,6 +32,8 @@ import updateMailingList from './updateMailingList';
 import deleteUserFromMailingList from './deleteUserFromMailingList';
 import unreadNotificationCount from './unreadNotificationCount';
 import newNotificationRedis from './newNotificationRedis';
+import commentMentionMail from './commentMentionMail';
+import { workers as notificationWorkers } from './notifications';
 
 export { Worker } from './worker';
 
@@ -69,4 +71,6 @@ export const workers: Worker[] = [
   unreadNotificationCount,
   newNotificationRedis,
   cdc,
+  commentMentionMail,
+  ...notificationWorkers,
 ];

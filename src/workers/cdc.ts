@@ -45,6 +45,8 @@ import {
   notifyUserUpdated,
   notifyUsernameChanged,
   notifyNewNotification,
+  notifyNotificationsRead,
+  notifyNewCommentMention,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
@@ -54,7 +56,6 @@ import { viewsThresholds } from '../cron/viewsThreshold';
 import { PostReport, Alerts } from '../entity';
 import { reportReasons } from '../schema/posts';
 import { updateAlerts } from '../schema/alerts';
-import { sendEmailToMentionedUser } from './commentMentionEmail';
 import { submissionAccessThreshold } from '../schema/submissions';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
@@ -146,7 +147,7 @@ const onCommentMentionChange = async (
   data: ChangeMessage<CommentMention>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
-    await sendEmailToMentionedUser(con, data.payload.after, logger);
+    await notifyNewCommentMention(logger, data.payload.after);
   }
 };
 

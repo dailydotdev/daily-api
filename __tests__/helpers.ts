@@ -25,6 +25,10 @@ import pino from 'pino';
 import { createMercuriusTestClient } from 'mercurius-integration-testing';
 import appFunc from '../src';
 import createOrGetConnection from '../src/db';
+import {
+  NotificationHandlerReturn,
+  NotificationWorker,
+} from '../src/workers/notifications/worker';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -190,6 +194,15 @@ export const expectSuccessfulBackground = (
   worker: Worker,
   data: Record<string, unknown>,
 ): Promise<void> => invokeBackground(worker, data);
+
+export const invokeNotificationWorker = async (
+  worker: NotificationWorker,
+  data: Record<string, unknown>,
+): Promise<NotificationHandlerReturn> => {
+  const con = await createOrGetConnection();
+  const logger = pino();
+  return worker.handler(mockMessage(data).message, con, logger);
+};
 
 export const invokeCron = async (cron: Cron): Promise<void> => {
   const con = await createOrGetConnection();
