@@ -65,7 +65,7 @@ export const typeDefs = /* GraphQL */ `
     """
     type: String!
     """
-    URL of the icon of the notification
+    Icon type of the notification
     """
     icon: String!
     """

@@ -31,7 +31,7 @@ import sourceRequestMail from './sourceRequestMail';
 import updateMailingList from './updateMailingList';
 import deleteUserFromMailingList from './deleteUserFromMailingList';
 import unreadNotificationCount from './unreadNotificationCount';
-import newNotificationRedis from './newNotificationRedis';
+import newNotificationRealTime from './newNotificationRealTime';
 import commentMentionMail from './commentMentionMail';
 import { workers as notificationWorkers } from './notifications';
 
@@ -69,7 +69,7 @@ export const workers: Worker[] = [
   usernameChanged,
   updateComments,
   unreadNotificationCount,
-  newNotificationRedis,
+  newNotificationRealTime,
   cdc,
   commentMentionMail,
   ...notificationWorkers,
