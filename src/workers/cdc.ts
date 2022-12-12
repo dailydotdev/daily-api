@@ -45,7 +45,6 @@ import {
   notifyUserUpdated,
   notifyUsernameChanged,
   notifyNewNotification,
-  notifyNotificationsRead,
   notifyNewCommentMention,
 } from '../common';
 import { ChangeMessage } from '../types';
