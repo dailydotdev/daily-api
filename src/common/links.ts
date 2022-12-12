@@ -20,6 +20,11 @@ export const getDiscussionLink = (postId: string, commentId = ''): string =>
     commentId && `#c-${commentId}`
   }`;
 
+export const getSourceLink = (sourceId: string): string =>
+  `${process.env.COMMENTS_PREFIX}/sources/${sourceId}`;
+
+export const scoutArticleLink = `${process.env.COMMENTS_PREFIX}?scout=true`;
+
 export const standardizeURL = (url: string): string => {
   const domain = subtractDomain(url);
   if (!isExcluded(domain)) {

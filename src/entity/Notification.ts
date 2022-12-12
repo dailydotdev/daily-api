@@ -23,14 +23,26 @@ export type NotificationType =
   | 'article_analytics'
   | 'source_approved'
   | 'source_rejected'
-  | 'new_badge'
   | 'comment_mention'
   | 'comment_reply'
   | 'comment_upvote_milestone';
 
+export type NotificationReferenceType =
+  | 'source_request'
+  | 'post'
+  | 'submission'
+  | 'comment'
+  | 'system';
+
 @Entity()
 @Index('IDX_notification_user_id_created_at', ['userId', 'public', 'createdAt'])
 @Index('IDX_notification_user_id_read_at', ['userId', 'readAt'])
+@Index('ID_notification_reference', ['referenceId', 'referenceType'])
+@Index(
+  'ID_notification_uniqueness',
+  ['type', 'userId', 'referenceId', 'referenceType', 'uniqueKey'],
+  { unique: true },
+)
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -62,6 +74,15 @@ export class Notification {
 
   @Column({ default: true })
   public: boolean;
+
+  @Column({ type: 'text', nullable: true })
+  referenceId?: string;
+
+  @Column({ type: 'text', nullable: true })
+  referenceType?: NotificationReferenceType;
+
+  @Column({ type: 'text', default: '0' })
+  uniqueKey?: string;
 
   @ManyToOne(() => User, {
     lazy: true,
