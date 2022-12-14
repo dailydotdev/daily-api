@@ -29,7 +29,10 @@ export const templateId = {
   sourceRequestSubmitted: 'd-9254665878014627b4fd71593f09d975',
 };
 
-export const addUtm = (url: string, notificationType: string): string =>
+export const addNotificationEmailUtm = (
+  url: string,
+  notificationType: string,
+): string =>
   `${url}?utm_source=notification&utm_medium=email&utm_campaign=${notificationType}`;
 
 export const getFirstName = (name: string): string =>

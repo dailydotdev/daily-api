@@ -7,13 +7,14 @@ import {
   Notification,
   NotificationAttachment,
   NotificationAvatar,
+  NotificationType,
   Post,
   SourceRequest,
   Submission,
   User,
 } from '../entity';
 import {
-  addUtm,
+  addNotificationEmailUtm,
   baseNotificationEmailData,
   formatMailDate,
   getFirstName,
@@ -29,7 +30,7 @@ interface Data {
   notification: ChangeObject<Notification>;
 }
 
-const notificationToTemplateId: Record<string, string> = {
+const notificationToTemplateId: Record<NotificationType, string> = {
   community_picks_failed: 'd-43cf7ff439ff4391839e946940499b30',
   community_picks_succeeded: 'd-ee7d7cfc461a43b4be776f70940fa867',
   community_picks_granted: 'd-6d17b936f1f245e486f1a85323240332',
@@ -52,7 +53,7 @@ type TemplateDataFunc = (
   attachments: NotificationAttachment[],
   avatars: NotificationAvatar[],
 ) => Promise<Record<string, string | number> | null>;
-const notificationToTemplateData: Record<string, TemplateDataFunc> = {
+const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   community_picks_failed: async (con, user, notification) => {
     const submission = await con
       .getRepository(Submission)
@@ -82,7 +83,10 @@ const notificationToTemplateData: Record<string, TemplateDataFunc> = {
       post_title: truncatePostToTweet(post),
       post_image: post.image || pickImageUrl(post),
       article_link: post.url,
-      discussion_link: addUtm(notification.targetUrl, notification.type),
+      discussion_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
     };
   },
   community_picks_granted: async (con, user) => {
@@ -95,7 +99,10 @@ const notificationToTemplateData: Record<string, TemplateDataFunc> = {
     return {
       post_title: truncatePostToTweet(att),
       post_image: att.image,
-      discussion_link: addUtm(notification.targetUrl, notification.type),
+      discussion_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
     };
   },
   article_new_comment: async (con, user, notification) => {
@@ -113,7 +120,10 @@ const notificationToTemplateData: Record<string, TemplateDataFunc> = {
       post_title: truncatePostToTweet(post),
       post_image: post.image || pickImageUrl(post),
       new_comment: notification.description,
-      discussion_link: addUtm(notification.targetUrl, notification.type),
+      discussion_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
       user_reputation: commenter.reputation,
     };
   },
@@ -122,7 +132,10 @@ const notificationToTemplateData: Record<string, TemplateDataFunc> = {
     return {
       post_title: truncatePostToTweet(att),
       post_image: att.image,
-      discussion_link: addUtm(notification.targetUrl, notification.type),
+      discussion_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
       upvotes: notification.uniqueKey,
     };
   },
@@ -148,7 +161,7 @@ const notificationToTemplateData: Record<string, TemplateDataFunc> = {
       post_upvotes: post.upvotes?.toLocaleString() ?? 0,
       post_upvotes_total: stats.numPostUpvotes?.toLocaleString() ?? 0,
       post_comments: post.comments?.toLocaleString() ?? 0,
-      profile_link: addUtm(user.permalink, notification.type),
+      profile_link: addNotificationEmailUtm(user.permalink, notification.type),
     };
   },
   source_approved: async (con, user, notification, attachments, avatars) => {
@@ -160,7 +173,10 @@ const notificationToTemplateData: Record<string, TemplateDataFunc> = {
       source_name: av.name,
       source_image: av.image,
       rss_link: sourceRequest.sourceFeed,
-      source_link: addUtm(notification.targetUrl, notification.type),
+      source_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
     };
   },
   source_rejected: async (con, user, notification) => {
@@ -187,7 +203,10 @@ const notificationToTemplateData: Record<string, TemplateDataFunc> = {
       comment: notification.description,
       post_image: post.image || pickImageUrl(post),
       post_title: truncatePostToTweet(post),
-      post_link: addUtm(notification.targetUrl, notification.type),
+      post_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
       user_reputation: commenter.reputation,
     };
   },
@@ -213,7 +232,10 @@ const notificationToTemplateData: Record<string, TemplateDataFunc> = {
       main_comment: simplifyComment(parent.content),
       new_comment: notification.description,
       post_title: truncatePostToTweet(post),
-      discussion_link: addUtm(notification.targetUrl, notification.type),
+      discussion_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
       user_reputation: user.reputation,
       commenter_reputation: commenter.reputation,
       commenter_profile_image: commenter.image,
@@ -226,7 +248,10 @@ const notificationToTemplateData: Record<string, TemplateDataFunc> = {
       upvote_title: notification.title.replace(/<[^>]*>?/gm, ''),
       main_comment: notification.description,
       profile_image: user.image,
-      discussion_link: addUtm(notification.targetUrl, notification.type),
+      discussion_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
       user_name: user.name,
       user_reputation: user.reputation,
     };
