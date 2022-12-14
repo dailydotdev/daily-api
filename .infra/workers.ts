@@ -26,10 +26,6 @@ export const workers: Worker[] = [
     subscription: 'comment-upvote-canceled-rep',
   },
   {
-    topic: 'comment-commented',
-    subscription: 'comment-commented-thread',
-  },
-  {
     topic: 'post-scout-matched',
     subscription: 'post-scout-matched-slack',
   },
