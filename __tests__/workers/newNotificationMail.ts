@@ -213,7 +213,7 @@ it('should set parameters for article_new_comment email', async () => {
   const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
   expect(args.dynamicTemplateData).toEqual({
     discussion_link:
-      'http://localhost:5002/posts/p1#c-c1?utm_source=notification&utm_medium=email&utm_campaign=article_new_comment',
+      'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=article_new_comment#c-c1',
     full_name: 'Tsahi',
     new_comment: 'parent comment',
     post_image: 'https://daily.dev/image.jpg',
@@ -419,7 +419,7 @@ it('should set parameters for comment_mention email', async () => {
   const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
   expect(args.dynamicTemplateData).toEqual({
     post_link:
-      'http://localhost:5002/posts/p1#c-c1?utm_source=notification&utm_medium=email&utm_campaign=comment_mention',
+      'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=comment_mention#c-c1',
     full_name: 'Tsahi',
     comment: 'parent comment',
     post_image: 'https://daily.dev/image.jpg',
@@ -468,7 +468,7 @@ it('should set parameters for comment_reply email', async () => {
     commenter_profile_image: 'https://daily.dev/tsahi.jpg',
     commenter_reputation: 10,
     discussion_link:
-      'http://localhost:5002/posts/p1#c-c2?utm_source=notification&utm_medium=email&utm_campaign=comment_reply',
+      'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=comment_reply#c-c2',
     full_name: 'Tsahi',
     main_comment: 'parent comment',
     new_comment: 'child comment',
@@ -511,7 +511,7 @@ it('should set parameters for comment_upvote_milestone email', async () => {
   const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
   expect(args.dynamicTemplateData).toEqual({
     discussion_link:
-      'http://localhost:5002/posts/p1#c-c1?utm_source=notification&utm_medium=email&utm_campaign=comment_upvote_milestone',
+      'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=comment_upvote_milestone#c-c1',
     main_comment: 'parent comment',
     profile_image: 'https://daily.dev/ido.jpg',
     upvote_title: 'You rock! Your comment earned 50 upvotes!',

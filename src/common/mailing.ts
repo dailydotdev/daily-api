@@ -32,8 +32,13 @@ export const templateId = {
 export const addNotificationEmailUtm = (
   url: string,
   notificationType: string,
-): string =>
-  `${url}?utm_source=notification&utm_medium=email&utm_campaign=${notificationType}`;
+): string => {
+  const urlObj = new URL(url);
+  urlObj.searchParams.append('utm_source', 'notification');
+  urlObj.searchParams.append('utm_medium', 'email');
+  urlObj.searchParams.append('utm_campaign', notificationType);
+  return urlObj.toString();
+};
 
 export const getFirstName = (name: string): string =>
   name?.split?.(' ')?.[0] ?? '';
