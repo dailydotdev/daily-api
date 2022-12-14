@@ -114,3 +114,22 @@ export const getUnreadNotificationsCount = async (
       readAt: IsNull(),
     },
   });
+
+export const getNotificationAndChildren = (
+  con: DataSource,
+  id: string,
+): Promise<
+  [Notification | null, NotificationAttachment[], NotificationAvatar[]]
+> => {
+  return Promise.all([
+    con.getRepository(Notification).findOneBy({ id }),
+    con.getRepository(NotificationAttachment).find({
+      where: { notificationId: id },
+      order: { order: 'asc' },
+    }),
+    con.getRepository(NotificationAvatar).find({
+      where: { notificationId: id },
+      order: { order: 'asc' },
+    }),
+  ]);
+};

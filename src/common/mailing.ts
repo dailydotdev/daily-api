@@ -29,6 +29,12 @@ export const templateId = {
   sourceRequestSubmitted: 'd-9254665878014627b4fd71593f09d975',
 };
 
+export const addUtm = (url: string, notificationType: string): string =>
+  `${url}?utm_source=notification&utm_medium=email&utm_campaign=${notificationType}`;
+
+export const getFirstName = (name: string): string =>
+  name?.split?.(' ')?.[0] ?? '';
+
 export const truncatePost = (post: Post): string =>
   post.title.length <= 80 ? post.title : `${post.title.substr(0, 77)}...`;
 

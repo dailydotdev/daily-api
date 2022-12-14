@@ -19,7 +19,7 @@ import { NotificationIcon } from './icons';
 
 const MAX_COMMENT_LENGTH = 320;
 
-const simplifyComment = (comment: string): string => {
+export const simplifyComment = (comment: string): string => {
   const simplified = markdownToTxt(comment);
   return simplified.length <= MAX_COMMENT_LENGTH
     ? simplified
