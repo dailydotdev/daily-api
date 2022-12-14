@@ -19,14 +19,6 @@ export const workers: Worker[] = [
   },
   {
     topic: 'comment-upvoted',
-    subscription: 'comment-upvoted-mail',
-  },
-  {
-    topic: 'comment-commented',
-    subscription: 'comment-commented-mail',
-  },
-  {
-    topic: 'comment-upvoted',
     subscription: 'comment-upvoted-rep',
   },
   {
@@ -38,36 +30,12 @@ export const workers: Worker[] = [
     subscription: 'comment-commented-thread',
   },
   {
-    topic: 'post-author-matched',
-    subscription: 'post-author-matched-mail',
-  },
-  {
-    topic: 'community-link-rejected',
-    subscription: 'community-link-rejected-mail',
-  },
-  {
-    topic: 'community-link-access',
-    subscription: 'community-link-access-mail',
-  },
-  {
-    topic: 'post-scout-matched',
-    subscription: 'post-scout-matched-mail',
-  },
-  {
     topic: 'post-scout-matched',
     subscription: 'post-scout-matched-slack',
   },
   {
     topic: 'comment-commented',
-    subscription: 'comment-commented-author-mail',
-  },
-  {
-    topic: 'comment-commented',
     subscription: 'comment-commented-slack-message',
-  },
-  {
-    topic: 'post-commented',
-    subscription: 'post-commented-author-mail',
   },
   {
     topic: 'post-upvoted',
@@ -76,10 +44,6 @@ export const workers: Worker[] = [
   {
     topic: 'post-upvote-canceled',
     subscription: 'post-upvote-canceled-rep',
-  },
-  {
-    topic: 'send-analytics-report',
-    subscription: 'send-analytics-report-mail',
   },
   /*{
     topic: 'post-commented',
@@ -104,14 +68,6 @@ export const workers: Worker[] = [
   {
     topic: 'post-banned-or-removed',
     subscription: 'post-banned-rep',
-  },
-  {
-    topic: 'post-banned-or-removed',
-    subscription: 'post-banned-email',
-  },
-  {
-    topic: 'pub-request',
-    subscription: 'source-request-mail',
   },
   {
     topic: 'pub-request',
@@ -139,8 +95,8 @@ export const workers: Worker[] = [
     subscription: 'api.new-notification-real-time',
   },
   {
-    topic: 'api.v1.new-comment-mention',
-    subscription: 'api.comment-mention-mail',
+    topic: 'api.v1.new-notification',
+    subscription: 'api.new-notification-mail',
   },
   // Notifications
   {

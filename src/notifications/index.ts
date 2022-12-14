@@ -38,7 +38,7 @@ const concatNotificationChildren = <
 export async function storeNotificationBundle(
   entityManager: EntityManager,
   bundles: NotificationBundle[],
-): Promise<void> {
+): Promise<{ id: string }[]> {
   const { identifiers } = await entityManager
     .createQueryBuilder()
     .insert()
@@ -71,4 +71,5 @@ export async function storeNotificationBundle(
     entityManager.insert(NotificationAttachment, attachments),
     entityManager.insert(NotificationAvatar, avatars),
   ]);
+  return identifiers as { id: string }[];
 }
