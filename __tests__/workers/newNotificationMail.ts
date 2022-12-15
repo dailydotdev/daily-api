@@ -1,8 +1,10 @@
-import { expectSuccessfulBackground } from '../helpers';
+import {
+  expectSuccessfulBackground,
+  saveNotificationFixture,
+} from '../helpers';
 import { sendEmail } from '../../src/common';
 import worker from '../../src/workers/newNotificationMail';
 import {
-  NotificationType,
   Post,
   Submission,
   SubmissionStatus,
@@ -15,7 +17,6 @@ import { usersFixture } from '../fixture/user';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
-  generateNotification,
   NotificationBaseContext,
   NotificationCommentContext,
   NotificationCommenterContext,
@@ -24,7 +25,6 @@ import {
   NotificationSourceRequestContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
-  storeNotificationBundle,
 } from '../../src/notifications';
 import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { postsFixture } from '../fixture/post';
@@ -50,16 +50,6 @@ beforeEach(async () => {
   await con.getRepository(Source).save(sourcesFixture);
 });
 
-const saveNotificationFixture = async (
-  type: NotificationType,
-  ctx: NotificationBaseContext,
-): Promise<string> => {
-  const res = await con.transaction((entityManager) =>
-    storeNotificationBundle(entityManager, [generateNotification(type, ctx)]),
-  );
-  return res[0].id;
-};
-
 it('should set parameters for community_picks_failed email', async () => {
   const submission = await con.getRepository(Submission).save({
     url: 'http://sample.abc.com',
@@ -73,6 +63,7 @@ it('should set parameters for community_picks_failed email', async () => {
   };
 
   const notificationId = await saveNotificationFixture(
+    con,
     'community_picks_failed',
     ctx,
   );
@@ -110,6 +101,7 @@ it('should set parameters for community_picks_succeeded email', async () => {
   };
 
   const notificationId = await saveNotificationFixture(
+    con,
     'community_picks_succeeded',
     ctx,
   );
@@ -139,6 +131,7 @@ it('should set parameters for community_picks_granted email', async () => {
   };
 
   const notificationId = await saveNotificationFixture(
+    con,
     'community_picks_granted',
     ctx,
   );
@@ -163,7 +156,11 @@ it('should set parameters for article_picked email', async () => {
     post,
   };
 
-  const notificationId = await saveNotificationFixture('article_picked', ctx);
+  const notificationId = await saveNotificationFixture(
+    con,
+    'article_picked',
+    ctx,
+  );
   await expectSuccessfulBackground(worker, {
     notification: {
       id: notificationId,
@@ -200,6 +197,7 @@ it('should set parameters for article_new_comment email', async () => {
   };
 
   const notificationId = await saveNotificationFixture(
+    con,
     'article_new_comment',
     ctx,
   );
@@ -234,6 +232,7 @@ it('should set parameters for article_upvote_milestone email', async () => {
   };
 
   const notificationId = await saveNotificationFixture(
+    con,
     'article_upvote_milestone',
     ctx,
   );
@@ -263,6 +262,7 @@ it('should set parameters for article_report_approved email', async () => {
   };
 
   const notificationId = await saveNotificationFixture(
+    con,
     'article_report_approved',
     ctx,
   );
@@ -302,6 +302,7 @@ it('should set parameters for article_analytics email', async () => {
   };
 
   const notificationId = await saveNotificationFixture(
+    con,
     'article_analytics',
     ctx,
   );
@@ -343,7 +344,11 @@ it('should set parameters for source_approved email', async () => {
     sourceRequest,
   };
 
-  const notificationId = await saveNotificationFixture('source_approved', ctx);
+  const notificationId = await saveNotificationFixture(
+    con,
+    'source_approved',
+    ctx,
+  );
   await expectSuccessfulBackground(worker, {
     notification: {
       id: notificationId,
@@ -374,7 +379,11 @@ it('should set parameters for source_rejected email', async () => {
     sourceRequest,
   };
 
-  const notificationId = await saveNotificationFixture('source_rejected', ctx);
+  const notificationId = await saveNotificationFixture(
+    con,
+    'source_rejected',
+    ctx,
+  );
   await expectSuccessfulBackground(worker, {
     notification: {
       id: notificationId,
@@ -408,7 +417,11 @@ it('should set parameters for comment_mention email', async () => {
     commenter,
   };
 
-  const notificationId = await saveNotificationFixture('comment_mention', ctx);
+  const notificationId = await saveNotificationFixture(
+    con,
+    'comment_mention',
+    ctx,
+  );
   await expectSuccessfulBackground(worker, {
     notification: {
       id: notificationId,
@@ -455,7 +468,11 @@ it('should set parameters for comment_reply email', async () => {
     commenter,
   };
 
-  const notificationId = await saveNotificationFixture('comment_reply', ctx);
+  const notificationId = await saveNotificationFixture(
+    con,
+    'comment_reply',
+    ctx,
+  );
   await expectSuccessfulBackground(worker, {
     notification: {
       id: notificationId,
@@ -498,6 +515,7 @@ it('should set parameters for comment_upvote_milestone email', async () => {
   };
 
   const notificationId = await saveNotificationFixture(
+    con,
     'comment_upvote_milestone',
     ctx,
   );

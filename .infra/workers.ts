@@ -74,6 +74,10 @@ export const workers: Worker[] = [
     subscription: 'username-changed-api',
   },
   {
+    topic: 'username-changed',
+    subscription: 'api.username-changed-update-notifications',
+  },
+  {
     topic: 'update-comments',
     subscription: 'update-comments-mention',
   },
