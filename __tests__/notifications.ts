@@ -398,22 +398,27 @@ describe('query deviceNotificationPreference', () => {
   `;
 
   it('should not authorize when not logged-in', () =>
-    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { deviceId: 'sample id' } },
+      'UNAUTHENTICATED',
+    ));
 
   it('should return device notification preferences', async () => {
     loggedUser = '1';
 
     const repo = con.getRepository(DeviceNotificationPreference);
+    const deviceId = 'web-1';
     const preference = repo.create({
       userId: '1',
-      deviceId: 'web-1',
+      deviceId,
       description: 'chrome',
       pushNotification: true,
     });
     const data = await repo.save(preference);
     const expected = new Object(data);
     delete expected['userId'];
-    const res = await client.query(QUERY);
+    const res = await client.query(QUERY, { variables: { deviceId } });
     expect(res.data.preference).toEqual(expected);
   });
 
@@ -421,10 +426,11 @@ describe('query deviceNotificationPreference', () => {
     loggedUser = '1';
 
     const repo = con.getRepository(DeviceNotificationPreference);
+    const deviceId = 'web-1';
     const integrationId = 'int-1';
     const integration = repo.create({
       userId: '1',
-      deviceId: 'web-1',
+      deviceId,
       description: 'chrome',
       pushNotification: true,
       integrationId,
@@ -436,7 +442,9 @@ describe('query deviceNotificationPreference', () => {
       pushNotification: true,
     });
     await repo.save([preference, integration]);
-    const res = await client.query(QUERY, { variables: { integrationId } });
+    const res = await client.query(QUERY, {
+      variables: { integrationId, deviceId },
+    });
     expect(res.data.preference.deviceId).toEqual(integration.deviceId);
     expect(res.data.preference.integrationId).toEqual(integrationId);
   });
