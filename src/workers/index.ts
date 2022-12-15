@@ -21,6 +21,7 @@ import deleteUserFromMailingList from './deleteUserFromMailingList';
 import unreadNotificationCount from './unreadNotificationCount';
 import newNotificationRealTime from './newNotificationRealTime';
 import newNotificationMail from './newNotificationMail';
+import newNotificationPush from './newNotificationPush';
 import { workers as notificationWorkers } from './notifications';
 
 export { Worker } from './worker';
@@ -47,6 +48,7 @@ export const workers: Worker[] = [
   unreadNotificationCount,
   newNotificationRealTime,
   newNotificationMail,
+  newNotificationPush,
   cdc,
   ...notificationWorkers,
 ];

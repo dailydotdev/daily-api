@@ -29,22 +29,27 @@ export const templateId = {
   sourceRequestSubmitted: 'd-9254665878014627b4fd71593f09d975',
 };
 
-export const addNotificationEmailUtm = (
+export const addNotificationUtm = (
   url: string,
+  medium: string,
   notificationType: string,
 ): string => {
   const urlObj = new URL(url);
   urlObj.searchParams.append('utm_source', 'notification');
-  urlObj.searchParams.append('utm_medium', 'email');
+  urlObj.searchParams.append('utm_medium', medium);
   urlObj.searchParams.append('utm_campaign', notificationType);
   return urlObj.toString();
 };
 
+export const addNotificationEmailUtm = (
+  url: string,
+  notificationType: string,
+): string => addNotificationUtm(url, 'email', notificationType);
+
+export const basicHtmlStrip = (html: string) => html.replace(/<[^>]*>?/gm, '');
+
 export const getFirstName = (name: string): string =>
   name?.split?.(' ')?.[0] ?? '';
-
-export const truncatePost = (post: Post): string =>
-  post.title.length <= 80 ? post.title : `${post.title.substr(0, 77)}...`;
 
 export const formatMailDate = (date: Date): string =>
   date.toLocaleString('en-US', {

@@ -16,6 +16,7 @@ import {
 import {
   addNotificationEmailUtm,
   baseNotificationEmailData,
+  basicHtmlStrip,
   formatMailDate,
   getFirstName,
   pickImageUrl,
@@ -245,7 +246,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   comment_upvote_milestone: async (con, user, notification) => {
     return {
       // Strip HTML tags
-      upvote_title: notification.title.replace(/<[^>]*>?/gm, ''),
+      upvote_title: basicHtmlStrip(notification.title),
       main_comment: notification.description,
       profile_image: user.image,
       discussion_link: addNotificationEmailUtm(
