@@ -10,6 +10,8 @@ import {
 } from './helpers';
 import {
   Banner,
+  DeviceNotificationPreference,
+  GeneralNotificationPreference,
   Notification,
   NotificationAttachment,
   NotificationAvatar,
@@ -334,5 +336,110 @@ describe('mutation readNotifications', () => {
       .getRepository(Notification)
       .find({ where: { userId: '2' }, order: { createdAt: 'desc' } });
     res2.map((notification) => expect(notification.readAt).toBeFalsy());
+  });
+});
+
+describe('query generalNotificationPreference', () => {
+  const QUERY = `
+    {
+      preference: generalNotificationPreference {
+        marketingEmail
+        notificationEmail
+      }
+    }
+  `;
+
+  it('should not authorize when not logged-in', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it('should return general notification preferences', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(GeneralNotificationPreference);
+    const preference = repo.create({
+      userId: '1',
+      marketingEmail: true,
+      notificationEmail: true,
+    });
+    const expected = await repo.save(preference);
+    const res = await client.query(QUERY);
+    expect(res.data.preference).toEqual(expected);
+  });
+
+  it('should create default preference if not exist', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY);
+    expect(res.data.preference).toMatchSnapshot();
+  });
+
+  it('should create default preference if not exist and consider current user marketing email settings', async () => {
+    loggedUser = '1';
+    const userRepo = con.getRepository(User);
+    const user = await userRepo.findOneByOrFail({ id: loggedUser });
+    const expected = true;
+    user.acceptedMarketing = expected;
+    await con.getRepository(User).save(user);
+    const res = await client.query(QUERY);
+    expect(res.data.preference.marketingEmail).toEqual(expected);
+  });
+});
+
+describe('query deviceNotificationPreference', () => {
+  const QUERY = `
+    {
+      preference: deviceNotificationPreference {
+        deviceId
+        description
+        pushNotification
+      }
+    }
+  `;
+
+  it('should not authorize when not logged-in', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it('should return device notification preferences', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(DeviceNotificationPreference);
+    const preference = repo.create({
+      userId: '1',
+      deviceId: 'web-1',
+      description: 'chrome',
+      pushNotification: true,
+    });
+    const expected = await repo.save(preference);
+    const res = await client.query(QUERY);
+    expect(res.data.preference).toEqual(expected);
+  });
+
+  it('should return device notification preferences based on integration id if exists', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(DeviceNotificationPreference);
+    const integrationId = 'int-1';
+    const integration = repo.create({
+      userId: '1',
+      deviceId: 'web-1',
+      description: 'chrome',
+      pushNotification: true,
+      integrationId,
+    });
+    const preference = repo.create({
+      userId: '1',
+      deviceId: 'ext-1',
+      description: 'chrome',
+      pushNotification: true,
+    });
+    await repo.save([preference, integration]);
+    const res = await client.query(QUERY, { variables: { integrationId } });
+    expect(res.data.preference.deviceId).toEqual(integration.deviceId);
+    expect(res.data.preference.integrationId).toEqual(integrationId);
+  });
+
+  it('should create default preference if not exist', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY);
+    expect(res.data.preference).toMatchSnapshot();
   });
 });

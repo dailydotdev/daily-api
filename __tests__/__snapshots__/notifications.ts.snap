@@ -18,6 +18,13 @@ Object {
 }
 `;
 
+exports[`query generalNotificationPreference should create default preference if not exist 1`] = `
+Object {
+  "marketingEmail": false,
+  "notificationEmail": true,
+}
+`;
+
 exports[`query notifications should return avatars and attachments 1`] = `
 Object {
   "notifications": Object {

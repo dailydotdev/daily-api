@@ -1,7 +1,12 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context, SubscriptionContext } from '../Context';
-import { Banner, getUnreadNotificationsCount, Notification } from '../entity';
+import {
+  Banner,
+  getUnreadNotificationsCount,
+  Notification,
+  User,
+} from '../entity';
 import { ConnectionArguments } from 'graphql-relay';
 import { IsNull } from 'typeorm';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
@@ -10,6 +15,9 @@ import { createDatePageGenerator } from '../common/datePageGenerator';
 import { GQLEmptyResponse } from './common';
 import { notifyNotificationsRead } from '../common';
 import { redisPubSub } from '../redis';
+import { GeneralNotificationPreference } from '../entity/GeneralNotificationPreference';
+import { DeviceNotificationPreference } from '../entity/DeviceNotificationPreference';
+import { ValidationError } from 'apollo-server-errors';
 
 interface GQLBanner {
   timestamp: Date;
@@ -18,6 +26,21 @@ interface GQLBanner {
   cta: string;
   url: string;
   theme: string;
+}
+
+type GQLGeneralNotificationPreference = Pick<
+  GeneralNotificationPreference,
+  'marketingEmail' | 'notificationEmail'
+>;
+
+type GQLDeviceNotificationPreference = Pick<
+  DeviceNotificationPreference,
+  'deviceId' | 'description' | 'pushNotification'
+>;
+
+interface DevicePreferenceParams {
+  deviceId: string;
+  integrationId?: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -112,6 +135,17 @@ export const typeDefs = /* GraphQL */ `
     edges: [NotificationEdge!]!
   }
 
+  type GeneralNotificationPreference {
+    marketingEmail: Boolean!
+    notificationEmail: Boolean!
+  }
+
+  type DeviceNotificationPreference {
+    deviceId: String!
+    description: String!
+    pushNotification: Boolean!
+  }
+
   """
   Information for displaying promotions and announcements
   """
@@ -173,6 +207,18 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): NotificationConnection! @auth
+
+    generalNotificationPreference: GeneralNotificationPreference! @auth
+
+    """
+    We only fetch the single row data regarding to which the session belongs to which device
+    """
+    deviceNotificationPreference(
+      """
+      The sessionId provided in our boot data as it is used as the deviceId in registration
+      """
+      deviceId: String!
+    ): DeviceNotificationPreference! @auth
   }
 
   extend type Mutation {
@@ -245,6 +291,53 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           return builder;
         },
       );
+    },
+    generalNotificationPreference: async (
+      _,
+      __,
+      { con, userId },
+    ): Promise<GQLGeneralNotificationPreference> => {
+      const repo = con.getRepository(GeneralNotificationPreference);
+      const preference = await repo.findOneBy({ userId });
+
+      if (preference) {
+        return preference;
+      }
+
+      const user = await con.getRepository(User).findOneBy({ id: userId });
+      const created = repo.create({
+        userId,
+        marketingEmail: user.acceptedMarketing,
+      });
+
+      return repo.save(created);
+    },
+    deviceNotificationPreference: (
+      _,
+      { deviceId, integrationId }: DevicePreferenceParams,
+      { con, userId },
+    ): Promise<GQLDeviceNotificationPreference> => {
+      if (!deviceId) {
+        throw new ValidationError('device id is required');
+      }
+
+      const repo = con.getRepository(DeviceNotificationPreference);
+
+      if (integrationId) {
+        const preference = repo.findOneBy({ userId, integrationId });
+
+        if (preference) {
+          return preference;
+        }
+      }
+
+      const preference = repo.findOneBy({ userId, deviceId });
+
+      if (preference) {
+        return preference;
+      }
+
+      return repo.save(repo.create({ userId, deviceId, integrationId }));
     },
   },
   Mutation: {
