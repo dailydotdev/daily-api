@@ -31,7 +31,21 @@ type GQLNotificationPreference = Pick<
   'marketingEmail' | 'notificationEmail'
 >;
 
+interface NotificationPreferenceInput {
+  marketingEmail: boolean;
+  notificationEmail: boolean;
+}
+
+interface NotificationPreferenceParams {
+  data: NotificationPreferenceInput;
+}
+
 export const typeDefs = /* GraphQL */ `
+  input NotificationPreferenceInput {
+    marketingEmail: Boolean
+    notificationEmail: Boolean
+  }
+
   type NotificationAvatar {
     """
     Avatar type e.g user, source. Appearance might change based on the type
@@ -195,6 +209,9 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Mutation {
     readNotifications: EmptyResponse @auth
+    updateNotificationPreference(
+      data: NotificationPreferenceInput!
+    ): NotificationPreference! @auth
   }
 
   type Subscription {
@@ -268,22 +285,23 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       _,
       __,
       { con, userId },
-    ): Promise<GQLNotificationPreference> => {
-      const repo = con.getRepository(NotificationPreference);
-      const preference = await repo.findOneBy({ userId });
+    ): Promise<GQLNotificationPreference> =>
+      con.transaction(async (manager) => {
+        const repo = manager.getRepository(NotificationPreference);
+        const preference = await repo.findOneBy({ userId });
 
-      if (preference) {
-        return preference;
-      }
+        if (preference) {
+          return preference;
+        }
 
-      const user = await con.getRepository(User).findOneBy({ id: userId });
-      const created = repo.create({
-        userId,
-        marketingEmail: user.acceptedMarketing,
-      });
+        const user = await con.getRepository(User).findOneBy({ id: userId });
+        const created = repo.create({
+          userId,
+          marketingEmail: user.acceptedMarketing,
+        });
 
-      return repo.save(created);
-    },
+        return repo.save(created);
+      }),
   },
   Mutation: {
     readNotifications: async (source, _, ctx): Promise<GQLEmptyResponse> => {
@@ -299,6 +317,28 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       });
       return { _: true };
     },
+    updateNotificationPreference: async (
+      _,
+      { data }: NotificationPreferenceParams,
+      { con, userId },
+    ): Promise<GQLNotificationPreference> =>
+      con.transaction(async (manager) => {
+        const repo = manager.getRepository(NotificationPreference);
+        const preference = await repo.findOneBy({ userId });
+
+        if (preference) {
+          return repo.save({ ...preference, ...data });
+        }
+
+        const user = await con.getRepository(User).findOneBy({ id: userId });
+        const created = repo.create({
+          userId,
+          marketingEmail: user.acceptedMarketing,
+          ...data,
+        });
+
+        return repo.save(created);
+      }),
   },
   Subscription: {
     newNotifications: {

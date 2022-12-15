@@ -338,7 +338,7 @@ describe('mutation readNotifications', () => {
   });
 });
 
-describe('query NotificationPreference', () => {
+describe('query notificationPreference', () => {
   const QUERY = `
     {
       preference: notificationPreference {
@@ -382,5 +382,54 @@ describe('query NotificationPreference', () => {
     await con.getRepository(User).save(user);
     const res = await client.query(QUERY);
     expect(res.data.preference.marketingEmail).toEqual(expected);
+  });
+});
+
+describe('mutation updateNotificationPreference', () => {
+  const MUTATION = `
+    mutation UpdateNotificationPreference($data: NotificationPreferenceInput!) {
+      preference: updateNotificationPreference(data: $data) {
+        marketingEmail
+        notificationEmail
+      }
+    }
+  `;
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: {} } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return notification preferences', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(NotificationPreference);
+    const expected = false;
+    await repo.save(
+      repo.create({
+        userId: '1',
+        marketingEmail: true,
+        notificationEmail: true,
+      }),
+    );
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { notificationEmail: expected } },
+    });
+    expect(res.data.preference.notificationEmail).toEqual(expected);
+  });
+
+  it('should create default preference if not exist', async () => {
+    loggedUser = '1';
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy({ userId: loggedUser });
+    expect(preference).toBeFalsy();
+    const expected = false;
+    const res = await client.query(MUTATION, {
+      variables: { data: { notificationEmail: expected } },
+    });
+    expect(res.data.preference.notificationEmail).toEqual(expected);
   });
 });

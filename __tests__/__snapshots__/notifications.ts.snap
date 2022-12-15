@@ -1,12 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`query NotificationPreference should create default preference if not exist 1`] = `
-Object {
-  "marketingEmail": false,
-  "notificationEmail": true,
-}
-`;
-
 exports[`query banner should return empty response when no relevant banner 1`] = `
 Object {
   "banner": null,
@@ -22,6 +15,13 @@ Object {
     "title": "Title",
     "url": "https://daily.dev",
   },
+}
+`;
+
+exports[`query notificationPreference should create default preference if not exist 1`] = `
+Object {
+  "marketingEmail": false,
+  "notificationEmail": true,
 }
 `;
 
