@@ -361,7 +361,9 @@ describe('query generalNotificationPreference', () => {
       marketingEmail: true,
       notificationEmail: true,
     });
-    const expected = await repo.save(preference);
+    const data = await repo.save(preference);
+    const expected = new Object(data);
+    delete expected['userId'];
     const res = await client.query(QUERY);
     expect(res.data.preference).toEqual(expected);
   });
@@ -408,7 +410,9 @@ describe('query deviceNotificationPreference', () => {
       description: 'chrome',
       pushNotification: true,
     });
-    const expected = await repo.save(preference);
+    const data = await repo.save(preference);
+    const expected = new Object(data);
+    delete expected['userId'];
     const res = await client.query(QUERY);
     expect(res.data.preference).toEqual(expected);
   });
