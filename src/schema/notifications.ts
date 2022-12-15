@@ -15,9 +15,7 @@ import { createDatePageGenerator } from '../common/datePageGenerator';
 import { GQLEmptyResponse } from './common';
 import { notifyNotificationsRead } from '../common';
 import { redisPubSub } from '../redis';
-import { GeneralNotificationPreference } from '../entity/GeneralNotificationPreference';
-import { DeviceNotificationPreference } from '../entity/DeviceNotificationPreference';
-import { ValidationError } from 'apollo-server-errors';
+import { NotificationPreference } from '../entity/NotificationPreference';
 
 interface GQLBanner {
   timestamp: Date;
@@ -28,21 +26,10 @@ interface GQLBanner {
   theme: string;
 }
 
-type GQLGeneralNotificationPreference = Pick<
-  GeneralNotificationPreference,
+type GQLNotificationPreference = Pick<
+  NotificationPreference,
   'marketingEmail' | 'notificationEmail'
 >;
-
-type GQLDeviceNotificationPreference = Pick<
-  DeviceNotificationPreference,
-  'deviceId' | 'description' | 'pushNotification'
->;
-
-interface DevicePreferenceParams {
-  deviceId: string;
-  description?: string;
-  integrationId?: string;
-}
 
 export const typeDefs = /* GraphQL */ `
   type NotificationAvatar {
@@ -136,16 +123,9 @@ export const typeDefs = /* GraphQL */ `
     edges: [NotificationEdge!]!
   }
 
-  type GeneralNotificationPreference {
+  type NotificationPreference {
     marketingEmail: Boolean!
     notificationEmail: Boolean!
-  }
-
-  type DeviceNotificationPreference {
-    deviceId: String!
-    description: String!
-    pushNotification: Boolean!
-    integrationId: String
   }
 
   """
@@ -210,19 +190,7 @@ export const typeDefs = /* GraphQL */ `
       first: Int
     ): NotificationConnection! @auth
 
-    generalNotificationPreference: GeneralNotificationPreference! @auth
-
-    """
-    We only fetch the single row data regarding to which the session belongs to which device
-    """
-    deviceNotificationPreference(
-      """
-      The sessionId provided in our boot data as it is used as the deviceId in registration
-      """
-      deviceId: String!
-      description: String
-      integrationId: String
-    ): DeviceNotificationPreference! @auth
+    notificationPreference: NotificationPreference! @auth
   }
 
   extend type Mutation {
@@ -296,12 +264,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
       );
     },
-    generalNotificationPreference: async (
+    notificationPreference: async (
       _,
       __,
       { con, userId },
-    ): Promise<GQLGeneralNotificationPreference> => {
-      const repo = con.getRepository(GeneralNotificationPreference);
+    ): Promise<GQLNotificationPreference> => {
+      const repo = con.getRepository(NotificationPreference);
       const preference = await repo.findOneBy({ userId });
 
       if (preference) {
@@ -313,37 +281,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         userId,
         marketingEmail: user.acceptedMarketing,
       });
-
-      return repo.save(created);
-    },
-    deviceNotificationPreference: async (
-      _,
-      { deviceId, description, integrationId }: DevicePreferenceParams,
-      { con, userId },
-    ): Promise<GQLDeviceNotificationPreference> => {
-      const repo = con.getRepository(DeviceNotificationPreference);
-
-      if (integrationId) {
-        const preference = await repo.findOneBy({ userId, integrationId });
-
-        if (preference) {
-          return preference;
-        }
-      }
-
-      const preference = await repo.findOneBy({ userId, deviceId });
-
-      if (preference) {
-        return preference;
-      }
-
-      if (!description) {
-        throw new ValidationError(
-          'Unable to create preference without description',
-        );
-      }
-
-      const created = repo.create({ userId, description, deviceId });
 
       return repo.save(created);
     },

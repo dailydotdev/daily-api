@@ -33,5 +33,4 @@ export * from './Submission';
 export * from './NotificationAvatar';
 export * from './NotificationAttachment';
 export * from './Notification';
-export * from './GeneralNotificationPreference';
-export * from './DeviceNotificationPreference';
+export * from './NotificationPreference';

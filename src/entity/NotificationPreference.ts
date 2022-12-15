@@ -1,7 +1,7 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
 
 @Entity()
-export class GeneralNotificationPreference {
+export class NotificationPreference {
   @PrimaryColumn({ type: 'text' })
   userId: string;
 
