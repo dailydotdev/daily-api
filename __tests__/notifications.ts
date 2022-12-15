@@ -388,11 +388,20 @@ describe('query generalNotificationPreference', () => {
 
 describe('query deviceNotificationPreference', () => {
   const QUERY = `
-    {
-      preference: deviceNotificationPreference {
+    query DeviceNotificationPreference(
+      $deviceId: String!,
+      $description: String
+      $integrationId: String,
+    ) {
+      preference: deviceNotificationPreference(
+        deviceId: $deviceId,
+        description: $description
+        integrationId: $integrationId,
+      ) {
         deviceId
         description
         pushNotification
+        integrationId
       }
     }
   `;
@@ -445,13 +454,16 @@ describe('query deviceNotificationPreference', () => {
     const res = await client.query(QUERY, {
       variables: { integrationId, deviceId },
     });
-    expect(res.data.preference.deviceId).toEqual(integration.deviceId);
+    console.log('integration obj: ', integration);
+    expect(res.data.preference.deviceId).toEqual(deviceId);
     expect(res.data.preference.integrationId).toEqual(integrationId);
   });
 
   it('should create default preference if not exist', async () => {
     loggedUser = '1';
-    const res = await client.query(QUERY);
+    const res = await client.query(QUERY, {
+      variables: { deviceId: 'sample id', description: 'user agent' },
+    });
     expect(res.data.preference).toMatchSnapshot();
   });
 });

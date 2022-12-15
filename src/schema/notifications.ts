@@ -40,6 +40,7 @@ type GQLDeviceNotificationPreference = Pick<
 
 interface DevicePreferenceParams {
   deviceId: string;
+  description?: string;
   integrationId?: string;
 }
 
@@ -144,6 +145,7 @@ export const typeDefs = /* GraphQL */ `
     deviceId: String!
     description: String!
     pushNotification: Boolean!
+    integrationId: String
   }
 
   """
@@ -218,6 +220,8 @@ export const typeDefs = /* GraphQL */ `
       The sessionId provided in our boot data as it is used as the deviceId in registration
       """
       deviceId: String!
+      description: String
+      integrationId: String
     ): DeviceNotificationPreference! @auth
   }
 
@@ -312,32 +316,36 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
       return repo.save(created);
     },
-    deviceNotificationPreference: (
+    deviceNotificationPreference: async (
       _,
-      { deviceId, integrationId }: DevicePreferenceParams,
+      { deviceId, description, integrationId }: DevicePreferenceParams,
       { con, userId },
     ): Promise<GQLDeviceNotificationPreference> => {
-      if (!deviceId) {
-        throw new ValidationError('device id is required');
-      }
-
       const repo = con.getRepository(DeviceNotificationPreference);
 
       if (integrationId) {
-        const preference = repo.findOneBy({ userId, integrationId });
+        const preference = await repo.findOneBy({ userId, integrationId });
 
         if (preference) {
           return preference;
         }
       }
 
-      const preference = repo.findOneBy({ userId, deviceId });
+      const preference = await repo.findOneBy({ userId, deviceId });
 
       if (preference) {
         return preference;
       }
 
-      return repo.save(repo.create({ userId, deviceId, integrationId }));
+      if (!description) {
+        throw new ValidationError(
+          'Unable to create preference without description',
+        );
+      }
+
+      const created = repo.create({ userId, description, deviceId });
+
+      return repo.save(created);
     },
   },
   Mutation: {

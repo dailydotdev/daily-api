@@ -18,6 +18,15 @@ Object {
 }
 `;
 
+exports[`query deviceNotificationPreference should create default preference if not exist 1`] = `
+Object {
+  "description": "user agent",
+  "deviceId": "sample id",
+  "integrationId": null,
+  "pushNotification": false,
+}
+`;
+
 exports[`query generalNotificationPreference should create default preference if not exist 1`] = `
 Object {
   "marketingEmail": false,
