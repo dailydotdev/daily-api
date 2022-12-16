@@ -538,3 +538,38 @@ it('should set parameters for comment_upvote_milestone email', async () => {
   });
   expect(args.templateId).toEqual('d-92bca6102e3a4b41b6fc3f532f050429');
 });
+
+it('should not send email notification if the user prefers not to receive them', async () => {
+  const userId = '1';
+  const repo = con.getRepository(User);
+  const user = await repo.findOneBy({ id: userId });
+  await repo.save({ ...user, notificationEmail: false });
+  const post = await con.getRepository(Post).save(postsFixture[0]);
+  const comment = await con.getRepository(Comment).save({
+    id: 'c1',
+    postId: 'p1',
+    userId: '1',
+    content: 'parent comment',
+    createdAt: new Date(2020, 1, 6, 0, 0),
+  });
+  const ctx: NotificationCommentContext & NotificationUpvotersContext = {
+    userId: '1',
+    post,
+    comment,
+    upvotes: 50,
+    upvoters: [],
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'comment_upvote_milestone',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId,
+    },
+  });
+  expect(sendEmail).not.toBeCalled();
+});
