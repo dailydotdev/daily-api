@@ -268,7 +268,7 @@ const worker: Worker = {
       getNotificationAndChildren(con, id),
       con.getRepository(User).findOneBy({ id: userId }),
     ]);
-    if (!user?.email || !notification) {
+    if (!user?.email || !user?.notificationEmail || !notification) {
       return;
     }
     const templateData = await notificationToTemplateData[notification.type](
