@@ -10,8 +10,10 @@ interface Data {
 const worker: Worker = {
   subscription: 'api.new-notification-push',
   handler: async (message): Promise<void> => {
-    const data: Data = messageToJson(message);
-    await sendPushNotification(data.notification);
+    const { notification }: Data = messageToJson(message);
+    if (notification.public) {
+      await sendPushNotification(notification);
+    }
   },
 };
 
