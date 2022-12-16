@@ -48,6 +48,7 @@ export interface GQLUpdateUserInput {
   hashnode?: string;
   portfolio?: string;
   acceptedMarketing?: boolean;
+  notificationEmail?: boolean;
   infoConfirmed?: boolean;
 }
 
@@ -69,6 +70,7 @@ export interface GQLUser {
   hashnode?: string;
   portfolio?: string;
   reputation?: number;
+  notificationEmail?: boolean;
   timezone?: string;
 }
 
@@ -187,6 +189,10 @@ export const typeDefs = /* GraphQL */ `
     If the user has accepted marketing
     """
     acceptedMarketing: Boolean
+    """
+    If the user should receive email for notifications
+    """
+    notificationEmail: Boolean
   }
 
   """
@@ -245,6 +251,10 @@ export const typeDefs = /* GraphQL */ `
     If the user has accepted marketing
     """
     acceptedMarketing: Boolean
+    """
+    If the user should receive email for notifications
+    """
+    notificationEmail: Boolean
     """
     If the user's info is confirmed
     """
