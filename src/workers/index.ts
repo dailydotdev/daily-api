@@ -13,6 +13,7 @@ import postCommentedRedis from './postCommentedRedis';
 import postUpvotedRedis from './postUpvotedRedis';
 import postBannedRep from './postBannedRep';
 import usernameChanged from './usernameChanged';
+import usernameChangedUpdateNotifications from './usernameChangedUpdateNotifications';
 import sourceRequestApprovedRep from './sourceRequestApprovedRep';
 import updateComments from './updateComments';
 import cdc from './cdc';
@@ -44,6 +45,7 @@ export const workers: Worker[] = [
   postBannedRep,
   sourceRequestApprovedRep,
   usernameChanged,
+  usernameChangedUpdateNotifications,
   updateComments,
   unreadNotificationCount,
   newNotificationRealTime,
