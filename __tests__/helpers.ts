@@ -29,6 +29,12 @@ import {
   NotificationHandlerReturn,
   NotificationWorker,
 } from '../src/workers/notifications/worker';
+import { NotificationType } from '../src/entity';
+import {
+  generateNotification,
+  NotificationBaseContext,
+  storeNotificationBundle,
+} from '../src/notifications';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -275,3 +281,14 @@ export const mockChangeMessage = <T>({
     transaction: 0,
   },
 });
+
+export const saveNotificationFixture = async (
+  con: DataSource,
+  type: NotificationType,
+  ctx: NotificationBaseContext,
+): Promise<string> => {
+  const res = await con.transaction((entityManager) =>
+    storeNotificationBundle(entityManager, [generateNotification(type, ctx)]),
+  );
+  return res[0].id;
+};
