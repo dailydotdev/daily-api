@@ -390,7 +390,7 @@ const addPostAndKeywordsToDb = async (
     tagsStr: allowedKeywords?.join(',') || null,
     canonicalUrl: data.canonicalUrl,
     authorId: data.authorId,
-    sentAnalyticsReport: !data.authorId,
+    sentAnalyticsReport: !(data.authorId || data.scoutId),
     description: data.description,
     toc: data.toc,
     summary: data.summary,
