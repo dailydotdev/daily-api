@@ -40,6 +40,9 @@ export class User {
   @Column({ default: false })
   acceptedMarketing: boolean;
 
+  @Column({ default: true })
+  notificationEmail: boolean;
+
   @Column({ default: 10 })
   reputation: number;
 

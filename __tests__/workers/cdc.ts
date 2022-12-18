@@ -114,6 +114,7 @@ const defaultUser: ChangeObject<User> = {
   username: 'idoshamun',
   infoConfirmed: true,
   acceptedMarketing: true,
+  notificationEmail: true,
 };
 
 describe('source request', () => {

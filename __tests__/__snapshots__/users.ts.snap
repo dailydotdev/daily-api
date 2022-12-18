@@ -48,6 +48,7 @@ Object {
   "image": "https://daily.dev/ido.jpg",
   "infoConfirmed": false,
   "name": "Ido",
+  "notificationEmail": true,
   "permalink": "http://localhost:5002/a1",
   "timezone": "Asia/Manila",
   "twitter": null,
