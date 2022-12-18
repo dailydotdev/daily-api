@@ -10,7 +10,6 @@ const cron: Cron = {
       .set({ sentAnalyticsReport: true })
       .where(`"createdAt" <= now() - interval '20 hour'`)
       .andWhere('"sentAnalyticsReport" = false')
-      .andWhere('"authorId" is not null')
       .execute();
   },
 };
