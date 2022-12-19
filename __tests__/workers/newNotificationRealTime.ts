@@ -129,6 +129,7 @@ it('should publish an event to redis', async () => {
     await expectSuccessfulBackground(worker, {
       notification: {
         id,
+        public: true,
       },
     });
   });
