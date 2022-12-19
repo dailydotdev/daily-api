@@ -1675,12 +1675,26 @@ describe('mutation updateUserProfile', () => {
 
   it('should not update if name is empty', async () => {
     loggedUser = '1';
+    await con.getRepository(User).update({ id: loggedUser }, { name: null });
 
     await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { data: { username: 'u1' } } },
       'GRAPHQL_VALIDATION_FAILED',
     );
+  });
+
+  it('should update if name is already set but not provided', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { username: 'handle' });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: { acceptedMarketing: true },
+      },
+    });
+    expect(res.errors).toBeFalsy();
   });
 
   it('should not update user profile if email exists', async () => {

@@ -762,8 +762,13 @@ export const resolvers: IResolvers<any, Context> = {
       });
 
       const regexParams: ValidateRegex[] = [
-        ['name', data.name, new RegExp(/^(.*){1,60}$/), true],
-        ['username', data.username, new RegExp(/^@?(\w){1,39}$/), true],
+        ['name', data.name, new RegExp(/^(.*){1,60}$/), !user.name],
+        [
+          'username',
+          data.username,
+          new RegExp(/^@?(\w){1,39}$/),
+          !user.username,
+        ],
         ['github', data.github, new RegExp(/^@?([\w-]){1,39}$/i)],
         ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
         ['hashnode', data.hashnode, new RegExp(/^@?([\w-]){1,39}$/i)],
