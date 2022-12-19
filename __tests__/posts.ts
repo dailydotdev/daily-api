@@ -24,11 +24,13 @@ import {
   User,
   View,
   PostReport,
+  ArticlePost,
+  SharePost,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
-import { DataSource } from 'typeorm';
+import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
 
 let app: FastifyInstance;
@@ -55,7 +57,7 @@ beforeEach(async () => {
   jest.resetAllMocks();
 
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await con
     .getRepository(User)
@@ -74,38 +76,34 @@ describe('image fields', () => {
   }`;
 
   it('should return default image when no image exists', async () => {
-    const repo = con.getRepository(Post);
-    await repo.save(
-      repo.create({
-        id: 'image',
-        shortId: 'image',
-        title: 'No image',
-        url: 'http://noimage.com',
-        score: 0,
-        sourceId: 'a',
-        createdAt: new Date(2020, 4, 4, 19, 35),
-      }),
-    );
+    const repo = con.getRepository(ArticlePost);
+    await repo.save({
+      id: 'image',
+      shortId: 'image',
+      title: 'No image',
+      url: 'http://noimage.com',
+      score: 0,
+      sourceId: 'a',
+      createdAt: new Date(2020, 4, 4, 19, 35),
+    });
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return post image when exists', async () => {
-    const repo = con.getRepository(Post);
-    await repo.save(
-      repo.create({
-        id: 'image',
-        shortId: 'image',
-        title: 'Image',
-        url: 'http://post.com',
-        score: 0,
-        sourceId: 'a',
-        createdAt: new Date(2020, 4, 4, 19, 35),
-        image: 'http://image.com',
-        placeholder: 'data:image/jpeg;base64,placeholder',
-        ratio: 0.5,
-      }),
-    );
+    const repo = con.getRepository(ArticlePost);
+    await repo.save({
+      id: 'image',
+      shortId: 'image',
+      title: 'Image',
+      url: 'http://post.com',
+      score: 0,
+      sourceId: 'a',
+      createdAt: new Date(2020, 4, 4, 19, 35),
+      image: 'http://image.com',
+      placeholder: 'data:image/jpeg;base64,placeholder',
+      ratio: 0.5,
+    });
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
@@ -507,10 +505,34 @@ describe('toc field', () => {
         },
         { text: 'Title 2', id: 'title-2' },
       ],
-    });
+    } as DeepPartial<ArticlePost>);
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('sharedPost field', () => {
+  const QUERY = `{
+    post(id: "ps") {
+      sharedPost {
+        id
+        title
+      }
+    }
+  }`;
+
+  it('should return the share post properties', async () => {
+    await con.getRepository(SharePost).save({
+      id: 'ps',
+      shortId: 'ps',
+      title: 'Shared post',
+      sharedPostId: 'p1',
+    });
+    const res = await client.query(QUERY);
+    expect(res.data).toEqual({
+      post: { sharedPost: { id: 'p1', title: 'P1' } },
+    });
   });
 });
 
@@ -535,7 +557,7 @@ describe('query post', () => {
     testQueryErrorCode(client, { query: QUERY('notfound') }, 'NOT_FOUND'));
 
   it('should throw not found when post was soft deleted', async () => {
-    await saveFixtures(con, Post, [
+    await saveFixtures(con, ArticlePost, [
       {
         id: 'pdeleted',
         shortId: 'spdeleted',
@@ -571,7 +593,7 @@ describe('query postByUrl', () => {
     testQueryErrorCode(client, { query: QUERY('notfound') }, 'NOT_FOUND'));
 
   it('should throw not found when post was soft deleted', async () => {
-    await saveFixtures(con, Post, [
+    await saveFixtures(con, ArticlePost, [
       {
         id: 'pdeleted',
         shortId: 'spdeleted',
@@ -605,7 +627,7 @@ describe('query postByUrl', () => {
   });
 
   it('should return post if query params on youtube link', async () => {
-    await saveFixtures(con, Post, [
+    await saveFixtures(con, ArticlePost, [
       {
         id: 'yt1',
         shortId: 'yt1',

@@ -16,6 +16,7 @@ import {
   Comment,
   User,
   CommentUpvote,
+  ArticlePost,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
@@ -52,7 +53,7 @@ beforeEach(async () => {
   jest.resetAllMocks();
 
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await con.getRepository(User).save(usersFixture);
   await con.getRepository(Comment).save([

@@ -1,6 +1,12 @@
 import cron from '../../src/cron/updateFeaturedComments';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
-import { Post, Source, User, Comment, CommentUpvote } from '../../src/entity';
+import {
+  Source,
+  User,
+  Comment,
+  CommentUpvote,
+  ArticlePost,
+} from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { Checkpoint } from '../../src/entity/Checkpoint';
@@ -22,7 +28,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
   await con.getRepository(User).save([
     { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
     { id: '2', name: 'Tsahi', image: 'https://daily.dev/ido.jpg' },

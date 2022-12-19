@@ -1,8 +1,9 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { offsetToCursor } from 'graphql-relay';
 import { GraphqlPayload, injectGraphql, postFields } from './utils';
-import { Post } from '../entity';
+import { ArticlePost, Post } from '../entity';
 import createOrGetConnection from '../db';
+import { FindOptionsSelect } from 'typeorm/find-options/FindOptionsSelect';
 
 const getPaginationParams = (
   req: FastifyRequest<{
@@ -203,7 +204,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { id: string } }>('/:id', async (req, res) => {
     const con = await createOrGetConnection();
     const post = await con.getRepository(Post).findOne({
-      select: ['id', 'title', 'url'],
+      select: ['id', 'title', 'url'] as FindOptionsSelect<ArticlePost>,
       where: [{ id: req.params.id }, { shortId: req.params.id }],
     });
     if (!post) {

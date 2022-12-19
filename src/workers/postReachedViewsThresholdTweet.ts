@@ -1,5 +1,5 @@
 import { messageToJson, Worker } from './worker';
-import { Post } from '../entity';
+import { ArticlePost } from '../entity';
 import { getDiscussionLink, truncatePostToTweet, tweet } from '../common';
 
 interface Data {
@@ -12,7 +12,9 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      const post = await con.getRepository(Post).findOneBy({ id: data.postId });
+      const post = await con
+        .getRepository(ArticlePost)
+        .findOneBy({ id: data.postId });
       if (post?.creatorTwitter && !post.authorId && data.threshold <= 500) {
         const title = truncatePostToTweet(post);
         const link = `${getDiscussionLink(post.id)}?author=true`;

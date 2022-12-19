@@ -1,4 +1,5 @@
 import {
+  ChildEntity,
   Column,
   DataSource,
   Entity,
@@ -7,7 +8,9 @@ import {
   Index,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryColumn,
+  TableInheritance,
 } from 'typeorm';
 import shortid from 'shortid';
 import * as he from 'he';
@@ -25,16 +28,21 @@ export type TocItem = { text: string; id?: string; children?: TocItem[] };
 export type Toc = TocItem[];
 
 @Entity()
+@TableInheritance({
+  column: { type: 'varchar', name: 'type', default: 'article' },
+})
 export class Post {
   @PrimaryColumn({ type: 'text' })
   id: string;
 
+  type: string;
+
+  @Column({ type: 'text' })
+  title: string;
+
   @Column({ length: 14 })
   @Index('IDX_post_shortid', { unique: true })
   shortId: string;
-
-  @Column({ nullable: true })
-  publishedAt?: Date;
 
   @Column({ default: () => 'now()' })
   @Index('IDX_post_createdAt', { synchronize: false })
@@ -44,35 +52,15 @@ export class Post {
   @Index('IDX_post_metadataChangedAt')
   metadataChangedAt: Date;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', nullable: true })
   @Index()
-  sourceId: string;
+  sourceId: string | null;
 
   @ManyToOne(() => Source, (source) => source.posts, {
     lazy: true,
     onDelete: 'CASCADE',
   })
   source: Promise<Source>;
-
-  @Column({ type: 'text' })
-  @Index({ unique: true })
-  url: string;
-
-  @Column({ type: 'text', nullable: true })
-  @Index({ unique: true })
-  canonicalUrl?: string;
-
-  @Column({ type: 'text' })
-  title: string;
-
-  @Column({ type: 'text', nullable: true })
-  image?: string;
-
-  @Column({ type: 'float', nullable: true })
-  ratio?: number;
-
-  @Column({ type: 'text', nullable: true })
-  placeholder?: string;
 
   @Column({ default: false })
   tweeted: boolean;
@@ -84,15 +72,6 @@ export class Post {
   @Column({ type: 'integer', default: 0 })
   @Index('IDX_post_score', { synchronize: false })
   score: number;
-
-  @Column({ type: 'text', nullable: true })
-  siteTwitter?: string;
-
-  @Column({ type: 'text', nullable: true })
-  creatorTwitter?: string;
-
-  @Column({ nullable: true })
-  readTime?: number;
 
   @OneToMany(() => PostTag, (tag) => tag.post, { lazy: true })
   tags: Promise<PostTag[]>;
@@ -163,15 +142,56 @@ export class Post {
   @Column({ nullable: true, type: 'tsvector', select: false })
   @Index('IDX_post_tsv')
   tsv: unknown;
+}
+
+@ChildEntity('article')
+export class ArticlePost extends Post {
+  @Column({ nullable: true })
+  publishedAt?: Date;
+
+  @Column({ type: 'text' })
+  @Index({ unique: true })
+  url: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string | null;
+  @Index({ unique: true })
+  canonicalUrl?: string;
+
+  @Column({ type: 'text', nullable: true })
+  image?: string;
+
+  @Column({ type: 'float', nullable: true })
+  ratio?: number;
+
+  @Column({ type: 'text', nullable: true })
+  placeholder?: string;
+
+  @Column({ type: 'text', nullable: true })
+  siteTwitter?: string;
+
+  @Column({ type: 'text', nullable: true })
+  creatorTwitter?: string;
+
+  @Column({ nullable: true })
+  readTime?: number;
+
+  @Column({ type: 'text', nullable: true })
+  description?: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  toc: Toc | null;
+  toc?: Toc;
 
   @Column({ type: 'text', nullable: true })
-  summary: string | null;
+  summary?: string;
+}
+
+@ChildEntity('share')
+export class SharePost extends Post {
+  @Column({ type: 'text' })
+  sharedPostId: string;
+
+  @OneToOne(() => Post, { lazy: true, onDelete: 'SET NULL' })
+  sharedPost: Promise<Post>;
 }
 
 export interface SearchPostsResult {
@@ -372,7 +392,7 @@ const addPostAndKeywordsToDb = async (
       'created an article with more than 5 keywords',
     );
   }
-  await entityManager.getRepository(Post).insert({
+  await entityManager.getRepository(ArticlePost).insert({
     id: data.id,
     shortId: data.id,
     publishedAt: data.publishedAt,

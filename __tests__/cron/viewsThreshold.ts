@@ -1,6 +1,6 @@
 import cron from '../../src/cron/viewsThreshold';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
-import { Post, Source } from '../../src/entity';
+import { ArticlePost, Post, Source } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { DataSource } from 'typeorm';
@@ -15,7 +15,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
 });
 
 it('should not update anything', async () => {

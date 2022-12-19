@@ -1,9 +1,9 @@
 import { DeepPartial } from 'typeorm';
-import { Post, PostKeyword, PostTag } from '../../src/entity';
+import { ArticlePost, PostKeyword, PostTag } from '../../src/entity';
 
 const now = new Date();
 
-export const postsFixture: DeepPartial<Post>[] = [
+export const postsFixture: DeepPartial<ArticlePost>[] = [
   {
     id: 'p1',
     shortId: 'sp1',

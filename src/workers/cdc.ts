@@ -3,6 +3,7 @@ import { ReputationEvent } from './../entity/ReputationEvent';
 import { CommentMention } from './../entity/CommentMention';
 import { messageToJson, Worker } from './worker';
 import {
+  ArticlePost,
   Comment,
   CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
@@ -47,7 +48,7 @@ import {
   notifyNewNotification,
   notifyNewCommentMention,
 } from '../common';
-import { ChangeMessage } from '../types';
+import { ChangeMessage, ChangeObject } from '../types';
 import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
@@ -301,7 +302,11 @@ const onPostChange = async (
       isChanged(data.payload.before, data.payload.after, 'createdAt') ||
       isChanged(data.payload.before, data.payload.after, 'authorId') ||
       isChanged(data.payload.before, data.payload.after, 'sourceId') ||
-      isChanged(data.payload.before, data.payload.after, 'creatorTwitter')
+      isChanged<ChangeObject<ArticlePost>>(
+        data.payload.before as ChangeObject<ArticlePost>,
+        data.payload.after as ChangeObject<ArticlePost>,
+        'creatorTwitter',
+      )
     ) {
       await con
         .getRepository(Post)

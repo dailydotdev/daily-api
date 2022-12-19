@@ -1,6 +1,6 @@
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postBannedRep';
-import { Post, Source, User } from '../../src/entity';
+import { ArticlePost, Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { PostReport, ReputationEvent } from '../../src/entity';
@@ -16,7 +16,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
   await con.getRepository(User).save([
     {
       id: '1',

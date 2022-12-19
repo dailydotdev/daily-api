@@ -1,7 +1,7 @@
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
 import { saveFixtures } from './helpers';
-import { Post, Source } from '../src/entity';
+import { ArticlePost, Source } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
 import { postsFixture } from './fixture/post';
@@ -28,7 +28,7 @@ afterAll(() => app.close());
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
 });
 
 const agent =

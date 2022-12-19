@@ -59,6 +59,7 @@ export interface GQLPost {
   summary?: string;
   isScout?: number;
   isAuthor?: number;
+  sharedPost?: GQLPost;
 }
 
 export type GQLPostNotification = Pick<
@@ -153,7 +154,7 @@ export const typeDefs = /* GraphQL */ `
     """
     URL to the post
     """
-    url: String!
+    url: String
 
     """
     Title of the post
@@ -168,12 +169,12 @@ export const typeDefs = /* GraphQL */ `
     """
     Aspect ratio of the image
     """
-    ratio: Float
+    ratio: Float @deprecated(reason: "no longer maintained")
 
     """
     Tiny version of the image in base64
     """
-    placeholder: String
+    placeholder: String @deprecated(reason: "no longer maintained")
 
     """
     Estimation of time to read the article (in minutes)
@@ -183,7 +184,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Source of the post
     """
-    source: Source!
+    source: Source
 
     """
     Tags of the post
@@ -238,7 +239,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Featured comments for the post
     """
-    featuredComments: [Comment!]
+    featuredComments: [Comment!] @deprecated(reason: "no longer maintained")
 
     """
     Author of the post (if they have a daily.dev account)
@@ -284,6 +285,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the user is the scout
     """
     isScout: Int
+
+    """
+    Original post that was shared in this post
+    """
+    sharedPost: Post
   }
 
   type PostConnection {

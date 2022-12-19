@@ -1,6 +1,6 @@
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postCommentedRedis';
-import { Post, Source } from '../../src/entity';
+import { ArticlePost, Source } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { redisPubSub } from '../../src/redis';
@@ -16,7 +16,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
 });
 
 it('should publish an event to redis', async () => {

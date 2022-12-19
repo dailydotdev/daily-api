@@ -5,11 +5,11 @@ import { v4 as uuidv4 } from 'uuid';
 import appFunc from '../src';
 import {
   Bookmark,
-  Post,
   Source,
   PostKeyword,
   Settings,
   User,
+  ArticlePost,
 } from '../src/entity';
 import { saveFixtures } from './helpers';
 import { sourcesFixture } from './fixture/source';
@@ -21,7 +21,7 @@ let app: FastifyInstance;
 let con: DataSource;
 
 const now = new Date(1591192264260);
-export const postsFixture: DeepPartial<Post>[] = [
+export const postsFixture: DeepPartial<ArticlePost>[] = [
   {
     id: 'p1',
     shortId: 'p1',
@@ -109,7 +109,7 @@ afterAll(() => app.close());
 
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
   await saveFixtures(con, Bookmark, bookmarksFixture);
 });

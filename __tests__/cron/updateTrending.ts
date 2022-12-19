@@ -1,7 +1,7 @@
 import shortid from 'shortid';
 import cron from '../../src/cron/updateTrending';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
-import { Post, Source, View } from '../../src/entity';
+import { ArticlePost, Post, Source, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 
@@ -17,7 +17,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
 });
 
 const addViewsToPost = async (
