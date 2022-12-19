@@ -11,6 +11,9 @@ const worker: Worker = {
   subscription: 'api.new-notification-real-time',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
+    if (!data.notification.public) {
+      return;
+    }
     try {
       const { id } = data.notification;
       const [notification, attachments, avatars] =
