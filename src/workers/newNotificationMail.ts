@@ -187,7 +187,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       .findOneBy({ id: notification.referenceId });
     return {
       first_name: getFirstName(user.name),
-      rss_link: sourceRequest.sourceFeed,
+      rss_link: sourceRequest.sourceUrl,
     };
   },
   comment_mention: async (con, user, notification) => {

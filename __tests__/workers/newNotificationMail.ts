@@ -394,7 +394,7 @@ it('should set parameters for source_rejected email', async () => {
   const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
   expect(args.dynamicTemplateData).toEqual({
     first_name: 'Ido',
-    rss_link: 'https://rss.com',
+    rss_link: 'https://daily.dev',
   });
   expect(args.templateId).toEqual('d-48de63612ff944cb8156fec17f47f066');
 });
