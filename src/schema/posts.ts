@@ -27,6 +27,7 @@ import { GraphQLResolveInfo } from 'graphql';
 
 export interface GQLPost {
   id: string;
+  type: string;
   shortId: string;
   publishedAt?: Date;
   createdAt: Date;
@@ -128,13 +129,18 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
-  Blog post
+  Content post
   """
   type Post {
     """
     Unique identifier
     """
     id: ID!
+
+    """
+    Post type
+    """
+    type: String
 
     """
     Unique URL friendly short identifier

@@ -230,6 +230,7 @@ export enum Ranking {
 
 export interface FeedOptions {
   ranking: Ranking;
+  supportedTypes?: string[];
 }
 
 export type FeedArgs = ConnectionArguments & FeedOptions;
@@ -238,6 +239,7 @@ export const applyFeedWhere = (
   ctx: Context,
   builder: SelectQueryBuilder<Post>,
   alias: string,
+  postTypes: string[],
   removeHiddenPosts = true,
   removeBannedPosts = true,
 ): SelectQueryBuilder<Post> => {
@@ -245,11 +247,14 @@ export const applyFeedWhere = (
     .subQuery()
     .from(Source, 'source')
     .where('source.private = false')
-    .andWhere(`source.id = "${alias}"."sourceId"`)
-    .andWhere(`${alias}.deleted = false`);
-  let newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`, {
-    userId: ctx.userId,
-  });
+    .andWhere(`source.id = "${alias}"."sourceId"`);
+  let newBuilder = builder
+    .andWhere(`${alias}.deleted = false`)
+    .andWhere(`${alias}."sourceId" is not null`)
+    .andWhere(`${alias}."type" in (:...postTypes)`, { postTypes })
+    .andWhere(`EXISTS${selectSource.getQuery()}`, {
+      userId: ctx.userId,
+    });
   if (ctx.userId && removeHiddenPosts) {
     newBuilder = newBuilder
       .leftJoin(
@@ -279,7 +284,7 @@ export type FeedResolverOptions<TArgs, TParams, TPage extends Page> = {
 
 export function feedResolver<
   TSource,
-  TArgs extends ConnectionArguments,
+  TArgs extends Omit<FeedArgs, 'ranking'>,
   TPage extends Page,
   TParams,
 >(
@@ -347,6 +352,7 @@ export function feedResolver<
                 builder.alias,
               ),
               builder.alias,
+              args.supportedTypes || ['article'],
               removeHiddenPosts,
               removeBannedPosts,
             );
@@ -395,6 +401,7 @@ export function randomPostsResolver<
         context,
         query(context, args, builder.queryBuilder, builder.alias),
         builder.alias,
+        ['article'],
         true,
       )
         .orderBy('random()')

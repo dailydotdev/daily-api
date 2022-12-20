@@ -536,6 +536,21 @@ describe('sharedPost field', () => {
   });
 });
 
+describe('type field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      type
+    }
+  }`;
+
+  it('should return the share post properties', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data).toEqual({
+      post: { type: 'article' },
+    });
+  });
+});
+
 describe('query post', () => {
   const QUERY = (id: string): string => `{
     post(id: "${id}") {

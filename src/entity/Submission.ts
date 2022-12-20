@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from './User';
-import { AddPostData } from './Post';
+import { AddPostData } from './posts';
 import { SubmissionFailErrorKeys } from '../errors';
 
 export enum SubmissionStatus {

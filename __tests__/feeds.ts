@@ -399,8 +399,8 @@ describe('query feed', () => {
   };
 
   const QUERY = `
-  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean) {
-    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly) {
+  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
+    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
       ${feedFields()}
     }
   }
@@ -526,6 +526,26 @@ describe('query feed', () => {
       });
     const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return only article posts by default', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con.getRepository(Post).update({ id: 'p4' }, { type: 'share' });
+    mockFeatures();
+    const res = await client.query(QUERY);
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should respect the supportedTypes argument', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con.getRepository(Post).update({ id: 'p4' }, { type: 'share' });
+    mockFeatures();
+    const res = await client.query(QUERY, {
+      variables: { supportedTypes: ['article', 'share'] },
     });
     expect(res.data).toMatchSnapshot();
   });

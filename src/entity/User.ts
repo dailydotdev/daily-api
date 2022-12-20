@@ -8,7 +8,7 @@ import {
   OneToMany,
   PrimaryColumn,
 } from 'typeorm';
-import { Post } from './Post';
+import { Post } from './posts';
 import { DevCard } from './DevCard';
 import { FastifyLoggerInstance } from 'fastify';
 import { UpdateUserFailErrorKeys, UserFailErrorKeys } from '../errors';

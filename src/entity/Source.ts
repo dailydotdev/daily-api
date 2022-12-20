@@ -1,7 +1,7 @@
 import { Column, Entity, Index, OneToMany, PrimaryColumn } from 'typeorm';
 import { SourceDisplay } from './SourceDisplay';
 import { SourceFeed } from './SourceFeed';
-import { Post } from './Post';
+import { Post } from './posts';
 
 export const COMMUNITY_PICKS_SOURCE = 'community';
 
