@@ -17,6 +17,7 @@ import {
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { randomUUID } from 'crypto';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
 
@@ -57,10 +58,34 @@ beforeEach(async () => {
     ]);
   await saveFixtures(con, User, usersFixture);
   await con.getRepository(SourceMember).save([
-    { userId: '1', sourceId: 'a', role: SourceMemberRoles.Owner },
-    { userId: '2', sourceId: 'a', role: SourceMemberRoles.Member },
-    { userId: '2', sourceId: 'b', role: SourceMemberRoles.Owner },
-    { userId: '3', sourceId: 'b', role: SourceMemberRoles.Member },
+    {
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Owner,
+      referralToken: randomUUID(),
+      createdAt: new Date(2022, 11, 19),
+    },
+    {
+      userId: '2',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+      createdAt: new Date(2022, 11, 20),
+    },
+    {
+      userId: '2',
+      sourceId: 'b',
+      role: SourceMemberRoles.Owner,
+      referralToken: randomUUID(),
+      createdAt: new Date(2022, 11, 19),
+    },
+    {
+      userId: '3',
+      sourceId: 'b',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+      createdAt: new Date(2022, 11, 20),
+    },
   ]);
 });
 

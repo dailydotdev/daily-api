@@ -25,23 +25,23 @@ Object {
       "edges": Array [
         Object {
           "node": Object {
-            "role": "owner",
-            "source": Object {
-              "id": "a",
-            },
-            "user": Object {
-              "id": "1",
-            },
-          },
-        },
-        Object {
-          "node": Object {
             "role": "member",
             "source": Object {
               "id": "a",
             },
             "user": Object {
               "id": "2",
+            },
+          },
+        },
+        Object {
+          "node": Object {
+            "role": "owner",
+            "source": Object {
+              "id": "a",
+            },
+            "user": Object {
+              "id": "1",
             },
           },
         },
@@ -60,23 +60,23 @@ Object {
   "edges": Array [
     Object {
       "node": Object {
-        "role": "owner",
-        "source": Object {
-          "id": "a",
-        },
-        "user": Object {
-          "id": "1",
-        },
-      },
-    },
-    Object {
-      "node": Object {
         "role": "member",
         "source": Object {
           "id": "a",
         },
         "user": Object {
           "id": "2",
+        },
+      },
+    },
+    Object {
+      "node": Object {
+        "role": "owner",
+        "source": Object {
+          "id": "a",
+        },
+        "user": Object {
+          "id": "1",
         },
       },
     },
