@@ -130,10 +130,27 @@ const obj = new GraphORM({
     },
   },
   Source: {
+    requiredColumns: ['id', 'private'],
     fields: {
       public: {
         select: 'private',
         transform: (value: boolean): boolean => !value,
+      },
+      members: {
+        relation: {
+          isMany: true,
+          childColumn: 'sourceId',
+          parentColumn: 'id',
+          order: 'DESC',
+          sort: 'createdAt',
+        },
+        pagination: {
+          limit: 50,
+          hasNextPage: (size): boolean => size === 50,
+          hasPreviousPage: (): boolean => false,
+          nodeToCursor: (node: GQLComment): string =>
+            base64(`time:${new Date(node.createdAt).getTime()}`),
+        },
       },
     },
   },

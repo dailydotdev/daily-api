@@ -1,27 +1,32 @@
 import { ForbiddenError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { ConnectionArguments } from 'graphql-relay';
-import { traceResolvers } from './trace';
+import { traceResolverObject } from './trace';
 import { Context } from '../Context';
-import { Source, SourceFeed } from '../entity';
+import { Source, SourceFeed, SourceMember, SourceMemberRoles } from '../entity';
 import {
   forwardPagination,
   PaginationResponse,
   offsetPageGenerator,
 } from './common';
+import graphorm from '../graphorm';
+import { EntityNotFoundError } from 'typeorm';
+import { GQLUser } from './users';
+import { Connection } from 'graphql-relay/index';
 
 export interface GQLSource {
   id: string;
   name: string;
   image: string;
+  private: boolean;
   public: boolean;
+  members?: Connection<GQLSourceMember>;
 }
 
-export interface GQLAddPrivateSourceInput {
-  rss: string;
-  name: string;
-  image: string;
-  website?: string;
+export interface GQLSourceMember {
+  source: GQLSource;
+  user: GQLUser;
+  role: SourceMemberRoles;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -33,6 +38,11 @@ export const typeDefs = /* GraphQL */ `
     Short unique string to identify the source
     """
     id: ID!
+
+    """
+    Source type (machine/squad)
+    """
+    type: String!
 
     """
     Name of the source
@@ -48,6 +58,26 @@ export const typeDefs = /* GraphQL */ `
     Whether the source is public
     """
     public: Boolean
+
+    """
+    Whether the source is active or not (applicable for squads)
+    """
+    active: Boolean
+
+    """
+    Source handle (applicable for squads)
+    """
+    handle: String
+
+    """
+    Source description
+    """
+    description: String
+
+    """
+    Source members
+    """
+    members: SourceMemberConnection
   }
 
   type SourceConnection {
@@ -57,6 +87,35 @@ export const typeDefs = /* GraphQL */ `
 
   type SourceEdge {
     node: Source!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type SourceMember {
+    """
+    Relevant user who is part of the source
+    """
+    user: User!
+    """
+    Source the user belongs to
+    """
+    source: Source!
+    """
+    Role of this user in the source
+    """
+    role: String!
+  }
+
+  type SourceMemberConnection {
+    pageInfo: PageInfo!
+    edges: [SourceMemberEdge!]!
+  }
+
+  type SourceMemberEdge {
+    node: SourceMember!
 
     """
     Used in \`before\` and \`after\` args
@@ -121,6 +180,7 @@ export const typeDefs = /* GraphQL */ `
 const sourceToGQL = (source: Source): GQLSource => ({
   ...source,
   public: !source.private,
+  members: undefined,
 });
 
 const sourceByFeed = async (feed: string, ctx: Context): Promise<GQLSource> => {
@@ -135,8 +195,9 @@ const sourceByFeed = async (feed: string, ctx: Context): Promise<GQLSource> => {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = traceResolvers({
-  Query: {
+export const resolvers: IResolvers<any, Context> = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Query: traceResolverObject<any, any>({
     sources: forwardPagination(
       async (
         source,
@@ -161,63 +222,46 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { feed }: { feed: string },
       ctx,
     ): Promise<GQLSource> => sourceByFeed(feed, ctx),
-    source: async (_, { id }: { id: string }, ctx): Promise<GQLSource> => {
-      const res = await ctx.con
-        .getRepository(Source)
-        .findOneByOrFail({ id, private: false });
-      return sourceToGQL(res);
+    source: async (
+      _,
+      { id }: { id: string },
+      ctx,
+      info,
+    ): Promise<GQLSource> => {
+      const res = await graphorm.query<GQLSource>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder.andWhere({ id }).limit(1);
+        return builder;
+      });
+      if (!res.length) {
+        throw new EntityNotFoundError(Source, 'not found');
+      }
+      return res[0];
     },
-  },
-  Mutation: {
+  }),
+  Mutation: traceResolverObject({
     addPrivateSource: async (): Promise<GQLSource> => {
       throw new ForbiddenError('Not available');
-      // const privateCount = await ctx
-      //   .getRepository(SourceDisplay)
-      //   .count({ userId: ctx.userId });
-      // if (privateCount >= 40) {
-      //   throw new ForbiddenError('Private sources cap reached');
-      // }
-      // let display = await sourceByFeed(data.rss, ctx);
-      // if (display) {
-      //   return display;
-      // }
-      // const feed = data.rss;
-      // const existingFeed = await ctx
-      //   .getRepository(SourceFeed)
-      //   .findOne({ select: ['sourceId'], where: { feed } });
-      // const id = existingFeed
-      //   ? existingFeed.sourceId
-      //   : uuidv4().replace(/-/g, '');
-      // display = await ctx.con.transaction(async (manager) => {
-      //   if (!existingFeed) {
-      //     await manager
-      //       .getRepository(Source)
-      //       .save({ id, website: data.website });
-      //     await manager.getRepository(SourceFeed).save({ sourceId: id, feed });
-      //   } else {
-      //     ctx.log.info({ data: { id } }, 'using existing private source');
-      //   }
-      //   const display = await manager.getRepository(SourceDisplay).save({
-      //     sourceId: id,
-      //     image: data.image,
-      //     name: data.name,
-      //     userId: ctx.userId,
-      //   });
-      //   return sourceToGQL(display);
-      // });
-      // if (!existingFeed) {
-      //   await pRetry(
-      //     () => addOrRemoveSuperfeedrSubscription(feed, id, 'subscribe'),
-      //     { retries: 2 },
-      //   ).catch((err) =>
-      //     ctx.log.error(
-      //       { err, data: { feed, id } },
-      //       'failed to add rss to superfeedr',
-      //     ),
-      //   );
-      // }
-      // ctx.log.info({ data }, 'new private source added');
-      // return display;
+    },
+  }),
+  Source: {
+    members: async (
+      source: GQLSource,
+      args,
+      ctx,
+    ): Promise<Connection<GQLSourceMember>> => {
+      if (!source.private) {
+        return source.members;
+      }
+      if (ctx.userId) {
+        const member = await ctx.con.getRepository(SourceMember).findOneBy({
+          userId: ctx.userId,
+          sourceId: source.id,
+        });
+        if (member) {
+          return source.members;
+        }
+      }
+      return null;
     },
   },
-});
+};

@@ -33,7 +33,7 @@ export class SourceMember {
   createdAt: Date;
 
   @Column({ type: 'text' })
-  role: string;
+  role: SourceMemberRoles;
 
   @Column({ type: 'uuid' })
   @Index('IDX_source_member_referralToken', { unique: true })
