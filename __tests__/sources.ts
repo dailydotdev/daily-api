@@ -4,13 +4,21 @@ import {
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
+  saveFixtures,
   testQueryErrorCode,
 } from './helpers';
-import { Source, SourceFeed } from '../src/entity';
+import {
+  Source,
+  SourceFeed,
+  SourceMember,
+  SourceMemberRoles,
+  User,
+} from '../src/entity';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { usersFixture } from './fixture/user';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -47,6 +55,13 @@ beforeEach(async () => {
       createSource('a', 'A', 'http://a.com'),
       createSource('b', 'B', 'http://b.com'),
     ]);
+  await saveFixtures(con, User, usersFixture);
+  await con.getRepository(SourceMember).save([
+    { userId: '1', sourceId: 'a', role: SourceMemberRoles.Owner },
+    { userId: '2', sourceId: 'a', role: SourceMemberRoles.Member },
+    { userId: '2', sourceId: 'b', role: SourceMemberRoles.Owner },
+    { userId: '3', sourceId: 'b', role: SourceMemberRoles.Member },
+  ]);
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -146,7 +161,7 @@ query Source($id: ID!) {
 }
   `;
 
-  it('should not authorize when not logged in', () =>
+  it('should not authorize when source does not exist', () =>
     testQueryErrorCode(
       client,
       { query: QUERY, variables: { id: 'notexist' } },
@@ -156,6 +171,50 @@ query Source($id: ID!) {
   it('should return source by', async () => {
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('members field', () => {
+  const QUERY = `
+query Source($id: ID!) {
+  source(id: $id) {
+    id
+    members {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          user { id }
+          source { id }
+          role
+        }
+      }
+    }
+  }
+}
+  `;
+
+  it('should return source members', async () => {
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should not return source members for private source', async () => {
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.members).toBeFalsy();
+  });
+
+  it('should return source members for private source when the user is a member', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.members).toMatchSnapshot();
   });
 });
 

@@ -17,6 +17,77 @@ Array [
 ]
 `;
 
+exports[`members field should return source members 1`] = `
+Object {
+  "source": Object {
+    "id": "a",
+    "members": Object {
+      "edges": Array [
+        Object {
+          "node": Object {
+            "role": "owner",
+            "source": Object {
+              "id": "a",
+            },
+            "user": Object {
+              "id": "1",
+            },
+          },
+        },
+        Object {
+          "node": Object {
+            "role": "member",
+            "source": Object {
+              "id": "a",
+            },
+            "user": Object {
+              "id": "2",
+            },
+          },
+        },
+      ],
+      "pageInfo": Object {
+        "endCursor": "dGltZTpOYU4=",
+        "hasNextPage": false,
+      },
+    },
+  },
+}
+`;
+
+exports[`members field should return source members for private source when the user is a member 1`] = `
+Object {
+  "edges": Array [
+    Object {
+      "node": Object {
+        "role": "owner",
+        "source": Object {
+          "id": "a",
+        },
+        "user": Object {
+          "id": "1",
+        },
+      },
+    },
+    Object {
+      "node": Object {
+        "role": "member",
+        "source": Object {
+          "id": "a",
+        },
+        "user": Object {
+          "id": "2",
+        },
+      },
+    },
+  ],
+  "pageInfo": Object {
+    "endCursor": "dGltZTpOYU4=",
+    "hasNextPage": false,
+  },
+}
+`;
+
 exports[`query source should return source by 1`] = `
 Object {
   "source": Object {
