@@ -1,8 +1,8 @@
 import { messageToJson, Worker } from './worker';
 import { ChangeObject } from '../types';
 import {
+  ArticlePost,
   Comment,
-  getAuthorPostStats,
   getNotificationAndChildren,
   Notification,
   NotificationAttachment,
@@ -13,6 +13,7 @@ import {
   Submission,
   User,
 } from '../entity';
+import { getAuthorPostStats } from '../entity/posts';
 import {
   addNotificationEmailUtm,
   baseNotificationEmailData,
@@ -72,9 +73,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   community_picks_succeeded: async (con, user, notification) => {
-    const post = await con
+    const post = (await con
       .getRepository(Post)
-      .findOneBy({ id: notification.referenceId });
+      .findOneBy({ id: notification.referenceId })) as ArticlePost;
     const submission = await con
       .getRepository(Submission)
       .findOneBy({ url: post.url, userId: user.id });
@@ -119,7 +120,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       profile_image: commenter.image,
       full_name: commenter.name,
       post_title: truncatePostToTweet(post),
-      post_image: post.image || pickImageUrl(post),
+      post_image: (post as ArticlePost).image || pickImageUrl(post),
       new_comment: notification.description,
       discussion_link: addNotificationEmailUtm(
         notification.targetUrl,
@@ -146,7 +147,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       .findOneBy({ id: notification.referenceId });
     return {
       post_title: truncatePostToTweet(post),
-      post_image: post.image || pickImageUrl(post),
+      post_image: (post as ArticlePost).image || pickImageUrl(post),
     };
   },
   article_analytics: async (con, user, notification) => {
@@ -155,7 +156,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       con.getRepository(Post).findOneBy({ id: notification.referenceId }),
     ]);
     return {
-      post_image: post.image || pickImageUrl(post),
+      post_image: (post as ArticlePost).image || pickImageUrl(post),
       post_title: truncatePostToTweet(post),
       post_views: post.views?.toLocaleString() ?? 0,
       post_views_total: stats.numPostViews?.toLocaleString() ?? 0,
@@ -186,7 +187,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       .findOneBy({ id: notification.referenceId });
     return {
       first_name: getFirstName(user.name),
-      rss_link: sourceRequest.sourceFeed,
+      rss_link: sourceRequest.sourceUrl,
     };
   },
   comment_mention: async (con, user, notification) => {
@@ -202,7 +203,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       full_name: commenter.name,
       commenter_profile_image: commenter.image,
       comment: notification.description,
-      post_image: post.image || pickImageUrl(post),
+      post_image: (post as ArticlePost).image || pickImageUrl(post),
       post_title: truncatePostToTweet(post),
       post_link: addNotificationEmailUtm(
         notification.targetUrl,

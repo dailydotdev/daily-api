@@ -5,13 +5,13 @@ import {
 import { sendEmail } from '../../src/common';
 import worker from '../../src/workers/newNotificationMail';
 import {
-  Post,
   Submission,
   SubmissionStatus,
   User,
   Source,
   Comment,
   SourceRequest,
+  ArticlePost,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { DataSource } from 'typeorm';
@@ -91,7 +91,7 @@ it('should set parameters for community_picks_succeeded email', async () => {
     status: SubmissionStatus.Accepted,
     userId: '1',
   });
-  const post = await con.getRepository(Post).save({
+  const post = await con.getRepository(ArticlePost).save({
     ...postsFixture[0],
     url: 'http://sample.abc.com',
   });
@@ -150,7 +150,7 @@ it('should set parameters for community_picks_granted email', async () => {
 });
 
 it('should set parameters for article_picked email', async () => {
-  const post = await con.getRepository(Post).save(postsFixture[0]);
+  const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const ctx: NotificationPostContext = {
     userId: '1',
     post,
@@ -179,7 +179,7 @@ it('should set parameters for article_picked email', async () => {
 });
 
 it('should set parameters for article_new_comment email', async () => {
-  const post = await con.getRepository(Post).save(postsFixture[0]);
+  const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const comment = await con.getRepository(Comment).save({
     id: 'c1',
     postId: 'p1',
@@ -223,7 +223,7 @@ it('should set parameters for article_new_comment email', async () => {
 });
 
 it('should set parameters for article_upvote_milestone email', async () => {
-  const post = await con.getRepository(Post).save(postsFixture[0]);
+  const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const ctx: NotificationPostContext & NotificationUpvotersContext = {
     userId: '1',
     post,
@@ -255,7 +255,7 @@ it('should set parameters for article_upvote_milestone email', async () => {
 });
 
 it('should set parameters for article_report_approved email', async () => {
-  const post = await con.getRepository(Post).save(postsFixture[0]);
+  const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const ctx: NotificationPostContext = {
     userId: '1',
     post,
@@ -282,14 +282,14 @@ it('should set parameters for article_report_approved email', async () => {
 });
 
 it('should set parameters for article_analytics email', async () => {
-  const post = await con.getRepository(Post).save({
+  const post = await con.getRepository(ArticlePost).save({
     ...postsFixture[0],
     upvotes: 6,
     views: 11,
     comments: 2,
     authorId: '1',
   });
-  await con.getRepository(Post).save({
+  await con.getRepository(ArticlePost).save({
     ...postsFixture[1],
     upvotes: 5,
     views: 10,
@@ -394,13 +394,13 @@ it('should set parameters for source_rejected email', async () => {
   const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
   expect(args.dynamicTemplateData).toEqual({
     first_name: 'Ido',
-    rss_link: 'https://rss.com',
+    rss_link: 'https://daily.dev',
   });
   expect(args.templateId).toEqual('d-48de63612ff944cb8156fec17f47f066');
 });
 
 it('should set parameters for comment_mention email', async () => {
-  const post = await con.getRepository(Post).save(postsFixture[0]);
+  const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const comment = await con.getRepository(Comment).save({
     id: 'c1',
     postId: 'p1',
@@ -444,7 +444,7 @@ it('should set parameters for comment_mention email', async () => {
 });
 
 it('should set parameters for comment_reply email', async () => {
-  const post = await con.getRepository(Post).save(postsFixture[0]);
+  const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   await con.getRepository(Comment).save({
     id: 'c1',
     postId: 'p1',
@@ -498,7 +498,7 @@ it('should set parameters for comment_reply email', async () => {
 });
 
 it('should set parameters for comment_upvote_milestone email', async () => {
-  const post = await con.getRepository(Post).save(postsFixture[0]);
+  const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const comment = await con.getRepository(Comment).save({
     id: 'c1',
     postId: 'p1',
@@ -544,7 +544,7 @@ it('should not send email notification if the user prefers not to receive them',
   const repo = con.getRepository(User);
   const user = await repo.findOneBy({ id: userId });
   await repo.save({ ...user, notificationEmail: false });
-  const post = await con.getRepository(Post).save(postsFixture[0]);
+  const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const comment = await con.getRepository(Comment).save({
     id: 'c1',
     postId: 'p1',

@@ -1,7 +1,7 @@
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { tweet } from '../../src/common';
 import worker from '../../src/workers/postCommentedAuthorTweet';
-import { Post, Source, User } from '../../src/entity';
+import { ArticlePost, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { DataSource } from 'typeorm';
@@ -24,7 +24,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
   await con
     .getRepository(User)
     .save([{ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' }]);
@@ -32,7 +32,7 @@ beforeEach(async () => {
 
 it('should tweet about the new comment', async () => {
   await con
-    .getRepository(Post)
+    .getRepository(ArticlePost)
     .update('p1', { creatorTwitter: '@idoshamun', comments: 23 });
   await expectSuccessfulBackground(worker, {
     postId: 'p1',
@@ -59,7 +59,7 @@ it('should not tweet when no creator twitter', async () => {
 
 it('should not tweet when author is matched', async () => {
   await con
-    .getRepository(Post)
+    .getRepository(ArticlePost)
     .update('p1', { authorId: '1', creatorTwitter: '@idoshamun' });
   await expectSuccessfulBackground(worker, {
     postId: 'p1',

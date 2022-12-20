@@ -2,15 +2,8 @@ import { validateRegex, ValidateRegex } from './../common/object';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
-import {
-  Post,
-  DevCard,
-  User,
-  Comment,
-  getAuthorPostStats,
-  PostStats,
-  View,
-} from '../entity';
+import { Post, DevCard, User, Comment, PostStats, View } from '../entity';
+import { getAuthorPostStats } from '../entity/posts';
 import {
   AuthenticationError,
   ValidationError,

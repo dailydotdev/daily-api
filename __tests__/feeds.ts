@@ -1,6 +1,10 @@
 import { IFlags } from 'flagsmith-nodejs';
 import { feedToFilters } from '../src/common';
-import { FeedAdvancedSettings, AdvancedSettings } from '../src/entity';
+import {
+  FeedAdvancedSettings,
+  AdvancedSettings,
+  ArticlePost,
+} from '../src/entity';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
@@ -78,7 +82,7 @@ beforeEach(async () => {
 
   await saveFixtures(con, AdvancedSettings, advancedSettings);
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
   await deleteKeysByPattern('feeds:*');
@@ -194,7 +198,7 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
       advancedSettings: [6],
     },
   ]);
-  await saveFixtures(con, Post, [
+  await saveFixtures(con, ArticlePost, [
     {
       id: 'includedPost',
       shortId: 'ip1',
@@ -222,7 +226,7 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
       sourceId: 'settingsCombinationSource',
       tagsStr: 'javascript,webdev',
     },
-  ]);
+  ] as ArticlePost[]);
   await saveFixtures(con, FeedAdvancedSettings, [
     { feedId: '1', advancedSettingsId: 1, enabled: false },
     { feedId: '1', advancedSettingsId: 2, enabled: true },
@@ -395,8 +399,8 @@ describe('query feed', () => {
   };
 
   const QUERY = `
-  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean) {
-    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly) {
+  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
+    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
       ${feedFields()}
     }
   }
@@ -522,6 +526,26 @@ describe('query feed', () => {
       });
     const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return only article posts by default', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con.getRepository(Post).update({ id: 'p4' }, { type: 'share' });
+    mockFeatures();
+    const res = await client.query(QUERY);
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should respect the supportedTypes argument', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con.getRepository(Post).update({ id: 'p4' }, { type: 'share' });
+    mockFeatures();
+    const res = await client.query(QUERY, {
+      variables: { supportedTypes: ['article', 'share'] },
     });
     expect(res.data).toMatchSnapshot();
   });

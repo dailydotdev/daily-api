@@ -21,7 +21,18 @@ const cron: Cron = {
     const latest = new Date(latestResponse.data[0].latest);
     logger.info(`fetching post changes since ${latest.toISOString()}`);
     const posts = await con.query(
-      `SELECT "id", "authorId" AS "author_id", "createdAt" AS "created_at", "metadataChangedAt" AS "metadata_changed_at", "creatorTwitter" AS "creator_twitter", "sourceId" AS "source_id", "tagsStr" AS "tags_str", ("banned" or "deleted")::int AS "banned" FROM "post" WHERE "metadataChangedAt" > $1;`,
+      `SELECT "id",
+              "authorId" AS "author_id",
+              "createdAt" AS "created_at",
+              "metadataChangedAt" AS "metadata_changed_at",
+              "creatorTwitter" AS "creator_twitter",
+              "sourceId" AS "source_id",
+              "tagsStr" AS "tags_str",
+              ("banned" or "deleted") ::int AS "banned"
+       FROM "post"
+       WHERE "metadataChangedAt" > $1
+         and "type" = 'article'
+         and "sourceId" is not null;`,
       [latest],
     );
     if (posts.length) {

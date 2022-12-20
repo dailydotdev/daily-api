@@ -120,6 +120,13 @@ const obj = new GraphORM({
       toc: {
         jsonType: true,
       },
+      sharedPost: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'sharedPostId',
+        },
+      },
     },
   },
   Source: {

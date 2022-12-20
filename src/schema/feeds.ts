@@ -178,6 +178,11 @@ export const typeDefs = /* GraphQL */ `
       Version of the feed algorithm
       """
       version: Int = 1
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -213,6 +218,11 @@ export const typeDefs = /* GraphQL */ `
       Version of the feed algorithm
       """
       version: Int = 1
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection! @auth
 
     """
@@ -243,6 +253,11 @@ export const typeDefs = /* GraphQL */ `
       Ranking criteria for the feed
       """
       ranking: Ranking = POPULARITY
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -273,6 +288,11 @@ export const typeDefs = /* GraphQL */ `
       Ranking criteria for the feed
       """
       ranking: Ranking = POPULARITY
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -298,6 +318,11 @@ export const typeDefs = /* GraphQL */ `
       Ranking criteria for the feed
       """
       ranking: Ranking = POPULARITY
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -338,6 +363,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -368,6 +398,11 @@ export const typeDefs = /* GraphQL */ `
       Ranking criteria for the feed
       """
       ranking: Ranking = POPULARITY
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -388,6 +423,11 @@ export const typeDefs = /* GraphQL */ `
       Number of days since publication
       """
       period: Int
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -403,6 +443,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """

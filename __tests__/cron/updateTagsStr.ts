@@ -1,6 +1,12 @@
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import cron from '../../src/cron/updateTagsStr';
-import { Keyword, Post, PostKeyword, Source } from '../../src/entity';
+import {
+  ArticlePost,
+  Keyword,
+  Post,
+  PostKeyword,
+  Source,
+} from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { Checkpoint } from '../../src/entity/Checkpoint';
@@ -15,7 +21,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
 });
 
 it('should update post tagsStr with the all recently updated keywords', async () => {
@@ -41,7 +47,9 @@ it('should update post tagsStr with the all recently updated keywords', async ()
     { keyword: 'webdev', postId: 'p4' },
   ]);
   await con.query(
-    `update keyword set "updatedAt" = $1 where "value" = 'webdev'`,
+    `update keyword
+     set "updatedAt" = $1
+     where "value" = 'webdev'`,
     [before],
   );
   await expectSuccessfulCron(cron);

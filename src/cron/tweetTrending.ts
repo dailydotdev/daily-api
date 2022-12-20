@@ -1,9 +1,9 @@
 import { MoreThanOrEqual } from 'typeorm';
 import { getDiscussionLink, tweet } from '../common';
-import { Post } from '../entity';
+import { ArticlePost } from '../entity';
 import { Cron } from './cron';
 
-const getSiteHandler = async (post: Post): Promise<string> => {
+const getSiteHandler = async (post: ArticlePost): Promise<string> => {
   if (post.siteTwitter && post.siteTwitter.length > 1) {
     return post.siteTwitter;
   }
@@ -16,10 +16,10 @@ const getSiteHandler = async (post: Post): Promise<string> => {
   return null;
 };
 
-const getUserHandler = (post: Post): string =>
+const getUserHandler = (post: ArticlePost): string =>
   post.creatorTwitter?.length > 1 && post.creatorTwitter;
 
-const buildTweet = async (post: Post): Promise<string> => {
+const buildTweet = async (post: ArticlePost): Promise<string> => {
   const link = getDiscussionLink(post.id);
   const siteHandler = await getSiteHandler(post);
   const via = siteHandler ? ` via ${siteHandler}` : '';
@@ -33,9 +33,9 @@ const buildTweet = async (post: Post): Promise<string> => {
 const cron: Cron = {
   name: 'tweet-trending',
   handler: async (con) => {
-    const repo = con.getRepository(Post);
+    const repo = con.getRepository(ArticlePost);
     const post = await repo.findOne({
-      where: { tweeted: false, views: MoreThanOrEqual(200) },
+      where: { tweeted: false, views: MoreThanOrEqual(200), type: 'article' },
       order: { createdAt: 'DESC' },
       relations: ['source'],
     });

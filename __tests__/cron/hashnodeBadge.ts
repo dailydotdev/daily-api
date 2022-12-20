@@ -3,7 +3,7 @@ import nock from 'nock';
 
 import cron from '../../src/cron/hashnodeBadge';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
-import { Post, Source } from '../../src/entity';
+import { ArticlePost, Source } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -22,7 +22,7 @@ beforeEach(async () => {
     ...sourcesFixture,
     { id: 'hashnode', name: 'Hashnode', image: 'https://hashnode.com' },
   ]);
-  await saveFixtures(con, Post, [
+  await saveFixtures(con, ArticlePost, [
     {
       id: 'p1',
       shortId: 'sp1',
@@ -64,7 +64,7 @@ it('should select the most upvoted post', async () => {
 });
 
 it('should select only an hashnode post', async () => {
-  await saveFixtures(con, Post, [
+  await saveFixtures(con, ArticlePost, [
     {
       id: 'p4',
       shortId: 'sp4',
@@ -86,7 +86,7 @@ it('should select only an hashnode post', async () => {
 });
 
 it('should select only a post from yesterday', async () => {
-  await saveFixtures(con, Post, [
+  await saveFixtures(con, ArticlePost, [
     {
       id: 'p4',
       shortId: 'sp4',
@@ -108,7 +108,7 @@ it('should select only a post from yesterday', async () => {
 });
 
 it('should select only a post from yesterday not before', async () => {
-  await saveFixtures(con, Post, [
+  await saveFixtures(con, ArticlePost, [
     {
       id: 'p4',
       shortId: 'sp4',

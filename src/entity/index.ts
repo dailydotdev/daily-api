@@ -10,7 +10,7 @@ export * from './FeedSource';
 export * from './FeedTag';
 export * from './HiddenPost';
 export * from './Integration';
-export * from './Post';
+export * from './posts';
 export * from './PostReport';
 export * from './PostTag';
 export * from './Settings';

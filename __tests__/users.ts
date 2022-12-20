@@ -20,7 +20,15 @@ import {
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
-import { Comment, Post, Source, User, View, DevCard } from '../src/entity';
+import {
+  Comment,
+  Post,
+  Source,
+  User,
+  View,
+  DevCard,
+  ArticlePost,
+} from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
 import { DataSource } from 'typeorm';
@@ -72,7 +80,7 @@ beforeEach(async () => {
     },
   ]);
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, [
+  await saveFixtures(con, ArticlePost, [
     {
       id: 'p1',
       shortId: 'sp1',

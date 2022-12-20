@@ -1,5 +1,6 @@
 import { DeepPartial } from 'typeorm';
 import {
+  ArticlePost,
   Comment,
   Notification,
   NotificationAttachment,
@@ -128,7 +129,7 @@ export class NotificationBuilder {
     this.attachments.push({
       order: this.attachments.length,
       type: 'post',
-      image: post.image || pickImageUrl(post),
+      image: (post as ArticlePost)?.image || pickImageUrl(post),
       title: post.title,
       referenceId: post.id,
     });

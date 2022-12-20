@@ -1,6 +1,6 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { BookmarkList } from './BookmarkList';
-import { Post } from './Post';
+import { Post } from './posts';
 
 @Entity()
 @Index('IDX_bookmark_userId_createdAt', { synchronize: false })

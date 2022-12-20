@@ -131,7 +131,7 @@ async function compatGenerateFeed<
     ranking:
       args.params?.sortBy === 'creation' ? Ranking.TIME : Ranking.POPULARITY,
   };
-  return generate(ctx, limit, offset, opts);
+  return generate(ctx, limit, offset, { ...opts, supportedTypes: ['article'] });
 }
 
 function compatFeedResolver<
@@ -159,6 +159,7 @@ function compatFeedResolver<
           ctx,
           query(ctx, args, opts, builder.queryBuilder, builder.alias),
           builder.alias,
+          ['article'],
         )
           .limit(limit)
           .offset(offset);

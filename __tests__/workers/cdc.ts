@@ -35,6 +35,7 @@ import {
   saveFixtures,
 } from '../helpers';
 import {
+  ArticlePost,
   Comment,
   CommentMention,
   CommentUpvote,
@@ -505,7 +506,7 @@ describe('comment mention', () => {
 });
 
 describe('post', () => {
-  type ObjectType = Partial<Post>;
+  type ObjectType = Partial<ArticlePost>;
   const base: ChangeObject<ObjectType> = {
     id: 'p1',
     shortId: 'sp1',
@@ -640,10 +641,10 @@ describe('post', () => {
 
   it('should update post metadata changed at', async () => {
     await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, Post, postsFixture);
+    await saveFixtures(con, ArticlePost, postsFixture);
     const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    const localBase: ChangeObject<Post> = {
-      ...oldPost,
+    const localBase: ChangeObject<ArticlePost> = {
+      ...(oldPost as ArticlePost),
       createdAt: 0,
       metadataChangedAt: 0,
       publishedAt: 0,
@@ -681,7 +682,7 @@ describe('post report', () => {
 
   beforeEach(async () => {
     await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, Post, postsFixture);
+    await saveFixtures(con, ArticlePost, postsFixture);
   });
 
   it('should notify on new post report', async () => {

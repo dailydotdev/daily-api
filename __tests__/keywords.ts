@@ -11,7 +11,7 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import { Roles } from '../src/roles';
-import { Keyword, Post, PostKeyword, Source } from '../src/entity';
+import { ArticlePost, Keyword, PostKeyword, Source } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
@@ -37,7 +37,7 @@ beforeEach(async () => {
   roles = [];
 
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
 });
 
 afterAll(() => disposeGraphQLTesting(state));

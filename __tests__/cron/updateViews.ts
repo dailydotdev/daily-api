@@ -1,6 +1,6 @@
 import cron from '../../src/cron/updateViews';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
-import { Post, Source, View } from '../../src/entity';
+import { ArticlePost, Post, Source, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -17,7 +17,7 @@ beforeEach(async () => {
 
 it('should update views and scores', async () => {
   const now = new Date();
-  await saveFixtures(con, Post, [
+  await saveFixtures(con, ArticlePost, [
     {
       id: 'p1',
       shortId: 'p1',

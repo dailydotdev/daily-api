@@ -1,12 +1,12 @@
 import fetch from 'node-fetch';
 import { Cron } from './cron';
-import { Post } from '../entity';
+import { ArticlePost, Post } from '../entity';
 
 const cron: Cron = {
   name: 'hashnode-badge',
   handler: async (con, logger) => {
     const post = await con
-      .getRepository(Post)
+      .getRepository(ArticlePost)
       .createQueryBuilder()
       .select('*')
       .from(Post, 'post')
@@ -15,7 +15,7 @@ const cron: Cron = {
       .andWhere(`post."sourceId" = 'hashnode'`)
       .orderBy('post.upvotes', 'DESC')
       .limit(1)
-      .getRawOne<Post>();
+      .getRawOne<ArticlePost>();
     const res = await fetch(process.env.HASHNODE_WEBHOOK, {
       method: 'POST',
       headers: {

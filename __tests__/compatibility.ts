@@ -6,7 +6,7 @@ import {
   MockContext,
   saveFixtures,
 } from './helpers';
-import { Bookmark, Post, PostKeyword, Source } from '../src/entity';
+import { ArticlePost, Bookmark, PostKeyword, Source } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postKeywordsFixture, postsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
@@ -29,7 +29,7 @@ beforeEach(async () => {
   loggedUser = null;
 
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
 });
 

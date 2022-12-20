@@ -1,5 +1,5 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { Post } from './Post';
+import { Post } from './posts';
 
 @Entity()
 @Index(['postId', 'userId'])

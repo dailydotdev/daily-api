@@ -1,5 +1,5 @@
 import { getPostCommenterIds } from './post';
-import { Post } from './../entity/Post';
+import { Post } from './../entity/posts';
 import { IFlags } from 'flagsmith-nodejs';
 import { isSameDay } from 'date-fns';
 import fetch from 'node-fetch';
@@ -225,29 +225,32 @@ export const getUserReadingTags = (
 ): Promise<TagsReadingStatus[]> => {
   return con.query(
     `
-    with filtered_view as (
-      select  *, CAST(v."timestamp"::timestamptz at time zone COALESCE(u.timezone, 'utc') AS DATE) as day
-      from    "view" v
-      inner   join "user" u
-      on      u."id" = v."userId"
+      with filtered_view as (select *,
+                                    CAST(v."timestamp"::timestamptz at time zone
+                                         COALESCE(u.timezone, 'utc') AS
+                                         DATE) as day
+      from "view" v
+        inner join "user" u
+      on u."id" = v."userId"
 
-      where   u."id" = $1
-      and     "timestamp" >= $2
-      and     "timestamp" < $3
-    )
-    select  *,
-            (select count(DISTINCT day) from filtered_view) as total,
-            tags."readingDays" * 1.0 / (select count(DISTINCT day) from filtered_view) as percentage
-    from (
-      select pk.keyword as tag, count(DISTINCT day) as "readingDays"
-      from filtered_view v
-      inner join post_keyword pk on v."postId" = pk."postId" and pk.status = 'allow'
-      where pk.keyword != 'general-programming'
-      group by pk.keyword
-    ) as tags
-    order by tags."readingDays" desc
-    limit $4;
-  `,
+      where u."id" = $1
+        and "timestamp" >= $2
+        and "timestamp"
+          < $3
+        )
+      select *,
+             (select count(DISTINCT day) from filtered_view) as total,
+             tags."readingDays" * 1.0 /
+             (select count(DISTINCT day) from filtered_view) as percentage
+      from (select pk.keyword as tag, count(DISTINCT day) as "readingDays"
+            from filtered_view v
+                   inner join post_keyword pk
+                              on v."postId" = pk."postId" and pk.status = 'allow'
+            where pk.keyword != 'general-programming'
+            group by pk.keyword) as tags
+      order by tags."readingDays" desc
+        limit $4;
+    `,
     [userId, start, end, limit],
   );
 };
