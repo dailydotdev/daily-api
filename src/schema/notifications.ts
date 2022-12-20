@@ -38,6 +38,7 @@ export const typeDefs = /* GraphQL */ `
     URL of profile or source
     """
     targetUrl: String!
+    referenceId: String!
   }
 
   type NotificationAttachment {
