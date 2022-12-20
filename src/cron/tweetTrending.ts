@@ -1,6 +1,6 @@
 import { MoreThanOrEqual } from 'typeorm';
 import { getDiscussionLink, tweet } from '../common';
-import { ArticlePost } from '../entity';
+import { ArticlePost, MachineSource } from '../entity';
 import { Cron } from './cron';
 
 const getSiteHandler = async (post: ArticlePost): Promise<string> => {
@@ -8,7 +8,7 @@ const getSiteHandler = async (post: ArticlePost): Promise<string> => {
     return post.siteTwitter;
   }
 
-  const source = await post.source;
+  const source = (await post.source) as MachineSource;
   if (source.twitter) {
     return `@${source.twitter}`;
   }

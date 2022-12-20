@@ -1,7 +1,7 @@
 import { DeepPartial } from 'typeorm';
-import { Source } from '../../src/entity';
+import { MachineSource } from '../../src/entity';
 
-export const sourcesFixture: DeepPartial<Source>[] = [
+export const sourcesFixture: DeepPartial<MachineSource>[] = [
   { id: 'a', name: 'A', image: 'http://image.com/a' },
   { id: 'b', rankBoost: 10, name: 'B', image: 'http://image.com/b' },
   { id: 'c', name: 'C', image: 'http://image.com/c' },

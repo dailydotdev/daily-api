@@ -1,6 +1,6 @@
 import cron from '../../src/cron/tweetTrending';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
-import { ArticlePost, Post, Source } from '../../src/entity';
+import { ArticlePost, MachineSource, Post, Source } from '../../src/entity';
 import { tweet } from '../../src/common';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -68,7 +68,7 @@ it('should tweet the latest post over the views threshold', async () => {
 });
 
 it('should tag the author and site and add hashtags', async () => {
-  await saveFixtures(con, Source, [
+  await saveFixtures(con, MachineSource, [
     { id: 'a', twitter: 'source', name: 'A', image: 'http://a.com' },
   ]);
   await saveFixtures(con, ArticlePost, [
@@ -95,7 +95,7 @@ it('should tag the author and site and add hashtags', async () => {
 });
 
 it('should fallback to source twitter', async () => {
-  await saveFixtures(con, Source, [
+  await saveFixtures(con, MachineSource, [
     { id: 'a', twitter: 'source', name: 'A', image: 'http://a.com' },
   ]);
   await saveFixtures(con, ArticlePost, [

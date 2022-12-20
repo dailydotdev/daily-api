@@ -4,6 +4,7 @@ import {
   FeedAdvancedSettings,
   AdvancedSettings,
   ArticlePost,
+  MachineSource,
 } from '../src/entity';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
@@ -166,7 +167,7 @@ const saveFeedFixtures = async (): Promise<void> => {
 
 const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-  await saveFixtures(con, Source, [
+  await saveFixtures(con, MachineSource, [
     {
       id: 'includedSource',
       name: 'IS',
