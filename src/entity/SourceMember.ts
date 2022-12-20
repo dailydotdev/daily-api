@@ -35,7 +35,7 @@ export class SourceMember {
   @Column({ type: 'text' })
   role: string;
 
-  @Column({ type: 'uuid', default: () => 'gen_random_uuid()' })
+  @Column({ type: 'uuid' })
   @Index('IDX_source_member_referralToken', { unique: true })
   referralToken: string;
 }

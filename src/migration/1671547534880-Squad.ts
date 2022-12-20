@@ -10,7 +10,7 @@ export class Squad1671547534880 implements MigrationInterface {
                                "userId"        character varying(36) NOT NULL,
                                "createdAt"     TIMESTAMP             NOT NULL DEFAULT now(),
                                "role"          text                  NOT NULL,
-                               "referralToken" uuid                  NOT NULL DEFAULT gen_random_uuid(),
+                               "referralToken" uuid                  NOT NULL,
                                CONSTRAINT "PK_36c6a465e683d68b4a09b71de72" PRIMARY KEY ("sourceId", "userId")
                              )`);
     await queryRunner.query(
