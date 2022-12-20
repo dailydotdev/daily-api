@@ -38,6 +38,9 @@ export const typeDefs = /* GraphQL */ `
     URL of profile or source
     """
     targetUrl: String!
+    """
+    ID of the referenced object
+    """
     referenceId: String!
   }
 
