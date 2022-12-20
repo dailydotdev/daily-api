@@ -3,7 +3,6 @@ import { ChangeObject } from '../types';
 import {
   ArticlePost,
   Comment,
-  getAuthorPostStats,
   getNotificationAndChildren,
   Notification,
   NotificationAttachment,
@@ -14,6 +13,7 @@ import {
   Submission,
   User,
 } from '../entity';
+import { getAuthorPostStats } from '../entity/posts';
 import {
   addNotificationEmailUtm,
   baseNotificationEmailData,
