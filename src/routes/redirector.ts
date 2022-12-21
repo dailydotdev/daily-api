@@ -16,8 +16,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       if (!post) {
         return res.status(404).send();
       }
+      const encodedUri = encodeURI(post.url);
       if (!req.headers['user-agent'] || isbot(req.headers['user-agent'])) {
-        return res.status(302).redirect(post.url);
+        return res.status(302).redirect(encodedUri);
       }
       const userId = req.userId || req.cookies.da2;
       if (userId) {
@@ -33,11 +34,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return res
         .headers({
           'Referrer-Policy': 'origin, origin-when-cross-origin',
-          Link: `<${encodeURI(post.url)}>; rel="preconnect"`,
+          Link: `<${encodedUri}>; rel="preconnect"`,
         })
         .type('text/html')
         .send(
-          `<html><head><meta http-equiv="refresh" content="0;URL=${post.url}${
+          `<html><head><meta http-equiv="refresh" content="0;URL=${encodedUri}${
             req.query.a ? `#${req.query.a}` : ''
           }"></head></html>`,
         );
