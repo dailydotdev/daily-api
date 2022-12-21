@@ -30,31 +30,17 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           post.tagsStr?.split?.(',') ?? [],
         );
       }
-      try {
-        return res
-          .headers({
-            'Referrer-Policy': 'origin, origin-when-cross-origin',
-            Link: `<${post.url}>; rel="preconnect"`,
-          })
-          .type('text/html')
-          .send(
-            `<html><head><meta http-equiv="refresh" content="0;URL=${post.url}${
-              req.query.a ? `#${req.query.a}` : ''
-            }"></head></html>`,
-          );
-      } catch (err) {
-        fastify.log.warn({ err, post }, 'failed to set link header');
-        return res
-          .headers({
-            'Referrer-Policy': 'origin, origin-when-cross-origin',
-          })
-          .type('text/html')
-          .send(
-            `<html><head><meta http-equiv="refresh" content="0;URL=${post.url}${
-              req.query.a ? `#${req.query.a}` : ''
-            }"></head></html>`,
-          );
-      }
+      return res
+        .headers({
+          'Referrer-Policy': 'origin, origin-when-cross-origin',
+          Link: `<${encodeURI(post.url)}>; rel="preconnect"`,
+        })
+        .type('text/html')
+        .send(
+          `<html><head><meta http-equiv="refresh" content="0;URL=${post.url}${
+            req.query.a ? `#${req.query.a}` : ''
+          }"></head></html>`,
+        );
     },
   );
 }
