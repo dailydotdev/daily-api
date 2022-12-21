@@ -20,6 +20,7 @@ const worker: NotificationWorker = {
       .getRepository(Comment)
       .findOne({ where: { id: data.commentId }, relations: ['post'] });
     if (
+      !comment ||
       comment.userId === data.userId ||
       !UPVOTE_MILESTONES.includes(comment.upvotes)
     ) {
