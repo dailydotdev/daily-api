@@ -187,7 +187,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get notified when there's a new notification
     """
-    newNotifications: Notification @auth
+    newNotification: Notification @auth
   }
 `;
 
@@ -267,12 +267,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
   },
   Subscription: {
-    newNotifications: {
+    newNotification: {
       subscribe: async (
         source,
         args,
         ctx: SubscriptionContext,
-      ): Promise<AsyncIterator<{ newNotifications: Notification }>> => {
+      ): Promise<AsyncIterator<{ newNotification: Notification }>> => {
         const it = {
           [Symbol.asyncIterator]: () =>
             redisPubSub.asyncIterator<Notification>(
@@ -281,7 +281,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         };
         return (async function* () {
           for await (const value of it) {
-            yield { newNotifications: value };
+            yield { newNotification: value };
           }
         })();
       },
