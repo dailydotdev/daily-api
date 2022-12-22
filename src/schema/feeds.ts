@@ -32,7 +32,7 @@ import {
   Post,
   Source,
 } from '../entity';
-import { GQLSource } from './sources';
+import { ensureSourcePermissions, GQLSource } from './sources';
 import {
   fixedIdsPageGenerator,
   offsetPageGenerator,
@@ -822,7 +822,19 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         sourceFeedBuilder(ctx, source, builder, alias),
       feedPageGenerator,
       applyFeedPaging,
-      { removeHiddenPosts: true, removeBannedPosts: false },
+      {
+        removeHiddenPosts: true,
+        removeBannedPosts: false,
+        fetchQueryParams: async (
+          ctx,
+          { source: sourceId }: SourceFeedArgs,
+        ): Promise<void> => {
+          const source = await ctx.con
+            .getRepository(Source)
+            .findOneByOrFail({ id: sourceId });
+          await ensureSourcePermissions(ctx, source);
+        },
+      },
     ),
     tagFeed: feedResolver(
       (ctx, { tag }: TagFeedArgs, builder, alias) =>

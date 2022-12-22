@@ -127,23 +127,6 @@ describe('query bookmarks', () => {
   });
 });
 
-describe('query postsByPublication', () => {
-  const QUERY = `
-  query PostsByPublication($params: PostByPublicationInput) {
-    postsByPublication(params: $params) {
-      ${feedFields}
-    }
-  }`;
-
-  it('should return a single source feed', async () => {
-    const latest = new Date().toISOString();
-    const res = await client.query(QUERY, {
-      variables: { params: { latest, pub: 'b' } },
-    });
-    expect(res.data).toMatchSnapshot();
-  });
-});
-
 describe('query postsByTag', () => {
   const QUERY = `
   query PostsByTag($params: PostByTagInput) {

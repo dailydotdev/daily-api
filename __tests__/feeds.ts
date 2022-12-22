@@ -5,6 +5,8 @@ import {
   AdvancedSettings,
   ArticlePost,
   MachineSource,
+  SourceMember,
+  SourceMemberRoles,
 } from '../src/entity';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
@@ -49,6 +51,8 @@ import {
 } from '../src/personalizedFeed';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { randomUUID } from 'crypto';
+import { usersFixture } from './fixture/user';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -583,6 +587,27 @@ describe('query sourceFeed', () => {
       .getRepository(Post)
       .update({ id: 'p5' }, { banned: true, sourceId: 'community' });
     const res = await client.query(QUERY('community'));
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should throw an error when accessing private source', async () => {
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(client, { query: QUERY('a') }, 'FORBIDDEN');
+  });
+
+  it('should return a private source feed when user is a member', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save(usersFixture[0]);
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'b',
+        role: SourceMemberRoles.Owner,
+        referralToken: randomUUID(),
+        createdAt: new Date(2022, 11, 19),
+      },
+    ]);
+    const res = await client.query(QUERY('b'));
     expect(res.data).toMatchSnapshot();
   });
 });
