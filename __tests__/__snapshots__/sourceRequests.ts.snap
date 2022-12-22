@@ -102,6 +102,7 @@ MachineSource {
   "private": false,
   "rankBoost": 0,
   "twitter": "a",
+  "type": "machine",
   "website": "http://3.com",
 }
 `;
