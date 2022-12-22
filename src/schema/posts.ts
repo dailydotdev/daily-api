@@ -5,7 +5,11 @@ import {
 import { ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, DeepPartial } from 'typeorm';
-import { GQLSource } from './sources';
+import {
+  ensureSourcePermissions,
+  GQLSource,
+  SourcePermissions,
+} from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
@@ -14,7 +18,14 @@ import {
   pickImageUrl,
   standardizeURL,
 } from '../common';
-import { HiddenPost, Post, Toc, Upvote, PostReport } from '../entity';
+import {
+  createSharePost,
+  HiddenPost,
+  Post,
+  PostReport,
+  Toc,
+  Upvote,
+} from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
@@ -487,6 +498,24 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): EmptyResponse @auth
+
+    """
+    Share post to source
+    """
+    sharePost(
+      """
+      Post to share in the source
+      """
+      postId: ID!
+      """
+      Commentary for the share
+      """
+      commentary: String!
+      """
+      Source to share the post to
+      """
+      sourceId: ID!
+    ): Post @auth
   }
 
   extend type Subscription {
@@ -552,6 +581,24 @@ export const getPostByUrl = async (
   return res[0];
 };
 
+const getPostById = async (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+  id: string,
+): Promise<GQLPost> => {
+  const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
+    queryBuilder: builder.queryBuilder.where(
+      `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
+      { id },
+    ),
+    ...builder,
+  }));
+  if (res.length) {
+    return res[0];
+  }
+  throw new NotFoundError('Post not found');
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   Query: traceResolverObject({
@@ -560,19 +607,7 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
       info,
-    ): Promise<GQLPost> => {
-      const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
-        queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
-          { id },
-        ),
-        ...builder,
-      }));
-      if (res.length) {
-        return res[0];
-      }
-      throw new NotFoundError('Post not found');
-    },
+    ): Promise<GQLPost> => getPostById(ctx, info, id),
     postByUrl: async (
       source,
       { url }: { id: string; url: string },
@@ -619,7 +654,8 @@ export const resolvers: IResolvers<any, Context> = {
       );
     },
   }),
-  Mutation: traceResolverObject({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Mutation: traceResolverObject<any, any>({
     hidePost: async (
       source,
       { id }: { id: string },
@@ -743,6 +779,26 @@ export const resolvers: IResolvers<any, Context> = {
         return false;
       });
       return { _: true };
+    },
+    sharePost: async (
+      _,
+      {
+        postId,
+        commentary,
+        sourceId,
+      }: { postId: string; commentary: string; sourceId: string },
+      ctx,
+      info,
+    ): Promise<GQLPost> => {
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+      const newPost = await createSharePost(
+        ctx.con,
+        sourceId,
+        ctx.userId,
+        postId,
+        commentary,
+      );
+      return getPostById(ctx, info, newPost.id);
     },
   }),
   Subscription: {

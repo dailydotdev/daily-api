@@ -419,3 +419,121 @@ describe('mutation createSquad', () => {
     );
   });
 });
+
+describe('mutation joinSource', () => {
+  const MUTATION = `
+  mutation JoinSource($sourceId: ID!, $token: String) {
+  joinSource(sourceId: $sourceId, token: $token) {
+    id
+  }
+}`;
+
+  const variables = {
+    sourceId: 's1',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '2',
+      referralToken: 'rt',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should add member to public squad without token', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 's1' }, { private: false });
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.joinSource.id).toEqual('s1');
+    await con.getRepository(SourceMember).findOneByOrFail({
+      sourceId: 's1',
+      userId: '1',
+    });
+  });
+
+  it('should add member to private squad with token', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        token: 'rt',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.joinSource.id).toEqual('s1');
+    await con.getRepository(SourceMember).findOneByOrFail({
+      sourceId: 's1',
+      userId: '1',
+    });
+  });
+
+  it('should throw error when joining private squad without token', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when joining private squad with wrong token', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          ...variables,
+          token: 'rt2',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when joining non squad source', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 'a',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when source does not exist', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 'nope',
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+});
