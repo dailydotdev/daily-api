@@ -47,7 +47,7 @@ Object {
         },
       ],
       "pageInfo": Object {
-        "endCursor": "dGltZTpOYU4=",
+        "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
         "hasNextPage": false,
       },
     },
@@ -82,7 +82,7 @@ Object {
     },
   ],
   "pageInfo": Object {
-    "endCursor": "dGltZTpOYU4=",
+    "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
     "hasNextPage": false,
   },
 }
@@ -186,39 +186,6 @@ Object {
           },
           "user": Object {
             "id": "1",
-          },
-        },
-      },
-    ],
-    "pageInfo": Object {
-      "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
-      "hasNextPage": false,
-    },
-  },
-}
-`;
-
-exports[`query sourceMemberships should return source memberships 1`] = `
-Object {
-  "sourceMemberships": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "source": Object {
-            "id": "a",
-          },
-          "user": Object {
-            "id": "2",
-          },
-        },
-      },
-      Object {
-        "node": Object {
-          "source": Object {
-            "id": "b",
-          },
-          "user": Object {
-            "id": "2",
           },
         },
       },
