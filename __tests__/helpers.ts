@@ -160,7 +160,7 @@ export const testQueryErrorCode = async (
 ): Promise<void> =>
   testQueryError(client, query, (errors) => {
     expect(errors.length).toEqual(1);
-    expect(errors[0].extensions.code).toEqual(code);
+    expect(errors[0].extensions?.code).toEqual(code);
   });
 
 export async function saveFixtures<Entity>(

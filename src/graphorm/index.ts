@@ -154,6 +154,9 @@ const obj = new GraphORM({
       },
     },
   },
+  SourceMember: {
+    requiredColumns: ['createdAt'],
+  },
   Comment: {
     requiredColumns: ['id', 'postId', 'createdAt'],
     fields: {
