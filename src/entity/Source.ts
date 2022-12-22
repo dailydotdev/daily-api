@@ -30,8 +30,8 @@ export class Source {
   @Column({ type: 'text' })
   name: string;
 
-  @Column({ type: 'text' })
-  image: string;
+  @Column({ type: 'text', nullable: true })
+  image?: string;
 
   @Column({ default: false })
   private: boolean;

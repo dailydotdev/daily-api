@@ -11,6 +11,7 @@ import { PostKeyword } from '../PostKeyword';
 import { validateAndApproveSubmission } from '../Submission';
 import { ArticlePost, Toc } from './ArticlePost';
 import { Post } from './Post';
+import { SharePost } from './SharePost';
 
 export type PostStats = {
   numPosts: number;
@@ -312,5 +313,24 @@ export const addNewPost = async (
       }
       throw error;
     }
+  });
+};
+
+export const createSharePost = (
+  con: DataSource | EntityManager,
+  sourceId: string,
+  userId: string,
+  postId: string,
+  commentary: string,
+): Promise<SharePost> => {
+  const id = shortid.generate();
+  return con.getRepository(SharePost).save({
+    id,
+    shortId: id,
+    createdAt: new Date(),
+    sourceId,
+    authorId: userId,
+    sharedPostId: postId,
+    title: commentary,
   });
 };

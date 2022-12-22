@@ -1,24 +1,41 @@
-import { ForbiddenError } from 'apollo-server-errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { ConnectionArguments } from 'graphql-relay';
 import { traceResolverObject } from './trace';
 import { Context } from '../Context';
-import { Source, SourceFeed, SourceMember, SourceMemberRoles } from '../entity';
+import {
+  createSharePost,
+  Source,
+  SourceFeed,
+  SourceMember,
+  SourceMemberRoles,
+  SquadSource,
+} from '../entity';
 import {
   forwardPagination,
-  PaginationResponse,
   offsetPageGenerator,
+  PaginationResponse,
 } from './common';
 import graphorm from '../graphorm';
-import { EntityNotFoundError } from 'typeorm';
+import {
+  DataSource,
+  DeepPartial,
+  EntityManager,
+  EntityNotFoundError,
+} from 'typeorm';
 import { GQLUser } from './users';
 import { Connection } from 'graphql-relay/index';
 import { createDatePageGenerator } from '../common/datePageGenerator';
+import { FileUpload } from 'graphql-upload/GraphQLUpload';
+import { randomUUID } from 'crypto';
+import { uploadSquadImage } from '../common';
+import { GraphQLResolveInfo } from 'graphql';
+import { TypeOrmError } from '../errors';
 
 export interface GQLSource {
   id: string;
   name: string;
-  image: string;
+  image?: string;
   private: boolean;
   public: boolean;
   members?: Connection<GQLSourceMember>;
@@ -52,7 +69,7 @@ export const typeDefs = /* GraphQL */ `
     name: String!
 
     """
-    URL to a thumbnail image of the source
+    URL to an avatar image of the source
     """
     image: String!
 
@@ -125,25 +142,6 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
-  input AddPrivateSourceInput {
-    """
-    RSS feed url
-    """
-    rss: String!
-    """
-    Name of the new source
-    """
-    name: String!
-    """
-    Thumbnail image of the source logo
-    """
-    image: String!
-    """
-    Url to the landing page of the source
-    """
-    website: String
-  }
-
   extend type Query {
     """
     Get all available sources
@@ -208,9 +206,34 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Mutation {
     """
-    Add a new private source
+    Creates a new squad
     """
-    addPrivateSource(data: AddPrivateSourceInput!): Source! @auth(premium: true)
+    createSquad(
+      """
+      Name for the squad
+      """
+      name: String!
+      """
+      Unique handle
+      """
+      handle: String!
+      """
+      Description for the squad (max 250 chars)
+      """
+      description: String
+      """
+      Avatar image for the squad
+      """
+      image: Upload
+      """
+      First post to share in the squad
+      """
+      postId: ID!
+      """
+      Commentary for the first share
+      """
+      commentary: String!
+    ): Source! @auth
   }
 `;
 
@@ -267,6 +290,40 @@ const membershipsPageGenerator = createDatePageGenerator<
   key: 'createdAt',
 });
 
+type CreateSquadArgs = {
+  name: string;
+  handle: string;
+  description?: string;
+  image?: FileUpload;
+  postId: string;
+  commentary: string;
+};
+
+const getSourceById = async (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+  id: string,
+): Promise<GQLSource> => {
+  const res = await graphorm.query<GQLSource>(ctx, info, (builder) => {
+    builder.queryBuilder = builder.queryBuilder.andWhere({ id }).limit(1);
+    return builder;
+  });
+  if (!res.length) {
+    throw new EntityNotFoundError(Source, 'not found');
+  }
+  return res[0];
+};
+
+const addNewSourceMember = async (
+  con: DataSource | EntityManager,
+  member: Omit<DeepPartial<SourceMember>, 'referralToken'>,
+): Promise<void> => {
+  await con.getRepository(SourceMember).save({
+    ...member,
+    referralToken: randomUUID(),
+  });
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -301,15 +358,9 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLSource> => {
-      const res = await graphorm.query<GQLSource>(ctx, info, (builder) => {
-        builder.queryBuilder = builder.queryBuilder.andWhere({ id }).limit(1);
-        return builder;
-      });
-      if (!res.length) {
-        throw new EntityNotFoundError(Source, 'not found');
-      }
-      await ensureSourcePermissions(ctx, res[0]);
-      return res[0];
+      const source = await getSourceById(ctx, info, id);
+      await ensureSourcePermissions(ctx, source);
+      return source;
     },
     sourceMembers: async (
       _,
@@ -380,8 +431,64 @@ export const resolvers: IResolvers<any, Context> = {
     },
   }),
   Mutation: traceResolverObject({
-    addPrivateSource: async (): Promise<GQLSource> => {
-      throw new ForbiddenError('Not available');
+    createSquad: async (
+      source,
+      { name, handle, commentary, image, postId, description }: CreateSquadArgs,
+      ctx,
+      info,
+    ): Promise<GQLSource> => {
+      try {
+        const sourceId = await ctx.con.transaction(async (entityManager) => {
+          const id = randomUUID();
+          const repo = entityManager.getRepository(SquadSource);
+          // Create a new source
+          await repo.insert({
+            id,
+            name,
+            handle,
+            active: false,
+            description,
+          });
+          // Add the logged-in user as owner
+          await addNewSourceMember(entityManager, {
+            sourceId: id,
+            userId: ctx.userId,
+            role: SourceMemberRoles.Owner,
+          });
+          // Create the first post of the squad
+          await createSharePost(
+            entityManager,
+            id,
+            ctx.userId,
+            postId,
+            commentary,
+          );
+          // Upload the image (if provided)
+          if (image) {
+            const { createReadStream } = await image;
+            const stream = createReadStream();
+            const imageUrl = await uploadSquadImage(id, stream);
+            await repo.update({ id }, { image: imageUrl });
+          }
+          return id;
+        });
+        return getSourceById(ctx, info, sourceId);
+      } catch (err) {
+        if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
+          if (err.message.indexOf('source_handle') > -1) {
+            throw new ValidationError(
+              JSON.stringify({ handle: 'handle is already used' }),
+            );
+          }
+        } else if (err.code === TypeOrmError.FOREIGN_KEY) {
+          if (err.detail.indexOf('sharedPostId') > -1) {
+            throw new ForbiddenError(
+              JSON.stringify({ sharedPostId: 'post does not exist' }),
+            );
+          }
+        }
+        throw err;
+      }
     },
   }),
 };
