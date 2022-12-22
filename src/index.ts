@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import fastify, { FastifyRequest, FastifyInstance } from 'fastify';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
-import mercurius, { MercuriusCommonOptions, MercuriusError } from 'mercurius';
+import mercurius, { MercuriusError } from 'mercurius';
 import MercuriusGQLUpload from 'mercurius-upload';
 import MercuriusCache from 'mercurius-cache';
 import { NoSchemaIntrospectionCustomRule } from 'graphql';
@@ -11,16 +11,16 @@ import { NoSchemaIntrospectionCustomRule } from 'graphql';
 import './config';
 
 import trace from './trace';
-import auth, { verifyJwt } from './auth';
+import auth from './auth';
 import compatibility from './compatibility';
 import routes from './routes';
-import { Context, SubscriptionContext } from './Context';
+import { Context } from './Context';
 import { schema } from './graphql';
 import createOrGetConnection from './db';
 import { stringifyHealthCheck } from './common';
 import { GraphQLError } from 'graphql';
 import cookie, { FastifyCookieOptions } from '@fastify/cookie';
-import { DataSource } from 'typeorm';
+import { getSubscriptionSettings } from './subscription';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -38,32 +38,6 @@ const trackingExtendKey = (
   ctx: Context,
 ): string | undefined =>
   ctx.trackingId ? `tracking:${ctx.trackingId}` : undefined;
-
-const getSubscriptionSettings = (
-  connection: DataSource,
-): MercuriusCommonOptions['subscription'] | undefined => {
-  if (process.env.ENABLE_SUBSCRIPTIONS) {
-    return {
-      context: (wsConnection, request): Omit<SubscriptionContext, 'userId'> => {
-        return { req: request, con: connection, log: request.log };
-      },
-      onConnect: async ({
-        payload,
-      }): Promise<Pick<SubscriptionContext, 'userId'> | boolean> => {
-        try {
-          if (payload?.token) {
-            const jwtPayload = await verifyJwt(payload?.token);
-            return { userId: jwtPayload.userId };
-          }
-        } catch (err) {
-          // JWT is invalid
-        }
-        return true;
-      },
-    };
-  }
-  return undefined;
-};
 
 export default async function app(
   contextFn?: (request: FastifyRequest) => Context,
