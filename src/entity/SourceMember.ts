@@ -1,6 +1,10 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
+import { randomBytes } from 'crypto';
 import { Source } from './Source';
 import { User } from './User';
+import { promisify } from 'util';
+
+const randomBytesAsync = promisify(randomBytes);
 
 export enum SourceMemberRoles {
   Owner = 'owner',
@@ -35,7 +39,11 @@ export class SourceMember {
   @Column({ type: 'text' })
   role: SourceMemberRoles;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'text' })
   @Index('IDX_source_member_referralToken', { unique: true })
   referralToken: string;
 }
+
+const TOKEN_BYTES = 32;
+export const generateMemberToken = async (): Promise<string> =>
+  (await randomBytesAsync(TOKEN_BYTES)).toString('base64url');

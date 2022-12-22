@@ -22,6 +22,7 @@ export class Source {
   @PrimaryColumn({ type: 'text' })
   id: string;
 
+  @Column()
   type: string;
 
   @Column({ default: true })

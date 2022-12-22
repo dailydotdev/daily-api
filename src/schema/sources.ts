@@ -5,6 +5,7 @@ import { traceResolverObject } from './trace';
 import { Context } from '../Context';
 import {
   createSharePost,
+  generateMemberToken,
   Source,
   SourceFeed,
   SourceMember,
@@ -234,6 +235,20 @@ export const typeDefs = /* GraphQL */ `
       """
       commentary: String!
     ): Source! @auth
+
+    """
+    Adds the logged-in user as member to the source
+    """
+    joinSource(
+      """
+      Source to join
+      """
+      sourceId: ID!
+      """
+      Referral token (required for private squads)
+      """
+      token: String
+    ): Source! @auth
   }
 `;
 
@@ -243,12 +258,27 @@ const sourceToGQL = (source: Source): GQLSource => ({
   members: undefined,
 });
 
+export enum SourcePermissions {
+  View,
+  Post,
+}
+
 export const canAccessSource = async (
   ctx: Context,
-  source: Pick<GQLSource, 'id' | 'private'>,
+  source: Source,
+  permission = SourcePermissions.View,
 ): Promise<boolean> => {
-  if (!source.private) {
-    return true;
+  switch (permission) {
+    case SourcePermissions.View:
+      if (!source.private) {
+        return true;
+      }
+      break;
+    case SourcePermissions.Post:
+      if (source.type !== 'squad') {
+        return false;
+      }
+      break;
   }
   if (ctx.userId) {
     const member = await ctx.con.getRepository(SourceMember).findOneBy({
@@ -264,10 +294,14 @@ export const canAccessSource = async (
 
 export const ensureSourcePermissions = async (
   ctx: Context,
-  source: Pick<GQLSource, 'id' | 'private'>,
-): Promise<void> => {
-  if (await canAccessSource(ctx, source)) {
-    return;
+  sourceId: string,
+  permission = SourcePermissions.View,
+): Promise<Source> => {
+  const source = await ctx.con
+    .getRepository(Source)
+    .findOneByOrFail({ id: sourceId });
+  if (await canAccessSource(ctx, source, permission)) {
+    return source;
   }
   throw new ForbiddenError('Access denied!');
 };
@@ -320,7 +354,7 @@ const addNewSourceMember = async (
 ): Promise<void> => {
   await con.getRepository(SourceMember).save({
     ...member,
-    referralToken: randomUUID(),
+    referralToken: await generateMemberToken(),
   });
 };
 
@@ -358,9 +392,8 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLSource> => {
-      const source = await getSourceById(ctx, info, id);
-      await ensureSourcePermissions(ctx, source);
-      return source;
+      await ensureSourcePermissions(ctx, id);
+      return getSourceById(ctx, info, id);
     },
     sourceMembers: async (
       _,
@@ -368,10 +401,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
-      const source = await ctx.con
-        .getRepository(Source)
-        .findOneByOrFail({ id: args.sourceId });
-      await ensureSourcePermissions(ctx, source);
+      await ensureSourcePermissions(ctx, args.sourceId);
 
       const page = membershipsPageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
@@ -430,9 +460,10 @@ export const resolvers: IResolvers<any, Context> = {
       );
     },
   }),
-  Mutation: traceResolverObject({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Mutation: traceResolverObject<any, any>({
     createSquad: async (
-      source,
+      _,
       { name, handle, commentary, image, postId, description }: CreateSquadArgs,
       ctx,
       info,
@@ -480,15 +511,43 @@ export const resolvers: IResolvers<any, Context> = {
               JSON.stringify({ handle: 'handle is already used' }),
             );
           }
-        } else if (err.code === TypeOrmError.FOREIGN_KEY) {
-          if (err.detail.indexOf('sharedPostId') > -1) {
-            throw new ForbiddenError(
-              JSON.stringify({ sharedPostId: 'post does not exist' }),
-            );
-          }
         }
         throw err;
       }
+    },
+    joinSource: async (
+      _,
+      { sourceId, token }: { sourceId: string; token: string },
+      ctx,
+      info,
+    ): Promise<GQLSource> => {
+      const source = await ctx.con
+        .getRepository(Source)
+        .findOneByOrFail({ id: sourceId });
+      if (source.type !== 'squad') {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+      if (source.private && !token) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+      const member = await ctx.con
+        .getRepository(SourceMember)
+        .findOneBy({ referralToken: token });
+      if (!member) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+      await addNewSourceMember(ctx.con, {
+        sourceId,
+        userId: ctx.userId,
+        role: SourceMemberRoles.Member,
+      });
+      return getSourceById(ctx, info, sourceId);
     },
   }),
 };

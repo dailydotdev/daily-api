@@ -13,19 +13,22 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import {
+  ArticlePost,
   Bookmark,
   BookmarkList,
   Comment,
   HiddenPost,
   Post,
+  PostReport,
   PostTag,
+  SharePost,
   Source,
+  SourceMember,
+  SourceMemberRoles,
+  SquadSource,
   Upvote,
   User,
   View,
-  PostReport,
-  ArticlePost,
-  SharePost,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
@@ -1149,5 +1152,83 @@ describe('compatibility routes', () => {
         .find({ where: { userId: '1' }, select: ['postId', 'userId'] });
       expect(actual).toMatchSnapshot();
     });
+  });
+});
+
+describe('mutation sharePost', () => {
+  const MUTATION = `
+  mutation SharePost($sourceId: ID!, $postId: ID!, $commentary: String!) {
+  sharePost(sourceId: $sourceId, postId: $postId, commentary: $commentary) {
+    id
+  }
+}`;
+
+  const variables = {
+    sourceId: 's1',
+    postId: 'p1',
+    commentary: 'My comment',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: false,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should share to squad', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
+  });
+
+  it('should throw error when sharing to non-squad', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when non-member share to squad', async () => {
+    loggedUser = '2';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when post does not exist', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, postId: 'nope' } },
+      'FORBIDDEN',
+    );
   });
 });

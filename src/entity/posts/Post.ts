@@ -20,6 +20,7 @@ export class Post {
   @PrimaryColumn({ type: 'text' })
   id: string;
 
+  @Column()
   type: string;
 
   @Column({ type: 'text' })

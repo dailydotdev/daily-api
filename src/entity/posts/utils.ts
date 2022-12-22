@@ -1,5 +1,5 @@
 import { DataSource, EntityManager, In } from 'typeorm';
-import { SubmissionFailErrorKeys } from '../../errors';
+import { SubmissionFailErrorKeys, TypeOrmError } from '../../errors';
 import shortid from 'shortid';
 import * as he from 'he';
 import { Keyword } from '../Keyword';
@@ -12,6 +12,7 @@ import { validateAndApproveSubmission } from '../Submission';
 import { ArticlePost, Toc } from './ArticlePost';
 import { Post } from './Post';
 import { SharePost } from './SharePost';
+import { ForbiddenError } from 'apollo-server-errors';
 
 export type PostStats = {
   numPosts: number;
@@ -316,7 +317,7 @@ export const addNewPost = async (
   });
 };
 
-export const createSharePost = (
+export const createSharePost = async (
   con: DataSource | EntityManager,
   sourceId: string,
   userId: string,
@@ -324,13 +325,24 @@ export const createSharePost = (
   commentary: string,
 ): Promise<SharePost> => {
   const id = shortid.generate();
-  return con.getRepository(SharePost).save({
-    id,
-    shortId: id,
-    createdAt: new Date(),
-    sourceId,
-    authorId: userId,
-    sharedPostId: postId,
-    title: commentary,
-  });
+  try {
+    return await con.getRepository(SharePost).save({
+      id,
+      shortId: id,
+      createdAt: new Date(),
+      sourceId,
+      authorId: userId,
+      sharedPostId: postId,
+      title: commentary,
+    });
+  } catch (err) {
+    if (err.code === TypeOrmError.FOREIGN_KEY) {
+      if (err.detail.indexOf('sharedPostId') > -1) {
+        throw new ForbiddenError(
+          JSON.stringify({ postId: 'post does not exist' }),
+        );
+      }
+    }
+    throw err;
+  }
 };

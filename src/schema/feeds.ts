@@ -829,10 +829,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           ctx,
           { source: sourceId }: SourceFeedArgs,
         ): Promise<void> => {
-          const source = await ctx.con
-            .getRepository(Source)
-            .findOneByOrFail({ id: sourceId });
-          await ensureSourcePermissions(ctx, source);
+          await ensureSourcePermissions(ctx, sourceId);
         },
       },
     ),
