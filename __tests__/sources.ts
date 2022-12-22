@@ -5,13 +5,17 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
 import {
+  Post,
+  SharePost,
   Source,
   SourceFeed,
   SourceMember,
   SourceMemberRoles,
+  SquadSource,
   User,
 } from '../src/entity';
 import { FastifyInstance } from 'fastify';
@@ -20,6 +24,7 @@ import { DataSource } from 'typeorm';
 import { randomUUID } from 'crypto';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
+import { postsFixture } from './fixture/post';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -337,5 +342,80 @@ describe('compatibility route /publications', () => {
   it('should return only public sources', async () => {
     const res = await request(app.server).get('/v1/publications').expect(200);
     expect(res.body).toMatchSnapshot();
+  });
+});
+
+describe('mutation createSquad', () => {
+  const MUTATION = `
+  mutation CreateSquad($name: String!, $handle: String!, $description: String, $postId: ID!, $commentary: String!) {
+  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary) {
+    id
+  }
+}`;
+
+  const variables = {
+    name: 'Squad',
+    handle: 'squad',
+    postId: 'p1',
+    commentary: 'My comment',
+  };
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should create squad', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.createSquad.id;
+    const newSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: newId });
+    expect(newSource.name).toEqual('Squad');
+    expect(newSource.handle).toEqual('squad');
+    expect(newSource.active).toEqual(false);
+    const member = await con.getRepository(SourceMember).findOneBy({
+      sourceId: newId,
+      userId: '1',
+    });
+    expect(member.role).toEqual(SourceMemberRoles.Owner);
+    const post = await con
+      .getRepository(SharePost)
+      .findOneBy({ sourceId: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
+  });
+
+  it('should throw error on duplicate handles', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).save({
+      id: randomUUID(),
+      handle: variables.handle,
+      name: 'Dup squad',
+      active: false,
+    });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw error when post does not exist', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+    );
   });
 });

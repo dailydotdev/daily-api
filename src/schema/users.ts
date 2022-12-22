@@ -791,12 +791,12 @@ export const resolvers: IResolvers<any, Context> = {
         if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
           if (err.message.indexOf('users_email_unique') > -1) {
             throw new ValidationError(
-              JSON.stringify({ email: 'email already used' }),
+              JSON.stringify({ email: 'email is already used' }),
             );
           }
           if (err.message.indexOf('users_username_unique') > -1) {
             throw new ValidationError(
-              JSON.stringify({ username: 'username already exists' }),
+              JSON.stringify({ username: 'username is already exists' }),
             );
           }
           if (err.message.indexOf('users_twitter_unique') > -1) {
