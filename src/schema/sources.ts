@@ -13,6 +13,7 @@ import graphorm from '../graphorm';
 import { EntityNotFoundError } from 'typeorm';
 import { GQLUser } from './users';
 import { Connection } from 'graphql-relay/index';
+import { createDatePageGenerator } from '../common/datePageGenerator';
 
 export interface GQLSource {
   id: string;
@@ -27,6 +28,7 @@ export interface GQLSourceMember {
   source: GQLSource;
   user: GQLUser;
   role: SourceMemberRoles;
+  createdAt: Date;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -167,6 +169,41 @@ export const typeDefs = /* GraphQL */ `
     Get source by ID
     """
     source(id: ID!): Source
+
+    """
+    Get source members
+    """
+    sourceMembers(
+      """
+      Source ID
+      """
+      sourceId: ID!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourceMemberConnection!
+
+    """
+    Get the logged in user source memberships
+    """
+    mySourceMemberships(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourceMemberConnection! @auth
   }
 
   extend type Mutation {
@@ -183,6 +220,35 @@ const sourceToGQL = (source: Source): GQLSource => ({
   members: undefined,
 });
 
+export const canAccessSource = async (
+  ctx: Context,
+  source: Pick<GQLSource, 'id' | 'private'>,
+): Promise<boolean> => {
+  if (!source.private) {
+    return true;
+  }
+  if (ctx.userId) {
+    const member = await ctx.con.getRepository(SourceMember).findOneBy({
+      userId: ctx.userId,
+      sourceId: source.id,
+    });
+    if (member) {
+      return true;
+    }
+  }
+  return false;
+};
+
+export const ensureSourcePermissions = async (
+  ctx: Context,
+  source: Pick<GQLSource, 'id' | 'private'>,
+): Promise<void> => {
+  if (await canAccessSource(ctx, source)) {
+    return;
+  }
+  throw new ForbiddenError('Access denied!');
+};
+
 const sourceByFeed = async (feed: string, ctx: Context): Promise<GQLSource> => {
   const res = await ctx.con
     .createQueryBuilder()
@@ -193,6 +259,13 @@ const sourceByFeed = async (feed: string, ctx: Context): Promise<GQLSource> => {
     .getRawOne();
   return res ? sourceToGQL(res) : null;
 };
+
+const membershipsPageGenerator = createDatePageGenerator<
+  GQLSourceMember,
+  'createdAt'
+>({
+  key: 'createdAt',
+});
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
@@ -235,7 +308,75 @@ export const resolvers: IResolvers<any, Context> = {
       if (!res.length) {
         throw new EntityNotFoundError(Source, 'not found');
       }
+      await ensureSourcePermissions(ctx, res[0]);
       return res[0];
+    },
+    sourceMembers: async (
+      _,
+      args: ConnectionArguments & { sourceId: string },
+      ctx,
+      info,
+    ): Promise<Connection<GQLSourceMember>> => {
+      const source = await ctx.con
+        .getRepository(Source)
+        .findOneByOrFail({ id: args.sourceId });
+      await ensureSourcePermissions(ctx, source);
+
+      const page = membershipsPageGenerator.connArgsToPage(args);
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => membershipsPageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => membershipsPageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          membershipsPageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .andWhere(`${builder.alias}."sourceId" = :source`, {
+              source: args.sourceId,
+            })
+            .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+          builder.queryBuilder.limit(page.limit);
+          if (page.timestamp) {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}."createdAt" < :timestamp`,
+              { timestamp: page.timestamp },
+            );
+          }
+          return builder;
+        },
+      );
+    },
+    mySourceMemberships: async (
+      _,
+      args: ConnectionArguments,
+      ctx,
+      info,
+    ): Promise<Connection<GQLSourceMember>> => {
+      const page = membershipsPageGenerator.connArgsToPage(args);
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => membershipsPageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => membershipsPageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          membershipsPageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .andWhere(`${builder.alias}."userId" = :user`, { user: ctx.userId })
+            .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+          builder.queryBuilder.limit(page.limit);
+          if (page.timestamp) {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}."createdAt" < :timestamp`,
+              { timestamp: page.timestamp },
+            );
+          }
+          return builder;
+        },
+      );
     },
   }),
   Mutation: traceResolverObject({
@@ -243,25 +384,4 @@ export const resolvers: IResolvers<any, Context> = {
       throw new ForbiddenError('Not available');
     },
   }),
-  Source: {
-    members: async (
-      source: GQLSource,
-      args,
-      ctx,
-    ): Promise<Connection<GQLSourceMember>> => {
-      if (!source.private) {
-        return source.members;
-      }
-      if (ctx.userId) {
-        const member = await ctx.con.getRepository(SourceMember).findOneBy({
-          userId: ctx.userId,
-          sourceId: source.id,
-        });
-        if (member) {
-          return source.members;
-        }
-      }
-      return null;
-    },
-  },
 };

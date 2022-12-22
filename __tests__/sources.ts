@@ -193,9 +193,27 @@ query Source($id: ID!) {
       'NOT_FOUND',
     ));
 
-  it('should return source by', async () => {
+  it('should not return private source when user is not member', async () => {
+    loggedUser = '3';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return source by id', async () => {
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return private source to source members', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.id).toEqual('a');
   });
 });
 
@@ -227,19 +245,91 @@ query Source($id: ID!) {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should not return source members for private source', async () => {
-    await con.getRepository(Source).update({ id: 'a' }, { private: true });
-    const res = await client.query(QUERY, { variables: { id: 'a' } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.source.members).toBeFalsy();
-  });
-
   it('should return source members for private source when the user is a member', async () => {
     loggedUser = '1';
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.source.members).toMatchSnapshot();
+  });
+});
+
+describe('query sourceMembers', () => {
+  const QUERY = `
+query SourceMembers($id: ID!) {
+  sourceMembers(sourceId: $id) {
+    pageInfo {
+      endCursor
+      hasNextPage
+    }
+    edges {
+      node {
+        user { id }
+        source { id }
+      }
+    }
+  }
+}
+  `;
+
+  it('should not authorize when source does not exist', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'notexist' } },
+      'NOT_FOUND',
+    ));
+
+  it('should return source members of public source', async () => {
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return source members of private source when user is a member', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should not return source members of private source when user is not a member', async () => {
+    loggedUser = '3';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+});
+
+describe('query mySourceMemberships', () => {
+  const QUERY = `
+query SourceMemberships {
+  mySourceMemberships {
+    pageInfo {
+      endCursor
+      hasNextPage
+    }
+    edges {
+      node {
+        user { id }
+        source { id }
+      }
+    }
+  }
+}
+  `;
+
+  it('should not authorize when user is not logged in', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it('should return source memberships', async () => {
+    loggedUser = '2';
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
   });
 });
 

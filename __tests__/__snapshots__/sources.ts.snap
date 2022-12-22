@@ -88,13 +88,145 @@ Object {
 }
 `;
 
-exports[`query source should return source by 1`] = `
+exports[`query mySourceMemberships should return source memberships 1`] = `
+Object {
+  "mySourceMemberships": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "source": Object {
+            "id": "a",
+          },
+          "user": Object {
+            "id": "2",
+          },
+        },
+      },
+      Object {
+        "node": Object {
+          "source": Object {
+            "id": "b",
+          },
+          "user": Object {
+            "id": "2",
+          },
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query source should return source by id 1`] = `
 Object {
   "source": Object {
     "id": "a",
     "image": "http://a.com",
     "name": "A",
     "public": true,
+  },
+}
+`;
+
+exports[`query sourceMembers should return source members of private source when user is a member 1`] = `
+Object {
+  "sourceMembers": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "source": Object {
+            "id": "a",
+          },
+          "user": Object {
+            "id": "2",
+          },
+        },
+      },
+      Object {
+        "node": Object {
+          "source": Object {
+            "id": "a",
+          },
+          "user": Object {
+            "id": "1",
+          },
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query sourceMembers should return source members of public source 1`] = `
+Object {
+  "sourceMembers": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "source": Object {
+            "id": "a",
+          },
+          "user": Object {
+            "id": "2",
+          },
+        },
+      },
+      Object {
+        "node": Object {
+          "source": Object {
+            "id": "a",
+          },
+          "user": Object {
+            "id": "1",
+          },
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query sourceMemberships should return source memberships 1`] = `
+Object {
+  "sourceMemberships": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "source": Object {
+            "id": "a",
+          },
+          "user": Object {
+            "id": "2",
+          },
+        },
+      },
+      Object {
+        "node": Object {
+          "source": Object {
+            "id": "b",
+          },
+          "user": Object {
+            "id": "2",
+          },
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
+      "hasNextPage": false,
+    },
   },
 }
 `;
