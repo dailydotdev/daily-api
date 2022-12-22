@@ -1268,7 +1268,7 @@ describe('mutation generateDevCard', () => {
 
   it('should not validate passed url', () => {
     loggedUser = '1';
-    testMutationErrorCode(
+    return testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
