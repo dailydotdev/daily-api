@@ -29,7 +29,7 @@ import { Connection } from 'graphql-relay/index';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { randomUUID } from 'crypto';
-import { uploadSquadImage } from '../common';
+import { getSourceLink, uploadSquadImage } from '../common';
 import { GraphQLResolveInfo } from 'graphql';
 import { TypeOrmError } from '../errors';
 import {
@@ -42,7 +42,9 @@ import {
 
 export interface GQLSource {
   id: string;
+  type: string;
   name: string;
+  handle: string;
   image?: string;
   private: boolean;
   public: boolean;
@@ -94,7 +96,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Source handle (applicable for squads)
     """
-    handle: String
+    handle: String!
 
     """
     Source description
@@ -105,6 +107,11 @@ export const typeDefs = /* GraphQL */ `
     Source members
     """
     members: SourceMemberConnection
+
+    """
+    URL to the source page
+    """
+    permalink: String!
   }
 
   type SourceConnection {
@@ -210,6 +217,11 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): SourceMemberConnection! @auth
+
+    """
+    Get source member by referral token
+    """
+    sourceMemberByToken(token: String!): SourceMember!
   }
 
   extend type Mutation {
@@ -306,7 +318,7 @@ export const ensureSourcePermissions = async (
 ): Promise<Source> => {
   const source = await ctx.con
     .getRepository(Source)
-    .findOneByOrFail({ id: sourceId });
+    .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
   if (await canAccessSource(ctx, source, permission)) {
     return source;
   }
@@ -346,7 +358,9 @@ const getSourceById = async (
   id: string,
 ): Promise<GQLSource> => {
   const res = await graphorm.query<GQLSource>(ctx, info, (builder) => {
-    builder.queryBuilder = builder.queryBuilder.andWhere({ id }).limit(1);
+    builder.queryBuilder = builder.queryBuilder
+      .andWhere('(id = :id or handle = :id)', { id })
+      .limit(1);
     return builder;
   });
   if (!res.length) {
@@ -466,6 +480,27 @@ export const resolvers: IResolvers<any, Context> = {
         },
       );
     },
+    sourceMemberByToken: async (
+      _,
+      { token }: { token: string },
+      ctx,
+      info,
+    ): Promise<GQLSourceMember> => {
+      const res = await graphorm.query<GQLSourceMember>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere({ referralToken: token })
+            .limit(1);
+          return builder;
+        },
+      );
+      if (!res.length) {
+        throw new EntityNotFoundError(SourceMember, 'not found');
+      }
+      return res[0];
+    },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
@@ -567,4 +602,7 @@ export const resolvers: IResolvers<any, Context> = {
       return getSourceById(ctx, info, sourceId);
     },
   }),
+  Source: {
+    permalink: (source: GQLSource): string => getSourceLink(source),
+  },
 };

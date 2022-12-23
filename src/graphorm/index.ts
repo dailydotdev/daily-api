@@ -34,11 +34,18 @@ const obj = new GraphORM({
     requiredColumns: ['id', 'username'],
     fields: {
       infoConfirmed: {
-        select: 'infoConfirmed',
         transform: nullIfNotSameUser,
       },
       email: {
-        select: 'email',
+        transform: nullIfNotSameUser,
+      },
+      timezone: {
+        transform: nullIfNotSameUser,
+      },
+      acceptedMarketing: {
+        transform: nullIfNotSameUser,
+      },
+      notificationEmail: {
         transform: nullIfNotSameUser,
       },
     },
@@ -130,10 +137,9 @@ const obj = new GraphORM({
     },
   },
   Source: {
-    requiredColumns: ['id', 'private'],
+    requiredColumns: ['id', 'private', 'handle', 'type'],
     fields: {
       public: {
-        select: 'private',
         transform: (value: boolean): boolean => !value,
       },
       members: {

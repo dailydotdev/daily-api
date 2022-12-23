@@ -121,7 +121,7 @@ export class NotificationBuilder {
 
   targetSource(source: Reference<Source>): NotificationBuilder {
     return this.enrichNotification({
-      targetUrl: getSourceLink(source.id),
+      targetUrl: getSourceLink(source),
     });
   }
 
@@ -143,7 +143,7 @@ export class NotificationBuilder {
       referenceId: source.id,
       image: source.image,
       name: source.name,
-      targetUrl: getSourceLink(source.id),
+      targetUrl: getSourceLink(source),
     });
     return this;
   }
