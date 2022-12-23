@@ -68,7 +68,7 @@ beforeEach(async () => {
       userId: '1',
       sourceId: 'a',
       role: SourceMemberRoles.Owner,
-      referralToken: randomUUID(),
+      referralToken: 'rt',
       createdAt: new Date(2022, 11, 19),
     },
     {
@@ -227,6 +227,14 @@ query Source($id: ID!) {
     expect(res.errors).toBeFalsy();
     expect(res.data.source.id).toEqual('a');
   });
+
+  it('should return source by handle', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { handle: 'handle' });
+    const res = await client.query(QUERY, { variables: { id: 'handle' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.id).toEqual('a');
+  });
 });
 
 describe('members field', () => {
@@ -263,6 +271,32 @@ query Source($id: ID!) {
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.source.members).toMatchSnapshot();
+  });
+});
+
+describe('permalink field', () => {
+  const QUERY = `
+query Source($id: ID!) {
+  source(id: $id) {
+    permalink
+  }
+}
+  `;
+
+  it('should return source url', async () => {
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.permalink).toEqual(
+      'http://localhost:5002/sources/a',
+    );
+  });
+
+  it('should return source members for private source when the user is a member', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.permalink).toEqual('http://localhost:5002/squads/a');
   });
 });
 
@@ -342,6 +376,34 @@ query SourceMemberships {
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query sourceMemberByToken', () => {
+  const QUERY = `
+query SourceMemberByToken($token: String!) {
+  sourceMemberByToken(token: $token) {
+    user { id }
+    source { id }
+  }
+}
+  `;
+
+  it('should throw not found exception', () =>
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { token: 'notfound' },
+      },
+      'NOT_FOUND',
+    ));
+
+  it('should return source member', async () => {
+    const res = await client.query(QUERY, { variables: { token: 'rt' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourceMemberByToken.user.id).toEqual('1');
+    expect(res.data.sourceMemberByToken.source.id).toEqual('a');
   });
 });
 
@@ -498,7 +560,7 @@ describe('mutation joinSource', () => {
     await con.getRepository(SourceMember).save({
       sourceId: 's1',
       userId: '2',
-      referralToken: 'rt',
+      referralToken: 'rt2',
       role: SourceMemberRoles.Member,
     });
   });
@@ -530,7 +592,7 @@ describe('mutation joinSource', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         ...variables,
-        token: 'rt',
+        token: 'rt2',
       },
     });
     expect(res.errors).toBeFalsy();
@@ -558,7 +620,7 @@ describe('mutation joinSource', () => {
         mutation: MUTATION,
         variables: {
           ...variables,
-          token: 'rt2',
+          token: 'rt3',
         },
       },
       'FORBIDDEN',

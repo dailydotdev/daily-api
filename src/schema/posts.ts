@@ -15,6 +15,7 @@ import { traceResolverObject } from './trace';
 import {
   defaultImage,
   getDiscussionLink,
+  notifyView,
   pickImageUrl,
   standardizeURL,
 } from '../common';
@@ -506,7 +507,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Post to share in the source
       """
-      postId: ID!
+      id: ID!
       """
       Commentary for the share
       """
@@ -516,6 +517,16 @@ export const typeDefs = /* GraphQL */ `
       """
       sourceId: ID!
     ): Post @auth
+
+    """
+    Submit a view event to a post
+    """
+    viewPost(
+      """
+      Post to share in the source
+      """
+      id: ID!
+    ): EmptyResponse @auth
   }
 
   extend type Subscription {
@@ -783,10 +794,10 @@ export const resolvers: IResolvers<any, Context> = {
     sharePost: async (
       _,
       {
-        postId,
+        id,
         commentary,
         sourceId,
-      }: { postId: string; commentary: string; sourceId: string },
+      }: { id: string; commentary: string; sourceId: string },
       ctx,
       info,
     ): Promise<GQLPost> => {
@@ -795,10 +806,29 @@ export const resolvers: IResolvers<any, Context> = {
         ctx.con,
         sourceId,
         ctx.userId,
-        postId,
+        id,
         commentary,
       );
       return getPostById(ctx, info, newPost.id);
+    },
+    viewPost: async (
+      _,
+      { id }: { id: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      if (post.type !== 'article') {
+        await ensureSourcePermissions(ctx, post.sourceId);
+        await notifyView(
+          ctx.log,
+          post.id,
+          ctx.userId,
+          ctx.req.headers['referer'],
+          new Date(),
+          post.tagsStr?.split?.(',') ?? [],
+        );
+      }
+      return { _: true };
     },
   }),
   Subscription: {

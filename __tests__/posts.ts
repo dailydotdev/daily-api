@@ -35,6 +35,12 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { notifyView } from '../src/common';
+
+jest.mock('../src/common', () => ({
+  ...(jest.requireActual('../src/common') as Record<string, unknown>),
+  notifyView: jest.fn(),
+}));
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -1157,15 +1163,15 @@ describe('compatibility routes', () => {
 
 describe('mutation sharePost', () => {
   const MUTATION = `
-  mutation SharePost($sourceId: ID!, $postId: ID!, $commentary: String!) {
-  sharePost(sourceId: $sourceId, postId: $postId, commentary: $commentary) {
+  mutation SharePost($sourceId: ID!, $id: ID!, $commentary: String!) {
+  sharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
     id
   }
 }`;
 
   const variables = {
     sourceId: 's1',
-    postId: 'p1',
+    id: 'p1',
     commentary: 'My comment',
   };
 
@@ -1227,8 +1233,87 @@ describe('mutation sharePost', () => {
     loggedUser = '1';
     return testMutationErrorCode(
       client,
-      { mutation: MUTATION, variables: { ...variables, postId: 'nope' } },
+      { mutation: MUTATION, variables: { ...variables, id: 'nope' } },
       'FORBIDDEN',
     );
+  });
+});
+
+describe('mutation viewPost', () => {
+  const MUTATION = `
+  mutation ViewPost($id: ID!) {
+  viewPost(id: $id) {
+    _
+  }
+}`;
+
+  const variables = {
+    id: 'p1',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt',
+      role: SourceMemberRoles.Member,
+    });
+    await con.getRepository(Post).update({ id: 'p1' }, { sourceId: 's1' });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw not found when post does not exist', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'nope' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '2';
+    await con.getRepository(Post).update({ id: 'p1' }, { type: 'share' });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should submit view event', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).update({ id: 'p1' }, { type: 'share' });
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    expect(notifyView).toBeCalledTimes(1);
+  });
+
+  it('should should not submit view event for articles', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    expect(notifyView).toBeCalledTimes(0);
   });
 });
