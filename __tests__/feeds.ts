@@ -177,30 +177,35 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
       name: 'IS',
       image: 'http://image.com/c',
       advancedSettings: [2],
+      handle: 'includedSource',
     },
     {
       id: 'excludedSource',
       name: 'ES',
       image: 'http://image.com/c',
       advancedSettings: [1],
+      handle: 'excludedSource',
     },
     {
       id: 'settingsCombinationSource',
       name: 'SCS',
       image: 'http://image.com/c',
       advancedSettings: [1, 2],
+      handle: 'settingsCombinationSource',
     },
     {
       id: 'experimentExcludedSource',
       name: 'ExES',
       image: 'http://image.com/c',
       advancedSettings: [5],
+      handle: 'experimentExcludedSource',
     },
     {
       id: 'experimentIncludedSource',
       name: 'ExIS',
       image: 'http://image.com/c',
       advancedSettings: [6],
+      handle: 'experimentIncludedSource',
     },
   ]);
   await saveFixtures(con, ArticlePost, [

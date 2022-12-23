@@ -1,4 +1,9 @@
-import { validateRegex, ValidateRegex } from './../common/object';
+import {
+  handleRegex,
+  nameRegex,
+  validateRegex,
+  ValidateRegex,
+} from './../common/object';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -755,16 +760,11 @@ export const resolvers: IResolvers<any, Context> = {
       });
 
       const regexParams: ValidateRegex[] = [
-        ['name', data.name, new RegExp(/^(.*){1,60}$/), !user.name],
-        [
-          'username',
-          data.username,
-          new RegExp(/^@?(\w){1,39}$/),
-          !user.username,
-        ],
-        ['github', data.github, new RegExp(/^@?([\w-]){1,39}$/i)],
+        ['name', data.name, nameRegex, !user.name],
+        ['username', data.username, handleRegex, !user.username],
+        ['github', data.github, handleRegex],
         ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
-        ['hashnode', data.hashnode, new RegExp(/^@?([\w-]){1,39}$/i)],
+        ['hashnode', data.hashnode, handleRegex],
       ];
       const regexResult = validateRegex(regexParams);
       if (Object.keys(regexResult).length) {

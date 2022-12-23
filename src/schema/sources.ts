@@ -32,6 +32,13 @@ import { randomUUID } from 'crypto';
 import { uploadSquadImage } from '../common';
 import { GraphQLResolveInfo } from 'graphql';
 import { TypeOrmError } from '../errors';
+import {
+  descriptionRegex,
+  handleRegex,
+  nameRegex,
+  validateRegex,
+  ValidateRegex,
+} from '../common/object';
 
 export interface GQLSource {
   id: string;
@@ -468,6 +475,16 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLSource> => {
+      handle = handle.replace('@', '').trim();
+      const regexParams: ValidateRegex[] = [
+        ['name', name, nameRegex, true],
+        ['handle', handle, handleRegex, true],
+        ['description', description, descriptionRegex, false],
+      ];
+      const regexResult = validateRegex(regexParams);
+      if (Object.keys(regexResult).length) {
+        throw new ValidationError(JSON.stringify(regexResult));
+      }
       try {
         const sourceId = await ctx.con.transaction(async (entityManager) => {
           const id = randomUUID();

@@ -32,3 +32,7 @@ export const validateRegex = (
     const isValid = regex.test(value);
     return isValid ? result : { ...result, [key]: `${key} is invalid!` };
   }, {});
+
+export const nameRegex = new RegExp(/^(.){1,60}$/);
+export const handleRegex = new RegExp(/^@?([\w-]){1,39}$/i);
+export const descriptionRegex = new RegExp(/^(.){1,250}$/);

@@ -22,7 +22,7 @@ export class Source {
   @PrimaryColumn({ type: 'text' })
   id: string;
 
-  @Column()
+  @Column({ default: 'machine' })
   type: string;
 
   @Column({ default: true })
@@ -36,6 +36,23 @@ export class Source {
 
   @Column({ default: false })
   private: boolean;
+
+  @Column({
+    length: 36,
+    transformer: {
+      to(value) {
+        if (typeof value === 'string') {
+          return value?.toLowerCase();
+        }
+        return value;
+      },
+      from(value) {
+        return value;
+      },
+    },
+  })
+  @Index('IDX_source_handle', { unique: true })
+  handle: string;
 
   @OneToMany(() => SourceDisplay, (display) => display.source, { lazy: true })
   displays: Promise<SourceDisplay[]>;
@@ -68,10 +85,6 @@ export class MachineSource extends Source {
 
 @ChildEntity('squad')
 export class SquadSource extends Source {
-  @Column({ length: 36, nullable: true })
-  @Index('IDX_source_handle', { unique: true })
-  handle: string;
-
   @Column({ type: 'text', nullable: true })
   description?: string;
 }
