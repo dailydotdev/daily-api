@@ -249,6 +249,7 @@ describe('generateNotification', () => {
         id: 's1',
         name: 'Source',
         image: 'https://daily.dev/s1.jpg',
+        handle: 's1',
       } as Reference<Source>,
       sourceRequest: {
         id: 'sr1',

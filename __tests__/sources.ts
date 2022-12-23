@@ -560,7 +560,7 @@ describe('mutation joinSource', () => {
     await con.getRepository(SourceMember).save({
       sourceId: 's1',
       userId: '2',
-      referralToken: 'rt',
+      referralToken: 'rt2',
       role: SourceMemberRoles.Member,
     });
   });
@@ -592,7 +592,7 @@ describe('mutation joinSource', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         ...variables,
-        token: 'rt',
+        token: 'rt2',
       },
     });
     expect(res.errors).toBeFalsy();
@@ -620,7 +620,7 @@ describe('mutation joinSource', () => {
         mutation: MUTATION,
         variables: {
           ...variables,
-          token: 'rt2',
+          token: 'rt3',
         },
       },
       'FORBIDDEN',
