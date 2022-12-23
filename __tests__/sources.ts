@@ -40,6 +40,7 @@ const createSource = (id: string, name: string, image: string): Source => {
   source.image = image;
   source.active = true;
   source.private = false;
+  source.handle = id;
   return source;
 };
 
@@ -125,9 +126,15 @@ describe('query sources', () => {
   });
 
   it('should return only active sources', async () => {
-    await con
-      .getRepository(Source)
-      .save([{ id: 'd', active: false, name: 'D', image: 'http://d.com' }]);
+    await con.getRepository(Source).save([
+      {
+        id: 'd',
+        active: false,
+        name: 'D',
+        image: 'http://d.com',
+        handle: 'd',
+      },
+    ]);
     const res = await client.query(QUERY());
     expect(res.data).toMatchSnapshot();
   });
@@ -416,6 +423,55 @@ describe('mutation createSquad', () => {
       client,
       { mutation: MUTATION, variables },
       'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when handle is invalid', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, handle: 'inv()8&*^' } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should lowercase handle', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, handle: '@HANDLE' },
+    });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.createSquad.id;
+    const newSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: newId });
+    expect(newSource.handle).toEqual('handle');
+  });
+
+  it('should limit name length', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, name: new Array(70).join('a') },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should limit description length', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, description: new Array(260).join('a') },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
     );
   });
 });

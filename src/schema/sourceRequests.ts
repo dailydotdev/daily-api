@@ -302,6 +302,7 @@ const createSourceFromRequest = (
       website: req.sourceUrl,
       name: req.sourceName,
       image: req.sourceImage,
+      handle: req.sourceId,
     });
 
     await entityManager.getRepository(SourceFeed).save({
