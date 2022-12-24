@@ -242,19 +242,22 @@ export const applyFeedWhere = (
   postTypes: string[],
   removeHiddenPosts = true,
   removeBannedPosts = true,
+  allowPrivateSources = true,
 ): SelectQueryBuilder<Post> => {
-  const selectSource = builder
-    .subQuery()
-    .from(Source, 'source')
-    .where('source.private = false')
-    .andWhere(`source.id = "${alias}"."sourceId"`);
   let newBuilder = builder
     .andWhere(`${alias}.deleted = false`)
     .andWhere(`${alias}."sourceId" is not null`)
-    .andWhere(`${alias}."type" in (:...postTypes)`, { postTypes })
-    .andWhere(`EXISTS${selectSource.getQuery()}`, {
+    .andWhere(`${alias}."type" in (:...postTypes)`, { postTypes });
+  if (!allowPrivateSources) {
+    const selectSource = builder
+      .subQuery()
+      .from(Source, 'source')
+      .where('source.private = false')
+      .andWhere(`source.id = "${alias}"."sourceId"`);
+    newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`, {
       userId: ctx.userId,
     });
+  }
   if (ctx.userId && removeHiddenPosts) {
     newBuilder = newBuilder
       .leftJoin(
@@ -280,6 +283,7 @@ export type FeedResolverOptions<TArgs, TParams, TPage extends Page> = {
     page: TPage,
   ) => Promise<TParams>;
   warnOnPartialFirstPage?: boolean;
+  allowPrivateSources?: boolean;
 };
 
 export function feedResolver<
@@ -308,6 +312,7 @@ export function feedResolver<
     removeBannedPosts = true,
     fetchQueryParams,
     warnOnPartialFirstPage = false,
+    allowPrivateSources = true,
   }: FeedResolverOptions<TArgs, TParams, TPage> = {},
 ): IFieldResolver<TSource, Context, TArgs> {
   return async (source, args, context, info): Promise<Connection<GQLPost>> => {
@@ -355,6 +360,7 @@ export function feedResolver<
               args.supportedTypes || ['article'],
               removeHiddenPosts,
               removeBannedPosts,
+              allowPrivateSources,
             );
             return builder;
           },
@@ -403,6 +409,8 @@ export function randomPostsResolver<
         builder.alias,
         ['article'],
         true,
+        true,
+        false,
       )
         .orderBy('random()')
         .limit(pageSize);

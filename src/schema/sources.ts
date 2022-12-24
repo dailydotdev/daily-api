@@ -313,14 +313,16 @@ export const canAccessSource = async (
 
 export const ensureSourcePermissions = async (
   ctx: Context,
-  sourceId: string,
+  sourceId: string | undefined,
   permission = SourcePermissions.View,
 ): Promise<Source> => {
-  const source = await ctx.con
-    .getRepository(Source)
-    .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
-  if (await canAccessSource(ctx, source, permission)) {
-    return source;
+  if (sourceId) {
+    const source = await ctx.con
+      .getRepository(Source)
+      .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
+    if (await canAccessSource(ctx, source, permission)) {
+      return source;
+    }
   }
   throw new ForbiddenError('Access denied!');
 };

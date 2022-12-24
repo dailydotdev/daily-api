@@ -282,11 +282,13 @@ describe('query anonymousFeed', () => {
 `;
 
   it('should return anonymous feed with no filters ordered by popularity', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return anonymous feed with no filters ordered by time', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
     const res = await client.query(QUERY, {
       variables: { ...variables, ranking: Ranking.TIME },
     });
@@ -309,6 +311,7 @@ describe('query anonymousFeed', () => {
   });
 
   it('should return anonymous feed while excluding sources', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
     const res = await client.query(QUERY, {
       variables: { ...variables, filters: { excludeSources: ['a'] } },
     });
@@ -316,6 +319,7 @@ describe('query anonymousFeed', () => {
   });
 
   it('should return feed while excluding sources based on advanced settings', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
     await saveAdvancedSettingsFiltersFixtures();
     mockFeatures();
     const filters = await feedToFilters(con, '1', '1');
@@ -339,6 +343,7 @@ describe('query anonymousFeed', () => {
   });
 
   it('should remove banned posts from the feed', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
     await con.getRepository(Post).update({ id: 'p5' }, { banned: true });
     mockFeatures();
     const res = await client.query(QUERY, { variables });
@@ -438,6 +443,7 @@ describe('query feed', () => {
 
   it('should return preconfigured feed with blocked tags filters only', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).delete({ id: 'p6' });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, FeedTag, [
       { feedId: '1', tag: 'html', blocked: true },
@@ -461,6 +467,7 @@ describe('query feed', () => {
 
   it('should return preconfigured feed with sources filters only', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).delete({ id: 'p6' });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, FeedSource, [{ feedId: '1', sourceId: 'a' }]);
     mockFeatures();
@@ -470,6 +477,7 @@ describe('query feed', () => {
 
   it('should return preconfigured feed with sources filtered based on advanced settings', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).delete({ id: 'p6' });
     await saveAdvancedSettingsFiltersFixtures();
     mockFeatures();
     const res = await client.query(QUERY, { variables });
@@ -478,6 +486,7 @@ describe('query feed', () => {
 
   it('should return preconfigured feed with no filters', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).delete({ id: 'p6' });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     mockFeatures();
     const res = await client.query(QUERY, { variables });
@@ -486,6 +495,7 @@ describe('query feed', () => {
 
   it('should return unread posts from preconfigured feed', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).delete({ id: 'p6' });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await con.getRepository(View).save([{ userId: '1', postId: 'p1' }]);
     mockFeatures();
@@ -1302,6 +1312,7 @@ describe('mutation removeFiltersFromFeed', () => {
 describe('compatibility routes', () => {
   describe('GET /posts/latest', () => {
     it('should return anonymous feed with no filters ordered by popularity', async () => {
+      await con.getRepository(Post).delete({ id: 'p6' });
       const res = await request(app.server)
         .get('/v1/posts/latest')
         .query({ latest: new Date(), pageSize: 2, page: 0 })

@@ -2,7 +2,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import shortid from 'shortid';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { Connection as ORMConnection, EntityManager, In, Not } from 'typeorm';
+import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
@@ -11,7 +11,7 @@ import {
   recommendUsersToMention,
 } from '../common';
 import { CommentMention } from './../entity/CommentMention';
-import { Comment, CommentUpvote, Post, User } from '../entity';
+import { Comment, CommentUpvote, Post, Source, User } from '../entity';
 import { NotFoundError } from '../errors';
 import { GQLEmptyResponse } from './common';
 import { GQLUser } from './users';
@@ -21,6 +21,7 @@ import { GQLPost } from './posts';
 import { Roles } from '../roles';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { markdown, mentionSpecialCharacters } from '../common/markdown';
+import { ensureSourcePermissions } from './sources';
 
 export interface GQLComment {
   id: string;
@@ -314,7 +315,7 @@ interface MentionedUser {
 }
 
 const getMentions = async (
-  con: ORMConnection | EntityManager,
+  con: DataSource | EntityManager,
   content: string,
   userId: string,
 ): Promise<MentionedUser[]> => {
@@ -338,7 +339,7 @@ const getMentions = async (
 };
 
 const saveMentions = (
-  transaction: ORMConnection | EntityManager,
+  transaction: DataSource | EntityManager,
   commentId: string,
   commentByUserId: string,
   users: MentionedUser[],
@@ -363,7 +364,7 @@ const saveMentions = (
 };
 
 export const saveComment = async (
-  con: ORMConnection | EntityManager,
+  con: DataSource | EntityManager,
   comment: Comment,
 ): Promise<Comment> => {
   const mentions = await getMentions(con, comment.content, comment.userId);
@@ -398,7 +399,7 @@ export const updateMentions = async (
 };
 
 const savNewComment = async (
-  con: ORMConnection | EntityManager,
+  con: DataSource | EntityManager,
   comment: Comment,
 ) => {
   const savedComment = await saveComment(con, comment);
@@ -440,6 +441,10 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLComment>> => {
+      const post = await ctx.con
+        .getRepository(Post)
+        .findOneByOrFail({ id: args.postId });
+      await ensureSourcePermissions(ctx, post.sourceId);
       return queryPaginatedByDate(
         ctx,
         info,
@@ -476,7 +481,9 @@ export const resolvers: IResolvers<any, Context> = {
                 userId: args.userId,
               })
               .innerJoin(Post, 'p', `"${builder.alias}"."postId" = p.id`)
-              .andWhere(`p.deleted = false`);
+              .innerJoin(Source, 's', `"p"."sourceId" = s.id`)
+              .andWhere(`p.deleted = false`)
+              .andWhere(`s.private = false`);
 
             return builder;
           },
@@ -490,6 +497,12 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLCommentUpvote>> => {
+      const comment = await ctx.con.getRepository(Comment).findOneOrFail({
+        where: { id: args.id },
+        relations: ['post'],
+      });
+      const post = await comment.post;
+      await ensureSourcePermissions(ctx, post.sourceId);
       return queryPaginatedByDate(
         ctx,
         info,
@@ -565,6 +578,10 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       try {
+        const post = await ctx.con
+          .getRepository(Post)
+          .findOneByOrFail({ id: postId });
+        await ensureSourcePermissions(ctx, post.sourceId);
         const comment = await ctx.con.transaction(async (entityManager) => {
           const createdComment = entityManager.getRepository(Comment).create({
             id: shortid.generate(),
@@ -596,9 +613,14 @@ export const resolvers: IResolvers<any, Context> = {
 
       try {
         const comment = await ctx.con.transaction(async (entityManager) => {
-          const parentComment = await entityManager
+          const parentComment = await ctx.con
             .getRepository(Comment)
-            .findOneByOrFail({ id: commentId });
+            .findOneOrFail({
+              where: { id: commentId },
+              relations: ['post'],
+            });
+          const post = await parentComment.post;
+          await ensureSourcePermissions(ctx, post.sourceId);
           if (parentComment.parentId) {
             throw new ForbiddenError('Cannot comment on a sub-comment');
           }
@@ -676,6 +698,12 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       try {
+        const comment = await ctx.con.getRepository(Comment).findOneOrFail({
+          where: { id },
+          relations: ['post'],
+        });
+        const post = await comment.post;
+        await ensureSourcePermissions(ctx, post.sourceId);
         await ctx.con.transaction(async (entityManager) => {
           await entityManager.getRepository(CommentUpvote).insert({
             commentId: id,
