@@ -535,6 +535,7 @@ describe('sharedPost field', () => {
     await con.getRepository(SharePost).save({
       id: 'ps',
       shortId: 'ps',
+      sourceId: 'a',
       title: 'Shared post',
       sharedPostId: 'p1',
     });
@@ -595,7 +596,23 @@ describe('query post', () => {
       },
     ]);
 
-    testQueryErrorCode(client, { query: QUERY('pdeleted') }, 'NOT_FOUND');
+    return testQueryErrorCode(
+      client,
+      { query: QUERY('pdeleted') },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY('p1'),
+      },
+      'FORBIDDEN',
+    );
   });
 
   it('should return post by id', async () => {
@@ -632,7 +649,11 @@ describe('query postByUrl', () => {
       },
     ]);
 
-    testQueryErrorCode(client, { query: QUERY('http://p8.com') }, 'NOT_FOUND');
+    return testQueryErrorCode(
+      client,
+      { query: QUERY('http://p8.com') },
+      'NOT_FOUND',
+    );
   });
 
   it('should return post by canonical', async () => {
@@ -687,6 +708,19 @@ describe('query postUpvotes', () => {
     }
   }
   `;
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: 'p1' },
+      },
+      'FORBIDDEN',
+    );
+  });
 
   it('should return users that upvoted the post by id in descending order', async () => {
     const userRepo = con.getRepository(User);
@@ -931,6 +965,19 @@ describe('mutation reportPost', () => {
     );
   });
 
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1', reason: 'BROKEN', comment: 'Test comment' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should report post with comment', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
@@ -1028,6 +1075,19 @@ describe('mutation upvote', () => {
         variables: { id: 'p1' },
       },
       'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'FORBIDDEN',
     );
   });
 
@@ -1234,7 +1294,7 @@ describe('mutation sharePost', () => {
     return testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { ...variables, id: 'nope' } },
-      'FORBIDDEN',
+      'NOT_FOUND',
     );
   });
 });

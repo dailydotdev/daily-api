@@ -618,7 +618,11 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
       info,
-    ): Promise<GQLPost> => getPostById(ctx, info, id),
+    ): Promise<GQLPost> => {
+      const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      await ensureSourcePermissions(ctx, post.sourceId);
+      return getPostById(ctx, info, id);
+    },
     postByUrl: async (
       source,
       { url }: { id: string; url: string },
@@ -646,6 +650,10 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<ConnectionRelay<GQLPostUpvote>> => {
+      const post = await ctx.con
+        .getRepository(Post)
+        .findOneByOrFail({ id: args.id });
+      await ensureSourcePermissions(ctx, post.sourceId);
       return queryPaginatedByDate(
         ctx,
         info,
@@ -699,6 +707,7 @@ export const resolvers: IResolvers<any, Context> = {
       });
       if (added) {
         const post = await ctx.getRepository(Post).findOneByOrFail({ id });
+        await ensureSourcePermissions(ctx, post.sourceId);
         if (!post.banned) {
           try {
             await ctx.getRepository(PostReport).insert({
@@ -746,6 +755,8 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       try {
+        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+        await ensureSourcePermissions(ctx, post.sourceId);
         await ctx.con.transaction(async (entityManager) => {
           await entityManager.getRepository(Upvote).insert({
             postId: id,
@@ -801,7 +812,11 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLPost> => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+      const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      await Promise.all([
+        ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
+        ensureSourcePermissions(ctx, post.sourceId),
+      ]);
       const newPost = await createSharePost(
         ctx.con,
         sourceId,
@@ -817,8 +832,8 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
     ): Promise<GQLEmptyResponse> => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      await ensureSourcePermissions(ctx, post.sourceId);
       if (post.type !== 'article') {
-        await ensureSourcePermissions(ctx, post.sourceId);
         await notifyView(
           ctx.log,
           post.id,

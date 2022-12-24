@@ -167,6 +167,19 @@ describe('query postComments', () => {
     ]);
   });
 
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { postId: 'p1' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should fetch comments and sub-comments of a post', async () => {
     const res = await client.query(QUERY, { variables: { postId: 'p1' } });
     expect(res.errors).toBeFalsy();
@@ -216,6 +229,19 @@ describe('query commentUpvotes', () => {
     }
   }
   `;
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: 'c1' },
+      },
+      'FORBIDDEN',
+    );
+  });
 
   it('should return users that upvoted the comment by id in descending order', async () => {
     const commentUpvoteRepo = con.getRepository(CommentUpvote);
@@ -435,6 +461,19 @@ describe('mutation commentOnPost', () => {
   }
 }`;
 
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { postId: 'p1', content: 'comment' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should not allow comment if content is empty string', () => {
     loggedUser = '1';
 
@@ -631,6 +670,22 @@ describe('mutation commentOnComment', () => {
     );
   });
 
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          content: '# my comment http://daily.dev',
+          commentId: 'c1',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should comment on a comment', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
@@ -756,6 +811,19 @@ describe('mutation upvoteComment', () => {
         variables: { id: 'c1' },
       },
       'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'c1' },
+      },
+      'FORBIDDEN',
     );
   });
 

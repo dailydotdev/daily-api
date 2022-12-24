@@ -720,7 +720,11 @@ const searchResolver = feedResolver(
       .orderBy('views', 'DESC'),
   offsetPageGenerator(30, 50),
   (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
-  { removeHiddenPosts: true, removeBannedPosts: false },
+  {
+    removeHiddenPosts: true,
+    removeBannedPosts: false,
+    allowPrivateSources: false,
+  },
 );
 
 const anonymousFeedResolverV1: IFieldResolver<
@@ -838,6 +842,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         tagFeedBuilder(ctx, tag, builder, alias),
       feedPageGenerator,
       applyFeedPaging,
+      { allowPrivateSources: false },
     ),
     keywordFeed: feedResolver(
       (ctx, { keyword }: KeywordFeedArgs, builder, alias) =>
@@ -846,6 +851,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         ),
       feedPageGenerator,
       applyFeedPaging,
+      { allowPrivateSources: false },
     ),
     feedSettings: (source, args, ctx, info): Promise<GQLFeedSettings> =>
       getFeedSettings(ctx, info),
@@ -859,9 +865,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           WITH search AS (${getSearchQuery('$1')})
           select ts_headline(process_text(title), search.query,
                              'StartSel = <strong>, StopSel = </strong>') as title
-          from post,
-               search
-          where tsv @@ search.query
+          from post
+                 inner join search on true
+                 inner join source on source.id = post."sourceId"
+          where tsv @@ search.query and source.private = false
           order by views desc
             limit 5;
         `,
@@ -920,7 +927,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           .groupBy(`${alias}.id`),
       feedPageGenerator,
       applyFeedPaging,
-      { removeHiddenPosts: false, removeBannedPosts: false },
+      {
+        removeHiddenPosts: false,
+        removeBannedPosts: false,
+        allowPrivateSources: false,
+      },
     ),
     mostUpvotedFeed: feedResolver(
       (
@@ -940,7 +951,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       offsetPageGenerator(30, 50, 100),
       (ctx, args, { limit, offset }, builder) =>
         builder.limit(limit).offset(offset),
-      { removeHiddenPosts: true },
+      { removeHiddenPosts: true, removeBannedPosts: false },
     ),
     mostDiscussedFeed: feedResolver(
       (ctx, args, builder, alias) =>
@@ -951,7 +962,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       offsetPageGenerator(30, 50, 100),
       (ctx, args, { limit, offset }, builder) =>
         builder.limit(limit).offset(offset),
-      { removeHiddenPosts: true },
+      { removeHiddenPosts: true, allowPrivateSources: false },
     ),
     randomTrendingPosts: randomPostsResolver(
       (
