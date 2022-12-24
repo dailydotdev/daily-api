@@ -6,7 +6,13 @@ import {
   MockContext,
   saveFixtures,
 } from './helpers';
-import { ArticlePost, Bookmark, PostKeyword, Source } from '../src/entity';
+import {
+  ArticlePost,
+  Bookmark,
+  Post,
+  PostKeyword,
+  Source,
+} from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postKeywordsFixture, postsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
@@ -76,6 +82,7 @@ describe('query latest', () => {
   }`;
 
   it('should return anonymous feed with no filters ordered by popularity', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
     const latest = new Date().toISOString();
     const res = await client.query(QUERY, {
       variables: { params: { latest } },
@@ -84,6 +91,7 @@ describe('query latest', () => {
   });
 
   it('should return anonymous feed with no filters ordered by time', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
     const latest = new Date().toISOString();
     const res = await client.query(QUERY, {
       variables: { params: { latest, sortBy: 'creation' } },
