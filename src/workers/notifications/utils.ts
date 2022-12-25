@@ -39,7 +39,7 @@ export async function articleNewCommentHandler(
 
 export const UPVOTE_TITLES = {
   1: 'Congrats! You just <span class="text-theme-color-avocado">earned one upvote 🎉</span>',
-  3: 'Yay! You <span class="text-theme-color-avocado">earned 3 upvotes ✨</span>',
+  3: 'Wow! You <span class="text-theme-color-avocado">earned 3 upvotes ✨</span>',
   5: 'You rock! You <span class="text-theme-color-avocado">earned 5 upvotes 🎸</span>',
   10: 'Well done! You <span class="text-theme-color-avocado">earned 10 upvotes 🙌</span>',
   20: 'Brilliant! You <span class="text-theme-color-avocado">earned 20 upvotes 🥳</span>',
@@ -48,10 +48,8 @@ export const UPVOTE_TITLES = {
   200: 'Way to go! You <span class="text-theme-color-avocado">earned 200 upvotes 🚀</span>',
   500: 'Clever! You <span class="text-theme-color-avocado">earned 500 upvotes 🦸‍</span>',
   1000: 'Superb! You <span class="text-theme-color-avocado">earned 1,000 upvotes 😱</span>',
-  1250: 'Wow! You <span class="text-theme-color-avocado">earned 1,250 upvotes 💥</span>',
-  1500: 'Unbelievable! You <span class="text-theme-color-avocado">earned 1,500 upvotes 🤯</span>',
-  5000: 'Awesome! You <span class="text-theme-color-avocado">earned 5,000 upvotes 😳</span>',
-  7500: 'Legendary! You <span class="text-theme-color-avocado">earned 7,500 upvotes 🏎</span>',
+  2000: 'Legendary! You <span class="text-theme-color-avocado">earned 2,000 upvotes 💥</span>',
+  5000: 'Unbelievable! You <span class="text-theme-color-avocado">earned 5,000 upvotes 😳</span>',
   10000: `We're speechless! You <span class="text-theme-color-avocado">earned 10,000 upvotes 🙉</span>`,
 };
 export const UPVOTE_MILESTONES = Object.keys(UPVOTE_TITLES);
