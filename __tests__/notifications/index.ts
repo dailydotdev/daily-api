@@ -3,6 +3,7 @@ import {
   NotificationBaseContext,
   NotificationCommentContext,
   NotificationCommenterContext,
+  NotificationDoneByContext,
   NotificationPostContext,
   NotificationSourceContext,
   NotificationSourceRequestContext,
@@ -26,6 +27,7 @@ import { scoutArticleLink } from '../../src/common';
 import { usersFixture } from '../fixture/user';
 import createOrGetConnection from '../../src/db';
 import { DataSource } from 'typeorm';
+import { sourcesFixture } from '../fixture/source';
 
 const userId = '1';
 const commentFixture: Reference<Comment> = {
@@ -65,6 +67,7 @@ describe('generateNotification', () => {
     const ctx: NotificationSubmissionContext & NotificationPostContext = {
       userId,
       submission: { id: 's1' },
+      source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
     };
     const actual = generateNotification(type, ctx);
@@ -106,6 +109,7 @@ describe('generateNotification', () => {
     const type = 'article_picked';
     const ctx: NotificationPostContext = {
       userId,
+      source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
     };
     const actual = generateNotification(type, ctx);
@@ -133,6 +137,7 @@ describe('generateNotification', () => {
     const type = 'article_new_comment';
     const ctx: NotificationCommenterContext = {
       userId,
+      source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,
@@ -166,6 +171,7 @@ describe('generateNotification', () => {
     const type = 'article_upvote_milestone';
     const ctx: NotificationPostContext & NotificationUpvotersContext = {
       userId,
+      source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       upvotes: 50,
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
@@ -209,10 +215,50 @@ describe('generateNotification', () => {
     ]);
   });
 
+  it('should add source avatar to article_upvote_milestone when it is a squad post', () => {
+    const type = 'article_upvote_milestone';
+    const ctx: NotificationPostContext & NotificationUpvotersContext = {
+      userId,
+      source: { ...sourcesFixture[0], type: 'squad' } as Reference<Source>,
+      post: postsFixture[0] as Reference<Post>,
+      upvotes: 50,
+      upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
+    };
+    const actual = generateNotification(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        order: 0,
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/squads/a',
+        type: 'source',
+      },
+      {
+        image: 'https://daily.dev/tsahi.jpg',
+        name: 'Tsahi',
+        order: 1,
+        referenceId: '2',
+        targetUrl: 'http://localhost:5002/tsahidaily',
+        type: 'user',
+      },
+      {
+        image: 'https://daily.dev/nimrod.jpg',
+        name: 'Nimrod',
+        order: 2,
+        referenceId: '3',
+        targetUrl: 'http://localhost:5002/nimroddaily',
+        type: 'user',
+      },
+    ]);
+  });
+
   it('should generate article_report_approved notification', () => {
     const type = 'article_report_approved';
     const ctx: NotificationPostContext = {
       userId,
+      source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
     };
     const actual = generateNotification(type, ctx);
@@ -229,6 +275,7 @@ describe('generateNotification', () => {
     const type = 'article_analytics';
     const ctx: NotificationPostContext = {
       userId,
+      source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
     };
     const actual = generateNotification(type, ctx);
@@ -298,6 +345,7 @@ describe('generateNotification', () => {
     const type = 'comment_mention';
     const ctx: NotificationCommenterContext = {
       userId,
+      source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,
@@ -332,6 +380,7 @@ describe('generateNotification', () => {
     const type = 'comment_reply';
     const ctx: NotificationCommenterContext = {
       userId,
+      source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,
@@ -345,6 +394,7 @@ describe('generateNotification', () => {
     const type = 'comment_upvote_milestone';
     const ctx: NotificationCommentContext & NotificationUpvotersContext = {
       userId,
+      source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       comment: commentFixture,
       upvotes: 50,
@@ -383,6 +433,210 @@ describe('generateNotification', () => {
     ]);
     expect(actual.attachments.length).toEqual(0);
   });
+
+  it('should generate post_added notification', () => {
+    const type = 'post_added';
+    const ctx: NotificationPostContext = {
+      userId,
+      source: sourcesFixture[0] as Reference<Source>,
+      post: postsFixture[0] as Reference<Post>,
+    };
+    const actual = generateNotification(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/p1',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        order: 0,
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/sources/a',
+        type: 'source',
+      },
+    ]);
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+        order: 0,
+        referenceId: 'p1',
+        title: 'P1',
+        type: 'post',
+      },
+    ]);
+  });
+
+  it('should set attachment as shared post on post_added notification', () => {
+    const type = 'post_added';
+    const ctx: NotificationPostContext = {
+      userId,
+      source: sourcesFixture[0] as Reference<Source>,
+      post: {
+        id: 'ps',
+        title: 'Commentary',
+        sourceId: 'a',
+        type: 'share',
+      } as Reference<Post>,
+      sharedPost: postsFixture[0] as Reference<Post>,
+    };
+    const actual = generateNotification(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('ps');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.description).toEqual('Commentary');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/ps',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        order: 0,
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/sources/a',
+        type: 'source',
+      },
+    ]);
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+        order: 0,
+        referenceId: 'p1',
+        title: 'P1',
+        type: 'post',
+      },
+    ]);
+  });
+
+  it('should add user avatar on post_added notification', () => {
+    const type = 'post_added';
+    const ctx: NotificationPostContext & Partial<NotificationDoneByContext> = {
+      userId,
+      source: sourcesFixture[0] as Reference<Source>,
+      post: postsFixture[0] as Reference<Post>,
+      doneBy: usersFixture[1] as Reference<User>,
+    };
+    const actual = generateNotification(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        order: 0,
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/sources/a',
+        type: 'source',
+      },
+      {
+        image: 'https://daily.dev/tsahi.jpg',
+        name: 'Tsahi',
+        order: 1,
+        referenceId: '2',
+        targetUrl: 'http://localhost:5002/tsahidaily',
+        type: 'user',
+      },
+    ]);
+  });
+
+  it('should generate post_viewed notification', () => {
+    const type = 'post_viewed';
+    const ctx: NotificationPostContext & NotificationDoneByContext = {
+      userId,
+      source: { ...sourcesFixture[0], type: 'squad' } as Reference<Source>,
+      post: {
+        id: 'ps',
+        title: 'Commentary',
+        sourceId: 'a',
+        type: 'share',
+      } as Reference<Post>,
+      sharedPost: postsFixture[0] as Reference<Post>,
+      doneBy: usersFixture[1] as Reference<User>,
+    };
+    const actual = generateNotification(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('ps');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.description).toEqual('Commentary');
+    expect(actual.notification.uniqueKey).toEqual('2');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/ps',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        order: 0,
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/squads/a',
+        type: 'source',
+      },
+      {
+        image: 'https://daily.dev/tsahi.jpg',
+        name: 'Tsahi',
+        order: 1,
+        referenceId: '2',
+        targetUrl: 'http://localhost:5002/tsahidaily',
+        type: 'user',
+      },
+    ]);
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+        order: 0,
+        referenceId: 'p1',
+        title: 'P1',
+        type: 'post',
+      },
+    ]);
+  });
+
+  it('should generate member_joined_source notification', () => {
+    const type = 'member_joined_source';
+    const ctx: NotificationSourceContext & NotificationDoneByContext = {
+      userId,
+      source: { ...sourcesFixture[0], type: 'squad' } as Reference<Source>,
+      doneBy: usersFixture[1] as Reference<User>,
+    };
+    const actual = generateNotification(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('a');
+    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.uniqueKey).toEqual('2');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/squads/a',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        order: 0,
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/squads/a',
+        type: 'source',
+      },
+      {
+        image: 'https://daily.dev/tsahi.jpg',
+        name: 'Tsahi',
+        order: 1,
+        referenceId: '2',
+        targetUrl: 'http://localhost:5002/tsahidaily',
+        type: 'user',
+      },
+    ]);
+    expect(actual.attachments.length).toEqual(0);
+  });
 });
 
 describe('storeNotificationBundle', () => {
@@ -393,6 +647,7 @@ describe('storeNotificationBundle', () => {
   it('should save the notification and its children', async () => {
     const ctx: NotificationPostContext & NotificationUpvotersContext = {
       userId,
+      source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       upvotes: 50,
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
@@ -413,6 +668,7 @@ describe('storeNotificationBundle', () => {
   it('should ignore duplicates', async () => {
     const ctx: NotificationPostContext & NotificationUpvotersContext = {
       userId,
+      source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       upvotes: 50,
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],

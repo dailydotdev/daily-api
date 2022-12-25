@@ -71,6 +71,13 @@ export class NotificationBuilder {
     });
   }
 
+  referenceSource(source: Reference<Source>): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: source.id,
+      referenceType: 'source',
+    });
+  }
+
   referenceComment(comment: Reference<Comment>): NotificationBuilder {
     return this.enrichNotification({
       referenceId: comment.id,
@@ -138,7 +145,7 @@ export class NotificationBuilder {
 
   avatarSource(source: Reference<Source>): NotificationBuilder {
     this.avatars.push({
-      order: this.attachments.length,
+      order: this.avatars.length,
       type: 'source',
       referenceId: source.id,
       image: source.image,
@@ -174,6 +181,30 @@ export class NotificationBuilder {
       uniqueKey: upvotes.toString(),
       icon: NotificationIcon.Upvote,
     }).avatarManyUsers(upvoters);
+  }
+
+  uniqueKey(key: string): NotificationBuilder {
+    return this.enrichNotification({ uniqueKey: key });
+  }
+
+  objectPost(
+    post: Reference<Post>,
+    source: Reference<Source>,
+    sharedPost?: Reference<Post>,
+    addSquadAvatar = true,
+  ) {
+    let newBuilder = this.referencePost(post).targetPost(post);
+    if (source.type === 'squad' && addSquadAvatar) {
+      newBuilder = newBuilder.avatarSource(source);
+    }
+    if (post.type === 'share') {
+      newBuilder = newBuilder
+        .description(simplifyComment(post.title))
+        .attachmentPost(sharedPost);
+    } else {
+      newBuilder = newBuilder.attachmentPost(post);
+    }
+    return newBuilder;
   }
 
   private enrichNotification(

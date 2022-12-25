@@ -1,11 +1,11 @@
 import { messageToJson } from '../worker';
-import { Post, Upvote } from '../../entity';
+import { Upvote } from '../../entity';
 import {
   NotificationPostContext,
   NotificationUpvotersContext,
 } from '../../notifications';
 import { NotificationWorker } from './worker';
-import { uniquePostOwners, UPVOTE_MILESTONES } from './utils';
+import { buildPostContext, uniquePostOwners, UPVOTE_MILESTONES } from './utils';
 
 interface Data {
   userId: string;
@@ -16,9 +16,11 @@ const worker: NotificationWorker = {
   subscription: 'api.article-upvote-milestone-notification',
   handler: async (message, con) => {
     const data: Data = messageToJson(message);
-    const post = await con
-      .getRepository(Post)
-      .findOne({ where: { id: data.postId } });
+    const postCtx = await buildPostContext(con, data.postId);
+    if (!postCtx) {
+      return;
+    }
+    const { post } = postCtx;
     const users = uniquePostOwners(post, data.userId);
     if (!users.length || !UPVOTE_MILESTONES.includes(post.upvotes)) {
       return;
@@ -34,7 +36,7 @@ const worker: NotificationWorker = {
       NotificationPostContext & NotificationUpvotersContext,
       'userId'
     > = {
-      post,
+      ...postCtx,
       upvoters,
       upvotes: post.upvotes,
     };

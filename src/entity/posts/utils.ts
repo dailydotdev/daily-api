@@ -334,6 +334,7 @@ export const createSharePost = async (
       authorId: userId,
       sharedPostId: postId,
       title: commentary,
+      sentAnalyticsReport: true,
     });
   } catch (err) {
     if (err.code === TypeOrmError.FOREIGN_KEY) {

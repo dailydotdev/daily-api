@@ -5,7 +5,7 @@ import {
   NotificationUpvotersContext,
 } from '../../notifications';
 import { NotificationWorker } from './worker';
-import { UPVOTE_MILESTONES } from './utils';
+import { buildPostContext, UPVOTE_MILESTONES } from './utils';
 
 interface Data {
   userId: string;
@@ -18,12 +18,16 @@ const worker: NotificationWorker = {
     const data: Data = messageToJson(message);
     const comment = await con
       .getRepository(Comment)
-      .findOne({ where: { id: data.commentId }, relations: ['post'] });
+      .findOne({ where: { id: data.commentId } });
     if (
       !comment ||
       comment.userId === data.userId ||
       !UPVOTE_MILESTONES.includes(comment.upvotes)
     ) {
+      return;
+    }
+    const postCtx = await buildPostContext(con, comment.postId);
+    if (!postCtx) {
       return;
     }
     const upvotes = await con.getRepository(CommentUpvote).find({
@@ -32,10 +36,9 @@ const worker: NotificationWorker = {
       order: { createdAt: 'desc' },
       relations: ['user'],
     });
-    const post = await comment.post;
     const upvoters = await Promise.all(upvotes.map((upvote) => upvote.user));
     const ctx: NotificationCommentContext & NotificationUpvotersContext = {
-      post,
+      ...postCtx,
       comment,
       upvoters,
       upvotes: comment.upvotes,

@@ -15,6 +15,7 @@ export const postsFixture: DeepPartial<ArticlePost>[] = [
     sourceId: 'a',
     createdAt: now,
     tagsStr: 'javascript,webdev',
+    type: 'article',
   },
   {
     id: 'p2',
@@ -25,6 +26,7 @@ export const postsFixture: DeepPartial<ArticlePost>[] = [
     score: 7,
     sourceId: 'b',
     createdAt: new Date(now.getTime() - 1000),
+    type: 'article',
   },
   {
     id: 'p3',
@@ -35,6 +37,7 @@ export const postsFixture: DeepPartial<ArticlePost>[] = [
     score: 4,
     sourceId: 'c',
     createdAt: new Date(now.getTime() - 2000),
+    type: 'article',
   },
   {
     id: 'p4',
@@ -46,6 +49,7 @@ export const postsFixture: DeepPartial<ArticlePost>[] = [
     sourceId: 'a',
     createdAt: new Date(now.getTime() - 3000),
     tagsStr: 'backend,data,javascript',
+    type: 'article',
   },
   {
     id: 'p5',
@@ -57,6 +61,7 @@ export const postsFixture: DeepPartial<ArticlePost>[] = [
     sourceId: 'b',
     createdAt: new Date(now.getTime() - 4000),
     tagsStr: 'html,javascript',
+    type: 'article',
   },
   {
     id: 'p6',
@@ -67,6 +72,7 @@ export const postsFixture: DeepPartial<ArticlePost>[] = [
     score: 10,
     sourceId: 'p',
     createdAt: new Date(now.getTime() - 5000),
+    type: 'article',
   },
 ];
 

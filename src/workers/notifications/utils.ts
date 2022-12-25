@@ -1,12 +1,41 @@
 import { NotificationHandlerReturn } from './worker';
-import { Comment, Post } from '../../entity';
-import { NotificationCommenterContext } from '../../notifications';
+import { Comment, Post, SharePost } from '../../entity';
+import {
+  NotificationCommenterContext,
+  NotificationPostContext,
+} from '../../notifications';
 import { DataSource } from 'typeorm';
 
-export const uniquePostOwners = (post: Post, exclude?: string): string[] =>
+export const uniquePostOwners = (
+  post: Pick<Post, 'scoutId' | 'authorId'>,
+  exclude?: string,
+): string[] =>
   [...new Set([post.scoutId, post.authorId])].filter(
     (userId) => userId && userId !== exclude,
   );
+
+export const buildPostContext = async (
+  con: DataSource,
+  postId: string,
+): Promise<Omit<NotificationPostContext, 'userId'> | null> => {
+  const post = await con
+    .getRepository(Post)
+    .findOne({ where: { id: postId }, relations: ['source'] });
+  let sharedPost: Post;
+  if (post.type === 'share') {
+    sharedPost = await con
+      .getRepository(Post)
+      .findOneBy({ id: (post as SharePost).sharedPostId });
+  }
+  if (post) {
+    return {
+      post,
+      source: await post.source,
+      sharedPost,
+    };
+  }
+  return null;
+};
 
 export async function articleNewCommentHandler(
   con: DataSource,
@@ -14,20 +43,23 @@ export async function articleNewCommentHandler(
 ): Promise<NotificationHandlerReturn> {
   const comment = await con
     .getRepository(Comment)
-    .findOne({ where: { id: commentId }, relations: ['post', 'user'] });
+    .findOne({ where: { id: commentId }, relations: ['user'] });
   if (!comment) {
     return;
   }
-  const post = await comment.post;
+  const postCtx = await buildPostContext(con, comment.postId);
+  if (!postCtx) {
+    return;
+  }
   // Get unique user id which are not the author of the comment
-  const users = uniquePostOwners(post, comment.userId);
+  const users = uniquePostOwners(postCtx.post, comment.userId);
   if (!users.length) {
     return;
   }
 
   const commenter = await comment.user;
   const ctx: Omit<NotificationCommenterContext, 'userId'> = {
-    post,
+    ...postCtx,
     commenter,
     comment,
   };

@@ -2,6 +2,7 @@ import { messageToJson } from '../worker';
 import { Comment } from '../../entity';
 import { NotificationCommenterContext } from '../../notifications';
 import { NotificationWorker } from './worker';
+import { buildPostContext } from './utils';
 
 interface Data {
   userId: string;
@@ -15,13 +16,16 @@ const worker: NotificationWorker = {
     const data: Data = messageToJson(message);
     const comment = await con.getRepository(Comment).findOne({
       where: { id: data.childCommentId },
-      relations: ['post', 'parent', 'user'],
+      relations: ['parent', 'user'],
     });
     if (!comment) {
       return;
     }
+    const postCtx = await buildPostContext(con, comment.postId);
+    if (!postCtx) {
+      return;
+    }
     const parent = await comment.parent;
-    const post = await comment.post;
     const commenter = await comment.user;
     const threadFollowers = await con
       .getRepository(Comment)
@@ -33,13 +37,13 @@ const worker: NotificationWorker = {
         exclude: [
           parent.userId,
           comment.userId,
-          post.authorId ?? '',
-          post.scoutId ?? '',
+          postCtx.post.authorId ?? '',
+          postCtx.post.scoutId ?? '',
         ],
       })
       .getRawMany();
     const ctx: Omit<NotificationCommenterContext, 'userId'> = {
-      post,
+      ...postCtx,
       comment,
       commenter,
     };

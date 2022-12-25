@@ -6,6 +6,7 @@ import {
   NotificationBaseContext,
   NotificationCommentContext,
   NotificationCommenterContext,
+  NotificationDoneByContext,
   NotificationPostContext,
   NotificationSourceContext,
   NotificationSourceRequestContext,
@@ -47,6 +48,19 @@ export const notificationTitleMap: Record<
     ctx: NotificationCommentContext & NotificationUpvotersContext,
   ) =>
     `<b>You rock!</b> Your comment <span class="text-theme-color-avocado">earned ${ctx.upvotes} upvotes!</span>`,
+  post_added: (
+    ctx: NotificationPostContext & Partial<NotificationDoneByContext>,
+  ) => {
+    if (ctx.doneBy) {
+      return `<b>${ctx.doneBy.name}</b> posted on <b>${ctx.source.name}</b>`;
+    }
+    return `There is a new post on <b>${ctx.source.name}</b>`;
+  },
+  post_viewed: (ctx: NotificationDoneByContext) =>
+    `<b>${ctx.doneBy.name}</b> viewed your article.`,
+  member_joined_source: (
+    ctx: NotificationSourceContext & NotificationDoneByContext,
+  ) => `<b>${ctx.doneBy.name}</b> joined <b>${ctx.source.name}</b>`,
 };
 
 export const generateNotificationMap: Record<
@@ -60,10 +74,8 @@ export const generateNotificationMap: Record<
     builder.systemNotification().referenceSubmission(ctx.submission),
   community_picks_succeeded: (builder, ctx: NotificationPostContext) =>
     builder
-      .referencePost(ctx.post)
       .icon(NotificationIcon.CommunityPicks)
-      .targetPost(ctx.post)
-      .attachmentPost(ctx.post),
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
   community_picks_granted: (builder) =>
     builder
       .referenceSystem()
@@ -72,10 +84,8 @@ export const generateNotificationMap: Record<
       .targetUrl(scoutArticleLink),
   article_picked: (builder, ctx: NotificationPostContext) =>
     builder
-      .referencePost(ctx.post)
       .icon(NotificationIcon.DailyDev)
-      .targetPost(ctx.post)
-      .attachmentPost(ctx.post),
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
   article_new_comment: (builder, ctx: NotificationCommenterContext) =>
     builder
       .referenceComment(ctx.comment)
@@ -88,10 +98,8 @@ export const generateNotificationMap: Record<
     ctx: NotificationPostContext & NotificationUpvotersContext,
   ) =>
     builder
-      .referencePost(ctx.post)
-      .upvotes(ctx.upvotes, ctx.upvoters)
-      .targetPost(ctx.post)
-      .attachmentPost(ctx.post),
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost)
+      .upvotes(ctx.upvotes, ctx.upvoters),
   article_report_approved: (builder, ctx: NotificationPostContext) =>
     builder.referencePost(ctx.post).systemNotification(),
   article_analytics: (builder, ctx: NotificationPostContext) =>
@@ -130,4 +138,37 @@ export const generateNotificationMap: Record<
       .upvotes(ctx.upvotes, ctx.upvoters)
       .descriptionComment(ctx.comment)
       .targetPost(ctx.post, ctx.comment),
+  post_added: (
+    builder,
+    ctx: NotificationPostContext & Partial<NotificationDoneByContext>,
+  ) => {
+    let newBuilder = builder
+      .icon(NotificationIcon.Bell)
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost, false)
+      .avatarSource(ctx.source);
+    if (ctx.doneBy) {
+      newBuilder = newBuilder.avatarManyUsers([ctx.doneBy]);
+    }
+    return newBuilder;
+  },
+  post_viewed: (
+    builder,
+    ctx: NotificationPostContext & NotificationDoneByContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.View)
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost)
+      .avatarManyUsers([ctx.doneBy])
+      .uniqueKey(ctx.doneBy.id),
+  member_joined_source: (
+    builder,
+    ctx: NotificationSourceContext & NotificationDoneByContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .referenceSource(ctx.source)
+      .targetSource(ctx.source)
+      .avatarSource(ctx.source)
+      .avatarManyUsers([ctx.doneBy])
+      .uniqueKey(ctx.doneBy.id),
 };

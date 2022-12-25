@@ -12,6 +12,7 @@ import {
   Post,
   Settings,
   SourceFeed,
+  SourceMember,
   SourceRequest,
   Submission,
   SubmissionStatus,
@@ -22,7 +23,6 @@ import {
   notifyCommentCommented,
   notifyCommentUpvoteCanceled,
   notifyCommentUpvoted,
-  notifyPostAuthorMatched,
   notifyPostBannedOrRemoved,
   notifyPostCommented,
   notifyPostReachedViewsThreshold,
@@ -38,7 +38,6 @@ import {
   increaseReputation,
   decreaseReputation,
   notifySubmissionRejected,
-  notifyScoutMatched,
   notifySubmissionCreated,
   notifySubmissionGrantedAccess,
   NotificationReason,
@@ -47,6 +46,8 @@ import {
   notifyUsernameChanged,
   notifyNewNotification,
   notifyNewCommentMention,
+  notifyPostAdded,
+  notifyMemberJoinedSource,
 } from '../common';
 import { ChangeMessage, ChangeObject } from '../types';
 import { DataSource } from 'typeorm';
@@ -256,21 +257,7 @@ const onPostChange = async (
   data: ChangeMessage<Post>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
-    if (data.payload.after.authorId) {
-      await notifyPostAuthorMatched(
-        logger,
-        data.payload.after.id,
-        data.payload.after.authorId,
-      );
-    }
-
-    if (data.payload.after.scoutId) {
-      await notifyScoutMatched(
-        logger,
-        data.payload.after.id,
-        data.payload.after.scoutId,
-      );
-    }
+    await notifyPostAdded(logger, data.payload.after);
   } else if (data.payload.op === 'u') {
     if (
       !data.payload.before.sentAnalyticsReport &&
@@ -413,6 +400,16 @@ const onUserStateChange = async (
   }
 };
 
+const onSourceMemberChange = async (
+  con: DataSource,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<SourceMember>,
+) => {
+  if (data.payload.op === 'c') {
+    await notifyMemberJoinedSource(logger, data.payload.after);
+  }
+};
+
 const getTableName = <Entity>(
   con: DataSource,
   target: EntityTarget<Entity>,
@@ -476,6 +473,9 @@ const worker: Worker = {
           break;
         case getTableName(con, UserState):
           await onUserStateChange(con, logger, data);
+          break;
+        case getTableName(con, SourceMember):
+          await onSourceMemberChange(con, logger, data);
           break;
       }
     } catch (err) {

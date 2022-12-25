@@ -46,6 +46,9 @@ const notificationToTemplateId: Record<NotificationType, string> = {
   comment_mention: 'd-6949e2e50def4c6698900032973d469b',
   comment_reply: 'd-90c229bde4af427c8708a7615bfd85b4',
   comment_upvote_milestone: 'd-92bca6102e3a4b41b6fc3f532f050429',
+  post_viewed: 'missing',
+  post_added: 'missing',
+  member_joined_source: 'missing',
 };
 
 type TemplateDataFunc = (
@@ -257,6 +260,15 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       user_name: user.name,
       user_reputation: user.reputation,
     };
+  },
+  member_joined_source: () => {
+    throw new Error('not implemented');
+  },
+  post_added: () => {
+    throw new Error('not implemented');
+  },
+  post_viewed: () => {
+    throw new Error('not implemented');
   },
 };
 
