@@ -22,7 +22,7 @@ const worker: NotificationWorker = {
     if (
       !comment ||
       comment.userId === data.userId ||
-      !UPVOTE_MILESTONES.includes(comment.upvotes)
+      !UPVOTE_MILESTONES.includes(comment.upvotes.toString())
     ) {
       return;
     }

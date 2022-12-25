@@ -139,6 +139,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         notification.type,
       ),
       upvotes: notification.uniqueKey,
+      upvote_title: basicHtmlStrip(notification.title),
     };
   },
   article_report_approved: async (con, user, notification) => {
