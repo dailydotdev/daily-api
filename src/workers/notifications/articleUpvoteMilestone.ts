@@ -20,7 +20,7 @@ const worker: NotificationWorker = {
       .getRepository(Post)
       .findOne({ where: { id: data.postId } });
     const users = uniquePostOwners(post, data.userId);
-    if (!users.length || !UPVOTE_MILESTONES.includes(post.upvotes)) {
+    if (!users.length || !UPVOTE_MILESTONES.includes(post.upvotes.toString())) {
       return;
     }
     const upvotes = await con.getRepository(Upvote).find({
