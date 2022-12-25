@@ -97,6 +97,17 @@ export const updateAlerts = async (
   return repo.save({ ...alerts, ...data });
 };
 
+export const getAlerts = async (
+  con: DataSource,
+  userId: string,
+): Promise<Alerts> => {
+  const alerts = await con.getRepository(Alerts).findOneBy({ userId });
+  if (alerts) {
+    return alerts;
+  }
+  return ALERTS_DEFAULT as Alerts;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Mutation: {
@@ -107,16 +118,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ): Promise<GQLAlerts> => updateAlerts(ctx.con, ctx.userId, data),
   },
   Query: {
-    userAlerts: async (_, __, ctx): Promise<GQLAlerts> => {
-      if (ctx.userId) {
-        const repo = ctx.getRepository(Alerts);
-        const alerts = await repo.findOneBy({ userId: ctx.userId });
-
-        if (alerts) {
-          return alerts;
-        }
-      }
-      return ALERTS_DEFAULT;
+    userAlerts: (_, __, ctx): Promise<GQLAlerts> | GQLAlerts => {
+      return getAlerts(ctx.con, ctx.userId);
     },
   },
 });
