@@ -39,6 +39,7 @@ jest.mock('../../src/common/mailing', () => ({
 }));
 
 let con: DataSource;
+let source: Source;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -48,6 +49,7 @@ beforeEach(async () => {
   jest.resetAllMocks();
   await con.getRepository(User).save(usersFixture);
   await con.getRepository(Source).save(sourcesFixture);
+  source = await con.getRepository(Source).findOneBy({ id: 'a' });
 });
 
 it('should set parameters for community_picks_failed email', async () => {
@@ -98,6 +100,7 @@ it('should set parameters for community_picks_succeeded email', async () => {
   const ctx: NotificationPostContext = {
     userId: '1',
     post,
+    source,
   };
 
   const notificationId = await saveNotificationFixture(
@@ -154,6 +157,7 @@ it('should set parameters for article_picked email', async () => {
   const ctx: NotificationPostContext = {
     userId: '1',
     post,
+    source,
   };
 
   const notificationId = await saveNotificationFixture(
@@ -192,6 +196,7 @@ it('should set parameters for article_new_comment email', async () => {
   const ctx: NotificationCommenterContext = {
     userId: '1',
     post,
+    source,
     comment,
     commenter,
   };
@@ -227,6 +232,7 @@ it('should set parameters for article_upvote_milestone email', async () => {
   const ctx: NotificationPostContext & NotificationUpvotersContext = {
     userId: '1',
     post,
+    source,
     upvotes: 50,
     upvoters: [],
   };
@@ -260,6 +266,7 @@ it('should set parameters for article_report_approved email', async () => {
   const ctx: NotificationPostContext = {
     userId: '1',
     post,
+    source,
   };
 
   const notificationId = await saveNotificationFixture(
@@ -300,6 +307,7 @@ it('should set parameters for article_analytics email', async () => {
   const ctx: NotificationPostContext = {
     userId: '1',
     post,
+    source,
   };
 
   const notificationId = await saveNotificationFixture(
@@ -416,6 +424,7 @@ it('should set parameters for comment_mention email', async () => {
     post,
     comment,
     commenter,
+    source,
   };
 
   const notificationId = await saveNotificationFixture(
@@ -467,6 +476,7 @@ it('should set parameters for comment_reply email', async () => {
     post,
     comment,
     commenter,
+    source,
   };
 
   const notificationId = await saveNotificationFixture(
@@ -513,6 +523,7 @@ it('should set parameters for comment_upvote_milestone email', async () => {
     comment,
     upvotes: 50,
     upvoters: [],
+    source,
   };
 
   const notificationId = await saveNotificationFixture(
@@ -559,6 +570,7 @@ it('should not send email notification if the user prefers not to receive them',
     comment,
     upvotes: 50,
     upvoters: [],
+    source,
   };
 
   const notificationId = await saveNotificationFixture(
