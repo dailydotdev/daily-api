@@ -8,6 +8,7 @@ import devcards from './devcards';
 import privateRoutes from './private';
 import whoami from './whoami';
 import notifications from './notifications';
+import boot from './boot';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -20,4 +21,5 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     fastify.register(privateRoutes, { prefix: '/p' });
   }
   fastify.register(whoami, { prefix: '/whoami' });
+  fastify.register(boot, { prefix: '/boot' });
 }
