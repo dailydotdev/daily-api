@@ -13,6 +13,7 @@ import {
   NotificationSubmissionContext,
   NotificationUpvotersContext,
 } from './types';
+import { UPVOTE_TITLES } from '../workers/notifications/utils';
 
 const systemTitle = () => undefined;
 
@@ -32,6 +33,7 @@ export const notificationTitleMap: Record<
   article_upvote_milestone: (
     ctx: NotificationPostContext & NotificationUpvotersContext,
   ) =>
+    UPVOTE_TITLES[ctx.upvotes] ??
     `<b>You rock!</b> Your article <span class="text-theme-color-avocado">earned ${ctx.upvotes} upvotes!</span>`,
   article_report_approved: systemTitle,
   article_analytics: systemTitle,
@@ -47,6 +49,7 @@ export const notificationTitleMap: Record<
   comment_upvote_milestone: (
     ctx: NotificationCommentContext & NotificationUpvotersContext,
   ) =>
+    UPVOTE_TITLES[ctx.upvotes] ??
     `<b>You rock!</b> Your comment <span class="text-theme-color-avocado">earned ${ctx.upvotes} upvotes!</span>`,
   post_added: (
     ctx: NotificationPostContext & Partial<NotificationDoneByContext>,

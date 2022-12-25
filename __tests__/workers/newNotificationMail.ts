@@ -250,6 +250,7 @@ it('should set parameters for article_upvote_milestone email', async () => {
     post_image: 'https://daily.dev/image.jpg',
     post_title: 'P1',
     upvotes: '50',
+    upvote_title: 'Good job! You earned 50 upvotes 🚴‍♀️',
   });
   expect(args.templateId).toEqual('d-f9bff38d48dd4492b6db3dde0eebabd6');
 });
@@ -532,7 +533,7 @@ it('should set parameters for comment_upvote_milestone email', async () => {
       'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=comment_upvote_milestone#c-c1',
     main_comment: 'parent comment',
     profile_image: 'https://daily.dev/ido.jpg',
-    upvote_title: 'You rock! Your comment earned 50 upvotes!',
+    upvote_title: 'Good job! You earned 50 upvotes 🚴‍♀️',
     user_name: 'Ido',
     user_reputation: 10,
   });
