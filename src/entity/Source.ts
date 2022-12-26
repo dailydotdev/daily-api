@@ -88,3 +88,6 @@ export class SquadSource extends Source {
   @Column({ type: 'text', nullable: true })
   description?: string;
 }
+
+export const SQUAD_IMAGE_PLACEHOLDER =
+  'https://daily-now-res.cloudinary.com/image/upload/v1672041320/squads/squad_placeholder.jpg';

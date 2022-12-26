@@ -102,6 +102,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.new-notification',
     subscription: 'api.new-notification-push',
   },
+  {
+    topic: 'api.v1.member-joined-source',
+    subscription: 'api.squad-activation',
+  },
   // Notifications
   {
     topic: 'community-link-rejected',

@@ -23,6 +23,7 @@ import unreadNotificationCount from './unreadNotificationCount';
 import newNotificationRealTime from './newNotificationRealTime';
 import newNotificationMail from './newNotificationMail';
 import newNotificationPush from './newNotificationPush';
+import squadActivation from './squadActivation';
 import { workers as notificationWorkers } from './notifications';
 
 export { Worker } from './worker';
@@ -51,6 +52,7 @@ export const workers: Worker[] = [
   newNotificationRealTime,
   newNotificationMail,
   newNotificationPush,
+  squadActivation,
   cdc,
   ...notificationWorkers,
 ];
