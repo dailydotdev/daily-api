@@ -15,6 +15,10 @@ import {
   SETTINGS_DEFAULT,
   Notification,
   User,
+  SquadSource,
+  SourceMember,
+  SourceMemberRoles,
+  MachineSource,
 } from '../src/entity';
 import { notificationFixture } from './fixture/notifications';
 import { usersFixture } from './fixture/user';
@@ -22,6 +26,13 @@ import { usersFixture } from './fixture/user';
 let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
+
+const DEFAULT_BODY = {
+  alerts: ALERTS_DEFAULT,
+  settings: { ...SETTINGS_DEFAULT, companionExpanded: null },
+  notifications: { unreadNotificationsCount: 0 },
+  squads: [],
+};
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -36,9 +47,8 @@ beforeEach(async () => {
 it('should return defaults for anonymous', async () => {
   const res = await request(app.server).get('/boot').expect(200);
   expect(res.body).toEqual({
-    alerts: ALERTS_DEFAULT,
+    ...DEFAULT_BODY,
     settings: SETTINGS_DEFAULT,
-    notifications: { unreadNotificationsCount: 0 },
   });
 });
 
@@ -46,11 +56,7 @@ it('should return defaults for user when not set', async () => {
   const res = await authorizeRequest(request(app.server).get('/boot')).expect(
     200,
   );
-  expect(res.body).toEqual({
-    alerts: ALERTS_DEFAULT,
-    settings: { ...SETTINGS_DEFAULT, companionExpanded: null },
-    notifications: { unreadNotificationsCount: 0 },
-  });
+  expect(res.body).toEqual(DEFAULT_BODY);
 });
 
 it('should return user alerts', async () => {
@@ -64,9 +70,8 @@ it('should return user alerts', async () => {
     200,
   );
   expect(res.body).toEqual({
+    ...DEFAULT_BODY,
     alerts,
-    settings: { ...SETTINGS_DEFAULT, companionExpanded: null },
-    notifications: { unreadNotificationsCount: 0 },
   });
 });
 
@@ -84,9 +89,8 @@ it('should return user settings', async () => {
     200,
   );
   expect(res.body).toEqual({
-    alerts: ALERTS_DEFAULT,
+    ...DEFAULT_BODY,
     settings,
-    notifications: { unreadNotificationsCount: 0 },
   });
 });
 
@@ -102,8 +106,90 @@ it('should return unread notifications count', async () => {
     200,
   );
   expect(res.body).toEqual({
-    alerts: ALERTS_DEFAULT,
-    settings: { ...SETTINGS_DEFAULT, companionExpanded: null },
+    ...DEFAULT_BODY,
     notifications: { unreadNotificationsCount: 2 },
+  });
+});
+
+it('should return the user squads', async () => {
+  await con.getRepository(SquadSource).save([
+    {
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: false,
+      active: false,
+    },
+    {
+      id: 's2',
+      handle: 's2',
+      name: 'Squad',
+      private: true,
+      active: true,
+    },
+    {
+      id: 's3',
+      handle: 's3',
+      name: 'Squad',
+      private: true,
+      active: true,
+    },
+  ]);
+  await con.getRepository(MachineSource).save([
+    {
+      id: 's4',
+      handle: 's4',
+      name: 'Source',
+      private: false,
+      active: false,
+    },
+  ]);
+  await con.getRepository(SourceMember).save([
+    {
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt',
+      role: SourceMemberRoles.Member,
+    },
+    {
+      sourceId: 's2',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Member,
+    },
+    {
+      sourceId: 's4',
+      userId: '1',
+      referralToken: 'rt3',
+      role: SourceMemberRoles.Member,
+    },
+  ]);
+  const res = await authorizeRequest(request(app.server).get('/boot')).expect(
+    200,
+  );
+  expect(res.body).toEqual({
+    ...DEFAULT_BODY,
+    squads: [
+      {
+        active: false,
+        handle: 's1',
+        id: 's1',
+        image: null,
+        name: 'Squad',
+        permalink: 'http://localhost:5002/squads/s1',
+        public: true,
+        type: 'squad',
+      },
+      {
+        active: true,
+        handle: 's2',
+        id: 's2',
+        image: null,
+        name: 'Squad',
+        permalink: 'http://localhost:5002/squads/s2',
+        public: false,
+        type: 'squad',
+      },
+    ],
   });
 });
