@@ -5,6 +5,7 @@ import { Settings } from '../entity';
 import { isValidHttpUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 import { v4 as uuidv4 } from 'uuid';
+import { DataSource } from 'typeorm';
 
 interface GQLSettings {
   userId: string;
@@ -239,6 +240,20 @@ export const typeDefs = /* GraphQL */ `
 
 type PartialBookmarkSharing = Pick<GQLBookmarksSharing, 'slug'>;
 
+export const getSettings = async (
+  con: DataSource,
+  userId: string,
+): Promise<Settings> => {
+  const repo = con.getRepository(Settings);
+  const settings = await repo.findOneBy({ userId });
+
+  if (!settings) {
+    return repo.save({ userId });
+  }
+
+  return settings;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Mutation: {
@@ -289,15 +304,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
   },
   Query: {
-    userSettings: async (_, __, { con, userId }): Promise<GQLSettings> => {
-      const repo = con.getRepository(Settings);
-      const settings = await repo.findOneBy({ userId });
-
-      if (!settings) {
-        return repo.save({ userId });
-      }
-
-      return settings;
+    userSettings: (_, __, { con, userId }): Promise<GQLSettings> => {
+      return getSettings(con, userId);
     },
     bookmarksSharing: async (_, __, ctx): Promise<PartialBookmarkSharing> => {
       const settings = await ctx.con

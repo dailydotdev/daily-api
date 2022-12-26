@@ -24,7 +24,8 @@ export class Context {
   }
 
   get trackingId(): string | null {
-    return this.req.cookies.da2;
+    // return this.req.cookies.da2;
+    return '';
   }
 
   get premium(): boolean {

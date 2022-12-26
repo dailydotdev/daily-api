@@ -57,3 +57,19 @@ export class Settings {
   @UpdateDateColumn()
   updatedAt: Date;
 }
+
+export const SETTINGS_DEFAULT = {
+  theme: 'darcula',
+  showTopSites: true,
+  insaneMode: false,
+  spaciness: 'eco',
+  showOnlyUnreadPosts: false,
+  openNewTab: true,
+  sidebarExpanded: true,
+  companionExpanded: false,
+  autoDismissNotifications: true,
+  customLinks: null,
+  optOutCompanion: false,
+  optOutWeeklyGoal: false,
+  sortingEnabled: false,
+};
