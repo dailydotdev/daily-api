@@ -13,7 +13,7 @@ const worker: Worker = {
   handler: async (message): Promise<void> => {
     const { notification }: Data = messageToJson(message);
     if (notification.public) {
-      const isConnected = isUserConnected(notification.userId);
+      const isConnected = await isUserConnected(notification.userId);
       // Don't send push when user is connected
       if (!isConnected) {
         await sendPushNotification(notification);

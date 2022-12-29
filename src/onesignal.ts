@@ -23,6 +23,7 @@ export async function sendPushNotification({
   push.app_id = appId;
   push.include_external_user_ids = [userId];
   push.contents = { en: basicHtmlStrip(title) };
+  push.headings = { en: 'New update' };
   push.url = addNotificationUtm(targetUrl, 'push', type);
   push.data = { notificationId: id };
   await client.createNotification(push);
