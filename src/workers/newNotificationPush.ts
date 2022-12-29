@@ -10,28 +10,13 @@ interface Data {
 
 const worker: Worker = {
   subscription: 'api.new-notification-push',
-  handler: async (message, con, logger): Promise<void> => {
+  handler: async (message): Promise<void> => {
     const { notification }: Data = messageToJson(message);
     if (notification.public) {
-      const isConnected = isUserConnected(notification.userId);
+      const isConnected = await isUserConnected(notification.userId);
       // Don't send push when user is connected
       if (!isConnected) {
         await sendPushNotification(notification);
-        logger.info(
-          {
-            notificationId: notification.id,
-            userId: notification.userId,
-          },
-          'push notification sent',
-        );
-      } else {
-        logger.info(
-          {
-            notificationId: notification.id,
-            userId: notification.userId,
-          },
-          'user is connected, skipping push',
-        );
       }
     }
   },
