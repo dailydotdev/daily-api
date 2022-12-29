@@ -23,6 +23,7 @@ export const clearCacheForConnectedUser = async (
 
 export const isUserConnected = async (userId: string): Promise<boolean> => {
   const val = await ioRedisPool.execute((client) => client.get(getKey(userId)));
+  console.log(val);
   return val === DEFAULT_VALUE;
 };
 
