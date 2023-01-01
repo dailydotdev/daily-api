@@ -179,6 +179,7 @@ it('should set parameters for article_picked email', async () => {
 });
 
 it('should set parameters for article_new_comment email', async () => {
+  await con.getRepository(User).update({ id: '2' }, { reputation: 2500 });
   const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const comment = await con.getRepository(Comment).save({
     id: 'c1',
@@ -217,7 +218,7 @@ it('should set parameters for article_new_comment email', async () => {
     post_image: 'https://daily.dev/image.jpg',
     post_title: 'P1',
     profile_image: 'https://daily.dev/tsahi.jpg',
-    user_reputation: 10,
+    user_reputation: '2,500',
   });
   expect(args.templateId).toEqual('d-aba78d1947b14307892713ad6c2cafc5');
 });
@@ -317,6 +318,7 @@ it('should set parameters for article_analytics email', async () => {
   const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
   expect(args.dynamicTemplateData).toEqual({
     post_comments: '2',
+    post_comments_total: '3',
     post_image: 'https://daily.dev/image.jpg',
     post_title: 'P1',
     post_upvotes: '6',
@@ -439,7 +441,7 @@ it('should set parameters for comment_mention email', async () => {
     post_image: 'https://daily.dev/image.jpg',
     post_title: 'P1',
     commenter_profile_image: 'https://daily.dev/tsahi.jpg',
-    user_reputation: 10,
+    user_reputation: '10',
   });
   expect(args.templateId).toEqual('d-6949e2e50def4c6698900032973d469b');
 });
@@ -484,7 +486,7 @@ it('should set parameters for comment_reply email', async () => {
   const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
   expect(args.dynamicTemplateData).toEqual({
     commenter_profile_image: 'https://daily.dev/tsahi.jpg',
-    commenter_reputation: 10,
+    commenter_reputation: '10',
     discussion_link:
       'http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=comment_reply#c-c2',
     full_name: 'Tsahi',
@@ -493,7 +495,7 @@ it('should set parameters for comment_reply email', async () => {
     post_title: 'P1',
     user_name: 'Ido',
     user_profile_image: 'https://daily.dev/ido.jpg',
-    user_reputation: 10,
+    user_reputation: '10',
   });
   expect(args.templateId).toEqual('d-90c229bde4af427c8708a7615bfd85b4');
 });
@@ -535,7 +537,7 @@ it('should set parameters for comment_upvote_milestone email', async () => {
     profile_image: 'https://daily.dev/ido.jpg',
     upvote_title: 'Good job! You earned 50 upvotes 🚴‍♀️',
     user_name: 'Ido',
-    user_reputation: 10,
+    user_reputation: '10',
   });
   expect(args.templateId).toEqual('d-92bca6102e3a4b41b6fc3f532f050429');
 });

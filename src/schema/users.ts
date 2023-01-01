@@ -80,7 +80,7 @@ export interface GQLView {
 
 type CommentStats = { numComments: number; numCommentUpvotes: number };
 
-export type GQLUserStats = PostStats & CommentStats;
+export type GQLUserStats = Omit<PostStats, 'numPostComments'> & CommentStats;
 
 export interface GQLReadingRank {
   rankThisWeek?: number;
