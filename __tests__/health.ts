@@ -13,9 +13,15 @@ describe('health check', () => {
 
   afterAll(() => app.close());
 
-  it('should return status code 200', () =>
+  it('should return status code 200 for readiness probe', () =>
     request(app.server)
       .get('/health')
+      .expect('content-type', 'application/health+json; charset=utf-8')
+      .expect(200, { status: 'ok' }));
+
+  it('should return status code 200 for liveness probe', () =>
+    request(app.server)
+      .get('/liveness')
       .expect('content-type', 'application/health+json; charset=utf-8')
       .expect(200, { status: 'ok' }));
 });

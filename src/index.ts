@@ -21,6 +21,7 @@ import { stringifyHealthCheck } from './common';
 import { GraphQLError } from 'graphql';
 import cookie, { FastifyCookieOptions } from '@fastify/cookie';
 import { getSubscriptionSettings } from './subscription';
+import { ioRedisPool } from './redis';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -39,9 +40,13 @@ const trackingExtendKey = (
 ): string | undefined =>
   ctx.trackingId ? `tracking:${ctx.trackingId}` : undefined;
 
+// readiness probe is set failureThreshold: 2, periodSeconds: 2 (4s) + small delay
+const GRACEFUL_DELAY = 2 * 2 * 1000 + 3000;
+
 export default async function app(
   contextFn?: (request: FastifyRequest) => Context,
 ): Promise<FastifyInstance> {
+  let isTerminating = false;
   const isProd = process.env.NODE_ENV === 'production';
   const connection = await createOrGetConnection();
 
@@ -51,6 +56,18 @@ export default async function app(
     trustProxy: true,
   });
   app.server.keepAliveTimeout = 650 * 1000;
+
+  const gracefulShutdown = () => {
+    app.log.info('starting termination');
+    isTerminating = true;
+    setTimeout(async () => {
+      await app.close();
+      await connection.destroy();
+      await ioRedisPool.end();
+    }, GRACEFUL_DELAY);
+  };
+  process.on('SIGINT', gracefulShutdown);
+  process.on('SIGTERM', gracefulShutdown);
 
   app.register(helmet);
   app.register(cors, {
@@ -69,6 +86,15 @@ export default async function app(
   });
 
   app.get('/health', (req, res) => {
+    res.type('application/health+json');
+    if (isTerminating) {
+      res.status(500).send(stringifyHealthCheck({ status: 'terminating' }));
+    } else {
+      res.send(stringifyHealthCheck({ status: 'ok' }));
+    }
+  });
+
+  app.get('/liveness', (req, res) => {
     res.type('application/health+json');
     res.send(stringifyHealthCheck({ status: 'ok' }));
   });
