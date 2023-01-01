@@ -109,8 +109,16 @@ const bgLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = { cpu: '500m', memory: '256Mi' };
 
-const probe: k8s.types.input.core.v1.Probe = {
+const readinessProbe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
+  failureThreshold: 2,
+  periodSeconds: 2,
+};
+
+const livenessProbe: k8s.types.input.core.v1.Probe = {
+  httpGet: { path: '/liveness', port: 'http' },
+  failureThreshold: 3,
+  periodSeconds: 5,
 };
 
 let appsArgs: ApplicationArgs[];
@@ -158,10 +166,12 @@ if (isAdhocEnv) {
       minReplicas: 3,
       maxReplicas: 15,
       limits,
-      readinessProbe: probe,
+      readinessProbe,
+      livenessProbe,
       metric: { type: 'memory_cpu', cpu: 70 },
       createService: true,
       enableCdn: true,
+      disableLifecycle: true,
     },
     {
       nameSuffix: 'ws',
@@ -173,8 +183,10 @@ if (isAdhocEnv) {
       minReplicas: 3,
       maxReplicas: 15,
       limits: wsLimits,
-      readinessProbe: probe,
+      readinessProbe,
+      livenessProbe,
       metric: { type: 'memory_cpu', cpu: 60 },
+      disableLifecycle: true,
     },
     {
       nameSuffix: 'bg',
@@ -198,10 +210,12 @@ if (isAdhocEnv) {
       minReplicas: 2,
       maxReplicas: 4,
       limits,
-      readinessProbe: probe,
+      readinessProbe,
+      livenessProbe,
       metric: { type: 'memory_cpu', cpu: 70 },
       createService: true,
       serviceType: 'ClusterIP',
+      disableLifecycle: true,
     },
   ];
 }
