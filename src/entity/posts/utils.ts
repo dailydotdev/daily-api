@@ -18,23 +18,34 @@ export type PostStats = {
   numPosts: number;
   numPostViews: number;
   numPostUpvotes: number;
+  numPostComments: number;
 };
 
-export const getAuthorPostStats = (
+type StringPostStats = {
+  [Property in keyof PostStats]: string;
+};
+
+export const getAuthorPostStats = async (
   con: DataSource,
   authorId: string,
-): Promise<PostStats> =>
-  con
+): Promise<PostStats> => {
+  const raw = await con
     .createQueryBuilder()
     .select('count(*)', 'numPosts')
     .addSelect('sum(post.views)', 'numPostViews')
     .addSelect('sum(post.upvotes)', 'numPostUpvotes')
+    .addSelect('sum(post.comments)', 'numPostComments')
     .from(Post, 'post')
     .where('(post.authorId = :authorId or post.scoutId = :authorId)', {
       authorId,
     })
     .andWhere({ deleted: false })
-    .getRawOne<PostStats>();
+    .getRawOne<StringPostStats>();
+  return Object.keys(raw).reduce(
+    (acc, key) => ({ ...acc, [key]: parseInt(raw[key]) || raw[key] }),
+    {},
+  ) as PostStats;
+};
 
 export interface RejectPostData {
   submissionId: string;

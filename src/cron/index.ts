@@ -1,7 +1,6 @@
 import { Cron } from './cron';
 import updateViews from './updateViews';
 import checkAnalyticsReport from './checkAnalyticsReport';
-import viewsThreshold from './viewsThreshold';
 import updateTrending from './updateTrending';
 import updateTagsStr from './updateTagsStr';
 import updateDiscussionScore from './updateDiscussionScore';
@@ -11,7 +10,6 @@ import cleanZombieUsers from './cleanZombieUsers';
 export const crons: Cron[] = [
   updateViews,
   checkAnalyticsReport,
-  viewsThreshold,
   updateTrending,
   updateTagsStr,
   updateDiscussionScore,

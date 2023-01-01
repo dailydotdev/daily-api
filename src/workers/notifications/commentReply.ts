@@ -47,12 +47,14 @@ const worker: NotificationWorker = {
       comment,
       commenter,
     };
-    return [parent.userId, ...threadFollowers.map(({ userId }) => userId)].map(
-      (userId) => ({
-        type: 'comment_reply',
-        ctx: { ...ctx, userId },
-      }),
-    );
+    const userIds = threadFollowers.map(({ userId }) => userId);
+    if (comment.userId !== parent.userId) {
+      userIds.push(parent.userId);
+    }
+    return userIds.map((userId) => ({
+      type: 'comment_reply',
+      ctx: { ...ctx, userId },
+    }));
   },
 };
 

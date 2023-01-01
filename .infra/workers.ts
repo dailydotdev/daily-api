@@ -46,10 +46,6 @@ export const workers: Worker[] = [
     subscription: 'post-commented-author-tweet',
   },*/
   {
-    topic: 'post-reached-views-threshold',
-    subscription: 'post-reached-views-threshold-tweet',
-  },
-  {
     topic: 'post-commented',
     subscription: 'post-commented-redis',
   },

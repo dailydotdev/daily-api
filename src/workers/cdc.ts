@@ -25,7 +25,6 @@ import {
   notifyCommentUpvoted,
   notifyPostBannedOrRemoved,
   notifyPostCommented,
-  notifyPostReachedViewsThreshold,
   notifyPostReport,
   notifyPostUpvoteCanceled,
   notifyPostUpvoted,
@@ -53,7 +52,6 @@ import { ChangeMessage, ChangeObject } from '../types';
 import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
-import { viewsThresholds } from '../cron/viewsThreshold';
 import { PostReport, Alerts } from '../entity';
 import { reportReasons } from '../schema/posts';
 import { updateAlerts } from '../schema/alerts';
@@ -264,15 +262,6 @@ const onPostChange = async (
       data.payload.after.sentAnalyticsReport
     ) {
       await notifySendAnalyticsReport(logger, data.payload.after.id);
-    }
-    if (
-      data.payload.before.viewsThreshold !== data.payload.after.viewsThreshold
-    ) {
-      await notifyPostReachedViewsThreshold(
-        logger,
-        data.payload.after.id,
-        viewsThresholds[data.payload.after.viewsThreshold - 1],
-      );
     }
     if (
       !data.payload.before.banned &&

@@ -162,11 +162,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return {
       post_image: (post as ArticlePost).image || pickImageUrl(post),
       post_title: truncatePostToTweet(post),
-      post_views: post.views?.toLocaleString() ?? 0,
-      post_views_total: stats.numPostViews?.toLocaleString() ?? 0,
-      post_upvotes: post.upvotes?.toLocaleString() ?? 0,
-      post_upvotes_total: stats.numPostUpvotes?.toLocaleString() ?? 0,
-      post_comments: post.comments?.toLocaleString() ?? 0,
+      post_views: post.views,
+      post_views_total: stats.numPostViews,
+      post_upvotes: post.upvotes,
+      post_upvotes_total: stats.numPostUpvotes,
+      post_comments: post.comments,
+      post_comments_total: stats.numPostComments,
       profile_link: addNotificationEmailUtm(user.permalink, notification.type),
     };
   },
@@ -273,9 +274,18 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   },
 };
 
+const formatTemplateDate = <T extends Record<string, unknown>>(data: T): T => {
+  return Object.keys(data).reduce((acc, key) => {
+    if (typeof data[key] === 'number') {
+      return { ...acc, [key]: (data[key] as number).toLocaleString() };
+    }
+    return acc;
+  }, data);
+};
+
 const worker: Worker = {
   subscription: 'api.new-notification-mail',
-  handler: async (message, con): Promise<void> => {
+  handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     const { id, userId } = data.notification;
     const [[notification, attachments, avatars], user] = await Promise.all([
@@ -295,12 +305,25 @@ const worker: Worker = {
     if (!templateData) {
       return;
     }
-    await sendEmail({
-      ...baseNotificationEmailData,
-      to: user.email,
-      templateId: notificationToTemplateId[notification.type],
-      dynamicTemplateData: templateData,
-    });
+    const formattedData = formatTemplateDate(templateData);
+    const templateId = notificationToTemplateId[notification.type];
+    try {
+      await sendEmail({
+        ...baseNotificationEmailData,
+        to: user.email,
+        templateId,
+        dynamicTemplateData: formattedData,
+      });
+    } catch (err) {
+      logger.error(
+        {
+          err,
+          templateId: templateId,
+          dynamicTemplateData: formattedData,
+        },
+        'failed to send email',
+      );
+    }
   },
 };
 

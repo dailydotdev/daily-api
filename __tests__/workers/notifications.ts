@@ -556,7 +556,36 @@ it('should add comment reply notification', async () => {
       '4',
     );
   });
-  expect(actual.map((bundle) => bundle.ctx.userId)).toEqual(['2', '1', '3']);
+  expect(actual.map((bundle) => bundle.ctx.userId)).toEqual(['1', '3', '2']);
+});
+
+it('should not add comment reply notification to comment author on their reply', async () => {
+  await con.getRepository(Comment).save([
+    {
+      id: 'c2',
+      postId: 'p1',
+      userId: '2',
+      content: 'sub comment',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+      parentId: 'c1',
+    },
+    {
+      id: 'c3',
+      postId: 'p1',
+      userId: '1',
+      content: 'sub comment2',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+      parentId: 'c1',
+    },
+  ]);
+  const worker = await import('../../src/workers/notifications/commentReply');
+  const actual = await invokeNotificationWorker(worker.default, {
+    postId: 'p1',
+    userId: '1',
+    childCommentId: 'c3',
+  });
+  expect(actual.length).toEqual(1);
+  expect(actual[0].ctx.userId).toEqual('2');
 });
 
 describe('comment upvote milestone', () => {

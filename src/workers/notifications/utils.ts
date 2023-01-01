@@ -70,7 +70,7 @@ export async function articleNewCommentHandler(
 }
 
 export const UPVOTE_TITLES = {
-  1: 'Congrats! You just <span class="text-theme-color-avocado">earned one upvote 🎉</span>',
+  1: 'Congrats! You just <span class="text-theme-color-avocado">earned 1 upvote 🎉</span>',
   3: 'Wow! You <span class="text-theme-color-avocado">earned 3 upvotes ✨</span>',
   5: 'You rock! You <span class="text-theme-color-avocado">earned 5 upvotes 🎸</span>',
   10: 'Well done! You <span class="text-theme-color-avocado">earned 10 upvotes 🙌</span>',
