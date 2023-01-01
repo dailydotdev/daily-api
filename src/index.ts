@@ -64,6 +64,7 @@ export default async function app(
       await app.close();
       await connection.destroy();
       await ioRedisPool.end();
+      process.exit();
     }, GRACEFUL_DELAY);
   };
   process.on('SIGINT', gracefulShutdown);
