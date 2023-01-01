@@ -14,7 +14,6 @@ import {
   notifyCommentUpvoteCanceled,
   notifyPostAuthorMatched,
   notifySendAnalyticsReport,
-  notifyPostReachedViewsThreshold,
   notifyPostBannedOrRemoved,
   notifyPostReport,
   notifyAlertsUpdated,
@@ -76,7 +75,6 @@ jest.mock('../../src/common', () => ({
   notifyUsernameChanged: jest.fn(),
   notifyPostAuthorMatched: jest.fn(),
   notifySendAnalyticsReport: jest.fn(),
-  notifyPostReachedViewsThreshold: jest.fn(),
   notifyPostBannedOrRemoved: jest.fn(),
   notifyPostReport: jest.fn(),
   notifyAlertsUpdated: jest.fn(),
@@ -556,26 +554,6 @@ describe('post', () => {
     expect(
       jest.mocked(notifySendAnalyticsReport).mock.calls[0].slice(1),
     ).toEqual(['p1']);
-  });
-
-  it('should notify on views threshold reached', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      viewsThreshold: 1,
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: base,
-        op: 'u',
-        table: 'post',
-      }),
-    );
-    expect(notifyPostReachedViewsThreshold).toBeCalledTimes(1);
-    expect(
-      jest.mocked(notifyPostReachedViewsThreshold).mock.calls[0].slice(1),
-    ).toEqual(['p1', 250]);
   });
 
   it('should notify on post banned', async () => {

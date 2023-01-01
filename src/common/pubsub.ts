@@ -31,9 +31,6 @@ const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
 const postScoutMatchedTopic = pubsub.topic('post-scout-matched');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
-const postReachedViewsThresholdTopic = pubsub.topic(
-  'post-reached-views-threshold',
-);
 const viewsTopic = pubsub.topic('views');
 const postBannedOrRemovedTopic = pubsub.topic('post-banned-or-removed');
 const sourceFeedAddedTopic = pubsub.topic('source-feed-added');
@@ -239,16 +236,6 @@ export const notifySendAnalyticsReport = async (
 ): Promise<void> =>
   publishEvent(log, sendAnalyticsReportTopic, {
     postId,
-  });
-
-export const notifyPostReachedViewsThreshold = async (
-  log: EventLogger,
-  postId: string,
-  threshold: number,
-): Promise<void> =>
-  publishEvent(log, postReachedViewsThresholdTopic, {
-    postId,
-    threshold,
   });
 
 export const notifyView = (
