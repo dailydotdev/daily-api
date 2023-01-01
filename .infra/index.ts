@@ -178,7 +178,7 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'bg',
-      args: ['npm', 'run', 'start:background'],
+      args: ['dumb-init', 'node', 'bin/cli', 'background'],
       minReplicas: 3,
       maxReplicas: 10,
       limits: bgLimits,
@@ -242,7 +242,7 @@ const [apps] = deployApplicationSuite(
       ? []
       : crons.map((cron) => ({
           nameSuffix: cron.name,
-          args: ['node', 'bin/cli', 'cron', cron.name],
+          args: ['dumb-init', 'node', 'bin/cli', 'cron', cron.name],
           schedule: cron.schedule,
           limits: bgLimits,
         })),
