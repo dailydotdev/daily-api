@@ -42,7 +42,7 @@ export const getAuthorPostStats = async (
     .andWhere({ deleted: false })
     .getRawOne<StringPostStats>();
   return Object.keys(raw).reduce(
-    (acc, key) => ({ ...acc, [key]: parseInt(raw[key]) }),
+    (acc, key) => ({ ...acc, [key]: parseInt(raw[key]) || raw[key] }),
     {},
   ) as PostStats;
 };
