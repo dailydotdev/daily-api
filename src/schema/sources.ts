@@ -10,7 +10,6 @@ import {
   SourceFeed,
   SourceMember,
   SourceMemberRoles,
-  SQUAD_IMAGE_PLACEHOLDER,
   SquadSource,
 } from '../entity';
 import {
@@ -534,7 +533,6 @@ export const resolvers: IResolvers<any, Context> = {
             handle,
             active: false,
             description,
-            image: SQUAD_IMAGE_PLACEHOLDER,
           });
           // Add the logged-in user as owner
           await addNewSourceMember(entityManager, {
