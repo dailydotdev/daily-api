@@ -17,12 +17,8 @@ export const crons: Cron[] = [
     schedule: '*/10 * * * *',
   },
   {
-    name: 'views-threshold',
-    schedule: '*/10 * * * *',
-  },
-  {
     name: 'update-trending',
-    schedule: '*/30 * * * *',
+    schedule: '5,35 * * * *',
   },
   {
     name: 'update-tags-str',
