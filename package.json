@@ -63,7 +63,7 @@
     "highlight.js": "^11.6.0",
     "isbot": "^3.6.3",
     "jsonexport": "^3.2.0",
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^9.0.0",
     "lodash": "^4.17.21",
     "markdown-it": "^13.0.1",
     "markdown-to-txt": "^2.0.1",
