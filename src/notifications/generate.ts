@@ -39,7 +39,7 @@ export const notificationTitleMap: Record<
   source_approved: (
     ctx: NotificationSourceRequestContext & NotificationSourceContext,
   ) =>
-    `<b>The source you requested was</b> <span class="text-theme-color-cabbage">approved!</span> Articles from ${ctx.source.name} will start appearing in the daily.dev feed in the next few days!`,
+    `<b>The source you suggested was</b> <span class="text-theme-color-cabbage">approved!</span> Articles from ${ctx.source.name} will start appearing in the daily.dev feed in the next few days!`,
   source_rejected: systemTitle,
   comment_mention: (ctx: NotificationCommenterContext) =>
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">mentioned you</span> in a comment.`,
