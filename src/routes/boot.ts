@@ -45,6 +45,7 @@ const getSquads = async (
       'sm."sourceId" = s."id" and s."type" = \'squad\'',
     )
     .where('sm."userId" = :userId', { userId })
+    .orderBy('s.name', 'ASC')
     .getRawMany<GQLSource>();
   return sources.map((source) => ({
     ...source,
