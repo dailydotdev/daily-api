@@ -2,8 +2,11 @@ import { User } from './../entity/User';
 import { Comment, Post } from '../entity';
 import { DataSource } from 'typeorm';
 
+const defaultUrls =
+  process.env.DEFAULT_IMAGE_URL ??
+  'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/2,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/3,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/4,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/5,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/6,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/7,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/8';
 export const defaultImage = {
-  urls: process.env.DEFAULT_IMAGE_URL.split(','),
+  urls: defaultUrls.split(','),
   ratio: parseFloat(process.env.DEFAULT_IMAGE_RATIO),
   placeholder: process.env.DEFAULT_IMAGE_PLACEHOLDER,
 };
