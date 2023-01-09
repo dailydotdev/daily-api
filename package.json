@@ -67,7 +67,7 @@
     "lodash": "^4.17.21",
     "markdown-it": "^13.0.1",
     "markdown-to-txt": "^2.0.1",
-    "mercurius": "^11.4.0",
+    "mercurius": "^11.5.0",
     "mercurius-cache": "^3.0.1",
     "mercurius-upload": "^5.0.0",
     "node-fetch": "^2.6.7",
