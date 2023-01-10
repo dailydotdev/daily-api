@@ -6,6 +6,7 @@ import { isValidHttpUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 import { v4 as uuidv4 } from 'uuid';
 import { DataSource } from 'typeorm';
+import { TypeOrmError } from '../errors';
 
 interface GQLSettings {
   userId: string;
@@ -244,14 +245,21 @@ export const getSettings = async (
   con: DataSource,
   userId: string,
 ): Promise<Settings> => {
-  const repo = con.getRepository(Settings);
-  const settings = await repo.findOneBy({ userId });
-
-  if (!settings) {
-    return repo.save({ userId });
+  try {
+    return await con.transaction(async (entityManager) => {
+      const repo = entityManager.getRepository(Settings);
+      const settings = await repo.findOneBy({ userId });
+      if (!settings) {
+        return repo.save({ userId });
+      }
+      return settings;
+    });
+  } catch (err) {
+    if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
+      return con.getRepository(Settings).findOneBy({ userId });
+    }
+    throw err;
   }
-
-  return settings;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
