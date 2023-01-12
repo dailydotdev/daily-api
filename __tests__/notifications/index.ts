@@ -457,7 +457,7 @@ describe('generateNotification', () => {
     const type = 'squad_post_added';
     const ctx: NotificationPostContext & NotificationDoneByContext = {
       userId,
-      source: sourcesFixture[0] as Reference<Source>,
+      source: { ...sourcesFixture[0], type: 'squad' } as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       doneBy: usersFixture[1] as Reference<User>,
     };
@@ -477,7 +477,7 @@ describe('generateNotification', () => {
         name: 'A',
         order: 0,
         referenceId: 'a',
-        targetUrl: 'http://localhost:5002/sources/a',
+        targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
       },
       {
@@ -504,7 +504,7 @@ describe('generateNotification', () => {
     const type = 'squad_post_added';
     const ctx: NotificationPostContext & NotificationDoneByContext = {
       userId,
-      source: sourcesFixture[0] as Reference<Source>,
+      source: { ...sourcesFixture[0], type: 'squad' } as Reference<Source>,
       post: {
         id: 'ps',
         title: 'Commentary',
@@ -530,7 +530,7 @@ describe('generateNotification', () => {
         name: 'A',
         order: 0,
         referenceId: 'a',
-        targetUrl: 'http://localhost:5002/sources/a',
+        targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
       },
       {
