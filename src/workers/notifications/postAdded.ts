@@ -14,7 +14,7 @@ interface Data {
 }
 
 const worker: NotificationWorker = {
-  subscription: 'api.v2.post-added-notification',
+  subscription: 'api.post-added-notification',
   handler: async (message, con) => {
     const data: Data = messageToJson(message);
     const baseCtx = await buildPostContext(con, data.post.id);
