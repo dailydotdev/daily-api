@@ -941,11 +941,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         alias,
       ) => {
         const interval = [7, 30, 365].find((num) => num === period) ?? 7;
+        // !TODO: Temporary switched from 10 upvotes to 0 because of Dec 2022 inventory issue
         return builder
           .andWhere(
             `${alias}."createdAt" > now() - interval '${interval} days'`,
           )
-          .andWhere(`${alias}."upvotes" >= 10`)
+          .andWhere(`${alias}."upvotes" >= 0`)
           .orderBy(`${alias}."upvotes"`, 'DESC');
       },
       offsetPageGenerator(30, 50, 100),
