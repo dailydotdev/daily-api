@@ -40,7 +40,6 @@ import {
   validateRegex,
   ValidateRegex,
 } from '../common/object';
-import { EmptyResponse } from '@google-cloud/pubsub';
 
 export interface GQLSource {
   id: string;
