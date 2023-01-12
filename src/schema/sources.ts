@@ -278,7 +278,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Deletes a inactive squad
     """
-    removeSource(
+    deleteSource(
       """
       Source to remove
       """
@@ -586,7 +586,7 @@ export const resolvers: IResolvers<any, Context> = {
         throw err;
       }
     },
-    removeSource: async (
+    deleteSource: async (
       _,
       { sourceId }: { sourceId: string },
       ctx,
