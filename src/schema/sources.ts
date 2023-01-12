@@ -14,6 +14,7 @@ import {
 } from '../entity';
 import {
   forwardPagination,
+  GQLEmptyResponse,
   offsetPageGenerator,
   PaginationResponse,
 } from './common';
@@ -268,6 +269,16 @@ export const typeDefs = /* GraphQL */ `
       """
       token: String
     ): Source! @auth
+
+    """
+    Deletes a inactive squad
+    """
+    removeSource(
+      """
+      Source to remove
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
   }
 `;
 
@@ -568,6 +579,25 @@ export const resolvers: IResolvers<any, Context> = {
         }
         throw err;
       }
+    },
+    removeSource: async (
+      _,
+      { sourceId }: { sourceId: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      const sourceMember = await ctx.con
+        .getRepository(SourceMember)
+        .findOneByOrFail({ sourceId, userId: ctx.userId });
+      if (sourceMember.role !== SourceMemberRoles.Owner) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+      await ctx.con.getRepository(Source).delete({
+        id: sourceId,
+        active: false,
+      });
+      return { _: true };
     },
     joinSource: async (
       _,

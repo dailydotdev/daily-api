@@ -538,6 +538,70 @@ describe('mutation createSquad', () => {
   });
 });
 
+describe('mutation removeSource', () => {
+  const MUTATION = `
+  mutation RemoveSource($sourceId: ID!) {
+  removeSource(sourceId: $sourceId) {
+    _
+  }
+}`;
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+      active: false,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  const variables = {
+    sourceId: 's1',
+  };
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not remove squad if user is not the owner', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should remove squad and members', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Owner });
+
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const sourceMembers = await con
+      .getRepository(SourceMember)
+      .countBy(variables);
+    expect(sourceMembers).toEqual(0);
+    const source = await con.getRepository(SquadSource).countBy({ id: 's1' });
+    expect(source).toEqual(0);
+  });
+});
+
 describe('mutation joinSource', () => {
   const MUTATION = `
   mutation JoinSource($sourceId: ID!, $token: String) {
