@@ -12,6 +12,7 @@ import {
   Comment,
   SourceRequest,
   ArticlePost,
+  SharePost,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { DataSource } from 'typeorm';
@@ -20,6 +21,7 @@ import {
   NotificationBaseContext,
   NotificationCommentContext,
   NotificationCommenterContext,
+  NotificationDoneByContext,
   NotificationPostContext,
   NotificationSourceContext,
   NotificationSourceRequestContext,
@@ -587,4 +589,203 @@ it('should not send email notification if the user prefers not to receive them',
     },
   });
   expect(sendEmail).not.toBeCalled();
+});
+
+it('should set parameters for squad_post_added email', async () => {
+  const sharedPost = await con.getRepository(ArticlePost).save(postsFixture[0]);
+  await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const post = await con.getRepository(SharePost).save({
+    id: 'ps',
+    shortId: 'ps',
+    sourceId: 'a',
+    title: 'Shared post',
+    sharedPostId: 'p1',
+    authorId: '2',
+  });
+  const doneBy = await con.getRepository(User).findOneBy({ id: '2' });
+  const ctx: NotificationPostContext & NotificationDoneByContext = {
+    userId: '1',
+    post,
+    sharedPost,
+    source,
+    doneBy,
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'squad_post_added',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+  expect(args.dynamicTemplateData).toEqual({
+    commentary: 'Shared post',
+    full_name: 'Tsahi',
+    post_image: 'https://daily.dev/image.jpg',
+    post_link:
+      'http://localhost:5002/posts/ps?utm_source=notification&utm_medium=email&utm_campaign=squad_post_added',
+    post_title: 'P1',
+    profile_image: 'https://daily.dev/tsahi.jpg',
+    squad_image: 'http://image.com/a',
+    squad_name: 'A',
+    user_reputation: '10',
+  });
+  expect(args.templateId).toEqual('d-e09e5eaa30174b678ba2adfd8d311fdb');
+});
+
+it('should set parameters for squad_member_joined email', async () => {
+  await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const doneBy = await con.getRepository(User).findOneBy({ id: '2' });
+  const ctx: NotificationSourceContext & NotificationDoneByContext = {
+    userId: '1',
+    source,
+    doneBy,
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'squad_member_joined',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+  expect(args.dynamicTemplateData).toEqual({
+    full_name: 'Tsahi',
+    new_member_handle: 'tsahidaily',
+    post_link:
+      'http://localhost:5002/squads/a?utm_source=notification&utm_medium=email&utm_campaign=squad_member_joined',
+    profile_image: 'https://daily.dev/tsahi.jpg',
+    squad_image: 'http://image.com/a',
+    squad_name: 'A',
+    user_reputation: '10',
+  });
+  expect(args.templateId).toEqual('d-2cfa3006175940c18cf4dcc2c09e1076');
+});
+
+it('should set parameters for squad_new_comment email', async () => {
+  await con.getRepository(User).update({ id: '2' }, { reputation: 2500 });
+  const sharedPost = await con.getRepository(ArticlePost).save(postsFixture[0]);
+  await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const post = await con.getRepository(SharePost).save({
+    id: 'ps',
+    shortId: 'ps',
+    sourceId: 'a',
+    title: 'Shared post',
+    sharedPostId: 'p1',
+    authorId: '1',
+  });
+  const comment = await con.getRepository(Comment).save({
+    id: 'c1',
+    postId: 'ps',
+    userId: '2',
+    content: 'parent comment',
+    createdAt: new Date(2020, 1, 6, 0, 0),
+    upvotes: 5,
+  });
+  const commenter = await con.getRepository(User).findOneBy({ id: '2' });
+  const ctx: NotificationCommenterContext = {
+    userId: '1',
+    post,
+    sharedPost,
+    source,
+    comment,
+    commenter,
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'squad_new_comment',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+  expect(args.dynamicTemplateData).toEqual({
+    commentary: 'Shared post',
+    commenter_reputation: '2,500',
+    full_name: 'Tsahi',
+    new_comment: 'parent comment',
+    post_image: 'https://daily.dev/image.jpg',
+    post_link:
+      'http://localhost:5002/posts/ps?utm_source=notification&utm_medium=email&utm_campaign=squad_new_comment#c-c1',
+    post_title: 'P1',
+    profile_image: 'https://daily.dev/tsahi.jpg',
+    squad_image: 'http://image.com/a',
+    squad_name: 'A',
+    user_image: 'https://daily.dev/ido.jpg',
+    user_name: 'Ido',
+    user_reputation: '10',
+  });
+  expect(args.templateId).toEqual('d-587c6c6fd1554fdf98e79b435b082f9e');
+});
+
+it('should set parameters for squad_post_viewed email', async () => {
+  const sharedPost = await con.getRepository(ArticlePost).save(postsFixture[0]);
+  await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const post = await con.getRepository(SharePost).save({
+    id: 'ps',
+    shortId: 'ps',
+    sourceId: 'a',
+    title: 'Shared post',
+    sharedPostId: 'p1',
+    authorId: '2',
+  });
+  const doneBy = await con.getRepository(User).findOneBy({ id: '1' });
+  const ctx: NotificationPostContext & NotificationDoneByContext = {
+    userId: '2',
+    post,
+    sharedPost,
+    source,
+    doneBy,
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'squad_post_viewed',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+  expect(args.dynamicTemplateData).toEqual({
+    commentary: 'Shared post',
+    full_name: 'Ido',
+    post_image: 'https://daily.dev/image.jpg',
+    post_link:
+      'http://localhost:5002/posts/ps?utm_source=notification&utm_medium=email&utm_campaign=squad_post_viewed',
+    post_title: 'P1',
+    profile_image: 'https://daily.dev/ido.jpg',
+    squad_image: 'http://image.com/a',
+    squad_name: 'A',
+    user_image: 'https://daily.dev/tsahi.jpg',
+    user_name: 'Tsahi',
+    user_reputation: '10',
+  });
+  expect(args.templateId).toEqual('d-dc0eb578886c4f84a7dcc25515c7b6a4');
 });

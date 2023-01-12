@@ -9,6 +9,8 @@ import {
   NotificationAvatar,
   NotificationType,
   Post,
+  SharePost,
+  Source,
   SourceRequest,
   Submission,
   User,
@@ -46,9 +48,11 @@ const notificationToTemplateId: Record<NotificationType, string> = {
   comment_mention: 'd-6949e2e50def4c6698900032973d469b',
   comment_reply: 'd-90c229bde4af427c8708a7615bfd85b4',
   comment_upvote_milestone: 'd-92bca6102e3a4b41b6fc3f532f050429',
-  post_viewed: 'missing',
-  post_added: 'missing',
-  member_joined_source: 'missing',
+  squad_post_added: 'd-e09e5eaa30174b678ba2adfd8d311fdb',
+  squad_member_joined: 'd-2cfa3006175940c18cf4dcc2c09e1076',
+  squad_new_comment: 'd-587c6c6fd1554fdf98e79b435b082f9e',
+  squad_reply: 'd-cbb2de40b61840c38d3aa21028af0c68',
+  squad_post_viewed: 'd-dc0eb578886c4f84a7dcc25515c7b6a4',
 };
 
 type TemplateDataFunc = (
@@ -263,14 +267,166 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       user_reputation: user.reputation,
     };
   },
-  member_joined_source: () => {
-    throw new Error('not implemented');
+  squad_member_joined: async (con, user, notification) => {
+    const [joinedUser, source] = await Promise.all([
+      con.getRepository(User).findOneBy({ id: notification.uniqueKey }),
+      con.getRepository(Source).findOneBy({ id: notification.referenceId }),
+    ]);
+    if (!joinedUser || !source) {
+      return;
+    }
+    return {
+      full_name: joinedUser.name,
+      profile_image: joinedUser.image,
+      squad_name: source.name,
+      squad_image: source.image,
+      post_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      user_reputation: joinedUser.reputation,
+      new_member_handle: joinedUser.username,
+    };
   },
-  post_added: () => {
-    throw new Error('not implemented');
+  squad_post_added: async (con, user, notification) => {
+    const post = await con.getRepository(SharePost).findOne({
+      where: { id: notification.referenceId },
+      relations: ['author', 'source'],
+    });
+    if (!post || !post?.sharedPostId) {
+      return;
+    }
+    const [author, source, sharedPost] = await Promise.all([
+      post.author,
+      post.source,
+      con.getRepository(Post).findOneBy({ id: post.sharedPostId }),
+    ]);
+    if (!author || !source || !sharedPost) {
+      return;
+    }
+    return {
+      full_name: author.name,
+      profile_image: author.image,
+      squad_name: source.name,
+      squad_image: source.image,
+      commentary: truncatePostToTweet(post),
+      post_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      post_image: (sharedPost as ArticlePost).image || pickImageUrl(sharedPost),
+      post_title: truncatePostToTweet(sharedPost),
+      user_reputation: author.reputation,
+    };
   },
-  post_viewed: () => {
-    throw new Error('not implemented');
+  squad_new_comment: async (con, user, notification) => {
+    const comment = await con.getRepository(Comment).findOne({
+      where: { id: notification.referenceId },
+      relations: ['post', 'user'],
+    });
+    if (!comment) {
+      return;
+    }
+    const [commenter, post] = [
+      await comment.user,
+      (await comment.post) as SharePost,
+    ];
+    if (!post || !post?.sharedPostId || !post?.authorId) {
+      return;
+    }
+    const [sharedPost, author, source] = await Promise.all([
+      con.getRepository(Post).findOneBy({ id: post.sharedPostId }),
+      post.author,
+      post.source,
+    ]);
+    return {
+      profile_image: commenter.image,
+      full_name: commenter.name,
+      squad_name: source.name,
+      squad_image: source.image,
+      post_title: truncatePostToTweet(sharedPost),
+      post_image: (sharedPost as ArticlePost).image || pickImageUrl(post),
+      new_comment: notification.description,
+      post_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      commenter_reputation: commenter.reputation,
+      user_name: author.name,
+      user_reputation: author.reputation,
+      user_image: author.image,
+      commentary: truncatePostToTweet(post),
+    };
+  },
+  squad_reply: async (con, user, notification) => {
+    const comment = await con.getRepository(Comment).findOne({
+      where: { id: notification.referenceId },
+      relations: ['parent', 'user', 'post'],
+    });
+    if (!comment) {
+      return;
+    }
+    const [commenter, parent, post] = await Promise.all([
+      comment.user,
+      comment.parent,
+      comment.post,
+    ]);
+    if (!commenter || !parent || !post) {
+      return;
+    }
+    const source = await post.source;
+    return {
+      full_name: commenter.name,
+      profile_image: commenter.image,
+      squad_name: source.name,
+      squad_image: source.image,
+      commenter_reputation: commenter.reputation,
+      new_comment: notification.description,
+      post_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      user_name: user.name,
+      user_reputation: user.reputation,
+      user_image: user.image,
+      main_comment: simplifyComment(parent.content),
+    };
+  },
+  squad_post_viewed: async (con, user, notification) => {
+    const [post, viewer] = await Promise.all([
+      con.getRepository(SharePost).findOne({
+        where: { id: notification.referenceId },
+        relations: ['author', 'source'],
+      }),
+      con.getRepository(User).findOneBy({ id: notification.uniqueKey }),
+    ]);
+    if (!post || !post?.sharedPostId || !viewer) {
+      return;
+    }
+    const [author, source, sharedPost] = await Promise.all([
+      post.author,
+      post.source,
+      con.getRepository(Post).findOneBy({ id: post.sharedPostId }),
+    ]);
+    if (!author || !source || !sharedPost) {
+      return;
+    }
+    return {
+      full_name: viewer.name,
+      profile_image: viewer.image,
+      squad_name: source.name,
+      squad_image: source.image,
+      commentary: truncatePostToTweet(post),
+      post_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      post_image: (sharedPost as ArticlePost).image || pickImageUrl(sharedPost),
+      post_title: truncatePostToTweet(sharedPost),
+      user_name: author.name,
+      user_reputation: author.reputation,
+      user_image: author.image,
+    };
   },
 };
 

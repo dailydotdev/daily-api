@@ -16,8 +16,8 @@ import commentMention from './commentMention';
 import commentReply from './commentReply';
 import commentUpvoteMilestone from './commentUpvoteMilestone';
 import postAdded from './postAdded';
-import memberJoinedSource from './memberJoinedSource';
-import postViewed from './postViewed';
+import memberJoinedSource from './squadMemberJoined';
+import postViewed from './squadPostViewed';
 
 function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {

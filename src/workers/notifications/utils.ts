@@ -63,8 +63,10 @@ export async function articleNewCommentHandler(
     commenter,
     comment,
   };
+  const type =
+    ctx.source.type === 'squad' ? 'squad_new_comment' : 'article_new_comment';
   return users.map((userId) => ({
-    type: 'article_new_comment',
+    type,
     ctx: { ...ctx, userId },
   }));
 }

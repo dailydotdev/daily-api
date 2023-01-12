@@ -15,10 +15,7 @@ const worker: NotificationWorker = {
   handler: async (message, con) => {
     const data: Data = messageToJson(message);
     const postCtx = await buildPostContext(con, data.postId);
-    if (!postCtx) {
-      return;
-    }
-    if (postCtx.source.type !== 'squad' || !postCtx.post.authorId) {
+    if (!postCtx || postCtx.source.type !== 'squad' || !postCtx.post.authorId) {
       return;
     }
     const doneBy = await con.getRepository(User).findOneBy({ id: data.userId });
@@ -30,7 +27,7 @@ const worker: NotificationWorker = {
       userId: postCtx.post.authorId,
       doneBy,
     };
-    return [{ type: 'post_viewed', ctx }];
+    return [{ type: 'squad_post_viewed', ctx }];
   },
 };
 

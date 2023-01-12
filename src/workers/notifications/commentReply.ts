@@ -51,8 +51,9 @@ const worker: NotificationWorker = {
     if (comment.userId !== parent.userId) {
       userIds.push(parent.userId);
     }
+    const type = ctx.source.type === 'squad' ? 'squad_reply' : 'comment_reply';
     return userIds.map((userId) => ({
-      type: 'comment_reply',
+      type,
       ctx: { ...ctx, userId },
     }));
   },

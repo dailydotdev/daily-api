@@ -154,7 +154,7 @@ describe('post added notifications', () => {
     });
     expect(actual.length).toEqual(2);
     actual.forEach((bundle) => {
-      expect(bundle.type).toEqual('post_added');
+      expect(bundle.type).toEqual('squad_post_added');
       expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
       expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
       expect((bundle.ctx as NotificationDoneByContext).doneBy.id).toEqual('1');
@@ -260,6 +260,37 @@ describe('article new comment', () => {
     expect(actual.length).toEqual(2);
     expect(actual[0].ctx.userId).toEqual('1');
     expect(actual[1].ctx.userId).toEqual('3');
+  });
+
+  it('should add notification for new squad comment', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/articleNewCommentPostCommented'
+    );
+    await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: '1',
+      },
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      postId: 'p1',
+      commentId: 'c1',
+    });
+    expect(actual.length).toEqual(1);
+    actual.forEach((bundle) => {
+      expect(bundle.type).toEqual('squad_new_comment');
+      expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
+      expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
+      expect((bundle.ctx as NotificationCommentContext).comment.id).toEqual(
+        'c1',
+      );
+      expect((bundle.ctx as NotificationCommenterContext).commenter.id).toEqual(
+        '2',
+      );
+    });
+    expect(actual[0].ctx.userId).toEqual('1');
   });
 });
 
@@ -644,11 +675,12 @@ describe('comment upvote milestone', () => {
   });
 });
 
-describe('member joined source', () => {
-  it('should add notification to source owner', async () => {
+describe('squad member joined', () => {
+  it('should add notification to squad owner', async () => {
     const worker = await import(
-      '../../src/workers/notifications/memberJoinedSource'
+      '../../src/workers/notifications/squadMemberJoined'
     );
+    await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
     await con.getRepository(SourceMember).save([
       {
         sourceId: 'a',
@@ -664,7 +696,7 @@ describe('member joined source', () => {
       },
     });
     expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('member_joined_source');
+    expect(actual[0].type).toEqual('squad_member_joined');
     expect(actual[0].ctx.userId).toEqual('2');
     const ctx = actual[0].ctx as NotificationSourceContext &
       NotificationDoneByContext;
@@ -674,7 +706,7 @@ describe('member joined source', () => {
 
   it('should not add notification when owner joins', async () => {
     const worker = await import(
-      '../../src/workers/notifications/memberJoinedSource'
+      '../../src/workers/notifications/squadMemberJoined'
     );
     await con.getRepository(SourceMember).save([
       {
@@ -694,9 +726,11 @@ describe('member joined source', () => {
   });
 });
 
-describe('post viewed', () => {
+describe('squad post viewed', () => {
   it('should add notification to post author', async () => {
-    const worker = await import('../../src/workers/notifications/postViewed');
+    const worker = await import(
+      '../../src/workers/notifications/squadPostViewed'
+    );
     await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
     const actual = await invokeNotificationWorker(worker.default, {
@@ -704,7 +738,7 @@ describe('post viewed', () => {
       userId: '2',
     });
     expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('post_viewed');
+    expect(actual[0].type).toEqual('squad_post_viewed');
     expect(actual[0].ctx.userId).toEqual('1');
     const ctx = actual[0].ctx as NotificationPostContext &
       NotificationDoneByContext;
@@ -714,7 +748,9 @@ describe('post viewed', () => {
   });
 
   it('should ignore if it is not part of squad', async () => {
-    const worker = await import('../../src/workers/notifications/postViewed');
+    const worker = await import(
+      '../../src/workers/notifications/squadPostViewed'
+    );
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
     const actual = await invokeNotificationWorker(worker.default, {
       postId: 'p1',
@@ -722,4 +758,59 @@ describe('post viewed', () => {
     });
     expect(actual).toBeFalsy();
   });
+});
+
+it('should add squad reply notification', async () => {
+  await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+  await con.getRepository(Comment).save([
+    {
+      id: 'c2',
+      postId: 'p1',
+      userId: '2',
+      content: 'sub comment',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+      parentId: 'c1',
+    },
+    {
+      id: 'c3',
+      postId: 'p1',
+      userId: '1',
+      content: 'sub comment2',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+      parentId: 'c1',
+    },
+    {
+      id: 'c4',
+      postId: 'p1',
+      userId: '3',
+      content: 'sub comment3',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+      parentId: 'c1',
+    },
+    {
+      id: 'c5',
+      postId: 'p1',
+      userId: '4',
+      content: 'sub comment4',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+      parentId: 'c1',
+    },
+  ]);
+  const worker = await import('../../src/workers/notifications/commentReply');
+  const actual = await invokeNotificationWorker(worker.default, {
+    postId: 'p1',
+    userId: '4',
+    childCommentId: 'c5',
+  });
+  expect(actual.length).toEqual(3);
+  actual.forEach((bundle) => {
+    expect(bundle.type).toEqual('squad_reply');
+    expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
+    expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
+    expect((bundle.ctx as NotificationCommentContext).comment.id).toEqual('c5');
+    expect((bundle.ctx as NotificationCommenterContext).commenter.id).toEqual(
+      '4',
+    );
+  });
+  expect(actual.map((bundle) => bundle.ctx.userId)).toEqual(['1', '3', '2']);
 });

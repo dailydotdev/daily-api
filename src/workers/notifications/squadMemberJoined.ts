@@ -30,7 +30,7 @@ const worker: NotificationWorker = {
       con.getRepository(User).findOneBy({ id: member.userId }),
       con.getRepository(Source).findOneBy({ id: member.sourceId }),
     ]);
-    if (!doneBy || !source) {
+    if (!doneBy || !source || source.type !== 'squad') {
       return;
     }
     const ctx: NotificationSourceContext & NotificationDoneByContext = {
@@ -38,7 +38,7 @@ const worker: NotificationWorker = {
       source,
       doneBy,
     };
-    return [{ type: 'member_joined_source', ctx }];
+    return [{ type: 'squad_member_joined', ctx }];
   },
 };
 

@@ -51,19 +51,22 @@ export const notificationTitleMap: Record<
   ) =>
     UPVOTE_TITLES[ctx.upvotes] ??
     `<b>You rock!</b> Your comment <span class="text-theme-color-avocado">earned ${ctx.upvotes} upvotes!</span>`,
-  post_added: (
-    ctx: NotificationPostContext & Partial<NotificationDoneByContext>,
-  ) => {
-    if (ctx.doneBy) {
-      return `<b>${ctx.doneBy.name}</b> posted on <b>${ctx.source.name}</b>`;
-    }
-    return `There is a new post on <b>${ctx.source.name}</b>`;
-  },
-  post_viewed: (ctx: NotificationDoneByContext) =>
-    `<b>${ctx.doneBy.name}</b> viewed your article.`,
-  member_joined_source: (
+  squad_post_added: (
+    ctx: NotificationPostContext & NotificationDoneByContext,
+  ) =>
+    `<b>${ctx.doneBy.name}</b> posted a new article on <b>${ctx.source.name}</b>`,
+  squad_member_joined: (
     ctx: NotificationSourceContext & NotificationDoneByContext,
-  ) => `<b>${ctx.doneBy.name}</b> joined <b>${ctx.source.name}</b>`,
+  ) =>
+    `Your squad is growing! <b>${ctx.doneBy.name}</b> has joined <b>${ctx.source.name}</b>.`,
+  squad_new_comment: (ctx: NotificationCommenterContext) =>
+    `<b>${ctx.commenter.name}</b> posted a <span class="text-theme-color-blueCheese">comment</span> on your post on <b>${ctx.source.name}</b>.`,
+  squad_reply: (ctx: NotificationCommenterContext) =>
+    `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">replied</span> to your comment on <b>${ctx.source.name}</b>.`,
+  squad_post_viewed: (
+    ctx: NotificationPostContext & NotificationDoneByContext,
+  ) =>
+    `<b>${ctx.doneBy.name}</b> viewed your post on <b>${ctx.source.name}</b>.`,
 };
 
 export const generateNotificationMap: Record<
@@ -141,29 +144,16 @@ export const generateNotificationMap: Record<
       .upvotes(ctx.upvotes, ctx.upvoters)
       .descriptionComment(ctx.comment)
       .targetPost(ctx.post, ctx.comment),
-  post_added: (
-    builder,
-    ctx: NotificationPostContext & Partial<NotificationDoneByContext>,
-  ) => {
-    let newBuilder = builder
-      .icon(NotificationIcon.Bell)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost, false)
-      .avatarSource(ctx.source);
-    if (ctx.doneBy) {
-      newBuilder = newBuilder.avatarManyUsers([ctx.doneBy]);
-    }
-    return newBuilder;
-  },
-  post_viewed: (
+  squad_post_added: (
     builder,
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) =>
     builder
-      .icon(NotificationIcon.View)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost)
-      .avatarManyUsers([ctx.doneBy])
-      .uniqueKey(ctx.doneBy.id),
-  member_joined_source: (
+      .icon(NotificationIcon.Bell)
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost, false)
+      .avatarSource(ctx.source)
+      .avatarManyUsers([ctx.doneBy]),
+  squad_member_joined: (
     builder,
     ctx: NotificationSourceContext & NotificationDoneByContext,
   ) =>
@@ -172,6 +162,31 @@ export const generateNotificationMap: Record<
       .referenceSource(ctx.source)
       .targetSource(ctx.source)
       .avatarSource(ctx.source)
+      .avatarManyUsers([ctx.doneBy])
+      .uniqueKey(ctx.doneBy.id),
+  squad_new_comment: (builder, ctx: NotificationCommenterContext) =>
+    builder
+      .referenceComment(ctx.comment)
+      .icon(NotificationIcon.Comment)
+      .descriptionComment(ctx.comment)
+      .targetPost(ctx.post, ctx.comment)
+      .avatarSource(ctx.source)
+      .avatarManyUsers([ctx.commenter]),
+  squad_reply: (builder, ctx: NotificationCommenterContext) =>
+    builder
+      .referenceComment(ctx.comment)
+      .icon(NotificationIcon.Comment)
+      .descriptionComment(ctx.comment)
+      .targetPost(ctx.post, ctx.comment)
+      .avatarSource(ctx.source)
+      .avatarManyUsers([ctx.commenter]),
+  squad_post_viewed: (
+    builder,
+    ctx: NotificationPostContext & NotificationDoneByContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.View)
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost)
       .avatarManyUsers([ctx.doneBy])
       .uniqueKey(ctx.doneBy.id),
 };

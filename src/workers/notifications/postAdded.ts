@@ -43,24 +43,25 @@ const worker: NotificationWorker = {
           notifs.push({ type: 'article_picked', ctx });
         }
       }
-      // post_added notification
-      let doneBy: User;
-      if (post.authorId) {
-        doneBy = await con.getRepository(User).findOneBy({ id: post.authorId });
+      // squad_post_added notification
+      if (source.type === 'squad' && post.authorId) {
+        const doneBy = await con
+          .getRepository(User)
+          .findOneBy({ id: post.authorId });
+        const members = await con.getRepository(SourceMember).find({
+          where: { sourceId: source.id, userId: Not(In([post.authorId])) },
+        });
+        members.forEach((member) =>
+          notifs.push({
+            type: 'squad_post_added',
+            ctx: {
+              ...baseCtx,
+              doneBy,
+              userId: member.userId,
+            } as NotificationPostContext & Partial<NotificationDoneByContext>,
+          }),
+        );
       }
-      const members = await con.getRepository(SourceMember).find({
-        where: { sourceId: source.id, userId: Not(In([post.authorId])) },
-      });
-      members.forEach((member) =>
-        notifs.push({
-          type: 'post_added',
-          ctx: {
-            ...baseCtx,
-            doneBy,
-            userId: member.userId,
-          } as NotificationPostContext & Partial<NotificationDoneByContext>,
-        }),
-      );
     }
     return notifs;
   },

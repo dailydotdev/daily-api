@@ -26,9 +26,11 @@ export type NotificationType =
   | 'comment_mention'
   | 'comment_reply'
   | 'comment_upvote_milestone'
-  | 'post_added'
-  | 'post_viewed'
-  | 'member_joined_source';
+  | 'squad_post_added'
+  | 'squad_member_joined'
+  | 'squad_new_comment'
+  | 'squad_reply'
+  | 'squad_post_viewed';
 
 export type NotificationReferenceType =
   | 'source_request'
