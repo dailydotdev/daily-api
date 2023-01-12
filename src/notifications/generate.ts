@@ -29,7 +29,7 @@ export const notificationTitleMap: Record<
   article_picked: () =>
     `Congratulations! <b>Your article</b> got <span class="text-theme-color-cabbage">listed</span> on the daily.dev feed!`,
   article_new_comment: (ctx: NotificationCommenterContext) =>
-    `<b>${ctx.commenter.name}</b> posted a <span class="text-theme-color-blueCheese">comment</span> on your article.`,
+    `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">commented</span> on your article.`,
   article_upvote_milestone: (
     ctx: NotificationPostContext & NotificationUpvotersContext,
   ) =>
@@ -58,15 +58,15 @@ export const notificationTitleMap: Record<
   squad_member_joined: (
     ctx: NotificationSourceContext & NotificationDoneByContext,
   ) =>
-    `Your squad is growing! <b>${ctx.doneBy.name}</b> has joined <b>${ctx.source.name}</b>.`,
+    `Your squad is growing! <b>${ctx.doneBy.name}</b> has <span class="text-theme-color-cabbage">joined</span> <b>${ctx.source.name}</b>.`,
   squad_new_comment: (ctx: NotificationCommenterContext) =>
-    `<b>${ctx.commenter.name}</b> posted a <span class="text-theme-color-blueCheese">comment</span> on your post on <b>${ctx.source.name}</b>.`,
+    `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">commented</span> on your post on <b>${ctx.source.name}</b>.`,
   squad_reply: (ctx: NotificationCommenterContext) =>
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">replied</span> to your comment on <b>${ctx.source.name}</b>.`,
   squad_post_viewed: (
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) =>
-    `<b>${ctx.doneBy.name}</b> viewed your post on <b>${ctx.source.name}</b>.`,
+    `<b>${ctx.doneBy.name}</b> <span class="text-theme-color-cabbage">viewed</span> your post on <b>${ctx.source.name}</b>.`,
 };
 
 export const generateNotificationMap: Record<
