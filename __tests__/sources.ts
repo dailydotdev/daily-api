@@ -291,12 +291,29 @@ query Source($id: ID!) {
     );
   });
 
-  it('should return source members for private source when the user is a member', async () => {
+  it('should return squad url', async () => {
     loggedUser = '1';
     await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.source.permalink).toEqual('http://localhost:5002/squads/a');
+  });
+});
+
+describe('membersCount field', () => {
+  const QUERY = `
+query Source($id: ID!) {
+  source(id: $id) {
+    membersCount
+  }
+}
+  `;
+
+  it('should return number of members', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.membersCount).toEqual(2);
   });
 });
 
@@ -451,6 +468,7 @@ describe('mutation createSquad', () => {
     expect(newSource.name).toEqual('Squad');
     expect(newSource.handle).toEqual('squad');
     expect(newSource.active).toEqual(false);
+    expect(newSource.private).toEqual(true);
     const member = await con.getRepository(SourceMember).findOneBy({
       sourceId: newId,
       userId: '1',
