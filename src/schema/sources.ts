@@ -14,6 +14,7 @@ import {
 } from '../entity';
 import {
   forwardPagination,
+  GQLEmptyResponse,
   offsetPageGenerator,
   PaginationResponse,
 } from './common';
@@ -39,6 +40,7 @@ import {
   validateRegex,
   ValidateRegex,
 } from '../common/object';
+import { EmptyResponse } from '@google-cloud/pubsub';
 
 export interface GQLSource {
   id: string;
@@ -268,6 +270,16 @@ export const typeDefs = /* GraphQL */ `
       """
       token: String
     ): Source! @auth
+
+    """
+    Removes the logged-in user as a member from the source
+    """
+    leaveSource(
+      """
+      Source to leave
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
   }
 `;
 
@@ -568,6 +580,25 @@ export const resolvers: IResolvers<any, Context> = {
         }
         throw err;
       }
+    },
+    leaveSource: async (
+      _,
+      { sourceId }: { sourceId: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      const sourceMember = await ctx.con
+        .getRepository(SourceMember)
+        .findOneByOrFail({ sourceId, userId: ctx.userId });
+      if (sourceMember.role === SourceMemberRoles.Owner) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+      await ctx.con.getRepository(SourceMember).delete({
+        sourceId,
+        userId: ctx.userId,
+      });
+      return { _: true };
     },
     joinSource: async (
       _,

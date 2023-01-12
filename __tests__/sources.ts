@@ -538,6 +538,66 @@ describe('mutation createSquad', () => {
   });
 });
 
+describe('mutation leaveSource', () => {
+  const MUTATION = `
+  mutation LeaveSource($sourceId: ID!) {
+  leaveSource(sourceId: $sourceId) {
+    _
+  }
+}`;
+
+  const variables = {
+    sourceId: 's1',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should leave squad if user is a member', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const sourceMembers = await con
+      .getRepository(SourceMember)
+      .countBy(variables);
+    expect(sourceMembers).toEqual(0);
+  });
+
+  it('should throw an error is user is the owner', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Owner });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+    );
+  });
+});
+
 describe('mutation joinSource', () => {
   const MUTATION = `
   mutation JoinSource($sourceId: ID!, $token: String) {
