@@ -556,10 +556,10 @@ describe('mutation createSquad', () => {
   });
 });
 
-describe('mutation removeSource', () => {
+describe('mutation deleteSource', () => {
   const MUTATION = `
-  mutation RemoveSource($sourceId: ID!) {
-  removeSource(sourceId: $sourceId) {
+  mutation DeleteSource($sourceId: ID!) {
+  deleteSource(sourceId: $sourceId) {
     _
   }
 }`;
@@ -594,7 +594,7 @@ describe('mutation removeSource', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not remove squad if user is not the owner', async () => {
+  it('should not delete source if user is not the owner', async () => {
     loggedUser = '1';
     return testMutationErrorCode(
       client,
@@ -603,7 +603,7 @@ describe('mutation removeSource', () => {
     );
   });
 
-  it('should remove squad and members', async () => {
+  it('should delete source and members', async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)

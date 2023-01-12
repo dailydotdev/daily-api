@@ -280,7 +280,7 @@ export const typeDefs = /* GraphQL */ `
     """
     deleteSource(
       """
-      Source to remove
+      Source to delete
       """
       sourceId: ID!
     ): EmptyResponse! @auth
@@ -296,11 +296,13 @@ const sourceToGQL = (source: Source): GQLSource => ({
 export enum SourcePermissions {
   View,
   Post,
+  Delete,
 }
 
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
+  sourceMember: SourceMember,
   permission = SourcePermissions.View,
 ): Promise<boolean> => {
   switch (permission) {
@@ -314,6 +316,10 @@ export const canAccessSource = async (
         return false;
       }
       break;
+    case SourcePermissions.Delete:
+      if (sourceMember.role !== SourceMemberRoles.Owner) {
+        return false;
+      }
   }
   if (ctx.userId) {
     const member = await ctx.con.getRepository(SourceMember).findOneBy({
@@ -336,7 +342,10 @@ export const ensureSourcePermissions = async (
     const source = await ctx.con
       .getRepository(Source)
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
-    if (await canAccessSource(ctx, source, permission)) {
+    const sourceMember = await ctx.con
+      .getRepository(SourceMember)
+      .findOneByOrFail({ sourceId, userId: ctx.userId });
+    if (await canAccessSource(ctx, source, sourceMember, permission)) {
       return source;
     }
   }
@@ -591,17 +600,9 @@ export const resolvers: IResolvers<any, Context> = {
       { sourceId }: { sourceId: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      const sourceMember = await ctx.con
-        .getRepository(SourceMember)
-        .findOneByOrFail({ sourceId, userId: ctx.userId });
-      if (sourceMember.role !== SourceMemberRoles.Owner) {
-        throw new ForbiddenError(
-          'Access denied! You do not have permission for this action!',
-        );
-      }
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Delete);
       await ctx.con.getRepository(Source).delete({
         id: sourceId,
-        active: false,
       });
       return { _: true };
     },
