@@ -5,9 +5,7 @@ import {
   storeNotificationBundle,
 } from '../../notifications';
 import communityPicksFailed from './communityPicksFailed';
-import communityPicksSucceeded from './communityPicksSucceeded';
 import communityPicksGranted from './communityPicksGranted';
-import articlePicked from './articlePicked';
 import articleNewCommentPostCommented from './articleNewCommentPostCommented';
 import articleNewCommentCommentCommented from './articleNewCommentCommentCommented';
 import articleUpvoteMilestone from './articleUpvoteMilestone';
@@ -17,6 +15,9 @@ import sourceRequest from './sourceRequest';
 import commentMention from './commentMention';
 import commentReply from './commentReply';
 import commentUpvoteMilestone from './commentUpvoteMilestone';
+import postAdded from './postAdded';
+import memberJoinedSource from './squadMemberJoined';
+import postViewed from './squadPostViewed';
 
 function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -38,9 +39,7 @@ function notificationWorkerToWorker(worker: NotificationWorker): Worker {
 
 const notificationWorkers: NotificationWorker[] = [
   communityPicksFailed,
-  communityPicksSucceeded,
   communityPicksGranted,
-  articlePicked,
   articleNewCommentPostCommented,
   articleNewCommentCommentCommented,
   articleUpvoteMilestone,
@@ -50,6 +49,9 @@ const notificationWorkers: NotificationWorker[] = [
   commentMention,
   commentReply,
   commentUpvoteMilestone,
+  postAdded,
+  memberJoinedSource,
+  postViewed,
 ];
 
 export const workers = notificationWorkers.map(notificationWorkerToWorker);

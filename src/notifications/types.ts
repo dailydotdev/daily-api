@@ -24,9 +24,16 @@ export type NotificationBaseContext = { userId: string };
 export type NotificationSubmissionContext = NotificationBaseContext & {
   submission: Pick<Submission, 'id'>;
 };
-export type NotificationPostContext = NotificationBaseContext & {
-  post: Reference<Post>;
+
+export type NotificationSourceContext = NotificationBaseContext & {
+  source: Reference<Source>;
 };
+
+export type NotificationPostContext = NotificationBaseContext &
+  NotificationSourceContext & {
+    post: Reference<Post>;
+    sharedPost?: Reference<Post>;
+  };
 
 export type NotificationCommentContext = NotificationPostContext & {
   comment: Reference<Comment>;
@@ -45,6 +52,6 @@ export type NotificationSourceRequestContext = NotificationBaseContext & {
   sourceRequest: Reference<SourceRequest>;
 };
 
-export type NotificationSourceContext = NotificationBaseContext & {
-  source: Reference<Source>;
+export type NotificationDoneByContext = NotificationBaseContext & {
+  doneBy: Reference<User>;
 };

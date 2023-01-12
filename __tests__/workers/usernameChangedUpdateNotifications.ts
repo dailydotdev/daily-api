@@ -32,6 +32,7 @@ beforeEach(async () => {
 
 it('should update targetUrl of user avatars', async () => {
   const post = await con.getRepository(Post).save(postsFixture[0]);
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
   const comment1 = await con.getRepository(Comment).save({
     id: 'c1',
     postId: 'p1',
@@ -42,6 +43,7 @@ it('should update targetUrl of user avatars', async () => {
   const ctx1: NotificationCommenterContext = {
     userId: '1',
     post,
+    source,
     comment: comment1,
     commenter: commenter1,
   };
@@ -56,6 +58,7 @@ it('should update targetUrl of user avatars', async () => {
   const ctx2: NotificationCommenterContext = {
     userId: '1',
     post,
+    source,
     comment: comment2,
     commenter: commenter2,
   };

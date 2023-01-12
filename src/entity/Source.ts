@@ -14,6 +14,9 @@ import { SourceMember } from './SourceMember';
 
 export const COMMUNITY_PICKS_SOURCE = 'community';
 
+export const SQUAD_IMAGE_PLACEHOLDER =
+  'https://daily-now-res.cloudinary.com/image/upload/v1672041320/squads/squad_placeholder.jpg';
+
 @Entity()
 @TableInheritance({
   column: { type: 'varchar', name: 'type', default: 'machine' },
@@ -31,8 +34,8 @@ export class Source {
   @Column({ type: 'text' })
   name: string;
 
-  @Column({ type: 'text', nullable: true })
-  image?: string;
+  @Column({ type: 'text', default: SQUAD_IMAGE_PLACEHOLDER })
+  image: string;
 
   @Column({ default: false })
   private: boolean;

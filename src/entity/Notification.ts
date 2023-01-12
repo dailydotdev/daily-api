@@ -25,13 +25,19 @@ export type NotificationType =
   | 'source_rejected'
   | 'comment_mention'
   | 'comment_reply'
-  | 'comment_upvote_milestone';
+  | 'comment_upvote_milestone'
+  | 'squad_post_added'
+  | 'squad_member_joined'
+  | 'squad_new_comment'
+  | 'squad_reply'
+  | 'squad_post_viewed';
 
 export type NotificationReferenceType =
   | 'source_request'
   | 'post'
   | 'submission'
   | 'comment'
+  | 'source'
   | 'system';
 
 @Entity()

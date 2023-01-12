@@ -12,7 +12,6 @@ import {
   notifyCommentCommented,
   notifyPostCommented,
   notifyCommentUpvoteCanceled,
-  notifyPostAuthorMatched,
   notifySendAnalyticsReport,
   notifyPostBannedOrRemoved,
   notifyPostReport,
@@ -26,6 +25,8 @@ import {
   notifyUsernameChanged,
   notifyNewNotification,
   notifyNewCommentMention,
+  notifyPostAdded,
+  notifyMemberJoinedSource,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -45,6 +46,7 @@ import {
   Settings,
   Source,
   SourceFeed,
+  SourceMember,
   SourceRequest,
   Submission,
   SubmissionStatus,
@@ -73,7 +75,8 @@ jest.mock('../../src/common', () => ({
   notifyCommentCommented: jest.fn(),
   notifyPostCommented: jest.fn(),
   notifyUsernameChanged: jest.fn(),
-  notifyPostAuthorMatched: jest.fn(),
+  notifyPostAdded: jest.fn(),
+  notifyMemberJoinedSource: jest.fn(),
   notifySendAnalyticsReport: jest.fn(),
   notifyPostBannedOrRemoved: jest.fn(),
   notifyPostReport: jest.fn(),
@@ -516,24 +519,18 @@ describe('post', () => {
     tagsStr: 'javascript,webdev',
   };
 
-  it('should notify on author matched', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      authorId: 'u1',
-    };
+  it('should notify on new post', async () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
-        after,
+        after: base,
         before: null,
         op: 'c',
         table: 'post',
       }),
     );
-    expect(notifyPostAuthorMatched).toBeCalledTimes(1);
-    expect(jest.mocked(notifyPostAuthorMatched).mock.calls[0].slice(1)).toEqual(
-      ['p1', 'u1'],
-    );
+    expect(notifyPostAdded).toBeCalledTimes(1);
+    expect(jest.mocked(notifyPostAdded).mock.calls[0].slice(1)).toEqual([base]);
   });
 
   it('should notify on send analytics report', async () => {
@@ -1085,5 +1082,30 @@ describe('notification', () => {
     expect(jest.mocked(notifyNewNotification).mock.calls[0].slice(1)).toEqual([
       after,
     ]);
+  });
+});
+
+describe('source member', () => {
+  type ObjectType = Partial<SourceMember>;
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    sourceId: 'a',
+    referralToken: 'rt',
+  };
+
+  it('should notify on new source member', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'source_member',
+      }),
+    );
+    expect(notifyMemberJoinedSource).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifyMemberJoinedSource).mock.calls[0].slice(1),
+    ).toEqual([base]);
   });
 });

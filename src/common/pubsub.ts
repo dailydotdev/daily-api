@@ -9,6 +9,7 @@ import {
   User,
   Notification,
   CommentMention,
+  SourceMember,
 } from '../entity';
 import { ChangeObject } from '../types';
 
@@ -28,8 +29,6 @@ const alertsUpdatedTopic = pubsub.topic('alerts-updated');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
 const notificationsReadTopic = pubsub.topic('api.v1.notifications-read');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
-const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
-const postScoutMatchedTopic = pubsub.topic('post-scout-matched');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
 const viewsTopic = pubsub.topic('views');
 const postBannedOrRemovedTopic = pubsub.topic('post-banned-or-removed');
@@ -40,6 +39,8 @@ const communityLinkRejectedTopic = pubsub.topic('community-link-rejected');
 const communityLinkSubmittedTopic = pubsub.topic('community-link-submitted');
 const newNotificationTopic = pubsub.topic('api.v1.new-notification');
 const newCommentMentionTopic = pubsub.topic('api.v1.new-comment-mention');
+const memberJoinedSourceTopic = pubsub.topic('api.v1.member-joined-source');
+const postAddedTopic = pubsub.topic('api.v1.post-added');
 
 export enum NotificationReason {
   New = 'new',
@@ -210,26 +211,6 @@ export const notifyCommentUpvoteCanceled = async (
     userId,
   });
 
-export const notifyPostAuthorMatched = async (
-  log: EventLogger,
-  postId: string,
-  authorId: string,
-): Promise<void> =>
-  publishEvent(log, postAuthorMatchedTopic, {
-    postId,
-    authorId,
-  });
-
-export const notifyScoutMatched = async (
-  log: EventLogger,
-  postId: string,
-  scoutId: string,
-): Promise<void> =>
-  publishEvent(log, postScoutMatchedTopic, {
-    postId,
-    scoutId,
-  });
-
 export const notifySendAnalyticsReport = async (
   log: EventLogger,
   postId: string,
@@ -313,3 +294,14 @@ export const notifyNewCommentMention = async (
   commentMention: ChangeObject<CommentMention>,
 ): Promise<void> =>
   publishEvent(log, newCommentMentionTopic, { commentMention });
+
+export const notifyMemberJoinedSource = async (
+  log: EventLogger,
+  sourceMember: ChangeObject<SourceMember>,
+): Promise<void> =>
+  publishEvent(log, memberJoinedSourceTopic, { sourceMember });
+
+export const notifyPostAdded = async (
+  log: EventLogger,
+  post: ChangeObject<Post>,
+): Promise<void> => publishEvent(log, postAddedTopic, { post });

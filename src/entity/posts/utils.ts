@@ -11,8 +11,8 @@ import { PostKeyword } from '../PostKeyword';
 import { validateAndApproveSubmission } from '../Submission';
 import { ArticlePost, Toc } from './ArticlePost';
 import { Post } from './Post';
-import { SharePost } from './SharePost';
-import { ForbiddenError } from 'apollo-server-errors';
+import { MAX_COMMENTARY_LENGTH, SharePost } from './SharePost';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 
 export type PostStats = {
   numPosts: number;
@@ -335,6 +335,13 @@ export const createSharePost = async (
   postId: string,
   commentary: string,
 ): Promise<SharePost> => {
+  if (commentary.length > MAX_COMMENTARY_LENGTH) {
+    throw new ValidationError(
+      JSON.stringify({
+        commentary: `max size is ${MAX_COMMENTARY_LENGTH} chars`,
+      }),
+    );
+  }
   const id = shortid.generate();
   try {
     return await con.getRepository(SharePost).save({
@@ -345,6 +352,7 @@ export const createSharePost = async (
       authorId: userId,
       sharedPostId: postId,
       title: commentary,
+      sentAnalyticsReport: true,
     });
   } catch (err) {
     if (err.code === TypeOrmError.FOREIGN_KEY) {

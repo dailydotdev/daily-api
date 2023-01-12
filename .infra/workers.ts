@@ -26,8 +26,8 @@ export const workers: Worker[] = [
     subscription: 'comment-upvote-canceled-rep',
   },
   {
-    topic: 'post-scout-matched',
-    subscription: 'post-scout-matched-slack',
+    topic: 'api.v1.post-added',
+    subscription: 'api.post-scout-matched-slack',
   },
   {
     topic: 'comment-commented',
@@ -98,22 +98,18 @@ export const workers: Worker[] = [
     topic: 'api.v1.new-notification',
     subscription: 'api.new-notification-push',
   },
+  {
+    topic: 'api.v1.member-joined-source',
+    subscription: 'api.squad-activation',
+  },
   // Notifications
   {
     topic: 'community-link-rejected',
     subscription: 'api.community-picks-failed-notification',
   },
   {
-    topic: 'post-scout-matched',
-    subscription: 'api.community-picks-succeeded-notification',
-  },
-  {
     topic: 'community-link-access',
     subscription: 'api.community-picks-granted-notification',
-  },
-  {
-    topic: 'post-author-matched',
-    subscription: 'api.article-picked-notification',
   },
   {
     topic: 'post-commented',
@@ -150,5 +146,17 @@ export const workers: Worker[] = [
   {
     topic: 'comment-upvoted',
     subscription: 'api.comment-upvote-milestone-notification',
+  },
+  {
+    topic: 'api.v1.post-added',
+    subscription: 'api.post-added-notification',
+  },
+  {
+    topic: 'api.v1.member-joined-source',
+    subscription: 'api.member-joined-source-notification',
+  },
+  {
+    topic: 'views',
+    subscription: 'api.post-viewed-notification',
   },
 ];

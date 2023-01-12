@@ -3,6 +3,7 @@ import { Comment, CommentMention } from '../../entity';
 import { NotificationCommenterContext } from '../../notifications';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
+import { buildPostContext } from './utils';
 
 interface Data {
   commentMention: ChangeObject<CommentMention>;
@@ -14,16 +15,19 @@ const worker: NotificationWorker = {
     const data: Data = messageToJson(message);
     const comment = await con.getRepository(Comment).findOne({
       where: { id: data.commentMention.commentId },
-      relations: ['post', 'user'],
+      relations: ['user'],
     });
     if (!comment) {
       return;
     }
-    const post = await comment.post;
+    const postCtx = await buildPostContext(con, comment.postId);
+    if (!postCtx) {
+      return;
+    }
     const commenter = await comment.user;
     const ctx: NotificationCommenterContext = {
+      ...postCtx,
       userId: data.commentMention.mentionedUserId,
-      post,
       commenter,
       comment,
     };
