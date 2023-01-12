@@ -946,7 +946,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           .andWhere(
             `${alias}."createdAt" > now() - interval '${interval} days'`,
           )
-          .andWhere(`${alias}."upvotes" >= 0`)
+          .andWhere(`${alias}."upvotes" > 0`)
           .orderBy(`${alias}."upvotes"`, 'DESC');
       },
       offsetPageGenerator(30, 50, 100),
