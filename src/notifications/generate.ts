@@ -150,8 +150,7 @@ export const generateNotificationMap: Record<
   ) =>
     builder
       .icon(NotificationIcon.Bell)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost, false)
-      .avatarSource(ctx.source)
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost)
       .avatarManyUsers([ctx.doneBy]),
   squad_member_joined: (
     builder,
