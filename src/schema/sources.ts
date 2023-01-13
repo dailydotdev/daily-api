@@ -296,6 +296,7 @@ const sourceToGQL = (source: Source): GQLSource => ({
 export enum SourcePermissions {
   View,
   Post,
+  Leave,
 }
 
 export const canAccessSource = async (
@@ -303,23 +304,29 @@ export const canAccessSource = async (
   source: Source,
   permission = SourcePermissions.View,
 ): Promise<boolean> => {
-  switch (permission) {
-    case SourcePermissions.View:
-      if (!source.private) {
-        return true;
-      }
-      break;
-    case SourcePermissions.Post:
-      if (source.type !== 'squad') {
-        return false;
-      }
-      break;
-  }
   if (ctx.userId) {
     const member = await ctx.con.getRepository(SourceMember).findOneBy({
       userId: ctx.userId,
       sourceId: source.id,
     });
+
+    switch (permission) {
+      case SourcePermissions.View:
+        if (!source.private) {
+          return true;
+        }
+        break;
+      case SourcePermissions.Post:
+        if (source.type !== 'squad') {
+          return false;
+        }
+        break;
+      case SourcePermissions.Leave:
+        if (member.role === SourceMemberRoles.Owner) {
+          return false;
+        }
+    }
+
     if (member) {
       return true;
     }
@@ -335,7 +342,7 @@ export const ensureSourcePermissions = async (
   if (sourceId) {
     const source = await ctx.con
       .getRepository(Source)
-      .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
+      .findOneByOrFail([{ id: sourceId, handle: sourceId, type: 'squad' }]);
     if (await canAccessSource(ctx, source, permission)) {
       return source;
     }
@@ -591,14 +598,7 @@ export const resolvers: IResolvers<any, Context> = {
       { sourceId }: { sourceId: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      const sourceMember = await ctx.con
-        .getRepository(SourceMember)
-        .findOneByOrFail({ sourceId, userId: ctx.userId });
-      if (sourceMember.role === SourceMemberRoles.Owner) {
-        throw new ForbiddenError(
-          'Access denied! You do not have permission for this action!',
-        );
-      }
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Leave);
       await ctx.con.getRepository(SourceMember).delete({
         sourceId,
         userId: ctx.userId,
