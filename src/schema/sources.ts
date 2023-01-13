@@ -304,6 +304,10 @@ export const canAccessSource = async (
   source: Source,
   permission = SourcePermissions.View,
 ): Promise<boolean> => {
+  if (permission === SourcePermissions.View && !source.private) {
+    return true;
+  }
+
   if (ctx.userId) {
     const member = await ctx.con.getRepository(SourceMember).findOneBy({
       userId: ctx.userId,
@@ -311,18 +315,16 @@ export const canAccessSource = async (
     });
 
     switch (permission) {
-      case SourcePermissions.View:
-        if (!source.private) {
-          return true;
-        }
-        break;
       case SourcePermissions.Post:
         if (source.type !== 'squad') {
           return false;
         }
         break;
       case SourcePermissions.Leave:
-        if (member.role === SourceMemberRoles.Owner) {
+        if (
+          member.role === SourceMemberRoles.Owner ||
+          source.type !== 'squad'
+        ) {
           return false;
         }
     }
@@ -331,6 +333,7 @@ export const canAccessSource = async (
       return true;
     }
   }
+
   return false;
 };
 
@@ -342,7 +345,7 @@ export const ensureSourcePermissions = async (
   if (sourceId) {
     const source = await ctx.con
       .getRepository(Source)
-      .findOneByOrFail([{ id: sourceId, handle: sourceId, type: 'squad' }]);
+      .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
     if (await canAccessSource(ctx, source, permission)) {
       return source;
     }
