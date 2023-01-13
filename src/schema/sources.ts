@@ -114,6 +114,11 @@ export const typeDefs = /* GraphQL */ `
     URL to the source page
     """
     permalink: String!
+
+    """
+    Number of members in the source
+    """
+    membersCount: Int!
   }
 
   type SourceConnection {
@@ -545,6 +550,7 @@ export const resolvers: IResolvers<any, Context> = {
             handle,
             active: false,
             description,
+            private: true,
           });
           // Add the logged-in user as owner
           await addNewSourceMember(entityManager, {
