@@ -302,30 +302,31 @@ export enum SourcePermissions {
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
-  sourceMember: SourceMember,
   permission = SourcePermissions.View,
 ): Promise<boolean> => {
-  switch (permission) {
-    case SourcePermissions.View:
-      if (!source.private) {
-        return true;
-      }
-      break;
-    case SourcePermissions.Post:
-      if (source.type !== 'squad') {
-        return false;
-      }
-      break;
-    case SourcePermissions.Delete:
-      if (sourceMember.role !== SourceMemberRoles.Owner) {
-        return false;
-      }
-  }
   if (ctx.userId) {
     const member = await ctx.con.getRepository(SourceMember).findOneBy({
       userId: ctx.userId,
       sourceId: source.id,
     });
+
+    switch (permission) {
+      case SourcePermissions.View:
+        if (!source.private) {
+          return true;
+        }
+        break;
+      case SourcePermissions.Post:
+        if (source.type !== 'squad') {
+          return false;
+        }
+        break;
+      case SourcePermissions.Delete:
+        if (member.role !== SourceMemberRoles.Owner) {
+          return false;
+        }
+    }
+
     if (member) {
       return true;
     }
@@ -341,11 +342,8 @@ export const ensureSourcePermissions = async (
   if (sourceId) {
     const source = await ctx.con
       .getRepository(Source)
-      .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
-    const sourceMember = await ctx.con
-      .getRepository(SourceMember)
-      .findOneByOrFail({ sourceId, userId: ctx.userId });
-    if (await canAccessSource(ctx, source, sourceMember, permission)) {
+      .findOneByOrFail([{ id: sourceId, handle: sourceId, type: 'squad' }]);
+    if (await canAccessSource(ctx, source, permission)) {
       return source;
     }
   }
