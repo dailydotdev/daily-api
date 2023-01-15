@@ -40,7 +40,6 @@ import {
   validateRegex,
   ValidateRegex,
 } from '../common/object';
-import { EmptyResponse } from '@google-cloud/pubsub';
 
 export interface GQLSource {
   id: string;
@@ -277,11 +276,11 @@ export const typeDefs = /* GraphQL */ `
     ): Source! @auth
 
     """
-    Removes the logged-in user as a member from the source
+    Deletes a squad
     """
-    leaveSource(
+    deleteSource(
       """
-      Source to leave
+      Source to delete
       """
       sourceId: ID!
     ): EmptyResponse! @auth
@@ -297,6 +296,7 @@ const sourceToGQL = (source: Source): GQLSource => ({
 export enum SourcePermissions {
   View,
   Post,
+  Delete,
 }
 
 export const canAccessSource = async (
@@ -304,27 +304,33 @@ export const canAccessSource = async (
   source: Source,
   permission = SourcePermissions.View,
 ): Promise<boolean> => {
-  switch (permission) {
-    case SourcePermissions.View:
-      if (!source.private) {
-        return true;
-      }
-      break;
-    case SourcePermissions.Post:
-      if (source.type !== 'squad') {
-        return false;
-      }
-      break;
+  if (permission === SourcePermissions.View && !source.private) {
+    return true;
   }
+
   if (ctx.userId) {
     const member = await ctx.con.getRepository(SourceMember).findOneBy({
       userId: ctx.userId,
       sourceId: source.id,
     });
+
+    switch (permission) {
+      case SourcePermissions.Post:
+        if (source.type !== 'squad') {
+          return false;
+        }
+        break;
+      case SourcePermissions.Delete:
+        if (member.role !== SourceMemberRoles.Owner) {
+          return false;
+        }
+    }
+
     if (member) {
       return true;
     }
   }
+
   return false;
 };
 
@@ -587,22 +593,14 @@ export const resolvers: IResolvers<any, Context> = {
         throw err;
       }
     },
-    leaveSource: async (
+    deleteSource: async (
       _,
       { sourceId }: { sourceId: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      const sourceMember = await ctx.con
-        .getRepository(SourceMember)
-        .findOneByOrFail({ sourceId, userId: ctx.userId });
-      if (sourceMember.role === SourceMemberRoles.Owner) {
-        throw new ForbiddenError(
-          'Access denied! You do not have permission for this action!',
-        );
-      }
-      await ctx.con.getRepository(SourceMember).delete({
-        sourceId,
-        userId: ctx.userId,
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Delete);
+      await ctx.con.getRepository(Source).delete({
+        id: sourceId,
       });
       return { _: true };
     },

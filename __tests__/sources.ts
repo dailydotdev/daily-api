@@ -556,17 +556,13 @@ describe('mutation createSquad', () => {
   });
 });
 
-describe('mutation leaveSource', () => {
+describe('mutation deleteSource', () => {
   const MUTATION = `
-  mutation LeaveSource($sourceId: ID!) {
-  leaveSource(sourceId: $sourceId) {
+  mutation DeleteSource($sourceId: ID!) {
+  deleteSource(sourceId: $sourceId) {
     _
   }
 }`;
-
-  const variables = {
-    sourceId: 's1',
-  };
 
   beforeEach(async () => {
     await con.getRepository(SquadSource).save({
@@ -574,6 +570,7 @@ describe('mutation leaveSource', () => {
       handle: 's1',
       name: 'Squad',
       private: true,
+      active: false,
     });
     await con.getRepository(SourceMember).save({
       sourceId: 's1',
@@ -582,6 +579,10 @@ describe('mutation leaveSource', () => {
       role: SourceMemberRoles.Member,
     });
   });
+
+  const variables = {
+    sourceId: 's1',
+  };
 
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
@@ -593,26 +594,29 @@ describe('mutation leaveSource', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should leave squad if user is a member', async () => {
+  it('should not delete source if user is not the owner', async () => {
     loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should delete source and members', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Owner });
+
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     const sourceMembers = await con
       .getRepository(SourceMember)
       .countBy(variables);
     expect(sourceMembers).toEqual(0);
-  });
-
-  it('should throw an error is user is the owner', async () => {
-    loggedUser = '1';
-    await con
-      .getRepository(SourceMember)
-      .update({ userId: '1' }, { role: SourceMemberRoles.Owner });
-    return testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables },
-      'FORBIDDEN',
-    );
+    const source = await con.getRepository(SquadSource).countBy({ id: 's1' });
+    expect(source).toEqual(0);
   });
 });
 
