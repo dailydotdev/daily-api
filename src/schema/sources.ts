@@ -24,7 +24,6 @@ import {
   DeepPartial,
   EntityManager,
   EntityNotFoundError,
-  ILike,
 } from 'typeorm';
 import { GQLUser } from './users';
 import { Connection } from 'graphql-relay/index';
@@ -363,7 +362,7 @@ export const ensureSourcePermissions = async (
   if (sourceId) {
     const source = await ctx.con
       .getRepository(Source)
-      .findOneByOrFail([{ id: ILike(sourceId) }, { handle: ILike(sourceId) }]);
+      .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
     if (await canAccessSource(ctx, source, permission)) {
       return source;
     }
@@ -405,9 +404,7 @@ const getSourceById = async (
 ): Promise<GQLSource> => {
   const res = await graphorm.query<GQLSource>(ctx, info, (builder) => {
     builder.queryBuilder = builder.queryBuilder
-      .andWhere((qb) =>
-        qb.where({ id: ILike(id) }).orWhere({ handle: ILike(id) }),
-      )
+      .andWhere('(id = :id or handle = :id)', { id })
       .limit(1);
     return builder;
   });
