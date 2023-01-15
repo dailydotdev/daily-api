@@ -321,7 +321,6 @@ export const canAccessSource = async (
   source: Source,
   permission = SourcePermissions.View,
 ): Promise<boolean> => {
-  console.log(source, permission, ctx.userId);
   if (permission === SourcePermissions.View && !source.private) {
     return true;
   }
@@ -331,7 +330,6 @@ export const canAccessSource = async (
       userId: ctx.userId,
       sourceId: source.id,
     });
-    console.log(member);
 
     switch (permission) {
       case SourcePermissions.Post:
