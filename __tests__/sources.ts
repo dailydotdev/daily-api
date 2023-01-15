@@ -198,6 +198,17 @@ query Source($id: ID!) {
 }
   `;
 
+  it('should return null for annonymous users', async () => {
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it(`should return null for user that's not in the source`, async () => {
+    loggedUser = '3';
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.data).toMatchSnapshot();
+  });
+
   it('should return current member as owner', async () => {
     loggedUser = '1';
     await con

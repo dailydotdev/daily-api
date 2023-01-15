@@ -171,12 +171,10 @@ const obj = new GraphORM({
           isMany: false,
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
             qb
-              .innerJoin(
-                SourceMember,
-                'sm',
-                `"${childAlias}"."sourceId" = "${parentAlias}".id`,
-              )
-              .where(`sm."userId" = :userId`, { userId: ctx.userId }),
+              .select('*')
+              .from(SourceMember, 'sm')
+              .where(`sm."userId" = :userId`, { userId: ctx.userId })
+              .andWhere(`sm."sourceId" = "${parentAlias}".id`),
         },
         transform: nullIfNotLoggedIn,
       },

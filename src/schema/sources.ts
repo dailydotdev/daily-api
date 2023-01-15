@@ -123,7 +123,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Logged-in member object
     """
-    currentMember: SourceMember!
+    currentMember: SourceMember
   }
 
   type SourceConnection {

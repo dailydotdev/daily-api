@@ -143,6 +143,24 @@ Object {
 }
 `;
 
+exports[`query source current member should return null for annonymous users 1`] = `
+Object {
+  "source": Object {
+    "currentMember": null,
+    "id": "a",
+  },
+}
+`;
+
+exports[`query source current member should return null for user that's not in the source 1`] = `
+Object {
+  "source": Object {
+    "currentMember": null,
+    "id": "a",
+  },
+}
+`;
+
 exports[`query source should return source by id 1`] = `
 Object {
   "source": Object {
