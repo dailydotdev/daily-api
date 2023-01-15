@@ -311,6 +311,7 @@ const sourceToGQL = (source: Source): GQLSource => ({
 export enum SourcePermissions {
   View,
   Post,
+  Leave,
   Delete,
 }
 
@@ -335,10 +336,19 @@ export const canAccessSource = async (
           return false;
         }
         break;
+      case SourcePermissions.Leave:
+        if (
+          member.role === SourceMemberRoles.Owner ||
+          source.type !== 'squad'
+        ) {
+          return false;
+        }
+        break;
       case SourcePermissions.Delete:
         if (member.role !== SourceMemberRoles.Owner) {
           return false;
         }
+        break;
     }
 
     if (member) {
@@ -624,14 +634,7 @@ export const resolvers: IResolvers<any, Context> = {
       { sourceId }: { sourceId: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      const sourceMember = await ctx.con
-        .getRepository(SourceMember)
-        .findOneByOrFail({ sourceId, userId: ctx.userId });
-      if (sourceMember.role === SourceMemberRoles.Owner) {
-        throw new ForbiddenError(
-          'Access denied! You do not have permission for this action!',
-        );
-      }
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Leave);
       await ctx.con.getRepository(SourceMember).delete({
         sourceId,
         userId: ctx.userId,
