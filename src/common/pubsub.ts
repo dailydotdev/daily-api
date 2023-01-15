@@ -41,6 +41,7 @@ const newNotificationTopic = pubsub.topic('api.v1.new-notification');
 const newCommentMentionTopic = pubsub.topic('api.v1.new-comment-mention');
 const memberJoinedSourceTopic = pubsub.topic('api.v1.member-joined-source');
 const postAddedTopic = pubsub.topic('api.v1.post-added');
+const userCreatedTopic = pubsub.topic('api.v1.user-created');
 
 export enum NotificationReason {
   New = 'new',
@@ -305,3 +306,11 @@ export const notifyPostAdded = async (
   log: EventLogger,
   post: ChangeObject<Post>,
 ): Promise<void> => publishEvent(log, postAddedTopic, { post });
+
+export const notifyUserCreated = async (
+  log: EventLogger,
+  user: ChangeObject<User>,
+): Promise<void> =>
+  publishEvent(log, userCreatedTopic, {
+    user,
+  });

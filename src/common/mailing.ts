@@ -2,6 +2,8 @@ import sgMail from '@sendgrid/mail';
 import client from '@sendgrid/client';
 import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { User } from './users';
+import { ChangeObject } from '../types';
+import { FastifyBaseLogger } from 'fastify';
 
 if (process.env.SENDGRID_API_KEY) {
   client.setApiKey(process.env.SENDGRID_API_KEY);
@@ -136,15 +138,6 @@ export const removeUserContact = (contactId: string[]) => {
   return client.request(request);
 };
 
-export const updateUserContact = async (
-  newProfile: User,
-  oldEmail: string,
-  lists: string[],
-) => {
-  const contactId = await getContactIdByEmail(oldEmail);
-  return addUserToContacts(newProfile, lists, contactId);
-};
-
 export const getContactIdByEmail = async (email: string) => {
   if (!email || !email.trim()) {
     return null;
@@ -157,4 +150,48 @@ export const getContactIdByEmail = async (email: string) => {
   const [, body] = await client.request(request);
 
   return body && body.result && body.result.length ? body.result[0].id : null;
+};
+
+// Id of "Registered users" contact list on SendGrid
+const LIST_REGISTERED_USERS = '85a1951f-5f0c-459f-bf5e-e5c742986a50';
+// Id of "Weekly recap" contact list on SendGrid
+const LIST_MARKETING_EMAILS = '53d09271-fd3f-4e38-ac21-095bf4f52de6';
+
+export const updateUserContactLists = async (
+  log: FastifyBaseLogger,
+  newProfile: ChangeObject<User>,
+  oldProfile?: ChangeObject<User>,
+): Promise<void> => {
+  try {
+    let contactId: string | null = null;
+    // If the user already exists fetch their sendgrid contact id
+    if (oldProfile) {
+      contactId = await getContactIdByEmail(oldProfile.email);
+    }
+    const lists = [LIST_REGISTERED_USERS];
+    if (newProfile.acceptedMarketing) {
+      lists.push(LIST_MARKETING_EMAILS);
+    } else if (contactId) {
+      // If they no longer subscribe to marketing emails remove them from the contact list
+      await removeUserFromList(LIST_MARKETING_EMAILS, contactId);
+    }
+    await addUserToContacts(newProfile, lists, contactId);
+  } catch (err) {
+    if (
+      err.code === 400 &&
+      err.response?.body?.errors?.[0]?.message ===
+        'length should be less than 50 chars'
+    ) {
+      log.warn(
+        { err, userId: oldProfile.id },
+        'skipped updating user in mailing list',
+      );
+    } else {
+      log.error(
+        { err, userId: oldProfile.id },
+        'failed to update user in mailing list',
+      );
+      throw err;
+    }
+  }
 };
