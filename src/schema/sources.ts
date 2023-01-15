@@ -276,6 +276,16 @@ export const typeDefs = /* GraphQL */ `
     ): Source! @auth
 
     """
+    Deletes a squad
+    """
+    deleteSource(
+      """
+      Source to delete
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
     Removes the logged-in user as a member from the source
     """
     leaveSource(
@@ -297,6 +307,7 @@ export enum SourcePermissions {
   View,
   Post,
   Leave,
+  Delete,
 }
 
 export const canAccessSource = async (
@@ -327,6 +338,12 @@ export const canAccessSource = async (
         ) {
           return false;
         }
+        break;
+      case SourcePermissions.Delete:
+        if (member.role !== SourceMemberRoles.Owner) {
+          return false;
+        }
+        break;
     }
 
     if (member) {
@@ -595,6 +612,17 @@ export const resolvers: IResolvers<any, Context> = {
         }
         throw err;
       }
+    },
+    deleteSource: async (
+      _,
+      { sourceId }: { sourceId: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Delete);
+      await ctx.con.getRepository(Source).delete({
+        id: sourceId,
+      });
+      return { _: true };
     },
     leaveSource: async (
       _,
