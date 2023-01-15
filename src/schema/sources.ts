@@ -14,6 +14,7 @@ import {
 } from '../entity';
 import {
   forwardPagination,
+  GQLEmptyResponse,
   offsetPageGenerator,
   PaginationResponse,
 } from './common';
@@ -274,6 +275,26 @@ export const typeDefs = /* GraphQL */ `
       """
       token: String
     ): Source! @auth
+
+    """
+    Deletes a squad
+    """
+    deleteSource(
+      """
+      Source to delete
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Removes the logged-in user as a member from the source
+    """
+    leaveSource(
+      """
+      Source to leave
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
   }
 `;
 
@@ -286,6 +307,8 @@ const sourceToGQL = (source: Source): GQLSource => ({
 export enum SourcePermissions {
   View,
   Post,
+  Leave,
+  Delete,
 }
 
 export const canAccessSource = async (
@@ -293,27 +316,42 @@ export const canAccessSource = async (
   source: Source,
   permission = SourcePermissions.View,
 ): Promise<boolean> => {
-  switch (permission) {
-    case SourcePermissions.View:
-      if (!source.private) {
-        return true;
-      }
-      break;
-    case SourcePermissions.Post:
-      if (source.type !== 'squad') {
-        return false;
-      }
-      break;
+  if (permission === SourcePermissions.View && !source.private) {
+    return true;
   }
+
   if (ctx.userId) {
     const member = await ctx.con.getRepository(SourceMember).findOneBy({
       userId: ctx.userId,
       sourceId: source.id,
     });
+
+    switch (permission) {
+      case SourcePermissions.Post:
+        if (source.type !== 'squad') {
+          return false;
+        }
+        break;
+      case SourcePermissions.Leave:
+        if (
+          member.role === SourceMemberRoles.Owner ||
+          source.type !== 'squad'
+        ) {
+          return false;
+        }
+        break;
+      case SourcePermissions.Delete:
+        if (member.role !== SourceMemberRoles.Owner) {
+          return false;
+        }
+        break;
+    }
+
     if (member) {
       return true;
     }
   }
+
   return false;
 };
 
@@ -577,6 +615,29 @@ export const resolvers: IResolvers<any, Context> = {
         }
         throw err;
       }
+    },
+    deleteSource: async (
+      _,
+      { sourceId }: { sourceId: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Delete);
+      await ctx.con.getRepository(Source).delete({
+        id: sourceId,
+      });
+      return { _: true };
+    },
+    leaveSource: async (
+      _,
+      { sourceId }: { sourceId: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Leave);
+      await ctx.con.getRepository(SourceMember).delete({
+        sourceId,
+        userId: ctx.userId,
+      });
+      return { _: true };
     },
     joinSource: async (
       _,
