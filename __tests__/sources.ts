@@ -200,6 +200,9 @@ query Source($id: ID!) {
 
   it('should return current member as owner', async () => {
     loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Owner });
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.data).toMatchSnapshot();
   });
