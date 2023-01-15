@@ -15,7 +15,8 @@ const worker: Worker = {
       newProfile.infoConfirmed &&
       (newProfile.email !== oldProfile.email ||
         !oldProfile.infoConfirmed ||
-        newProfile.acceptedMarketing !== oldProfile.acceptedMarketing)
+        newProfile.acceptedMarketing !== oldProfile.acceptedMarketing ||
+        newProfile.name !== oldProfile.name)
     ) {
       await updateUserContactLists(log, newProfile, oldProfile);
     }
