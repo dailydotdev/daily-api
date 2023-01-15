@@ -7,8 +7,6 @@ import commentCommentedSlackMessage from './commentCommentedSlackMessage';
 import postCommentedSlackMessage from './postCommentedSlackMessage';
 import postUpvotedRep from './postUpvotedRep';
 import postUpvoteCanceledRep from './postUpvoteCanceledRep';
-// import postCommentedAuthorTweet from './postCommentedAuthorTweet';
-// import postReachedViewsThresholdTweet from './postReachedViewsThresholdTweet';
 import postCommentedRedis from './postCommentedRedis';
 import postUpvotedRedis from './postUpvotedRedis';
 import postBannedRep from './postBannedRep';
@@ -24,6 +22,7 @@ import newNotificationRealTime from './newNotificationRealTime';
 import newNotificationMail from './newNotificationMail';
 import newNotificationPush from './newNotificationPush';
 import squadActivation from './squadActivation';
+import addToMailingList from './addToMailingList';
 import { workers as notificationWorkers } from './notifications';
 
 export { Worker } from './worker';
@@ -39,8 +38,6 @@ export const workers: Worker[] = [
   postCommentedSlackMessage,
   postUpvotedRep,
   postUpvoteCanceledRep,
-  //   postCommentedAuthorTweet,
-  // postReachedViewsThresholdTweet,
   postCommentedRedis,
   postUpvotedRedis,
   postBannedRep,
@@ -53,6 +50,7 @@ export const workers: Worker[] = [
   newNotificationMail,
   newNotificationPush,
   squadActivation,
+  addToMailingList,
   cdc,
   ...notificationWorkers,
 ];
