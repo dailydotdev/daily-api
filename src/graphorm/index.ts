@@ -166,6 +166,16 @@ const obj = new GraphORM({
             .from(SourceMember, 'sm')
             .where(`sm."sourceId" = ${alias}.id`),
       },
+      currentMember: {
+        select: (ctx, alias, qb) => {
+          console.log('user: ', ctx.userId);
+          return qb
+            .select('role')
+            .from(SourceMember, 'sm')
+            .where(`sm."userId" = :userId`, { userId: ctx.userId })
+            .andWhere(`sm."sourceId" = "${alias}".id`);
+        },
+      },
     },
   },
   SourceMember: {

@@ -40,7 +40,6 @@ import {
   validateRegex,
   ValidateRegex,
 } from '../common/object';
-import { EmptyResponse } from '@google-cloud/pubsub';
 
 export interface GQLSource {
   id: string;
@@ -119,6 +118,11 @@ export const typeDefs = /* GraphQL */ `
     Number of members in the source
     """
     membersCount: Int!
+
+    """
+    Logged Member role
+    """
+    currentMember: String
   }
 
   type SourceConnection {
