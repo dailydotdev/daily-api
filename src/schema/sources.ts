@@ -23,6 +23,7 @@ import {
   DeepPartial,
   EntityManager,
   EntityNotFoundError,
+  ILike,
 } from 'typeorm';
 import { GQLUser } from './users';
 import { Connection } from 'graphql-relay/index';
@@ -324,7 +325,7 @@ export const ensureSourcePermissions = async (
   if (sourceId) {
     const source = await ctx.con
       .getRepository(Source)
-      .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
+      .findOneByOrFail([{ id: ILike(sourceId) }, { handle: ILike(sourceId) }]);
     if (await canAccessSource(ctx, source, permission)) {
       return source;
     }
@@ -366,7 +367,9 @@ const getSourceById = async (
 ): Promise<GQLSource> => {
   const res = await graphorm.query<GQLSource>(ctx, info, (builder) => {
     builder.queryBuilder = builder.queryBuilder
-      .andWhere('(id = :id or handle = :id)', { id })
+      .andWhere((qb) =>
+        qb.where({ id: ILike(id) }).orWhere({ handle: ILike(id) }),
+      )
       .limit(1);
     return builder;
   });
@@ -581,9 +584,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLSource> => {
-      const source = await ctx.con
-        .getRepository(Source)
-        .findOneByOrFail({ id: sourceId });
+      const source = await getSourceById(ctx, info, sourceId);
       if (source.type !== 'squad') {
         throw new ForbiddenError(
           'Access denied! You do not have permission for this action!',
@@ -603,11 +604,11 @@ export const resolvers: IResolvers<any, Context> = {
         );
       }
       await addNewSourceMember(ctx.con, {
-        sourceId,
+        sourceId: source.id,
         userId: ctx.userId,
         role: SourceMemberRoles.Member,
       });
-      return getSourceById(ctx, info, sourceId);
+      return getSourceById(ctx, info, source.id);
     },
   }),
   Source: {
