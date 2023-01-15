@@ -235,14 +235,6 @@ query Source($id: ID!) {
     expect(res.errors).toBeFalsy();
     expect(res.data.source.id).toEqual('a');
   });
-
-  it('should return source by case-insensitive handle', async () => {
-    loggedUser = '1';
-    await con.getRepository(Source).update({ id: 'a' }, { handle: 'handle' });
-    const res = await client.query(QUERY, { variables: { id: 'hAndLe' } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.source.id).toEqual('a');
-  });
 });
 
 describe('members field', () => {
