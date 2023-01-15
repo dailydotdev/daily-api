@@ -167,14 +167,18 @@ const obj = new GraphORM({
             .where(`sm."sourceId" = ${alias}.id`),
       },
       currentMember: {
-        select: (ctx, alias, qb) => {
-          console.log('user: ', ctx.userId);
-          return qb
-            .select('role')
-            .from(SourceMember, 'sm')
-            .where(`sm."userId" = :userId`, { userId: ctx.userId })
-            .andWhere(`sm."sourceId" = "${alias}".id`);
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .innerJoin(
+                SourceMember,
+                'sm',
+                `"${childAlias}"."sourceId" = "${parentAlias}".id`,
+              )
+              .where(`sm."userId" = :userId`, { userId: ctx.userId }),
         },
+        transform: nullIfNotLoggedIn,
       },
     },
   },

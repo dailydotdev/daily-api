@@ -121,6 +121,28 @@ Object {
 }
 `;
 
+exports[`query source current member should return current member as member 1`] = `
+Object {
+  "source": Object {
+    "currentMember": Object {
+      "role": "member",
+    },
+    "id": "a",
+  },
+}
+`;
+
+exports[`query source current member should return current member as owner 1`] = `
+Object {
+  "source": Object {
+    "currentMember": Object {
+      "role": "owner",
+    },
+    "id": "a",
+  },
+}
+`;
+
 exports[`query source should return source by id 1`] = `
 Object {
   "source": Object {

@@ -50,6 +50,7 @@ export interface GQLSource {
   private: boolean;
   public: boolean;
   members?: Connection<GQLSourceMember>;
+  currentMember?: GQLSourceMember;
 }
 
 export interface GQLSourceMember {
@@ -120,9 +121,9 @@ export const typeDefs = /* GraphQL */ `
     membersCount: Int!
 
     """
-    Logged Member role
+    Logged-in member object
     """
-    currentMember: String
+    currentMember: SourceMember!
   }
 
   type SourceConnection {
@@ -320,6 +321,7 @@ export const canAccessSource = async (
   source: Source,
   permission = SourcePermissions.View,
 ): Promise<boolean> => {
+  console.log(source, permission, ctx.userId);
   if (permission === SourcePermissions.View && !source.private) {
     return true;
   }
@@ -329,6 +331,7 @@ export const canAccessSource = async (
       userId: ctx.userId,
       sourceId: source.id,
     });
+    console.log(member);
 
     switch (permission) {
       case SourcePermissions.Post:

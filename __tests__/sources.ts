@@ -186,6 +186,34 @@ query SourceByFeed($data: String!) {
   });
 });
 
+describe('query source current member', () => {
+  const QUERY = `
+query Source($id: ID!) {
+  source(id: $id) {
+    id
+    currentMember {
+      role
+    }
+  }
+}
+  `;
+
+  it('should return current member as owner', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return current member as member', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Member });
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('query source', () => {
   const QUERY = `
 query Source($id: ID!) {
