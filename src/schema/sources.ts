@@ -276,7 +276,7 @@ export const typeDefs = /* GraphQL */ `
     ): Source! @auth
 
     """
-    Deletes a inactive squad
+    Deletes a squad
     """
     deleteSource(
       """
