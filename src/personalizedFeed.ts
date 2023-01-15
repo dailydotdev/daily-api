@@ -11,18 +11,11 @@ interface TinybirdResponse<T> {
   data: T[];
 }
 
+const httpAgent = new http.Agent({ keepAlive: true });
+const httpsAgent = new https.Agent({ keepAlive: true });
 const fetchOptions = {
-  agent: (parsedURL) => {
-    if (parsedURL.protocol === 'http:') {
-      return new http.Agent({
-        keepAlive: true,
-      });
-    } else {
-      return new https.Agent({
-        keepAlive: true,
-      });
-    }
-  },
+  agent: (_parsedURL) =>
+    _parsedURL.protocol === 'http:' ? httpAgent : httpsAgent,
 };
 
 export async function fetchTinybirdFeed(
