@@ -13,7 +13,7 @@ interface TinybirdResponse<T> {
 
 const fetchOptions = {
   agent: (parsedURL) => {
-    if (parsedURL.protocol == 'http:') {
+    if (parsedURL.protocol === 'http:') {
       return new http.Agent({
         keepAlive: true,
       });
