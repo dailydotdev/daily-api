@@ -58,6 +58,7 @@ export interface GQLSourceMember {
   user: GQLUser;
   role: SourceMemberRoles;
   createdAt: Date;
+  referralToken: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -153,6 +154,10 @@ export const typeDefs = /* GraphQL */ `
     Role of this user in the source
     """
     role: String!
+    """
+    Token to be used for inviting new squad members
+    """
+    referralToken: String!
   }
 
   type SourceMemberConnection {
