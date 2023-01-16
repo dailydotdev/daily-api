@@ -47,6 +47,7 @@ import {
   notifyNewCommentMention,
   notifyPostAdded,
   notifyMemberJoinedSource,
+  notifyUserCreated,
 } from '../common';
 import { ChangeMessage, ChangeObject } from '../types';
 import { DataSource } from 'typeorm';
@@ -180,7 +181,9 @@ const onUserChange = async (
   logger: FastifyLoggerInstance,
   data: ChangeMessage<User>,
 ): Promise<void> => {
-  if (data.payload.op === 'u') {
+  if (data.payload.op === 'c') {
+    await notifyUserCreated(logger, data.payload.after);
+  } else if (data.payload.op === 'u') {
     await notifyUserUpdated(logger, data.payload.before, data.payload.after);
     if (
       data.payload.after.reputation >= submissionAccessThreshold &&

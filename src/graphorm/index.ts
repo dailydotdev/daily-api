@@ -166,6 +166,18 @@ const obj = new GraphORM({
             .from(SourceMember, 'sm')
             .where(`sm."sourceId" = ${alias}.id`),
       },
+      currentMember: {
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .select('*')
+              .from(SourceMember, 'sm')
+              .where(`sm."userId" = :userId`, { userId: ctx.userId })
+              .andWhere(`sm."sourceId" = "${parentAlias}".id`),
+        },
+        transform: nullIfNotLoggedIn,
+      },
     },
   },
   SourceMember: {

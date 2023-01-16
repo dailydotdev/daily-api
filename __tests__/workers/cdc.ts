@@ -27,6 +27,8 @@ import {
   notifyNewCommentMention,
   notifyPostAdded,
   notifyMemberJoinedSource,
+  notifyUserCreated,
+  notifyUserUpdated,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -89,6 +91,8 @@ jest.mock('../../src/common', () => ({
   notifySubmissionGrantedAccess: jest.fn(),
   notifyNewCommentMention: jest.fn(),
   notifyNewNotification: jest.fn(),
+  notifyUserCreated: jest.fn(),
+  notifyUserUpdated: jest.fn(),
   sendEmail: jest.fn(),
 }));
 
@@ -372,6 +376,42 @@ describe('comment', () => {
 describe('user', () => {
   type ObjectType = User;
   const base: ChangeObject<ObjectType> = { ...defaultUser };
+
+  it('should notify on user created', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        table: 'user',
+        op: 'c',
+      }),
+    );
+    expect(notifyUserCreated).toBeCalledTimes(1);
+    expect(jest.mocked(notifyUserCreated).mock.calls[0].slice(1)).toEqual([
+      base,
+    ]);
+  });
+
+  it('should notify on user updated', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      username: 'newidoshamun',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        table: 'user',
+        op: 'u',
+      }),
+    );
+    expect(notifyUserUpdated).toBeCalledTimes(1);
+    expect(jest.mocked(notifyUserUpdated).mock.calls[0].slice(1)).toEqual([
+      base,
+      after,
+    ]);
+  });
 
   it('should notify on username change', async () => {
     const after: ChangeObject<ObjectType> = {
