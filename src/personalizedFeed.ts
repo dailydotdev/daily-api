@@ -43,13 +43,16 @@ export async function fetchTinybirdFeed(
       },
     );
     if (filters.includeTags?.length) {
-      params += `&allowed_tags=${filters.includeTags.join(',')}`;
+      const value = encodeURIComponent(filters.includeTags.join(','));
+      params += `&allowed_tags=${value}`;
     }
     if (filters.blockedTags?.length) {
-      params += `&blocked_tags=${filters.blockedTags.join(',')}`;
+      const value = encodeURIComponent(filters.blockedTags.join(','));
+      params += `&blocked_tags=${value}`;
     }
     if (filters.excludeSources?.length) {
-      params += `&blocked_sources=${filters.excludeSources.join(',')}`;
+      const value = encodeURIComponent(filters.excludeSources.join(','));
+      params += `&blocked_sources=${value}`;
     }
   } else {
     params += `&feed_id=global`;
@@ -58,13 +61,13 @@ export async function fetchTinybirdFeed(
     ctx?.span,
     'Feed_v2.fetchTinybirdFeed',
     async () => {
-      const url =
-        feedVersion >= 9
-          ? process.env.INTERNAL_FEED
-          : feedVersion !== 6
-          ? process.env.TINYBIRD_FEED
-          : process.env.TINYBIRD_FEED_V3;
-      const res = await fetch(`${url}&${params}`, fetchOptions);
+      if (feedVersion < 10) {
+        feedVersion = 10;
+      }
+      const res = await fetch(
+        `${process.env.INTERNAL_FEED}&${params}`,
+        fetchOptions,
+      );
       return res.json();
     },
     { params, feedVersion },
