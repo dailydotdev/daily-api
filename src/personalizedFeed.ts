@@ -12,7 +12,7 @@ interface TinybirdResponse<T> {
   data: T[];
 }
 
-const agentOpts: AgentOptions = { keepAlive: true, timeout: 1000 * 60 };
+const agentOpts: AgentOptions = { keepAlive: true, timeout: 1000 * 5 };
 const httpAgent = new http.Agent(agentOpts);
 const httpsAgent = new https.Agent(agentOpts);
 const fetchOptions = {

@@ -55,7 +55,7 @@ export default async function app(
     disableRequestLogging: true,
     trustProxy: true,
   });
-  app.server.keepAliveTimeout = 650 * 1000;
+  app.server.keepAliveTimeout = 30_000;
 
   const gracefulShutdown = () => {
     app.log.info('starting termination');
