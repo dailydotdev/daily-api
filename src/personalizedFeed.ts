@@ -6,13 +6,15 @@ import http from 'node:http';
 import https from 'node:https';
 import { ioRedisPool } from './redis';
 import { DataSource } from 'typeorm';
+import { AgentOptions } from 'http';
 
 interface TinybirdResponse<T> {
   data: T[];
 }
 
-const httpAgent = new http.Agent({ keepAlive: true });
-const httpsAgent = new https.Agent({ keepAlive: true });
+const agentOpts: AgentOptions = { keepAlive: true, timeout: 1000 * 60 };
+const httpAgent = new http.Agent(agentOpts);
+const httpsAgent = new https.Agent(agentOpts);
 const fetchOptions = {
   agent: (_parsedURL) =>
     _parsedURL.protocol === 'http:' ? httpAgent : httpsAgent,
