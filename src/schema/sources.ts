@@ -273,6 +273,32 @@ export const typeDefs = /* GraphQL */ `
     ): Source! @auth
 
     """
+    Edit a squad
+    """
+    editSquad(
+      """
+      Source to edit
+      """
+      sourceId: ID!
+      """
+      Name for the squad
+      """
+      name: String!
+      """
+      Unique handle
+      """
+      handle: String!
+      """
+      Description for the squad (max 250 chars)
+      """
+      description: String
+      """
+      Avatar image for the squad
+      """
+      image: Upload
+    ): Source! @auth
+
+    """
     Adds the logged-in user as member to the source
     """
     joinSource(
@@ -319,6 +345,7 @@ export enum SourcePermissions {
   Post,
   Leave,
   Delete,
+  Edit,
 }
 
 export const canAccessSource = async (
@@ -350,6 +377,7 @@ export const canAccessSource = async (
           return false;
         }
         break;
+      case SourcePermissions.Edit:
       case SourcePermissions.Delete:
         if (member.role !== SourceMemberRoles.Owner) {
           return false;
@@ -363,6 +391,25 @@ export const canAccessSource = async (
   }
 
   return false;
+};
+
+const validateSquadData = ({
+  handle,
+  name,
+  description,
+}: Pick<SquadSource, 'handle' | 'name' | 'description'>): string => {
+  handle = handle.replace('@', '').trim();
+  const regexParams: ValidateRegex[] = [
+    ['name', name, nameRegex, true],
+    ['handle', handle, handleRegex, true],
+    ['description', description, descriptionRegex, false],
+  ];
+  const regexResult = validateRegex(regexParams);
+  if (Object.keys(regexResult).length) {
+    throw new ValidationError(JSON.stringify(regexResult));
+  }
+
+  return handle;
 };
 
 export const ensureSourcePermissions = async (
@@ -406,6 +453,14 @@ type CreateSquadArgs = {
   image?: FileUpload;
   postId: string;
   commentary: string;
+};
+
+type EditSquadArgs = {
+  sourceId: string;
+  name: string;
+  handle: string;
+  description?: string;
+  image?: FileUpload;
 };
 
 const getSourceById = async (
@@ -562,20 +617,22 @@ export const resolvers: IResolvers<any, Context> = {
   Mutation: traceResolverObject<any, any>({
     createSquad: async (
       _,
-      { name, handle, commentary, image, postId, description }: CreateSquadArgs,
+      {
+        name,
+        handle: inputHandle,
+        commentary,
+        image,
+        postId,
+        description,
+      }: CreateSquadArgs,
       ctx,
       info,
     ): Promise<GQLSource> => {
-      handle = handle.replace('@', '').trim();
-      const regexParams: ValidateRegex[] = [
-        ['name', name, nameRegex, true],
-        ['handle', handle, handleRegex, true],
-        ['description', description, descriptionRegex, false],
-      ];
-      const regexResult = validateRegex(regexParams);
-      if (Object.keys(regexResult).length) {
-        throw new ValidationError(JSON.stringify(regexResult));
-      }
+      const handle = validateSquadData({
+        handle: inputHandle,
+        name,
+        description,
+      });
       try {
         const sourceId = await ctx.con.transaction(async (entityManager) => {
           const id = randomUUID();
@@ -613,6 +670,60 @@ export const resolvers: IResolvers<any, Context> = {
           return id;
         });
         return getSourceById(ctx, info, sourceId);
+      } catch (err) {
+        if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
+          if (err.message.indexOf('source_handle') > -1) {
+            throw new ValidationError(
+              JSON.stringify({ handle: 'handle is already used' }),
+            );
+          }
+        }
+        throw err;
+      }
+    },
+    editSquad: async (
+      _,
+      {
+        sourceId,
+        name,
+        handle: inputHandle,
+        image,
+        description,
+      }: EditSquadArgs,
+      ctx,
+      info,
+    ): Promise<GQLSource> => {
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Edit);
+      const handle = validateSquadData({
+        handle: inputHandle,
+        name,
+        description,
+      });
+
+      try {
+        const editedSourceId = await ctx.con.transaction(
+          async (entityManager) => {
+            const repo = entityManager.getRepository(SquadSource);
+            // Create a new source
+            await repo.update(
+              { id: sourceId },
+              {
+                name,
+                handle,
+                description,
+              },
+            );
+            // Upload the image (if provided)
+            if (image) {
+              const { createReadStream } = await image;
+              const stream = createReadStream();
+              const imageUrl = await uploadSquadImage(sourceId, stream);
+              await repo.update({ id: sourceId }, { image: imageUrl });
+            }
+            return sourceId;
+          },
+        );
+        return getSourceById(ctx, info, editedSourceId);
       } catch (err) {
         if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
           if (err.message.indexOf('source_handle') > -1) {
