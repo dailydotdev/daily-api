@@ -63,13 +63,11 @@ export async function fetchTinybirdFeed(
     ctx?.span,
     'Feed_v2.fetchTinybirdFeed',
     async () => {
-      if (feedVersion < 10) {
-        feedVersion = 10;
-      }
-      const res = await fetch(
-        `${process.env.INTERNAL_FEED}&${params}`,
-        fetchOptions,
-      );
+      const url =
+        feedVersion === 7
+          ? process.env.TINYBIRD_FEED
+          : process.env.INTERNAL_FEED;
+      const res = await fetch(`${url}&${params}`, fetchOptions);
       return res.json();
     },
     { params, feedVersion },
