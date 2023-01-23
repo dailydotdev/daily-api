@@ -279,6 +279,33 @@ query Source($id: ID!) {
   });
 });
 
+describe('query sourceHandleTaken', () => {
+  const QUERY = `
+    query SourceHandleTaken($handle: String!) {
+      sourceHandleTaken(handle: $handle) 
+    }
+  `;
+
+  const updateSource = (handle = 'a') =>
+    con.getRepository(Source).update({ id: 'a' }, { handle, private: true });
+
+  it('should return false if the source handle is not taken', async () => {
+    loggedUser = '3';
+    await updateSource();
+    const res = await client.query(QUERY, { variables: { handle: 'aa' } });
+    expect(res.data.sourceHandleTaken).toBeFalsy();
+  });
+
+  it('should return true if the source handle is taken', async () => {
+    loggedUser = '3';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { handle: 'a', private: true });
+    const res = await client.query(QUERY, { variables: { handle: 'a' } });
+    expect(res.data.sourceHandleTaken).toBeTruthy();
+  });
+});
+
 describe('members field', () => {
   const QUERY = `
 query Source($id: ID!) {

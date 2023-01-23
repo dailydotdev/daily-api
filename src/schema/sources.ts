@@ -239,6 +239,11 @@ export const typeDefs = /* GraphQL */ `
     Get source member by referral token
     """
     sourceMemberByToken(token: String!): SourceMember!
+
+    """
+    Check if source handle is already taken
+    """
+    sourceHandleTaken(handle: String!): Boolean!
   }
 
   extend type Mutation {
@@ -471,6 +476,11 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLSource> => {
       await ensureSourcePermissions(ctx, id);
       return getSourceById(ctx, info, id);
+    },
+    sourceHandleTaken: async (_, { handle }: { handle: string }, ctx) => {
+      const source = await ctx.getRepository(Source).findOneBy({ handle });
+
+      return !!source;
     },
     sourceMembers: async (
       _,
