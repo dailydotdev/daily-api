@@ -286,21 +286,19 @@ describe('query sourceHandleTaken', () => {
     }
   `;
 
-  const updateSource = (handle = 'a') =>
+  const updateHandle = (handle = 'a') =>
     con.getRepository(Source).update({ id: 'a' }, { handle, private: true });
 
   it('should return false if the source handle is not taken', async () => {
     loggedUser = '3';
-    await updateSource();
+    await updateHandle();
     const res = await client.query(QUERY, { variables: { handle: 'aa' } });
     expect(res.data.sourceHandleTaken).toBeFalsy();
   });
 
   it('should return true if the source handle is taken', async () => {
     loggedUser = '3';
-    await con
-      .getRepository(Source)
-      .update({ id: 'a' }, { handle: 'a', private: true });
+    await updateHandle();
     const res = await client.query(QUERY, { variables: { handle: 'a' } });
     expect(res.data.sourceHandleTaken).toBeTruthy();
   });
