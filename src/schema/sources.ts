@@ -480,7 +480,7 @@ export const resolvers: IResolvers<any, Context> = {
     sourceHandleExists: async (_, { handle }: { handle: string }, ctx) => {
       const source = await ctx
         .getRepository(Source)
-        .findOneBy({ handle: handle.toLocaleLowerCase() });
+        .findOneBy({ handle: handle.toLowerCase() });
 
       return !!source;
     },
