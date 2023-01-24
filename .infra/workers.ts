@@ -160,7 +160,7 @@ export const workers: Worker[] = [
     subscription: 'api.squad-feature-access',
   },
   {
-    topic: 'api.v1.feature-access',
+    topic: 'api.v1.feature-granted',
     subscription: 'api.feature-access-notification',
   },
   {

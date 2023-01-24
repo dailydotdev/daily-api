@@ -4,6 +4,7 @@ import createOrGetConnection from '../db';
 import { getSettings } from '../schema/settings';
 import {
   ALERTS_DEFAULT,
+  Feature,
   getUnreadNotificationsCount,
   SETTINGS_DEFAULT,
   SourceMember,
@@ -24,6 +25,11 @@ const excludeProperties = <T, K extends keyof T>(
   }
   return obj;
 };
+
+const getFeatures = async (
+  con: DataSource,
+  userId: string,
+): Promise<Feature[]> => con.getRepository(Feature).findBy({ userId });
 
 const getSquads = async (
   con: DataSource,
@@ -58,12 +64,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const con = await createOrGetConnection();
     const { userId } = req;
     if (userId) {
-      const [alerts, settings, unreadNotificationsCount, squads] =
+      const [alerts, settings, unreadNotificationsCount, squads, features] =
         await Promise.all([
           getAlerts(con, userId),
           getSettings(con, userId),
           getUnreadNotificationsCount(con, userId),
           getSquads(con, userId),
+          getFeatures(con, userId),
         ]);
       return res.send({
         alerts: excludeProperties(alerts, ['userId']),
@@ -74,6 +81,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         ]),
         notifications: { unreadNotificationsCount },
         squads,
+        features,
       });
     }
     return res.send({
@@ -81,6 +89,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       settings: SETTINGS_DEFAULT,
       notifications: { unreadNotificationsCount: 0 },
       squads: [],
+      features: [],
     });
   });
 }

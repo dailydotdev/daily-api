@@ -41,7 +41,7 @@ const communityLinkSubmittedTopic = pubsub.topic('community-link-submitted');
 const newNotificationTopic = pubsub.topic('api.v1.new-notification');
 const newCommentMentionTopic = pubsub.topic('api.v1.new-comment-mention');
 const memberJoinedSourceTopic = pubsub.topic('api.v1.member-joined-source');
-const featureAccess = pubsub.topic('api.v1.feature-access');
+const featureAccess = pubsub.topic('api.v1.feature-granted');
 const postAddedTopic = pubsub.topic('api.v1.post-added');
 const userCreatedTopic = pubsub.topic('api.v1.user-created');
 
