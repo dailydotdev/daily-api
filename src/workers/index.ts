@@ -23,6 +23,7 @@ import newNotificationMail from './newNotificationMail';
 import newNotificationPush from './newNotificationPush';
 import squadActivation from './squadActivation';
 import addToMailingList from './addToMailingList';
+import squadFeatureAccess from './squadFeatureAccess';
 import { workers as notificationWorkers } from './notifications';
 
 export { Worker } from './worker';
@@ -50,6 +51,7 @@ export const workers: Worker[] = [
   newNotificationMail,
   newNotificationPush,
   squadActivation,
+  squadFeatureAccess,
   addToMailingList,
   cdc,
   ...notificationWorkers,

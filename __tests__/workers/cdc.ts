@@ -29,6 +29,7 @@ import {
   notifyMemberJoinedSource,
   notifyUserCreated,
   notifyUserUpdated,
+  notifyFeatureAccess,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -42,6 +43,7 @@ import {
   CommentMention,
   CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
+  Feature,
   Feed,
   Notification,
   Post,
@@ -93,6 +95,7 @@ jest.mock('../../src/common', () => ({
   notifyNewNotification: jest.fn(),
   notifyUserCreated: jest.fn(),
   notifyUserUpdated: jest.fn(),
+  notifyFeatureAccess: jest.fn(),
   sendEmail: jest.fn(),
 }));
 
@@ -1147,5 +1150,30 @@ describe('source member', () => {
     expect(
       jest.mocked(notifyMemberJoinedSource).mock.calls[0].slice(1),
     ).toEqual([base]);
+  });
+});
+
+describe('feature', () => {
+  type ObjectType = Partial<Feature>;
+  const base: ChangeObject<ObjectType> = {
+    feature: 'squad',
+    userId: '1',
+    createdAt: Date.now(),
+  };
+
+  it('should notify on new feature', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'feature',
+      }),
+    );
+    expect(notifyFeatureAccess).toBeCalledTimes(1);
+    expect(jest.mocked(notifyFeatureAccess).mock.calls[0].slice(1)).toEqual([
+      base,
+    ]);
   });
 });

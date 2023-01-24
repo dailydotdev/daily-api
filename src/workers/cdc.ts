@@ -18,6 +18,7 @@ import {
   SubmissionStatus,
   Upvote,
   User,
+  Feature,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -48,6 +49,7 @@ import {
   notifyPostAdded,
   notifyMemberJoinedSource,
   notifyUserCreated,
+  notifyFeatureAccess,
 } from '../common';
 import { ChangeMessage, ChangeObject } from '../types';
 import { DataSource } from 'typeorm';
@@ -398,7 +400,18 @@ const onSourceMemberChange = async (
   data: ChangeMessage<SourceMember>,
 ) => {
   if (data.payload.op === 'c') {
+    console.log('new source member!');
     await notifyMemberJoinedSource(logger, data.payload.after);
+  }
+};
+
+const onFeatureChange = async (
+  con: DataSource,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<Feature>,
+) => {
+  if (data.payload.op === 'c') {
+    await notifyFeatureAccess(logger, data.payload.after);
   }
 };
 
@@ -468,6 +481,9 @@ const worker: Worker = {
           break;
         case getTableName(con, SourceMember):
           await onSourceMemberChange(con, logger, data);
+          break;
+        case getTableName(con, Feature):
+          await onFeatureChange(con, logger, data);
           break;
       }
     } catch (err) {

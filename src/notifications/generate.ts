@@ -1,7 +1,7 @@
 import { NotificationType } from '../entity';
 import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
-import { scoutArticleLink } from '../common';
+import { scoutArticleLink, squadCreateLink } from '../common';
 import {
   NotificationBaseContext,
   NotificationCommentContext,
@@ -51,6 +51,8 @@ export const notificationTitleMap: Record<
   ) =>
     UPVOTE_TITLES[ctx.upvotes] ??
     `<b>You rock!</b> Your comment <span class="text-theme-color-avocado">earned ${ctx.upvotes} upvotes!</span>`,
+  squad_access: () =>
+    `Congratulations! You got access to our <span class="text-theme-color-cabbage">Squad beta.</span>`,
   squad_post_added: (
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) =>
@@ -144,6 +146,12 @@ export const generateNotificationMap: Record<
       .upvotes(ctx.upvotes, ctx.upvoters)
       .descriptionComment(ctx.comment)
       .targetPost(ctx.post, ctx.comment),
+  squad_access: (builder) =>
+    builder
+      .referenceSystem()
+      .icon(NotificationIcon.DailyDev)
+      .description(`Create your new Squad`)
+      .targetUrl(squadCreateLink),
   squad_post_added: (
     builder,
     ctx: NotificationPostContext & NotificationDoneByContext,

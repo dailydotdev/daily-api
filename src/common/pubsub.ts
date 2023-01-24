@@ -10,6 +10,7 @@ import {
   Notification,
   CommentMention,
   SourceMember,
+  Feature,
 } from '../entity';
 import { ChangeObject } from '../types';
 
@@ -40,6 +41,7 @@ const communityLinkSubmittedTopic = pubsub.topic('community-link-submitted');
 const newNotificationTopic = pubsub.topic('api.v1.new-notification');
 const newCommentMentionTopic = pubsub.topic('api.v1.new-comment-mention');
 const memberJoinedSourceTopic = pubsub.topic('api.v1.member-joined-source');
+const featureAccess = pubsub.topic('api.v1.feature-access');
 const postAddedTopic = pubsub.topic('api.v1.post-added');
 const userCreatedTopic = pubsub.topic('api.v1.user-created');
 
@@ -301,6 +303,11 @@ export const notifyMemberJoinedSource = async (
   sourceMember: ChangeObject<SourceMember>,
 ): Promise<void> =>
   publishEvent(log, memberJoinedSourceTopic, { sourceMember });
+
+export const notifyFeatureAccess = async (
+  log: EventLogger,
+  feature: ChangeObject<Feature>,
+): Promise<void> => publishEvent(log, featureAccess, { feature });
 
 export const notifyPostAdded = async (
   log: EventLogger,
