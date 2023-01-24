@@ -17,6 +17,11 @@ export const COMMUNITY_PICKS_SOURCE = 'community';
 export const SQUAD_IMAGE_PLACEHOLDER =
   'https://daily-now-res.cloudinary.com/image/upload/v1672041320/squads/squad_placeholder.jpg';
 
+export enum SourceType {
+  Machine = 'machine',
+  Squad = 'squad',
+}
+
 @Entity()
 @TableInheritance({
   column: { type: 'varchar', name: 'type', default: 'machine' },

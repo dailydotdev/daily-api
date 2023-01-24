@@ -17,6 +17,7 @@ import {
   Post,
   Source,
   SourceMember,
+  SourceType,
   User,
 } from '../entity';
 import { NotFoundError } from '../errors';
@@ -47,6 +48,11 @@ interface GQLMentionUserArgs {
   postId: string;
   query?: string;
   limit?: number;
+  sourceId?: string;
+}
+
+interface GQLCommentPreviewArgs {
+  content: string;
   sourceId?: string;
 }
 
@@ -231,7 +237,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Markdown equivalent of the user's comment
     """
-    commentPreview(content: String!): String @auth
+    commentPreview(content: String!, sourceId: String): String @auth
   }
 
   extend type Mutation {
@@ -321,6 +327,20 @@ export interface GQLUserCommentsArgs extends ConnectionArguments {
   userId: string;
 }
 
+const getSquadMembersFromIds = (
+  con: DataSource | EntityManager,
+  sourceId: string,
+  ids: string[],
+): Promise<SourceMember[]> =>
+  con
+    .getRepository(SourceMember)
+    .createQueryBuilder('sm')
+    .select('sm."userId"')
+    .innerJoin(Source, 's', 's.id = sm."sourceId"')
+    .where('(s.id = :sourceId OR s.handle = :sourceId)', { sourceId })
+    .andWhere('sm."userId" IN (:...ids)', { ids })
+    .getRawMany();
+
 interface MentionedUser {
   id: string;
   username?: string;
@@ -330,6 +350,7 @@ const getMentions = async (
   con: DataSource | EntityManager,
   content: string,
   userId: string,
+  sourceId?: string,
 ): Promise<MentionedUser[]> => {
   const replaced = content.replace(mentionSpecialCharacters, ' ');
   const words = replaced.split(' ');
@@ -345,9 +366,19 @@ const getMentions = async (
     return [];
   }
 
-  return con
+  const users = await con
     .getRepository(User)
     .find({ where: { username: In(result), id: Not(userId) } });
+
+  if (!sourceId) {
+    return users;
+  }
+
+  const ids = users.map(({ id }) => id);
+  const validMembers = await getSquadMembersFromIds(con, sourceId, ids);
+  const members = validMembers.map(({ userId }) => userId);
+
+  return users.filter(({ id }) => members.includes(id));
 };
 
 const saveMentions = (
@@ -378,8 +409,14 @@ const saveMentions = (
 export const saveComment = async (
   con: DataSource | EntityManager,
   comment: Comment,
+  sourceId?: string,
 ): Promise<Comment> => {
-  const mentions = await getMentions(con, comment.content, comment.userId);
+  const mentions = await getMentions(
+    con,
+    comment.content,
+    comment.userId,
+    sourceId,
+  );
   const contentHtml = markdown.render(comment.content, { mentions });
   comment.contentHtml = contentHtml;
   const savedComment = await con.getRepository(Comment).save(comment);
@@ -413,8 +450,9 @@ export const updateMentions = async (
 const saveNewComment = async (
   con: DataSource | EntityManager,
   comment: Comment,
+  sourceId?: string,
 ) => {
-  const savedComment = await saveComment(con, comment);
+  const savedComment = await saveComment(con, comment, sourceId);
 
   await con
     .getRepository(Post)
@@ -549,14 +587,11 @@ export const resolvers: IResolvers<any, Context> = {
           return userIds;
         }
 
-        const members: SourceMember[] = await ctx
-          .getRepository(SourceMember)
-          .createQueryBuilder('sm')
-          .select('sm."userId"')
-          .innerJoin(Source, 's', 's.id = sm."sourceId"')
-          .where('(s.id = :sourceId OR s.handle = :sourceId)', { sourceId })
-          .andWhere('sm."userId" IN (:...ids)', { ids: userIds })
-          .getRawMany();
+        const members = await getSquadMembersFromIds(
+          ctx.con,
+          sourceId,
+          userIds,
+        );
 
         return members.map((member) => member.userId);
       };
@@ -578,7 +613,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     commentPreview: async (
       _,
-      { content }: { content: string },
+      { content, sourceId }: GQLCommentPreviewArgs,
       ctx,
     ): Promise<string> => {
       const trimmed = content.trim();
@@ -587,7 +622,12 @@ export const resolvers: IResolvers<any, Context> = {
         return '';
       }
 
-      const mentions = await getMentions(ctx.con, trimmed, ctx.userId);
+      const mentions = await getMentions(
+        ctx.con,
+        trimmed,
+        ctx.userId,
+        sourceId,
+      );
 
       if (!mentions?.length) {
         return markdown.render(trimmed);
@@ -612,7 +652,9 @@ export const resolvers: IResolvers<any, Context> = {
         const post = await ctx.con
           .getRepository(Post)
           .findOneByOrFail({ id: postId });
-        await ensureSourcePermissions(ctx, post.sourceId);
+        const source = await ensureSourcePermissions(ctx, post.sourceId);
+        const squadId =
+          source.type === SourceType.Squad ? source.id : undefined;
         const comment = await ctx.con.transaction(async (entityManager) => {
           const createdComment = entityManager.getRepository(Comment).create({
             id: shortid.generate(),
@@ -621,7 +663,7 @@ export const resolvers: IResolvers<any, Context> = {
             content,
           });
 
-          return saveNewComment(entityManager, createdComment);
+          return saveNewComment(entityManager, createdComment, squadId);
         });
         return getCommentById(comment.id, ctx, info);
       } catch (err) {
@@ -651,10 +693,12 @@ export const resolvers: IResolvers<any, Context> = {
               relations: ['post'],
             });
           const post = await parentComment.post;
-          await ensureSourcePermissions(ctx, post.sourceId);
+          const source = await ensureSourcePermissions(ctx, post.sourceId);
           if (parentComment.parentId) {
             throw new ForbiddenError('Cannot comment on a sub-comment');
           }
+          const squadId =
+            source.type === SourceType.Squad ? source.id : undefined;
           const createdComment = entityManager.getRepository(Comment).create({
             id: shortid.generate(),
             postId: parentComment.postId,
@@ -663,7 +707,7 @@ export const resolvers: IResolvers<any, Context> = {
             content,
           });
 
-          return saveNewComment(entityManager, createdComment);
+          return saveNewComment(entityManager, createdComment, squadId);
         });
         return getCommentById(comment.id, ctx, info);
       } catch (err) {
@@ -675,7 +719,7 @@ export const resolvers: IResolvers<any, Context> = {
       }
     },
     editComment: async (
-      source,
+      _,
       { id, content }: { id: string; content: string },
       ctx: Context,
       info,
@@ -690,9 +734,13 @@ export const resolvers: IResolvers<any, Context> = {
         if (comment.userId !== ctx.userId) {
           throw new ForbiddenError("Cannot edit someone else's comment");
         }
+        const post = await comment.post;
+        const source = await post.source;
+        const squadId =
+          source.type === SourceType.Squad ? source.id : undefined;
         comment.content = content;
         comment.lastUpdatedAt = new Date();
-        await saveComment(entityManager, comment);
+        await saveComment(entityManager, comment, squadId);
       });
       return getCommentById(id, ctx, info);
     },
