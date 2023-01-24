@@ -26,7 +26,6 @@ import { getMentionLink } from '../src/common/markdown';
 import { saveComment, updateMentions } from '../src/schema/comments';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { createSource } from './sources';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -40,6 +39,17 @@ beforeAll(async () => {
   );
   client = state.client;
 });
+
+const createSource = (id: string, name: string, image: string): Source => {
+  const source = new Source();
+  source.id = id;
+  source.name = name;
+  source.image = image;
+  source.active = true;
+  source.private = false;
+  source.handle = id;
+  return source;
+};
 
 const usersFixture = [
   { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },
@@ -386,8 +396,8 @@ describe('query commentPreview', () => {
 
 describe('query recommendedMentions', () => {
   const QUERY = `
-    query RecommendedMentions($postId: String!, $query: String, $limit: Int) {
-      recommendedMentions(postId: $postId, query: $query, limit: $limit) {
+    query RecommendedMentions($postId: String!, $query: String, $limit: Int, $sourceId: String) {
+      recommendedMentions(postId: $postId, query: $query, limit: $limit, sourceId: $sourceId) {
         name
         username
         image
@@ -435,6 +445,7 @@ describe('query recommendedMentions', () => {
 
   it('should return users but must be filtered to which source feed the commenter is at', async () => {
     loggedUser = '1';
+    const sourceId = 'a';
     await con.getRepository(User).save([
       {
         id: 'sample1',
@@ -451,18 +462,18 @@ describe('query recommendedMentions', () => {
     ]);
     await con
       .getRepository(Source)
-      .save(createSource('a', 'A', 'http://a.com'));
+      .save(createSource(sourceId, 'A', 'http://a.com'));
     await con.getRepository(SourceMember).save([
       {
         userId: '1',
-        sourceId: 'a',
+        sourceId,
         role: SourceMemberRoles.Owner,
         referralToken: 'rt1',
         createdAt: new Date(2022, 11, 19),
       },
       {
         userId: 'sample1',
-        sourceId: 'a',
+        sourceId,
         role: SourceMemberRoles.Member,
         referralToken: 'rt2',
         createdAt: new Date(2022, 11, 19),
@@ -471,7 +482,7 @@ describe('query recommendedMentions', () => {
     await saveCommentMentionFixtures();
 
     const res = await client.query(QUERY, {
-      variables: { postId: 'p1', query: 's', sourceId: 's' },
+      variables: { postId: 'p1', query: 's', sourceId },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.recommendedMentions.length).toEqual(1);

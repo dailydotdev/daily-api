@@ -33,11 +33,7 @@ let client: GraphQLTestClient;
 let loggedUser: string = null;
 let premiumUser: boolean;
 
-export const createSource = (
-  id: string,
-  name: string,
-  image: string,
-): Source => {
+const createSource = (id: string, name: string, image: string): Source => {
   const source = new Source();
   source.id = id;
   source.name = name;
