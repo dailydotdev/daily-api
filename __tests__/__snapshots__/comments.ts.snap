@@ -74,6 +74,16 @@ Object {
 }
 `;
 
+exports[`mutation commentOnPost should comment markdown on a post with user mention inside the squad only 1`] = `
+Object {
+  "content": "@Lee",
+  "contentHtml": "<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a></p>
+",
+  "id": Any<String>,
+  "parentId": null,
+}
+`;
+
 exports[`mutation upvoteComment should ignore conflicts 1`] = `
 Array [
   CommentUpvote {
@@ -159,6 +169,11 @@ exports[`query commentPreview should return markdown equivalent of the content w
 
 exports[`query commentPreview should return markdown equivalent of the content with special characters on mention 11`] = `
 "<p>Hi <a href=\\"http://localhost:5002/Solevilla\\" data-mention-id=\\"7\\" data-mention-username=\\"Solevilla\\">@Solevilla</a>! This is normal comment, let’s tag <a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a> as well</p>
+"
+`;
+
+exports[`query commentPreview should return markdown with user mentioned inside squad 1`] = `
+"<p><a href=\\"http://localhost:5002/sample1\\" data-mention-id=\\"sample1\\" data-mention-username=\\"sample1\\">@sample1</a> @sample2</p>
 "
 `;
 

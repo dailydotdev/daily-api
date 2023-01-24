@@ -144,6 +144,42 @@ const saveCommentMentionFixtures = async (sampleAuthor = usersFixture[0]) => {
   );
 };
 
+const saveSquadFixture = async (sourceId: string) => {
+  await con.getRepository(User).save([
+    {
+      id: 'sample1',
+      name: 'sample1',
+      username: 'sample1',
+      image: 'sample1/image',
+    },
+    {
+      id: 'sample2',
+      name: 'sample2',
+      username: 'sample2',
+      image: 'sample2/image',
+    },
+  ]);
+  await con
+    .getRepository(Source)
+    .save(createSource(sourceId, 'A', 'http://a.com'));
+  await con.getRepository(SourceMember).save([
+    {
+      userId: '1',
+      sourceId,
+      role: SourceMemberRoles.Owner,
+      referralToken: 'rt1',
+      createdAt: new Date(2022, 11, 19),
+    },
+    {
+      userId: 'sample1',
+      sourceId,
+      role: SourceMemberRoles.Member,
+      referralToken: 'rt2',
+      createdAt: new Date(2022, 11, 19),
+    },
+  ]);
+};
+
 const commentFields =
   'id, content, contentHtml, createdAt, permalink, upvoted, author { id, name, image }';
 
@@ -273,8 +309,8 @@ describe('query commentUpvotes', () => {
 
 describe('query commentPreview', () => {
   const QUERY = `
-    query CommentPreview($content: String!) {
-      commentPreview(content: $content)
+    query CommentPreview($content: String!, $sourceId: String) {
+      commentPreview(content: $content, sourceId: $sourceId)
     }
   `;
 
@@ -296,6 +332,20 @@ describe('query commentPreview', () => {
     const mention = '@Lee';
     const withMention = await client.query(QUERY, {
       variables: { content: mention },
+    });
+    expect(withMention.errors).toBeFalsy();
+    expect(withMention.data.commentPreview).toMatchSnapshot();
+  });
+
+  it('should return markdown with user mentioned inside squad', async () => {
+    loggedUser = '1';
+    const sourceId = 'a';
+    await saveSquadFixture(sourceId);
+    await saveCommentMentionFixtures();
+
+    const mention = '@sample1 @sample2';
+    const withMention = await client.query(QUERY, {
+      variables: { content: mention, sourceId },
     });
     expect(withMention.errors).toBeFalsy();
     expect(withMention.data.commentPreview).toMatchSnapshot();
@@ -435,39 +485,7 @@ describe('query recommendedMentions', () => {
   it('should return users but must be filtered to which source feed the commenter is at', async () => {
     loggedUser = '1';
     const sourceId = 'a';
-    await con.getRepository(User).save([
-      {
-        id: 'sample1',
-        name: 'sample1',
-        username: 'sample1',
-        image: 'sample1/image',
-      },
-      {
-        id: 'sample2',
-        name: 'sample2',
-        username: 'sample2',
-        image: 'sample2/image',
-      },
-    ]);
-    await con
-      .getRepository(Source)
-      .save(createSource(sourceId, 'A', 'http://a.com'));
-    await con.getRepository(SourceMember).save([
-      {
-        userId: '1',
-        sourceId,
-        role: SourceMemberRoles.Owner,
-        referralToken: 'rt1',
-        createdAt: new Date(2022, 11, 19),
-      },
-      {
-        userId: 'sample1',
-        sourceId,
-        role: SourceMemberRoles.Member,
-        referralToken: 'rt2',
-        createdAt: new Date(2022, 11, 19),
-      },
-    ]);
+    await saveSquadFixture(sourceId);
     await saveCommentMentionFixtures();
 
     const res = await client.query(QUERY, {
