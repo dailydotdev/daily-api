@@ -20,7 +20,7 @@ import {
   SourceMember,
   SourceMemberRoles,
 } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
+import { createSource, sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { getMentionLink } from '../src/common/markdown';
 import { saveComment, updateMentions } from '../src/schema/comments';
@@ -39,17 +39,6 @@ beforeAll(async () => {
   );
   client = state.client;
 });
-
-const createSource = (id: string, name: string, image: string): Source => {
-  const source = new Source();
-  source.id = id;
-  source.name = name;
-  source.image = image;
-  source.active = true;
-  source.private = false;
-  source.handle = id;
-  return source;
-};
 
 const usersFixture = [
   { id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' },

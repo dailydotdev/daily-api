@@ -25,6 +25,7 @@ import { randomUUID } from 'crypto';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
 import { postsFixture } from './fixture/post';
+import { createSource } from './fixture/source';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -32,17 +33,6 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 let premiumUser: boolean;
-
-const createSource = (id: string, name: string, image: string): Source => {
-  const source = new Source();
-  source.id = id;
-  source.name = name;
-  source.image = image;
-  source.active = true;
-  source.private = false;
-  source.handle = id;
-  return source;
-};
 
 beforeAll(async () => {
   con = await createOrGetConnection();
