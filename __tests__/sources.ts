@@ -279,28 +279,42 @@ query Source($id: ID!) {
   });
 });
 
-describe('query sourceHandleTaken', () => {
+describe('query sourceHandleExists', () => {
   const QUERY = `
-    query SourceHandleTaken($handle: String!) {
-      sourceHandleTaken(handle: $handle) 
+    query SourceHandleExists($handle: String!) {
+      sourceHandleExists(handle: $handle) 
     }
   `;
 
   const updateHandle = (handle = 'a') =>
     con.getRepository(Source).update({ id: 'a' }, { handle, private: true });
 
+  it('should not authorize when user is not logged in', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { handle: 'a' } },
+      'UNAUTHENTICATED',
+    ));
+
   it('should return false if the source handle is not taken', async () => {
     loggedUser = '3';
     await updateHandle();
     const res = await client.query(QUERY, { variables: { handle: 'aa' } });
-    expect(res.data.sourceHandleTaken).toBeFalsy();
+    expect(res.data.sourceHandleExists).toBeFalsy();
   });
 
   it('should return true if the source handle is taken', async () => {
     loggedUser = '3';
     await updateHandle();
     const res = await client.query(QUERY, { variables: { handle: 'a' } });
-    expect(res.data.sourceHandleTaken).toBeTruthy();
+    expect(res.data.sourceHandleExists).toBeTruthy();
+  });
+
+  it('should return true if the source handle is taken considering uppercase characters', async () => {
+    loggedUser = '3';
+    await updateHandle();
+    const res = await client.query(QUERY, { variables: { handle: 'A' } });
+    expect(res.data.sourceHandleExists).toBeTruthy();
   });
 });
 

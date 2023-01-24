@@ -241,9 +241,9 @@ export const typeDefs = /* GraphQL */ `
     sourceMemberByToken(token: String!): SourceMember!
 
     """
-    Check if source handle is already taken
+    Check if source handle already exists
     """
-    sourceHandleTaken(handle: String!): Boolean!
+    sourceHandleExists(handle: String!): Boolean! @auth
   }
 
   extend type Mutation {
@@ -477,8 +477,10 @@ export const resolvers: IResolvers<any, Context> = {
       await ensureSourcePermissions(ctx, id);
       return getSourceById(ctx, info, id);
     },
-    sourceHandleTaken: async (_, { handle }: { handle: string }, ctx) => {
-      const source = await ctx.getRepository(Source).findOneBy({ handle });
+    sourceHandleExists: async (_, { handle }: { handle: string }, ctx) => {
+      const source = await ctx
+        .getRepository(Source)
+        .findOneBy({ handle: handle.toLocaleLowerCase() });
 
       return !!source;
     },
