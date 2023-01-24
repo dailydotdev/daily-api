@@ -17,6 +17,8 @@ import {
   User,
   CommentUpvote,
   ArticlePost,
+  SourceMember,
+  SourceMemberRoles,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
@@ -24,6 +26,7 @@ import { getMentionLink } from '../src/common/markdown';
 import { saveComment, updateMentions } from '../src/schema/comments';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { createSource } from './sources';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -428,6 +431,51 @@ describe('query recommendedMentions', () => {
     expect(res.data.recommendedMentions).toMatchSnapshot(); // to easily see there's no duplicates
     expect(res.data.recommendedMentions.length).toEqual(3);
     expect(res.data.recommendedMentions[0]).not.toEqual('sample');
+  });
+
+  it('should return users but must be filtered to which source feed the commenter is at', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save([
+      {
+        id: 'sample1',
+        name: 'sample1',
+        username: 'sample1',
+        image: 'sample1/image',
+      },
+      {
+        id: 'sample2',
+        name: 'sample2',
+        username: 'sample2',
+        image: 'sample2/image',
+      },
+    ]);
+    await con
+      .getRepository(Source)
+      .save(createSource('a', 'A', 'http://a.com'));
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'a',
+        role: SourceMemberRoles.Owner,
+        referralToken: 'rt1',
+        createdAt: new Date(2022, 11, 19),
+      },
+      {
+        userId: 'sample1',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt2',
+        createdAt: new Date(2022, 11, 19),
+      },
+    ]);
+    await saveCommentMentionFixtures();
+
+    const res = await client.query(QUERY, {
+      variables: { postId: 'p1', query: 's', sourceId: 's' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.recommendedMentions.length).toEqual(1);
+    expect(res.data.recommendedMentions[0]).not.toEqual('sample2');
   });
 });
 
