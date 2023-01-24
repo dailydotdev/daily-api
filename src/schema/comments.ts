@@ -410,7 +410,7 @@ export const updateMentions = async (
   return Promise.all(updated.map((comment) => saveComment(con, comment)));
 };
 
-const savNewComment = async (
+const saveNewComment = async (
   con: DataSource | EntityManager,
   comment: Comment,
 ) => {
@@ -621,7 +621,7 @@ export const resolvers: IResolvers<any, Context> = {
             content,
           });
 
-          return savNewComment(entityManager, createdComment);
+          return saveNewComment(entityManager, createdComment);
         });
         return getCommentById(comment.id, ctx, info);
       } catch (err) {
@@ -663,7 +663,7 @@ export const resolvers: IResolvers<any, Context> = {
             content,
           });
 
-          return savNewComment(entityManager, createdComment);
+          return saveNewComment(entityManager, createdComment);
         });
         return getCommentById(comment.id, ctx, info);
       } catch (err) {
