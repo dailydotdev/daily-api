@@ -19,6 +19,7 @@ import {
   ArticlePost,
   SourceMember,
   SourceMemberRoles,
+  SourceType,
 } from '../src/entity';
 import { createSource, sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
@@ -161,7 +162,7 @@ const saveSquadFixture = async (sourceId: string) => {
   ]);
   await con
     .getRepository(Source)
-    .save(createSource(sourceId, 'A', 'http://a.com'));
+    .save(createSource(sourceId, 'A', 'http://a.com', SourceType.Squad));
   await con.getRepository(SourceMember).save([
     {
       userId: '1',
@@ -627,6 +628,35 @@ describe('mutation commentOnPost', () => {
     expect(actual[0]).toMatchSnapshot({
       id: expect.any(String),
       contentHtml: `<p>${getMentionLink({ id: '4', username: 'Lee' })}</p>\n`,
+    });
+    expect(res.data.commentOnPost.id).toEqual(actual[0].id);
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post.comments).toEqual(1);
+  });
+
+  it('should comment markdown on a post with user mention inside the squad only', async () => {
+    loggedUser = '1';
+    const sourceId = 'a';
+    await saveSquadFixture('a');
+    await saveCommentMentionFixtures();
+    await con.getRepository(Source).update({ id: sourceId }, { type: 'squad' });
+    const res = await client.mutate(MUTATION, {
+      variables: { postId: 'p1', content: '@sample1 @sample2' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Comment).find({
+      select: ['id', 'content', 'contentHtml', 'parentId'],
+      order: { createdAt: 'DESC' },
+      where: { postId: 'p1' },
+    });
+    expect(actual.length).toEqual(6);
+    const mention = getMentionLink({
+      id: 'sample1',
+      username: 'sample1',
+    });
+    expect(actual[0]).toMatchSnapshot({
+      id: expect.any(String),
+      contentHtml: `<p>${mention} @sample2</p>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });

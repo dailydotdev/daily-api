@@ -1,10 +1,11 @@
 import { DeepPartial } from 'typeorm';
-import { MachineSource, Source } from '../../src/entity';
+import { MachineSource, Source, SourceType } from '../../src/entity';
 
 export const createSource = (
   id: string,
   name: string,
   image: string,
+  type = SourceType.Machine,
 ): Source => {
   const source = new Source();
   source.id = id;
@@ -13,6 +14,7 @@ export const createSource = (
   source.active = true;
   source.private = false;
   source.handle = id;
+  source.type = type;
   return source;
 };
 

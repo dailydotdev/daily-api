@@ -76,8 +76,8 @@ Object {
 
 exports[`mutation commentOnPost should comment markdown on a post with user mention inside the squad only 1`] = `
 Object {
-  "content": "@Lee",
-  "contentHtml": "<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a></p>
+  "content": "@sample1 @sample2",
+  "contentHtml": "<p><a href=\\"http://localhost:5002/sample1\\" data-mention-id=\\"sample1\\" data-mention-username=\\"sample1\\">@sample1</a> @sample2</p>
 ",
   "id": Any<String>,
   "parentId": null,
