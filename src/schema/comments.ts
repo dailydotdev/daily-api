@@ -11,7 +11,14 @@ import {
   recommendUsersToMention,
 } from '../common';
 import { CommentMention } from './../entity/CommentMention';
-import { Comment, CommentUpvote, Post, Source, User } from '../entity';
+import {
+  Comment,
+  CommentUpvote,
+  Post,
+  Source,
+  SourceMember,
+  User,
+} from '../entity';
 import { NotFoundError } from '../errors';
 import { GQLEmptyResponse } from './common';
 import { GQLUser } from './users';
@@ -40,6 +47,7 @@ interface GQLMentionUserArgs {
   postId: string;
   query?: string;
   limit?: number;
+  sourceId?: string;
 }
 
 interface GQLPostCommentArgs {
@@ -213,8 +221,12 @@ export const typeDefs = /* GraphQL */ `
     """
     Recommend users to mention in the comments
     """
-    recommendedMentions(postId: String!, query: String, limit: Int): [User]
-      @auth
+    recommendedMentions(
+      postId: String!
+      query: String
+      limit: Int
+      sourceId: String
+    ): [User] @auth
 
     """
     Markdown equivalent of the user's comment
@@ -523,14 +535,33 @@ export const resolvers: IResolvers<any, Context> = {
     },
     recommendedMentions: async (
       _,
-      { postId, query, limit = 5 }: GQLMentionUserArgs,
+      { postId, query, limit = 5, sourceId }: GQLMentionUserArgs,
       ctx,
       info,
     ): Promise<User[]> => {
       const { con, userId } = ctx;
-      const ids = await (query
-        ? recommendUsersByQuery(con, userId, { query, limit })
-        : recommendUsersToMention(con, postId, userId, { limit }));
+      const getIds = async () => {
+        const userIds = await (query
+          ? recommendUsersByQuery(con, userId, { query, limit })
+          : recommendUsersToMention(con, postId, userId, { limit }));
+
+        if (!sourceId) {
+          return userIds;
+        }
+
+        const members: SourceMember[] = await ctx
+          .getRepository(SourceMember)
+          .createQueryBuilder('sm')
+          .select('sm."userId"')
+          .innerJoin(Source, 's', 's.id = sm."sourceId"')
+          .where('(s.id = :sourceId OR s.handle = :sourceId)', { sourceId })
+          .andWhere('sm."userId" IN (:...ids)', { ids: userIds })
+          .getRawMany();
+
+        return members.map((member) => member.userId);
+      };
+
+      const ids = await getIds();
 
       if (ids.length === 0) {
         return [];
