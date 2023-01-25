@@ -1,10 +1,14 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { User } from './User';
 
+export enum FeatureType {
+  Squad = 'squad',
+}
+
 @Entity()
 export class Feature {
   @PrimaryColumn({ type: 'text' })
-  feature: string;
+  feature: FeatureType;
 
   @PrimaryColumn({ length: 36 })
   @Index('IDX_feature_userId')
