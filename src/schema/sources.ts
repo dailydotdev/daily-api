@@ -10,6 +10,7 @@ import {
   SourceFeed,
   SourceMember,
   SourceMemberRoles,
+  SourceType,
   SquadSource,
 } from '../entity';
 import {
@@ -370,14 +371,14 @@ export const canAccessSource = async (
 
     switch (permission) {
       case SourcePermissions.Post:
-        if (source.type !== 'squad') {
+        if (source.type !== SourceType.Squad) {
           return false;
         }
         break;
       case SourcePermissions.Leave:
         if (
           member.role === SourceMemberRoles.Owner ||
-          source.type !== 'squad'
+          source.type !== SourceType.Squad
         ) {
           return false;
         }
@@ -779,7 +780,7 @@ export const resolvers: IResolvers<any, Context> = {
       const source = await ctx.con
         .getRepository(Source)
         .findOneByOrFail({ id: sourceId });
-      if (source.type !== 'squad') {
+      if (source.type !== SourceType.Squad) {
         throw new ForbiddenError(
           'Access denied! You do not have permission for this action!',
         );

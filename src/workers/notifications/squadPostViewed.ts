@@ -4,7 +4,7 @@ import {
   NotificationSourceContext,
 } from '../../notifications';
 import { NotificationWorker } from './worker';
-import { User, View } from '../../entity';
+import { SourceType, User, View } from '../../entity';
 import { DeepPartial } from 'typeorm';
 import { buildPostContext } from './utils';
 
@@ -15,7 +15,11 @@ const worker: NotificationWorker = {
   handler: async (message, con) => {
     const data: Data = messageToJson(message);
     const postCtx = await buildPostContext(con, data.postId);
-    if (!postCtx || postCtx.source.type !== 'squad' || !postCtx.post.authorId) {
+    if (
+      !postCtx ||
+      postCtx.source.type !== SourceType.Squad ||
+      !postCtx.post.authorId
+    ) {
       return;
     }
     const doneBy = await con.getRepository(User).findOneBy({ id: data.userId });

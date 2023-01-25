@@ -24,14 +24,14 @@ export enum SourceType {
 
 @Entity()
 @TableInheritance({
-  column: { type: 'varchar', name: 'type', default: 'machine' },
+  column: { type: 'varchar', name: 'type', default: SourceType.Machine },
 })
 export class Source {
   @PrimaryColumn({ type: 'text' })
   id: string;
 
-  @Column({ default: 'machine' })
-  type: string;
+  @Column({ default: SourceType.Machine })
+  type: SourceType;
 
   @Column({ default: true })
   active: boolean;
@@ -75,7 +75,7 @@ export class Source {
   members: Promise<SourceMember[]>;
 }
 
-@ChildEntity('machine')
+@ChildEntity(SourceType.Machine)
 export class MachineSource extends Source {
   @Column({ type: 'text', nullable: true })
   twitter?: string;
@@ -91,7 +91,7 @@ export class MachineSource extends Source {
   advancedSettings: number[];
 }
 
-@ChildEntity('squad')
+@ChildEntity(SourceType.Squad)
 export class SquadSource extends Source {
   @Column({ type: 'text', nullable: true })
   description?: string;

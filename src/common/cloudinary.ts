@@ -1,5 +1,6 @@
 import cloudinary from 'cloudinary';
 import { Readable } from 'stream';
+import { SourceType } from '../entity';
 
 export const uploadLogo = (name: string, stream: Readable): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -46,7 +47,7 @@ export const uploadDevCardBackground = (name: string, stream: Readable) =>
   uploadFile(name, 'devcard', stream);
 
 export const uploadSquadImage = (name: string, stream: Readable) =>
-  uploadFile(name, 'squad', stream);
+  uploadFile(name, SourceType.Squad, stream);
 
 const avatarPreset = 'avatar';
 

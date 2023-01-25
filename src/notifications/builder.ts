@@ -9,6 +9,7 @@ import {
   Post,
   Source,
   SourceRequest,
+  SourceType,
   Submission,
   User,
 } from '../entity';
@@ -194,7 +195,7 @@ export class NotificationBuilder {
     addSquadAvatar = true,
   ) {
     let newBuilder = this.referencePost(post).targetPost(post);
-    if (source.type === 'squad' && addSquadAvatar) {
+    if (source.type === SourceType.Squad && addSquadAvatar) {
       newBuilder = newBuilder.avatarSource(source);
     }
     if (post.type === 'share') {

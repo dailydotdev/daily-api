@@ -1,4 +1,4 @@
-import { Source } from '../entity';
+import { Source, SourceType } from '../entity';
 
 const excludeFromStandardization = [
   'youtube.com',
@@ -26,7 +26,7 @@ export const getSourceLink = (
   source: Pick<Source, 'handle' | 'type'>,
 ): string =>
   `${process.env.COMMENTS_PREFIX}/${
-    source.type === 'squad' ? 'squads' : 'sources'
+    source.type === SourceType.Squad ? 'squads' : 'sources'
   }/${source.handle}`;
 
 export const scoutArticleLink = `${process.env.COMMENTS_PREFIX}?scout=true`;
