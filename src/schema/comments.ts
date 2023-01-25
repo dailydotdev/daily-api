@@ -371,7 +371,8 @@ const getMentions = async (
     .select('u.id, u.username')
     .innerJoin(SourceMember, 'sm', 'u.id = sm."userId"')
     .where('sm."sourceId" = :sourceId', { sourceId })
-    .andWhere('u.id IN (:...ids)', { ids: result })
+    .andWhere('u.username IN (:...usernames)', { usernames: result })
+    .andWhere('u.id != :id', { id: userId })
     .getRawMany();
 };
 
