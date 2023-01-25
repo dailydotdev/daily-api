@@ -15,6 +15,7 @@ import {
   SourceFeed,
   SourceMember,
   SourceMemberRoles,
+  SourceType,
   SquadSource,
   User,
 } from '../src/entity';
@@ -364,7 +365,9 @@ query Source($id: ID!) {
 
   it('should return squad url', async () => {
     loggedUser = '1';
-    await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.source.permalink).toEqual('http://localhost:5002/squads/a');
