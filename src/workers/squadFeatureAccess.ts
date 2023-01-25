@@ -8,19 +8,28 @@ interface Data {
 
 const worker: Worker = {
   subscription: 'api.squad-feature-access',
-  handler: async (message, con): Promise<void> => {
+  handler: async (message, con, logger): Promise<void> => {
     const { sourceMember: member }: Data = messageToJson(message);
-    const variables = {
-      feature: FeatureType.Squad,
-      userId: member.userId,
-    };
-    const hasAccess = await con.getRepository(Feature).findOneBy(variables);
-
-    if (hasAccess) {
-      return;
+    try {
+      await con.getRepository(Feature).insert({
+        feature: FeatureType.Squad,
+        userId: member.userId,
+      });
+    } catch (err) {
+      logger.error(
+        {
+          member,
+          messageId: message.messageId,
+          err,
+        },
+        'failed to give user squad feature access',
+      );
+      // Query failed or status is duplicate
+      if (err.name === 'QueryFailedError' || err.code === 187) {
+        return;
+      }
+      throw err;
     }
-
-    await con.getRepository(Feature).insert(variables);
   },
 };
 

@@ -13,6 +13,7 @@ import {
 import { DataSource } from 'typeorm';
 import { getSourceLink } from '../common';
 import { GQLSource } from '../schema/sources';
+import { IFlags } from 'flagsmith-nodejs';
 
 const excludeProperties = <T, K extends keyof T>(
   obj: T,
@@ -29,7 +30,13 @@ const excludeProperties = <T, K extends keyof T>(
 const getFeatures = async (
   con: DataSource,
   userId: string,
-): Promise<Feature[]> => con.getRepository(Feature).findBy({ userId });
+): Promise<IFlags[]> => {
+  const features = await con.getRepository(Feature).findBy({ userId });
+  return features.reduce((prev, { feature }) => {
+    prev[feature] = { enabled: true };
+    return prev;
+  }, []);
+};
 
 const getSquads = async (
   con: DataSource,
