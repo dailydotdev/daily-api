@@ -1,7 +1,6 @@
 import { messageToJson, Worker } from './worker';
 import { ArticlePost } from '../entity';
 import { getDiscussionLink, truncatePostToTweet, tweet } from '../common';
-import { TypeOrmError } from '../errors';
 
 interface Data {
   userId: string;
