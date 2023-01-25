@@ -382,7 +382,7 @@ const getMentions = async (
     .createQueryBuilder('u')
     .select('u.id, u.username')
     .innerJoin(SourceMember, 'sm', 'u.id = sm."userId"')
-    .where('sm."sourceId" = :sourceId')
+    .where('sm."sourceId" = :sourceId', { sourceId })
     .andWhere('u.id IN (:...ids)', { ids: result })
     .getRawMany();
 };
