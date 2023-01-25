@@ -716,7 +716,7 @@ export const resolvers: IResolvers<any, Context> = {
         const editedSourceId = await ctx.con.transaction(
           async (entityManager) => {
             const repo = entityManager.getRepository(SquadSource);
-            // Create a new source
+            // Update existing squad
             await repo.update(
               { id: sourceId },
               {
