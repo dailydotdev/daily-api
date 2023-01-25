@@ -11,7 +11,11 @@ import {
 import { Post } from './posts';
 import { DevCard } from './DevCard';
 import { FastifyLoggerInstance } from 'fastify';
-import { UpdateUserFailErrorKeys, UserFailErrorKeys } from '../errors';
+import {
+  TypeOrmError,
+  UpdateUserFailErrorKeys,
+  UserFailErrorKeys,
+} from '../errors';
 import { fallbackImages } from '../config';
 
 @Entity()
@@ -283,7 +287,7 @@ export const addNewUser = async (
       );
 
       // Unique
-      if (error?.code === '23505') {
+      if (error?.code === TypeOrmError.DUPLICATE_ENTRY) {
         return { status: 'failed', reason: 'USER_EXISTS' };
       }
 
