@@ -44,7 +44,7 @@ import {
 
 export interface GQLSource {
   id: string;
-  type: string;
+  type: SourceType;
   name: string;
   handle: string;
   image?: string;
