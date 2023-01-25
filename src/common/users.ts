@@ -214,7 +214,7 @@ export const recommendUsersToMention = async (
   con: DataSource,
   postId: string,
   userId: string,
-  { limit }: RecentMentionsProps,
+  { limit, sourceId }: RecentMentionsProps,
 ): Promise<string[]> => {
   const [post, commenterIds] = await Promise.all([
     con.getRepository(Post).findOneBy({ id: postId, authorId: Not(userId) }),
@@ -234,9 +234,12 @@ export const recommendUsersToMention = async (
     return commenterIds;
   }
 
+  const privateSource = await (sourceId &&
+    con.getRepository(Source).findOneBy({ id: sourceId, private: true }));
   const recent = await getRecentMentionsIds(con, userId, {
     limit: missing,
     excludeIds: commenterIds,
+    sourceId: privateSource?.id,
   });
 
   return commenterIds.concat(recent);

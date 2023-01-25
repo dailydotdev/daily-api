@@ -574,7 +574,7 @@ export const resolvers: IResolvers<any, Context> = {
       const { con, userId } = ctx;
       const ids = await (query
         ? recommendUsersByQuery(con, userId, { query, limit, sourceId })
-        : recommendUsersToMention(con, postId, userId, { limit }));
+        : recommendUsersToMention(con, postId, userId, { limit, sourceId }));
 
       if (ids.length === 0) {
         return [];
