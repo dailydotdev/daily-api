@@ -30,12 +30,12 @@ const excludeProperties = <T, K extends keyof T>(
 const getFeatures = async (
   con: DataSource,
   userId: string,
-): Promise<IFlags[]> => {
+): Promise<IFlags> => {
   const features = await con.getRepository(Feature).findBy({ userId });
   return features.reduce((prev, { feature }) => {
     prev[feature] = { enabled: true };
     return prev;
-  }, []);
+  }, {});
 };
 
 const getSquads = async (
@@ -96,7 +96,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       settings: SETTINGS_DEFAULT,
       notifications: { unreadNotificationsCount: 0 },
       squads: [],
-      features: [],
+      features: {},
     });
   });
 }

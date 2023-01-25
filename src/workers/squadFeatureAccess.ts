@@ -1,6 +1,7 @@
 import { messageToJson, Worker } from './worker';
 import { ChangeObject } from '../types';
 import { SourceMember, Feature, FeatureType } from '../entity';
+import { TypeOrmError } from '../errors';
 
 interface Data {
   sourceMember: ChangeObject<SourceMember>;
@@ -16,6 +17,7 @@ const worker: Worker = {
         userId: member.userId,
       });
     } catch (err) {
+      console.log(err.code);
       logger.error(
         {
           member,
@@ -25,7 +27,7 @@ const worker: Worker = {
         'failed to give user squad feature access',
       );
       // Query failed or status is duplicate
-      if (err.name === 'QueryFailedError' || err.code === 187) {
+      if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
         return;
       }
       throw err;

@@ -33,7 +33,7 @@ const DEFAULT_BODY = {
   settings: { ...SETTINGS_DEFAULT, companionExpanded: null },
   notifications: { unreadNotificationsCount: 0 },
   squads: [],
-  features: [],
+  features: {},
 };
 
 beforeAll(async () => {
