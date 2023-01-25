@@ -28,7 +28,7 @@ import {
   Upvote,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
-import { NotFoundError } from '../errors';
+import { NotFoundError, TypeOrmError } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
 import { GQLComment } from './comments';
 import graphorm from '../graphorm';
@@ -545,11 +545,11 @@ const saveHiddenPost = async (
     await con.getRepository(HiddenPost).insert(hiddenPost);
   } catch (err) {
     // Foreign key violation
-    if (err?.code === '23503') {
+    if (err?.code === TypeOrmError.FOREIGN_KEY) {
       throw new NotFoundError('Post not found');
     }
     // Unique violation
-    if (err?.code !== '23505') {
+    if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
       throw err;
     }
     return false;
@@ -717,7 +717,7 @@ export const resolvers: IResolvers<any, Context> = {
               comment,
             });
           } catch (err) {
-            if (err?.code !== '23505') {
+            if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
               ctx.log.error(
                 {
                   err,
@@ -768,11 +768,11 @@ export const resolvers: IResolvers<any, Context> = {
         });
       } catch (err) {
         // Foreign key violation
-        if (err?.code === '23503') {
+        if (err?.code === TypeOrmError.FOREIGN_KEY) {
           throw new NotFoundError('Post or user not found');
         }
         // Unique violation
-        if (err?.code !== '23505') {
+        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
           throw err;
         }
       }

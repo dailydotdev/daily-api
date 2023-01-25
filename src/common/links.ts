@@ -30,6 +30,7 @@ export const getSourceLink = (
   }/${source.handle}`;
 
 export const scoutArticleLink = `${process.env.COMMENTS_PREFIX}?scout=true`;
+export const squadCreateLink = `${process.env.COMMENTS_PREFIX}?squad=true`;
 
 export const standardizeURL = (url: string): string => {
   const domain = subtractDomain(url);

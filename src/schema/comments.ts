@@ -20,7 +20,7 @@ import {
   SourceType,
   User,
 } from '../entity';
-import { NotFoundError } from '../errors';
+import { NotFoundError, TypeOrmError } from '../errors';
 import { GQLEmptyResponse } from './common';
 import { GQLUser } from './users';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -673,7 +673,7 @@ export const resolvers: IResolvers<any, Context> = {
         return getCommentById(comment.id, ctx, info);
       } catch (err) {
         // Foreign key violation
-        if (err?.code === '23503') {
+        if (err?.code === TypeOrmError.FOREIGN_KEY) {
           throw new NotFoundError('Post or user not found');
         }
         throw err;
@@ -717,7 +717,7 @@ export const resolvers: IResolvers<any, Context> = {
         return getCommentById(comment.id, ctx, info);
       } catch (err) {
         // Foreign key violation
-        if (err?.code === '23503') {
+        if (err?.code === TypeOrmError.FOREIGN_KEY) {
           throw new NotFoundError('User or parent comment not found');
         }
         throw err;
@@ -798,11 +798,11 @@ export const resolvers: IResolvers<any, Context> = {
         });
       } catch (err) {
         // Foreign key violation
-        if (err?.code === '23503') {
+        if (err?.code === TypeOrmError.FOREIGN_KEY) {
           throw new NotFoundError('Comment or user not found');
         }
         // Unique violation
-        if (err?.code !== '23505') {
+        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
           throw err;
         }
       }

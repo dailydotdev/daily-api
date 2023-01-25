@@ -18,6 +18,7 @@ import {
   SubmissionStatus,
   Upvote,
   User,
+  Feature,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -48,6 +49,7 @@ import {
   notifyPostAdded,
   notifyMemberJoinedSource,
   notifyUserCreated,
+  notifyFeatureAccess,
 } from '../common';
 import { ChangeMessage, ChangeObject } from '../types';
 import { DataSource } from 'typeorm';
@@ -57,6 +59,7 @@ import { PostReport, Alerts } from '../entity';
 import { reportReasons } from '../schema/posts';
 import { updateAlerts } from '../schema/alerts';
 import { submissionAccessThreshold } from '../schema/submissions';
+import { TypeOrmError } from '../errors';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -196,7 +199,7 @@ const onUserChange = async (
           value: true,
         });
       } catch (ex) {
-        if (ex.code !== '23505') {
+        if (ex.code !== TypeOrmError.DUPLICATE_ENTRY) {
           throw ex;
         }
       }
@@ -402,6 +405,16 @@ const onSourceMemberChange = async (
   }
 };
 
+const onFeatureChange = async (
+  con: DataSource,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<Feature>,
+) => {
+  if (data.payload.op === 'c') {
+    await notifyFeatureAccess(logger, data.payload.after);
+  }
+};
+
 const getTableName = <Entity>(
   con: DataSource,
   target: EntityTarget<Entity>,
@@ -468,6 +481,9 @@ const worker: Worker = {
           break;
         case getTableName(con, SourceMember):
           await onSourceMemberChange(con, logger, data);
+          break;
+        case getTableName(con, Feature):
+          await onFeatureChange(con, logger, data);
           break;
       }
     } catch (err) {

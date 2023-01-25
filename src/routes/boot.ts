@@ -4,6 +4,7 @@ import createOrGetConnection from '../db';
 import { getSettings } from '../schema/settings';
 import {
   ALERTS_DEFAULT,
+  Feature,
   getUnreadNotificationsCount,
   SETTINGS_DEFAULT,
   SourceMember,
@@ -12,6 +13,7 @@ import {
 import { DataSource } from 'typeorm';
 import { getSourceLink } from '../common';
 import { GQLSource } from '../schema/sources';
+import { IFlags } from 'flagsmith-nodejs';
 
 const excludeProperties = <T, K extends keyof T>(
   obj: T,
@@ -23,6 +25,17 @@ const excludeProperties = <T, K extends keyof T>(
     });
   }
   return obj;
+};
+
+const getFeatures = async (
+  con: DataSource,
+  userId: string,
+): Promise<IFlags> => {
+  const features = await con.getRepository(Feature).findBy({ userId });
+  return features.reduce((prev, { feature }) => {
+    prev[feature] = { enabled: true };
+    return prev;
+  }, {});
 };
 
 const getSquads = async (
@@ -45,7 +58,7 @@ const getSquads = async (
       'sm."sourceId" = s."id" and s."type" = \'squad\'',
     )
     .where('sm."userId" = :userId', { userId })
-    .orderBy('s.name', 'ASC')
+    .orderBy('LOWER(s.name)', 'ASC')
     .getRawMany<GQLSource>();
   return sources.map((source) => ({
     ...source,
@@ -58,12 +71,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const con = await createOrGetConnection();
     const { userId } = req;
     if (userId) {
-      const [alerts, settings, unreadNotificationsCount, squads] =
+      const [alerts, settings, unreadNotificationsCount, squads, features] =
         await Promise.all([
           getAlerts(con, userId),
           getSettings(con, userId),
           getUnreadNotificationsCount(con, userId),
           getSquads(con, userId),
+          getFeatures(con, userId),
         ]);
       return res.send({
         alerts: excludeProperties(alerts, ['userId']),
@@ -74,6 +88,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         ]),
         notifications: { unreadNotificationsCount },
         squads,
+        features,
       });
     }
     return res.send({
@@ -81,6 +96,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       settings: SETTINGS_DEFAULT,
       notifications: { unreadNotificationsCount: 0 },
       squads: [],
+      features: {},
     });
   });
 }

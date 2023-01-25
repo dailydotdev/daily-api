@@ -316,11 +316,11 @@ export const addNewPost = async (
       return { status: 'ok', postId };
     } catch (error) {
       // Unique
-      if (error?.code === '23505') {
+      if (error?.code === TypeOrmError.DUPLICATE_ENTRY) {
         return { status: 'failed', reason: 'POST_EXISTS', error };
       }
       // Null violation
-      if (error?.code === '23502') {
+      if (error?.code === TypeOrmError.NULL_VIOLATION) {
         return { status: 'failed', reason: 'MISSING_FIELDS', error };
       }
       throw error;

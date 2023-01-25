@@ -1,6 +1,7 @@
 import { DataSource, DeepPartial } from 'typeorm';
 import { View } from '../entity';
 import { messageToJson, Worker } from './worker';
+import { TypeOrmError } from '../errors';
 
 const ONE_WEEK = 604800000;
 
@@ -48,7 +49,10 @@ const worker: Worker = {
       }
     } catch (err) {
       // Foreign / unique
-      if (err?.code === '23502' || err?.code === '23503') {
+      if (
+        err?.code === TypeOrmError.NULL_VIOLATION ||
+        err?.code === TypeOrmError.FOREIGN_KEY
+      ) {
         return;
       }
 
