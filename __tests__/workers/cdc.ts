@@ -44,6 +44,7 @@ import {
   CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
   Feature,
+  FeatureType,
   Feed,
   Notification,
   Post,
@@ -1156,7 +1157,7 @@ describe('source member', () => {
 describe('feature', () => {
   type ObjectType = Partial<Feature>;
   const base: ChangeObject<ObjectType> = {
-    feature: 'squad',
+    feature: FeatureType.Squad,
     userId: '1',
     createdAt: Date.now(),
   };

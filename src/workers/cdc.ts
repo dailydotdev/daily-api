@@ -400,7 +400,6 @@ const onSourceMemberChange = async (
   data: ChangeMessage<SourceMember>,
 ) => {
   if (data.payload.op === 'c') {
-    console.log('new source member!');
     await notifyMemberJoinedSource(logger, data.payload.after);
   }
 };
