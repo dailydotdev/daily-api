@@ -66,6 +66,7 @@ import { randomUUID } from 'crypto';
 import { submissionAccessThreshold } from '../../src/schema/submissions';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
+import { TypeOrmError } from '../../src/errors';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -473,7 +474,7 @@ describe('user', () => {
     } catch (ex) {
       const state = await con.getRepository(UserState).find();
       expect(state.length).toEqual(0);
-      expect(ex.code).not.toEqual('23505');
+      expect(ex.code).not.toEqual(TypeOrmError.DUPLICATE_ENTRY);
     }
   });
 

@@ -1,6 +1,7 @@
 import { messageToJson, Worker } from './worker';
 import { ArticlePost } from '../entity';
 import { getDiscussionLink, truncatePostToTweet, tweet } from '../common';
+import { TypeOrmError } from '../errors';
 
 interface Data {
   userId: string;
@@ -52,7 +53,10 @@ const worker: Worker = {
         'failed to tweet about the new post comment',
       );
       // Query failed or status is duplicate
-      if (err.name === 'QueryFailedError' || err.code === 187) {
+      if (
+        err.name === 'QueryFailedError' ||
+        err.code === TypeOrmError.DUPLICATE_ENTRY
+      ) {
         return;
       }
       throw err;

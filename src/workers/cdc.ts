@@ -57,6 +57,7 @@ import { PostReport, Alerts } from '../entity';
 import { reportReasons } from '../schema/posts';
 import { updateAlerts } from '../schema/alerts';
 import { submissionAccessThreshold } from '../schema/submissions';
+import { TypeOrmError } from '../errors';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -196,7 +197,7 @@ const onUserChange = async (
           value: true,
         });
       } catch (ex) {
-        if (ex.code !== '23505') {
+        if (ex.code !== TypeOrmError.DUPLICATE_ENTRY) {
           throw ex;
         }
       }
