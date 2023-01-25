@@ -4,6 +4,7 @@ import {
   Source,
   SourceMember,
   SourceMemberRoles,
+  SourceType,
   User,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
@@ -56,7 +57,7 @@ it('should not do anything if source has not enough members', async () => {
     { id: 'b' },
     {
       active: false,
-      type: 'squad',
+      type: SourceType.Squad,
     },
   );
   await expectSuccessfulBackground(worker, {
@@ -72,7 +73,9 @@ it('should not do anything if source has not enough members', async () => {
 });
 
 it('should activate squad once it reaches enough members', async () => {
-  await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
   await expectSuccessfulBackground(worker, {
     sourceMember: {
       sourceId: 'a',

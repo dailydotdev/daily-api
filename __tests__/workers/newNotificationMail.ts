@@ -13,6 +13,7 @@ import {
   SourceRequest,
   ArticlePost,
   SharePost,
+  SourceType,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { DataSource } from 'typeorm';
@@ -593,7 +594,9 @@ it('should not send email notification if the user prefers not to receive them',
 
 it('should set parameters for squad_post_added email', async () => {
   const sharedPost = await con.getRepository(ArticlePost).save(postsFixture[0]);
-  await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
   const source = await con.getRepository(Source).findOneBy({ id: 'a' });
   const post = await con.getRepository(SharePost).save({
     id: 'ps',
@@ -641,7 +644,9 @@ it('should set parameters for squad_post_added email', async () => {
 });
 
 it('should set parameters for squad_member_joined email', async () => {
-  await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
   const source = await con.getRepository(Source).findOneBy({ id: 'a' });
   const doneBy = await con.getRepository(User).findOneBy({ id: '2' });
   const ctx: NotificationSourceContext & NotificationDoneByContext = {
@@ -679,7 +684,9 @@ it('should set parameters for squad_member_joined email', async () => {
 it('should set parameters for squad_new_comment email', async () => {
   await con.getRepository(User).update({ id: '2' }, { reputation: 2500 });
   const sharedPost = await con.getRepository(ArticlePost).save(postsFixture[0]);
-  await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
   const source = await con.getRepository(Source).findOneBy({ id: 'a' });
   const post = await con.getRepository(SharePost).save({
     id: 'ps',
@@ -741,7 +748,9 @@ it('should set parameters for squad_new_comment email', async () => {
 
 it('should set parameters for squad_post_viewed email', async () => {
   const sharedPost = await con.getRepository(ArticlePost).save(postsFixture[0]);
-  await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
   const source = await con.getRepository(Source).findOneBy({ id: 'a' });
   const post = await con.getRepository(SharePost).save({
     id: 'ps',

@@ -639,7 +639,9 @@ describe('mutation commentOnPost', () => {
     const sourceId = 'a';
     await saveSquadFixture('a');
     await saveCommentMentionFixtures();
-    await con.getRepository(Source).update({ id: sourceId }, { type: 'squad' });
+    await con
+      .getRepository(Source)
+      .update({ id: sourceId }, { type: SourceType.Squad });
     const res = await client.mutate(MUTATION, {
       variables: { postId: 'p1', content: '@sample1 @sample2' },
     });
