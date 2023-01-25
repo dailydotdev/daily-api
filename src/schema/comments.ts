@@ -332,6 +332,18 @@ interface MentionedUser {
   username?: string;
 }
 
+const getMemberIds = async (
+  con: DataSource | EntityManager,
+  sourceId: string,
+  userIds: string[],
+): Promise<string[]> => {
+  const members = await con
+    .getRepository(SourceMember)
+    .findBy({ userId: In(userIds), sourceId });
+
+  return members.map(({ userId }) => userId);
+};
+
 const getMentions = async (
   con: DataSource | EntityManager,
   content: string,
@@ -367,10 +379,7 @@ const getMentions = async (
   }
 
   const ids = users.map(({ id }) => id);
-  const validMembers = await con
-    .getRepository(SourceMember)
-    .findBy({ userId: In(ids), sourceId });
-  const members = validMembers.map(({ userId }) => userId);
+  const members = await getMemberIds(con, sourceId, ids);
 
   return users.filter(({ id }) => members.includes(id));
 };
@@ -581,11 +590,15 @@ export const resolvers: IResolvers<any, Context> = {
           return userIds;
         }
 
-        const members: SourceMember[] = await con
-          .getRepository(SourceMember)
-          .findBy({ userId: In(userIds), sourceId });
+        const source = await con
+          .getRepository(Source)
+          .findOneBy({ id: sourceId });
 
-        return members.map((member) => member.userId);
+        if (!source.private) {
+          return userIds;
+        }
+
+        return getMemberIds(ctx.con, sourceId, userIds);
       };
 
       const ids = await getIds();
