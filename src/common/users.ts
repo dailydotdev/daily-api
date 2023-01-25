@@ -163,12 +163,9 @@ export const getUserIdsByNameOrUsername = async (
     .limit(limit);
 
   if (sourceId) {
-    queryBuilder = queryBuilder.innerJoin(
-      SourceMember,
-      'sm',
-      'id = sm."userId" AND sm."sourceId" = :sourceId',
-      { sourceId },
-    );
+    queryBuilder = queryBuilder
+      .innerJoin(SourceMember, 'sm', 'id = sm."userId" AND ')
+      .andWhere('sm."sourceId" = :sourceId', { sourceId });
   }
 
   if (excludeIds?.length) {
