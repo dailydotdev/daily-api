@@ -332,18 +332,6 @@ interface MentionedUser {
   username?: string;
 }
 
-const getMemberIds = async (
-  con: DataSource | EntityManager,
-  sourceId: string,
-  userIds: string[],
-): Promise<string[]> => {
-  const members = await con
-    .getRepository(SourceMember)
-    .findBy({ userId: In(userIds), sourceId });
-
-  return members.map(({ userId }) => userId);
-};
-
 const getMentions = async (
   con: DataSource | EntityManager,
   content: string,
@@ -584,27 +572,9 @@ export const resolvers: IResolvers<any, Context> = {
       info,
     ): Promise<User[]> => {
       const { con, userId } = ctx;
-      const getIds = async () => {
-        const userIds = await (query
-          ? recommendUsersByQuery(con, userId, { query, limit })
-          : recommendUsersToMention(con, postId, userId, { limit }));
-
-        if (!sourceId) {
-          return userIds;
-        }
-
-        const source = await con
-          .getRepository(Source)
-          .findOneBy({ id: sourceId });
-
-        if (!source.private) {
-          return userIds;
-        }
-
-        return getMemberIds(ctx.con, sourceId, userIds);
-      };
-
-      const ids = await getIds();
+      const ids = await (query
+        ? recommendUsersByQuery(con, userId, { query, limit, sourceId })
+        : recommendUsersToMention(con, postId, userId, { limit }));
 
       if (ids.length === 0) {
         return [];

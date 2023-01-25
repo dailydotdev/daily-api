@@ -6,13 +6,14 @@ export const createSource = (
   name: string,
   image: string,
   type = SourceType.Machine,
+  isPrivate = false,
 ): Source => {
   const source = new Source();
   source.id = id;
   source.name = name;
   source.image = image;
   source.active = true;
-  source.private = false;
+  source.private = isPrivate;
   source.handle = id;
   source.type = type;
   return source;
