@@ -17,7 +17,11 @@ const worker: Worker = {
         userId: member.userId,
       });
     } catch (err) {
-      console.log(err.code);
+      // Query failed or status is duplicate
+      if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
+        return;
+      }
+
       logger.error(
         {
           member,
@@ -26,10 +30,6 @@ const worker: Worker = {
         },
         'failed to give user squad feature access',
       );
-      // Query failed or status is duplicate
-      if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
-        return;
-      }
       throw err;
     }
   },
