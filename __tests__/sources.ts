@@ -637,6 +637,95 @@ describe('mutation createSquad', () => {
   });
 });
 
+describe('mutation editSquad', () => {
+  const MUTATION = `
+  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String) {
+  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description) {
+    id
+  }
+}`;
+
+  const variables = {
+    sourceId: 's1',
+    handle: 's1',
+    name: 'Squad',
+    description: null,
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Owner,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should edit squad', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, name: 'test' },
+    });
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource.name).toEqual('test');
+  });
+
+  it('should throw error on duplicate handles', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).save({
+      id: randomUUID(),
+      handle: 'existing',
+      name: 'Dup squad',
+      active: false,
+    });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, handle: 'existing' } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it(`should throw error if squad doesn't exist`, async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 'fake' } },
+      'NOT_FOUND',
+    );
+  });
+
+  it(`should throw error if user is not the squad owner`, async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Member });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+    );
+  });
+});
+
 describe('mutation leaveSource', () => {
   const MUTATION = `
   mutation LeaveSource($sourceId: ID!) {
