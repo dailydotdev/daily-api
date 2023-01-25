@@ -777,4 +777,22 @@ describe('storeNotificationBundle', () => {
     ]);
     expect(actual.attachments.length).toEqual(0);
   });
+
+  it('should generate squad_access notification', () => {
+    const type = 'squad_access';
+    const ctx: NotificationBaseContext = {
+      userId,
+    };
+    const actual = generateNotification(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('system');
+    expect(actual.notification.referenceType).toEqual('system');
+    expect(actual.notification.targetUrl).toEqual(
+      `${process.env.COMMENTS_PREFIX}?squad=true`,
+    );
+    expect(actual.notification.description).toEqual('Create your new Squad');
+    expect(actual.attachments.length).toEqual(0);
+  });
 });

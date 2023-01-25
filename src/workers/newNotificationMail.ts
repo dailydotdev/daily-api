@@ -53,6 +53,7 @@ const notificationToTemplateId: Record<NotificationType, string> = {
   squad_new_comment: 'd-587c6c6fd1554fdf98e79b435b082f9e',
   squad_reply: 'd-cbb2de40b61840c38d3aa21028af0c68',
   squad_post_viewed: 'd-dc0eb578886c4f84a7dcc25515c7b6a4',
+  squad_access: 'd-6b3de457947b415d93d0029361edaf1d',
 };
 
 type TemplateDataFunc = (
@@ -427,6 +428,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       user_reputation: author.reputation,
       user_image: author.image,
     };
+  },
+  squad_access: async () => {
+    return {};
   },
 };
 

@@ -26,6 +26,7 @@ export type NotificationType =
   | 'comment_mention'
   | 'comment_reply'
   | 'comment_upvote_milestone'
+  | 'squad_access'
   | 'squad_post_added'
   | 'squad_member_joined'
   | 'squad_new_comment'

@@ -18,6 +18,7 @@ import commentUpvoteMilestone from './commentUpvoteMilestone';
 import postAdded from './postAdded';
 import memberJoinedSource from './squadMemberJoined';
 import postViewed from './squadPostViewed';
+import featureAccessNotification from './featureAccessNotification';
 
 function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -51,6 +52,7 @@ const notificationWorkers: NotificationWorker[] = [
   commentUpvoteMilestone,
   postAdded,
   memberJoinedSource,
+  featureAccessNotification,
   postViewed,
 ];
 
