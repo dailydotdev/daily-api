@@ -18,6 +18,7 @@ import {
   SubmissionStatus,
   Upvote,
   User,
+  Feature,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -48,6 +49,7 @@ import {
   notifyPostAdded,
   notifyMemberJoinedSource,
   notifyUserCreated,
+  notifyFeatureAccess,
 } from '../common';
 import { ChangeMessage, ChangeObject } from '../types';
 import { DataSource } from 'typeorm';
@@ -402,6 +404,16 @@ const onSourceMemberChange = async (
   }
 };
 
+const onFeatureChange = async (
+  con: DataSource,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<Feature>,
+) => {
+  if (data.payload.op === 'c') {
+    await notifyFeatureAccess(logger, data.payload.after);
+  }
+};
+
 const getTableName = <Entity>(
   con: DataSource,
   target: EntityTarget<Entity>,
@@ -468,6 +480,9 @@ const worker: Worker = {
           break;
         case getTableName(con, SourceMember):
           await onSourceMemberChange(con, logger, data);
+          break;
+        case getTableName(con, Feature):
+          await onFeatureChange(con, logger, data);
           break;
       }
     } catch (err) {
