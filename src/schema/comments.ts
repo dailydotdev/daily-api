@@ -360,6 +360,12 @@ const getMentions = async (
     return users;
   }
 
+  const source = await con.getRepository(Source).findOneBy({ id: sourceId });
+
+  if (!source.private) {
+    return users;
+  }
+
   const ids = users.map(({ id }) => id);
   const validMembers = await con
     .getRepository(SourceMember)
