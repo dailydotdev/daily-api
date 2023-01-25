@@ -327,20 +327,6 @@ export interface GQLUserCommentsArgs extends ConnectionArguments {
   userId: string;
 }
 
-const getSquadMembersFromIds = (
-  con: DataSource | EntityManager,
-  sourceId: string,
-  ids: string[],
-): Promise<SourceMember[]> =>
-  con
-    .getRepository(SourceMember)
-    .createQueryBuilder('sm')
-    .select('sm."userId"')
-    .innerJoin(Source, 's', 's.id = sm."sourceId"')
-    .where('(s.id = :sourceId OR s.handle = :sourceId)', { sourceId })
-    .andWhere('sm."userId" IN (:...ids)', { ids })
-    .getRawMany();
-
 interface MentionedUser {
   id: string;
   username?: string;
@@ -375,7 +361,9 @@ const getMentions = async (
   }
 
   const ids = users.map(({ id }) => id);
-  const validMembers = await getSquadMembersFromIds(con, sourceId, ids);
+  const validMembers = await con
+    .getRepository(SourceMember)
+    .findBy({ userId: In(ids), sourceId });
   const members = validMembers.map(({ userId }) => userId);
 
   return users.filter(({ id }) => members.includes(id));
@@ -587,11 +575,9 @@ export const resolvers: IResolvers<any, Context> = {
           return userIds;
         }
 
-        const members = await getSquadMembersFromIds(
-          ctx.con,
-          sourceId,
-          userIds,
-        );
+        const members: SourceMember[] = await con
+          .getRepository(SourceMember)
+          .findBy({ userId: In(userIds), sourceId });
 
         return members.map((member) => member.userId);
       };
