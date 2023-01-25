@@ -364,24 +364,27 @@ const getMentions = async (
     return [];
   }
 
-  const users = await con
-    .getRepository(User)
-    .find({ where: { username: In(result), id: Not(userId) } });
+  const repo = con.getRepository(User);
+  const getUsers = () =>
+    repo.find({ where: { username: In(result), id: Not(userId) } });
 
   if (!sourceId) {
-    return users;
+    return getUsers();
   }
 
   const source = await con.getRepository(Source).findOneBy({ id: sourceId });
 
   if (!source.private) {
-    return users;
+    return getUsers();
   }
 
-  const ids = users.map(({ id }) => id);
-  const members = await getMemberIds(con, sourceId, ids);
-
-  return users.filter(({ id }) => members.includes(id));
+  return repo
+    .createQueryBuilder('u')
+    .select('u.id, u.username')
+    .innerJoin(SourceMember, 'sm', 'u.id = sm."userId"')
+    .where('sm."sourceId" = :sourceId')
+    .andWhere('u.id IN (:...ids)', { ids: result })
+    .getRawMany();
 };
 
 const saveMentions = (
