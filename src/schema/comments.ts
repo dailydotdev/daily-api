@@ -739,8 +739,7 @@ export const resolvers: IResolvers<any, Context> = {
         if (comment.userId !== ctx.userId) {
           throw new ForbiddenError("Cannot edit someone else's comment");
         }
-        const post = await comment.post;
-        const source = await post.source;
+        const [post, source] = await Promise.all([comment.post, comment.source]);
         const squadId =
           source.type === SourceType.Squad ? source.id : undefined;
         comment.content = content;
