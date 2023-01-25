@@ -53,10 +53,7 @@ const worker: Worker = {
         'failed to tweet about the new post comment',
       );
       // Query failed or status is duplicate
-      if (
-        err.name === 'QueryFailedError' ||
-        err.code === TypeOrmError.DUPLICATE_ENTRY
-      ) {
+      if (err.name === 'QueryFailedError' || err.code === 187) {
         return;
       }
       throw err;
