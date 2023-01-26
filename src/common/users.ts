@@ -164,7 +164,7 @@ export const getUserIdsByNameOrUsername = async (
 
   if (sourceId) {
     queryBuilder = queryBuilder
-      .innerJoin(SourceMember, 'sm', 'id = sm."userId" AND ')
+      .innerJoin(SourceMember, 'sm', 'id = sm."userId"')
       .andWhere('sm."sourceId" = :sourceId', { sourceId });
   }
 
