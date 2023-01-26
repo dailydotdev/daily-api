@@ -22,6 +22,7 @@ import {
   NotificationAttachment,
   NotificationAvatar,
   Notification,
+  SourceType,
 } from '../../src/entity';
 import { scoutArticleLink } from '../../src/common';
 import { usersFixture } from '../fixture/user';
@@ -219,7 +220,10 @@ describe('generateNotification', () => {
     const type = 'article_upvote_milestone';
     const ctx: NotificationPostContext & NotificationUpvotersContext = {
       userId,
-      source: { ...sourcesFixture[0], type: 'squad' } as Reference<Source>,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       upvotes: 50,
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
@@ -457,7 +461,10 @@ describe('generateNotification', () => {
     const type = 'squad_post_added';
     const ctx: NotificationPostContext & NotificationDoneByContext = {
       userId,
-      source: { ...sourcesFixture[0], type: 'squad' } as Reference<Source>,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       doneBy: usersFixture[1] as Reference<User>,
     };
@@ -504,7 +511,10 @@ describe('generateNotification', () => {
     const type = 'squad_post_added';
     const ctx: NotificationPostContext & NotificationDoneByContext = {
       userId,
-      source: { ...sourcesFixture[0], type: 'squad' } as Reference<Source>,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
       post: {
         id: 'ps',
         title: 'Commentary',
@@ -557,7 +567,10 @@ describe('generateNotification', () => {
     const type = 'squad_post_viewed';
     const ctx: NotificationPostContext & NotificationDoneByContext = {
       userId,
-      source: { ...sourcesFixture[0], type: 'squad' } as Reference<Source>,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
       post: {
         id: 'ps',
         title: 'Commentary',
@@ -611,7 +624,10 @@ describe('generateNotification', () => {
     const type = 'squad_member_joined';
     const ctx: NotificationSourceContext & NotificationDoneByContext = {
       userId,
-      source: { ...sourcesFixture[0], type: 'squad' } as Reference<Source>,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
       doneBy: usersFixture[1] as Reference<User>,
     };
     const actual = generateNotification(type, ctx);
@@ -698,7 +714,10 @@ describe('storeNotificationBundle', () => {
     const type = 'squad_new_comment';
     const ctx: NotificationCommenterContext = {
       userId,
-      source: { ...sourcesFixture[0], type: 'squad' } as Reference<Source>,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,
@@ -740,7 +759,10 @@ describe('storeNotificationBundle', () => {
     const type = 'squad_reply';
     const ctx: NotificationCommenterContext = {
       userId,
-      source: { ...sourcesFixture[0], type: 'squad' } as Reference<Source>,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,

@@ -1,5 +1,5 @@
 import { messageToJson, Worker } from './worker';
-import { Source, SourceMember } from '../entity';
+import { Source, SourceMember, SourceType } from '../entity';
 import { ChangeObject } from '../types';
 
 interface Data {
@@ -13,7 +13,7 @@ const worker: Worker = {
     const source = await con
       .getRepository(Source)
       .findOneBy({ id: sourceMember.sourceId });
-    if (!source || source.type !== 'squad' || source.active) {
+    if (!source || source.type !== SourceType.Squad || source.active) {
       return;
     }
     const membersCount = await con

@@ -5,7 +5,13 @@ import {
 } from '../../notifications';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
-import { Source, SourceMember, SourceMemberRoles, User } from '../../entity';
+import {
+  Source,
+  SourceMember,
+  SourceMemberRoles,
+  SourceType,
+  User,
+} from '../../entity';
 import { In, Not } from 'typeorm';
 
 interface Data {
@@ -30,7 +36,7 @@ const worker: NotificationWorker = {
       con.getRepository(User).findOneBy({ id: member.userId }),
       con.getRepository(Source).findOneBy({ id: member.sourceId }),
     ]);
-    if (!doneBy || !source || source.type !== 'squad') {
+    if (!doneBy || !source || source.type !== SourceType.Squad) {
       return;
     }
     const ctx: NotificationSourceContext & NotificationDoneByContext = {

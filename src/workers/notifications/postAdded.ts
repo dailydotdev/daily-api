@@ -1,5 +1,5 @@
 import { messageToJson } from '../worker';
-import { Post, SourceMember, User } from '../../entity';
+import { Post, SourceMember, SourceType, User } from '../../entity';
 import {
   NotificationDoneByContext,
   NotificationPostContext,
@@ -34,7 +34,7 @@ const worker: NotificationWorker = {
 
     if (source) {
       // article_picked notification
-      if (source.type === 'machine') {
+      if (source.type === SourceType.Machine) {
         if (post.authorId) {
           const ctx: NotificationPostContext = {
             ...baseCtx,
@@ -44,7 +44,7 @@ const worker: NotificationWorker = {
         }
       }
       // squad_post_added notification
-      if (source.type === 'squad' && post.authorId) {
+      if (source.type === SourceType.Squad && post.authorId) {
         const doneBy = await con
           .getRepository(User)
           .findOneBy({ id: post.authorId });

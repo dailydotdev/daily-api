@@ -8,6 +8,7 @@ import {
   Source,
   SourceMember,
   SourceMemberRoles,
+  SourceType,
   SubmissionStatus,
   Upvote,
   User,
@@ -133,7 +134,9 @@ describe('post added notifications', () => {
 
   it('should add post added notification to all source members except the author', async () => {
     const worker = await import('../../src/workers/notifications/postAdded');
-    await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
     await con.getRepository(SourceMember).save([
       {
@@ -266,7 +269,9 @@ describe('article new comment', () => {
     const worker = await import(
       '../../src/workers/notifications/articleNewCommentPostCommented'
     );
-    await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -680,7 +685,9 @@ describe('squad member joined', () => {
     const worker = await import(
       '../../src/workers/notifications/squadMemberJoined'
     );
-    await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
     await con.getRepository(SourceMember).save([
       {
         sourceId: 'a',
@@ -731,7 +738,9 @@ describe('squad post viewed', () => {
     const worker = await import(
       '../../src/workers/notifications/squadPostViewed'
     );
-    await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
     const actual = await invokeNotificationWorker(worker.default, {
       postId: 'p1',
@@ -761,7 +770,9 @@ describe('squad post viewed', () => {
 });
 
 it('should add squad reply notification', async () => {
-  await con.getRepository(Source).update({ id: 'a' }, { type: 'squad' });
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
   await con.getRepository(Comment).save([
     {
       id: 'c2',

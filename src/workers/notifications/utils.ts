@@ -1,5 +1,5 @@
 import { NotificationHandlerReturn } from './worker';
-import { Comment, Post, SharePost } from '../../entity';
+import { Comment, Post, SharePost, SourceType } from '../../entity';
 import {
   NotificationCommenterContext,
   NotificationPostContext,
@@ -64,7 +64,9 @@ export async function articleNewCommentHandler(
     comment,
   };
   const type =
-    ctx.source.type === 'squad' ? 'squad_new_comment' : 'article_new_comment';
+    ctx.source.type === SourceType.Squad
+      ? 'squad_new_comment'
+      : 'article_new_comment';
   return users.map((userId) => ({
     type,
     ctx: { ...ctx, userId },

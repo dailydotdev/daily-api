@@ -4,7 +4,7 @@ import { IFlags } from 'flagsmith-nodejs';
 import { isSameDay } from 'date-fns';
 import fetch from 'node-fetch';
 import { DataSource, In, Not } from 'typeorm';
-import { CommentMention, Comment, View } from '../entity';
+import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { User as DbUser } from './../entity/User';
 
@@ -104,13 +104,14 @@ export interface ReadingDaysArgs {
 interface RecentMentionsProps {
   query?: string;
   limit?: number;
+  sourceId?: string;
   excludeIds?: string[];
 }
 
 export const getRecentMentionsIds = async (
   con: DataSource,
   userId: string,
-  { limit = 5, query, excludeIds }: RecentMentionsProps,
+  { limit = 5, query, excludeIds, sourceId }: RecentMentionsProps,
 ): Promise<string[]> => {
   let queryBuilder = con
     .getRepository(CommentMention)
@@ -118,6 +119,12 @@ export const getRecentMentionsIds = async (
     .select('DISTINCT cm."mentionedUserId"')
     .where({ commentByUserId: userId })
     .andWhere({ mentionedUserId: Not(userId) });
+
+  if (sourceId) {
+    queryBuilder = queryBuilder
+      .innerJoin(SourceMember, 'sm', 'sm."userId" = cm."mentionedUserId"')
+      .andWhere('sm."sourceId" = :sourceId', { sourceId });
+  }
 
   if (query) {
     queryBuilder = queryBuilder
@@ -143,7 +150,7 @@ export const getRecentMentionsIds = async (
 
 export const getUserIdsByNameOrUsername = async (
   con: DataSource,
-  { query, limit = 5, excludeIds }: RecentMentionsProps,
+  { query, limit = 5, excludeIds, sourceId }: RecentMentionsProps,
 ): Promise<string[]> => {
   let queryBuilder = con
     .getRepository(DbUser)
@@ -154,6 +161,12 @@ export const getUserIdsByNameOrUsername = async (
     })
     .andWhere('username IS NOT NULL')
     .limit(limit);
+
+  if (sourceId) {
+    queryBuilder = queryBuilder
+      .innerJoin(SourceMember, 'sm', 'id = sm."userId"')
+      .andWhere('sm."sourceId" = :sourceId', { sourceId });
+  }
 
   if (excludeIds?.length) {
     queryBuilder = queryBuilder.andWhere({
@@ -169,9 +182,15 @@ export const getUserIdsByNameOrUsername = async (
 export const recommendUsersByQuery = async (
   con: DataSource,
   userId: string,
-  { query, limit }: RecentMentionsProps,
+  { query, limit, sourceId }: RecentMentionsProps,
 ): Promise<string[]> => {
-  const recentIds = await getRecentMentionsIds(con, userId, { query, limit });
+  const privateSource = await (sourceId &&
+    con.getRepository(Source).findOneBy({ id: sourceId, private: true }));
+  const recentIds = await getRecentMentionsIds(con, userId, {
+    query,
+    limit,
+    sourceId: privateSource?.id,
+  });
   const missing = limit - recentIds.length;
 
   if (missing === 0) {
@@ -181,6 +200,7 @@ export const recommendUsersByQuery = async (
   const userIds = await getUserIdsByNameOrUsername(con, {
     limit: missing,
     query,
+    sourceId: privateSource?.id,
     excludeIds: recentIds.concat(userId),
   });
 
@@ -191,7 +211,7 @@ export const recommendUsersToMention = async (
   con: DataSource,
   postId: string,
   userId: string,
-  { limit }: RecentMentionsProps,
+  { limit, sourceId }: RecentMentionsProps,
 ): Promise<string[]> => {
   const [post, commenterIds] = await Promise.all([
     con.getRepository(Post).findOneBy({ id: postId, authorId: Not(userId) }),
@@ -211,9 +231,12 @@ export const recommendUsersToMention = async (
     return commenterIds;
   }
 
+  const privateSource = await (sourceId &&
+    con.getRepository(Source).findOneBy({ id: sourceId, private: true }));
   const recent = await getRecentMentionsIds(con, userId, {
     limit: missing,
     excludeIds: commenterIds,
+    sourceId: privateSource?.id,
   });
 
   return commenterIds.concat(recent);

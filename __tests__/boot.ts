@@ -20,6 +20,7 @@ import {
   SourceMemberRoles,
   MachineSource,
   SQUAD_IMAGE_PLACEHOLDER,
+  SourceType,
 } from '../src/entity';
 import { notificationFixture } from './fixture/notifications';
 import { usersFixture } from './fixture/user';
@@ -180,7 +181,7 @@ it('should return the user squads', async () => {
         name: 'Squad',
         permalink: 'http://localhost:5002/squads/s1',
         public: true,
-        type: 'squad',
+        type: SourceType.Squad,
       },
       {
         active: true,
@@ -190,7 +191,7 @@ it('should return the user squads', async () => {
         name: 'Squad 2',
         permalink: 'http://localhost:5002/squads/s2',
         public: false,
-        type: 'squad',
+        type: SourceType.Squad,
       },
     ],
   });
