@@ -12,6 +12,10 @@ export const notifyNewComment = async (
   comment: string,
   commentId: string,
 ): Promise<void> => {
+  if (post.type === 'share') {
+    return;
+  }
+
   await webhook.send({
     text: 'New comment',
     attachments: [
