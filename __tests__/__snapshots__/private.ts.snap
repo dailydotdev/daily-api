@@ -1,5 +1,45 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`POST /p/newPost save a post as public if source is public 1`] = `
+Object {
+  "authorId": null,
+  "banned": false,
+  "canonicalUrl": "https://post.com",
+  "comments": 0,
+  "createdAt": 2023-01-27T16:10:42.279Z,
+  "creatorTwitter": null,
+  "deleted": false,
+  "description": null,
+  "discussionScore": null,
+  "id": "YTOJGH0wUW",
+  "image": null,
+  "lastTrending": null,
+  "metadataChangedAt": 2023-01-27T16:10:42.283Z,
+  "placeholder": null,
+  "private": false,
+  "publishedAt": null,
+  "ratio": null,
+  "readTime": null,
+  "score": 27913930,
+  "scoutId": null,
+  "sentAnalyticsReport": true,
+  "shortId": "YTOJGH0wUW",
+  "siteTwitter": null,
+  "sourceId": "a",
+  "summary": null,
+  "tagsStr": null,
+  "title": "Title",
+  "toc": null,
+  "trending": null,
+  "tweeted": false,
+  "type": "article",
+  "upvotes": 0,
+  "url": "https://post.com",
+  "views": 0,
+  "viewsThreshold": 0,
+}
+`;
+
 exports[`POST /p/newPost should save a new post with basic information 1`] = `
 Object {
   "authorId": null,
@@ -16,6 +56,7 @@ Object {
   "lastTrending": null,
   "metadataChangedAt": Any<Date>,
   "placeholder": null,
+  "private": false,
   "publishedAt": null,
   "ratio": null,
   "readTime": null,

@@ -217,7 +217,7 @@ const addPostAndKeywordsToDb = async (
       'created an article with more than 5 keywords',
     );
   }
-  await entityManager.getRepository(ArticlePost).insert({
+  const post = await entityManager.getRepository(ArticlePost).create({
     id: data.id,
     shortId: data.id,
     publishedAt: data.publishedAt,
@@ -241,6 +241,7 @@ const addPostAndKeywordsToDb = async (
     summary: data.summary,
     scoutId: data.scoutId,
   });
+  await entityManager.save(post);
   if (data.tags?.length) {
     await entityManager.getRepository(PostTag).insert(
       data.tags.map((t) => ({

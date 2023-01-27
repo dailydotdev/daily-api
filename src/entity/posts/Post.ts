@@ -1,5 +1,5 @@
 import {
-  AfterLoad,
+  BeforeInsert,
   Column,
   Entity,
   Index,
@@ -12,6 +12,7 @@ import { Source } from '../Source';
 import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { User } from '../User';
+import createOrGetConnection from '../../db';
 
 @Entity()
 @TableInheritance({
@@ -130,11 +131,15 @@ export class Post {
   @Index('IDX_post_tsv')
   tsv: unknown;
 
+  @Column({ default: false })
   private: boolean;
 
-  @AfterLoad()
-  async setComputed() {
-    const source = await this.source;
-    this.private = source.private;
+  @BeforeInsert()
+  async setPrivate() {
+    const con = await createOrGetConnection();
+    const sourcePrivate = await con
+      .getRepository(Source)
+      .findOneBy({ id: this.sourceId });
+    this.private = sourcePrivate.private;
   }
 }
