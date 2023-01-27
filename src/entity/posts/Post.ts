@@ -1,4 +1,5 @@
 import {
+  AfterLoad,
   Column,
   Entity,
   Index,
@@ -128,4 +129,12 @@ export class Post {
   @Column({ nullable: true, type: 'tsvector', select: false })
   @Index('IDX_post_tsv')
   tsv: unknown;
+
+  private: boolean;
+
+  @AfterLoad()
+  async setComputed() {
+    const source = await this.source;
+    this.private = source.private;
+  }
 }
