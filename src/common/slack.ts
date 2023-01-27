@@ -12,10 +12,6 @@ export const notifyNewComment = async (
   comment: string,
   commentId: string,
 ): Promise<void> => {
-  if (post.private) {
-    return;
-  }
-
   await webhook.send({
     text: 'New comment',
     attachments: [

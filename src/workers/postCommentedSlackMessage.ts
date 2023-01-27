@@ -20,6 +20,9 @@ const worker: Worker = {
         return;
       }
       const post = await comment.post;
+      if (post.private) {
+        return;
+      }
       await notifyNewComment(post, data.userId, comment.content, comment.id);
       logger.info(
         {
