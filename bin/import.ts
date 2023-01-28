@@ -19,6 +19,9 @@ const start = async (): Promise<void> => {
   await importEntity(con, 'Post');
   await importEntity(con, 'Category');
   await importEntity(con, 'PostKeyword');
+  // Manually have to reset these as insert has a issue with `type` columns
+  await con.query(`update post set type = 'article' where type = 'Post'`);
+  await con.query(`update source set type = 'machine' where type = 'Source'`);
 };
 
 start()
