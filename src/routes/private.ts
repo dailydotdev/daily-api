@@ -3,7 +3,7 @@ import {
   addNewPost,
   addNewUser,
   AddPostData,
-  AddUserData,
+  AddUserDataPost,
   RejectPostData,
   Submission,
   SubmissionStatus,
@@ -60,13 +60,16 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       throw error;
     }
   });
-  fastify.post<{ Body: AddUserData }>('/newUser', async (req, res) => {
+  fastify.post<{ Body: AddUserDataPost }>('/newUser', async (req, res) => {
     if (!req.service) {
       return res.status(404).send();
     }
 
     const con = await createOrGetConnection();
-    const operationResult = await addNewUser(con, req.body, req.log);
+    // Temporary fix to migrate existing "referral" to "referralId" for backward compatability
+    const { referral, ...rest } = req.body;
+    const body = { ...rest, referralId: rest.referralId || referral };
+    const operationResult = await addNewUser(con, body, req.log);
     return res.status(200).send(operationResult);
   });
   fastify.post<{ Body: UpdateUserEmailData }>(

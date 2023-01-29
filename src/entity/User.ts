@@ -5,6 +5,7 @@ import {
   Entity,
   EntityManager,
   Index,
+  ManyToOne,
   OneToMany,
   PrimaryColumn,
 } from 'typeorm';
@@ -89,8 +90,15 @@ export class User {
   @Column({ nullable: true })
   updatedAt?: Date;
 
-  @Column({ type: 'text', nullable: true })
-  referral?: string;
+  @Column({ length: 36, nullable: true })
+  @Index('IDX_user_referral')
+  referralId?: string | null;
+
+  @ManyToOne(() => User, {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  referral?: Promise<User>;
 
   @OneToMany(() => Post, (post) => post.author, { lazy: true })
   posts: Promise<Post[]>;
@@ -118,12 +126,13 @@ export type AddUserData = Pick<
   | 'createdAt'
   | 'github'
   | 'twitter'
-  | 'referral'
+  | 'referralId'
   | 'infoConfirmed'
   | 'profileConfirmed'
   | 'acceptedMarketing'
   | 'timezone'
 >;
+export type AddUserDataPost = { referral: string } & AddUserData;
 export type UpdateUserEmailData = Pick<User, 'id' | 'email'>;
 type AddNewUserResult =
   | { status: 'ok'; userId: string }
@@ -267,7 +276,7 @@ export const addNewUser = async (
         profileConfirmed: data.profileConfirmed,
         infoConfirmed: isInfoConfirmed(data),
         createdAt: data.createdAt,
-        referral: data.referral,
+        referralId: data.referralId,
         acceptedMarketing: data.acceptedMarketing,
         timezone: data.timezone,
         github,
