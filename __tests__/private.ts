@@ -484,6 +484,56 @@ describe('POST /p/newUser', () => {
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].twitter).toEqual(null);
   });
+
+  it('should add new user with referral', async () => {
+    await con.getRepository(User).save({ ...usersFixture[1] });
+
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        referral: usersFixture[1].id,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
+    expect(users.length).toEqual(2);
+    expect(users[0].id).toEqual(usersFixture[0].id);
+    expect(users[0].referralId).toEqual(usersFixture[1].id);
+  });
+
+  it('should add new user with referralId', async () => {
+    await con.getRepository(User).save({ ...usersFixture[1] });
+
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        referralId: usersFixture[1].id,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
+    expect(users.length).toEqual(2);
+    expect(users[0].id).toEqual(usersFixture[0].id);
+    expect(users[0].referralId).toEqual(usersFixture[1].id);
+  });
 });
 
 describe('POST /p/checkUsername', () => {
