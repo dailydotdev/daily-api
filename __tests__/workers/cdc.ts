@@ -30,6 +30,7 @@ import {
   notifyUserCreated,
   notifyUserUpdated,
   notifyFeatureAccess,
+  notifySourcePrivacyUpdated,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -99,6 +100,7 @@ jest.mock('../../src/common', () => ({
   notifyUserUpdated: jest.fn(),
   notifyFeatureAccess: jest.fn(),
   sendEmail: jest.fn(),
+  notifySourcePrivacyUpdated: jest.fn(),
 }));
 
 let con: DataSource;
@@ -1177,5 +1179,29 @@ describe('feature', () => {
     expect(jest.mocked(notifyFeatureAccess).mock.calls[0].slice(1)).toEqual([
       base,
     ]);
+  });
+});
+
+describe('source', () => {
+  type ObjectType = Partial<Source>;
+  const base: ChangeObject<ObjectType> = {
+    id: 'a',
+    private: true,
+  };
+
+  it('should notify on source privacy change', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: { ...base, private: false },
+        before: base,
+        op: 'u',
+        table: 'source',
+      }),
+    );
+    expect(notifySourcePrivacyUpdated).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifySourcePrivacyUpdated).mock.calls[0].slice(1),
+    ).toEqual([base.id, false]);
   });
 });

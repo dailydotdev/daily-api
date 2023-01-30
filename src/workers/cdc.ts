@@ -19,6 +19,7 @@ import {
   Upvote,
   User,
   Feature,
+  Source,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -50,6 +51,7 @@ import {
   notifyMemberJoinedSource,
   notifyUserCreated,
   notifyFeatureAccess,
+  notifySourcePrivacyUpdated,
 } from '../common';
 import { ChangeMessage, ChangeObject } from '../types';
 import { DataSource } from 'typeorm';
@@ -340,6 +342,22 @@ const onSourceFeedChange = async (
   }
 };
 
+const onSourceChange = async (
+  con: DataSource,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<Source>,
+) => {
+  if (data.payload.op === 'u') {
+    if (data.payload.before.private !== data.payload.after.private) {
+      await notifySourcePrivacyUpdated(
+        logger,
+        data.payload.after.id,
+        data.payload.after.private,
+      );
+    }
+  }
+};
+
 const onFeedChange = async (
   con: DataSource,
   logger: FastifyLoggerInstance,
@@ -431,6 +449,9 @@ const worker: Worker = {
         return;
       }
       switch (data.payload.source.table) {
+        case getTableName(con, Source):
+          await onSourceChange(con, logger, data);
+          break;
         case getTableName(con, Feed):
           await onFeedChange(con, logger, data);
           break;

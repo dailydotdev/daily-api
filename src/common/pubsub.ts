@@ -44,6 +44,7 @@ const memberJoinedSourceTopic = pubsub.topic('api.v1.member-joined-source');
 const featureAccess = pubsub.topic('api.v1.feature-granted');
 const postAddedTopic = pubsub.topic('api.v1.post-added');
 const userCreatedTopic = pubsub.topic('api.v1.user-created');
+const sourcePrivacyUpdatedTopic = pubsub.topic('api.v1.source-privacy-updated');
 
 export enum NotificationReason {
   New = 'new',
@@ -197,6 +198,13 @@ export const notifySettingsUpdated = (
   log: EventLogger,
   settings: ChangeObject<Settings>,
 ): Promise<void> => publishEvent(log, settingsUpdatedTopic, settings);
+
+export const notifySourcePrivacyUpdated = (
+  log: EventLogger,
+  sourceId: string,
+  privacy: boolean,
+): Promise<void> =>
+  publishEvent(log, sourcePrivacyUpdatedTopic, { sourceId, privacy });
 
 export const notifyNotificationsRead = (
   log: EventLogger,
