@@ -1,27 +1,27 @@
 import { messageToJson, Worker } from './worker';
-import { Post } from '../entity';
+import { Post, Source } from '../entity';
+import { ChangeObject } from '../types';
 
 interface Data {
-  sourceId: string;
-  privacy: boolean;
+  source: ChangeObject<Source>;
 }
 
 const worker: Worker = {
-  subscription: 'source-privacy-updated-api',
+  subscription: 'api.source-privacy-updated',
   handler: async (message, con, logger): Promise<void> => {
-    const { sourceId, privacy }: Data = messageToJson(message);
+    const { source }: Data = messageToJson(message);
     try {
       await con.getRepository(Post).update(
         {
-          sourceId,
+          sourceId: source.id,
         },
         {
-          private: privacy,
+          private: source.private,
         },
       );
       logger.info(
         {
-          sourceId,
+          sourceId: source.id,
           messageId: message.messageId,
         },
         'updated source posts privacy',
@@ -29,7 +29,7 @@ const worker: Worker = {
     } catch (err) {
       logger.error(
         {
-          sourceId,
+          sourceId: source.id,
           messageId: message.messageId,
           err,
         },

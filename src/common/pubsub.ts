@@ -11,6 +11,7 @@ import {
   CommentMention,
   SourceMember,
   Feature,
+  Source,
 } from '../entity';
 import { ChangeObject } from '../types';
 
@@ -201,10 +202,8 @@ export const notifySettingsUpdated = (
 
 export const notifySourcePrivacyUpdated = (
   log: EventLogger,
-  sourceId: string,
-  privacy: boolean,
-): Promise<void> =>
-  publishEvent(log, sourcePrivacyUpdatedTopic, { sourceId, privacy });
+  source: ChangeObject<Source>,
+): Promise<void> => publishEvent(log, sourcePrivacyUpdatedTopic, { source });
 
 export const notifyNotificationsRead = (
   log: EventLogger,

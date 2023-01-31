@@ -1190,10 +1190,11 @@ describe('source', () => {
   };
 
   it('should notify on source privacy change', async () => {
+    const after = { ...base, private: false };
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
-        after: { ...base, private: false },
+        after,
         before: base,
         op: 'u',
         table: 'source',
@@ -1202,6 +1203,6 @@ describe('source', () => {
     expect(notifySourcePrivacyUpdated).toBeCalledTimes(1);
     expect(
       jest.mocked(notifySourcePrivacyUpdated).mock.calls[0].slice(1),
-    ).toEqual([base.id, false]);
+    ).toEqual([after]);
   });
 });

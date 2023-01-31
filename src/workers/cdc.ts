@@ -349,11 +349,7 @@ const onSourceChange = async (
 ) => {
   if (data.payload.op === 'u') {
     if (data.payload.before.private !== data.payload.after.private) {
-      await notifySourcePrivacyUpdated(
-        logger,
-        data.payload.after.id,
-        data.payload.after.private,
-      );
+      await notifySourcePrivacyUpdated(logger, data.payload.after);
     }
   }
 };

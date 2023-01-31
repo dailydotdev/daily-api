@@ -104,7 +104,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.source-privacy-updated',
-    subscription: 'source-privacy-updated-api',
+    subscription: 'api.source-privacy-updated',
   },
   // Notifications
   {

@@ -19,16 +19,9 @@ beforeEach(async () => {
 });
 
 it('should change post privacy on source privacy update', async () => {
-  await con.getRepository(Source).update(
-    {
-      id: postsFixture[0].sourceId,
-    },
-    {
-      private: true,
-    },
-  );
-
-  await expectSuccessfulBackground(worker, { sourceId: 'a', privacy: true });
+  await expectSuccessfulBackground(worker, {
+    source: { id: 'a', private: true },
+  });
   const post = await con
     .getRepository(Post)
     .findOneBy({ id: postsFixture[0].id });
