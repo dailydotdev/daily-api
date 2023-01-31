@@ -798,11 +798,17 @@ export const resolvers: IResolvers<any, Context> = {
           'Access denied! You do not have permission for this action!',
         );
       }
-      await addNewSourceMember(ctx.con, {
-        sourceId,
-        userId: ctx.userId,
-        role: SourceMemberRoles.Member,
+      await ctx.con.transaction(async (entityManager) => {
+        await addNewSourceMember(entityManager, {
+          sourceId,
+          userId: ctx.userId,
+          role: SourceMemberRoles.Member,
+        });
+        await entityManager
+          .getRepository(Source)
+          .update({ id: sourceId }, { active: true });
       });
+
       return getSourceById(ctx, info, sourceId);
     },
   }),
