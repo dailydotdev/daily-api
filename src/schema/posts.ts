@@ -619,7 +619,10 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<GQLPost> => {
-      const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      const post = await ctx.con.getRepository(Post).findOneOrFail({
+        select: ['sourceId'],
+        where: { id },
+      });
       await ensureSourcePermissions(ctx, post.sourceId);
       return getPostById(ctx, info, id);
     },
