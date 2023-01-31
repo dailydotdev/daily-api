@@ -273,7 +273,7 @@ query Source($id: ID!) {
 describe('query sourceHandleExists', () => {
   const QUERY = `
     query SourceHandleExists($handle: String!) {
-      sourceHandleExists(handle: $handle) 
+      sourceHandleExists(handle: $handle)
     }
   `;
 
@@ -894,6 +894,7 @@ describe('mutation joinSource', () => {
 
   it('should add member to private squad with token', async () => {
     loggedUser = '1';
+    await con.getRepository(Source).update({ id: 's1' }, { active: false });
     const res = await client.mutate(MUTATION, {
       variables: {
         ...variables,
@@ -906,6 +907,8 @@ describe('mutation joinSource', () => {
       sourceId: 's1',
       userId: '1',
     });
+    const source = await con.getRepository(Source).findOneBy({ id: 's1' });
+    expect(source.active).toEqual(true);
   });
 
   it('should throw error when joining private squad without token', async () => {

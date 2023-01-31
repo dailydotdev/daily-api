@@ -99,10 +99,6 @@ export const workers: Worker[] = [
     subscription: 'api.new-notification-push',
   },
   {
-    topic: 'api.v1.member-joined-source',
-    subscription: 'api.squad-activation',
-  },
-  {
     topic: 'api.v1.source-privacy-updated',
     subscription: 'api.source-privacy-updated',
   },
