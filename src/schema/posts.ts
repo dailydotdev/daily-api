@@ -60,6 +60,7 @@ export interface GQLPost {
   numComments: number;
   featuredComments?: GQLComment[];
   deleted?: boolean;
+  private: boolean;
   // Used only for pagination (not part of the schema)
   score: number;
   bookmarkedAt: Date;
@@ -228,6 +229,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the user commented this post
     """
     commented: Boolean
+
+    """
+    Whether the post's source is private or not
+    """
+    private: Boolean
 
     """
     If bookmarked, this is the list where it is saved

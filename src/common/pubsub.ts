@@ -11,6 +11,7 @@ import {
   CommentMention,
   SourceMember,
   Feature,
+  Source,
 } from '../entity';
 import { ChangeObject } from '../types';
 
@@ -44,6 +45,7 @@ const memberJoinedSourceTopic = pubsub.topic('api.v1.member-joined-source');
 const featureAccess = pubsub.topic('api.v1.feature-granted');
 const postAddedTopic = pubsub.topic('api.v1.post-added');
 const userCreatedTopic = pubsub.topic('api.v1.user-created');
+const sourcePrivacyUpdatedTopic = pubsub.topic('api.v1.source-privacy-updated');
 
 export enum NotificationReason {
   New = 'new',
@@ -197,6 +199,11 @@ export const notifySettingsUpdated = (
   log: EventLogger,
   settings: ChangeObject<Settings>,
 ): Promise<void> => publishEvent(log, settingsUpdatedTopic, settings);
+
+export const notifySourcePrivacyUpdated = (
+  log: EventLogger,
+  source: ChangeObject<Source>,
+): Promise<void> => publishEvent(log, sourcePrivacyUpdatedTopic, { source });
 
 export const notifyNotificationsRead = (
   log: EventLogger,

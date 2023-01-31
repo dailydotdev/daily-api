@@ -16,6 +16,7 @@ Object {
   "lastTrending": null,
   "metadataChangedAt": Any<Date>,
   "placeholder": null,
+  "private": false,
   "publishedAt": null,
   "ratio": null,
   "readTime": null,
