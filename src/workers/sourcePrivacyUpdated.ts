@@ -35,9 +35,6 @@ const worker: Worker = {
         },
         'failed to trigger updating source privacy',
       );
-      if (err.name === 'QueryFailedError') {
-        return;
-      }
       throw err;
     }
   },
