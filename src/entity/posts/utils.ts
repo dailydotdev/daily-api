@@ -13,6 +13,7 @@ import { ArticlePost, Toc } from './ArticlePost';
 import { Post } from './Post';
 import { MAX_COMMENTARY_LENGTH, SharePost } from './SharePost';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
+import { Source } from '../Source';
 
 export type PostStats = {
   numPosts: number;
@@ -217,6 +218,9 @@ const addPostAndKeywordsToDb = async (
       'created an article with more than 5 keywords',
     );
   }
+  const { private: privacy } = await entityManager
+    .getRepository(Source)
+    .findOneById(data.publicationId);
   const post = await entityManager.getRepository(ArticlePost).create({
     id: data.id,
     shortId: data.id,
@@ -240,6 +244,7 @@ const addPostAndKeywordsToDb = async (
     toc: data.toc,
     summary: data.summary,
     scoutId: data.scoutId,
+    private: privacy,
   });
   await entityManager.save(post);
   if (data.tags?.length) {
@@ -345,6 +350,9 @@ export const createSharePost = async (
   }
   const id = shortid.generate();
   try {
+    const { private: privacy } = await con
+      .getRepository(Source)
+      .findOneById(sourceId);
     return await con.getRepository(SharePost).save({
       id,
       shortId: id,
@@ -354,6 +362,7 @@ export const createSharePost = async (
       sharedPostId: postId,
       title: commentary,
       sentAnalyticsReport: true,
+      private: privacy,
     });
   } catch (err) {
     if (err.code === TypeOrmError.FOREIGN_KEY) {
