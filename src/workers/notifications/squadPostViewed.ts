@@ -18,7 +18,8 @@ const worker: NotificationWorker = {
     if (
       !postCtx ||
       postCtx.source.type !== SourceType.Squad ||
-      !postCtx.post.authorId
+      !postCtx.post.authorId ||
+      postCtx.post.authorId === data.userId
     ) {
       return;
     }

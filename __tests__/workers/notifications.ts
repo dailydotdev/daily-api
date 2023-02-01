@@ -767,6 +767,21 @@ describe('squad post viewed', () => {
     });
     expect(actual).toBeFalsy();
   });
+
+  it('should ignore if the user is the author', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/squadPostViewed'
+    );
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    const actual = await invokeNotificationWorker(worker.default, {
+      postId: 'p1',
+      userId: '1',
+    });
+    expect(actual).toBeFalsy();
+  });
 });
 
 it('should add squad reply notification', async () => {
