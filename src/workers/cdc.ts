@@ -348,6 +348,10 @@ const onSourceChange = async (
   data: ChangeMessage<Source>,
 ) => {
   if (data.payload.op === 'u') {
+    // Temporary workaround to handle messages before replica identity full
+    if (!data.payload.before) {
+      return;
+    }
     if (data.payload.before.private !== data.payload.after.private) {
       await notifySourcePrivacyUpdated(logger, data.payload.after);
     }
