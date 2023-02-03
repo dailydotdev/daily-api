@@ -1,3 +1,4 @@
+import { ValidationError } from 'apollo-server-errors';
 import { ObjectLiteral } from 'typeorm';
 
 export const mapArrayToOjbect = <T extends ObjectLiteral>(
@@ -36,3 +37,11 @@ export const validateRegex = (
 export const nameRegex = new RegExp(/^(.){1,60}$/);
 export const handleRegex = new RegExp(/^@?([\w-]){1,39}$/i);
 export const descriptionRegex = new RegExp(/^(.){1,250}$/);
+
+export const validateRegexOrFail = (params: ValidateRegex[]): void => {
+  const regexResult = validateRegex(params);
+
+  if (Object.keys(regexResult).length) {
+    throw new ValidationError(JSON.stringify(regexResult));
+  }
+};

@@ -40,6 +40,7 @@ import {
   nameRegex,
   validateRegex,
   ValidateRegex,
+  validateRegexOrFail,
 } from '../common/object';
 
 export interface GQLSource {
@@ -534,6 +535,8 @@ export const resolvers: IResolvers<any, Context> = {
       return getSourceById(ctx, info, id);
     },
     sourceHandleExists: async (_, { handle }: { handle: string }, ctx) => {
+      validateRegexOrFail([['handle', handle, handleRegex, true]]);
+
       const source = await ctx
         .getRepository(Source)
         .findOneBy({ handle: handle.toLowerCase() });
