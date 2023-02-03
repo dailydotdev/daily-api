@@ -22,10 +22,8 @@ type Value = string;
 type IsRequired = boolean;
 export type ValidateRegex = [Key, Value, RegExp, IsRequired?];
 
-export const validateRegex = (
-  params: ValidateRegex[],
-): Record<string, string> =>
-  params.reduce((result, [key, value, regex, isRequired]) => {
+export const validateRegex = (params: ValidateRegex[]): void => {
+  const result = params.reduce((result, [key, value, regex, isRequired]) => {
     if (isNullOrUndefined(value)) {
       return isRequired ? { ...result, [key]: `${key} is required!` } : result;
     }
@@ -34,14 +32,10 @@ export const validateRegex = (
     return isValid ? result : { ...result, [key]: `${key} is invalid!` };
   }, {});
 
+  if (Object.keys(result).length) {
+    throw new ValidationError(JSON.stringify(result));
+  }
+};
 export const nameRegex = new RegExp(/^(.){1,60}$/);
 export const handleRegex = new RegExp(/^@?([\w-]){1,39}$/i);
 export const descriptionRegex = new RegExp(/^(.){1,250}$/);
-
-export const validateRegexOrFail = (params: ValidateRegex[]): void => {
-  const regexResult = validateRegex(params);
-
-  if (Object.keys(regexResult).length) {
-    throw new ValidationError(JSON.stringify(regexResult));
-  }
-};
