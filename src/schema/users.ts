@@ -394,6 +394,11 @@ export const typeDefs = /* GraphQL */ `
     """
     readHistory(
       """
+      If true it only return public posts
+      """
+      isPublic: Boolean
+
+      """
       Paginate after opaque cursor
       """
       after: String
@@ -460,7 +465,7 @@ interface ReadingHistyoryArgs {
 }
 
 const readHistoryResolver = async (
-  args: ConnectionArguments & { query?: string },
+  args: ConnectionArguments & { query?: string; isPublic?: boolean },
   ctx: Context,
   info,
 ): Promise<Connection<GQLView>> => {
@@ -485,6 +490,9 @@ const readHistoryResolver = async (
       builder.queryBuilder.andWhere(`p.tsv @@ (${getSearchQuery(':query')})`, {
         query: args?.query,
       });
+    }
+    if (args?.isPublic) {
+      builder.queryBuilder.andWhere(`p.private = false`);
     }
 
     return builder;
@@ -684,7 +692,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<Connection<GQLView>> => readHistoryResolver(args, ctx, info),
     readHistory: async (
       _,
-      args: ConnectionArguments,
+      args: ConnectionArguments & { isPublic?: boolean },
       ctx: Context,
       info,
     ): Promise<Connection<GQLView>> => readHistoryResolver(args, ctx, info),
