@@ -766,10 +766,8 @@ export const resolvers: IResolvers<any, Context> = {
         ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
         ['hashnode', data.hashnode, handleRegex],
       ];
-      const regexResult = validateRegex(regexParams);
-      if (Object.keys(regexResult).length) {
-        throw new ValidationError(JSON.stringify(regexResult));
-      }
+
+      validateRegex(regexParams);
 
       const avatar =
         upload && process.env.CLOUDINARY_URL
