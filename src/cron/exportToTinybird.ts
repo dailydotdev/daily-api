@@ -30,7 +30,7 @@ const cron: Cron = {
               "tagsStr"                     AS "tags_str",
               ("banned" or "deleted") ::int AS "banned",
               "type"                        AS "post_type",
-              "private"::int                AS "source_private"
+              "private"::int                AS "post_private"
        FROM "post"
        WHERE "metadataChangedAt" > $1
          and "sourceId" is not null;`,
