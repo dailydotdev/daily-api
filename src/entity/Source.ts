@@ -33,6 +33,10 @@ export class Source {
   @Column({ default: SourceType.Machine })
   type: SourceType;
 
+  @Column({ default: () => 'now()' })
+  @Index('IDX_source_createdAt', { synchronize: false })
+  createdAt: Date;
+
   @Column({ default: true })
   active: boolean;
 
