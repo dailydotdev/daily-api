@@ -302,6 +302,7 @@ describe('mutation publishSourceRequest', () => {
     const source = await con
       .getRepository(Source)
       .findOneByOrFail({ id: req.sourceId });
+    delete source.createdAt;
     expect(source).toMatchSnapshot();
     expect(await source.feeds).toMatchSnapshot();
   });

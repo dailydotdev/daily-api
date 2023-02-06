@@ -34,7 +34,6 @@ export class Source {
   type: SourceType;
 
   @Column({ default: () => 'now()' })
-  @Index('IDX_source_createdAt', { synchronize: false })
   createdAt: Date;
 
   @Column({ default: true })
