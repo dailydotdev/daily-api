@@ -429,8 +429,10 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       user_image: author.image,
     };
   },
-  squad_access: async () => {
-    return {};
+  squad_access: async (con, user) => {
+    return {
+      full_name: user.name,
+    };
   },
 };
 

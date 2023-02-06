@@ -798,3 +798,27 @@ it('should set parameters for squad_post_viewed email', async () => {
   });
   expect(args.templateId).toEqual('d-dc0eb578886c4f84a7dcc25515c7b6a4');
 });
+
+it('should set parameters for squad_access email', async () => {
+  const ctx: NotificationBaseContext = {
+    userId: '1',
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'squad_access',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+  expect(args.dynamicTemplateData).toEqual({
+    full_name: 'Ido',
+  });
+  expect(args.templateId).toEqual('d-6b3de457947b415d93d0029361edaf1d');
+});
