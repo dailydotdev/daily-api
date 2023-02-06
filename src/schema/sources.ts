@@ -410,10 +410,8 @@ const validateSquadData = ({
     ['handle', handle, handleRegex, true],
     ['description', description, descriptionRegex, false],
   ];
-  const regexResult = validateRegex(regexParams);
-  if (Object.keys(regexResult).length) {
-    throw new ValidationError(JSON.stringify(regexResult));
-  }
+
+  validateRegex(regexParams);
 
   return handle;
 };
@@ -534,6 +532,8 @@ export const resolvers: IResolvers<any, Context> = {
       return getSourceById(ctx, info, id);
     },
     sourceHandleExists: async (_, { handle }: { handle: string }, ctx) => {
+      validateRegex([['handle', handle, handleRegex, true]]);
+
       const source = await ctx
         .getRepository(Source)
         .findOneBy({ handle: handle.toLowerCase() });
