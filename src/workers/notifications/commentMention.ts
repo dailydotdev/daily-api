@@ -24,6 +24,10 @@ const worker: NotificationWorker = {
     if (!postCtx) {
       return;
     }
+    const authors = new Set([postCtx.post.authorId, postCtx.post.scoutId]);
+    if (authors.has(data.commentMention.mentionedUserId)) {
+      return;
+    }
     const commenter = await comment.user;
     const ctx: NotificationCommenterContext = {
       ...postCtx,
