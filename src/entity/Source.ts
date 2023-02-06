@@ -33,6 +33,9 @@ export class Source {
   @Column({ default: SourceType.Machine })
   type: SourceType;
 
+  @Column({ default: () => 'now()' })
+  createdAt: Date;
+
   @Column({ default: true })
   active: boolean;
 
