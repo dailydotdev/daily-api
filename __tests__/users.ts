@@ -179,6 +179,17 @@ beforeEach(async () => {
       deleted: true,
       image: 'sample.image.test',
     },
+    {
+      id: 'pp',
+      shortId: 'spp',
+      title: 'Private',
+      url: 'http://pp.com',
+      sourceId: 'p',
+      createdAt: new Date(now.getTime() - 6000),
+      views: 10,
+      private: true,
+      image: 'sample.image.test',
+    },
   ]);
   await con.getRepository(Comment).save([
     {
@@ -1045,6 +1056,54 @@ describe('query userReadHistory', () => {
     });
     expect(resPacific.errors).toBeFalsy();
     expect(resPacific.data.userReadHistory[0].date).toBe('2021-04-25');
+  });
+});
+
+describe('query public readHistory', () => {
+  const QUERY = `
+    query ReadHistory($after: String, $first: Int) {
+      readHistory(first: $first, after: $after, isPublic: true) {
+        pageInfo { endCursor, hasNextPage }
+        edges {
+          node {
+            timestamp
+            timestampDb
+            post {
+              id
+              url
+              title
+              image
+              source {
+                image
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  it("should return user's reading history without private posts", async () => {
+    loggedUser = '1';
+    const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+    await saveFixtures(con, View, [
+      {
+        userId: '1',
+        postId: 'pp',
+        timestamp: createdAtOld,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtNew,
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.readHistory.edges.length).toEqual(1);
+    expect(res.data.readHistory.edges[0].node.post.id).toEqual('p2');
   });
 });
 
