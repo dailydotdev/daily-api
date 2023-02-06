@@ -24,7 +24,7 @@ const worker: NotificationWorker = {
     if (!postCtx) {
       return;
     }
-    const authors = [postCtx.post.authorId, postCtx.post.scoutId];
+    const authors = [...new Set([postCtx.post.authorId, postCtx.post.scoutId])];
     if (authors.includes(data.commentMention.mentionedUserId)) {
       return;
     }
