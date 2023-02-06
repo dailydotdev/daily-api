@@ -287,6 +287,16 @@ describe('query sourceHandleExists', () => {
       'UNAUTHENTICATED',
     ));
 
+  it('should throw validation error when the handle did not pass our criteria', async () => {
+    loggedUser = '3';
+    await updateHandle();
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { handle: 'aa aa' } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should return false if the source handle is not taken', async () => {
     loggedUser = '3';
     await updateHandle();
