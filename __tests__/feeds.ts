@@ -323,6 +323,7 @@ describe('query anonymousFeed', () => {
     await saveAdvancedSettingsFiltersFixtures();
     mockFeatures();
     const filters = await feedToFilters(con, '1', '1');
+    delete filters.sourceIds;
     const res = await client.query(QUERY, {
       variables: { ...variables, filters },
     });
@@ -1474,6 +1475,26 @@ describe('function feedToFilters', () => {
     process.env.ENABLE_SETTINGS_EXPERIMENT = 'true';
     await saveAdvancedSettingsFiltersFixtures();
     mockFeatures();
+    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
+  });
+
+  it('should return filters with source memberships', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, User, [usersFixture[0]]);
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt',
+      },
+      {
+        userId: '1',
+        sourceId: 'b',
+        role: SourceMemberRoles.Owner,
+        referralToken: 'rt2',
+      },
+    ]);
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 });
