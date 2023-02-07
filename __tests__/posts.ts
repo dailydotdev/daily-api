@@ -527,6 +527,7 @@ describe('sharedPost field', () => {
       sharedPost {
         id
         title
+        createdAt
       }
     }
   }`;
@@ -541,7 +542,13 @@ describe('sharedPost field', () => {
     });
     const res = await client.query(QUERY);
     expect(res.data).toEqual({
-      post: { sharedPost: { id: 'p1', title: 'P1' } },
+      post: {
+        sharedPost: {
+          id: 'p1',
+          title: 'P1',
+          createdAt: expect.any(String),
+        },
+      },
     });
   });
 });
