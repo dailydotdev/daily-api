@@ -318,6 +318,7 @@ export class GraphORM {
    * @param field Resolve tree of the field
    * @param value A single query result
    * @param parent Field's parent value
+   * @param entityMetadata TypeORM's entity metadata
    */
   transformField(
     ctx: Context,
@@ -325,7 +326,7 @@ export class GraphORM {
     field: ResolveTree,
     value: unknown,
     parent: Record<string, unknown>,
-    entityMetadata: EntityMetadata,
+    entityMetadata?: EntityMetadata,
   ): any {
     const mapping = this.mappings?.[parentType]?.fields?.[field.name];
     if (mapping?.transform) {
@@ -374,10 +375,21 @@ export class GraphORM {
         field.fieldsByTypeName[childType],
       );
     }
-    if (entityMetadata.findColumnWithDatabaseName(field.name)?.type === Date) {
+    if (entityMetadata?.findColumnWithDatabaseName(field.name)?.type === Date) {
       return new Date(value as string);
     }
     return value;
+  }
+
+  getMetadataOrNull(ctx: Context, type: string): EntityMetadata | undefined {
+    try {
+      return ctx.con.getMetadata(this.mappings?.[type]?.from || type);
+    } catch (err) {
+      if (err?.name === 'EntityMetadataNotFoundError') {
+        return;
+      }
+      throw err;
+    }
   }
 
   /**
@@ -393,9 +405,7 @@ export class GraphORM {
     type: string,
     fieldsByTypeName: ResolveTree | { [p: string]: ResolveTree },
   ): T {
-    const entityMetadata = ctx.con.getMetadata(
-      this.mappings?.[type]?.from || type,
-    );
+    const entityMetadata = this.getMetadataOrNull(ctx, type);
     const fields = Object.values(fieldsByTypeName);
     return fields.reduce(
       (acc, field) => ({
