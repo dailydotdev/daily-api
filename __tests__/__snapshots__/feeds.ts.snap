@@ -173,6 +173,7 @@ Object {
     "experimentExcludedSource",
   ],
   "includeTags": Array [],
+  "sourceIds": Array [],
 }
 `;
 
@@ -189,6 +190,7 @@ Object {
     "html",
     "javascript",
   ],
+  "sourceIds": Array [],
 }
 `;
 
@@ -200,6 +202,19 @@ Object {
     "settingsCombinationSource",
   ],
   "includeTags": Array [],
+  "sourceIds": Array [],
+}
+`;
+
+exports[`function feedToFilters should return filters with source memberships 1`] = `
+Object {
+  "blockedTags": Array [],
+  "excludeSources": Array [],
+  "includeTags": Array [],
+  "sourceIds": Array [
+    "a",
+    "b",
+  ],
 }
 `;
 

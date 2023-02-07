@@ -5,11 +5,20 @@ import {
   getPersonalizedFeedKey,
   getPersonalizedFeedKeyPrefix,
 } from '../src/personalizedFeed';
-import { Feed, FeedSource, FeedTag, Source } from '../src/entity';
+import {
+  Feed,
+  FeedSource,
+  FeedTag,
+  Source,
+  SourceMember,
+  SourceMemberRoles,
+  User,
+} from '../src/entity';
 import { saveFixtures } from './helpers';
 import { sourcesFixture } from './fixture/source';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { usersFixture } from './fixture/user';
 
 let con: DataSource;
 
@@ -33,6 +42,7 @@ beforeEach(async () => {
   nock.cleanAll();
   await deleteKeysByPattern('feeds:*');
   await saveFixtures(con, Source, sourcesFixture);
+  await saveFixtures(con, User, [usersFixture[0]]);
 });
 
 const setCache = (key: string, ids: string[]) =>
@@ -207,6 +217,39 @@ it('should encode query parameters', async () => {
     offset: 0,
     feedVersion: 5,
     userId: 'u1',
+    feedId: '1',
+  });
+  expect(page0).toEqual(['1', '2']);
+  expect(nock.isDone()).toEqual(true);
+});
+
+it('should send source memberships as parameter', async () => {
+  await con.getRepository(Feed).save({ id: '1', userId: '1' });
+  await con.getRepository(SourceMember).save([
+    {
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: 'rt',
+    },
+    {
+      userId: '1',
+      sourceId: 'b',
+      role: SourceMemberRoles.Owner,
+      referralToken: 'rt2',
+    },
+  ]);
+  nock('http://localhost:6000')
+    .get(
+      '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&user_id=1&feed_id=1&squad_ids=a,b',
+    )
+    .reply(200, tinybirdResponse);
+  const page0 = await generatePersonalizedFeed({
+    con,
+    pageSize: 2,
+    offset: 0,
+    feedVersion: 5,
+    userId: '1',
     feedId: '1',
   });
   expect(page0).toEqual(['1', '2']);

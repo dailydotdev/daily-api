@@ -56,6 +56,10 @@ export async function fetchTinybirdFeed(
       const value = encodeURIComponent(filters.excludeSources.join(','));
       params += `&blocked_sources=${value}`;
     }
+    if (filters.sourceIds?.length) {
+      const value = encodeURIComponent(filters.sourceIds.join(','));
+      params += `&squad_ids=${value}`;
+    }
   } else {
     params += `&feed_id=global`;
   }
