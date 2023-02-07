@@ -541,6 +541,38 @@ it('should add comment mention notification', async () => {
   );
 });
 
+it('should not add comment mention notification when you mentioned the author', async () => {
+  const mentionedUserId = '1';
+  await con
+    .getRepository(Post)
+    .update({ id: 'p1' }, { authorId: mentionedUserId });
+  const worker = await import('../../src/workers/notifications/commentMention');
+  const actual = await invokeNotificationWorker(worker.default, {
+    commentMention: {
+      commentId: 'c1',
+      commentUserId: '2',
+      mentionedUserId,
+    },
+  });
+  expect(actual).toBeFalsy();
+});
+
+it('should not add comment mention notification when you mentioned the scout', async () => {
+  const mentionedUserId = '1';
+  await con
+    .getRepository(Post)
+    .update({ id: 'p1' }, { authorId: mentionedUserId });
+  const worker = await import('../../src/workers/notifications/commentMention');
+  const actual = await invokeNotificationWorker(worker.default, {
+    commentMention: {
+      commentId: 'c1',
+      commentUserId: '2',
+      mentionedUserId,
+    },
+  });
+  expect(actual).toBeFalsy();
+});
+
 it('should add comment reply notification', async () => {
   await con.getRepository(Comment).save([
     {
