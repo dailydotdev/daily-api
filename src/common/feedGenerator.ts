@@ -1,7 +1,15 @@
 import { IFlags } from 'flagsmith-nodejs';
 import { fetchUserFeatures } from './users';
-import { AdvancedSettings, FeedAdvancedSettings } from '../entity';
-import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
+import {
+  AdvancedSettings,
+  FeedAdvancedSettings,
+  SourceMember,
+} from '../entity';
+import {
+  Connection as ORMConnection,
+  DataSource,
+  SelectQueryBuilder,
+} from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from '@graphql-tools/utils';
 import {
@@ -122,12 +130,12 @@ export const getExcludedAdvancedSettings = async (
 };
 
 export const feedToFilters = async (
-  con: ORMConnection,
+  con: DataSource,
   feedId: string,
   userId: string,
 ): Promise<AnonymousFeedFilters> => {
   const settings = await getExcludedAdvancedSettings(con, feedId, userId);
-  const [tags, excludeSources] = await Promise.all([
+  const [tags, excludeSources, sourceIds] = await Promise.all([
     con.getRepository(FeedTag).find({ where: { feedId } }),
     con
       .getRepository(Source)
@@ -147,6 +155,12 @@ export const feedToFilters = async (
         return `s.id IN (${subQuery})`;
       })
       .execute(),
+    feedId
+      ? con.getRepository(SourceMember).find({
+          where: { userId },
+          select: ['sourceId'],
+        })
+      : [],
   ]);
   const tagFilters = tags.reduce(
     (acc, value) => {
@@ -162,6 +176,7 @@ export const feedToFilters = async (
   return {
     ...tagFilters,
     excludeSources: excludeSources.map((sources: Source) => sources.id),
+    sourceIds: sourceIds.map((member) => member.sourceId),
   };
 };
 
@@ -428,6 +443,7 @@ export interface AnonymousFeedFilters {
   excludeSources?: string[];
   includeTags?: string[];
   blockedTags?: string[];
+  sourceIds?: string[];
 }
 
 export const anonymousFeedBuilder = (
