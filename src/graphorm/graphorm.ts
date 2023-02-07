@@ -325,6 +325,7 @@ export class GraphORM {
     field: ResolveTree,
     value: unknown,
     parent: Record<string, unknown>,
+    entityMetadata: EntityMetadata,
   ): any {
     const mapping = this.mappings?.[parentType]?.fields?.[field.name];
     if (mapping?.transform) {
@@ -373,6 +374,9 @@ export class GraphORM {
         field.fieldsByTypeName[childType],
       );
     }
+    if (entityMetadata.findColumnWithDatabaseName(field.name)?.type === Date) {
+      return new Date(value as string);
+    }
     return value;
   }
 
@@ -389,6 +393,9 @@ export class GraphORM {
     type: string,
     fieldsByTypeName: ResolveTree | { [p: string]: ResolveTree },
   ): T {
+    const entityMetadata = ctx.con.getMetadata(
+      this.mappings?.[type]?.from || type,
+    );
     const fields = Object.values(fieldsByTypeName);
     return fields.reduce(
       (acc, field) => ({
@@ -399,6 +406,7 @@ export class GraphORM {
           field,
           value[field.alias],
           value,
+          entityMetadata,
         ),
       }),
       value,
