@@ -765,7 +765,6 @@ describe('squad member joined', () => {
   });
 });
 
-describe('squad post viewed', () => {
 it('should add squad reply notification', async () => {
   await con
     .getRepository(Source)
