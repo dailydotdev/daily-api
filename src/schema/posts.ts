@@ -15,7 +15,6 @@ import { traceResolverObject } from './trace';
 import {
   defaultImage,
   getDiscussionLink,
-  notifyView,
   pickImageUrl,
   standardizeURL,
 } from '../common';
@@ -842,16 +841,6 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLEmptyResponse> => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, post.sourceId);
-      if (post.type !== 'article') {
-        await notifyView(
-          ctx.log,
-          post.id,
-          ctx.userId,
-          ctx.req.headers['referer'],
-          new Date(),
-          post.tagsStr?.split?.(',') ?? [],
-        );
-      }
       return { _: true };
     },
   }),
