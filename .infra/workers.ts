@@ -164,10 +164,6 @@ export const workers: Worker[] = [
     subscription: 'api.feature-access-notification',
   },
   {
-    topic: 'views',
-    subscription: 'api.post-viewed-notification',
-  },
-  {
     topic: 'api.v1.user-created',
     subscription: 'api.add-to-mailing-list',
   },
