@@ -35,9 +35,11 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { notifyView } from '../src/common';
 
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
+  notifyView: jest.fn(),
 }));
 
 let app: FastifyInstance;
@@ -1372,11 +1374,13 @@ describe('mutation viewPost', () => {
     await con.getRepository(Post).update({ id: 'p1' }, { type: 'share' });
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
+    expect(notifyView).toBeCalledTimes(1);
   });
 
   it('should should not submit view event for articles', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
+    expect(notifyView).toBeCalledTimes(0);
   });
 });
