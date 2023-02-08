@@ -17,7 +17,6 @@ import commentReply from './commentReply';
 import commentUpvoteMilestone from './commentUpvoteMilestone';
 import postAdded from './postAdded';
 import memberJoinedSource from './squadMemberJoined';
-import postViewed from './squadPostViewed';
 import featureAccessNotification from './featureAccessNotification';
 
 function notificationWorkerToWorker(worker: NotificationWorker): Worker {
@@ -53,7 +52,6 @@ const notificationWorkers: NotificationWorker[] = [
   postAdded,
   memberJoinedSource,
   featureAccessNotification,
-  postViewed,
 ];
 
 export const workers = notificationWorkers.map(notificationWorkerToWorker);
