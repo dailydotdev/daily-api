@@ -14,6 +14,8 @@ import { DataSource } from 'typeorm';
 import { getSourceLink } from '../common';
 import { GQLSource } from '../schema/sources';
 import { IFlags } from 'flagsmith-nodejs';
+import { getRedisObject } from '../redis';
+import { REDIS_CHANGELOG_KEY } from '../config';
 
 const excludeProperties = <T, K extends keyof T>(
   obj: T,
@@ -71,14 +73,21 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const con = await createOrGetConnection();
     const { userId } = req;
     if (userId) {
-      const [alerts, settings, unreadNotificationsCount, squads, features] =
-        await Promise.all([
-          getAlerts(con, userId),
-          getSettings(con, userId),
-          getUnreadNotificationsCount(con, userId),
-          getSquads(con, userId),
-          getFeatures(con, userId),
-        ]);
+      const [
+        alerts,
+        settings,
+        unreadNotificationsCount,
+        squads,
+        features,
+        lastChangelog,
+      ] = await Promise.all([
+        getAlerts(con, userId),
+        getSettings(con, userId),
+        getUnreadNotificationsCount(con, userId),
+        getSquads(con, userId),
+        getFeatures(con, userId),
+        getRedisObject(REDIS_CHANGELOG_KEY),
+      ]);
       return res.send({
         alerts: excludeProperties(alerts, ['userId']),
         settings: excludeProperties(settings, [
@@ -89,6 +98,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         notifications: { unreadNotificationsCount },
         squads,
         features,
+        changelog: alerts.lastChangelog < new Date(lastChangelog),
       });
     }
     return res.send({
@@ -97,6 +107,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       notifications: { unreadNotificationsCount: 0 },
       squads: [],
       features: {},
+      changelog: false,
     });
   });
 }

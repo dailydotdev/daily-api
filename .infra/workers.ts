@@ -167,4 +167,8 @@ export const workers: Worker[] = [
     topic: 'api.v1.user-created',
     subscription: 'api.add-to-mailing-list',
   },
+  {
+    topic: 'api.v1.post-added',
+    subscription: 'api.post-changelog-added',
+  },
 ];
