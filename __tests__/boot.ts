@@ -39,7 +39,6 @@ const DEFAULT_BODY = {
   notifications: { unreadNotificationsCount: 0 },
   squads: [],
   features: {},
-  changelog: false,
 };
 
 beforeAll(async () => {
@@ -75,6 +74,7 @@ it('should return user alerts', async () => {
     myFeed: 'created',
   });
   const alerts = new Object(data);
+  alerts['changelog'] = false;
   delete alerts['userId'];
   const res = await authorizeRequest(request(app.server).get('/boot')).expect(
     200,
@@ -95,6 +95,7 @@ it('should return changelog as true', async () => {
   });
   const alerts = new Object(data);
   alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
+  alerts['changelog'] = true;
   delete alerts['userId'];
   const res = await authorizeRequest(request(app.server).get('/boot')).expect(
     200,
@@ -102,7 +103,6 @@ it('should return changelog as true', async () => {
   expect(res.body).toEqual({
     ...DEFAULT_BODY,
     alerts,
-    changelog: true,
   });
 });
 
@@ -115,6 +115,7 @@ it('should return changelog as false', async () => {
   });
   const alerts = new Object(data);
   alerts['lastChangelog'] = '2023-02-06T12:00:00.000Z';
+  alerts['changelog'] = false;
   delete alerts['userId'];
   const res = await authorizeRequest(request(app.server).get('/boot')).expect(
     200,

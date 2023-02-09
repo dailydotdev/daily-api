@@ -89,7 +89,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         getRedisObject(REDIS_CHANGELOG_KEY),
       ]);
       return res.send({
-        alerts: excludeProperties(alerts, ['userId']),
+        alerts: {
+          ...excludeProperties(alerts, ['userId']),
+          changelog: alerts.lastChangelog < new Date(lastChangelog),
+        },
         settings: excludeProperties(settings, [
           'userId',
           'updatedAt',
@@ -98,16 +101,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         notifications: { unreadNotificationsCount },
         squads,
         features,
-        changelog: alerts.lastChangelog < new Date(lastChangelog),
       });
     }
     return res.send({
-      alerts: ALERTS_DEFAULT,
+      alerts: { ...ALERTS_DEFAULT, lastChangelog: false },
       settings: SETTINGS_DEFAULT,
       notifications: { unreadNotificationsCount: 0 },
       squads: [],
       features: {},
-      changelog: false,
     });
   });
 }
