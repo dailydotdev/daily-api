@@ -31,6 +31,7 @@ let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { lastChangelog, ...alerts } = ALERTS_DEFAULT;
 const DEFAULT_BODY = {
   alerts: alerts,
