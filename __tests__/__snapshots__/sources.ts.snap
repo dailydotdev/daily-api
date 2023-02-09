@@ -198,7 +198,7 @@ Object {
       },
     ],
     "pageInfo": Object {
-      "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
+      "endCursor": "dGltZToxNjcxNDk0NDAwMDAw",
       "hasNextPage": false,
     },
   },
@@ -231,7 +231,7 @@ Object {
       },
     ],
     "pageInfo": Object {
-      "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
+      "endCursor": "dGltZToxNjcxNDk0NDAwMDAw",
       "hasNextPage": false,
     },
   },
