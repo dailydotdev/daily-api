@@ -561,6 +561,7 @@ export const resolvers: IResolvers<any, Context> = {
             .andWhere(`${builder.alias}."sourceId" = :source`, {
               source: args.sourceId,
             })
+            .addOrderBy(`${builder.alias}."role"`, 'DESC')
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
 
           builder.queryBuilder.limit(page.limit);
