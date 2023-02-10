@@ -104,7 +104,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       });
     }
     return res.send({
-      alerts: { ...ALERTS_DEFAULT, lastChangelog: false },
+      alerts: { ...ALERTS_DEFAULT, changelog: false },
       settings: SETTINGS_DEFAULT,
       notifications: { unreadNotificationsCount: 0 },
       squads: [],
