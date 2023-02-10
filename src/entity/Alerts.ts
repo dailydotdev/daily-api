@@ -21,7 +21,7 @@ export class Alerts {
   @Column({ type: 'timestamp without time zone', default: () => 'now()' })
   lastChangelog: Date | null;
 
-  changelog: boolean;
+  changelog?: boolean;
 }
 
 export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
