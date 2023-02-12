@@ -25,6 +25,7 @@ import addToMailingList from './addToMailingList';
 import squadFeatureAccess from './squadFeatureAccess';
 import { workers as notificationWorkers } from './notifications';
 import sourcePrivacyUpdated from './sourcePrivacyUpdated';
+import postChangelogAdded from './postChangelogAdded';
 
 export { Worker } from './worker';
 
@@ -53,6 +54,7 @@ export const workers: Worker[] = [
   squadFeatureAccess,
   addToMailingList,
   sourcePrivacyUpdated,
+  postChangelogAdded,
   cdc,
   ...notificationWorkers,
 ];
