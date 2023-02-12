@@ -41,13 +41,17 @@ describe('query userAlerts', () => {
       rankLastSeen
       myFeed
       companionHelper
+      lastChangelog
     }
   }`;
 
   it('should return alerts default values if anonymous', async () => {
     const res = await client.query(QUERY);
-
-    expect(res.data.userAlerts).toEqual(ALERTS_DEFAULT);
+    res.data.userAlerts.changelog = false;
+    expect(res.data.userAlerts).toEqual({
+      ...ALERTS_DEFAULT,
+      lastChangelog: res.data.userAlerts.lastChangelog,
+    });
   });
 
   it('should return user alerts', async () => {
@@ -63,7 +67,10 @@ describe('query userAlerts', () => {
 
     delete expected.userId;
 
-    expect(res.data.userAlerts).toEqual(expected);
+    expect(res.data.userAlerts).toEqual({
+      ...expected,
+      lastChangelog: expected.lastChangelog.toISOString(),
+    });
   });
 });
 
@@ -144,7 +151,10 @@ describe('dedicated api routes', () => {
       const res = await authorizeRequest(
         request(app.server).get('/alerts'),
       ).expect(200);
-      expect(res.body).toEqual(expected);
+      expect(res.body).toEqual({
+        ...expected,
+        lastChangelog: expected['lastChangelog'].toISOString(),
+      });
     });
   });
 });

@@ -43,6 +43,11 @@ export const typeDefs = /* GraphQL */ `
     Once the user has seen it once, we set this value to false
     """
     companionHelper: Boolean!
+
+    """
+    Date of the last changelog user saw
+    """
+    lastChangelog: DateTime
   }
 
   input UpdateAlertsInput {
@@ -65,6 +70,11 @@ export const typeDefs = /* GraphQL */ `
     Status to display for companion helper
     """
     companionHelper: Boolean
+
+    """
+    Date of the last changelog user saw
+    """
+    lastChangelog: DateTime
   }
 
   extend type Mutation {

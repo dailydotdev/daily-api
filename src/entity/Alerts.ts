@@ -17,6 +17,11 @@ export class Alerts {
 
   @Column({ type: 'bool', default: true })
   companionHelper: boolean;
+
+  @Column({ type: 'timestamp without time zone', default: () => 'now()' })
+  lastChangelog: Date | null;
+
+  changelog?: boolean;
 }
 
 export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
@@ -24,4 +29,6 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
   rankLastSeen: null,
   myFeed: null,
   companionHelper: true,
+  lastChangelog: new Date(),
+  changelog: false,
 };
