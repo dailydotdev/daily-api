@@ -5,6 +5,7 @@ import {
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
+  mockFeatureFlagForUser,
 } from './helpers';
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
@@ -26,6 +27,11 @@ import { notificationFixture } from './fixture/notifications';
 import { usersFixture } from './fixture/user';
 import { setRedisObject } from '../src/redis';
 import { REDIS_CHANGELOG_KEY } from '../src/config';
+import { DEFAULT_FLAGS } from '../src/featureFlags';
+
+jest.mock('../src/flagsmith', () => ({
+  getIdentityFlags: jest.fn(),
+}));
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -38,7 +44,8 @@ const DEFAULT_BODY = {
   settings: { ...SETTINGS_DEFAULT, companionExpanded: null },
   notifications: { unreadNotificationsCount: 0 },
   squads: [],
-  features: {},
+  features: DEFAULT_FLAGS,
+  flags: DEFAULT_FLAGS,
 };
 
 beforeAll(async () => {
@@ -48,7 +55,9 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  jest.resetAllMocks();
   await con.getRepository(User).save(usersFixture[0]);
+  mockFeatureFlagForUser();
 });
 
 it('should return defaults for anonymous', async () => {
@@ -245,5 +254,28 @@ it('should return the user squads', async () => {
         type: SourceType.Squad,
       },
     ],
+  });
+});
+
+it('should return user feature flags', async () => {
+  mockFeatureFlagForUser('my_flag', true, 'value');
+  const res = await authorizeRequest(request(app.server).get('/boot')).expect(
+    200,
+  );
+  delete res.body.alerts.lastChangelog;
+  expect(res.body).toEqual({
+    ...DEFAULT_BODY,
+    flags: {
+      my_flag: {
+        enabled: true,
+        value: 'value',
+      },
+    },
+    features: {
+      my_flag: {
+        enabled: true,
+        value: 'value',
+      },
+    },
   });
 });

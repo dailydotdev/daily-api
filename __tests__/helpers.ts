@@ -35,6 +35,8 @@ import {
   NotificationBaseContext,
   storeNotificationBundle,
 } from '../src/notifications';
+import flagsmith from '../src/flagsmith';
+import { Flags } from 'flagsmith-nodejs';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -291,4 +293,25 @@ export const saveNotificationFixture = async (
     storeNotificationBundle(entityManager, [generateNotification(type, ctx)]),
   );
   return res[0].id;
+};
+
+export const mockFeatureFlagForUser = (
+  featureName?: string,
+  enabled?: boolean,
+  value?: string,
+) => {
+  const mock = jest.mocked(flagsmith.getIdentityFlags);
+  mock.mockReset();
+  if (!featureName) {
+    mock.mockResolvedValue({ flags: null } as unknown as Flags);
+  } else {
+    mock.mockResolvedValue({
+      flags: {
+        [featureName]: {
+          enabled,
+          value,
+        },
+      },
+    } as unknown as Flags);
+  }
 };

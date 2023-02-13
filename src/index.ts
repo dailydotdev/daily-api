@@ -11,6 +11,7 @@ import { NoSchemaIntrospectionCustomRule } from 'graphql';
 import './config';
 
 import trace from './trace';
+import tracking from './tracking';
 import auth from './auth';
 import compatibility from './compatibility';
 import routes from './routes';
@@ -55,7 +56,6 @@ export default async function app(
     disableRequestLogging: true,
     trustProxy: true,
   });
-  app.server.keepAliveTimeout = 30_000;
 
   const gracefulShutdown = () => {
     app.log.info('starting termination');
@@ -80,6 +80,7 @@ export default async function app(
   }) as FastifyCookieOptions;
   app.register(trace, { enabled: isProd });
   app.register(auth, { secret: process.env.ACCESS_SECRET });
+  app.register(tracking);
 
   app.setErrorHandler((err, req, res) => {
     req.log.error({ err }, err.message);

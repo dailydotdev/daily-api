@@ -1,10 +1,9 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { getAlerts } from '../schema/alerts';
 import createOrGetConnection from '../db';
 import { getSettings } from '../schema/settings';
 import {
   ALERTS_DEFAULT,
-  Feature,
   getUnreadNotificationsCount,
   SETTINGS_DEFAULT,
   SourceMember,
@@ -13,9 +12,10 @@ import {
 import { DataSource } from 'typeorm';
 import { getSourceLink } from '../common';
 import { GQLSource } from '../schema/sources';
-import { IFlags } from 'flagsmith-nodejs';
 import { getRedisObject } from '../redis';
 import { REDIS_CHANGELOG_KEY } from '../config';
+import { getUserFeatureFlags } from '../featureFlags';
+import { IFlags } from '../flagsmith';
 
 const excludeProperties = <T, K extends keyof T>(
   obj: T,
@@ -27,17 +27,6 @@ const excludeProperties = <T, K extends keyof T>(
     });
   }
   return obj;
-};
-
-const getFeatures = async (
-  con: DataSource,
-  userId: string,
-): Promise<IFlags> => {
-  const features = await con.getRepository(Feature).findBy({ userId });
-  return features.reduce((prev, { feature }) => {
-    prev[feature] = { enabled: true };
-    return prev;
-  }, {});
 };
 
 const getSquads = async (
@@ -68,47 +57,76 @@ const getSquads = async (
   }));
 };
 
+const sharedBoot = async (
+  con: DataSource,
+  req: FastifyRequest,
+): Promise<{ features: IFlags; flags: IFlags }> => {
+  const [flags] = await Promise.all([getUserFeatureFlags(req, con)]);
+  return {
+    features: flags,
+    flags,
+  };
+};
+
+const loggedInBoot = async (
+  con: DataSource,
+  req: FastifyRequest,
+  res: FastifyReply,
+): Promise<void> => {
+  const { userId } = req;
+  const [
+    alerts,
+    settings,
+    unreadNotificationsCount,
+    squads,
+    lastChangelog,
+    shared,
+  ] = await Promise.all([
+    getAlerts(con, userId),
+    getSettings(con, userId),
+    getUnreadNotificationsCount(con, userId),
+    getSquads(con, userId),
+    getRedisObject(REDIS_CHANGELOG_KEY),
+    sharedBoot(con, req),
+  ]);
+  return res.send({
+    ...shared,
+    alerts: {
+      ...excludeProperties(alerts, ['userId']),
+      changelog: alerts.lastChangelog < new Date(lastChangelog),
+    },
+    settings: excludeProperties(settings, [
+      'userId',
+      'updatedAt',
+      'bookmarkSlug',
+    ]),
+    notifications: { unreadNotificationsCount },
+    squads,
+  });
+};
+
+const anonymousBoot = async (
+  con: DataSource,
+  req: FastifyRequest,
+  res: FastifyReply,
+): Promise<void> => {
+  const shared = await sharedBoot(con, req);
+  return res.send({
+    ...shared,
+    alerts: { ...ALERTS_DEFAULT, changelog: false },
+    settings: SETTINGS_DEFAULT,
+    notifications: { unreadNotificationsCount: 0 },
+    squads: [],
+  });
+};
+
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/', async (req, res) => {
     const con = await createOrGetConnection();
     const { userId } = req;
     if (userId) {
-      const [
-        alerts,
-        settings,
-        unreadNotificationsCount,
-        squads,
-        features,
-        lastChangelog,
-      ] = await Promise.all([
-        getAlerts(con, userId),
-        getSettings(con, userId),
-        getUnreadNotificationsCount(con, userId),
-        getSquads(con, userId),
-        getFeatures(con, userId),
-        getRedisObject(REDIS_CHANGELOG_KEY),
-      ]);
-      return res.send({
-        alerts: {
-          ...excludeProperties(alerts, ['userId']),
-          changelog: alerts.lastChangelog < new Date(lastChangelog),
-        },
-        settings: excludeProperties(settings, [
-          'userId',
-          'updatedAt',
-          'bookmarkSlug',
-        ]),
-        notifications: { unreadNotificationsCount },
-        squads,
-        features,
-      });
+      return loggedInBoot(con, req, res);
     }
-    return res.send({
-      alerts: { ...ALERTS_DEFAULT, changelog: false },
-      settings: SETTINGS_DEFAULT,
-      notifications: { unreadNotificationsCount: 0 },
-      squads: [],
-      features: {},
-    });
+    return anonymousBoot(con, req, res);
   });
 }

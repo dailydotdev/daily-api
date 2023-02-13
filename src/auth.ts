@@ -6,6 +6,7 @@ import {
 import fp from 'fastify-plugin';
 import jwt from 'jsonwebtoken';
 import { Roles } from './roles';
+import { cookies } from './config';
 
 declare module 'fastify' {
   /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -71,9 +72,9 @@ const plugin = async (
       delete req.headers['user-id'];
       delete req.headers['logged-in'];
     }
-    if (!req.userId && req.cookies.da3) {
+    if (!req.userId && req.cookies[cookies.auth.key]) {
       try {
-        const payload = await verifyJwt(req.cookies.da3);
+        const payload = await verifyJwt(req.cookies[cookies.auth.key]);
         if (payload) {
           req.userId = payload.userId;
           req.premium = payload.premium;
