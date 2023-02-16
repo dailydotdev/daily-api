@@ -1,7 +1,6 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import uaParser from 'ua-parser-js';
 import { URL } from 'node:url';
-import { isBotRequest } from '../tracking';
 import { DataSource } from 'typeorm';
 import { getBootData } from './newBoot';
 import createOrGetConnection from '../db';
@@ -57,7 +56,7 @@ const redirectToStore =
   (con: DataSource) =>
   async (req: FastifyRequest, res: FastifyReply): Promise<FastifyReply> => {
     res.status(307);
-    if (isBotRequest(req)) {
+    if (req.isBot) {
       return res.redirect('https://daily.dev');
     }
 

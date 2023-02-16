@@ -20,7 +20,7 @@ declare module 'fastify' {
   /* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
-export const isBotRequest = (req: FastifyRequest): boolean =>
+const isBotRequest = (req: FastifyRequest): boolean =>
   !req.headers['user-agent'] || isbot(req.headers['user-agent']);
 
 export const generateSessionId = async (

@@ -2,7 +2,6 @@ import { FastifyInstance } from 'fastify';
 import { ArticlePost } from '../entity';
 import { notifyView } from '../common';
 import createOrGetConnection from '../db';
-import { isBotRequest } from '../tracking';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { postId: string }; Querystring: { a?: string } }>(
@@ -17,7 +16,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         return res.status(404).send();
       }
       const encodedUri = encodeURI(post.url);
-      if (isBotRequest(req)) {
+      if (req.isBot) {
         return res.status(302).redirect(encodedUri);
       }
       const userId = req.userId || req.trackingId;
