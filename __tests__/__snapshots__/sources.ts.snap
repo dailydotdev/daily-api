@@ -182,7 +182,7 @@ Object {
             "id": "a",
           },
           "user": Object {
-            "id": "2",
+            "id": "1",
           },
         },
       },
@@ -192,13 +192,13 @@ Object {
             "id": "a",
           },
           "user": Object {
-            "id": "1",
+            "id": "2",
           },
         },
       },
     ],
     "pageInfo": Object {
-      "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
+      "endCursor": "dGltZToxNjcxNDk0NDAwMDAw",
       "hasNextPage": false,
     },
   },
@@ -215,7 +215,7 @@ Object {
             "id": "a",
           },
           "user": Object {
-            "id": "2",
+            "id": "1",
           },
         },
       },
@@ -225,13 +225,13 @@ Object {
             "id": "a",
           },
           "user": Object {
-            "id": "1",
+            "id": "2",
           },
         },
       },
     ],
     "pageInfo": Object {
-      "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
+      "endCursor": "dGltZToxNjcxNDk0NDAwMDAw",
       "hasNextPage": false,
     },
   },

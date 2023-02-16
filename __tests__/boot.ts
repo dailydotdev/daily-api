@@ -24,13 +24,17 @@ import {
 } from '../src/entity';
 import { notificationFixture } from './fixture/notifications';
 import { usersFixture } from './fixture/user';
+import { setRedisObject } from '../src/redis';
+import { REDIS_CHANGELOG_KEY } from '../src/config';
 
 let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const { lastChangelog, ...alerts } = ALERTS_DEFAULT;
 const DEFAULT_BODY = {
-  alerts: ALERTS_DEFAULT,
+  alerts: alerts,
   settings: { ...SETTINGS_DEFAULT, companionExpanded: null },
   notifications: { unreadNotificationsCount: 0 },
   squads: [],
@@ -49,6 +53,7 @@ beforeEach(async () => {
 
 it('should return defaults for anonymous', async () => {
   const res = await request(app.server).get('/boot').expect(200);
+  delete res.body.alerts.lastChangelog;
   expect(res.body).toEqual({
     ...DEFAULT_BODY,
     settings: SETTINGS_DEFAULT,
@@ -59,6 +64,7 @@ it('should return defaults for user when not set', async () => {
   const res = await authorizeRequest(request(app.server).get('/boot')).expect(
     200,
   );
+  delete res.body.alerts.lastChangelog;
   expect(res.body).toEqual(DEFAULT_BODY);
 });
 
@@ -68,6 +74,48 @@ it('should return user alerts', async () => {
     myFeed: 'created',
   });
   const alerts = new Object(data);
+  alerts['changelog'] = false;
+  delete alerts['userId'];
+  const res = await authorizeRequest(request(app.server).get('/boot')).expect(
+    200,
+  );
+  alerts['lastChangelog'] = res.body.alerts.lastChangelog;
+  expect(res.body).toEqual({
+    ...DEFAULT_BODY,
+    alerts,
+  });
+});
+
+it('should return changelog as true', async () => {
+  await setRedisObject(REDIS_CHANGELOG_KEY, '2023-02-06 12:00:00');
+  const data = await con.getRepository(Alerts).save({
+    userId: '1',
+    myFeed: 'created',
+    lastChangelog: new Date('2023-02-05 12:00:00'),
+  });
+  const alerts = new Object(data);
+  alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
+  alerts['changelog'] = true;
+  delete alerts['userId'];
+  const res = await authorizeRequest(request(app.server).get('/boot')).expect(
+    200,
+  );
+  expect(res.body).toEqual({
+    ...DEFAULT_BODY,
+    alerts,
+  });
+});
+
+it('should return changelog as false', async () => {
+  await setRedisObject(REDIS_CHANGELOG_KEY, '2023-02-05 12:00:00');
+  const data = await con.getRepository(Alerts).save({
+    userId: '1',
+    myFeed: 'created',
+    lastChangelog: new Date('2023-02-06 12:00:00'),
+  });
+  const alerts = new Object(data);
+  alerts['lastChangelog'] = '2023-02-06T12:00:00.000Z';
+  alerts['changelog'] = false;
   delete alerts['userId'];
   const res = await authorizeRequest(request(app.server).get('/boot')).expect(
     200,
@@ -91,6 +139,7 @@ it('should return user settings', async () => {
   const res = await authorizeRequest(request(app.server).get('/boot')).expect(
     200,
   );
+  delete res.body.alerts.lastChangelog;
   expect(res.body).toEqual({
     ...DEFAULT_BODY,
     settings,
@@ -108,6 +157,7 @@ it('should return unread notifications count', async () => {
   const res = await authorizeRequest(request(app.server).get('/boot')).expect(
     200,
   );
+  delete res.body.alerts.lastChangelog;
   expect(res.body).toEqual({
     ...DEFAULT_BODY,
     notifications: { unreadNotificationsCount: 2 },
@@ -170,6 +220,7 @@ it('should return the user squads', async () => {
   const res = await authorizeRequest(request(app.server).get('/boot')).expect(
     200,
   );
+  delete res.body.alerts.lastChangelog;
   expect(res.body).toEqual({
     ...DEFAULT_BODY,
     squads: [

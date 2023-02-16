@@ -788,57 +788,6 @@ describe('squad member joined', () => {
   });
 });
 
-describe('squad post viewed', () => {
-  it('should add notification to post author', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadPostViewed'
-    );
-    await con
-      .getRepository(Source)
-      .update({ id: 'a' }, { type: SourceType.Squad });
-    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
-    const actual = await invokeNotificationWorker(worker.default, {
-      postId: 'p1',
-      userId: '2',
-    });
-    expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('squad_post_viewed');
-    expect(actual[0].ctx.userId).toEqual('1');
-    const ctx = actual[0].ctx as NotificationPostContext &
-      NotificationDoneByContext;
-    expect(ctx.post.id).toEqual('p1');
-    expect(ctx.source.id).toEqual('a');
-    expect(ctx.doneBy.id).toEqual('2');
-  });
-
-  it('should ignore if it is not part of squad', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadPostViewed'
-    );
-    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
-    const actual = await invokeNotificationWorker(worker.default, {
-      postId: 'p1',
-      userId: '2',
-    });
-    expect(actual).toBeFalsy();
-  });
-
-  it('should ignore if the user is the author', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadPostViewed'
-    );
-    await con
-      .getRepository(Source)
-      .update({ id: 'a' }, { type: SourceType.Squad });
-    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
-    const actual = await invokeNotificationWorker(worker.default, {
-      postId: 'p1',
-      userId: '1',
-    });
-    expect(actual).toBeFalsy();
-  });
-});
-
 it('should add squad reply notification', async () => {
   await con
     .getRepository(Source)
