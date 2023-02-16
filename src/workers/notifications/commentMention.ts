@@ -29,14 +29,17 @@ const worker: NotificationWorker = {
     if (authors.has(data.commentMention.mentionedUserId)) {
       return;
     }
-    const parent = comment.parentId && (await comment.parent);
-    if (data.commentMention.mentionedUserId === parent?.userId) {
-      return;
-    }
-    const threadFollower = await repo.findOneBy({
-      userId: data.commentMention.mentionedUserId,
-      parentId: comment.parentId,
-    });
+    const threadFollower = await repo
+      .createQueryBuilder()
+      .where({
+        id: comment.parentId,
+        userId: data.commentMention.mentionedUserId,
+      })
+      .orWhere({
+        userId: data.commentMention.mentionedUserId,
+        parentId: comment.parentId,
+      })
+      .getRawOne();
     if (threadFollower) {
       return;
     }
