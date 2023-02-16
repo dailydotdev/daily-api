@@ -1,4 +1,3 @@
-import { IFlags } from '../src/flagsmith';
 import { feedToFilters } from '../src/common';
 import {
   FeedAdvancedSettings,
@@ -59,19 +58,6 @@ let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
-
-const defaultFeatures: IFlags = {
-  advanced_settings_default_values: {
-    enabled: true,
-    value: JSON.stringify({ 1: false, 5: false, 6: true }),
-  },
-};
-const mockFeatures = (data: IFlags = defaultFeatures) => {
-  nock(process.env.GATEWAY_URL)
-    .get('/boot/features')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .reply(200, data);
-};
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -321,7 +307,7 @@ describe('query anonymousFeed', () => {
   it('should return feed while excluding sources based on advanced settings', async () => {
     await con.getRepository(Post).delete({ id: 'p6' });
     await saveAdvancedSettingsFiltersFixtures();
-    mockFeatures();
+
     const filters = await feedToFilters(con, '1', '1');
     delete filters.sourceIds;
     const res = await client.query(QUERY, {
@@ -346,7 +332,7 @@ describe('query anonymousFeed', () => {
   it('should remove banned posts from the feed', async () => {
     await con.getRepository(Post).delete({ id: 'p6' });
     await con.getRepository(Post).update({ id: 'p5' }, { banned: true });
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
@@ -393,7 +379,7 @@ describe('query anonymousFeed', () => {
       { feedId: '1', sourceId: 'a' },
       { feedId: '1', sourceId: 'b' },
     ]);
-    mockFeatures();
+
     nock('http://localhost:6000')
       .get(
         '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&user_id=1&feed_id=global',
@@ -428,7 +414,7 @@ describe('query feed', () => {
   it('should return feed with preconfigured filters', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
@@ -437,7 +423,7 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, FeedTag, [{ feedId: '1', tag: 'html' }]);
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
@@ -449,7 +435,7 @@ describe('query feed', () => {
     await saveFixtures(con, FeedTag, [
       { feedId: '1', tag: 'html', blocked: true },
     ]);
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
@@ -461,7 +447,7 @@ describe('query feed', () => {
       { feedId: '1', tag: 'javascript' },
       { feedId: '1', tag: 'webdev', blocked: true },
     ]);
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
@@ -471,7 +457,7 @@ describe('query feed', () => {
     await con.getRepository(Post).delete({ id: 'p6' });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, FeedSource, [{ feedId: '1', sourceId: 'a' }]);
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
@@ -480,7 +466,7 @@ describe('query feed', () => {
     loggedUser = '1';
     await con.getRepository(Post).delete({ id: 'p6' });
     await saveAdvancedSettingsFiltersFixtures();
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
@@ -489,7 +475,7 @@ describe('query feed', () => {
     loggedUser = '1';
     await con.getRepository(Post).delete({ id: 'p6' });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
@@ -499,7 +485,7 @@ describe('query feed', () => {
     await con.getRepository(Post).delete({ id: 'p6' });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await con.getRepository(View).save([{ userId: '1', postId: 'p1' }]);
-    mockFeatures();
+
     const res = await client.query(QUERY, {
       variables: { ...variables, unreadOnly: true },
     });
@@ -510,7 +496,7 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFeedFixtures();
     await con.getRepository(Post).update({ id: 'p4' }, { banned: true });
-    mockFeatures();
+
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
@@ -519,7 +505,7 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFeedFixtures();
     await con.getRepository(Post).update({ id: 'p4' }, { deleted: true });
-    mockFeatures();
+
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
@@ -537,7 +523,7 @@ describe('query feed', () => {
       { feedId: '1', sourceId: 'a' },
       { feedId: '1', sourceId: 'b' },
     ]);
-    mockFeatures();
+
     nock('http://localhost:6000')
       .get(
         '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&user_id=1&feed_id=1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
@@ -555,7 +541,7 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFeedFixtures();
     await con.getRepository(Post).update({ id: 'p4' }, { type: 'share' });
-    mockFeatures();
+
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
@@ -564,7 +550,7 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFeedFixtures();
     await con.getRepository(Post).update({ id: 'p4' }, { type: 'share' });
-    mockFeatures();
+
     const res = await client.query(QUERY, {
       variables: { supportedTypes: ['article', 'share'] },
     });
@@ -1045,11 +1031,7 @@ describe('query advancedSettings', () => {
       }
     }`;
 
-    await saveFeedFixtures();
-    mockFeatures();
-
     const res = await client.query(QUERY);
-
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -1356,7 +1338,7 @@ describe('compatibility routes', () => {
     it('should return preconfigured feed when logged-in', async () => {
       await saveFeedFixtures();
       loggedUser = '1';
-      mockFeatures();
+
       const res = await authorizeRequest(
         request(app.server)
           .get('/v1/posts/latest')
@@ -1467,14 +1449,6 @@ describe('function feedToFilters', () => {
   it('shoud return filters for tags/sources based on the values from our data', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
-  });
-
-  it('shoud return filters for sources with consideration of features flags', async () => {
-    loggedUser = '1';
-    process.env.ENABLE_SETTINGS_EXPERIMENT = 'true';
-    await saveAdvancedSettingsFiltersFixtures();
-    mockFeatures();
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 

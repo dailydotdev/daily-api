@@ -37,10 +37,6 @@ config:
       secure: AAABAFIiNrB4ZuoCxNJ2W1BmyAgufkL/1l7DhK/jyZEoFE3b8Ia0ER0G6mFOiHm6u+Mf3hvw
     flagsmithWebhookSecret:
       secure: AAABADEFzli8mRO0AFHLYU1KjB3IjHFCdnNkiYykQNy/dfk0wLt6OnxtDO3gjRgZ
-    gatewaySecret:
-      secure: AAABACgM6N0HfKt6/HQzr01X9LYAC4a0DGq2Lxougs1EuwhUlcDjyYH5Qraum+eTBAoa2+IDbmGnZ59wkLmcdg==
-    gatewayUrl:
-      secure: AAABALdDc3omcKLnYIvm4ofsaZy+tajZa4Gw5rkpkRTWc5t2MLw2u7lzlsNF1g==
     hashnodeWebhook:
       secure: AAABAKzPgckVKQYS/8TUyknOtW9gknSaYdZSEh+50+IGHe+u9AyZA5hXHCroH32XhjUPnrLjihrno9Yc/PgrN4p9OmE9mHj/GUCgzJMmjAjJ0Kg/wBXuT+BEsYbio3NEDcQ9kp36Ag9rXp0Y0ZHlF3SLy27cbf/rOmG9ag==
     heimdallOrigin:

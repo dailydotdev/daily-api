@@ -164,19 +164,6 @@ Array [
 ]
 `;
 
-exports[`function feedToFilters shoud return filters for sources with consideration of features flags 1`] = `
-Object {
-  "blockedTags": Array [],
-  "excludeSources": Array [
-    "excludedSource",
-    "settingsCombinationSource",
-    "experimentExcludedSource",
-  ],
-  "includeTags": Array [],
-  "sourceIds": Array [],
-}
-`;
-
 exports[`function feedToFilters shoud return filters for tags/sources based on the values from our data 1`] = `
 Object {
   "blockedTags": Array [
@@ -464,7 +451,7 @@ Object {
       "title": "Code examples",
     },
     Object {
-      "defaultEnabledState": false,
+      "defaultEnabledState": true,
       "description": "Description for Company blogs",
       "id": 5,
       "title": "Company blogs",
@@ -482,7 +469,7 @@ Object {
       "title": "Release notes",
     },
     Object {
-      "defaultEnabledState": false,
+      "defaultEnabledState": true,
       "description": "Description for Tech magazines",
       "id": 1,
       "title": "Tech magazines",

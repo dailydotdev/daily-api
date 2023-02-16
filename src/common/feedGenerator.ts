@@ -1,15 +1,9 @@
-import { IFlags } from '../flagsmith';
-import { fetchUserFeatures } from './users';
 import {
   AdvancedSettings,
   FeedAdvancedSettings,
   SourceMember,
 } from '../entity';
-import {
-  Connection as ORMConnection,
-  DataSource,
-  SelectQueryBuilder,
-} from 'typeorm';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from '@graphql-tools/utils';
 import {
@@ -27,7 +21,6 @@ import { Context } from '../Context';
 import { Page, PageGenerator, getSearchQuery } from '../schema/common';
 import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
-import { CustomObject } from '.';
 import { runInSpan } from '../trace';
 
 export const whereTags = (
@@ -69,50 +62,14 @@ export const whereKeyword = (
   return `EXISTS${query}`;
 };
 
-export const getFeatureAdvancedSettings = (
-  features: IFlags,
-  settings: AdvancedSettings[],
-): AdvancedSettings[] => {
-  const feature = features?.advanced_settings_default_values;
-
-  if (!feature?.enabled) {
-    return settings;
-  }
-
-  if (!feature.value || typeof feature.value !== 'string') {
-    return settings;
-  }
-
-  const values = JSON.parse(feature.value) as CustomObject<boolean>;
-
-  return settings.map((adv) => {
-    if (values[adv.id] === undefined) {
-      return adv;
-    }
-
-    return { ...adv, defaultEnabledState: values[adv.id] };
-  });
-};
-
-const getUserFeaturesSettings = (userId: string) => {
-  if (!process.env.ENABLE_SETTINGS_EXPERIMENT) {
-    return Promise.resolve({});
-  }
-
-  return fetchUserFeatures(userId);
-};
-
 export const getExcludedAdvancedSettings = async (
-  con: ORMConnection,
+  con: DataSource,
   feedId: string,
-  userId: string,
 ): Promise<number[]> => {
-  const [features, advancedSettings, feedAdvancedSettings] = await Promise.all([
-    getUserFeaturesSettings(userId),
+  const [settings, feedAdvancedSettings] = await Promise.all([
     con.getRepository(AdvancedSettings).find(),
     con.getRepository(FeedAdvancedSettings).findBy({ feedId }),
   ]);
-  const settings = getFeatureAdvancedSettings(features, advancedSettings);
   const userSettings = mapArrayToOjbect(
     feedAdvancedSettings,
     'advancedSettingsId',
@@ -134,7 +91,7 @@ export const feedToFilters = async (
   feedId: string,
   userId: string,
 ): Promise<AnonymousFeedFilters> => {
-  const settings = await getExcludedAdvancedSettings(con, feedId, userId);
+  const settings = await getExcludedAdvancedSettings(con, feedId);
   const [tags, excludeSources, sourceIds] = await Promise.all([
     con.getRepository(FeedTag).find({ where: { feedId } }),
     con

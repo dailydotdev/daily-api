@@ -16,7 +16,7 @@ export const DEFAULT_FLAGS = {
   },
 };
 
-const getExternalFeatureFlags = async (req: FastifyRequest) => {
+export const getExternalFeatureFlags = async (req: FastifyRequest) => {
   const trackingId = req.userId || req.trackingId;
   if (trackingId) {
     try {
