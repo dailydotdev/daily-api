@@ -573,6 +573,60 @@ it('should not add comment mention notification when you mentioned the scout', a
   expect(actual).toBeFalsy();
 });
 
+it('should not add comment mention notification when you mentioned the parent comment author', async () => {
+  const mentionedUserId = '2';
+  await con.getRepository(Comment).save([
+    {
+      id: 'c2',
+      postId: 'p1',
+      userId: '1',
+      content: 'sub comment',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+      parentId: 'c1',
+    },
+  ]);
+  const worker = await import('../../src/workers/notifications/commentMention');
+  const actual = await invokeNotificationWorker(worker.default, {
+    commentMention: {
+      commentId: 'c2',
+      commentUserId: '1',
+      mentionedUserId,
+    },
+  });
+  expect(actual).toBeFalsy();
+});
+
+it('should not add comment mention notification when you mentioned someone in the same thread', async () => {
+  const mentionedUserId = '3';
+  await con.getRepository(Comment).save([
+    {
+      id: 'c2',
+      postId: 'p1',
+      userId: '1',
+      content: 'sub comment',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+      parentId: 'c1',
+    },
+    {
+      id: 'c3',
+      postId: 'p1',
+      userId: '3',
+      content: 'sub comment',
+      createdAt: new Date(2020, 1, 6, 0, 0),
+      parentId: 'c1',
+    },
+  ]);
+  const worker = await import('../../src/workers/notifications/commentMention');
+  const actual = await invokeNotificationWorker(worker.default, {
+    commentMention: {
+      commentId: 'c2',
+      commentUserId: '1',
+      mentionedUserId,
+    },
+  });
+  expect(actual).toBeFalsy();
+});
+
 it('should add comment reply notification', async () => {
   await con.getRepository(Comment).save([
     {
