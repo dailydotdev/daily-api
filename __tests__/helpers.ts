@@ -35,6 +35,8 @@ import {
   NotificationBaseContext,
   storeNotificationBundle,
 } from '../src/notifications';
+import flagsmith from '../src/flagsmith';
+import { Flags } from 'flagsmith-nodejs';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -63,6 +65,10 @@ export class MockContext extends Context {
   }
 
   get userId(): string | null {
+    return this.mockUserId;
+  }
+
+  get trackingId(): string | null {
     return this.mockUserId;
   }
 
@@ -292,3 +298,27 @@ export const saveNotificationFixture = async (
   );
   return res[0].id;
 };
+
+export const mockFeatureFlagForUser = (
+  featureName?: string,
+  enabled?: boolean,
+  value?: string,
+) => {
+  const mock = jest.mocked(flagsmith.getIdentityFlags);
+  mock.mockReset();
+  if (!featureName) {
+    mock.mockResolvedValue({ flags: null } as unknown as Flags);
+  } else {
+    mock.mockResolvedValue({
+      flags: {
+        [featureName]: {
+          enabled,
+          value,
+        },
+      },
+    } as unknown as Flags);
+  }
+};
+
+export const TEST_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36';

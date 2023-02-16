@@ -9,6 +9,10 @@ import privateRoutes from './private';
 import whoami from './whoami';
 import notifications from './notifications';
 import boot from './boot';
+import newBoot from './newBoot';
+import flagsmith from './flagsmith';
+import users from './users';
+import redirects from './redirects';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -22,4 +26,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   }
   fastify.register(whoami, { prefix: '/whoami' });
   fastify.register(boot, { prefix: '/boot' });
+  fastify.register(newBoot, { prefix: '/new_boot' });
+  fastify.register(flagsmith, { prefix: '/flagsmith' });
+  fastify.register(users, { prefix: '/v1/users' });
+  fastify.register(redirects);
+
+  // Debugging endpoint
+  fastify.post('/e', (req, res) => {
+    req.log.info({ body: req.body }, 'events received');
+    return res.status(204).send();
+  });
 }

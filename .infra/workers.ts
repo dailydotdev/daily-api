@@ -171,4 +171,8 @@ export const workers: Worker[] = [
     topic: 'api.v1.post-added',
     subscription: 'api.post-changelog-added',
   },
+  {
+    topic: 'features-reset',
+    subscription: 'api.clear-features-cache',
+  },
 ];

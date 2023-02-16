@@ -1,5 +1,4 @@
 import { FastifyInstance } from 'fastify';
-import isbot from 'isbot';
 import { ArticlePost } from '../entity';
 import { notifyView } from '../common';
 import createOrGetConnection from '../db';
@@ -17,10 +16,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         return res.status(404).send();
       }
       const encodedUri = encodeURI(post.url);
-      if (!req.headers['user-agent'] || isbot(req.headers['user-agent'])) {
+      if (req.isBot) {
         return res.status(302).redirect(encodedUri);
       }
-      const userId = req.userId || req.cookies.da2;
+      const userId = req.userId || req.trackingId;
       if (userId) {
         notifyView(
           req.log,

@@ -11,12 +11,14 @@ import {
   subHours,
 } from 'date-fns';
 import {
+  authorizeRequest,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  TEST_UA,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
@@ -33,8 +35,12 @@ import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import request from 'supertest';
+import { FastifyInstance } from 'fastify';
+import setCookieParser from 'set-cookie-parser';
 
 let con: DataSource;
+let app: FastifyInstance;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
@@ -46,6 +52,7 @@ beforeAll(async () => {
     () => new MockContext(con, loggedUser),
   );
   client = state.client;
+  app = state.app;
 });
 
 const now = new Date();
@@ -253,6 +260,12 @@ const additionalKeywords: Partial<Keyword>[] = [
   { value: 'devops', occurrences: 760, status: 'allow' },
   { value: 'javascript', occurrences: 980, status: 'allow' },
 ];
+
+const mockLogout = () => {
+  nock(process.env.KRATOS_ORIGIN)
+    .get('/self-service/logout/browser')
+    .reply(200, {});
+};
 
 afterAll(() => disposeGraphQLTesting(state));
 
@@ -1823,5 +1836,54 @@ describe('mutation deleteUser', () => {
 
     const post = await con.getRepository(Post).findOneBy({ id: 'p6' });
     expect(post.authorId).toEqual(null);
+  });
+});
+
+describe('POST /v1/users/logout', () => {
+  const BASE_PATH = '/v1/users/logout';
+
+  it('should logout and clear cookies', async () => {
+    mockLogout();
+    const res = await authorizeRequest(request(app.server).post(BASE_PATH))
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'da3=1;da2=1')
+      .expect(204);
+
+    const cookies = setCookieParser.parse(res, { map: true });
+    expect(cookies['da2'].value).toBeTruthy();
+    expect(cookies['da2'].value).not.toEqual('1');
+    expect(cookies['da3'].value).toBeFalsy();
+  });
+});
+
+describe('DELETE /v1/users/me', () => {
+  const BASE_PATH = '/v1/users/me';
+
+  it('should not authorize when not logged in', async () => {
+    await request(app.server).delete(BASE_PATH).expect(401);
+  });
+
+  it('should delete user from database', async () => {
+    mockLogout();
+    await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
+
+    const users = await con.getRepository(User).find();
+    expect(users.length).toEqual(2);
+
+    const userOne = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(userOne).toEqual(null);
+  });
+
+  it('should clear cookies', async () => {
+    mockLogout();
+    const res = await authorizeRequest(request(app.server).delete(BASE_PATH))
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'da3=1;da2=1')
+      .expect(204);
+
+    const cookies = setCookieParser.parse(res, { map: true });
+    expect(cookies['da2'].value).toBeTruthy();
+    expect(cookies['da2'].value).not.toEqual('1');
+    expect(cookies['da3'].value).toBeFalsy();
   });
 });

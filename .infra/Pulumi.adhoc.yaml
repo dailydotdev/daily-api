@@ -3,6 +3,7 @@ config:
   api:debeziumDbUser: postgres
   api:env:
     accessSecret: topsecret
+    analyticsUrl: http://localhost:3000
     commentsPrefix: http://webapp.local.com:5002
     cookiesKey: topsecret
     defaultImageRatio: 1
@@ -12,13 +13,16 @@ config:
     gatewaySecret: topsecret
     gatewayUrl: http://gateway
     gcloudProject: local
+    heimdallOrigin: http://heimdall-api
     jwtAudience: Daily Staging
     jwtIssuer: Daily API Staging
     jwtSecret: '|r+.2!!!.Qf_-|63*%.D'
+    kratosOrigin: http://heimdall-kratos-public
     pubsubEmulatorHost: pubsub:8085
     pubsubProjectId: local
     redisHost: redis
     redisPort: 6379
+    submitArticleThreshold: 250
     typeormDatabase: api
     typeormHost: postgres
     typeormPassword: 12345

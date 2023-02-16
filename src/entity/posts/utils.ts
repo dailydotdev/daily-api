@@ -1,6 +1,5 @@
 import { DataSource, EntityManager, In } from 'typeorm';
 import { SubmissionFailErrorKeys, TypeOrmError } from '../../errors';
-import shortid from 'shortid';
 import * as he from 'he';
 import { Keyword } from '../Keyword';
 import { uniqueifyArray } from '../../common';
@@ -14,6 +13,7 @@ import { Post } from './Post';
 import { MAX_COMMENTARY_LENGTH, SharePost } from './SharePost';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { Source } from '../Source';
+import { generateShortId } from '../../ids';
 
 export type PostStats = {
   numPosts: number;
@@ -130,9 +130,9 @@ const shouldAddNewPost = async (
   }
 };
 
-const fixAddPostData = (data: AddPostData): AddPostData => ({
+const fixAddPostData = async (data: AddPostData): Promise<AddPostData> => ({
   ...data,
-  id: shortid.generate(),
+  id: await generateShortId(),
   canonicalUrl: data.canonicalUrl || data.url,
   title: data.title && he.decode(data.title),
   createdAt: new Date(),
@@ -291,7 +291,11 @@ export const addNewPost = async (
 
   return con.transaction(async (entityManager) => {
     const authorId = await findAuthor(entityManager, creatorTwitter);
-    const fixedData = fixAddPostData({ ...data, creatorTwitter, authorId });
+    const fixedData = await fixAddPostData({
+      ...data,
+      creatorTwitter,
+      authorId,
+    });
 
     const reason = await shouldAddNewPost(entityManager, fixedData);
     if (reason) {
@@ -348,7 +352,7 @@ export const createSharePost = async (
       }),
     );
   }
-  const id = shortid.generate();
+  const id = await generateShortId();
   try {
     const { private: privacy } = await con
       .getRepository(Source)

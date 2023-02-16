@@ -1,6 +1,6 @@
 import { getPostCommenterIds } from './post';
 import { Post } from './../entity/posts';
-import { IFlags } from 'flagsmith-nodejs';
+import { IFlags } from '../flagsmith';
 import { isSameDay } from 'date-fns';
 import fetch from 'node-fetch';
 import { DataSource, In, Not } from 'typeorm';

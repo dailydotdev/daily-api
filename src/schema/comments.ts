@@ -1,5 +1,4 @@
 import { GraphQLResolveInfo } from 'graphql';
-import shortid from 'shortid';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
@@ -30,6 +29,7 @@ import { Roles } from '../roles';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { markdown, mentionSpecialCharacters } from '../common/markdown';
 import { ensureSourcePermissions } from './sources';
+import { generateShortId } from '../ids';
 
 export interface GQLComment {
   id: string;
@@ -636,7 +636,7 @@ export const resolvers: IResolvers<any, Context> = {
           source.type === SourceType.Squad ? source.id : undefined;
         const comment = await ctx.con.transaction(async (entityManager) => {
           const createdComment = entityManager.getRepository(Comment).create({
-            id: shortid.generate(),
+            id: await generateShortId(),
             postId,
             userId: ctx.userId,
             content,
@@ -679,7 +679,7 @@ export const resolvers: IResolvers<any, Context> = {
           const squadId =
             source.type === SourceType.Squad ? source.id : undefined;
           const createdComment = entityManager.getRepository(Comment).create({
-            id: shortid.generate(),
+            id: await generateShortId(),
             postId: parentComment.postId,
             userId: ctx.userId,
             parentId: commentId,

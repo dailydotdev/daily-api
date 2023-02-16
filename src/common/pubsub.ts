@@ -46,6 +46,7 @@ const featureAccess = pubsub.topic('api.v1.feature-granted');
 const postAddedTopic = pubsub.topic('api.v1.post-added');
 const userCreatedTopic = pubsub.topic('api.v1.user-created');
 const sourcePrivacyUpdatedTopic = pubsub.topic('api.v1.source-privacy-updated');
+const featuresResetTopic = pubsub.topic('features-reset');
 
 export enum NotificationReason {
   New = 'new',
@@ -328,3 +329,6 @@ export const notifyUserCreated = async (
   publishEvent(log, userCreatedTopic, {
     user,
   });
+
+export const notifyFeaturesReset = async (log: EventLogger): Promise<void> =>
+  publishEvent(log, featuresResetTopic, {});

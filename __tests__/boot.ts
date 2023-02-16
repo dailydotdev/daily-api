@@ -48,6 +48,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  jest.resetAllMocks();
   await con.getRepository(User).save(usersFixture[0]);
 });
 
@@ -57,6 +58,7 @@ it('should return defaults for anonymous', async () => {
   expect(res.body).toEqual({
     ...DEFAULT_BODY,
     settings: SETTINGS_DEFAULT,
+    features: {},
   });
 });
 
@@ -247,3 +249,26 @@ it('should return the user squads', async () => {
     ],
   });
 });
+
+// it('should return user feature flags', async () => {
+//   mockFeatureFlagForUser('my_flag', true, 'value');
+//   const res = await authorizeRequest(request(app.server).get('/boot')).expect(
+//     200,
+//   );
+//   delete res.body.alerts.lastChangelog;
+//   expect(res.body).toEqual({
+//     ...DEFAULT_BODY,
+//     flags: {
+//       my_flag: {
+//         enabled: true,
+//         value: 'value',
+//       },
+//     },
+//     features: {
+//       my_flag: {
+//         enabled: true,
+//         value: 'value',
+//       },
+//     },
+//   });
+// });
