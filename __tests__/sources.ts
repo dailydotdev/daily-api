@@ -876,7 +876,7 @@ describe('mutation joinSource', () => {
       sourceId: 's1',
       userId: '2',
       referralToken: 'rt2',
-      role: SourceMemberRoles.Member,
+      role: SourceMemberRoles.Owner,
     });
   });
 
@@ -919,6 +919,19 @@ describe('mutation joinSource', () => {
     });
     const source = await con.getRepository(Source).findOneBy({ id: 's1' });
     expect(source.active).toEqual(true);
+  });
+
+  it('should succeed if an existing member tries to join again', async () => {
+    loggedUser = '2';
+    await con.getRepository(Source).update({ id: 's1' }, { private: false });
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.joinSource.id).toEqual('s1');
+    const member = await con.getRepository(SourceMember).findOneByOrFail({
+      sourceId: 's1',
+      userId: '2',
+    });
+    expect(member.role).toEqual(SourceMemberRoles.Owner);
   });
 
   it('should throw error when joining private squad without token', async () => {

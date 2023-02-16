@@ -488,7 +488,7 @@ const addNewSourceMember = async (
   con: DataSource | EntityManager,
   member: Omit<DeepPartial<SourceMember>, 'referralToken'>,
 ): Promise<void> => {
-  await con.getRepository(SourceMember).save({
+  await con.getRepository(SourceMember).insert({
     ...member,
     referralToken: await generateMemberToken(),
   });
@@ -799,16 +799,22 @@ export const resolvers: IResolvers<any, Context> = {
           'Access denied! You do not have permission for this action!',
         );
       }
-      await ctx.con.transaction(async (entityManager) => {
-        await addNewSourceMember(entityManager, {
-          sourceId,
-          userId: ctx.userId,
-          role: SourceMemberRoles.Member,
+      try {
+        await ctx.con.transaction(async (entityManager) => {
+          await addNewSourceMember(entityManager, {
+            sourceId,
+            userId: ctx.userId,
+            role: SourceMemberRoles.Member,
+          });
+          await entityManager
+            .getRepository(Source)
+            .update({ id: sourceId }, { active: true });
         });
-        await entityManager
-          .getRepository(Source)
-          .update({ id: sourceId }, { active: true });
-      });
+      } catch (err) {
+        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
+          throw err;
+        }
+      }
 
       return getSourceById(ctx, info, sourceId);
     },
