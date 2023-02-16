@@ -1,8 +1,6 @@
 import { getPostCommenterIds } from './post';
 import { Post } from './../entity/posts';
-import { IFlags } from '../flagsmith';
 import { isSameDay } from 'date-fns';
-import fetch from 'node-fetch';
 import { DataSource, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
@@ -24,12 +22,6 @@ export interface User {
 
 export type CustomObject<T> = Record<string, T> | Record<number, T>;
 
-const authorizedHeaders = (userId: string): { [key: string]: string } => ({
-  authorization: `Service ${process.env.GATEWAY_SECRET}`,
-  'user-id': userId,
-  'logged-in': 'true',
-});
-
 export const fetchUser = async (
   userId: string,
   con: DataSource,
@@ -39,18 +31,6 @@ export const fetchUser = async (
     return null;
   }
   return user;
-};
-
-export const fetchUserFeatures = async (userId: string): Promise<IFlags> => {
-  const res = await fetch(`${process.env.GATEWAY_URL}/boot/features`, {
-    method: 'GET',
-    headers: authorizedHeaders(userId),
-  });
-  const text = await res.text();
-
-  if (!text) return {};
-
-  return JSON.parse(text);
 };
 
 export const getUserProfileUrl = (username: string): string =>
