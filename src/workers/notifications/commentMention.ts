@@ -28,6 +28,10 @@ const worker: NotificationWorker = {
     if (authors.has(data.commentMention.mentionedUserId)) {
       return;
     }
+    const parent = comment.parentId && (await comment.parent);
+    if (data.commentMention.mentionedUserId === parent?.userId) {
+      return;
+    }
     const commenter = await comment.user;
     const ctx: NotificationCommenterContext = {
       ...postCtx,
