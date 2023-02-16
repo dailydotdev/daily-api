@@ -5,6 +5,7 @@ import {
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
+  mockFeatureFlagForUser,
 } from './helpers';
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
@@ -27,6 +28,10 @@ import { usersFixture } from './fixture/user';
 import { setRedisObject } from '../src/redis';
 import { REDIS_CHANGELOG_KEY } from '../src/config';
 
+// jest.mock('../src/flagsmith', () => ({
+//   getIdentityFlags: jest.fn(),
+// }));
+
 let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -48,7 +53,9 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  jest.resetAllMocks();
   await con.getRepository(User).save(usersFixture[0]);
+  mockFeatureFlagForUser();
 });
 
 it('should return defaults for anonymous', async () => {
@@ -57,6 +64,7 @@ it('should return defaults for anonymous', async () => {
   expect(res.body).toEqual({
     ...DEFAULT_BODY,
     settings: SETTINGS_DEFAULT,
+    features: {},
   });
 });
 
@@ -247,3 +255,26 @@ it('should return the user squads', async () => {
     ],
   });
 });
+
+// it('should return user feature flags', async () => {
+//   mockFeatureFlagForUser('my_flag', true, 'value');
+//   const res = await authorizeRequest(request(app.server).get('/boot')).expect(
+//     200,
+//   );
+//   delete res.body.alerts.lastChangelog;
+//   expect(res.body).toEqual({
+//     ...DEFAULT_BODY,
+//     flags: {
+//       my_flag: {
+//         enabled: true,
+//         value: 'value',
+//       },
+//     },
+//     features: {
+//       my_flag: {
+//         enabled: true,
+//         value: 'value',
+//       },
+//     },
+//   });
+// });

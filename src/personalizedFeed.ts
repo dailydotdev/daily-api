@@ -2,23 +2,13 @@ import { feedToFilters } from './common';
 import fetch from 'node-fetch';
 import { Context } from './Context';
 import { runInSpan } from './trace';
-import http from 'node:http';
-import https from 'node:https';
 import { ioRedisPool } from './redis';
 import { DataSource } from 'typeorm';
-import { AgentOptions } from 'http';
+import { fetchOptions } from './http';
 
 interface TinybirdResponse<T> {
   data: T[];
 }
-
-const agentOpts: AgentOptions = { keepAlive: true, timeout: 1000 * 5 };
-const httpAgent = new http.Agent(agentOpts);
-const httpsAgent = new https.Agent(agentOpts);
-const fetchOptions = {
-  agent: (_parsedURL) =>
-    _parsedURL.protocol === 'http:' ? httpAgent : httpsAgent,
-};
 
 export async function fetchTinybirdFeed(
   con: DataSource,

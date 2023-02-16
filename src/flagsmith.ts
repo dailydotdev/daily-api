@@ -1,27 +1,41 @@
-import flagsmith from 'flagsmith-nodejs';
+import Flagsmith from 'flagsmith-nodejs';
+import { Flag } from 'flagsmith-nodejs/sdk/models';
 import { ioRedisPool } from './redis';
 
-const getKey = (key: string): string => `flagsmith:${key}`;
+export type IFlags = { [key: string]: Pick<Flag, 'enabled' | 'value'> };
 
-flagsmith.init({
-  environmentID: process.env.FLAGSMITH_KEY,
+export const getFeaturesKey = (key: string): string => `flagsmith:${key}`;
+
+const flagsmith = new Flagsmith({
+  apiUrl: 'https://edge.api.flagsmith.com/api/v1/',
+  environmentKey: process.env.FLAGSMITH_KEY,
   cache: {
     has: async (key) => {
-      const reply = await ioRedisPool.execute(async (client) => {
-        return client.exists(getKey(key));
-      });
+      const reply = await ioRedisPool.execute((client) =>
+        client.exists(getFeaturesKey(key)),
+      );
       return reply === 1;
     },
     get: async (key) => {
-      const cacheValue = await ioRedisPool.execute(async (client) => {
-        return client.get(getKey(key));
-      });
-      return cacheValue && JSON.parse(cacheValue);
+      const cacheValue = await ioRedisPool.execute((client) =>
+        client.get(getFeaturesKey(key)),
+      );
+      const parsed = cacheValue && JSON.parse(cacheValue);
+      if (parsed && !parsed.flags) {
+        return { flags: parsed };
+      }
+      return parsed;
     },
     set: async (key, value) => {
-      await ioRedisPool.execute(async (client) => {
-        return client.set(getKey(key), JSON.stringify(value), 'EX', 60 * 60);
-      });
+      await ioRedisPool.execute((client) =>
+        client.set(
+          getFeaturesKey(key),
+          JSON.stringify(value),
+          'EX',
+          60 * 60 * 24 * 30,
+        ),
+      );
+      return false;
     },
   },
 });

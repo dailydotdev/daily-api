@@ -1,4 +1,4 @@
-import { IFlags } from 'flagsmith-nodejs';
+import { IFlags } from '../src/flagsmith';
 import { feedToFilters } from '../src/common';
 import {
   FeedAdvancedSettings,

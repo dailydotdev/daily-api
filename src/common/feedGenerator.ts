@@ -1,4 +1,4 @@
-import { IFlags } from 'flagsmith-nodejs';
+import { IFlags } from '../flagsmith';
 import { fetchUserFeatures } from './users';
 import {
   AdvancedSettings,

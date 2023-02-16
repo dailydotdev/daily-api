@@ -1,4 +1,3 @@
-import shortid from 'shortid';
 import cron from '../../src/cron/updateTrending';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { ArticlePost, Post, Source, View } from '../../src/entity';
@@ -27,9 +26,9 @@ const addViewsToPost = async (
 ): Promise<void> => {
   await con.getRepository(View).save(
     [...new Array(count)].map(
-      (): DeepPartial<View> => ({
+      (val, index): DeepPartial<View> => ({
         postId,
-        userId: shortid.generate(),
+        userId: index.toString(),
         timestamp: new Date(now.getTime() - Math.random() * 20 * 60 * 1000),
       }),
     ),

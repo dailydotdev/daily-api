@@ -9,6 +9,9 @@ interface Data {
 const worker: Worker = {
   subscription: 'user-updated-api-mailing',
   handler: async (message, con, log) => {
+    if (!process.env.SENDGRID_API_KEY) {
+      return;
+    }
     const data = messageToJson<Data>(message);
     const { user: oldProfile, newProfile } = data;
     if (
