@@ -5,7 +5,6 @@ import {
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
-  mockFeatureFlagForUser,
 } from './helpers';
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
@@ -27,10 +26,6 @@ import { notificationFixture } from './fixture/notifications';
 import { usersFixture } from './fixture/user';
 import { setRedisObject } from '../src/redis';
 import { REDIS_CHANGELOG_KEY } from '../src/config';
-
-// jest.mock('../src/flagsmith', () => ({
-//   getIdentityFlags: jest.fn(),
-// }));
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -55,7 +50,6 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   await con.getRepository(User).save(usersFixture[0]);
-  mockFeatureFlagForUser();
 });
 
 it('should return defaults for anonymous', async () => {

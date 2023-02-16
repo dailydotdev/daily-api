@@ -68,6 +68,10 @@ export class MockContext extends Context {
     return this.mockUserId;
   }
 
+  get trackingId(): string | null {
+    return this.mockUserId;
+  }
+
   get premium(): boolean | null {
     return this.mockPremium;
   }
