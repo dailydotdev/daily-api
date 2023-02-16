@@ -13,7 +13,8 @@ const worker: NotificationWorker = {
   subscription: 'api.comment-mention-notification',
   handler: async (message, con) => {
     const data: Data = messageToJson(message);
-    const comment = await con.getRepository(Comment).findOne({
+    const repo = con.getRepository(Comment);
+    const comment = await repo.findOne({
       where: { id: data.commentMention.commentId },
       relations: ['user'],
     });
@@ -26,6 +27,20 @@ const worker: NotificationWorker = {
     }
     const authors = new Set([postCtx.post.authorId, postCtx.post.scoutId]);
     if (authors.has(data.commentMention.mentionedUserId)) {
+      return;
+    }
+    const threadFollower = await repo
+      .createQueryBuilder()
+      .where({
+        id: comment.parentId,
+        userId: data.commentMention.mentionedUserId,
+      })
+      .orWhere({
+        userId: data.commentMention.mentionedUserId,
+        parentId: comment.parentId,
+      })
+      .getRawOne();
+    if (threadFollower) {
       return;
     }
     const commenter = await comment.user;
