@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import uaParser from 'ua-parser-js';
 import { URL } from 'node:url';
 import { DataSource } from 'typeorm';
-import { getBootData } from './newBoot';
+import { getBootData } from './boot';
 import createOrGetConnection from '../db';
 
 const generateEventId = (now) => {

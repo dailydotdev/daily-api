@@ -1,25 +1,82 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { getAlerts } from '../schema/alerts';
 import createOrGetConnection from '../db';
-import { getSettings } from '../schema/settings';
+import { DataSource } from 'typeorm';
+import { clearAuthentication, dispatchWhoami } from '../kratos';
+import { generateTrackingId } from '../ids';
+import { generateSessionId, setTrackingId } from '../tracking';
+import { IFlags } from '../flagsmith';
+import { GQLUser } from '../schema/users';
 import {
+  Alerts,
   ALERTS_DEFAULT,
   getUnreadNotificationsCount,
+  Settings,
   SETTINGS_DEFAULT,
   SourceMember,
   SquadSource,
+  User,
 } from '../entity';
-import { DataSource } from 'typeorm';
-import { getSourceLink } from '../common';
 import { GQLSource } from '../schema/sources';
+import { adjustFlagsToUser, getUserFeatureFlags } from '../featureFlags';
+import { getAlerts } from '../schema/alerts';
+import { getSettings } from '../schema/settings';
 import { getRedisObject } from '../redis';
 import { REDIS_CHANGELOG_KEY } from '../config';
-import { getInternalFeatureFlags } from '../featureFlags';
+import { getSourceLink } from '../common';
+import { AccessToken, signJwt } from '../auth';
+import { cookies, setCookie } from '../cookies';
+import { parse } from 'graphql/language/parser';
+import { execute } from 'graphql/execution/execute';
+import { schema } from '../graphql';
+import { Context } from '../Context';
+
+type BaseBoot = {
+  visit: { visitId: string; sessionId: string };
+  flags: IFlags;
+  alerts: Omit<Alerts, 'userId'>;
+  settings: Omit<Settings, 'userId' | 'updatedAt'>;
+  notifications: { unreadNotificationsCount: number };
+  squads: (GQLSource & { permalink: string })[];
+};
+
+type AnonymousBoot = BaseBoot & {
+  user: { id: string };
+  shouldLogout: boolean;
+};
+
+type LoggedInBoot = BaseBoot & {
+  user: GQLUser & {
+    providers: (string | null)[];
+    permalink: string;
+    roles: string[];
+  };
+  accessToken: AccessToken;
+};
+
+type BootMiddleware = (
+  con: DataSource,
+  req: FastifyRequest,
+  res: FastifyReply,
+) => Promise<Record<string, unknown>>;
+
+const visitSection = async (
+  req: FastifyRequest,
+  res: FastifyReply,
+): Promise<BaseBoot['visit']> => {
+  const [visitId, sessionId] = await Promise.all([
+    generateTrackingId(),
+    generateSessionId(req, res),
+  ]);
+  return {
+    visitId,
+    sessionId,
+  };
+};
 
 const excludeProperties = <T, K extends keyof T>(
   obj: T,
   properties: K[],
-): Omit<T, Exclude<keyof T, K>> => {
+): Pick<T, Exclude<keyof T, K>> => {
   if (obj) {
     properties.forEach((prop) => {
       delete obj[prop];
@@ -56,28 +113,101 @@ const getSquads = async (
   }));
 };
 
+const moderators = [
+  '1d339aa5b85c4e0ba85fdedb523c48d4',
+  '28849d86070e4c099c877ab6837c61f0',
+  '5e0af68445e04c02b0656c3530664aff',
+  'a491ef61599a4b3e84b6dfa602e6bdfe',
+  'f7fed619a1de44fe9a896850422e98ff',
+  'pUP1hQ0AOZPBvKlViBnGI',
+];
+
+const getRoles = (userId: string): string[] => {
+  if (moderators.includes(userId)) {
+    return ['moderator'];
+  }
+  return [];
+};
+
+const handleNonExistentUser = async (
+  con: DataSource,
+  req: FastifyRequest,
+  res: FastifyReply,
+  middleware?: BootMiddleware,
+): Promise<AnonymousBoot> => {
+  req.log.info(
+    { userId: req.userId },
+    'could not find the logged user in the api',
+  );
+  await clearAuthentication(req, res);
+  return anonymousBoot(con, req, res, middleware, true);
+};
+
+const setAuthCookie = async (
+  req: FastifyRequest,
+  res: FastifyReply,
+  userId: string,
+  roles: string[],
+): Promise<AccessToken> => {
+  const accessToken = await signJwt(
+    {
+      userId,
+      roles,
+    },
+    15 * 60 * 1000,
+  );
+  setCookie(req, res, 'auth', accessToken.token);
+  return accessToken;
+};
+
 const loggedInBoot = async (
   con: DataSource,
   req: FastifyRequest,
   res: FastifyReply,
-): Promise<void> => {
+  middleware?: BootMiddleware,
+): Promise<LoggedInBoot | AnonymousBoot> => {
   const { userId } = req;
   const [
+    visit,
+    user,
+    roles,
+    flags,
     alerts,
     settings,
     unreadNotificationsCount,
     squads,
     lastChangelog,
-    features,
+    extra,
   ] = await Promise.all([
+    visitSection(req, res),
+    con.getRepository(User).findOneBy({ id: userId }),
+    getRoles(userId),
+    getUserFeatureFlags(req, con),
     getAlerts(con, userId),
     getSettings(con, userId),
     getUnreadNotificationsCount(con, userId),
     getSquads(con, userId),
     getRedisObject(REDIS_CHANGELOG_KEY),
-    getInternalFeatureFlags(con, userId),
+    middleware ? middleware(con, req, res) : {},
   ]);
-  return res.send({
+  if (!user) {
+    return handleNonExistentUser(con, req, res, middleware);
+  }
+  const accessToken = await setAuthCookie(req, res, userId, roles);
+  return {
+    user: {
+      ...excludeProperties(user, [
+        'updatedAt',
+        'referralId',
+        'profileConfirmed',
+        'devcardEligible',
+      ]),
+      providers: [null],
+      roles,
+      permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
+    },
+    visit,
+    flags: adjustFlagsToUser(flags, user),
     alerts: {
       ...excludeProperties(alerts, ['userId']),
       changelog: alerts.lastChangelog < new Date(lastChangelog),
@@ -89,32 +219,118 @@ const loggedInBoot = async (
     ]),
     notifications: { unreadNotificationsCount },
     squads,
-    features,
-  });
+    accessToken,
+    ...extra,
+  };
 };
 
 const anonymousBoot = async (
   con: DataSource,
   req: FastifyRequest,
   res: FastifyReply,
-): Promise<void> => {
-  return res.send({
+  middleware?: BootMiddleware,
+  shouldLogout = false,
+): Promise<AnonymousBoot> => {
+  const [visit, flags, extra] = await Promise.all([
+    visitSection(req, res),
+    getUserFeatureFlags(req, con),
+    middleware ? middleware(con, req, res) : {},
+  ]);
+  return {
+    user: {
+      id: req.trackingId,
+    },
+    visit,
+    flags,
     alerts: { ...ALERTS_DEFAULT, changelog: false },
     settings: SETTINGS_DEFAULT,
     notifications: { unreadNotificationsCount: 0 },
     squads: [],
-    features: {},
-  });
+    shouldLogout,
+    ...extra,
+  };
 };
+
+export const getBootData = async (
+  con: DataSource,
+  req: FastifyRequest,
+  res: FastifyReply,
+  middleware?: BootMiddleware,
+): Promise<AnonymousBoot | LoggedInBoot> => {
+  const whoami = await dispatchWhoami(req);
+  if (whoami.valid) {
+    setCookie(req, res, 'kratos', req.cookies[cookies.kratos.key], {
+      expires: whoami.expires,
+    });
+    if (req.userId !== whoami.userId) {
+      req.userId = whoami.userId;
+      req.trackingId = req.userId;
+      setTrackingId(req, res, req.trackingId);
+    }
+    return loggedInBoot(con, req, res, middleware);
+  } else if (req.userId || req.cookies[cookies.kratos.key]) {
+    await clearAuthentication(req, res);
+    return anonymousBoot(con, req, res, middleware, true);
+  }
+  return anonymousBoot(con, req, res, middleware);
+};
+
+const COMPANION_QUERY = parse(`query Post($url: String) {
+        postByUrl(url: $url) {
+          id
+          title
+          image
+          permalink
+          commentsPermalink
+          trending
+          summary
+          numUpvotes
+          upvoted
+          numComments
+          bookmarked
+          createdAt
+          readTime
+          tags
+          source {
+            id
+            name
+            image
+          }
+          author {
+            id
+          }
+        }
+      }`);
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   const con = await createOrGetConnection();
 
   fastify.get('/', async (req, res) => {
-    const { userId } = req;
-    if (userId) {
-      return loggedInBoot(con, req, res);
-    }
-    return anonymousBoot(con, req, res);
+    const data = await getBootData(con, req, res);
+    return res.send(data);
+  });
+
+  fastify.get('/companion', async (req, res) => {
+    const middleware: BootMiddleware = async (con, req) => {
+      const res = await execute({
+        schema,
+        document: COMPANION_QUERY,
+        variableValues: {
+          url: (req.query as { url?: string }).url,
+        },
+        contextValue: new Context(req, con),
+      });
+      if (res?.data?.postByUrl) {
+        return { postData: res.data.postByUrl };
+      }
+      return {};
+    };
+    const data = await getBootData(con, req, res, middleware);
+    return res.send(data);
+  });
+
+  fastify.get('/features', async (req, res) => {
+    const data = await getUserFeatureFlags(req, con);
+    return res.send(data);
   });
 }
