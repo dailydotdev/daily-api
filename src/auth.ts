@@ -108,13 +108,13 @@ const plugin = async (
     if (!req.userId && authCookie) {
       try {
         const unsigned = req.unsignCookie(authCookie);
-        const payload = await verifyJwt(
-          unsigned.valid ? unsigned.value : authCookie,
-        );
-        if (payload) {
-          req.userId = payload.userId;
-          req.premium = payload.premium;
-          req.roles = payload.roles;
+        if (unsigned.valid) {
+          const payload = await verifyJwt(unsigned.value);
+          if (payload) {
+            req.userId = payload.userId;
+            req.premium = payload.premium;
+            req.roles = payload.roles;
+          }
         }
       } catch (err) {
         // JWT is invalid - no need to do anything just not authorize
