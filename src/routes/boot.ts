@@ -30,7 +30,7 @@ import { execute } from 'graphql/execution/execute';
 import { schema } from '../graphql';
 import { Context } from '../Context';
 
-type BaseBoot = {
+export type BaseBoot = {
   visit: { visitId: string; sessionId: string };
   flags: IFlags;
   alerts: Omit<Alerts, 'userId'>;
@@ -39,12 +39,12 @@ type BaseBoot = {
   squads: (GQLSource & { permalink: string })[];
 };
 
-type AnonymousBoot = BaseBoot & {
+export type AnonymousBoot = BaseBoot & {
   user: { id: string };
   shouldLogout: boolean;
 };
 
-type LoggedInBoot = BaseBoot & {
+export type LoggedInBoot = BaseBoot & {
   user: GQLUser & {
     providers: (string | null)[];
     permalink: string;
