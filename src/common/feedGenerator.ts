@@ -423,6 +423,8 @@ export const anonymousFeedBuilder = (
     );
   }
 
+  newBuilder = newBuilder.andWhere(`${alias}."private" = false`);
+
   if (filters?.includeTags?.length) {
     newBuilder = newBuilder.andWhere((builder) =>
       whereTags(filters.includeTags, builder, alias),

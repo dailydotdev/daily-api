@@ -73,6 +73,7 @@ export const postsFixture: DeepPartial<ArticlePost>[] = [
     sourceId: 'p',
     createdAt: new Date(now.getTime() - 5000),
     type: 'article',
+    private: true,
   },
 ];
 
