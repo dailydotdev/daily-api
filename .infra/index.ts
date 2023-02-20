@@ -89,7 +89,7 @@ createSubscriptionsFromWorkers(
   addLabelsToWorkers(workers, { app: name }),
 );
 
-const memory = 1024;
+const memory = 512;
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
@@ -97,7 +97,7 @@ const limits: pulumi.Input<{
   memory: `${memory}Mi`,
 };
 
-const wsMemory = 2048;
+const wsMemory = 3072;
 const wsLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
@@ -168,7 +168,7 @@ if (isAdhocEnv) {
       limits,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 70 },
+      metric: { type: 'memory_cpu', cpu: 80 },
       createService: true,
       enableCdn: true,
       disableLifecycle: true,
@@ -185,7 +185,7 @@ if (isAdhocEnv) {
       limits: wsLimits,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 60 },
+      metric: { type: 'memory_cpu', cpu: 80 },
       disableLifecycle: true,
     },
     {
@@ -207,12 +207,12 @@ if (isAdhocEnv) {
         nodeOptions(memory),
         { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
       ],
-      minReplicas: 2,
-      maxReplicas: 4,
+      minReplicas: 1,
+      maxReplicas: 3,
       limits,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 70 },
+      metric: { type: 'memory_cpu', cpu: 80 },
       createService: true,
       serviceType: 'ClusterIP',
       disableLifecycle: true,
