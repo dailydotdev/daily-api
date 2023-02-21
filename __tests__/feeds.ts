@@ -1,11 +1,23 @@
-import { feedToFilters } from '../src/common';
+import { feedToFilters, Ranking } from '../src/common';
 import {
-  FeedAdvancedSettings,
   AdvancedSettings,
   ArticlePost,
+  BookmarkList,
+  Feed,
+  FeedAdvancedSettings,
+  FeedSource,
+  FeedTag,
+  Keyword,
   MachineSource,
+  Post,
+  PostKeyword,
+  PostTag,
+  SharePost,
+  Source,
   SourceMember,
   SourceMemberRoles,
+  User,
+  View,
 } from '../src/entity';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
@@ -22,26 +34,12 @@ import {
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
-import {
-  Feed,
-  FeedSource,
-  FeedTag,
-  Post,
-  PostTag,
-  Source,
-  View,
-  BookmarkList,
-  User,
-  PostKeyword,
-  Keyword,
-} from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import {
   postKeywordsFixture,
   postsFixture,
   postTagsFixture,
 } from './fixture/post';
-import { Ranking } from '../src/common';
 import nock from 'nock';
 import { deleteKeysByPattern, ioRedisPool } from '../src/redis';
 import {
@@ -223,6 +221,16 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
       tagsStr: 'javascript,webdev',
     },
   ] as ArticlePost[]);
+  await saveFixtures(con, SharePost, [
+    {
+      id: 'sourcePost',
+      shortId: 'nsp1',
+      title: 'Source Post',
+      score: 0,
+      sourceId: 'p',
+      tagsStr: 'javascript,webdev',
+    },
+  ] as SharePost[]);
   await saveFixtures(con, FeedAdvancedSettings, [
     { feedId: '1', advancedSettingsId: 1, enabled: false },
     { feedId: '1', advancedSettingsId: 2, enabled: true },
@@ -274,7 +282,6 @@ describe('query anonymousFeed', () => {
   });
 
   it('should return anonymous feed with no filters ordered by time', async () => {
-    await con.getRepository(Post).delete({ id: 'p6' });
     const res = await client.query(QUERY, {
       variables: { ...variables, ranking: Ranking.TIME },
     });
@@ -390,6 +397,30 @@ describe('query anonymousFeed', () => {
     const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
     });
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query anonymousFeed by time', () => {
+  const variables = {
+    ranking: Ranking.TIME,
+    first: 10,
+  };
+
+  const QUERY = `
+  query AnonymousFeed($filters: FiltersInput, $ranking: Ranking, $first: Int, $version: Int) {
+    anonymousFeed(filters: $filters, ranking: $ranking, first: $first, version: $version) {
+      ${feedFields()}
+    }
+  }
+`;
+
+  it('should return anonymous feed with no filters ordered by time', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
+    const res = await client.query(QUERY, {
+      variables: { ...variables },
+    });
+    delete res.data.anonymousFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -599,6 +630,7 @@ describe('query sourceFeed', () => {
 
   it('should return a private source feed when user is a member', async () => {
     loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'b' }, { private: true });
     await con.getRepository(User).save(usersFixture[0]);
     await con.getRepository(SourceMember).save([
       {
