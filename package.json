@@ -69,7 +69,7 @@
     "markdown-to-txt": "^2.0.1",
     "mercurius": "^11.5.0",
     "mercurius-cache": "^3.0.3",
-    "mercurius-upload": "^5.0.0",
+    "mercurius-upload": "^6.0.0",
     "nanoid": "^3.3.4",
     "node-fetch": "^2.6.7",
     "p-timeout": "4.1.0",
