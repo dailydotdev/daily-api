@@ -740,6 +740,7 @@ describe('alerts', () => {
     myFeed: 'created',
     companionHelper: true,
     lastChangelog: null,
+    showSquadTour: true,
   };
 
   it('should notify on alert.filter changed', async () => {
