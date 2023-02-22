@@ -52,7 +52,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Whether to show the squad tour and sync across devices
     """
-    showSquadTour: Boolean!
+    squadTour: Boolean!
   }
 
   input UpdateAlertsInput {
@@ -84,7 +84,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Whether to show the squad tour and sync across devices
     """
-    showSquadTour: Boolean
+    squadTour: Boolean
   }
 
   extend type Mutation {

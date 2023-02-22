@@ -19,7 +19,7 @@ export class Alerts {
   companionHelper: boolean;
 
   @Column({ type: 'bool', default: true })
-  showSquadTour: boolean;
+  squadTour: boolean;
 
   @Column({ type: 'timestamp without time zone', default: () => 'now()' })
   lastChangelog: Date | null;
@@ -34,5 +34,5 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
   companionHelper: true,
   lastChangelog: new Date(),
   changelog: false,
-  showSquadTour: true,
+  squadTour: true,
 };

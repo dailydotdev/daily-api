@@ -7,7 +7,7 @@ Object {
     "filter": false,
     "myFeed": null,
     "rankLastSeen": null,
-    "showSquadTour": true,
+    "squadTour": true,
   },
 }
 `;
@@ -19,7 +19,7 @@ Object {
     "filter": false,
     "myFeed": "created",
     "rankLastSeen": "2020-09-22T12:15:51.247Z",
-    "showSquadTour": false,
+    "squadTour": false,
   },
 }
 `;
