@@ -2,7 +2,7 @@ import { messageToJson } from '../worker';
 import { ChangeObject } from '../../types';
 import { Feature } from '../../entity/Feature';
 import { NotificationWorker } from './worker';
-import { Comment, SourceMember } from '../../entity';
+import { SourceMember } from '../../entity';
 
 interface Data {
   feature: ChangeObject<Feature>;
