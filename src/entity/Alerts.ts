@@ -29,6 +29,6 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
   rankLastSeen: null,
   myFeed: null,
   companionHelper: true,
-  lastChangelog: new Date(),
+  lastChangelog: null,
   changelog: false,
 };
