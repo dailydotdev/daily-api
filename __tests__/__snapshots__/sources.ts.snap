@@ -178,6 +178,7 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
+          "role": "owner",
           "source": Object {
             "id": "a",
           },
@@ -188,6 +189,7 @@ Object {
       },
       Object {
         "node": Object {
+          "role": "member",
           "source": Object {
             "id": "a",
           },
@@ -211,6 +213,7 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
+          "role": "owner",
           "source": Object {
             "id": "a",
           },
@@ -221,6 +224,7 @@ Object {
       },
       Object {
         "node": Object {
+          "role": "member",
           "source": Object {
             "id": "a",
           },

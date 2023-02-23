@@ -411,6 +411,7 @@ query SourceMembers($id: ID!) {
     }
     edges {
       node {
+        role
         user { id }
         source { id }
       }
@@ -430,6 +431,27 @@ query SourceMembers($id: ID!) {
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return source members and order by their role', async () => {
+    const noModRes = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(noModRes.errors).toBeFalsy();
+    const [noModFirst, noModSecond] = noModRes.data.sourceMembers.edges;
+    expect(noModFirst.node.role).toEqual(SourceMemberRoles.Owner);
+    expect(noModSecond.node.role).toEqual(SourceMemberRoles.Member);
+
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '3' },
+        { role: SourceMemberRoles.Moderator, sourceId: 'a' },
+      );
+
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    const [first, second] = res.data.sourceMembers.edges;
+    expect(first.node.role).toEqual(SourceMemberRoles.Owner);
+    expect(second.node.role).toEqual(SourceMemberRoles.Moderator);
   });
 
   it('should return source members of private source when user is a member', async () => {

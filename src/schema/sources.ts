@@ -6,6 +6,7 @@ import { Context } from '../Context';
 import {
   createSharePost,
   generateMemberToken,
+  roleRank,
   Source,
   SourceFeed,
   SourceMember,
@@ -558,10 +559,19 @@ export const resolvers: IResolvers<any, Context> = {
           membershipsPageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
           builder.queryBuilder
+            .addSelect(
+              `
+                CASE
+                  WHEN ${builder.alias}.role = '${SourceMemberRoles.Owner}' THEN ${roleRank.owner}
+                  WHEN ${builder.alias}.role = '${SourceMemberRoles.Moderator}' THEN ${roleRank.moderator}
+                ELSE 0 END AS "roleRank"
+                
+              `,
+            )
             .andWhere(`${builder.alias}."sourceId" = :source`, {
               source: args.sourceId,
             })
-            .addOrderBy(`${builder.alias}."role"`, 'DESC')
+            .addOrderBy('"roleRank"', 'DESC')
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
 
           builder.queryBuilder.limit(page.limit);
