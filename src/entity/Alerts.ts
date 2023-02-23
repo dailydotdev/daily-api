@@ -32,7 +32,7 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
   rankLastSeen: null,
   myFeed: null,
   companionHelper: true,
-  lastChangelog: null,
+  lastChangelog: new Date(),
   changelog: false,
   squadTour: true,
 };
