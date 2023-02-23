@@ -2,6 +2,7 @@ import { invokeNotificationWorker } from '../helpers';
 import {
   Comment,
   CommentUpvote,
+  FeatureType,
   MachineSource,
   Post,
   PostReport,
@@ -74,6 +75,42 @@ it('should add community picks failed notification', async () => {
       status: SubmissionStatus.Rejected,
     },
   });
+});
+
+it('should send squad access notification if user has no squad', async () => {
+  const worker = await import(
+    '../../src/workers/notifications/featureAccessNotification'
+  );
+  const actual = await invokeNotificationWorker(worker.default, {
+    feature: {
+      feature: FeatureType.Squad,
+      userId: '1',
+    },
+  });
+  expect(actual.length).toEqual(1);
+  expect(actual[0].type).toEqual('squad_access');
+  expect(actual[0].ctx).toEqual({
+    userId: '1',
+  });
+});
+
+it('should not send squad access notification if user is part of squad', async () => {
+  await con.getRepository(SourceMember).save({
+    sourceId: 'a',
+    userId: '1',
+    role: SourceMemberRoles.Owner,
+    referralToken: 'a',
+  });
+  const worker = await import(
+    '../../src/workers/notifications/featureAccessNotification'
+  );
+  const actual = await invokeNotificationWorker(worker.default, {
+    feature: {
+      feature: FeatureType.Squad,
+      userId: '1',
+    },
+  });
+  expect(actual).toBeFalsy();
 });
 
 it('should add community picks granted notification', async () => {

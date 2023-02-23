@@ -42,6 +42,7 @@ describe('query userAlerts', () => {
       myFeed
       companionHelper
       lastChangelog
+      squadTour
     }
   }`;
 
@@ -82,6 +83,7 @@ describe('mutation updateUserAlerts', () => {
         rankLastSeen
         myFeed
         companionHelper
+        squadTour
       }
     }
   `;
@@ -116,6 +118,7 @@ describe('mutation updateUserAlerts', () => {
         rankLastSeen: rankLastSeenOld,
         myFeed: 'created',
         companionHelper: true,
+        squadTour: true,
       }),
     );
 
@@ -127,6 +130,7 @@ describe('mutation updateUserAlerts', () => {
           rankLastSeen: rankLastSeen.toISOString(),
           myFeed: 'created',
           companionHelper: false,
+          squadTour: false,
         },
       },
     });

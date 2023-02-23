@@ -48,6 +48,11 @@ export const typeDefs = /* GraphQL */ `
     Date of the last changelog user saw
     """
     lastChangelog: DateTime
+
+    """
+    Whether to show the squad tour and sync across devices
+    """
+    squadTour: Boolean!
   }
 
   input UpdateAlertsInput {
@@ -75,6 +80,11 @@ export const typeDefs = /* GraphQL */ `
     Date of the last changelog user saw
     """
     lastChangelog: DateTime
+
+    """
+    Whether to show the squad tour and sync across devices
+    """
+    squadTour: Boolean
   }
 
   extend type Mutation {
