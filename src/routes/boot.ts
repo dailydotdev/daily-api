@@ -194,6 +194,8 @@ const loggedInBoot = async (
     return handleNonExistentUser(con, req, res, middleware);
   }
   const accessToken = await setAuthCookie(req, res, userId, roles);
+  const lastChangelogMs = +lastChangelog / 1000;
+
   return {
     user: {
       ...excludeProperties(user, [
@@ -210,7 +212,7 @@ const loggedInBoot = async (
     flags: adjustFlagsToUser(flags, user),
     alerts: {
       ...excludeProperties(alerts, ['userId']),
-      changelog: alerts.lastChangelog < new Date(lastChangelog),
+      changelog: alerts.lastChangelog < new Date(lastChangelogMs),
     },
     settings: excludeProperties(settings, [
       'userId',
