@@ -210,7 +210,7 @@ const loggedInBoot = async (
     flags: adjustFlagsToUser(flags, user),
     alerts: {
       ...excludeProperties(alerts, ['userId']),
-      changelog: alerts.lastChangelog < new Date(lastChangelog),
+      changelog: alerts.lastChangelog < new Date(+lastChangelog / 1000),
     },
     settings: excludeProperties(settings, [
       'userId',
