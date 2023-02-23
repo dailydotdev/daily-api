@@ -46,7 +46,7 @@ let con: DataSource;
 let state: GraphQLTestingState;
 
 const BASE_BODY = {
-  alerts: { ...ALERTS_DEFAULT, lastChangelog: expect.any(String) },
+  alerts: { ...ALERTS_DEFAULT, lastChangelog: null },
   settings: { ...SETTINGS_DEFAULT, companionExpanded: null },
   notifications: { unreadNotificationsCount: 0 },
   squads: [],
