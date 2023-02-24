@@ -412,6 +412,7 @@ query SourceMembers($id: ID!) {
     edges {
       node {
         role
+        roleRank
         user { id }
         source { id }
       }
