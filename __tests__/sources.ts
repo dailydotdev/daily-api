@@ -434,24 +434,30 @@ query SourceMembers($id: ID!) {
   });
 
   it('should return source members and order by their role', async () => {
+    const repo = con.getRepository(SourceMember);
+    await repo.update(
+      { userId: '3' },
+      { role: SourceMemberRoles.Member, sourceId: 'a' },
+    );
     const noModRes = await client.query(QUERY, { variables: { id: 'a' } });
     expect(noModRes.errors).toBeFalsy();
-    const [noModFirst, noModSecond] = noModRes.data.sourceMembers.edges;
+    const [noModFirst, noModSecond, noModThird] =
+      noModRes.data.sourceMembers.edges;
     expect(noModFirst.node.role).toEqual(SourceMemberRoles.Owner);
     expect(noModSecond.node.role).toEqual(SourceMemberRoles.Member);
+    expect(noModThird.node.role).toEqual(SourceMemberRoles.Member);
 
-    await con
-      .getRepository(SourceMember)
-      .update(
-        { userId: '3' },
-        { role: SourceMemberRoles.Moderator, sourceId: 'a' },
-      );
+    await repo.update(
+      { userId: '3' },
+      { role: SourceMemberRoles.Moderator, sourceId: 'a' },
+    );
 
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
-    const [first, second] = res.data.sourceMembers.edges;
+    const [first, second, third] = res.data.sourceMembers.edges;
     expect(first.node.role).toEqual(SourceMemberRoles.Owner);
     expect(second.node.role).toEqual(SourceMemberRoles.Moderator);
+    expect(third.node.role).toEqual(SourceMemberRoles.Member);
   });
 
   it('should return source members of private source when user is a member', async () => {
