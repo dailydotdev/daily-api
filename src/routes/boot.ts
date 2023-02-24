@@ -194,7 +194,6 @@ const loggedInBoot = async (
     return handleNonExistentUser(con, req, res, middleware);
   }
   const accessToken = await setAuthCookie(req, res, userId, roles);
-  const lastChangelogMs = +lastChangelog / 1000;
 
   return {
     user: {
@@ -213,7 +212,7 @@ const loggedInBoot = async (
     alerts: {
       ...excludeProperties(alerts, ['userId']),
       // read only, used in frontend to decide if changelog post should be fetched
-      changelog: alerts.lastChangelog < new Date(lastChangelogMs),
+      changelog: alerts.lastChangelog < new Date(lastChangelog),
     },
     settings: excludeProperties(settings, [
       'userId',

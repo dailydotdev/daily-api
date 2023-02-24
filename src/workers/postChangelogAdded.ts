@@ -19,7 +19,12 @@ const worker: Worker = {
       return;
     }
     try {
-      await setRedisObject(REDIS_CHANGELOG_KEY, post.createdAt);
+      const timestampMs = post.createdAt / 1000; // createdAt comes as μs here
+
+      await setRedisObject(
+        REDIS_CHANGELOG_KEY,
+        new Date(timestampMs).toISOString(),
+      );
     } catch (err) {
       logger.error(
         { data, messageId: message.messageId, err },
