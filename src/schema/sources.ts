@@ -896,7 +896,7 @@ export const resolvers: IResolvers<any, Context> = {
           );
         }
 
-        await manager.delete({ sourceId, userId: memberId });
+        await repo.delete({ sourceId, userId: memberId });
       });
 
       return { _: true };
