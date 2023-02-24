@@ -212,6 +212,7 @@ const loggedInBoot = async (
     flags: adjustFlagsToUser(flags, user),
     alerts: {
       ...excludeProperties(alerts, ['userId']),
+      // read only, used in frontend to decide if changelog post should be fetched
       changelog: alerts.lastChangelog < new Date(lastChangelogMs),
     },
     settings: excludeProperties(settings, [
