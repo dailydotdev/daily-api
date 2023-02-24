@@ -350,10 +350,16 @@ const sourceToGQL = (source: Source): GQLSource => ({
 export enum SourcePermissions {
   View,
   Post,
+  PostDelete,
   Leave,
   Delete,
   Edit,
 }
+
+const canPostDeleteRoles = [
+  SourceMemberRoles.Owner,
+  SourceMemberRoles.Moderator,
+];
 
 export const canAccessSource = async (
   ctx: Context,
@@ -370,9 +376,18 @@ export const canAccessSource = async (
       sourceId: source.id,
     });
 
+    if (!member) {
+      return false;
+    }
+
     switch (permission) {
       case SourcePermissions.Post:
         if (source.type !== SourceType.Squad) {
+          return false;
+        }
+        break;
+      case SourcePermissions.PostDelete:
+        if (!canPostDeleteRoles.includes(member.role)) {
           return false;
         }
         break;
@@ -392,9 +407,7 @@ export const canAccessSource = async (
         break;
     }
 
-    if (member) {
-      return true;
-    }
+    return true;
   }
 
   return false;

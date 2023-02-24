@@ -24,6 +24,7 @@ import {
   HiddenPost,
   Post,
   PostReport,
+  SharePost,
   Toc,
   Upvote,
 } from '../entity';
@@ -467,6 +468,16 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
+    Delete a shared post permanently
+    """
+    deleteSharedPost(
+      """
+      Id of the post to delete
+      """
+      id: ID
+    ): EmptyResponse @auth
+
+    """
     Delete a post permanently
     """
     deletePost(
@@ -737,6 +748,28 @@ export const resolvers: IResolvers<any, Context> = {
           }
         }
       }
+      return { _: true };
+    },
+    deleteSharedPost: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.transaction(async (manager) => {
+        const repo = manager.getRepository(SharePost);
+        const post = await repo.findOneBy({ id });
+
+        if (!post?.sharedPostId) return;
+
+        await ensureSourcePermissions(
+          ctx,
+          post.sourceId,
+          SourcePermissions.PostDelete,
+        );
+
+        await repo.update({ id }, { deleted: true });
+      });
+
       return { _: true };
     },
     deletePost: async (
