@@ -896,10 +896,7 @@ export const resolvers: IResolvers<any, Context> = {
           );
         }
 
-        await ctx.con.getRepository(SourceMember).delete({
-          sourceId,
-          userId: memberId,
-        });
+        await manager.delete({ sourceId, userId: memberId });
       });
 
       return { _: true };
