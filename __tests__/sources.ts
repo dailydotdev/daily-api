@@ -1108,7 +1108,7 @@ describe('mutation removeMember', () => {
   });
 
   it('should allow moderator to remove member the squad', async () => {
-    loggedUser = '1';
+    loggedUser = '3';
     const toRemoveId = '2';
     const repo = con.getRepository(SourceMember);
     await repo.save({
