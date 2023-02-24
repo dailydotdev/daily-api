@@ -63,6 +63,11 @@ export interface GQLSourceMember {
   referralToken: string;
 }
 
+interface RemoveMemberArgs {
+  sourceId: string;
+  memberId: string;
+}
+
 export const typeDefs = /* GraphQL */ `
   """
   Source to discover posts from (usually blogs)
@@ -338,6 +343,19 @@ export const typeDefs = /* GraphQL */ `
       """
       sourceId: ID!
     ): EmptyResponse! @auth
+    """
+    Removes the member from the Squad
+    """
+    removeMember(
+      """
+      Member to remove
+      """
+      memberId: ID!
+      """
+      Source to leave
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
   }
 `;
 
@@ -351,12 +369,18 @@ export enum SourcePermissions {
   View,
   Post,
   PostDelete,
+  RemoveMember,
   Leave,
   Delete,
   Edit,
 }
 
 const canPostDeleteRoles = [
+  SourceMemberRoles.Owner,
+  SourceMemberRoles.Moderator,
+];
+
+const canRemoveMemberRoles = [
   SourceMemberRoles.Owner,
   SourceMemberRoles.Moderator,
 ];
@@ -388,6 +412,11 @@ export const canAccessSource = async (
         break;
       case SourcePermissions.PostDelete:
         if (!canPostDeleteRoles.includes(member.role)) {
+          return false;
+        }
+        break;
+      case SourcePermissions.RemoveMember:
+        if (!canRemoveMemberRoles.includes(member.role)) {
           return false;
         }
         break;
@@ -840,6 +869,40 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       return getSourceById(ctx, info, sourceId);
+    },
+    removeMember: async (
+      _,
+      { sourceId, memberId }: RemoveMemberArgs,
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.RemoveMember,
+      );
+      await ctx.con.transaction(async (manager) => {
+        const repo = manager.getRepository(SourceMember);
+        const [member, loggedUser] = await Promise.all([
+          repo.findOneByOrFail({ sourceId, userId: memberId }),
+          repo.findOneByOrFail({ sourceId, userId: ctx.userId }),
+        ]);
+
+        const memberRank = roleRank[member.role];
+        const loggedUserRank = roleRank[loggedUser.role];
+
+        if (memberRank >= loggedUserRank) {
+          throw new ForbiddenError(
+            `You don't have the required permission for this action!`,
+          );
+        }
+
+        await ctx.con.getRepository(SourceMember).delete({
+          sourceId,
+          userId: memberId,
+        });
+      });
+
+      return { _: true };
     },
   }),
   Source: {
