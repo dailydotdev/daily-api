@@ -1,6 +1,6 @@
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postBannedRep';
-import { ArticlePost, Post, Source, User } from '../../src/entity';
+import { ArticlePost, Post, SharePost, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { PostReport, ReputationEvent } from '../../src/entity';
@@ -47,4 +47,29 @@ it('should create a reputation event that increases reputation', async () => {
     .find({ where: { targetId: 'p1', grantById: '' } });
   expect(events[0].amount).toEqual(100);
   expect(events[1].amount).toEqual(100);
+});
+
+const createSharedPost = async (id = 'sp1') => {
+  const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+  await con.getRepository(SharePost).save({
+    ...post,
+    id,
+    shortId: `short-${id}`,
+    sharedPostId: 'p1',
+  });
+};
+
+it('should not create a reputation event for the author that shared the post', async () => {
+  const sharedPostId = 'sp1';
+  await createSharedPost(sharedPostId);
+  const repo = con.getRepository(SharePost);
+  await repo.update({ id: 'sharedId' }, { authorId: '2' });
+  const post = await repo.findOneBy({ id: sharedPostId });
+  await expectSuccessfulBackground(worker, {
+    post,
+  });
+  const events = await con
+    .getRepository(ReputationEvent)
+    .find({ where: { targetId: 'sp1', grantById: '' } });
+  expect(events.length).toEqual(0);
 });

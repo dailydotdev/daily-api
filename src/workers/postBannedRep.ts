@@ -5,18 +5,18 @@ import {
 } from './../entity/ReputationEvent';
 import { messageToJson, Worker } from './worker';
 import { PostReport } from '../entity/PostReport';
-import { COMMUNITY_PICKS_SOURCE, Post } from '../entity';
+import { COMMUNITY_PICKS_SOURCE, SharePost } from '../entity';
 import { ChangeObject } from '../types';
 
 interface Data {
-  post: ChangeObject<Post>;
+  post: ChangeObject<SharePost>;
 }
 
 const worker: Worker = {
   subscription: 'post-banned-rep',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
-    const { id, authorId, scoutId } = data.post;
+    const { id, authorId, scoutId, sharedPostId } = data.post;
     try {
       await con.transaction(async (transaction) => {
         const reports = await transaction
@@ -32,14 +32,15 @@ const worker: Worker = {
           }),
         );
 
-        const ownerProps = {
-          targetId: id,
-          targetType: ReputationType.Post,
-          reason: ReputationReason.PostBanned,
-        };
-
         // Skipping penalizing community picks during the beta phase
-        if (data.post.sourceId !== COMMUNITY_PICKS_SOURCE) {
+        // Skipping penalizing shared post to a Squad
+        if (data.post.sourceId !== COMMUNITY_PICKS_SOURCE && !sharedPostId) {
+          const ownerProps = {
+            targetId: id,
+            targetType: ReputationType.Post,
+            reason: ReputationReason.PostBanned,
+          };
+
           if (authorId) {
             const authorEvent = repo.create({
               ...ownerProps,
