@@ -227,7 +227,7 @@ Object {
       },
       Object {
         "node": Object {
-          "canRemoveMember": true,
+          "canRemoveMember": false,
           "role": "member",
           "source": Object {
             "id": "a",
