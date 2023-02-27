@@ -161,9 +161,9 @@ export const typeDefs = /* GraphQL */ `
     """
     referralToken: String!
     """
-    Numerical representation of the user's role
+    Whether the user has access to remove the returned member
     """
-    roleRank: Int!
+    canRemoveMember: Boolean
   }
 
   type SourceMemberConnection {
@@ -551,8 +551,11 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
-      await ensureSourcePermissions(ctx, args.sourceId);
-
+      const { sourceId } = args;
+      await ensureSourcePermissions(ctx, sourceId);
+      const membership = await ctx.con
+        .getRepository(SourceMember)
+        .findOneBy({ userId: ctx.userId, sourceId });
       const page = membershipsPageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,
@@ -562,14 +565,19 @@ export const resolvers: IResolvers<any, Context> = {
         (node, index) =>
           membershipsPageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
+          const role = roleRank[membership?.role] ?? 0;
+          const roleRankQuery = `
+            CASE
+              WHEN ${builder.alias}.role = '${SourceMemberRoles.Owner}' THEN ${roleRank.owner}
+              WHEN ${builder.alias}.role = '${SourceMemberRoles.Moderator}' THEN ${roleRank.moderator}
+            ELSE 0 END
+          `;
           builder.queryBuilder
+            .addSelect(`${roleRankQuery} AS "roleRank"`)
             .addSelect(
               `
-                CASE
-                  WHEN ${builder.alias}.role = '${SourceMemberRoles.Owner}' THEN ${roleRank.owner}
-                  WHEN ${builder.alias}.role = '${SourceMemberRoles.Moderator}' THEN ${roleRank.moderator}
-                ELSE 0 END AS "roleRank"
-                
+                CASE WHEN ${role} > (${roleRankQuery}) THEN true
+                ELSE false END AS "canRemoveMember"
               `,
             )
             .andWhere(`${builder.alias}."sourceId" = :source`, {
@@ -835,8 +843,5 @@ export const resolvers: IResolvers<any, Context> = {
   }),
   Source: {
     permalink: (source: GQLSource): string => getSourceLink(source),
-  },
-  SourceMember: {
-    roleRank: (member: GQLSourceMember) => roleRank[member.role],
   },
 };

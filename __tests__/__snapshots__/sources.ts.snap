@@ -178,8 +178,8 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
+          "canRemoveMember": false,
           "role": "owner",
-          "roleRank": 10,
           "source": Object {
             "id": "a",
           },
@@ -190,8 +190,8 @@ Object {
       },
       Object {
         "node": Object {
+          "canRemoveMember": true,
           "role": "member",
-          "roleRank": 0,
           "source": Object {
             "id": "a",
           },
@@ -215,8 +215,8 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
+          "canRemoveMember": false,
           "role": "owner",
-          "roleRank": 10,
           "source": Object {
             "id": "a",
           },
@@ -227,8 +227,8 @@ Object {
       },
       Object {
         "node": Object {
+          "canRemoveMember": true,
           "role": "member",
-          "roleRank": 0,
           "source": Object {
             "id": "a",
           },

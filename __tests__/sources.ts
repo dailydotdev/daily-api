@@ -412,7 +412,7 @@ query SourceMembers($id: ID!) {
     edges {
       node {
         role
-        roleRank
+        canRemoveMember
         user { id }
         source { id }
       }
