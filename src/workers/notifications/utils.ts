@@ -65,7 +65,7 @@ export async function articleNewCommentHandler(
         id: comment.parentId,
         userId: postCtx.post.authorId,
       })
-      .where(`(id == :id OR "parentId" == id)`, { id: comment.parentId })
+      .where(`(id == :id OR "parentId" == :id)`, { id: comment.parentId })
       .andWhere({ userId: In(ids) })
       .groupBy('"userId"')
       .getRawMany();
