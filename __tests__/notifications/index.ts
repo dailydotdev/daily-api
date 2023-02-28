@@ -23,6 +23,7 @@ import {
   NotificationAvatar,
   Notification,
   SourceType,
+  PostType,
 } from '../../src/entity';
 import { scoutArticleLink } from '../../src/common';
 import { usersFixture } from '../fixture/user';
@@ -519,7 +520,7 @@ describe('generateNotification', () => {
         id: 'ps',
         title: 'Commentary',
         sourceId: 'a',
-        type: 'share',
+        type: PostType.Share,
       } as Reference<Post>,
       sharedPost: postsFixture[0] as Reference<Post>,
       doneBy: usersFixture[1] as Reference<User>,
@@ -575,7 +576,7 @@ describe('generateNotification', () => {
         id: 'ps',
         title: 'Commentary',
         sourceId: 'a',
-        type: 'share',
+        type: PostType.Share,
       } as Reference<Post>,
       sharedPost: postsFixture[0] as Reference<Post>,
       doneBy: usersFixture[1] as Reference<User>,
