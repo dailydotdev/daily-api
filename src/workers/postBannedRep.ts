@@ -36,7 +36,7 @@ const worker: Worker = {
         // Skipping penalizing shared post
         if (
           data.post.sourceId !== COMMUNITY_PICKS_SOURCE &&
-          type === PostType.Share
+          type !== PostType.Share
         ) {
           const ownerProps = {
             targetId: id,
