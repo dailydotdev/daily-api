@@ -61,10 +61,6 @@ export async function articleNewCommentHandler(
     const threadFollower = await repo
       .createQueryBuilder()
       .select('"userId"')
-      .where({
-        id: comment.parentId,
-        userId: postCtx.post.authorId,
-      })
       .where(`(id = :id OR "parentId" = :id)`, { id: comment.parentId })
       .andWhere({ userId: In(ids) })
       .groupBy('"userId"')
