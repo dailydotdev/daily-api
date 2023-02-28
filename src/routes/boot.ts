@@ -166,8 +166,6 @@ const getAndUpdateLastChangelogRedis = async (
 ): Promise<string> => {
   let lastChangelogFromRedis = await getRedisObject(REDIS_CHANGELOG_KEY);
 
-  console.log({ lastChangelogFromRedis });
-
   if (!lastChangelogFromRedis) {
     const post: Pick<Post, 'createdAt'> = await con
       .getRepository(Post)
