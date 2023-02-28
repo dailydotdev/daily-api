@@ -12,16 +12,21 @@ import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { User } from '../User';
 
+export enum PostType {
+  Article = 'article',
+  Share = 'share',
+}
+
 @Entity()
 @TableInheritance({
-  column: { type: 'varchar', name: 'type', default: 'article' },
+  column: { type: 'varchar', name: 'type', default: PostType.Article },
 })
 export class Post {
   @PrimaryColumn({ type: 'text' })
   id: string;
 
-  @Column({ default: 'article' })
-  type: string;
+  @Column({ default: PostType.Article })
+  type: PostType;
 
   @Column({ type: 'text' })
   title: string;
