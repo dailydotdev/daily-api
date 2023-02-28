@@ -181,10 +181,10 @@ const getAndUpdateLastChangelogRedis = async (
 
     if (post) {
       lastChangelogFromRedis = post.createdAt.toISOString();
+
+      await setRedisObject(REDIS_CHANGELOG_KEY, lastChangelogFromRedis);
     }
   }
-
-  await setRedisObject(REDIS_CHANGELOG_KEY, lastChangelogFromRedis);
 
   return lastChangelogFromRedis;
 };
