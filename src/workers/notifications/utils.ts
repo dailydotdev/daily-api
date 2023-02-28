@@ -4,7 +4,7 @@ import {
   NotificationCommenterContext,
   NotificationPostContext,
 } from '../../notifications';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 
 export const uniquePostOwners = (
   post: Pick<Post, 'scoutId' | 'authorId'>,
@@ -57,6 +57,7 @@ export async function articleNewCommentHandler(
 
   const isReply = !!comment.parentId;
   if (isReply && (postCtx.post.authorId || postCtx.post.scoutId)) {
+    const ids = [...new Set([postCtx.post.authorId, postCtx.post.scoutId])];
     const threadFollower = await repo
       .createQueryBuilder()
       .select('"userId"')
@@ -64,19 +65,11 @@ export async function articleNewCommentHandler(
         id: comment.parentId,
         userId: postCtx.post.authorId,
       })
-      .orWhere({
-        parentId: comment.parentId,
-        userId: postCtx.post.authorId,
-      })
-      .orWhere({
-        id: comment.parentId,
-        userId: postCtx.post.scoutId,
-      })
-      .orWhere({
-        parentId: comment.parentId,
-        userId: postCtx.post.scoutId,
-      })
+      .where(`(id == :id OR "parentId" == id)`, { id: comment.parentId })
+      .andWhere({ userId: In(ids) })
+      .groupBy('"userId"')
       .getRawMany();
+
     if (threadFollower.length) {
       threadFollower.forEach(({ userId }) => excludedUsers.push(userId));
     }
