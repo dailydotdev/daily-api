@@ -313,7 +313,7 @@ describe('boot alerts', () => {
       .expect(200);
     expect(res.body.alerts).toEqual(alerts);
     expect(await getRedisObject(REDIS_CHANGELOG_KEY)).toEqual(
-      post?.createdAt.toISOString(),
+      post.createdAt.toISOString(),
     );
   });
 
@@ -347,7 +347,7 @@ describe('boot alerts', () => {
       .expect(200);
     expect(res.body.alerts).toEqual(alerts);
     expect(await getRedisObject(REDIS_CHANGELOG_KEY)).toEqual(
-      post?.createdAt.toISOString(),
+      post.createdAt.toISOString(),
     );
   });
 });
