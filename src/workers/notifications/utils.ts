@@ -4,14 +4,14 @@ import {
   NotificationCommenterContext,
   NotificationPostContext,
 } from '../../notifications';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 
 export const uniquePostOwners = (
   post: Pick<Post, 'scoutId' | 'authorId'>,
-  exclude?: string,
+  ignoreIds: string[] = [],
 ): string[] =>
   [...new Set([post.scoutId, post.authorId])].filter(
-    (userId) => userId && userId !== exclude,
+    (userId) => userId && !ignoreIds.includes(userId),
   );
 
 export const buildPostContext = async (
@@ -41,9 +41,11 @@ export async function articleNewCommentHandler(
   con: DataSource,
   commentId: string,
 ): Promise<NotificationHandlerReturn> {
-  const comment = await con
-    .getRepository(Comment)
-    .findOne({ where: { id: commentId }, relations: ['user'] });
+  const repo = con.getRepository(Comment);
+  const comment = await repo.findOne({
+    where: { id: commentId },
+    relations: ['user'],
+  });
   if (!comment) {
     return;
   }
@@ -51,8 +53,27 @@ export async function articleNewCommentHandler(
   if (!postCtx) {
     return;
   }
+  const excludedUsers = [comment.userId];
+
+  const isReply = !!comment.parentId;
+  if (isReply && (postCtx.post.authorId || postCtx.post.scoutId)) {
+    const ids = [...new Set([postCtx.post.authorId, postCtx.post.scoutId])];
+    const threadFollower = await repo
+      .createQueryBuilder()
+      .select('"userId"')
+      .where(`(id = :id OR "parentId" = :id)`, { id: comment.parentId })
+      .andWhere({ userId: In(ids) })
+      .groupBy('"userId"')
+      .getRawMany();
+
+    if (threadFollower.length) {
+      threadFollower.forEach(({ userId }) => excludedUsers.push(userId));
+    }
+  }
+
+  const excluded = [...new Set(excludedUsers)];
   // Get unique user id which are not the author of the comment
-  const users = uniquePostOwners(postCtx.post, comment.userId);
+  const users = uniquePostOwners(postCtx.post, excluded);
   if (!users.length) {
     return;
   }
