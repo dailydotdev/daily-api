@@ -1,5 +1,5 @@
 import { NotificationHandlerReturn } from './worker';
-import { Comment, Post, SharePost, SourceType } from '../../entity';
+import { Comment, Post, PostType, SharePost, SourceType } from '../../entity';
 import {
   NotificationCommenterContext,
   NotificationPostContext,
@@ -22,7 +22,7 @@ export const buildPostContext = async (
     .getRepository(Post)
     .findOne({ where: { id: postId }, relations: ['source'] });
   let sharedPost: Post;
-  if (post.type === 'share') {
+  if (post.type === PostType.Share) {
     sharedPost = await con
       .getRepository(Post)
       .findOneBy({ id: (post as SharePost).sharedPostId });

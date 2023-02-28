@@ -7,6 +7,7 @@ import {
   NotificationAvatar,
   NotificationType,
   Post,
+  PostType,
   Source,
   SourceRequest,
   SourceType,
@@ -198,7 +199,7 @@ export class NotificationBuilder {
     if (source.type === SourceType.Squad && addSquadAvatar) {
       newBuilder = newBuilder.avatarSource(source);
     }
-    if (post.type === 'share') {
+    if (post.type === PostType.Share) {
       newBuilder = newBuilder
         .description(simplifyComment(post.title))
         .attachmentPost(sharedPost);

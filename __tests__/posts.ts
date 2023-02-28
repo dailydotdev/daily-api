@@ -21,6 +21,7 @@ import {
   Post,
   PostReport,
   PostTag,
+  PostType,
   SharePost,
   Source,
   SourceMember,
@@ -563,7 +564,7 @@ describe('type field', () => {
   it('should return the share post properties', async () => {
     const res = await client.query(QUERY);
     expect(res.data).toEqual({
-      post: { type: 'article' },
+      post: { type: PostType.Article },
     });
   });
 });
@@ -1358,7 +1359,9 @@ describe('mutation viewPost', () => {
 
   it('should throw error when user cannot access the post', async () => {
     loggedUser = '2';
-    await con.getRepository(Post).update({ id: 'p1' }, { type: 'share' });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.Share });
     return testMutationErrorCode(
       client,
       {
@@ -1371,7 +1374,9 @@ describe('mutation viewPost', () => {
 
   it('should submit view event', async () => {
     loggedUser = '1';
-    await con.getRepository(Post).update({ id: 'p1' }, { type: 'share' });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.Share });
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     expect(notifyView).toBeCalledTimes(1);

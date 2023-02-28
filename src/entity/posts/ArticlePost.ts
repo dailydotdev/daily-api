@@ -1,10 +1,10 @@
 import { ChildEntity, Column, Index } from 'typeorm';
-import { Post } from './Post';
+import { Post, PostType } from './Post';
 
 export type TocItem = { text: string; id?: string; children?: TocItem[] };
 export type Toc = TocItem[];
 
-@ChildEntity('article')
+@ChildEntity(PostType.Article)
 export class ArticlePost extends Post {
   @Column({ nullable: true })
   publishedAt?: Date;

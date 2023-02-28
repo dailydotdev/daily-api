@@ -12,6 +12,7 @@ import {
   Post,
   PostKeyword,
   PostTag,
+  PostType,
   SharePost,
   Source,
   SourceMember,
@@ -571,7 +572,9 @@ describe('query feed', () => {
   it('should return only article posts by default', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    await con.getRepository(Post).update({ id: 'p4' }, { type: 'share' });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p4' }, { type: PostType.Share });
 
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
@@ -580,7 +583,9 @@ describe('query feed', () => {
   it('should respect the supportedTypes argument', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    await con.getRepository(Post).update({ id: 'p4' }, { type: 'share' });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p4' }, { type: PostType.Share });
 
     const res = await client.query(QUERY, {
       variables: { supportedTypes: ['article', 'share'] },
