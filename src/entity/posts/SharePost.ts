@@ -1,7 +1,7 @@
 import { ChildEntity, Column, OneToOne } from 'typeorm';
-import { Post } from './Post';
+import { Post, PostType } from './Post';
 
-@ChildEntity('share')
+@ChildEntity(PostType.Share)
 export class SharePost extends Post {
   @Column({ type: 'text' })
   sharedPostId: string;

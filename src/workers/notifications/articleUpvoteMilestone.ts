@@ -21,7 +21,7 @@ const worker: NotificationWorker = {
       return;
     }
     const { post } = postCtx;
-    const users = uniquePostOwners(post, data.userId);
+    const users = uniquePostOwners(post, [data.userId]);
     if (!users.length || !UPVOTE_MILESTONES.includes(post.upvotes.toString())) {
       return;
     }
