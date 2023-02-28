@@ -1,6 +1,13 @@
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postBannedRep';
-import { ArticlePost, Post, SharePost, Source, User } from '../../src/entity';
+import {
+  ArticlePost,
+  Post,
+  PostType,
+  SharePost,
+  Source,
+  User,
+} from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { PostReport, ReputationEvent } from '../../src/entity';
@@ -56,6 +63,7 @@ const createSharedPost = async (id = 'sp1') => {
     id,
     shortId: `short-${id}`,
     sharedPostId: 'p1',
+    type: PostType.Share,
   });
 };
 
