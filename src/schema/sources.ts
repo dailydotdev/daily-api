@@ -383,11 +383,6 @@ export enum SourcePermissions {
   Edit = 'edit',
 }
 
-const canPostDeleteRoles = [
-  SourceMemberRoles.Owner,
-  SourceMemberRoles.Moderator,
-];
-
 const canRemoveMemberRoles = [
   SourceMemberRoles.Owner,
   SourceMemberRoles.Moderator,
@@ -411,11 +406,6 @@ const hasPermissionCheck = (
   switch (permission) {
     case SourcePermissions.Post:
       if (source.type !== SourceType.Squad) {
-        return false;
-      }
-      break;
-    case SourcePermissions.PostDelete:
-      if (!canPostDeleteRoles.includes(member.role)) {
         return false;
       }
       break;
