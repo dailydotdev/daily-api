@@ -36,6 +36,7 @@ import { Roles } from '../src/roles';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { notifyView } from '../src/common';
+import { randomUUID } from 'crypto';
 
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
@@ -841,6 +842,103 @@ describe('mutation unhidePost', () => {
     expect(res.errors).toBeFalsy();
     const actual = await repo.findBy({ userId: loggedUser });
     expect(actual.length).toEqual(0);
+  });
+});
+
+describe('mutation deleteSharedPost', () => {
+  const MUTATION = `
+    mutation DeleteSharedPost($id: ID!) {
+      deleteSharedPost(id: $id) {
+        _
+      }
+    }
+  `;
+
+  const createSharedPost = async (id = 'sp1') => {
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    await con.getRepository(SharePost).save({
+      ...post,
+      id,
+      shortId: `short-${id}`,
+      sharedPostId: 'p1',
+    });
+  };
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should restrict when not a member of the squad', async () => {
+    loggedUser = '1';
+    await createSharedPost();
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'sp1' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should restrict when not moderator of the source', async () => {
+    loggedUser = '1';
+    await createSharedPost();
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    });
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'sp1' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should delete the shared post as a moderator', async () => {
+    loggedUser = '1';
+    await createSharedPost();
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Moderator,
+      referralToken: randomUUID(),
+    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'sp1' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(SharePost).findOneBy({ id: 'sp1' });
+    expect(actual?.deleted).toBeTruthy();
+  });
+
+  it('should delete the shared post as an owner of the squad', async () => {
+    loggedUser = '1';
+    await createSharedPost();
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Owner,
+      referralToken: randomUUID(),
+    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'sp1' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(SharePost).findOneBy({ id: 'sp1' });
+    expect(actual?.deleted).toBeTruthy();
+  });
+
+  it('should do nothing if post is not a shared post', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post).toBeTruthy();
+    expect(post?.deleted).toBeFalsy();
   });
 });
 

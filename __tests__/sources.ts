@@ -1015,3 +1015,120 @@ describe('mutation joinSource', () => {
     );
   });
 });
+
+describe('mutation removeMember', () => {
+  const MUTATION = `
+    mutation RemoveMember($sourceId: ID!, $memberId: ID!) {
+      removeMember(sourceId: $sourceId, memberId: $memberId) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { sourceId: 'a', memberId: '2' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should restrict when not a member of the squad', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { sourceId: 'b', memberId: '2' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should restrict when not a moderator or an owner of the squad', async () => {
+    loggedUser = '2';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { sourceId: 'a', memberId: '1' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should restrict moderator from removing the owner', async () => {
+    loggedUser = '2';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Moderator });
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { sourceId: 'a', memberId: '1' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should restrict moderator from removing a moderator', async () => {
+    loggedUser = '2';
+    const repo = con.getRepository(SourceMember);
+    await repo.save({
+      userId: '3',
+      sourceId: 'a',
+      role: SourceMemberRoles.Moderator,
+      referralToken: randomUUID(),
+    });
+    await repo.update({ userId: '2' }, { role: SourceMemberRoles.Moderator });
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { sourceId: 'a', memberId: '3' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should allow owner to remove moderator from the squad', async () => {
+    loggedUser = '1';
+    const toRemoveId = '2';
+    const repo = con.getRepository(SourceMember);
+    await repo.update(
+      { userId: toRemoveId },
+      { role: SourceMemberRoles.Moderator },
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { sourceId: 'a', memberId: toRemoveId },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await repo.findOneBy({ userId: toRemoveId, sourceId: 'a' });
+    expect(member).toBeFalsy();
+  });
+
+  it('should allow owner to remove member from the squad', async () => {
+    loggedUser = '1';
+    const toRemoveId = '2';
+    const repo = con.getRepository(SourceMember);
+    const res = await client.mutate(MUTATION, {
+      variables: { sourceId: 'a', memberId: toRemoveId },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await repo.findOneBy({ userId: toRemoveId, sourceId: 'a' });
+    expect(member).toBeFalsy();
+  });
+
+  it('should allow moderator to remove member the squad', async () => {
+    loggedUser = '3';
+    const toRemoveId = '2';
+    const repo = con.getRepository(SourceMember);
+    await repo.save({
+      userId: '3',
+      sourceId: 'a',
+      role: SourceMemberRoles.Moderator,
+      referralToken: randomUUID(),
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { sourceId: 'a', memberId: toRemoveId },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await repo.findOneBy({ userId: toRemoveId, sourceId: 'a' });
+    expect(member).toBeFalsy();
+  });
+});
