@@ -764,21 +764,11 @@ export const resolvers: IResolvers<any, Context> = {
 
         if (!post?.sharedPostId) return;
 
-        await ensureSourcePermissions(
-          ctx,
-          post.sourceId,
-          SourcePermissions.PostDelete,
-        );
-
-        if (post.authorId !== ctx.userId) {
-          const sourceId = post.sourceId;
-          const memberRepo = manager.getRepository(SourceMember);
-          const [member, loggedUser] = await Promise.all([
-            memberRepo.findOneByOrFail({ sourceId, userId: post.authorId }),
-            memberRepo.findOneByOrFail({ sourceId, userId: ctx.userId }),
-          ]);
-          hasGreaterAccessCheck(loggedUser, member);
-        }
+        await ensureSourcePermissions(ctx, post.sourceId, {
+          permission: SourcePermissions.PostDelete,
+          validateRankAgainstId:
+            post.authorId !== ctx.userId ? post.authorId : undefined,
+        });
 
         await repo.update({ id }, { deleted: true });
       });
@@ -869,7 +859,9 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLPost> => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await Promise.all([
-        ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
+        ensureSourcePermissions(ctx, sourceId, {
+          permission: SourcePermissions.Post,
+        }),
         ensureSourcePermissions(ctx, post.sourceId),
       ]);
       const newPost = await createSharePost(

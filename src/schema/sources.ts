@@ -397,11 +397,14 @@ export const hasGreaterAccessCheck = (
   const hasGreaterAccess = loggedUserRank > memberRank;
 
   if (!hasGreaterAccess) {
-    throw new ForbiddenError(
-      `You don't have the required permission for this action!`,
-    );
+    throw new ForbiddenError('Access denied!');
   }
 };
+
+interface SourcePermissionsProps {
+  permission: SourcePermissions;
+  validateRankAgainstId: string;
+}
 
 const hasPermissionCheck = (
   source: Source,
@@ -414,6 +417,7 @@ const hasPermissionCheck = (
         return false;
       }
       break;
+    case SourcePermissions.PostDelete:
     case SourcePermissions.RemoveMember:
       if (!canRemoveMemberRoles.includes(member.role)) {
         return false;
@@ -450,26 +454,39 @@ export const getUserPermissions = (source: Source, member: SourceMember) => {
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
-  permission = SourcePermissions.View,
+  props?: Partial<SourcePermissionsProps>,
 ): Promise<boolean> => {
+  const { permission = SourcePermissions.View, validateRankAgainstId } =
+    props ?? {};
+
   if (permission === SourcePermissions.View && !source.private) {
     return true;
   }
 
-  if (ctx.userId) {
-    const member = await ctx.con.getRepository(SourceMember).findOneBy({
-      userId: ctx.userId,
-      sourceId: source.id,
-    });
-
-    if (!member) {
-      return false;
-    }
-
-    return hasPermissionCheck(source, member, permission);
+  if (!ctx.userId) {
+    return false;
   }
 
-  return false;
+  const sourceId = source.id;
+  const repo = ctx.getRepository(SourceMember);
+  const [loggedUser, validateRankAgainst] = await Promise.all([
+    repo.findOneBy({ sourceId, userId: ctx.userId }),
+    validateRankAgainstId
+      ? repo.findOneByOrFail({ sourceId, userId: validateRankAgainstId })
+      : Promise.resolve(),
+  ]);
+
+  if (!loggedUser) {
+    return false;
+  }
+
+  const hasPermission = hasPermissionCheck(source, loggedUser, permission);
+
+  if (validateRankAgainst) {
+    hasGreaterAccessCheck(loggedUser, validateRankAgainst);
+  }
+
+  return hasPermission;
 };
 
 const validateSquadData = ({
@@ -492,13 +509,13 @@ const validateSquadData = ({
 export const ensureSourcePermissions = async (
   ctx: Context,
   sourceId: string | undefined,
-  permission = SourcePermissions.View,
+  props?: Partial<SourcePermissionsProps>,
 ): Promise<Source> => {
   if (sourceId) {
     const source = await ctx.con
       .getRepository(Source)
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
-    if (await canAccessSource(ctx, source, permission)) {
+    if (await canAccessSource(ctx, source, props)) {
       return source;
     }
   }
@@ -799,7 +816,9 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLSource> => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Edit);
+      await ensureSourcePermissions(ctx, sourceId, {
+        permission: SourcePermissions.Edit,
+      });
       const handle = validateSquadData({
         handle: inputHandle,
         name,
@@ -846,7 +865,9 @@ export const resolvers: IResolvers<any, Context> = {
       { sourceId }: { sourceId: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Delete);
+      await ensureSourcePermissions(ctx, sourceId, {
+        permission: SourcePermissions.Delete,
+      });
       await ctx.con.getRepository(Source).delete({
         id: sourceId,
       });
@@ -857,7 +878,9 @@ export const resolvers: IResolvers<any, Context> = {
       { sourceId }: { sourceId: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Leave);
+      await ensureSourcePermissions(ctx, sourceId, {
+        permission: SourcePermissions.Leave,
+      });
       await ctx.con.getRepository(SourceMember).delete({
         sourceId,
         userId: ctx.userId,
@@ -915,19 +938,12 @@ export const resolvers: IResolvers<any, Context> = {
       { sourceId, memberId }: RemoveMemberArgs,
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await ensureSourcePermissions(
-        ctx,
-        sourceId,
-        SourcePermissions.RemoveMember,
-      );
+      await ensureSourcePermissions(ctx, sourceId, {
+        validateRankAgainstId: memberId,
+        permission: SourcePermissions.RemoveMember,
+      });
       await ctx.con.transaction(async (manager) => {
         const repo = manager.getRepository(SourceMember);
-        const [member, loggedUser] = await Promise.all([
-          repo.findOneByOrFail({ sourceId, userId: memberId }),
-          repo.findOneByOrFail({ sourceId, userId: ctx.userId }),
-        ]);
-
-        hasGreaterAccessCheck(loggedUser, member);
 
         await repo.delete({ sourceId, userId: memberId });
       });
