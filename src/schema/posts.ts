@@ -766,8 +766,7 @@ export const resolvers: IResolvers<any, Context> = {
 
         await ensureSourcePermissions(ctx, post.sourceId, {
           permission: SourcePermissions.PostDelete,
-          validateRankAgainstId:
-            post.authorId !== ctx.userId ? post.authorId : undefined,
+          validateRankAgainstId: post.authorId !== ctx.userId && post.authorId,
         });
 
         await repo.update({ id }, { deleted: true });
