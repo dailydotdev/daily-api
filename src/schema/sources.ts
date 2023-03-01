@@ -388,14 +388,19 @@ const canRemoveMemberRoles = [
   SourceMemberRoles.Moderator,
 ];
 
-const hasGreaterAccessCheck = (
+export const hasGreaterAccessCheck = (
   loggedUser: SourceMember,
   member: SourceMember,
 ) => {
   const memberRank = roleRank[member.role];
   const loggedUserRank = roleRank[loggedUser.role];
+  const hasGreaterAccess = loggedUserRank > memberRank;
 
-  return loggedUserRank > memberRank;
+  if (!hasGreaterAccess) {
+    throw new ForbiddenError(
+      `You don't have the required permission for this action!`,
+    );
+  }
 };
 
 const hasPermissionCheck = (
@@ -922,13 +927,7 @@ export const resolvers: IResolvers<any, Context> = {
           repo.findOneByOrFail({ sourceId, userId: ctx.userId }),
         ]);
 
-        const hasGreaterAccess = hasGreaterAccessCheck(loggedUser, member);
-
-        if (!hasGreaterAccess) {
-          throw new ForbiddenError(
-            `You don't have the required permission for this action!`,
-          );
-        }
+        hasGreaterAccessCheck(loggedUser, member);
 
         await repo.delete({ sourceId, userId: memberId });
       });

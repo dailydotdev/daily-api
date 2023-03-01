@@ -8,6 +8,7 @@ import { DataSource, DeepPartial } from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
+  hasGreaterAccessCheck,
   SourcePermissions,
 } from './sources';
 import { Context } from '../Context';
@@ -28,6 +29,7 @@ import {
   PostType,
   Toc,
   Upvote,
+  SourceMember,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError, TypeOrmError } from '../errors';
@@ -767,6 +769,16 @@ export const resolvers: IResolvers<any, Context> = {
           post.sourceId,
           SourcePermissions.PostDelete,
         );
+
+        if (post.authorId !== ctx.userId) {
+          const sourceId = post.sourceId;
+          const memberRepo = manager.getRepository(SourceMember);
+          const [member, loggedUser] = await Promise.all([
+            memberRepo.findOneByOrFail({ sourceId, userId: post.authorId }),
+            memberRepo.findOneByOrFail({ sourceId, userId: ctx.userId }),
+          ]);
+          hasGreaterAccessCheck(loggedUser, member);
+        }
 
         await repo.update({ id }, { deleted: true });
       });
