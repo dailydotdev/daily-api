@@ -393,6 +393,16 @@ const canRemoveMemberRoles = [
   SourceMemberRoles.Moderator,
 ];
 
+const hasGreaterAccessCheck = (
+  loggedUser: SourceMember,
+  member: SourceMember,
+) => {
+  const memberRank = roleRank[member.role];
+  const loggedUserRank = roleRank[loggedUser.role];
+
+  return loggedUserRank > memberRank;
+};
+
 const hasPermissionCheck = (
   source: Source,
   member: SourceMember,
@@ -922,10 +932,9 @@ export const resolvers: IResolvers<any, Context> = {
           repo.findOneByOrFail({ sourceId, userId: ctx.userId }),
         ]);
 
-        const memberRank = roleRank[member.role];
-        const loggedUserRank = roleRank[loggedUser.role];
+        const hasGreaterAccess = hasGreaterAccessCheck(loggedUser, member);
 
-        if (memberRank >= loggedUserRank) {
+        if (!hasGreaterAccess) {
           throw new ForbiddenError(
             `You don't have the required permission for this action!`,
           );
