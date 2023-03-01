@@ -1,3 +1,4 @@
+import { UNKNOWN_SOURCE } from './../entity/Source';
 import { FeedAdvancedSettings, AdvancedSettings } from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
@@ -917,11 +918,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             'isAuthor',
           )
           .andWhere(
-            `(${alias}.authorId = :author or ${alias}.scoutId = :author)`,
-            {
-              author,
-            },
+            `(${alias}."authorId" = :author or ${alias}."scoutId" = :author)`,
+            { author },
           )
+          .andWhere(`${alias}.visible = true`)
           .groupBy(`${alias}.id`),
       feedPageGenerator,
       applyFeedPaging,
@@ -1001,6 +1001,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                                    where post.id != :postId
                                      and post."createdAt" >= now() - interval '6 month'
                                      and post."upvotes" > 0
+                                     and post.visible = true
                                    order by (pow(post.upvotes, k.similar) *
                                      1000 / k.occurrences) desc
                                      limit 25`;
@@ -1035,6 +1036,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                                                  on k."postId" = post.id
                                where post.id != :postId
                                  and post."createdAt" >= now() - interval '6 month'
+                                 and post.visible = true
                                order by (pow(post.upvotes, k.similar) * 1000 /
                                  k.occurrences) desc
                                  limit 25`;
@@ -1043,6 +1045,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                                from post
                                where post.id != :postId
                                  and post."createdAt" >= now() - interval '6 month'
+                                 and post.visible = true
                                order by post.upvotes desc
                                  limit 25`;
         }
