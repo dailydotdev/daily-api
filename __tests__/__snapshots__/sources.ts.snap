@@ -178,6 +178,7 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
+          "canRemoveMember": false,
           "role": "owner",
           "source": Object {
             "id": "a",
@@ -189,6 +190,7 @@ Object {
       },
       Object {
         "node": Object {
+          "canRemoveMember": true,
           "role": "member",
           "source": Object {
             "id": "a",
@@ -213,6 +215,7 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
+          "canRemoveMember": false,
           "role": "owner",
           "source": Object {
             "id": "a",
@@ -224,6 +227,7 @@ Object {
       },
       Object {
         "node": Object {
+          "canRemoveMember": false,
           "role": "member",
           "source": Object {
             "id": "a",
