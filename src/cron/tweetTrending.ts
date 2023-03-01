@@ -1,6 +1,6 @@
 import { MoreThanOrEqual } from 'typeorm';
 import { getDiscussionLink, tweet } from '../common';
-import { ArticlePost, MachineSource } from '../entity';
+import { ArticlePost, MachineSource, PostType } from '../entity';
 import { Cron } from './cron';
 
 const getSiteHandler = async (post: ArticlePost): Promise<string> => {
@@ -35,7 +35,11 @@ const cron: Cron = {
   handler: async (con) => {
     const repo = con.getRepository(ArticlePost);
     const post = await repo.findOne({
-      where: { tweeted: false, views: MoreThanOrEqual(200), type: 'article' },
+      where: {
+        tweeted: false,
+        views: MoreThanOrEqual(200),
+        type: PostType.Article,
+      },
       order: { createdAt: 'DESC' },
       relations: ['source'],
     });

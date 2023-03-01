@@ -3,7 +3,7 @@ import { Comment, Post } from '../entity';
 import { DataSource } from 'typeorm';
 
 export const defaultImage = {
-  urls: process.env.DEFAULT_IMAGE_URL.split(','),
+  urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
   ratio: parseFloat(process.env.DEFAULT_IMAGE_RATIO),
   placeholder: process.env.DEFAULT_IMAGE_PLACEHOLDER,
 };

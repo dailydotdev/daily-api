@@ -25,6 +25,7 @@ import {
   Post,
   PostReport,
   SharePost,
+  PostType,
   Toc,
   Upvote,
 } from '../entity';
@@ -875,7 +876,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLEmptyResponse> => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, post.sourceId);
-      if (post.type !== 'article') {
+      if (post.type !== PostType.Article) {
         await notifyView(
           ctx.log,
           post.id,

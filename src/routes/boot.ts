@@ -10,6 +10,7 @@ import {
   Alerts,
   ALERTS_DEFAULT,
   getUnreadNotificationsCount,
+  Post,
   Settings,
   SETTINGS_DEFAULT,
   SourceMember,
@@ -20,7 +21,7 @@ import { GQLSource } from '../schema/sources';
 import { adjustFlagsToUser, getUserFeatureFlags } from '../featureFlags';
 import { getAlerts } from '../schema/alerts';
 import { getSettings } from '../schema/settings';
-import { getRedisObject } from '../redis';
+import { getRedisObject, setRedisObject } from '../redis';
 import { REDIS_CHANGELOG_KEY } from '../config';
 import { getSourceLink } from '../common';
 import { AccessToken, signJwt } from '../auth';
@@ -160,6 +161,34 @@ const setAuthCookie = async (
   return accessToken;
 };
 
+const getAndUpdateLastChangelogRedis = async (
+  con: DataSource,
+): Promise<string> => {
+  let lastChangelogFromRedis = await getRedisObject(REDIS_CHANGELOG_KEY);
+
+  if (!lastChangelogFromRedis) {
+    const post: Pick<Post, 'createdAt'> = await con
+      .getRepository(Post)
+      .findOne({
+        select: ['createdAt'],
+        where: [{ sourceId: 'daily_updates' }],
+        order: {
+          createdAt: {
+            direction: 'DESC',
+          },
+        },
+      });
+
+    if (post) {
+      lastChangelogFromRedis = post.createdAt.toISOString();
+
+      await setRedisObject(REDIS_CHANGELOG_KEY, lastChangelogFromRedis);
+    }
+  }
+
+  return lastChangelogFromRedis;
+};
+
 const loggedInBoot = async (
   con: DataSource,
   req: FastifyRequest,
@@ -187,13 +216,14 @@ const loggedInBoot = async (
     getSettings(con, userId),
     getUnreadNotificationsCount(con, userId),
     getSquads(con, userId),
-    getRedisObject(REDIS_CHANGELOG_KEY),
+    getAndUpdateLastChangelogRedis(con),
     middleware ? middleware(con, req, res) : {},
   ]);
   if (!user) {
     return handleNonExistentUser(con, req, res, middleware);
   }
   const accessToken = await setAuthCookie(req, res, userId, roles);
+
   return {
     user: {
       ...excludeProperties(user, [
@@ -210,6 +240,7 @@ const loggedInBoot = async (
     flags: adjustFlagsToUser(flags, user),
     alerts: {
       ...excludeProperties(alerts, ['userId']),
+      // read only, used in frontend to decide if changelog post should be fetched
       changelog: alerts.lastChangelog < new Date(lastChangelog),
     },
     settings: excludeProperties(settings, [

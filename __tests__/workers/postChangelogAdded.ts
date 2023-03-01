@@ -8,13 +8,16 @@ beforeEach(async () => {
 });
 
 it('should update redis cache', async () => {
-  const postDate = '2023-02-06 12:43:21';
+  const postDateTs = Date.now();
+
   await expectSuccessfulBackground(worker, {
     post: {
       id: 'p1',
       sourceId: 'daily_updates',
-      createdAt: postDate,
+      createdAt: postDateTs * 1000, // createdAt comes as μs from messageToJson
     },
   });
-  expect(await getRedisObject(REDIS_CHANGELOG_KEY)).toEqual(postDate);
+  expect(await getRedisObject(REDIS_CHANGELOG_KEY)).toEqual(
+    new Date(postDateTs).toISOString(),
+  );
 });
