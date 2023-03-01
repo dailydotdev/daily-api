@@ -7,7 +7,7 @@ import {
   PrimaryColumn,
   TableInheritance,
 } from 'typeorm';
-import { Source } from '../Source';
+import { Source, UNKNOWN_SOURCE } from '../Source';
 import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { User } from '../User';
@@ -43,9 +43,9 @@ export class Post {
   @Index('IDX_post_metadataChangedAt')
   metadataChangedAt: Date;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'text', default: UNKNOWN_SOURCE })
   @Index()
-  sourceId: string | null;
+  sourceId: string;
 
   @ManyToOne(() => Source, (source) => source.posts, {
     lazy: true,

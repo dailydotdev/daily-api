@@ -22,6 +22,8 @@ export enum SourceType {
   Squad = 'squad',
 }
 
+export const UNKNOWN_SOURCE = 'unknown';
+
 @Entity()
 @TableInheritance({
   column: { type: 'varchar', name: 'type', default: SourceType.Machine },
