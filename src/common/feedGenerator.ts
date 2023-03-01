@@ -218,6 +218,7 @@ export const applyFeedWhere = (
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder
     .andWhere(`${alias}.deleted = false`)
+    .andWhere(`${alias}.visible = true`)
     .andWhere(`${alias}."sourceId" is not null`)
     .andWhere(`${alias}."type" in (:...postTypes)`, { postTypes });
   if (!allowPrivateSources) {
