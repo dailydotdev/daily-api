@@ -4,9 +4,8 @@ export class UnknownSource1677643070022 implements MigrationInterface {
   name = 'UnknownSource1677643070022';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // the image is still subject for change based on product team's response
     await queryRunner.query(
-      `INSERT INTO "public"."source" ("id", "name", "private", "image") VALUES ('community', 'Community recommendations', true, 'https://res.cloudinary.com/daily-now/image/upload/t_logo,f_auto/v1/logos/community')`,
+      `INSERT INTO "public"."source" ("id", "name", "private") VALUES ('unknown', 'Unknown', true)`,
     );
     await queryRunner.query(
       `UPDATE "public"."post" SET "sourceId" = 'unknown' WHERE "sourceId" IS NULL`,
