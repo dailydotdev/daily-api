@@ -166,9 +166,13 @@ export const typeDefs = /* GraphQL */ `
     """
     referralToken: String!
     """
-    Whether the user has access to remove the returned member
+    Numerical representation of the user's role
     """
-    canRemoveMember: Boolean
+    roleRank: Int
+    """
+    User squad permissions
+    """
+    permissions: [String]
   }
 
   type SourceMemberConnection {
@@ -370,13 +374,13 @@ const sourceToGQL = (source: Source): GQLSource => ({
 });
 
 export enum SourcePermissions {
-  View,
-  Post,
-  PostDelete,
-  RemoveMember,
-  Leave,
-  Delete,
-  Edit,
+  View = 'view',
+  Post = 'post',
+  PostDelete = 'post_delete',
+  RemoveMember = 'remove_member',
+  Leave = 'leave',
+  Delete = 'delete',
+  Edit = 'edit',
 }
 
 const canPostDeleteRoles = [
@@ -388,6 +392,55 @@ const canRemoveMemberRoles = [
   SourceMemberRoles.Owner,
   SourceMemberRoles.Moderator,
 ];
+
+const hasPermissionCheck = (
+  source: Source,
+  member: SourceMember,
+  permission: SourcePermissions,
+) => {
+  switch (permission) {
+    case SourcePermissions.Post:
+      if (source.type !== SourceType.Squad) {
+        return false;
+      }
+      break;
+    case SourcePermissions.PostDelete:
+      if (!canPostDeleteRoles.includes(member.role)) {
+        return false;
+      }
+      break;
+    case SourcePermissions.RemoveMember:
+      if (!canRemoveMemberRoles.includes(member.role)) {
+        return false;
+      }
+      break;
+    case SourcePermissions.Leave:
+      if (
+        member.role === SourceMemberRoles.Owner ||
+        source.type !== SourceType.Squad
+      ) {
+        return false;
+      }
+      break;
+    case SourcePermissions.Edit:
+    case SourcePermissions.Delete:
+      if (member.role !== SourceMemberRoles.Owner) {
+        return false;
+      }
+      break;
+  }
+
+  return true;
+};
+
+export const getUserPermissions = (source: Source, member: SourceMember) => {
+  const permissions = Object.values(SourcePermissions);
+  const filtered = permissions.filter((permission) =>
+    hasPermissionCheck(source, member, permission),
+  );
+
+  return filtered;
+};
 
 export const canAccessSource = async (
   ctx: Context,
@@ -408,39 +461,7 @@ export const canAccessSource = async (
       return false;
     }
 
-    switch (permission) {
-      case SourcePermissions.Post:
-        if (source.type !== SourceType.Squad) {
-          return false;
-        }
-        break;
-      case SourcePermissions.PostDelete:
-        if (!canPostDeleteRoles.includes(member.role)) {
-          return false;
-        }
-        break;
-      case SourcePermissions.RemoveMember:
-        if (!canRemoveMemberRoles.includes(member.role)) {
-          return false;
-        }
-        break;
-      case SourcePermissions.Leave:
-        if (
-          member.role === SourceMemberRoles.Owner ||
-          source.type !== SourceType.Squad
-        ) {
-          return false;
-        }
-        break;
-      case SourcePermissions.Edit:
-      case SourcePermissions.Delete:
-        if (member.role !== SourceMemberRoles.Owner) {
-          return false;
-        }
-        break;
-    }
-
-    return true;
+    return hasPermissionCheck(source, member, permission);
   }
 
   return false;
@@ -918,5 +939,8 @@ export const resolvers: IResolvers<any, Context> = {
   }),
   Source: {
     permalink: (source: GQLSource): string => getSourceLink(source),
+  },
+  SourceMember: {
+    roleRank: (member: GQLSourceMember) => roleRank[member.role],
   },
 };

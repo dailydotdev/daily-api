@@ -184,6 +184,7 @@ query Source($id: ID!) {
     id
     currentMember {
       role
+      permissions
     }
   }
 }
@@ -412,7 +413,7 @@ query SourceMembers($id: ID!) {
     edges {
       node {
         role
-        canRemoveMember
+        roleRank
         user { id }
         source { id }
       }

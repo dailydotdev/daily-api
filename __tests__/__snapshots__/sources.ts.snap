@@ -125,6 +125,9 @@ exports[`query source current member should return current member as member 1`] 
 Object {
   "source": Object {
     "currentMember": Object {
+      "permissions": Array [
+        "view",
+      ],
       "role": "member",
     },
     "id": "a",
@@ -136,6 +139,13 @@ exports[`query source current member should return current member as owner 1`] =
 Object {
   "source": Object {
     "currentMember": Object {
+      "permissions": Array [
+        "view",
+        "post_delete",
+        "remove_member",
+        "delete",
+        "edit",
+      ],
       "role": "owner",
     },
     "id": "a",
@@ -178,8 +188,8 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
-          "canRemoveMember": false,
           "role": "owner",
+          "roleRank": 10,
           "source": Object {
             "id": "a",
           },
@@ -190,8 +200,8 @@ Object {
       },
       Object {
         "node": Object {
-          "canRemoveMember": true,
           "role": "member",
+          "roleRank": 0,
           "source": Object {
             "id": "a",
           },
@@ -215,8 +225,8 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
-          "canRemoveMember": false,
           "role": "owner",
+          "roleRank": 10,
           "source": Object {
             "id": "a",
           },
@@ -227,8 +237,8 @@ Object {
       },
       Object {
         "node": Object {
-          "canRemoveMember": false,
           "role": "member",
+          "roleRank": 0,
           "source": Object {
             "id": "a",
           },

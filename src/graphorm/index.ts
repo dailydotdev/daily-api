@@ -1,3 +1,4 @@
+import { getUserPermissions } from './../schema/sources';
 import { GraphORM, QueryBuilder } from './graphorm';
 import {
   Bookmark,
@@ -5,6 +6,7 @@ import {
   FeedSource,
   FeedTag,
   Post,
+  Source,
   SourceMember,
   User,
 } from '../entity';
@@ -176,7 +178,15 @@ const obj = new GraphORM({
               .where(`sm."userId" = :userId`, { userId: ctx.userId })
               .andWhere(`sm."sourceId" = "${parentAlias}".id`),
         },
-        transform: nullIfNotLoggedIn,
+        transform: (value: SourceMember, ctx: Context, parent: Source) => {
+          if (!ctx.userId || !value) {
+            return null;
+          }
+
+          const permissions = getUserPermissions(parent, value);
+
+          return { ...value, permissions };
+        },
       },
     },
   },
