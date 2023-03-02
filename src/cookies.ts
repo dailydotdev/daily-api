@@ -1,5 +1,5 @@
-import {CookieSerializeOptions} from '@fastify/cookie';
-import {FastifyReply, FastifyRequest} from 'fastify';
+import { CookieSerializeOptions } from '@fastify/cookie';
+import { FastifyReply, FastifyRequest } from 'fastify';
 
 const env = process.env.NODE_ENV;
 
