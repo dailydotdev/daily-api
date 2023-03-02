@@ -23,18 +23,17 @@ const cron: Cron = {
     logger.info(`fetching post changes since ${latest.toISOString()}`);
     const posts = await con.query(
       `SELECT "id",
-              "authorId"                    AS "author_id",
-              "createdAt"                   AS "created_at",
-              "metadataChangedAt"           AS "metadata_changed_at",
-              "creatorTwitter"              AS "creator_twitter",
-              "sourceId"                    AS "source_id",
-              "tagsStr"                     AS "tags_str",
-              ("banned" or "deleted") ::int AS "banned",
-              "type"                        AS "post_type",
+              "authorId"          AS "author_id",
+              "createdAt"         AS "created_at",
+              "metadataChangedAt" AS "metadata_changed_at",
+              "creatorTwitter"    AS "creator_twitter",
+              "sourceId"          AS "source_id",
+              "tagsStr"           AS "tags_str",
+              ("banned" or "deleted") ::int AS "banned", "type" AS "post_type",
               "private"::int                AS "post_private"
        FROM "post"
        WHERE "metadataChangedAt" > $1
-         and "sourceId" != ${UNKNOWN_SOURCE};`,
+         and "sourceId" != '${UNKNOWN_SOURCE}'`,
       [latest],
     );
     if (posts.length) {
