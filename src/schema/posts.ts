@@ -842,11 +842,9 @@ export const resolvers: IResolvers<any, Context> = {
       info,
     ): Promise<GQLPost> => {
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
-      await Promise.all([
-        ensureSourcePermissions(ctx, sourceId, {
-          permission: SourcePermissions.Post,
-        }),
-      ]);
+      await ensureSourcePermissions(ctx, sourceId, {
+        permission: SourcePermissions.Post,
+      });
       const newPost = await createSharePost(
         ctx.con,
         sourceId,
