@@ -943,11 +943,10 @@ export const resolvers: IResolvers<any, Context> = {
         validateRankAgainstId: memberId,
         permission: SourcePermissions.RemoveMember,
       });
-      await ctx.con.transaction(async (manager) => {
-        const repo = manager.getRepository(SourceMember);
 
-        await repo.delete({ sourceId, userId: memberId });
-      });
+      await ctx
+        .getRepository(SourceMember)
+        .delete({ sourceId, userId: memberId });
 
       return { _: true };
     },
