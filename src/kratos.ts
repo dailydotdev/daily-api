@@ -41,7 +41,7 @@ export const clearAuthentication = async (
     {
       reason,
       userId: req.userId,
-      authCookieExists: !!req.cookies[cookies.kratos.key],
+      cookie: req.cookies[cookies.kratos.key],
     },
     'clearing authentication',
   );
