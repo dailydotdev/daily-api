@@ -182,9 +182,10 @@ describe('query source current member', () => {
 query Source($id: ID!) {
   source(id: $id) {
     id
+    permissions
     currentMember {
       role
-      permissions
+      roleRank
     }
   }
 }

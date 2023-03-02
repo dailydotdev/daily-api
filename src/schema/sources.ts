@@ -132,6 +132,11 @@ export const typeDefs = /* GraphQL */ `
     Logged-in member object
     """
     currentMember: SourceMember
+
+    """
+    User squad permissions
+    """
+    permissions: [String]
   }
 
   type SourceConnection {
@@ -169,10 +174,6 @@ export const typeDefs = /* GraphQL */ `
     Numerical representation of the user's role
     """
     roleRank: Int
-    """
-    User squad permissions
-    """
-    permissions: [String]
   }
 
   type SourceMemberConnection {
@@ -388,6 +389,11 @@ const canRemoveMemberRoles = [
   SourceMemberRoles.Moderator,
 ];
 
+const canPostDeleteRoles = [
+  SourceMemberRoles.Owner,
+  SourceMemberRoles.Moderator,
+];
+
 export const hasGreaterAccessCheck = (
   loggedUser: SourceMember,
   member: SourceMember,
@@ -407,8 +413,8 @@ interface SourcePermissionsProps {
 }
 
 const hasPermissionCheck = (
-  source: Source,
-  member: SourceMember,
+  source: Source | GQLSource,
+  member: SourceMember | GQLSourceMember,
   permission: SourcePermissions,
 ) => {
   switch (permission) {
@@ -418,6 +424,10 @@ const hasPermissionCheck = (
       }
       break;
     case SourcePermissions.PostDelete:
+      if (!canPostDeleteRoles.includes(member.role)) {
+        return false;
+      }
+      break;
     case SourcePermissions.RemoveMember:
       if (!canRemoveMemberRoles.includes(member.role)) {
         return false;
@@ -442,7 +452,10 @@ const hasPermissionCheck = (
   return true;
 };
 
-export const getUserPermissions = (source: Source, member: SourceMember) => {
+export const getUserPermissions = (
+  source: Source | GQLSource,
+  member: SourceMember | GQLSourceMember,
+) => {
   const permissions = Object.values(SourcePermissions);
   const filtered = permissions.filter((permission) =>
     hasPermissionCheck(source, member, permission),

@@ -1,4 +1,4 @@
-import { getUserPermissions } from './../schema/sources';
+import { getUserPermissions, GQLSource } from './../schema/sources';
 import { GraphORM, QueryBuilder } from './graphorm';
 import {
   Bookmark,
@@ -6,7 +6,6 @@ import {
   FeedSource,
   FeedTag,
   Post,
-  Source,
   SourceMember,
   User,
 } from '../entity';
@@ -145,6 +144,15 @@ const obj = new GraphORM({
       public: {
         transform: (value: boolean): boolean => !value,
       },
+      permissions: {
+        transform: (_, ctx: Context, source: GQLSource) => {
+          if (!ctx.userId || !source.currentMember) {
+            return null;
+          }
+
+          return getUserPermissions(source, source.currentMember);
+        },
+      },
       members: {
         relation: {
           isMany: true,
@@ -177,15 +185,6 @@ const obj = new GraphORM({
               .from(SourceMember, 'sm')
               .where(`sm."userId" = :userId`, { userId: ctx.userId })
               .andWhere(`sm."sourceId" = "${parentAlias}".id`),
-        },
-        transform: (value: SourceMember, ctx: Context, parent: Source) => {
-          if (!ctx.userId || !value) {
-            return null;
-          }
-
-          const permissions = getUserPermissions(parent, value);
-
-          return { ...value, permissions };
         },
       },
     },
