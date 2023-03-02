@@ -37,7 +37,14 @@ export const clearAuthentication = async (
   res: FastifyReply,
   reason: string,
 ): Promise<void> => {
-  req.log.info({ reason }, 'clearing authentication');
+  req.log.info(
+    {
+      reason,
+      userId: req.userId,
+      authCookieExists: !!req.cookies[cookies.kratos.key],
+    },
+    'clearing authentication',
+  );
   req.trackingId = await generateTrackingId();
   req.userId = undefined;
   setTrackingId(req, res, req.trackingId);
