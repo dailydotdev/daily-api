@@ -649,8 +649,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
-      const { sourceId } = args;
-      await ensureSourcePermissions(ctx, sourceId);
+      await ensureSourcePermissions(ctx, args.sourceId);
       const page = membershipsPageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,
