@@ -2,6 +2,7 @@ import { Cron } from './cron';
 import fetch from 'node-fetch';
 import jsonexport from 'jsonexport';
 import FormData from 'form-data';
+import { UNKNOWN_SOURCE } from '../entity';
 
 import { promisify } from 'util';
 
@@ -33,7 +34,7 @@ const cron: Cron = {
               "private"::int                AS "post_private"
        FROM "post"
        WHERE "metadataChangedAt" > $1
-         and "sourceId" is not null;`,
+         and "sourceId" != ${UNKNOWN_SOURCE};`,
       [latest],
     );
     if (posts.length) {
