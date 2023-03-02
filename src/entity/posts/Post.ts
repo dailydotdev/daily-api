@@ -1,6 +1,4 @@
 import {
-  BeforeInsert,
-  BeforeUpdate,
   Column,
   Entity,
   Index,
@@ -9,7 +7,7 @@ import {
   PrimaryColumn,
   TableInheritance,
 } from 'typeorm';
-import { COMMUNITY_PICKS_SOURCE, Source } from '../Source';
+import { Source } from '../Source';
 import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { User } from '../User';
@@ -19,9 +17,9 @@ export enum PostType {
   Share = 'share',
 }
 
-enum PostOrigin {
+export enum PostOrigin {
   CommunityPicks = 'community_picks',
-  Squads = 'squads',
+  Ugc = 'ugc',
   Crawler = 'crawler',
 }
 
@@ -152,17 +150,5 @@ export class Post {
   visibleAt: Date;
 
   @Column({ default: null, type: 'text' })
-  private origin: PostOrigin;
-
-  @BeforeInsert()
-  @BeforeUpdate()
-  private setOrigin(): void {
-    if (this.sourceId === COMMUNITY_PICKS_SOURCE) {
-      this.origin = PostOrigin.CommunityPicks;
-    } else if (this.type === PostType.Share) {
-      this.origin = PostOrigin.Squads;
-    } else {
-      this.origin = PostOrigin.Crawler;
-    }
-  }
+  origin: PostOrigin;
 }

@@ -9,7 +9,7 @@ import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { validateAndApproveSubmission } from '../Submission';
 import { ArticlePost, Toc } from './ArticlePost';
-import { Post } from './Post';
+import { Post, PostOrigin } from './Post';
 import { MAX_COMMENTARY_LENGTH, SharePost } from './SharePost';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { Source } from '../Source';
@@ -75,6 +75,7 @@ export interface AddPostData {
   summary?: string;
   submissionId?: string;
   scoutId?: string;
+  origin?: PostOrigin;
 }
 
 const parseReadTime = (
@@ -245,6 +246,9 @@ const addPostAndKeywordsToDb = async (
     summary: data.summary,
     scoutId: data.scoutId,
     private: privacy,
+    origin: data.scoutId
+      ? PostOrigin.CommunityPicks
+      : data.origin ?? PostOrigin.Crawler,
   });
   await entityManager.save(post);
   if (data.tags?.length) {
@@ -367,6 +371,7 @@ export const createSharePost = async (
       title: commentary,
       sentAnalyticsReport: true,
       private: privacy,
+      origin: PostOrigin.Ugc,
     });
   } catch (err) {
     if (err.code === TypeOrmError.FOREIGN_KEY) {
