@@ -76,6 +76,13 @@ export const dispatchWhoami = async (
     if (e.statusCode !== 401) {
       throw e;
     }
+    req.log.warn(
+      {
+        statusCode: e.statusCode,
+        body: e.body,
+      },
+      'kratos whoami failed',
+    );
   }
 
   return { valid: false };
