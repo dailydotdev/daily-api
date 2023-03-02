@@ -238,8 +238,14 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     if (!commenter || !parent || !post) {
       return;
     }
+
+    const parentUser = await parent.user;
+    if (!parentUser) {
+      return;
+    }
+
     return {
-      user_profile_image: user.image,
+      user_profile_image: parentUser.image,
       full_name: commenter.name,
       main_comment: simplifyComment(parent.content),
       new_comment: notification.description,
@@ -248,10 +254,10 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         notification.targetUrl,
         notification.type,
       ),
-      user_reputation: user.reputation,
+      user_reputation: parentUser.reputation,
       commenter_reputation: commenter.reputation,
       commenter_profile_image: commenter.image,
-      user_name: user.name,
+      user_name: parentUser.name,
     };
   },
   comment_upvote_milestone: async (con, user, notification) => {
