@@ -651,11 +651,6 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<Connection<GQLSourceMember>> => {
       const { sourceId } = args;
       await ensureSourcePermissions(ctx, sourceId);
-      const membership =
-        ctx.userId &&
-        (await ctx.con
-          .getRepository(SourceMember)
-          .findOneBy({ userId: ctx.userId, sourceId }));
       const page = membershipsPageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,
@@ -665,7 +660,6 @@ export const resolvers: IResolvers<any, Context> = {
         (node, index) =>
           membershipsPageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
-          const role = roleRank[membership?.role] ?? 0;
           const roleRankQuery = `
             CASE
               WHEN ${builder.alias}.role = '${SourceMemberRoles.Owner}' THEN ${roleRank.owner}
@@ -674,12 +668,6 @@ export const resolvers: IResolvers<any, Context> = {
           `;
           builder.queryBuilder
             .addSelect(`${roleRankQuery} AS "roleRank"`)
-            .addSelect(
-              `
-                CASE WHEN ${role} > (${roleRankQuery}) THEN true
-                ELSE false END AS "canRemoveMember"
-              `,
-            )
             .andWhere(`${builder.alias}."sourceId" = :source`, {
               source: args.sourceId,
             })
