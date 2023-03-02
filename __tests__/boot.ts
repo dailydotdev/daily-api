@@ -108,7 +108,9 @@ const KRATOS_EXPIRATION = addDays(setMilliseconds(new Date(), 0), 1);
 const mockWhoami = (expected: unknown, statusCode = 200) => {
   nock(process.env.HEIMDALL_ORIGIN)
     .get('/api/whoami')
-    .reply(statusCode, JSON.stringify(expected));
+    .reply(statusCode, JSON.stringify(expected), {
+      'set-cookie': `ory_kratos_session=new_value; Path=/; Expires=${KRATOS_EXPIRATION.toUTCString()}; Max-Age=86399; HttpOnly; SameSite=Lax`,
+    });
 };
 
 const mockLoggedIn = (userId = '1') =>
@@ -174,7 +176,7 @@ describe('logged in boot', () => {
       .set('Cookie', `${kratosCookie}=value;`)
       .expect(200);
     const cookies = setCookieParser.parse(res, { map: true });
-    expect(cookies[kratosCookie].value).toEqual('value');
+    expect(cookies[kratosCookie].value).toEqual('new_value');
     expect(cookies[kratosCookie].expires).toEqual(KRATOS_EXPIRATION);
   });
 

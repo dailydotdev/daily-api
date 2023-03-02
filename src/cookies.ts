@@ -1,5 +1,5 @@
-import { CookieSerializeOptions } from '@fastify/cookie';
-import { FastifyReply, FastifyRequest } from 'fastify';
+import {CookieSerializeOptions} from '@fastify/cookie';
+import {FastifyReply, FastifyRequest} from 'fastify';
 
 const env = process.env.NODE_ENV;
 
@@ -85,11 +85,12 @@ export const setRawCookie = (
 
   if (typeof setCookie === 'string') {
     setCookie = [setCookie];
-  } else if (typeof setCookie !== 'number') {
+  }
+  if (typeof setCookie !== 'number') {
     setCookie.push(setCookieValue);
   }
   res.removeHeader('Set-Cookie');
-  res.header('Set-Cookie', setCookie);
+  return res.header('Set-Cookie', setCookie);
 };
 
 export const setCookie = (
