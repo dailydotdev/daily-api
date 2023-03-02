@@ -377,26 +377,56 @@ const sourceToGQL = (source: Source): GQLSource => ({
 export enum SourcePermissions {
   View = 'view',
   Post = 'post',
+  PostLimit = 'post_limit',
   PostDelete = 'post_delete',
-  RemoveMember = 'remove_member',
+  MemberRemove = 'member_remove',
+  ModeratorAdd = 'moderator_add',
+  ModeratorRemove = 'moderator_remove',
+  InviteDisable = 'invite_disable',
   Leave = 'leave',
   Delete = 'delete',
   Edit = 'edit',
 }
 
-const canRemoveMemberRoles = [
-  SourceMemberRoles.Owner,
-  SourceMemberRoles.Moderator,
-];
+const roleSourcePermissions: Record<SourceMemberRoles, SourcePermissions[]> = {
+  owner: [
+    SourcePermissions.View,
+    SourcePermissions.Post,
+    SourcePermissions.PostLimit,
+    SourcePermissions.PostDelete,
+    SourcePermissions.MemberRemove,
+    SourcePermissions.ModeratorAdd,
+    SourcePermissions.ModeratorRemove,
+    SourcePermissions.InviteDisable,
+    SourcePermissions.Edit,
+    SourcePermissions.Delete,
+  ],
+  moderator: [
+    SourcePermissions.View,
+    SourcePermissions.Post,
+    SourcePermissions.PostDelete,
+    SourcePermissions.MemberRemove,
+    SourcePermissions.Edit,
+    SourcePermissions.Leave,
+  ],
+  member: [
+    SourcePermissions.View,
+    SourcePermissions.Post,
+    SourcePermissions.Leave,
+  ],
+};
 
-const canPostDeleteRoles = [
-  SourceMemberRoles.Owner,
-  SourceMemberRoles.Moderator,
-];
+const requireGreaterAccessPrivilege: Partial<
+  Record<SourcePermissions, boolean>
+> = {
+  [SourcePermissions.MemberRemove]: true,
+};
+
+type BaseSourceMember = Pick<SourceMember, 'role'>;
 
 export const hasGreaterAccessCheck = (
-  loggedUser: SourceMember,
-  member: SourceMember,
+  loggedUser: BaseSourceMember,
+  member: BaseSourceMember,
 ) => {
   const memberRank = roleRank[member.role];
   const loggedUserRank = roleRank[loggedUser.role];
@@ -414,42 +444,25 @@ interface SourcePermissionsProps {
 
 const hasPermissionCheck = (
   source: Source | GQLSource,
-  member: SourceMember | GQLSourceMember,
+  member: BaseSourceMember,
   permission: SourcePermissions,
+  validateRankAgainst?: BaseSourceMember,
 ) => {
-  switch (permission) {
-    case SourcePermissions.Post:
-      if (source.type !== SourceType.Squad) {
-        return false;
-      }
-      break;
-    case SourcePermissions.PostDelete:
-      if (!canPostDeleteRoles.includes(member.role)) {
-        return false;
-      }
-      break;
-    case SourcePermissions.RemoveMember:
-      if (!canRemoveMemberRoles.includes(member.role)) {
-        return false;
-      }
-      break;
-    case SourcePermissions.Leave:
-      if (
-        member.role === SourceMemberRoles.Owner ||
-        source.type !== SourceType.Squad
-      ) {
-        return false;
-      }
-      break;
-    case SourcePermissions.Edit:
-    case SourcePermissions.Delete:
-      if (member.role !== SourceMemberRoles.Owner) {
-        return false;
-      }
-      break;
+  if (
+    source.type !== SourceType.Squad &&
+    [SourcePermissions.Post, SourcePermissions.Leave].includes(permission)
+  ) {
+    return false;
   }
 
-  return true;
+  if (validateRankAgainst) {
+    hasGreaterAccessCheck(member, validateRankAgainst);
+  }
+
+  const rolePermissions =
+    roleSourcePermissions[member.role] ?? roleSourcePermissions.member;
+
+  return rolePermissions.includes(permission);
 };
 
 export const getUserPermissions = (
@@ -484,22 +497,21 @@ export const canAccessSource = async (
   const repo = ctx.getRepository(SourceMember);
   const [loggedUser, validateRankAgainst] = await Promise.all([
     repo.findOneBy({ sourceId, userId: ctx.userId }),
-    validateRankAgainstId
+    requireGreaterAccessPrivilege[permission]
       ? repo.findOneByOrFail({ sourceId, userId: validateRankAgainstId })
-      : Promise.resolve(),
+      : Promise.resolve(null),
   ]);
 
   if (!loggedUser) {
     return false;
   }
 
-  const hasPermission = hasPermissionCheck(source, loggedUser, permission);
-
-  if (validateRankAgainst) {
-    hasGreaterAccessCheck(loggedUser, validateRankAgainst);
-  }
-
-  return hasPermission;
+  return hasPermissionCheck(
+    source,
+    loggedUser,
+    permission,
+    validateRankAgainst,
+  );
 };
 
 const validateSquadData = ({
@@ -940,7 +952,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLEmptyResponse> => {
       await ensureSourcePermissions(ctx, sourceId, {
         validateRankAgainstId: memberId,
-        permission: SourcePermissions.RemoveMember,
+        permission: SourcePermissions.MemberRemove,
       });
 
       await ctx
