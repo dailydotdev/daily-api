@@ -15,6 +15,7 @@ Object {
   "image": null,
   "lastTrending": null,
   "metadataChangedAt": Any<Date>,
+  "origin": "crawler",
   "placeholder": null,
   "private": false,
   "publishedAt": null,
@@ -37,5 +38,7 @@ Object {
   "url": "https://post.com",
   "views": 0,
   "viewsThreshold": 0,
+  "visible": true,
+  "visibleAt": null,
 }
 `;
