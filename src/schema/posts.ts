@@ -24,7 +24,6 @@ import {
   HiddenPost,
   Post,
   PostReport,
-  SharePost,
   PostType,
   Toc,
   Upvote,
@@ -38,6 +37,7 @@ import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { GraphQLResolveInfo } from 'graphql';
+import { Roles } from '../roles';
 
 export interface GQLPost {
   id: string;
@@ -469,16 +469,6 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
-    Delete a shared post permanently
-    """
-    deleteSharedPost(
-      """
-      Id of the post to delete
-      """
-      id: ID
-    ): EmptyResponse @auth
-
-    """
     Delete a post permanently
     """
     deletePost(
@@ -486,7 +476,7 @@ export const typeDefs = /* GraphQL */ `
       Id of the post to delete
       """
       id: ID
-    ): EmptyResponse @auth(requires: [MODERATOR])
+    ): EmptyResponse @auth
 
     """
     Bans a post (can be undone)
@@ -751,34 +741,30 @@ export const resolvers: IResolvers<any, Context> = {
       }
       return { _: true };
     },
-    deleteSharedPost: async (
+    deletePost: async (
       _,
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
+      if (ctx.roles.includes(Roles.Moderator)) {
+        await ctx.getRepository(Post).update({ id }, { deleted: true });
+        return { _: true };
+      }
+
       await ctx.con.transaction(async (manager) => {
-        const repo = manager.getRepository(SharePost);
+        const repo = manager.getRepository(Post);
         const post = await repo.findOneBy({ id });
+        if (post.type === PostType.Share) {
+          if (post.authorId !== ctx.userId) {
+            await ensureSourcePermissions(ctx, post.sourceId, {
+              permission: SourcePermissions.PostDelete,
+            });
+          }
 
-        if (!post?.sharedPostId) return;
-
-        if (post.authorId !== ctx.userId) {
-          await ensureSourcePermissions(ctx, post.sourceId, {
-            permission: SourcePermissions.PostDelete,
-          });
+          await repo.update({ id }, { deleted: true });
         }
-
-        await repo.update({ id }, { deleted: true });
       });
 
-      return { _: true };
-    },
-    deletePost: async (
-      source,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
-      await ctx.getRepository(Post).update({ id }, { deleted: true });
       return { _: true };
     },
     banPost: async (

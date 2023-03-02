@@ -849,14 +849,50 @@ describe('mutation unhidePost', () => {
   });
 });
 
-describe('mutation deleteSharedPost', () => {
+describe('mutation deletePost', () => {
   const MUTATION = `
-    mutation DeleteSharedPost($id: ID!) {
-      deleteSharedPost(id: $id) {
+    mutation DeletePost($id: ID!) {
+      deletePost(id: $id) {
         _
       }
     }
   `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should do nothing if post is not a shared post and the user is not a moderator', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post).toBeTruthy();
+    expect(post?.deleted).toBeFalsy();
+  });
+
+  it('should delete the post', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(actual.deleted).toBeTruthy();
+  });
+
+  it('should do nothing if post is already deleted', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+    await con.getRepository(Post).delete({ id: 'p1' });
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+  });
 
   const createSharedPost = async (
     id = 'sp1',
@@ -1010,55 +1046,6 @@ describe('mutation deleteSharedPost', () => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post).toBeTruthy();
     expect(post?.deleted).toBeFalsy();
-  });
-});
-
-describe('mutation deletePost', () => {
-  const MUTATION = `
-  mutation DeletePost($id: ID!) {
-  deletePost(id: $id) {
-    _
-  }
-}`;
-
-  it('should not authorize when not logged in', () =>
-    testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { id: 'p1' },
-      },
-      'UNAUTHENTICATED',
-    ));
-
-  it('should not authorize when not moderator', () => {
-    loggedUser = '1';
-    roles = [];
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { id: 'p1' },
-      },
-      'FORBIDDEN',
-    );
-  });
-
-  it('should delete the post', async () => {
-    loggedUser = '1';
-    roles = [Roles.Moderator];
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(actual.deleted).toBeTruthy();
-  });
-
-  it('should do nothing if post is already deleted', async () => {
-    loggedUser = '1';
-    roles = [Roles.Moderator];
-    await con.getRepository(Post).delete({ id: 'p1' });
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
   });
 });
 
