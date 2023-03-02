@@ -35,7 +35,9 @@ const fetchKratos = async (
 export const clearAuthentication = async (
   req: FastifyRequest,
   res: FastifyReply,
+  reason: string,
 ): Promise<void> => {
+  req.log.info({ reason }, 'clearing authentication');
   req.trackingId = await generateTrackingId();
   req.userId = undefined;
   setTrackingId(req, res, req.trackingId);
@@ -91,6 +93,6 @@ export const logout = async (
       throw e;
     }
   }
-  await clearAuthentication(req, res);
+  await clearAuthentication(req, res, 'manual logout');
   return res.status(204).send();
 };
