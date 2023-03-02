@@ -8,7 +8,6 @@ import { DataSource, DeepPartial } from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
-  hasGreaterAccessCheck,
   SourcePermissions,
 } from './sources';
 import { Context } from '../Context';
@@ -29,7 +28,6 @@ import {
   PostType,
   Toc,
   Upvote,
-  SourceMember,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import { NotFoundError, TypeOrmError } from '../errors';
