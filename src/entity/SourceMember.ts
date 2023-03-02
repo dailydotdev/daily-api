@@ -14,7 +14,7 @@ export enum SourceMemberRoles {
 
 export const roleRank: Record<SourceMemberRoles, number> = {
   owner: 10,
-  moderator: 1,
+  moderator: 5,
   member: 0,
 };
 
