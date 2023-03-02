@@ -146,8 +146,12 @@ Object {
     "id": "a",
     "permissions": Array [
       "view",
+      "post_limit",
       "post_delete",
-      "remove_member",
+      "member_remove",
+      "moderator_add",
+      "moderator_remove",
+      "invite_disable",
       "delete",
       "edit",
     ],
