@@ -25,7 +25,7 @@ import { getRedisObject, setRedisObject } from '../redis';
 import { REDIS_CHANGELOG_KEY } from '../config';
 import { getSourceLink } from '../common';
 import { AccessToken, signJwt } from '../auth';
-import { cookies, setCookie } from '../cookies';
+import { cookies, setCookie, setRawCookie } from '../cookies';
 import { parse } from 'graphql/language/parser';
 import { execute } from 'graphql/execution/execute';
 import { schema } from '../graphql';
@@ -290,9 +290,9 @@ export const getBootData = async (
 ): Promise<AnonymousBoot | LoggedInBoot> => {
   const whoami = await dispatchWhoami(req);
   if (whoami.valid) {
-    setCookie(req, res, 'kratos', req.cookies[cookies.kratos.key], {
-      expires: whoami.expires,
-    });
+    if (whoami.cookie) {
+      setRawCookie(res, whoami.cookie);
+    }
     if (req.userId !== whoami.userId) {
       req.userId = whoami.userId;
       req.trackingId = req.userId;
