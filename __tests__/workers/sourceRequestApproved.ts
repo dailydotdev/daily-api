@@ -38,7 +38,7 @@ beforeEach(async () => {
 
 it('should create a reputation event that increases reputation', async () => {
   await expectSuccessfulBackground(worker, {
-    reason: NotificationReason.Approve,
+    reason: NotificationReason.Publish,
     sourceRequest: {
       id,
       userId: '1',
@@ -50,13 +50,13 @@ it('should create a reputation event that increases reputation', async () => {
   expect(event.amount).toEqual(200);
 });
 
-it('should not create a reputation event that increases reputation when type is not approve', async () => {
+it('should not create a reputation event that increases reputation when type is not publish', async () => {
   await expectSuccessfulBackground(worker, {
     sourceRequest: {
       id,
       userId: '1',
     },
-    type: NotificationReason.Publish,
+    type: NotificationReason.Approve,
   });
   const event = await con.getRepository(ReputationEvent).find();
   expect(event.length).toEqual(0);

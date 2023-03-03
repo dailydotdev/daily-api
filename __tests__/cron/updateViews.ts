@@ -1,6 +1,6 @@
 import cron from '../../src/cron/updateViews';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
-import { Post, Source, View } from '../../src/entity';
+import { ArticlePost, Post, Source, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -15,9 +15,9 @@ beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
 });
 
-it('should update views and scores', async () => {
+it('should update views', async () => {
   const now = new Date();
-  await saveFixtures(con, Post, [
+  await saveFixtures(con, ArticlePost, [
     {
       id: 'p1',
       shortId: 'p1',
@@ -64,19 +64,6 @@ it('should update views and scores', async () => {
     order: { createdAt: 'ASC' },
   });
   expect(posts[0].views).toEqual(0);
-  expect(posts[0].score).toEqual(0);
   expect(posts[1].views).toEqual(2);
-  expect(posts[1].score).toEqual(
-    Math.round(
-      posts[1].createdAt.getTime() / (1000 * 60) +
-        Math.pow(Math.log(2 + 5 * 2.5 + 1 + 10) / Math.log(5), 2) * 60,
-    ),
-  );
   expect(posts[2].views).toEqual(5);
-  expect(posts[2].score).toEqual(
-    Math.round(
-      posts[2].createdAt.getTime() / (1000 * 60) +
-        Math.pow(Math.log(5 + 6 * 4 + 1) / Math.log(5), 2) * 60,
-    ),
-  );
 });

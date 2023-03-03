@@ -1,10 +1,8 @@
 import { getPostCommenterIds } from './post';
-import { Post } from './../entity/Post';
-import { IFlags } from 'flagsmith-nodejs';
+import { Post } from './../entity/posts';
 import { isSameDay } from 'date-fns';
-import fetch from 'node-fetch';
 import { DataSource, In, Not } from 'typeorm';
-import { CommentMention, Comment, View } from '../entity';
+import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { User as DbUser } from './../entity/User';
 
@@ -24,12 +22,6 @@ export interface User {
 
 export type CustomObject<T> = Record<string, T> | Record<number, T>;
 
-const authorizedHeaders = (userId: string): { [key: string]: string } => ({
-  authorization: `Service ${process.env.GATEWAY_SECRET}`,
-  'user-id': userId,
-  'logged-in': 'true',
-});
-
 export const fetchUser = async (
   userId: string,
   con: DataSource,
@@ -39,18 +31,6 @@ export const fetchUser = async (
     return null;
   }
   return user;
-};
-
-export const fetchUserFeatures = async (userId: string): Promise<IFlags> => {
-  const res = await fetch(`${process.env.GATEWAY_URL}/boot/features`, {
-    method: 'GET',
-    headers: authorizedHeaders(userId),
-  });
-  const text = await res.text();
-
-  if (!text) return {};
-
-  return JSON.parse(text);
 };
 
 export const getUserProfileUrl = (username: string): string =>
@@ -104,13 +84,14 @@ export interface ReadingDaysArgs {
 interface RecentMentionsProps {
   query?: string;
   limit?: number;
+  sourceId?: string;
   excludeIds?: string[];
 }
 
 export const getRecentMentionsIds = async (
   con: DataSource,
   userId: string,
-  { limit = 5, query, excludeIds }: RecentMentionsProps,
+  { limit = 5, query, excludeIds, sourceId }: RecentMentionsProps,
 ): Promise<string[]> => {
   let queryBuilder = con
     .getRepository(CommentMention)
@@ -118,6 +99,12 @@ export const getRecentMentionsIds = async (
     .select('DISTINCT cm."mentionedUserId"')
     .where({ commentByUserId: userId })
     .andWhere({ mentionedUserId: Not(userId) });
+
+  if (sourceId) {
+    queryBuilder = queryBuilder
+      .innerJoin(SourceMember, 'sm', 'sm."userId" = cm."mentionedUserId"')
+      .andWhere('sm."sourceId" = :sourceId', { sourceId });
+  }
 
   if (query) {
     queryBuilder = queryBuilder
@@ -143,7 +130,7 @@ export const getRecentMentionsIds = async (
 
 export const getUserIdsByNameOrUsername = async (
   con: DataSource,
-  { query, limit = 5, excludeIds }: RecentMentionsProps,
+  { query, limit = 5, excludeIds, sourceId }: RecentMentionsProps,
 ): Promise<string[]> => {
   let queryBuilder = con
     .getRepository(DbUser)
@@ -154,6 +141,12 @@ export const getUserIdsByNameOrUsername = async (
     })
     .andWhere('username IS NOT NULL')
     .limit(limit);
+
+  if (sourceId) {
+    queryBuilder = queryBuilder
+      .innerJoin(SourceMember, 'sm', 'id = sm."userId"')
+      .andWhere('sm."sourceId" = :sourceId', { sourceId });
+  }
 
   if (excludeIds?.length) {
     queryBuilder = queryBuilder.andWhere({
@@ -169,9 +162,15 @@ export const getUserIdsByNameOrUsername = async (
 export const recommendUsersByQuery = async (
   con: DataSource,
   userId: string,
-  { query, limit }: RecentMentionsProps,
+  { query, limit, sourceId }: RecentMentionsProps,
 ): Promise<string[]> => {
-  const recentIds = await getRecentMentionsIds(con, userId, { query, limit });
+  const privateSource = await (sourceId &&
+    con.getRepository(Source).findOneBy({ id: sourceId, private: true }));
+  const recentIds = await getRecentMentionsIds(con, userId, {
+    query,
+    limit,
+    sourceId: privateSource?.id,
+  });
   const missing = limit - recentIds.length;
 
   if (missing === 0) {
@@ -181,6 +180,7 @@ export const recommendUsersByQuery = async (
   const userIds = await getUserIdsByNameOrUsername(con, {
     limit: missing,
     query,
+    sourceId: privateSource?.id,
     excludeIds: recentIds.concat(userId),
   });
 
@@ -191,7 +191,7 @@ export const recommendUsersToMention = async (
   con: DataSource,
   postId: string,
   userId: string,
-  { limit }: RecentMentionsProps,
+  { limit, sourceId }: RecentMentionsProps,
 ): Promise<string[]> => {
   const [post, commenterIds] = await Promise.all([
     con.getRepository(Post).findOneBy({ id: postId, authorId: Not(userId) }),
@@ -211,9 +211,12 @@ export const recommendUsersToMention = async (
     return commenterIds;
   }
 
+  const privateSource = await (sourceId &&
+    con.getRepository(Source).findOneBy({ id: sourceId, private: true }));
   const recent = await getRecentMentionsIds(con, userId, {
     limit: missing,
     excludeIds: commenterIds,
+    sourceId: privateSource?.id,
   });
 
   return commenterIds.concat(recent);
@@ -225,29 +228,32 @@ export const getUserReadingTags = (
 ): Promise<TagsReadingStatus[]> => {
   return con.query(
     `
-    with filtered_view as (
-      select  *, CAST(v."timestamp"::timestamptz at time zone COALESCE(u.timezone, 'utc') AS DATE) as day
-      from    "view" v
-      inner   join "user" u
-      on      u."id" = v."userId"
+      with filtered_view as (select *,
+                                    CAST(v."timestamp"::timestamptz at time zone
+                                         COALESCE(u.timezone, 'utc') AS
+                                         DATE) as day
+      from "view" v
+        inner join "user" u
+      on u."id" = v."userId"
 
-      where   u."id" = $1
-      and     "timestamp" >= $2
-      and     "timestamp" < $3
-    )
-    select  *,
-            (select count(DISTINCT day) from filtered_view) as total,
-            tags."readingDays" * 1.0 / (select count(DISTINCT day) from filtered_view) as percentage
-    from (
-      select pk.keyword as tag, count(DISTINCT day) as "readingDays"
-      from filtered_view v
-      inner join post_keyword pk on v."postId" = pk."postId" and pk.status = 'allow'
-      where pk.keyword != 'general-programming'
-      group by pk.keyword
-    ) as tags
-    order by tags."readingDays" desc
-    limit $4;
-  `,
+      where u."id" = $1
+        and "timestamp" >= $2
+        and "timestamp"
+          < $3
+        )
+      select *,
+             (select count(DISTINCT day) from filtered_view) as total,
+             tags."readingDays" * 1.0 /
+             (select count(DISTINCT day) from filtered_view) as percentage
+      from (select pk.keyword as tag, count(DISTINCT day) as "readingDays"
+            from filtered_view v
+                   inner join post_keyword pk
+                              on v."postId" = pk."postId" and pk.status = 'allow'
+            where pk.keyword != 'general-programming'
+            group by pk.keyword) as tags
+      order by tags."readingDays" desc
+        limit $4;
+    `,
     [userId, start, end, limit],
   );
 };

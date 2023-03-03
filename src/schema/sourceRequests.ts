@@ -11,7 +11,13 @@ import {
 } from './common';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { Source, SourceFeed, SourceRequest, User } from '../entity';
+import {
+  MachineSource,
+  Source,
+  SourceFeed,
+  SourceRequest,
+  User,
+} from '../entity';
 import { getRelayNodeInfo, uploadLogo } from '../common';
 import { GraphQLResolveInfo } from 'graphql';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
@@ -290,20 +296,19 @@ const createSourceFromRequest = (
   req: SourceRequest,
 ): Promise<Source> =>
   ctx.con.manager.transaction(async (entityManager): Promise<Source> => {
-    const source = entityManager.create(Source, {
+    const source = await entityManager.getRepository(MachineSource).save({
       id: req.sourceId,
       twitter: req.sourceTwitter,
       website: req.sourceUrl,
       name: req.sourceName,
       image: req.sourceImage,
+      handle: req.sourceId,
     });
-    await entityManager.save(source);
 
-    const feed = entityManager.create(SourceFeed, {
+    await entityManager.getRepository(SourceFeed).save({
       feed: req.sourceFeed,
       sourceId: source.id,
     });
-    await entityManager.save(feed);
 
     return source;
   });

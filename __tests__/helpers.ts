@@ -25,6 +25,18 @@ import pino from 'pino';
 import { createMercuriusTestClient } from 'mercurius-integration-testing';
 import appFunc from '../src';
 import createOrGetConnection from '../src/db';
+import {
+  NotificationHandlerReturn,
+  NotificationWorker,
+} from '../src/workers/notifications/worker';
+import { NotificationType } from '../src/entity';
+import {
+  generateNotification,
+  NotificationBaseContext,
+  storeNotificationBundle,
+} from '../src/notifications';
+import flagsmith from '../src/flagsmith';
+import { Flags } from 'flagsmith-nodejs';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -53,6 +65,10 @@ export class MockContext extends Context {
   }
 
   get userId(): string | null {
+    return this.mockUserId;
+  }
+
+  get trackingId(): string | null {
     return this.mockUserId;
   }
 
@@ -125,7 +141,7 @@ export const testMutationErrorCode = async (
 ): Promise<void> =>
   testMutationError(client, mutation, (errors) => {
     expect(errors.length).toEqual(1);
-    expect(errors[0].extensions.code).toEqual(code);
+    expect(errors[0].extensions?.code).toEqual(code);
   });
 
 export type Query = {
@@ -150,7 +166,7 @@ export const testQueryErrorCode = async (
 ): Promise<void> =>
   testQueryError(client, query, (errors) => {
     expect(errors.length).toEqual(1);
-    expect(errors[0].extensions.code).toEqual(code);
+    expect(errors[0].extensions?.code).toEqual(code);
   });
 
 export async function saveFixtures<Entity>(
@@ -190,6 +206,15 @@ export const expectSuccessfulBackground = (
   worker: Worker,
   data: Record<string, unknown>,
 ): Promise<void> => invokeBackground(worker, data);
+
+export const invokeNotificationWorker = async (
+  worker: NotificationWorker,
+  data: Record<string, unknown>,
+): Promise<NotificationHandlerReturn> => {
+  const con = await createOrGetConnection();
+  const logger = pino();
+  return worker.handler(mockMessage(data).message, con, logger);
+};
 
 export const invokeCron = async (cron: Cron): Promise<void> => {
   const con = await createOrGetConnection();
@@ -262,3 +287,38 @@ export const mockChangeMessage = <T>({
     transaction: 0,
   },
 });
+
+export const saveNotificationFixture = async (
+  con: DataSource,
+  type: NotificationType,
+  ctx: NotificationBaseContext,
+): Promise<string> => {
+  const res = await con.transaction((entityManager) =>
+    storeNotificationBundle(entityManager, [generateNotification(type, ctx)]),
+  );
+  return res[0].id;
+};
+
+export const mockFeatureFlagForUser = (
+  featureName?: string,
+  enabled?: boolean,
+  value?: string,
+) => {
+  const mock = jest.mocked(flagsmith.getIdentityFlags);
+  mock.mockReset();
+  if (!featureName) {
+    mock.mockResolvedValue({ flags: null } as unknown as Flags);
+  } else {
+    mock.mockResolvedValue({
+      flags: {
+        [featureName]: {
+          enabled,
+          value,
+        },
+      },
+    } as unknown as Flags);
+  }
+};
+
+export const TEST_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36';

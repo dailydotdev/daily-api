@@ -3,27 +3,30 @@ import { ReputationEvent } from './../entity/ReputationEvent';
 import { CommentMention } from './../entity/CommentMention';
 import { messageToJson, Worker } from './worker';
 import {
+  ArticlePost,
   Comment,
   CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
   Feed,
+  Notification,
   Post,
   Settings,
   SourceFeed,
+  SourceMember,
   SourceRequest,
   Submission,
   SubmissionStatus,
   Upvote,
   User,
+  Feature,
+  Source,
 } from '../entity';
 import {
   notifyCommentCommented,
   notifyCommentUpvoteCanceled,
   notifyCommentUpvoted,
-  notifyPostAuthorMatched,
   notifyPostBannedOrRemoved,
   notifyPostCommented,
-  notifyPostReachedViewsThreshold,
   notifyPostReport,
   notifyPostUpvoteCanceled,
   notifyPostUpvoted,
@@ -36,24 +39,29 @@ import {
   increaseReputation,
   decreaseReputation,
   notifySubmissionRejected,
-  notifyScoutMatched,
   notifySubmissionCreated,
   notifySubmissionGrantedAccess,
   NotificationReason,
   notifyUserDeleted,
   notifyUserUpdated,
   notifyUsernameChanged,
+  notifyNewNotification,
+  notifyNewCommentMention,
+  notifyPostAdded,
+  notifyMemberJoinedSource,
+  notifyUserCreated,
+  notifyFeatureAccess,
+  notifySourcePrivacyUpdated,
 } from '../common';
-import { ChangeMessage } from '../types';
-import { Connection, DataSource } from 'typeorm';
+import { ChangeMessage, ChangeObject } from '../types';
+import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
-import { viewsThresholds } from '../cron/viewsThreshold';
 import { PostReport, Alerts } from '../entity';
 import { reportReasons } from '../schema/posts';
 import { updateAlerts } from '../schema/alerts';
-import { sendEmailToMentionedUser } from './commentMentionEmail';
 import { submissionAccessThreshold } from '../schema/submissions';
+import { TypeOrmError } from '../errors';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -144,7 +152,7 @@ const onCommentMentionChange = async (
   data: ChangeMessage<CommentMention>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
-    await sendEmailToMentionedUser(con, data.payload.after, logger);
+    await notifyNewCommentMention(logger, data.payload.after);
   }
 };
 
@@ -178,7 +186,9 @@ const onUserChange = async (
   logger: FastifyLoggerInstance,
   data: ChangeMessage<User>,
 ): Promise<void> => {
-  if (data.payload.op === 'u') {
+  if (data.payload.op === 'c') {
+    await notifyUserCreated(logger, data.payload.after);
+  } else if (data.payload.op === 'u') {
     await notifyUserUpdated(logger, data.payload.before, data.payload.after);
     if (
       data.payload.after.reputation >= submissionAccessThreshold &&
@@ -191,7 +201,7 @@ const onUserChange = async (
           value: true,
         });
       } catch (ex) {
-        if (ex.code !== '23505') {
+        if (ex.code !== TypeOrmError.DUPLICATE_ENTRY) {
           throw ex;
         }
       }
@@ -225,8 +235,18 @@ const onAlertsChange = async (
   }
 };
 
+const onNotificationsChange = async (
+  con: DataSource,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<Notification>,
+): Promise<void> => {
+  if (data.payload.op === 'c') {
+    await notifyNewNotification(logger, data.payload.after);
+  }
+};
+
 const onSettingsChange = async (
-  _: Connection,
+  _: DataSource,
   logger: FastifyLoggerInstance,
   data: ChangeMessage<Settings>,
 ): Promise<void> => {
@@ -243,36 +263,13 @@ const onPostChange = async (
   data: ChangeMessage<Post>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
-    if (data.payload.after.authorId) {
-      await notifyPostAuthorMatched(
-        logger,
-        data.payload.after.id,
-        data.payload.after.authorId,
-      );
-    }
-
-    if (data.payload.after.scoutId) {
-      await notifyScoutMatched(
-        logger,
-        data.payload.after.id,
-        data.payload.after.scoutId,
-      );
-    }
+    await notifyPostAdded(logger, data.payload.after);
   } else if (data.payload.op === 'u') {
     if (
       !data.payload.before.sentAnalyticsReport &&
       data.payload.after.sentAnalyticsReport
     ) {
       await notifySendAnalyticsReport(logger, data.payload.after.id);
-    }
-    if (
-      data.payload.before.viewsThreshold !== data.payload.after.viewsThreshold
-    ) {
-      await notifyPostReachedViewsThreshold(
-        logger,
-        data.payload.after.id,
-        viewsThresholds[data.payload.after.viewsThreshold - 1],
-      );
     }
     if (
       !data.payload.before.banned &&
@@ -289,7 +286,11 @@ const onPostChange = async (
       isChanged(data.payload.before, data.payload.after, 'createdAt') ||
       isChanged(data.payload.before, data.payload.after, 'authorId') ||
       isChanged(data.payload.before, data.payload.after, 'sourceId') ||
-      isChanged(data.payload.before, data.payload.after, 'creatorTwitter')
+      isChanged<ChangeObject<ArticlePost>>(
+        data.payload.before as ChangeObject<ArticlePost>,
+        data.payload.after as ChangeObject<ArticlePost>,
+        'creatorTwitter',
+      )
     ) {
       await con
         .getRepository(Post)
@@ -338,6 +339,22 @@ const onSourceFeedChange = async (
       data.payload.before.sourceId,
       data.payload.before.feed,
     );
+  }
+};
+
+const onSourceChange = async (
+  con: DataSource,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<Source>,
+) => {
+  if (data.payload.op === 'u') {
+    // Temporary workaround to handle messages before replica identity full
+    if (!data.payload.before) {
+      return;
+    }
+    if (data.payload.before.private !== data.payload.after.private) {
+      await notifySourcePrivacyUpdated(logger, data.payload.after);
+    }
   }
 };
 
@@ -396,6 +413,26 @@ const onUserStateChange = async (
   }
 };
 
+const onSourceMemberChange = async (
+  con: DataSource,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<SourceMember>,
+) => {
+  if (data.payload.op === 'c') {
+    await notifyMemberJoinedSource(logger, data.payload.after);
+  }
+};
+
+const onFeatureChange = async (
+  con: DataSource,
+  logger: FastifyLoggerInstance,
+  data: ChangeMessage<Feature>,
+) => {
+  if (data.payload.op === 'c') {
+    await notifyFeatureAccess(logger, data.payload.after);
+  }
+};
+
 const getTableName = <Entity>(
   con: DataSource,
   target: EntityTarget<Entity>,
@@ -412,6 +449,9 @@ const worker: Worker = {
         return;
       }
       switch (data.payload.source.table) {
+        case getTableName(con, Source):
+          await onSourceChange(con, logger, data);
+          break;
         case getTableName(con, Feed):
           await onFeedChange(con, logger, data);
           break;
@@ -442,6 +482,9 @@ const worker: Worker = {
         case getTableName(con, Alerts):
           await onAlertsChange(con, logger, data);
           break;
+        case getTableName(con, Notification):
+          await onNotificationsChange(con, logger, data);
+          break;
         case getTableName(con, SourceFeed):
           await onSourceFeedChange(con, logger, data);
           break;
@@ -456,6 +499,12 @@ const worker: Worker = {
           break;
         case getTableName(con, UserState):
           await onUserStateChange(con, logger, data);
+          break;
+        case getTableName(con, SourceMember):
+          await onSourceMemberChange(con, logger, data);
+          break;
+        case getTableName(con, Feature):
+          await onFeatureChange(con, logger, data);
           break;
       }
     } catch (err) {

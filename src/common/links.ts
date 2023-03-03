@@ -1,3 +1,5 @@
+import { Source, SourceType } from '../entity';
+
 const excludeFromStandardization = [
   'youtube.com',
   'developer.apple.com',
@@ -19,6 +21,16 @@ export const getDiscussionLink = (postId: string, commentId = ''): string =>
   `${process.env.COMMENTS_PREFIX}/posts/${postId}${
     commentId && `#c-${commentId}`
   }`;
+
+export const getSourceLink = (
+  source: Pick<Source, 'handle' | 'type'>,
+): string =>
+  `${process.env.COMMENTS_PREFIX}/${
+    source.type === SourceType.Squad ? 'squads' : 'sources'
+  }/${source.handle}`;
+
+export const scoutArticleLink = `${process.env.COMMENTS_PREFIX}?scout=true`;
+export const squadCreateLink = `${process.env.COMMENTS_PREFIX}?squad=true`;
 
 export const standardizeURL = (url: string): string => {
   const domain = subtractDomain(url);

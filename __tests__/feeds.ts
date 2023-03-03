@@ -1,6 +1,25 @@
-import { IFlags } from 'flagsmith-nodejs';
-import { feedToFilters } from '../src/common';
-import { FeedAdvancedSettings, AdvancedSettings } from '../src/entity';
+import { feedToFilters, Ranking } from '../src/common';
+import {
+  AdvancedSettings,
+  ArticlePost,
+  BookmarkList,
+  Feed,
+  FeedAdvancedSettings,
+  FeedSource,
+  FeedTag,
+  Keyword,
+  MachineSource,
+  Post,
+  PostKeyword,
+  PostTag,
+  PostType,
+  SharePost,
+  Source,
+  SourceMember,
+  SourceMemberRoles,
+  User,
+  View,
+} from '../src/entity';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
@@ -16,26 +35,12 @@ import {
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
-import {
-  Feed,
-  FeedSource,
-  FeedTag,
-  Post,
-  PostTag,
-  Source,
-  View,
-  BookmarkList,
-  User,
-  PostKeyword,
-  Keyword,
-} from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import {
   postKeywordsFixture,
   postsFixture,
   postTagsFixture,
 } from './fixture/post';
-import { Ranking } from '../src/common';
 import nock from 'nock';
 import { deleteKeysByPattern, ioRedisPool } from '../src/redis';
 import {
@@ -44,25 +49,14 @@ import {
 } from '../src/personalizedFeed';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { randomUUID } from 'crypto';
+import { usersFixture } from './fixture/user';
 
 let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
-
-const defaultFeatures: IFlags = {
-  advanced_settings_default_values: {
-    enabled: true,
-    value: JSON.stringify({ 1: false, 5: false, 6: true }),
-  },
-};
-const mockFeatures = (data: IFlags = defaultFeatures) => {
-  nock(process.env.GATEWAY_URL)
-    .get('/boot/features')
-    .matchHeader('authorization', `Service ${process.env.GATEWAY_SECRET}`)
-    .reply(200, data);
-};
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -78,7 +72,7 @@ beforeEach(async () => {
 
   await saveFixtures(con, AdvancedSettings, advancedSettings);
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
   await deleteKeysByPattern('feeds:*');
@@ -162,39 +156,44 @@ const saveFeedFixtures = async (): Promise<void> => {
 
 const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
   await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-  await saveFixtures(con, Source, [
+  await saveFixtures(con, MachineSource, [
     {
       id: 'includedSource',
       name: 'IS',
       image: 'http://image.com/c',
       advancedSettings: [2],
+      handle: 'includedSource',
     },
     {
       id: 'excludedSource',
       name: 'ES',
       image: 'http://image.com/c',
       advancedSettings: [1],
+      handle: 'excludedSource',
     },
     {
       id: 'settingsCombinationSource',
       name: 'SCS',
       image: 'http://image.com/c',
       advancedSettings: [1, 2],
+      handle: 'settingsCombinationSource',
     },
     {
       id: 'experimentExcludedSource',
       name: 'ExES',
       image: 'http://image.com/c',
       advancedSettings: [5],
+      handle: 'experimentExcludedSource',
     },
     {
       id: 'experimentIncludedSource',
       name: 'ExIS',
       image: 'http://image.com/c',
       advancedSettings: [6],
+      handle: 'experimentIncludedSource',
     },
   ]);
-  await saveFixtures(con, Post, [
+  await saveFixtures(con, ArticlePost, [
     {
       id: 'includedPost',
       shortId: 'ip1',
@@ -222,7 +221,17 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
       sourceId: 'settingsCombinationSource',
       tagsStr: 'javascript,webdev',
     },
-  ]);
+  ] as ArticlePost[]);
+  await saveFixtures(con, SharePost, [
+    {
+      id: 'sourcePost',
+      shortId: 'nsp1',
+      title: 'Source Post',
+      score: 0,
+      sourceId: 'p',
+      tagsStr: 'javascript,webdev',
+    },
+  ] as SharePost[]);
   await saveFixtures(con, FeedAdvancedSettings, [
     { feedId: '1', advancedSettingsId: 1, enabled: false },
     { feedId: '1', advancedSettingsId: 2, enabled: true },
@@ -268,6 +277,7 @@ describe('query anonymousFeed', () => {
 `;
 
   it('should return anonymous feed with no filters ordered by popularity', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
@@ -295,6 +305,7 @@ describe('query anonymousFeed', () => {
   });
 
   it('should return anonymous feed while excluding sources', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
     const res = await client.query(QUERY, {
       variables: { ...variables, filters: { excludeSources: ['a'] } },
     });
@@ -302,9 +313,11 @@ describe('query anonymousFeed', () => {
   });
 
   it('should return feed while excluding sources based on advanced settings', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
     await saveAdvancedSettingsFiltersFixtures();
-    mockFeatures();
+
     const filters = await feedToFilters(con, '1', '1');
+    delete filters.sourceIds;
     const res = await client.query(QUERY, {
       variables: { ...variables, filters },
     });
@@ -325,8 +338,9 @@ describe('query anonymousFeed', () => {
   });
 
   it('should remove banned posts from the feed', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
     await con.getRepository(Post).update({ id: 'p5' }, { banned: true });
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
@@ -373,7 +387,7 @@ describe('query anonymousFeed', () => {
       { feedId: '1', sourceId: 'a' },
       { feedId: '1', sourceId: 'b' },
     ]);
-    mockFeatures();
+
     nock('http://localhost:6000')
       .get(
         '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&user_id=1&feed_id=global',
@@ -388,6 +402,30 @@ describe('query anonymousFeed', () => {
   });
 });
 
+describe('query anonymousFeed by time', () => {
+  const variables = {
+    ranking: Ranking.TIME,
+    first: 10,
+  };
+
+  const QUERY = `
+  query AnonymousFeed($filters: FiltersInput, $ranking: Ranking, $first: Int, $version: Int) {
+    anonymousFeed(filters: $filters, ranking: $ranking, first: $first, version: $version) {
+      ${feedFields()}
+    }
+  }
+`;
+
+  it('should return anonymous feed with no filters ordered by time', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
+    const res = await client.query(QUERY, {
+      variables: { ...variables },
+    });
+    delete res.data.anonymousFeed.pageInfo.endCursor;
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('query feed', () => {
   const variables = {
     ranking: Ranking.POPULARITY,
@@ -395,8 +433,8 @@ describe('query feed', () => {
   };
 
   const QUERY = `
-  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean) {
-    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly) {
+  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
+    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
       ${feedFields()}
     }
   }
@@ -408,7 +446,7 @@ describe('query feed', () => {
   it('should return feed with preconfigured filters', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
@@ -417,18 +455,19 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, FeedTag, [{ feedId: '1', tag: 'html' }]);
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return preconfigured feed with blocked tags filters only', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).delete({ id: 'p6' });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, FeedTag, [
       { feedId: '1', tag: 'html', blocked: true },
     ]);
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
@@ -440,41 +479,45 @@ describe('query feed', () => {
       { feedId: '1', tag: 'javascript' },
       { feedId: '1', tag: 'webdev', blocked: true },
     ]);
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return preconfigured feed with sources filters only', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).delete({ id: 'p6' });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, FeedSource, [{ feedId: '1', sourceId: 'a' }]);
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return preconfigured feed with sources filtered based on advanced settings', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).delete({ id: 'p6' });
     await saveAdvancedSettingsFiltersFixtures();
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return preconfigured feed with no filters', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).delete({ id: 'p6' });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
-    mockFeatures();
+
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return unread posts from preconfigured feed', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).delete({ id: 'p6' });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await con.getRepository(View).save([{ userId: '1', postId: 'p1' }]);
-    mockFeatures();
+
     const res = await client.query(QUERY, {
       variables: { ...variables, unreadOnly: true },
     });
@@ -485,7 +528,7 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFeedFixtures();
     await con.getRepository(Post).update({ id: 'p4' }, { banned: true });
-    mockFeatures();
+
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
@@ -494,7 +537,7 @@ describe('query feed', () => {
     loggedUser = '1';
     await saveFeedFixtures();
     await con.getRepository(Post).update({ id: 'p4' }, { deleted: true });
-    mockFeatures();
+
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
@@ -512,7 +555,7 @@ describe('query feed', () => {
       { feedId: '1', sourceId: 'a' },
       { feedId: '1', sourceId: 'b' },
     ]);
-    mockFeatures();
+
     nock('http://localhost:6000')
       .get(
         '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&user_id=1&feed_id=1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
@@ -522,6 +565,30 @@ describe('query feed', () => {
       });
     const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return only article posts by default', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con
+      .getRepository(Post)
+      .update({ id: 'p4' }, { type: PostType.Share });
+
+    const res = await client.query(QUERY);
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should respect the supportedTypes argument', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await con
+      .getRepository(Post)
+      .update({ id: 'p4' }, { type: PostType.Share });
+
+    const res = await client.query(QUERY, {
+      variables: { supportedTypes: ['article', 'share'] },
     });
     expect(res.data).toMatchSnapshot();
   });
@@ -544,8 +611,41 @@ describe('query sourceFeed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should not display a banned post', async () => {
+  it('should display a banned post in source feed', async () => {
     await con.getRepository(Post).update({ id: 'p5' }, { banned: true });
+    const res = await client.query(QUERY('b'));
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should not display a banned post for community source', async () => {
+    await con
+      .getRepository(Post)
+      .update({ id: 'p6' }, { sourceId: 'community' });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p5' }, { banned: true, sourceId: 'community' });
+    const res = await client.query(QUERY('community'));
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should throw an error when accessing private source', async () => {
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(client, { query: QUERY('a') }, 'FORBIDDEN');
+  });
+
+  it('should return a private source feed when user is a member', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'b' }, { private: true });
+    await con.getRepository(User).save(usersFixture[0]);
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'b',
+        role: SourceMemberRoles.Owner,
+        referralToken: randomUUID(),
+        createdAt: new Date(2022, 11, 19),
+      },
+    ]);
     const res = await client.query(QUERY('b'));
     expect(res.data).toMatchSnapshot();
   });
@@ -968,11 +1068,7 @@ describe('query advancedSettings', () => {
       }
     }`;
 
-    await saveFeedFixtures();
-    mockFeatures();
-
     const res = await client.query(QUERY);
-
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -1236,6 +1332,7 @@ describe('mutation removeFiltersFromFeed', () => {
 describe('compatibility routes', () => {
   describe('GET /posts/latest', () => {
     it('should return anonymous feed with no filters ordered by popularity', async () => {
+      await con.getRepository(Post).delete({ id: 'p6' });
       const res = await request(app.server)
         .get('/v1/posts/latest')
         .query({ latest: new Date(), pageSize: 2, page: 0 })
@@ -1278,7 +1375,7 @@ describe('compatibility routes', () => {
     it('should return preconfigured feed when logged-in', async () => {
       await saveFeedFixtures();
       loggedUser = '1';
-      mockFeatures();
+
       const res = await authorizeRequest(
         request(app.server)
           .get('/v1/posts/latest')
@@ -1392,11 +1489,23 @@ describe('function feedToFilters', () => {
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 
-  it('shoud return filters for sources with consideration of features flags', async () => {
+  it('should return filters with source memberships', async () => {
     loggedUser = '1';
-    process.env.ENABLE_SETTINGS_EXPERIMENT = 'true';
-    await saveAdvancedSettingsFiltersFixtures();
-    mockFeatures();
+    await saveFixtures(con, User, [usersFixture[0]]);
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt',
+      },
+      {
+        userId: '1',
+        sourceId: 'b',
+        role: SourceMemberRoles.Owner,
+        referralToken: 'rt2',
+      },
+    ]);
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 });

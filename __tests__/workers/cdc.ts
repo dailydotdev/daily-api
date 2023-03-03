@@ -12,9 +12,7 @@ import {
   notifyCommentCommented,
   notifyPostCommented,
   notifyCommentUpvoteCanceled,
-  notifyPostAuthorMatched,
   notifySendAnalyticsReport,
-  notifyPostReachedViewsThreshold,
   notifyPostBannedOrRemoved,
   notifyPostReport,
   notifyAlertsUpdated,
@@ -24,12 +22,15 @@ import {
   notifySubmissionRejected,
   notifySubmissionCreated,
   notifySubmissionGrantedAccess,
-  sendEmail,
-  baseNotificationEmailData,
-  pickImageUrl,
-  truncatePost,
-  getDiscussionLink,
   notifyUsernameChanged,
+  notifyNewNotification,
+  notifyNewCommentMention,
+  notifyPostAdded,
+  notifyMemberJoinedSource,
+  notifyUserCreated,
+  notifyUserUpdated,
+  notifyFeatureAccess,
+  notifySourcePrivacyUpdated,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -38,15 +39,20 @@ import {
   saveFixtures,
 } from '../helpers';
 import {
+  ArticlePost,
   Comment,
   CommentMention,
   CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
+  Feature,
+  FeatureType,
   Feed,
+  Notification,
   Post,
   Settings,
   Source,
   SourceFeed,
+  SourceMember,
   SourceRequest,
   Submission,
   SubmissionStatus,
@@ -64,6 +70,7 @@ import { randomUUID } from 'crypto';
 import { submissionAccessThreshold } from '../../src/schema/submissions';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
+import { TypeOrmError } from '../../src/errors';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -75,9 +82,9 @@ jest.mock('../../src/common', () => ({
   notifyCommentCommented: jest.fn(),
   notifyPostCommented: jest.fn(),
   notifyUsernameChanged: jest.fn(),
-  notifyPostAuthorMatched: jest.fn(),
+  notifyPostAdded: jest.fn(),
+  notifyMemberJoinedSource: jest.fn(),
   notifySendAnalyticsReport: jest.fn(),
-  notifyPostReachedViewsThreshold: jest.fn(),
   notifyPostBannedOrRemoved: jest.fn(),
   notifyPostReport: jest.fn(),
   notifyAlertsUpdated: jest.fn(),
@@ -87,7 +94,13 @@ jest.mock('../../src/common', () => ({
   notifySubmissionRejected: jest.fn(),
   notifySubmissionCreated: jest.fn(),
   notifySubmissionGrantedAccess: jest.fn(),
+  notifyNewCommentMention: jest.fn(),
+  notifyNewNotification: jest.fn(),
+  notifyUserCreated: jest.fn(),
+  notifyUserUpdated: jest.fn(),
+  notifyFeatureAccess: jest.fn(),
   sendEmail: jest.fn(),
+  notifySourcePrivacyUpdated: jest.fn(),
 }));
 
 let con: DataSource;
@@ -114,31 +127,7 @@ const defaultUser: ChangeObject<User> = {
   username: 'idoshamun',
   infoConfirmed: true,
   acceptedMarketing: true,
-};
-const saveMentionCommentFixtures = async (base: ChangeObject<User>) => {
-  const usersFixture = [
-    base,
-    { id: '2', name: 'Tsahi', image: 'https://daily.dev/tsahi.jpg' },
-    { id: '3', name: 'Nimrod', image: 'https://daily.dev/nimrod.jpg' },
-    { id: '4', name: 'Lee', image: 'https://daily.dev/lee.jpg' },
-    { id: '5', name: 'Hansel', image: 'https://daily.dev/Hansel.jpg' },
-    { id: '6', name: 'Samson', image: 'https://daily.dev/samson.jpg' },
-    { id: '7', name: 'Solevilla', image: 'https://daily.dev/solevilla.jpg' },
-  ];
-  await saveFixtures(con, User, usersFixture);
-  await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
-  await con.getRepository(Comment).save({
-    id: 'c1',
-    postId: 'p1',
-    userId: '2',
-    content: `parent comment @${base.username}`,
-    contentHtml: `<p>parent comment <a>${base.username}</a></p>`,
-    createdAt: new Date(2020, 1, 6, 0, 0),
-  });
-  await con
-    .getRepository(CommentMention)
-    .save({ commentId: 'c1', commentByUserId: '2', mentionedUserId: base.id });
+  notificationEmail: true,
 };
 
 describe('source request', () => {
@@ -395,6 +384,42 @@ describe('user', () => {
   type ObjectType = User;
   const base: ChangeObject<ObjectType> = { ...defaultUser };
 
+  it('should notify on user created', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        table: 'user',
+        op: 'c',
+      }),
+    );
+    expect(notifyUserCreated).toBeCalledTimes(1);
+    expect(jest.mocked(notifyUserCreated).mock.calls[0].slice(1)).toEqual([
+      base,
+    ]);
+  });
+
+  it('should notify on user updated', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      username: 'newidoshamun',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        table: 'user',
+        op: 'u',
+      }),
+    );
+    expect(notifyUserUpdated).toBeCalledTimes(1);
+    expect(jest.mocked(notifyUserUpdated).mock.calls[0].slice(1)).toEqual([
+      base,
+      after,
+    ]);
+  });
+
   it('should notify on username change', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
@@ -455,7 +480,7 @@ describe('user', () => {
     } catch (ex) {
       const state = await con.getRepository(UserState).find();
       expect(state.length).toEqual(0);
-      expect(ex.code).not.toEqual('23505');
+      expect(ex.code).not.toEqual(TypeOrmError.DUPLICATE_ENTRY);
     }
   });
 
@@ -510,11 +535,7 @@ describe('comment mention', () => {
     commentByUserId: '2',
   };
 
-  beforeEach(async () => {
-    await saveMentionCommentFixtures(defaultUser);
-  });
-
-  it('should send email for the mentioned user', async () => {
+  it('should notify on new comment mention', async () => {
     const after: ChangeObject<ObjectType> = base;
     await expectSuccessfulBackground(
       worker,
@@ -525,37 +546,15 @@ describe('comment mention', () => {
         table: 'comment_mention',
       }),
     );
-    const comment = await con
-      .getRepository(Comment)
-      .findOneBy({ id: base.commentId });
-    const post = await comment.post;
-    const commenter = await comment.user;
-    const mentioned = await con
-      .getRepository(User)
-      .findOneBy({ id: base.mentionedUserId });
-    const [first_name] = mentioned.name.split(' ');
-    const params = {
-      ...baseNotificationEmailData,
-      to: mentioned.email,
-      templateId: 'd-6949e2e50def4c6698900032973d469b',
-      dynamicTemplateData: {
-        first_name,
-        full_name: commenter.name,
-        comment: comment.content,
-        user_handle: mentioned.username,
-        commenter_profile_image: commenter.image,
-        post_title: truncatePost(post),
-        post_image: post.image || pickImageUrl(post),
-        post_link: getDiscussionLink(post.id),
-      },
-    };
-    expect(sendEmail).toBeCalledTimes(1);
-    expect(sendEmail).toBeCalledWith(params);
+    expect(notifyNewCommentMention).toBeCalledTimes(1);
+    expect(jest.mocked(notifyNewCommentMention).mock.calls[0].slice(1)).toEqual(
+      [after],
+    );
   });
 });
 
 describe('post', () => {
-  type ObjectType = Partial<Post>;
+  type ObjectType = Partial<ArticlePost>;
   const base: ChangeObject<ObjectType> = {
     id: 'p1',
     shortId: 'sp1',
@@ -567,24 +566,18 @@ describe('post', () => {
     tagsStr: 'javascript,webdev',
   };
 
-  it('should notify on author matched', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      authorId: 'u1',
-    };
+  it('should notify on new post', async () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
-        after,
+        after: base,
         before: null,
         op: 'c',
         table: 'post',
       }),
     );
-    expect(notifyPostAuthorMatched).toBeCalledTimes(1);
-    expect(jest.mocked(notifyPostAuthorMatched).mock.calls[0].slice(1)).toEqual(
-      ['p1', 'u1'],
-    );
+    expect(notifyPostAdded).toBeCalledTimes(1);
+    expect(jest.mocked(notifyPostAdded).mock.calls[0].slice(1)).toEqual([base]);
   });
 
   it('should notify on send analytics report', async () => {
@@ -605,26 +598,6 @@ describe('post', () => {
     expect(
       jest.mocked(notifySendAnalyticsReport).mock.calls[0].slice(1),
     ).toEqual(['p1']);
-  });
-
-  it('should notify on views threshold reached', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      viewsThreshold: 1,
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: base,
-        op: 'u',
-        table: 'post',
-      }),
-    );
-    expect(notifyPostReachedViewsThreshold).toBeCalledTimes(1);
-    expect(
-      jest.mocked(notifyPostReachedViewsThreshold).mock.calls[0].slice(1),
-    ).toEqual(['p1', 250]);
   });
 
   it('should notify on post banned', async () => {
@@ -690,10 +663,10 @@ describe('post', () => {
 
   it('should update post metadata changed at', async () => {
     await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, Post, postsFixture);
+    await saveFixtures(con, ArticlePost, postsFixture);
     const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    const localBase: ChangeObject<Post> = {
-      ...oldPost,
+    const localBase: ChangeObject<ArticlePost> = {
+      ...(oldPost as ArticlePost),
       createdAt: 0,
       metadataChangedAt: 0,
       publishedAt: 0,
@@ -731,7 +704,7 @@ describe('post report', () => {
 
   beforeEach(async () => {
     await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, Post, postsFixture);
+    await saveFixtures(con, ArticlePost, postsFixture);
   });
 
   it('should notify on new post report', async () => {
@@ -766,6 +739,8 @@ describe('alerts', () => {
     rankLastSeen: rankLastSeen.getTime(),
     myFeed: 'created',
     companionHelper: true,
+    lastChangelog: null,
+    squadTour: true,
   };
 
   it('should notify on alert.filter changed', async () => {
@@ -1123,6 +1098,113 @@ describe('submission', () => {
     expect(notifySubmissionRejected).toBeCalledTimes(1);
     expect(
       jest.mocked(notifySubmissionRejected).mock.calls[0].slice(1),
+    ).toEqual([after]);
+  });
+});
+
+describe('notification', () => {
+  type ObjectType = Notification;
+  const id = randomUUID();
+  const base: ChangeObject<ObjectType> = {
+    id,
+    userId: '1',
+    type: 'community_picks_granted',
+    title: 'hello',
+    targetUrl: 'target',
+    icon: 'icon',
+    public: true,
+    createdAt: Date.now(),
+  };
+
+  it('should notify new notification', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'notification',
+      }),
+    );
+    expect(notifyNewNotification).toBeCalledTimes(1);
+    expect(jest.mocked(notifyNewNotification).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
+  });
+});
+
+describe('source member', () => {
+  type ObjectType = Partial<SourceMember>;
+  const base: ChangeObject<ObjectType> = {
+    userId: '1',
+    sourceId: 'a',
+    referralToken: 'rt',
+  };
+
+  it('should notify on new source member', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'source_member',
+      }),
+    );
+    expect(notifyMemberJoinedSource).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifyMemberJoinedSource).mock.calls[0].slice(1),
+    ).toEqual([base]);
+  });
+});
+
+describe('feature', () => {
+  type ObjectType = Partial<Feature>;
+  const base: ChangeObject<ObjectType> = {
+    feature: FeatureType.Squad,
+    userId: '1',
+    createdAt: Date.now(),
+  };
+
+  it('should notify on new feature', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: null,
+        op: 'c',
+        table: 'feature',
+      }),
+    );
+    expect(notifyFeatureAccess).toBeCalledTimes(1);
+    expect(jest.mocked(notifyFeatureAccess).mock.calls[0].slice(1)).toEqual([
+      base,
+    ]);
+  });
+});
+
+describe('source', () => {
+  type ObjectType = Partial<Source>;
+  const base: ChangeObject<ObjectType> = {
+    id: 'a',
+    private: true,
+  };
+
+  it('should notify on source privacy change', async () => {
+    const after = { ...base, private: false };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'source',
+      }),
+    );
+    expect(notifySourcePrivacyUpdated).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifySourcePrivacyUpdated).mock.calls[0].slice(1),
     ).toEqual([after]);
   });
 });

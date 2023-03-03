@@ -1,5 +1,5 @@
 import { Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { Post } from './Post';
+import { Post } from './posts';
 
 @Entity()
 export class HiddenPost {

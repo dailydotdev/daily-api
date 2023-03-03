@@ -1,7 +1,7 @@
 import worker from '../../src/workers/newView';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { postsFixture } from '../fixture/post';
-import { Post, Source, View } from '../../src/entity';
+import { ArticlePost, Source, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -14,7 +14,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
 });
 
 it('should save a new view without timestamp', async () => {

@@ -16,8 +16,12 @@ import {
   Comment,
   User,
   CommentUpvote,
+  ArticlePost,
+  SourceMember,
+  SourceMemberRoles,
+  SourceType,
 } from '../src/entity';
-import { sourcesFixture } from './fixture/source';
+import { createSource, sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { getMentionLink } from '../src/common/markdown';
 import { saveComment, updateMentions } from '../src/schema/comments';
@@ -52,7 +56,7 @@ beforeEach(async () => {
   jest.resetAllMocks();
 
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await con.getRepository(User).save(usersFixture);
   await con.getRepository(Comment).save([
@@ -141,6 +145,42 @@ const saveCommentMentionFixtures = async (sampleAuthor = usersFixture[0]) => {
   );
 };
 
+const saveSquadFixture = async (sourceId: string) => {
+  await con.getRepository(User).save([
+    {
+      id: 'sample1',
+      name: 'sample1',
+      username: 'sample1',
+      image: 'sample1/image',
+    },
+    {
+      id: 'sample2',
+      name: 'sample2',
+      username: 'sample2',
+      image: 'sample2/image',
+    },
+  ]);
+  await con
+    .getRepository(Source)
+    .save(createSource(sourceId, 'A', 'http://a.com', SourceType.Squad, true));
+  await con.getRepository(SourceMember).save([
+    {
+      userId: '1',
+      sourceId,
+      role: SourceMemberRoles.Owner,
+      referralToken: 'rt1',
+      createdAt: new Date(2022, 11, 19),
+    },
+    {
+      userId: 'sample1',
+      sourceId,
+      role: SourceMemberRoles.Member,
+      referralToken: 'rt2',
+      createdAt: new Date(2022, 11, 19),
+    },
+  ]);
+};
+
 const commentFields =
   'id, content, contentHtml, createdAt, permalink, upvoted, author { id, name, image }';
 
@@ -164,6 +204,19 @@ describe('query postComments', () => {
       { commentId: 'c7', userId: '1' },
       { commentId: 'c2', userId: '2' },
     ]);
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { postId: 'p1' },
+      },
+      'FORBIDDEN',
+    );
   });
 
   it('should fetch comments and sub-comments of a post', async () => {
@@ -216,6 +269,19 @@ describe('query commentUpvotes', () => {
   }
   `;
 
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: 'c1' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should return users that upvoted the comment by id in descending order', async () => {
     const commentUpvoteRepo = con.getRepository(CommentUpvote);
     const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
@@ -244,8 +310,8 @@ describe('query commentUpvotes', () => {
 
 describe('query commentPreview', () => {
   const QUERY = `
-    query CommentPreview($content: String!) {
-      commentPreview(content: $content)
+    query CommentPreview($content: String!, $sourceId: String) {
+      commentPreview(content: $content, sourceId: $sourceId)
     }
   `;
 
@@ -267,6 +333,20 @@ describe('query commentPreview', () => {
     const mention = '@Lee';
     const withMention = await client.query(QUERY, {
       variables: { content: mention },
+    });
+    expect(withMention.errors).toBeFalsy();
+    expect(withMention.data.commentPreview).toMatchSnapshot();
+  });
+
+  it('should return markdown with user mentioned inside squad', async () => {
+    loggedUser = '1';
+    const sourceId = 'a';
+    await saveSquadFixture(sourceId);
+    await saveCommentMentionFixtures();
+
+    const mention = '@sample1 @sample2';
+    const withMention = await client.query(QUERY, {
+      variables: { content: mention, sourceId },
     });
     expect(withMention.errors).toBeFalsy();
     expect(withMention.data.commentPreview).toMatchSnapshot();
@@ -356,8 +436,8 @@ describe('query commentPreview', () => {
 
 describe('query recommendedMentions', () => {
   const QUERY = `
-    query RecommendedMentions($postId: String!, $query: String, $limit: Int) {
-      recommendedMentions(postId: $postId, query: $query, limit: $limit) {
+    query RecommendedMentions($postId: String!, $query: String, $limit: Int, $sourceId: String) {
+      recommendedMentions(postId: $postId, query: $query, limit: $limit, sourceId: $sourceId) {
         name
         username
         image
@@ -402,6 +482,20 @@ describe('query recommendedMentions', () => {
     expect(res.data.recommendedMentions.length).toEqual(3);
     expect(res.data.recommendedMentions[0]).not.toEqual('sample');
   });
+
+  it('should return users but must be filtered to which source feed the commenter is at', async () => {
+    loggedUser = '1';
+    const sourceId = 'a';
+    await saveSquadFixture(sourceId);
+    await saveCommentMentionFixtures();
+
+    const res = await client.query(QUERY, {
+      variables: { postId: 'p1', query: 's', sourceId },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.recommendedMentions.length).toEqual(1);
+    expect(res.data.recommendedMentions[0]).not.toEqual('sample2');
+  });
 });
 
 describe('function updateMentions', () => {
@@ -433,6 +527,19 @@ describe('mutation commentOnPost', () => {
     id, content
   }
 }`;
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { postId: 'p1', content: 'comment' },
+      },
+      'FORBIDDEN',
+    );
+  });
 
   it('should not allow comment if content is empty string', () => {
     loggedUser = '1';
@@ -521,6 +628,37 @@ describe('mutation commentOnPost', () => {
     expect(actual[0]).toMatchSnapshot({
       id: expect.any(String),
       contentHtml: `<p>${getMentionLink({ id: '4', username: 'lee' })}</p>\n`,
+    });
+    expect(res.data.commentOnPost.id).toEqual(actual[0].id);
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post.comments).toEqual(1);
+  });
+
+  it('should comment markdown on a post with user mention inside the squad only', async () => {
+    loggedUser = '1';
+    const sourceId = 'a';
+    await saveSquadFixture('a');
+    await saveCommentMentionFixtures();
+    await con
+      .getRepository(Source)
+      .update({ id: sourceId }, { type: SourceType.Squad });
+    const res = await client.mutate(MUTATION, {
+      variables: { postId: 'p1', content: '@sample1 @sample2' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Comment).find({
+      select: ['id', 'content', 'contentHtml', 'parentId'],
+      order: { createdAt: 'DESC' },
+      where: { postId: 'p1' },
+    });
+    expect(actual.length).toEqual(6);
+    const mention = getMentionLink({
+      id: 'sample1',
+      username: 'sample1',
+    });
+    expect(actual[0]).toMatchSnapshot({
+      id: expect.any(String),
+      contentHtml: `<p>${mention} @sample2</p>\n`,
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -624,6 +762,22 @@ describe('mutation commentOnComment', () => {
         variables: {
           commentId: 'c2',
           content: '# my comment http://daily.dev',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          content: '# my comment http://daily.dev',
+          commentId: 'c1',
         },
       },
       'FORBIDDEN',
@@ -755,6 +909,19 @@ describe('mutation upvoteComment', () => {
         variables: { id: 'c1' },
       },
       'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'c1' },
+      },
+      'FORBIDDEN',
     );
   });
 

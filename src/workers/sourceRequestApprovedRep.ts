@@ -1,8 +1,4 @@
-import {
-  ReputationEvent,
-  ReputationReason,
-  ReputationType,
-} from '../entity/ReputationEvent';
+import { ReputationEvent, ReputationReason, ReputationType } from '../entity';
 import { messageToJson, Worker } from './worker';
 import { SourceRequest } from '../entity';
 import { NotificationReason } from '../common';
@@ -18,7 +14,7 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     const { reason, sourceRequest }: Data = messageToJson(message);
 
-    if (reason !== NotificationReason.Approve) {
+    if (reason !== NotificationReason.Publish) {
       return;
     }
 

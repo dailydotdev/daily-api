@@ -22,6 +22,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         timezone
         reputation
         acceptedMarketing
+        notificationEmail
       }
     }`;
 

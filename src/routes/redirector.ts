@@ -1,6 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import isbot from 'isbot';
-import { Post } from '../entity';
+import { ArticlePost } from '../entity';
 import { notifyView } from '../common';
 import createOrGetConnection from '../db';
 
@@ -9,17 +8,18 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     '/:postId',
     async (req, res) => {
       const con = await createOrGetConnection();
-      const post = await con.getRepository(Post).findOne({
+      const post = await con.getRepository(ArticlePost).findOne({
         select: ['id', 'url', 'tagsStr'],
         where: [{ id: req.params.postId }, { shortId: req.params.postId }],
       });
       if (!post) {
         return res.status(404).send();
       }
-      if (!req.headers['user-agent'] || isbot(req.headers['user-agent'])) {
-        return res.status(302).redirect(post.url);
+      const encodedUri = encodeURI(post.url);
+      if (req.isBot) {
+        return res.status(302).redirect(encodedUri);
       }
-      const userId = req.userId || req.cookies.da2;
+      const userId = req.userId || req.trackingId;
       if (userId) {
         notifyView(
           req.log,
@@ -33,11 +33,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return res
         .headers({
           'Referrer-Policy': 'origin, origin-when-cross-origin',
-          Link: `<${post.url}>; rel="preconnect"`,
+          Link: `<${encodedUri}>; rel="preconnect"`,
         })
         .type('text/html')
         .send(
-          `<html><head><meta http-equiv="refresh" content="0;URL=${post.url}${
+          `<html><head><meta http-equiv="refresh" content="0;URL=${encodedUri}${
             req.query.a ? `#${req.query.a}` : ''
           }"></head></html>`,
         );

@@ -1,5 +1,5 @@
 import { Submission, SubmissionStatus } from '../src/entity/Submission';
-import { Post, Source, User } from '../src/entity';
+import { ArticlePost, Source, User } from '../src/entity';
 import {
   disposeGraphQLTesting,
   GraphQLTestClient,
@@ -206,7 +206,7 @@ describe('mutation submitArticle', () => {
     loggedUser = '1';
     const request = 'http://p1.com';
     await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, Post, [
+    await saveFixtures(con, ArticlePost, [
       {
         id: 'p1',
         shortId: 'sp1',
@@ -238,7 +238,7 @@ describe('mutation submitArticle', () => {
     loggedUser = '1';
     const request = 'http://p8.com';
     await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, Post, [
+    await saveFixtures(con, ArticlePost, [
       {
         id: 'pdeleted',
         shortId: 'spdeleted',

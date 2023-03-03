@@ -1,4 +1,3 @@
-import { fetchUserFeatures } from '../common';
 import { FeedAdvancedSettings, AdvancedSettings } from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
@@ -16,7 +15,6 @@ import {
   feedToFilters,
   fixedIdsFeedBuilder,
   getCursorFromAfter,
-  getFeatureAdvancedSettings,
   randomPostsResolver,
   Ranking,
   sourceFeedBuilder,
@@ -32,7 +30,7 @@ import {
   Post,
   Source,
 } from '../entity';
-import { GQLSource } from './sources';
+import { ensureSourcePermissions, GQLSource } from './sources';
 import {
   fixedIdsPageGenerator,
   offsetPageGenerator,
@@ -178,6 +176,11 @@ export const typeDefs = /* GraphQL */ `
       Version of the feed algorithm
       """
       version: Int = 1
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -213,6 +216,11 @@ export const typeDefs = /* GraphQL */ `
       Version of the feed algorithm
       """
       version: Int = 1
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection! @auth
 
     """
@@ -243,6 +251,11 @@ export const typeDefs = /* GraphQL */ `
       Ranking criteria for the feed
       """
       ranking: Ranking = POPULARITY
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -273,6 +286,11 @@ export const typeDefs = /* GraphQL */ `
       Ranking criteria for the feed
       """
       ranking: Ranking = POPULARITY
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -298,6 +316,11 @@ export const typeDefs = /* GraphQL */ `
       Ranking criteria for the feed
       """
       ranking: Ranking = POPULARITY
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -338,6 +361,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -368,6 +396,11 @@ export const typeDefs = /* GraphQL */ `
       Ranking criteria for the feed
       """
       ranking: Ranking = POPULARITY
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -388,6 +421,11 @@ export const typeDefs = /* GraphQL */ `
       Number of days since publication
       """
       period: Int
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -403,6 +441,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
     ): PostConnection!
 
     """
@@ -675,7 +718,11 @@ const searchResolver = feedResolver(
       .orderBy('views', 'DESC'),
   offsetPageGenerator(30, 50),
   (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
-  { removeHiddenPosts: true, removeBannedPosts: false },
+  {
+    removeHiddenPosts: true,
+    removeBannedPosts: false,
+    allowPrivateSources: false,
+  },
 );
 
 const anonymousFeedResolverV1: IFieldResolver<
@@ -777,13 +824,23 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         sourceFeedBuilder(ctx, source, builder, alias),
       feedPageGenerator,
       applyFeedPaging,
-      { removeHiddenPosts: true, removeBannedPosts: false },
+      {
+        removeHiddenPosts: true,
+        removeBannedPosts: false,
+        fetchQueryParams: async (
+          ctx,
+          { source: sourceId }: SourceFeedArgs,
+        ): Promise<void> => {
+          await ensureSourcePermissions(ctx, sourceId);
+        },
+      },
     ),
     tagFeed: feedResolver(
       (ctx, { tag }: TagFeedArgs, builder, alias) =>
         tagFeedBuilder(ctx, tag, builder, alias),
       feedPageGenerator,
       applyFeedPaging,
+      { allowPrivateSources: false },
     ),
     keywordFeed: feedResolver(
       (ctx, { keyword }: KeywordFeedArgs, builder, alias) =>
@@ -792,6 +849,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         ),
       feedPageGenerator,
       applyFeedPaging,
+      { allowPrivateSources: false },
     ),
     feedSettings: (source, args, ctx, info): Promise<GQLFeedSettings> =>
       getFeedSettings(ctx, info),
@@ -805,9 +863,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           WITH search AS (${getSearchQuery('$1')})
           select ts_headline(process_text(title), search.query,
                              'StartSel = <strong>, StopSel = </strong>') as title
-          from post,
-               search
-          where tsv @@ search.query
+          from post
+                 inner join search on true
+                 inner join source on source.id = post."sourceId"
+          where tsv @@ search.query and source.private = false
           order by views desc
             limit 5;
         `,
@@ -866,7 +925,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           .groupBy(`${alias}.id`),
       feedPageGenerator,
       applyFeedPaging,
-      { removeHiddenPosts: false, removeBannedPosts: false },
+      {
+        removeHiddenPosts: false,
+        removeBannedPosts: false,
+        allowPrivateSources: false,
+      },
     ),
     mostUpvotedFeed: feedResolver(
       (
@@ -886,7 +949,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       offsetPageGenerator(30, 50, 100),
       (ctx, args, { limit, offset }, builder) =>
         builder.limit(limit).offset(offset),
-      { removeHiddenPosts: true },
+      { removeHiddenPosts: true, removeBannedPosts: false },
     ),
     mostDiscussedFeed: feedResolver(
       (ctx, args, builder, alias) =>
@@ -897,7 +960,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       offsetPageGenerator(30, 50, 100),
       (ctx, args, { limit, offset }, builder) =>
         builder.limit(limit).offset(offset),
-      { removeHiddenPosts: true },
+      { removeHiddenPosts: true, allowPrivateSources: false },
     ),
     randomTrendingPosts: randomPostsResolver(
       (
@@ -1012,12 +1075,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     tagsCategories: (_, __, ctx): Promise<GQLTagsCategory[]> =>
       ctx.getRepository(Category).find({ order: { title: 'ASC' } }),
     advancedSettings: async (_, __, ctx): Promise<GQLAdvancedSettings[]> => {
-      const [features, advancedSettings] = await Promise.all([
-        fetchUserFeatures(ctx.userId || ctx.trackingId),
-        ctx.getRepository(AdvancedSettings).find({ order: { title: 'ASC' } }),
-      ]);
-
-      return getFeatureAdvancedSettings(features, advancedSettings);
+      return ctx
+        .getRepository(AdvancedSettings)
+        .find({ order: { title: 'ASC' } });
     },
   },
   Mutation: {

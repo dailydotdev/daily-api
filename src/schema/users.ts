@@ -1,16 +1,14 @@
-import { validateRegex, ValidateRegex } from './../common/object';
+import {
+  handleRegex,
+  nameRegex,
+  validateRegex,
+  ValidateRegex,
+} from './../common/object';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
-import {
-  Post,
-  DevCard,
-  User,
-  Comment,
-  getAuthorPostStats,
-  PostStats,
-  View,
-} from '../entity';
+import { Post, DevCard, User, Comment, PostStats, View } from '../entity';
+import { getAuthorPostStats } from '../entity/posts';
 import {
   AuthenticationError,
   ValidationError,
@@ -48,6 +46,7 @@ export interface GQLUpdateUserInput {
   hashnode?: string;
   portfolio?: string;
   acceptedMarketing?: boolean;
+  notificationEmail?: boolean;
   infoConfirmed?: boolean;
 }
 
@@ -69,6 +68,7 @@ export interface GQLUser {
   hashnode?: string;
   portfolio?: string;
   reputation?: number;
+  notificationEmail?: boolean;
   timezone?: string;
 }
 
@@ -80,7 +80,7 @@ export interface GQLView {
 
 type CommentStats = { numComments: number; numCommentUpvotes: number };
 
-export type GQLUserStats = PostStats & CommentStats;
+export type GQLUserStats = Omit<PostStats, 'numPostComments'> & CommentStats;
 
 export interface GQLReadingRank {
   rankThisWeek?: number;
@@ -187,6 +187,10 @@ export const typeDefs = /* GraphQL */ `
     If the user has accepted marketing
     """
     acceptedMarketing: Boolean
+    """
+    If the user should receive email for notifications
+    """
+    notificationEmail: Boolean
   }
 
   """
@@ -245,6 +249,10 @@ export const typeDefs = /* GraphQL */ `
     If the user has accepted marketing
     """
     acceptedMarketing: Boolean
+    """
+    If the user should receive email for notifications
+    """
+    notificationEmail: Boolean
     """
     If the user's info is confirmed
     """
@@ -386,6 +394,11 @@ export const typeDefs = /* GraphQL */ `
     """
     readHistory(
       """
+      If true it only return public posts
+      """
+      isPublic: Boolean
+
+      """
       Paginate after opaque cursor
       """
       after: String
@@ -452,7 +465,7 @@ interface ReadingHistyoryArgs {
 }
 
 const readHistoryResolver = async (
-  args: ConnectionArguments & { query?: string },
+  args: ConnectionArguments & { query?: string; isPublic?: boolean },
   ctx: Context,
   info,
 ): Promise<Connection<GQLView>> => {
@@ -477,6 +490,9 @@ const readHistoryResolver = async (
       builder.queryBuilder.andWhere(`p.tsv @@ (${getSearchQuery(':query')})`, {
         query: args?.query,
       });
+    }
+    if (args?.isPublic) {
+      builder.queryBuilder.andWhere(`p.private = false`);
     }
 
     return builder;
@@ -676,7 +692,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<Connection<GQLView>> => readHistoryResolver(args, ctx, info),
     readHistory: async (
       _,
-      args: ConnectionArguments,
+      args: ConnectionArguments & { isPublic?: boolean },
       ctx: Context,
       info,
     ): Promise<Connection<GQLView>> => readHistoryResolver(args, ctx, info),
@@ -752,16 +768,14 @@ export const resolvers: IResolvers<any, Context> = {
       });
 
       const regexParams: ValidateRegex[] = [
-        ['name', data.name, new RegExp(/^(.*){1,60}$/)],
-        ['username', data.username, new RegExp(/^@?(\w){1,39}$/)],
-        ['github', data.github, new RegExp(/^@?([\w-]){1,39}$/i)],
+        ['name', data.name, nameRegex, !user.name],
+        ['username', data.username, handleRegex, !user.username],
+        ['github', data.github, handleRegex],
         ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
-        ['hashnode', data.hashnode, new RegExp(/^@?([\w-]){1,39}$/i)],
+        ['hashnode', data.hashnode, handleRegex],
       ];
-      const regexResult = validateRegex(regexParams);
-      if (Object.keys(regexResult).length) {
-        throw new ValidationError(JSON.stringify(regexResult));
-      }
+
+      validateRegex(regexParams);
 
       const avatar =
         upload && process.env.CLOUDINARY_URL
@@ -783,7 +797,7 @@ export const resolvers: IResolvers<any, Context> = {
         if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
           if (err.message.indexOf('users_email_unique') > -1) {
             throw new ValidationError(
-              JSON.stringify({ email: 'email already used' }),
+              JSON.stringify({ email: 'email is already used' }),
             );
           }
           if (err.message.indexOf('users_username_unique') > -1) {

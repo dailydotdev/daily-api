@@ -13,23 +13,35 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import {
+  ArticlePost,
   Bookmark,
   BookmarkList,
   Comment,
   HiddenPost,
   Post,
+  PostReport,
   PostTag,
+  PostType,
+  SharePost,
   Source,
+  SourceMember,
+  SourceMemberRoles,
+  SquadSource,
   Upvote,
   User,
   View,
-  PostReport,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
-import { DataSource } from 'typeorm';
+import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { notifyView } from '../src/common';
+
+jest.mock('../src/common', () => ({
+  ...(jest.requireActual('../src/common') as Record<string, unknown>),
+  notifyView: jest.fn(),
+}));
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -55,7 +67,7 @@ beforeEach(async () => {
   jest.resetAllMocks();
 
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await con
     .getRepository(User)
@@ -74,38 +86,34 @@ describe('image fields', () => {
   }`;
 
   it('should return default image when no image exists', async () => {
-    const repo = con.getRepository(Post);
-    await repo.save(
-      repo.create({
-        id: 'image',
-        shortId: 'image',
-        title: 'No image',
-        url: 'http://noimage.com',
-        score: 0,
-        sourceId: 'a',
-        createdAt: new Date(2020, 4, 4, 19, 35),
-      }),
-    );
+    const repo = con.getRepository(ArticlePost);
+    await repo.save({
+      id: 'image',
+      shortId: 'image',
+      title: 'No image',
+      url: 'http://noimage.com',
+      score: 0,
+      sourceId: 'a',
+      createdAt: new Date(2020, 4, 4, 19, 35),
+    });
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return post image when exists', async () => {
-    const repo = con.getRepository(Post);
-    await repo.save(
-      repo.create({
-        id: 'image',
-        shortId: 'image',
-        title: 'Image',
-        url: 'http://post.com',
-        score: 0,
-        sourceId: 'a',
-        createdAt: new Date(2020, 4, 4, 19, 35),
-        image: 'http://image.com',
-        placeholder: 'data:image/jpeg;base64,placeholder',
-        ratio: 0.5,
-      }),
-    );
+    const repo = con.getRepository(ArticlePost);
+    await repo.save({
+      id: 'image',
+      shortId: 'image',
+      title: 'Image',
+      url: 'http://post.com',
+      score: 0,
+      sourceId: 'a',
+      createdAt: new Date(2020, 4, 4, 19, 35),
+      image: 'http://image.com',
+      placeholder: 'data:image/jpeg;base64,placeholder',
+      ratio: 0.5,
+    });
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
@@ -507,10 +515,57 @@ describe('toc field', () => {
         },
         { text: 'Title 2', id: 'title-2' },
       ],
-    });
+    } as DeepPartial<ArticlePost>);
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('sharedPost field', () => {
+  const QUERY = `{
+    post(id: "ps") {
+      sharedPost {
+        id
+        title
+        createdAt
+      }
+    }
+  }`;
+
+  it('should return the share post properties', async () => {
+    await con.getRepository(SharePost).save({
+      id: 'ps',
+      shortId: 'ps',
+      sourceId: 'a',
+      title: 'Shared post',
+      sharedPostId: 'p1',
+    });
+    const res = await client.query(QUERY);
+    expect(res.data).toEqual({
+      post: {
+        sharedPost: {
+          id: 'p1',
+          title: 'P1',
+          createdAt: expect.any(String),
+        },
+      },
+    });
+  });
+});
+
+describe('type field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      type
+    }
+  }`;
+
+  it('should return the share post properties', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data).toEqual({
+      post: { type: PostType.Article },
+    });
   });
 });
 
@@ -535,7 +590,7 @@ describe('query post', () => {
     testQueryErrorCode(client, { query: QUERY('notfound') }, 'NOT_FOUND'));
 
   it('should throw not found when post was soft deleted', async () => {
-    await saveFixtures(con, Post, [
+    await saveFixtures(con, ArticlePost, [
       {
         id: 'pdeleted',
         shortId: 'spdeleted',
@@ -549,7 +604,23 @@ describe('query post', () => {
       },
     ]);
 
-    testQueryErrorCode(client, { query: QUERY('pdeleted') }, 'NOT_FOUND');
+    return testQueryErrorCode(
+      client,
+      { query: QUERY('pdeleted') },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY('p1'),
+      },
+      'FORBIDDEN',
+    );
   });
 
   it('should return post by id', async () => {
@@ -571,7 +642,7 @@ describe('query postByUrl', () => {
     testQueryErrorCode(client, { query: QUERY('notfound') }, 'NOT_FOUND'));
 
   it('should throw not found when post was soft deleted', async () => {
-    await saveFixtures(con, Post, [
+    await saveFixtures(con, ArticlePost, [
       {
         id: 'pdeleted',
         shortId: 'spdeleted',
@@ -586,7 +657,11 @@ describe('query postByUrl', () => {
       },
     ]);
 
-    testQueryErrorCode(client, { query: QUERY('http://p8.com') }, 'NOT_FOUND');
+    return testQueryErrorCode(
+      client,
+      { query: QUERY('http://p8.com') },
+      'NOT_FOUND',
+    );
   });
 
   it('should return post by canonical', async () => {
@@ -605,7 +680,7 @@ describe('query postByUrl', () => {
   });
 
   it('should return post if query params on youtube link', async () => {
-    await saveFixtures(con, Post, [
+    await saveFixtures(con, ArticlePost, [
       {
         id: 'yt1',
         shortId: 'yt1',
@@ -641,6 +716,19 @@ describe('query postUpvotes', () => {
     }
   }
   `;
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: 'p1' },
+      },
+      'FORBIDDEN',
+    );
+  });
 
   it('should return users that upvoted the post by id in descending order', async () => {
     const userRepo = con.getRepository(User);
@@ -885,6 +973,19 @@ describe('mutation reportPost', () => {
     );
   });
 
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1', reason: 'BROKEN', comment: 'Test comment' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should report post with comment', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
@@ -982,6 +1083,19 @@ describe('mutation upvote', () => {
         variables: { id: 'p1' },
       },
       'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'FORBIDDEN',
     );
   });
 
@@ -1112,5 +1226,166 @@ describe('compatibility routes', () => {
         .find({ where: { userId: '1' }, select: ['postId', 'userId'] });
       expect(actual).toMatchSnapshot();
     });
+  });
+});
+
+describe('mutation sharePost', () => {
+  const MUTATION = `
+  mutation SharePost($sourceId: ID!, $id: ID!, $commentary: String!) {
+  sharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
+    id
+  }
+}`;
+
+  const variables = {
+    sourceId: 's1',
+    id: 'p1',
+    commentary: 'My comment',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: false,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should share to squad', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
+  });
+
+  it('should throw error when sharing to non-squad', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when non-member share to squad', async () => {
+    loggedUser = '2';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when post does not exist', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, id: 'nope' } },
+      'NOT_FOUND',
+    );
+  });
+});
+
+describe('mutation viewPost', () => {
+  const MUTATION = `
+  mutation ViewPost($id: ID!) {
+  viewPost(id: $id) {
+    _
+  }
+}`;
+
+  const variables = {
+    id: 'p1',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt',
+      role: SourceMemberRoles.Member,
+    });
+    await con.getRepository(Post).update({ id: 'p1' }, { sourceId: 's1' });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw not found when post does not exist', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'nope' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '2';
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.Share });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should submit view event', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.Share });
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    expect(notifyView).toBeCalledTimes(1);
+  });
+
+  it('should should not submit view event for articles', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    expect(notifyView).toBeCalledTimes(0);
   });
 });

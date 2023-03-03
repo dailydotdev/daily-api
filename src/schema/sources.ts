@@ -1,27 +1,65 @@
-import { ForbiddenError } from 'apollo-server-errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { ConnectionArguments } from 'graphql-relay';
-import { traceResolvers } from './trace';
+import { traceResolverObject } from './trace';
 import { Context } from '../Context';
-import { Source, SourceFeed } from '../entity';
+import {
+  createSharePost,
+  generateMemberToken,
+  Source,
+  SourceFeed,
+  SourceMember,
+  SourceMemberRoles,
+  SourceType,
+  SquadSource,
+} from '../entity';
 import {
   forwardPagination,
-  PaginationResponse,
+  GQLEmptyResponse,
   offsetPageGenerator,
+  PaginationResponse,
 } from './common';
+import graphorm from '../graphorm';
+import {
+  DataSource,
+  DeepPartial,
+  EntityManager,
+  EntityNotFoundError,
+} from 'typeorm';
+import { GQLUser } from './users';
+import { Connection } from 'graphql-relay/index';
+import { createDatePageGenerator } from '../common/datePageGenerator';
+import { FileUpload } from 'graphql-upload/GraphQLUpload';
+import { randomUUID } from 'crypto';
+import { getSourceLink, uploadSquadImage } from '../common';
+import { GraphQLResolveInfo } from 'graphql';
+import { TypeOrmError } from '../errors';
+import {
+  descriptionRegex,
+  handleRegex,
+  nameRegex,
+  validateRegex,
+  ValidateRegex,
+} from '../common/object';
 
 export interface GQLSource {
   id: string;
+  type: SourceType;
   name: string;
-  image: string;
+  handle: string;
+  image?: string;
+  private: boolean;
   public: boolean;
+  members?: Connection<GQLSourceMember>;
+  currentMember?: GQLSourceMember;
 }
 
-export interface GQLAddPrivateSourceInput {
-  rss: string;
-  name: string;
-  image: string;
-  website?: string;
+export interface GQLSourceMember {
+  source: GQLSource;
+  user: GQLUser;
+  role: SourceMemberRoles;
+  createdAt: Date;
+  referralToken: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -35,12 +73,17 @@ export const typeDefs = /* GraphQL */ `
     id: ID!
 
     """
+    Source type (machine/squad)
+    """
+    type: String!
+
+    """
     Name of the source
     """
     name: String!
 
     """
-    URL to a thumbnail image of the source
+    URL to an avatar image of the source
     """
     image: String!
 
@@ -48,6 +91,41 @@ export const typeDefs = /* GraphQL */ `
     Whether the source is public
     """
     public: Boolean
+
+    """
+    Whether the source is active or not (applicable for squads)
+    """
+    active: Boolean
+
+    """
+    Source handle (applicable for squads)
+    """
+    handle: String!
+
+    """
+    Source description
+    """
+    description: String
+
+    """
+    Source members
+    """
+    members: SourceMemberConnection
+
+    """
+    URL to the source page
+    """
+    permalink: String!
+
+    """
+    Number of members in the source
+    """
+    membersCount: Int!
+
+    """
+    Logged-in member object
+    """
+    currentMember: SourceMember
   }
 
   type SourceConnection {
@@ -64,23 +142,37 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
-  input AddPrivateSourceInput {
+  type SourceMember {
     """
-    RSS feed url
+    Relevant user who is part of the source
     """
-    rss: String!
+    user: User!
     """
-    Name of the new source
+    Source the user belongs to
     """
-    name: String!
+    source: Source!
     """
-    Thumbnail image of the source logo
+    Role of this user in the source
     """
-    image: String!
+    role: String!
     """
-    Url to the landing page of the source
+    Token to be used for inviting new squad members
     """
-    website: String
+    referralToken: String!
+  }
+
+  type SourceMemberConnection {
+    pageInfo: PageInfo!
+    edges: [SourceMemberEdge!]!
+  }
+
+  type SourceMemberEdge {
+    node: SourceMember!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
   }
 
   extend type Query {
@@ -108,20 +200,237 @@ export const typeDefs = /* GraphQL */ `
     Get source by ID
     """
     source(id: ID!): Source
+
+    """
+    Get source members
+    """
+    sourceMembers(
+      """
+      Source ID
+      """
+      sourceId: ID!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourceMemberConnection!
+
+    """
+    Get the logged in user source memberships
+    """
+    mySourceMemberships(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourceMemberConnection! @auth
+
+    """
+    Get source member by referral token
+    """
+    sourceMemberByToken(token: String!): SourceMember!
+
+    """
+    Check if source handle already exists
+    """
+    sourceHandleExists(handle: String!): Boolean! @auth
   }
 
   extend type Mutation {
     """
-    Add a new private source
+    Creates a new squad
     """
-    addPrivateSource(data: AddPrivateSourceInput!): Source! @auth(premium: true)
+    createSquad(
+      """
+      Name for the squad
+      """
+      name: String!
+      """
+      Unique handle
+      """
+      handle: String!
+      """
+      Description for the squad (max 250 chars)
+      """
+      description: String
+      """
+      Avatar image for the squad
+      """
+      image: Upload
+      """
+      First post to share in the squad
+      """
+      postId: ID!
+      """
+      Commentary for the first share
+      """
+      commentary: String!
+    ): Source! @auth
+
+    """
+    Edit a squad
+    """
+    editSquad(
+      """
+      Source to edit
+      """
+      sourceId: ID!
+      """
+      Name for the squad
+      """
+      name: String!
+      """
+      Unique handle
+      """
+      handle: String!
+      """
+      Description for the squad (max 250 chars)
+      """
+      description: String
+      """
+      Avatar image for the squad
+      """
+      image: Upload
+    ): Source! @auth
+
+    """
+    Adds the logged-in user as member to the source
+    """
+    joinSource(
+      """
+      Source to join
+      """
+      sourceId: ID!
+      """
+      Referral token (required for private squads)
+      """
+      token: String
+    ): Source! @auth
+
+    """
+    Deletes a squad
+    """
+    deleteSource(
+      """
+      Source to delete
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Removes the logged-in user as a member from the source
+    """
+    leaveSource(
+      """
+      Source to leave
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
   }
 `;
 
 const sourceToGQL = (source: Source): GQLSource => ({
   ...source,
   public: !source.private,
+  members: undefined,
 });
+
+export enum SourcePermissions {
+  View,
+  Post,
+  Leave,
+  Delete,
+  Edit,
+}
+
+export const canAccessSource = async (
+  ctx: Context,
+  source: Source,
+  permission = SourcePermissions.View,
+): Promise<boolean> => {
+  if (permission === SourcePermissions.View && !source.private) {
+    return true;
+  }
+
+  if (ctx.userId) {
+    const member = await ctx.con.getRepository(SourceMember).findOneBy({
+      userId: ctx.userId,
+      sourceId: source.id,
+    });
+
+    switch (permission) {
+      case SourcePermissions.Post:
+        if (source.type !== SourceType.Squad) {
+          return false;
+        }
+        break;
+      case SourcePermissions.Leave:
+        if (
+          member.role === SourceMemberRoles.Owner ||
+          source.type !== SourceType.Squad
+        ) {
+          return false;
+        }
+        break;
+      case SourcePermissions.Edit:
+      case SourcePermissions.Delete:
+        if (member.role !== SourceMemberRoles.Owner) {
+          return false;
+        }
+        break;
+    }
+
+    if (member) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const validateSquadData = ({
+  handle,
+  name,
+  description,
+}: Pick<SquadSource, 'handle' | 'name' | 'description'>): string => {
+  handle = handle.replace('@', '').trim();
+  const regexParams: ValidateRegex[] = [
+    ['name', name, nameRegex, true],
+    ['handle', handle, handleRegex, true],
+    ['description', description, descriptionRegex, false],
+  ];
+
+  validateRegex(regexParams);
+
+  return handle;
+};
+
+export const ensureSourcePermissions = async (
+  ctx: Context,
+  sourceId: string | undefined,
+  permission = SourcePermissions.View,
+): Promise<Source> => {
+  if (sourceId) {
+    const source = await ctx.con
+      .getRepository(Source)
+      .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
+    if (await canAccessSource(ctx, source, permission)) {
+      return source;
+    }
+  }
+  throw new ForbiddenError('Access denied!');
+};
 
 const sourceByFeed = async (feed: string, ctx: Context): Promise<GQLSource> => {
   const res = await ctx.con
@@ -134,9 +443,61 @@ const sourceByFeed = async (feed: string, ctx: Context): Promise<GQLSource> => {
   return res ? sourceToGQL(res) : null;
 };
 
+const membershipsPageGenerator = createDatePageGenerator<
+  GQLSourceMember,
+  'createdAt'
+>({
+  key: 'createdAt',
+});
+
+type CreateSquadArgs = {
+  name: string;
+  handle: string;
+  description?: string;
+  image?: FileUpload;
+  postId: string;
+  commentary: string;
+};
+
+type EditSquadArgs = {
+  sourceId: string;
+  name: string;
+  handle: string;
+  description?: string;
+  image?: FileUpload;
+};
+
+const getSourceById = async (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+  id: string,
+): Promise<GQLSource> => {
+  const res = await graphorm.query<GQLSource>(ctx, info, (builder) => {
+    builder.queryBuilder = builder.queryBuilder
+      .andWhere('(id = :id or handle = :id)', { id })
+      .limit(1);
+    return builder;
+  });
+  if (!res.length) {
+    throw new EntityNotFoundError(Source, 'not found');
+  }
+  return res[0];
+};
+
+const addNewSourceMember = async (
+  con: DataSource | EntityManager,
+  member: Omit<DeepPartial<SourceMember>, 'referralToken'>,
+): Promise<void> => {
+  await con.getRepository(SourceMember).insert({
+    ...member,
+    referralToken: await generateMemberToken(),
+  });
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const resolvers: IResolvers<any, Context> = traceResolvers({
-  Query: {
+export const resolvers: IResolvers<any, Context> = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Query: traceResolverObject<any, any>({
     sources: forwardPagination(
       async (
         source,
@@ -161,63 +522,304 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { feed }: { feed: string },
       ctx,
     ): Promise<GQLSource> => sourceByFeed(feed, ctx),
-    source: async (_, { id }: { id: string }, ctx): Promise<GQLSource> => {
-      const res = await ctx.con
+    source: async (
+      _,
+      { id }: { id: string },
+      ctx,
+      info,
+    ): Promise<GQLSource> => {
+      await ensureSourcePermissions(ctx, id);
+      return getSourceById(ctx, info, id);
+    },
+    sourceHandleExists: async (_, { handle }: { handle: string }, ctx) => {
+      validateRegex([['handle', handle, handleRegex, true]]);
+
+      const source = await ctx
         .getRepository(Source)
-        .findOneByOrFail({ id, private: false });
-      return sourceToGQL(res);
+        .findOneBy({ handle: handle.toLowerCase() });
+
+      return !!source;
     },
-  },
-  Mutation: {
-    addPrivateSource: async (): Promise<GQLSource> => {
-      throw new ForbiddenError('Not available');
-      // const privateCount = await ctx
-      //   .getRepository(SourceDisplay)
-      //   .count({ userId: ctx.userId });
-      // if (privateCount >= 40) {
-      //   throw new ForbiddenError('Private sources cap reached');
-      // }
-      // let display = await sourceByFeed(data.rss, ctx);
-      // if (display) {
-      //   return display;
-      // }
-      // const feed = data.rss;
-      // const existingFeed = await ctx
-      //   .getRepository(SourceFeed)
-      //   .findOne({ select: ['sourceId'], where: { feed } });
-      // const id = existingFeed
-      //   ? existingFeed.sourceId
-      //   : uuidv4().replace(/-/g, '');
-      // display = await ctx.con.transaction(async (manager) => {
-      //   if (!existingFeed) {
-      //     await manager
-      //       .getRepository(Source)
-      //       .save({ id, website: data.website });
-      //     await manager.getRepository(SourceFeed).save({ sourceId: id, feed });
-      //   } else {
-      //     ctx.log.info({ data: { id } }, 'using existing private source');
-      //   }
-      //   const display = await manager.getRepository(SourceDisplay).save({
-      //     sourceId: id,
-      //     image: data.image,
-      //     name: data.name,
-      //     userId: ctx.userId,
-      //   });
-      //   return sourceToGQL(display);
-      // });
-      // if (!existingFeed) {
-      //   await pRetry(
-      //     () => addOrRemoveSuperfeedrSubscription(feed, id, 'subscribe'),
-      //     { retries: 2 },
-      //   ).catch((err) =>
-      //     ctx.log.error(
-      //       { err, data: { feed, id } },
-      //       'failed to add rss to superfeedr',
-      //     ),
-      //   );
-      // }
-      // ctx.log.info({ data }, 'new private source added');
-      // return display;
+    sourceMembers: async (
+      _,
+      args: ConnectionArguments & { sourceId: string },
+      ctx,
+      info,
+    ): Promise<Connection<GQLSourceMember>> => {
+      await ensureSourcePermissions(ctx, args.sourceId);
+
+      const page = membershipsPageGenerator.connArgsToPage(args);
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => membershipsPageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => membershipsPageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          membershipsPageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .andWhere(`${builder.alias}."sourceId" = :source`, {
+              source: args.sourceId,
+            })
+            .addOrderBy(`${builder.alias}."role"`, 'DESC')
+            .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+          builder.queryBuilder.limit(page.limit);
+          if (page.timestamp) {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}."createdAt" < :timestamp`,
+              { timestamp: page.timestamp },
+            );
+          }
+          return builder;
+        },
+      );
     },
+    mySourceMemberships: async (
+      _,
+      args: ConnectionArguments,
+      ctx,
+      info,
+    ): Promise<Connection<GQLSourceMember>> => {
+      const page = membershipsPageGenerator.connArgsToPage(args);
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => membershipsPageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => membershipsPageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          membershipsPageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .andWhere(`${builder.alias}."userId" = :user`, { user: ctx.userId })
+            .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+          builder.queryBuilder.limit(page.limit);
+          if (page.timestamp) {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}."createdAt" < :timestamp`,
+              { timestamp: page.timestamp },
+            );
+          }
+          return builder;
+        },
+      );
+    },
+    sourceMemberByToken: async (
+      _,
+      { token }: { token: string },
+      ctx,
+      info,
+    ): Promise<GQLSourceMember> => {
+      const res = await graphorm.query<GQLSourceMember>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder
+            .andWhere({ referralToken: token })
+            .limit(1);
+          return builder;
+        },
+      );
+      if (!res.length) {
+        throw new EntityNotFoundError(SourceMember, 'not found');
+      }
+      return res[0];
+    },
+  }),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Mutation: traceResolverObject<any, any>({
+    createSquad: async (
+      _,
+      {
+        name,
+        handle: inputHandle,
+        commentary,
+        image,
+        postId,
+        description,
+      }: CreateSquadArgs,
+      ctx,
+      info,
+    ): Promise<GQLSource> => {
+      const handle = validateSquadData({
+        handle: inputHandle,
+        name,
+        description,
+      });
+      try {
+        const sourceId = await ctx.con.transaction(async (entityManager) => {
+          const id = randomUUID();
+          const repo = entityManager.getRepository(SquadSource);
+          // Create a new source
+          await repo.insert({
+            id,
+            name,
+            handle,
+            active: false,
+            description,
+            private: true,
+          });
+          // Add the logged-in user as owner
+          await addNewSourceMember(entityManager, {
+            sourceId: id,
+            userId: ctx.userId,
+            role: SourceMemberRoles.Owner,
+          });
+          // Create the first post of the squad
+          await createSharePost(
+            entityManager,
+            id,
+            ctx.userId,
+            postId,
+            commentary,
+          );
+          // Upload the image (if provided)
+          if (image) {
+            const { createReadStream } = await image;
+            const stream = createReadStream();
+            const imageUrl = await uploadSquadImage(id, stream);
+            await repo.update({ id }, { image: imageUrl });
+          }
+          return id;
+        });
+        return getSourceById(ctx, info, sourceId);
+      } catch (err) {
+        if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
+          if (err.message.indexOf('source_handle') > -1) {
+            throw new ValidationError(
+              JSON.stringify({ handle: 'handle is already used' }),
+            );
+          }
+        }
+        throw err;
+      }
+    },
+    editSquad: async (
+      _,
+      {
+        sourceId,
+        name,
+        handle: inputHandle,
+        image,
+        description,
+      }: EditSquadArgs,
+      ctx,
+      info,
+    ): Promise<GQLSource> => {
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Edit);
+      const handle = validateSquadData({
+        handle: inputHandle,
+        name,
+        description,
+      });
+
+      try {
+        const editedSourceId = await ctx.con.transaction(
+          async (entityManager) => {
+            const repo = entityManager.getRepository(SquadSource);
+            // Update existing squad
+            await repo.update(
+              { id: sourceId },
+              {
+                name,
+                handle,
+                description,
+              },
+            );
+            // Upload the image (if provided)
+            if (image) {
+              const { createReadStream } = await image;
+              const stream = createReadStream();
+              const imageUrl = await uploadSquadImage(sourceId, stream);
+              await repo.update({ id: sourceId }, { image: imageUrl });
+            }
+            return sourceId;
+          },
+        );
+        return getSourceById(ctx, info, editedSourceId);
+      } catch (err) {
+        if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
+          if (err.message.indexOf('source_handle') > -1) {
+            throw new ValidationError(
+              JSON.stringify({ handle: 'handle is already used' }),
+            );
+          }
+        }
+        throw err;
+      }
+    },
+    deleteSource: async (
+      _,
+      { sourceId }: { sourceId: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Delete);
+      await ctx.con.getRepository(Source).delete({
+        id: sourceId,
+      });
+      return { _: true };
+    },
+    leaveSource: async (
+      _,
+      { sourceId }: { sourceId: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Leave);
+      await ctx.con.getRepository(SourceMember).delete({
+        sourceId,
+        userId: ctx.userId,
+      });
+      return { _: true };
+    },
+    joinSource: async (
+      _,
+      { sourceId, token }: { sourceId: string; token: string },
+      ctx,
+      info,
+    ): Promise<GQLSource> => {
+      const source = await ctx.con
+        .getRepository(Source)
+        .findOneByOrFail({ id: sourceId });
+      if (source.type !== SourceType.Squad) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+      if (source.private && !token) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+      const member = await ctx.con
+        .getRepository(SourceMember)
+        .findOneBy({ referralToken: token });
+      if (!member) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+      try {
+        await ctx.con.transaction(async (entityManager) => {
+          await addNewSourceMember(entityManager, {
+            sourceId,
+            userId: ctx.userId,
+            role: SourceMemberRoles.Member,
+          });
+          await entityManager
+            .getRepository(Source)
+            .update({ id: sourceId }, { active: true });
+        });
+      } catch (err) {
+        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
+          throw err;
+        }
+      }
+
+      return getSourceById(ctx, info, sourceId);
+    },
+  }),
+  Source: {
+    permalink: (source: GQLSource): string => getSourceLink(source),
   },
-});
+};

@@ -5,18 +5,31 @@ import {
 import { ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, DeepPartial } from 'typeorm';
-import { GQLSource } from './sources';
+import {
+  ensureSourcePermissions,
+  GQLSource,
+  SourcePermissions,
+} from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
   defaultImage,
   getDiscussionLink,
+  notifyView,
   pickImageUrl,
   standardizeURL,
 } from '../common';
-import { HiddenPost, Post, Toc, Upvote, PostReport } from '../entity';
+import {
+  createSharePost,
+  HiddenPost,
+  Post,
+  PostReport,
+  PostType,
+  Toc,
+  Upvote,
+} from '../entity';
 import { GQLEmptyResponse } from './common';
-import { NotFoundError } from '../errors';
+import { NotFoundError, TypeOrmError } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
 import { GQLComment } from './comments';
 import graphorm from '../graphorm';
@@ -27,6 +40,7 @@ import { GraphQLResolveInfo } from 'graphql';
 
 export interface GQLPost {
   id: string;
+  type: string;
   shortId: string;
   publishedAt?: Date;
   createdAt: Date;
@@ -47,6 +61,7 @@ export interface GQLPost {
   numComments: number;
   featuredComments?: GQLComment[];
   deleted?: boolean;
+  private: boolean;
   // Used only for pagination (not part of the schema)
   score: number;
   bookmarkedAt: Date;
@@ -59,6 +74,7 @@ export interface GQLPost {
   summary?: string;
   isScout?: number;
   isAuthor?: number;
+  sharedPost?: GQLPost;
 }
 
 export type GQLPostNotification = Pick<
@@ -127,13 +143,18 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
-  Blog post
+  Content post
   """
   type Post {
     """
     Unique identifier
     """
     id: ID!
+
+    """
+    Post type
+    """
+    type: String
 
     """
     Unique URL friendly short identifier
@@ -153,7 +174,7 @@ export const typeDefs = /* GraphQL */ `
     """
     URL to the post
     """
-    url: String!
+    url: String
 
     """
     Title of the post
@@ -168,12 +189,12 @@ export const typeDefs = /* GraphQL */ `
     """
     Aspect ratio of the image
     """
-    ratio: Float
+    ratio: Float @deprecated(reason: "no longer maintained")
 
     """
     Tiny version of the image in base64
     """
-    placeholder: String
+    placeholder: String @deprecated(reason: "no longer maintained")
 
     """
     Estimation of time to read the article (in minutes)
@@ -183,7 +204,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Source of the post
     """
-    source: Source!
+    source: Source
 
     """
     Tags of the post
@@ -209,6 +230,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the user commented this post
     """
     commented: Boolean
+
+    """
+    Whether the post's source is private or not
+    """
+    private: Boolean
 
     """
     If bookmarked, this is the list where it is saved
@@ -238,7 +264,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Featured comments for the post
     """
-    featuredComments: [Comment!]
+    featuredComments: [Comment!] @deprecated(reason: "no longer maintained")
 
     """
     Author of the post (if they have a daily.dev account)
@@ -284,6 +310,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the user is the scout
     """
     isScout: Int
+
+    """
+    Original post that was shared in this post
+    """
+    sharedPost: Post
   }
 
   type PostConnection {
@@ -475,9 +506,37 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): EmptyResponse @auth
+
+    """
+    Share post to source
+    """
+    sharePost(
+      """
+      Post to share in the source
+      """
+      id: ID!
+      """
+      Commentary for the share
+      """
+      commentary: String!
+      """
+      Source to share the post to
+      """
+      sourceId: ID!
+    ): Post @auth
+
+    """
+    Submit a view event to a post
+    """
+    viewPost(
+      """
+      Post to share in the source
+      """
+      id: ID!
+    ): EmptyResponse @auth
   }
 
-  type Subscription {
+  extend type Subscription {
     """
     Get notified when one of the given posts is upvoted or comments
     """
@@ -493,11 +552,11 @@ const saveHiddenPost = async (
     await con.getRepository(HiddenPost).insert(hiddenPost);
   } catch (err) {
     // Foreign key violation
-    if (err?.code === '23503') {
+    if (err?.code === TypeOrmError.FOREIGN_KEY) {
       throw new NotFoundError('Post not found');
     }
     // Unique violation
-    if (err?.code !== '23505') {
+    if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
       throw err;
     }
     return false;
@@ -540,6 +599,24 @@ export const getPostByUrl = async (
   return res[0];
 };
 
+const getPostById = async (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+  id: string,
+): Promise<GQLPost> => {
+  const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
+    queryBuilder: builder.queryBuilder.where(
+      `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
+      { id },
+    ),
+    ...builder,
+  }));
+  if (res.length) {
+    return res[0];
+  }
+  throw new NotFoundError('Post not found');
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   Query: traceResolverObject({
@@ -549,17 +626,12 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<GQLPost> => {
-      const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
-        queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
-          { id },
-        ),
-        ...builder,
-      }));
-      if (res.length) {
-        return res[0];
-      }
-      throw new NotFoundError('Post not found');
+      const post = await ctx.con.getRepository(Post).findOneOrFail({
+        select: ['sourceId'],
+        where: { id },
+      });
+      await ensureSourcePermissions(ctx, post.sourceId);
+      return getPostById(ctx, info, id);
     },
     postByUrl: async (
       source,
@@ -588,6 +660,10 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<ConnectionRelay<GQLPostUpvote>> => {
+      const post = await ctx.con
+        .getRepository(Post)
+        .findOneByOrFail({ id: args.id });
+      await ensureSourcePermissions(ctx, post.sourceId);
       return queryPaginatedByDate(
         ctx,
         info,
@@ -607,7 +683,8 @@ export const resolvers: IResolvers<any, Context> = {
       );
     },
   }),
-  Mutation: traceResolverObject({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Mutation: traceResolverObject<any, any>({
     hidePost: async (
       source,
       { id }: { id: string },
@@ -640,6 +717,7 @@ export const resolvers: IResolvers<any, Context> = {
       });
       if (added) {
         const post = await ctx.getRepository(Post).findOneByOrFail({ id });
+        await ensureSourcePermissions(ctx, post.sourceId);
         if (!post.banned) {
           try {
             await ctx.getRepository(PostReport).insert({
@@ -649,7 +727,7 @@ export const resolvers: IResolvers<any, Context> = {
               comment,
             });
           } catch (err) {
-            if (err?.code !== '23505') {
+            if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
               ctx.log.error(
                 {
                   err,
@@ -687,6 +765,8 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       try {
+        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+        await ensureSourcePermissions(ctx, post.sourceId);
         await ctx.con.transaction(async (entityManager) => {
           await entityManager.getRepository(Upvote).insert({
             postId: id,
@@ -698,11 +778,11 @@ export const resolvers: IResolvers<any, Context> = {
         });
       } catch (err) {
         // Foreign key violation
-        if (err?.code === '23503') {
+        if (err?.code === TypeOrmError.FOREIGN_KEY) {
           throw new NotFoundError('Post or user not found');
         }
         // Unique violation
-        if (err?.code !== '23505') {
+        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
           throw err;
         }
       }
@@ -732,6 +812,49 @@ export const resolvers: IResolvers<any, Context> = {
       });
       return { _: true };
     },
+    sharePost: async (
+      _,
+      {
+        id,
+        commentary,
+        sourceId,
+      }: { id: string; commentary: string; sourceId: string },
+      ctx,
+      info,
+    ): Promise<GQLPost> => {
+      const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      await Promise.all([
+        ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
+        ensureSourcePermissions(ctx, post.sourceId),
+      ]);
+      const newPost = await createSharePost(
+        ctx.con,
+        sourceId,
+        ctx.userId,
+        id,
+        commentary,
+      );
+      return getPostById(ctx, info, newPost.id);
+    },
+    viewPost: async (
+      _,
+      { id }: { id: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      await ensureSourcePermissions(ctx, post.sourceId);
+      if (post.type !== PostType.Article) {
+        await notifyView(
+          ctx.log,
+          post.id,
+          ctx.userId,
+          ctx.req.headers['referer'],
+          new Date(),
+          post.tagsStr?.split?.(',') ?? [],
+        );
+      }
+      return { _: true };
+    },
   }),
   Subscription: {
     postsEngaged: {
@@ -746,13 +869,6 @@ export const resolvers: IResolvers<any, Context> = {
         };
         return (async function* () {
           for await (const value of it) {
-            // const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
-            //   queryBuilder: builder.queryBuilder.where(
-            //     `"${builder.alias}"."id" = :id`,
-            //     { id: value.postId },
-            //   ),
-            //   ...builder,
-            // }));
             yield { postsEngaged: value };
           }
         })();

@@ -11,22 +11,36 @@ import {
   subHours,
 } from 'date-fns';
 import {
+  authorizeRequest,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  TEST_UA,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
-import { Comment, Post, Source, User, View, DevCard } from '../src/entity';
+import {
+  Comment,
+  Post,
+  Source,
+  User,
+  View,
+  DevCard,
+  ArticlePost,
+} from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import request from 'supertest';
+import { FastifyInstance } from 'fastify';
+import setCookieParser from 'set-cookie-parser';
 
 let con: DataSource;
+let app: FastifyInstance;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
@@ -38,6 +52,7 @@ beforeAll(async () => {
     () => new MockContext(con, loggedUser),
   );
   client = state.client;
+  app = state.app;
 });
 
 const now = new Date();
@@ -72,7 +87,7 @@ beforeEach(async () => {
     },
   ]);
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, [
+  await saveFixtures(con, ArticlePost, [
     {
       id: 'p1',
       shortId: 'sp1',
@@ -171,6 +186,17 @@ beforeEach(async () => {
       deleted: true,
       image: 'sample.image.test',
     },
+    {
+      id: 'pp',
+      shortId: 'spp',
+      title: 'Private',
+      url: 'http://pp.com',
+      sourceId: 'p',
+      createdAt: new Date(now.getTime() - 6000),
+      views: 10,
+      private: true,
+      image: 'sample.image.test',
+    },
   ]);
   await con.getRepository(Comment).save([
     {
@@ -234,6 +260,12 @@ const additionalKeywords: Partial<Keyword>[] = [
   { value: 'devops', occurrences: 760, status: 'allow' },
   { value: 'javascript', occurrences: 980, status: 'allow' },
 ];
+
+const mockLogout = () => {
+  nock(process.env.KRATOS_ORIGIN)
+    .get('/self-service/logout/browser')
+    .reply(200, {});
+};
 
 afterAll(() => disposeGraphQLTesting(state));
 
@@ -1040,6 +1072,54 @@ describe('query userReadHistory', () => {
   });
 });
 
+describe('query public readHistory', () => {
+  const QUERY = `
+    query ReadHistory($after: String, $first: Int) {
+      readHistory(first: $first, after: $after, isPublic: true) {
+        pageInfo { endCursor, hasNextPage }
+        edges {
+          node {
+            timestamp
+            timestampDb
+            post {
+              id
+              url
+              title
+              image
+              source {
+                image
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  it("should return user's reading history without private posts", async () => {
+    loggedUser = '1';
+    const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
+    const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
+    await saveFixtures(con, View, [
+      {
+        userId: '1',
+        postId: 'pp',
+        timestamp: createdAtOld,
+      },
+      {
+        userId: '1',
+        postId: 'p2',
+        timestamp: createdAtNew,
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.readHistory.edges.length).toEqual(1);
+    expect(res.data.readHistory.edges[0].node.post.id).toEqual('p2');
+  });
+});
+
 describe('query readHistory', () => {
   const QUERY = `
     query ReadHistory($after: String, $first: Int) {
@@ -1260,7 +1340,7 @@ describe('mutation generateDevCard', () => {
 
   it('should not validate passed url', () => {
     loggedUser = '1';
-    testMutationErrorCode(
+    return testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
@@ -1502,6 +1582,7 @@ describe('mutation updateUserProfile', () => {
         hashnode
         createdAt
         infoConfirmed
+        notificationEmail
         timezone
       }
     }
@@ -1601,7 +1682,7 @@ describe('mutation updateUserProfile', () => {
     const user = await repo.findOneBy({ id: loggedUser });
     const timezone = 'Asia/Manila';
     const res = await client.mutate(MUTATION, {
-      variables: { data: { timezone, username: 'a1' } },
+      variables: { data: { timezone, username: 'a1', name: 'Ido' } },
     });
 
     expect(res.errors?.length).toBeFalsy();
@@ -1622,7 +1703,7 @@ describe('mutation updateUserProfile', () => {
     const username = 'a1';
     expect(user?.infoConfirmed).toBeFalsy();
     const res = await client.mutate(MUTATION, {
-      variables: { data: { username } },
+      variables: { data: { username, name: user.name } },
     });
     expect(res.errors?.length).toBeFalsy();
     const updatedUser = await repo.findOneBy({ id: loggedUser });
@@ -1662,11 +1743,62 @@ describe('mutation updateUserProfile', () => {
     const email = 'sample@daily.dev';
     expect(user?.infoConfirmed).toBeFalsy();
     const res = await client.mutate(MUTATION, {
-      variables: { data: { email } },
+      variables: { data: { email, username: 'u1', name: user.name } },
     });
     expect(res.errors?.length).toBeFalsy();
     const updatedUser = await repo.findOneBy({ id: loggedUser });
     expect(updatedUser?.email).toEqual(email);
+  });
+
+  it('should update notification email preference', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+    const user = await repo.findOneBy({ id: loggedUser });
+    expect(user?.notificationEmail).toBeTruthy();
+    const notificationEmail = false;
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: { username: 'sample', name: 'test', notificationEmail },
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser?.notificationEmail).toEqual(notificationEmail);
+  });
+
+  it('should not update if username is empty', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { name: 'Ido' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should not update if name is empty', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).update({ id: loggedUser }, { name: null });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { username: 'u1' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should update if name is already set but not provided', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { username: 'handle' });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: { acceptedMarketing: true },
+      },
+    });
+    expect(res.errors).toBeFalsy();
   });
 
   it('should not update user profile if email exists', async () => {
@@ -1728,5 +1860,54 @@ describe('mutation deleteUser', () => {
 
     const post = await con.getRepository(Post).findOneBy({ id: 'p6' });
     expect(post.authorId).toEqual(null);
+  });
+});
+
+describe('POST /v1/users/logout', () => {
+  const BASE_PATH = '/v1/users/logout';
+
+  it('should logout and clear cookies', async () => {
+    mockLogout();
+    const res = await authorizeRequest(request(app.server).post(BASE_PATH))
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'da3=1;da2=1')
+      .expect(204);
+
+    const cookies = setCookieParser.parse(res, { map: true });
+    expect(cookies['da2'].value).toBeTruthy();
+    expect(cookies['da2'].value).not.toEqual('1');
+    expect(cookies['da3'].value).toBeFalsy();
+  });
+});
+
+describe('DELETE /v1/users/me', () => {
+  const BASE_PATH = '/v1/users/me';
+
+  it('should not authorize when not logged in', async () => {
+    await request(app.server).delete(BASE_PATH).expect(401);
+  });
+
+  it('should delete user from database', async () => {
+    mockLogout();
+    await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
+
+    const users = await con.getRepository(User).find();
+    expect(users.length).toEqual(2);
+
+    const userOne = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(userOne).toEqual(null);
+  });
+
+  it('should clear cookies', async () => {
+    mockLogout();
+    const res = await authorizeRequest(request(app.server).delete(BASE_PATH))
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'da3=1;da2=1')
+      .expect(204);
+
+    const cookies = setCookieParser.parse(res, { map: true });
+    expect(cookies['da2'].value).toBeTruthy();
+    expect(cookies['da2'].value).not.toEqual('1');
+    expect(cookies['da3'].value).toBeFalsy();
   });
 });

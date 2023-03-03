@@ -19,14 +19,6 @@ export const workers: Worker[] = [
   },
   {
     topic: 'comment-upvoted',
-    subscription: 'comment-upvoted-mail',
-  },
-  {
-    topic: 'comment-commented',
-    subscription: 'comment-commented-mail',
-  },
-  {
-    topic: 'comment-upvoted',
     subscription: 'comment-upvoted-rep',
   },
   {
@@ -34,40 +26,12 @@ export const workers: Worker[] = [
     subscription: 'comment-upvote-canceled-rep',
   },
   {
-    topic: 'comment-commented',
-    subscription: 'comment-commented-thread',
-  },
-  {
-    topic: 'post-author-matched',
-    subscription: 'post-author-matched-mail',
-  },
-  {
-    topic: 'community-link-rejected',
-    subscription: 'community-link-rejected-mail',
-  },
-  {
-    topic: 'community-link-access',
-    subscription: 'community-link-access-mail',
-  },
-  {
-    topic: 'post-scout-matched',
-    subscription: 'post-scout-matched-mail',
-  },
-  {
-    topic: 'post-scout-matched',
-    subscription: 'post-scout-matched-slack',
-  },
-  {
-    topic: 'comment-commented',
-    subscription: 'comment-commented-author-mail',
+    topic: 'api.v1.post-added',
+    subscription: 'api.post-scout-matched-slack',
   },
   {
     topic: 'comment-commented',
     subscription: 'comment-commented-slack-message',
-  },
-  {
-    topic: 'post-commented',
-    subscription: 'post-commented-author-mail',
   },
   {
     topic: 'post-upvoted',
@@ -77,18 +41,10 @@ export const workers: Worker[] = [
     topic: 'post-upvote-canceled',
     subscription: 'post-upvote-canceled-rep',
   },
-  {
-    topic: 'send-analytics-report',
-    subscription: 'send-analytics-report-mail',
-  },
-  {
+  /*{
     topic: 'post-commented',
     subscription: 'post-commented-author-tweet',
-  },
-  {
-    topic: 'post-reached-views-threshold',
-    subscription: 'post-reached-views-threshold-tweet',
-  },
+  },*/
   {
     topic: 'post-commented',
     subscription: 'post-commented-redis',
@@ -106,20 +62,16 @@ export const workers: Worker[] = [
     subscription: 'post-banned-rep',
   },
   {
-    topic: 'post-banned-or-removed',
-    subscription: 'post-banned-email',
-  },
-  {
-    topic: 'pub-request',
-    subscription: 'source-request-mail',
-  },
-  {
     topic: 'pub-request',
     subscription: 'pub-request-rep',
   },
   {
     topic: 'username-changed',
     subscription: 'username-changed-api',
+  },
+  {
+    topic: 'username-changed',
+    subscription: 'api.username-changed-update-notifications',
   },
   {
     topic: 'update-comments',
@@ -129,5 +81,98 @@ export const workers: Worker[] = [
     topic: 'api.changes',
     subscription: 'api-cdc',
     args: { enableMessageOrdering: true },
+  },
+  {
+    topic: 'api.v1.new-notification',
+    subscription: 'api.unread-notification-count',
+  },
+  {
+    topic: 'api.v1.new-notification',
+    subscription: 'api.new-notification-real-time',
+  },
+  {
+    topic: 'api.v1.new-notification',
+    subscription: 'api.new-notification-mail',
+  },
+  {
+    topic: 'api.v1.new-notification',
+    subscription: 'api.new-notification-push',
+  },
+  {
+    topic: 'api.v1.source-privacy-updated',
+    subscription: 'api.source-privacy-updated',
+  },
+  // Notifications
+  {
+    topic: 'community-link-rejected',
+    subscription: 'api.community-picks-failed-notification',
+  },
+  {
+    topic: 'community-link-access',
+    subscription: 'api.community-picks-granted-notification',
+  },
+  {
+    topic: 'post-commented',
+    subscription: 'api.article-new-comment-notification.post-commented',
+  },
+  {
+    topic: 'comment-commented',
+    subscription: 'api.article-new-comment-notification.comment-commented',
+  },
+  {
+    topic: 'post-upvoted',
+    subscription: 'api.article-upvote-milestone-notification',
+  },
+  {
+    topic: 'send-analytics-report',
+    subscription: 'api.article-analytics-notification',
+  },
+  {
+    topic: 'post-banned-or-removed',
+    subscription: 'api.article-report-approved-notification',
+  },
+  {
+    topic: 'pub-request',
+    subscription: 'api.source-request-notification',
+  },
+  {
+    topic: 'api.v1.new-comment-mention',
+    subscription: 'api.comment-mention-notification',
+  },
+  {
+    topic: 'comment-commented',
+    subscription: 'api.comment-reply-notification',
+  },
+  {
+    topic: 'comment-upvoted',
+    subscription: 'api.comment-upvote-milestone-notification',
+  },
+  {
+    topic: 'api.v1.post-added',
+    subscription: 'api.post-added-notification',
+  },
+  {
+    topic: 'api.v1.member-joined-source',
+    subscription: 'api.member-joined-source-notification',
+  },
+  {
+    topic: 'api.v1.member-joined-source',
+    subscription: 'api.squad-feature-access',
+  },
+  {
+    topic: 'api.v1.feature-granted',
+    subscription: 'api.feature-access-notification',
+  },
+  {
+    topic: 'api.v1.user-created',
+    subscription: 'api.add-to-mailing-list',
+  },
+  {
+    topic: 'api.v1.post-added',
+    subscription: 'api.post-changelog-added',
+  },
+  {
+    topic: 'features-reset',
+    subscription: 'api.clear-features-cache',
   },
 ];

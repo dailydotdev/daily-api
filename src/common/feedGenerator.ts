@@ -1,7 +1,10 @@
-import { IFlags } from 'flagsmith-nodejs';
-import { fetchUserFeatures } from './users';
-import { AdvancedSettings, FeedAdvancedSettings } from '../entity';
-import { Connection as ORMConnection, SelectQueryBuilder } from 'typeorm';
+import {
+  AdvancedSettings,
+  FeedAdvancedSettings,
+  SourceMember,
+  UNKNOWN_SOURCE,
+} from '../entity';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from '@graphql-tools/utils';
 import {
@@ -19,7 +22,6 @@ import { Context } from '../Context';
 import { Page, PageGenerator, getSearchQuery } from '../schema/common';
 import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
-import { CustomObject } from '.';
 import { runInSpan } from '../trace';
 
 export const whereTags = (
@@ -61,50 +63,14 @@ export const whereKeyword = (
   return `EXISTS${query}`;
 };
 
-export const getFeatureAdvancedSettings = (
-  features: IFlags,
-  settings: AdvancedSettings[],
-): AdvancedSettings[] => {
-  const feature = features?.advanced_settings_default_values;
-
-  if (!feature?.enabled) {
-    return settings;
-  }
-
-  if (!feature.value || typeof feature.value !== 'string') {
-    return settings;
-  }
-
-  const values = JSON.parse(feature.value) as CustomObject<boolean>;
-
-  return settings.map((adv) => {
-    if (values[adv.id] === undefined) {
-      return adv;
-    }
-
-    return { ...adv, defaultEnabledState: values[adv.id] };
-  });
-};
-
-const getUserFeaturesSettings = (userId: string) => {
-  if (!process.env.ENABLE_SETTINGS_EXPERIMENT) {
-    return Promise.resolve({});
-  }
-
-  return fetchUserFeatures(userId);
-};
-
 export const getExcludedAdvancedSettings = async (
-  con: ORMConnection,
+  con: DataSource,
   feedId: string,
-  userId: string,
 ): Promise<number[]> => {
-  const [features, advancedSettings, feedAdvancedSettings] = await Promise.all([
-    getUserFeaturesSettings(userId),
+  const [settings, feedAdvancedSettings] = await Promise.all([
     con.getRepository(AdvancedSettings).find(),
     con.getRepository(FeedAdvancedSettings).findBy({ feedId }),
   ]);
-  const settings = getFeatureAdvancedSettings(features, advancedSettings);
   const userSettings = mapArrayToOjbect(
     feedAdvancedSettings,
     'advancedSettingsId',
@@ -122,12 +88,12 @@ export const getExcludedAdvancedSettings = async (
 };
 
 export const feedToFilters = async (
-  con: ORMConnection,
+  con: DataSource,
   feedId: string,
   userId: string,
 ): Promise<AnonymousFeedFilters> => {
-  const settings = await getExcludedAdvancedSettings(con, feedId, userId);
-  const [tags, excludeSources] = await Promise.all([
+  const settings = await getExcludedAdvancedSettings(con, feedId);
+  const [tags, excludeSources, sourceIds] = await Promise.all([
     con.getRepository(FeedTag).find({ where: { feedId } }),
     con
       .getRepository(Source)
@@ -147,6 +113,12 @@ export const feedToFilters = async (
         return `s.id IN (${subQuery})`;
       })
       .execute(),
+    feedId
+      ? con.getRepository(SourceMember).find({
+          where: { userId },
+          select: ['sourceId'],
+        })
+      : [],
   ]);
   const tagFilters = tags.reduce(
     (acc, value) => {
@@ -162,6 +134,7 @@ export const feedToFilters = async (
   return {
     ...tagFilters,
     excludeSources: excludeSources.map((sources: Source) => sources.id),
+    sourceIds: sourceIds.map((member) => member.sourceId),
   };
 };
 
@@ -230,6 +203,7 @@ export enum Ranking {
 
 export interface FeedOptions {
   ranking: Ranking;
+  supportedTypes?: string[];
 }
 
 export type FeedArgs = ConnectionArguments & FeedOptions;
@@ -238,18 +212,25 @@ export const applyFeedWhere = (
   ctx: Context,
   builder: SelectQueryBuilder<Post>,
   alias: string,
+  postTypes: string[],
   removeHiddenPosts = true,
   removeBannedPosts = true,
+  allowPrivateSources = true,
 ): SelectQueryBuilder<Post> => {
-  const selectSource = builder
-    .subQuery()
-    .from(Source, 'source')
-    .where('source.private = false')
-    .andWhere(`source.id = "${alias}"."sourceId"`)
-    .andWhere(`${alias}.deleted = false`);
-  let newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`, {
-    userId: ctx.userId,
-  });
+  let newBuilder = builder
+    .andWhere(`${alias}.deleted = false`)
+    .andWhere(`${alias}."sourceId" != :unknown`, { unknown: UNKNOWN_SOURCE })
+    .andWhere(`${alias}."type" in (:...postTypes)`, { postTypes });
+  if (!allowPrivateSources) {
+    const selectSource = builder
+      .subQuery()
+      .from(Source, 'source')
+      .where('source.private = false')
+      .andWhere(`source.id = "${alias}"."sourceId"`);
+    newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`, {
+      userId: ctx.userId,
+    });
+  }
   if (ctx.userId && removeHiddenPosts) {
     newBuilder = newBuilder
       .leftJoin(
@@ -275,11 +256,12 @@ export type FeedResolverOptions<TArgs, TParams, TPage extends Page> = {
     page: TPage,
   ) => Promise<TParams>;
   warnOnPartialFirstPage?: boolean;
+  allowPrivateSources?: boolean;
 };
 
 export function feedResolver<
   TSource,
-  TArgs extends ConnectionArguments,
+  TArgs extends Omit<FeedArgs, 'ranking'>,
   TPage extends Page,
   TParams,
 >(
@@ -303,6 +285,7 @@ export function feedResolver<
     removeBannedPosts = true,
     fetchQueryParams,
     warnOnPartialFirstPage = false,
+    allowPrivateSources = true,
   }: FeedResolverOptions<TArgs, TParams, TPage> = {},
 ): IFieldResolver<TSource, Context, TArgs> {
   return async (source, args, context, info): Promise<Connection<GQLPost>> => {
@@ -347,8 +330,10 @@ export function feedResolver<
                 builder.alias,
               ),
               builder.alias,
+              args.supportedTypes || ['article'],
               removeHiddenPosts,
               removeBannedPosts,
+              allowPrivateSources,
             );
             return builder;
           },
@@ -395,7 +380,10 @@ export function randomPostsResolver<
         context,
         query(context, args, builder.queryBuilder, builder.alias),
         builder.alias,
+        ['article'],
         true,
+        true,
+        false,
       )
         .orderBy('random()')
         .limit(pageSize);
@@ -413,6 +401,7 @@ export interface AnonymousFeedFilters {
   excludeSources?: string[];
   includeTags?: string[];
   blockedTags?: string[];
+  sourceIds?: string[];
 }
 
 export const anonymousFeedBuilder = (
@@ -434,6 +423,8 @@ export const anonymousFeedBuilder = (
       },
     );
   }
+
+  newBuilder = newBuilder.andWhere(`${alias}."private" = false`);
 
   if (filters?.includeTags?.length) {
     newBuilder = newBuilder.andWhere((builder) =>
@@ -505,10 +496,15 @@ export const sourceFeedBuilder = (
   sourceId: string,
   builder: SelectQueryBuilder<Post>,
   alias: string,
-): SelectQueryBuilder<Post> =>
-  builder
-    .andWhere(`${alias}.sourceId = :sourceId`, { sourceId })
-    .andWhere(`${alias}.banned = false`);
+): SelectQueryBuilder<Post> => {
+  builder.andWhere(`${alias}.sourceId = :sourceId`, { sourceId });
+
+  if (sourceId === 'community') {
+    builder.andWhere(`${alias}.banned = false`);
+  }
+
+  return builder;
+};
 
 export const tagFeedBuilder = (
   ctx: Context,

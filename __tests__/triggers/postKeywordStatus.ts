@@ -1,4 +1,4 @@
-import { Keyword, Post, PostKeyword, Source } from '../../src/entity';
+import { ArticlePost, Keyword, PostKeyword, Source } from '../../src/entity';
 import { saveFixtures } from '../helpers';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
@@ -14,7 +14,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
 });
 
 it('should set the post keyword status on insert', async () => {

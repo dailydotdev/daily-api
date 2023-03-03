@@ -1,9 +1,9 @@
 import { DeepPartial } from 'typeorm';
-import { Post, PostKeyword, PostTag } from '../../src/entity';
+import { ArticlePost, PostKeyword, PostTag, PostType } from '../../src/entity';
 
 const now = new Date();
 
-export const postsFixture: DeepPartial<Post>[] = [
+export const postsFixture: DeepPartial<ArticlePost>[] = [
   {
     id: 'p1',
     shortId: 'sp1',
@@ -15,6 +15,7 @@ export const postsFixture: DeepPartial<Post>[] = [
     sourceId: 'a',
     createdAt: now,
     tagsStr: 'javascript,webdev',
+    type: PostType.Article,
   },
   {
     id: 'p2',
@@ -25,6 +26,7 @@ export const postsFixture: DeepPartial<Post>[] = [
     score: 7,
     sourceId: 'b',
     createdAt: new Date(now.getTime() - 1000),
+    type: PostType.Article,
   },
   {
     id: 'p3',
@@ -35,6 +37,7 @@ export const postsFixture: DeepPartial<Post>[] = [
     score: 4,
     sourceId: 'c',
     createdAt: new Date(now.getTime() - 2000),
+    type: PostType.Article,
   },
   {
     id: 'p4',
@@ -46,6 +49,7 @@ export const postsFixture: DeepPartial<Post>[] = [
     sourceId: 'a',
     createdAt: new Date(now.getTime() - 3000),
     tagsStr: 'backend,data,javascript',
+    type: PostType.Article,
   },
   {
     id: 'p5',
@@ -57,6 +61,7 @@ export const postsFixture: DeepPartial<Post>[] = [
     sourceId: 'b',
     createdAt: new Date(now.getTime() - 4000),
     tagsStr: 'html,javascript',
+    type: PostType.Article,
   },
   {
     id: 'p6',
@@ -67,6 +72,8 @@ export const postsFixture: DeepPartial<Post>[] = [
     score: 10,
     sourceId: 'p',
     createdAt: new Date(now.getTime() - 5000),
+    type: PostType.Article,
+    private: true,
   },
 ];
 

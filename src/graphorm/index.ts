@@ -5,6 +5,7 @@ import {
   FeedSource,
   FeedTag,
   Post,
+  SourceMember,
   User,
 } from '../entity';
 import { Context } from '../Context';
@@ -34,11 +35,18 @@ const obj = new GraphORM({
     requiredColumns: ['id', 'username'],
     fields: {
       infoConfirmed: {
-        select: 'infoConfirmed',
         transform: nullIfNotSameUser,
       },
       email: {
-        select: 'email',
+        transform: nullIfNotSameUser,
+      },
+      timezone: {
+        transform: nullIfNotSameUser,
+      },
+      acceptedMarketing: {
+        transform: nullIfNotSameUser,
+      },
+      notificationEmail: {
         transform: nullIfNotSameUser,
       },
     },
@@ -120,15 +128,60 @@ const obj = new GraphORM({
       toc: {
         jsonType: true,
       },
+      sharedPost: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'sharedPostId',
+        },
+      },
     },
   },
   Source: {
+    requiredColumns: ['id', 'private', 'handle', 'type'],
     fields: {
       public: {
-        select: 'private',
         transform: (value: boolean): boolean => !value,
       },
+      members: {
+        relation: {
+          isMany: true,
+          childColumn: 'sourceId',
+          parentColumn: 'id',
+          order: 'DESC',
+          sort: 'createdAt',
+        },
+        pagination: {
+          limit: 50,
+          hasNextPage: (size): boolean => size === 50,
+          hasPreviousPage: (): boolean => false,
+          nodeToCursor: (node: GQLComment): string =>
+            base64(`time:${new Date(node.createdAt).getTime()}`),
+        },
+      },
+      membersCount: {
+        select: (ctx, alias, qb) =>
+          qb
+            .select('count(*)')
+            .from(SourceMember, 'sm')
+            .where(`sm."sourceId" = ${alias}.id`),
+      },
+      currentMember: {
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .select('*')
+              .from(SourceMember, 'sm')
+              .where(`sm."userId" = :userId`, { userId: ctx.userId })
+              .andWhere(`sm."sourceId" = "${parentAlias}".id`),
+        },
+        transform: nullIfNotLoggedIn,
+      },
     },
+  },
+  SourceMember: {
+    requiredColumns: ['createdAt'],
   },
   Comment: {
     requiredColumns: ['id', 'postId', 'createdAt'],
@@ -159,10 +212,10 @@ const obj = new GraphORM({
           isMany: true,
           childColumn: 'parentId',
           parentColumn: 'id',
-        },
-        pagination: {
           order: 'ASC',
           sort: 'createdAt',
+        },
+        pagination: {
           limit: 50,
           hasNextPage: (size): boolean => size === 50,
           hasPreviousPage: (): boolean => false,
@@ -222,6 +275,26 @@ const obj = new GraphORM({
           isMany: false,
           parentColumn: 'postId',
           childColumn: 'id',
+        },
+      },
+    },
+  },
+  Notification: {
+    fields: {
+      avatars: {
+        relation: {
+          isMany: true,
+          sort: 'order',
+          childColumn: 'notificationId',
+          parentColumn: 'id',
+        },
+      },
+      attachments: {
+        relation: {
+          isMany: true,
+          sort: 'order',
+          childColumn: 'notificationId',
+          parentColumn: 'id',
         },
       },
     },

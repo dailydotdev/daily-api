@@ -7,6 +7,11 @@ import {
   Settings,
   Submission,
   User,
+  Notification,
+  CommentMention,
+  SourceMember,
+  Feature,
+  Source,
 } from '../entity';
 import { ChangeObject } from '../types';
 
@@ -24,13 +29,9 @@ const userUpdatedTopic = pubsub.topic('user-updated');
 const usernameChangedTopic = pubsub.topic('username-changed');
 const alertsUpdatedTopic = pubsub.topic('alerts-updated');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
+const notificationsReadTopic = pubsub.topic('api.v1.notifications-read');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
-const postAuthorMatchedTopic = pubsub.topic('post-author-matched');
-const postScoutMatchedTopic = pubsub.topic('post-scout-matched');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
-const postReachedViewsThresholdTopic = pubsub.topic(
-  'post-reached-views-threshold',
-);
 const viewsTopic = pubsub.topic('views');
 const postBannedOrRemovedTopic = pubsub.topic('post-banned-or-removed');
 const sourceFeedAddedTopic = pubsub.topic('source-feed-added');
@@ -38,6 +39,14 @@ const sourceFeedRemovedTopic = pubsub.topic('source-feed-removed');
 const communityLinkAccessTopic = pubsub.topic('community-link-access');
 const communityLinkRejectedTopic = pubsub.topic('community-link-rejected');
 const communityLinkSubmittedTopic = pubsub.topic('community-link-submitted');
+const newNotificationTopic = pubsub.topic('api.v1.new-notification');
+const newCommentMentionTopic = pubsub.topic('api.v1.new-comment-mention');
+const memberJoinedSourceTopic = pubsub.topic('api.v1.member-joined-source');
+const featureAccess = pubsub.topic('api.v1.feature-granted');
+const postAddedTopic = pubsub.topic('api.v1.post-added');
+const userCreatedTopic = pubsub.topic('api.v1.user-created');
+const sourcePrivacyUpdatedTopic = pubsub.topic('api.v1.source-privacy-updated');
+const featuresResetTopic = pubsub.topic('features-reset');
 
 export enum NotificationReason {
   New = 'new',
@@ -192,6 +201,17 @@ export const notifySettingsUpdated = (
   settings: ChangeObject<Settings>,
 ): Promise<void> => publishEvent(log, settingsUpdatedTopic, settings);
 
+export const notifySourcePrivacyUpdated = (
+  log: EventLogger,
+  source: ChangeObject<Source>,
+): Promise<void> => publishEvent(log, sourcePrivacyUpdatedTopic, { source });
+
+export const notifyNotificationsRead = (
+  log: EventLogger,
+  unreadNotificationsCount: ChangeObject<{ unreadNotificationsCount: number }>,
+): Promise<void> =>
+  publishEvent(log, notificationsReadTopic, unreadNotificationsCount);
+
 export const notifyCommentUpvoteCanceled = async (
   log: EventLogger,
   commentId: string,
@@ -202,42 +222,12 @@ export const notifyCommentUpvoteCanceled = async (
     userId,
   });
 
-export const notifyPostAuthorMatched = async (
-  log: EventLogger,
-  postId: string,
-  authorId: string,
-): Promise<void> =>
-  publishEvent(log, postAuthorMatchedTopic, {
-    postId,
-    authorId,
-  });
-
-export const notifyScoutMatched = async (
-  log: EventLogger,
-  postId: string,
-  scoutId: string,
-): Promise<void> =>
-  publishEvent(log, postScoutMatchedTopic, {
-    postId,
-    scoutId,
-  });
-
 export const notifySendAnalyticsReport = async (
   log: EventLogger,
   postId: string,
 ): Promise<void> =>
   publishEvent(log, sendAnalyticsReportTopic, {
     postId,
-  });
-
-export const notifyPostReachedViewsThreshold = async (
-  log: EventLogger,
-  postId: string,
-  threshold: number,
-): Promise<void> =>
-  publishEvent(log, postReachedViewsThresholdTopic, {
-    postId,
-    threshold,
   });
 
 export const notifyView = (
@@ -304,3 +294,41 @@ export const notifySubmissionGrantedAccess = async (
   log: EventLogger,
   userId: string,
 ): Promise<void> => publishEvent(log, communityLinkAccessTopic, { userId });
+
+export const notifyNewNotification = async (
+  log: EventLogger,
+  notification: ChangeObject<Notification>,
+): Promise<void> => publishEvent(log, newNotificationTopic, { notification });
+
+export const notifyNewCommentMention = async (
+  log: EventLogger,
+  commentMention: ChangeObject<CommentMention>,
+): Promise<void> =>
+  publishEvent(log, newCommentMentionTopic, { commentMention });
+
+export const notifyMemberJoinedSource = async (
+  log: EventLogger,
+  sourceMember: ChangeObject<SourceMember>,
+): Promise<void> =>
+  publishEvent(log, memberJoinedSourceTopic, { sourceMember });
+
+export const notifyFeatureAccess = async (
+  log: EventLogger,
+  feature: ChangeObject<Feature>,
+): Promise<void> => publishEvent(log, featureAccess, { feature });
+
+export const notifyPostAdded = async (
+  log: EventLogger,
+  post: ChangeObject<Post>,
+): Promise<void> => publishEvent(log, postAddedTopic, { post });
+
+export const notifyUserCreated = async (
+  log: EventLogger,
+  user: ChangeObject<User>,
+): Promise<void> =>
+  publishEvent(log, userCreatedTopic, {
+    user,
+  });
+
+export const notifyFeaturesReset = async (log: EventLogger): Promise<void> =>
+  publishEvent(log, featuresResetTopic, {});

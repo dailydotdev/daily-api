@@ -11,6 +11,20 @@ export const redisPubSub = new RedisPubSub({
   connection: redisOptions,
 });
 
+const ioRedisPoolOpts = IORedisPoolOptions.fromHostAndPort(
+  redisOptions.host,
+  redisOptions.port,
+)
+  .withIORedisOptions(redisOptions)
+  .withPoolOptions({
+    min: 10,
+    max: 50,
+    evictionRunIntervalMillis: 60000,
+    idleTimeoutMillis: 30000,
+  });
+
+export const ioRedisPool = new IORedisPool(ioRedisPoolOpts);
+
 export function deleteKeysByPattern(pattern: string): Promise<void> {
   return ioRedisPool.execute(
     (client) =>
@@ -27,16 +41,8 @@ export function deleteKeysByPattern(pattern: string): Promise<void> {
   );
 }
 
-const ioRedisPoolOpts = IORedisPoolOptions.fromHostAndPort(
-  redisOptions.host,
-  redisOptions.port,
-)
-  .withIORedisOptions(redisOptions)
-  .withPoolOptions({
-    min: 10,
-    max: 50,
-    evictionRunIntervalMillis: 60000,
-    idleTimeoutMillis: 30000,
-  });
+export const setRedisObject = (key, value) =>
+  ioRedisPool.execute((client) => client.set(key, value));
 
-export const ioRedisPool = new IORedisPool(ioRedisPoolOpts);
+export const getRedisObject = (key) =>
+  ioRedisPool.execute((client) => client.get(key));

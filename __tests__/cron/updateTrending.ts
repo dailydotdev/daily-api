@@ -1,7 +1,6 @@
-import shortid from 'shortid';
 import cron from '../../src/cron/updateTrending';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
-import { Post, Source, View } from '../../src/entity';
+import { ArticlePost, Post, Source, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 
@@ -17,7 +16,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
 });
 
 const addViewsToPost = async (
@@ -27,9 +26,9 @@ const addViewsToPost = async (
 ): Promise<void> => {
   await con.getRepository(View).save(
     [...new Array(count)].map(
-      (): DeepPartial<View> => ({
+      (val, index): DeepPartial<View> => ({
         postId,
-        userId: shortid.generate(),
+        userId: index.toString(),
         timestamp: new Date(now.getTime() - Math.random() * 20 * 60 * 1000),
       }),
     ),

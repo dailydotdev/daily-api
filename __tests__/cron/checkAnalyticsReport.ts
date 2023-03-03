@@ -2,7 +2,7 @@ import { sub } from 'date-fns';
 
 import cron from '../../src/cron/checkAnalyticsReport';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
-import { Post, Source, User } from '../../src/entity';
+import { ArticlePost, Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -20,7 +20,7 @@ beforeEach(async () => {
     .getRepository(User)
     .save([{ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' }]);
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, [
+  await saveFixtures(con, ArticlePost, [
     {
       id: 'p1',
       shortId: 'sp1',
@@ -70,7 +70,7 @@ beforeEach(async () => {
       authorId: '1',
       sentAnalyticsReport: true,
     },
-  ]);
+  ] as ArticlePost[]);
 });
 
 it('should publish message for every post that needs analytics report', async () => {
@@ -78,7 +78,7 @@ it('should publish message for every post that needs analytics report', async ()
   const posts = await con
     .getRepository(Post)
     .findBy({ sentAnalyticsReport: true });
-  expect(posts.length).toEqual(3);
+  expect(posts.length).toEqual(4);
   expect(posts.map(({ id }) => id)).toEqual(
     expect.arrayContaining(['p3', 'p4', 'p5']),
   );

@@ -1,9 +1,8 @@
 import Twit from 'twit';
 import { Post } from '../entity';
-import { ChangeObject } from '../types';
 
-export const truncatePostToTweet = (post: Post | ChangeObject<Post>): string =>
-  post.title.length <= 130 ? post.title : `${post.title.substr(0, 127)}...`;
+export const truncatePostToTweet = (post: Pick<Post, 'title'>): string =>
+  post.title.length <= 130 ? post.title : `${post.title.substring(0, 127)}...`;
 
 export const tweet = async (status: string, key = 'TWITTER'): Promise<void> => {
   const client = new Twit({

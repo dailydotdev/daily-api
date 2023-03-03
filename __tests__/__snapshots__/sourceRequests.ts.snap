@@ -93,15 +93,17 @@ Object {
 `;
 
 exports[`mutation publishSourceRequest should publish a source request 2`] = `
-Source {
+MachineSource {
   "active": true,
   "advancedSettings": Array [],
+  "handle": "a",
   "id": "a",
   "image": "http://a.com",
   "name": "A",
   "private": false,
   "rankBoost": 0,
   "twitter": "a",
+  "type": "machine",
   "website": "http://3.com",
 }
 `;

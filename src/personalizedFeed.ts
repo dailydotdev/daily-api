@@ -2,28 +2,13 @@ import { feedToFilters } from './common';
 import fetch from 'node-fetch';
 import { Context } from './Context';
 import { runInSpan } from './trace';
-import http from 'node:http';
-import https from 'node:https';
 import { ioRedisPool } from './redis';
 import { DataSource } from 'typeorm';
+import { fetchOptions } from './http';
 
 interface TinybirdResponse<T> {
   data: T[];
 }
-
-const fetchOptions = {
-  agent: (parsedURL) => {
-    if (parsedURL.protocol == 'http:') {
-      return new http.Agent({
-        keepAlive: true,
-      });
-    } else {
-      return new https.Agent({
-        keepAlive: true,
-      });
-    }
-  },
-};
 
 export async function fetchTinybirdFeed(
   con: DataSource,
@@ -50,13 +35,20 @@ export async function fetchTinybirdFeed(
       },
     );
     if (filters.includeTags?.length) {
-      params += `&allowed_tags=${filters.includeTags.join(',')}`;
+      const value = encodeURIComponent(filters.includeTags.join(','));
+      params += `&allowed_tags=${value}`;
     }
     if (filters.blockedTags?.length) {
-      params += `&blocked_tags=${filters.blockedTags.join(',')}`;
+      const value = encodeURIComponent(filters.blockedTags.join(','));
+      params += `&blocked_tags=${value}`;
     }
     if (filters.excludeSources?.length) {
-      params += `&blocked_sources=${filters.excludeSources.join(',')}`;
+      const value = encodeURIComponent(filters.excludeSources.join(','));
+      params += `&blocked_sources=${value}`;
+    }
+    if (filters.sourceIds?.length) {
+      const value = encodeURIComponent(filters.sourceIds.join(','));
+      params += `&squad_ids=${value}`;
     }
   } else {
     params += `&feed_id=global`;
@@ -66,11 +58,9 @@ export async function fetchTinybirdFeed(
     'Feed_v2.fetchTinybirdFeed',
     async () => {
       const url =
-        feedVersion >= 9
-          ? process.env.INTERNAL_FEED
-          : feedVersion !== 6
+        feedVersion === 7
           ? process.env.TINYBIRD_FEED
-          : process.env.TINYBIRD_FEED_V3;
+          : process.env.INTERNAL_FEED;
       const res = await fetch(`${url}&${params}`, fetchOptions);
       return res.json();
     },

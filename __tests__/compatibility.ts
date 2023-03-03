@@ -6,7 +6,13 @@ import {
   MockContext,
   saveFixtures,
 } from './helpers';
-import { Bookmark, Post, PostKeyword, Source } from '../src/entity';
+import {
+  ArticlePost,
+  Bookmark,
+  Post,
+  PostKeyword,
+  Source,
+} from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { postKeywordsFixture, postsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
@@ -29,7 +35,7 @@ beforeEach(async () => {
   loggedUser = null;
 
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
 });
 
@@ -76,6 +82,7 @@ describe('query latest', () => {
   }`;
 
   it('should return anonymous feed with no filters ordered by popularity', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
     const latest = new Date().toISOString();
     const res = await client.query(QUERY, {
       variables: { params: { latest } },
@@ -84,6 +91,7 @@ describe('query latest', () => {
   });
 
   it('should return anonymous feed with no filters ordered by time', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
     const latest = new Date().toISOString();
     const res = await client.query(QUERY, {
       variables: { params: { latest, sortBy: 'creation' } },
@@ -122,23 +130,6 @@ describe('query bookmarks', () => {
     await saveFixtures(con, Bookmark, bookmarksFixture);
     const res = await client.query(QUERY, {
       variables: { params: { latest } },
-    });
-    expect(res.data).toMatchSnapshot();
-  });
-});
-
-describe('query postsByPublication', () => {
-  const QUERY = `
-  query PostsByPublication($params: PostByPublicationInput) {
-    postsByPublication(params: $params) {
-      ${feedFields}
-    }
-  }`;
-
-  it('should return a single source feed', async () => {
-    const latest = new Date().toISOString();
-    const res = await client.query(QUERY, {
-      variables: { params: { latest, pub: 'b' } },
     });
     expect(res.data).toMatchSnapshot();
   });

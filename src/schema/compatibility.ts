@@ -10,7 +10,6 @@ import {
   configuredFeedBuilder,
   FeedOptions,
   Ranking,
-  sourceFeedBuilder,
   tagFeedBuilder,
 } from '../common';
 import { SelectQueryBuilder } from 'typeorm';
@@ -76,8 +75,6 @@ export const typeDefs = /* GraphQL */ `
       @deprecated(reason: "Please use anonymousFeed or feed")
     bookmarks(params: QueryPostInput): [Post!]!
       @auth
-      @deprecated(reason: "Please use bookmarksFeed")
-    postsByPublication(params: PostByPublicationInput): [Post!]!
       @deprecated(reason: "Please use sourceFeed")
     postsByTag(params: PostByTagInput): [Post!]!
       @deprecated(reason: "Please use tagFeed")
@@ -95,10 +92,6 @@ interface GQLQueryPostInput extends CompatFeedInput {
   pubs: string;
   tags: string;
   read: boolean;
-}
-
-interface GQLPostByPublicationInput extends CompatFeedInput {
-  pub: string;
 }
 
 interface GQLPostByTagInput extends CompatFeedInput {
@@ -131,7 +124,7 @@ async function compatGenerateFeed<
     ranking:
       args.params?.sortBy === 'creation' ? Ranking.TIME : Ranking.POPULARITY,
   };
-  return generate(ctx, limit, offset, opts);
+  return generate(ctx, limit, offset, { ...opts, supportedTypes: ['article'] });
 }
 
 function compatFeedResolver<
@@ -159,6 +152,7 @@ function compatFeedResolver<
           ctx,
           query(ctx, args, opts, builder.queryBuilder, builder.alias),
           builder.alias,
+          ['article'],
         )
           .limit(limit)
           .offset(offset);
@@ -219,20 +213,6 @@ export const resolvers: IResolvers<any, Context> = {
         builder.orderBy('bookmark.createdAt', 'DESC'),
         alias,
       ),
-    ),
-    postsByPublication: compatFeedResolver(
-      (
-        ctx,
-        { params }: CompatFeedArgs<GQLPostByPublicationInput>,
-        opts,
-        builder,
-        alias,
-      ) =>
-        orderFeed(
-          opts.ranking,
-          sourceFeedBuilder(ctx, params.pub, builder, alias),
-          alias,
-        ),
     ),
     postsByTag: compatFeedResolver(
       (

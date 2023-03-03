@@ -6,6 +6,7 @@ import {
 import fp from 'fastify-plugin';
 import jwt from 'jsonwebtoken';
 import { Roles } from './roles';
+import { cookies } from './cookies';
 
 declare module 'fastify' {
   /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -29,7 +30,9 @@ interface AuthPayload {
   roles?: Roles[];
 }
 
-const verifyJwt = (token: string): Promise<AuthPayload | null> =>
+export type AccessToken = { token: string; expiresIn: Date };
+
+export const verifyJwt = (token: string): Promise<AuthPayload | null> =>
   new Promise((resolve, reject) => {
     jwt.verify(
       token,
@@ -43,6 +46,36 @@ const verifyJwt = (token: string): Promise<AuthPayload | null> =>
           return reject(err);
         }
         return resolve(payload as AuthPayload | null);
+      },
+    );
+  });
+
+const DEFAULT_JWT_EXPIRATION = 30 * 24 * 60 * 60 * 1000;
+export const signJwt = <T>(
+  payload: T,
+  expiration = DEFAULT_JWT_EXPIRATION,
+): Promise<AccessToken> =>
+  new Promise((resolve, reject) => {
+    const expiresIn = new Date(Date.now() + expiration);
+    const newPayload = Object.assign(
+      expiration ? { exp: expiresIn.getTime() / 1000 } : {},
+      payload,
+    );
+    jwt.sign(
+      newPayload,
+      process.env.JWT_SECRET,
+      {
+        audience: process.env.JWT_AUDIENCE,
+        issuer: process.env.JWT_ISSUER,
+      },
+      (err, token) => {
+        if (err) {
+          return reject(err);
+        }
+        return resolve({
+          token,
+          expiresIn,
+        });
       },
     );
   });
@@ -71,13 +104,17 @@ const plugin = async (
       delete req.headers['user-id'];
       delete req.headers['logged-in'];
     }
-    if (!req.userId && req.cookies.da3) {
+    const authCookie = req.cookies[cookies.auth.key];
+    if (!req.userId && authCookie) {
       try {
-        const payload = await verifyJwt(req.cookies.da3);
-        if (payload) {
-          req.userId = payload.userId;
-          req.premium = payload.premium;
-          req.roles = payload.roles;
+        const unsigned = req.unsignCookie(authCookie);
+        if (unsigned.valid) {
+          const payload = await verifyJwt(unsigned.value);
+          if (payload) {
+            req.userId = payload.userId;
+            req.premium = payload.premium;
+            req.roles = payload.roles;
+          }
         }
       } catch (err) {
         // JWT is invalid - no need to do anything just not authorize

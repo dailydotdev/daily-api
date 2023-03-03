@@ -1,6 +1,6 @@
 import cron from '../../src/cron/updateDiscussionScore';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
-import { Comment, Post, Source, User } from '../../src/entity';
+import { ArticlePost, Comment, Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -32,7 +32,7 @@ beforeEach(async () => {
 
 it('should update discussion score', async () => {
   const now = new Date();
-  await saveFixtures(con, Post, [
+  await saveFixtures(con, ArticlePost, [
     {
       id: 'p1',
       shortId: 'p1',

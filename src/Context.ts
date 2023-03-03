@@ -1,5 +1,5 @@
 import { DataSource, EntitySchema, ObjectType, Repository } from 'typeorm';
-import { FastifyRequest, FastifyLoggerInstance } from 'fastify';
+import { FastifyRequest, FastifyBaseLogger } from 'fastify';
 import { RootSpan } from '@google-cloud/trace-agent/build/src/plugin-types';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
 import { Roles } from './roles';
@@ -24,7 +24,7 @@ export class Context {
   }
 
   get trackingId(): string | null {
-    return this.req.cookies.da2;
+    return this.req.trackingId;
   }
 
   get premium(): boolean {
@@ -35,7 +35,7 @@ export class Context {
     return this.req.roles ?? [];
   }
 
-  get log(): FastifyLoggerInstance {
+  get log(): FastifyBaseLogger {
     return this.req.log;
   }
 
@@ -49,3 +49,10 @@ export class Context {
     return this.con.getRepository(target);
   }
 }
+
+export type SubscriptionContext = {
+  req: FastifyRequest;
+  con: DataSource;
+  log: FastifyBaseLogger;
+  userId?: string;
+};

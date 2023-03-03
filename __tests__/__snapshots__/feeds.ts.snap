@@ -164,18 +164,6 @@ Array [
 ]
 `;
 
-exports[`function feedToFilters shoud return filters for sources with consideration of features flags 1`] = `
-Object {
-  "blockedTags": Array [],
-  "excludeSources": Array [
-    "excludedSource",
-    "settingsCombinationSource",
-    "experimentExcludedSource",
-  ],
-  "includeTags": Array [],
-}
-`;
-
 exports[`function feedToFilters shoud return filters for tags/sources based on the values from our data 1`] = `
 Object {
   "blockedTags": Array [
@@ -189,6 +177,7 @@ Object {
     "html",
     "javascript",
   ],
+  "sourceIds": Array [],
 }
 `;
 
@@ -200,6 +189,19 @@ Object {
     "settingsCombinationSource",
   ],
   "includeTags": Array [],
+  "sourceIds": Array [],
+}
+`;
+
+exports[`function feedToFilters should return filters with source memberships 1`] = `
+Object {
+  "blockedTags": Array [],
+  "excludeSources": Array [],
+  "includeTags": Array [],
+  "sourceIds": Array [
+    "a",
+    "b",
+  ],
 }
 `;
 
@@ -449,7 +451,7 @@ Object {
       "title": "Code examples",
     },
     Object {
-      "defaultEnabledState": false,
+      "defaultEnabledState": true,
       "description": "Description for Company blogs",
       "id": 5,
       "title": "Company blogs",
@@ -467,12 +469,109 @@ Object {
       "title": "Release notes",
     },
     Object {
-      "defaultEnabledState": false,
+      "defaultEnabledState": true,
       "description": "Description for Tech magazines",
       "id": 1,
       "title": "Tech magazines",
     },
   ],
+}
+`;
+
+exports[`query anonymousFeed by time should return anonymous feed with no filters ordered by time 1`] = `
+Object {
+  "anonymousFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p2",
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P2",
+          "url": "http://p2.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p3",
+          "readTime": null,
+          "source": Object {
+            "id": "c",
+            "image": "http://image.com/c",
+            "name": "C",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P3",
+          "url": "http://p3.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p4",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "backend",
+            "data",
+            "javascript",
+          ],
+          "title": "P4",
+          "url": "http://p4.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p5",
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [
+            "html",
+            "javascript",
+          ],
+          "title": "P5",
+          "url": "http://p5.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "hasNextPage": false,
+    },
+  },
 }
 `;
 
@@ -1352,6 +1451,56 @@ Object {
 }
 `;
 
+exports[`query feed should respect the supportedTypes argument 1`] = `
+Object {
+  "feed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p4",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "backend",
+            "data",
+            "javascript",
+          ],
+          "title": "P4",
+          "url": "http://p4.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "c2NvcmU6MA==",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
 exports[`query feed should return feed v2 1`] = `
 Object {
   "feed": Object {
@@ -1425,6 +1574,37 @@ Object {
           "url": "http://p4.com",
         },
       },
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "c2NvcmU6MA==",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query feed should return only article posts by default 1`] = `
+Object {
+  "feed": Object {
+    "edges": Array [
       Object {
         "node": Object {
           "id": "p1",
@@ -2295,10 +2475,102 @@ Object {
 }
 `;
 
-exports[`query sourceFeed should not display a banned post 1`] = `
+exports[`query sourceFeed should display a banned post in source feed 1`] = `
 Object {
   "sourceFeed": Object {
     "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p5",
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [
+            "html",
+            "javascript",
+          ],
+          "title": "P5",
+          "url": "http://p5.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p2",
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P2",
+          "url": "http://p2.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "c2NvcmU6Nw==",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query sourceFeed should not display a banned post for community source 1`] = `
+Object {
+  "sourceFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p6",
+          "readTime": null,
+          "source": Object {
+            "id": "community",
+            "image": "http://image.com/c",
+            "name": "Community Picks",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P6",
+          "url": "http://p6.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "c2NvcmU6MTA=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query sourceFeed should return a private source feed when user is a member 1`] = `
+Object {
+  "sourceFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p5",
+          "readTime": null,
+          "source": Object {
+            "id": "b",
+            "image": "http://image.com/b",
+            "name": "B",
+            "public": true,
+          },
+          "tags": Array [
+            "html",
+            "javascript",
+          ],
+          "title": "P5",
+          "url": "http://p5.com",
+        },
+      },
       Object {
         "node": Object {
           "id": "p2",

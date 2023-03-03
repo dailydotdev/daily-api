@@ -32,11 +32,3 @@ services:
       - redis:/data
     ports:
       - "6379:6379"
-
-  debezium:
-    image: debezium/server:1.6
-    environment:
-      - GOOGLE_APPLICATION_CREDENTIALS=/debezium/conf/key.json
-    volumes:
-      - ./debezium/conf:/debezium/conf
-      - ./debezium/data:/debezium/data

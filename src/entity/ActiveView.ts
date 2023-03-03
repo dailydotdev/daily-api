@@ -1,5 +1,5 @@
 import { DataSource, ViewColumn, ViewEntity } from 'typeorm';
-import { Post } from './Post';
+import { Post } from './posts';
 import { View } from './View';
 
 @ViewEntity({

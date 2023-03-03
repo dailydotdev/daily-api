@@ -63,5 +63,7 @@ export class NotFoundError extends ApolloError {
 }
 
 export enum TypeOrmError {
+  NULL_VIOLATION = '23502',
+  FOREIGN_KEY = '23503',
   DUPLICATE_ENTRY = '23505',
 }

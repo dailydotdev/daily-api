@@ -1,7 +1,7 @@
 import '../src/config';
-import shortid from 'shortid';
 import { Post } from '../src/entity';
 import createOrGetConnection from '../src/db';
+import { generateShortId } from '../src/ids';
 
 interface Row {
   id: string;
@@ -25,7 +25,7 @@ interface Row {
     await con
       .createQueryBuilder()
       .update(Post)
-      .set({ shortId: shortid.generate() })
+      .set({ shortId: generateShortId() })
       .where({ id })
       .execute();
   });
