@@ -39,6 +39,6 @@ Object {
   "views": 0,
   "viewsThreshold": 0,
   "visible": true,
-  "visibleAt": null,
+  "visibleAt": Any<Date>,
 }
 `;

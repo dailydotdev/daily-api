@@ -93,6 +93,7 @@ describe('POST /p/newPost', () => {
     expect(posts.length).toEqual(1);
     expect(body).toEqual({ status: 'ok', postId: posts[0].id });
     expect(posts[0]).toMatchSnapshot({
+      visibleAt: expect.any(Date),
       createdAt: expect.any(Date),
       metadataChangedAt: expect.any(Date),
       score: expect.any(Number),
