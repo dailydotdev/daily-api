@@ -132,11 +132,6 @@ export const typeDefs = /* GraphQL */ `
     Logged-in member object
     """
     currentMember: SourceMember
-
-    """
-    User squad permissions
-    """
-    permissions: [String]
   }
 
   type SourceConnection {
@@ -174,6 +169,10 @@ export const typeDefs = /* GraphQL */ `
     Numerical representation of the user's role
     """
     roleRank: Int
+    """
+    User squad permissions
+    """
+    permissions: [String]
   }
 
   type SourceMemberConnection {
@@ -388,7 +387,10 @@ export enum SourcePermissions {
   Edit = 'edit',
 }
 
-const roleSourcePermissions: Record<SourceMemberRoles, SourcePermissions[]> = {
+export const roleSourcePermissions: Record<
+  SourceMemberRoles,
+  SourcePermissions[]
+> = {
   owner: [
     SourcePermissions.View,
     SourcePermissions.Post,

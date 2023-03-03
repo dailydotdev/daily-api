@@ -125,13 +125,15 @@ exports[`query source current member should return current member as member 1`] 
 Object {
   "source": Object {
     "currentMember": Object {
+      "permissions": Array [
+        "view",
+        "post",
+        "leave",
+      ],
       "role": "member",
       "roleRank": 0,
     },
     "id": "a",
-    "permissions": Array [
-      "view",
-    ],
   },
 }
 `;
@@ -140,21 +142,22 @@ exports[`query source current member should return current member as owner 1`] =
 Object {
   "source": Object {
     "currentMember": Object {
+      "permissions": Array [
+        "view",
+        "post",
+        "post_limit",
+        "post_delete",
+        "member_remove",
+        "moderator_add",
+        "moderator_remove",
+        "invite_disable",
+        "edit",
+        "delete",
+      ],
       "role": "owner",
       "roleRank": 10,
     },
     "id": "a",
-    "permissions": Array [
-      "view",
-      "post_limit",
-      "post_delete",
-      "member_remove",
-      "moderator_add",
-      "moderator_remove",
-      "invite_disable",
-      "delete",
-      "edit",
-    ],
   },
 }
 `;
@@ -164,7 +167,6 @@ Object {
   "source": Object {
     "currentMember": null,
     "id": "a",
-    "permissions": null,
   },
 }
 `;
@@ -174,7 +176,6 @@ Object {
   "source": Object {
     "currentMember": null,
     "id": "a",
-    "permissions": null,
   },
 }
 `;

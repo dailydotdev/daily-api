@@ -1,4 +1,4 @@
-import { getUserPermissions, GQLSource } from './../schema/sources';
+import { roleSourcePermissions } from './../schema/sources';
 import { GraphORM, QueryBuilder } from './graphorm';
 import {
   Bookmark,
@@ -144,15 +144,6 @@ const obj = new GraphORM({
       public: {
         transform: (value: boolean): boolean => !value,
       },
-      permissions: {
-        transform: (_, ctx: Context, source: GQLSource) => {
-          if (!ctx.userId || !source.currentMember) {
-            return null;
-          }
-
-          return getUserPermissions(source, source.currentMember);
-        },
-      },
       members: {
         relation: {
           isMany: true,
@@ -191,6 +182,19 @@ const obj = new GraphORM({
   },
   SourceMember: {
     requiredColumns: ['createdAt'],
+    fields: {
+      permissions: {
+        transform: (_, ctx: Context, member: SourceMember) => {
+          if (!ctx.userId || member.userId !== ctx.userId) {
+            return null;
+          }
+
+          return (
+            roleSourcePermissions[member.role] ?? roleSourcePermissions.member
+          );
+        },
+      },
+    },
   },
   Comment: {
     requiredColumns: ['id', 'postId', 'createdAt'],
