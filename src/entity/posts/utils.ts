@@ -9,7 +9,7 @@ import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { validateAndApproveSubmission } from '../Submission';
 import { ArticlePost, Toc } from './ArticlePost';
-import { Post } from './Post';
+import { Post, PostOrigin } from './Post';
 import { MAX_COMMENTARY_LENGTH, SharePost } from './SharePost';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { Source } from '../Source';
@@ -75,6 +75,7 @@ export interface AddPostData {
   summary?: string;
   submissionId?: string;
   scoutId?: string;
+  origin?: PostOrigin;
 }
 
 const parseReadTime = (
@@ -220,7 +221,7 @@ const addPostAndKeywordsToDb = async (
   }
   const { private: privacy } = await entityManager
     .getRepository(Source)
-    .findOneById(data.publicationId);
+    .findOneBy({ id: data.publicationId });
   const post = await entityManager.getRepository(ArticlePost).create({
     id: data.id,
     shortId: data.id,
@@ -245,6 +246,11 @@ const addPostAndKeywordsToDb = async (
     summary: data.summary,
     scoutId: data.scoutId,
     private: privacy,
+    origin: data.scoutId
+      ? PostOrigin.CommunityPicks
+      : data.origin ?? PostOrigin.Crawler,
+    visible: true,
+    visibleAt: new Date(),
   });
   await entityManager.save(post);
   if (data.tags?.length) {
@@ -356,7 +362,7 @@ export const createSharePost = async (
   try {
     const { private: privacy } = await con
       .getRepository(Source)
-      .findOneById(sourceId);
+      .findOneBy({ id: sourceId });
     return await con.getRepository(SharePost).save({
       id,
       shortId: id,
@@ -367,6 +373,9 @@ export const createSharePost = async (
       title: commentary,
       sentAnalyticsReport: true,
       private: privacy,
+      origin: PostOrigin.Ugc,
+      visible: true,
+      visibleAt: new Date(),
     });
   } catch (err) {
     if (err.code === TypeOrmError.FOREIGN_KEY) {

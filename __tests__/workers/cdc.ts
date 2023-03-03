@@ -671,6 +671,8 @@ describe('post', () => {
       metadataChangedAt: 0,
       publishedAt: 0,
       lastTrending: 0,
+      visible: true,
+      visibleAt: 0,
     };
     const after: ChangeObject<ObjectType> = {
       ...localBase,

@@ -2,6 +2,7 @@ import {
   AdvancedSettings,
   FeedAdvancedSettings,
   SourceMember,
+  UNKNOWN_SOURCE,
 } from '../entity';
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -219,7 +220,7 @@ export const applyFeedWhere = (
   let newBuilder = builder
     .andWhere(`${alias}.deleted = false`)
     .andWhere(`${alias}.visible = true`)
-    .andWhere(`${alias}."sourceId" is not null`)
+    .andWhere(`${alias}."sourceId" != :unknown`, { unknown: UNKNOWN_SOURCE })
     .andWhere(`${alias}."type" in (:...postTypes)`, { postTypes });
   if (!allowPrivateSources) {
     const selectSource = builder
