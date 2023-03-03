@@ -1,4 +1,3 @@
-import { UNKNOWN_SOURCE } from './../entity/Source';
 import { FeedAdvancedSettings, AdvancedSettings } from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
