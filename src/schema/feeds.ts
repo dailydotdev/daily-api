@@ -968,7 +968,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         builder,
         alias,
       ) => {
-        let newBuilder = builder.andWhere(`${alias}."trending" > 0`);
+        let newBuilder = builder
+          .andWhere(`${alias}."trending" > 0`)
+          .andWhere(`${alias}.visible true`);
         if (post) {
           newBuilder = newBuilder.andWhere(`${alias}."id" != :postId`, {
             postId: post,

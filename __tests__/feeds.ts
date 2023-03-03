@@ -253,6 +253,7 @@ edges {
     title
     readTime
     tags
+    visible
     source {
       id
       name
