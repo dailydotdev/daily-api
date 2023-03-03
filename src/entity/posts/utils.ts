@@ -221,7 +221,7 @@ const addPostAndKeywordsToDb = async (
   }
   const { private: privacy } = await entityManager
     .getRepository(Source)
-    .findOneById(data.publicationId);
+    .findOneBy({ id: data.publicationId });
   const post = await entityManager.getRepository(ArticlePost).create({
     id: data.id,
     shortId: data.id,
@@ -362,7 +362,7 @@ export const createSharePost = async (
   try {
     const { private: privacy } = await con
       .getRepository(Source)
-      .findOneById(sourceId);
+      .findOneBy({ id: sourceId });
     return await con.getRepository(SharePost).save({
       id,
       shortId: id,
