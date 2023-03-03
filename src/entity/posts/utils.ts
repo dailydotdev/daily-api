@@ -249,6 +249,8 @@ const addPostAndKeywordsToDb = async (
     origin: data.scoutId
       ? PostOrigin.CommunityPicks
       : data.origin ?? PostOrigin.Crawler,
+    visible: true,
+    visibleAt: new Date(),
   });
   await entityManager.save(post);
   if (data.tags?.length) {
@@ -372,6 +374,8 @@ export const createSharePost = async (
       sentAnalyticsReport: true,
       private: privacy,
       origin: PostOrigin.Ugc,
+      visible: true,
+      visibleAt: new Date(),
     });
   } catch (err) {
     if (err.code === TypeOrmError.FOREIGN_KEY) {
