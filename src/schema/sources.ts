@@ -387,7 +387,7 @@ const ownerPermissions = [
   SourcePermissions.ModeratorRemove,
   SourcePermissions.InviteDisable,
   SourcePermissions.Delete,
-].filter((permission) => permission !== SourcePermissions.Leave);
+];
 
 export const roleSourcePermissions: Record<
   SourceMemberRoles,

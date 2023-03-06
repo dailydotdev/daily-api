@@ -145,6 +145,7 @@ Object {
       "permissions": Array [
         "view",
         "post",
+        "leave",
         "post_delete",
         "member_remove",
         "edit",

@@ -807,16 +807,17 @@ describe('mutation leaveSource', () => {
     expect(sourceMembers).toEqual(0);
   });
 
-  it('should throw an error is user is the owner', async () => {
+  it('should leave squad even if the user is the owner', async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
       .update({ userId: '1' }, { role: SourceMemberRoles.Owner });
-    return testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables },
-      'FORBIDDEN',
-    );
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const sourceMembers = await con
+      .getRepository(SourceMember)
+      .countBy(variables);
+    expect(sourceMembers).toEqual(0);
   });
 });
 
