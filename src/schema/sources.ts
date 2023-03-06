@@ -933,7 +933,4 @@ export const resolvers: IResolvers<any, Context> = {
   Source: {
     permalink: (source: GQLSource): string => getSourceLink(source),
   },
-  SourceMember: {
-    roleRank: (member: SourceMember) => roleRank[member.role],
-  },
 };
