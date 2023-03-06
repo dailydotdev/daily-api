@@ -505,7 +505,6 @@ export class GraphORM {
       builder = beforeQuery(builder);
     }
 
-    console.log('query: ', builder.queryBuilder.getSql());
     const res = await builder.queryBuilder.getRawMany();
     return res.map((value) =>
       this.transformType(ctx, value, rootType, fieldsByTypeName),

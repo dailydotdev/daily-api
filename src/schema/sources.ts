@@ -652,7 +652,7 @@ export const resolvers: IResolvers<any, Context> = {
               source: args.sourceId,
             })
             .addOrderBy(
-              `(${graphorm.mappings.SourceMember.fields.roleRank.select})`,
+              graphorm.mappings.SourceMember.fields.roleRank.select as string,
               'DESC',
             )
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');

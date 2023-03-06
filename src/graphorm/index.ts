@@ -183,7 +183,7 @@ const obj = new GraphORM({
     },
   },
   SourceMember: {
-    requiredColumns: ['createdAt', 'roleRank'],
+    requiredColumns: ['createdAt'],
     fields: {
       permissions: {
         transform: (_, ctx: Context, member: SourceMember) => {
@@ -202,7 +202,7 @@ const obj = new GraphORM({
           CASE
             ${roleRankKeys
               .map((role) => `WHEN "role" = '${role}' THEN ${roleRank[role]}`)
-              .join('\n')}
+              .join(' ')}
           ELSE 0 END
         `,
         transform: nullIfNotLoggedIn,
