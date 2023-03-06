@@ -1,4 +1,4 @@
-import fetch, { RequestInit } from 'node-fetch';
+import fetch, { RequestInit, Headers } from 'node-fetch';
 import { fetchOptions } from './http';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { cookies, setCookie } from './cookies';
@@ -20,7 +20,7 @@ const fetchKratos = async (
   endpoint: string,
   opts: RequestInit = {},
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<any> => {
+): Promise<{ res: any; headers: Headers }> => {
   const res = await fetch(endpoint, {
     ...fetchOptions,
     ...addKratosHeaderCookies(req),
@@ -29,13 +29,22 @@ const fetchKratos = async (
   if (res.status >= 300) {
     throw { statusCode: res.status, body: await res.text() };
   }
-  return res.json();
+  return { res: await res.json(), headers: res.headers };
 };
 
 export const clearAuthentication = async (
   req: FastifyRequest,
   res: FastifyReply,
+  reason: string,
 ): Promise<void> => {
+  req.log.info(
+    {
+      reason,
+      userId: req.userId,
+      cookie: req.cookies[cookies.kratos.key],
+    },
+    'clearing authentication',
+  );
   req.trackingId = await generateTrackingId();
   req.userId = undefined;
   setTrackingId(req, res, req.trackingId);
@@ -45,7 +54,7 @@ export const clearAuthentication = async (
 };
 
 type WhoamiResponse =
-  | { valid: true; userId: string; expires: Date }
+  | { valid: true; userId: string; expires: Date; cookie?: string }
   | { valid: false };
 
 export const dispatchWhoami = async (
@@ -55,12 +64,16 @@ export const dispatchWhoami = async (
     return { valid: false };
   }
   try {
-    const whoami = await fetchKratos(req, `${heimdallOrigin}/api/whoami`);
+    const { res: whoami, headers } = await fetchKratos(
+      req,
+      `${heimdallOrigin}/api/whoami`,
+    );
     if (whoami?.identity?.traits?.userId) {
       return {
         valid: true,
         userId: whoami.identity.traits.userId,
         expires: new Date(whoami.expires_at),
+        cookie: headers.get('set-cookie'),
       };
     }
   } catch (e) {
@@ -77,7 +90,7 @@ export const logout = async (
   res: FastifyReply,
 ): Promise<FastifyReply> => {
   try {
-    const logoutFlow = await fetchKratos(
+    const { res: logoutFlow } = await fetchKratos(
       req,
       `${kratosOrigin}/self-service/logout/browser`,
     );
@@ -91,6 +104,6 @@ export const logout = async (
       throw e;
     }
   }
-  await clearAuthentication(req, res);
+  await clearAuthentication(req, res, 'manual logout');
   return res.status(204).send();
 };

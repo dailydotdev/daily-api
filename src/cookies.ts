@@ -73,6 +73,26 @@ const addSubdomainOpts = (
   };
 };
 
+export const setRawCookie = (
+  res: FastifyReply,
+  setCookieValue: string,
+): FastifyReply => {
+  let setCookie = res.getHeader('Set-Cookie');
+  if (!setCookie) {
+    res.header('Set-Cookie', setCookieValue);
+    return res;
+  }
+
+  if (typeof setCookie === 'string') {
+    setCookie = [setCookie];
+  }
+  if (typeof setCookie !== 'number') {
+    setCookie.push(setCookieValue);
+  }
+  res.removeHeader('Set-Cookie');
+  return res.header('Set-Cookie', setCookie);
+};
+
 export const setCookie = (
   req: FastifyRequest,
   res: FastifyReply,
