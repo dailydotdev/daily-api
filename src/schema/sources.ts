@@ -387,35 +387,33 @@ export enum SourcePermissions {
   Edit = 'edit',
 }
 
+const memberPermissions = [
+  SourcePermissions.View,
+  SourcePermissions.Post,
+  SourcePermissions.Leave,
+];
+const moderatorPermissions = [
+  ...memberPermissions,
+  SourcePermissions.PostDelete,
+  SourcePermissions.MemberRemove,
+  SourcePermissions.Edit,
+];
+const ownerPermissions = [
+  ...moderatorPermissions,
+  SourcePermissions.PostLimit,
+  SourcePermissions.ModeratorAdd,
+  SourcePermissions.ModeratorRemove,
+  SourcePermissions.InviteDisable,
+  SourcePermissions.Delete,
+].filter((permission) => permission !== SourcePermissions.Leave);
+
 export const roleSourcePermissions: Record<
   SourceMemberRoles,
   SourcePermissions[]
 > = {
-  get owner() {
-    const permissions = this.moderator.concat(
-      SourcePermissions.PostLimit,
-      SourcePermissions.ModeratorAdd,
-      SourcePermissions.ModeratorRemove,
-      SourcePermissions.InviteDisable,
-      SourcePermissions.Delete,
-    );
-
-    return permissions.filter(
-      (permission) => permission !== SourcePermissions.Leave,
-    );
-  },
-  get moderator() {
-    return this.member.concat(
-      SourcePermissions.PostDelete,
-      SourcePermissions.MemberRemove,
-      SourcePermissions.Edit,
-    );
-  },
-  member: [
-    SourcePermissions.View,
-    SourcePermissions.Post,
-    SourcePermissions.Leave,
-  ],
+  owner: ownerPermissions,
+  moderator: moderatorPermissions,
+  member: memberPermissions,
 };
 
 const requireGreaterAccessPrivilege: Partial<
