@@ -391,26 +391,26 @@ export const roleSourcePermissions: Record<
   SourceMemberRoles,
   SourcePermissions[]
 > = {
-  owner: [
-    SourcePermissions.View,
-    SourcePermissions.Post,
-    SourcePermissions.PostLimit,
-    SourcePermissions.PostDelete,
-    SourcePermissions.MemberRemove,
-    SourcePermissions.ModeratorAdd,
-    SourcePermissions.ModeratorRemove,
-    SourcePermissions.InviteDisable,
-    SourcePermissions.Edit,
-    SourcePermissions.Delete,
-  ],
-  moderator: [
-    SourcePermissions.View,
-    SourcePermissions.Post,
-    SourcePermissions.PostDelete,
-    SourcePermissions.MemberRemove,
-    SourcePermissions.Edit,
-    SourcePermissions.Leave,
-  ],
+  get owner() {
+    const permissions = this.moderator.concat(
+      SourcePermissions.PostLimit,
+      SourcePermissions.ModeratorAdd,
+      SourcePermissions.ModeratorRemove,
+      SourcePermissions.InviteDisable,
+      SourcePermissions.Delete,
+    );
+
+    return permissions.filter(
+      (permission) => permission !== SourcePermissions.Leave,
+    );
+  },
+  get moderator() {
+    return this.member.concat(
+      SourcePermissions.PostDelete,
+      SourcePermissions.MemberRemove,
+      SourcePermissions.Edit,
+    );
+  },
   member: [
     SourcePermissions.View,
     SourcePermissions.Post,
