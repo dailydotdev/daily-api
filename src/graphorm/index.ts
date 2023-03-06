@@ -197,13 +197,15 @@ const obj = new GraphORM({
       },
       roleRank: {
         rawSelect: true,
-        select: `
-          CASE
-            ${roleRankKeys
-              .map((role) => `WHEN "role" = '${role}' THEN ${roleRank[role]}`)
-              .join(' ')}
-          ELSE 0 END
-        `,
+        select:
+          roleRankKeys &&
+          `
+            CASE
+              ${roleRankKeys
+                .map((role) => `WHEN "role" = '${role}' THEN ${roleRank[role]}`)
+                .join(' ')}
+            ELSE 0 END
+          `,
       },
     },
   },
