@@ -174,10 +174,8 @@ const obj = new GraphORM({
           isMany: false,
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
             qb
-              .select('*')
-              .from(SourceMember, 'sm')
-              .where(`sm."userId" = :userId`, { userId: ctx.userId })
-              .andWhere(`sm."sourceId" = "${parentAlias}".id`),
+              .where(`${childAlias}."userId" = :userId`, { userId: ctx.userId })
+              .andWhere(`${childAlias}."sourceId" = "${parentAlias}".id`),
         },
       },
     },
@@ -205,7 +203,6 @@ const obj = new GraphORM({
               .join(' ')}
           ELSE 0 END
         `,
-        transform: nullIfNotLoggedIn,
       },
     },
   },
