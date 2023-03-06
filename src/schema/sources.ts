@@ -439,24 +439,12 @@ export const hasGreaterAccessCheck = (
   }
 };
 
-interface SourcePermissionsProps {
-  permission: SourcePermissions;
-  validateRankAgainstId: string;
-}
-
 const hasPermissionCheck = (
   source: Source | GQLSource,
   member: BaseSourceMember,
   permission: SourcePermissions,
   validateRankAgainst?: BaseSourceMember,
 ) => {
-  if (
-    source.type !== SourceType.Squad &&
-    [SourcePermissions.Post, SourcePermissions.Leave].includes(permission)
-  ) {
-    return false;
-  }
-
   if (validateRankAgainst) {
     hasGreaterAccessCheck(member, validateRankAgainst);
   }
@@ -467,26 +455,12 @@ const hasPermissionCheck = (
   return rolePermissions.includes(permission);
 };
 
-export const getUserPermissions = (
-  source: Source | GQLSource,
-  member: SourceMember | GQLSourceMember,
-) => {
-  const permissions = Object.values(SourcePermissions);
-  const filtered = permissions.filter((permission) =>
-    hasPermissionCheck(source, member, permission),
-  );
-
-  return filtered;
-};
-
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
-  props?: Partial<SourcePermissionsProps>,
+  permission: SourcePermissions,
+  validateRankAgainstId?: string,
 ): Promise<boolean> => {
-  const { permission = SourcePermissions.View, validateRankAgainstId } =
-    props ?? {};
-
   if (permission === SourcePermissions.View && !source.private) {
     return true;
   }
@@ -536,13 +510,14 @@ const validateSquadData = ({
 export const ensureSourcePermissions = async (
   ctx: Context,
   sourceId: string | undefined,
-  props?: Partial<SourcePermissionsProps>,
+  permission: SourcePermissions = SourcePermissions.View,
+  validateRankAgainstId?: string,
 ): Promise<Source> => {
   if (sourceId) {
     const source = await ctx.con
       .getRepository(Source)
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
-    if (await canAccessSource(ctx, source, props)) {
+    if (await canAccessSource(ctx, source, permission, validateRankAgainstId)) {
       return source;
     }
   }
@@ -830,9 +805,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLSource> => {
-      await ensureSourcePermissions(ctx, sourceId, {
-        permission: SourcePermissions.Edit,
-      });
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Edit);
       const handle = validateSquadData({
         handle: inputHandle,
         name,
@@ -879,9 +852,7 @@ export const resolvers: IResolvers<any, Context> = {
       { sourceId }: { sourceId: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await ensureSourcePermissions(ctx, sourceId, {
-        permission: SourcePermissions.Delete,
-      });
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Delete);
       await ctx.con.getRepository(Source).delete({
         id: sourceId,
       });
@@ -892,9 +863,7 @@ export const resolvers: IResolvers<any, Context> = {
       { sourceId }: { sourceId: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await ensureSourcePermissions(ctx, sourceId, {
-        permission: SourcePermissions.Leave,
-      });
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Leave);
       await ctx.con.getRepository(SourceMember).delete({
         sourceId,
         userId: ctx.userId,
@@ -952,10 +921,12 @@ export const resolvers: IResolvers<any, Context> = {
       { sourceId, memberId }: RemoveMemberArgs,
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await ensureSourcePermissions(ctx, sourceId, {
-        validateRankAgainstId: memberId,
-        permission: SourcePermissions.MemberRemove,
-      });
+      await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.MemberRemove,
+        memberId,
+      );
 
       await ctx
         .getRepository(SourceMember)

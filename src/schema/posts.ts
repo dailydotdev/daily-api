@@ -756,9 +756,11 @@ export const resolvers: IResolvers<any, Context> = {
         const post = await repo.findOneBy({ id });
         if (post.type === PostType.Share) {
           if (post.authorId !== ctx.userId) {
-            await ensureSourcePermissions(ctx, post.sourceId, {
-              permission: SourcePermissions.PostDelete,
-            });
+            await ensureSourcePermissions(
+              ctx,
+              post.sourceId,
+              SourcePermissions.PostDelete,
+            );
           }
 
           await repo.update({ id }, { deleted: true });
@@ -842,9 +844,7 @@ export const resolvers: IResolvers<any, Context> = {
       info,
     ): Promise<GQLPost> => {
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
-      await ensureSourcePermissions(ctx, sourceId, {
-        permission: SourcePermissions.Post,
-      });
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
       const newPost = await createSharePost(
         ctx.con,
         sourceId,
