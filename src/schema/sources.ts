@@ -6,6 +6,7 @@ import { Context } from '../Context';
 import {
   createSharePost,
   generateMemberToken,
+  roleRank,
   Source,
   SourceFeed,
   SourceMember,
@@ -159,6 +160,14 @@ export const typeDefs = /* GraphQL */ `
     Token to be used for inviting new squad members
     """
     referralToken: String!
+    """
+    Numerical representation of the user's role
+    """
+    roleRank: Int
+    """
+    User squad permissions
+    """
+    permissions: [String]
   }
 
   type SourceMemberConnection {
@@ -347,56 +356,117 @@ const sourceToGQL = (source: Source): GQLSource => ({
 });
 
 export enum SourcePermissions {
-  View,
-  Post,
-  Leave,
-  Delete,
-  Edit,
+  View = 'view',
+  Post = 'post',
+  PostLimit = 'post_limit',
+  PostDelete = 'post_delete',
+  MemberRemove = 'member_remove',
+  ModeratorAdd = 'moderator_add',
+  ModeratorRemove = 'moderator_remove',
+  InviteDisable = 'invite_disable',
+  Leave = 'leave',
+  Delete = 'delete',
+  Edit = 'edit',
 }
+
+const memberPermissions = [
+  SourcePermissions.View,
+  SourcePermissions.Post,
+  SourcePermissions.Leave,
+];
+const moderatorPermissions = [
+  ...memberPermissions,
+  SourcePermissions.PostDelete,
+  SourcePermissions.MemberRemove,
+  SourcePermissions.Edit,
+];
+const ownerPermissions = [
+  ...moderatorPermissions,
+  SourcePermissions.PostLimit,
+  SourcePermissions.ModeratorAdd,
+  SourcePermissions.ModeratorRemove,
+  SourcePermissions.InviteDisable,
+  SourcePermissions.Delete,
+];
+
+export const roleSourcePermissions: Record<
+  SourceMemberRoles,
+  SourcePermissions[]
+> = {
+  owner: ownerPermissions,
+  moderator: moderatorPermissions,
+  member: memberPermissions,
+};
+
+const requireGreaterAccessPrivilege: Partial<
+  Record<SourcePermissions, boolean>
+> = {
+  [SourcePermissions.MemberRemove]: true,
+};
+
+type BaseSourceMember = Pick<SourceMember, 'role'>;
+
+export const hasGreaterAccessCheck = (
+  loggedUser: BaseSourceMember,
+  member: BaseSourceMember,
+) => {
+  const memberRank = roleRank[member.role];
+  const loggedUserRank = roleRank[loggedUser.role];
+  const hasGreaterAccess = loggedUserRank > memberRank;
+
+  if (!hasGreaterAccess) {
+    throw new ForbiddenError('Access denied!');
+  }
+};
+
+const hasPermissionCheck = (
+  source: Source | GQLSource,
+  member: BaseSourceMember,
+  permission: SourcePermissions,
+  validateRankAgainst?: BaseSourceMember,
+) => {
+  if (validateRankAgainst) {
+    hasGreaterAccessCheck(member, validateRankAgainst);
+  }
+
+  const rolePermissions = roleSourcePermissions[member.role];
+
+  return rolePermissions?.includes?.(permission);
+};
 
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
-  permission = SourcePermissions.View,
+  permission: SourcePermissions,
+  validateRankAgainstId?: string,
 ): Promise<boolean> => {
   if (permission === SourcePermissions.View && !source.private) {
     return true;
   }
 
-  if (ctx.userId) {
-    const member = await ctx.con.getRepository(SourceMember).findOneBy({
-      userId: ctx.userId,
-      sourceId: source.id,
-    });
-
-    switch (permission) {
-      case SourcePermissions.Post:
-        if (source.type !== SourceType.Squad) {
-          return false;
-        }
-        break;
-      case SourcePermissions.Leave:
-        if (
-          member.role === SourceMemberRoles.Owner ||
-          source.type !== SourceType.Squad
-        ) {
-          return false;
-        }
-        break;
-      case SourcePermissions.Edit:
-      case SourcePermissions.Delete:
-        if (member.role !== SourceMemberRoles.Owner) {
-          return false;
-        }
-        break;
-    }
-
-    if (member) {
-      return true;
-    }
+  if (!ctx.userId) {
+    return false;
   }
 
-  return false;
+  const sourceId = source.id;
+  const repo = ctx.getRepository(SourceMember);
+  const [loggedUser, validateRankAgainst] = await Promise.all([
+    repo.findOneBy({ sourceId, userId: ctx.userId }),
+    requireGreaterAccessPrivilege[permission]
+      ? repo.findOneByOrFail({ sourceId, userId: validateRankAgainstId })
+      : Promise.resolve(null),
+  ]);
+
+  if (!loggedUser) {
+    return false;
+  }
+
+  return hasPermissionCheck(
+    source,
+    loggedUser,
+    permission,
+    validateRankAgainst,
+  );
 };
 
 const validateSquadData = ({
@@ -419,13 +489,14 @@ const validateSquadData = ({
 export const ensureSourcePermissions = async (
   ctx: Context,
   sourceId: string | undefined,
-  permission = SourcePermissions.View,
+  permission: SourcePermissions = SourcePermissions.View,
+  validateRankAgainstId?: string,
 ): Promise<Source> => {
   if (sourceId) {
     const source = await ctx.con
       .getRepository(Source)
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
-    if (await canAccessSource(ctx, source, permission)) {
+    if (await canAccessSource(ctx, source, permission, validateRankAgainstId)) {
       return source;
     }
   }
@@ -547,7 +618,6 @@ export const resolvers: IResolvers<any, Context> = {
       info,
     ): Promise<Connection<GQLSourceMember>> => {
       await ensureSourcePermissions(ctx, args.sourceId);
-
       const page = membershipsPageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,
@@ -561,7 +631,10 @@ export const resolvers: IResolvers<any, Context> = {
             .andWhere(`${builder.alias}."sourceId" = :source`, {
               source: args.sourceId,
             })
-            .addOrderBy(`${builder.alias}."role"`, 'DESC')
+            .addOrderBy(
+              graphorm.mappings.SourceMember.fields.roleRank.select as string,
+              'DESC',
+            )
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
 
           builder.queryBuilder.limit(page.limit);
