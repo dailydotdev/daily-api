@@ -37,6 +37,7 @@ import { Roles } from '../src/roles';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { notifyView } from '../src/common';
+import { randomUUID } from 'crypto';
 
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
@@ -72,6 +73,9 @@ beforeEach(async () => {
   await con
     .getRepository(User)
     .save({ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' });
+  await con
+    .getRepository(User)
+    .save({ id: '2', name: 'Lee', image: 'https://daily.dev/lee.jpg' });
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -847,11 +851,12 @@ describe('mutation unhidePost', () => {
 
 describe('mutation deletePost', () => {
   const MUTATION = `
-  mutation DeletePost($id: ID!) {
-  deletePost(id: $id) {
-    _
-  }
-}`;
+    mutation DeletePost($id: ID!) {
+      deletePost(id: $id) {
+        _
+      }
+    }
+  `;
 
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
@@ -863,17 +868,13 @@ describe('mutation deletePost', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not authorize when not moderator', () => {
+  it('should do nothing if post is not a shared post and the user is not a moderator', async () => {
     loggedUser = '1';
-    roles = [];
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { id: 'p1' },
-      },
-      'FORBIDDEN',
-    );
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post).toBeTruthy();
+    expect(post?.deleted).toBeFalsy();
   });
 
   it('should delete the post', async () => {
@@ -891,6 +892,160 @@ describe('mutation deletePost', () => {
     await con.getRepository(Post).delete({ id: 'p1' });
     const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
+  });
+
+  const createSharedPost = async (
+    id = 'sp1',
+    member: Partial<SourceMember> = {},
+    authorId = '2',
+  ) => {
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+      {
+        userId: '2',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+        ...member,
+      },
+    ]);
+    await con.getRepository(SharePost).save({
+      ...post,
+      id,
+      shortId: `short-${id}`,
+      sharedPostId: 'p1',
+      authorId,
+    });
+  };
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should restrict when not a member of the squad', async () => {
+    loggedUser = '1';
+    await createSharedPost();
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'sp1' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should restrict member deleting a post from a moderator', async () => {
+    loggedUser = '1';
+    const id = 'sp1';
+    await createSharedPost(id, { role: SourceMemberRoles.Moderator });
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'sp1' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should restrict member deleting a post from the owner', async () => {
+    loggedUser = '1';
+    const id = 'sp1';
+    await createSharedPost(id, { role: SourceMemberRoles.Owner });
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should restrict member deleting a post from other members', async () => {
+    loggedUser = '1';
+    const id = 'sp1';
+    await createSharedPost(id);
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should allow member to delete their own shared post', async () => {
+    loggedUser = '2';
+    const id = 'sp1';
+    await createSharedPost(id);
+    const res = await client.mutate(MUTATION, { variables: { id: 'sp1' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(SharePost).findOneBy({ id: 'sp1' });
+    expect(actual?.deleted).toBeTruthy();
+  });
+
+  it('should delete the shared post from a member as a moderator', async () => {
+    loggedUser = '2';
+    const id = 'sp1';
+    await createSharedPost(id, { role: SourceMemberRoles.Moderator }, '1');
+    const res = await client.mutate(MUTATION, { variables: { id: 'sp1' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(SharePost).findOneBy({ id: 'sp1' });
+    expect(actual?.deleted).toBeTruthy();
+  });
+
+  it('should allow moderator deleting a post from other moderators', async () => {
+    loggedUser = '1';
+    const id = 'sp1';
+    await createSharedPost(id, { role: SourceMemberRoles.Moderator });
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Moderator });
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'sp1' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(SharePost).findOneBy({ id: 'sp1' });
+    expect(actual?.deleted).toBeTruthy();
+  });
+
+  it('should allow moderator deleting a post from the owner', async () => {
+    loggedUser = '1';
+    const id = 'sp1';
+    await createSharedPost(id, { role: SourceMemberRoles.Owner });
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Moderator });
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'sp1' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(SharePost).findOneBy({ id: 'sp1' });
+    expect(actual?.deleted).toBeTruthy();
+  });
+
+  it('should delete the shared post as an owner of the squad', async () => {
+    loggedUser = '2';
+    const id = 'sp1';
+    await createSharedPost(id, { role: SourceMemberRoles.Owner }, '1');
+    const res = await client.mutate(MUTATION, { variables: { id: 'sp1' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(SharePost).findOneBy({ id: 'sp1' });
+    expect(actual?.deleted).toBeTruthy();
+  });
+
+  it('should do nothing if post is not a shared post', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post).toBeTruthy();
+    expect(post?.deleted).toBeFalsy();
   });
 });
 
@@ -1075,7 +1230,7 @@ describe('mutation upvote', () => {
   });
 
   it('should throw not found when cannot find user', () => {
-    loggedUser = '2';
+    loggedUser = '3';
     return testMutationErrorCode(
       client,
       {

@@ -8,8 +8,17 @@ const randomBytesAsync = promisify(randomBytes);
 
 export enum SourceMemberRoles {
   Owner = 'owner',
+  Moderator = 'moderator',
   Member = 'member',
 }
+
+export const roleRank: Record<SourceMemberRoles, number> = {
+  owner: 10,
+  moderator: 5,
+  member: 0,
+};
+
+export const roleRankKeys = Object.keys(roleRank);
 
 @Entity()
 export class SourceMember {

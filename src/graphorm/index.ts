@@ -1,3 +1,4 @@
+import { roleSourcePermissions } from './../schema/sources';
 import { GraphORM, QueryBuilder } from './graphorm';
 import {
   Bookmark,
@@ -5,6 +6,8 @@ import {
   FeedSource,
   FeedTag,
   Post,
+  roleRank,
+  roleRankKeys,
   SourceMember,
   User,
 } from '../entity';
@@ -171,17 +174,39 @@ const obj = new GraphORM({
           isMany: false,
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
             qb
-              .select('*')
-              .from(SourceMember, 'sm')
-              .where(`sm."userId" = :userId`, { userId: ctx.userId })
-              .andWhere(`sm."sourceId" = "${parentAlias}".id`),
+              .where(`${childAlias}."userId" = :userId`, { userId: ctx.userId })
+              .andWhere(`${childAlias}."sourceId" = "${parentAlias}".id`),
         },
-        transform: nullIfNotLoggedIn,
       },
     },
   },
   SourceMember: {
-    requiredColumns: ['createdAt'],
+    requiredColumns: ['createdAt', 'userId'],
+    fields: {
+      permissions: {
+        transform: (_, ctx: Context, member: SourceMember) => {
+          if (!ctx.userId || member.userId !== ctx.userId) {
+            return null;
+          }
+
+          return (
+            roleSourcePermissions[member.role] ?? roleSourcePermissions.member
+          );
+        },
+      },
+      roleRank: {
+        rawSelect: true,
+        select:
+          roleRankKeys &&
+          `
+            CASE
+              ${roleRankKeys
+                .map((role) => `WHEN "role" = '${role}' THEN ${roleRank[role]}`)
+                .join(' ')}
+            ELSE 0 END
+          `,
+      },
+    },
   },
   Comment: {
     requiredColumns: ['id', 'postId', 'createdAt'],
