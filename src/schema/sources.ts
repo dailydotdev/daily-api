@@ -449,10 +449,9 @@ const hasPermissionCheck = (
     hasGreaterAccessCheck(member, validateRankAgainst);
   }
 
-  const rolePermissions =
-    roleSourcePermissions[member.role] ?? roleSourcePermissions.member;
+  const rolePermissions = roleSourcePermissions[member.role];
 
-  return rolePermissions.includes(permission);
+  return rolePermissions?.includes?.(permission);
 };
 
 export const canAccessSource = async (
