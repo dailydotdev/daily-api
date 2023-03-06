@@ -63,11 +63,6 @@ export interface GQLSourceMember {
   referralToken: string;
 }
 
-interface RemoveMemberArgs {
-  sourceId: string;
-  memberId: string;
-}
-
 export const typeDefs = /* GraphQL */ `
   """
   Source to discover posts from (usually blogs)
@@ -346,19 +341,6 @@ export const typeDefs = /* GraphQL */ `
     Removes the logged-in user as a member from the source
     """
     leaveSource(
-      """
-      Source to leave
-      """
-      sourceId: ID!
-    ): EmptyResponse! @auth
-    """
-    Removes the member from the Squad
-    """
-    removeMember(
-      """
-      Member to remove
-      """
-      memberId: ID!
       """
       Source to leave
       """
@@ -908,24 +890,6 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       return getSourceById(ctx, info, sourceId);
-    },
-    removeMember: async (
-      _,
-      { sourceId, memberId }: RemoveMemberArgs,
-      ctx,
-    ): Promise<GQLEmptyResponse> => {
-      await ensureSourcePermissions(
-        ctx,
-        sourceId,
-        SourcePermissions.MemberRemove,
-        memberId,
-      );
-
-      await ctx
-        .getRepository(SourceMember)
-        .delete({ sourceId, userId: memberId });
-
-      return { _: true };
     },
   }),
   Source: {
