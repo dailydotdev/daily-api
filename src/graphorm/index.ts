@@ -6,6 +6,8 @@ import {
   FeedSource,
   FeedTag,
   Post,
+  roleRank,
+  roleRankKeys,
   SourceMember,
   User,
 } from '../entity';
@@ -181,7 +183,7 @@ const obj = new GraphORM({
     },
   },
   SourceMember: {
-    requiredColumns: ['createdAt'],
+    requiredColumns: ['createdAt', 'roleRank'],
     fields: {
       permissions: {
         transform: (_, ctx: Context, member: SourceMember) => {
@@ -193,6 +195,17 @@ const obj = new GraphORM({
             roleSourcePermissions[member.role] ?? roleSourcePermissions.member
           );
         },
+      },
+      roleRank: {
+        rawSelect: true,
+        select: `
+          CASE
+            ${roleRankKeys
+              .map((role) => `WHEN "role" = '${role}' THEN ${roleRank[role]}`)
+              .join('\n')}
+          ELSE 0 END
+        `,
+        transform: nullIfNotLoggedIn,
       },
     },
   },

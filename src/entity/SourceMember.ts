@@ -18,6 +18,8 @@ export const roleRank: Record<SourceMemberRoles, number> = {
   member: 0,
 };
 
+export const roleRankKeys = Object.keys(roleRank);
+
 @Entity()
 export class SourceMember {
   @PrimaryColumn({ type: 'text' })

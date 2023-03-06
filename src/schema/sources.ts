@@ -647,18 +647,14 @@ export const resolvers: IResolvers<any, Context> = {
         (node, index) =>
           membershipsPageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
-          const roleRankQuery = `
-            CASE
-              WHEN ${builder.alias}.role = '${SourceMemberRoles.Owner}' THEN ${roleRank.owner}
-              WHEN ${builder.alias}.role = '${SourceMemberRoles.Moderator}' THEN ${roleRank.moderator}
-            ELSE 0 END
-          `;
           builder.queryBuilder
-            .addSelect(`${roleRankQuery} AS "roleRank"`)
             .andWhere(`${builder.alias}."sourceId" = :source`, {
               source: args.sourceId,
             })
-            .addOrderBy('"roleRank"', 'DESC')
+            .addOrderBy(
+              `(${graphorm.mappings.SourceMember.fields.roleRank.select})`,
+              'DESC',
+            )
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
 
           builder.queryBuilder.limit(page.limit);
@@ -938,6 +934,6 @@ export const resolvers: IResolvers<any, Context> = {
     permalink: (source: GQLSource): string => getSourceLink(source),
   },
   SourceMember: {
-    roleRank: (member: GQLSourceMember) => roleRank[member.role],
+    roleRank: (member: SourceMember) => roleRank[member.role],
   },
 };

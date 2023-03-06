@@ -40,6 +40,7 @@ export interface GraphORMField {
         alias: string,
         qb: QueryBuilder,
       ) => QueryBuilder | string);
+  rawSelect?: boolean;
   // Add custom settings to the query (should be used for complex types only!)
   customQuery?: (ctx: Context, alias: string, qb: QueryBuilder) => QueryBuilder;
   // Need to provide relation information if it doesn't exist
@@ -258,10 +259,14 @@ export class GraphORM {
     }
     // Else, scalar value
     if (mapping) {
-      const { select } = mapping;
+      const { select, rawSelect } = mapping;
       if (select) {
         if (typeof select === 'string') {
-          return builder.addSelect(`"${alias}"."${select}"`, field.alias);
+          if (rawSelect) {
+            return builder.addSelect(select, field.alias);
+          } else {
+            return builder.addSelect(`"${alias}"."${select}"`, field.alias);
+          }
         }
         const res = select(ctx, alias, builder.subQuery());
         const subQuery = typeof res === 'string' ? res : res.getQuery();
@@ -500,6 +505,7 @@ export class GraphORM {
       builder = beforeQuery(builder);
     }
 
+    console.log('query: ', builder.queryBuilder.getSql());
     const res = await builder.queryBuilder.getRawMany();
     return res.map((value) =>
       this.transformType(ctx, value, rootType, fieldsByTypeName),
