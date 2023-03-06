@@ -174,6 +174,7 @@ const obj = new GraphORM({
           isMany: false,
           customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
             qb
+              .addSelect('"userId"')
               .where(`${childAlias}."userId" = :userId`, { userId: ctx.userId })
               .andWhere(`${childAlias}."sourceId" = "${parentAlias}".id`),
         },
