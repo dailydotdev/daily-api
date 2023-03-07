@@ -148,6 +148,15 @@ export default async function app(
                 newError.extensions = {
                   code: 'NOT_FOUND',
                 };
+              } else {
+                app.log.warn(
+                  { err: error.originalError },
+                  'unexpected graphql error',
+                );
+                newError.message = 'Unexpected error';
+                newError.extensions = {
+                  code: 'UNEXPECTED',
+                };
               }
               if (isProd) {
                 newError.originalError = undefined;
