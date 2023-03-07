@@ -19,6 +19,7 @@ export enum PostType {
 
 export enum PostOrigin {
   CommunityPicks = 'community_picks',
+  Squad = 'squad',
   UserGenerated = 'user_generated',
   Crawler = 'crawler',
 }
@@ -34,7 +35,7 @@ export class Post {
   @Column({ default: PostType.Article })
   type: PostType;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', nullable: true })
   title: string;
 
   @Column({ length: 14 })

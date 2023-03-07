@@ -36,13 +36,13 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { notifyView } from '../src/common';
+import { notifyContentRequested, notifyView } from '../src/common';
 import { randomUUID } from 'crypto';
 
-jest.mock('../src/common', () => ({
-  ...(jest.requireActual('../src/common') as Record<string, unknown>),
-  notifyView: jest.fn(),
-}));
+// jest.mock('../src/common', () => ({
+//   ...(jest.requireActual('../src/common') as Record<string, unknown>),
+//   notifyView: jest.fn(),
+// }));
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -65,7 +65,7 @@ beforeEach(async () => {
   loggedUser = null;
   premiumUser = false;
   roles = [];
-  jest.resetAllMocks();
+  jest.clearAllMocks();
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
@@ -1542,5 +1542,68 @@ describe('mutation viewPost', () => {
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     expect(notifyView).toBeCalledTimes(0);
+  });
+});
+
+describe('mutation privatePost', () => {
+  const MUTATION = `
+  mutation PrivatePost($sourceId: ID!, $url: String!, $commentary: String!) {
+  privatePost(sourceId: $sourceId, url: $url, commentary: $commentary) {
+    _
+  }
+}`;
+
+  const variables = {
+    sourceId: 's1',
+    url: 'https://daily.dev',
+    commentary: 'My comment',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: false,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should share to squad', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: variables.url });
+    expect(articlePost.url).toEqual('https://daily.dev');
+    expect(articlePost.visible).toEqual(false);
+
+    expect(notifyContentRequested).toBeCalledTimes(1);
+    expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
+      { id: articlePost.id, url: articlePost.id, origin: articlePost.origin },
+    ]);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(false);
   });
 });

@@ -12,6 +12,7 @@ import {
   SourceMember,
   Feature,
   Source,
+  ArticlePost,
 } from '../entity';
 import { ChangeObject } from '../types';
 
@@ -47,6 +48,7 @@ const postAddedTopic = pubsub.topic('api.v1.post-added');
 const userCreatedTopic = pubsub.topic('api.v1.user-created');
 const sourcePrivacyUpdatedTopic = pubsub.topic('api.v1.source-privacy-updated');
 const featuresResetTopic = pubsub.topic('features-reset');
+const contentRequestedTopic = pubsub.topic('api.v1.content-requested');
 
 export enum NotificationReason {
   New = 'new',
@@ -64,6 +66,7 @@ const publishEvent = async (
   topic: Topic,
   payload: Record<string, unknown>,
 ): Promise<void> => {
+  console.log('called event', topic);
   if (
     process.env.NODE_ENV === 'production' ||
     process.env.ENABLE_PUBSUB === 'true'
@@ -332,3 +335,10 @@ export const notifyUserCreated = async (
 
 export const notifyFeaturesReset = async (log: EventLogger): Promise<void> =>
   publishEvent(log, featuresResetTopic, {});
+
+export type ContentRequested = Pick<ArticlePost, 'id' | 'url' | 'origin'>;
+
+export const notifyContentRequested = async (
+  log: EventLogger,
+  content: ChangeObject<ContentRequested>,
+): Promise<void> => publishEvent(log, contentRequestedTopic, { ...content });

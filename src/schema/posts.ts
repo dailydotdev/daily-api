@@ -15,14 +15,17 @@ import { traceResolverObject } from './trace';
 import {
   defaultImage,
   getDiscussionLink,
+  notifyContentRequested,
   notifyView,
   pickImageUrl,
   standardizeURL,
 } from '../common';
 import {
+  createPrivatePost,
   createSharePost,
   HiddenPost,
   Post,
+  PostOrigin,
   PostReport,
   PostType,
   Toc,
@@ -509,6 +512,24 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
+    Create private post in source
+    """
+    privatePost(
+      """
+      Source to share the post to
+      """
+      sourceId: ID!
+      """
+      URL to the new private post
+      """
+      url: String!
+      """
+      Commentary for the share
+      """
+      commentary: String!
+    ): EmptyResponse @auth
+
+    """
     Share post to source
     """
     sharePost(
@@ -831,6 +852,25 @@ export const resolvers: IResolvers<any, Context> = {
         }
         return false;
       });
+      return { _: true };
+    },
+    privatePost: async (
+      _,
+      {
+        sourceId,
+        url,
+        commentary,
+      }: { sourceId: string; url: string; commentary: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await createPrivatePost(
+        ctx.con,
+        ctx.log,
+        sourceId,
+        ctx.userId,
+        url,
+        commentary,
+      );
       return { _: true };
     },
     sharePost: async (
