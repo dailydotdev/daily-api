@@ -66,7 +66,6 @@ const publishEvent = async (
   topic: Topic,
   payload: Record<string, unknown>,
 ): Promise<void> => {
-  console.log('called event', topic);
   if (
     process.env.NODE_ENV === 'production' ||
     process.env.ENABLE_PUBSUB === 'true'

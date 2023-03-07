@@ -15,7 +15,6 @@ import { traceResolverObject } from './trace';
 import {
   defaultImage,
   getDiscussionLink,
-  notifyContentRequested,
   notifyView,
   pickImageUrl,
   standardizeURL,
@@ -25,7 +24,6 @@ import {
   createSharePost,
   HiddenPost,
   Post,
-  PostOrigin,
   PostReport,
   PostType,
   Toc,

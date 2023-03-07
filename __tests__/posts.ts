@@ -39,10 +39,11 @@ import createOrGetConnection from '../src/db';
 import { notifyContentRequested, notifyView } from '../src/common';
 import { randomUUID } from 'crypto';
 
-// jest.mock('../src/common', () => ({
-//   ...(jest.requireActual('../src/common') as Record<string, unknown>),
-//   notifyView: jest.fn(),
-// }));
+jest.mock('../src/common/pubsub', () => ({
+  ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
+  notifyView: jest.fn(),
+  notifyContentRequested: jest.fn(),
+}));
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -1596,7 +1597,7 @@ describe('mutation privatePost', () => {
 
     expect(notifyContentRequested).toBeCalledTimes(1);
     expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
-      { id: articlePost.id, url: articlePost.id, origin: articlePost.origin },
+      { id: articlePost.id, url: variables.url, origin: articlePost.origin },
     ]);
 
     const sharedPost = await con

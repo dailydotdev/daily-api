@@ -370,40 +370,43 @@ export const createPrivatePost = async (
   await validateCommentary(commentary);
   const id = await generateShortId();
   const sharedId = await generateShortId();
-  try {
-    await con.getRepository(ArticlePost).insert({
-      id,
-      shortId: id,
-      createdAt: new Date(),
-      sourceId,
-      url,
-      sentAnalyticsReport: true,
-      private: true,
-      origin: PostOrigin.Squad,
-      visible: false,
-    });
-    await con.getRepository(SharePost).insert({
-      id: sharedId,
-      shortId: sharedId,
-      createdAt: new Date(),
-      sourceId,
-      authorId: userId,
-      sharedPostId: id,
-      title: commentary,
-      sentAnalyticsReport: true,
-      private: true,
-      origin: PostOrigin.UserGenerated,
-      visible: false,
-    });
-    await notifyContentRequested(logger, {
-      id,
-      url,
-      origin: PostOrigin.Squad,
-    });
-    return;
-  } catch (err) {
-    throw err;
-  }
+
+  return con.transaction(async (entityManager) => {
+    try {
+      await con.getRepository(ArticlePost).insert({
+        id,
+        shortId: id,
+        createdAt: new Date(),
+        sourceId,
+        url,
+        sentAnalyticsReport: true,
+        private: true,
+        origin: PostOrigin.Squad,
+        visible: false,
+      });
+      await con.getRepository(SharePost).insert({
+        id: sharedId,
+        shortId: sharedId,
+        createdAt: new Date(),
+        sourceId,
+        authorId: userId,
+        sharedPostId: id,
+        title: commentary,
+        sentAnalyticsReport: true,
+        private: true,
+        origin: PostOrigin.UserGenerated,
+        visible: false,
+      });
+      await notifyContentRequested(logger, {
+        id,
+        url,
+        origin: PostOrigin.Squad,
+      });
+      return;
+    } catch (err) {
+      throw err;
+    }
+  });
 };
 
 export const createSharePost = async (
@@ -413,7 +416,6 @@ export const createSharePost = async (
   postId: string,
   commentary: string,
 ): Promise<SharePost> => {
-  await validateCommentary(commentary);
   await validateCommentary(commentary);
   const id = await generateShortId();
   try {
