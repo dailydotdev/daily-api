@@ -38,4 +38,4 @@ export const validateRegex = (params: ValidateRegex[]): void => {
 };
 export const nameRegex = new RegExp(/^(.){1,60}$/);
 export const handleRegex = new RegExp(/^@?([\w-]){1,39}$/i);
-export const descriptionRegex = new RegExp(/^(.){1,250}$/);
+export const descriptionRegex = new RegExp(/^[\S\s]{1,250}$/);

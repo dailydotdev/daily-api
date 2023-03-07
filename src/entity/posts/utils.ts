@@ -373,7 +373,7 @@ export const createSharePost = async (
       title: commentary,
       sentAnalyticsReport: true,
       private: privacy,
-      origin: PostOrigin.Ugc,
+      origin: PostOrigin.UserGenerated,
       visible: true,
       visibleAt: new Date(),
     });
