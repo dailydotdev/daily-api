@@ -25,12 +25,12 @@ import {
   SharePost,
   Source,
   SourceMember,
-  SourceMemberRoles,
   SquadSource,
   Upvote,
   User,
   View,
 } from '../src/entity';
+import { SourceMemberRoles } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';

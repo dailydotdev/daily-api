@@ -18,9 +18,9 @@ import {
   CommentUpvote,
   ArticlePost,
   SourceMember,
-  SourceMemberRoles,
   SourceType,
 } from '../src/entity';
+import { SourceMemberRoles } from '../src/roles';
 import { createSource, sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { getMentionLink } from '../src/common/markdown';

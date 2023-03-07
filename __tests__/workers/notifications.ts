@@ -8,12 +8,12 @@ import {
   PostReport,
   Source,
   SourceMember,
-  SourceMemberRoles,
   SourceType,
   SubmissionStatus,
   Upvote,
   User,
 } from '../../src/entity';
+import { SourceMemberRoles } from '../../src/roles';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { usersFixture } from '../fixture/user';

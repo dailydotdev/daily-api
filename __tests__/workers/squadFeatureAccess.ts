@@ -1,12 +1,7 @@
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/squadFeatureAccess';
-import {
-  Feature,
-  Source,
-  SourceMember,
-  SourceMemberRoles,
-  User,
-} from '../../src/entity';
+import { Feature, Source, SourceMember, User } from '../../src/entity';
+import { SourceMemberRoles } from '../../src/roles';
 import { sourcesFixture } from '../fixture/source';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
