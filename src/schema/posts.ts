@@ -37,6 +37,7 @@ import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { GraphQLResolveInfo } from 'graphql';
+import { Roles } from '../roles';
 
 export interface GQLPost {
   id: string;
@@ -475,7 +476,7 @@ export const typeDefs = /* GraphQL */ `
       Id of the post to delete
       """
       id: ID
-    ): EmptyResponse @auth(requires: [MODERATOR])
+    ): EmptyResponse @auth
 
     """
     Bans a post (can be undone)
@@ -741,11 +742,31 @@ export const resolvers: IResolvers<any, Context> = {
       return { _: true };
     },
     deletePost: async (
-      source,
+      _,
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      await ctx.getRepository(Post).update({ id }, { deleted: true });
+      if (ctx.roles.includes(Roles.Moderator)) {
+        await ctx.getRepository(Post).update({ id }, { deleted: true });
+        return { _: true };
+      }
+
+      await ctx.con.transaction(async (manager) => {
+        const repo = manager.getRepository(Post);
+        const post = await repo.findOneBy({ id });
+        if (post.type === PostType.Share) {
+          if (post.authorId !== ctx.userId) {
+            await ensureSourcePermissions(
+              ctx,
+              post.sourceId,
+              SourcePermissions.PostDelete,
+            );
+          }
+
+          await repo.update({ id }, { deleted: true });
+        }
+      });
+
       return { _: true };
     },
     banPost: async (
@@ -822,11 +843,8 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLPost> => {
-      const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
-      await Promise.all([
-        ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
-        ensureSourcePermissions(ctx, post.sourceId),
-      ]);
+      await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
       const newPost = await createSharePost(
         ctx.con,
         sourceId,
