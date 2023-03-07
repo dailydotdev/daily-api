@@ -184,6 +184,8 @@ query Source($id: ID!) {
     id
     currentMember {
       role
+      roleRank
+      permissions
     }
   }
 }
@@ -411,6 +413,8 @@ query SourceMembers($id: ID!) {
     }
     edges {
       node {
+        role
+        roleRank
         user { id }
         source { id }
       }
@@ -430,6 +434,33 @@ query SourceMembers($id: ID!) {
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return source members and order by their role', async () => {
+    const repo = con.getRepository(SourceMember);
+    await repo.update(
+      { userId: '3' },
+      { role: SourceMemberRoles.Member, sourceId: 'a' },
+    );
+    const noModRes = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(noModRes.errors).toBeFalsy();
+    const [noModFirst, noModSecond, noModThird] =
+      noModRes.data.sourceMembers.edges;
+    expect(noModFirst.node.role).toEqual(SourceMemberRoles.Owner);
+    expect(noModSecond.node.role).toEqual(SourceMemberRoles.Member);
+    expect(noModThird.node.role).toEqual(SourceMemberRoles.Member);
+
+    await repo.update(
+      { userId: '3' },
+      { role: SourceMemberRoles.Moderator, sourceId: 'a' },
+    );
+
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    const [first, second, third] = res.data.sourceMembers.edges;
+    expect(first.node.role).toEqual(SourceMemberRoles.Owner);
+    expect(second.node.role).toEqual(SourceMemberRoles.Moderator);
+    expect(third.node.role).toEqual(SourceMemberRoles.Member);
   });
 
   it('should return source members of private source when user is a member', async () => {
@@ -776,16 +807,17 @@ describe('mutation leaveSource', () => {
     expect(sourceMembers).toEqual(0);
   });
 
-  it('should throw an error is user is the owner', async () => {
+  it('should leave squad even if the user is the owner', async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
       .update({ userId: '1' }, { role: SourceMemberRoles.Owner });
-    return testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables },
-      'FORBIDDEN',
-    );
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const sourceMembers = await con
+      .getRepository(SourceMember)
+      .countBy(variables);
+    expect(sourceMembers).toEqual(0);
   });
 });
 
@@ -986,3 +1018,120 @@ describe('mutation joinSource', () => {
     );
   });
 });
+
+// describe('mutation removeMember', () => {
+//   const MUTATION = `
+//     mutation RemoveMember($sourceId: ID!, $memberId: ID!) {
+//       removeMember(sourceId: $sourceId, memberId: $memberId) {
+//         _
+//       }
+//     }
+//   `;
+
+//   it('should not authorize when not logged in', () =>
+//     testMutationErrorCode(
+//       client,
+//       {
+//         mutation: MUTATION,
+//         variables: { sourceId: 'a', memberId: '2' },
+//       },
+//       'UNAUTHENTICATED',
+//     ));
+
+//   it('should restrict when not a member of the squad', async () => {
+//     loggedUser = '1';
+
+//     return testMutationErrorCode(
+//       client,
+//       { mutation: MUTATION, variables: { sourceId: 'b', memberId: '2' } },
+//       'FORBIDDEN',
+//     );
+//   });
+
+//   it('should restrict when not a moderator or an owner of the squad', async () => {
+//     loggedUser = '2';
+//     return testMutationErrorCode(
+//       client,
+//       { mutation: MUTATION, variables: { sourceId: 'a', memberId: '1' } },
+//       'FORBIDDEN',
+//     );
+//   });
+
+//   it('should restrict moderator from removing the owner', async () => {
+//     loggedUser = '2';
+//     await con
+//       .getRepository(SourceMember)
+//       .update({ userId: '2' }, { role: SourceMemberRoles.Moderator });
+
+//     return testMutationErrorCode(
+//       client,
+//       { mutation: MUTATION, variables: { sourceId: 'a', memberId: '1' } },
+//       'FORBIDDEN',
+//     );
+//   });
+
+//   it('should restrict moderator from removing a moderator', async () => {
+//     loggedUser = '2';
+//     const repo = con.getRepository(SourceMember);
+//     await repo.save({
+//       userId: '3',
+//       sourceId: 'a',
+//       role: SourceMemberRoles.Moderator,
+//       referralToken: randomUUID(),
+//     });
+//     await repo.update({ userId: '2' }, { role: SourceMemberRoles.Moderator });
+
+//     return testMutationErrorCode(
+//       client,
+//       { mutation: MUTATION, variables: { sourceId: 'a', memberId: '3' } },
+//       'FORBIDDEN',
+//     );
+//   });
+
+//   it('should allow owner to remove moderator from the squad', async () => {
+//     loggedUser = '1';
+//     const toRemoveId = '2';
+//     const repo = con.getRepository(SourceMember);
+//     await repo.update(
+//       { userId: toRemoveId },
+//       { role: SourceMemberRoles.Moderator },
+//     );
+
+//     const res = await client.mutate(MUTATION, {
+//       variables: { sourceId: 'a', memberId: toRemoveId },
+//     });
+//     expect(res.errors).toBeFalsy();
+//     const member = await repo.findOneBy({ userId: toRemoveId, sourceId: 'a' });
+//     expect(member).toBeFalsy();
+//   });
+
+//   it('should allow owner to remove member from the squad', async () => {
+//     loggedUser = '1';
+//     const toRemoveId = '2';
+//     const repo = con.getRepository(SourceMember);
+//     const res = await client.mutate(MUTATION, {
+//       variables: { sourceId: 'a', memberId: toRemoveId },
+//     });
+//     expect(res.errors).toBeFalsy();
+//     const member = await repo.findOneBy({ userId: toRemoveId, sourceId: 'a' });
+//     expect(member).toBeFalsy();
+//   });
+
+//   it('should allow moderator to remove member the squad', async () => {
+//     loggedUser = '3';
+//     const toRemoveId = '2';
+//     const repo = con.getRepository(SourceMember);
+//     await repo.save({
+//       userId: '3',
+//       sourceId: 'a',
+//       role: SourceMemberRoles.Moderator,
+//       referralToken: randomUUID(),
+//     });
+//     const res = await client.mutate(MUTATION, {
+//       variables: { sourceId: 'a', memberId: toRemoveId },
+//     });
+//     expect(res.errors).toBeFalsy();
+//     const member = await repo.findOneBy({ userId: toRemoveId, sourceId: 'a' });
+//     expect(member).toBeFalsy();
+//   });
+// });
