@@ -62,7 +62,10 @@ export async function fetchTinybirdFeed(
           ? process.env.TINYBIRD_FEED
           : process.env.INTERNAL_FEED;
       const res = await fetch(`${url}&${params}`, fetchOptions);
-      return res.json();
+      if (res.status >= 200 && res.status < 300) {
+        return res.json();
+      }
+      throw new Error(`Unexpecetd response from feed service: ${res.status}`);
     },
     { params, feedVersion },
   );
