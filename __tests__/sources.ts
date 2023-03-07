@@ -692,6 +692,18 @@ describe('mutation editSquad', () => {
     expect(editSource.name).toEqual('test');
   });
 
+  it('should edit squad description with new lines', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, description: 'test \n something more' },
+    });
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource.description).toEqual('test \n something more');
+  });
+
   it('should throw error on duplicate handles', async () => {
     loggedUser = '1';
     await con.getRepository(SquadSource).save({
