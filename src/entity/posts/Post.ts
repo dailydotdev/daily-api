@@ -17,6 +17,12 @@ export enum PostType {
   Share = 'share',
 }
 
+export enum PostOrigin {
+  CommunityPicks = 'community_picks',
+  UserGenerated = 'user_generated',
+  Crawler = 'crawler',
+}
+
 @Entity()
 @TableInheritance({
   column: { type: 'varchar', name: 'type', default: PostType.Article },
@@ -136,4 +142,13 @@ export class Post {
 
   @Column({ default: false })
   private: boolean;
+
+  @Column({ default: true })
+  visible: boolean;
+
+  @Column({ default: null })
+  visibleAt: Date;
+
+  @Column({ default: null, type: 'text' })
+  origin: PostOrigin;
 }
