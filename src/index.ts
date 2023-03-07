@@ -150,7 +150,7 @@ export default async function app(
                 };
               } else if (!error.extensions?.code) {
                 app.log.warn(
-                  { err: error.originalError },
+                  { err: error.originalError, graphqlErr: error },
                   'unexpected graphql error',
                 );
                 newError.message = 'Unexpected error';

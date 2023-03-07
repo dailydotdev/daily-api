@@ -11,9 +11,9 @@ import {
   FeedTag,
   Source,
   SourceMember,
-  SourceMemberRoles,
   User,
 } from '../src/entity';
+import { SourceMemberRoles } from '../src/roles';
 import { saveFixtures } from './helpers';
 import { sourcesFixture } from './fixture/source';
 import { DataSource } from 'typeorm';
