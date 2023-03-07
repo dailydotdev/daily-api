@@ -5,14 +5,9 @@ import {
 } from '../../notifications';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
-import {
-  Source,
-  SourceMember,
-  SourceMemberRoles,
-  SourceType,
-  User,
-} from '../../entity';
+import { Source, SourceMember, SourceType, User } from '../../entity';
 import { In, Not } from 'typeorm';
+import { SourceMemberRoles } from '../../roles';
 
 interface Data {
   sourceMember: ChangeObject<SourceMember>;

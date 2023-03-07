@@ -148,7 +148,7 @@ export default async function app(
                 newError.extensions = {
                   code: 'NOT_FOUND',
                 };
-              } else {
+              } else if (!error.extensions?.code) {
                 app.log.warn(
                   { err: error.originalError },
                   'unexpected graphql error',

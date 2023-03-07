@@ -6,11 +6,11 @@ import {
   FeedSource,
   FeedTag,
   Post,
-  roleRank,
-  roleRankKeys,
   SourceMember,
   User,
 } from '../entity';
+import { sourceRoleRank, sourceRoleRankKeys } from '../roles';
+
 import { Context } from '../Context';
 import { GQLBookmarkList } from '../schema/bookmarks';
 import { base64 } from '../common';
@@ -198,8 +198,11 @@ const obj = new GraphORM({
         rawSelect: true,
         select: `
             (CASE
-              ${roleRankKeys
-                .map((role) => `WHEN "role" = '${role}' THEN ${roleRank[role]}`)
+              ${sourceRoleRankKeys
+                .map(
+                  (role) =>
+                    `WHEN "role" = '${role}' THEN ${sourceRoleRank[role]}`,
+                )
                 .join(' ')}
             ELSE 0 END)
           `,

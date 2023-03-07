@@ -14,11 +14,11 @@ import {
   Source,
   SourceFeed,
   SourceMember,
-  SourceMemberRoles,
   SourceType,
   SquadSource,
   User,
 } from '../src/entity';
+import { SourceMemberRoles } from '../src/roles';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
