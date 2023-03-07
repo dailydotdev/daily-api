@@ -373,7 +373,7 @@ export const createPrivatePost = async (
 
   return con.transaction(async (entityManager) => {
     try {
-      await con.getRepository(ArticlePost).insert({
+      await entityManager.getRepository(ArticlePost).insert({
         id,
         shortId: id,
         createdAt: new Date(),
@@ -384,7 +384,7 @@ export const createPrivatePost = async (
         origin: PostOrigin.Squad,
         visible: false,
       });
-      await con.getRepository(SharePost).insert({
+      await entityManager.getRepository(SharePost).insert({
         id: sharedId,
         shortId: sharedId,
         createdAt: new Date(),
