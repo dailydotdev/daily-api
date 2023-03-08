@@ -63,15 +63,16 @@ export async function fetchTinybirdFeed(
           : process.env.INTERNAL_FEED;
       const res = await fetch(`${url}&${params}`, fetchOptions);
       if (res.status >= 200 && res.status < 300) {
+        const bodyText = await res.text();
         try {
-          return await res.json();
+          return JSON.parse(bodyText);
         } catch (err) {
           ctx?.log.info(
             {
               err,
               headers: res.headers,
               status: res.status,
-              body: await res.text(),
+              body: bodyText,
             },
             'feed request error',
           );
