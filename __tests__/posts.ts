@@ -1546,10 +1546,10 @@ describe('mutation viewPost', () => {
   });
 });
 
-describe('mutation privatePost', () => {
+describe('mutation submitExternalLink', () => {
   const MUTATION = `
-  mutation PrivatePost($sourceId: ID!, $url: String!, $commentary: String!) {
-  privatePost(sourceId: $sourceId, url: $url, commentary: $commentary) {
+  mutation SubmitExternalLink($sourceId: ID!, $url: String!, $commentary: String!) {
+  submitExternalLink(sourceId: $sourceId, url: $url, commentary: $commentary) {
     _
   }
 }`;

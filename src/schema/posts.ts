@@ -510,9 +510,9 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
-    Create private post in source
+    Create external link in source
     """
-    privatePost(
+    submitExternalLink(
       """
       Source to share the post to
       """
@@ -852,7 +852,7 @@ export const resolvers: IResolvers<any, Context> = {
       });
       return { _: true };
     },
-    privatePost: async (
+    submitExternalLink: async (
       _,
       {
         sourceId,

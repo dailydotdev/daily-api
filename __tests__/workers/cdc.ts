@@ -134,21 +134,6 @@ const defaultUser: ChangeObject<User> = {
   notificationEmail: true,
 };
 
-describe('content requested', () => {
-  const base: ChangeObject<ContentRequested> = {
-    id: 'id1',
-    url: 'https://daily.dev',
-    origin: PostOrigin.Crawler,
-  };
-  it('should parse correct content request object', async () => {
-    await notifyContentRequested(null, base);
-    expect(notifyContentRequested).toBeCalledTimes(1);
-    expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
-      base,
-    ]);
-  });
-});
-
 describe('source request', () => {
   type ObjectType = SourceRequest;
   const base: ChangeObject<ObjectType> = {

@@ -339,5 +339,5 @@ export type ContentRequested = Pick<ArticlePost, 'id' | 'url' | 'origin'>;
 
 export const notifyContentRequested = async (
   log: EventLogger,
-  content: ChangeObject<ContentRequested>,
+  content: ContentRequested,
 ): Promise<void> => publishEvent(log, contentRequestedTopic, { ...content });

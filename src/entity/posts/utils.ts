@@ -369,43 +369,34 @@ export const createPrivatePost = async (
 ): Promise<void> => {
   await validateCommentary(commentary);
   const id = await generateShortId();
-  const sharedId = await generateShortId();
 
   return con.transaction(async (entityManager) => {
-    try {
-      await entityManager.getRepository(ArticlePost).insert({
-        id,
-        shortId: id,
-        createdAt: new Date(),
-        sourceId,
-        url,
-        sentAnalyticsReport: true,
-        private: true,
-        origin: PostOrigin.Squad,
-        visible: false,
-      });
-      await entityManager.getRepository(SharePost).insert({
-        id: sharedId,
-        shortId: sharedId,
-        createdAt: new Date(),
-        sourceId,
-        authorId: userId,
-        sharedPostId: id,
-        title: commentary,
-        sentAnalyticsReport: true,
-        private: true,
-        origin: PostOrigin.UserGenerated,
-        visible: false,
-      });
-      await notifyContentRequested(logger, {
-        id,
-        url,
-        origin: PostOrigin.Squad,
-      });
-      return;
-    } catch (err) {
-      throw err;
-    }
+    await entityManager.getRepository(ArticlePost).insert({
+      id,
+      shortId: id,
+      createdAt: new Date(),
+      sourceId,
+      url,
+      canonicalUrl: url,
+      sentAnalyticsReport: true,
+      private: true,
+      origin: PostOrigin.Squad,
+      visible: false,
+    });
+    await createSharePost(
+      entityManager,
+      sourceId,
+      userId,
+      id,
+      commentary,
+      false,
+    );
+    await notifyContentRequested(logger, {
+      id,
+      url,
+      origin: PostOrigin.Squad,
+    });
+    return;
   });
 };
 
@@ -415,6 +406,7 @@ export const createSharePost = async (
   userId: string,
   postId: string,
   commentary: string,
+  visible = true,
 ): Promise<SharePost> => {
   await validateCommentary(commentary);
   const id = await generateShortId();
@@ -433,8 +425,8 @@ export const createSharePost = async (
       sentAnalyticsReport: true,
       private: privacy,
       origin: PostOrigin.UserGenerated,
-      visible: true,
-      visibleAt: new Date(),
+      visible,
+      visibleAt: visible ? new Date() : null,
     });
   } catch (err) {
     if (err.code === TypeOrmError.FOREIGN_KEY) {
