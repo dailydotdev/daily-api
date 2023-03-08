@@ -1607,4 +1607,22 @@ describe('mutation submitExternalLink', () => {
     expect(sharedPost.title).toEqual('My comment');
     expect(sharedPost.visible).toEqual(false);
   });
+
+  it('should throw error when sharing to non-squad', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when non-member share to squad', async () => {
+    loggedUser = '2';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
+      'FORBIDDEN',
+    );
+  });
 });
