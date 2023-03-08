@@ -66,12 +66,15 @@ export async function fetchTinybirdFeed(
         try {
           return res.json();
         } catch (err) {
-          ctx?.log.info({
-            err,
-            headers: res.headers,
-            status: res.status,
-            body: await res.text(),
-          }, 'feed request error');
+          ctx?.log.info(
+            {
+              err,
+              headers: res.headers,
+              status: res.status,
+              body: await res.text(),
+            },
+            'feed request error',
+          );
           throw err;
         }
       }
