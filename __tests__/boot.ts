@@ -19,12 +19,12 @@ import {
   SquadSource,
   Source,
   SourceMember,
-  SourceMemberRoles,
   MachineSource,
   SQUAD_IMAGE_PLACEHOLDER,
   SourceType,
   Post,
 } from '../src/entity';
+import { SourceMemberRoles } from '../src/roles';
 import { notificationFixture } from './fixture/notifications';
 import { usersFixture } from './fixture/user';
 import { getRedisObject, setRedisObject } from '../src/redis';

@@ -1,5 +1,9 @@
 import 'reflect-metadata';
-import fastify, { FastifyRequest, FastifyInstance } from 'fastify';
+import fastify, {
+  FastifyRequest,
+  FastifyInstance,
+  FastifyError,
+} from 'fastify';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
 import mercurius, { MercuriusError } from 'mercurius';
@@ -147,6 +151,20 @@ export default async function app(
                 newError.message = 'Entity not found';
                 newError.extensions = {
                   code: 'NOT_FOUND',
+                };
+              } else if (
+                (error.originalError as FastifyError)?.code ===
+                'MER_ERR_GQL_PERSISTED_QUERY_NOT_FOUND'
+              ) {
+                app.log.debug({ err: error.originalError }, 'unknown query');
+              } else if (!error.extensions?.code) {
+                app.log.warn(
+                  { err: error.originalError },
+                  'unexpected graphql error',
+                );
+                newError.message = 'Unexpected error';
+                newError.extensions = {
+                  code: 'UNEXPECTED',
                 };
               }
               if (isProd) {

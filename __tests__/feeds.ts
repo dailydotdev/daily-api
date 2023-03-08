@@ -16,10 +16,10 @@ import {
   SharePost,
   Source,
   SourceMember,
-  SourceMemberRoles,
   User,
   View,
 } from '../src/entity';
+import { SourceMemberRoles } from '../src/roles';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';

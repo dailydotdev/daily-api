@@ -36,7 +36,7 @@ export class Post {
   type: PostType;
 
   @Column({ type: 'text', nullable: true })
-  title: string;
+  title?: string;
 
   @Column({ length: 14 })
   @Index('IDX_post_shortid', { unique: true })
@@ -59,9 +59,6 @@ export class Post {
     onDelete: 'CASCADE',
   })
   source: Promise<Source>;
-
-  @Column({ default: false })
-  tweeted: boolean;
 
   @Column({ default: 0 })
   @Index('IDX_post_views')

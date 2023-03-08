@@ -6,14 +6,13 @@ import { Context } from '../Context';
 import {
   createSharePost,
   generateMemberToken,
-  roleRank,
   Source,
   SourceFeed,
   SourceMember,
-  SourceMemberRoles,
   SourceType,
   SquadSource,
 } from '../entity';
+import { SourceMemberRoles, sourceRoleRank } from '../roles';
 import {
   forwardPagination,
   GQLEmptyResponse,
@@ -410,8 +409,8 @@ export const hasGreaterAccessCheck = (
   loggedUser: BaseSourceMember,
   member: BaseSourceMember,
 ) => {
-  const memberRank = roleRank[member.role];
-  const loggedUserRank = roleRank[loggedUser.role];
+  const memberRank = sourceRoleRank[member.role];
+  const loggedUserRank = sourceRoleRank[loggedUser.role];
   const hasGreaterAccess = loggedUserRank > memberRank;
 
   if (!hasGreaterAccess) {
