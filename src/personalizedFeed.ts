@@ -1,5 +1,6 @@
 import { feedToFilters } from './common';
 import fetch from 'node-fetch';
+import pRetry, { AbortError } from 'p-retry';
 import { Context } from './Context';
 import { runInSpan } from './trace';
 import { ioRedisPool } from './redis';
@@ -53,35 +54,33 @@ export async function fetchTinybirdFeed(
   } else {
     params += `&feed_id=global`;
   }
-  const body: TinybirdResponse<{ post_id: string }> = await runInSpan(
-    ctx?.span,
-    'Feed_v2.fetchTinybirdFeed',
-    async () => {
-      const url =
-        feedVersion === 7
-          ? process.env.TINYBIRD_FEED
-          : process.env.INTERNAL_FEED;
-      const res = await fetch(`${url}&${params}`, fetchOptions);
-      if (res.status >= 200 && res.status < 300) {
-        const bodyText = await res.text();
-        try {
-          return JSON.parse(bodyText);
-        } catch (err) {
-          ctx?.log.info(
-            {
-              err,
-              headers: res.headers,
-              status: res.status,
-              body: bodyText,
-            },
-            'feed request error',
+  const body: TinybirdResponse<{ post_id: string }> = await pRetry(
+    () =>
+      runInSpan(
+        ctx?.span,
+        'Feed_v2.fetchTinybirdFeed',
+        async () => {
+          const url =
+            feedVersion === 7
+              ? process.env.TINYBIRD_FEED
+              : process.env.INTERNAL_FEED;
+          const res = await fetch(`${url}&${params}`, fetchOptions);
+          if (res.status >= 200 && res.status < 300) {
+            const bodyText = await res.text();
+            return JSON.parse(bodyText);
+          }
+          if (res.status < 500) {
+            throw new AbortError(
+              `feed service request is invalid: ${res.status}`,
+            );
+          }
+          throw new Error(
+            `Unexpecetd response from feed service: ${res.status}`,
           );
-          throw err;
-        }
-      }
-      throw new Error(`Unexpecetd response from feed service: ${res.status}`);
-    },
-    { params, feedVersion },
+        },
+        { params, feedVersion },
+      ),
+    { retries: 5 },
   );
   if (!body.data.length) {
     ctx?.log.warn(
