@@ -5,12 +5,10 @@ import {
   ReputationType,
 } from './../../src/entity/ReputationEvent';
 import {
-  ContentRequested,
   notifyAlertsUpdated,
   notifyCommentCommented,
   notifyCommentUpvoteCanceled,
   notifyCommentUpvoted,
-  notifyContentRequested,
   notifyFeatureAccess,
   notifyMemberJoinedSource,
   notifyNewCommentMention,
@@ -52,7 +50,6 @@ import {
   Feed,
   Notification,
   Post,
-  PostOrigin,
   PostReport,
   Settings,
   Source,

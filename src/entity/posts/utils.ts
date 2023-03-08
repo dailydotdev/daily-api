@@ -359,7 +359,7 @@ const validateCommentary = async (commentary: string) => {
   return true;
 };
 
-export const createPrivatePost = async (
+export const createExternalLink = async (
   con: DataSource,
   logger: EventLogger,
   sourceId: string,

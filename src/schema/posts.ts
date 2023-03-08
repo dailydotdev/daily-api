@@ -20,7 +20,7 @@ import {
   standardizeURL,
 } from '../common';
 import {
-  createPrivatePost,
+  createExternalLink,
   createSharePost,
   HiddenPost,
   Post,
@@ -861,7 +861,7 @@ export const resolvers: IResolvers<any, Context> = {
       }: { sourceId: string; url: string; commentary: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await createPrivatePost(
+      await createExternalLink(
         ctx.con,
         ctx.log,
         sourceId,
