@@ -46,7 +46,7 @@ export interface GQLPost {
   publishedAt?: Date;
   createdAt: Date;
   url: string;
-  title: string;
+  title?: string;
   image?: string;
   ratio?: number;
   placeholder?: string;
@@ -180,7 +180,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Title of the post
     """
-    title: String!
+    title: String
 
     """
     URL to the image of post
