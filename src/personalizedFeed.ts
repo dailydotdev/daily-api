@@ -75,7 +75,7 @@ export async function fetchTinybirdFeed(
             );
           }
           throw new Error(
-            `Unexpecetd response from feed service: ${res.status}`,
+            `unexpecetd response from feed service: ${res.status}`,
           );
         },
         { params, feedVersion },
