@@ -58,7 +58,7 @@
     "graphql-scalars": "^1.20.1",
     "graphql-subscriptions": "^2.0.0",
     "graphql-tools": "^8.3.18",
-    "graphql-upload": "^15.0.1",
+    "graphql-upload": "^16.0.2",
     "he": "^1.2.0",
     "highlight.js": "^11.7.0",
     "isbot": "^3.6.6",
