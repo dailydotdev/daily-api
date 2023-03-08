@@ -988,7 +988,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         alias,
       ) => {
         const similarPostsQuery = `select post.id
-                                   from post
+                                   from active_post
                                           inner join (select count(*)           as similar,
                                                              min(k.occurrences) as occurrences,
                                                              pk."postId"
@@ -1002,7 +1002,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                                    where post.id != :postId
                                      and post."createdAt" >= now() - interval '6 month'
                                      and post."upvotes" > 0
-                                     and post.visible = true
                                    order by (pow(post.upvotes, k.similar) *
                                      1000 / k.occurrences) desc
                                      limit 25`;
