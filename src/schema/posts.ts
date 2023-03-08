@@ -861,6 +861,7 @@ export const resolvers: IResolvers<any, Context> = {
       }: { sourceId: string; url: string; commentary: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
       await createExternalLink(
         ctx.con,
         ctx.log,
