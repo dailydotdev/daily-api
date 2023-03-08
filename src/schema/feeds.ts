@@ -920,7 +920,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             `(${alias}."authorId" = :author or ${alias}."scoutId" = :author)`,
             { author },
           )
-          .andWhere(`${alias}.visible = true`)
           .groupBy(`${alias}.id`),
       feedPageGenerator,
       applyFeedPaging,
@@ -968,9 +967,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         builder,
         alias,
       ) => {
-        let newBuilder = builder
-          .andWhere(`${alias}."trending" > 0`)
-          .andWhere(`${alias}.visible = true`);
+        let newBuilder = builder.andWhere(`${alias}."trending" > 0`);
         if (post) {
           newBuilder = newBuilder.andWhere(`${alias}."id" != :postId`, {
             postId: post,
@@ -1036,7 +1033,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                                                  on k."postId" = post.id
                                where post.id != :postId
                                  and post."createdAt" >= now() - interval '6 month'
-                                 and post.visible = true
                                order by (pow(post.upvotes, k.similar) * 1000 /
                                  k.occurrences) desc
                                  limit 25`;
@@ -1045,7 +1041,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                                from post
                                where post.id != :postId
                                  and post."createdAt" >= now() - interval '6 month'
-                                 and post.visible = true
                                order by post.upvotes desc
                                  limit 25`;
         }

@@ -218,11 +218,6 @@ export const typeDefs = /* GraphQL */ `
     read: Boolean
 
     """
-    Whether the post should be visible or not
-    """
-    visible: Boolean
-
-    """
     Whether the user bookmarked this post
     """
     bookmarked: Boolean
