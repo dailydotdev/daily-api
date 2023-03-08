@@ -1608,12 +1608,44 @@ describe('mutation submitExternalLink', () => {
     expect(sharedPost.visible).toEqual(false);
   });
 
+  it('should share existing post to squad', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'http://p6.com' },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'http://p6.com' });
+    expect(articlePost.url).toEqual('http://p6.com');
+    expect(articlePost.visible).toEqual(true);
+    expect(articlePost.id).toEqual('p6');
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
   it('should throw error when sharing to non-squad', async () => {
     loggedUser = '1';
     return testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
       'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when URL is not valid', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, url: 'a' } },
+      'GRAPHQL_VALIDATION_FAILED',
     );
   });
 

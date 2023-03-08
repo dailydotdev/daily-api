@@ -15,11 +15,13 @@ import { traceResolverObject } from './trace';
 import {
   defaultImage,
   getDiscussionLink,
+  isValidHttpUrl,
   notifyView,
   pickImageUrl,
   standardizeURL,
 } from '../common';
 import {
+  ArticlePost,
   createExternalLink,
   createSharePost,
   HiddenPost,
@@ -862,6 +864,28 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
     ): Promise<GQLEmptyResponse> => {
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+      const cleanUrl = standardizeURL(url);
+      if (!isValidHttpUrl(cleanUrl)) {
+        throw new ValidationError('URL is not valid');
+      }
+
+      const existingPost = await ctx.con.getRepository(ArticlePost).findOne({
+        select: ['id'],
+        where: [
+          { url: cleanUrl, deleted: false },
+          { canonicalUrl: cleanUrl, deleted: false },
+        ],
+      });
+      if (existingPost) {
+        await createSharePost(
+          ctx.con,
+          sourceId,
+          ctx.userId,
+          existingPost.id,
+          commentary,
+        );
+        return { _: true };
+      }
       await createExternalLink(
         ctx.con,
         ctx.log,
