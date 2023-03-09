@@ -76,7 +76,7 @@ export default async function app(
 
   app.register(helmet);
   app.register(cors, {
-    origin: process.env.NODE_ENV === 'production' ? /daily\.dev$/ : true,
+    origin: isProd ? /daily\.dev$/ : true,
     credentials: true,
   });
   app.register(cookie, {
@@ -143,6 +143,7 @@ export default async function app(
             data: execution.data,
             errors: flatErrors.map((error): GraphQLError => {
               const newError = error as Mutable<GraphQLError>;
+              console.log(error);
               if (!error.originalError) {
                 newError.extensions = {
                   code: 'GRAPHQL_VALIDATION_FAILED',
@@ -156,13 +157,15 @@ export default async function app(
                 (error.originalError as FastifyError)?.code ===
                 'MER_ERR_GQL_PERSISTED_QUERY_NOT_FOUND'
               ) {
-                app.log.debug({ err: error.originalError }, 'unknown query');
+                app.log.info(
+                  { body: ctx?.reply?.request?.body },
+                  'unknown query',
+                );
               } else if (!error.extensions?.code) {
                 app.log.warn(
                   {
                     err: error.originalError,
-                    // TypeScript hack because Mercurius sets the wrong type
-                    body: (ctx as unknown as Context)?.req?.body,
+                    body: ctx?.reply?.request?.body,
                   },
                   'unexpected graphql error',
                 );
