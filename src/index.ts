@@ -156,7 +156,7 @@ export default async function app(
                 (error.originalError as FastifyError)?.code ===
                 'MER_ERR_GQL_PERSISTED_QUERY_NOT_FOUND'
               ) {
-                app.log.info(
+                app.log.debug(
                   { body: ctx?.reply?.request?.body },
                   'unknown query',
                 );
