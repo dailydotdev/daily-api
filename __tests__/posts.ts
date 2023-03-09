@@ -36,12 +36,13 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { notifyView } from '../src/common';
+import { notifyContentRequested, notifyView } from '../src/common';
 import { randomUUID } from 'crypto';
 
-jest.mock('../src/common', () => ({
-  ...(jest.requireActual('../src/common') as Record<string, unknown>),
+jest.mock('../src/common/pubsub', () => ({
+  ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
   notifyView: jest.fn(),
+  notifyContentRequested: jest.fn(),
 }));
 
 let app: FastifyInstance;
@@ -65,7 +66,7 @@ beforeEach(async () => {
   loggedUser = null;
   premiumUser = false;
   roles = [];
-  jest.resetAllMocks();
+  jest.clearAllMocks();
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
@@ -1542,5 +1543,128 @@ describe('mutation viewPost', () => {
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     expect(notifyView).toBeCalledTimes(0);
+  });
+});
+
+describe('mutation submitExternalLink', () => {
+  const MUTATION = `
+  mutation SubmitExternalLink($sourceId: ID!, $url: String!, $commentary: String!) {
+  submitExternalLink(sourceId: $sourceId, url: $url, commentary: $commentary) {
+    _
+  }
+}`;
+
+  const variables = {
+    sourceId: 's1',
+    url: 'https://daily.dev',
+    commentary: 'My comment',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: false,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should share to squad', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: variables.url });
+    expect(articlePost.url).toEqual('https://daily.dev');
+    expect(articlePost.visible).toEqual(false);
+
+    expect(notifyContentRequested).toBeCalledTimes(1);
+    expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
+      { id: articlePost.id, url: variables.url, origin: articlePost.origin },
+    ]);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(false);
+  });
+
+  it('should share existing post to squad', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'http://p6.com' },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'http://p6.com' });
+    expect(articlePost.url).toEqual('http://p6.com');
+    expect(articlePost.visible).toEqual(true);
+    expect(articlePost.id).toEqual('p6');
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should throw error when sharing to non-squad', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when URL is not valid', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, url: 'a' } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw error when post is existing but deleted', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).update('p6', { deleted: true });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, url: 'http://p6.com' } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw error when non-member share to squad', async () => {
+    loggedUser = '2';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
+      'FORBIDDEN',
+    );
   });
 });

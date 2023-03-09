@@ -2,7 +2,11 @@ import { DataSource, EntityManager, In } from 'typeorm';
 import { SubmissionFailErrorKeys, TypeOrmError } from '../../errors';
 import * as he from 'he';
 import { Keyword } from '../Keyword';
-import { uniqueifyArray } from '../../common';
+import {
+  EventLogger,
+  notifyContentRequested,
+  uniqueifyArray,
+} from '../../common';
 import { User } from '../User';
 import { FastifyLoggerInstance } from 'fastify';
 import { PostTag } from '../PostTag';
@@ -344,13 +348,7 @@ export const addNewPost = async (
   });
 };
 
-export const createSharePost = async (
-  con: DataSource | EntityManager,
-  sourceId: string,
-  userId: string,
-  postId: string,
-  commentary: string,
-): Promise<SharePost> => {
+const validateCommentary = async (commentary: string) => {
   if (commentary.length > MAX_COMMENTARY_LENGTH) {
     throw new ValidationError(
       JSON.stringify({
@@ -358,6 +356,59 @@ export const createSharePost = async (
       }),
     );
   }
+  return true;
+};
+
+export const createExternalLink = async (
+  con: DataSource | EntityManager,
+  logger: EventLogger,
+  sourceId: string,
+  userId: string,
+  url: string,
+  commentary: string,
+): Promise<void> => {
+  await validateCommentary(commentary);
+  const id = await generateShortId();
+
+  return con.transaction(async (entityManager) => {
+    await entityManager.getRepository(ArticlePost).insert({
+      id,
+      shortId: id,
+      createdAt: new Date(),
+      sourceId,
+      url,
+      canonicalUrl: url,
+      sentAnalyticsReport: true,
+      private: true,
+      origin: PostOrigin.Squad,
+      visible: false,
+    });
+    await createSharePost(
+      entityManager,
+      sourceId,
+      userId,
+      id,
+      commentary,
+      false,
+    );
+    await notifyContentRequested(logger, {
+      id,
+      url,
+      origin: PostOrigin.Squad,
+    });
+    return;
+  });
+};
+
+export const createSharePost = async (
+  con: DataSource | EntityManager,
+  sourceId: string,
+  userId: string,
+  postId: string,
+  commentary: string,
+  visible = true,
+): Promise<SharePost> => {
+  await validateCommentary(commentary);
   const id = await generateShortId();
   try {
     const { private: privacy } = await con
@@ -374,8 +425,8 @@ export const createSharePost = async (
       sentAnalyticsReport: true,
       private: privacy,
       origin: PostOrigin.UserGenerated,
-      visible: true,
-      visibleAt: new Date(),
+      visible,
+      visibleAt: visible ? new Date() : null,
     });
   } catch (err) {
     if (err.code === TypeOrmError.FOREIGN_KEY) {

@@ -1,36 +1,36 @@
 import nock from 'nock';
 import {
   ReputationEvent,
-  ReputationType,
   ReputationReason,
+  ReputationType,
 } from './../../src/entity/ReputationEvent';
 import {
-  notifySourceRequest,
-  notifyPostUpvoted,
-  notifyPostUpvoteCanceled,
-  notifyCommentUpvoted,
-  notifyCommentCommented,
-  notifyPostCommented,
-  notifyCommentUpvoteCanceled,
-  notifySendAnalyticsReport,
-  notifyPostBannedOrRemoved,
-  notifyPostReport,
   notifyAlertsUpdated,
+  notifyCommentCommented,
+  notifyCommentUpvoteCanceled,
+  notifyCommentUpvoted,
+  notifyFeatureAccess,
+  notifyMemberJoinedSource,
+  notifyNewCommentMention,
+  notifyNewNotification,
+  notifyPostAdded,
+  notifyPostBannedOrRemoved,
+  notifyPostCommented,
+  notifyPostReport,
+  notifyPostUpvoteCanceled,
+  notifyPostUpvoted,
+  notifySendAnalyticsReport,
+  notifySettingsUpdated,
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
-  notifySettingsUpdated,
-  notifySubmissionRejected,
+  notifySourcePrivacyUpdated,
+  notifySourceRequest,
   notifySubmissionCreated,
   notifySubmissionGrantedAccess,
-  notifyUsernameChanged,
-  notifyNewNotification,
-  notifyNewCommentMention,
-  notifyPostAdded,
-  notifyMemberJoinedSource,
+  notifySubmissionRejected,
   notifyUserCreated,
+  notifyUsernameChanged,
   notifyUserUpdated,
-  notifyFeatureAccess,
-  notifySourcePrivacyUpdated,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -39,6 +39,7 @@ import {
   saveFixtures,
 } from '../helpers';
 import {
+  Alerts,
   ArticlePost,
   Comment,
   CommentMention,
@@ -49,6 +50,7 @@ import {
   Feed,
   Notification,
   Post,
+  PostReport,
   Settings,
   Source,
   SourceFeed,
@@ -62,10 +64,8 @@ import {
   UserStateKey,
 } from '../../src/entity';
 import { ChangeObject } from '../../src/types';
-import { PostReport } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
-import { Alerts } from '../../src/entity';
 import { randomUUID } from 'crypto';
 import { submissionAccessThreshold } from '../../src/schema/submissions';
 import { DataSource } from 'typeorm';
@@ -101,6 +101,7 @@ jest.mock('../../src/common', () => ({
   notifyFeatureAccess: jest.fn(),
   sendEmail: jest.fn(),
   notifySourcePrivacyUpdated: jest.fn(),
+  notifyContentRequested: jest.fn(),
 }));
 
 let con: DataSource;
