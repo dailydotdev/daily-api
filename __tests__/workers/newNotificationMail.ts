@@ -887,3 +887,52 @@ it('should set parameters for squad_access email', async () => {
   });
   expect(args.templateId).toEqual('d-6b3de457947b415d93d0029361edaf1d');
 });
+
+it('should set parameters for squad_post_live email', async () => {
+  const sharedPost = await con.getRepository(ArticlePost).save(postsFixture[0]);
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const post = await con.getRepository(SharePost).save({
+    id: 'ps',
+    shortId: 'ps',
+    sourceId: 'a',
+    title: 'Shared post',
+    sharedPostId: 'p1',
+    authorId: '2',
+  });
+  const ctx: NotificationPostContext = {
+    userId: '2',
+    post,
+    sharedPost,
+    source,
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'squad_post_live',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '2',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+  expect(args.dynamicTemplateData).toEqual({
+    commentary: 'Shared post',
+    full_name: 'Tsahi',
+    post_image: 'https://daily.dev/image.jpg',
+    post_link:
+      'http://localhost:5002/posts/ps?utm_source=notification&utm_medium=email&utm_campaign=squad_post_live',
+    post_title: 'P1',
+    profile_image: 'https://daily.dev/tsahi.jpg',
+    squad_image: 'http://image.com/a',
+    squad_name: 'A',
+    user_reputation: '10',
+  });
+  expect(args.templateId).toEqual('update!');
+});

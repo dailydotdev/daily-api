@@ -69,6 +69,8 @@ export const notificationTitleMap: Record<
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) =>
     `<b>${ctx.doneBy.name}</b> <span class="text-theme-color-cabbage">viewed</span> your post on <b>${ctx.source.name}</b>.`,
+  squad_post_live: () =>
+    `<b>Your post</b> is now <span class="text-theme-color-cabbage">live</span> on the feed!`,
 };
 
 export const generateNotificationMap: Record<
@@ -196,4 +198,8 @@ export const generateNotificationMap: Record<
       .objectPost(ctx.post, ctx.source, ctx.sharedPost)
       .avatarManyUsers([ctx.doneBy])
       .uniqueKey(ctx.doneBy.id),
+  squad_post_live: (builder, ctx: NotificationPostContext) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .objectPost(ctx.post, ctx.source, ctx.sharedPost),
 };
