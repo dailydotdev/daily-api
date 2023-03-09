@@ -62,6 +62,7 @@ const obj = new GraphORM({
   },
   Post: {
     from: 'ActivePost',
+    metadataFrom: 'Post',
     requiredColumns: ['id', 'shortId', 'createdAt', 'authorId', 'scoutId'],
     fields: {
       tags: {
@@ -296,15 +297,7 @@ const obj = new GraphORM({
   },
   ReadingHistory: {
     from: 'ActiveView',
-    fields: {
-      post: {
-        relation: {
-          isMany: false,
-          parentColumn: 'postId',
-          childColumn: 'id',
-        },
-      },
-    },
+    metadataFrom: 'View',
   },
   Notification: {
     fields: {

@@ -58,6 +58,8 @@ export interface GraphORMField {
 export interface GraphORMType {
   // Define manually the table to select from
   from?: string;
+  // Define manually the table to take metadata from
+  metadataFrom?: string;
   // Define fields customizations
   fields?: { [name: string]: GraphORMField };
   // Array of columns to select regardless of the resolve tree
@@ -74,6 +76,16 @@ export class GraphORM {
 
   constructor(mappings?: GraphORMMapping) {
     this.mappings = mappings;
+  }
+
+  /**
+   * Returns the entity metadata
+   * @param ctx GraphQL context of the request
+   * @param type Name of the GraphQL parent type
+   */
+  getMetadata(ctx: Context, type: string): EntityMetadata {
+    const mapping = this.mappings?.[type];
+    return ctx.con.getMetadata(mapping?.metadataFrom ?? mapping?.from ?? type);
   }
 
   /**
@@ -152,7 +164,7 @@ export class GraphORM {
       mapping?.relation ||
       this.findRelation(
         metadata,
-        ctx.con.getMetadata(paginatedType),
+        this.getMetadata(ctx, paginatedType),
         field.name,
       );
     if (!relation) {
@@ -293,9 +305,7 @@ export class GraphORM {
     fieldsByTypeName: { [p: string]: ResolveTree },
   ): GraphORMBuilder {
     const fields = Object.values(fieldsByTypeName);
-    const entityMetadata = ctx.con.getMetadata(
-      this.mappings?.[type]?.from || type,
-    );
+    const entityMetadata = this.getMetadata(ctx, type);
     // Used to make sure no conflicts in aliasing
     const randomStr = Math.random().toString(36).substring(2, 5);
     const alias = `${entityMetadata.tableName.toLowerCase()}_${randomStr}`;
@@ -388,7 +398,7 @@ export class GraphORM {
 
   getMetadataOrNull(ctx: Context, type: string): EntityMetadata | undefined {
     try {
-      return ctx.con.getMetadata(this.mappings?.[type]?.from || type);
+      return this.getMetadata(ctx, type);
     } catch (err) {
       if (err?.name === 'EntityMetadataNotFoundError') {
         return;
