@@ -305,8 +305,8 @@ export class GraphORM {
     fieldsByTypeName: { [p: string]: ResolveTree },
   ): GraphORMBuilder {
     const fields = Object.values(fieldsByTypeName);
-    const mapping = this.mappings?.[type];
-    const originalMetadata = ctx.con.getMetadata(mapping.from ?? type);
+    const originalType = this.mappings?.[type]?.from ?? type;
+    const originalMetadata = ctx.con.getMetadata(originalType);
     const tableName = originalMetadata.tableName;
     const entityMetadata = this.getMetadata(ctx, type);
     // Used to make sure no conflicts in aliasing

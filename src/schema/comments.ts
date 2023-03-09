@@ -30,7 +30,6 @@ import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { markdown, mentionSpecialCharacters } from '../common/markdown';
 import { ensureSourcePermissions } from './sources';
 import { generateShortId } from '../ids';
-import { ActivePost } from '../entity/posts/ActivePost';
 
 export interface GQLComment {
   id: string;
@@ -526,8 +525,9 @@ export const resolvers: IResolvers<any, Context> = {
               .andWhere(`${builder.alias}."userId" = :userId`, {
                 userId: args.userId,
               })
-              .innerJoin(ActivePost, 'p', `"${builder.alias}"."postId" = p.id`)
+              .innerJoin(Post, 'p', `"${builder.alias}"."postId" = p.id`)
               .innerJoin(Source, 's', `"p"."sourceId" = s.id`)
+              .andWhere(`p.deleted = false`)
               .andWhere(`s.private = false`);
 
             return builder;
