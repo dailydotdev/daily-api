@@ -15,11 +15,14 @@ import { traceResolverObject } from './trace';
 import {
   defaultImage,
   getDiscussionLink,
+  isValidHttpUrl,
   notifyView,
   pickImageUrl,
   standardizeURL,
 } from '../common';
 import {
+  ArticlePost,
+  createExternalLink,
   createSharePost,
   HiddenPost,
   Post,
@@ -29,7 +32,11 @@ import {
   Upvote,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
-import { NotFoundError, TypeOrmError } from '../errors';
+import {
+  NotFoundError,
+  SubmissionFailErrorMessage,
+  TypeOrmError,
+} from '../errors';
 import { GQLBookmarkList } from './bookmarks';
 import { GQLComment } from './comments';
 import graphorm from '../graphorm';
@@ -46,7 +53,7 @@ export interface GQLPost {
   publishedAt?: Date;
   createdAt: Date;
   url: string;
-  title: string;
+  title?: string;
   image?: string;
   ratio?: number;
   placeholder?: string;
@@ -180,7 +187,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Title of the post
     """
-    title: String!
+    title: String
 
     """
     URL to the image of post
@@ -509,6 +516,24 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
+    Create external link in source
+    """
+    submitExternalLink(
+      """
+      Source to share the post to
+      """
+      sourceId: ID!
+      """
+      URL to the new private post
+      """
+      url: String!
+      """
+      Commentary for the share
+      """
+      commentary: String!
+    ): EmptyResponse @auth
+
+    """
     Share post to source
     """
     sharePost(
@@ -830,6 +855,50 @@ export const resolvers: IResolvers<any, Context> = {
           return true;
         }
         return false;
+      });
+      return { _: true };
+    },
+    submitExternalLink: async (
+      _,
+      {
+        sourceId,
+        url,
+        commentary,
+      }: { sourceId: string; url: string; commentary: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.transaction(async (manager) => {
+        await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+        const cleanUrl = standardizeURL(url);
+        if (!isValidHttpUrl(cleanUrl)) {
+          throw new ValidationError('URL is not valid');
+        }
+
+        const existingPost = await manager.getRepository(ArticlePost).findOne({
+          select: ['id', 'deleted'],
+          where: [{ url: cleanUrl }, { canonicalUrl: cleanUrl }],
+        });
+        if (existingPost) {
+          if (existingPost.deleted) {
+            throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);
+          }
+          await createSharePost(
+            manager,
+            sourceId,
+            ctx.userId,
+            existingPost.id,
+            commentary,
+          );
+          return { _: true };
+        }
+        await createExternalLink(
+          manager,
+          ctx.log,
+          sourceId,
+          ctx.userId,
+          url,
+          commentary,
+        );
       });
       return { _: true };
     },
