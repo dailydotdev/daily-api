@@ -13,7 +13,6 @@ import {
   notifyMemberJoinedSource,
   notifyNewCommentMention,
   notifyNewNotification,
-  notifyPostAdded,
   notifyPostBannedOrRemoved,
   notifyPostCommented,
   notifyPostReport,
@@ -31,6 +30,7 @@ import {
   notifyUserCreated,
   notifyUsernameChanged,
   notifyUserUpdated,
+  notifyPostVisible,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -82,7 +82,6 @@ jest.mock('../../src/common', () => ({
   notifyCommentCommented: jest.fn(),
   notifyPostCommented: jest.fn(),
   notifyUsernameChanged: jest.fn(),
-  notifyPostAdded: jest.fn(),
   notifyMemberJoinedSource: jest.fn(),
   notifySendAnalyticsReport: jest.fn(),
   notifyPostBannedOrRemoved: jest.fn(),
@@ -102,6 +101,7 @@ jest.mock('../../src/common', () => ({
   sendEmail: jest.fn(),
   notifySourcePrivacyUpdated: jest.fn(),
   notifyContentRequested: jest.fn(),
+  notifyPostVisible: jest.fn(),
 }));
 
 let con: DataSource;
@@ -567,7 +567,7 @@ describe('post', () => {
     tagsStr: 'javascript,webdev',
   };
 
-  it('should notify on new post', async () => {
+  it('should not notify on post visible', async () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
@@ -577,8 +577,47 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostAdded).toBeCalledTimes(1);
-    expect(jest.mocked(notifyPostAdded).mock.calls[0].slice(1)).toEqual([base]);
+    expect(notifyPostVisible).toBeCalledTimes(0);
+  });
+
+  it('should notify on post visible on creation', async () => {
+    const after = {
+      ...base,
+      visible: true,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostVisible).toBeCalledTimes(1);
+    expect(jest.mocked(notifyPostVisible).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
+  });
+
+  it('should notify on post visible', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      visible: true,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostVisible).toBeCalledTimes(1);
+    expect(jest.mocked(notifyPostVisible).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
   });
 
   it('should notify on send analytics report', async () => {
