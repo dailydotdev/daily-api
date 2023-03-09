@@ -985,7 +985,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         alias,
       ) => {
         const similarPostsQuery = `select post.id
-                                   from active_post
+                                   from active_post as post
                                           inner join (select count(*)           as similar,
                                                              min(k.occurrences) as occurrences,
                                                              pk."postId"
@@ -1021,7 +1021,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         let similarPostsQuery;
         if (tags?.length > 0) {
           similarPostsQuery = `select post.id
-                               from post
+                               from active_post as post
                                       inner join (select count(*)           as similar,
                                                          min(k.occurrences) as occurrences,
                                                          pk."postId"
