@@ -143,7 +143,6 @@ export default async function app(
             data: execution.data,
             errors: flatErrors.map((error): GraphQLError => {
               const newError = error as Mutable<GraphQLError>;
-              console.log(error);
               if (!error.originalError) {
                 newError.extensions = {
                   code: 'GRAPHQL_VALIDATION_FAILED',
