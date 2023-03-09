@@ -26,8 +26,8 @@ export const workers: Worker[] = [
     subscription: 'comment-upvote-canceled-rep',
   },
   {
-    topic: 'api.v1.post-added',
-    subscription: 'api.post-scout-matched-slack',
+    topic: 'api.v1.post-visible',
+    subscription: 'api.post-scout-matched-slack-v2',
   },
   {
     topic: 'comment-commented',
@@ -144,8 +144,8 @@ export const workers: Worker[] = [
     subscription: 'api.comment-upvote-milestone-notification',
   },
   {
-    topic: 'api.v1.post-added',
-    subscription: 'api.post-added-notification',
+    topic: 'api.v1.post-visible',
+    subscription: 'api.post-added-notification-v2',
   },
   {
     topic: 'api.v1.member-joined-source',
@@ -164,8 +164,8 @@ export const workers: Worker[] = [
     subscription: 'api.add-to-mailing-list',
   },
   {
-    topic: 'api.v1.post-added',
-    subscription: 'api.post-changelog-added',
+    topic: 'api.v1.post-visible',
+    subscription: 'api.post-changelog-added-v2',
   },
   {
     topic: 'features-reset',
