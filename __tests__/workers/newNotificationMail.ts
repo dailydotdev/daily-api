@@ -2,7 +2,7 @@ import {
   expectSuccessfulBackground,
   saveNotificationFixture,
 } from '../helpers';
-import { addNotificationEmailUtm, sendEmail } from '../../src/common';
+import { sendEmail } from '../../src/common';
 import worker from '../../src/workers/newNotificationMail';
 import {
   Submission,
@@ -32,7 +32,6 @@ import {
 import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
-import { simplifyComment } from '../../src/notifications/builder';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
