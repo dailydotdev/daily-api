@@ -1,6 +1,5 @@
 import { ViewColumn, DataSource, ViewEntity } from 'typeorm';
 import { Post, PostOrigin, PostType } from './Post';
-import { UNKNOWN_SOURCE } from '../Source';
 
 @ViewEntity({
   expression: (connection: DataSource) =>
@@ -84,4 +83,7 @@ export class ActivePost {
 
   @ViewColumn()
   origin: PostOrigin;
+
+  @ViewColumn()
+  visible: boolean;
 }

@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class ActivePostView1678265676205 implements MigrationInterface {
-  name = 'ActivePostView1678265676205';
+export class ActivePostView1678365541578 implements MigrationInterface {
+  name = 'ActivePostView1678365541578';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
@@ -13,7 +13,7 @@ export class ActivePostView1678265676205 implements MigrationInterface {
         'public',
         'VIEW',
         'active_post',
-        `SELECT p.* FROM "public"."post" "p" WHERE "p"."deleted" = false AND "p"."visible" = true AND p."sourceId" != 'unknown'`,
+        'SELECT p.* FROM "public"."post" "p" WHERE "p"."deleted" = false AND "p"."visible" = true AND p."sourceId" != \'unknown\'',
       ],
     );
   }
