@@ -1,5 +1,5 @@
 import { PubSub, Topic } from '@google-cloud/pubsub';
-import { FastifyLoggerInstance } from 'fastify';
+import { FastifyBaseLogger } from 'fastify';
 import {
   Post,
   SourceRequest,
@@ -44,11 +44,11 @@ const newNotificationTopic = pubsub.topic('api.v1.new-notification');
 const newCommentMentionTopic = pubsub.topic('api.v1.new-comment-mention');
 const memberJoinedSourceTopic = pubsub.topic('api.v1.member-joined-source');
 const featureAccess = pubsub.topic('api.v1.feature-granted');
-const postAddedTopic = pubsub.topic('api.v1.post-added');
 const userCreatedTopic = pubsub.topic('api.v1.user-created');
 const sourcePrivacyUpdatedTopic = pubsub.topic('api.v1.source-privacy-updated');
 const featuresResetTopic = pubsub.topic('features-reset');
 const contentRequestedTopic = pubsub.topic('api.v1.content-requested');
+const postVisibleTopic = pubsub.topic('api.v1.post-visible');
 
 export enum NotificationReason {
   New = 'new',
@@ -59,7 +59,7 @@ export enum NotificationReason {
 }
 
 // Need to support console as well
-export type EventLogger = Omit<FastifyLoggerInstance, 'fatal'>;
+export type EventLogger = Omit<FastifyBaseLogger, 'fatal'>;
 
 const publishEvent = async (
   log: EventLogger,
@@ -319,10 +319,10 @@ export const notifyFeatureAccess = async (
   feature: ChangeObject<Feature>,
 ): Promise<void> => publishEvent(log, featureAccess, { feature });
 
-export const notifyPostAdded = async (
+export const notifyPostVisible = async (
   log: EventLogger,
   post: ChangeObject<Post>,
-): Promise<void> => publishEvent(log, postAddedTopic, { post });
+): Promise<void> => publishEvent(log, postVisibleTopic, { post });
 
 export const notifyUserCreated = async (
   log: EventLogger,
