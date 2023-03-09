@@ -126,7 +126,7 @@ export default async function app(
     // Disable GraphQL introspection in production
     graphiql: !isProd,
     validationRules: isProd && [NoSchemaIntrospectionCustomRule],
-    errorFormatter(execution) {
+    errorFormatter(execution, ctx) {
       if (execution.errors?.length > 0) {
         const flatErrors = execution.errors.flatMap<GraphQLError>((error) => {
           if (error.originalError.name === 'FastifyError') {
@@ -159,7 +159,11 @@ export default async function app(
                 app.log.debug({ err: error.originalError }, 'unknown query');
               } else if (!error.extensions?.code) {
                 app.log.warn(
-                  { err: error.originalError },
+                  {
+                    err: error.originalError,
+                    // TypeScript hack because Mercurius sets the wrong type
+                    body: (ctx as unknown as Context)?.req?.body,
+                  },
                   'unexpected graphql error',
                 );
                 newError.message = 'Unexpected error';
