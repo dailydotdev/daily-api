@@ -2,7 +2,7 @@ import {
   expectSuccessfulBackground,
   saveNotificationFixture,
 } from '../helpers';
-import { sendEmail } from '../../src/common';
+import { addNotificationEmailUtm, sendEmail } from '../../src/common';
 import worker from '../../src/workers/newNotificationMail';
 import {
   Submission,
@@ -32,6 +32,7 @@ import {
 import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
+import { simplifyComment } from '../../src/notifications/builder';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -511,6 +512,71 @@ it('should set parameters for comment_reply email', async () => {
     user_reputation: '10',
   });
   expect(args.templateId).toEqual('d-90c229bde4af427c8708a7615bfd85b4');
+});
+
+it('should set parameters for squad_reply email', async () => {
+  await con.getRepository(ArticlePost).save(postsFixture[0]);
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const post = await con.getRepository(SharePost).save({
+    id: 'ps',
+    shortId: 'ps',
+    sourceId: 'a',
+    title: 'Shared post',
+    sharedPostId: 'p1',
+    authorId: '1',
+  });
+  await con.getRepository(Comment).save({
+    id: 'c1',
+    postId: 'ps',
+    userId: '1',
+    content: 'parent comment',
+    createdAt: new Date(2020, 1, 6, 0, 0),
+  });
+  const comment = await con.getRepository(Comment).save({
+    id: 'c2',
+    postId: 'ps',
+    userId: '2',
+    content: 'child comment',
+    createdAt: new Date(2020, 1, 6, 0, 0),
+    upvotes: 5,
+    parentId: 'c1',
+  });
+  const commenter = await con.getRepository(User).findOneBy({ id: '2' });
+  const ctx: NotificationCommenterContext = {
+    userId: '1',
+    post,
+    comment,
+    commenter,
+    source,
+  };
+
+  const notificationId = await saveNotificationFixture(con, 'squad_reply', ctx);
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+  expect(args.dynamicTemplateData).toEqual({
+    full_name: 'Tsahi',
+    profile_image: 'https://daily.dev/tsahi.jpg',
+    squad_name: 'A',
+    squad_image: 'http://image.com/a',
+    commenter_reputation: '10',
+    new_comment: 'child comment',
+    post_link:
+      'http://localhost:5002/posts/ps?utm_source=notification&utm_medium=email&utm_campaign=squad_reply#c-c2',
+    user_name: 'Ido',
+    user_reputation: '10',
+    user_image: 'https://daily.dev/ido.jpg',
+    main_comment: 'parent comment',
+  });
+  expect(args.templateId).toEqual('d-cbb2de40b61840c38d3aa21028af0c68');
 });
 
 it('should set parameters for comment_upvote_milestone email', async () => {
