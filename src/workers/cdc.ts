@@ -47,15 +47,15 @@ import {
   notifyUsernameChanged,
   notifyNewNotification,
   notifyNewCommentMention,
-  notifyPostAdded,
   notifyMemberJoinedSource,
   notifyUserCreated,
   notifyFeatureAccess,
   notifySourcePrivacyUpdated,
+  notifyPostVisible,
 } from '../common';
 import { ChangeMessage, ChangeObject } from '../types';
 import { DataSource } from 'typeorm';
-import { FastifyLoggerInstance } from 'fastify';
+import { FastifyBaseLogger } from 'fastify';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { PostReport, Alerts } from '../entity';
 import { reportReasons } from '../schema/posts';
@@ -68,7 +68,7 @@ const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
 
 const onSourceRequestChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<SourceRequest>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -108,7 +108,7 @@ const onSourceRequestChange = async (
 
 const onPostUpvoteChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<Upvote>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -128,7 +128,7 @@ const onPostUpvoteChange = async (
 
 const onCommentUpvoteChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<CommentUpvote>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -148,7 +148,7 @@ const onCommentUpvoteChange = async (
 
 const onCommentMentionChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<CommentMention>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -158,7 +158,7 @@ const onCommentMentionChange = async (
 
 const onCommentChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<Comment>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -183,7 +183,7 @@ const onCommentChange = async (
 
 const onUserChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<User>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -225,7 +225,7 @@ const onUserChange = async (
 
 const onAlertsChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<Alerts>,
 ): Promise<void> => {
   if (data.payload.op === 'u') {
@@ -237,7 +237,7 @@ const onAlertsChange = async (
 
 const onNotificationsChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<Notification>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -247,7 +247,7 @@ const onNotificationsChange = async (
 
 const onSettingsChange = async (
   _: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<Settings>,
 ): Promise<void> => {
   if (data.payload.op === 'u') {
@@ -259,12 +259,17 @@ const onSettingsChange = async (
 
 const onPostChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<Post>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
-    await notifyPostAdded(logger, data.payload.after);
+    if (data.payload.after.visible) {
+      await notifyPostVisible(logger, data.payload.after);
+    }
   } else if (data.payload.op === 'u') {
+    if (!data.payload.before.visible && data.payload.after.visible) {
+      await notifyPostVisible(logger, data.payload.after);
+    }
     if (
       !data.payload.before.sentAnalyticsReport &&
       data.payload.after.sentAnalyticsReport
@@ -286,6 +291,7 @@ const onPostChange = async (
       isChanged(data.payload.before, data.payload.after, 'createdAt') ||
       isChanged(data.payload.before, data.payload.after, 'authorId') ||
       isChanged(data.payload.before, data.payload.after, 'sourceId') ||
+      isChanged(data.payload.before, data.payload.after, 'visible') ||
       isChanged<ChangeObject<ArticlePost>>(
         data.payload.before as ChangeObject<ArticlePost>,
         data.payload.after as ChangeObject<ArticlePost>,
@@ -304,7 +310,7 @@ const onPostChange = async (
 
 const onPostReportChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<PostReport>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -324,7 +330,7 @@ const onPostReportChange = async (
 
 const onSourceFeedChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<SourceFeed>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
@@ -344,7 +350,7 @@ const onSourceFeedChange = async (
 
 const onSourceChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<Source>,
 ) => {
   if (data.payload.op === 'u') {
@@ -360,7 +366,7 @@ const onSourceChange = async (
 
 const onFeedChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<Feed>,
 ) => {
   if (data.payload.op === 'c') {
@@ -370,7 +376,7 @@ const onFeedChange = async (
 
 const onReputationEventChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<ReputationEvent>,
 ) => {
   if (data.payload.op === 'c') {
@@ -384,7 +390,7 @@ const onReputationEventChange = async (
 
 const onSubmissionChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<Submission>,
 ) => {
   const entity = data.payload.after;
@@ -403,7 +409,7 @@ const onSubmissionChange = async (
 
 const onUserStateChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<UserState>,
 ) => {
   if (data.payload.op === 'c') {
@@ -415,7 +421,7 @@ const onUserStateChange = async (
 
 const onSourceMemberChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<SourceMember>,
 ) => {
   if (data.payload.op === 'c') {
@@ -425,7 +431,7 @@ const onSourceMemberChange = async (
 
 const onFeatureChange = async (
   con: DataSource,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
   data: ChangeMessage<Feature>,
 ) => {
   if (data.payload.op === 'c') {

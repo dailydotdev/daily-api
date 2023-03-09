@@ -11,7 +11,7 @@ interface Data {
 const CHANGELOG_SOURCE_ID = 'daily_updates';
 
 const worker: Worker = {
-  subscription: 'api.post-changelog-added',
+  subscription: 'api.post-changelog-added-v2',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     const { post } = data;
