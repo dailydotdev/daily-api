@@ -32,7 +32,11 @@ import {
   Upvote,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
-import { NotFoundError, TypeOrmError } from '../errors';
+import {
+  NotFoundError,
+  SubmissionFailErrorMessage,
+  TypeOrmError,
+} from '../errors';
 import { GQLBookmarkList } from './bookmarks';
 import { GQLComment } from './comments';
 import graphorm from '../graphorm';
@@ -878,6 +882,9 @@ export const resolvers: IResolvers<any, Context> = {
           ],
         });
         if (existingPost) {
+          if (existingPost.deleted) {
+            throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);
+          }
           await createSharePost(
             manager,
             sourceId,
