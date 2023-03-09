@@ -360,7 +360,7 @@ const validateCommentary = async (commentary: string) => {
 };
 
 export const createExternalLink = async (
-  con: DataSource,
+  con: DataSource | EntityManager,
   logger: EventLogger,
   sourceId: string,
   userId: string,

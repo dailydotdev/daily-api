@@ -863,37 +863,39 @@ export const resolvers: IResolvers<any, Context> = {
       }: { sourceId: string; url: string; commentary: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
-      const cleanUrl = standardizeURL(url);
-      if (!isValidHttpUrl(cleanUrl)) {
-        throw new ValidationError('URL is not valid');
-      }
+      await ctx.con.transaction(async (manager) => {
+        await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+        const cleanUrl = standardizeURL(url);
+        if (!isValidHttpUrl(cleanUrl)) {
+          throw new ValidationError('URL is not valid');
+        }
 
-      const existingPost = await ctx.con.getRepository(ArticlePost).findOne({
-        select: ['id'],
-        where: [
-          { url: cleanUrl, deleted: false },
-          { canonicalUrl: cleanUrl, deleted: false },
-        ],
-      });
-      if (existingPost) {
-        await createSharePost(
-          ctx.con,
+        const existingPost = await manager.getRepository(ArticlePost).findOne({
+          select: ['id'],
+          where: [
+            { url: cleanUrl, deleted: false },
+            { canonicalUrl: cleanUrl, deleted: false },
+          ],
+        });
+        if (existingPost) {
+          await createSharePost(
+            manager,
+            sourceId,
+            ctx.userId,
+            existingPost.id,
+            commentary,
+          );
+          return { _: true };
+        }
+        await createExternalLink(
+          manager,
+          ctx.log,
           sourceId,
           ctx.userId,
-          existingPost.id,
+          url,
           commentary,
         );
-        return { _: true };
-      }
-      await createExternalLink(
-        ctx.con,
-        ctx.log,
-        sourceId,
-        ctx.userId,
-        url,
-        commentary,
-      );
+      });
       return { _: true };
     },
     sharePost: async (
