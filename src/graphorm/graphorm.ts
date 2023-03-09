@@ -305,11 +305,14 @@ export class GraphORM {
     fieldsByTypeName: { [p: string]: ResolveTree },
   ): GraphORMBuilder {
     const fields = Object.values(fieldsByTypeName);
+    const mapping = this.mappings?.[type];
+    const originalMetadata = ctx.con.getMetadata(mapping.from ?? type);
+    const tableName = originalMetadata.tableName;
     const entityMetadata = this.getMetadata(ctx, type);
     // Used to make sure no conflicts in aliasing
     const randomStr = Math.random().toString(36).substring(2, 5);
-    const alias = `${entityMetadata.tableName.toLowerCase()}_${randomStr}`;
-    let newBuilder = builder.from(entityMetadata.tableName, alias).select([]);
+    const alias = `${tableName.toLowerCase()}_${randomStr}`;
+    let newBuilder = builder.from(tableName, alias).select([]);
     fields.forEach((field) => {
       newBuilder = this.selectField(
         ctx,
