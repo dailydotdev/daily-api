@@ -86,7 +86,6 @@ export const postsFixture: DeepPartial<ArticlePost>[] = [
     createdAt: new Date(now.getTime() - 5000),
     type: PostType.Article,
     visible: false,
-    deleted: true,
   },
 ];
 
