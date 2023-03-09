@@ -10,7 +10,7 @@ import { UNKNOWN_SOURCE } from '../Source';
       .from(Post, 'p')
       .where('p.deleted = false')
       .andWhere('p.visible = true')
-      .andWhere('p."sourceId" != :unknown', { unknown: UNKNOWN_SOURCE }),
+      .andWhere(`p."sourceId" != 'unknown'`),
 })
 export class ActivePost {
   @ViewColumn()
