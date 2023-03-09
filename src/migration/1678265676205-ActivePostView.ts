@@ -13,7 +13,7 @@ export class ActivePostView1678265676205 implements MigrationInterface {
         'public',
         'VIEW',
         'active_post',
-        'SELECT p.* FROM "public"."post" "p" WHERE "p"."deleted" = false AND "p"."visible" = true AND p."sourceId" != :unknown',
+        `SELECT p.* FROM "public"."post" "p" WHERE "p"."deleted" = false AND "p"."visible" = true AND p."sourceId" != 'unknown'`,
       ],
     );
   }
