@@ -875,11 +875,8 @@ export const resolvers: IResolvers<any, Context> = {
         }
 
         const existingPost = await manager.getRepository(ArticlePost).findOne({
-          select: ['id'],
-          where: [
-            { url: cleanUrl, deleted: false },
-            { canonicalUrl: cleanUrl, deleted: false },
-          ],
+          select: ['id', 'deleted'],
+          where: [{ url: cleanUrl }, { canonicalUrl: cleanUrl }],
         });
         if (existingPost) {
           if (existingPost.deleted) {

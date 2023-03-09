@@ -1649,6 +1649,16 @@ describe('mutation submitExternalLink', () => {
     );
   });
 
+  it('should throw error when post is existing but deleted', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).update('p6', { deleted: true });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, url: 'http://p6.com' } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should throw error when non-member share to squad', async () => {
     loggedUser = '2';
     return testMutationErrorCode(
