@@ -381,6 +381,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     if (!commenter || !parent || !post) {
       return;
     }
+
+    const parentUser = await parent.user;
+    if (!parentUser) {
+      return;
+    }
+
     const source = await post.source;
     return {
       full_name: commenter.name,
@@ -393,9 +399,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         notification.targetUrl,
         notification.type,
       ),
-      user_name: user.name,
-      user_reputation: user.reputation,
-      user_image: user.image,
+      user_name: parentUser.name,
+      user_reputation: parentUser.reputation,
+      user_image: parentUser.image,
       main_comment: simplifyComment(parent.content),
     };
   },
