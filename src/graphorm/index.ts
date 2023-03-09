@@ -63,14 +63,7 @@ const obj = new GraphORM({
   Post: {
     from: 'ActivePost',
     metadataFrom: 'Post',
-    requiredColumns: [
-      'id',
-      'shortId',
-      'createdAt',
-      'authorId',
-      'scoutId',
-      'visible',
-    ],
+    requiredColumns: ['id', 'shortId', 'createdAt', 'authorId', 'scoutId'],
     fields: {
       tags: {
         select: 'tagsStr',

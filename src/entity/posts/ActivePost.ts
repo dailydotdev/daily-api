@@ -1,5 +1,6 @@
 import { ViewColumn, DataSource, ViewEntity } from 'typeorm';
 import { Post, PostOrigin, PostType } from './Post';
+import { Toc } from './ArticlePost';
 
 @ViewEntity({
   expression: (connection: DataSource) =>
@@ -86,4 +87,45 @@ export class ActivePost {
 
   @ViewColumn()
   visible: boolean;
+
+  // ArticlePost columns
+  @ViewColumn()
+  publishedAt?: Date;
+
+  @ViewColumn()
+  url: string;
+
+  @ViewColumn()
+  canonicalUrl?: string;
+
+  @ViewColumn()
+  image?: string;
+
+  @ViewColumn()
+  ratio?: number;
+
+  @ViewColumn()
+  placeholder?: string;
+
+  @ViewColumn()
+  siteTwitter?: string;
+
+  @ViewColumn()
+  creatorTwitter?: string;
+
+  @ViewColumn()
+  readTime?: number;
+
+  @ViewColumn()
+  description?: string;
+
+  @ViewColumn()
+  toc?: Toc;
+
+  @ViewColumn()
+  summary?: string;
+
+  // SharedPost columns
+  @ViewColumn()
+  sharedPostId: string;
 }
