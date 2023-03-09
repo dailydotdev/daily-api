@@ -909,18 +909,17 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       (ctx, { author }: AuthorFeedArgs, builder, alias) =>
         builder
           .addSelect(
-            `count(*) filter (where ${alias}."scoutId" = '${author}')`,
+            `CASE WHEN ${alias}."scoutId" = '${author}' THEN 1 ELSE 0 END`,
             'isScout',
           )
           .addSelect(
-            `count(*) filter (where ${alias}."authorId" = '${author}')`,
+            `CASE WHEN ${alias}."authorId" = '${author}' THEN 1 ELSE 0 END`,
             'isAuthor',
           )
           .andWhere(
             `(${alias}."authorId" = :author or ${alias}."scoutId" = :author)`,
             { author },
-          )
-          .groupBy(`${alias}.id`),
+          ),
       feedPageGenerator,
       applyFeedPaging,
       {
