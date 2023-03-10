@@ -23,7 +23,7 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      const { id, updated_at } = data;
+      const { id, tags, keywords, updated_at, ...submittedData } = data;
       const updatedDate = new Date(updated_at);
       await con.transaction(async (entityManager) => {
         // For now, we only allow Squad posts to be updated through this flow
@@ -39,7 +39,7 @@ const worker: Worker = {
           return;
         }
 
-        if (bannedAuthors.indexOf(data?.creatorTwitter) > -1) {
+        if (bannedAuthors.indexOf(submittedData?.creatorTwitter) > -1) {
           logger.info(
             { data, messageId: message.messageId },
             'post update failed because author is banned',
@@ -48,13 +48,14 @@ const worker: Worker = {
         }
 
         const creatorTwitter =
-          data.creatorTwitter === '' || data.creatorTwitter === '@'
+          submittedData.creatorTwitter === '' ||
+          submittedData.creatorTwitter === '@'
             ? null
-            : data.creatorTwitter;
+            : submittedData.creatorTwitter;
 
         const authorId = await findAuthor(entityManager, creatorTwitter);
-        const becomesVisible = !databasePost?.visible && !!data?.title?.length;
-        const { tags, keywords, updated_at, ...submittedData } = data;
+        const becomesVisible =
+          !databasePost?.visible && !!submittedData?.title?.length;
 
         const { allowedKeywords, mergedKeywords } = await mergeKeywords(
           entityManager,
@@ -64,7 +65,7 @@ const worker: Worker = {
         if (allowedKeywords.length > 5) {
           logger.info(
             {
-              url: data.url,
+              url: submittedData.url,
               keywords: allowedKeywords,
             },
             'created an article with more than 5 keywords',
@@ -73,7 +74,7 @@ const worker: Worker = {
 
         const { private: privacy } = await entityManager
           .getRepository(Source)
-          .findOneBy({ id: data?.sourceId });
+          .findOneBy({ id: submittedData?.sourceId });
 
         const fixedData = {
           ...submittedData,
