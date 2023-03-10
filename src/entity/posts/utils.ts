@@ -82,7 +82,7 @@ export interface AddPostData {
   origin?: PostOrigin;
 }
 
-const parseReadTime = (
+export const parseReadTime = (
   readTime: number | string | undefined,
 ): number | undefined => {
   if (!readTime) {
@@ -108,7 +108,7 @@ const checkRequiredFields = (data: AddPostData): boolean => {
   return !!(data && data.title && data.url && data.publicationId);
 };
 
-const bannedAuthors = ['@NewGenDeveloper'];
+export const bannedAuthors = ['@NewGenDeveloper'];
 
 const shouldAddNewPost = async (
   entityManager: EntityManager,
@@ -145,7 +145,7 @@ const fixAddPostData = async (data: AddPostData): Promise<AddPostData> => ({
   publishedAt: data.publishedAt && new Date(data.publishedAt),
 });
 
-const mergeKeywords = async (
+export const mergeKeywords = async (
   entityManager: EntityManager,
   keywords?: string[],
 ): Promise<{ mergedKeywords: string[]; allowedKeywords: string[] }> => {
@@ -179,7 +179,7 @@ const mergeKeywords = async (
   return { allowedKeywords: [], mergedKeywords: [] };
 };
 
-const findAuthor = async (
+export const findAuthor = async (
   entityManager: EntityManager,
   creatorTwitter?: string,
 ): Promise<string | null> => {
@@ -257,11 +257,21 @@ const addPostAndKeywordsToDb = async (
     visibleAt: new Date(),
   });
   await entityManager.save(post);
-  if (data.tags?.length) {
+  await addTagsAndKeywords(entityManager, data?.tags, mergedKeywords, data.id);
+  return data.id;
+};
+
+export const addTagsAndKeywords = async (
+  entityManager: EntityManager,
+  tags: string[],
+  mergedKeywords: string[],
+  postId: string,
+): Promise<void> => {
+  if (tags?.length) {
     await entityManager.getRepository(PostTag).insert(
-      data.tags.map((t) => ({
+      tags.map((t) => ({
         tag: t,
-        postId: data.id,
+        postId,
       })),
     );
   }
@@ -278,11 +288,11 @@ const addPostAndKeywordsToDb = async (
     await entityManager.getRepository(PostKeyword).insert(
       mergedKeywords.map((keyword) => ({
         keyword,
-        postId: data.id,
+        postId,
       })),
     );
   }
-  return data.id;
+  return;
 };
 
 export const addNewPost = async (

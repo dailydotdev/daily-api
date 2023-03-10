@@ -173,6 +173,6 @@ export const workers: Worker[] = [
   },
   {
     topic: 'yggdrasil.v1.content-published',
-    subscription: 'api.post-updated',
+    subscription: 'api.content-published',
   },
 ];
