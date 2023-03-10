@@ -3,6 +3,7 @@ import worker from '../../src/workers/postUpdated';
 import {
   ArticlePost,
   Post,
+  PostOrigin,
   PostType,
   SharePost,
   Source,
@@ -30,6 +31,7 @@ beforeEach(async () => {
       sourceId: 'a',
       visible: false,
       createdAt: new Date('01-05-2020 12:00:00'),
+      origin: PostOrigin.Squad,
     },
   ]);
 });
@@ -47,6 +49,17 @@ const createSharedPost = async (id = 'sp1') => {
 };
 
 it('should not update if the database updated date is newer', async () => {
+  await expectSuccessfulBackground(worker, {
+    updated_at: new Date('01-05-1990 12:00:00'),
+  });
+  const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
+  expect(post.metadataChangedAt).toEqual(new Date('2020-01-05T12:00:00.000Z'));
+});
+
+it('should not update if the post is not a squad origin', async () => {
+  await con
+    .getRepository(ArticlePost)
+    .update({ id: 'p1' }, { origin: PostOrigin.CommunityPicks });
   await expectSuccessfulBackground(worker, {
     updated_at: new Date('01-05-1990 12:00:00'),
   });
