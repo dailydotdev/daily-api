@@ -29,9 +29,10 @@ const cron: Cron = {
               "creatorTwitter"    AS "creator_twitter",
               "sourceId"          AS "source_id",
               "tagsStr"           AS "tags_str",
-              ("banned" or "deleted") ::int AS "banned", "type" AS "post_type",
-              "private"::int                AS "post_private"
-       FROM "post"
+              "banned"::int       AS "banned",
+              "type"              AS "post_type",
+              "private"::int      AS "post_private"
+       FROM "active_post"
        WHERE "metadataChangedAt" > $1
          and "sourceId" != '${UNKNOWN_SOURCE}'`,
       [latest],
