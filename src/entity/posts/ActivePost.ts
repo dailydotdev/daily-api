@@ -12,6 +12,9 @@ import { Post } from './Post';
 })
 export class ActivePost {
   @ViewColumn()
+  createdAt: Date;
+
+  @ViewColumn()
   sourceId: string;
 
   @ViewColumn()
