@@ -9,8 +9,7 @@ import { Toc } from './ArticlePost';
       .select('p.*')
       .from(Post, 'p')
       .where('p.deleted = false')
-      .andWhere('p.visible = true')
-      .andWhere(`p."sourceId" != 'unknown'`),
+      .andWhere('p.visible = true'),
 })
 export class ActivePost {
   @ViewColumn()

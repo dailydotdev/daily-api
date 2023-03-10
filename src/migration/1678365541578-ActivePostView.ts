@@ -5,7 +5,7 @@ export class ActivePostView1678365541578 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE VIEW "active_post" AS SELECT p.* FROM "public"."post" "p" WHERE "p"."deleted" = false AND "p"."visible" = true AND p."sourceId" != 'unknown'`,
+      `CREATE VIEW "active_post" AS SELECT p.* FROM "public"."post" "p" WHERE "p"."deleted" = false AND "p"."visible" = true`,
     );
     await queryRunner.query(
       `INSERT INTO "public"."typeorm_metadata"("database", "schema", "table", "type", "name", "value") VALUES (DEFAULT, $1, DEFAULT, $2, $3, $4)`,
