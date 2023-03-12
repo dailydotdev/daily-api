@@ -934,5 +934,5 @@ it('should set parameters for squad_post_live email', async () => {
     squad_name: 'A',
     user_reputation: '10',
   });
-  expect(args.templateId).toEqual('update!');
+  expect(args.templateId).toEqual('d-343845599453499d9fa5d3ffafc91514');
 });

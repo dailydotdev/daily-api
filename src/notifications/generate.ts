@@ -69,8 +69,8 @@ export const notificationTitleMap: Record<
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) =>
     `<b>${ctx.doneBy.name}</b> <span class="text-theme-color-cabbage">viewed</span> your post on <b>${ctx.source.name}</b>.`,
-  squad_post_live: () =>
-    `<b>Your post</b> is now <span class="text-theme-color-cabbage">live</span> on the feed!`,
+  squad_post_live: (ctx: NotificationPostContext) =>
+    `<b>Your post</b> is now <span class="text-theme-color-cabbage">live</span> on <b>${ctx.source.name}</b>.`,
 };
 
 export const generateNotificationMap: Record<
