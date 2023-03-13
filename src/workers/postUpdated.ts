@@ -40,6 +40,7 @@ const worker: Worker = {
   subscription: 'api.content-published',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
+    logger.info({ data }, 'content-updated received');
     try {
       const { id, updated_at } = data;
       if (!id) {

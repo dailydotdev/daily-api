@@ -15,7 +15,7 @@ import { ArticlePost, Toc } from './ArticlePost';
 import { Post, PostOrigin } from './Post';
 import { MAX_COMMENTARY_LENGTH, SharePost } from './SharePost';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import { Source } from '../Source';
+import { Source, UNKNOWN_SOURCE } from '../Source';
 import { generateShortId } from '../../ids';
 import { ActivePost } from './ActivePost';
 
@@ -375,7 +375,7 @@ export const createExternalLink = async (
       id,
       shortId: id,
       createdAt: new Date(),
-      sourceId,
+      sourceId: UNKNOWN_SOURCE,
       url,
       canonicalUrl: url,
       sentAnalyticsReport: true,
