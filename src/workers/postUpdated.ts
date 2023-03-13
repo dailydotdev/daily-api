@@ -11,6 +11,7 @@ import {
   SharePost,
   Source,
   Toc,
+  UNKNOWN_SOURCE,
 } from '../entity';
 
 interface Data {
@@ -52,6 +53,10 @@ const worker: Worker = {
         const databasePost = await entityManager
           .getRepository(ArticlePost)
           .findOneBy({ id: post_id, origin: PostOrigin.Squad });
+
+        if (data?.origin === PostOrigin.Squad) {
+          data.source_id = UNKNOWN_SOURCE;
+        }
 
         if (
           !databasePost ||
