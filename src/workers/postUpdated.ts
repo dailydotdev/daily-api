@@ -14,7 +14,7 @@ import {
 } from '../entity';
 
 interface Data {
-  id: string;
+  post_id: string;
   url: string;
   image?: string;
   title?: string;
@@ -42,8 +42,8 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     logger.info({ data }, 'content-updated received');
     try {
-      const { id, updated_at } = data;
-      if (!id) {
+      const { post_id, updated_at } = data;
+      if (!post_id) {
         return;
       }
       const updatedDate = new Date(updated_at);
@@ -51,7 +51,7 @@ const worker: Worker = {
         // For now, we only allow Squad posts to be updated through this flow
         const databasePost = await entityManager
           .getRepository(ArticlePost)
-          .findOneBy({ id, origin: PostOrigin.Squad });
+          .findOneBy({ id: post_id, origin: PostOrigin.Squad });
 
         if (
           !databasePost ||
@@ -136,7 +136,7 @@ const worker: Worker = {
             );
         }
 
-        await addKeywords(entityManager, mergedKeywords, data.id);
+        await addKeywords(entityManager, mergedKeywords, data.post_id);
       });
     } catch (err) {
       logger.error(
