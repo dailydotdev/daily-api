@@ -18,5 +18,11 @@ export class ActivePost {
   sourceId: string;
 
   @ViewColumn()
+  authorId: string;
+
+  @ViewColumn()
+  scoutId: string;
+
+  @ViewColumn()
   tagsStr: string;
 }
