@@ -42,7 +42,7 @@ const worker: NotificationWorker = {
     if (source) {
       // article_picked notification
       if (source.type === SourceType.Machine) {
-        if (post.authorId) {
+        if (post.authorId && !post.private) {
           const ctx: NotificationPostContext = {
             ...baseCtx,
             userId: post.authorId,
