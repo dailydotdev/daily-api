@@ -19,7 +19,7 @@ export enum PostType {
 
 export enum PostOrigin {
   CommunityPicks = 'community_picks',
-  Squad = 'squad',
+  Squad = 'squads',
   UserGenerated = 'user_generated',
   Crawler = 'crawler',
 }

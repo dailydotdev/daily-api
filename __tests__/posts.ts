@@ -26,6 +26,7 @@ import {
   Source,
   SourceMember,
   SquadSource,
+  UNKNOWN_SOURCE,
   Upvote,
   User,
   View,
@@ -1586,6 +1587,11 @@ describe('mutation submitExternalLink', () => {
     ));
 
   it('should share to squad', async () => {
+    await con.getRepository(Source).insert({
+      id: UNKNOWN_SOURCE,
+      handle: UNKNOWN_SOURCE,
+      name: UNKNOWN_SOURCE,
+    });
     loggedUser = '1';
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
