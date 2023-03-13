@@ -171,4 +171,8 @@ export const workers: Worker[] = [
     topic: 'features-reset',
     subscription: 'api.clear-features-cache',
   },
+  {
+    topic: 'yggdrasil.v1.content-published',
+    subscription: 'api.content-published',
+  },
 ];

@@ -1,5 +1,12 @@
 import { messageToJson } from '../worker';
-import { Post, SourceMember, SourceType, User } from '../../entity';
+import {
+  Post,
+  PostOrigin,
+  PostType,
+  SourceMember,
+  SourceType,
+  User,
+} from '../../entity';
 import {
   NotificationDoneByContext,
   NotificationPostContext,
@@ -35,7 +42,7 @@ const worker: NotificationWorker = {
     if (source) {
       // article_picked notification
       if (source.type === SourceType.Machine) {
-        if (post.authorId) {
+        if (post.authorId && !post.private) {
           const ctx: NotificationPostContext = {
             ...baseCtx,
             userId: post.authorId,
@@ -43,8 +50,8 @@ const worker: NotificationWorker = {
           notifs.push({ type: 'article_picked', ctx });
         }
       }
-      // squad_post_added notification
       if (source.type === SourceType.Squad && post.authorId) {
+        // squad_post_added notification
         const doneBy = await con
           .getRepository(User)
           .findOneBy({ id: post.authorId });
@@ -61,6 +68,19 @@ const worker: NotificationWorker = {
             } as NotificationPostContext & Partial<NotificationDoneByContext>,
           }),
         );
+
+        if (post.type === PostType.Share) {
+          // squad_post_live notification
+          if (baseCtx.sharedPost?.origin === PostOrigin.Squad) {
+            notifs.push({
+              type: 'squad_post_live',
+              ctx: {
+                ...baseCtx,
+                userId: post.authorId,
+              } as NotificationPostContext,
+            });
+          }
+        }
       }
     }
     return notifs;

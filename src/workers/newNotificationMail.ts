@@ -54,6 +54,7 @@ const notificationToTemplateId: Record<NotificationType, string> = {
   squad_reply: 'd-cbb2de40b61840c38d3aa21028af0c68',
   squad_post_viewed: 'd-dc0eb578886c4f84a7dcc25515c7b6a4',
   squad_access: 'd-6b3de457947b415d93d0029361edaf1d',
+  squad_post_live: 'd-343845599453499d9fa5d3ffafc91514',
 };
 
 type TemplateDataFunc = (
@@ -444,6 +445,36 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   squad_access: async (con, user) => {
     return {
       full_name: user.name,
+    };
+  },
+  squad_post_live: async (con, user, notification) => {
+    const post = await con.getRepository(SharePost).findOne({
+      where: { id: notification.referenceId },
+      relations: ['source'],
+    });
+    if (!post || !post?.sharedPostId) {
+      return;
+    }
+    const [source, sharedPost] = await Promise.all([
+      post.source,
+      con.getRepository(Post).findOneBy({ id: post.sharedPostId }),
+    ]);
+    if (!source || !sharedPost) {
+      return;
+    }
+    return {
+      full_name: user.name,
+      profile_image: user.image,
+      squad_name: source.name,
+      squad_image: source.image,
+      commentary: truncatePostToTweet(post),
+      post_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      post_image: (sharedPost as ArticlePost).image || pickImageUrl(sharedPost),
+      post_title: truncatePostToTweet(sharedPost),
+      user_reputation: user.reputation,
     };
   },
 };

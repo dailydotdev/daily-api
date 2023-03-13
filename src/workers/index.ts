@@ -27,6 +27,7 @@ import { workers as notificationWorkers } from './notifications';
 import sourcePrivacyUpdated from './sourcePrivacyUpdated';
 import postChangelogAdded from './postChangelogAdded';
 import clearFeaturesCache from './clearFeaturesCache';
+import postUpdated from './postUpdated';
 
 export { Worker } from './worker';
 
@@ -57,6 +58,7 @@ export const workers: Worker[] = [
   sourcePrivacyUpdated,
   postChangelogAdded,
   clearFeaturesCache,
+  postUpdated,
   cdc,
   ...notificationWorkers,
 ];

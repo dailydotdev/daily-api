@@ -9,7 +9,6 @@ import {
 } from '../../common';
 import { User } from '../User';
 import { FastifyLoggerInstance } from 'fastify';
-import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { validateAndApproveSubmission } from '../Submission';
 import { ArticlePost, Toc } from './ArticlePost';
@@ -82,7 +81,7 @@ export interface AddPostData {
   origin?: PostOrigin;
 }
 
-const parseReadTime = (
+export const parseReadTime = (
   readTime: number | string | undefined,
 ): number | undefined => {
   if (!readTime) {
@@ -108,7 +107,7 @@ const checkRequiredFields = (data: AddPostData): boolean => {
   return !!(data && data.title && data.url && data.publicationId);
 };
 
-const bannedAuthors = ['@NewGenDeveloper'];
+export const bannedAuthors = ['@NewGenDeveloper'];
 
 const shouldAddNewPost = async (
   entityManager: EntityManager,
@@ -145,7 +144,7 @@ const fixAddPostData = async (data: AddPostData): Promise<AddPostData> => ({
   publishedAt: data.publishedAt && new Date(data.publishedAt),
 });
 
-const mergeKeywords = async (
+export const mergeKeywords = async (
   entityManager: EntityManager,
   keywords?: string[],
 ): Promise<{ mergedKeywords: string[]; allowedKeywords: string[] }> => {
@@ -179,7 +178,7 @@ const mergeKeywords = async (
   return { allowedKeywords: [], mergedKeywords: [] };
 };
 
-const findAuthor = async (
+export const findAuthor = async (
   entityManager: EntityManager,
   creatorTwitter?: string,
 ): Promise<string | null> => {
@@ -257,14 +256,15 @@ const addPostAndKeywordsToDb = async (
     visibleAt: new Date(),
   });
   await entityManager.save(post);
-  if (data.tags?.length) {
-    await entityManager.getRepository(PostTag).insert(
-      data.tags.map((t) => ({
-        tag: t,
-        postId: data.id,
-      })),
-    );
-  }
+  await addKeywords(entityManager, mergedKeywords, data.id);
+  return data.id;
+};
+
+export const addKeywords = async (
+  entityManager: EntityManager,
+  mergedKeywords: string[],
+  postId: string,
+): Promise<void> => {
   if (mergedKeywords?.length) {
     await entityManager
       .createQueryBuilder()
@@ -278,11 +278,11 @@ const addPostAndKeywordsToDb = async (
     await entityManager.getRepository(PostKeyword).insert(
       mergedKeywords.map((keyword) => ({
         keyword,
-        postId: data.id,
+        postId,
       })),
     );
   }
-  return data.id;
+  return;
 };
 
 export const addNewPost = async (

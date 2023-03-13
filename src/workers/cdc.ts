@@ -3,7 +3,6 @@ import { ReputationEvent } from './../entity/ReputationEvent';
 import { CommentMention } from './../entity/CommentMention';
 import { messageToJson, Worker } from './worker';
 import {
-  ArticlePost,
   Comment,
   CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
@@ -53,7 +52,7 @@ import {
   notifySourcePrivacyUpdated,
   notifyPostVisible,
 } from '../common';
-import { ChangeMessage, ChangeObject } from '../types';
+import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
@@ -284,19 +283,9 @@ const onPostChange = async (
       await notifyPostBannedOrRemoved(logger, data.payload.after);
     }
     if (
-      isChanged(data.payload.before, data.payload.after, 'id') ||
       isChanged(data.payload.before, data.payload.after, 'deleted') ||
       isChanged(data.payload.before, data.payload.after, 'banned') ||
-      isChanged(data.payload.before, data.payload.after, 'tagsStr') ||
-      isChanged(data.payload.before, data.payload.after, 'createdAt') ||
-      isChanged(data.payload.before, data.payload.after, 'authorId') ||
-      isChanged(data.payload.before, data.payload.after, 'sourceId') ||
-      isChanged(data.payload.before, data.payload.after, 'visible') ||
-      isChanged<ChangeObject<ArticlePost>>(
-        data.payload.before as ChangeObject<ArticlePost>,
-        data.payload.after as ChangeObject<ArticlePost>,
-        'creatorTwitter',
-      )
+      isChanged(data.payload.before, data.payload.after, 'tagsStr')
     ) {
       await con
         .getRepository(Post)
