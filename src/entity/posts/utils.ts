@@ -9,7 +9,6 @@ import {
 } from '../../common';
 import { User } from '../User';
 import { FastifyLoggerInstance } from 'fastify';
-import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { validateAndApproveSubmission } from '../Submission';
 import { ArticlePost, Toc } from './ArticlePost';
@@ -257,24 +256,15 @@ const addPostAndKeywordsToDb = async (
     visibleAt: new Date(),
   });
   await entityManager.save(post);
-  await addTagsAndKeywords(entityManager, data?.tags, mergedKeywords, data.id);
+  await addKeywords(entityManager, mergedKeywords, data.id);
   return data.id;
 };
 
-export const addTagsAndKeywords = async (
+export const addKeywords = async (
   entityManager: EntityManager,
-  tags: string[],
   mergedKeywords: string[],
   postId: string,
 ): Promise<void> => {
-  if (tags?.length) {
-    await entityManager.getRepository(PostTag).insert(
-      tags.map((t) => ({
-        tag: t,
-        postId,
-      })),
-    );
-  }
   if (mergedKeywords?.length) {
     await entityManager
       .createQueryBuilder()

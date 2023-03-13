@@ -1,7 +1,7 @@
 import { messageToJson, Worker } from './worker';
 import * as he from 'he';
 import {
-  addTagsAndKeywords,
+  addKeywords,
   ArticlePost,
   bannedAuthors,
   findAuthor,
@@ -12,10 +12,9 @@ import {
   Source,
 } from '../entity';
 
-interface Data extends Omit<ArticlePost, 'keywords' | 'tags'> {
+interface Data extends Omit<ArticlePost, 'keywords'> {
   updated_at: Date;
   keywords: string[];
-  tags: string[];
 }
 
 const worker: Worker = {
@@ -23,7 +22,10 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      const { id, tags, keywords, updated_at, ...submittedData } = data;
+      const { id, keywords, updated_at, ...submittedData } = data;
+      if (!id) {
+        return;
+      }
       const updatedDate = new Date(updated_at);
       await con.transaction(async (entityManager) => {
         // For now, we only allow Squad posts to be updated through this flow
@@ -89,7 +91,7 @@ const worker: Worker = {
           visibleAt: becomesVisible ? updatedDate : null,
           tagsStr: allowedKeywords?.join(',') || null,
           private: privacy,
-          sentAnalyticsReport: !data?.authorId,
+          sentAnalyticsReport: privacy || !data?.authorId,
         };
 
         await entityManager
@@ -106,7 +108,7 @@ const worker: Worker = {
             );
         }
 
-        await addTagsAndKeywords(entityManager, tags, mergedKeywords, data.id);
+        await addKeywords(entityManager, mergedKeywords, data.id);
       });
     } catch (err) {
       logger.error(
