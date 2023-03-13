@@ -102,15 +102,14 @@ const worker: Worker = {
           .getRepository(Source)
           .findOneBy({ id: data?.source_id });
 
-        const fixedData = {
+        const fixedData: Partial<ArticlePost> = {
           origin: data?.origin as PostOrigin,
           authorId,
           creatorTwitter,
           url: data?.url,
           canonicalUrl: data?.extra?.canonical_url || data?.url,
           image: data?.image,
-          content_type: data?.content_type,
-          source_id: data?.source_id,
+          sourceId: data?.source_id,
           title: data?.title && he.decode(data?.title),
           readTime: parseReadTime(data?.extra?.read_time),
           publishedAt: data?.published_at && new Date(data?.published_at),
@@ -119,7 +118,6 @@ const worker: Worker = {
           visibleAt: becomesVisible ? updatedDate : null,
           tagsStr: allowedKeywords?.join(',') || null,
           private: privacy,
-          paid: data?.paid,
           sentAnalyticsReport: privacy || !authorId,
           summary: data?.extra?.summary,
           description: data?.extra?.description,
