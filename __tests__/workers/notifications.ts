@@ -147,6 +147,21 @@ describe('post added notifications', () => {
     expect(ctx.sharedPost).toBeFalsy();
   });
 
+  it('should not add article picked notification for private post', async () => {
+    const worker = await import('../../src/workers/notifications/postAdded');
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: '1',
+        private: true,
+      },
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+    expect(actual.length).toEqual(0);
+  });
+
   it('should add community picks succeeded notification', async () => {
     const worker = await import('../../src/workers/notifications/postAdded');
     await con.getRepository(Post).update({ id: 'p1' }, { scoutId: '1' });
