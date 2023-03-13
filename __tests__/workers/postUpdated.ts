@@ -162,6 +162,7 @@ it('should save a new post with the relevant keywords', async () => {
   expect(post.visible).toEqual(true);
   expect(post.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
   expect(post.title).toEqual('test');
+  expect(post.tagsStr).toEqual('mongodb,alpinejs,ab-testing');
   const keywords = await con.getRepository(Keyword).find({
     where: {
       value: 'alpine',
