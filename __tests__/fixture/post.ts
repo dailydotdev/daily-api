@@ -75,6 +75,18 @@ export const postsFixture: DeepPartial<ArticlePost>[] = [
     type: PostType.Article,
     private: true,
   },
+  {
+    id: 'p7',
+    shortId: 'sp7',
+    title: 'P7',
+    url: 'http://p7.com',
+    image: 'https://daily.dev/image.jpg',
+    score: 10,
+    sourceId: 'p',
+    createdAt: new Date(now.getTime() - 5000),
+    type: PostType.Article,
+    visible: false,
+  },
 ];
 
 export const postTagsFixture: DeepPartial<PostTag>[] = [

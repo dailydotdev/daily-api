@@ -26,5 +26,9 @@ Array [
     "id": "p6",
     "trending": null,
   },
+  Post {
+    "id": "p7",
+    "trending": null,
+  },
 ]
 `;

@@ -29,11 +29,14 @@ const cron: Cron = {
               "creatorTwitter"    AS "creator_twitter",
               "sourceId"          AS "source_id",
               "tagsStr"           AS "tags_str",
-              ("banned" or "deleted") ::int AS "banned", "type" AS "post_type",
-              "private"::int                AS "post_private"
+              ("banned" or "deleted")::int AS "banned",
+              "type"              AS "post_type",
+              "private"::int      AS "post_private"
        FROM "post"
        WHERE "metadataChangedAt" > $1
-         and "sourceId" != '${UNKNOWN_SOURCE}'`,
+         and "sourceId" != '${UNKNOWN_SOURCE}'
+         and "visible" = true
+     `,
       [latest],
     );
     if (posts.length) {
