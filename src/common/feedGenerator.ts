@@ -2,7 +2,6 @@ import {
   AdvancedSettings,
   FeedAdvancedSettings,
   SourceMember,
-  UNKNOWN_SOURCE,
 } from '../entity';
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -217,9 +216,9 @@ export const applyFeedWhere = (
   removeBannedPosts = true,
   allowPrivateSources = true,
 ): SelectQueryBuilder<Post> => {
-  let newBuilder = builder
-    .andWhere(`${alias}."sourceId" != :unknown`, { unknown: UNKNOWN_SOURCE })
-    .andWhere(`${alias}."type" in (:...postTypes)`, { postTypes });
+  let newBuilder = builder.andWhere(`${alias}."type" in (:...postTypes)`, {
+    postTypes,
+  });
   if (!allowPrivateSources) {
     const selectSource = builder
       .subQuery()
@@ -334,6 +333,7 @@ export function feedResolver<
               removeBannedPosts,
               allowPrivateSources,
             );
+            // console.log(builder.queryBuilder.getSql());
             return builder;
           },
           (nodes) =>
