@@ -10,11 +10,30 @@ import {
   PostOrigin,
   SharePost,
   Source,
+  Toc,
 } from '../entity';
 
-interface Data extends Omit<ArticlePost, 'keywords'> {
-  updated_at: Date;
-  keywords: string[];
+interface Data {
+  id: string;
+  url: string;
+  image?: string;
+  title?: string;
+  content_type?: string;
+  source_id?: string;
+  origin?: string;
+  published_at?: Date;
+  updated_at?: Date;
+  paid?: boolean;
+  extra?: {
+    keywords?: string[];
+    summary?: string;
+    description?: string;
+    read_time?: number;
+    canonical_url?: string;
+    site_twitter?: string;
+    creator_twitter?: string;
+    toc?: Toc;
+  };
 }
 
 const worker: Worker = {
@@ -22,7 +41,7 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
-      const { id, keywords, updated_at, ...submittedData } = data;
+      const { id, updated_at } = data;
       if (!id) {
         return;
       }
@@ -41,7 +60,7 @@ const worker: Worker = {
           return;
         }
 
-        if (bannedAuthors.indexOf(submittedData?.creatorTwitter) > -1) {
+        if (bannedAuthors.indexOf(data?.extra?.creator_twitter) > -1) {
           logger.info(
             { data, messageId: message.messageId },
             'post update failed because author is banned',
@@ -50,24 +69,23 @@ const worker: Worker = {
         }
 
         const creatorTwitter =
-          submittedData.creatorTwitter === '' ||
-          submittedData.creatorTwitter === '@'
+          data?.extra?.creator_twitter === '' ||
+          data?.extra?.creator_twitter === '@'
             ? null
-            : submittedData.creatorTwitter;
+            : data?.extra?.creator_twitter;
 
         const authorId = await findAuthor(entityManager, creatorTwitter);
-        const becomesVisible =
-          !databasePost?.visible && !!submittedData?.title?.length;
+        const becomesVisible = !databasePost?.visible && !!data?.title?.length;
 
         const { allowedKeywords, mergedKeywords } = await mergeKeywords(
           entityManager,
-          keywords,
+          data?.extra?.keywords,
         );
 
         if (allowedKeywords.length > 5) {
           logger.info(
             {
-              url: submittedData.url,
+              url: data.url,
               keywords: allowedKeywords,
             },
             'created an article with more than 5 keywords',
@@ -76,22 +94,31 @@ const worker: Worker = {
 
         const { private: privacy } = await entityManager
           .getRepository(Source)
-          .findOneBy({ id: submittedData?.sourceId });
+          .findOneBy({ id: data?.source_id });
 
         const fixedData = {
-          ...submittedData,
+          origin: data?.origin as PostOrigin,
           authorId,
           creatorTwitter,
-          canonicalUrl: data?.canonicalUrl || data?.url,
+          url: data?.url,
+          canonicalUrl: data?.extra?.canonical_url || data?.url,
+          image: data?.image,
+          content_type: data?.content_type,
+          source_id: data?.source_id,
           title: data?.title && he.decode(data?.title),
-          readTime: parseReadTime(data?.readTime),
-          publishedAt: data?.publishedAt && new Date(data?.publishedAt),
+          readTime: parseReadTime(data?.extra?.read_time),
+          publishedAt: data?.published_at && new Date(data?.published_at),
           metadataChangedAt: updatedDate,
           visible: becomesVisible,
           visibleAt: becomesVisible ? updatedDate : null,
           tagsStr: allowedKeywords?.join(',') || null,
           private: privacy,
-          sentAnalyticsReport: privacy || !data?.authorId,
+          paid: data?.paid,
+          sentAnalyticsReport: privacy || !authorId,
+          summary: data?.extra?.summary,
+          description: data?.extra?.description,
+          siteTwitter: data?.extra?.site_twitter,
+          toc: data?.extra?.toc,
         };
 
         await entityManager

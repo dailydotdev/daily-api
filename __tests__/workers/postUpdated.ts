@@ -155,7 +155,9 @@ it('should save a new post with the relevant keywords', async () => {
     id: 'p1',
     updated_at: new Date('01-05-2023 12:00:00'),
     title: 'test',
-    keywords: ['alpine', 'a-b-testing', 'mongodb'],
+    extra: {
+      keywords: ['alpine', 'a-b-testing', 'mongodb'],
+    },
   });
   const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
   expect(post.metadataChangedAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
