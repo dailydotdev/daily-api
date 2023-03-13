@@ -77,7 +77,7 @@ const createSharedPost = async (id = 'sp1') => {
 
 it('should not update if the database updated date is newer', async () => {
   await expectSuccessfulBackground(worker, {
-    id: 'p1',
+    post_id: 'p1',
     updated_at: new Date('01-05-1990 12:00:00'),
   });
   const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
@@ -89,7 +89,7 @@ it('should not update if the post is not a squad origin', async () => {
     .getRepository(ArticlePost)
     .update({ id: 'p1' }, { origin: PostOrigin.CommunityPicks });
   await expectSuccessfulBackground(worker, {
-    id: 'p1',
+    post_id: 'p1',
     updated_at: new Date('01-05-1990 12:00:00'),
   });
   const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
@@ -109,7 +109,7 @@ it(`should not update if the post object doesn't have ID`, async () => {
 
 it('should update the post and keep it invisible if title is missing', async () => {
   await expectSuccessfulBackground(worker, {
-    id: 'p1',
+    post_id: 'p1',
     updated_at: new Date('01-05-2023 12:00:00'),
   });
   const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
@@ -119,7 +119,7 @@ it('should update the post and keep it invisible if title is missing', async () 
 
 it('should update the post and make it visible if title is available', async () => {
   await expectSuccessfulBackground(worker, {
-    id: 'p1',
+    post_id: 'p1',
     updated_at: new Date('01-05-2023 12:00:00'),
     title: 'test',
   });
@@ -133,7 +133,7 @@ it('should update the post and make it visible if title is available', async () 
 it('should update the post related shared post to visible', async () => {
   await createSharedPost();
   await expectSuccessfulBackground(worker, {
-    id: 'p1',
+    post_id: 'p1',
     updated_at: new Date('01-05-2023 12:00:00'),
     title: 'test',
   });
@@ -152,7 +152,7 @@ it('should update the post related shared post to visible', async () => {
 it('should save a new post with the relevant keywords', async () => {
   await createDefaultKeywords();
   await expectSuccessfulBackground(worker, {
-    id: 'p1',
+    post_id: 'p1',
     updated_at: new Date('01-05-2023 12:00:00'),
     title: 'test',
     extra: {
