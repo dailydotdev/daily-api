@@ -1,5 +1,5 @@
 import { NotificationWorker } from './worker';
-import { Worker } from '../worker';
+import { messageToJson, Worker } from '../worker';
 import {
   generateNotification,
   storeNotificationBundle,
@@ -18,6 +18,7 @@ import commentUpvoteMilestone from './commentUpvoteMilestone';
 import postAdded from './postAdded';
 import memberJoinedSource from './squadMemberJoined';
 import featureAccessNotification from './featureAccessNotification';
+import { TypeOrmError } from '../../errors';
 
 function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -30,9 +31,20 @@ function notificationWorkerToWorker(worker: NotificationWorker): Worker {
       const bundles = args.map(({ type, ctx }) =>
         generateNotification(type, ctx),
       );
-      await con.transaction((entityManager) =>
-        storeNotificationBundle(entityManager, bundles),
-      );
+      try {
+        await con.transaction((entityManager) =>
+          storeNotificationBundle(entityManager, bundles),
+        );
+      } catch (err) {
+        if (err?.code === TypeOrmError.NULL_VIOLATION) {
+          logger.warn(
+            { data: messageToJson(message) },
+            'null violation when creating a notification',
+          );
+          return;
+        }
+        throw err;
+      }
     },
   };
 }
