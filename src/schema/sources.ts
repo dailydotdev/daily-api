@@ -279,11 +279,11 @@ export const typeDefs = /* GraphQL */ `
       """
       First post to share in the squad
       """
-      postId: ID!
+      postId: ID
       """
       Commentary for the first share
       """
-      commentary: String!
+      commentary: String
     ): Source! @auth
 
     """
@@ -525,8 +525,8 @@ type CreateSquadArgs = {
   handle: string;
   description?: string;
   image?: FileUpload;
-  postId: string;
-  commentary: string;
+  postId?: string;
+  commentary?: string;
 };
 
 type EditSquadArgs = {
@@ -738,14 +738,16 @@ export const resolvers: IResolvers<any, Context> = {
             userId: ctx.userId,
             role: SourceMemberRoles.Owner,
           });
-          // Create the first post of the squad
-          await createSharePost(
-            entityManager,
-            id,
-            ctx.userId,
-            postId,
-            commentary,
-          );
+          if (postId) {
+            // Create the first post of the squad
+            await createSharePost(
+              entityManager,
+              id,
+              ctx.userId,
+              postId,
+              commentary,
+            );
+          }
           // Upload the image (if provided)
           if (image) {
             const { createReadStream } = await image;
