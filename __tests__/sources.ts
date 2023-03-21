@@ -582,7 +582,7 @@ describe('mutation createSquad', () => {
       .findOneBy({ id: newId });
     expect(newSource.name).toEqual('Squad');
     expect(newSource.handle).toEqual('squad');
-    expect(newSource.active).toEqual(false);
+    expect(newSource.active).toEqual(true);
     expect(newSource.private).toEqual(true);
     const member = await con.getRepository(SourceMember).findOneBy({
       sourceId: newId,
