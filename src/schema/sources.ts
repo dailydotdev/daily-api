@@ -728,7 +728,7 @@ export const resolvers: IResolvers<any, Context> = {
             id,
             name,
             handle,
-            active: false,
+            active: true,
             description,
             private: true,
           });
