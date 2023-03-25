@@ -620,6 +620,7 @@ describe('query post', () => {
   it('should throw error when user cannot access the post', async () => {
     loggedUser = '1';
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    await con.getRepository(Post).update({ id: 'p1' }, { private: true });
     return testQueryErrorCode(
       client,
       {
@@ -667,6 +668,16 @@ describe('query postByUrl', () => {
       client,
       { query: QUERY('http://p8.com') },
       'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when source is private', async () => {
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    await con.getRepository(Post).update({ id: 'p1' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      { query: QUERY('http://p1.com') },
+      'FORBIDDEN',
     );
   });
 
