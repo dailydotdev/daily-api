@@ -338,6 +338,21 @@ describe('query commentPreview', () => {
     expect(withMention.data.commentPreview).toMatchSnapshot();
   });
 
+  it('should return markdown equivalent of the content with hyphen mention', async () => {
+    loggedUser = '1';
+    await saveCommentMentionFixtures();
+
+    await con
+      .getRepository(User)
+      .update({ username: 'Lee' }, { username: 'Lee-Hansel' });
+    const mention = '@Lee-Hansel';
+    const withMention = await client.query(QUERY, {
+      variables: { content: mention },
+    });
+    expect(withMention.errors).toBeFalsy();
+    expect(withMention.data.commentPreview).toMatchSnapshot();
+  });
+
   it('should return markdown with user mentioned inside squad', async () => {
     loggedUser = '1';
     const sourceId = 'a';
