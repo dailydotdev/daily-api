@@ -113,7 +113,7 @@ exports[`query commentPreview should return markdown equivalent of the content 1
 `;
 
 exports[`query commentPreview should return markdown equivalent of the content 2`] = `
-"<p><a href=\\"http://localhost:5002/Lee\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee\\">@Lee</a></p>
+"<p><a href=\\"http://localhost:5002/Lee-\\" data-mention-id=\\"4\\" data-mention-username=\\"Lee-\\">@Lee-</a></p>
 "
 `;
 

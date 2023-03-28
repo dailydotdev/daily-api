@@ -330,7 +330,10 @@ describe('query commentPreview', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.commentPreview).toMatchSnapshot();
 
-    const mention = '@Lee';
+    await con
+      .getRepository(User)
+      .update({ username: 'Lee' }, { username: 'Lee-' });
+    const mention = '@Lee-';
     const withMention = await client.query(QUERY, {
       variables: { content: mention },
     });
