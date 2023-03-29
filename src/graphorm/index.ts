@@ -187,6 +187,26 @@ const obj = new GraphORM({
               .andWhere(`${childAlias}."sourceId" = "${parentAlias}".id`),
         },
       },
+      owners: {
+        select: (ctx, alias, qb) => {
+          return qb
+            .select('ARRAY_AGG(sm."userId")')
+            .from(SourceMember, 'sm')
+            .where(`sm."sourceId" = "${alias}".id`)
+            .andWhere(`sm.role = 'owner'`);
+        },
+        transform: nullIfNotLoggedIn,
+      },
+      moderators: {
+        select: (ctx, alias, qb) => {
+          return qb
+            .select('ARRAY_AGG(sm."userId")')
+            .from(SourceMember, 'sm')
+            .where(`sm."sourceId" = "${alias}".id`)
+            .andWhere(`sm.role = 'moderator'`);
+        },
+        transform: nullIfNotLoggedIn,
+      },
     },
   },
   SourceMember: {
