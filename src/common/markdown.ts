@@ -43,7 +43,7 @@ const defaultTextRender = markdown.renderer.rules.text;
 
 type MarkdownMention = Pick<User, 'id' | 'username'>;
 
-export const mentionSpecialCharacters = new RegExp('[^a-zA-Z0-9_@]', 'g');
+export const mentionSpecialCharacters = new RegExp('[^a-zA-Z0-9_@-]', 'g');
 
 type ReplacedCharacters = string[];
 
