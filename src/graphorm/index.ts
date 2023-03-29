@@ -193,7 +193,8 @@ const obj = new GraphORM({
             .select('ARRAY_AGG(sm."userId")')
             .from(SourceMember, 'sm')
             .where(`sm."sourceId" = "${alias}".id`)
-            .andWhere(`sm.role = 'owner'`);
+            .andWhere(`sm.role = 'owner'`)
+            .limit(50); // limit to avoid huge arrays, most squads should fit into this
         },
         transform: nullIfNotLoggedIn,
       },
@@ -203,7 +204,8 @@ const obj = new GraphORM({
             .select('ARRAY_AGG(sm."userId")')
             .from(SourceMember, 'sm')
             .where(`sm."sourceId" = "${alias}".id`)
-            .andWhere(`sm.role = 'moderator'`);
+            .andWhere(`sm.role = 'moderator'`)
+            .limit(50); // limit to avoid huge arrays, most squads should fit into this
         },
         transform: nullIfNotLoggedIn,
       },
