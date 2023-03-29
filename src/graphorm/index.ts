@@ -9,7 +9,11 @@ import {
   SourceMember,
   User,
 } from '../entity';
-import { sourceRoleRank, sourceRoleRankKeys } from '../roles';
+import {
+  SourceMemberRoles,
+  sourceRoleRank,
+  sourceRoleRankKeys,
+} from '../roles';
 
 import { Context } from '../Context';
 import { GQLBookmarkList } from '../schema/bookmarks';
@@ -32,6 +36,16 @@ const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
 
 const nullIfNotSameUser = <T>(value: T, ctx: Context, parent: User): T | null =>
   ctx.userId === parent.id ? value : null;
+
+const getMembersByRole =
+  (role: SourceMemberRoles) =>
+  (ctx: Context, alias: string, qb: QueryBuilder) =>
+    qb
+      .select('ARRAY_AGG(sm."userId")')
+      .from(SourceMember, 'sm')
+      .where(`sm."sourceId" = "${alias}".id`)
+      .andWhere(`sm.role = '${role}'`)
+      .limit(50); // limit to avoid huge arrays for members, most sources should fit into this see PR !1219 for more info
 
 const obj = new GraphORM({
   User: {
@@ -188,25 +202,11 @@ const obj = new GraphORM({
         },
       },
       owners: {
-        select: (ctx, alias, qb) => {
-          return qb
-            .select('ARRAY_AGG(sm."userId")')
-            .from(SourceMember, 'sm')
-            .where(`sm."sourceId" = "${alias}".id`)
-            .andWhere(`sm.role = 'owner'`)
-            .limit(50); // limit to avoid huge arrays, most squads should fit into this
-        },
+        select: getMembersByRole(SourceMemberRoles.Owner),
         transform: nullIfNotLoggedIn,
       },
       moderators: {
-        select: (ctx, alias, qb) => {
-          return qb
-            .select('ARRAY_AGG(sm."userId")')
-            .from(SourceMember, 'sm')
-            .where(`sm."sourceId" = "${alias}".id`)
-            .andWhere(`sm.role = 'moderator'`)
-            .limit(50); // limit to avoid huge arrays, most squads should fit into this
-        },
+        select: getMembersByRole(SourceMemberRoles.Moderator),
         transform: nullIfNotLoggedIn,
       },
     },
