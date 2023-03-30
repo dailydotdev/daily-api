@@ -1153,8 +1153,12 @@ describe('query source members', () => {
 query Source($id: ID!) {
   source(id: $id) {
     id
-    owners,
-    moderators
+    privilegedMembers {
+      user {
+        id
+      }
+      role
+    }
   }
 }
   `;
@@ -1201,8 +1205,7 @@ query Source($id: ID!) {
     expect(res.data).toMatchObject({
       source: {
         id: 'c',
-        owners: null,
-        moderators: null,
+        privilegedMembers: null,
       },
     });
   });
@@ -1213,8 +1216,26 @@ query Source($id: ID!) {
     expect(res.data).toMatchObject({
       source: {
         id: 'c',
-        owners: ['1'],
-        moderators: ['2', '3'],
+        privilegedMembers: [
+          {
+            role: 'owner',
+            user: {
+              id: '1',
+            },
+          },
+          {
+            role: 'moderator',
+            user: {
+              id: '2',
+            },
+          },
+          {
+            role: 'moderator',
+            user: {
+              id: '3',
+            },
+          },
+        ],
       },
     });
   });

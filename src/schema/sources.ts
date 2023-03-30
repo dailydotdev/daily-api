@@ -130,14 +130,9 @@ export const typeDefs = /* GraphQL */ `
     currentMember: SourceMember
 
     """
-    Owner members
+    Privileged members
     """
-    owners: [String]
-
-    """
-    Moderator members
-    """
-    moderators: [String]
+    privilegedMembers: [SourceMember]
   }
 
   type SourceConnection {

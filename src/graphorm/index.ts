@@ -37,16 +37,6 @@ const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
 const nullIfNotSameUser = <T>(value: T, ctx: Context, parent: User): T | null =>
   ctx.userId === parent.id ? value : null;
 
-const getMembersByRole =
-  (role: SourceMemberRoles) =>
-  (ctx: Context, alias: string, qb: QueryBuilder) =>
-    qb
-      .select('ARRAY_AGG(sm."userId")')
-      .from(SourceMember, 'sm')
-      .where(`sm."sourceId" = "${alias}".id`)
-      .andWhere(`sm.role = '${role}'`)
-      .limit(50); // limit to avoid huge arrays for members, most sources should fit into this see PR !1219 for more info
-
 const obj = new GraphORM({
   User: {
     requiredColumns: ['id', 'username'],
@@ -201,12 +191,18 @@ const obj = new GraphORM({
               .andWhere(`${childAlias}."sourceId" = "${parentAlias}".id`),
         },
       },
-      owners: {
-        select: getMembersByRole(SourceMemberRoles.Owner),
-        transform: nullIfNotLoggedIn,
-      },
-      moderators: {
-        select: getMembersByRole(SourceMemberRoles.Moderator),
+      privilegedMembers: {
+        relation: {
+          isMany: true,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
+            return qb
+              .where(`${childAlias}."sourceId" = "${parentAlias}".id`)
+              .andWhere(
+                `(${childAlias}.role = '${SourceMemberRoles.Owner}' OR ${childAlias}.role = '${SourceMemberRoles.Moderator}')`,
+              )
+              .limit(50); // limit to avoid huge arrays for members, most sources should fit into this see PR !1219 for more info
+          },
+        },
         transform: nullIfNotLoggedIn,
       },
     },
