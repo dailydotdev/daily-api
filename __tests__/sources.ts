@@ -993,6 +993,25 @@ describe('mutation updateMemberRole', () => {
     expect(member.role).toEqual(SourceMemberRoles.Member);
   });
 
+  it('should allow owner to remove and block an owner', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Owner });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'a',
+        memberId: '2',
+        role: SourceMemberRoles.Blocked,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await con
+      .getRepository(SourceMember)
+      .findOneBy({ userId: '2', sourceId: 'a' });
+    expect(member.role).toEqual(SourceMemberRoles.Blocked);
+  });
+
   it('should allow owner to remove and block a moderator', async () => {
     loggedUser = '1';
     await con

@@ -442,6 +442,10 @@ export const hasGreaterAccessCheck = (
   loggedUser: BaseSourceMember,
   member: BaseSourceMember,
 ) => {
+  if (loggedUser.role === SourceMemberRoles.Owner) {
+    return;
+  }
+
   const memberRank = sourceRoleRank[member.role];
   const loggedUserRank = sourceRoleRank[loggedUser.role];
   const hasGreaterAccess = loggedUserRank > memberRank;
