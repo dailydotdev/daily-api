@@ -9,7 +9,11 @@ import {
   SourceMember,
   User,
 } from '../entity';
-import { sourceRoleRank, sourceRoleRankKeys } from '../roles';
+import {
+  SourceMemberRoles,
+  sourceRoleRank,
+  sourceRoleRankKeys,
+} from '../roles';
 
 import { Context } from '../Context';
 import { GQLBookmarkList } from '../schema/bookmarks';
@@ -158,10 +162,14 @@ const obj = new GraphORM({
       members: {
         relation: {
           isMany: true,
-          childColumn: 'sourceId',
-          parentColumn: 'id',
           order: 'DESC',
           sort: 'createdAt',
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."sourceId" = "${parentAlias}".id`)
+              .andWhere(`${childAlias}."role" != :role`, {
+                role: SourceMemberRoles.Blocked,
+              }),
         },
         pagination: {
           limit: 50,
@@ -176,7 +184,8 @@ const obj = new GraphORM({
           qb
             .select('count(*)')
             .from(SourceMember, 'sm')
-            .where(`sm."sourceId" = ${alias}.id`),
+            .where(`sm."sourceId" = ${alias}.id`)
+            .andWhere(`sm."role" != '${SourceMemberRoles.Blocked}'`),
       },
       currentMember: {
         relation: {
@@ -186,6 +195,20 @@ const obj = new GraphORM({
               .where(`${childAlias}."userId" = :userId`, { userId: ctx.userId })
               .andWhere(`${childAlias}."sourceId" = "${parentAlias}".id`),
         },
+      },
+      privilegedMembers: {
+        relation: {
+          isMany: true,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
+            return qb
+              .where(`${childAlias}."sourceId" = "${parentAlias}".id`)
+              .andWhere(`${childAlias}.role IN (:...roles)`, {
+                roles: [SourceMemberRoles.Owner, SourceMemberRoles.Moderator],
+              })
+              .limit(50); // limit to avoid huge arrays for members, most sources should fit into this see PR !1219 for more info
+          },
+        },
+        transform: nullIfNotLoggedIn,
       },
     },
   },

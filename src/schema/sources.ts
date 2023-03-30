@@ -52,6 +52,7 @@ export interface GQLSource {
   public: boolean;
   members?: Connection<GQLSourceMember>;
   currentMember?: GQLSourceMember;
+  privilegedMembers?: GQLSourceMember[];
 }
 
 export interface GQLSourceMember {
@@ -132,6 +133,11 @@ export const typeDefs = /* GraphQL */ `
     Logged-in member object
     """
     currentMember: SourceMember
+
+    """
+    Privileged members
+    """
+    privilegedMembers: [SourceMember]
   }
 
   type SourceConnection {
@@ -421,6 +427,7 @@ export const roleSourcePermissions: Record<
   owner: ownerPermissions,
   moderator: moderatorPermissions,
   member: memberPermissions,
+  blocked: [],
 };
 
 const requireGreaterAccessPrivilege: Partial<
@@ -656,6 +663,11 @@ export const resolvers: IResolvers<any, Context> = {
             .andWhere(`${builder.alias}."sourceId" = :source`, {
               source: args.sourceId,
             })
+            .andWhere(
+              `${
+                graphorm.mappings.SourceMember.fields.roleRank.select as string
+              } >= 0`,
+            )
             .addOrderBy(
               graphorm.mappings.SourceMember.fields.roleRank.select as string,
               'DESC',
@@ -690,6 +702,11 @@ export const resolvers: IResolvers<any, Context> = {
         (builder) => {
           builder.queryBuilder
             .andWhere(`${builder.alias}."userId" = :user`, { user: ctx.userId })
+            .andWhere(
+              `${
+                graphorm.mappings.SourceMember.fields.roleRank.select as string
+              } >= 0`,
+            )
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
 
           builder.queryBuilder.limit(page.limit);
