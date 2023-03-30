@@ -30,6 +30,7 @@ import { parse } from 'graphql/language/parser';
 import { execute } from 'graphql/execution/execute';
 import { schema } from '../graphql';
 import { Context } from '../Context';
+import { SourceMemberRoles } from '../roles';
 
 export type BaseBoot = {
   visit: { visitId: string; sessionId: string };
@@ -106,6 +107,7 @@ const getSquads = async (
       'sm."sourceId" = s."id" and s."type" = \'squad\'',
     )
     .where('sm."userId" = :userId', { userId })
+    .andWhere('sm."role" != :role', { role: SourceMemberRoles.Blocked })
     .orderBy('LOWER(s.name)', 'ASC')
     .getRawMany<GQLSource>();
   return sources.map((source) => ({
