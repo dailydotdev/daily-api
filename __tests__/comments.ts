@@ -119,6 +119,14 @@ beforeEach(async () => {
       contentHtml: '<p>child comment #3</p>',
       createdAt: new Date(2020, 1, 10, 0, 0),
     },
+    {
+      id: 'c8',
+      postId: 'squadP1',
+      userId: '2',
+      content: 'comment #1',
+      contentHtml: '<p>comment #1</p>',
+      createdAt: new Date(2020, 1, 10, 0, 0),
+    },
   ]);
 });
 
@@ -882,6 +890,42 @@ describe('mutation deleteComment', () => {
     expect(actual.length).toEqual(3);
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.comments).toEqual(-2);
+  });
+
+  it("should forbidden when other user doesn't have the right permissions", async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).insert({
+      userId: '1',
+      sourceId: 'squad',
+      role: SourceMemberRoles.Member,
+      referralToken: 's1',
+    });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'c8' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should delete a comment if source owner has permissions', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).insert({
+      userId: '1',
+      sourceId: 'squad',
+      role: SourceMemberRoles.Owner,
+      referralToken: 's1',
+    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'c8' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con
+      .getRepository(Comment)
+      .find({ select: ['id', 'comments'], where: { postId: 'squadP1' } });
+    expect(actual.length).toEqual(0);
+    const post = await con.getRepository(Post).findOneBy({ id: 'squadP1' });
+    expect(post.comments).toEqual(-1);
   });
 });
 

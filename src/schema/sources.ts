@@ -361,6 +361,7 @@ const sourceToGQL = (source: Source): GQLSource => ({
 });
 
 export enum SourcePermissions {
+  CommentDelete = 'comment_delete',
   View = 'view',
   Post = 'post',
   PostLimit = 'post_limit',
@@ -381,6 +382,7 @@ const memberPermissions = [
 ];
 const moderatorPermissions = [
   ...memberPermissions,
+  SourcePermissions.CommentDelete,
   SourcePermissions.PostDelete,
   SourcePermissions.MemberRemove,
   SourcePermissions.Edit,
