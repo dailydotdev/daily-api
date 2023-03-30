@@ -859,7 +859,11 @@ describe('mutation updateMemberRole', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { sourceId: 'a', memberId: '2' },
+        variables: {
+          sourceId: 'a',
+          memberId: '2',
+          role: SourceMemberRoles.Member,
+        },
       },
       'UNAUTHENTICATED',
     ));
@@ -869,7 +873,14 @@ describe('mutation updateMemberRole', () => {
 
     return testMutationErrorCode(
       client,
-      { mutation: MUTATION, variables: { sourceId: 'b', memberId: '2' } },
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 'b',
+          memberId: '2',
+          role: SourceMemberRoles.Member,
+        },
+      },
       'FORBIDDEN',
     );
   });
