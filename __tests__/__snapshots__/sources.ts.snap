@@ -215,7 +215,6 @@ Object {
         "edit",
         "member_role_update",
         "post_limit",
-        "moderator_remove",
         "invite_disable",
         "delete",
       ],
