@@ -730,7 +730,10 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
         const repo = entityManager.getRepository(Comment);
-        const comment = await repo.findOneByOrFail({ id });
+        const comment = await ctx.con.getRepository(Comment).findOneOrFail({
+          where: { id },
+          relations: ['post'],
+        });
         const post = await comment.post;
         if (
           comment.userId !== ctx.userId &&
@@ -738,7 +741,7 @@ export const resolvers: IResolvers<any, Context> = {
           !(await ensureSourcePermissions(
             ctx,
             post.sourceId,
-            SourcePermissions.PostDelete,
+            SourcePermissions.CommentDelete,
           ))
         ) {
           throw new ForbiddenError("Cannot delete someone else's comment");
