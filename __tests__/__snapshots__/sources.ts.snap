@@ -209,6 +209,7 @@ Object {
         "view",
         "post",
         "leave",
+        "comment_delete",
         "post_delete",
         "member_remove",
         "edit",
