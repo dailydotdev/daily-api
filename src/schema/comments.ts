@@ -28,7 +28,7 @@ import { GQLPost } from './posts';
 import { Roles } from '../roles';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { markdown, mentionSpecialCharacters } from '../common/markdown';
-import { ensureSourcePermissions } from './sources';
+import { ensureSourcePermissions, SourcePermissions } from './sources';
 import { generateShortId } from '../ids';
 import { ActivePost } from '../entity/posts/ActivePost';
 
@@ -731,9 +731,15 @@ export const resolvers: IResolvers<any, Context> = {
       await ctx.con.transaction(async (entityManager) => {
         const repo = entityManager.getRepository(Comment);
         const comment = await repo.findOneByOrFail({ id });
+        const post = await comment.post;
         if (
           comment.userId !== ctx.userId &&
-          ctx.roles.indexOf(Roles.Moderator) < 0
+          ctx.roles.indexOf(Roles.Moderator) < 0 &&
+          !(await ensureSourcePermissions(
+            ctx,
+            post.sourceId,
+            SourcePermissions.PostDelete,
+          ))
         ) {
           throw new ForbiddenError("Cannot delete someone else's comment");
         }
