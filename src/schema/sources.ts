@@ -52,8 +52,7 @@ export interface GQLSource {
   public: boolean;
   members?: Connection<GQLSourceMember>;
   currentMember?: GQLSourceMember;
-  owners?: string[];
-  moderators?: string[];
+  privilegedMembers?: GQLSourceMember[];
 }
 
 export interface GQLSourceMember {
