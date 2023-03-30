@@ -162,10 +162,14 @@ const obj = new GraphORM({
       members: {
         relation: {
           isMany: true,
-          childColumn: 'sourceId',
-          parentColumn: 'id',
           order: 'DESC',
           sort: 'createdAt',
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."sourceId" = "${parentAlias}".id`)
+              .andWhere(`${childAlias}."role" != :role`, {
+                role: SourceMemberRoles.Blocked,
+              }),
         },
         pagination: {
           limit: 50,
@@ -180,7 +184,8 @@ const obj = new GraphORM({
           qb
             .select('count(*)')
             .from(SourceMember, 'sm')
-            .where(`sm."sourceId" = ${alias}.id`),
+            .where(`sm."sourceId" = ${alias}.id`)
+            .andWhere(`sm."role" != '${SourceMemberRoles.Blocked}'`),
       },
       currentMember: {
         relation: {

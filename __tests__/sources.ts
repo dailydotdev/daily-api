@@ -219,6 +219,15 @@ query Source($id: ID!) {
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should return current member as blocked', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Blocked });
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.data).toMatchSnapshot();
+  });
 });
 
 describe('query source', () => {
@@ -242,6 +251,19 @@ query Source($id: ID!) {
 
   it('should not return private source when user is not member', async () => {
     loggedUser = '3';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should not return private source when user is blocked', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Blocked });
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
     return testQueryErrorCode(
       client,
@@ -349,6 +371,15 @@ query Source($id: ID!) {
     expect(res.data).toMatchSnapshot();
   });
 
+  it('should exclude blocked members from result', async () => {
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Blocked });
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
   it('should return source members for private source when the user is a member', async () => {
     loggedUser = '1';
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
@@ -401,6 +432,16 @@ query Source($id: ID!) {
     expect(res.errors).toBeFalsy();
     expect(res.data.source.membersCount).toEqual(2);
   });
+
+  it('should return number of members excluding blocked members', async () => {
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Blocked });
+    loggedUser = '1';
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.membersCount).toEqual(1);
+  });
 });
 
 describe('query sourceMembers', () => {
@@ -431,6 +472,15 @@ query SourceMembers($id: ID!) {
     ));
 
   it('should return source members of public source', async () => {
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return source members of public source without blocked members', async () => {
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Blocked });
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
@@ -504,6 +554,19 @@ query SourceMemberships {
     testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
 
   it('should return source memberships', async () => {
+    loggedUser = '2';
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should not return source memberships in user is blocked', async () => {
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '2', sourceId: 'a' },
+        { role: SourceMemberRoles.Blocked },
+      );
     loggedUser = '2';
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
@@ -980,6 +1043,18 @@ describe('mutation joinSource', () => {
 
   it('should throw error when joining private squad without token', async () => {
     loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when joining private squad when blocked', async () => {
+    loggedUser = '2';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Blocked });
     return testMutationErrorCode(
       client,
       { mutation: MUTATION, variables },
