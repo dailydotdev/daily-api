@@ -894,14 +894,23 @@ export const resolvers: IResolvers<any, Context> = {
       { sourceId, memberId, role }: UpdateMemberRoleArgs,
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await ensureSourcePermissions(
-        ctx,
-        sourceId,
-        SourcePermissions.MemberRoleUpdate,
-      );
+      if (role === SourceMemberRoles.Blocked) {
+        await ensureSourcePermissions(
+          ctx,
+          sourceId,
+          SourcePermissions.MemberRemove,
+          memberId,
+        );
+      } else {
+        await ensureSourcePermissions(
+          ctx,
+          sourceId,
+          SourcePermissions.MemberRoleUpdate,
+        );
 
-      if (!Object.values(SourceMemberRoles).includes(role)) {
-        throw new ValidationError('Role does not exist!');
+        if (!Object.values(SourceMemberRoles).includes(role)) {
+          throw new ValidationError('Role does not exist!');
+        }
       }
 
       await ctx.con
