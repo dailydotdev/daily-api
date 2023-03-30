@@ -52,6 +52,7 @@ export interface GQLSource {
   public: boolean;
   members?: Connection<GQLSourceMember>;
   currentMember?: GQLSourceMember;
+  privilegedMembers?: GQLSourceMember[];
 }
 
 export interface GQLSourceMember {
@@ -126,6 +127,11 @@ export const typeDefs = /* GraphQL */ `
     Logged-in member object
     """
     currentMember: SourceMember
+
+    """
+    Privileged members
+    """
+    privilegedMembers: [SourceMember]
   }
 
   type SourceConnection {

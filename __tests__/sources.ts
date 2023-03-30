@@ -1222,3 +1222,96 @@ describe('mutation joinSource', () => {
 //     expect(member).toBeFalsy();
 //   });
 // });
+
+describe('query source members', () => {
+  const QUERY = `
+query Source($id: ID!) {
+  source(id: $id) {
+    id
+    privilegedMembers {
+      user {
+        id
+      }
+      role
+    }
+  }
+}
+  `;
+
+  beforeEach(async () => {
+    await con
+      .getRepository(Source)
+      .save([createSource('c', 'C', 'http://c.com')]);
+    await saveFixtures(con, User, usersFixture);
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'c',
+        role: SourceMemberRoles.Owner,
+        referralToken: randomUUID(),
+        createdAt: new Date(2022, 11, 19),
+      },
+      {
+        userId: '2',
+        sourceId: 'c',
+        role: SourceMemberRoles.Moderator,
+        referralToken: randomUUID(),
+        createdAt: new Date(2022, 11, 20),
+      },
+      {
+        userId: '3',
+        sourceId: 'c',
+        role: SourceMemberRoles.Moderator,
+        referralToken: randomUUID(),
+        createdAt: new Date(2022, 11, 19),
+      },
+      {
+        userId: '4',
+        sourceId: 'c',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+        createdAt: new Date(2022, 11, 20),
+      },
+    ]);
+  });
+
+  it('should return null for annonymous users', async () => {
+    const res = await client.query(QUERY, { variables: { id: 'c' } });
+    expect(res.data).toMatchObject({
+      source: {
+        id: 'c',
+        privilegedMembers: null,
+      },
+    });
+  });
+
+  it('should return current members', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, { variables: { id: 'c' } });
+    expect(res.data).toMatchObject({
+      source: {
+        id: 'c',
+        privilegedMembers: [
+          {
+            role: 'owner',
+            user: {
+              id: '1',
+            },
+          },
+          {
+            role: 'moderator',
+            user: {
+              id: '2',
+            },
+          },
+          {
+            role: 'moderator',
+            user: {
+              id: '3',
+            },
+          },
+        ],
+      },
+    });
+  });
+});
