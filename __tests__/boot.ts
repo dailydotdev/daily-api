@@ -481,6 +481,65 @@ describe('boot misc', () => {
       },
     ]);
   });
+
+  it('should not return squads users blocked from', async () => {
+    mockLoggedIn();
+    await con.getRepository(SquadSource).save([
+      {
+        id: 's1',
+        handle: 's1',
+        name: 'Squad',
+        private: false,
+        active: false,
+      },
+      {
+        id: 's3',
+        handle: 's3',
+        name: 'Squad 3',
+        private: true,
+        active: true,
+      },
+    ]);
+    await con.getRepository(MachineSource).save([
+      {
+        id: 's4',
+        handle: 's4',
+        name: 'Source',
+        private: false,
+        active: false,
+      },
+    ]);
+    await con.getRepository(SourceMember).save([
+      {
+        sourceId: 's1',
+        userId: '1',
+        referralToken: 'rt',
+        role: SourceMemberRoles.Member,
+      },
+      {
+        sourceId: 's3',
+        userId: '1',
+        referralToken: 'rt3',
+        role: SourceMemberRoles.Blocked,
+      },
+    ]);
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.squads).toEqual([
+      {
+        active: false,
+        handle: 's1',
+        id: 's1',
+        image: SQUAD_IMAGE_PLACEHOLDER,
+        name: 'Squad',
+        permalink: 'http://localhost:5002/squads/s1',
+        public: true,
+        type: SourceType.Squad,
+      },
+    ]);
+  });
 });
 
 describe('boot feature flags', () => {
