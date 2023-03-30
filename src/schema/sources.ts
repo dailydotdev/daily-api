@@ -62,6 +62,12 @@ export interface GQLSourceMember {
   referralToken: string;
 }
 
+interface UpdateMemberRoleArgs {
+  sourceId: string;
+  memberId: string;
+  role: SourceMemberRoles;
+}
+
 export const typeDefs = /* GraphQL */ `
   """
   Source to discover posts from (usually blogs)
@@ -313,6 +319,26 @@ export const typeDefs = /* GraphQL */ `
     ): Source! @auth
 
     """
+    Set the source member's current role
+    """
+    updateMemberRole(
+      """
+      Relevant source the user to update role is a member of
+      """
+      sourceId: ID!
+
+      """
+      Member to update
+      """
+      memberId: ID!
+
+      """
+      Role to update the user to
+      """
+      role: String!
+    ): EmptyResponse! @auth
+
+    """
     Adds the logged-in user as member to the source
     """
     joinSource(
@@ -360,7 +386,7 @@ export enum SourcePermissions {
   PostLimit = 'post_limit',
   PostDelete = 'post_delete',
   MemberRemove = 'member_remove',
-  ModeratorAdd = 'moderator_add',
+  MemberRoleUpdate = 'member_role_update',
   ModeratorRemove = 'moderator_remove',
   InviteDisable = 'invite_disable',
   Leave = 'leave',
@@ -381,8 +407,8 @@ const moderatorPermissions = [
 ];
 const ownerPermissions = [
   ...moderatorPermissions,
+  SourcePermissions.MemberRoleUpdate,
   SourcePermissions.PostLimit,
-  SourcePermissions.ModeratorAdd,
   SourcePermissions.ModeratorRemove,
   SourcePermissions.InviteDisable,
   SourcePermissions.Delete,
@@ -844,6 +870,27 @@ export const resolvers: IResolvers<any, Context> = {
         sourceId,
         userId: ctx.userId,
       });
+      return { _: true };
+    },
+    updateMemberRole: async (
+      _,
+      { sourceId, memberId, role }: UpdateMemberRoleArgs,
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.MemberRoleUpdate,
+      );
+
+      if (!Object.values(SourceMemberRoles).includes(role)) {
+        throw new ValidationError('Role does not exist!');
+      }
+
+      await ctx.con
+        .getRepository(SourceMember)
+        .update({ sourceId, userId: memberId }, { role });
+
       return { _: true };
     },
     joinSource: async (
