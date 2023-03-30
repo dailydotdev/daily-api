@@ -23,6 +23,7 @@ import {
   SQUAD_IMAGE_PLACEHOLDER,
   SourceType,
   Post,
+  ArticlePost,
 } from '../src/entity';
 import { SourceMemberRoles } from '../src/roles';
 import { notificationFixture } from './fixture/notifications';
@@ -537,7 +538,7 @@ describe('companion boot', () => {
   it('should support anonymous user', async () => {
     const res = await request(app.server)
       .get(`${BASE_PATH}/companion`)
-      .query({ url: postsFixture[0].url })
+      .query({ url: (postsFixture[0] as ArticlePost).url })
       .set('User-Agent', TEST_UA)
       .expect(200);
     expect(res.body).toEqual({
@@ -550,7 +551,7 @@ describe('companion boot', () => {
     mockLoggedIn();
     const res = await request(app.server)
       .get(`${BASE_PATH}/companion`)
-      .query({ url: postsFixture[0].url })
+      .query({ url: (postsFixture[0] as ArticlePost).url })
       .set('User-Agent', TEST_UA)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);

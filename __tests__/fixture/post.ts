@@ -99,11 +99,13 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     title: 'Squad 1',
     url: 'http://squad1.com',
     image: 'http://image/sp1',
+    score: 10,
     sourceId: 'squad',
     createdAt: new Date(now.getTime() - 5000),
     type: PostType.Share,
     visible: true,
     sharedPostId: 'p1',
+    private: true,
   },
 ];
 
