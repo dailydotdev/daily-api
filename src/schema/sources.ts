@@ -504,6 +504,16 @@ export const ensureSourcePermissions = async (
     const source = await ctx.con
       .getRepository(Source)
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
+
+    if (source.type === SourceType.Squad) {
+      const squadSource = source as SquadSource;
+      // TODO WT-1197 check if current user is privileged, if yes allow posting
+
+      if (!squadSource.allowMemberPosting) {
+        throw new ForbiddenError('Posting not allowed!');
+      }
+    }
+
     if (await canAccessSource(ctx, source, permission, validateRankAgainstId)) {
       return source;
     }
