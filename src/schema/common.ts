@@ -167,11 +167,19 @@ export const offsetPageGenerator = <TReturn>(
   hasPreviousPage: (page): boolean => page.offset > 0,
 });
 
-export const fixedIdsPageGenerator = <TId, TReturn extends { id: TId }>(
+export const fixedIdsPageGenerator = <
+  TId,
+  TReturn extends { id: TId; feedMeta?: string },
+>(
   defaultLimit: number,
   maxLimit: number,
   totalLimit?: number,
-): PageGenerator<TReturn, ConnectionArguments, OffsetPage, TId[]> => ({
+): PageGenerator<
+  TReturn,
+  ConnectionArguments,
+  OffsetPage,
+  [TId, string][]
+> => ({
   connArgsToPage: (args: ConnectionArguments): OffsetPage => {
     const limit = Math.min(args.first || defaultLimit, maxLimit) + 1;
     const offset = getOffsetWithDefault(args.after, -1) + 1;
@@ -181,11 +189,19 @@ export const fixedIdsPageGenerator = <TId, TReturn extends { id: TId }>(
     };
   },
   nodeToCursor: (page, args, node, i, queryParams): string =>
-    offsetToCursor(page.offset + queryParams.indexOf(node.id)),
+    offsetToCursor(
+      page.offset + queryParams.findIndex(([postId]) => postId === node.id),
+    ),
   hasNextPage: (page, nodesSize, total, queryParams): boolean =>
     queryParams.length >= page.limit,
   hasPreviousPage: (page): boolean => page.offset > 0,
-  transformNodes: (page, nodes) => nodes.slice(0, page.limit - 1),
+  transformNodes: (page, nodes, queryParams) => {
+    // Add the metadata object
+    return nodes.slice(0, page.limit - 1).map((node) => ({
+      ...node,
+      feedMeta: queryParams.find(([postId]) => postId === node.id)?.[1],
+    }));
+  },
 });
 
 type PaginationResolver<

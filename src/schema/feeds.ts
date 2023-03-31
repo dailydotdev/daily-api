@@ -777,7 +777,12 @@ const feedResolverV2: IFieldResolver<
   FeedArgs & { version: number; feedId?: string }
 > = feedResolver(
   (ctx, args, builder, alias, queryParams) =>
-    fixedIdsFeedBuilder(ctx, queryParams as string[], builder, alias),
+    fixedIdsFeedBuilder(
+      ctx,
+      queryParams.map(([postId]) => postId as string),
+      builder,
+      alias,
+    ),
   fixedIdsPageGenerator(30, 50),
   (ctx, args, page, builder) => builder,
   {

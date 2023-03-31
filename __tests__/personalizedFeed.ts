@@ -22,11 +22,11 @@ import { usersFixture } from './fixture/user';
 
 let con: DataSource;
 
-const tinybirdResponse = {
+const feedResponse = {
   data: [
-    { post_id: '1' },
-    { post_id: '2' },
-    { post_id: '3' },
+    { post_id: '1', metadata: { p: 'a' } },
+    { post_id: '2', metadata: { p: 'b' } },
+    { post_id: '3', metadata: { p: 'c' } },
     { post_id: '4' },
     { post_id: '5' },
     { post_id: '6' },
@@ -45,7 +45,10 @@ beforeEach(async () => {
   await saveFixtures(con, User, [usersFixture[0]]);
 });
 
-const setCache = (key: string, ids: string[]) =>
+const setCache = (
+  key: string,
+  ids: string[] | [string, string | undefined][],
+) =>
   ioRedisPool.execute(async (client) => {
     return client.set(`${key}:posts`, JSON.stringify(ids));
   });
@@ -55,14 +58,17 @@ it('should fetch anonymous feed and serve consequent pages from cache', async ()
     .get(
       '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&feed_id=global',
     )
-    .reply(200, tinybirdResponse);
+    .reply(200, feedResponse);
   const page0 = await generatePersonalizedFeed({
     con,
     pageSize: 2,
     offset: 0,
     feedVersion: 5,
   });
-  expect(page0).toEqual(['1', '2']);
+  expect(page0).toEqual([
+    ['1', JSON.stringify({ p: 'a' })],
+    ['2', JSON.stringify({ p: 'b' })],
+  ]);
   expect(nock.isDone()).toEqual(true);
   await new Promise((resolve) => setTimeout(resolve, 50));
   const page1 = await generatePersonalizedFeed({
@@ -71,7 +77,10 @@ it('should fetch anonymous feed and serve consequent pages from cache', async ()
     offset: 2,
     feedVersion: 5,
   });
-  expect(page1).toEqual(['3', '4']);
+  expect(page1).toEqual([
+    ['3', JSON.stringify({ p: 'c' })],
+    ['4', null],
+  ]);
 });
 
 it('should fetch anonymous feed and serve consequent calls from cache', async () => {
@@ -79,14 +88,18 @@ it('should fetch anonymous feed and serve consequent calls from cache', async ()
     .get(
       '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&feed_id=global',
     )
-    .reply(200, tinybirdResponse);
+    .reply(200, feedResponse);
   const page0 = await generatePersonalizedFeed({
     con,
     pageSize: 2,
     offset: 0,
     feedVersion: 5,
   });
-  expect(page0).toEqual(['1', '2']);
+  const expected = [
+    ['1', JSON.stringify({ p: 'a' })],
+    ['2', JSON.stringify({ p: 'b' })],
+  ];
+  expect(page0).toEqual(expected);
   expect(nock.isDone()).toEqual(true);
   await new Promise((resolve) => setTimeout(resolve, 50));
   const page1 = await generatePersonalizedFeed({
@@ -95,7 +108,7 @@ it('should fetch anonymous feed and serve consequent calls from cache', async ()
     offset: 0,
     feedVersion: 5,
   });
-  expect(page1).toEqual(['1', '2']);
+  expect(page1).toEqual(expected);
 });
 
 it('should fetch anonymous feed even when cache is old', async () => {
@@ -112,14 +125,17 @@ it('should fetch anonymous feed even when cache is old', async () => {
     .get(
       '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&feed_id=global',
     )
-    .reply(200, tinybirdResponse);
+    .reply(200, feedResponse);
   const page0 = await generatePersonalizedFeed({
     con,
     pageSize: 2,
     offset: 0,
     feedVersion: 5,
   });
-  expect(page0).toEqual(['1', '2']);
+  expect(page0).toEqual([
+    ['1', JSON.stringify({ p: 'a' })],
+    ['2', JSON.stringify({ p: 'b' })],
+  ]);
   expect(nock.isDone()).toEqual(true);
 });
 
@@ -128,18 +144,24 @@ it('should not fetch anonymous feed even when cache is still fresh', async () =>
   await ioRedisPool.execute(async (client) => {
     return client.set(`${key}:time`, new Date().toISOString());
   });
-  await setCache(key, ['7', '8']);
+  await setCache(key, [
+    ['7', JSON.stringify({ p: 'a' })],
+    ['8', JSON.stringify({ p: 'b' })],
+  ]);
 
   nock('http://localhost:6000')
     .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
-    .reply(200, tinybirdResponse);
+    .reply(200, feedResponse);
   const page0 = await generatePersonalizedFeed({
     con,
     pageSize: 2,
     offset: 0,
     feedVersion: 5,
   });
-  expect(page0).toEqual(['7', '8']);
+  expect(page0).toEqual([
+    ['7', JSON.stringify({ p: 'a' })],
+    ['8', JSON.stringify({ p: 'b' })],
+  ]);
   expect(nock.isDone()).toEqual(false);
 });
 
@@ -163,14 +185,17 @@ it('should fetch anonymous feed when last updated time is greater than last gene
     .get(
       '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&feed_id=global',
     )
-    .reply(200, tinybirdResponse);
+    .reply(200, feedResponse);
   const page0 = await generatePersonalizedFeed({
     con,
     pageSize: 2,
     offset: 0,
     feedVersion: 5,
   });
-  expect(page0).toEqual(['1', '2']);
+  expect(page0).toEqual([
+    ['1', JSON.stringify({ p: 'a' })],
+    ['2', JSON.stringify({ p: 'b' })],
+  ]);
   expect(nock.isDone()).toEqual(true);
 });
 
@@ -190,7 +215,7 @@ it('should set the correct query parameters', async () => {
     .get(
       '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&user_id=u1&feed_id=1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
     )
-    .reply(200, tinybirdResponse);
+    .reply(200, feedResponse);
   const page0 = await generatePersonalizedFeed({
     con,
     pageSize: 2,
@@ -199,7 +224,10 @@ it('should set the correct query parameters', async () => {
     userId: 'u1',
     feedId: '1',
   });
-  expect(page0).toEqual(['1', '2']);
+  expect(page0).toEqual([
+    ['1', JSON.stringify({ p: 'a' })],
+    ['2', JSON.stringify({ p: 'b' })],
+  ]);
   expect(nock.isDone()).toEqual(true);
 });
 
@@ -210,7 +238,7 @@ it('should encode query parameters', async () => {
     .get(
       '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&user_id=u1&feed_id=1&allowed_tags=c%23',
     )
-    .reply(200, tinybirdResponse);
+    .reply(200, feedResponse);
   const page0 = await generatePersonalizedFeed({
     con,
     pageSize: 2,
@@ -219,7 +247,10 @@ it('should encode query parameters', async () => {
     userId: 'u1',
     feedId: '1',
   });
-  expect(page0).toEqual(['1', '2']);
+  expect(page0).toEqual([
+    ['1', JSON.stringify({ p: 'a' })],
+    ['2', JSON.stringify({ p: 'b' })],
+  ]);
   expect(nock.isDone()).toEqual(true);
 });
 
@@ -243,7 +274,7 @@ it('should send source memberships as parameter', async () => {
     .get(
       '/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5&user_id=1&feed_id=1&squad_ids=a,b',
     )
-    .reply(200, tinybirdResponse);
+    .reply(200, feedResponse);
   const page0 = await generatePersonalizedFeed({
     con,
     pageSize: 2,
@@ -252,6 +283,32 @@ it('should send source memberships as parameter', async () => {
     userId: '1',
     feedId: '1',
   });
-  expect(page0).toEqual(['1', '2']);
+  expect(page0).toEqual([
+    ['1', JSON.stringify({ p: 'a' })],
+    ['2', JSON.stringify({ p: 'b' })],
+  ]);
   expect(nock.isDone()).toEqual(true);
+});
+
+it('should support legacy cache format', async () => {
+  const key = getPersonalizedFeedKey();
+  await ioRedisPool.execute(async (client) => {
+    return client.set(`${key}:time`, new Date().toISOString());
+  });
+  await setCache(key, ['7', '8']);
+
+  nock('http://localhost:6000')
+    .get('/feed.json?token=token&page_size=2&fresh_page_size=1&feed_version=5')
+    .reply(200, feedResponse);
+  const page0 = await generatePersonalizedFeed({
+    con,
+    pageSize: 2,
+    offset: 0,
+    feedVersion: 5,
+  });
+  expect(page0).toEqual([
+    ['7', undefined],
+    ['8', undefined],
+  ]);
+  expect(nock.isDone()).toEqual(false);
 });
