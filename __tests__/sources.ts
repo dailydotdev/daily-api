@@ -446,8 +446,8 @@ query Source($id: ID!) {
 
 describe('query sourceMembers', () => {
   const QUERY = `
-query SourceMembers($id: ID!) {
-  sourceMembers(sourceId: $id) {
+query SourceMembers($id: ID!, $blockedOnly: Boolean) {
+  sourceMembers(sourceId: $id, blockedOnly: $blockedOnly) {
     pageInfo {
       endCursor
       hasNextPage
@@ -530,24 +530,41 @@ query SourceMembers($id: ID!) {
       'FORBIDDEN',
     );
   });
+
+  it('should return blocked users only', async () => {
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '2', sourceId: 'a' },
+        { role: SourceMemberRoles.Blocked },
+      );
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { blockedOnly: true, id: 'a' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
 });
 
 describe('query mySourceMemberships', () => {
   const QUERY = `
-query SourceMemberships {
-  mySourceMemberships {
-    pageInfo {
-      endCursor
-      hasNextPage
-    }
-    edges {
-      node {
-        user { id }
-        source { id }
+    query SourceMemberships {
+      mySourceMemberships {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            user { id }
+            source { id }
+            role
+            roleRank
+          }
+        }
       }
     }
-  }
-}
   `;
 
   it('should not authorize when user is not logged in', () =>

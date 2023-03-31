@@ -213,7 +213,7 @@ const obj = new GraphORM({
     },
   },
   SourceMember: {
-    requiredColumns: ['createdAt', 'userId'],
+    requiredColumns: ['createdAt', 'userId', 'role'],
     fields: {
       permissions: {
         transform: (_, ctx: Context, member: SourceMember) => {

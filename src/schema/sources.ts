@@ -69,6 +69,11 @@ interface UpdateMemberRoleArgs {
   role: SourceMemberRoles;
 }
 
+interface SourceMemberArgs extends ConnectionArguments {
+  sourceId: string;
+  blockedOnly?: boolean;
+}
+
 export const typeDefs = /* GraphQL */ `
   """
   Source to discover posts from (usually blogs)
@@ -239,6 +244,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Should return users that are blocked only
+      """
+      blockedOnly: Boolean
     ): SourceMemberConnection!
 
     """
@@ -666,7 +676,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     sourceMembers: async (
       _,
-      args: ConnectionArguments & { sourceId: string },
+      { blockedOnly, ...args }: SourceMemberArgs,
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
@@ -684,16 +694,26 @@ export const resolvers: IResolvers<any, Context> = {
             .andWhere(`${builder.alias}."sourceId" = :source`, {
               source: args.sourceId,
             })
-            .andWhere(
-              `${
-                graphorm.mappings.SourceMember.fields.roleRank.select as string
-              } >= 0`,
-            )
+
             .addOrderBy(
               graphorm.mappings.SourceMember.fields.roleRank.select as string,
               'DESC',
             )
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+          console.log('is blocked: ', blockedOnly);
+          if (blockedOnly) {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}.role = :role`,
+              { role: SourceMemberRoles.Blocked },
+            );
+          } else {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${
+                graphorm.mappings.SourceMember.fields.roleRank.select as string
+              } >= 0`,
+            );
+          }
 
           builder.queryBuilder.limit(page.limit);
           if (page.timestamp) {

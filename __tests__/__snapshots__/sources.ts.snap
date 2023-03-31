@@ -121,6 +121,8 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
+          "role": "owner",
+          "roleRank": 10,
           "source": Object {
             "id": "b",
           },
@@ -144,6 +146,8 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
+          "role": "member",
+          "roleRank": 0,
           "source": Object {
             "id": "a",
           },
@@ -154,6 +158,8 @@ Object {
       },
       Object {
         "node": Object {
+          "role": "owner",
+          "roleRank": 10,
           "source": Object {
             "id": "b",
           },
@@ -213,6 +219,7 @@ Object {
         "post_delete",
         "member_remove",
         "edit",
+        "member_unblock",
         "member_role_update",
         "post_limit",
         "invite_disable",
@@ -251,6 +258,31 @@ Object {
     "image": "http://a.com",
     "name": "A",
     "public": true,
+  },
+}
+`;
+
+exports[`query sourceMembers should return blocked users only 1`] = `
+Object {
+  "sourceMembers": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "role": "blocked",
+          "roleRank": -1,
+          "source": Object {
+            "id": "a",
+          },
+          "user": Object {
+            "id": "2",
+          },
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjcxNDk0NDAwMDAw",
+      "hasNextPage": false,
+    },
   },
 }
 `;
