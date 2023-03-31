@@ -83,6 +83,7 @@ export interface GQLPost {
   isScout?: number;
   isAuthor?: number;
   sharedPost?: GQLPost;
+  feedMeta?: string;
 }
 
 export type GQLPostNotification = Pick<
@@ -323,6 +324,11 @@ export const typeDefs = /* GraphQL */ `
     Original post that was shared in this post
     """
     sharedPost: Post
+
+    """
+    Additional information required for analytics purposes
+    """
+    feedMeta: String
   }
 
   type PostConnection {
@@ -984,5 +990,11 @@ export const resolvers: IResolvers<any, Context> = {
       post.image ? post.ratio : defaultImage.ratio,
     permalink: getPostPermalink,
     commentsPermalink: (post: GQLPost): string => getDiscussionLink(post.id),
+    feedMeta: (post: GQLPost): string => {
+      if (post.feedMeta) {
+        return Buffer.from(post.feedMeta).toString('base64');
+      }
+      return undefined;
+    },
   },
 };

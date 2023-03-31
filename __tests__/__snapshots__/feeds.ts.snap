@@ -1551,6 +1551,27 @@ Object {
 }
 `;
 
+exports[`query feed should return feed v2 with metadata 1`] = `
+Object {
+  "feed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "feedMeta": "eyJwIjoiYSJ9",
+          "id": "p1",
+        },
+      },
+      Object {
+        "node": Object {
+          "feedMeta": "eyJwIjoiYiJ9",
+          "id": "p4",
+        },
+      },
+    ],
+  },
+}
+`;
+
 exports[`query feed should return feed with preconfigured filters 1`] = `
 Object {
   "feed": Object {
