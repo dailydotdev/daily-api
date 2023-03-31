@@ -446,8 +446,8 @@ query Source($id: ID!) {
 
 describe('query sourceMembers', () => {
   const QUERY = `
-query SourceMembers($id: ID!, $blockedOnly: Boolean) {
-  sourceMembers(sourceId: $id, blockedOnly: $blockedOnly) {
+query SourceMembers($id: ID!, $role: String) {
+  sourceMembers(sourceId: $id, role: $role) {
     pageInfo {
       endCursor
       hasNextPage
@@ -540,7 +540,7 @@ query SourceMembers($id: ID!, $blockedOnly: Boolean) {
       );
     loggedUser = '1';
     const res = await client.query(QUERY, {
-      variables: { blockedOnly: true, id: 'a' },
+      variables: { role: SourceMemberRoles.Blocked, id: 'a' },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();

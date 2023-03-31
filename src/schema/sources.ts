@@ -71,7 +71,7 @@ interface UpdateMemberRoleArgs {
 
 interface SourceMemberArgs extends ConnectionArguments {
   sourceId: string;
-  blockedOnly?: boolean;
+  role?: SourceMemberRoles;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -246,9 +246,9 @@ export const typeDefs = /* GraphQL */ `
       first: Int
 
       """
-      Should return users that are blocked only
+      Should return users with this specific role only
       """
-      blockedOnly: Boolean
+      role: String
     ): SourceMemberConnection!
 
     """
@@ -676,7 +676,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     sourceMembers: async (
       _,
-      { blockedOnly, ...args }: SourceMemberArgs,
+      { role, ...args }: SourceMemberArgs,
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
@@ -701,10 +701,10 @@ export const resolvers: IResolvers<any, Context> = {
             )
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
 
-          if (blockedOnly) {
+          if (role) {
             builder.queryBuilder = builder.queryBuilder.andWhere(
               `${builder.alias}.role = :role`,
-              { role: SourceMemberRoles.Blocked },
+              { role },
             );
           } else {
             builder.queryBuilder = builder.queryBuilder.andWhere(
