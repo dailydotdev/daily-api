@@ -751,7 +751,7 @@ describe('generateNotification', () => {
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('a');
     expect(actual.notification.referenceType).toEqual('source');
-    expect(actual.notification.icon).toEqual('User');
+    expect(actual.notification.icon).toEqual('Star');
     expect(actual.notification.title).toEqual(
       `You are no longer a <span class="text-theme-color-cabbage">${SourceMemberRoles.Owner}</span> in <b>${sourcesFixture[0].name}</b>`,
     );
