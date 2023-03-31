@@ -701,7 +701,6 @@ export const resolvers: IResolvers<any, Context> = {
             )
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
 
-          console.log('is blocked: ', blockedOnly);
           if (blockedOnly) {
             builder.queryBuilder = builder.queryBuilder.andWhere(
               `${builder.alias}.role = :role`,
