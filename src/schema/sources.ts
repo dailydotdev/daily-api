@@ -345,6 +345,21 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse! @auth
 
     """
+    Unblock a removed member with blocked role
+    """
+    unblockMember(
+      """
+      Relevant source the user to update role is a member of
+      """
+      sourceId: ID!
+
+      """
+      Member to update
+      """
+      memberId: ID!
+    ): EmptyResponse! @auth
+
+    """
     Adds the logged-in user as member to the source
     """
     joinSource(
@@ -393,6 +408,7 @@ export enum SourcePermissions {
   PostLimit = 'post_limit',
   PostDelete = 'post_delete',
   MemberRemove = 'member_remove',
+  MemberUnblock = 'member_unblock',
   MemberRoleUpdate = 'member_role_update',
   InviteDisable = 'invite_disable',
   Leave = 'leave',
@@ -411,6 +427,7 @@ const moderatorPermissions = [
   SourcePermissions.PostDelete,
   SourcePermissions.MemberRemove,
   SourcePermissions.Edit,
+  SourcePermissions.MemberUnblock,
 ];
 const ownerPermissions = [
   ...moderatorPermissions,
@@ -920,6 +937,23 @@ export const resolvers: IResolvers<any, Context> = {
       await ctx.con
         .getRepository(SourceMember)
         .update({ sourceId, userId: memberId }, { role });
+
+      return { _: true };
+    },
+    unblockMember: async (
+      _,
+      { sourceId, memberId }: UpdateMemberRoleArgs,
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.MemberUnblock,
+      );
+
+      await ctx.con
+        .getRepository(SourceMember)
+        .delete({ sourceId, userId: memberId });
 
       return { _: true };
     },
