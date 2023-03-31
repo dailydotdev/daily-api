@@ -1473,6 +1473,61 @@ describe('mutation sharePost', () => {
       'NOT_FOUND',
     );
   });
+
+  it('should throw error for members if posting to squad is not allowed', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).update('p6', { deleted: true });
+    await con
+      .getRepository(SquadSource)
+      .update('s1', { allowMemberPosting: false });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should allow moderators to post when posting to squad is not allowed', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update('s1', { allowMemberPosting: false });
+    await con.getRepository(SourceMember).update(
+      { sourceId: 's1', userId: '1' },
+      {
+        role: SourceMemberRoles.Moderator,
+      },
+    );
+
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
+  });
+
+  it('should allow owners to post when posting to squad is not allowed', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update('s1', { allowMemberPosting: false });
+    await con.getRepository(SourceMember).update(
+      { sourceId: 's1', userId: '1' },
+      {
+        role: SourceMemberRoles.Owner,
+      },
+    );
+
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
+  });
 });
 
 describe('mutation viewPost', () => {
@@ -1578,6 +1633,7 @@ describe('mutation submitExternalLink', () => {
       handle: 's1',
       name: 'Squad',
       private: false,
+      allowMemberPosting: true,
     });
     await con.getRepository(SourceMember).save({
       sourceId: 's1',
@@ -1683,5 +1739,84 @@ describe('mutation submitExternalLink', () => {
       { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
       'FORBIDDEN',
     );
+  });
+
+  it('should throw error for members if posting to squad is not allowed', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).update('p6', { deleted: true });
+    await con
+      .getRepository(SquadSource)
+      .update('s1', { allowMemberPosting: false });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should allow moderators to share when posting to squad is not allowed', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update('s1', { allowMemberPosting: false });
+    await con.getRepository(SourceMember).update(
+      { sourceId: 's1', userId: '1' },
+      {
+        role: SourceMemberRoles.Moderator,
+      },
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'http://p6.com' },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'http://p6.com' });
+    expect(articlePost.url).toEqual('http://p6.com');
+    expect(articlePost.visible).toEqual(true);
+    expect(articlePost.id).toEqual('p6');
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should allow owners to share when posting to squad is not allowed', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update('s1', { allowMemberPosting: false });
+    await con.getRepository(SourceMember).update(
+      { sourceId: 's1', userId: '1' },
+      {
+        role: SourceMemberRoles.Owner,
+      },
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'http://p6.com' },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'http://p6.com' });
+    expect(articlePost.url).toEqual('http://p6.com');
+    expect(articlePost.visible).toEqual(true);
+    expect(articlePost.id).toEqual('p6');
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
   });
 });

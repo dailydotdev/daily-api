@@ -6,6 +6,7 @@ import { ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, DeepPartial } from 'typeorm';
 import {
+  canPostToSquadCheck,
   ensureSourcePermissions,
   GQLSource,
   SourcePermissions,
@@ -28,6 +29,7 @@ import {
   Post,
   PostReport,
   PostType,
+  SourceType,
   Toc,
   Upvote,
 } from '../entity';
@@ -882,7 +884,16 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (manager) => {
-        await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+        const source = await ensureSourcePermissions(
+          ctx,
+          sourceId,
+          SourcePermissions.Post,
+        );
+
+        if (source.type === SourceType.Squad) {
+          await canPostToSquadCheck(ctx, source);
+        }
+
         const cleanUrl = standardizeURL(url);
         if (!isValidHttpUrl(cleanUrl)) {
           throw new ValidationError('URL is not valid');
@@ -927,7 +938,16 @@ export const resolvers: IResolvers<any, Context> = {
       info,
     ): Promise<GQLPost> => {
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+      const source = await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.Post,
+      );
+
+      if (source.type === SourceType.Squad) {
+        await canPostToSquadCheck(ctx, source);
+      }
+
       const newPost = await createSharePost(
         ctx.con,
         sourceId,

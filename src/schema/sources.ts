@@ -414,15 +414,21 @@ const requireGreaterAccessPrivilege: Partial<
 
 type BaseSourceMember = Pick<SourceMember, 'role'>;
 
+export const hasGreaterAccess = (
+  loggedUser: BaseSourceMember,
+  member: BaseSourceMember,
+): boolean => {
+  const memberRank = sourceRoleRank[member.role];
+  const loggedUserRank = sourceRoleRank[loggedUser.role];
+
+  return loggedUserRank > memberRank;
+};
+
 export const hasGreaterAccessCheck = (
   loggedUser: BaseSourceMember,
   member: BaseSourceMember,
 ) => {
-  const memberRank = sourceRoleRank[member.role];
-  const loggedUserRank = sourceRoleRank[loggedUser.role];
-  const hasGreaterAccess = loggedUserRank > memberRank;
-
-  if (!hasGreaterAccess) {
+  if (!hasGreaterAccess(loggedUser, member)) {
     throw new ForbiddenError('Access denied!');
   }
 };
@@ -477,6 +483,31 @@ export const canAccessSource = async (
   );
 };
 
+export const canPostToSquad = async (
+  ctx: Context,
+  squad: SquadSource,
+): Promise<boolean> => {
+  if (squad.allowMemberPosting) {
+    return true;
+  }
+
+  const repo = ctx.getRepository(SourceMember);
+  const loggedUser = await repo.findOneByOrFail({
+    sourceId: squad.id,
+    userId: ctx.userId,
+  });
+
+  return hasGreaterAccess(loggedUser, { role: SourceMemberRoles.Member });
+};
+
+export const canPostToSquadCheck = async (ctx: Context, squad: SquadSource) => {
+  const isCheckPassed = await canPostToSquad(ctx, squad);
+
+  if (!isCheckPassed) {
+    throw new ForbiddenError('Posting not allowed!');
+  }
+};
+
 const validateSquadData = ({
   handle,
   name,
@@ -504,15 +535,6 @@ export const ensureSourcePermissions = async (
     const source = await ctx.con
       .getRepository(Source)
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
-
-    if (source.type === SourceType.Squad) {
-      const squadSource = source as SquadSource;
-      // TODO WT-1197 check if current user is privileged, if yes allow posting
-
-      if (!squadSource.allowMemberPosting) {
-        throw new ForbiddenError('Posting not allowed!');
-      }
-    }
 
     if (await canAccessSource(ctx, source, permission, validateRankAgainstId)) {
       return source;
