@@ -676,11 +676,11 @@ export const resolvers: IResolvers<any, Context> = {
     },
     sourceMembers: async (
       _,
-      { role, ...args }: SourceMemberArgs,
+      { role, sourceId, ...args }: SourceMemberArgs,
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
-      await ensureSourcePermissions(ctx, args.sourceId);
+      await ensureSourcePermissions(ctx, sourceId);
       const page = membershipsPageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,
@@ -692,7 +692,7 @@ export const resolvers: IResolvers<any, Context> = {
         (builder) => {
           builder.queryBuilder
             .andWhere(`${builder.alias}."sourceId" = :source`, {
-              source: args.sourceId,
+              source: sourceId,
             })
 
             .addOrderBy(
