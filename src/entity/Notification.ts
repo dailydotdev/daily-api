@@ -32,7 +32,11 @@ export type NotificationType =
   | 'squad_new_comment'
   | 'squad_reply'
   | 'squad_post_viewed'
-  | 'squad_post_live';
+  | 'squad_post_live'
+  | 'squad_blocked'
+  | 'role_promote_to_role'
+  | 'role_demote_to_member'
+  | 'role_promote_to_moderator';
 
 export type NotificationReferenceType =
   | 'source_request'

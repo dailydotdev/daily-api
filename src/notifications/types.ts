@@ -11,6 +11,7 @@ import {
 } from '../entity';
 import { ChangeObject } from '../types';
 import { DeepPartial } from 'typeorm';
+import { SourceMemberRoles } from '../roles';
 
 export type Reference<T> = ChangeObject<T> | T;
 
@@ -54,4 +55,8 @@ export type NotificationSourceRequestContext = NotificationBaseContext & {
 
 export type NotificationDoneByContext = NotificationBaseContext & {
   doneBy: Reference<User>;
+};
+
+export type NotificationRolesContext = NotificationSourceContext & {
+  role: Reference<SourceMemberRoles>;
 };

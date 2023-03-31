@@ -15,6 +15,7 @@ import {
   ArticlePost,
 } from '../entity';
 import { ChangeObject } from '../types';
+import { SourceMemberRoles } from '../roles';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
@@ -49,6 +50,9 @@ const sourcePrivacyUpdatedTopic = pubsub.topic('api.v1.source-privacy-updated');
 const featuresResetTopic = pubsub.topic('features-reset');
 const contentRequestedTopic = pubsub.topic('api.v1.content-requested');
 const postVisibleTopic = pubsub.topic('api.v1.post-visible');
+const sourceMemberRoleChangedTopic = pubsub.topic(
+  'api.v1.source-member-role-changed',
+);
 
 export enum NotificationReason {
   New = 'new',
@@ -296,6 +300,16 @@ export const notifySubmissionGrantedAccess = async (
   log: EventLogger,
   userId: string,
 ): Promise<void> => publishEvent(log, communityLinkAccessTopic, { userId });
+
+export const notifySourceMemberRoleChanged = async (
+  log: EventLogger,
+  previousRole: SourceMemberRoles,
+  sourceMember: ChangeObject<SourceMember>,
+): Promise<void> =>
+  publishEvent(log, sourceMemberRoleChangedTopic, {
+    previousRole,
+    sourceMember,
+  });
 
 export const notifyNewNotification = async (
   log: EventLogger,

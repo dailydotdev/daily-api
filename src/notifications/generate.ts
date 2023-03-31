@@ -8,6 +8,7 @@ import {
   NotificationCommenterContext,
   NotificationDoneByContext,
   NotificationPostContext,
+  NotificationRolesContext,
   NotificationSourceContext,
   NotificationSourceRequestContext,
   NotificationSubmissionContext,
@@ -71,6 +72,14 @@ export const notificationTitleMap: Record<
     `<b>${ctx.doneBy.name}</b> <span class="text-theme-color-cabbage">viewed</span> your post on <b>${ctx.source.name}</b>.`,
   squad_post_live: (ctx: NotificationPostContext) =>
     `<b>Your post</b> is now <span class="text-theme-color-cabbage">live</span> on <b>${ctx.source.name}</b>.`,
+  squad_blocked: (ctx: NotificationSourceContext) =>
+    `You are no longer part of <b>${ctx.source.name}</b>`,
+  role_promote_to_role: (ctx: NotificationRolesContext) =>
+    `You are now a <span class="text-theme-color-cabbage">${ctx.role}</span> in <b>${ctx.source.name}</b>`,
+  role_demote_to_member: (ctx: NotificationRolesContext) =>
+    `You are no longer a <span class="text-theme-color-cabbage">${ctx.role}</span> in <b>${ctx.source.name}</b>`,
+  role_promote_to_moderator: (ctx: NotificationSourceContext) =>
+    `Congratulations! You got promoted to a <span class="text-theme-color-cabbage">moderator</span> role in <b>${ctx.source.name}</b>`,
 };
 
 export const generateNotificationMap: Record<
@@ -202,4 +211,15 @@ export const generateNotificationMap: Record<
     builder
       .icon(NotificationIcon.Bell)
       .objectPost(ctx.post, ctx.source, ctx.sharedPost),
+  squad_blocked: (builder, ctx: NotificationSourceContext) =>
+    builder.icon(NotificationIcon.Block).referenceSource(ctx.source),
+  role_promote_to_role: (builder, ctx: NotificationRolesContext) =>
+    builder.role(ctx.role).referenceSource(ctx.source).targetSource(ctx.source),
+  role_demote_to_member: (builder, ctx: NotificationRolesContext) =>
+    builder.role(ctx.role).referenceSource(ctx.source).targetSource(ctx.source),
+  role_promote_to_moderator: (builder, ctx: NotificationSourceContext) =>
+    builder
+      .icon(NotificationIcon.User)
+      .referenceSource(ctx.source)
+      .targetSource(ctx.source),
 };

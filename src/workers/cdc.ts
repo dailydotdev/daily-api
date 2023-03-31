@@ -51,6 +51,7 @@ import {
   notifyFeatureAccess,
   notifySourcePrivacyUpdated,
   notifyPostVisible,
+  notifySourceMemberRoleChanged,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
@@ -415,6 +416,15 @@ const onSourceMemberChange = async (
 ) => {
   if (data.payload.op === 'c') {
     await notifyMemberJoinedSource(logger, data.payload.after);
+  }
+  if (data.payload.op === 'u') {
+    if (data.payload.before.role !== data.payload.after.role) {
+      await notifySourceMemberRoleChanged(
+        logger,
+        data.payload.before.role,
+        data.payload.after,
+      );
+    }
   }
 };
 

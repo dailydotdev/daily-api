@@ -20,7 +20,7 @@ import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { usersFixture } from '../fixture/user';
 import { postsFixture } from '../fixture/post';
-import { sourcesFixture } from '../fixture/source';
+import { createSource, sourcesFixture } from '../fixture/source';
 import {
   NotificationCommentContext,
   NotificationCommenterContext,
@@ -126,6 +126,137 @@ it('should add community picks granted notification', async () => {
   expect(actual[0].type).toEqual('community_picks_granted');
   expect(actual[0].ctx).toEqual({
     userId: '1',
+  });
+});
+
+describe('source member role changed', () => {
+  const baseMember = {
+    userId: '1',
+    sourceId: 'squad',
+    referralToken: 'rt1',
+  };
+
+  beforeEach(async () => {
+    await con
+      .getRepository(Source)
+      .save(createSource('squad', 'A', 'http://a.com', SourceType.Squad, true));
+  });
+
+  it('should add blocked notification', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/sourceMemberRoleChanged'
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      previousRole: SourceMemberRoles.Member,
+      sourceMember: { ...baseMember, role: SourceMemberRoles.Blocked },
+    });
+    const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
+    expect(actual.length).toEqual(1);
+    expect(actual[0].type).toEqual('squad_blocked');
+    expect(actual[0].ctx).toEqual({ userId: '1', source });
+  });
+  it('should add member to moderator notification', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/sourceMemberRoleChanged'
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      previousRole: SourceMemberRoles.Member,
+      sourceMember: { ...baseMember, role: SourceMemberRoles.Moderator },
+    });
+    const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
+
+    expect(actual.length).toEqual(1);
+    expect(actual[0].type).toEqual('role_promote_to_moderator');
+    expect(actual[0].ctx).toEqual({ userId: '1', source });
+  });
+  it('should add member to admin notification', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/sourceMemberRoleChanged'
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      previousRole: SourceMemberRoles.Member,
+      sourceMember: { ...baseMember, role: SourceMemberRoles.Owner },
+    });
+    const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
+
+    expect(actual.length).toEqual(1);
+    expect(actual[0].type).toEqual('role_promote_to_role');
+    expect(actual[0].ctx).toEqual({
+      userId: '1',
+      role: SourceMemberRoles.Owner,
+      source,
+    });
+  });
+  it('should add moderator to member notification', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/sourceMemberRoleChanged'
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      previousRole: SourceMemberRoles.Moderator,
+      sourceMember: { ...baseMember, role: SourceMemberRoles.Member },
+    });
+    const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
+
+    expect(actual.length).toEqual(1);
+    expect(actual[0].type).toEqual('role_demote_to_member');
+    expect(actual[0].ctx).toEqual({
+      userId: '1',
+      role: SourceMemberRoles.Moderator,
+      source,
+    });
+  });
+  it('should add moderator to admin notification', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/sourceMemberRoleChanged'
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      previousRole: SourceMemberRoles.Moderator,
+      sourceMember: { ...baseMember, role: SourceMemberRoles.Owner },
+    });
+    const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
+    expect(actual.length).toEqual(1);
+    expect(actual[0].type).toEqual('role_promote_to_role');
+    expect(actual[0].ctx).toEqual({
+      userId: '1',
+      role: SourceMemberRoles.Owner,
+      source,
+    });
+  });
+  it('should add owner to member notification', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/sourceMemberRoleChanged'
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      previousRole: SourceMemberRoles.Owner,
+      sourceMember: { ...baseMember, role: SourceMemberRoles.Member },
+    });
+    const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
+
+    expect(actual.length).toEqual(1);
+    expect(actual[0].type).toEqual('role_demote_to_member');
+    expect(actual[0].ctx).toEqual({
+      userId: '1',
+      role: SourceMemberRoles.Owner,
+      source,
+    });
+  });
+  it('should add owner to moderator notification', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/sourceMemberRoleChanged'
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      previousRole: SourceMemberRoles.Owner,
+      sourceMember: { ...baseMember, role: SourceMemberRoles.Moderator },
+    });
+    const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
+
+    expect(actual.length).toEqual(1);
+    expect(actual[0].type).toEqual('role_promote_to_role');
+    expect(actual[0].ctx).toEqual({
+      userId: '1',
+      role: SourceMemberRoles.Moderator,
+      source,
+    });
   });
 });
 

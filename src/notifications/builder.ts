@@ -19,6 +19,7 @@ import { getUserPermalink } from '../schema/users';
 import { markdownToTxt } from 'markdown-to-txt';
 import { NotificationBundle, Reference } from './types';
 import { NotificationIcon } from './icons';
+import { SourceMemberRoles } from '../roles';
 
 const MAX_COMMENT_LENGTH = 320;
 
@@ -27,6 +28,13 @@ export const simplifyComment = (comment: string): string => {
   return simplified.length <= MAX_COMMENT_LENGTH
     ? simplified
     : `${simplified.substring(0, MAX_COMMENT_LENGTH - 3)}...`;
+};
+
+const roleToIcon: Record<SourceMemberRoles, NotificationIcon> = {
+  [SourceMemberRoles.Blocked]: NotificationIcon.Block,
+  [SourceMemberRoles.Member]: NotificationIcon.Bell,
+  [SourceMemberRoles.Moderator]: NotificationIcon.User,
+  [SourceMemberRoles.Owner]: NotificationIcon.Star,
 };
 
 export class NotificationBuilder {
@@ -183,6 +191,13 @@ export class NotificationBuilder {
       uniqueKey: upvotes.toString(),
       icon: NotificationIcon.Upvote,
     }).avatarManyUsers(upvoters);
+  }
+
+  role(role: SourceMemberRoles): NotificationBuilder {
+    return this.enrichNotification({
+      uniqueKey: role.toString(),
+      icon: roleToIcon[role],
+    });
   }
 
   uniqueKey(key: string): NotificationBuilder {
