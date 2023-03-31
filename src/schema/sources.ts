@@ -290,6 +290,10 @@ export const typeDefs = /* GraphQL */ `
       Commentary for the first share
       """
       commentary: String
+      """
+      Allow member posting to squad
+      """
+      allowMemberPosting: Boolean
     ): Source! @auth
 
     """
@@ -568,6 +572,7 @@ type CreateSquadArgs = {
   image?: FileUpload;
   postId?: string;
   commentary?: string;
+  allowMemberPosting?: boolean;
 };
 
 type EditSquadArgs = {
@@ -761,6 +766,7 @@ export const resolvers: IResolvers<any, Context> = {
         image,
         postId,
         description,
+        allowMemberPosting = true,
       }: CreateSquadArgs,
       ctx,
       info,
@@ -782,6 +788,7 @@ export const resolvers: IResolvers<any, Context> = {
             active: true,
             description,
             private: true,
+            allowMemberPosting,
           });
           // Add the logged-in user as owner
           await addNewSourceMember(entityManager, {
