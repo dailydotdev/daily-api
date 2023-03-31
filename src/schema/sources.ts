@@ -63,6 +63,12 @@ export interface GQLSourceMember {
   referralToken: string;
 }
 
+interface UpdateMemberRoleArgs {
+  sourceId: string;
+  memberId: string;
+  role: SourceMemberRoles;
+}
+
 export const typeDefs = /* GraphQL */ `
   """
   Source to discover posts from (usually blogs)
@@ -323,6 +329,26 @@ export const typeDefs = /* GraphQL */ `
     ): Source! @auth
 
     """
+    Set the source member's current role
+    """
+    updateMemberRole(
+      """
+      Relevant source the user to update role is a member of
+      """
+      sourceId: ID!
+
+      """
+      Member to update
+      """
+      memberId: ID!
+
+      """
+      Role to update the user to
+      """
+      role: String!
+    ): EmptyResponse! @auth
+
+    """
     Adds the logged-in user as member to the source
     """
     joinSource(
@@ -371,8 +397,7 @@ export enum SourcePermissions {
   PostLimit = 'post_limit',
   PostDelete = 'post_delete',
   MemberRemove = 'member_remove',
-  ModeratorAdd = 'moderator_add',
-  ModeratorRemove = 'moderator_remove',
+  MemberRoleUpdate = 'member_role_update',
   InviteDisable = 'invite_disable',
   Leave = 'leave',
   Delete = 'delete',
@@ -393,9 +418,8 @@ const moderatorPermissions = [
 ];
 const ownerPermissions = [
   ...moderatorPermissions,
+  SourcePermissions.MemberRoleUpdate,
   SourcePermissions.PostLimit,
-  SourcePermissions.ModeratorAdd,
-  SourcePermissions.ModeratorRemove,
   SourcePermissions.InviteDisable,
   SourcePermissions.Delete,
 ];
@@ -432,6 +456,10 @@ export const hasGreaterAccessCheck = (
   loggedUser: BaseSourceMember,
   member: BaseSourceMember,
 ) => {
+  if (loggedUser.role === SourceMemberRoles.Owner) {
+    return;
+  }
+
   if (!hasGreaterAccess(loggedUser, member)) {
     throw new ForbiddenError('Access denied!');
   }
@@ -902,6 +930,36 @@ export const resolvers: IResolvers<any, Context> = {
         sourceId,
         userId: ctx.userId,
       });
+      return { _: true };
+    },
+    updateMemberRole: async (
+      _,
+      { sourceId, memberId, role }: UpdateMemberRoleArgs,
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      if (role === SourceMemberRoles.Blocked) {
+        await ensureSourcePermissions(
+          ctx,
+          sourceId,
+          SourcePermissions.MemberRemove,
+          memberId,
+        );
+      } else {
+        await ensureSourcePermissions(
+          ctx,
+          sourceId,
+          SourcePermissions.MemberRoleUpdate,
+        );
+
+        if (!Object.values(SourceMemberRoles).includes(role)) {
+          throw new ValidationError('Role does not exist!');
+        }
+      }
+
+      await ctx.con
+        .getRepository(SourceMember)
+        .update({ sourceId, userId: memberId }, { role });
+
       return { _: true };
     },
     joinSource: async (
