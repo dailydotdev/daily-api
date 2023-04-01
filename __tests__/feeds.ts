@@ -569,6 +569,39 @@ describe('query feed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
+  it('should return feed v2 with metadata', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6000')
+      .get(
+        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&user_id=1&feed_id=1',
+      )
+      .reply(200, {
+        data: [
+          { post_id: 'p1', metadata: { p: 'a' } },
+          {
+            post_id: 'p4',
+            metadata: { p: 'b' },
+          },
+        ],
+      });
+    const QUERY = `
+  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
+    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
+      edges {
+        node {
+          id
+          feedMeta
+        }
+      }
+    }
+  }
+`;
+    const res = await client.query(QUERY, {
+      variables: { ...variables, version: 2 },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+
   it('should return only article posts by default', async () => {
     loggedUser = '1';
     await saveFeedFixtures();

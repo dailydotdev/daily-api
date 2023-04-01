@@ -266,18 +266,18 @@ export function feedResolver<
   query: (
     ctx: Context,
     args: TArgs,
-    builder: SelectQueryBuilder<Post>,
+    builder: SelectQueryBuilder<Post & { feedMeta?: string }>,
     alias: string,
     params?: TParams,
-  ) => SelectQueryBuilder<Post>,
+  ) => SelectQueryBuilder<Post & { feedMeta?: string }>,
   pageGenerator: PageGenerator<GQLPost, TArgs, TPage, TParams>,
   applyPaging: (
     ctx: Context,
     args: TArgs,
     page: TPage,
-    builder: SelectQueryBuilder<Post>,
+    builder: SelectQueryBuilder<Post & { feedMeta?: string }>,
     alias: string,
-  ) => SelectQueryBuilder<Post>,
+  ) => SelectQueryBuilder<Post & { feedMeta?: string }>,
   {
     removeHiddenPosts = true,
     removeBannedPosts = true,
@@ -516,9 +516,9 @@ export const tagFeedBuilder = (
 export const fixedIdsFeedBuilder = (
   ctx: Context,
   ids: string[],
-  builder: SelectQueryBuilder<Post>,
+  builder: SelectQueryBuilder<Post & { feedMeta?: string }>,
   alias: string,
-): SelectQueryBuilder<Post> => {
+): SelectQueryBuilder<Post & { feedMeta?: string }> => {
   // In case ids is empty make sure the query does not fail
   const idsStr = ids.length
     ? ids.map((id) => `'${id}'`).join(',')
