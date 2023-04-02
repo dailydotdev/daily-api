@@ -166,7 +166,7 @@ describe('source member role changed', () => {
     const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
 
     expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('role_promote_to_moderator');
+    expect(actual[0].type).toEqual('promoted_to_moderator');
     expect(actual[0].ctx).toEqual({ userId: '1', source });
   });
   it('should add member to admin notification', async () => {
@@ -180,7 +180,7 @@ describe('source member role changed', () => {
     const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
 
     expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('role_promote_to_role');
+    expect(actual[0].type).toEqual('promoted_to_role');
     expect(actual[0].ctx).toEqual({
       userId: '1',
       role: SourceMemberRoles.Owner,
@@ -198,7 +198,7 @@ describe('source member role changed', () => {
     const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
 
     expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('role_demote_to_member');
+    expect(actual[0].type).toEqual('demoted_to_member');
     expect(actual[0].ctx).toEqual({
       userId: '1',
       role: SourceMemberRoles.Moderator,
@@ -215,7 +215,7 @@ describe('source member role changed', () => {
     });
     const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
     expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('role_promote_to_role');
+    expect(actual[0].type).toEqual('promoted_to_role');
     expect(actual[0].ctx).toEqual({
       userId: '1',
       role: SourceMemberRoles.Owner,
@@ -233,7 +233,7 @@ describe('source member role changed', () => {
     const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
 
     expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('role_demote_to_member');
+    expect(actual[0].type).toEqual('demoted_to_member');
     expect(actual[0].ctx).toEqual({
       userId: '1',
       role: SourceMemberRoles.Owner,
@@ -251,7 +251,7 @@ describe('source member role changed', () => {
     const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
 
     expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('role_promote_to_role');
+    expect(actual[0].type).toEqual('promoted_to_role');
     expect(actual[0].ctx).toEqual({
       userId: '1',
       role: SourceMemberRoles.Moderator,

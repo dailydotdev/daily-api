@@ -2,7 +2,12 @@ import { messageToJson } from '../worker';
 import { NotificationSourceContext } from '../../notifications';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
-import { NotificationType, Source, SourceMember } from '../../entity';
+import {
+  NotificationType,
+  Source,
+  SourceMember,
+  SourceType,
+} from '../../entity';
 import { SourceMemberRoles } from '../../roles';
 
 interface Data {
@@ -18,18 +23,18 @@ const previousRoleToNewRole: Partial<
 > = {
   [SourceMemberRoles.Member]: {
     [SourceMemberRoles.Blocked]: 'squad_blocked',
-    [SourceMemberRoles.Owner]: 'role_promote_to_role',
-    [SourceMemberRoles.Moderator]: 'role_promote_to_moderator',
+    [SourceMemberRoles.Owner]: 'promoted_to_role',
+    [SourceMemberRoles.Moderator]: 'promoted_to_moderator',
   },
   [SourceMemberRoles.Moderator]: {
     [SourceMemberRoles.Blocked]: 'squad_blocked',
-    [SourceMemberRoles.Owner]: 'role_promote_to_role',
-    [SourceMemberRoles.Member]: 'role_demote_to_member',
+    [SourceMemberRoles.Owner]: 'promoted_to_role',
+    [SourceMemberRoles.Member]: 'demoted_to_member',
   },
   [SourceMemberRoles.Owner]: {
     [SourceMemberRoles.Blocked]: 'squad_blocked',
-    [SourceMemberRoles.Moderator]: 'role_promote_to_role',
-    [SourceMemberRoles.Member]: 'role_demote_to_member',
+    [SourceMemberRoles.Moderator]: 'promoted_to_role',
+    [SourceMemberRoles.Member]: 'demoted_to_member',
   },
 };
 
@@ -45,12 +50,15 @@ const worker: NotificationWorker = {
       userId: member.userId,
       source,
     };
+    if (!source) {
+      return;
+    }
 
     const roleToNotificationMap =
-      previousRoleToNewRole[previousRole][member.role];
+      previousRoleToNewRole[previousRole]?.[member.role];
 
     switch (roleToNotificationMap) {
-      case 'role_promote_to_role':
+      case 'promoted_to_role':
         return [
           {
             type: roleToNotificationMap,
@@ -58,7 +66,7 @@ const worker: NotificationWorker = {
           },
         ];
         break;
-      case 'role_demote_to_member':
+      case 'demoted_to_member':
         return [
           {
             type: roleToNotificationMap,
@@ -66,7 +74,7 @@ const worker: NotificationWorker = {
           },
         ];
         break;
-      case 'role_promote_to_moderator':
+      case 'promoted_to_moderator':
       case 'squad_blocked':
         return [{ type: roleToNotificationMap, ctx: baseCtx }];
         break;

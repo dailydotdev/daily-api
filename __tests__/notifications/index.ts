@@ -5,7 +5,7 @@ import {
   NotificationCommenterContext,
   NotificationDoneByContext,
   NotificationPostContext,
-  NotificationRolesContext,
+  NotificationSourceMemberRoleContext,
   NotificationSourceContext,
   NotificationSourceRequestContext,
   NotificationSubmissionContext,
@@ -685,9 +685,9 @@ describe('generateNotification', () => {
     );
   });
 
-  it('should generate role_promote_to_role owner notification', () => {
-    const type = 'role_promote_to_role';
-    const ctx: NotificationRolesContext = {
+  it('should generate promoted_to_role owner notification', () => {
+    const type = 'promoted_to_role';
+    const ctx: NotificationSourceMemberRoleContext = {
       userId,
       source: {
         ...sourcesFixture[0],
@@ -710,9 +710,9 @@ describe('generateNotification', () => {
     );
   });
 
-  it('should generate role_promote_to_role moderator notification', () => {
-    const type = 'role_promote_to_role';
-    const ctx: NotificationRolesContext = {
+  it('should generate promoted_to_role moderator notification', () => {
+    const type = 'promoted_to_role';
+    const ctx: NotificationSourceMemberRoleContext = {
       userId,
       source: {
         ...sourcesFixture[0],
@@ -735,9 +735,9 @@ describe('generateNotification', () => {
     );
   });
 
-  it('should generate role_demote_to_member notification', () => {
-    const type = 'role_demote_to_member';
-    const ctx: NotificationRolesContext = {
+  it('should generate demoted_to_member notification', () => {
+    const type = 'demoted_to_member';
+    const ctx: NotificationSourceMemberRoleContext = {
       userId,
       source: {
         ...sourcesFixture[0],
@@ -760,8 +760,8 @@ describe('generateNotification', () => {
     );
   });
 
-  it('should generate role_promote_to_moderator notification', () => {
-    const type = 'role_promote_to_moderator';
+  it('should generate promoted_to_moderator notification', () => {
+    const type = 'promoted_to_moderator';
     const ctx: NotificationSourceContext = {
       userId,
       source: {

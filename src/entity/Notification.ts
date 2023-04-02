@@ -34,9 +34,9 @@ export type NotificationType =
   | 'squad_post_viewed'
   | 'squad_post_live'
   | 'squad_blocked'
-  | 'role_promote_to_role'
-  | 'role_demote_to_member'
-  | 'role_promote_to_moderator';
+  | 'promoted_to_role'
+  | 'demoted_to_member'
+  | 'promoted_to_moderator';
 
 export type NotificationReferenceType =
   | 'source_request'

@@ -8,7 +8,7 @@ import {
   NotificationCommenterContext,
   NotificationDoneByContext,
   NotificationPostContext,
-  NotificationRolesContext,
+  NotificationSourceMemberRoleContext,
   NotificationSourceContext,
   NotificationSourceRequestContext,
   NotificationSubmissionContext,
@@ -74,11 +74,11 @@ export const notificationTitleMap: Record<
     `<b>Your post</b> is now <span class="text-theme-color-cabbage">live</span> on <b>${ctx.source.name}</b>.`,
   squad_blocked: (ctx: NotificationSourceContext) =>
     `You are no longer part of <b>${ctx.source.name}</b>`,
-  role_promote_to_role: (ctx: NotificationRolesContext) =>
+  promoted_to_role: (ctx: NotificationSourceMemberRoleContext) =>
     `You are now a <span class="text-theme-color-cabbage">${ctx.role}</span> in <b>${ctx.source.name}</b>`,
-  role_demote_to_member: (ctx: NotificationRolesContext) =>
+  demoted_to_member: (ctx: NotificationSourceMemberRoleContext) =>
     `You are no longer a <span class="text-theme-color-cabbage">${ctx.role}</span> in <b>${ctx.source.name}</b>`,
-  role_promote_to_moderator: (ctx: NotificationSourceContext) =>
+  promoted_to_moderator: (ctx: NotificationSourceContext) =>
     `Congratulations! You got promoted to a <span class="text-theme-color-cabbage">moderator</span> role in <b>${ctx.source.name}</b>`,
 };
 
@@ -213,11 +213,17 @@ export const generateNotificationMap: Record<
       .objectPost(ctx.post, ctx.source, ctx.sharedPost),
   squad_blocked: (builder, ctx: NotificationSourceContext) =>
     builder.icon(NotificationIcon.Block).referenceSource(ctx.source),
-  role_promote_to_role: (builder, ctx: NotificationRolesContext) =>
-    builder.role(ctx.role).referenceSource(ctx.source).targetSource(ctx.source),
-  role_demote_to_member: (builder, ctx: NotificationRolesContext) =>
-    builder.role(ctx.role).referenceSource(ctx.source).targetSource(ctx.source),
-  role_promote_to_moderator: (builder, ctx: NotificationSourceContext) =>
+  promoted_to_role: (builder, ctx: NotificationSourceMemberRoleContext) =>
+    builder
+      .sourceMemberRole(ctx.role)
+      .referenceSource(ctx.source)
+      .targetSource(ctx.source),
+  demoted_to_member: (builder, ctx: NotificationSourceMemberRoleContext) =>
+    builder
+      .sourceMemberRole(ctx.role)
+      .referenceSource(ctx.source)
+      .targetSource(ctx.source),
+  promoted_to_moderator: (builder, ctx: NotificationSourceContext) =>
     builder
       .icon(NotificationIcon.User)
       .referenceSource(ctx.source)

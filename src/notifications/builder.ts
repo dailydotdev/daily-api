@@ -193,7 +193,7 @@ export class NotificationBuilder {
     }).avatarManyUsers(upvoters);
   }
 
-  role(role: SourceMemberRoles): NotificationBuilder {
+  sourceMemberRole(role: SourceMemberRoles): NotificationBuilder {
     return this.enrichNotification({
       uniqueKey: role.toString(),
       icon: roleToIcon[role],

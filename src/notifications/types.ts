@@ -57,6 +57,6 @@ export type NotificationDoneByContext = NotificationBaseContext & {
   doneBy: Reference<User>;
 };
 
-export type NotificationRolesContext = NotificationSourceContext & {
+export type NotificationSourceMemberRoleContext = NotificationSourceContext & {
   role: Reference<SourceMemberRoles>;
 };

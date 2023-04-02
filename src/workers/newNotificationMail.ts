@@ -56,9 +56,9 @@ const notificationToTemplateId: Record<NotificationType, string> = {
   squad_access: 'd-6b3de457947b415d93d0029361edaf1d',
   squad_post_live: 'd-343845599453499d9fa5d3ffafc91514',
   squad_blocked: '',
-  role_promote_to_role: '',
-  role_demote_to_member: '',
-  role_promote_to_moderator: '',
+  promoted_to_role: '',
+  demoted_to_member: '',
+  promoted_to_moderator: '',
 };
 
 type TemplateDataFunc = (
@@ -482,9 +482,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   squad_blocked: null,
-  role_promote_to_role: null,
-  role_demote_to_member: null,
-  role_promote_to_moderator: null,
+  promoted_to_role: null,
+  demoted_to_member: null,
+  promoted_to_moderator: null,
 };
 
 const formatTemplateDate = <T extends Record<string, unknown>>(data: T): T => {
