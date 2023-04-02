@@ -2,12 +2,7 @@ import { messageToJson } from '../worker';
 import { NotificationSourceContext } from '../../notifications';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
-import {
-  NotificationType,
-  Source,
-  SourceMember,
-  SourceType,
-} from '../../entity';
+import { NotificationType, Source, SourceMember } from '../../entity';
 import { SourceMemberRoles } from '../../roles';
 
 interface Data {
