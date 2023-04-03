@@ -483,6 +483,7 @@ const hasPermissionCheck = (
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
+  sourceMember: SourceMember,
   permission: SourcePermissions,
   validateRankAgainstId?: string,
 ): Promise<boolean> => {
@@ -496,48 +497,36 @@ export const canAccessSource = async (
 
   const sourceId = source.id;
   const repo = ctx.getRepository(SourceMember);
-  const [loggedUser, validateRankAgainst] = await Promise.all([
-    repo.findOneBy({ sourceId, userId: ctx.userId }),
-    requireGreaterAccessPrivilege[permission]
-      ? repo.findOneByOrFail({ sourceId, userId: validateRankAgainstId })
-      : Promise.resolve(null),
-  ]);
+  const validateRankAgainst = await (requireGreaterAccessPrivilege[permission]
+    ? repo.findOneByOrFail({ sourceId, userId: validateRankAgainstId })
+    : Promise.resolve(null));
 
-  if (!loggedUser) {
+  if (!sourceMember) {
     return false;
   }
 
   return hasPermissionCheck(
     source,
-    loggedUser,
+    sourceMember,
     permission,
     validateRankAgainst,
   );
 };
 
-export const canPostToSquad = async (
+export const canPostToSquad = (
   ctx: Context,
   squad: SquadSource,
-): Promise<boolean> => {
+  sourceMember: SourceMember,
+): boolean => {
+  if (!sourceMember) {
+    return false;
+  }
+
   if (squad.allowMemberPosting) {
     return true;
   }
 
-  const repo = ctx.getRepository(SourceMember);
-  const loggedUser = await repo.findOneByOrFail({
-    sourceId: squad.id,
-    userId: ctx.userId,
-  });
-
-  return hasGreaterAccess(loggedUser, { role: SourceMemberRoles.Member });
-};
-
-export const canPostToSquadCheck = async (ctx: Context, squad: SquadSource) => {
-  const isCheckPassed = await canPostToSquad(ctx, squad);
-
-  if (!isCheckPassed) {
-    throw new ForbiddenError('Posting not allowed!');
-  }
+  return hasGreaterAccess(sourceMember, { role: SourceMemberRoles.Member });
 };
 
 const validateSquadData = ({
@@ -564,13 +553,36 @@ export const ensureSourcePermissions = async (
   validateRankAgainstId?: string,
 ): Promise<Source> => {
   if (sourceId) {
-    const source = await ctx.con
-      .getRepository(Source)
-      .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
+    const [source, sourceMember] = await Promise.all([
+      ctx.con
+        .getRepository(Source)
+        .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]),
+      ctx.con
+        .getRepository(SourceMember)
+        .findOneBy({ sourceId, userId: ctx.userId }),
+    ]);
 
-    if (await canAccessSource(ctx, source, permission, validateRankAgainstId)) {
-      return source;
+    const canAccess = await canAccessSource(
+      ctx,
+      source,
+      sourceMember,
+      permission,
+      validateRankAgainstId,
+    );
+
+    if (!canAccess) {
+      throw new ForbiddenError('Access denied!');
     }
+
+    if (
+      source.type === SourceType.Squad &&
+      permission === SourcePermissions.Post &&
+      !canPostToSquad(ctx, source, sourceMember)
+    ) {
+      throw new ForbiddenError('Posting not allowed!');
+    }
+
+    return source;
   }
   throw new ForbiddenError('Access denied!');
 };
