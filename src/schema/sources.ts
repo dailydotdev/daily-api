@@ -442,16 +442,6 @@ const requireGreaterAccessPrivilege: Partial<
 
 type BaseSourceMember = Pick<SourceMember, 'role'>;
 
-export const hasGreaterAccess = (
-  loggedUser: BaseSourceMember,
-  member: BaseSourceMember,
-): boolean => {
-  const memberRank = sourceRoleRank[member.role];
-  const loggedUserRank = sourceRoleRank[loggedUser.role];
-
-  return loggedUserRank > memberRank;
-};
-
 export const hasGreaterAccessCheck = (
   loggedUser: BaseSourceMember,
   member: BaseSourceMember,
@@ -460,7 +450,11 @@ export const hasGreaterAccessCheck = (
     return;
   }
 
-  if (!hasGreaterAccess(loggedUser, member)) {
+  const memberRank = sourceRoleRank[member.role];
+  const loggedUserRank = sourceRoleRank[loggedUser.role];
+  const hasGreaterAccess = loggedUserRank > memberRank;
+
+  if (!hasGreaterAccess) {
     throw new ForbiddenError('Access denied!');
   }
 };
