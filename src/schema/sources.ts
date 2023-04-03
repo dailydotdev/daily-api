@@ -439,6 +439,7 @@ const moderatorPermissions = [
   SourcePermissions.MemberRemove,
   SourcePermissions.Edit,
   SourcePermissions.MemberUnblock,
+  SourcePermissions.ViewBlockedMembers,
 ];
 const ownerPermissions = [
   ...moderatorPermissions,

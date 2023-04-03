@@ -546,13 +546,34 @@ query SourceMembers($id: ID!, $role: String) {
     );
   });
 
-  it('should return blocked users only', async () => {
+  it('should return blocked users only when user is the owner', async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
       .update(
         { userId: '2', sourceId: 'a' },
         { role: SourceMemberRoles.Blocked },
+      );
+    const res = await client.query(QUERY, {
+      variables: { role: SourceMemberRoles.Blocked, id: 'a' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return blocked users only when user is a moderator', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '2', sourceId: 'a' },
+        { role: SourceMemberRoles.Blocked },
+      );
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '1', sourceId: 'a' },
+        { role: SourceMemberRoles.Moderator },
       );
     const res = await client.query(QUERY, {
       variables: { role: SourceMemberRoles.Blocked, id: 'a' },
