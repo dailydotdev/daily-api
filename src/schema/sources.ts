@@ -414,6 +414,7 @@ const sourceToGQL = (source: Source): GQLSource => ({
 export enum SourcePermissions {
   CommentDelete = 'comment_delete',
   View = 'view',
+  ViewBlockedMembers = 'view_blocked_members',
   Post = 'post',
   PostLimit = 'post_limit',
   PostDelete = 'post_delete',
@@ -680,7 +681,12 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
-      await ensureSourcePermissions(ctx, sourceId);
+      const permission =
+        role === SourceMemberRoles.Blocked
+          ? SourcePermissions.ViewBlockedMembers
+          : SourcePermissions.View;
+
+      await ensureSourcePermissions(ctx, sourceId, permission);
       const page = membershipsPageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,

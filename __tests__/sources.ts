@@ -531,14 +531,29 @@ query SourceMembers($id: ID!, $role: String) {
     );
   });
 
+  it('should not return blocked source members when user is not a moderator/owner', async () => {
+    loggedUser = '2';
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '1', sourceId: 'a' },
+        { role: SourceMemberRoles.Blocked },
+      );
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { role: SourceMemberRoles.Blocked, id: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
   it('should return blocked users only', async () => {
+    loggedUser = '1';
     await con
       .getRepository(SourceMember)
       .update(
         { userId: '2', sourceId: 'a' },
         { role: SourceMemberRoles.Blocked },
       );
-    loggedUser = '1';
     const res = await client.query(QUERY, {
       variables: { role: SourceMemberRoles.Blocked, id: 'a' },
     });
