@@ -31,6 +31,7 @@ import {
   notifyUsernameChanged,
   notifyUserUpdated,
   notifyPostVisible,
+  notifySourceMemberRoleChanged,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -71,6 +72,7 @@ import { submissionAccessThreshold } from '../../src/schema/submissions';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { TypeOrmError } from '../../src/errors';
+import { SourceMemberRoles } from '../../src/roles';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -102,6 +104,7 @@ jest.mock('../../src/common', () => ({
   notifySourcePrivacyUpdated: jest.fn(),
   notifyContentRequested: jest.fn(),
   notifyPostVisible: jest.fn(),
+  notifySourceMemberRoleChanged: jest.fn(),
 }));
 
 let con: DataSource;
@@ -1182,6 +1185,7 @@ describe('source member', () => {
     userId: '1',
     sourceId: 'a',
     referralToken: 'rt',
+    role: SourceMemberRoles.Member,
   };
 
   it('should notify on new source member', async () => {
@@ -1198,6 +1202,44 @@ describe('source member', () => {
     expect(
       jest.mocked(notifyMemberJoinedSource).mock.calls[0].slice(1),
     ).toEqual([base]);
+  });
+
+  it('should notify when role changed', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      role: SourceMemberRoles.Owner,
+    };
+    await saveFixtures(con, User, [defaultUser]);
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'source_member',
+      }),
+    );
+    expect(notifySourceMemberRoleChanged).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifySourceMemberRoleChanged).mock.calls[0].slice(1),
+    ).toEqual([base.role, after]);
+  });
+
+  it("should not notify if role doesn't change", async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      referralToken: 'rtnew',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'source_member',
+      }),
+    );
+    expect(notifySourceMemberRoleChanged).toBeCalledTimes(0);
   });
 });
 

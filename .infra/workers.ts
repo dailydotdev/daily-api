@@ -175,4 +175,8 @@ export const workers: Worker[] = [
     topic: 'yggdrasil.v1.content-published',
     subscription: 'api.content-published',
   },
+  {
+    topic: 'api.v1.source-member-role-changed',
+    subscription: 'api.source-member-role-changed-notification',
+  },
 ];

@@ -5,6 +5,7 @@ import {
   NotificationCommenterContext,
   NotificationDoneByContext,
   NotificationPostContext,
+  NotificationSourceMemberRoleContext,
   NotificationSourceContext,
   NotificationSourceRequestContext,
   NotificationSubmissionContext,
@@ -15,21 +16,22 @@ import {
 import { postsFixture } from '../fixture/post';
 import {
   Comment,
-  Post,
-  User,
-  Source,
-  SourceRequest,
+  Notification,
   NotificationAttachment,
   NotificationAvatar,
-  Notification,
-  SourceType,
+  Post,
   PostType,
+  Source,
+  SourceRequest,
+  SourceType,
+  User,
 } from '../../src/entity';
 import { scoutArticleLink } from '../../src/common';
 import { usersFixture } from '../fixture/user';
 import createOrGetConnection from '../../src/db';
 import { DataSource } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
+import { SourceMemberRoles } from '../../src/roles';
 
 const userId = '1';
 const commentFixture: Reference<Comment> = {
@@ -660,6 +662,126 @@ describe('generateNotification', () => {
       },
     ]);
     expect(actual.attachments.length).toEqual(0);
+  });
+
+  it('should generate squad_blocked notification', () => {
+    const type = 'squad_blocked';
+    const ctx: NotificationSourceContext = {
+      userId,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+    };
+    const actual = generateNotification(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('a');
+    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.icon).toEqual('Block');
+    expect(actual.notification.title).toEqual(
+      `You are no longer part of <b>${sourcesFixture[0].name}</b>`,
+    );
+  });
+
+  it('should generate promoted_to_role owner notification', () => {
+    const type = 'promoted_to_role';
+    const ctx: NotificationSourceMemberRoleContext = {
+      userId,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+      role: SourceMemberRoles.Owner,
+    };
+    const actual = generateNotification(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('a');
+    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.icon).toEqual('Star');
+    expect(actual.notification.title).toEqual(
+      `You are now a <span class="text-theme-color-cabbage">${SourceMemberRoles.Owner}</span> in <b>${sourcesFixture[0].name}</b>`,
+    );
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/squads/a',
+    );
+  });
+
+  it('should generate promoted_to_role moderator notification', () => {
+    const type = 'promoted_to_role';
+    const ctx: NotificationSourceMemberRoleContext = {
+      userId,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+      role: SourceMemberRoles.Moderator,
+    };
+    const actual = generateNotification(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('a');
+    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.icon).toEqual('User');
+    expect(actual.notification.title).toEqual(
+      `You are now a <span class="text-theme-color-cabbage">${SourceMemberRoles.Moderator}</span> in <b>${sourcesFixture[0].name}</b>`,
+    );
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/squads/a',
+    );
+  });
+
+  it('should generate demoted_to_member notification', () => {
+    const type = 'demoted_to_member';
+    const ctx: NotificationSourceMemberRoleContext = {
+      userId,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+      role: SourceMemberRoles.Owner,
+    };
+    const actual = generateNotification(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('a');
+    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.icon).toEqual('Star');
+    expect(actual.notification.title).toEqual(
+      `You are no longer a <span class="text-theme-color-cabbage">${SourceMemberRoles.Owner}</span> in <b>${sourcesFixture[0].name}</b>`,
+    );
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/squads/a',
+    );
+  });
+
+  it('should generate promoted_to_moderator notification', () => {
+    const type = 'promoted_to_moderator';
+    const ctx: NotificationSourceContext = {
+      userId,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+    };
+    const actual = generateNotification(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('a');
+    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.icon).toEqual('User');
+    expect(actual.notification.title).toEqual(
+      `Congratulations! You got promoted to a <span class="text-theme-color-cabbage">moderator</span> role in <b>${sourcesFixture[0].name}</b>`,
+    );
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/squads/a',
+    );
   });
 });
 
