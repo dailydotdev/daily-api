@@ -101,6 +101,6 @@ export class SquadSource extends Source {
   @Column({ type: 'text', nullable: true })
   description?: string;
 
-  @Column({ default: true })
-  allowMemberPosting?: boolean;
+  @Column({ default: 0 })
+  memberPostingRank?: number;
 }

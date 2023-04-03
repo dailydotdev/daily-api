@@ -9,6 +9,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationError,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
@@ -31,7 +32,7 @@ import {
   User,
   View,
 } from '../src/entity';
-import { SourceMemberRoles } from '../src/roles';
+import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
@@ -1417,6 +1418,7 @@ describe('mutation sharePost', () => {
       handle: 's1',
       name: 'Squad',
       private: false,
+      memberPostingRank: 0,
     });
     await con.getRepository(SourceMember).save({
       sourceId: 's1',
@@ -1476,10 +1478,10 @@ describe('mutation sharePost', () => {
 
   it('should throw error for members if posting to squad is not allowed', async () => {
     loggedUser = '1';
-    await con.getRepository(Post).update('p6', { deleted: true });
-    await con
-      .getRepository(SquadSource)
-      .update('s1', { allowMemberPosting: false });
+    await con.getRepository(SquadSource).update('s1', {
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+
     await testMutationError(
       client,
       { mutation: MUTATION, variables: { ...variables, sourceId: 's1' } },
@@ -1493,9 +1495,9 @@ describe('mutation sharePost', () => {
 
   it('should allow moderators to post when posting to squad is not allowed', async () => {
     loggedUser = '1';
-    await con
-      .getRepository(SquadSource)
-      .update('s1', { allowMemberPosting: false });
+    await con.getRepository(SquadSource).update('s1', {
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
     await con.getRepository(SourceMember).update(
       { sourceId: 's1', userId: '1' },
       {
@@ -1514,9 +1516,9 @@ describe('mutation sharePost', () => {
 
   it('should allow owners to post when posting to squad is not allowed', async () => {
     loggedUser = '1';
-    await con
-      .getRepository(SquadSource)
-      .update('s1', { allowMemberPosting: false });
+    await con.getRepository(SquadSource).update('s1', {
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
     await con.getRepository(SourceMember).update(
       { sourceId: 's1', userId: '1' },
       {
@@ -1637,7 +1639,7 @@ describe('mutation submitExternalLink', () => {
       handle: 's1',
       name: 'Squad',
       private: false,
-      allowMemberPosting: true,
+      memberPostingRank: 0,
     });
     await con.getRepository(SourceMember).save({
       sourceId: 's1',
@@ -1747,10 +1749,10 @@ describe('mutation submitExternalLink', () => {
 
   it('should throw error for members if posting to squad is not allowed', async () => {
     loggedUser = '1';
-    await con.getRepository(Post).update('p6', { deleted: true });
-    await con
-      .getRepository(SquadSource)
-      .update('s1', { allowMemberPosting: false });
+    await con.getRepository(SquadSource).update('s1', {
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+
     await testMutationError(
       client,
       { mutation: MUTATION, variables: { ...variables, sourceId: 's1' } },
@@ -1764,9 +1766,9 @@ describe('mutation submitExternalLink', () => {
 
   it('should allow moderators to share when posting to squad is not allowed', async () => {
     loggedUser = '1';
-    await con
-      .getRepository(SquadSource)
-      .update('s1', { allowMemberPosting: false });
+    await con.getRepository(SquadSource).update('s1', {
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
     await con.getRepository(SourceMember).update(
       { sourceId: 's1', userId: '1' },
       {
@@ -1797,9 +1799,9 @@ describe('mutation submitExternalLink', () => {
 
   it('should allow owners to share when posting to squad is not allowed', async () => {
     loggedUser = '1';
-    await con
-      .getRepository(SquadSource)
-      .update('s1', { allowMemberPosting: false });
+    await con.getRepository(SquadSource).update('s1', {
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
     await con.getRepository(SourceMember).update(
       { sourceId: 's1', userId: '1' },
       {

@@ -297,9 +297,9 @@ export const typeDefs = /* GraphQL */ `
       """
       commentary: String
       """
-      Allow member posting to squad
+      Rank required for members to post
       """
-      allowMemberPosting: Boolean
+      memberPostingRank: Int
     ): Source! @auth
 
     """
@@ -522,11 +522,7 @@ export const canPostToSquad = (
     return false;
   }
 
-  if (squad.allowMemberPosting) {
-    return true;
-  }
-
-  return hasGreaterAccess(sourceMember, { role: SourceMemberRoles.Member });
+  return sourceRoleRank[sourceMember.role] >= squad.memberPostingRank;
 };
 
 const validateSquadData = ({
@@ -610,7 +606,7 @@ type CreateSquadArgs = {
   image?: FileUpload;
   postId?: string;
   commentary?: string;
-  allowMemberPosting?: boolean;
+  memberPostingRank?: number;
 };
 
 type EditSquadArgs = {
@@ -804,7 +800,7 @@ export const resolvers: IResolvers<any, Context> = {
         image,
         postId,
         description,
-        allowMemberPosting = true,
+        memberPostingRank = 0,
       }: CreateSquadArgs,
       ctx,
       info,
@@ -826,7 +822,7 @@ export const resolvers: IResolvers<any, Context> = {
             active: true,
             description,
             private: true,
-            allowMemberPosting,
+            memberPostingRank,
           });
           // Add the logged-in user as owner
           await addNewSourceMember(entityManager, {
