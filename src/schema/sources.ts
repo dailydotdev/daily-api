@@ -553,14 +553,12 @@ export const ensureSourcePermissions = async (
   validateRankAgainstId?: string,
 ): Promise<Source> => {
   if (sourceId) {
-    const [source, sourceMember] = await Promise.all([
-      ctx.con
-        .getRepository(Source)
-        .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]),
-      ctx.con
-        .getRepository(SourceMember)
-        .findOneBy({ sourceId, userId: ctx.userId }),
-    ]);
+    const source = await ctx.con
+      .getRepository(Source)
+      .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
+    const sourceMember = await ctx.con
+      .getRepository(SourceMember)
+      .findOneByOrFail({ sourceId: source.id, userId: ctx.userId });
 
     const canAccess = await canAccessSource(
       ctx,

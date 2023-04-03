@@ -1480,10 +1480,14 @@ describe('mutation sharePost', () => {
     await con
       .getRepository(SquadSource)
       .update('s1', { allowMemberPosting: false });
-    return testMutationErrorCode(
+    await testMutationError(
       client,
-      { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
-      'FORBIDDEN',
+      { mutation: MUTATION, variables: { ...variables, sourceId: 's1' } },
+      (errors) => {
+        expect(errors.length).toEqual(1);
+        expect(errors[0].extensions?.code).toEqual('FORBIDDEN');
+        expect(errors[0]?.message).toEqual('Posting not allowed!');
+      },
     );
   });
 
@@ -1747,10 +1751,14 @@ describe('mutation submitExternalLink', () => {
     await con
       .getRepository(SquadSource)
       .update('s1', { allowMemberPosting: false });
-    return testMutationErrorCode(
+    await testMutationError(
       client,
-      { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
-      'FORBIDDEN',
+      { mutation: MUTATION, variables: { ...variables, sourceId: 's1' } },
+      (errors) => {
+        expect(errors.length).toEqual(1);
+        expect(errors[0].extensions?.code).toEqual('FORBIDDEN');
+        expect(errors[0]?.message).toEqual('Posting not allowed!');
+      },
     );
   });
 
