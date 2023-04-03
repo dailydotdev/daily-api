@@ -12,7 +12,11 @@ import {
   SourceType,
   SquadSource,
 } from '../entity';
-import { SourceMemberRoles, sourceRoleRank } from '../roles';
+import {
+  SourceMemberRoles,
+  sourceRoleRank,
+  sourceRoleRankKeys,
+} from '../roles';
 import {
   forwardPagination,
   GQLEmptyResponse,
@@ -297,9 +301,9 @@ export const typeDefs = /* GraphQL */ `
       """
       commentary: String
       """
-      Rank required for members to post
+      Role required for members to post
       """
-      memberPostingRank: Int
+      memberPostingRole: String
     ): Source! @auth
 
     """
@@ -600,7 +604,7 @@ type CreateSquadArgs = {
   image?: FileUpload;
   postId?: string;
   commentary?: string;
-  memberPostingRank?: number;
+  memberPostingRole?: SourceMemberRoles;
 };
 
 type EditSquadArgs = {
@@ -794,7 +798,7 @@ export const resolvers: IResolvers<any, Context> = {
         image,
         postId,
         description,
-        memberPostingRank = 0,
+        memberPostingRole = SourceMemberRoles.Member,
       }: CreateSquadArgs,
       ctx,
       info,
@@ -805,6 +809,10 @@ export const resolvers: IResolvers<any, Context> = {
         description,
       });
       try {
+        if (!sourceRoleRankKeys.includes(memberPostingRole)) {
+          throw new ValidationError('Invalid member posting role');
+        }
+
         const sourceId = await ctx.con.transaction(async (entityManager) => {
           const id = randomUUID();
           const repo = entityManager.getRepository(SquadSource);
@@ -816,7 +824,7 @@ export const resolvers: IResolvers<any, Context> = {
             active: true,
             description,
             private: true,
-            memberPostingRank,
+            memberPostingRank: sourceRoleRank[memberPostingRole],
           });
           // Add the logged-in user as owner
           await addNewSourceMember(entityManager, {
