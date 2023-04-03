@@ -220,6 +220,7 @@ Object {
         "member_remove",
         "edit",
         "member_unblock",
+        "view_blocked_members",
         "member_role_update",
         "post_limit",
         "invite_disable",
@@ -262,7 +263,32 @@ Object {
 }
 `;
 
-exports[`query sourceMembers should return blocked users only 1`] = `
+exports[`query sourceMembers should return blocked users only when user is a moderator 1`] = `
+Object {
+  "sourceMembers": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "role": "blocked",
+          "roleRank": -1,
+          "source": Object {
+            "id": "a",
+          },
+          "user": Object {
+            "id": "2",
+          },
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjcxNDk0NDAwMDAw",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query sourceMembers should return blocked users only when user is the owner 1`] = `
 Object {
   "sourceMembers": Object {
     "edges": Array [
