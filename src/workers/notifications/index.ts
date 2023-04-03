@@ -18,6 +18,7 @@ import commentUpvoteMilestone from './commentUpvoteMilestone';
 import postAdded from './postAdded';
 import memberJoinedSource from './squadMemberJoined';
 import featureAccessNotification from './featureAccessNotification';
+import sourceMemberRoleChanged from './sourceMemberRoleChanged';
 import { TypeOrmError } from '../../errors';
 
 function notificationWorkerToWorker(worker: NotificationWorker): Worker {
@@ -64,6 +65,7 @@ const notificationWorkers: NotificationWorker[] = [
   postAdded,
   memberJoinedSource,
   featureAccessNotification,
+  sourceMemberRoleChanged,
 ];
 
 export const workers = notificationWorkers.map(notificationWorkerToWorker);

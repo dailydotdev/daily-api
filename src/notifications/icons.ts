@@ -5,4 +5,7 @@ export enum NotificationIcon {
   Upvote = 'Upvote',
   Bell = 'Bell',
   View = 'View',
+  Block = 'Block',
+  User = 'User',
+  Star = 'Star',
 }
