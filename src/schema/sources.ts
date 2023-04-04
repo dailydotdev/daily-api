@@ -73,6 +73,11 @@ interface UpdateMemberRoleArgs {
   role: SourceMemberRoles;
 }
 
+interface SourceMemberArgs extends ConnectionArguments {
+  sourceId: string;
+  role?: SourceMemberRoles;
+}
+
 export const typeDefs = /* GraphQL */ `
   """
   Source to discover posts from (usually blogs)
@@ -243,6 +248,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Should return users with this specific role only
+      """
+      role: String
     ): SourceMemberConnection!
 
     """
@@ -353,6 +363,21 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse! @auth
 
     """
+    Unblock a removed member with blocked role
+    """
+    unblockMember(
+      """
+      Relevant source the user to update role is a member of
+      """
+      sourceId: ID!
+
+      """
+      Member to update
+      """
+      memberId: ID!
+    ): EmptyResponse! @auth
+
+    """
     Adds the logged-in user as member to the source
     """
     joinSource(
@@ -397,10 +422,12 @@ const sourceToGQL = (source: Source): GQLSource => ({
 export enum SourcePermissions {
   CommentDelete = 'comment_delete',
   View = 'view',
+  ViewBlockedMembers = 'view_blocked_members',
   Post = 'post',
   PostLimit = 'post_limit',
   PostDelete = 'post_delete',
   MemberRemove = 'member_remove',
+  MemberUnblock = 'member_unblock',
   MemberRoleUpdate = 'member_role_update',
   InviteDisable = 'invite_disable',
   Leave = 'leave',
@@ -419,6 +446,8 @@ const moderatorPermissions = [
   SourcePermissions.PostDelete,
   SourcePermissions.MemberRemove,
   SourcePermissions.Edit,
+  SourcePermissions.MemberUnblock,
+  SourcePermissions.ViewBlockedMembers,
 ];
 const ownerPermissions = [
   ...moderatorPermissions,
@@ -690,11 +719,16 @@ export const resolvers: IResolvers<any, Context> = {
     },
     sourceMembers: async (
       _,
-      args: ConnectionArguments & { sourceId: string },
+      { role, sourceId, ...args }: SourceMemberArgs,
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
-      await ensureSourcePermissions(ctx, args.sourceId);
+      const permission =
+        role === SourceMemberRoles.Blocked
+          ? SourcePermissions.ViewBlockedMembers
+          : SourcePermissions.View;
+
+      await ensureSourcePermissions(ctx, sourceId, permission);
       const page = membershipsPageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,
@@ -706,18 +740,27 @@ export const resolvers: IResolvers<any, Context> = {
         (builder) => {
           builder.queryBuilder
             .andWhere(`${builder.alias}."sourceId" = :source`, {
-              source: args.sourceId,
+              source: sourceId,
             })
-            .andWhere(
-              `${
-                graphorm.mappings.SourceMember.fields.roleRank.select as string
-              } >= 0`,
-            )
+
             .addOrderBy(
               graphorm.mappings.SourceMember.fields.roleRank.select as string,
               'DESC',
             )
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+          if (role) {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}.role = :role`,
+              { role },
+            );
+          } else {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${
+                graphorm.mappings.SourceMember.fields.roleRank.select as string
+              } >= 0`,
+            );
+          }
 
           builder.queryBuilder.limit(page.limit);
           if (page.timestamp) {
@@ -967,6 +1010,23 @@ export const resolvers: IResolvers<any, Context> = {
       await ctx.con
         .getRepository(SourceMember)
         .update({ sourceId, userId: memberId }, { role });
+
+      return { _: true };
+    },
+    unblockMember: async (
+      _,
+      { sourceId, memberId }: UpdateMemberRoleArgs,
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.MemberUnblock,
+      );
+
+      await ctx.con
+        .getRepository(SourceMember)
+        .delete({ sourceId, userId: memberId });
 
       return { _: true };
     },
