@@ -345,6 +345,10 @@ export const typeDefs = /* GraphQL */ `
       Avatar image for the squad
       """
       image: Upload
+      """
+      Role required for members to post
+      """
+      memberPostingRole: String
     ): Source! @auth
 
     """
@@ -647,6 +651,7 @@ type EditSquadArgs = {
   handle: string;
   description?: string;
   image?: FileUpload;
+  memberPostingRole?: SourceMemberRoles;
 };
 
 const getSourceById = async (
@@ -919,6 +924,7 @@ export const resolvers: IResolvers<any, Context> = {
         handle: inputHandle,
         image,
         description,
+        memberPostingRole,
       }: EditSquadArgs,
       ctx,
       info,
@@ -931,6 +937,13 @@ export const resolvers: IResolvers<any, Context> = {
       });
 
       try {
+        if (
+          memberPostingRole &&
+          !sourceRoleRankKeys.includes(memberPostingRole)
+        ) {
+          throw new ValidationError('Invalid member posting role');
+        }
+
         const editedSourceId = await ctx.con.transaction(
           async (entityManager) => {
             const repo = entityManager.getRepository(SquadSource);
@@ -941,6 +954,9 @@ export const resolvers: IResolvers<any, Context> = {
                 name,
                 handle,
                 description,
+                memberPostingRank: memberPostingRole
+                  ? sourceRoleRank[memberPostingRole]
+                  : undefined,
               },
             );
             // Upload the image (if provided)
