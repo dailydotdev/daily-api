@@ -18,17 +18,17 @@ const previousRoleToNewRole: Partial<
 > = {
   [SourceMemberRoles.Member]: {
     [SourceMemberRoles.Blocked]: 'squad_blocked',
-    [SourceMemberRoles.Owner]: 'promoted_to_role',
+    [SourceMemberRoles.Owner]: 'promoted_to_owner',
     [SourceMemberRoles.Moderator]: 'promoted_to_moderator',
   },
   [SourceMemberRoles.Moderator]: {
     [SourceMemberRoles.Blocked]: 'squad_blocked',
-    [SourceMemberRoles.Owner]: 'promoted_to_role',
+    [SourceMemberRoles.Owner]: 'promoted_to_owner',
     [SourceMemberRoles.Member]: 'demoted_to_member',
   },
   [SourceMemberRoles.Owner]: {
     [SourceMemberRoles.Blocked]: 'squad_blocked',
-    [SourceMemberRoles.Moderator]: 'promoted_to_role',
+    [SourceMemberRoles.Moderator]: 'promoted_to_moderator',
     [SourceMemberRoles.Member]: 'demoted_to_member',
   },
 };
@@ -53,14 +53,6 @@ const worker: NotificationWorker = {
       previousRoleToNewRole[previousRole]?.[member.role];
 
     switch (roleToNotificationMap) {
-      case 'promoted_to_role':
-        return [
-          {
-            type: roleToNotificationMap,
-            ctx: { ...baseCtx, role: member.role },
-          },
-        ];
-        break;
       case 'demoted_to_member':
         return [
           {
@@ -69,6 +61,7 @@ const worker: NotificationWorker = {
           },
         ];
         break;
+      case 'promoted_to_owner':
       case 'promoted_to_moderator':
       case 'squad_blocked':
         return [{ type: roleToNotificationMap, ctx: baseCtx }];
