@@ -685,8 +685,8 @@ describe('generateNotification', () => {
     );
   });
 
-  it('should generate promoted_to_role owner notification', () => {
-    const type = 'promoted_to_role';
+  it('should generate promoted_to_owner notification', () => {
+    const type = 'promoted_to_owner';
     const ctx: NotificationSourceMemberRoleContext = {
       userId,
       source: {
@@ -703,32 +703,7 @@ describe('generateNotification', () => {
     expect(actual.notification.referenceType).toEqual('source');
     expect(actual.notification.icon).toEqual('Star');
     expect(actual.notification.title).toEqual(
-      `You are now a <span class="text-theme-color-cabbage">${SourceMemberRoles.Owner}</span> in <b>${sourcesFixture[0].name}</b>`,
-    );
-    expect(actual.notification.targetUrl).toEqual(
-      'http://localhost:5002/squads/a',
-    );
-  });
-
-  it('should generate promoted_to_role moderator notification', () => {
-    const type = 'promoted_to_role';
-    const ctx: NotificationSourceMemberRoleContext = {
-      userId,
-      source: {
-        ...sourcesFixture[0],
-        type: SourceType.Squad,
-      } as Reference<Source>,
-      role: SourceMemberRoles.Moderator,
-    };
-    const actual = generateNotification(type, ctx);
-    expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
-    expect(actual.notification.public).toEqual(true);
-    expect(actual.notification.referenceId).toEqual('a');
-    expect(actual.notification.referenceType).toEqual('source');
-    expect(actual.notification.icon).toEqual('User');
-    expect(actual.notification.title).toEqual(
-      `You are now a <span class="text-theme-color-cabbage">${SourceMemberRoles.Moderator}</span> in <b>${sourcesFixture[0].name}</b>`,
+      `Congratulations! You are now an <span class="text-theme-color-cabbage">${SourceMemberRoles.Owner}</span> of <b>${sourcesFixture[0].name}</b>`,
     );
     expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/squads/a',
@@ -777,7 +752,7 @@ describe('generateNotification', () => {
     expect(actual.notification.referenceType).toEqual('source');
     expect(actual.notification.icon).toEqual('User');
     expect(actual.notification.title).toEqual(
-      `Congratulations! You got promoted to a <span class="text-theme-color-cabbage">moderator</span> role in <b>${sourcesFixture[0].name}</b>`,
+      `You are now a <span class="text-theme-color-cabbage">moderator</span> in <b>${sourcesFixture[0].name}</b>`,
     );
     expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/squads/a',

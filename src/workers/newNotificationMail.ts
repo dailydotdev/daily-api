@@ -56,9 +56,9 @@ const notificationToTemplateId: Record<NotificationType, string> = {
   squad_access: 'd-6b3de457947b415d93d0029361edaf1d',
   squad_post_live: 'd-343845599453499d9fa5d3ffafc91514',
   squad_blocked: '',
-  promoted_to_role: '',
+  promoted_to_owner: 'd-397a5e4a394a4b7f91ea33c29efb8d01',
   demoted_to_member: '',
-  promoted_to_moderator: '',
+  promoted_to_moderator: 'd-b1dbd1e86ee14bf094f7616f7469fee8',
 };
 
 type TemplateDataFunc = (
@@ -482,9 +482,39 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   squad_blocked: null,
-  promoted_to_role: null,
+  promoted_to_owner: async (con, user, notification) => {
+    const source = await con
+      .getRepository(Source)
+      .findOneBy({ id: notification.referenceId });
+    if (!source) {
+      return;
+    }
+    return {
+      first_name: getFirstName(user.name),
+      squad_name: source.name,
+      squad_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+    };
+  },
   demoted_to_member: null,
-  promoted_to_moderator: null,
+  promoted_to_moderator: async (con, user, notification) => {
+    const source = await con
+      .getRepository(Source)
+      .findOneBy({ id: notification.referenceId });
+    if (!source) {
+      return;
+    }
+    return {
+      first_name: getFirstName(user.name),
+      squad_name: source.name,
+      squad_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+    };
+  },
 };
 
 const formatTemplateDate = <T extends Record<string, unknown>>(data: T): T => {
