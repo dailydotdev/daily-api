@@ -665,7 +665,7 @@ describe('compatibility route /publications', () => {
 describe('mutation createSquad', () => {
   const MUTATION = `
   mutation CreateSquad($name: String!, $handle: String!, $description: String, $postId: ID!, $commentary: String!, $memberPostingRole: String) {
-  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary, $memberPostingRole: $memberPostingRole) {
+  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary, memberPostingRole: $memberPostingRole) {
     id
   }
 }`;
