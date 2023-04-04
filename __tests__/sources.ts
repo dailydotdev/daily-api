@@ -611,8 +611,8 @@ describe('compatibility route /publications', () => {
 
 describe('mutation createSquad', () => {
   const MUTATION = `
-  mutation CreateSquad($name: String!, $handle: String!, $description: String, $postId: ID!, $commentary: String!) {
-  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary) {
+  mutation CreateSquad($name: String!, $handle: String!, $description: String, $postId: ID!, $commentary: String!, $memberPostingRole: String) {
+  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary, $memberPostingRole: $memberPostingRole) {
     id
   }
 }`;
@@ -728,6 +728,19 @@ describe('mutation createSquad', () => {
       {
         mutation: MUTATION,
         variables: { ...variables, description: new Array(260).join('a') },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw error when invalid role is provided for posting', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, memberPostingRole: 'invalidRole' },
       },
       'GRAPHQL_VALIDATION_FAILED',
     );
