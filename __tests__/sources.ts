@@ -855,8 +855,8 @@ describe('mutation createSquad', () => {
 
 describe('mutation editSquad', () => {
   const MUTATION = `
-  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String) {
-  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description) {
+  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String) {
+  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole) {
     id
   }
 }`;
@@ -950,6 +950,55 @@ describe('mutation editSquad', () => {
       client,
       { mutation: MUTATION, variables },
       'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when null is sent to memberPostingRole', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, memberPostingRole: null },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should edit squad memberPostingRank', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        memberPostingRole: SourceMemberRoles.Moderator,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource?.memberPostingRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Moderator],
+    );
+  });
+
+  it('should leave squad memberPostingRank unchanged if not sent during edit', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update(
+        { id: 's1' },
+        { memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator] },
+      );
+    const res = await client.mutate(MUTATION, {
+      variables,
+    });
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource?.memberPostingRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Moderator],
     );
   });
 });

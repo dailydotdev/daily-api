@@ -938,7 +938,7 @@ export const resolvers: IResolvers<any, Context> = {
 
       try {
         if (
-          memberPostingRole &&
+          typeof memberPostingRole !== 'undefined' &&
           !sourceRoleRankKeys.includes(memberPostingRole)
         ) {
           throw new ValidationError('Invalid member posting role');
