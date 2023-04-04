@@ -147,6 +147,11 @@ export const typeDefs = /* GraphQL */ `
     Privileged members
     """
     privilegedMembers: [SourceMember]
+
+    """
+    Role required for members to post
+    """
+    memberPostingRole: String
   }
 
   type SourceConnection {

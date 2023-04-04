@@ -11,6 +11,7 @@ import {
 } from '../entity';
 import {
   SourceMemberRoles,
+  rankToSourceRole,
   sourceRoleRank,
   sourceRoleRankKeys,
 } from '../roles';
@@ -209,6 +210,11 @@ const obj = new GraphORM({
           },
         },
         transform: nullIfNotLoggedIn,
+      },
+      memberPostingRole: {
+        select: 'memberPostingRank',
+        transform: (value: number, ctx: Context) =>
+          nullIfNotLoggedIn(rankToSourceRole[value], ctx),
       },
     },
   },
