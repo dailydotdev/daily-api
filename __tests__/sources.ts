@@ -18,7 +18,7 @@ import {
   SquadSource,
   User,
 } from '../src/entity';
-import { SourceMemberRoles } from '../src/roles';
+import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
@@ -700,6 +700,9 @@ describe('mutation createSquad', () => {
     expect(newSource.handle).toEqual('squad');
     expect(newSource.active).toEqual(true);
     expect(newSource.private).toEqual(true);
+    expect(newSource?.memberPostingRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Member],
+    );
     const member = await con.getRepository(SourceMember).findOneBy({
       sourceId: newId,
       userId: '1',
@@ -797,6 +800,56 @@ describe('mutation createSquad', () => {
       },
       'GRAPHQL_VALIDATION_FAILED',
     );
+  });
+
+  it('should throw error when null is sent to memberPostingRole', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).save({
+      id: randomUUID(),
+      handle: variables.handle,
+      name: 'Dup squad',
+      active: false,
+      memberPostingRole: null,
+    });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should create squad with memberPostingRank', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        memberPostingRole: SourceMemberRoles.Moderator,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.createSquad.id;
+    const newSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: newId });
+    expect(newSource.name).toEqual('Squad');
+    expect(newSource.handle).toEqual('squad');
+    expect(newSource.active).toEqual(true);
+    expect(newSource.private).toEqual(true);
+    expect(newSource?.memberPostingRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Moderator],
+    );
+    const member = await con.getRepository(SourceMember).findOneBy({
+      sourceId: newId,
+      userId: '1',
+    });
+    expect(member.role).toEqual(SourceMemberRoles.Owner);
+    const post = await con
+      .getRepository(SharePost)
+      .findOneBy({ sourceId: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
   });
 });
 
