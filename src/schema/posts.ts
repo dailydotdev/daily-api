@@ -889,6 +889,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (manager) => {
         await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+
         const cleanUrl = standardizeURL(url);
         if (!isValidHttpUrl(cleanUrl)) {
           throw new ValidationError('URL is not valid');
@@ -934,6 +935,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLPost> => {
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+
       const newPost = await createSharePost(
         ctx.con,
         sourceId,

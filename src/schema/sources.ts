@@ -12,7 +12,11 @@ import {
   SourceType,
   SquadSource,
 } from '../entity';
-import { SourceMemberRoles, sourceRoleRank } from '../roles';
+import {
+  SourceMemberRoles,
+  sourceRoleRank,
+  sourceRoleRankKeys,
+} from '../roles';
 import {
   forwardPagination,
   GQLEmptyResponse,
@@ -306,6 +310,10 @@ export const typeDefs = /* GraphQL */ `
       Commentary for the first share
       """
       commentary: String
+      """
+      Role required for members to post
+      """
+      memberPostingRole: String
     ): Source! @auth
 
     """
@@ -502,6 +510,7 @@ const hasPermissionCheck = (
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
+  sourceMember: SourceMember,
   permission: SourcePermissions,
   validateRankAgainstId?: string,
 ): Promise<boolean> => {
@@ -515,23 +524,32 @@ export const canAccessSource = async (
 
   const sourceId = source.id;
   const repo = ctx.getRepository(SourceMember);
-  const [loggedUser, validateRankAgainst] = await Promise.all([
-    repo.findOneBy({ sourceId, userId: ctx.userId }),
-    requireGreaterAccessPrivilege[permission]
-      ? repo.findOneByOrFail({ sourceId, userId: validateRankAgainstId })
-      : Promise.resolve(null),
-  ]);
+  const validateRankAgainst = await (requireGreaterAccessPrivilege[permission]
+    ? repo.findOneByOrFail({ sourceId, userId: validateRankAgainstId })
+    : Promise.resolve(null));
 
-  if (!loggedUser) {
+  if (!sourceMember) {
     return false;
   }
 
   return hasPermissionCheck(
     source,
-    loggedUser,
+    sourceMember,
     permission,
     validateRankAgainst,
   );
+};
+
+export const canPostToSquad = (
+  ctx: Context,
+  squad: SquadSource,
+  sourceMember: SourceMember,
+): boolean => {
+  if (!sourceMember) {
+    return false;
+  }
+
+  return sourceRoleRank[sourceMember.role] >= squad.memberPostingRank;
 };
 
 const validateSquadData = ({
@@ -561,9 +579,31 @@ export const ensureSourcePermissions = async (
     const source = await ctx.con
       .getRepository(Source)
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
-    if (await canAccessSource(ctx, source, permission, validateRankAgainstId)) {
-      return source;
+    const sourceMember = await ctx.con
+      .getRepository(SourceMember)
+      .findOneBy({ sourceId: source.id, userId: ctx.userId });
+
+    const canAccess = await canAccessSource(
+      ctx,
+      source,
+      sourceMember,
+      permission,
+      validateRankAgainstId,
+    );
+
+    if (!canAccess) {
+      throw new ForbiddenError('Access denied!');
     }
+
+    if (
+      source.type === SourceType.Squad &&
+      permission === SourcePermissions.Post &&
+      !canPostToSquad(ctx, source, sourceMember)
+    ) {
+      throw new ForbiddenError('Posting not allowed!');
+    }
+
+    return source;
   }
   throw new ForbiddenError('Access denied!');
 };
@@ -593,6 +633,7 @@ type CreateSquadArgs = {
   image?: FileUpload;
   postId?: string;
   commentary?: string;
+  memberPostingRole?: SourceMemberRoles;
 };
 
 type EditSquadArgs = {
@@ -800,6 +841,7 @@ export const resolvers: IResolvers<any, Context> = {
         image,
         postId,
         description,
+        memberPostingRole = SourceMemberRoles.Member,
       }: CreateSquadArgs,
       ctx,
       info,
@@ -810,6 +852,10 @@ export const resolvers: IResolvers<any, Context> = {
         description,
       });
       try {
+        if (!sourceRoleRankKeys.includes(memberPostingRole)) {
+          throw new ValidationError('Invalid member posting role');
+        }
+
         const sourceId = await ctx.con.transaction(async (entityManager) => {
           const id = randomUUID();
           const repo = entityManager.getRepository(SquadSource);
@@ -821,6 +867,7 @@ export const resolvers: IResolvers<any, Context> = {
             active: true,
             description,
             private: true,
+            memberPostingRank: sourceRoleRank[memberPostingRole],
           });
           // Add the logged-in user as owner
           await addNewSourceMember(entityManager, {
