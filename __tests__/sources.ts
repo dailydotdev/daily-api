@@ -639,12 +639,12 @@ describe('query checkUserMembership', () => {
   it('should not authorize when source does not exist', () =>
     testQueryErrorCode(
       client,
-      { query: QUERY, variables: { memberId: '2', sourceId: 'a' } },
+      { query: QUERY, variables: { userId: '2', sourceId: 'a' } },
       'UNAUTHENTICATED',
     ));
 
   it('should return forbidden when user is not a member', async () => {
-    loggedUser = '1';
+    loggedUser = '3';
     const params = { userId: '2', sourceId: 'a' };
     await con.getRepository(SourceMember).delete(params);
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
@@ -656,23 +656,12 @@ describe('query checkUserMembership', () => {
     );
   });
 
-  it('should return forbidden when user is blocked', async () => {
+  it('should return member', async () => {
     loggedUser = '1';
     const params = { userId: '2', sourceId: 'a' };
-    await con.getRepository(Source).update({ id: 'a' }, { private: true });
     await con
       .getRepository(SourceMember)
       .update(params, { role: SourceMemberRoles.Blocked });
-    return testQueryErrorCode(
-      client,
-      { query: QUERY, variables: params },
-      'FORBIDDEN',
-    );
-  });
-
-  it('should return member when user is not a blocked member', async () => {
-    loggedUser = '1';
-    const params = { userId: '2', sourceId: 'a' };
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
     const res = await client.query(QUERY, {
       variables: params,

@@ -580,27 +580,21 @@ const validateSquadData = ({
   return handle;
 };
 
-interface PermissionsOptionalParams {
-  validateRankAgainstId?: string;
-  primaryMemberId?: string;
-}
-
 export const ensureSourcePermissions = async (
   ctx: Context,
   sourceId: string | undefined,
   permission: SourcePermissions = SourcePermissions.View,
-  { primaryMemberId, validateRankAgainstId }: PermissionsOptionalParams = {},
+  validateRankAgainstId?: string,
 ): Promise<Source> => {
   if (sourceId) {
     const source = await ctx.con
       .getRepository(Source)
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
-    const memberId = primaryMemberId ?? ctx.userId;
     const sourceMember = await ctx.con
       .getRepository(SourceMember)
-      .findOneBy({ sourceId: source.id, userId: memberId });
+      .findOneBy({ sourceId: source.id, userId: ctx.userId });
 
-    const hasAccess = await canAccessSource(
+    const canAccess = await canAccessSource(
       ctx,
       source,
       sourceMember,
@@ -608,8 +602,8 @@ export const ensureSourcePermissions = async (
       validateRankAgainstId,
     );
 
-    if (hasAccess) {
-      return source;
+    if (!canAccess) {
+      throw new ForbiddenError('Access denied!');
     }
 
     if (
@@ -831,11 +825,9 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLSourceMember> => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View, {
-        primaryMemberId: memberId,
-      });
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
 
-      return graphorm.queryOne<GQLSourceMember>(
+      return graphorm.queryOneOrFail<GQLSourceMember>(
         ctx,
         info,
         (builder) => {
@@ -1033,7 +1025,7 @@ export const resolvers: IResolvers<any, Context> = {
           ctx,
           sourceId,
           SourcePermissions.MemberRemove,
-          { validateRankAgainstId: memberId },
+          memberId,
         );
       } else {
         await ensureSourcePermissions(
