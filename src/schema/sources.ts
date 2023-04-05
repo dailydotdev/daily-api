@@ -285,7 +285,7 @@ export const typeDefs = /* GraphQL */ `
       sourceId: ID!
 
       """
-      Username or the user id to check
+      User id of the member to check
       """
       memberId: ID!
     ): SourceMember @auth
