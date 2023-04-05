@@ -169,7 +169,7 @@ describe('source member role changed', () => {
     expect(actual[0].type).toEqual('promoted_to_moderator');
     expect(actual[0].ctx).toEqual({ userId: '1', source });
   });
-  it('should add member to admin notification', async () => {
+  it('should add member to owner notification', async () => {
     const worker = await import(
       '../../src/workers/notifications/sourceMemberRoleChanged'
     );
@@ -180,10 +180,9 @@ describe('source member role changed', () => {
     const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
 
     expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('promoted_to_role');
+    expect(actual[0].type).toEqual('promoted_to_owner');
     expect(actual[0].ctx).toEqual({
       userId: '1',
-      role: SourceMemberRoles.Owner,
       source,
     });
   });
@@ -205,7 +204,7 @@ describe('source member role changed', () => {
       source,
     });
   });
-  it('should add moderator to admin notification', async () => {
+  it('should add moderator to owner notification', async () => {
     const worker = await import(
       '../../src/workers/notifications/sourceMemberRoleChanged'
     );
@@ -215,10 +214,9 @@ describe('source member role changed', () => {
     });
     const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
     expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('promoted_to_role');
+    expect(actual[0].type).toEqual('promoted_to_owner');
     expect(actual[0].ctx).toEqual({
       userId: '1',
-      role: SourceMemberRoles.Owner,
       source,
     });
   });
@@ -251,10 +249,9 @@ describe('source member role changed', () => {
     const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
 
     expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('promoted_to_role');
+    expect(actual[0].type).toEqual('promoted_to_moderator');
     expect(actual[0].ctx).toEqual({
       userId: '1',
-      role: SourceMemberRoles.Moderator,
       source,
     });
   });

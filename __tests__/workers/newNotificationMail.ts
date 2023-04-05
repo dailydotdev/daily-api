@@ -936,3 +936,67 @@ it('should set parameters for squad_post_live email', async () => {
   });
   expect(args.templateId).toEqual('d-343845599453499d9fa5d3ffafc91514');
 });
+
+it('should set parameters for promoted_to_owner email', async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const ctx: NotificationSourceContext = {
+    userId: '1',
+    source,
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'promoted_to_owner',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+  expect(args.dynamicTemplateData).toEqual({
+    first_name: 'Ido',
+    squad_link:
+      'http://localhost:5002/squads/a?utm_source=notification&utm_medium=email&utm_campaign=promoted_to_owner',
+    squad_name: 'A',
+  });
+  expect(args.templateId).toEqual('d-397a5e4a394a4b7f91ea33c29efb8d01');
+});
+
+it('should set parameters for promoted_to_moderator email', async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const ctx: NotificationSourceContext = {
+    userId: '1',
+    source,
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'promoted_to_moderator',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+  expect(args.dynamicTemplateData).toEqual({
+    first_name: 'Ido',
+    squad_link:
+      'http://localhost:5002/squads/a?utm_source=notification&utm_medium=email&utm_campaign=promoted_to_moderator',
+    squad_name: 'A',
+  });
+  expect(args.templateId).toEqual('d-b1dbd1e86ee14bf094f7616f7469fee8');
+});

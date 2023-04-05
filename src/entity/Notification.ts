@@ -34,7 +34,7 @@ export type NotificationType =
   | 'squad_post_viewed'
   | 'squad_post_live'
   | 'squad_blocked'
-  | 'promoted_to_role'
+  | 'promoted_to_owner'
   | 'demoted_to_member'
   | 'promoted_to_moderator';
 
