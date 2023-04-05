@@ -17,3 +17,12 @@ export const sourceRoleRank: Record<SourceMemberRoles, number> = {
 };
 
 export const sourceRoleRankKeys = Object.keys(sourceRoleRank);
+
+export const rankToSourceRole = Object.entries(sourceRoleRank).reduce(
+  (acc, [key, value]) => {
+    acc[value] = key as SourceMemberRoles;
+
+    return acc;
+  },
+  {} as Record<number, SourceMemberRoles>,
+);
