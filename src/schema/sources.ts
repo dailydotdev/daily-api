@@ -78,6 +78,11 @@ interface SourceMemberArgs extends ConnectionArguments {
   role?: SourceMemberRoles;
 }
 
+interface CheckUserMembershipArgs {
+  sourceId: string;
+  memberId: string;
+}
+
 export const typeDefs = /* GraphQL */ `
   """
   Source to discover posts from (usually blogs)
@@ -269,6 +274,21 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): SourceMemberConnection! @auth
+
+    """
+    Check whether user has membership access to a squad
+    """
+    checkUserMembership(
+      """
+      The source to check whether the user is a part of
+      """
+      sourceId: ID!
+
+      """
+      Username or the user id to check
+      """
+      memberId: ID!
+    ): SourceMember @auth
 
     """
     Get source member by referral token
@@ -510,7 +530,7 @@ const hasPermissionCheck = (
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
-  sourceMember: SourceMember,
+  member: SourceMember,
   permission: SourcePermissions,
   validateRankAgainstId?: string,
 ): Promise<boolean> => {
@@ -518,7 +538,7 @@ export const canAccessSource = async (
     return true;
   }
 
-  if (!ctx.userId) {
+  if (!member) {
     return false;
   }
 
@@ -528,16 +548,7 @@ export const canAccessSource = async (
     ? repo.findOneByOrFail({ sourceId, userId: validateRankAgainstId })
     : Promise.resolve(null));
 
-  if (!sourceMember) {
-    return false;
-  }
-
-  return hasPermissionCheck(
-    source,
-    sourceMember,
-    permission,
-    validateRankAgainst,
-  );
+  return hasPermissionCheck(source, member, permission, validateRankAgainst);
 };
 
 export const canPostToSquad = (
@@ -569,21 +580,27 @@ const validateSquadData = ({
   return handle;
 };
 
+interface PermissionsOptionalParams {
+  validateRankAgainstId?: string;
+  primaryMemberId?: string;
+}
+
 export const ensureSourcePermissions = async (
   ctx: Context,
   sourceId: string | undefined,
   permission: SourcePermissions = SourcePermissions.View,
-  validateRankAgainstId?: string,
+  { primaryMemberId, validateRankAgainstId }: PermissionsOptionalParams = {},
 ): Promise<Source> => {
   if (sourceId) {
     const source = await ctx.con
       .getRepository(Source)
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
+    const memberId = primaryMemberId ?? ctx.userId;
     const sourceMember = await ctx.con
       .getRepository(SourceMember)
-      .findOneBy({ sourceId: source.id, userId: ctx.userId });
+      .findOneBy({ sourceId: source.id, userId: memberId });
 
-    const canAccess = await canAccessSource(
+    const hasAccess = await canAccessSource(
       ctx,
       source,
       sourceMember,
@@ -591,8 +608,8 @@ export const ensureSourcePermissions = async (
       validateRankAgainstId,
     );
 
-    if (!canAccess) {
-      throw new ForbiddenError('Access denied!');
+    if (hasAccess) {
+      return source;
     }
 
     if (
@@ -808,6 +825,29 @@ export const resolvers: IResolvers<any, Context> = {
         },
       );
     },
+    checkUserMembership: async (
+      _,
+      { sourceId, memberId }: CheckUserMembershipArgs,
+      ctx,
+      info,
+    ): Promise<GQLSourceMember> => {
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View, {
+        primaryMemberId: memberId,
+      });
+
+      return graphorm.queryOne<GQLSourceMember>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.andWhere({
+            sourceId,
+            userId: memberId,
+          });
+          return builder;
+        },
+        SourceMember,
+      );
+    },
     sourceMemberByToken: async (
       _,
       { token }: { token: string },
@@ -993,7 +1033,7 @@ export const resolvers: IResolvers<any, Context> = {
           ctx,
           sourceId,
           SourcePermissions.MemberRemove,
-          memberId,
+          { validateRankAgainstId: memberId },
         );
       } else {
         await ensureSourcePermissions(

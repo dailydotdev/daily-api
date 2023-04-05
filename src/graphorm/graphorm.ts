@@ -1,10 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { GraphQLResolveInfo } from 'graphql';
-import { SelectQueryBuilder, EntityMetadata } from 'typeorm';
+import {
+  SelectQueryBuilder,
+  EntityMetadata,
+  EntityNotFoundError,
+} from 'typeorm';
 import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 import { Context } from '../Context';
 import { Connection, Edge } from 'graphql-relay';
+import { EntityTarget } from 'typeorm/common/EntityTarget';
 
 export type QueryBuilder = SelectQueryBuilder<any>;
 
@@ -540,6 +545,24 @@ export class GraphORM {
       return this.queryResolveTree(ctx, parsedInfo, beforeQuery);
     }
     throw new Error('Resolve info is empty');
+  }
+
+  async queryOne<T>(
+    ctx: Context,
+    resolveInfo: GraphQLResolveInfo,
+    beforeQuery?: (builder: GraphORMBuilder) => GraphORMBuilder,
+    entityName?: EntityTarget<T>,
+  ): Promise<T> {
+    const res = await this.query<T>(ctx, resolveInfo, beforeQuery);
+
+    if (!res.length) {
+      throw new EntityNotFoundError(
+        entityName ?? resolveInfo.path.typename,
+        'not found',
+      );
+    }
+
+    return res[0];
   }
 
   /**
