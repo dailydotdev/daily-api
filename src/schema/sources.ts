@@ -565,7 +565,10 @@ const validateSquadData = ({
   handle,
   name,
   description,
-}: Pick<SquadSource, 'handle' | 'name' | 'description'>): string => {
+  memberPostingRole,
+}: Pick<SquadSource, 'handle' | 'name' | 'description'> & {
+  memberPostingRole?: SourceMemberRoles;
+}): string => {
   handle = handle.replace('@', '').trim();
   const regexParams: ValidateRegex[] = [
     ['name', name, nameRegex, true],
@@ -574,6 +577,13 @@ const validateSquadData = ({
   ];
 
   validateRegex(regexParams);
+
+  if (
+    typeof memberPostingRole !== 'undefined' &&
+    !sourceRoleRankKeys.includes(memberPostingRole)
+  ) {
+    throw new ValidationError('Invalid member posting role');
+  }
 
   return handle;
 };
@@ -860,12 +870,9 @@ export const resolvers: IResolvers<any, Context> = {
         handle: inputHandle,
         name,
         description,
+        memberPostingRole,
       });
       try {
-        if (!sourceRoleRankKeys.includes(memberPostingRole)) {
-          throw new ValidationError('Invalid member posting role');
-        }
-
         const sourceId = await ctx.con.transaction(async (entityManager) => {
           const id = randomUUID();
           const repo = entityManager.getRepository(SquadSource);
@@ -934,16 +941,10 @@ export const resolvers: IResolvers<any, Context> = {
         handle: inputHandle,
         name,
         description,
+        memberPostingRole,
       });
 
       try {
-        if (
-          typeof memberPostingRole !== 'undefined' &&
-          !sourceRoleRankKeys.includes(memberPostingRole)
-        ) {
-          throw new ValidationError('Invalid member posting role');
-        }
-
         const editedSourceId = await ctx.con.transaction(
           async (entityManager) => {
             const repo = entityManager.getRepository(SquadSource);
@@ -954,9 +955,7 @@ export const resolvers: IResolvers<any, Context> = {
                 name,
                 handle,
                 description,
-                memberPostingRank: memberPostingRole
-                  ? sourceRoleRank[memberPostingRole]
-                  : undefined,
+                memberPostingRank: sourceRoleRank[memberPostingRole],
               },
             );
             // Upload the image (if provided)
