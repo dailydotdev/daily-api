@@ -547,7 +547,7 @@ export class GraphORM {
     throw new Error('Resolve info is empty');
   }
 
-  async queryOne<T>(
+  async queryOneOrFail<T>(
     ctx: Context,
     resolveInfo: GraphQLResolveInfo,
     beforeQuery?: (builder: GraphORMBuilder) => GraphORMBuilder,
