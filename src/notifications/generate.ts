@@ -212,7 +212,10 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Bell)
       .objectPost(ctx.post, ctx.source, ctx.sharedPost),
   squad_blocked: (builder, ctx: NotificationSourceContext) =>
-    builder.icon(NotificationIcon.Block).referenceSource(ctx.source),
+    builder
+      .targetUrl('system')
+      .icon(NotificationIcon.Block)
+      .referenceSource(ctx.source),
   promoted_to_owner: (builder, ctx: NotificationSourceContext) =>
     builder
       .icon(NotificationIcon.Star)
