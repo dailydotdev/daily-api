@@ -214,20 +214,24 @@ export const generateNotificationMap: Record<
   squad_blocked: (builder, ctx: NotificationSourceContext) =>
     builder
       .targetUrl(process.env.COMMENTS_PREFIX)
+      .avatarSource(ctx.source)
       .icon(NotificationIcon.Block)
       .referenceSource(ctx.source),
   promoted_to_owner: (builder, ctx: NotificationSourceContext) =>
     builder
+      .avatarSource(ctx.source)
       .icon(NotificationIcon.Star)
       .referenceSource(ctx.source)
       .targetSource(ctx.source),
   demoted_to_member: (builder, ctx: NotificationSourceMemberRoleContext) =>
     builder
+      .avatarSource(ctx.source)
       .sourceMemberRole(ctx.role)
       .referenceSource(ctx.source)
       .targetSource(ctx.source),
   promoted_to_moderator: (builder, ctx: NotificationSourceContext) =>
     builder
+      .avatarSource(ctx.source)
       .icon(NotificationIcon.User)
       .referenceSource(ctx.source)
       .targetSource(ctx.source),
