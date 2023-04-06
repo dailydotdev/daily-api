@@ -1,4 +1,4 @@
-import { roleSourcePermissions } from './../schema/sources';
+import { SourcePermissions, roleSourcePermissions } from './../schema/sources';
 import { GraphORM, QueryBuilder } from './graphorm';
 import {
   Bookmark,
@@ -6,6 +6,7 @@ import {
   FeedSource,
   FeedTag,
   Post,
+  Source,
   SourceMember,
   User,
 } from '../entity';
@@ -222,14 +223,35 @@ const obj = new GraphORM({
     requiredColumns: ['createdAt', 'userId', 'role'],
     fields: {
       permissions: {
-        transform: (_, ctx: Context, member: SourceMember) => {
+        select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
+          const query = qb
+            .select('"memberPostingRank"')
+            .from(Source, 'ps')
+            .where(`ps.id = ${alias}."sourceId"`);
+          return `${query.getQuery()}`;
+        },
+        transform: (
+          memberPostingRank: number,
+          ctx: Context,
+          member: SourceMember,
+        ) => {
           if (!ctx.userId || member.userId !== ctx.userId) {
             return null;
           }
 
-          return (
-            roleSourcePermissions[member.role] ?? roleSourcePermissions.member
-          );
+          const permissions =
+            roleSourcePermissions[member.role] ?? roleSourcePermissions.member;
+          const memberRank =
+            sourceRoleRank[member.role] ??
+            sourceRoleRank[SourceMemberRoles.Member];
+
+          if (memberRank < memberPostingRank) {
+            return permissions.filter(
+              (item) => item !== SourcePermissions.Post,
+            );
+          }
+
+          return permissions;
         },
       },
       roleRank: {
