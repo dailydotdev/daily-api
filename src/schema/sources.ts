@@ -152,6 +152,11 @@ export const typeDefs = /* GraphQL */ `
     Privileged members
     """
     privilegedMembers: [SourceMember]
+
+    """
+    Role required for members to post
+    """
+    memberPostingRole: String
   }
 
   type SourceConnection {
@@ -360,6 +365,10 @@ export const typeDefs = /* GraphQL */ `
       Avatar image for the squad
       """
       image: Upload
+      """
+      Role required for members to post
+      """
+      memberPostingRole: String
     ): Source! @auth
 
     """
@@ -567,7 +576,10 @@ const validateSquadData = ({
   handle,
   name,
   description,
-}: Pick<SquadSource, 'handle' | 'name' | 'description'>): string => {
+  memberPostingRole,
+}: Pick<SquadSource, 'handle' | 'name' | 'description'> & {
+  memberPostingRole?: SourceMemberRoles;
+}): string => {
   handle = handle.replace('@', '').trim();
   const regexParams: ValidateRegex[] = [
     ['name', name, nameRegex, true],
@@ -576,6 +588,13 @@ const validateSquadData = ({
   ];
 
   validateRegex(regexParams);
+
+  if (
+    typeof memberPostingRole !== 'undefined' &&
+    !sourceRoleRankKeys.includes(memberPostingRole)
+  ) {
+    throw new ValidationError('Invalid member posting role');
+  }
 
   return handle;
 };
@@ -653,6 +672,7 @@ type EditSquadArgs = {
   handle: string;
   description?: string;
   image?: FileUpload;
+  memberPostingRole?: SourceMemberRoles;
 };
 
 const getSourceById = async (
@@ -882,12 +902,9 @@ export const resolvers: IResolvers<any, Context> = {
         handle: inputHandle,
         name,
         description,
+        memberPostingRole,
       });
       try {
-        if (!sourceRoleRankKeys.includes(memberPostingRole)) {
-          throw new ValidationError('Invalid member posting role');
-        }
-
         const sourceId = await ctx.con.transaction(async (entityManager) => {
           const id = randomUUID();
           const repo = entityManager.getRepository(SquadSource);
@@ -946,6 +963,7 @@ export const resolvers: IResolvers<any, Context> = {
         handle: inputHandle,
         image,
         description,
+        memberPostingRole,
       }: EditSquadArgs,
       ctx,
       info,
@@ -955,6 +973,7 @@ export const resolvers: IResolvers<any, Context> = {
         handle: inputHandle,
         name,
         description,
+        memberPostingRole,
       });
 
       try {
@@ -968,6 +987,7 @@ export const resolvers: IResolvers<any, Context> = {
                 name,
                 handle,
                 description,
+                memberPostingRank: sourceRoleRank[memberPostingRole],
               },
             );
             // Upload the image (if provided)
