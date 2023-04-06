@@ -226,8 +226,8 @@ const obj = new GraphORM({
         select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
           const query = qb
             .select('"memberPostingRank"')
-            .from(Source, 'ps')
-            .where(`ps.id = ${alias}."sourceId"`);
+            .from(Source, 'postingSquad')
+            .where(`postingSquad.id = ${alias}."sourceId"`);
           return `${query.getQuery()}`;
         },
         transform: (
