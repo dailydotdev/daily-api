@@ -1,4 +1,4 @@
-import { SourcePermissions, roleSourcePermissions } from './../schema/sources';
+import { getPermissionsForMember } from './../schema/sources';
 import { GraphORM, QueryBuilder } from './graphorm';
 import {
   Bookmark,
@@ -239,19 +239,7 @@ const obj = new GraphORM({
             return null;
           }
 
-          const permissions =
-            roleSourcePermissions[member.role] ?? roleSourcePermissions.member;
-          const memberRank =
-            sourceRoleRank[member.role] ??
-            sourceRoleRank[SourceMemberRoles.Member];
-
-          if (memberRank < memberPostingRank) {
-            return permissions.filter(
-              (item) => item !== SourcePermissions.Post,
-            );
-          }
-
-          return permissions;
+          return getPermissionsForMember(member, { memberPostingRank });
         },
       },
       roleRank: {
