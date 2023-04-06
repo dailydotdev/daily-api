@@ -213,7 +213,7 @@ export const generateNotificationMap: Record<
       .objectPost(ctx.post, ctx.source, ctx.sharedPost),
   squad_blocked: (builder, ctx: NotificationSourceContext) =>
     builder
-      .targetUrl('system')
+      .targetUrl(process.env.COMMENTS_PREFIX)
       .icon(NotificationIcon.Block)
       .referenceSource(ctx.source),
   promoted_to_owner: (builder, ctx: NotificationSourceContext) =>
