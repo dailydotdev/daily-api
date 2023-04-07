@@ -1132,17 +1132,4 @@ export const resolvers: IResolvers<any, Context> = {
   Source: {
     permalink: (source: GQLSource): string => getSourceLink(source),
   },
-  SourceMember: {
-    referralToken: (
-      sourceMember: GQLSourceMember,
-      _,
-      ctx: Context,
-    ): string | undefined => {
-      if (!ctx.userId || ctx.userId !== sourceMember.user.id) {
-        return undefined;
-      }
-
-      return sourceMember.referralToken;
-    },
-  },
 };

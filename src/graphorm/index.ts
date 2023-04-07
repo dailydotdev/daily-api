@@ -245,6 +245,15 @@ const obj = new GraphORM({
             ELSE 0 END)
           `,
       },
+      referralToken: {
+        transform: (value: string, ctx: Context, member: SourceMember) => {
+          if (!ctx.userId || member.userId !== ctx.userId) {
+            return null;
+          }
+
+          return value;
+        },
+      },
     },
   },
   Comment: {
