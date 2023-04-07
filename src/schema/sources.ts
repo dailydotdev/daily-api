@@ -189,7 +189,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Token to be used for inviting new squad members
     """
-    referralToken: String!
+    referralToken: String
     """
     Numerical representation of the user's role
     """
@@ -1131,5 +1131,18 @@ export const resolvers: IResolvers<any, Context> = {
   }),
   Source: {
     permalink: (source: GQLSource): string => getSourceLink(source),
+  },
+  SourceMember: {
+    referralToken: (
+      sourceMember: GQLSourceMember,
+      _,
+      ctx: Context,
+    ): string | undefined => {
+      if (!ctx.userId || ctx.userId !== sourceMember.user.id) {
+        return undefined;
+      }
+
+      return sourceMember.referralToken;
+    },
   },
 };
