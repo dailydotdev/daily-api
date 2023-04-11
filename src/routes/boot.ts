@@ -130,12 +130,8 @@ const getSquads = async (
     const { role, memberPostingRank, ...restSource } = source;
 
     const permissions = getPermissionsForMember(
-      {
-        role,
-      },
-      {
-        memberPostingRank,
-      },
+      { role },
+      { memberPostingRank },
     );
     // we only send posting permissions from boot to keep the payload small
     const postingPermissions = permissions.filter(
