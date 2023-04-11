@@ -1829,4 +1829,43 @@ describe('mutation submitExternalLink', () => {
     expect(sharedPost.title).toEqual('My comment');
     expect(sharedPost.visible).toEqual(true);
   });
+
+  it('should not make squad post visible if shared post is not yet ready and visible', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        url: 'http://p7.com',
+        commentary: 'Share 1',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'http://p7.com' });
+    expect(articlePost?.url).toEqual('http://p7.com');
+    expect(articlePost?.visible).toEqual(false);
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost?.id });
+    expect(sharedPost?.visible).toEqual(false);
+
+    const res2 = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        url: 'http://p7.com',
+        commentary: 'Share 2',
+      },
+    });
+    expect(res2.errors).toBeFalsy();
+    const articlePost2 = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'http://p7.com' });
+    expect(articlePost2?.url).toEqual('http://p7.com');
+    expect(articlePost2?.visible).toEqual(false);
+    const sharedPost2 = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost2?.id });
+    expect(sharedPost2?.visible).toEqual(false);
+  });
 });
