@@ -607,6 +607,41 @@ query SourceMembers($id: ID!, $role: String) {
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should only return referralToken for current logged user', async () => {
+    loggedUser = '1';
+    const QUERY_WITH_REFERRAL_TOKEN = `
+    query SourceMembers($id: ID!, $role: String) {
+      sourceMembers(sourceId: $id, role: $role) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            role
+            roleRank
+            user { id }
+            source { id }
+            referralToken
+          }
+        }
+      }
+    }`;
+    const res = await client.query(QUERY_WITH_REFERRAL_TOKEN, {
+      variables: {
+        id: 'a',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    res.data.sourceMembers.edges.forEach(({ node }) => {
+      if (node.user.id === loggedUser) {
+        expect(node.referralToken).toBeTruthy();
+      } else {
+        expect(node.referralToken).toBeFalsy();
+      }
+    });
+  });
 });
 
 describe('query mySourceMemberships', () => {

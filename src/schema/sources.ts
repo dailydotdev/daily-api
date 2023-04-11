@@ -189,7 +189,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Token to be used for inviting new squad members
     """
-    referralToken: String!
+    referralToken: String
     """
     Numerical representation of the user's role
     """

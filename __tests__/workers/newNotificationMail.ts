@@ -5,15 +5,15 @@ import {
 import { sendEmail } from '../../src/common';
 import worker from '../../src/workers/newNotificationMail';
 import {
+  ArticlePost,
+  Comment,
+  SharePost,
+  Source,
+  SourceRequest,
+  SourceType,
   Submission,
   SubmissionStatus,
   User,
-  Source,
-  Comment,
-  SourceRequest,
-  ArticlePost,
-  SharePost,
-  SourceType,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { DataSource } from 'typeorm';
@@ -25,6 +25,7 @@ import {
   NotificationDoneByContext,
   NotificationPostContext,
   NotificationSourceContext,
+  NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
@@ -32,6 +33,7 @@ import {
 import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
+import { SourceMemberRoles } from '../../src/roles';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -999,4 +1001,53 @@ it('should set parameters for promoted_to_moderator email', async () => {
     squad_name: 'A',
   });
   expect(args.templateId).toEqual('d-b1dbd1e86ee14bf094f7616f7469fee8');
+});
+
+it('should not invoke demoted_to_member email', async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const ctx: NotificationSourceMemberRoleContext = {
+    userId: '1',
+    source,
+    role: SourceMemberRoles.Owner,
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'demoted_to_member',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(0);
+});
+
+it('should not invoke squad_blocked email', async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const ctx: NotificationSourceContext = {
+    userId: '1',
+    source,
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'squad_blocked',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(0);
 });
