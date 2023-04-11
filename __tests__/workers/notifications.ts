@@ -1028,6 +1028,37 @@ it('should not add comment reply notification to comment author on their reply',
 });
 
 describe('comment upvote milestone', () => {
+  it('should not add notification for author when not a member or blocked in the squad', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/commentUpvoteMilestone'
+    );
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    const repo = con.getRepository(SourceMember);
+    await con.getRepository(Comment).update({ id: 'c1' }, { upvotes: 5 });
+    await con.getRepository(CommentUpvote).save([
+      {
+        userId: '1',
+        commentId: 'c1',
+      },
+      { userId: '4', commentId: 'c1' },
+    ]);
+    const params = { userId: '1', sourceId: 'a' };
+    await repo.update(params, { role: SourceMemberRoles.Blocked });
+    const actual1 = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      commentId: 'c1',
+    });
+    expect(actual1).toBeFalsy();
+    await repo.delete(params);
+    const actual2 = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      commentId: 'c1',
+    });
+    expect(actual2).toBeFalsy();
+  });
+
   it('should add notification for author', async () => {
     const worker = await import(
       '../../src/workers/notifications/commentUpvoteMilestone'
