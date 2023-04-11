@@ -130,8 +130,9 @@ it('should update the post and make it visible if title is available', async () 
   expect(post.title).toEqual('test');
 });
 
-it('should update the post related shared post to visible', async () => {
+it('should update all the post related shared posts to visible', async () => {
   await createSharedPost();
+  await createSharedPost('sp2');
   await expectSuccessfulBackground(worker, {
     post_id: 'p1',
     updated_at: new Date('01-05-2023 12:00:00'),
@@ -147,6 +148,11 @@ it('should update the post related shared post to visible', async () => {
     .findOneBy({ id: 'sp1' });
   expect(sharedPost.visible).toEqual(true);
   expect(sharedPost.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
+  const sharedPost2 = await con
+    .getRepository(SharePost)
+    .findOneBy({ id: 'sp2' });
+  expect(sharedPost2?.visible).toEqual(true);
+  expect(sharedPost2?.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
 });
 
 it('should save a new post with the relevant keywords', async () => {
