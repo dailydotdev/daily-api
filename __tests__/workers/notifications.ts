@@ -582,6 +582,41 @@ describe('article new comment', () => {
 });
 
 describe('article upvote milestone', () => {
+  it('should not add notification when scout/author is not member anymore', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/articleUpvoteMilestone'
+    );
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        scoutId: '1',
+        authorId: '3',
+        upvotes: 5,
+      },
+    );
+    await con.getRepository(Upvote).save([
+      {
+        userId: '2',
+        postId: 'p1',
+      },
+      { userId: '4', postId: 'p1' },
+    ]);
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    const repo = con.getRepository(SourceMember);
+    await repo.update(
+      { userId: '1', sourceId: 'a' },
+      { role: SourceMemberRoles.Blocked },
+    );
+    await repo.delete({ userId: '3', sourceId: 'a' });
+    const actual = await invokeNotificationWorker(worker.default, {
+      userId: '2',
+      postId: 'p1',
+    });
+    expect(actual).toBeFalsy();
+  });
+
   it('should add notification for scout and author', async () => {
     const worker = await import(
       '../../src/workers/notifications/articleUpvoteMilestone'
