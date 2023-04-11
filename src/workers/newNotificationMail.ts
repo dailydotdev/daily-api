@@ -481,7 +481,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       user_reputation: user.reputation,
     };
   },
-  squad_blocked: null,
+  squad_blocked: async () => {
+    return null;
+  },
   promoted_to_owner: async (con, user, notification) => {
     const source = await con
       .getRepository(Source)
@@ -498,7 +500,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       ),
     };
   },
-  demoted_to_member: null,
+  demoted_to_member: async () => {
+    return null;
+  },
   promoted_to_moderator: async (con, user, notification) => {
     const source = await con
       .getRepository(Source)
