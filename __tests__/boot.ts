@@ -37,6 +37,8 @@ import flagsmith from '../src/flagsmith';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { DEFAULT_FLAGS } from '../src/featureFlags';
+import { SourcePermissions } from '../src/schema/sources';
+import { sourceRoleRank } from '../src/roles';
 
 jest.mock('../src/flagsmith', () => ({
   getIdentityFlags: jest.fn(),
@@ -424,6 +426,14 @@ describe('boot misc', () => {
         private: true,
         active: true,
       },
+      {
+        id: 's5',
+        handle: 's5',
+        name: 'Squad 5',
+        private: true,
+        active: true,
+        memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+      },
     ]);
     await con.getRepository(MachineSource).save([
       {
@@ -453,6 +463,12 @@ describe('boot misc', () => {
         referralToken: 'rt3',
         role: SourceMemberRoles.Member,
       },
+      {
+        sourceId: 's5',
+        userId: '1',
+        referralToken: 'rt5',
+        role: SourceMemberRoles.Member,
+      },
     ]);
     const res = await request(app.server)
       .get(BASE_PATH)
@@ -468,6 +484,9 @@ describe('boot misc', () => {
         permalink: 'http://localhost:5002/squads/s1',
         public: true,
         type: SourceType.Squad,
+        currentMember: {
+          permissions: [SourcePermissions.Post],
+        },
       },
       {
         active: true,
@@ -478,6 +497,22 @@ describe('boot misc', () => {
         permalink: 'http://localhost:5002/squads/s2',
         public: false,
         type: SourceType.Squad,
+        currentMember: {
+          permissions: [SourcePermissions.Post],
+        },
+      },
+      {
+        active: true,
+        handle: 's5',
+        id: 's5',
+        image: SQUAD_IMAGE_PLACEHOLDER,
+        name: 'Squad 5',
+        permalink: 'http://localhost:5002/squads/s5',
+        public: false,
+        type: SourceType.Squad,
+        currentMember: {
+          permissions: [],
+        },
       },
     ]);
   });
@@ -537,6 +572,9 @@ describe('boot misc', () => {
         permalink: 'http://localhost:5002/squads/s1',
         public: true,
         type: SourceType.Squad,
+        currentMember: {
+          permissions: [SourcePermissions.Post],
+        },
       },
     ]);
   });

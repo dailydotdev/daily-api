@@ -17,7 +17,11 @@ import {
   SquadSource,
   User,
 } from '../entity';
-import { GQLSource } from '../schema/sources';
+import {
+  GQLSource,
+  SourcePermissions,
+  getPermissionsForMember,
+} from '../schema/sources';
 import { adjustFlagsToUser, getUserFeatureFlags } from '../featureFlags';
 import { getAlerts } from '../schema/alerts';
 import { getSettings } from '../schema/settings';
@@ -32,13 +36,20 @@ import { schema } from '../graphql';
 import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
 
+export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
+  permalink: string;
+  currentMember: {
+    permissions: SourcePermissions[];
+  };
+};
+
 export type BaseBoot = {
   visit: { visitId: string; sessionId: string };
   flags: IFlags;
   alerts: Omit<Alerts, 'userId'>;
   settings: Omit<Settings, 'userId' | 'updatedAt'>;
   notifications: { unreadNotificationsCount: number };
-  squads: (GQLSource & { permalink: string })[];
+  squads: BootSquadSource[];
 };
 
 export type AnonymousBoot = BaseBoot & {
@@ -90,7 +101,7 @@ const excludeProperties = <T, K extends keyof T>(
 const getSquads = async (
   con: DataSource,
   userId: string,
-): Promise<(GQLSource & { permalink: string })[]> => {
+): Promise<BootSquadSource[]> => {
   const sources = await con
     .createQueryBuilder()
     .select('id')
@@ -100,6 +111,8 @@ const getSquads = async (
     .addSelect('image')
     .addSelect('NOT private', 'public')
     .addSelect('active')
+    .addSelect('role')
+    .addSelect('"memberPostingRank"')
     .from(SourceMember, 'sm')
     .innerJoin(
       SquadSource,
@@ -109,11 +122,30 @@ const getSquads = async (
     .where('sm."userId" = :userId', { userId })
     .andWhere('sm."role" != :role', { role: SourceMemberRoles.Blocked })
     .orderBy('LOWER(s.name)', 'ASC')
-    .getRawMany<GQLSource>();
-  return sources.map((source) => ({
-    ...source,
-    permalink: getSourceLink(source),
-  }));
+    .getRawMany<
+      GQLSource & { role: SourceMemberRoles; memberPostingRank: number }
+    >();
+
+  return sources.map((source) => {
+    const { role, memberPostingRank, ...restSource } = source;
+
+    const permissions = getPermissionsForMember(
+      { role },
+      { memberPostingRank },
+    );
+    // we only send posting permissions from boot to keep the payload small
+    const postingPermissions = permissions.filter(
+      (item) => item === SourcePermissions.Post,
+    );
+
+    return {
+      ...restSource,
+      permalink: getSourceLink(source),
+      currentMember: {
+        permissions: postingPermissions,
+      },
+    };
+  });
 };
 
 const moderators = [

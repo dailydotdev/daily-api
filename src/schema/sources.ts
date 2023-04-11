@@ -702,6 +702,22 @@ const addNewSourceMember = async (
   });
 };
 
+export const getPermissionsForMember = (
+  member: Pick<SourceMember, 'role'>,
+  source: Pick<SquadSource, 'memberPostingRank'>,
+): SourcePermissions[] => {
+  const permissions =
+    roleSourcePermissions[member.role] ?? roleSourcePermissions.member;
+  const memberRank =
+    sourceRoleRank[member.role] ?? sourceRoleRank[SourceMemberRoles.Member];
+
+  if (memberRank < source.memberPostingRank) {
+    return permissions.filter((item) => item !== SourcePermissions.Post);
+  }
+
+  return permissions;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

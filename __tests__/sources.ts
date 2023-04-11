@@ -27,6 +27,7 @@ import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
 import { postsFixture } from './fixture/post';
 import { createSource } from './fixture/source';
+import { SourcePermissions } from '../src/schema/sources';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -227,6 +228,31 @@ query Source($id: ID!) {
       .update({ userId: '1' }, { role: SourceMemberRoles.Blocked });
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should not return post permission in case memberPostingRank is set above user roleRank', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).save({
+      id: 'restrictedsquad1',
+      handle: 'restrictedsquad1',
+      name: 'Restricted Squad',
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'restrictedsquad1',
+      role: SourceMemberRoles.Member,
+      referralToken: 'restrictedsquadtoken',
+      createdAt: new Date(2022, 11, 19),
+    });
+    const res = await client.query(QUERY, {
+      variables: { id: 'restrictedsquad1' },
+    });
+    expect(
+      res.data.source.currentMember.permissions.includes(
+        SourcePermissions.Post,
+      ),
+    ).toBe(false);
   });
 });
 
