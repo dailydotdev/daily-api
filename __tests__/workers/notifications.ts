@@ -31,6 +31,7 @@ import {
   NotificationUpvotersContext,
 } from '../../src/notifications';
 import { NotificationReason } from '../../src/common';
+import { randomUUID } from 'crypto';
 
 let con: DataSource;
 
@@ -560,6 +561,13 @@ describe('article new comment', () => {
         authorId: '1',
       },
     );
+    await con.getRepository(SourceMember).insert({
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      createdAt: new Date(),
+      referralToken: randomUUID(),
+    });
     const actual = await invokeNotificationWorker(worker.default, {
       userId: '1',
       postId: 'p1',
