@@ -35,8 +35,11 @@ const existsByUserAndPost =
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;
 
-const nullIfNotSameUser = <T>(value: T, ctx: Context, parent: User): T | null =>
-  ctx.userId === parent.id ? value : null;
+const nullIfNotSameUser = <T>(
+  value: T,
+  ctx: Context,
+  parent: Pick<User, 'id'>,
+): T | null => (ctx.userId === parent.id ? value : null);
 
 const obj = new GraphORM({
   User: {
@@ -244,6 +247,11 @@ const obj = new GraphORM({
                 .join(' ')}
             ELSE 0 END)
           `,
+      },
+      referralToken: {
+        transform: (value: string, ctx: Context, member: SourceMember) => {
+          return nullIfNotSameUser(value, ctx, { id: member.userId });
+        },
       },
     },
   },
