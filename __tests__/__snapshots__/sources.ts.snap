@@ -98,7 +98,7 @@ Object {
     },
     Object {
       "node": Object {
-        "role": "owner",
+        "role": "admin",
         "source": Object {
           "id": "a",
         },
