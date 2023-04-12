@@ -609,9 +609,11 @@ export const ensureSourcePermissions = async (
     const source = await ctx.con
       .getRepository(Source)
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
-    const sourceMember = await ctx.con
-      .getRepository(SourceMember)
-      .findOneBy({ sourceId: source.id, userId: ctx.userId });
+    const sourceMember = ctx.userId
+      ? await ctx.con
+          .getRepository(SourceMember)
+          .findOneBy({ sourceId: source.id, userId: ctx.userId })
+      : undefined;
 
     const canAccess = await canAccessSource(
       ctx,
