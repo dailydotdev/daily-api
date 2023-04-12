@@ -649,7 +649,7 @@ describe('query post', () => {
     );
   });
 
-  it('should throw error when non member tries to access shared post from source with members', async () => {
+  it('should throw error when non member tries to access post from source with members', async () => {
     loggedUser = '2';
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
     await con.getRepository(Post).update({ id: 'p1' }, { private: true });
