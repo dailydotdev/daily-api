@@ -971,10 +971,10 @@ describe('mutation deletePost', () => {
     );
   });
 
-  it('should restrict member deleting a post from the owner', async () => {
+  it('should restrict member deleting a post from the admin', async () => {
     loggedUser = '1';
     const id = 'sp1';
-    await createSharedPost(id, { role: SourceMemberRoles.Owner });
+    await createSharedPost(id, { role: SourceMemberRoles.Admin });
 
     return testMutationErrorCode(
       client,
@@ -1029,10 +1029,10 @@ describe('mutation deletePost', () => {
     expect(actual?.deleted).toBeTruthy();
   });
 
-  it('should allow moderator deleting a post from the owner', async () => {
+  it('should allow moderator deleting a post from the admin', async () => {
     loggedUser = '1';
     const id = 'sp1';
-    await createSharedPost(id, { role: SourceMemberRoles.Owner });
+    await createSharedPost(id, { role: SourceMemberRoles.Admin });
     await con
       .getRepository(SourceMember)
       .update({ userId: '1' }, { role: SourceMemberRoles.Moderator });
@@ -1043,10 +1043,10 @@ describe('mutation deletePost', () => {
     expect(actual?.deleted).toBeTruthy();
   });
 
-  it('should delete the shared post as an owner of the squad', async () => {
+  it('should delete the shared post as an admin of the squad', async () => {
     loggedUser = '2';
     const id = 'sp1';
-    await createSharedPost(id, { role: SourceMemberRoles.Owner }, '1');
+    await createSharedPost(id, { role: SourceMemberRoles.Admin }, '1');
     const res = await client.mutate(MUTATION, { variables: { id: 'sp1' } });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(SharePost).findOneBy({ id: 'sp1' });
@@ -1514,7 +1514,7 @@ describe('mutation sharePost', () => {
     expect(post.title).toEqual('My comment');
   });
 
-  it('should allow owners to post when posting to squad is not allowed', async () => {
+  it('should allow admins to post when posting to squad is not allowed', async () => {
     loggedUser = '1';
     await con.getRepository(SquadSource).update('s1', {
       memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
@@ -1522,7 +1522,7 @@ describe('mutation sharePost', () => {
     await con.getRepository(SourceMember).update(
       { sourceId: 's1', userId: '1' },
       {
-        role: SourceMemberRoles.Owner,
+        role: SourceMemberRoles.Admin,
       },
     );
 
@@ -1797,7 +1797,7 @@ describe('mutation submitExternalLink', () => {
     expect(sharedPost.visible).toEqual(true);
   });
 
-  it('should allow owners to share when posting to squad is not allowed', async () => {
+  it('should allow admins to share when posting to squad is not allowed', async () => {
     loggedUser = '1';
     await con.getRepository(SquadSource).update('s1', {
       memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
@@ -1805,7 +1805,7 @@ describe('mutation submitExternalLink', () => {
     await con.getRepository(SourceMember).update(
       { sourceId: 's1', userId: '1' },
       {
-        role: SourceMemberRoles.Owner,
+        role: SourceMemberRoles.Admin,
       },
     );
 

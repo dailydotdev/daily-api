@@ -59,7 +59,7 @@ beforeEach(async () => {
     {
       userId: '1',
       sourceId: 'a',
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
       referralToken: 'rt',
       createdAt: new Date(2022, 11, 19),
     },
@@ -73,7 +73,7 @@ beforeEach(async () => {
     {
       userId: '2',
       sourceId: 'b',
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
       referralToken: randomUUID(),
       createdAt: new Date(2022, 11, 19),
     },
@@ -203,11 +203,11 @@ query Source($id: ID!) {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should return current member as owner', async () => {
+  it('should return current member as admin', async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
-      .update({ userId: '1' }, { role: SourceMemberRoles.Owner });
+      .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.data).toMatchSnapshot();
   });
@@ -522,7 +522,7 @@ query SourceMembers($id: ID!, $role: String) {
     expect(noModRes.errors).toBeFalsy();
     const [noModFirst, noModSecond, noModThird] =
       noModRes.data.sourceMembers.edges;
-    expect(noModFirst.node.role).toEqual(SourceMemberRoles.Owner);
+    expect(noModFirst.node.role).toEqual(SourceMemberRoles.Admin);
     expect(noModSecond.node.role).toEqual(SourceMemberRoles.Member);
     expect(noModThird.node.role).toEqual(SourceMemberRoles.Member);
 
@@ -534,7 +534,7 @@ query SourceMembers($id: ID!, $role: String) {
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     const [first, second, third] = res.data.sourceMembers.edges;
-    expect(first.node.role).toEqual(SourceMemberRoles.Owner);
+    expect(first.node.role).toEqual(SourceMemberRoles.Admin);
     expect(second.node.role).toEqual(SourceMemberRoles.Moderator);
     expect(third.node.role).toEqual(SourceMemberRoles.Member);
   });
@@ -557,7 +557,7 @@ query SourceMembers($id: ID!, $role: String) {
     );
   });
 
-  it('should not return blocked source members when user is not a moderator/owner', async () => {
+  it('should not return blocked source members when user is not a moderator/admin', async () => {
     loggedUser = '2';
     await con
       .getRepository(SourceMember)
@@ -572,7 +572,7 @@ query SourceMembers($id: ID!, $role: String) {
     );
   });
 
-  it('should return blocked users only when user is the owner', async () => {
+  it('should return blocked users only when user is the admin', async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
@@ -812,7 +812,7 @@ describe('mutation createSquad', () => {
       sourceId: newId,
       userId: '1',
     });
-    expect(member.role).toEqual(SourceMemberRoles.Owner);
+    expect(member.role).toEqual(SourceMemberRoles.Admin);
     const post = await con
       .getRepository(SharePost)
       .findOneBy({ sourceId: newId });
@@ -948,7 +948,7 @@ describe('mutation createSquad', () => {
       sourceId: newId,
       userId: '1',
     });
-    expect(member.role).toEqual(SourceMemberRoles.Owner);
+    expect(member.role).toEqual(SourceMemberRoles.Admin);
     const post = await con
       .getRepository(SharePost)
       .findOneBy({ sourceId: newId });
@@ -984,7 +984,7 @@ describe('mutation editSquad', () => {
       sourceId: 's1',
       userId: '1',
       referralToken: 'rt2',
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
     });
   });
 
@@ -1046,7 +1046,7 @@ describe('mutation editSquad', () => {
     );
   });
 
-  it(`should throw error if user is not the squad owner`, async () => {
+  it(`should throw error if user is not the squad admin`, async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
@@ -1125,7 +1125,7 @@ describe('mutation editSquad', () => {
       .getRepository(SquadSource)
       .update(
         { id: 's1' },
-        { memberPostingRank: sourceRoleRank[SourceMemberRoles.Owner] },
+        { memberPostingRank: sourceRoleRank[SourceMemberRoles.Admin] },
       );
     const res = await client.mutate(MUTATION, {
       variables: { ...variables, name: 'updated name' },
@@ -1135,7 +1135,7 @@ describe('mutation editSquad', () => {
       .getRepository(SquadSource)
       .findOneBy({ id: variables.sourceId });
     expect(editSource?.memberPostingRank).toEqual(
-      sourceRoleRank[SourceMemberRoles.Owner],
+      sourceRoleRank[SourceMemberRoles.Admin],
     );
     expect(editSource?.name).toEqual('updated name');
   });
@@ -1226,7 +1226,7 @@ describe('mutation updateMemberRole', () => {
     );
   });
 
-  it('should allow owner to promote a member to moderator', async () => {
+  it('should allow admin to promote a member to moderator', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
       variables: {
@@ -1242,7 +1242,7 @@ describe('mutation updateMemberRole', () => {
     expect(member.role).toEqual(SourceMemberRoles.Moderator);
   });
 
-  it('should allow owner to promote a moderator to an owner', async () => {
+  it('should allow admin to promote a moderator to an admin', async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
@@ -1251,21 +1251,21 @@ describe('mutation updateMemberRole', () => {
       variables: {
         sourceId: 'a',
         memberId: '2',
-        role: SourceMemberRoles.Owner,
+        role: SourceMemberRoles.Admin,
       },
     });
     expect(res.errors).toBeFalsy();
     const member = await con
       .getRepository(SourceMember)
       .findOneBy({ userId: '2', sourceId: 'a' });
-    expect(member.role).toEqual(SourceMemberRoles.Owner);
+    expect(member.role).toEqual(SourceMemberRoles.Admin);
   });
 
-  it('should allow owner to demote an owner to a moderator', async () => {
+  it('should allow admin to demote an admin to a moderator', async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
-      .update({ userId: '2' }, { role: SourceMemberRoles.Owner });
+      .update({ userId: '2' }, { role: SourceMemberRoles.Admin });
     const res = await client.mutate(MUTATION, {
       variables: {
         sourceId: 'a',
@@ -1280,7 +1280,7 @@ describe('mutation updateMemberRole', () => {
     expect(member.role).toEqual(SourceMemberRoles.Moderator);
   });
 
-  it('should allow owner to demote a moderator to a member', async () => {
+  it('should allow admin to demote a moderator to a member', async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
@@ -1299,11 +1299,11 @@ describe('mutation updateMemberRole', () => {
     expect(member.role).toEqual(SourceMemberRoles.Member);
   });
 
-  it('should allow owner to remove and block an owner', async () => {
+  it('should allow admin to remove and block an admin', async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
-      .update({ userId: '2' }, { role: SourceMemberRoles.Owner });
+      .update({ userId: '2' }, { role: SourceMemberRoles.Admin });
     const res = await client.mutate(MUTATION, {
       variables: {
         sourceId: 'a',
@@ -1318,7 +1318,7 @@ describe('mutation updateMemberRole', () => {
     expect(member.role).toEqual(SourceMemberRoles.Blocked);
   });
 
-  it('should allow owner to remove and block a moderator', async () => {
+  it('should allow admin to remove and block a moderator', async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
@@ -1337,7 +1337,7 @@ describe('mutation updateMemberRole', () => {
     expect(member.role).toEqual(SourceMemberRoles.Blocked);
   });
 
-  it('should allow owner to remove and block a member', async () => {
+  it('should allow admin to remove and block a member', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
       variables: {
@@ -1375,7 +1375,7 @@ describe('mutation updateMemberRole', () => {
     );
   });
 
-  it('should restrict moderator to remove and block an owner', async () => {
+  it('should restrict moderator to remove and block an admin', async () => {
     loggedUser = '2';
     await con
       .getRepository(SourceMember)
@@ -1483,7 +1483,7 @@ describe('mutation unblockMember', () => {
     expect(member).toBeFalsy();
   });
 
-  it('should allow owner to unblock a member', async () => {
+  it('should allow admin to unblock a member', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
       variables: { sourceId: 'a', memberId: '3' },
@@ -1543,11 +1543,11 @@ describe('mutation leaveSource', () => {
     expect(sourceMembers).toEqual(0);
   });
 
-  it('should leave squad even if the user is the owner', async () => {
+  it('should leave squad even if the user is the admin', async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
-      .update({ userId: '1' }, { role: SourceMemberRoles.Owner });
+      .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     const sourceMembers = await con
@@ -1595,7 +1595,7 @@ describe('mutation deleteSource', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not delete source if user is not the owner', async () => {
+  it('should not delete source if user is not the admin', async () => {
     loggedUser = '1';
     return testMutationErrorCode(
       client,
@@ -1608,7 +1608,7 @@ describe('mutation deleteSource', () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
-      .update({ userId: '1' }, { role: SourceMemberRoles.Owner });
+      .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
 
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
@@ -1644,7 +1644,7 @@ describe('mutation joinSource', () => {
       sourceId: 's1',
       userId: '2',
       referralToken: 'rt2',
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
     });
   });
 
@@ -1699,7 +1699,7 @@ describe('mutation joinSource', () => {
       sourceId: 's1',
       userId: '2',
     });
-    expect(member.role).toEqual(SourceMemberRoles.Owner);
+    expect(member.role).toEqual(SourceMemberRoles.Admin);
   });
 
   it('should throw error when joining private squad without token', async () => {
@@ -1791,7 +1791,7 @@ query Source($id: ID!) {
       {
         userId: '1',
         sourceId: 'c',
-        role: SourceMemberRoles.Owner,
+        role: SourceMemberRoles.Admin,
         referralToken: randomUUID(),
         createdAt: new Date(2022, 11, 19),
       },
@@ -1837,7 +1837,7 @@ query Source($id: ID!) {
         id: 'c',
         privilegedMembers: [
           {
-            role: 'owner',
+            role: 'admin',
             user: {
               id: '1',
             },

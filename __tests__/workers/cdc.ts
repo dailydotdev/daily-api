@@ -1207,7 +1207,7 @@ describe('source member', () => {
   it('should notify when role changed', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
     };
     await saveFixtures(con, User, [defaultUser]);
     await expectSuccessfulBackground(

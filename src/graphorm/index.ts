@@ -208,7 +208,7 @@ const obj = new GraphORM({
             return qb
               .where(`${childAlias}."sourceId" = "${parentAlias}".id`)
               .andWhere(`${childAlias}.role IN (:...roles)`, {
-                roles: [SourceMemberRoles.Owner, SourceMemberRoles.Moderator],
+                roles: [SourceMemberRoles.Admin, SourceMemberRoles.Moderator],
               })
               .limit(50); // limit to avoid huge arrays for members, most sources should fit into this see PR !1219 for more info
           },

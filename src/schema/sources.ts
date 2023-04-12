@@ -478,7 +478,7 @@ const moderatorPermissions = [
   SourcePermissions.MemberUnblock,
   SourcePermissions.ViewBlockedMembers,
 ];
-const ownerPermissions = [
+const adminPermissions = [
   ...moderatorPermissions,
   SourcePermissions.MemberRoleUpdate,
   SourcePermissions.PostLimit,
@@ -490,7 +490,7 @@ export const roleSourcePermissions: Record<
   SourceMemberRoles,
   SourcePermissions[]
 > = {
-  owner: ownerPermissions,
+  admin: adminPermissions,
   moderator: moderatorPermissions,
   member: memberPermissions,
   blocked: [],
@@ -508,7 +508,7 @@ export const hasGreaterAccessCheck = (
   loggedUser: BaseSourceMember,
   member: BaseSourceMember,
 ) => {
-  if (loggedUser.role === SourceMemberRoles.Owner) {
+  if (loggedUser.role === SourceMemberRoles.Admin) {
     return;
   }
 
@@ -934,11 +934,11 @@ export const resolvers: IResolvers<any, Context> = {
             private: true,
             memberPostingRank: sourceRoleRank[memberPostingRole],
           });
-          // Add the logged-in user as owner
+          // Add the logged-in user as admin
           await addNewSourceMember(entityManager, {
             sourceId: id,
             userId: ctx.userId,
-            role: SourceMemberRoles.Owner,
+            role: SourceMemberRoles.Admin,
           });
           if (postId) {
             // Create the first post of the squad

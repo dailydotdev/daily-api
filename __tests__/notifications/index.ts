@@ -685,15 +685,15 @@ describe('generateNotification', () => {
     );
   });
 
-  it('should generate promoted_to_owner notification', () => {
-    const type = 'promoted_to_owner';
+  it('should generate promoted_to_admin notification', () => {
+    const type = 'promoted_to_admin';
     const ctx: NotificationSourceMemberRoleContext = {
       userId,
       source: {
         ...sourcesFixture[0],
         type: SourceType.Squad,
       } as Reference<Source>,
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
     };
     const actual = generateNotification(type, ctx);
     expect(actual.notification.type).toEqual(type);
@@ -703,7 +703,7 @@ describe('generateNotification', () => {
     expect(actual.notification.referenceType).toEqual('source');
     expect(actual.notification.icon).toEqual('Star');
     expect(actual.notification.title).toEqual(
-      `Congratulations! You are now an <span class="text-theme-color-cabbage">${SourceMemberRoles.Owner}</span> of <b>${sourcesFixture[0].name}</b>`,
+      `Congratulations! You are now an <span class="text-theme-color-cabbage">${SourceMemberRoles.Admin}</span> of <b>${sourcesFixture[0].name}</b>`,
     );
     expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/squads/a',
@@ -718,7 +718,7 @@ describe('generateNotification', () => {
         ...sourcesFixture[0],
         type: SourceType.Squad,
       } as Reference<Source>,
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
     };
     const actual = generateNotification(type, ctx);
     expect(actual.notification.type).toEqual(type);
@@ -728,7 +728,7 @@ describe('generateNotification', () => {
     expect(actual.notification.referenceType).toEqual('source');
     expect(actual.notification.icon).toEqual('Star');
     expect(actual.notification.title).toEqual(
-      `You are no longer a <span class="text-theme-color-cabbage">${SourceMemberRoles.Owner}</span> in <b>${sourcesFixture[0].name}</b>`,
+      `You are no longer a <span class="text-theme-color-cabbage">${SourceMemberRoles.Admin}</span> in <b>${sourcesFixture[0].name}</b>`,
     );
     expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/squads/a',

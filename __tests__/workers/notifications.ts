@@ -100,7 +100,7 @@ it('should not send squad access notification if user is part of squad', async (
   await con.getRepository(SourceMember).save({
     sourceId: 'a',
     userId: '1',
-    role: SourceMemberRoles.Owner,
+    role: SourceMemberRoles.Admin,
     referralToken: 'a',
   });
   const worker = await import(
@@ -169,18 +169,18 @@ describe('source member role changed', () => {
     expect(actual[0].type).toEqual('promoted_to_moderator');
     expect(actual[0].ctx).toEqual({ userId: '1', source });
   });
-  it('should add member to owner notification', async () => {
+  it('should add member to admin notification', async () => {
     const worker = await import(
       '../../src/workers/notifications/sourceMemberRoleChanged'
     );
     const actual = await invokeNotificationWorker(worker.default, {
       previousRole: SourceMemberRoles.Member,
-      sourceMember: { ...baseMember, role: SourceMemberRoles.Owner },
+      sourceMember: { ...baseMember, role: SourceMemberRoles.Admin },
     });
     const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
 
     expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('promoted_to_owner');
+    expect(actual[0].type).toEqual('promoted_to_admin');
     expect(actual[0].ctx).toEqual({
       userId: '1',
       source,
@@ -204,28 +204,28 @@ describe('source member role changed', () => {
       source,
     });
   });
-  it('should add moderator to owner notification', async () => {
+  it('should add moderator to admin notification', async () => {
     const worker = await import(
       '../../src/workers/notifications/sourceMemberRoleChanged'
     );
     const actual = await invokeNotificationWorker(worker.default, {
       previousRole: SourceMemberRoles.Moderator,
-      sourceMember: { ...baseMember, role: SourceMemberRoles.Owner },
+      sourceMember: { ...baseMember, role: SourceMemberRoles.Admin },
     });
     const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
     expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('promoted_to_owner');
+    expect(actual[0].type).toEqual('promoted_to_admin');
     expect(actual[0].ctx).toEqual({
       userId: '1',
       source,
     });
   });
-  it('should add owner to member notification', async () => {
+  it('should add admin to member notification', async () => {
     const worker = await import(
       '../../src/workers/notifications/sourceMemberRoleChanged'
     );
     const actual = await invokeNotificationWorker(worker.default, {
-      previousRole: SourceMemberRoles.Owner,
+      previousRole: SourceMemberRoles.Admin,
       sourceMember: { ...baseMember, role: SourceMemberRoles.Member },
     });
     const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
@@ -234,16 +234,16 @@ describe('source member role changed', () => {
     expect(actual[0].type).toEqual('demoted_to_member');
     expect(actual[0].ctx).toEqual({
       userId: '1',
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
       source,
     });
   });
-  it('should add owner to moderator notification', async () => {
+  it('should add admin to moderator notification', async () => {
     const worker = await import(
       '../../src/workers/notifications/sourceMemberRoleChanged'
     );
     const actual = await invokeNotificationWorker(worker.default, {
-      previousRole: SourceMemberRoles.Owner,
+      previousRole: SourceMemberRoles.Admin,
       sourceMember: { ...baseMember, role: SourceMemberRoles.Moderator },
     });
     const source = await con.getRepository(Source).findOneBy({ id: 'squad' });
@@ -1008,7 +1008,7 @@ describe('comment upvote milestone', () => {
 });
 
 describe('squad member joined', () => {
-  it('should add notification to squad owner', async () => {
+  it('should add notification to squad admin', async () => {
     const worker = await import(
       '../../src/workers/notifications/squadMemberJoined'
     );
@@ -1020,7 +1020,7 @@ describe('squad member joined', () => {
         sourceId: 'a',
         userId: '2',
         referralToken: 'rt1',
-        role: SourceMemberRoles.Owner,
+        role: SourceMemberRoles.Admin,
       },
     ]);
     const actual = await invokeNotificationWorker(worker.default, {
@@ -1038,7 +1038,7 @@ describe('squad member joined', () => {
     expect(ctx.doneBy.id).toEqual('1');
   });
 
-  it('should not add notification when owner joins', async () => {
+  it('should not add notification when admin joins', async () => {
     const worker = await import(
       '../../src/workers/notifications/squadMemberJoined'
     );
@@ -1047,7 +1047,7 @@ describe('squad member joined', () => {
         sourceId: 'a',
         userId: '2',
         referralToken: 'rt1',
-        role: SourceMemberRoles.Owner,
+        role: SourceMemberRoles.Admin,
       },
     ]);
     const actual = await invokeNotificationWorker(worker.default, {

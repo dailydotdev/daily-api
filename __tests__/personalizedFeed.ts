@@ -266,7 +266,7 @@ it('should send source memberships as parameter', async () => {
     {
       userId: '1',
       sourceId: 'b',
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
       referralToken: 'rt2',
     },
   ]);

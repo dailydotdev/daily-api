@@ -3,14 +3,14 @@ export enum Roles {
 }
 
 export enum SourceMemberRoles {
-  Owner = 'owner',
+  Admin = 'admin',
   Moderator = 'moderator',
   Member = 'member',
   Blocked = 'blocked',
 }
 
 export const sourceRoleRank: Record<SourceMemberRoles, number> = {
-  owner: 10,
+  admin: 10,
   moderator: 5,
   member: 0,
   blocked: -1,

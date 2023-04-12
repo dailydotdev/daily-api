@@ -674,7 +674,7 @@ describe('query sourceFeed', () => {
       {
         userId: '1',
         sourceId: 'b',
-        role: SourceMemberRoles.Owner,
+        role: SourceMemberRoles.Admin,
         referralToken: randomUUID(),
         createdAt: new Date(2022, 11, 19),
       },
@@ -1535,7 +1535,7 @@ describe('function feedToFilters', () => {
       {
         userId: '1',
         sourceId: 'b',
-        role: SourceMemberRoles.Owner,
+        role: SourceMemberRoles.Admin,
         referralToken: 'rt2',
       },
     ]);
