@@ -895,10 +895,11 @@ export const resolvers: IResolvers<any, Context> = {
           throw new ValidationError('URL is not valid');
         }
 
-        const existingPost = await manager.getRepository(ArticlePost).findOne({
-          select: ['id', 'deleted'],
-          where: [{ url: cleanUrl }, { canonicalUrl: cleanUrl }],
-        });
+        const existingPost: Pick<ArticlePost, 'id' | 'deleted' | 'visible'> =
+          await manager.getRepository(ArticlePost).findOne({
+            select: ['id', 'deleted', 'visible'],
+            where: [{ url: cleanUrl }, { canonicalUrl: cleanUrl }],
+          });
         if (existingPost) {
           if (existingPost.deleted) {
             throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);
@@ -909,6 +910,7 @@ export const resolvers: IResolvers<any, Context> = {
             ctx.userId,
             existingPost.id,
             commentary,
+            existingPost.visible,
           );
           return { _: true };
         }
