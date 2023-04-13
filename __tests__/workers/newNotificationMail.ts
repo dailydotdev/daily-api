@@ -939,7 +939,7 @@ it('should set parameters for squad_post_live email', async () => {
   expect(args.templateId).toEqual('d-343845599453499d9fa5d3ffafc91514');
 });
 
-it('should set parameters for promoted_to_owner email', async () => {
+it('should set parameters for promoted_to_admin email', async () => {
   await con
     .getRepository(Source)
     .update({ id: 'a' }, { type: SourceType.Squad });
@@ -951,7 +951,7 @@ it('should set parameters for promoted_to_owner email', async () => {
 
   const notificationId = await saveNotificationFixture(
     con,
-    'promoted_to_owner',
+    'promoted_to_admin',
     ctx,
   );
   await expectSuccessfulBackground(worker, {
@@ -965,7 +965,7 @@ it('should set parameters for promoted_to_owner email', async () => {
   expect(args.dynamicTemplateData).toEqual({
     first_name: 'Ido',
     squad_link:
-      'http://localhost:5002/squads/a?utm_source=notification&utm_medium=email&utm_campaign=promoted_to_owner',
+      'http://localhost:5002/squads/a?utm_source=notification&utm_medium=email&utm_campaign=promoted_to_admin',
     squad_name: 'A',
   });
   expect(args.templateId).toEqual('d-397a5e4a394a4b7f91ea33c29efb8d01');
@@ -1011,7 +1011,7 @@ it('should not invoke demoted_to_member email', async () => {
   const ctx: NotificationSourceMemberRoleContext = {
     userId: '1',
     source,
-    role: SourceMemberRoles.Owner,
+    role: SourceMemberRoles.Admin,
   };
 
   const notificationId = await saveNotificationFixture(
