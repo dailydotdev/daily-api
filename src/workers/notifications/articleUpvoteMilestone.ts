@@ -1,11 +1,13 @@
 import { messageToJson } from '../worker';
-import { Upvote } from '../../entity';
+import { SourceMember, SourceType, Upvote } from '../../entity';
 import {
   NotificationPostContext,
   NotificationUpvotersContext,
 } from '../../notifications';
 import { NotificationWorker } from './worker';
 import { buildPostContext, uniquePostOwners, UPVOTE_MILESTONES } from './utils';
+import { In, Not } from 'typeorm';
+import { SourceMemberRoles } from '../../roles';
 
 interface Data {
   userId: string;
@@ -20,7 +22,7 @@ const worker: NotificationWorker = {
     if (!postCtx) {
       return;
     }
-    const { post } = postCtx;
+    const { post, source } = postCtx;
     const users = uniquePostOwners(post, [data.userId]);
     if (!users.length || !UPVOTE_MILESTONES.includes(post.upvotes.toString())) {
       return;
@@ -40,6 +42,24 @@ const worker: NotificationWorker = {
       upvoters,
       upvotes: post.upvotes,
     };
+
+    if (source.type === SourceType.Squad) {
+      const members = await con.getRepository(SourceMember).findBy({
+        userId: In(users),
+        sourceId: source.id,
+        role: Not(SourceMemberRoles.Blocked),
+      });
+
+      if (!members.length) {
+        return;
+      }
+
+      return members.map(({ userId }) => ({
+        type: 'article_upvote_milestone',
+        ctx: { ...ctx, userId },
+      }));
+    }
+
     return users.map((userId) => ({
       type: 'article_upvote_milestone',
       ctx: { ...ctx, userId },
