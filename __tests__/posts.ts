@@ -1627,7 +1627,7 @@ describe('mutation submitExternalLink', () => {
   }
 }`;
 
-  const variables = {
+  const variables: Record<string, any> = {
     sourceId: 's1',
     url: 'https://daily.dev',
     commentary: 'My comment',
@@ -1659,20 +1659,14 @@ describe('mutation submitExternalLink', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should share to squad', async () => {
-    await con.getRepository(Source).insert({
-      id: UNKNOWN_SOURCE,
-      handle: UNKNOWN_SOURCE,
-      name: UNKNOWN_SOURCE,
-    });
-    loggedUser = '1';
+  const checkSharedPostExpectation = async (visible: boolean) => {
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     const articlePost = await con
       .getRepository(ArticlePost)
       .findOneBy({ url: variables.url });
     expect(articlePost.url).toEqual('https://daily.dev');
-    expect(articlePost.visible).toEqual(false);
+    expect(articlePost.visible).toEqual(visible);
 
     expect(notifyContentRequested).toBeCalledTimes(1);
     expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
@@ -1684,7 +1678,28 @@ describe('mutation submitExternalLink', () => {
       .findOneBy({ sharedPostId: articlePost.id });
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
-    expect(sharedPost.visible).toEqual(false);
+    expect(sharedPost.visible).toEqual(visible);
+  };
+
+  it('should share to squad without title to support backwards compatibility', async () => {
+    await con.getRepository(Source).insert({
+      id: UNKNOWN_SOURCE,
+      handle: UNKNOWN_SOURCE,
+      name: UNKNOWN_SOURCE,
+    });
+    loggedUser = '1';
+    await checkSharedPostExpectation(false);
+  });
+
+  it('should share to squad and be visible automatically when title is available', async () => {
+    await con.getRepository(Source).insert({
+      id: UNKNOWN_SOURCE,
+      handle: UNKNOWN_SOURCE,
+      name: UNKNOWN_SOURCE,
+    });
+    loggedUser = '1';
+    variables.title = 'Sample external link title';
+    await checkSharedPostExpectation(true);
   });
 
   it('should share existing post to squad', async () => {
