@@ -631,6 +631,43 @@ describe('query post', () => {
     );
   });
 
+  it('should throw error when annonymous user tries to access post from source with members', async () => {
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    await con.getRepository(Post).update({ id: 'p1' }, { private: true });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Owner,
+    });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY('p1'),
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when non member tries to access post from source with members', async () => {
+    loggedUser = '2';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    await con.getRepository(Post).update({ id: 'p1' }, { private: true });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Owner,
+    });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY('p1'),
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should return post by id', async () => {
     const res = await client.query(QUERY('p1'));
     expect(res.data).toMatchSnapshot();
@@ -1828,5 +1865,39 @@ describe('mutation submitExternalLink', () => {
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
     expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should not make squad post visible if shared post is not yet ready and visible', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        url: 'http://p7.com',
+        commentary: 'Share 1',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'http://p7.com' });
+    expect(articlePost?.url).toEqual('http://p7.com');
+    expect(articlePost?.visible).toEqual(false);
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost?.id, title: 'Share 1' });
+    expect(sharedPost?.visible).toEqual(false);
+
+    const res2 = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        url: 'http://p7.com',
+        commentary: 'Share 2',
+      },
+    });
+    expect(res2.errors).toBeFalsy();
+    const sharedPost2 = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost?.id, title: 'Share 2' });
+    expect(sharedPost2?.visible).toEqual(false);
   });
 });
