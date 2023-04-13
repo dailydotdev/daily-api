@@ -99,24 +99,24 @@ export async function articleNewCommentHandler(
       ? 'squad_new_comment'
       : 'article_new_comment';
 
-  if (source.type !== SourceType.Squad) {
-    return users.map((userId) => ({
+  if (source.type === SourceType.Squad) {
+    const members = await con.getRepository(SourceMember).findBy({
+      userId: In(users),
+      sourceId: source.id,
+      role: Not(SourceMemberRoles.Blocked),
+    });
+
+    if (!members.length) {
+      return;
+    }
+
+    return members.map(({ userId }) => ({
       type,
       ctx: { ...ctx, userId },
     }));
   }
 
-  const members = await con.getRepository(SourceMember).findBy({
-    userId: In(users),
-    sourceId: source.id,
-    role: Not(SourceMemberRoles.Blocked),
-  });
-
-  if (!members.length) {
-    return;
-  }
-
-  return members.map(({ userId }) => ({
+  return users.map((userId) => ({
     type,
     ctx: { ...ctx, userId },
   }));

@@ -42,24 +42,25 @@ const worker: NotificationWorker = {
       upvoters,
       upvotes: post.upvotes,
     };
-    if (source.type !== SourceType.Squad) {
-      return users.map((userId) => ({
+
+    if (source.type === SourceType.Squad) {
+      const members = await con.getRepository(SourceMember).findBy({
+        userId: In(users),
+        sourceId: source.id,
+        role: Not(SourceMemberRoles.Blocked),
+      });
+
+      if (!members.length) {
+        return;
+      }
+
+      return members.map(({ userId }) => ({
         type: 'article_upvote_milestone',
         ctx: { ...ctx, userId },
       }));
     }
 
-    const members = await con.getRepository(SourceMember).findBy({
-      userId: In(users),
-      sourceId: source.id,
-      role: Not(SourceMemberRoles.Blocked),
-    });
-
-    if (!members.length) {
-      return;
-    }
-
-    return members.map(({ userId }) => ({
+    return users.map((userId) => ({
       type: 'article_upvote_milestone',
       ctx: { ...ctx, userId },
     }));
