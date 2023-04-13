@@ -14,6 +14,7 @@ import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
   defaultImage,
+  fetchLinkPreview,
   getDiscussionLink,
   isValidHttpUrl,
   notifyView,
@@ -25,6 +26,7 @@ import {
   createExternalLink,
   createSharePost,
   ExternalLink,
+  ExternalLinkPreview,
   HiddenPost,
   Post,
   PostReport,
@@ -380,6 +382,11 @@ export const typeDefs = /* GraphQL */ `
     query: String
   }
 
+  type LinkPreview {
+    title: String!
+    image: String!
+  }
+
   """
   Enum of the possible reasons to report a post
   """
@@ -526,6 +533,20 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): EmptyResponse @auth
+
+    """
+    Fetch external link's title and image preview
+    """
+    checkLinkPreview(
+      """
+      Source the user is planning to post to
+      """
+      sourceId: ID!
+      """
+      URL of the external link
+      """
+      url: String!
+    ): LinkPreview @auth
 
     """
     Create external link in source
@@ -892,6 +913,15 @@ export const resolvers: IResolvers<any, Context> = {
       });
       return { _: true };
     },
+    checkLinkPreview: async (
+      _,
+      { url, sourceId }: SubmitExternalLinkArgs,
+      ctx,
+    ): Promise<ExternalLinkPreview> => {
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+
+      return fetchLinkPreview(url);
+    },
     submitExternalLink: async (
       _,
       { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,
@@ -1009,5 +1039,9 @@ export const resolvers: IResolvers<any, Context> = {
       }
       return undefined;
     },
+  },
+  LinkPreview: {
+    image: (preview: ExternalLinkPreview) =>
+      preview.image ?? defaultImage.placeholder,
   },
 };

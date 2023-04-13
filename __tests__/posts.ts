@@ -38,8 +38,14 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { notifyContentRequested, notifyView } from '../src/common';
+import {
+  defaultImage,
+  linkPreviewOrigin,
+  notifyContentRequested,
+  notifyView,
+} from '../src/common';
 import { randomUUID } from 'crypto';
+import nock from 'nock';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -1877,5 +1883,107 @@ describe('mutation submitExternalLink', () => {
       .getRepository(SharePost)
       .findOneBy({ sharedPostId: articlePost?.id, title: 'Share 2' });
     expect(sharedPost2?.visible).toEqual(false);
+  });
+});
+
+describe('mutation checkLinkPreview', () => {
+  const MUTATION = `
+    mutation CheckLinkPreview($sourceId: ID!, $url: String!) {
+      checkLinkPreview(sourceId: $sourceId, url: $url) {
+        title
+        image
+      }
+    }
+  `;
+
+  const variables: Record<string, string> = {
+    sourceId: 's1',
+    url: 'https://daily.dev',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+      memberPostingRank: 0,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw forbidden when not part of the squad', () => {
+    loggedUser = '2';
+
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw forbidden when user is not allowed to post in squad', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(SquadSource)
+      .update({ id: 's1' }, { memberPostingRank: 5 });
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return link preview', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = {
+      title: 'We updated our RSA SSH host key',
+      image:
+        'https://github.blog/wp-content/uploads/2021/12/github-security_orange-banner.png',
+    };
+
+    nock(linkPreviewOrigin)
+      .post('/preview', { url: variables.url })
+      .reply(200, sampleResponse);
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLinkPreview.title).toEqual(sampleResponse.title);
+    expect(res.data.checkLinkPreview.image).toEqual(sampleResponse.image);
+  });
+
+  it('should return link preview and image being the placeholder when empty', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = { title: 'We updated our RSA SSH host key' };
+
+    nock(linkPreviewOrigin)
+      .post('/preview', { url: variables.url })
+      .reply(200, sampleResponse);
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLinkPreview.title).toEqual(sampleResponse.title);
+    expect(res.data.checkLinkPreview.image).toEqual(defaultImage.placeholder);
   });
 });
