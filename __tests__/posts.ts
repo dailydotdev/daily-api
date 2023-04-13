@@ -631,6 +631,43 @@ describe('query post', () => {
     );
   });
 
+  it('should throw error when annonymous user tries to access post from source with members', async () => {
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    await con.getRepository(Post).update({ id: 'p1' }, { private: true });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Owner,
+    });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY('p1'),
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when non member tries to access post from source with members', async () => {
+    loggedUser = '2';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    await con.getRepository(Post).update({ id: 'p1' }, { private: true });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Owner,
+    });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY('p1'),
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should return post by id', async () => {
     const res = await client.query(QUERY('p1'));
     expect(res.data).toMatchSnapshot();
