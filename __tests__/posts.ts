@@ -1666,7 +1666,7 @@ describe('mutation submitExternalLink', () => {
       .getRepository(ArticlePost)
       .findOneBy({ url: variables.url });
     expect(articlePost.url).toEqual('https://daily.dev');
-    expect(articlePost.visible).toEqual(false);
+    expect(articlePost.visible).toEqual(visible);
 
     expect(notifyContentRequested).toBeCalledTimes(1);
     expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
