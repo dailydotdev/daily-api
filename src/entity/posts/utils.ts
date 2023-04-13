@@ -375,6 +375,7 @@ export const createExternalLink = async (
 ): Promise<void> => {
   await validateCommentary(commentary);
   const id = await generateShortId();
+  const isVisible = !!title;
 
   return con.transaction(async (entityManager) => {
     await entityManager.getRepository(ArticlePost).insert({
@@ -389,9 +390,16 @@ export const createExternalLink = async (
       sentAnalyticsReport: true,
       private: true,
       origin: PostOrigin.Squad,
-      visible: !!title,
+      visible: isVisible,
     });
-    await createSharePost(entityManager, sourceId, userId, id, commentary);
+    await createSharePost(
+      entityManager,
+      sourceId,
+      userId,
+      id,
+      commentary,
+      isVisible,
+    );
     await notifyContentRequested(logger, {
       id,
       url,
