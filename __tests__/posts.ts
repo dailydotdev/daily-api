@@ -638,7 +638,7 @@ describe('query post', () => {
       sourceId: 'a',
       userId: '1',
       referralToken: 'rt2',
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
     });
     return testQueryErrorCode(
       client,
@@ -657,7 +657,7 @@ describe('query post', () => {
       sourceId: 'a',
       userId: '1',
       referralToken: 'rt2',
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
     });
     return testQueryErrorCode(
       client,
