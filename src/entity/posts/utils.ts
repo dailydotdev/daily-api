@@ -390,7 +390,7 @@ export const createExternalLink = async (
       sentAnalyticsReport: true,
       private: true,
       origin: PostOrigin.Squad,
-      visible: isVisible,
+      visible: false,
     });
     await createSharePost(
       entityManager,
