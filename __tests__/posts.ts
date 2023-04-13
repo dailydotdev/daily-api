@@ -1627,7 +1627,7 @@ describe('mutation submitExternalLink', () => {
   }
 }`;
 
-  const variables: Record<string, any> = {
+  const variables: Record<string, string> = {
     sourceId: 's1',
     url: 'https://daily.dev',
     commentary: 'My comment',
