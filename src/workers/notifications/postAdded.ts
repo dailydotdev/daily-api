@@ -15,6 +15,7 @@ import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';
 import { In, Not } from 'typeorm';
+import { SourceMemberRoles } from '../../roles';
 
 interface Data {
   post: ChangeObject<Post>;
@@ -56,7 +57,11 @@ const worker: NotificationWorker = {
           .getRepository(User)
           .findOneBy({ id: post.authorId });
         const members = await con.getRepository(SourceMember).find({
-          where: { sourceId: source.id, userId: Not(In([post.authorId])) },
+          where: {
+            sourceId: source.id,
+            userId: Not(In([post.authorId])),
+            role: Not(SourceMemberRoles.Blocked),
+          },
         });
         members.forEach((member) =>
           notifs.push({

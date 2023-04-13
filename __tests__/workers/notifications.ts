@@ -276,6 +276,25 @@ describe('post added notifications', () => {
     expect(ctx.sharedPost).toBeFalsy();
   });
 
+  it('should not add article picked notification on blocked members', async () => {
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con.getRepository(SourceMember).insert({
+      userId: '2',
+      sourceId: 'a',
+      role: SourceMemberRoles.Blocked,
+      createdAt: new Date(),
+      referralToken: randomUUID(),
+    });
+    const worker = await import('../../src/workers/notifications/postAdded');
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    const actual = await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+    expect(actual.length).toEqual(0);
+  });
+
   it('should not add article picked notification for private post', async () => {
     const worker = await import('../../src/workers/notifications/postAdded');
     await con.getRepository(Post).update(
