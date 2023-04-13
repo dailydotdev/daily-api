@@ -175,7 +175,7 @@ const saveSquadFixture = async (sourceId: string) => {
     {
       userId: '1',
       sourceId,
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
       referralToken: 'rt1',
       createdAt: new Date(2022, 11, 19),
     },
@@ -910,12 +910,12 @@ describe('mutation deleteComment', () => {
     );
   });
 
-  it('should delete a comment if source owner has permissions', async () => {
+  it('should delete a comment if source admin has permissions', async () => {
     loggedUser = '1';
     await con.getRepository(SourceMember).insert({
       userId: '1',
       sourceId: 'squad',
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
       referralToken: 's1',
     });
     const res = await client.mutate(MUTATION, { variables: { id: 'c8' } });

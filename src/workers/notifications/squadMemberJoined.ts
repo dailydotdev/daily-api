@@ -17,14 +17,14 @@ const worker: NotificationWorker = {
   subscription: 'api.member-joined-source-notification',
   handler: async (message, con) => {
     const { sourceMember: member }: Data = messageToJson(message);
-    const owner = await con.getRepository(SourceMember).findOne({
+    const admin = await con.getRepository(SourceMember).findOne({
       where: {
         sourceId: member.sourceId,
         userId: Not(In([member.userId])),
-        role: SourceMemberRoles.Owner,
+        role: SourceMemberRoles.Admin,
       },
     });
-    if (!owner) {
+    if (!admin) {
       return;
     }
     const [doneBy, source] = await Promise.all([
@@ -35,7 +35,7 @@ const worker: NotificationWorker = {
       return;
     }
     const ctx: NotificationSourceContext & NotificationDoneByContext = {
-      userId: owner.userId,
+      userId: admin.userId,
       source,
       doneBy,
     };

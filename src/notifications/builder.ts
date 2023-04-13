@@ -34,7 +34,7 @@ const roleToIcon: Record<SourceMemberRoles, NotificationIcon> = {
   [SourceMemberRoles.Blocked]: NotificationIcon.Block,
   [SourceMemberRoles.Member]: NotificationIcon.Bell,
   [SourceMemberRoles.Moderator]: NotificationIcon.User,
-  [SourceMemberRoles.Owner]: NotificationIcon.Star,
+  [SourceMemberRoles.Admin]: NotificationIcon.Star,
 };
 
 export class NotificationBuilder {

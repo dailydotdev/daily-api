@@ -74,8 +74,8 @@ export const notificationTitleMap: Record<
     `<b>Your post</b> is now <span class="text-theme-color-cabbage">live</span> on <b>${ctx.source.name}</b>.`,
   squad_blocked: (ctx: NotificationSourceContext) =>
     `You are no longer part of <b>${ctx.source.name}</b>`,
-  promoted_to_owner: (ctx: NotificationSourceContext) =>
-    `Congratulations! You are now an <span class="text-theme-color-cabbage">owner</span> of <b>${ctx.source.name}</b>`,
+  promoted_to_admin: (ctx: NotificationSourceContext) =>
+    `Congratulations! You are now an <span class="text-theme-color-cabbage">admin</span> of <b>${ctx.source.name}</b>`,
   demoted_to_member: (ctx: NotificationSourceMemberRoleContext) =>
     `You are no longer a <span class="text-theme-color-cabbage">${ctx.role}</span> in <b>${ctx.source.name}</b>`,
   promoted_to_moderator: (ctx: NotificationSourceContext) =>
@@ -217,7 +217,7 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source)
       .icon(NotificationIcon.Block)
       .referenceSource(ctx.source),
-  promoted_to_owner: (builder, ctx: NotificationSourceContext) =>
+  promoted_to_admin: (builder, ctx: NotificationSourceContext) =>
     builder
       .avatarSource(ctx.source)
       .icon(NotificationIcon.Star)

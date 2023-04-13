@@ -25,7 +25,7 @@ Object {
       "edges": Array [
         Object {
           "node": Object {
-            "role": "owner",
+            "role": "admin",
             "source": Object {
               "id": "a",
             },
@@ -63,7 +63,7 @@ Object {
         },
         Object {
           "node": Object {
-            "role": "owner",
+            "role": "admin",
             "source": Object {
               "id": "a",
             },
@@ -98,7 +98,7 @@ Object {
     },
     Object {
       "node": Object {
-        "role": "owner",
+        "role": "admin",
         "source": Object {
           "id": "a",
         },
@@ -121,7 +121,7 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
-          "role": "owner",
+          "role": "admin",
           "roleRank": 10,
           "source": Object {
             "id": "b",
@@ -158,7 +158,7 @@ Object {
       },
       Object {
         "node": Object {
-          "role": "owner",
+          "role": "admin",
           "roleRank": 10,
           "source": Object {
             "id": "b",
@@ -173,6 +173,33 @@ Object {
       "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
       "hasNextPage": false,
     },
+  },
+}
+`;
+
+exports[`query source current member should return current member as admin 1`] = `
+Object {
+  "source": Object {
+    "currentMember": Object {
+      "permissions": Array [
+        "view",
+        "post",
+        "leave",
+        "comment_delete",
+        "post_delete",
+        "member_remove",
+        "edit",
+        "member_unblock",
+        "view_blocked_members",
+        "member_role_update",
+        "post_limit",
+        "invite_disable",
+        "delete",
+      ],
+      "role": "admin",
+      "roleRank": 10,
+    },
+    "id": "a",
   },
 }
 `;
@@ -201,33 +228,6 @@ Object {
       ],
       "role": "member",
       "roleRank": 0,
-    },
-    "id": "a",
-  },
-}
-`;
-
-exports[`query source current member should return current member as owner 1`] = `
-Object {
-  "source": Object {
-    "currentMember": Object {
-      "permissions": Array [
-        "view",
-        "post",
-        "leave",
-        "comment_delete",
-        "post_delete",
-        "member_remove",
-        "edit",
-        "member_unblock",
-        "view_blocked_members",
-        "member_role_update",
-        "post_limit",
-        "invite_disable",
-        "delete",
-      ],
-      "role": "owner",
-      "roleRank": 10,
     },
     "id": "a",
   },
@@ -288,7 +288,7 @@ Object {
 }
 `;
 
-exports[`query sourceMembers should return blocked users only when user is the owner 1`] = `
+exports[`query sourceMembers should return blocked users only when user is the admin 1`] = `
 Object {
   "sourceMembers": Object {
     "edges": Array [
@@ -319,7 +319,7 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
-          "role": "owner",
+          "role": "admin",
           "roleRank": 10,
           "source": Object {
             "id": "a",
@@ -356,7 +356,7 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
-          "role": "owner",
+          "role": "admin",
           "roleRank": 10,
           "source": Object {
             "id": "a",
@@ -393,7 +393,7 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
-          "role": "owner",
+          "role": "admin",
           "roleRank": 10,
           "source": Object {
             "id": "a",
