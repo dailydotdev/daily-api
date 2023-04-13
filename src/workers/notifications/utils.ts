@@ -1,10 +1,18 @@
 import { NotificationHandlerReturn } from './worker';
-import { Comment, Post, PostType, SharePost, SourceType } from '../../entity';
+import {
+  Comment,
+  Post,
+  PostType,
+  SharePost,
+  SourceMember,
+  SourceType,
+} from '../../entity';
 import {
   NotificationCommenterContext,
   NotificationPostContext,
 } from '../../notifications';
-import { DataSource, In } from 'typeorm';
+import { DataSource, In, Not } from 'typeorm';
+import { SourceMemberRoles } from '../../roles';
 
 export const uniquePostOwners = (
   post: Pick<Post, 'scoutId' | 'authorId'>,
@@ -53,11 +61,13 @@ export async function articleNewCommentHandler(
   if (!postCtx) {
     return;
   }
+
+  const { post, source } = postCtx;
   const excludedUsers = [comment.userId];
 
   const isReply = !!comment.parentId;
-  if (isReply && (postCtx.post.authorId || postCtx.post.scoutId)) {
-    const ids = [...new Set([postCtx.post.authorId, postCtx.post.scoutId])];
+  if (isReply && (post.authorId || post.scoutId)) {
+    const ids = [...new Set([post.authorId, post.scoutId])];
     const threadFollower = await repo
       .createQueryBuilder()
       .select('"userId"')
@@ -73,7 +83,7 @@ export async function articleNewCommentHandler(
 
   const excluded = [...new Set(excludedUsers)];
   // Get unique user id which are not the author of the comment
-  const users = uniquePostOwners(postCtx.post, excluded);
+  const users = uniquePostOwners(post, excluded);
   if (!users.length) {
     return;
   }
@@ -88,6 +98,24 @@ export async function articleNewCommentHandler(
     ctx.source.type === SourceType.Squad
       ? 'squad_new_comment'
       : 'article_new_comment';
+
+  if (source.type === SourceType.Squad) {
+    const members = await con.getRepository(SourceMember).findBy({
+      userId: In(users),
+      sourceId: source.id,
+      role: Not(SourceMemberRoles.Blocked),
+    });
+
+    if (!members.length) {
+      return;
+    }
+
+    return members.map(({ userId }) => ({
+      type,
+      ctx: { ...ctx, userId },
+    }));
+  }
+
   return users.map((userId) => ({
     type,
     ctx: { ...ctx, userId },
