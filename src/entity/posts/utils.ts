@@ -361,8 +361,8 @@ const validateCommentary = async (commentary: string) => {
 
 export interface ExternalLink {
   url: string;
-  title: string;
-  image: string;
+  title?: string;
+  image?: string;
 }
 
 export const createExternalLink = async (
@@ -389,7 +389,7 @@ export const createExternalLink = async (
       sentAnalyticsReport: true,
       private: true,
       origin: PostOrigin.Squad,
-      visible: true,
+      visible: !!title,
     });
     await createSharePost(entityManager, sourceId, userId, id, commentary);
     await notifyContentRequested(logger, {

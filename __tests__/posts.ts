@@ -1621,7 +1621,7 @@ describe('mutation viewPost', () => {
 
 describe('mutation submitExternalLink', () => {
   const MUTATION = `
-  mutation SubmitExternalLink($sourceId: ID!, $url: String!, $commentary: String!, $title: String!, $image: String!) {
+  mutation SubmitExternalLink($sourceId: ID!, $url: String!, $commentary: String!, $title: String, $image: String) {
   submitExternalLink(sourceId: $sourceId, url: $url, commentary: $commentary, title: $title, image: $image) {
     _
   }
@@ -1630,8 +1630,6 @@ describe('mutation submitExternalLink', () => {
   const variables = {
     sourceId: 's1',
     url: 'https://daily.dev',
-    title: 'Sample article title',
-    image: 'https://daily.dev/sample.png',
     commentary: 'My comment',
   };
 
@@ -1674,7 +1672,7 @@ describe('mutation submitExternalLink', () => {
       .getRepository(ArticlePost)
       .findOneBy({ url: variables.url });
     expect(articlePost.url).toEqual('https://daily.dev');
-    expect(articlePost.visible).toEqual(true);
+    expect(articlePost.visible).toEqual(false);
 
     expect(notifyContentRequested).toBeCalledTimes(1);
     expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
@@ -1686,7 +1684,7 @@ describe('mutation submitExternalLink', () => {
       .findOneBy({ sharedPostId: articlePost.id });
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
-    expect(sharedPost.visible).toEqual(true);
+    expect(sharedPost.visible).toEqual(false);
   });
 
   it('should share existing post to squad', async () => {

@@ -542,11 +542,11 @@ export const typeDefs = /* GraphQL */ `
       """
       Preview image of the external link
       """
-      image: String!
+      image: String
       """
       Title of the external link
       """
-      title: String!
+      title: String
       """
       Commentary for the share
       """
