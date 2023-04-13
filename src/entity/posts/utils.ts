@@ -359,12 +359,18 @@ const validateCommentary = async (commentary: string) => {
   return true;
 };
 
+export interface ExternalLink {
+  url: string;
+  title: string;
+  image: string;
+}
+
 export const createExternalLink = async (
   con: DataSource | EntityManager,
   logger: EventLogger,
   sourceId: string,
   userId: string,
-  url: string,
+  { url, title, image }: ExternalLink,
   commentary: string,
 ): Promise<void> => {
   await validateCommentary(commentary);
@@ -378,19 +384,14 @@ export const createExternalLink = async (
       sourceId: UNKNOWN_SOURCE,
       url,
       canonicalUrl: url,
+      title,
+      image,
       sentAnalyticsReport: true,
       private: true,
       origin: PostOrigin.Squad,
-      visible: false,
+      visible: true,
     });
-    await createSharePost(
-      entityManager,
-      sourceId,
-      userId,
-      id,
-      commentary,
-      false,
-    );
+    await createSharePost(entityManager, sourceId, userId, id, commentary);
     await notifyContentRequested(logger, {
       id,
       url,

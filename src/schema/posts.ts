@@ -24,6 +24,7 @@ import {
   ArticlePost,
   createExternalLink,
   createSharePost,
+  ExternalLink,
   HiddenPost,
   Post,
   PostReport,
@@ -98,6 +99,11 @@ export interface GQLPostUpvote {
 
 export interface GQLPostUpvoteArgs extends ConnectionArguments {
   id: string;
+}
+
+export interface SubmitExternalLinkArgs extends ExternalLink {
+  sourceId: string;
+  commentary: string;
 }
 
 export const getPostNotification = async (
@@ -534,6 +540,14 @@ export const typeDefs = /* GraphQL */ `
       """
       url: String!
       """
+      Preview image of the external link
+      """
+      image: String!
+      """
+      Title of the external link
+      """
+      title: String!
+      """
       Commentary for the share
       """
       commentary: String!
@@ -880,16 +894,12 @@ export const resolvers: IResolvers<any, Context> = {
     },
     submitExternalLink: async (
       _,
-      {
-        sourceId,
-        url,
-        commentary,
-      }: { sourceId: string; url: string; commentary: string },
+      { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await ctx.con.transaction(async (manager) => {
-        await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
+      await ctx.con.transaction(async (manager) => {
         const cleanUrl = standardizeURL(url);
         if (!isValidHttpUrl(cleanUrl)) {
           throw new ValidationError('URL is not valid');
@@ -919,7 +929,7 @@ export const resolvers: IResolvers<any, Context> = {
           ctx.log,
           sourceId,
           ctx.userId,
-          url,
+          { url, title, image },
           commentary,
         );
       });
