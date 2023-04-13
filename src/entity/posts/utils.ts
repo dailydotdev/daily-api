@@ -359,16 +359,23 @@ const validateCommentary = async (commentary: string) => {
   return true;
 };
 
+export interface ExternalLink {
+  url: string;
+  title?: string;
+  image?: string;
+}
+
 export const createExternalLink = async (
   con: DataSource | EntityManager,
   logger: EventLogger,
   sourceId: string,
   userId: string,
-  url: string,
+  { url, title, image }: ExternalLink,
   commentary: string,
 ): Promise<void> => {
   await validateCommentary(commentary);
   const id = await generateShortId();
+  const isVisible = !!title;
 
   return con.transaction(async (entityManager) => {
     await entityManager.getRepository(ArticlePost).insert({
@@ -378,10 +385,12 @@ export const createExternalLink = async (
       sourceId: UNKNOWN_SOURCE,
       url,
       canonicalUrl: url,
+      title,
+      image,
       sentAnalyticsReport: true,
       private: true,
       origin: PostOrigin.Squad,
-      visible: false,
+      visible: isVisible,
     });
     await createSharePost(
       entityManager,
@@ -389,7 +398,7 @@ export const createExternalLink = async (
       userId,
       id,
       commentary,
-      false,
+      isVisible,
     );
     await notifyContentRequested(logger, {
       id,
