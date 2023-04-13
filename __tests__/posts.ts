@@ -1621,8 +1621,8 @@ describe('mutation viewPost', () => {
 
 describe('mutation submitExternalLink', () => {
   const MUTATION = `
-  mutation SubmitExternalLink($sourceId: ID!, $url: String!, $commentary: String!) {
-  submitExternalLink(sourceId: $sourceId, url: $url, commentary: $commentary) {
+  mutation SubmitExternalLink($sourceId: ID!, $url: String!, $commentary: String!, $title: String!, $image: String!) {
+  submitExternalLink(sourceId: $sourceId, url: $url, commentary: $commentary, title: $title, image: $image) {
     _
   }
 }`;
