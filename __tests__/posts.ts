@@ -1630,6 +1630,8 @@ describe('mutation submitExternalLink', () => {
   const variables = {
     sourceId: 's1',
     url: 'https://daily.dev',
+    title: 'Sample article title',
+    image: 'https://daily.dev/sample.png',
     commentary: 'My comment',
   };
 
@@ -1672,7 +1674,7 @@ describe('mutation submitExternalLink', () => {
       .getRepository(ArticlePost)
       .findOneBy({ url: variables.url });
     expect(articlePost.url).toEqual('https://daily.dev');
-    expect(articlePost.visible).toEqual(false);
+    expect(articlePost.visible).toEqual(true);
 
     expect(notifyContentRequested).toBeCalledTimes(1);
     expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
@@ -1684,7 +1686,7 @@ describe('mutation submitExternalLink', () => {
       .findOneBy({ sharedPostId: articlePost.id });
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
-    expect(sharedPost.visible).toEqual(false);
+    expect(sharedPost.visible).toEqual(true);
   });
 
   it('should share existing post to squad', async () => {
