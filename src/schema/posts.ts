@@ -897,9 +897,8 @@ export const resolvers: IResolvers<any, Context> = {
       { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
-
       await ctx.con.transaction(async (manager) => {
+        await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
         const cleanUrl = standardizeURL(url);
         if (!isValidHttpUrl(cleanUrl)) {
           throw new ValidationError('URL is not valid');
