@@ -31,6 +31,7 @@ import {
   NotificationUpvotersContext,
 } from '../../src/notifications';
 import { NotificationReason } from '../../src/common';
+import { randomUUID } from 'crypto';
 
 let con: DataSource;
 
@@ -275,6 +276,25 @@ describe('post added notifications', () => {
     expect(ctx.sharedPost).toBeFalsy();
   });
 
+  it('should not add article picked notification on blocked members', async () => {
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con.getRepository(SourceMember).insert({
+      userId: '2',
+      sourceId: 'a',
+      role: SourceMemberRoles.Blocked,
+      createdAt: new Date(),
+      referralToken: randomUUID(),
+    });
+    const worker = await import('../../src/workers/notifications/postAdded');
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    const actual = await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+    expect(actual.length).toEqual(0);
+  });
+
   it('should not add article picked notification for private post', async () => {
     const worker = await import('../../src/workers/notifications/postAdded');
     await con.getRepository(Post).update(
@@ -506,6 +526,47 @@ describe('article new comment', () => {
     expect(actual[1].ctx.userId).toEqual('3');
   });
 
+  it('should not add notification for new squad comment when author is blocked from squad', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/articleNewCommentPostCommented'
+    );
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { sourceId: 'a', userId: '1' },
+        { role: SourceMemberRoles.Blocked },
+      );
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    const actual = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      postId: 'p1',
+      commentId: 'c1',
+    });
+    expect(actual).toBeFalsy();
+  });
+
+  it('should not add notification for new squad comment when author is not par of the squad anymore', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/articleNewCommentPostCommented'
+    );
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con
+      .getRepository(SourceMember)
+      .delete({ sourceId: 'a', userId: '1' });
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    const actual = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      postId: 'p1',
+      commentId: 'c1',
+    });
+    expect(actual).toBeFalsy();
+  });
+
   it('should add notification for new squad comment', async () => {
     const worker = await import(
       '../../src/workers/notifications/articleNewCommentPostCommented'
@@ -519,6 +580,13 @@ describe('article new comment', () => {
         authorId: '1',
       },
     );
+    await con.getRepository(SourceMember).insert({
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      createdAt: new Date(),
+      referralToken: randomUUID(),
+    });
     const actual = await invokeNotificationWorker(worker.default, {
       userId: '1',
       postId: 'p1',
@@ -541,6 +609,41 @@ describe('article new comment', () => {
 });
 
 describe('article upvote milestone', () => {
+  it('should not add notification when scout/author is not member anymore', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/articleUpvoteMilestone'
+    );
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        scoutId: '1',
+        authorId: '3',
+        upvotes: 5,
+      },
+    );
+    await con.getRepository(Upvote).save([
+      {
+        userId: '2',
+        postId: 'p1',
+      },
+      { userId: '4', postId: 'p1' },
+    ]);
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    const repo = con.getRepository(SourceMember);
+    await repo.update(
+      { userId: '1', sourceId: 'a' },
+      { role: SourceMemberRoles.Blocked },
+    );
+    await repo.delete({ userId: '3', sourceId: 'a' });
+    const actual = await invokeNotificationWorker(worker.default, {
+      userId: '2',
+      postId: 'p1',
+    });
+    expect(actual).toBeFalsy();
+  });
+
   it('should add notification for scout and author', async () => {
     const worker = await import(
       '../../src/workers/notifications/articleUpvoteMilestone'
@@ -952,6 +1055,37 @@ it('should not add comment reply notification to comment author on their reply',
 });
 
 describe('comment upvote milestone', () => {
+  it('should not add notification for author when not a member or blocked in the squad', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/commentUpvoteMilestone'
+    );
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    const repo = con.getRepository(SourceMember);
+    await con.getRepository(Comment).update({ id: 'c1' }, { upvotes: 5 });
+    await con.getRepository(CommentUpvote).save([
+      {
+        userId: '1',
+        commentId: 'c1',
+      },
+      { userId: '4', commentId: 'c1' },
+    ]);
+    const params = { userId: '1', sourceId: 'a' };
+    await repo.update(params, { role: SourceMemberRoles.Blocked });
+    const actual1 = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      commentId: 'c1',
+    });
+    expect(actual1).toBeFalsy();
+    await repo.delete(params);
+    const actual2 = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      commentId: 'c1',
+    });
+    expect(actual2).toBeFalsy();
+  });
+
   it('should add notification for author', async () => {
     const worker = await import(
       '../../src/workers/notifications/commentUpvoteMilestone'
