@@ -69,7 +69,7 @@ export const fetchLinkPreview = async (
   });
 
   if (res.status >= 400 && res.status < 500) {
-    throw new ValidationError('Client request failed!');
+    throw new ValidationError('Bad request!');
   }
 
   if (res.status >= 500) {
