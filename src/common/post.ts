@@ -2,6 +2,8 @@ import { DataSource } from 'typeorm';
 import fetch from 'node-fetch';
 import { User } from '../entity';
 import { Comment, ExternalLinkPreview, Post } from '../entity';
+import { ValidationError } from 'apollo-server-errors';
+import { isValidHttpUrl } from './links';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
@@ -56,11 +58,23 @@ export const linkPreviewOrigin = process.env.LINK_PREVIEW_ORIGIN;
 export const fetchLinkPreview = async (
   url: string,
 ): Promise<ExternalLinkPreview> => {
+  if (!isValidHttpUrl(url)) {
+    throw new ValidationError('URL is not valid');
+  }
+
   const res = await fetch(`${linkPreviewOrigin}/preview`, {
     method: 'POST',
     headers: { 'Content-Type': '' },
     body: JSON.stringify({ url }),
   });
+
+  if (res.status >= 400 && res.status < 500) {
+    throw new ValidationError('Client request failed!');
+  }
+
+  if (res.status >= 500) {
+    throw new ValidationError('Internal server error!');
+  }
 
   return res.json();
 };
