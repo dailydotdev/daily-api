@@ -912,12 +912,7 @@ export const resolvers: IResolvers<any, Context> = {
     checkLinkPreview: async (
       _,
       { url }: SubmitExternalLinkArgs,
-    ): Promise<ExternalLinkPreview> =>
-      Promise.resolve({
-        title: 'We updated our RSA SSH host key',
-        image:
-          'https://github.blog/wp-content/uploads/2021/12/github-security_orange-banner.png',
-      }),
+    ): Promise<ExternalLinkPreview> => fetchLinkPreview(url),
     submitExternalLink: async (
       _,
       { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,
