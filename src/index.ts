@@ -161,17 +161,26 @@ export default async function app(
                   'unknown query',
                 );
               } else if (!error.extensions?.code) {
-                app.log.warn(
-                  {
-                    err: error.originalError,
-                    body: ctx?.reply?.request?.body,
-                  },
-                  'unexpected graphql error',
-                );
-                newError.message = 'Unexpected error';
-                newError.extensions = {
-                  code: 'UNEXPECTED',
-                };
+                if (
+                  error.originalError.message?.startsWith('Too many requests')
+                ) {
+                  newError.message = error.originalError.message;
+                  newError.extensions = {
+                    code: 'RATE_LIMITED',
+                  };
+                } else {
+                  app.log.warn(
+                    {
+                      err: error.originalError,
+                      body: ctx?.reply?.request?.body,
+                    },
+                    'unexpected graphql error',
+                  );
+                  newError.message = 'Unexpected error';
+                  newError.extensions = {
+                    code: 'UNEXPECTED',
+                  };
+                }
               }
               if (isProd) {
                 newError.originalError = undefined;

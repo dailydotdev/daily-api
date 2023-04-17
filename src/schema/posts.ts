@@ -542,7 +542,7 @@ export const typeDefs = /* GraphQL */ `
       URL of the external link
       """
       url: String!
-    ): LinkPreview @auth
+    ): LinkPreview @auth @rateLimit(limit: 5, duration: 60)
 
     """
     Create external link in source
@@ -912,7 +912,12 @@ export const resolvers: IResolvers<any, Context> = {
     checkLinkPreview: async (
       _,
       { url }: SubmitExternalLinkArgs,
-    ): Promise<ExternalLinkPreview> => fetchLinkPreview(url),
+    ): Promise<ExternalLinkPreview> =>
+      Promise.resolve({
+        title: 'We updated our RSA SSH host key',
+        image:
+          'https://github.blog/wp-content/uploads/2021/12/github-security_orange-banner.png',
+      }),
     submitExternalLink: async (
       _,
       { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,
