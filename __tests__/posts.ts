@@ -1968,6 +1968,43 @@ describe('mutation checkLinkPreview', () => {
     expect(res.data.checkLinkPreview.image).toEqual(sampleResponse.image);
   });
 
+  it('should rate limit getting link preview by 5', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = {
+      title: 'We updated our RSA SSH host key',
+      image:
+        'https://github.blog/wp-content/uploads/2021/12/github-security_orange-banner.png',
+    };
+
+    const mockRequest = () =>
+      nock(postScraperOrigin)
+        .post('/preview', { url: variables.url })
+        .reply(200, sampleResponse);
+
+    mockRequest();
+    const res1 = await client.mutate(MUTATION, { variables });
+    expect(res1.errors).toBeFalsy();
+    mockRequest();
+    const res2 = await client.mutate(MUTATION, { variables });
+    expect(res2.errors).toBeFalsy();
+    mockRequest();
+    const res3 = await client.mutate(MUTATION, { variables });
+    expect(res3.errors).toBeFalsy();
+    mockRequest();
+    const res4 = await client.mutate(MUTATION, { variables });
+    expect(res4.errors).toBeFalsy();
+    mockRequest();
+    const res5 = await client.mutate(MUTATION, { variables });
+    expect(res5.errors).toBeFalsy();
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'RATE_LIMITED',
+    );
+  });
+
   it('should return link preview and image being the placeholder when empty', async () => {
     loggedUser = '1';
 
