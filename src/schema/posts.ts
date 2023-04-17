@@ -539,10 +539,6 @@ export const typeDefs = /* GraphQL */ `
     """
     checkLinkPreview(
       """
-      Source the user is planning to post to
-      """
-      sourceId: ID!
-      """
       URL of the external link
       """
       url: String!
@@ -915,13 +911,8 @@ export const resolvers: IResolvers<any, Context> = {
     },
     checkLinkPreview: async (
       _,
-      { url, sourceId }: SubmitExternalLinkArgs,
-      ctx,
-    ): Promise<ExternalLinkPreview> => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
-
-      return fetchLinkPreview(url);
-    },
+      { url }: SubmitExternalLinkArgs,
+    ): Promise<ExternalLinkPreview> => fetchLinkPreview(url),
     submitExternalLink: async (
       _,
       { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,

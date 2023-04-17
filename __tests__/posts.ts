@@ -1925,8 +1925,8 @@ describe('mutation submitExternalLink', () => {
 
 describe('mutation checkLinkPreview', () => {
   const MUTATION = `
-    mutation CheckLinkPreview($sourceId: ID!, $url: String!) {
-      checkLinkPreview(sourceId: $sourceId, url: $url) {
+    mutation CheckLinkPreview($url: String!) {
+      checkLinkPreview(url: $url) {
         title
         image
       }
@@ -1938,22 +1938,6 @@ describe('mutation checkLinkPreview', () => {
     url: 'https://daily.dev',
   };
 
-  beforeEach(async () => {
-    await con.getRepository(SquadSource).save({
-      id: 's1',
-      handle: 's1',
-      name: 'Squad',
-      private: true,
-      memberPostingRank: 0,
-    });
-    await con.getRepository(SourceMember).save({
-      sourceId: 's1',
-      userId: '1',
-      referralToken: 'rt',
-      role: SourceMemberRoles.Member,
-    });
-  });
-
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
       client,
@@ -1963,30 +1947,6 @@ describe('mutation checkLinkPreview', () => {
       },
       'UNAUTHENTICATED',
     ));
-
-  it('should throw forbidden when not part of the squad', () => {
-    loggedUser = '2';
-
-    testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables },
-      'FORBIDDEN',
-    );
-  });
-
-  it('should throw forbidden when user is not allowed to post in squad', async () => {
-    loggedUser = '1';
-
-    await con
-      .getRepository(SquadSource)
-      .update({ id: 's1' }, { memberPostingRank: 5 });
-
-    return testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables },
-      'FORBIDDEN',
-    );
-  });
 
   it('should return link preview', async () => {
     loggedUser = '1';
