@@ -10,8 +10,6 @@ class DebugRateLimiterMemory extends RateLimiterMemory {
     console.log(`[CONSUME] ${key} for ${pointsToConsume}`);
     return super.consume(key, pointsToConsume, options);
   }
-
-  a;
 }
 
 const keyGenerator = (directiveArgs, source, args, context, info) =>
