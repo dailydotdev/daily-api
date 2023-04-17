@@ -53,7 +53,7 @@ export const getPostCommenterIds = async (
 export const hasAuthorScout = (post: Post): boolean =>
   !!post?.authorId || !!post?.scoutId;
 
-export const linkPreviewOrigin = process.env.LINK_PREVIEW_ORIGIN;
+export const postScraperOrigin = process.env.POST_SCRAPER_ORIGIN;
 
 export const fetchLinkPreview = async (
   url: string,
@@ -62,7 +62,7 @@ export const fetchLinkPreview = async (
     throw new ValidationError('URL is not valid');
   }
 
-  const res = await fetch(`${linkPreviewOrigin}/preview`, {
+  const res = await fetch(`${postScraperOrigin}/preview`, {
     method: 'POST',
     headers: { 'Content-Type': '' },
     body: JSON.stringify({ url }),

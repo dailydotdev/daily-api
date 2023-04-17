@@ -40,7 +40,7 @@ import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
   defaultImage,
-  linkPreviewOrigin,
+  postScraperOrigin,
   notifyContentRequested,
   notifyView,
 } from '../src/common';
@@ -1957,7 +1957,7 @@ describe('mutation checkLinkPreview', () => {
         'https://github.blog/wp-content/uploads/2021/12/github-security_orange-banner.png',
     };
 
-    nock(linkPreviewOrigin)
+    nock(postScraperOrigin)
       .post('/preview', { url: variables.url })
       .reply(200, sampleResponse);
 
@@ -1973,7 +1973,7 @@ describe('mutation checkLinkPreview', () => {
 
     const sampleResponse = { title: 'We updated our RSA SSH host key' };
 
-    nock(linkPreviewOrigin)
+    nock(postScraperOrigin)
       .post('/preview', { url: variables.url })
       .reply(200, sampleResponse);
 
