@@ -82,7 +82,7 @@ const worker: Worker = {
 
         const authorId = await findAuthor(entityManager, creatorTwitter);
         const title = data?.title || databasePost.title;
-        const becomesVisible = !!title.length;
+        const becomesVisible = !!title?.length;
 
         const { allowedKeywords, mergedKeywords } = await mergeKeywords(
           entityManager,
