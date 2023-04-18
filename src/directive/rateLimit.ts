@@ -2,28 +2,13 @@ import {
   defaultKeyGenerator,
   rateLimitDirective,
 } from 'graphql-rate-limit-directive';
-import { RateLimiterMemory } from 'rate-limiter-flexible';
+import {
+  IRateLimiterRedisOptions,
+  RateLimiterRedis,
+} from 'rate-limiter-flexible';
 import { GraphQLError } from 'graphql';
-
-export let rateLimiter: CustomRateLimiterMemory;
-
-export class CustomRateLimiterMemory extends RateLimiterMemory {
-  constructor(props) {
-    super(props);
-
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    rateLimiter = this;
-  }
-
-  // for debugging purposes
-  consume(key, pointsToConsume, options) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[CONSUME] ${key} for ${pointsToConsume}`);
-    }
-
-    return super.consume(key, pointsToConsume, options);
-  }
-}
+import { ioRedisPool } from '../redis';
+import { Context } from '../Context';
 
 const keyGenerator = (directiveArgs, source, args, context, info) =>
   `${context.userId ?? context.trackingId}:${defaultKeyGenerator(
@@ -51,11 +36,16 @@ const onLimit = (resource) => {
   throw new RateLimitError(resource.msBeforeNext);
 };
 
-const { rateLimitDirectiveTypeDefs, rateLimitDirectiveTransformer } =
-  rateLimitDirective({
+export const getRateLimitDirective = async () => {
+  const redis = await ioRedisPool.getConnection(0);
+
+  return rateLimitDirective<Context, IRateLimiterRedisOptions>({
     keyGenerator,
     onLimit,
-    limiterClass: CustomRateLimiterMemory,
+    name: 'rateLimit',
+    limiterOptions: {
+      storeClient: redis,
+    },
+    limiterClass: RateLimiterRedis,
   });
-
-export { rateLimitDirectiveTypeDefs, rateLimitDirectiveTransformer };
+};

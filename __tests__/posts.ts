@@ -46,7 +46,7 @@ import {
 } from '../src/common';
 import { randomUUID } from 'crypto';
 import nock from 'nock';
-import { rateLimiter } from '../src/directive/rateLimit';
+import { deleteKeysByPattern } from '../src/redis';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -1934,8 +1934,8 @@ describe('mutation checkLinkPreview', () => {
     }
   `;
 
-  beforeEach(() => {
-    rateLimiter?.delete('1:Mutation.checkLinkPreview');
+  beforeEach(async () => {
+    await deleteKeysByPattern('rateLimit:*');
   });
 
   const variables: Record<string, string> = {
