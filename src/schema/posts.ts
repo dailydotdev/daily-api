@@ -542,7 +542,7 @@ export const typeDefs = /* GraphQL */ `
       URL of the external link
       """
       url: String!
-    ): LinkPreview @auth @rateLimit(limit: 5, duration: 60)
+    ): LinkPreview @auth @rateLimit(limit: 20, duration: 60)
 
     """
     Create external link in source
