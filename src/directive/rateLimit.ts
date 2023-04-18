@@ -5,9 +5,9 @@ import {
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { GraphQLError } from 'graphql';
 
-export let rateLimiter: DebugRateLimiterMemory;
+export let rateLimiter: CustomRateLimiterMemory;
 
-export class DebugRateLimiterMemory extends RateLimiterMemory {
+export class CustomRateLimiterMemory extends RateLimiterMemory {
   constructor(props) {
     super(props);
 
@@ -55,7 +55,7 @@ const { rateLimitDirectiveTypeDefs, rateLimitDirectiveTransformer } =
   rateLimitDirective({
     keyGenerator,
     onLimit,
-    limiterClass: DebugRateLimiterMemory,
+    limiterClass: CustomRateLimiterMemory,
   });
 
 export { rateLimitDirectiveTypeDefs, rateLimitDirectiveTransformer };
