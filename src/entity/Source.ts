@@ -103,4 +103,7 @@ export class SquadSource extends Source {
 
   @Column({ default: 0 })
   memberPostingRank?: number;
+
+  @Column({ default: 0 })
+  memberInviteRank?: number;
 }
