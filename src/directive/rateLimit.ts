@@ -37,7 +37,9 @@ const onLimit = (resource) => {
 };
 
 export const getRateLimitDirective = async () => {
-  const redis = await ioRedisPool.getConnection(0);
+  let redis;
+  await ioRedisPool.execute(async (client) => (redis = client));
+  // const redis = await ioRedisPool.getConnection(); // this one fails on test suites
 
   return rateLimitDirective<Context, IRateLimiterRedisOptions>({
     keyGenerator,
