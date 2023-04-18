@@ -14,6 +14,15 @@ export class DebugRateLimiterMemory extends RateLimiterMemory {
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     rateLimiter = this;
   }
+
+  // for debugging purposes
+  consume(key, pointsToConsume, options) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[CONSUME] ${key} for ${pointsToConsume}`);
+    }
+
+    return super.consume(key, pointsToConsume, options);
+  }
 }
 
 const keyGenerator = (directiveArgs, source, args, context, info) =>
