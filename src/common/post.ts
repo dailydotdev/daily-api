@@ -64,7 +64,7 @@ export const fetchLinkPreview = async (
 
   const res = await fetch(`${postScraperOrigin}/preview`, {
     method: 'POST',
-    headers: { 'Content-Type': '' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url }),
   });
 
