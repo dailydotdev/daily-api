@@ -116,7 +116,9 @@ const worker: Worker = {
           publishedAt: data?.published_at && new Date(data?.published_at),
           metadataChangedAt: updatedDate,
           visible: becomesVisible,
-          visibleAt: becomesVisible ? updatedDate : null,
+          visibleAt: becomesVisible
+            ? databasePost.visibleAt ?? updatedDate
+            : null,
           tagsStr: allowedKeywords?.join(',') || null,
           private: privacy,
           sentAnalyticsReport: privacy || !authorId,
