@@ -38,8 +38,15 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { notifyContentRequested, notifyView } from '../src/common';
+import {
+  defaultImage,
+  postScraperOrigin,
+  notifyContentRequested,
+  notifyView,
+} from '../src/common';
 import { randomUUID } from 'crypto';
+import nock from 'nock';
+import { deleteKeysByPattern } from '../src/redis';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -1914,5 +1921,99 @@ describe('mutation submitExternalLink', () => {
       .getRepository(SharePost)
       .findOneBy({ sharedPostId: articlePost?.id, title: 'Share 2' });
     expect(sharedPost2?.visible).toEqual(false);
+  });
+});
+
+describe('mutation checkLinkPreview', () => {
+  const MUTATION = `
+    mutation CheckLinkPreview($url: String!) {
+      checkLinkPreview(url: $url) {
+        title
+        image
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await deleteKeysByPattern('rateLimit:*');
+  });
+
+  const variables: Record<string, string> = {
+    sourceId: 's1',
+    url: 'https://daily.dev',
+  };
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return link preview', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = {
+      title: 'We updated our RSA SSH host key',
+      image:
+        'https://github.blog/wp-content/uploads/2021/12/github-security_orange-banner.png',
+    };
+
+    nock(postScraperOrigin)
+      .post('/preview', { url: variables.url })
+      .reply(200, sampleResponse);
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLinkPreview.title).toEqual(sampleResponse.title);
+    expect(res.data.checkLinkPreview.image).toEqual(sampleResponse.image);
+  });
+
+  it('should rate limit getting link preview by 5', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = {
+      title: 'We updated our RSA SSH host key',
+      image:
+        'https://github.blog/wp-content/uploads/2021/12/github-security_orange-banner.png',
+    };
+
+    const mockRequest = () =>
+      nock(postScraperOrigin)
+        .post('/preview', { url: variables.url })
+        .reply(200, sampleResponse);
+
+    const limit = 20;
+    for (let i = 0; i < Array(limit).length; i++) {
+      mockRequest();
+      const res = await client.mutate(MUTATION, { variables });
+      expect(res.errors).toBeFalsy();
+    }
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'RATE_LIMITED',
+    );
+  });
+
+  it('should return link preview and image being the placeholder when empty', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = { title: 'We updated our RSA SSH host key' };
+
+    nock(postScraperOrigin)
+      .post('/preview', { url: variables.url })
+      .reply(200, sampleResponse);
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLinkPreview.title).toEqual(sampleResponse.title);
+    expect(res.data.checkLinkPreview.image).toEqual(defaultImage.placeholder);
   });
 });

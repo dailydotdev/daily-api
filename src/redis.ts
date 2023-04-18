@@ -1,5 +1,6 @@
 import { RedisPubSub } from '@dailydotdev/graphql-redis-subscriptions';
 import { IORedisPool, IORedisPoolOptions } from '@dailydotdev/ts-ioredis-pool';
+import Redis from 'ioredis';
 
 export const redisOptions = {
   host: process.env.REDIS_HOST,
@@ -10,6 +11,8 @@ export const redisOptions = {
 export const redisPubSub = new RedisPubSub({
   connection: redisOptions,
 });
+
+export const singleRedisClient = new Redis(redisOptions);
 
 const ioRedisPoolOpts = IORedisPoolOptions.fromHostAndPort(
   redisOptions.host,

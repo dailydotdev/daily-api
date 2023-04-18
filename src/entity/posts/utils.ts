@@ -359,10 +359,13 @@ const validateCommentary = async (commentary: string) => {
   return true;
 };
 
-export interface ExternalLink {
+export interface ExternalLinkPreview {
+  title: string;
+  image: string;
+}
+
+export interface ExternalLink extends Partial<ExternalLinkPreview> {
   url: string;
-  title?: string;
-  image?: string;
 }
 
 export const createExternalLink = async (

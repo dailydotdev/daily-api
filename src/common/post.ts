@@ -1,6 +1,9 @@
-import { User } from './../entity/User';
-import { Comment, Post } from '../entity';
 import { DataSource } from 'typeorm';
+import fetch from 'node-fetch';
+import { User } from '../entity';
+import { Comment, ExternalLinkPreview, Post } from '../entity';
+import { ValidationError } from 'apollo-server-errors';
+import { isValidHttpUrl } from './links';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
@@ -49,3 +52,29 @@ export const getPostCommenterIds = async (
 
 export const hasAuthorScout = (post: Post): boolean =>
   !!post?.authorId || !!post?.scoutId;
+
+export const postScraperOrigin = process.env.POST_SCRAPER_ORIGIN;
+
+export const fetchLinkPreview = async (
+  url: string,
+): Promise<ExternalLinkPreview> => {
+  if (!isValidHttpUrl(url)) {
+    throw new ValidationError('URL is not valid');
+  }
+
+  const res = await fetch(`${postScraperOrigin}/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+
+  if (res.status >= 400 && res.status < 500) {
+    throw new ValidationError('Bad request!');
+  }
+
+  if (res.status === 200) {
+    return res.json();
+  }
+
+  throw new Error('Internal server error!');
+};

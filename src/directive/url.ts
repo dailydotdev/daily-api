@@ -69,6 +69,8 @@ function wrapType<
   }
 }
 
+export type GraphQLTransformer = (schema: GraphQLSchema) => GraphQLSchema;
+
 export const transformer = (schema: GraphQLSchema): GraphQLSchema =>
   mapSchema(schema, {
     [MapperKind.FIELD]: (fieldConfig) => {
