@@ -458,7 +458,7 @@ export enum SourcePermissions {
   MemberRemove = 'member_remove',
   MemberUnblock = 'member_unblock',
   MemberRoleUpdate = 'member_role_update',
-  InviteDisable = 'invite_disable',
+  Invite = 'invite',
   Leave = 'leave',
   Delete = 'delete',
   Edit = 'edit',
@@ -468,6 +468,7 @@ const memberPermissions = [
   SourcePermissions.View,
   SourcePermissions.Post,
   SourcePermissions.Leave,
+  SourcePermissions.Invite,
 ];
 const moderatorPermissions = [
   ...memberPermissions,
@@ -482,7 +483,6 @@ const adminPermissions = [
   ...moderatorPermissions,
   SourcePermissions.MemberRoleUpdate,
   SourcePermissions.PostLimit,
-  SourcePermissions.InviteDisable,
   SourcePermissions.Delete,
 ];
 
