@@ -1987,21 +1987,12 @@ describe('mutation checkLinkPreview', () => {
         .post('/preview', { url: variables.url })
         .reply(200, sampleResponse);
 
-    mockRequest();
-    const res1 = await client.mutate(MUTATION, { variables });
-    expect(res1.errors).toBeFalsy();
-    mockRequest();
-    const res2 = await client.mutate(MUTATION, { variables });
-    expect(res2.errors).toBeFalsy();
-    mockRequest();
-    const res3 = await client.mutate(MUTATION, { variables });
-    expect(res3.errors).toBeFalsy();
-    mockRequest();
-    const res4 = await client.mutate(MUTATION, { variables });
-    expect(res4.errors).toBeFalsy();
-    mockRequest();
-    const res5 = await client.mutate(MUTATION, { variables });
-    expect(res5.errors).toBeFalsy();
+    const limit = 20;
+    for (let i = 0; i < Array(limit).length; i++) {
+      mockRequest();
+      const res = await client.mutate(MUTATION, { variables });
+      expect(res.errors).toBeFalsy();
+    }
 
     return testMutationErrorCode(
       client,
