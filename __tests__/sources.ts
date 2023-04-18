@@ -769,8 +769,8 @@ describe('compatibility route /publications', () => {
 
 describe('mutation createSquad', () => {
   const MUTATION = `
-  mutation CreateSquad($name: String!, $handle: String!, $description: String, $postId: ID!, $commentary: String!, $memberPostingRole: String) {
-  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary, memberPostingRole: $memberPostingRole) {
+  mutation CreateSquad($name: String!, $handle: String!, $description: String, $postId: ID!, $commentary: String!, $memberPostingRole: String, $memberInviteRole: String) {
+  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole) {
     id
   }
 }`;
@@ -806,6 +806,9 @@ describe('mutation createSquad', () => {
     expect(newSource.active).toEqual(true);
     expect(newSource.private).toEqual(true);
     expect(newSource?.memberPostingRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Member],
+    );
+    expect(newSource?.memberInviteRank).toEqual(
       sourceRoleRank[SourceMemberRoles.Member],
     );
     const member = await con.getRepository(SourceMember).findOneBy({
@@ -956,12 +959,75 @@ describe('mutation createSquad', () => {
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toEqual('My comment');
   });
+
+  it('should throw error when invalid role is provided for inviting', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, memberInviteRole: 'invalidRole' },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw error when null is sent to memberInviteRole', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).save({
+      id: randomUUID(),
+      handle: variables.handle,
+      name: 'Dup squad',
+      active: false,
+      memberInviteRole: null,
+    });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should create squad with memberInviteRole', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        memberInviteRole: SourceMemberRoles.Moderator,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.createSquad.id;
+    const newSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: newId });
+    expect(newSource.name).toEqual('Squad');
+    expect(newSource.handle).toEqual('squad');
+    expect(newSource.active).toEqual(true);
+    expect(newSource.private).toEqual(true);
+    expect(newSource?.memberInviteRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Moderator],
+    );
+    const member = await con.getRepository(SourceMember).findOneBy({
+      sourceId: newId,
+      userId: '1',
+    });
+    expect(member.role).toEqual(SourceMemberRoles.Admin);
+    const post = await con
+      .getRepository(SharePost)
+      .findOneBy({ sourceId: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
+  });
 });
 
 describe('mutation editSquad', () => {
   const MUTATION = `
-  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String) {
-  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole) {
+  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String, $memberInviteRole: String) {
+  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole) {
     id
   }
 }`;
@@ -1135,6 +1201,88 @@ describe('mutation editSquad', () => {
       .getRepository(SquadSource)
       .findOneBy({ id: variables.sourceId });
     expect(editSource?.memberPostingRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Admin],
+    );
+    expect(editSource?.name).toEqual('updated name');
+  });
+
+  it('should throw error when invalid role is provided for inviting', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, memberInviteRole: 'invalidRole' },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw error when null is sent to memberInviteRole', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, memberInviteRole: null },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should edit squad memberInviteRank', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        memberInviteRole: SourceMemberRoles.Moderator,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource?.memberInviteRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Moderator],
+    );
+  });
+
+  it('should leave squad memberInviteRank unchanged if not sent during edit', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update(
+        { id: 's1' },
+        { memberInviteRank: sourceRoleRank[SourceMemberRoles.Moderator] },
+      );
+    const res = await client.mutate(MUTATION, {
+      variables,
+    });
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource?.memberInviteRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Moderator],
+    );
+  });
+
+  it('should leave squad memberInviteRank unchanged when setting other fields', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update(
+        { id: 's1' },
+        { memberInviteRank: sourceRoleRank[SourceMemberRoles.Admin] },
+      );
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, name: 'updated name' },
+    });
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource?.memberInviteRank).toEqual(
       sourceRoleRank[SourceMemberRoles.Admin],
     );
     expect(editSource?.name).toEqual('updated name');

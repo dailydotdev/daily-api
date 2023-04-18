@@ -220,6 +220,11 @@ const obj = new GraphORM({
         transform: (value: number, ctx: Context) =>
           nullIfNotLoggedIn(rankToSourceRole[value], ctx),
       },
+      memberInviteRole: {
+        select: 'memberInviteRank',
+        transform: (value: number, ctx: Context) =>
+          nullIfNotLoggedIn(rankToSourceRole[value], ctx),
+      },
     },
   },
   SourceMember: {
