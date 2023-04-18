@@ -20,14 +20,13 @@ import auth from './auth';
 import compatibility from './compatibility';
 import routes from './routes';
 import { Context } from './Context';
+import { schema } from './graphql';
 import createOrGetConnection from './db';
 import { stringifyHealthCheck } from './common';
 import { GraphQLError } from 'graphql';
 import cookie, { FastifyCookieOptions } from '@fastify/cookie';
 import { getSubscriptionSettings } from './subscription';
 import { ioRedisPool } from './redis';
-import { getRateLimitDirective } from './directive/rateLimit';
-import { generateSchema } from './graphql';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -116,13 +115,6 @@ export default async function app(
   app.register(MercuriusGQLUpload, {
     maxFileSize: 1024 * 1024 * 2,
     maxFiles: 1,
-  });
-
-  const { rateLimitDirectiveTypeDefs, rateLimitDirectiveTransformer } =
-    await getRateLimitDirective();
-  const schema = await generateSchema({
-    transformers: [rateLimitDirectiveTransformer],
-    typeDefs: [rateLimitDirectiveTypeDefs],
   });
 
   app.register(mercurius, {

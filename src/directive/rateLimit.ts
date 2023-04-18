@@ -7,7 +7,7 @@ import {
   RateLimiterRedis,
 } from 'rate-limiter-flexible';
 import { GraphQLError } from 'graphql';
-import { ioRedisPool } from '../redis';
+import { singleRedisClient } from '../redis';
 import { Context } from '../Context';
 
 const keyGenerator = (directiveArgs, source, args, context, info) =>
@@ -36,18 +36,15 @@ const onLimit = (resource) => {
   throw new RateLimitError(resource.msBeforeNext);
 };
 
-export const getRateLimitDirective = async () => {
-  let redis;
-  await ioRedisPool.execute(async (client) => (redis = client));
-  // const redis = await ioRedisPool.getConnection(); // this one fails on test suites
-
-  return rateLimitDirective<Context, IRateLimiterRedisOptions>({
+const { rateLimitDirectiveTransformer, rateLimitDirectiveTypeDefs } =
+  rateLimitDirective<Context, IRateLimiterRedisOptions>({
     keyGenerator,
     onLimit,
     name: 'rateLimit',
     limiterOptions: {
-      storeClient: redis,
+      storeClient: singleRedisClient,
     },
     limiterClass: RateLimiterRedis,
   });
-};
+
+export { rateLimitDirectiveTypeDefs, rateLimitDirectiveTransformer };

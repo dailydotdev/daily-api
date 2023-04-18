@@ -62,6 +62,7 @@
     "graphql-upload": "^15.0.1",
     "he": "^1.2.0",
     "highlight.js": "^11.7.0",
+    "ioredis": "^5.0.5",
     "isbot": "^3.6.6",
     "jsonexport": "^3.2.0",
     "jsonwebtoken": "^9.0.0",

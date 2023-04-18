@@ -32,7 +32,7 @@ import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
 import { parse } from 'graphql/language/parser';
 import { execute } from 'graphql/execution/execute';
-import { generateSchema } from '../graphql';
+import { schema } from '../graphql';
 import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
 
@@ -376,7 +376,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.get('/companion', async (req, res) => {
-    const schema = await generateSchema();
     const middleware: BootMiddleware = async (con, req) => {
       const res = await execute({
         schema,

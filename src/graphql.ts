@@ -1,3 +1,5 @@
+import { merge } from 'lodash';
+
 import * as common from './schema/common';
 import * as comments from './schema/comments';
 import * as compatibility from './schema/compatibility';
@@ -17,70 +19,55 @@ import * as keywords from './schema/keywords';
 import * as authDirective from './directive/auth';
 import * as urlDirective from './directive/url';
 import { makeExecutableSchema } from '@graphql-tools/schema';
-import { GraphQLTransformer } from './directive/url';
-import { IResolvers } from '@graphql-tools/utils';
+import {
+  rateLimitDirectiveTransformer,
+  rateLimitDirectiveTypeDefs,
+} from './directive/rateLimit';
 
-const baseTypeDefs: string[] = [
-  common.typeDefs,
-  urlDirective.typeDefs,
-  authDirective.typeDefs,
-  comments.typeDefs,
-  compatibility.typeDefs,
-  bookmarks.typeDefs,
-  feed.typeDefs,
-  integrations.typeDefs,
-  notifications.typeDefs,
-  posts.typeDefs,
-  settings.typeDefs,
-  sourceRequests.typeDefs,
-  sources.typeDefs,
-  tags.typeDefs,
-  users.typeDefs,
-  keywords.typeDefs,
-  alerts.typeDefs,
-  submissions.typeDefs,
-];
-
-const baseResolvers: IResolvers[] = [
-  common.resolvers,
-  comments.resolvers,
-  compatibility.resolvers,
-  bookmarks.resolvers,
-  feed.resolvers,
-  integrations.resolvers,
-  notifications.resolvers,
-  posts.resolvers,
-  settings.resolvers,
-  sourceRequests.resolvers,
-  sources.resolvers,
-  tags.resolvers,
-  users.resolvers,
-  keywords.resolvers,
-  alerts.resolvers,
-  submissions.resolvers,
-];
-
-const baseTransformers: GraphQLTransformer[] = [
-  urlDirective.transformer,
-  authDirective.transformer,
-];
-
-interface GenerateSchemaProps {
-  transformers?: GraphQLTransformer[];
-  typeDefs?: string[];
-  resolvers?: IResolvers[];
-}
-
-export const generateSchema = ({
-  transformers = [],
-  typeDefs = [],
-  resolvers = [],
-}: GenerateSchemaProps = {}) => {
-  return baseTransformers.concat(transformers).reduce(
-    (schema, transformer) => transformer(schema),
-    makeExecutableSchema({
-      typeDefs: typeDefs.concat(baseTypeDefs),
-      resolvers: resolvers.concat(baseResolvers),
-    }),
-  );
-};
+export const schema = urlDirective.transformer(
+  authDirective.transformer(
+    rateLimitDirectiveTransformer(
+      makeExecutableSchema({
+        typeDefs: [
+          rateLimitDirectiveTypeDefs,
+          common.typeDefs,
+          urlDirective.typeDefs,
+          authDirective.typeDefs,
+          comments.typeDefs,
+          compatibility.typeDefs,
+          bookmarks.typeDefs,
+          feed.typeDefs,
+          integrations.typeDefs,
+          notifications.typeDefs,
+          posts.typeDefs,
+          settings.typeDefs,
+          sourceRequests.typeDefs,
+          sources.typeDefs,
+          tags.typeDefs,
+          users.typeDefs,
+          keywords.typeDefs,
+          alerts.typeDefs,
+          submissions.typeDefs,
+        ],
+        resolvers: merge(
+          common.resolvers,
+          comments.resolvers,
+          compatibility.resolvers,
+          bookmarks.resolvers,
+          feed.resolvers,
+          integrations.resolvers,
+          notifications.resolvers,
+          posts.resolvers,
+          settings.resolvers,
+          sourceRequests.resolvers,
+          sources.resolvers,
+          tags.resolvers,
+          users.resolvers,
+          keywords.resolvers,
+          alerts.resolvers,
+          submissions.resolvers,
+        ),
+      }),
+    ),
+  ),
+);
