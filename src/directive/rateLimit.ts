@@ -5,11 +5,14 @@ import {
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { GraphQLError } from 'graphql';
 
-// for debugging purposes
-class DebugRateLimiterMemory extends RateLimiterMemory {
-  consume(key, pointsToConsume, options) {
-    console.log(`[CONSUME] ${key} for ${pointsToConsume}`);
-    return super.consume(key, pointsToConsume, options);
+export let rateLimiter: DebugRateLimiterMemory;
+
+export class DebugRateLimiterMemory extends RateLimiterMemory {
+  constructor(props) {
+    super(props);
+
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    rateLimiter = this;
   }
 }
 
@@ -43,10 +46,7 @@ const { rateLimitDirectiveTypeDefs, rateLimitDirectiveTransformer } =
   rateLimitDirective({
     keyGenerator,
     onLimit,
-    limiterClass:
-      process.env.NODE_ENV === 'development'
-        ? DebugRateLimiterMemory
-        : undefined,
+    limiterClass: DebugRateLimiterMemory,
   });
 
 export { rateLimitDirectiveTypeDefs, rateLimitDirectiveTransformer };
