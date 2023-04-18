@@ -10,6 +10,22 @@ import { GraphQLError } from 'graphql';
 import { singleRedisClient } from '../redis';
 import { Context } from '../Context';
 
+export class CustomRateLimiterRedis extends RateLimiterRedis {
+  constructor(props) {
+    super(props);
+  }
+
+  // Currently not doing any special actions/overrides
+  // This was primarily introduced to make debugging easier by logging the details of rate limited queries/mutations after receiving a request
+  consume(key, pointsToConsume, options) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[CONSUME] ${key} for ${pointsToConsume}`);
+    }
+
+    return super.consume(key, pointsToConsume, options);
+  }
+}
+
 const keyGenerator = (directiveArgs, source, args, context, info) =>
   `${context.userId ?? context.trackingId}:${defaultKeyGenerator(
     directiveArgs,
@@ -44,7 +60,7 @@ const { rateLimitDirectiveTransformer, rateLimitDirectiveTypeDefs } =
     limiterOptions: {
       storeClient: singleRedisClient,
     },
-    limiterClass: RateLimiterRedis,
+    limiterClass: CustomRateLimiterRedis,
   });
 
 export { rateLimitDirectiveTypeDefs, rateLimitDirectiveTransformer };
