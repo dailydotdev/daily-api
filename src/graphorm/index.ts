@@ -247,6 +247,7 @@ const obj = new GraphORM({
             return null;
           }
 
+          // TODO member-invite-rank pass memberInviteRank to resolve Invite permission for member
           return getPermissionsForMember(member, { memberPostingRank });
         },
       },
