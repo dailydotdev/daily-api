@@ -233,13 +233,13 @@ const obj = new GraphORM({
       permissions: {
         select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
           const query = qb
-            .select('"memberPostingRank"')
+            .select('array["memberPostingRank", "memberInviteRank"]')
             .from(Source, 'postingSquad')
             .where(`postingSquad.id = ${alias}."sourceId"`);
           return `${query.getQuery()}`;
         },
         transform: (
-          memberPostingRank: number,
+          value: [number, number],
           ctx: Context,
           member: SourceMember,
         ) => {
@@ -247,8 +247,12 @@ const obj = new GraphORM({
             return null;
           }
 
-          // TODO member-invite-rank pass memberInviteRank to resolve Invite permission for member
-          return getPermissionsForMember(member, { memberPostingRank });
+          const [memberPostingRank, memberInviteRank] = value;
+
+          return getPermissionsForMember(member, {
+            memberPostingRank,
+            memberInviteRank,
+          });
         },
       },
       roleRank: {
