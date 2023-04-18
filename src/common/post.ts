@@ -72,9 +72,9 @@ export const fetchLinkPreview = async (
     throw new ValidationError('Bad request!');
   }
 
-  if (res.status >= 500) {
-    throw new ValidationError('Internal server error!');
+  if (res.status === 200) {
+    return res.json();
   }
 
-  return res.json();
+  throw new Error('Internal server error!');
 };
