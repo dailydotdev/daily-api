@@ -254,6 +254,31 @@ query Source($id: ID!) {
       ),
     ).toBe(false);
   });
+
+  it('should not return invite permission in case memberInviteRank is set above user roleRank', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).save({
+      id: 'restrictedsquad1',
+      handle: 'restrictedsquad1',
+      name: 'Restricted Squad',
+      memberInviteRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'restrictedsquad1',
+      role: SourceMemberRoles.Member,
+      referralToken: 'restrictedsquadtoken',
+      createdAt: new Date(2022, 11, 19),
+    });
+    const res = await client.query(QUERY, {
+      variables: { id: 'restrictedsquad1' },
+    });
+    expect(
+      res.data.source.currentMember.permissions.includes(
+        SourcePermissions.Invite,
+      ),
+    ).toBe(false);
+  });
 });
 
 describe('query source', () => {

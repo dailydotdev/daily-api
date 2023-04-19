@@ -732,19 +732,22 @@ export const getPermissionsForMember = (
   member: Pick<SourceMember, 'role'>,
   source: Pick<SquadSource, 'memberPostingRank' | 'memberInviteRank'>,
 ): SourcePermissions[] => {
-  let permissions =
+  const permissions =
     roleSourcePermissions[member.role] ?? roleSourcePermissions.member;
   const memberRank =
     sourceRoleRank[member.role] ?? sourceRoleRank[SourceMemberRoles.Member];
+  const permissionsToRemove: SourcePermissions[] = [];
 
   if (memberRank < source.memberPostingRank) {
-    permissions = permissions.filter((item) => item !== SourcePermissions.Post);
+    permissionsToRemove.push(SourcePermissions.Post);
   }
 
   if (memberRank < source.memberInviteRank) {
-    permissions = permissions.filter(
-      (item) => item !== SourcePermissions.Invite,
-    );
+    permissionsToRemove.push(SourcePermissions.Invite);
+  }
+
+  if (permissionsToRemove.length > 0) {
+    return permissions.filter((item) => !permissionsToRemove.includes(item));
   }
 
   return permissions;
