@@ -81,7 +81,8 @@ const worker: Worker = {
             : data?.extra?.creator_twitter;
 
         const authorId = await findAuthor(entityManager, creatorTwitter);
-        const becomesVisible = !databasePost?.visible && !!data?.title?.length;
+        const title = data?.title || databasePost.title;
+        const becomesVisible = !!title?.length;
 
         const { allowedKeywords, mergedKeywords } = await mergeKeywords(
           entityManager,
@@ -110,12 +111,14 @@ const worker: Worker = {
           canonicalUrl: data?.extra?.canonical_url || data?.url,
           image: data?.image,
           sourceId: data?.source_id,
-          title: data?.title && he.decode(data?.title),
+          title: title && he.decode(title),
           readTime: parseReadTime(data?.extra?.read_time),
           publishedAt: data?.published_at && new Date(data?.published_at),
           metadataChangedAt: updatedDate,
           visible: becomesVisible,
-          visibleAt: becomesVisible ? updatedDate : null,
+          visibleAt: becomesVisible
+            ? databasePost.visibleAt ?? updatedDate
+            : null,
           tagsStr: allowedKeywords?.join(',') || null,
           private: privacy,
           sentAnalyticsReport: privacy || !authorId,
