@@ -51,6 +51,7 @@ import {
   Feed,
   Notification,
   Post,
+  PostOrigin,
   PostReport,
   Settings,
   Source,
@@ -575,6 +576,24 @@ describe('post', () => {
       worker,
       mockChangeMessage<ObjectType>({
         after: base,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostVisible).toBeCalledTimes(0);
+  });
+
+  it('should not notify on post visible on creation of external link with title and visible is already true', async () => {
+    const after = {
+      ...base,
+      visible: true,
+      origin: PostOrigin.UserGenerated,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
         before: null,
         op: 'c',
         table: 'post',
