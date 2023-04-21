@@ -383,6 +383,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type LinkPreview {
+    id: String
     title: String!
     image: String!
   }
@@ -912,7 +913,23 @@ export const resolvers: IResolvers<any, Context> = {
     checkLinkPreview: async (
       _,
       { url }: SubmitExternalLinkArgs,
-    ): Promise<ExternalLinkPreview> => fetchLinkPreview(url),
+      ctx,
+    ): Promise<ExternalLinkPreview> => {
+      const standardizedUrl = standardizeURL(url);
+      const post = await ctx.con
+        .getRepository(ArticlePost)
+        .createQueryBuilder()
+        .select('id, title, image')
+        .where([{ canonicalUrl: standardizedUrl }, { url: standardizedUrl }])
+        .andWhere({ deleted: false })
+        .getRawOne();
+
+      if (post) {
+        return { id: post.id, title: post.title, image: post.image };
+      }
+
+      return fetchLinkPreview(standardizedUrl);
+    },
     submitExternalLink: async (
       _,
       { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,

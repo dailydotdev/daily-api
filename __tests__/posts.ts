@@ -1928,6 +1928,7 @@ describe('mutation checkLinkPreview', () => {
   const MUTATION = `
     mutation CheckLinkPreview($url: String!) {
       checkLinkPreview(url: $url) {
+        id
         title
         image
       }
@@ -1938,10 +1939,7 @@ describe('mutation checkLinkPreview', () => {
     await deleteKeysByPattern('rateLimit:*');
   });
 
-  const variables: Record<string, string> = {
-    sourceId: 's1',
-    url: 'https://daily.dev',
-  };
+  const variables: Record<string, string> = { url: 'https://daily.dev' };
 
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
@@ -1953,7 +1951,7 @@ describe('mutation checkLinkPreview', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should return link preview', async () => {
+  it('should return link preview if url not found', async () => {
     loggedUser = '1';
 
     const sampleResponse = {
@@ -2015,5 +2013,21 @@ describe('mutation checkLinkPreview', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.checkLinkPreview.title).toEqual(sampleResponse.title);
     expect(res.data.checkLinkPreview.image).toEqual(defaultImage.placeholder);
+  });
+
+  it('should return post by canonical', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { url: 'http://p1c.com' },
+    });
+    expect(res.data.checkLinkPreview).toBeTruthy();
+  });
+
+  it('should return post by url', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { url: 'http://p1.com' },
+    });
+    expect(res.data.checkLinkPreview).toBeTruthy();
   });
 });

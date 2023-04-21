@@ -360,6 +360,7 @@ const validateCommentary = async (commentary: string) => {
 };
 
 export interface ExternalLinkPreview {
+  id?: string;
   title: string;
   image: string;
 }
