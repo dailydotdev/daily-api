@@ -1938,6 +1938,35 @@ describe('mutation joinSource', () => {
       'NOT_FOUND',
     );
   });
+
+  it('should throw error when joining with invite link of a member without invite permission', async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+      memberInviteRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '2',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Member,
+    });
+
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 's1',
+          token: 'rt2',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
 });
 
 describe('query source members', () => {

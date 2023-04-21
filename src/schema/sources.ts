@@ -1166,6 +1166,17 @@ export const resolvers: IResolvers<any, Context> = {
           'Access denied! You do not have permission for this action!',
         );
       }
+
+      const memberRank =
+        sourceRoleRank[member.role] ?? sourceRoleRank[SourceMemberRoles.Member];
+      const squadSource = source as SquadSource;
+
+      if (memberRank < squadSource.memberInviteRank) {
+        throw new ForbiddenError(
+          'Access denied! You do not have permission for this action!',
+        );
+      }
+
       try {
         await ctx.con.transaction(async (entityManager) => {
           await addNewSourceMember(entityManager, {
