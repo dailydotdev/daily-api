@@ -924,11 +924,7 @@ export const resolvers: IResolvers<any, Context> = {
         .andWhere({ deleted: false })
         .getRawOne();
 
-      if (post) {
-        return { id: post.id, title: post.title, image: post.image };
-      }
-
-      return fetchLinkPreview(standardizedUrl);
+      return post ?? (await fetchLinkPreview(standardizedUrl));
     },
     submitExternalLink: async (
       _,
