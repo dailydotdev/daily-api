@@ -1172,9 +1172,7 @@ export const resolvers: IResolvers<any, Context> = {
       const squadSource = source as SquadSource;
 
       if (memberRank < squadSource.memberInviteRank) {
-        throw new ForbiddenError(
-          'Access denied! You do not have permission for this action!',
-        );
+        throw new ForbiddenError('Access denied! Invite is no longer valid!');
       }
 
       try {
