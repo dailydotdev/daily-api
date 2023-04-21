@@ -1,27 +1,32 @@
 import { ApolloError } from 'apollo-server-errors';
 
-export type UserFailErrorKeys =
-  | 'GENERIC_ERROR'
-  | 'MISSING_FIELDS'
-  | 'USER_EXISTS'
-  | 'USERNAME_EMAIL_EXISTS';
+export enum UserFailErrorKeys {
+  GenericError = 'GENERIC_ERROR',
+  MissingFields = 'MISSING_FIELDS',
+  UserExists = 'USER_EXISTS',
+  UsernameEmailExists = 'USERNAME_EMAIL_EXISTS',
+}
 
-export type UpdateUserFailErrorKeys = 'MISSING_FIELDS' | 'USER_DOESNT_EXIST';
+export enum UpdateUserFailErrorKeys {
+  MissingFields = 'MISSING_FIELDS',
+  UserDoesntExist = 'USER_DOESNT_EXIST',
+}
 
-export type SubmissionFailErrorKeys =
-  | 'GENERIC_ERROR'
-  | 'PAYWALL'
-  | 'MISSING_FIELDS'
-  | 'SCOUT_IS_AUTHOR'
-  | 'POST_EXISTS'
-  | 'AUTHOR_BANNED'
-  | 'ACCESS_DENIED'
-  | 'LIMIT_REACHED'
-  | 'INVALID_URL'
-  | 'POST_DELETED'
-  | 'EXISTS_STARTED'
-  | 'EXISTS_ACCEPTED'
-  | 'EXISTS_REJECTED';
+export enum SubmissionFailErrorKeys {
+  GenericError = 'GENERIC_ERROR',
+  Paywall = 'PAYWALL',
+  MissingFields = 'MISSING_FIELDS',
+  ScoutIsAuthor = 'SCOUT_IS_AUTHOR',
+  PostExists = 'POST_EXISTS',
+  AuthorBanned = 'AUTHOR_BANNED',
+  AccessDenied = 'ACCESS_DENIED',
+  LimitReached = 'LIMIT_REACHED',
+  InvalidUrl = 'INVALID_URL',
+  PostDeleted = 'POST_DELETED',
+  ExistsStarted = 'EXISTS_STARTED',
+  ExistsAccepted = 'EXISTS_ACCEPTED',
+  ExistsRejected = 'EXISTS_REJECTED',
+}
 
 export const SubmissionFailErrorMessage: Record<
   SubmissionFailErrorKeys,
