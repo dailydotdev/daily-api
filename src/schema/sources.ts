@@ -37,7 +37,7 @@ import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { randomUUID } from 'crypto';
 import { getSourceLink, uploadSquadImage } from '../common';
 import { GraphQLResolveInfo } from 'graphql';
-import { TypeOrmError } from '../errors';
+import { SourcePermissionErrorKeys, TypeOrmError } from '../errors';
 import {
   descriptionRegex,
   handleRegex,
@@ -1172,7 +1172,7 @@ export const resolvers: IResolvers<any, Context> = {
       const squadSource = source as SquadSource;
 
       if (memberRank < squadSource.memberInviteRank) {
-        throw new ForbiddenError('Access denied! Invite is no longer valid!');
+        throw new ForbiddenError(SourcePermissionErrorKeys.InviteInvalid);
       }
 
       try {

@@ -5,6 +5,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationError,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
@@ -28,6 +29,7 @@ import { usersFixture } from './fixture/user';
 import { postsFixture } from './fixture/post';
 import { createSource } from './fixture/source';
 import { SourcePermissions } from '../src/schema/sources';
+import { SourcePermissionErrorKeys } from '../src/errors';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -1955,7 +1957,7 @@ describe('mutation joinSource', () => {
     });
 
     loggedUser = '1';
-    return testMutationErrorCode(
+    await testMutationError(
       client,
       {
         mutation: MUTATION,
@@ -1964,7 +1966,13 @@ describe('mutation joinSource', () => {
           token: 'rt2',
         },
       },
-      'FORBIDDEN',
+      (errors) => {
+        expect(errors.length).toEqual(1);
+        expect(errors[0].extensions?.code).toEqual('FORBIDDEN');
+        expect(errors[0].message).toEqual(
+          SourcePermissionErrorKeys.InviteInvalid,
+        );
+      },
     );
   });
 });

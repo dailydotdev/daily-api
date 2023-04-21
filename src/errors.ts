@@ -72,3 +72,7 @@ export enum TypeOrmError {
   FOREIGN_KEY = '23503',
   DUPLICATE_ENTRY = '23505',
 }
+
+export enum SourcePermissionErrorKeys {
+  InviteInvalid = 'SOURCE_PERMISSION_INVITE_INVALID',
+}
