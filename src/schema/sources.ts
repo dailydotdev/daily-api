@@ -157,6 +157,11 @@ export const typeDefs = /* GraphQL */ `
     Role required for members to post
     """
     memberPostingRole: String
+
+    """
+    Role required for members to invite
+    """
+    memberInviteRole: String
   }
 
   type SourceConnection {
@@ -339,6 +344,10 @@ export const typeDefs = /* GraphQL */ `
       Role required for members to post
       """
       memberPostingRole: String
+      """
+      Role required for members to invite
+      """
+      memberInviteRole: String
     ): Source! @auth
 
     """
@@ -369,6 +378,10 @@ export const typeDefs = /* GraphQL */ `
       Role required for members to post
       """
       memberPostingRole: String
+      """
+      Role required for members to invite
+      """
+      memberInviteRole: String
     ): Source! @auth
 
     """
@@ -458,7 +471,7 @@ export enum SourcePermissions {
   MemberRemove = 'member_remove',
   MemberUnblock = 'member_unblock',
   MemberRoleUpdate = 'member_role_update',
-  InviteDisable = 'invite_disable',
+  Invite = 'invite',
   Leave = 'leave',
   Delete = 'delete',
   Edit = 'edit',
@@ -468,6 +481,7 @@ const memberPermissions = [
   SourcePermissions.View,
   SourcePermissions.Post,
   SourcePermissions.Leave,
+  SourcePermissions.Invite,
 ];
 const moderatorPermissions = [
   ...memberPermissions,
@@ -482,7 +496,6 @@ const adminPermissions = [
   ...moderatorPermissions,
   SourcePermissions.MemberRoleUpdate,
   SourcePermissions.PostLimit,
-  SourcePermissions.InviteDisable,
   SourcePermissions.Delete,
 ];
 
@@ -577,8 +590,10 @@ const validateSquadData = ({
   name,
   description,
   memberPostingRole,
+  memberInviteRole,
 }: Pick<SquadSource, 'handle' | 'name' | 'description'> & {
   memberPostingRole?: SourceMemberRoles;
+  memberInviteRole?: SourceMemberRoles;
 }): string => {
   handle = handle.replace('@', '').trim();
   const regexParams: ValidateRegex[] = [
@@ -594,6 +609,13 @@ const validateSquadData = ({
     !sourceRoleRankKeys.includes(memberPostingRole)
   ) {
     throw new ValidationError('Invalid member posting role');
+  }
+
+  if (
+    typeof memberInviteRole !== 'undefined' &&
+    !sourceRoleRankKeys.includes(memberInviteRole)
+  ) {
+    throw new ValidationError('Invalid member invite role');
   }
 
   return handle;
@@ -666,6 +688,7 @@ type CreateSquadArgs = {
   postId?: string;
   commentary?: string;
   memberPostingRole?: SourceMemberRoles;
+  memberInviteRole?: SourceMemberRoles;
 };
 
 type EditSquadArgs = {
@@ -675,6 +698,7 @@ type EditSquadArgs = {
   description?: string;
   image?: FileUpload;
   memberPostingRole?: SourceMemberRoles;
+  memberInviteRole?: SourceMemberRoles;
 };
 
 const getSourceById = async (
@@ -706,15 +730,24 @@ const addNewSourceMember = async (
 
 export const getPermissionsForMember = (
   member: Pick<SourceMember, 'role'>,
-  source: Pick<SquadSource, 'memberPostingRank'>,
+  source: Pick<SquadSource, 'memberPostingRank' | 'memberInviteRank'>,
 ): SourcePermissions[] => {
   const permissions =
     roleSourcePermissions[member.role] ?? roleSourcePermissions.member;
   const memberRank =
     sourceRoleRank[member.role] ?? sourceRoleRank[SourceMemberRoles.Member];
+  const permissionsToRemove: SourcePermissions[] = [];
 
   if (memberRank < source.memberPostingRank) {
-    return permissions.filter((item) => item !== SourcePermissions.Post);
+    permissionsToRemove.push(SourcePermissions.Post);
+  }
+
+  if (memberRank < source.memberInviteRank) {
+    permissionsToRemove.push(SourcePermissions.Invite);
+  }
+
+  if (permissionsToRemove.length > 0) {
+    return permissions.filter((item) => !permissionsToRemove.includes(item));
   }
 
   return permissions;
@@ -912,6 +945,7 @@ export const resolvers: IResolvers<any, Context> = {
         postId,
         description,
         memberPostingRole = SourceMemberRoles.Member,
+        memberInviteRole = SourceMemberRoles.Member,
       }: CreateSquadArgs,
       ctx,
       info,
@@ -921,6 +955,7 @@ export const resolvers: IResolvers<any, Context> = {
         name,
         description,
         memberPostingRole,
+        memberInviteRole,
       });
       try {
         const sourceId = await ctx.con.transaction(async (entityManager) => {
@@ -935,6 +970,7 @@ export const resolvers: IResolvers<any, Context> = {
             description,
             private: true,
             memberPostingRank: sourceRoleRank[memberPostingRole],
+            memberInviteRank: sourceRoleRank[memberInviteRole],
           });
           // Add the logged-in user as admin
           await addNewSourceMember(entityManager, {
@@ -982,6 +1018,7 @@ export const resolvers: IResolvers<any, Context> = {
         image,
         description,
         memberPostingRole,
+        memberInviteRole,
       }: EditSquadArgs,
       ctx,
       info,
@@ -992,6 +1029,7 @@ export const resolvers: IResolvers<any, Context> = {
         name,
         description,
         memberPostingRole,
+        memberInviteRole,
       });
 
       try {
@@ -1006,6 +1044,7 @@ export const resolvers: IResolvers<any, Context> = {
                 handle,
                 description,
                 memberPostingRank: sourceRoleRank[memberPostingRole],
+                memberInviteRank: sourceRoleRank[memberInviteRole],
               },
             );
             // Upload the image (if provided)

@@ -220,6 +220,11 @@ const obj = new GraphORM({
         transform: (value: number, ctx: Context) =>
           nullIfNotLoggedIn(rankToSourceRole[value], ctx),
       },
+      memberInviteRole: {
+        select: 'memberInviteRank',
+        transform: (value: number, ctx: Context) =>
+          nullIfNotLoggedIn(rankToSourceRole[value], ctx),
+      },
     },
   },
   SourceMember: {
@@ -228,13 +233,13 @@ const obj = new GraphORM({
       permissions: {
         select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
           const query = qb
-            .select('"memberPostingRank"')
+            .select('array["memberPostingRank", "memberInviteRank"]')
             .from(Source, 'postingSquad')
             .where(`postingSquad.id = ${alias}."sourceId"`);
           return `${query.getQuery()}`;
         },
         transform: (
-          memberPostingRank: number,
+          value: [number, number],
           ctx: Context,
           member: SourceMember,
         ) => {
@@ -242,7 +247,12 @@ const obj = new GraphORM({
             return null;
           }
 
-          return getPermissionsForMember(member, { memberPostingRank });
+          const [memberPostingRank, memberInviteRank] = value;
+
+          return getPermissionsForMember(member, {
+            memberPostingRank,
+            memberInviteRank,
+          });
         },
       },
       roleRank: {
