@@ -1969,6 +1969,7 @@ describe('mutation checkLinkPreview', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.checkLinkPreview.title).toEqual(sampleResponse.title);
     expect(res.data.checkLinkPreview.image).toEqual(sampleResponse.image);
+    expect(res.data.checkLinkPreview.id).toBeFalsy();
   });
 
   it('should rate limit getting link preview by 5', async () => {
@@ -2013,6 +2014,7 @@ describe('mutation checkLinkPreview', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.checkLinkPreview.title).toEqual(sampleResponse.title);
     expect(res.data.checkLinkPreview.image).toEqual(defaultImage.placeholder);
+    expect(res.data.checkLinkPreview.id).toBeFalsy();
   });
 
   it('should return post by canonical', async () => {
@@ -2021,6 +2023,7 @@ describe('mutation checkLinkPreview', () => {
       variables: { url: 'http://p1c.com' },
     });
     expect(res.data.checkLinkPreview).toBeTruthy();
+    expect(res.data.checkLinkPreview.id).toBeTruthy();
   });
 
   it('should return post by url', async () => {
@@ -2029,5 +2032,6 @@ describe('mutation checkLinkPreview', () => {
       variables: { url: 'http://p1.com' },
     });
     expect(res.data.checkLinkPreview).toBeTruthy();
+    expect(res.data.checkLinkPreview.id).toBeTruthy();
   });
 });
