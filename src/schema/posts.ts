@@ -882,10 +882,10 @@ export const resolvers: IResolvers<any, Context> = {
         .getRawOne();
 
       if (!post) {
-          return fetchLinkPreview(standardizedUrl)
+        return fetchLinkPreview(standardizedUrl);
       }
-      
-      return post
+
+      return post;
     },
     submitExternalLink: async (
       _,
