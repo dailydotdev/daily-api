@@ -1940,19 +1940,21 @@ describe('mutation checkLinkPreview', () => {
 
   it('should return post by canonical', async () => {
     loggedUser = '1';
-    const res = await client.mutate(MUTATION, {
-      variables: { url: 'http://p1c.com' },
-    });
+    const url = 'http://p1c.com';
+    const foundPost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ canonicalUrl: url });
+    const res = await client.mutate(MUTATION, { variables: { url } });
     expect(res.data.checkLinkPreview).toBeTruthy();
-    expect(res.data.checkLinkPreview.id).toBeTruthy();
+    expect(res.data.checkLinkPreview.id).toEqual(foundPost.id);
   });
 
   it('should return post by url', async () => {
     loggedUser = '1';
-    const res = await client.mutate(MUTATION, {
-      variables: { url: 'http://p1.com' },
-    });
+    const url = 'http://p1.com';
+    const foundPost = await con.getRepository(ArticlePost).findOneBy({ url });
+    const res = await client.mutate(MUTATION, { variables: { url } });
     expect(res.data.checkLinkPreview).toBeTruthy();
-    expect(res.data.checkLinkPreview.id).toBeTruthy();
+    expect(res.data.checkLinkPreview.id).toEqual(foundPost.id);
   });
 });
