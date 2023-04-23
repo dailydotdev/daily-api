@@ -881,7 +881,11 @@ export const resolvers: IResolvers<any, Context> = {
         .andWhere({ deleted: false })
         .getRawOne();
 
-      return post ?? (await fetchLinkPreview(standardizedUrl));
+      if (!post) {
+          return fetchLinkPreview(standardizedUrl)
+      }
+      
+      return post
     },
     submitExternalLink: async (
       _,
