@@ -681,6 +681,85 @@ describe('query post', () => {
   });
 });
 
+describe('query postByUrl', () => {
+  const QUERY = (url: string): string => `{
+    postByUrl(url: "${url}") {
+      id
+      url
+      title
+    }
+  }`;
+
+  it('should throw not found when cannot find post', () =>
+    testQueryErrorCode(client, { query: QUERY('notfound') }, 'NOT_FOUND'));
+
+  it('should throw not found when post was soft deleted', async () => {
+    await saveFixtures(con, ArticlePost, [
+      {
+        id: 'pdeleted',
+        shortId: 'spdeleted',
+        title: 'PDeleted',
+        url: 'http://p8.com',
+        canonicalUrl: 'http://p8.com',
+        score: 0,
+        sourceId: 'a',
+        createdAt: new Date('2021-09-22T07:15:51.247Z'),
+        tagsStr: 'javascript,webdev',
+        deleted: true,
+      },
+    ]);
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY('http://p8.com') },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when source is private', async () => {
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    await con.getRepository(Post).update({ id: 'p1' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      { query: QUERY('http://p1.com') },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return post by canonical', async () => {
+    const res = await client.query(QUERY('http://p1c.com'));
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return post by url', async () => {
+    const res = await client.query(QUERY('http://p1.com'));
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return post if query params attached', async () => {
+    const res = await client.query(QUERY('http://p1.com?query=param'));
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return post if query params on youtube link', async () => {
+    await saveFixtures(con, ArticlePost, [
+      {
+        id: 'yt1',
+        shortId: 'yt1',
+        title: 'Youtube video',
+        url: 'https://youtube.com/watch?v=123',
+        score: 0,
+        sourceId: 'a',
+        createdAt: new Date('2021-09-22T07:15:51.247Z'),
+        tagsStr: 'javascript,webdev',
+        deleted: false,
+      },
+    ]);
+    const res = await client.query(QUERY('https://youtube.com/watch?v=123'));
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
 describe('query postUpvotes', () => {
   const QUERY = `
   query postUpvotes($id: String!) {

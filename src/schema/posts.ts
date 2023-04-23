@@ -426,6 +426,16 @@ export const typeDefs = /* GraphQL */ `
     ): Post!
 
     """
+    Get post by URL
+    """
+    postByUrl(
+      """
+      URL of the requested post
+      """
+      url: String
+    ): Post!
+
+    """
     Get Post's Upvotes by post id
     """
     postUpvotes(
@@ -688,6 +698,39 @@ export const resolvers: IResolvers<any, Context> = {
         await ensureSourcePermissions(ctx, post.sourceId);
       }
       return getPostById(ctx, info, id);
+    },
+    postByUrl: async (
+      source,
+      { url }: { id: string; url: string },
+      ctx: Context,
+      info,
+    ): Promise<GQLPost> => {
+      const standardizedUrl = standardizeURL(url);
+      const res = await graphorm.query(ctx, info, (builder) => ({
+        queryBuilder: builder.queryBuilder
+          .where(
+            `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false`,
+            { url: standardizedUrl },
+          )
+          .limit(1),
+        ...builder,
+      }));
+      if (res.length) {
+        const post = res[0] as GQLPost;
+        if (post.private) {
+          let sourceId = post.source?.id;
+          if (!sourceId) {
+            const p2 = await ctx.con.getRepository(Post).findOneOrFail({
+              select: ['sourceId'],
+              where: { id: post.id },
+            });
+            sourceId = p2.sourceId;
+          }
+          await ensureSourcePermissions(ctx, sourceId);
+        }
+        return post;
+      }
+      throw new NotFoundError('Post not found');
     },
     postUpvotes: async (
       _,
