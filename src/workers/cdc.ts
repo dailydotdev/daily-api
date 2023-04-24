@@ -264,10 +264,7 @@ const onPostChange = async (
   data: ChangeMessage<Post>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
-    if (
-      data.payload.after.visible &&
-      data.payload.after.origin !== PostOrigin.UserGenerated
-    ) {
+    if (data.payload.after.visible) {
       await notifyPostVisible(logger, data.payload.after);
     }
   } else if (data.payload.op === 'u') {

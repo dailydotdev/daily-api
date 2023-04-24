@@ -73,19 +73,6 @@ const worker: NotificationWorker = {
             } as NotificationPostContext & Partial<NotificationDoneByContext>,
           }),
         );
-
-        if (post.type === PostType.Share) {
-          // squad_post_live notification
-          if (baseCtx.sharedPost?.origin === PostOrigin.Squad) {
-            notifs.push({
-              type: 'squad_post_live',
-              ctx: {
-                ...baseCtx,
-                userId: post.authorId,
-              } as NotificationPostContext,
-            });
-          }
-        }
       }
     }
     return notifs;
