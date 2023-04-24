@@ -5,6 +5,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationError,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
@@ -28,6 +29,7 @@ import { usersFixture } from './fixture/user';
 import { postsFixture } from './fixture/post';
 import { createSource } from './fixture/source';
 import { SourcePermissions } from '../src/schema/sources';
+import { SourcePermissionErrorKeys } from '../src/errors';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -1936,6 +1938,41 @@ describe('mutation joinSource', () => {
         },
       },
       'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when joining with invite link of a member without invite permission', async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+      memberInviteRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '2',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Member,
+    });
+
+    loggedUser = '1';
+    await testMutationError(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 's1',
+          token: 'rt2',
+        },
+      },
+      (errors) => {
+        expect(errors.length).toEqual(1);
+        expect(errors[0].extensions?.code).toEqual('FORBIDDEN');
+        expect(errors[0].message).toEqual(
+          SourcePermissionErrorKeys.InviteInvalid,
+        );
+      },
     );
   });
 });

@@ -123,14 +123,14 @@ const shouldAddNewPost = async (
     )
     .getRawOne();
   if (p) {
-    return 'POST_EXISTS';
+    return SubmissionFailErrorKeys.PostExists;
   }
   if (bannedAuthors.indexOf(data.creatorTwitter) > -1) {
-    return 'AUTHOR_BANNED';
+    return SubmissionFailErrorKeys.AuthorBanned;
   }
 
   if (!data.title) {
-    return 'MISSING_FIELDS';
+    return SubmissionFailErrorKeys.MissingFields;
   }
 };
 
@@ -291,7 +291,7 @@ export const addNewPost = async (
   logger: FastifyLoggerInstance,
 ): Promise<AddNewPostResult> => {
   if (!checkRequiredFields(data)) {
-    return { status: 'failed', reason: 'MISSING_FIELDS' };
+    return { status: 'failed', reason: SubmissionFailErrorKeys.MissingFields };
   }
 
   const creatorTwitter =
@@ -318,7 +318,10 @@ export const addNewPost = async (
     )) || { scoutId: null, rejected: false };
 
     if (rejected) {
-      return { status: 'failed', reason: 'SCOUT_IS_AUTHOR' };
+      return {
+        status: 'failed',
+        reason: SubmissionFailErrorKeys.ScoutIsAuthor,
+      };
     }
 
     const combinedData = {
@@ -337,11 +340,19 @@ export const addNewPost = async (
     } catch (error) {
       // Unique
       if (error?.code === TypeOrmError.DUPLICATE_ENTRY) {
-        return { status: 'failed', reason: 'POST_EXISTS', error };
+        return {
+          status: 'failed',
+          reason: SubmissionFailErrorKeys.PostExists,
+          error,
+        };
       }
       // Null violation
       if (error?.code === TypeOrmError.NULL_VIOLATION) {
-        return { status: 'failed', reason: 'MISSING_FIELDS', error };
+        return {
+          status: 'failed',
+          reason: SubmissionFailErrorKeys.MissingFields,
+          error,
+        };
       }
       throw error;
     }

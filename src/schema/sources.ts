@@ -37,7 +37,7 @@ import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { randomUUID } from 'crypto';
 import { getSourceLink, uploadSquadImage } from '../common';
 import { GraphQLResolveInfo } from 'graphql';
-import { TypeOrmError } from '../errors';
+import { SourcePermissionErrorKeys, TypeOrmError } from '../errors';
 import {
   descriptionRegex,
   handleRegex,
@@ -1166,6 +1166,15 @@ export const resolvers: IResolvers<any, Context> = {
           'Access denied! You do not have permission for this action!',
         );
       }
+
+      const memberRank =
+        sourceRoleRank[member.role] ?? sourceRoleRank[SourceMemberRoles.Member];
+      const squadSource = source as SquadSource;
+
+      if (memberRank < squadSource.memberInviteRank) {
+        throw new ForbiddenError(SourcePermissionErrorKeys.InviteInvalid);
+      }
+
       try {
         await ctx.con.transaction(async (entityManager) => {
           await addNewSourceMember(entityManager, {
