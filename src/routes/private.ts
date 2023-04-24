@@ -50,7 +50,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           reason:
             data?.reason in SubmissionFailErrorMessage
               ? <SubmissionFailErrorKeys>data?.reason
-              : 'GENERIC_ERROR',
+              : SubmissionFailErrorKeys.GenericError,
         });
       }
       return res
