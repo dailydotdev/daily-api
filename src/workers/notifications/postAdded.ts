@@ -1,12 +1,5 @@
 import { messageToJson } from '../worker';
-import {
-  Post,
-  PostOrigin,
-  PostType,
-  SourceMember,
-  SourceType,
-  User,
-} from '../../entity';
+import { Post, SourceMember, SourceType, User } from '../../entity';
 import {
   NotificationDoneByContext,
   NotificationPostContext,

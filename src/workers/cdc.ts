@@ -19,7 +19,6 @@ import {
   User,
   Feature,
   Source,
-  PostOrigin,
 } from '../entity';
 import {
   notifyCommentCommented,

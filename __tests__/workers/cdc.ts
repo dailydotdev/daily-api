@@ -3,7 +3,7 @@ import {
   ReputationEvent,
   ReputationReason,
   ReputationType,
-} from './../../src/entity/ReputationEvent';
+} from '../../src/entity';
 import {
   notifyAlertsUpdated,
   notifyCommentCommented,
@@ -51,7 +51,6 @@ import {
   Feed,
   Notification,
   Post,
-  PostOrigin,
   PostReport,
   Settings,
   Source,

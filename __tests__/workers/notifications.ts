@@ -5,9 +5,7 @@ import {
   FeatureType,
   MachineSource,
   Post,
-  PostOrigin,
   PostReport,
-  PostType,
   Source,
   SourceMember,
   SourceType,
@@ -16,7 +14,7 @@ import {
   User,
 } from '../../src/entity';
 import { SourceMemberRoles } from '../../src/roles';
-import { DataSource, DeepPartial } from 'typeorm';
+import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { usersFixture } from '../fixture/user';
 import { postsFixture } from '../fixture/post';
