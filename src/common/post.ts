@@ -53,6 +53,8 @@ export const getPostCommenterIds = async (
 export const hasAuthorScout = (post: Post): boolean =>
   !!post?.authorId || !!post?.scoutId;
 
+export const DEFAULT_POST_TITLE = 'No title';
+
 export const postScraperOrigin = process.env.POST_SCRAPER_ORIGIN;
 
 export const fetchLinkPreview = async (
