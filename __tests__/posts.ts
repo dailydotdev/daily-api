@@ -39,7 +39,6 @@ import { Roles } from '../src/roles';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
-  defaultImage,
   postScraperOrigin,
   notifyContentRequested,
   notifyView,
