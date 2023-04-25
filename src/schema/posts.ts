@@ -13,6 +13,7 @@ import {
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
+  DEFAULT_POST_TITLE,
   defaultImage,
   fetchLinkPreview,
   getDiscussionLink,
@@ -924,11 +925,13 @@ export const resolvers: IResolvers<any, Context> = {
         .andWhere({ deleted: false })
         .getRawOne();
 
-      if (!post) {
-        return fetchLinkPreview(standardizedUrl);
+      if (post) {
+        return post;
       }
 
-      return post;
+      const { title, image } = await fetchLinkPreview(standardizedUrl);
+
+      return { image, title: title ?? DEFAULT_POST_TITLE };
     },
     submitExternalLink: async (
       _,
