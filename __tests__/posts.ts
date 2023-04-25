@@ -2018,10 +2018,27 @@ describe('mutation checkLinkPreview', () => {
     expect(res.data.checkLinkPreview.id).toBeFalsy();
   });
 
-  it('should return link preview image and default title when null or empty', async () => {
+  it('should return link preview image and default title when null', async () => {
     loggedUser = '1';
 
     const sampleResponse = { title: null };
+
+    nock(postScraperOrigin)
+      .post('/preview', { url: variables.url })
+      .reply(200, sampleResponse);
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLinkPreview.title).toEqual(DEFAULT_POST_TITLE);
+    expect(res.data.checkLinkPreview.image).toEqual(defaultImage.placeholder);
+    expect(res.data.checkLinkPreview.id).toBeFalsy();
+  });
+
+  it('should return link preview image and default title when empty', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = { title: '' };
 
     nock(postScraperOrigin)
       .post('/preview', { url: variables.url })
