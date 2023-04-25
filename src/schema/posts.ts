@@ -925,13 +925,11 @@ export const resolvers: IResolvers<any, Context> = {
         .andWhere({ deleted: false })
         .getRawOne();
 
-      if (post) {
-        return post;
+      if (!post) {
+        return fetchLinkPreview(standardizedUrl);
       }
 
-      const { title, image } = await fetchLinkPreview(standardizedUrl);
-
-      return { image, title: title ?? DEFAULT_POST_TITLE };
+      return post;
     },
     submitExternalLink: async (
       _,
@@ -1054,5 +1052,7 @@ export const resolvers: IResolvers<any, Context> = {
   LinkPreview: {
     image: (preview: ExternalLinkPreview) =>
       preview.image ?? defaultImage.placeholder,
+    title: (preview: ExternalLinkPreview) =>
+      preview.title?.length ? preview.title : DEFAULT_POST_TITLE,
   },
 };
