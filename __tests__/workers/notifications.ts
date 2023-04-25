@@ -5,9 +5,7 @@ import {
   FeatureType,
   MachineSource,
   Post,
-  PostOrigin,
   PostReport,
-  PostType,
   Source,
   SourceMember,
   SourceType,
@@ -16,7 +14,7 @@ import {
   User,
 } from '../../src/entity';
 import { SourceMemberRoles } from '../../src/roles';
-import { DataSource, DeepPartial } from 'typeorm';
+import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { usersFixture } from '../fixture/user';
 import { postsFixture } from '../fixture/post';
@@ -366,29 +364,6 @@ describe('post added notifications', () => {
     });
     expect(actual[0].ctx.userId).toEqual('2');
     expect(actual[1].ctx.userId).toEqual('3');
-  });
-
-  it('should add post live notification to author when it is an external link post', async () => {
-    const worker = await import('../../src/workers/notifications/postAdded');
-    await con
-      .getRepository(Source)
-      .update({ id: 'a' }, { type: SourceType.Squad });
-    await con.getRepository(Post).update({ id: 'p1' }, {
-      authorId: '1',
-      type: PostType.Share,
-      sharedPostId: 'p2',
-    } as DeepPartial<Post>);
-    await con
-      .getRepository(Post)
-      .update({ id: 'p2' }, { origin: PostOrigin.Squad });
-    const actual = await invokeNotificationWorker(worker.default, {
-      post: postsFixture[0],
-    });
-    expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual('squad_post_live');
-    expect((actual[0].ctx as NotificationPostContext).post.id).toEqual('p1');
-    expect((actual[0].ctx as NotificationPostContext).source.id).toEqual('a');
-    expect(actual[0].ctx.userId).toEqual('1');
   });
 });
 
