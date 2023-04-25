@@ -39,10 +39,11 @@ import { Roles } from '../src/roles';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
-  defaultImage,
   postScraperOrigin,
   notifyContentRequested,
   notifyView,
+  DEFAULT_POST_TITLE,
+  pickImageUrl,
 } from '../src/common';
 import { randomUUID } from 'crypto';
 import nock from 'nock';
@@ -2013,7 +2014,47 @@ describe('mutation checkLinkPreview', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.checkLinkPreview.title).toEqual(sampleResponse.title);
-    expect(res.data.checkLinkPreview.image).toEqual(defaultImage.placeholder);
+    expect(res.data.checkLinkPreview.image).toEqual(
+      pickImageUrl({ createdAt: new Date() }),
+    );
+    expect(res.data.checkLinkPreview.id).toBeFalsy();
+  });
+
+  it('should return link preview image and default title when null', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = { title: null };
+
+    nock(postScraperOrigin)
+      .post('/preview', { url: variables.url })
+      .reply(200, sampleResponse);
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLinkPreview.title).toEqual(DEFAULT_POST_TITLE);
+    expect(res.data.checkLinkPreview.image).toEqual(
+      pickImageUrl({ createdAt: new Date() }),
+    );
+    expect(res.data.checkLinkPreview.id).toBeFalsy();
+  });
+
+  it('should return link preview image and default title when empty', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = { title: '' };
+
+    nock(postScraperOrigin)
+      .post('/preview', { url: variables.url })
+      .reply(200, sampleResponse);
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLinkPreview.title).toEqual(DEFAULT_POST_TITLE);
+    expect(res.data.checkLinkPreview.image).toEqual(
+      pickImageUrl({ createdAt: new Date() }),
+    );
     expect(res.data.checkLinkPreview.id).toBeFalsy();
   });
 
