@@ -44,6 +44,7 @@ import {
   notifyContentRequested,
   notifyView,
   DEFAULT_POST_TITLE,
+  pickImageUrl,
 } from '../src/common';
 import { randomUUID } from 'crypto';
 import nock from 'nock';
@@ -2031,7 +2032,9 @@ describe('mutation checkLinkPreview', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.checkLinkPreview.title).toEqual(DEFAULT_POST_TITLE);
-    expect(res.data.checkLinkPreview.image).toEqual(defaultImage.placeholder);
+    expect(res.data.checkLinkPreview.image).toEqual(
+      pickImageUrl({ createdAt: new Date() }),
+    );
     expect(res.data.checkLinkPreview.id).toBeFalsy();
   });
 
@@ -2048,7 +2051,9 @@ describe('mutation checkLinkPreview', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.checkLinkPreview.title).toEqual(DEFAULT_POST_TITLE);
-    expect(res.data.checkLinkPreview.image).toEqual(defaultImage.placeholder);
+    expect(res.data.checkLinkPreview.image).toEqual(
+      pickImageUrl({ createdAt: new Date() }),
+    );
     expect(res.data.checkLinkPreview.id).toBeFalsy();
   });
 
