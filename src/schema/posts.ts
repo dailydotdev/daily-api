@@ -1051,7 +1051,7 @@ export const resolvers: IResolvers<any, Context> = {
   },
   LinkPreview: {
     image: (preview: ExternalLinkPreview) =>
-      preview.image ?? defaultImage.placeholder,
+      preview.image ?? pickImageUrl({ createdAt: new Date() }),
     title: (preview: ExternalLinkPreview) =>
       preview.title?.length ? preview.title : DEFAULT_POST_TITLE,
   },
