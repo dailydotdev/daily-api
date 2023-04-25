@@ -2015,7 +2015,9 @@ describe('mutation checkLinkPreview', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.checkLinkPreview.title).toEqual(sampleResponse.title);
-    expect(res.data.checkLinkPreview.image).toEqual(defaultImage.placeholder);
+    expect(res.data.checkLinkPreview.image).toEqual(
+      pickImageUrl({ createdAt: new Date() }),
+    );
     expect(res.data.checkLinkPreview.id).toBeFalsy();
   });
 
