@@ -88,6 +88,8 @@ export interface GQLPost {
   isAuthor?: number;
   sharedPost?: GQLPost;
   feedMeta?: string;
+  content: string;
+  contentHtml: string;
 }
 
 export type GQLPostNotification = Pick<
@@ -338,6 +340,16 @@ export const typeDefs = /* GraphQL */ `
     Additional information required for analytics purposes
     """
     feedMeta: String
+
+    """
+    Content of the post
+    """
+    content: String
+
+    """
+    HTML Parsed content of the comment
+    """
+    contentHtml: String
   }
 
   type PostConnection {

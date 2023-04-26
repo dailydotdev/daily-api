@@ -18,6 +18,7 @@ import {
   Bookmark,
   BookmarkList,
   Comment,
+  FreeformPost,
   HiddenPost,
   Post,
   PostReport,
@@ -580,6 +581,35 @@ describe('type field', () => {
     const res = await client.query(QUERY);
     expect(res.data).toEqual({
       post: { type: PostType.Article },
+    });
+  });
+});
+
+describe('freeformPost type', () => {
+  const QUERY = `{
+    post(id: "ff") {
+      type
+      content
+      contentHtml
+    }
+  }`;
+
+  it('should return the freeform post properties', async () => {
+    await con.getRepository(FreeformPost).save({
+      id: 'ff',
+      shortId: 'ff',
+      sourceId: 'a',
+      title: 'Freeform post',
+      content: '#Test',
+      contentHtml: '<h1>Test</h1>',
+    });
+    const res = await client.query(QUERY);
+    expect(res.data).toEqual({
+      post: {
+        type: PostType.Freeform,
+        content: '#Test',
+        contentHtml: '<h1>Test</h1>',
+      },
     });
   });
 });

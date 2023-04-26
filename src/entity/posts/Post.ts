@@ -15,6 +15,7 @@ import { User } from '../User';
 export enum PostType {
   Article = 'article',
   Share = 'share',
+  Freeform = 'freeform',
 }
 
 export enum PostOrigin {
