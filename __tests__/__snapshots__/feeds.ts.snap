@@ -236,6 +236,37 @@ Object {
 }
 `;
 
+exports[`mutation addFiltersToFeed should add the new feed settings 2`] = `
+Object {
+  "addFiltersToFeed": Object {
+    "advancedSettings": Array [],
+    "blockedTags": Array [
+      "golang",
+    ],
+    "excludeSources": Array [
+      Object {
+        "id": "a",
+        "image": "http://image.com/a",
+        "name": "A",
+        "public": true,
+      },
+      Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+        "public": true,
+      },
+    ],
+    "id": "1",
+    "includeTags": Array [
+      "javascript",
+      "webdev",
+    ],
+    "userId": "1",
+  },
+}
+`;
+
 exports[`mutation addFiltersToFeed should ignore duplicates 1`] = `
 Object {
   "addFiltersToFeed": Object {
