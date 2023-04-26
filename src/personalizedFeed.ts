@@ -11,6 +11,18 @@ interface TinybirdResponse<T> {
   data: T[];
 }
 
+interface FeedParams {
+  page_size: number;
+  fresh_page_size: string;
+  feed_version: number;
+  user_id?: string;
+  feed_id?: string;
+  allowed_tags?: string[];
+  blocked_tags?: string[];
+  blocked_sources?: string[];
+  squad_ids?: string[];
+}
+
 export async function fetchTinybirdFeed(
   con: DataSource,
   pageSize: number,
@@ -20,12 +32,16 @@ export async function fetchTinybirdFeed(
   ctx?: Context,
 ): Promise<{ post_id: string; metadata: Record<string, string> }[]> {
   const freshPageSize = Math.ceil(pageSize / 3).toFixed(0);
-  let params = `page_size=${pageSize}&fresh_page_size=${freshPageSize}&feed_version=${feedVersion}`;
+  const params: FeedParams = {
+    page_size: pageSize,
+    fresh_page_size: freshPageSize,
+    feed_version: feedVersion,
+  };
   if (userId) {
-    params += `&user_id=${userId}`;
+    params.user_id = userId;
   }
   if (feedId) {
-    params += `&feed_id=${feedId}`;
+    params.feed_id = feedId;
     const filters = await runInSpan(
       ctx?.span,
       'Feed_v2.feedToFilters',
@@ -36,23 +52,23 @@ export async function fetchTinybirdFeed(
       },
     );
     if (filters.includeTags?.length) {
-      const value = encodeURIComponent(filters.includeTags.join(','));
-      params += `&allowed_tags=${value}`;
+      const value = filters.includeTags;
+      params.allowed_tags = value;
     }
     if (filters.blockedTags?.length) {
-      const value = encodeURIComponent(filters.blockedTags.join(','));
-      params += `&blocked_tags=${value}`;
+      const value = filters.blockedTags;
+      params.blocked_tags = value;
     }
     if (filters.excludeSources?.length) {
-      const value = encodeURIComponent(filters.excludeSources.join(','));
-      params += `&blocked_sources=${value}`;
+      const value = filters.excludeSources;
+      params.blocked_sources = value;
     }
     if (filters.sourceIds?.length) {
-      const value = encodeURIComponent(filters.sourceIds.join(','));
-      params += `&squad_ids=${value}`;
+      const value = filters.sourceIds;
+      params.squad_ids = value;
     }
   } else {
-    params += `&feed_id=global`;
+    params.feed_id = 'global';
   }
   const body: TinybirdResponse<{
     post_id: string;
@@ -68,7 +84,11 @@ export async function fetchTinybirdFeed(
             feedVersion = 12;
           }
           const url = process.env.INTERNAL_FEED;
-          const res = await fetch(`${url}&${params}`, fetchOptions);
+          const res = await fetch(url, {
+            ...fetchOptions,
+            method: 'POST',
+            body: JSON.stringify(params),
+          });
           if (res.status >= 200 && res.status < 300) {
             const bodyText = await res.text();
             return JSON.parse(bodyText);
