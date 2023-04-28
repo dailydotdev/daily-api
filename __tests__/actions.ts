@@ -55,8 +55,9 @@ describe('query actions', () => {
     const res = await client.query(QUERY);
     const [action] = res.data.actions;
 
+    const date = new Date(action.completedAt);
     expect(expected.type).toEqual(action.type);
-    expect(expected.completedAt).toEqual(action.completedAt);
+    expect(expected.completedAt.toString()).toEqual(date.toString());
   });
 });
 
