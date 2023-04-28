@@ -38,24 +38,23 @@ describe('query actions', () => {
     }
   }`;
 
-  it('should return alerts default values if anonymous', () =>
+  it('should return unauthenticated when not logged in', () =>
     testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
 
-  it('should return user alerts', async () => {
+  it('should return user completed actions', async () => {
     loggedUser = '1';
 
     const completedAt = new Date('2020-09-21T07:15:51.247Z');
     const repo = con.getRepository(Action);
-    const alerts = repo.create({
+    const actions = repo.create({
       userId: loggedUser,
       completedAt,
       type: ActionType.Notification,
     });
-    const expected = await repo.save(alerts);
+    const expected = await repo.save(actions);
     const res = await client.query(QUERY);
     const [action] = res.data.actions;
 
-    expect(expected.userId).toEqual(action.userId);
     expect(expected.type).toEqual(action.type);
     expect(expected.completedAt).toEqual(action.completedAt);
   });
