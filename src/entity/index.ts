@@ -35,3 +35,4 @@ export * from './NotificationAvatar';
 export * from './NotificationAttachment';
 export * from './Notification';
 export * from './Feature';
+export * from './Action';

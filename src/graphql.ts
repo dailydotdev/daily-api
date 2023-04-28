@@ -15,6 +15,7 @@ import * as sources from './schema/sources';
 import * as tags from './schema/tags';
 import * as users from './schema/users';
 import * as alerts from './schema/alerts';
+import * as actions from './schema/actions';
 import * as keywords from './schema/keywords';
 import * as authDirective from './directive/auth';
 import * as urlDirective from './directive/url';
@@ -48,6 +49,7 @@ export const schema = urlDirective.transformer(
           keywords.typeDefs,
           alerts.typeDefs,
           submissions.typeDefs,
+          actions.typeDefs,
         ],
         resolvers: merge(
           common.resolvers,
@@ -66,6 +68,7 @@ export const schema = urlDirective.transformer(
           keywords.resolvers,
           alerts.resolvers,
           submissions.resolvers,
+          actions.resolvers,
         ),
       }),
     ),
