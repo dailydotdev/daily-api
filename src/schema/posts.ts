@@ -88,8 +88,8 @@ export interface GQLPost {
   isAuthor?: number;
   sharedPost?: GQLPost;
   feedMeta?: string;
-  content: string;
-  contentHtml: string;
+  content?: string;
+  contentHtml?: string;
 }
 
 export type GQLPostNotification = Pick<
