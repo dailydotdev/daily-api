@@ -3,7 +3,7 @@ import { Action, ActionType } from '../entity';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { EmptyResponse } from '@google-cloud/pubsub';
+import { GQLEmptyResponse } from './common';
 
 type GQLAction = Pick<Action, 'userId' | 'type' | 'completedAt'>;
 
@@ -54,7 +54,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       _,
       { type }: CompleteActionParams,
       { con, userId },
-    ): Promise<EmptyResponse> => {
+    ): Promise<GQLEmptyResponse> => {
       await con
         .getRepository(Action)
         .createQueryBuilder()
