@@ -80,11 +80,13 @@ describe('mutation completeAction', () => {
   it('should record when the action is completed', async () => {
     loggedUser = '1';
     const type = ActionType.Notification;
-    await client.mutate(MUTATION, { variables: { type } });
+    const res = await client.mutate(MUTATION, { variables: { type } });
     const action = await con
       .getRepository(Action)
       .findOneBy({ userId: loggedUser, type });
+    expect(res.errors).toBeFalsy();
     expect(action.type).toEqual(type);
+    expect(action.userId).toEqual(loggedUser);
   });
 
   it('should ignore when record is already completed', async () => {
