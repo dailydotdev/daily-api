@@ -16,6 +16,7 @@ export enum PostType {
   Article = 'article',
   Share = 'share',
   Freeform = 'freeform',
+  Welcome = 'welcome',
 }
 
 export enum PostOrigin {
