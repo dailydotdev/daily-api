@@ -5,12 +5,11 @@ export enum ActionType {
 }
 
 @Entity()
-export class Action {
+export class UserAction {
   @Index()
   @PrimaryColumn({ type: 'text' })
   userId: string;
 
-  @Index()
   @PrimaryColumn({ type: 'text' })
   type: ActionType;
 

@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { Action, ActionType } from '../src/entity';
+import { UserAction, ActionType } from '../src/entity';
 import createOrGetConnection from '../src/db';
 import {
   disposeGraphQLTesting,
@@ -45,7 +45,7 @@ describe('query actions', () => {
     loggedUser = '1';
 
     const completedAt = new Date('2020-09-21T07:15:51.247Z');
-    const repo = con.getRepository(Action);
+    const repo = con.getRepository(UserAction);
     const actions = repo.create({
       userId: loggedUser,
       completedAt,
@@ -82,7 +82,7 @@ describe('mutation completeAction', () => {
     const type = ActionType.Notification;
     const res = await client.mutate(MUTATION, { variables: { type } });
     const action = await con
-      .getRepository(Action)
+      .getRepository(UserAction)
       .findOneBy({ userId: loggedUser, type });
     expect(res.errors).toBeFalsy();
     expect(action.type).toEqual(type);
@@ -94,7 +94,7 @@ describe('mutation completeAction', () => {
     const type = ActionType.Notification;
     await client.mutate(MUTATION, { variables: { type } });
     const action = await con
-      .getRepository(Action)
+      .getRepository(UserAction)
       .findOneBy({ userId: loggedUser, type });
     expect(action.type).toEqual(type);
     const res = await client.mutate(MUTATION, { variables: { type } });

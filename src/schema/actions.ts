@@ -1,11 +1,11 @@
-import { Action, ActionType } from '../entity';
+import { UserAction, ActionType } from '../entity';
 
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { GQLEmptyResponse } from './common';
 
-type GQLAction = Pick<Action, 'userId' | 'type' | 'completedAt'>;
+type GQLAction = Pick<UserAction, 'userId' | 'type' | 'completedAt'>;
 
 interface CompleteActionParams {
   type: ActionType;
@@ -15,11 +15,11 @@ export const typeDefs = /* GraphQL */ `
   """
   Action that the user has completed
   """
-  type Action {
+  type UserAction {
     """
     The relevant user that made the action
     """
-    userId: ID!
+    user: User!
 
     """
     The type of action the user performed
@@ -43,7 +43,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get the actions for user
     """
-    actions: [Action]! @auth
+    actions: [UserAction]! @auth
   }
 `;
 
@@ -55,19 +55,13 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { type }: CompleteActionParams,
       { con, userId },
     ): Promise<GQLEmptyResponse> => {
-      await con
-        .getRepository(Action)
-        .createQueryBuilder()
-        .insert()
-        .values({ userId, type })
-        .orIgnore()
-        .execute();
+      await con.getRepository(UserAction).save({ userId, type });
 
       return;
     },
   },
   Query: {
     actions: (_, __, { con, userId }): Promise<GQLAction[]> =>
-      con.getRepository(Action).findBy({ userId }),
+      con.getRepository(UserAction).findBy({ userId }),
   },
 });
