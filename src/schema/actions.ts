@@ -4,8 +4,9 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { GQLEmptyResponse } from './common';
+import graphorm from '../graphorm';
 
-type GQLAction = Pick<UserAction, 'userId' | 'type' | 'completedAt'>;
+type GQLUserAction = Pick<UserAction, 'userId' | 'type' | 'completedAt'>;
 
 interface CompleteActionParams {
   type: ActionType;
@@ -55,13 +56,25 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { type }: CompleteActionParams,
       { con, userId },
     ): Promise<GQLEmptyResponse> => {
-      await con.getRepository(UserAction).save({ userId, type });
+      await con
+        .getRepository(UserAction)
+        .createQueryBuilder()
+        .insert()
+        .values({ userId, type })
+        .orIgnore()
+        .execute();
 
       return;
     },
   },
   Query: {
-    actions: (_, __, { con, userId }): Promise<GQLAction[]> =>
-      con.getRepository(UserAction).findBy({ userId }),
+    actions: (_, __, ctx, info): Promise<GQLUserAction[]> =>
+      graphorm.query<GQLUserAction>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder.where({
+          userId: ctx.userId,
+        });
+
+        return builder;
+      }),
   },
 });
