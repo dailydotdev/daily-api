@@ -13,6 +13,8 @@ import {
   SubmissionStatus,
   Upvote,
   User,
+  UserAction,
+  UserActionType,
 } from '../../src/entity';
 import { SourceMemberRoles } from '../../src/roles';
 import { DataSource } from 'typeorm';
@@ -367,14 +369,18 @@ describe('post added notifications', () => {
     expect(actual[1].ctx.userId).toEqual('3');
   });
 
-  it('should add squad subscribe to notification', async () => {
-    const worker = await import('../../src/workers/notifications/postAdded');
+  const prepareSubscribeTests = async (postId = 'p1', sourceId = 'a') => {
     await con
       .getRepository(Source)
-      .update({ id: 'a' }, { type: SourceType.Squad });
+      .update({ id: sourceId }, { type: SourceType.Squad });
     await con
       .getRepository(Post)
-      .update({ id: 'p1' }, { authorId: '1', type: PostType.Share });
+      .update({ id: postId }, { authorId: '1', type: PostType.Share });
+  };
+
+  it('should add squad subscribe to notification', async () => {
+    await prepareSubscribeTests();
+    const worker = await import('../../src/workers/notifications/postAdded');
     const actual = await invokeNotificationWorker(worker.default, {
       post: postsFixture[0],
     });
@@ -391,16 +397,26 @@ describe('post added notifications', () => {
   });
 
   it('should not add squad subscribe to notification when user has made many posts already', async () => {
-    const worker = await import('../../src/workers/notifications/postAdded');
-    await con
-      .getRepository(Source)
-      .update({ id: 'a' }, { type: SourceType.Squad });
-    await con
-      .getRepository(Post)
-      .update({ id: 'p1' }, { authorId: '1', type: PostType.Share });
+    await prepareSubscribeTests();
     await con
       .getRepository(Post)
       .update({ id: 'p2' }, { authorId: '1', type: PostType.Share });
+    const worker = await import('../../src/workers/notifications/postAdded');
+    const actual = await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+    const subscribe = actual.some(
+      ({ type }) => type === 'squad_subscribe_to_notification',
+    );
+    expect(subscribe).toBeFalsy();
+  });
+
+  it('should not add squad subscribe to notification when user has subscribe in the past already', async () => {
+    await prepareSubscribeTests();
+    await con
+      .getRepository(UserAction)
+      .save({ userId: '1', type: UserActionType.Notification });
+    const worker = await import('../../src/workers/notifications/postAdded');
     const actual = await invokeNotificationWorker(worker.default, {
       post: postsFixture[0],
     });

@@ -1,5 +1,13 @@
 import { messageToJson } from '../worker';
-import { Post, SharePost, SourceMember, SourceType, User } from '../../entity';
+import {
+  Post,
+  SharePost,
+  SourceMember,
+  SourceType,
+  User,
+  UserAction,
+  UserActionType,
+} from '../../entity';
 import {
   NotificationDoneByContext,
   NotificationPostContext,
@@ -67,14 +75,21 @@ const worker: NotificationWorker = {
           }),
         );
 
-        const posts = await con.getRepository(SharePost).findBy({
-          authorId: post.authorId,
+        const subscribed = await con.getRepository(UserAction).findOneBy({
+          userId: post.authorId,
+          type: UserActionType.Notification,
         });
-        if (posts.length === 1) {
-          notifs.push({
-            type: 'squad_subscribe_to_notification',
-            ctx: { ...baseCtx, userId: post.authorId },
+
+        if (!subscribed) {
+          const posts = await con.getRepository(SharePost).findBy({
+            authorId: post.authorId,
           });
+          if (posts.length === 1) {
+            notifs.push({
+              type: 'squad_subscribe_to_notification',
+              ctx: { ...baseCtx, userId: post.authorId },
+            });
+          }
         }
       }
     }
