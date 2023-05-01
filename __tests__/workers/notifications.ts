@@ -6,6 +6,7 @@ import {
   MachineSource,
   Post,
   PostReport,
+  PostType,
   Source,
   SourceMember,
   SourceType,
@@ -364,6 +365,49 @@ describe('post added notifications', () => {
     });
     expect(actual[0].ctx.userId).toEqual('2');
     expect(actual[1].ctx.userId).toEqual('3');
+  });
+
+  it('should add squad subscribe to notification', async () => {
+    const worker = await import('../../src/workers/notifications/postAdded');
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { authorId: '1', type: PostType.Share });
+    const actual = await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+    expect(actual.length).toBeTruthy();
+    const subscribe = actual.find(
+      ({ type }) => type === 'squad_subscribe_to_notification',
+    );
+
+    const ctx = subscribe.ctx as NotificationPostContext;
+    expect(subscribe).toBeTruthy();
+    expect(ctx.post.id).toEqual('p1');
+    expect(ctx.source.id).toEqual('a');
+    expect(subscribe.ctx.userId).toEqual('1');
+  });
+
+  it('should not add squad subscribe to notification when user has made many posts already', async () => {
+    const worker = await import('../../src/workers/notifications/postAdded');
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { authorId: '1', type: PostType.Share });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p2' }, { authorId: '1', type: PostType.Share });
+    const actual = await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+    const subscribe = actual.some(
+      ({ type }) => type === 'squad_subscribe_to_notification',
+    );
+    expect(subscribe).toBeFalsy();
   });
 });
 

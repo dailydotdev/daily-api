@@ -1,5 +1,5 @@
 import { messageToJson } from '../worker';
-import { Post, SourceMember, SourceType, User } from '../../entity';
+import { Post, SharePost, SourceMember, SourceType, User } from '../../entity';
 import {
   NotificationDoneByContext,
   NotificationPostContext,
@@ -66,6 +66,16 @@ const worker: NotificationWorker = {
             } as NotificationPostContext & Partial<NotificationDoneByContext>,
           }),
         );
+
+        const posts = await con.getRepository(SharePost).findBy({
+          authorId: post.authorId,
+        });
+        if (posts.length === 1) {
+          notifs.push({
+            type: 'squad_subscribe_to_notification',
+            ctx: { ...baseCtx, userId: post.authorId },
+          });
+        }
       }
     }
     return notifs;

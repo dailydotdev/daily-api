@@ -1,7 +1,11 @@
 import { NotificationType } from '../entity';
 import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
-import { scoutArticleLink, squadCreateLink } from '../common';
+import {
+  scoutArticleLink,
+  squadCreateLink,
+  subscribeNotificationsLink,
+} from '../common';
 import {
   NotificationBaseContext,
   NotificationCommentContext,
@@ -72,6 +76,8 @@ export const notificationTitleMap: Record<
     `<b>${ctx.doneBy.name}</b> <span class="text-theme-color-cabbage">viewed</span> your post on <b>${ctx.source.name}</b>.`,
   squad_blocked: (ctx: NotificationSourceContext) =>
     `You are no longer part of <b>${ctx.source.name}</b>`,
+  squad_subscribe_to_notification: (ctx: NotificationSourceContext) =>
+    `Congrats on your first post on <b>${ctx.source.name}</b>. Subscribe to get updates about activity in your squad.  Subscribe for updates.`,
   promoted_to_admin: (ctx: NotificationSourceContext) =>
     `Congratulations! You are now an <span class="text-theme-color-cabbage">admin</span> of <b>${ctx.source.name}</b>`,
   demoted_to_member: (ctx: NotificationSourceMemberRoleContext) =>
@@ -210,6 +216,12 @@ export const generateNotificationMap: Record<
       .targetUrl(process.env.COMMENTS_PREFIX)
       .avatarSource(ctx.source)
       .icon(NotificationIcon.Block)
+      .referenceSource(ctx.source),
+  squad_subscribe_to_notification: (builder, ctx: NotificationSourceContext) =>
+    builder
+      .targetUrl(subscribeNotificationsLink)
+      .avatarSource(ctx.source)
+      .icon(NotificationIcon.Bell)
       .referenceSource(ctx.source),
   promoted_to_admin: (builder, ctx: NotificationSourceContext) =>
     builder
