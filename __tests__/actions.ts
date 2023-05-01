@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { UserAction, ActionType } from '../src/entity';
+import { UserAction, UserActionType } from '../src/entity';
 import createOrGetConnection from '../src/db';
 import {
   disposeGraphQLTesting,
@@ -49,7 +49,7 @@ describe('query actions', () => {
     const actions = repo.create({
       userId: loggedUser,
       completedAt,
-      type: ActionType.Notification,
+      type: UserActionType.Notification,
     });
     const expected = await repo.save(actions);
     const res = await client.query(QUERY);
@@ -73,13 +73,13 @@ describe('mutation completeAction', () => {
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
       client,
-      { mutation: MUTATION, variables: { type: ActionType.Notification } },
+      { mutation: MUTATION, variables: { type: UserActionType.Notification } },
       'UNAUTHENTICATED',
     ));
 
   it('should record when the action is completed', async () => {
     loggedUser = '1';
-    const type = ActionType.Notification;
+    const type = UserActionType.Notification;
     const res = await client.mutate(MUTATION, { variables: { type } });
     const action = await con
       .getRepository(UserAction)
@@ -91,7 +91,7 @@ describe('mutation completeAction', () => {
 
   it('should ignore when record is already completed', async () => {
     loggedUser = '1';
-    const type = ActionType.Notification;
+    const type = UserActionType.Notification;
     await client.mutate(MUTATION, { variables: { type } });
     const action = await con
       .getRepository(UserAction)

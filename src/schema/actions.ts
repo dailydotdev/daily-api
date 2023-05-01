@@ -1,4 +1,4 @@
-import { UserAction, ActionType } from '../entity';
+import { UserAction, UserActionType } from '../entity';
 
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
@@ -9,7 +9,7 @@ import graphorm from '../graphorm';
 type GQLUserAction = Pick<UserAction, 'userId' | 'type' | 'completedAt'>;
 
 interface CompleteActionParams {
-  type: ActionType;
+  type: UserActionType;
 }
 
 export const typeDefs = /* GraphQL */ `

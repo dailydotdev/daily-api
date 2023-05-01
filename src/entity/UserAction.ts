@@ -1,6 +1,6 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
-export enum ActionType {
+export enum UserActionType {
   Notification = 'notification',
 }
 
@@ -11,7 +11,7 @@ export class UserAction {
   userId: string;
 
   @PrimaryColumn({ type: 'text' })
-  type: ActionType;
+  type: UserActionType;
 
   @Column({ type: 'timestamp without time zone', default: () => 'now()' })
   completedAt: Date;
