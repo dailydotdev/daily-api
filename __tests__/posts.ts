@@ -9,6 +9,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationError,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
@@ -17,6 +18,7 @@ import {
   Bookmark,
   BookmarkList,
   Comment,
+  FreeformPost,
   HiddenPost,
   Post,
   PostReport,
@@ -26,22 +28,33 @@ import {
   Source,
   SourceMember,
   SquadSource,
+  UNKNOWN_SOURCE,
   Upvote,
   User,
   View,
+  WelcomePost,
 } from '../src/entity';
-import { SourceMemberRoles } from '../src/roles';
+import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { notifyView } from '../src/common';
+import {
+  postScraperOrigin,
+  notifyContentRequested,
+  notifyView,
+  DEFAULT_POST_TITLE,
+  pickImageUrl,
+} from '../src/common';
 import { randomUUID } from 'crypto';
+import nock from 'nock';
+import { deleteKeysByPattern } from '../src/redis';
 
-jest.mock('../src/common', () => ({
-  ...(jest.requireActual('../src/common') as Record<string, unknown>),
+jest.mock('../src/common/pubsub', () => ({
+  ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
   notifyView: jest.fn(),
+  notifyContentRequested: jest.fn(),
 }));
 
 let app: FastifyInstance;
@@ -65,7 +78,7 @@ beforeEach(async () => {
   loggedUser = null;
   premiumUser = false;
   roles = [];
-  jest.resetAllMocks();
+  jest.clearAllMocks();
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
@@ -573,6 +586,64 @@ describe('type field', () => {
   });
 });
 
+describe('freeformPost type', () => {
+  const QUERY = `{
+    post(id: "ff") {
+      type
+      content
+      contentHtml
+    }
+  }`;
+
+  it('should return the freeform post properties', async () => {
+    await con.getRepository(FreeformPost).save({
+      id: 'ff',
+      shortId: 'ff',
+      sourceId: 'a',
+      title: 'Freeform post',
+      content: '#Test',
+      contentHtml: '<h1>Test</h1>',
+    });
+    const res = await client.query(QUERY);
+    expect(res.data).toEqual({
+      post: {
+        type: PostType.Freeform,
+        content: '#Test',
+        contentHtml: '<h1>Test</h1>',
+      },
+    });
+  });
+});
+
+describe('welcomePost type', () => {
+  const QUERY = `{
+    post(id: "wp") {
+      type
+      content
+      contentHtml
+    }
+  }`;
+
+  it('should return the welcome post properties', async () => {
+    await con.getRepository(WelcomePost).save({
+      id: 'wp',
+      shortId: 'wp',
+      sourceId: 'a',
+      title: 'Welcome post',
+      content: '#Test',
+      contentHtml: '<h1>Test</h1>',
+    });
+    const res = await client.query(QUERY);
+    expect(res.data).toEqual({
+      post: {
+        type: PostType.Welcome,
+        content: '#Test',
+        contentHtml: '<h1>Test</h1>',
+      },
+    });
+  });
+});
+
 describe('query post', () => {
   const QUERY = (id: string): string => `{
     post(id: "${id}") {
@@ -618,6 +689,44 @@ describe('query post', () => {
   it('should throw error when user cannot access the post', async () => {
     loggedUser = '1';
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    await con.getRepository(Post).update({ id: 'p1' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY('p1'),
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when annonymous user tries to access post from source with members', async () => {
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    await con.getRepository(Post).update({ id: 'p1' }, { private: true });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Admin,
+    });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY('p1'),
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when non member tries to access post from source with members', async () => {
+    loggedUser = '2';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    await con.getRepository(Post).update({ id: 'p1' }, { private: true });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Admin,
+    });
     return testQueryErrorCode(
       client,
       {
@@ -665,6 +774,16 @@ describe('query postByUrl', () => {
       client,
       { query: QUERY('http://p8.com') },
       'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when source is private', async () => {
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    await con.getRepository(Post).update({ id: 'p1' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      { query: QUERY('http://p1.com') },
+      'FORBIDDEN',
     );
   });
 
@@ -957,10 +1076,10 @@ describe('mutation deletePost', () => {
     );
   });
 
-  it('should restrict member deleting a post from the owner', async () => {
+  it('should restrict member deleting a post from the admin', async () => {
     loggedUser = '1';
     const id = 'sp1';
-    await createSharedPost(id, { role: SourceMemberRoles.Owner });
+    await createSharedPost(id, { role: SourceMemberRoles.Admin });
 
     return testMutationErrorCode(
       client,
@@ -1015,10 +1134,10 @@ describe('mutation deletePost', () => {
     expect(actual?.deleted).toBeTruthy();
   });
 
-  it('should allow moderator deleting a post from the owner', async () => {
+  it('should allow moderator deleting a post from the admin', async () => {
     loggedUser = '1';
     const id = 'sp1';
-    await createSharedPost(id, { role: SourceMemberRoles.Owner });
+    await createSharedPost(id, { role: SourceMemberRoles.Admin });
     await con
       .getRepository(SourceMember)
       .update({ userId: '1' }, { role: SourceMemberRoles.Moderator });
@@ -1029,10 +1148,10 @@ describe('mutation deletePost', () => {
     expect(actual?.deleted).toBeTruthy();
   });
 
-  it('should delete the shared post as an owner of the squad', async () => {
+  it('should delete the shared post as an admin of the squad', async () => {
     loggedUser = '2';
     const id = 'sp1';
-    await createSharedPost(id, { role: SourceMemberRoles.Owner }, '1');
+    await createSharedPost(id, { role: SourceMemberRoles.Admin }, '1');
     const res = await client.mutate(MUTATION, { variables: { id: 'sp1' } });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(SharePost).findOneBy({ id: 'sp1' });
@@ -1404,6 +1523,7 @@ describe('mutation sharePost', () => {
       handle: 's1',
       name: 'Squad',
       private: false,
+      memberPostingRank: 0,
     });
     await con.getRepository(SourceMember).save({
       sourceId: 's1',
@@ -1459,6 +1579,65 @@ describe('mutation sharePost', () => {
       { mutation: MUTATION, variables: { ...variables, id: 'nope' } },
       'NOT_FOUND',
     );
+  });
+
+  it('should throw error for members if posting to squad is not allowed', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).update('s1', {
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+
+    await testMutationError(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 's1' } },
+      (errors) => {
+        expect(errors.length).toEqual(1);
+        expect(errors[0].extensions?.code).toEqual('FORBIDDEN');
+        expect(errors[0]?.message).toEqual('Posting not allowed!');
+      },
+    );
+  });
+
+  it('should allow moderators to post when posting to squad is not allowed', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).update('s1', {
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+    await con.getRepository(SourceMember).update(
+      { sourceId: 's1', userId: '1' },
+      {
+        role: SourceMemberRoles.Moderator,
+      },
+    );
+
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
+  });
+
+  it('should allow admins to post when posting to squad is not allowed', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).update('s1', {
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+    await con.getRepository(SourceMember).update(
+      { sourceId: 's1', userId: '1' },
+      {
+        role: SourceMemberRoles.Admin,
+      },
+    );
+
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
   });
 });
 
@@ -1542,5 +1721,420 @@ describe('mutation viewPost', () => {
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     expect(notifyView).toBeCalledTimes(0);
+  });
+});
+
+describe('mutation submitExternalLink', () => {
+  const MUTATION = `
+  mutation SubmitExternalLink($sourceId: ID!, $url: String!, $commentary: String!, $title: String, $image: String) {
+  submitExternalLink(sourceId: $sourceId, url: $url, commentary: $commentary, title: $title, image: $image) {
+    _
+  }
+}`;
+
+  const variables: Record<string, string> = {
+    sourceId: 's1',
+    url: 'https://daily.dev',
+    commentary: 'My comment',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: false,
+      memberPostingRank: 0,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  const checkSharedPostExpectation = async (visible: boolean) => {
+    const res = await client.mutate(MUTATION, { variables });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: variables.url });
+    expect(articlePost.url).toEqual('https://daily.dev');
+    expect(articlePost.visible).toEqual(visible);
+
+    expect(notifyContentRequested).toBeCalledTimes(1);
+    expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
+      { id: articlePost.id, url: variables.url, origin: articlePost.origin },
+    ]);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(visible);
+  };
+
+  it('should share to squad without title to support backwards compatibility', async () => {
+    await con.getRepository(Source).insert({
+      id: UNKNOWN_SOURCE,
+      handle: UNKNOWN_SOURCE,
+      name: UNKNOWN_SOURCE,
+    });
+    loggedUser = '1';
+    await checkSharedPostExpectation(false);
+  });
+
+  it('should share to squad and be visible automatically when title is available', async () => {
+    await con.getRepository(Source).insert({
+      id: UNKNOWN_SOURCE,
+      handle: UNKNOWN_SOURCE,
+      name: UNKNOWN_SOURCE,
+    });
+    loggedUser = '1';
+    variables.title = 'Sample external link title';
+    await checkSharedPostExpectation(true);
+  });
+
+  it('should share existing post to squad', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'http://p6.com' },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'http://p6.com' });
+    expect(articlePost.url).toEqual('http://p6.com');
+    expect(articlePost.visible).toEqual(true);
+    expect(articlePost.id).toEqual('p6');
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should throw error when sharing to non-squad', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when URL is not valid', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, url: 'a' } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw error when post is existing but deleted', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).update('p6', { deleted: true });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, url: 'http://p6.com' } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw error when non-member share to squad', async () => {
+    loggedUser = '2';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error for members if posting to squad is not allowed', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).update('s1', {
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+
+    await testMutationError(
+      client,
+      { mutation: MUTATION, variables: { ...variables, sourceId: 's1' } },
+      (errors) => {
+        expect(errors.length).toEqual(1);
+        expect(errors[0].extensions?.code).toEqual('FORBIDDEN');
+        expect(errors[0]?.message).toEqual('Posting not allowed!');
+      },
+    );
+  });
+
+  it('should allow moderators to share when posting to squad is not allowed', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).update('s1', {
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+    await con.getRepository(SourceMember).update(
+      { sourceId: 's1', userId: '1' },
+      {
+        role: SourceMemberRoles.Moderator,
+      },
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'http://p6.com' },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'http://p6.com' });
+    expect(articlePost.url).toEqual('http://p6.com');
+    expect(articlePost.visible).toEqual(true);
+    expect(articlePost.id).toEqual('p6');
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should allow admins to share when posting to squad is not allowed', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).update('s1', {
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+    await con.getRepository(SourceMember).update(
+      { sourceId: 's1', userId: '1' },
+      {
+        role: SourceMemberRoles.Admin,
+      },
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'http://p6.com' },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'http://p6.com' });
+    expect(articlePost.url).toEqual('http://p6.com');
+    expect(articlePost.visible).toEqual(true);
+    expect(articlePost.id).toEqual('p6');
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should not make squad post visible if shared post is not yet ready and visible', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        url: 'http://p7.com',
+        commentary: 'Share 1',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'http://p7.com' });
+    expect(articlePost?.url).toEqual('http://p7.com');
+    expect(articlePost?.visible).toEqual(false);
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost?.id, title: 'Share 1' });
+    expect(sharedPost?.visible).toEqual(false);
+
+    const res2 = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        url: 'http://p7.com',
+        commentary: 'Share 2',
+      },
+    });
+    expect(res2.errors).toBeFalsy();
+    const sharedPost2 = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost?.id, title: 'Share 2' });
+    expect(sharedPost2?.visible).toEqual(false);
+  });
+});
+
+describe('mutation checkLinkPreview', () => {
+  const MUTATION = `
+    mutation CheckLinkPreview($url: String!) {
+      checkLinkPreview(url: $url) {
+        id
+        title
+        image
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await deleteKeysByPattern('rateLimit:*');
+  });
+
+  const variables: Record<string, string> = { url: 'https://daily.dev' };
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return link preview if url not found', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = {
+      title: 'We updated our RSA SSH host key',
+      image:
+        'https://github.blog/wp-content/uploads/2021/12/github-security_orange-banner.png',
+    };
+
+    nock(postScraperOrigin)
+      .post('/preview', { url: variables.url })
+      .reply(200, sampleResponse);
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLinkPreview.title).toEqual(sampleResponse.title);
+    expect(res.data.checkLinkPreview.image).toEqual(sampleResponse.image);
+    expect(res.data.checkLinkPreview.id).toBeFalsy();
+  });
+
+  it('should rate limit getting link preview by 5', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = {
+      title: 'We updated our RSA SSH host key',
+      image:
+        'https://github.blog/wp-content/uploads/2021/12/github-security_orange-banner.png',
+    };
+
+    const mockRequest = () =>
+      nock(postScraperOrigin)
+        .post('/preview', { url: variables.url })
+        .reply(200, sampleResponse);
+
+    const limit = 20;
+    for (let i = 0; i < Array(limit).length; i++) {
+      mockRequest();
+      const res = await client.mutate(MUTATION, { variables });
+      expect(res.errors).toBeFalsy();
+    }
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'RATE_LIMITED',
+    );
+  });
+
+  it('should return link preview and image being the placeholder when empty', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = { title: 'We updated our RSA SSH host key' };
+
+    nock(postScraperOrigin)
+      .post('/preview', { url: variables.url })
+      .reply(200, sampleResponse);
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLinkPreview.title).toEqual(sampleResponse.title);
+    expect(res.data.checkLinkPreview.image).toEqual(
+      pickImageUrl({ createdAt: new Date() }),
+    );
+    expect(res.data.checkLinkPreview.id).toBeFalsy();
+  });
+
+  it('should return link preview image and default title when null', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = { title: null };
+
+    nock(postScraperOrigin)
+      .post('/preview', { url: variables.url })
+      .reply(200, sampleResponse);
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLinkPreview.title).toEqual(DEFAULT_POST_TITLE);
+    expect(res.data.checkLinkPreview.image).toEqual(
+      pickImageUrl({ createdAt: new Date() }),
+    );
+    expect(res.data.checkLinkPreview.id).toBeFalsy();
+  });
+
+  it('should return link preview image and default title when empty', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = { title: '' };
+
+    nock(postScraperOrigin)
+      .post('/preview', { url: variables.url })
+      .reply(200, sampleResponse);
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLinkPreview.title).toEqual(DEFAULT_POST_TITLE);
+    expect(res.data.checkLinkPreview.image).toEqual(
+      pickImageUrl({ createdAt: new Date() }),
+    );
+    expect(res.data.checkLinkPreview.id).toBeFalsy();
+  });
+
+  it('should return post by canonical', async () => {
+    loggedUser = '1';
+    const url = 'http://p1c.com';
+    const foundPost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ canonicalUrl: url });
+    const res = await client.mutate(MUTATION, { variables: { url } });
+    expect(res.data.checkLinkPreview).toBeTruthy();
+    expect(res.data.checkLinkPreview.id).toEqual(foundPost.id);
+  });
+
+  it('should return post by url', async () => {
+    loggedUser = '1';
+    const url = 'http://p1.com';
+    const foundPost = await con.getRepository(ArticlePost).findOneBy({ url });
+    const res = await client.mutate(MUTATION, { variables: { url } });
+    expect(res.data.checkLinkPreview).toBeTruthy();
+    expect(res.data.checkLinkPreview.id).toEqual(foundPost.id);
   });
 });

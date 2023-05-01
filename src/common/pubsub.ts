@@ -1,5 +1,5 @@
 import { PubSub, Topic } from '@google-cloud/pubsub';
-import { FastifyLoggerInstance } from 'fastify';
+import { FastifyBaseLogger } from 'fastify';
 import {
   Post,
   SourceRequest,
@@ -12,8 +12,10 @@ import {
   SourceMember,
   Feature,
   Source,
+  ArticlePost,
 } from '../entity';
 import { ChangeObject } from '../types';
+import { SourceMemberRoles } from '../roles';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
@@ -43,10 +45,14 @@ const newNotificationTopic = pubsub.topic('api.v1.new-notification');
 const newCommentMentionTopic = pubsub.topic('api.v1.new-comment-mention');
 const memberJoinedSourceTopic = pubsub.topic('api.v1.member-joined-source');
 const featureAccess = pubsub.topic('api.v1.feature-granted');
-const postAddedTopic = pubsub.topic('api.v1.post-added');
 const userCreatedTopic = pubsub.topic('api.v1.user-created');
 const sourcePrivacyUpdatedTopic = pubsub.topic('api.v1.source-privacy-updated');
 const featuresResetTopic = pubsub.topic('features-reset');
+const contentRequestedTopic = pubsub.topic('api.v1.content-requested');
+const postVisibleTopic = pubsub.topic('api.v1.post-visible');
+const sourceMemberRoleChangedTopic = pubsub.topic(
+  'api.v1.source-member-role-changed',
+);
 
 export enum NotificationReason {
   New = 'new',
@@ -57,7 +63,7 @@ export enum NotificationReason {
 }
 
 // Need to support console as well
-export type EventLogger = Omit<FastifyLoggerInstance, 'fatal'>;
+export type EventLogger = Omit<FastifyBaseLogger, 'fatal'>;
 
 const publishEvent = async (
   log: EventLogger,
@@ -295,6 +301,16 @@ export const notifySubmissionGrantedAccess = async (
   userId: string,
 ): Promise<void> => publishEvent(log, communityLinkAccessTopic, { userId });
 
+export const notifySourceMemberRoleChanged = async (
+  log: EventLogger,
+  previousRole: SourceMemberRoles,
+  sourceMember: ChangeObject<SourceMember>,
+): Promise<void> =>
+  publishEvent(log, sourceMemberRoleChangedTopic, {
+    previousRole,
+    sourceMember,
+  });
+
 export const notifyNewNotification = async (
   log: EventLogger,
   notification: ChangeObject<Notification>,
@@ -317,10 +333,10 @@ export const notifyFeatureAccess = async (
   feature: ChangeObject<Feature>,
 ): Promise<void> => publishEvent(log, featureAccess, { feature });
 
-export const notifyPostAdded = async (
+export const notifyPostVisible = async (
   log: EventLogger,
   post: ChangeObject<Post>,
-): Promise<void> => publishEvent(log, postAddedTopic, { post });
+): Promise<void> => publishEvent(log, postVisibleTopic, { post });
 
 export const notifyUserCreated = async (
   log: EventLogger,
@@ -332,3 +348,10 @@ export const notifyUserCreated = async (
 
 export const notifyFeaturesReset = async (log: EventLogger): Promise<void> =>
   publishEvent(log, featuresResetTopic, {});
+
+export type ContentRequested = Pick<ArticlePost, 'id' | 'url' | 'origin'>;
+
+export const notifyContentRequested = async (
+  log: EventLogger,
+  content: ContentRequested,
+): Promise<void> => publishEvent(log, contentRequestedTopic, content);

@@ -23,6 +23,7 @@ import {
   SQUAD_IMAGE_PLACEHOLDER,
   SourceType,
   Post,
+  ArticlePost,
 } from '../src/entity';
 import { SourceMemberRoles } from '../src/roles';
 import { notificationFixture } from './fixture/notifications';
@@ -36,6 +37,8 @@ import flagsmith from '../src/flagsmith';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { DEFAULT_FLAGS } from '../src/featureFlags';
+import { SourcePermissions } from '../src/schema/sources';
+import { sourceRoleRank } from '../src/roles';
 
 jest.mock('../src/flagsmith', () => ({
   getIdentityFlags: jest.fn(),
@@ -423,6 +426,14 @@ describe('boot misc', () => {
         private: true,
         active: true,
       },
+      {
+        id: 's5',
+        handle: 's5',
+        name: 'Squad 5',
+        private: true,
+        active: true,
+        memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+      },
     ]);
     await con.getRepository(MachineSource).save([
       {
@@ -452,6 +463,12 @@ describe('boot misc', () => {
         referralToken: 'rt3',
         role: SourceMemberRoles.Member,
       },
+      {
+        sourceId: 's5',
+        userId: '1',
+        referralToken: 'rt5',
+        role: SourceMemberRoles.Member,
+      },
     ]);
     const res = await request(app.server)
       .get(BASE_PATH)
@@ -467,6 +484,9 @@ describe('boot misc', () => {
         permalink: 'http://localhost:5002/squads/s1',
         public: true,
         type: SourceType.Squad,
+        currentMember: {
+          permissions: [SourcePermissions.Post],
+        },
       },
       {
         active: true,
@@ -477,6 +497,84 @@ describe('boot misc', () => {
         permalink: 'http://localhost:5002/squads/s2',
         public: false,
         type: SourceType.Squad,
+        currentMember: {
+          permissions: [SourcePermissions.Post],
+        },
+      },
+      {
+        active: true,
+        handle: 's5',
+        id: 's5',
+        image: SQUAD_IMAGE_PLACEHOLDER,
+        name: 'Squad 5',
+        permalink: 'http://localhost:5002/squads/s5',
+        public: false,
+        type: SourceType.Squad,
+        currentMember: {
+          permissions: [],
+        },
+      },
+    ]);
+  });
+
+  it('should not return squads users blocked from', async () => {
+    mockLoggedIn();
+    await con.getRepository(SquadSource).save([
+      {
+        id: 's1',
+        handle: 's1',
+        name: 'Squad',
+        private: false,
+        active: false,
+      },
+      {
+        id: 's3',
+        handle: 's3',
+        name: 'Squad 3',
+        private: true,
+        active: true,
+      },
+    ]);
+    await con.getRepository(MachineSource).save([
+      {
+        id: 's4',
+        handle: 's4',
+        name: 'Source',
+        private: false,
+        active: false,
+      },
+    ]);
+    await con.getRepository(SourceMember).save([
+      {
+        sourceId: 's1',
+        userId: '1',
+        referralToken: 'rt',
+        role: SourceMemberRoles.Member,
+      },
+      {
+        sourceId: 's3',
+        userId: '1',
+        referralToken: 'rt3',
+        role: SourceMemberRoles.Blocked,
+      },
+    ]);
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.squads).toEqual([
+      {
+        active: false,
+        handle: 's1',
+        id: 's1',
+        image: SQUAD_IMAGE_PLACEHOLDER,
+        name: 'Squad',
+        permalink: 'http://localhost:5002/squads/s1',
+        public: true,
+        type: SourceType.Squad,
+        currentMember: {
+          permissions: [SourcePermissions.Post],
+        },
       },
     ]);
   });
@@ -537,7 +635,7 @@ describe('companion boot', () => {
   it('should support anonymous user', async () => {
     const res = await request(app.server)
       .get(`${BASE_PATH}/companion`)
-      .query({ url: postsFixture[0].url })
+      .query({ url: (postsFixture[0] as ArticlePost).url })
       .set('User-Agent', TEST_UA)
       .expect(200);
     expect(res.body).toEqual({
@@ -550,7 +648,7 @@ describe('companion boot', () => {
     mockLoggedIn();
     const res = await request(app.server)
       .get(`${BASE_PATH}/companion`)
-      .query({ url: postsFixture[0].url })
+      .query({ url: (postsFixture[0] as ArticlePost).url })
       .set('User-Agent', TEST_UA)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);

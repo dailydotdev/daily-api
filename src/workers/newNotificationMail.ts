@@ -54,6 +54,10 @@ const notificationToTemplateId: Record<NotificationType, string> = {
   squad_reply: 'd-cbb2de40b61840c38d3aa21028af0c68',
   squad_post_viewed: 'd-dc0eb578886c4f84a7dcc25515c7b6a4',
   squad_access: 'd-6b3de457947b415d93d0029361edaf1d',
+  squad_blocked: '',
+  promoted_to_admin: 'd-397a5e4a394a4b7f91ea33c29efb8d01',
+  demoted_to_member: '',
+  promoted_to_moderator: 'd-b1dbd1e86ee14bf094f7616f7469fee8',
 };
 
 type TemplateDataFunc = (
@@ -381,6 +385,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     if (!commenter || !parent || !post) {
       return;
     }
+
+    const parentUser = await parent.user;
+    if (!parentUser) {
+      return;
+    }
+
     const source = await post.source;
     return {
       full_name: commenter.name,
@@ -393,9 +403,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         notification.targetUrl,
         notification.type,
       ),
-      user_name: user.name,
-      user_reputation: user.reputation,
-      user_image: user.image,
+      user_name: parentUser.name,
+      user_reputation: parentUser.reputation,
+      user_image: parentUser.image,
       main_comment: simplifyComment(parent.content),
     };
   },
@@ -438,6 +448,44 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   squad_access: async (con, user) => {
     return {
       full_name: user.name,
+    };
+  },
+  squad_blocked: async () => {
+    return null;
+  },
+  promoted_to_admin: async (con, user, notification) => {
+    const source = await con
+      .getRepository(Source)
+      .findOneBy({ id: notification.referenceId });
+    if (!source) {
+      return;
+    }
+    return {
+      first_name: getFirstName(user.name),
+      squad_name: source.name,
+      squad_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+    };
+  },
+  demoted_to_member: async () => {
+    return null;
+  },
+  promoted_to_moderator: async (con, user, notification) => {
+    const source = await con
+      .getRepository(Source)
+      .findOneBy({ id: notification.referenceId });
+    if (!source) {
+      return;
+    }
+    return {
+      first_name: getFirstName(user.name),
+      squad_name: source.name,
+      squad_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
     };
   },
 };

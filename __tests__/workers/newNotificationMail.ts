@@ -5,15 +5,15 @@ import {
 import { sendEmail } from '../../src/common';
 import worker from '../../src/workers/newNotificationMail';
 import {
+  ArticlePost,
+  Comment,
+  SharePost,
+  Source,
+  SourceRequest,
+  SourceType,
   Submission,
   SubmissionStatus,
   User,
-  Source,
-  Comment,
-  SourceRequest,
-  ArticlePost,
-  SharePost,
-  SourceType,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { DataSource } from 'typeorm';
@@ -25,6 +25,7 @@ import {
   NotificationDoneByContext,
   NotificationPostContext,
   NotificationSourceContext,
+  NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
@@ -32,6 +33,7 @@ import {
 import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
+import { SourceMemberRoles } from '../../src/roles';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -513,6 +515,71 @@ it('should set parameters for comment_reply email', async () => {
   expect(args.templateId).toEqual('d-90c229bde4af427c8708a7615bfd85b4');
 });
 
+it('should set parameters for squad_reply email', async () => {
+  await con.getRepository(ArticlePost).save(postsFixture[0]);
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const post = await con.getRepository(SharePost).save({
+    id: 'ps',
+    shortId: 'ps',
+    sourceId: 'a',
+    title: 'Shared post',
+    sharedPostId: 'p1',
+    authorId: '1',
+  });
+  await con.getRepository(Comment).save({
+    id: 'c1',
+    postId: 'ps',
+    userId: '1',
+    content: 'parent comment',
+    createdAt: new Date(2020, 1, 6, 0, 0),
+  });
+  const comment = await con.getRepository(Comment).save({
+    id: 'c2',
+    postId: 'ps',
+    userId: '2',
+    content: 'child comment',
+    createdAt: new Date(2020, 1, 6, 0, 0),
+    upvotes: 5,
+    parentId: 'c1',
+  });
+  const commenter = await con.getRepository(User).findOneBy({ id: '2' });
+  const ctx: NotificationCommenterContext = {
+    userId: '1',
+    post,
+    comment,
+    commenter,
+    source,
+  };
+
+  const notificationId = await saveNotificationFixture(con, 'squad_reply', ctx);
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+  expect(args.dynamicTemplateData).toEqual({
+    full_name: 'Tsahi',
+    profile_image: 'https://daily.dev/tsahi.jpg',
+    squad_name: 'A',
+    squad_image: 'http://image.com/a',
+    commenter_reputation: '10',
+    new_comment: 'child comment',
+    post_link:
+      'http://localhost:5002/posts/ps?utm_source=notification&utm_medium=email&utm_campaign=squad_reply#c-c2',
+    user_name: 'Ido',
+    user_reputation: '10',
+    user_image: 'https://daily.dev/ido.jpg',
+    main_comment: 'parent comment',
+  });
+  expect(args.templateId).toEqual('d-cbb2de40b61840c38d3aa21028af0c68');
+});
+
 it('should set parameters for comment_upvote_milestone email', async () => {
   const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const comment = await con.getRepository(Comment).save({
@@ -821,4 +888,117 @@ it('should set parameters for squad_access email', async () => {
     full_name: 'Ido',
   });
   expect(args.templateId).toEqual('d-6b3de457947b415d93d0029361edaf1d');
+});
+
+it('should set parameters for promoted_to_admin email', async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const ctx: NotificationSourceContext = {
+    userId: '1',
+    source,
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'promoted_to_admin',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+  expect(args.dynamicTemplateData).toEqual({
+    first_name: 'Ido',
+    squad_link:
+      'http://localhost:5002/squads/a?utm_source=notification&utm_medium=email&utm_campaign=promoted_to_admin',
+    squad_name: 'A',
+  });
+  expect(args.templateId).toEqual('d-397a5e4a394a4b7f91ea33c29efb8d01');
+});
+
+it('should set parameters for promoted_to_moderator email', async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const ctx: NotificationSourceContext = {
+    userId: '1',
+    source,
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'promoted_to_moderator',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(1);
+  const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+  expect(args.dynamicTemplateData).toEqual({
+    first_name: 'Ido',
+    squad_link:
+      'http://localhost:5002/squads/a?utm_source=notification&utm_medium=email&utm_campaign=promoted_to_moderator',
+    squad_name: 'A',
+  });
+  expect(args.templateId).toEqual('d-b1dbd1e86ee14bf094f7616f7469fee8');
+});
+
+it('should not invoke demoted_to_member email', async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const ctx: NotificationSourceMemberRoleContext = {
+    userId: '1',
+    source,
+    role: SourceMemberRoles.Admin,
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'demoted_to_member',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(0);
+});
+
+it('should not invoke squad_blocked email', async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+  const ctx: NotificationSourceContext = {
+    userId: '1',
+    source,
+  };
+
+  const notificationId = await saveNotificationFixture(
+    con,
+    'squad_blocked',
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId: '1',
+    },
+  });
+  expect(sendEmail).toBeCalledTimes(0);
 });
