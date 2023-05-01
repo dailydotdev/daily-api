@@ -13,14 +13,21 @@ import {
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
+  DEFAULT_POST_TITLE,
   defaultImage,
+  fetchLinkPreview,
   getDiscussionLink,
+  isValidHttpUrl,
   notifyView,
   pickImageUrl,
   standardizeURL,
 } from '../common';
 import {
+  ArticlePost,
+  createExternalLink,
   createSharePost,
+  ExternalLink,
+  ExternalLinkPreview,
   HiddenPost,
   Post,
   PostReport,
@@ -29,7 +36,11 @@ import {
   Upvote,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
-import { NotFoundError, TypeOrmError } from '../errors';
+import {
+  NotFoundError,
+  SubmissionFailErrorMessage,
+  TypeOrmError,
+} from '../errors';
 import { GQLBookmarkList } from './bookmarks';
 import { GQLComment } from './comments';
 import graphorm from '../graphorm';
@@ -76,6 +87,9 @@ export interface GQLPost {
   isScout?: number;
   isAuthor?: number;
   sharedPost?: GQLPost;
+  feedMeta?: string;
+  content?: string;
+  contentHtml?: string;
 }
 
 export type GQLPostNotification = Pick<
@@ -90,6 +104,11 @@ export interface GQLPostUpvote {
 
 export interface GQLPostUpvoteArgs extends ConnectionArguments {
   id: string;
+}
+
+export interface SubmitExternalLinkArgs extends ExternalLink {
+  sourceId: string;
+  commentary: string;
 }
 
 export const getPostNotification = async (
@@ -316,6 +335,21 @@ export const typeDefs = /* GraphQL */ `
     Original post that was shared in this post
     """
     sharedPost: Post
+
+    """
+    Additional information required for analytics purposes
+    """
+    feedMeta: String
+
+    """
+    Content of the post
+    """
+    content: String
+
+    """
+    HTML Parsed content of the comment
+    """
+    contentHtml: String
   }
 
   type PostConnection {
@@ -359,6 +393,12 @@ export const typeDefs = /* GraphQL */ `
     The original query in case of a search operation
     """
     query: String
+  }
+
+  type LinkPreview {
+    id: String
+    title: String!
+    image: String!
   }
 
   """
@@ -509,6 +549,42 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
+    Fetch external link's title and image preview
+    """
+    checkLinkPreview(
+      """
+      URL of the external link
+      """
+      url: String!
+    ): LinkPreview @auth @rateLimit(limit: 20, duration: 60)
+
+    """
+    Create external link in source
+    """
+    submitExternalLink(
+      """
+      Source to share the post to
+      """
+      sourceId: ID!
+      """
+      URL to the new private post
+      """
+      url: String!
+      """
+      Preview image of the external link
+      """
+      image: String
+      """
+      Title of the external link
+      """
+      title: String
+      """
+      Commentary for the share
+      """
+      commentary: String!
+    ): EmptyResponse @auth
+
+    """
     Share post to source
     """
     sharePost(
@@ -628,10 +704,12 @@ export const resolvers: IResolvers<any, Context> = {
       info,
     ): Promise<GQLPost> => {
       const post = await ctx.con.getRepository(Post).findOneOrFail({
-        select: ['sourceId'],
+        select: ['sourceId', 'private'],
         where: { id },
       });
-      await ensureSourcePermissions(ctx, post.sourceId);
+      if (post.private) {
+        await ensureSourcePermissions(ctx, post.sourceId);
+      }
       return getPostById(ctx, info, id);
     },
     postByUrl: async (
@@ -639,7 +717,7 @@ export const resolvers: IResolvers<any, Context> = {
       { url }: { id: string; url: string },
       ctx: Context,
       info,
-    ) => {
+    ): Promise<GQLPost> => {
       const standardizedUrl = standardizeURL(url);
       const res = await graphorm.query(ctx, info, (builder) => ({
         queryBuilder: builder.queryBuilder
@@ -651,7 +729,19 @@ export const resolvers: IResolvers<any, Context> = {
         ...builder,
       }));
       if (res.length) {
-        return res[0];
+        const post = res[0] as GQLPost;
+        if (post.private) {
+          let sourceId = post.source?.id;
+          if (!sourceId) {
+            const p2 = await ctx.con.getRepository(Post).findOneOrFail({
+              select: ['sourceId'],
+              where: { id: post.id },
+            });
+            sourceId = p2.sourceId;
+          }
+          await ensureSourcePermissions(ctx, sourceId);
+        }
+        return post;
       }
       throw new NotFoundError('Post not found');
     },
@@ -833,6 +923,68 @@ export const resolvers: IResolvers<any, Context> = {
       });
       return { _: true };
     },
+    checkLinkPreview: async (
+      _,
+      { url }: SubmitExternalLinkArgs,
+      ctx,
+    ): Promise<ExternalLinkPreview> => {
+      const standardizedUrl = standardizeURL(url);
+      const post = await ctx.con
+        .getRepository(ArticlePost)
+        .createQueryBuilder()
+        .select('id, title, image')
+        .where([{ canonicalUrl: standardizedUrl }, { url: standardizedUrl }])
+        .andWhere({ deleted: false })
+        .getRawOne();
+
+      if (!post) {
+        return fetchLinkPreview(standardizedUrl);
+      }
+
+      return post;
+    },
+    submitExternalLink: async (
+      _,
+      { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.transaction(async (manager) => {
+        await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+        const cleanUrl = standardizeURL(url);
+        if (!isValidHttpUrl(cleanUrl)) {
+          throw new ValidationError('URL is not valid');
+        }
+
+        const existingPost: Pick<ArticlePost, 'id' | 'deleted' | 'visible'> =
+          await manager.getRepository(ArticlePost).findOne({
+            select: ['id', 'deleted', 'visible'],
+            where: [{ url: cleanUrl }, { canonicalUrl: cleanUrl }],
+          });
+        if (existingPost) {
+          if (existingPost.deleted) {
+            throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);
+          }
+          await createSharePost(
+            manager,
+            sourceId,
+            ctx.userId,
+            existingPost.id,
+            commentary,
+            existingPost.visible,
+          );
+          return { _: true };
+        }
+        await createExternalLink(
+          manager,
+          ctx.log,
+          sourceId,
+          ctx.userId,
+          { url, title, image },
+          commentary,
+        );
+      });
+      return { _: true };
+    },
     sharePost: async (
       _,
       {
@@ -845,6 +997,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLPost> => {
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+
       const newPost = await createSharePost(
         ctx.con,
         sourceId,
@@ -901,5 +1054,17 @@ export const resolvers: IResolvers<any, Context> = {
       post.image ? post.ratio : defaultImage.ratio,
     permalink: getPostPermalink,
     commentsPermalink: (post: GQLPost): string => getDiscussionLink(post.id),
+    feedMeta: (post: GQLPost): string => {
+      if (post.feedMeta) {
+        return Buffer.from(post.feedMeta).toString('base64');
+      }
+      return undefined;
+    },
+  },
+  LinkPreview: {
+    image: (preview: ExternalLinkPreview) =>
+      preview.image ?? pickImageUrl({ createdAt: new Date() }),
+    title: (preview: ExternalLinkPreview) =>
+      preview.title?.length ? preview.title : DEFAULT_POST_TITLE,
   },
 };

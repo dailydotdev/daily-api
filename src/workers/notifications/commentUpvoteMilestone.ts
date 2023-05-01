@@ -1,11 +1,13 @@
 import { messageToJson } from '../worker';
-import { Comment, CommentUpvote } from '../../entity';
+import { Comment, CommentUpvote, SourceMember, SourceType } from '../../entity';
 import {
   NotificationCommentContext,
   NotificationUpvotersContext,
 } from '../../notifications';
 import { NotificationWorker } from './worker';
 import { buildPostContext, UPVOTE_MILESTONES } from './utils';
+import { Not } from 'typeorm';
+import { SourceMemberRoles } from '../../roles';
 
 interface Data {
   userId: string;
@@ -30,6 +32,7 @@ const worker: NotificationWorker = {
     if (!postCtx) {
       return;
     }
+    const { source } = postCtx;
     const upvotes = await con.getRepository(CommentUpvote).find({
       where: { commentId: comment.id },
       take: 5,
@@ -44,6 +47,19 @@ const worker: NotificationWorker = {
       upvotes: comment.upvotes,
       userId: comment.userId,
     };
+
+    if (source.type === SourceType.Squad) {
+      const member = await con.getRepository(SourceMember).findOneBy({
+        userId: comment.userId,
+        sourceId: source.id,
+        role: Not(SourceMemberRoles.Blocked),
+      });
+
+      if (!member) {
+        return;
+      }
+    }
+
     return [{ type: 'comment_upvote_milestone', ctx }];
   },
 };

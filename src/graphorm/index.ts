@@ -1,4 +1,4 @@
-import { roleSourcePermissions } from './../schema/sources';
+import { getPermissionsForMember } from './../schema/sources';
 import { GraphORM, QueryBuilder } from './graphorm';
 import {
   Bookmark,
@@ -6,10 +6,16 @@ import {
   FeedSource,
   FeedTag,
   Post,
+  Source,
   SourceMember,
   User,
 } from '../entity';
-import { sourceRoleRank, sourceRoleRankKeys } from '../roles';
+import {
+  SourceMemberRoles,
+  rankToSourceRole,
+  sourceRoleRank,
+  sourceRoleRankKeys,
+} from '../roles';
 
 import { Context } from '../Context';
 import { GQLBookmarkList } from '../schema/bookmarks';
@@ -30,8 +36,11 @@ const existsByUserAndPost =
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;
 
-const nullIfNotSameUser = <T>(value: T, ctx: Context, parent: User): T | null =>
-  ctx.userId === parent.id ? value : null;
+const nullIfNotSameUser = <T>(
+  value: T,
+  ctx: Context,
+  parent: Pick<User, 'id'>,
+): T | null => (ctx.userId === parent.id ? value : null);
 
 const obj = new GraphORM({
   User: {
@@ -61,7 +70,16 @@ const obj = new GraphORM({
     requiredColumns: ['createdAt'],
   },
   Post: {
-    requiredColumns: ['id', 'shortId', 'createdAt', 'authorId', 'scoutId'],
+    from: 'ActivePost',
+    metadataFrom: 'Post',
+    requiredColumns: [
+      'id',
+      'shortId',
+      'createdAt',
+      'authorId',
+      'scoutId',
+      'private',
+    ],
     fields: {
       tags: {
         select: 'tagsStr',
@@ -149,10 +167,14 @@ const obj = new GraphORM({
       members: {
         relation: {
           isMany: true,
-          childColumn: 'sourceId',
-          parentColumn: 'id',
           order: 'DESC',
           sort: 'createdAt',
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."sourceId" = "${parentAlias}".id`)
+              .andWhere(`${childAlias}."role" != :role`, {
+                role: SourceMemberRoles.Blocked,
+              }),
         },
         pagination: {
           limit: 50,
@@ -167,7 +189,8 @@ const obj = new GraphORM({
           qb
             .select('count(*)')
             .from(SourceMember, 'sm')
-            .where(`sm."sourceId" = ${alias}.id`),
+            .where(`sm."sourceId" = ${alias}.id`)
+            .andWhere(`sm."role" != '${SourceMemberRoles.Blocked}'`),
       },
       currentMember: {
         relation: {
@@ -178,20 +201,58 @@ const obj = new GraphORM({
               .andWhere(`${childAlias}."sourceId" = "${parentAlias}".id`),
         },
       },
+      privilegedMembers: {
+        relation: {
+          isMany: true,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
+            return qb
+              .where(`${childAlias}."sourceId" = "${parentAlias}".id`)
+              .andWhere(`${childAlias}.role IN (:...roles)`, {
+                roles: [SourceMemberRoles.Admin, SourceMemberRoles.Moderator],
+              })
+              .limit(50); // limit to avoid huge arrays for members, most sources should fit into this see PR !1219 for more info
+          },
+        },
+        transform: nullIfNotLoggedIn,
+      },
+      memberPostingRole: {
+        select: 'memberPostingRank',
+        transform: (value: number, ctx: Context) =>
+          nullIfNotLoggedIn(rankToSourceRole[value], ctx),
+      },
+      memberInviteRole: {
+        select: 'memberInviteRank',
+        transform: (value: number, ctx: Context) =>
+          nullIfNotLoggedIn(rankToSourceRole[value], ctx),
+      },
     },
   },
   SourceMember: {
-    requiredColumns: ['createdAt', 'userId'],
+    requiredColumns: ['createdAt', 'userId', 'role'],
     fields: {
       permissions: {
-        transform: (_, ctx: Context, member: SourceMember) => {
+        select: (ctx: Context, alias: string, qb: QueryBuilder): string => {
+          const query = qb
+            .select('array["memberPostingRank", "memberInviteRank"]')
+            .from(Source, 'postingSquad')
+            .where(`postingSquad.id = ${alias}."sourceId"`);
+          return `${query.getQuery()}`;
+        },
+        transform: (
+          value: [number, number],
+          ctx: Context,
+          member: SourceMember,
+        ) => {
           if (!ctx.userId || member.userId !== ctx.userId) {
             return null;
           }
 
-          return (
-            roleSourcePermissions[member.role] ?? roleSourcePermissions.member
-          );
+          const [memberPostingRank, memberInviteRank] = value;
+
+          return getPermissionsForMember(member, {
+            memberPostingRank,
+            memberInviteRank,
+          });
         },
       },
       roleRank: {
@@ -206,6 +267,11 @@ const obj = new GraphORM({
                 .join(' ')}
             ELSE 0 END)
           `,
+      },
+      referralToken: {
+        transform: (value: string, ctx: Context, member: SourceMember) => {
+          return nullIfNotSameUser(value, ctx, { id: member.userId });
+        },
       },
     },
   },
@@ -295,15 +361,7 @@ const obj = new GraphORM({
   },
   ReadingHistory: {
     from: 'ActiveView',
-    fields: {
-      post: {
-        relation: {
-          isMany: false,
-          parentColumn: 'postId',
-          childColumn: 'id',
-        },
-      },
-    },
+    metadataFrom: 'View',
   },
   Notification: {
     fields: {

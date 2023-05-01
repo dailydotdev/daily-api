@@ -1,6 +1,6 @@
 import '../src/config';
 import createOrGetConnection from '../src/db';
-import { ioRedisPool, redisPubSub } from '../src/redis';
+import { ioRedisPool, redisPubSub, singleRedisClient } from '../src/redis';
 
 let con;
 
@@ -24,10 +24,11 @@ beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-afterEach(cleanDatabase);
+beforeEach(cleanDatabase);
 
 afterAll(async () => {
   await con.close();
+  singleRedisClient.disconnect();
   redisPubSub.getPublisher().disconnect();
   redisPubSub.getSubscriber().disconnect();
   await ioRedisPool.end();

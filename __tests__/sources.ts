@@ -5,6 +5,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationError,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
@@ -18,7 +19,7 @@ import {
   SquadSource,
   User,
 } from '../src/entity';
-import { SourceMemberRoles } from '../src/roles';
+import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
@@ -27,6 +28,8 @@ import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
 import { postsFixture } from './fixture/post';
 import { createSource } from './fixture/source';
+import { SourcePermissions } from '../src/schema/sources';
+import { SourcePermissionErrorKeys } from '../src/errors';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -58,7 +61,7 @@ beforeEach(async () => {
     {
       userId: '1',
       sourceId: 'a',
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
       referralToken: 'rt',
       createdAt: new Date(2022, 11, 19),
     },
@@ -72,7 +75,7 @@ beforeEach(async () => {
     {
       userId: '2',
       sourceId: 'b',
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
       referralToken: randomUUID(),
       createdAt: new Date(2022, 11, 19),
     },
@@ -202,11 +205,11 @@ query Source($id: ID!) {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should return current member as owner', async () => {
+  it('should return current member as admin', async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
-      .update({ userId: '1' }, { role: SourceMemberRoles.Owner });
+      .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.data).toMatchSnapshot();
   });
@@ -218,6 +221,65 @@ query Source($id: ID!) {
       .update({ userId: '1' }, { role: SourceMemberRoles.Member });
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return current member as blocked', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Blocked });
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should not return post permission in case memberPostingRank is set above user roleRank', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).save({
+      id: 'restrictedsquad1',
+      handle: 'restrictedsquad1',
+      name: 'Restricted Squad',
+      memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'restrictedsquad1',
+      role: SourceMemberRoles.Member,
+      referralToken: 'restrictedsquadtoken',
+      createdAt: new Date(2022, 11, 19),
+    });
+    const res = await client.query(QUERY, {
+      variables: { id: 'restrictedsquad1' },
+    });
+    expect(
+      res.data.source.currentMember.permissions.includes(
+        SourcePermissions.Post,
+      ),
+    ).toBe(false);
+  });
+
+  it('should not return invite permission in case memberInviteRank is set above user roleRank', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).save({
+      id: 'restrictedsquad1',
+      handle: 'restrictedsquad1',
+      name: 'Restricted Squad',
+      memberInviteRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'restrictedsquad1',
+      role: SourceMemberRoles.Member,
+      referralToken: 'restrictedsquadtoken',
+      createdAt: new Date(2022, 11, 19),
+    });
+    const res = await client.query(QUERY, {
+      variables: { id: 'restrictedsquad1' },
+    });
+    expect(
+      res.data.source.currentMember.permissions.includes(
+        SourcePermissions.Invite,
+      ),
+    ).toBe(false);
   });
 });
 
@@ -242,6 +304,19 @@ query Source($id: ID!) {
 
   it('should not return private source when user is not member', async () => {
     loggedUser = '3';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should not return private source when user is blocked', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Blocked });
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
     return testQueryErrorCode(
       client,
@@ -349,6 +424,15 @@ query Source($id: ID!) {
     expect(res.data).toMatchSnapshot();
   });
 
+  it('should exclude blocked members from result', async () => {
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Blocked });
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
   it('should return source members for private source when the user is a member', async () => {
     loggedUser = '1';
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
@@ -401,12 +485,22 @@ query Source($id: ID!) {
     expect(res.errors).toBeFalsy();
     expect(res.data.source.membersCount).toEqual(2);
   });
+
+  it('should return number of members excluding blocked members', async () => {
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Blocked });
+    loggedUser = '1';
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.membersCount).toEqual(1);
+  });
 });
 
 describe('query sourceMembers', () => {
   const QUERY = `
-query SourceMembers($id: ID!) {
-  sourceMembers(sourceId: $id) {
+query SourceMembers($id: ID!, $role: String) {
+  sourceMembers(sourceId: $id, role: $role) {
     pageInfo {
       endCursor
       hasNextPage
@@ -436,6 +530,15 @@ query SourceMembers($id: ID!) {
     expect(res.data).toMatchSnapshot();
   });
 
+  it('should return source members of public source without blocked members', async () => {
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Blocked });
+    const res = await client.query(QUERY, { variables: { id: 'a' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
   it('should return source members and order by their role', async () => {
     const repo = con.getRepository(SourceMember);
     await repo.update(
@@ -446,7 +549,7 @@ query SourceMembers($id: ID!) {
     expect(noModRes.errors).toBeFalsy();
     const [noModFirst, noModSecond, noModThird] =
       noModRes.data.sourceMembers.edges;
-    expect(noModFirst.node.role).toEqual(SourceMemberRoles.Owner);
+    expect(noModFirst.node.role).toEqual(SourceMemberRoles.Admin);
     expect(noModSecond.node.role).toEqual(SourceMemberRoles.Member);
     expect(noModThird.node.role).toEqual(SourceMemberRoles.Member);
 
@@ -458,7 +561,7 @@ query SourceMembers($id: ID!) {
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     const [first, second, third] = res.data.sourceMembers.edges;
-    expect(first.node.role).toEqual(SourceMemberRoles.Owner);
+    expect(first.node.role).toEqual(SourceMemberRoles.Admin);
     expect(second.node.role).toEqual(SourceMemberRoles.Moderator);
     expect(third.node.role).toEqual(SourceMemberRoles.Member);
   });
@@ -480,24 +583,112 @@ query SourceMembers($id: ID!) {
       'FORBIDDEN',
     );
   });
+
+  it('should not return blocked source members when user is not a moderator/admin', async () => {
+    loggedUser = '2';
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '1', sourceId: 'a' },
+        { role: SourceMemberRoles.Blocked },
+      );
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { role: SourceMemberRoles.Blocked, id: 'a' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return blocked users only when user is the admin', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '2', sourceId: 'a' },
+        { role: SourceMemberRoles.Blocked },
+      );
+    const res = await client.query(QUERY, {
+      variables: { role: SourceMemberRoles.Blocked, id: 'a' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return blocked users only when user is a moderator', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '2', sourceId: 'a' },
+        { role: SourceMemberRoles.Blocked },
+      );
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '1', sourceId: 'a' },
+        { role: SourceMemberRoles.Moderator },
+      );
+    const res = await client.query(QUERY, {
+      variables: { role: SourceMemberRoles.Blocked, id: 'a' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should only return referralToken for current logged user', async () => {
+    loggedUser = '1';
+    const QUERY_WITH_REFERRAL_TOKEN = `
+    query SourceMembers($id: ID!, $role: String) {
+      sourceMembers(sourceId: $id, role: $role) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            role
+            roleRank
+            user { id }
+            source { id }
+            referralToken
+          }
+        }
+      }
+    }`;
+    const res = await client.query(QUERY_WITH_REFERRAL_TOKEN, {
+      variables: {
+        id: 'a',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    res.data.sourceMembers.edges.forEach(({ node }) => {
+      if (node.user.id === loggedUser) {
+        expect(node.referralToken).toBeTruthy();
+      } else {
+        expect(node.referralToken).toBeFalsy();
+      }
+    });
+  });
 });
 
 describe('query mySourceMemberships', () => {
   const QUERY = `
-query SourceMemberships {
-  mySourceMemberships {
-    pageInfo {
-      endCursor
-      hasNextPage
-    }
-    edges {
-      node {
-        user { id }
-        source { id }
+    query SourceMemberships {
+      mySourceMemberships {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            user { id }
+            source { id }
+            role
+            roleRank
+          }
+        }
       }
     }
-  }
-}
   `;
 
   it('should not authorize when user is not logged in', () =>
@@ -508,6 +699,63 @@ query SourceMemberships {
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should not return source memberships in user is blocked', async () => {
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '2', sourceId: 'a' },
+        { role: SourceMemberRoles.Blocked },
+      );
+    loggedUser = '2';
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query checkUserMembership', () => {
+  const QUERY = `
+    query CheckUserMembership($userId: ID!, $sourceId: ID!) {
+      member: checkUserMembership(memberId: $userId, sourceId: $sourceId) {
+        role
+      }
+    }
+  `;
+
+  it('should not authorize when source does not exist', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { userId: '2', sourceId: 'a' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return forbidden when user is not a member', async () => {
+    loggedUser = '3';
+    const params = { userId: '2', sourceId: 'a' };
+    await con.getRepository(SourceMember).delete(params);
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: params },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return member', async () => {
+    loggedUser = '1';
+    const params = { userId: '2', sourceId: 'a' };
+    await con
+      .getRepository(SourceMember)
+      .update(params, { role: SourceMemberRoles.Blocked });
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    const res = await client.query(QUERY, {
+      variables: params,
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.member).toBeTruthy();
   });
 });
 
@@ -548,8 +796,8 @@ describe('compatibility route /publications', () => {
 
 describe('mutation createSquad', () => {
   const MUTATION = `
-  mutation CreateSquad($name: String!, $handle: String!, $description: String, $postId: ID!, $commentary: String!) {
-  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary) {
+  mutation CreateSquad($name: String!, $handle: String!, $description: String, $postId: ID!, $commentary: String!, $memberPostingRole: String, $memberInviteRole: String) {
+  createSquad(name: $name, handle: $handle, description: $description, postId: $postId, commentary: $commentary, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole) {
     id
   }
 }`;
@@ -582,13 +830,19 @@ describe('mutation createSquad', () => {
       .findOneBy({ id: newId });
     expect(newSource.name).toEqual('Squad');
     expect(newSource.handle).toEqual('squad');
-    expect(newSource.active).toEqual(false);
+    expect(newSource.active).toEqual(true);
     expect(newSource.private).toEqual(true);
+    expect(newSource?.memberPostingRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Member],
+    );
+    expect(newSource?.memberInviteRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Member],
+    );
     const member = await con.getRepository(SourceMember).findOneBy({
       sourceId: newId,
       userId: '1',
     });
-    expect(member.role).toEqual(SourceMemberRoles.Owner);
+    expect(member.role).toEqual(SourceMemberRoles.Admin);
     const post = await con
       .getRepository(SharePost)
       .findOneBy({ sourceId: newId });
@@ -669,12 +923,138 @@ describe('mutation createSquad', () => {
       'GRAPHQL_VALIDATION_FAILED',
     );
   });
+
+  it('should throw error when invalid role is provided for posting', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, memberPostingRole: 'invalidRole' },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw error when null is sent to memberPostingRole', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).save({
+      id: randomUUID(),
+      handle: variables.handle,
+      name: 'Dup squad',
+      active: false,
+      memberPostingRole: null,
+    });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should create squad with memberPostingRank', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        memberPostingRole: SourceMemberRoles.Moderator,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.createSquad.id;
+    const newSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: newId });
+    expect(newSource.name).toEqual('Squad');
+    expect(newSource.handle).toEqual('squad');
+    expect(newSource.active).toEqual(true);
+    expect(newSource.private).toEqual(true);
+    expect(newSource?.memberPostingRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Moderator],
+    );
+    const member = await con.getRepository(SourceMember).findOneBy({
+      sourceId: newId,
+      userId: '1',
+    });
+    expect(member.role).toEqual(SourceMemberRoles.Admin);
+    const post = await con
+      .getRepository(SharePost)
+      .findOneBy({ sourceId: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
+  });
+
+  it('should throw error when invalid role is provided for inviting', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, memberInviteRole: 'invalidRole' },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw error when null is sent to memberInviteRole', async () => {
+    loggedUser = '1';
+    await con.getRepository(SquadSource).save({
+      id: randomUUID(),
+      handle: variables.handle,
+      name: 'Dup squad',
+      active: false,
+      memberInviteRole: null,
+    });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should create squad with memberInviteRole', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save(postsFixture[0]);
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        memberInviteRole: SourceMemberRoles.Moderator,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.createSquad.id;
+    const newSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: newId });
+    expect(newSource.name).toEqual('Squad');
+    expect(newSource.handle).toEqual('squad');
+    expect(newSource.active).toEqual(true);
+    expect(newSource.private).toEqual(true);
+    expect(newSource?.memberInviteRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Moderator],
+    );
+    const member = await con.getRepository(SourceMember).findOneBy({
+      sourceId: newId,
+      userId: '1',
+    });
+    expect(member.role).toEqual(SourceMemberRoles.Admin);
+    const post = await con
+      .getRepository(SharePost)
+      .findOneBy({ sourceId: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
+  });
 });
 
 describe('mutation editSquad', () => {
   const MUTATION = `
-  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String) {
-  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description) {
+  mutation EditSquad($sourceId: ID!, $name: String!, $handle: String!, $description: String, $memberPostingRole: String, $memberInviteRole: String) {
+  editSquad(sourceId: $sourceId, name: $name, handle: $handle, description: $description, memberPostingRole: $memberPostingRole, memberInviteRole: $memberInviteRole) {
     id
   }
 }`;
@@ -697,7 +1077,7 @@ describe('mutation editSquad', () => {
       sourceId: 's1',
       userId: '1',
       referralToken: 'rt2',
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
     });
   });
 
@@ -759,7 +1139,7 @@ describe('mutation editSquad', () => {
     );
   });
 
-  it(`should throw error if user is not the squad owner`, async () => {
+  it(`should throw error if user is not the squad admin`, async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
@@ -769,6 +1149,525 @@ describe('mutation editSquad', () => {
       { mutation: MUTATION, variables },
       'FORBIDDEN',
     );
+  });
+
+  it('should throw error when invalid role is provided for posting', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, memberPostingRole: 'invalidRole' },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw error when null is sent to memberPostingRole', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, memberPostingRole: null },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should edit squad memberPostingRank', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        memberPostingRole: SourceMemberRoles.Moderator,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource?.memberPostingRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Moderator],
+    );
+  });
+
+  it('should leave squad memberPostingRank unchanged if not sent during edit', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update(
+        { id: 's1' },
+        { memberPostingRank: sourceRoleRank[SourceMemberRoles.Moderator] },
+      );
+    const res = await client.mutate(MUTATION, {
+      variables,
+    });
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource?.memberPostingRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Moderator],
+    );
+  });
+
+  it('should leave squad memberPostingRank unchanged when setting other fields', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update(
+        { id: 's1' },
+        { memberPostingRank: sourceRoleRank[SourceMemberRoles.Admin] },
+      );
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, name: 'updated name' },
+    });
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource?.memberPostingRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Admin],
+    );
+    expect(editSource?.name).toEqual('updated name');
+  });
+
+  it('should throw error when invalid role is provided for inviting', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, memberInviteRole: 'invalidRole' },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw error when null is sent to memberInviteRole', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...variables, memberInviteRole: null },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should edit squad memberInviteRank', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        memberInviteRole: SourceMemberRoles.Moderator,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource?.memberInviteRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Moderator],
+    );
+  });
+
+  it('should leave squad memberInviteRank unchanged if not sent during edit', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update(
+        { id: 's1' },
+        { memberInviteRank: sourceRoleRank[SourceMemberRoles.Moderator] },
+      );
+    const res = await client.mutate(MUTATION, {
+      variables,
+    });
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource?.memberInviteRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Moderator],
+    );
+  });
+
+  it('should leave squad memberInviteRank unchanged when setting other fields', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SquadSource)
+      .update(
+        { id: 's1' },
+        { memberInviteRank: sourceRoleRank[SourceMemberRoles.Admin] },
+      );
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, name: 'updated name' },
+    });
+    expect(res.errors).toBeFalsy();
+    const editSource = await con
+      .getRepository(SquadSource)
+      .findOneBy({ id: variables.sourceId });
+    expect(editSource?.memberInviteRank).toEqual(
+      sourceRoleRank[SourceMemberRoles.Admin],
+    );
+    expect(editSource?.name).toEqual('updated name');
+  });
+});
+
+describe('mutation updateMemberRole', () => {
+  const MUTATION = `
+    mutation UpdateMemberRole($sourceId: ID!, $memberId: ID!, $role: String!) {
+      updateMemberRole(sourceId: $sourceId, memberId: $memberId, role: $role) {
+        _
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(SourceMember).save({
+      userId: '3',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+      createdAt: new Date(2022, 11, 20),
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 'a',
+          memberId: '2',
+          role: SourceMemberRoles.Member,
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should restrict when not a member of the squad', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 'b',
+          memberId: '2',
+          role: SourceMemberRoles.Member,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should restrict member updating another member to a new role', async () => {
+    loggedUser = '2';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 'a',
+          memberId: '3',
+          role: SourceMemberRoles.Moderator,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should restrict moderator updating another member to a new role', async () => {
+    loggedUser = '2';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Moderator });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 'a',
+          memberId: '3',
+          role: SourceMemberRoles.Moderator,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should allow admin to promote a member to moderator', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'a',
+        memberId: '2',
+        role: SourceMemberRoles.Moderator,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await con
+      .getRepository(SourceMember)
+      .findOneBy({ userId: '2', sourceId: 'a' });
+    expect(member.role).toEqual(SourceMemberRoles.Moderator);
+  });
+
+  it('should allow admin to promote a moderator to an admin', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Moderator });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'a',
+        memberId: '2',
+        role: SourceMemberRoles.Admin,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await con
+      .getRepository(SourceMember)
+      .findOneBy({ userId: '2', sourceId: 'a' });
+    expect(member.role).toEqual(SourceMemberRoles.Admin);
+  });
+
+  it('should allow admin to demote an admin to a moderator', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Admin });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'a',
+        memberId: '2',
+        role: SourceMemberRoles.Moderator,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await con
+      .getRepository(SourceMember)
+      .findOneBy({ userId: '2', sourceId: 'a' });
+    expect(member.role).toEqual(SourceMemberRoles.Moderator);
+  });
+
+  it('should allow admin to demote a moderator to a member', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Moderator });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'a',
+        memberId: '2',
+        role: SourceMemberRoles.Member,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await con
+      .getRepository(SourceMember)
+      .findOneBy({ userId: '2', sourceId: 'a' });
+    expect(member.role).toEqual(SourceMemberRoles.Member);
+  });
+
+  it('should allow admin to remove and block an admin', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Admin });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'a',
+        memberId: '2',
+        role: SourceMemberRoles.Blocked,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await con
+      .getRepository(SourceMember)
+      .findOneBy({ userId: '2', sourceId: 'a' });
+    expect(member.role).toEqual(SourceMemberRoles.Blocked);
+  });
+
+  it('should allow admin to remove and block a moderator', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Moderator });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'a',
+        memberId: '2',
+        role: SourceMemberRoles.Blocked,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await con
+      .getRepository(SourceMember)
+      .findOneBy({ userId: '2', sourceId: 'a' });
+    expect(member.role).toEqual(SourceMemberRoles.Blocked);
+  });
+
+  it('should allow admin to remove and block a member', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'a',
+        memberId: '2',
+        role: SourceMemberRoles.Blocked,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await con
+      .getRepository(SourceMember)
+      .findOneBy({ userId: '2', sourceId: 'a' });
+    expect(member.role).toEqual(SourceMemberRoles.Blocked);
+  });
+
+  it('should restrict moderator to remove and block a moderator', async () => {
+    loggedUser = '2';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Moderator });
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '3' }, { role: SourceMemberRoles.Moderator });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 'a',
+          memberId: '3',
+          role: SourceMemberRoles.Blocked,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should restrict moderator to remove and block an admin', async () => {
+    loggedUser = '2';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Moderator });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 'a',
+          memberId: '1',
+          role: SourceMemberRoles.Blocked,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should allow moderator to remove and block a member', async () => {
+    loggedUser = '2';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Moderator });
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'a',
+        memberId: '3',
+        role: SourceMemberRoles.Blocked,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await con
+      .getRepository(SourceMember)
+      .findOneBy({ userId: '3', sourceId: 'a' });
+    expect(member.role).toEqual(SourceMemberRoles.Blocked);
+  });
+});
+
+describe('mutation unblockMember', () => {
+  const MUTATION = `
+    mutation UnblockMember($sourceId: ID!, $memberId: ID!) {
+      unblockMember(sourceId: $sourceId, memberId: $memberId) {
+        _
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(SourceMember).save({
+      userId: '3',
+      sourceId: 'a',
+      role: SourceMemberRoles.Blocked,
+      referralToken: randomUUID(),
+      createdAt: new Date(2022, 11, 20),
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { sourceId: 'a', memberId: '3' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should restrict when not a member of the squad', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { sourceId: 'b', memberId: '3' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should restrict member unblock another member', async () => {
+    loggedUser = '2';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { sourceId: 'a', memberId: '3' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should allow moderator to unblock a member', async () => {
+    loggedUser = '2';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Moderator });
+    const res = await client.mutate(MUTATION, {
+      variables: { sourceId: 'a', memberId: '3' },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await con
+      .getRepository(SourceMember)
+      .findOneBy({ userId: '3', sourceId: 'a' });
+    expect(member).toBeFalsy();
+  });
+
+  it('should allow admin to unblock a member', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { sourceId: 'a', memberId: '3' },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await con
+      .getRepository(SourceMember)
+      .findOneBy({ userId: '3', sourceId: 'a' });
+    expect(member).toBeFalsy();
   });
 });
 
@@ -819,11 +1718,11 @@ describe('mutation leaveSource', () => {
     expect(sourceMembers).toEqual(0);
   });
 
-  it('should leave squad even if the user is the owner', async () => {
+  it('should leave squad even if the user is the admin', async () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
-      .update({ userId: '1' }, { role: SourceMemberRoles.Owner });
+      .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     const sourceMembers = await con
@@ -871,7 +1770,7 @@ describe('mutation deleteSource', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not delete source if user is not the owner', async () => {
+  it('should not delete source if user is not the admin', async () => {
     loggedUser = '1';
     return testMutationErrorCode(
       client,
@@ -884,7 +1783,7 @@ describe('mutation deleteSource', () => {
     loggedUser = '1';
     await con
       .getRepository(SourceMember)
-      .update({ userId: '1' }, { role: SourceMemberRoles.Owner });
+      .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
 
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
@@ -920,7 +1819,7 @@ describe('mutation joinSource', () => {
       sourceId: 's1',
       userId: '2',
       referralToken: 'rt2',
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
     });
   });
 
@@ -975,11 +1874,23 @@ describe('mutation joinSource', () => {
       sourceId: 's1',
       userId: '2',
     });
-    expect(member.role).toEqual(SourceMemberRoles.Owner);
+    expect(member.role).toEqual(SourceMemberRoles.Admin);
   });
 
   it('should throw error when joining private squad without token', async () => {
     loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw error when joining private squad when blocked', async () => {
+    loggedUser = '2';
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '2' }, { role: SourceMemberRoles.Blocked });
     return testMutationErrorCode(
       client,
       { mutation: MUTATION, variables },
@@ -1029,121 +1940,132 @@ describe('mutation joinSource', () => {
       'NOT_FOUND',
     );
   });
+
+  it('should throw error when joining with invite link of a member without invite permission', async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+      memberInviteRank: sourceRoleRank[SourceMemberRoles.Moderator],
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '2',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Member,
+    });
+
+    loggedUser = '1';
+    await testMutationError(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 's1',
+          token: 'rt2',
+        },
+      },
+      (errors) => {
+        expect(errors.length).toEqual(1);
+        expect(errors[0].extensions?.code).toEqual('FORBIDDEN');
+        expect(errors[0].message).toEqual(
+          SourcePermissionErrorKeys.InviteInvalid,
+        );
+      },
+    );
+  });
 });
 
-// describe('mutation removeMember', () => {
-//   const MUTATION = `
-//     mutation RemoveMember($sourceId: ID!, $memberId: ID!) {
-//       removeMember(sourceId: $sourceId, memberId: $memberId) {
-//         _
-//       }
-//     }
-//   `;
+describe('query source members', () => {
+  const QUERY = `
+query Source($id: ID!) {
+  source(id: $id) {
+    id
+    privilegedMembers {
+      user {
+        id
+      }
+      role
+    }
+  }
+}
+  `;
 
-//   it('should not authorize when not logged in', () =>
-//     testMutationErrorCode(
-//       client,
-//       {
-//         mutation: MUTATION,
-//         variables: { sourceId: 'a', memberId: '2' },
-//       },
-//       'UNAUTHENTICATED',
-//     ));
+  beforeEach(async () => {
+    await con
+      .getRepository(Source)
+      .save([createSource('c', 'C', 'http://c.com')]);
+    await saveFixtures(con, User, usersFixture);
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'c',
+        role: SourceMemberRoles.Admin,
+        referralToken: randomUUID(),
+        createdAt: new Date(2022, 11, 19),
+      },
+      {
+        userId: '2',
+        sourceId: 'c',
+        role: SourceMemberRoles.Moderator,
+        referralToken: randomUUID(),
+        createdAt: new Date(2022, 11, 20),
+      },
+      {
+        userId: '3',
+        sourceId: 'c',
+        role: SourceMemberRoles.Moderator,
+        referralToken: randomUUID(),
+        createdAt: new Date(2022, 11, 19),
+      },
+      {
+        userId: '4',
+        sourceId: 'c',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+        createdAt: new Date(2022, 11, 20),
+      },
+    ]);
+  });
 
-//   it('should restrict when not a member of the squad', async () => {
-//     loggedUser = '1';
+  it('should return null for annonymous users', async () => {
+    const res = await client.query(QUERY, { variables: { id: 'c' } });
+    expect(res.data).toMatchObject({
+      source: {
+        id: 'c',
+        privilegedMembers: null,
+      },
+    });
+  });
 
-//     return testMutationErrorCode(
-//       client,
-//       { mutation: MUTATION, variables: { sourceId: 'b', memberId: '2' } },
-//       'FORBIDDEN',
-//     );
-//   });
-
-//   it('should restrict when not a moderator or an owner of the squad', async () => {
-//     loggedUser = '2';
-//     return testMutationErrorCode(
-//       client,
-//       { mutation: MUTATION, variables: { sourceId: 'a', memberId: '1' } },
-//       'FORBIDDEN',
-//     );
-//   });
-
-//   it('should restrict moderator from removing the owner', async () => {
-//     loggedUser = '2';
-//     await con
-//       .getRepository(SourceMember)
-//       .update({ userId: '2' }, { role: SourceMemberRoles.Moderator });
-
-//     return testMutationErrorCode(
-//       client,
-//       { mutation: MUTATION, variables: { sourceId: 'a', memberId: '1' } },
-//       'FORBIDDEN',
-//     );
-//   });
-
-//   it('should restrict moderator from removing a moderator', async () => {
-//     loggedUser = '2';
-//     const repo = con.getRepository(SourceMember);
-//     await repo.save({
-//       userId: '3',
-//       sourceId: 'a',
-//       role: SourceMemberRoles.Moderator,
-//       referralToken: randomUUID(),
-//     });
-//     await repo.update({ userId: '2' }, { role: SourceMemberRoles.Moderator });
-
-//     return testMutationErrorCode(
-//       client,
-//       { mutation: MUTATION, variables: { sourceId: 'a', memberId: '3' } },
-//       'FORBIDDEN',
-//     );
-//   });
-
-//   it('should allow owner to remove moderator from the squad', async () => {
-//     loggedUser = '1';
-//     const toRemoveId = '2';
-//     const repo = con.getRepository(SourceMember);
-//     await repo.update(
-//       { userId: toRemoveId },
-//       { role: SourceMemberRoles.Moderator },
-//     );
-
-//     const res = await client.mutate(MUTATION, {
-//       variables: { sourceId: 'a', memberId: toRemoveId },
-//     });
-//     expect(res.errors).toBeFalsy();
-//     const member = await repo.findOneBy({ userId: toRemoveId, sourceId: 'a' });
-//     expect(member).toBeFalsy();
-//   });
-
-//   it('should allow owner to remove member from the squad', async () => {
-//     loggedUser = '1';
-//     const toRemoveId = '2';
-//     const repo = con.getRepository(SourceMember);
-//     const res = await client.mutate(MUTATION, {
-//       variables: { sourceId: 'a', memberId: toRemoveId },
-//     });
-//     expect(res.errors).toBeFalsy();
-//     const member = await repo.findOneBy({ userId: toRemoveId, sourceId: 'a' });
-//     expect(member).toBeFalsy();
-//   });
-
-//   it('should allow moderator to remove member the squad', async () => {
-//     loggedUser = '3';
-//     const toRemoveId = '2';
-//     const repo = con.getRepository(SourceMember);
-//     await repo.save({
-//       userId: '3',
-//       sourceId: 'a',
-//       role: SourceMemberRoles.Moderator,
-//       referralToken: randomUUID(),
-//     });
-//     const res = await client.mutate(MUTATION, {
-//       variables: { sourceId: 'a', memberId: toRemoveId },
-//     });
-//     expect(res.errors).toBeFalsy();
-//     const member = await repo.findOneBy({ userId: toRemoveId, sourceId: 'a' });
-//     expect(member).toBeFalsy();
-//   });
-// });
+  it('should return current members', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, { variables: { id: 'c' } });
+    expect(res.data).toMatchObject({
+      source: {
+        id: 'c',
+        privilegedMembers: [
+          {
+            role: 'admin',
+            user: {
+              id: '1',
+            },
+          },
+          {
+            role: 'moderator',
+            user: {
+              id: '2',
+            },
+          },
+          {
+            role: 'moderator',
+            user: {
+              id: '3',
+            },
+          },
+        ],
+      },
+    });
+  });
+});

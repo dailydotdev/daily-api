@@ -11,6 +11,18 @@ interface TinybirdResponse<T> {
   data: T[];
 }
 
+interface FeedParams {
+  page_size: number;
+  fresh_page_size: string;
+  feed_version: number;
+  user_id?: string;
+  feed_id?: string;
+  allowed_tags?: string[];
+  blocked_tags?: string[];
+  blocked_sources?: string[];
+  squad_ids?: string[];
+}
+
 export async function fetchTinybirdFeed(
   con: DataSource,
   pageSize: number,
@@ -18,14 +30,18 @@ export async function fetchTinybirdFeed(
   userId?: string,
   feedId?: string,
   ctx?: Context,
-): Promise<{ post_id: string }[]> {
+): Promise<{ post_id: string; metadata: Record<string, string> }[]> {
   const freshPageSize = Math.ceil(pageSize / 3).toFixed(0);
-  let params = `page_size=${pageSize}&fresh_page_size=${freshPageSize}&feed_version=${feedVersion}`;
+  const params: FeedParams = {
+    page_size: pageSize,
+    fresh_page_size: freshPageSize,
+    feed_version: feedVersion,
+  };
   if (userId) {
-    params += `&user_id=${userId}`;
+    params.user_id = userId;
   }
   if (feedId) {
-    params += `&feed_id=${feedId}`;
+    params.feed_id = feedId;
     const filters = await runInSpan(
       ctx?.span,
       'Feed_v2.feedToFilters',
@@ -36,35 +52,43 @@ export async function fetchTinybirdFeed(
       },
     );
     if (filters.includeTags?.length) {
-      const value = encodeURIComponent(filters.includeTags.join(','));
-      params += `&allowed_tags=${value}`;
+      const value = filters.includeTags;
+      params.allowed_tags = value;
     }
     if (filters.blockedTags?.length) {
-      const value = encodeURIComponent(filters.blockedTags.join(','));
-      params += `&blocked_tags=${value}`;
+      const value = filters.blockedTags;
+      params.blocked_tags = value;
     }
     if (filters.excludeSources?.length) {
-      const value = encodeURIComponent(filters.excludeSources.join(','));
-      params += `&blocked_sources=${value}`;
+      const value = filters.excludeSources;
+      params.blocked_sources = value;
     }
     if (filters.sourceIds?.length) {
-      const value = encodeURIComponent(filters.sourceIds.join(','));
-      params += `&squad_ids=${value}`;
+      const value = filters.sourceIds;
+      params.squad_ids = value;
     }
   } else {
-    params += `&feed_id=global`;
+    params.feed_id = 'global';
   }
-  const body: TinybirdResponse<{ post_id: string }> = await pRetry(
+  const body: TinybirdResponse<{
+    post_id: string;
+    metadata: Record<string, string>;
+  }> = await pRetry(
     () =>
       runInSpan(
         ctx?.span,
         'Feed_v2.fetchTinybirdFeed',
         async () => {
-          const url =
-            feedVersion === 7
-              ? process.env.TINYBIRD_FEED
-              : process.env.INTERNAL_FEED;
-          const res = await fetch(`${url}&${params}`, fetchOptions);
+          // Make sure we forward legacy versions to the feed service
+          if (feedVersion < 10) {
+            feedVersion = 12;
+          }
+          const url = process.env.INTERNAL_FEED;
+          const res = await fetch(url, {
+            ...fetchOptions,
+            method: 'POST',
+            body: JSON.stringify(params),
+          });
           if (res.status >= 200 && res.status < 300) {
             const bodyText = await res.text();
             return JSON.parse(bodyText);
@@ -112,9 +136,9 @@ async function fetchAndCacheFeed(
   userId?: string,
   feedId?: string,
   ctx?: Context,
-): Promise<string[]> {
+): Promise<[string, string | undefined][]> {
   const key = getPersonalizedFeedKey(userId, feedId);
-  const rawPostIds = await fetchTinybirdFeed(
+  const rawResponse = await fetchTinybirdFeed(
     con,
     pageSize,
     feedVersion,
@@ -123,8 +147,13 @@ async function fetchAndCacheFeed(
     ctx,
   );
   // Don't wait for caching the feed to serve quickly
-  if (rawPostIds?.length) {
-    const postIds = rawPostIds.map(({ post_id }) => post_id);
+  if (rawResponse?.length) {
+    const ret: [string, string | undefined][] = rawResponse.map(
+      ({ post_id, metadata }) => [
+        post_id,
+        metadata && JSON.stringify(metadata),
+      ],
+    );
     setTimeout(async () => {
       await ioRedisPool.execute(async (client) => {
         const pipeline = client.pipeline();
@@ -136,14 +165,14 @@ async function fetchAndCacheFeed(
         );
         pipeline.set(
           `${key}:posts`,
-          JSON.stringify(postIds),
+          JSON.stringify(ret),
           'EX',
           ONE_DAY_SECONDS,
         );
         return await pipeline.exec();
       });
     });
-    return postIds;
+    return ret;
   }
   return [];
 }
@@ -188,10 +217,10 @@ export async function generatePersonalizedFeed({
   userId?: string;
   feedId?: string;
   ctx?: Context;
-}): Promise<string[]> {
+}): Promise<[string, string | undefined][]> {
   try {
     const key = getPersonalizedFeedKey(userId, feedId);
-    const idsPromise = ioRedisPool.execute(async (client) => {
+    const cachePromise = ioRedisPool.execute(async (client) => {
       return client.get(`${key}:posts`);
     });
     if (
@@ -206,15 +235,21 @@ export async function generatePersonalizedFeed({
         },
       )
     ) {
-      const postIds = JSON.parse(await idsPromise);
-      if (postIds?.length) {
-        return postIds.slice(offset, pageSize + offset);
+      const cachedFeed = JSON.parse(await cachePromise);
+      if (cachedFeed?.length) {
+        const page: string[] | [string, string | undefined][] =
+          cachedFeed.slice(offset, pageSize + offset);
+        // Support legacy cache that contains only post id
+        if (page.length && typeof page[0] === 'string') {
+          return (page as string[]).map((postId) => [postId, undefined]);
+        }
+        return page as [string, string | undefined][];
       }
     }
   } catch (err) {
     console.error(err, 'failed to get feed from redis');
   }
-  const postIds = await fetchAndCacheFeed(
+  const feedRes = await fetchAndCacheFeed(
     con,
     pageSize,
     feedVersion,
@@ -222,5 +257,5 @@ export async function generatePersonalizedFeed({
     feedId,
     ctx,
   );
-  return postIds.slice(offset, pageSize + offset);
+  return feedRes.slice(offset, pageSize + offset);
 }

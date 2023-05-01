@@ -194,7 +194,7 @@ export const updateUserEmail = async (
   logger: FastifyLoggerInstance,
 ): Promise<UpdateUserEmailResult> => {
   if (!data.email || !data.id) {
-    return { status: 'failed', reason: 'MISSING_FIELDS' };
+    return { status: 'failed', reason: UpdateUserFailErrorKeys.MissingFields };
   }
 
   return con.transaction(async (entityManager) => {
@@ -206,7 +206,10 @@ export const updateUserEmail = async (
         logger.info(
           `Failed to update email user not found with ID: ${data.id}`,
         );
-        return { status: 'failed', reason: 'USER_DOESNT_EXIST' };
+        return {
+          status: 'failed',
+          reason: UpdateUserFailErrorKeys.UserDoesntExist,
+        };
       }
 
       logger.info(`Updated email for user with ID: ${data.id}`);
@@ -236,13 +239,16 @@ export const addNewUser = async (
 ): Promise<AddNewUserResult> => {
   if (!checkRequiredFields(data)) {
     logger.info({ data }, 'missing fields when adding new user');
-    return { status: 'failed', reason: 'MISSING_FIELDS' };
+    return { status: 'failed', reason: UserFailErrorKeys.MissingFields };
   }
 
   return con.transaction(async (entityManager) => {
     const isUniqueUser = await checkUsernameAndEmail(entityManager, data);
     if (!isUniqueUser) {
-      return { status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' };
+      return {
+        status: 'failed',
+        reason: UserFailErrorKeys.UsernameEmailExists,
+      };
     }
 
     // Clear GitHub handle in case it already exists
@@ -297,7 +303,7 @@ export const addNewUser = async (
 
       // Unique
       if (error?.code === TypeOrmError.DUPLICATE_ENTRY) {
-        return { status: 'failed', reason: 'USER_EXISTS' };
+        return { status: 'failed', reason: UserFailErrorKeys.UserExists };
       }
 
       throw error;

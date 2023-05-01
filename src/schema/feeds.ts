@@ -777,7 +777,12 @@ const feedResolverV2: IFieldResolver<
   FeedArgs & { version: number; feedId?: string }
 > = feedResolver(
   (ctx, args, builder, alias, queryParams) =>
-    fixedIdsFeedBuilder(ctx, queryParams as string[], builder, alias),
+    fixedIdsFeedBuilder(
+      ctx,
+      queryParams.map(([postId]) => postId as string),
+      builder,
+      alias,
+    ),
   fixedIdsPageGenerator(30, 50),
   (ctx, args, page, builder) => builder,
   {
@@ -909,20 +914,17 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       (ctx, { author }: AuthorFeedArgs, builder, alias) =>
         builder
           .addSelect(
-            `count(*) filter (where ${alias}."scoutId" = '${author}')`,
+            `CASE WHEN ${alias}."scoutId" = '${author}' THEN 1 ELSE 0 END`,
             'isScout',
           )
           .addSelect(
-            `count(*) filter (where ${alias}."authorId" = '${author}')`,
+            `CASE WHEN ${alias}."authorId" = '${author}' THEN 1 ELSE 0 END`,
             'isAuthor',
           )
           .andWhere(
-            `(${alias}.authorId = :author or ${alias}.scoutId = :author)`,
-            {
-              author,
-            },
-          )
-          .groupBy(`${alias}.id`),
+            `(${alias}."authorId" = :author or ${alias}."scoutId" = :author)`,
+            { author },
+          ),
       feedPageGenerator,
       applyFeedPaging,
       {
@@ -987,7 +989,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         alias,
       ) => {
         const similarPostsQuery = `select post.id
-                                   from post
+                                   from active_post as post
                                           inner join (select count(*)           as similar,
                                                              min(k.occurrences) as occurrences,
                                                              pk."postId"
@@ -1023,7 +1025,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         let similarPostsQuery;
         if (tags?.length > 0) {
           similarPostsQuery = `select post.id
-                               from post
+                               from active_post as post
                                       inner join (select count(*)           as similar,
                                                          min(k.occurrences) as occurrences,
                                                          pk."postId"

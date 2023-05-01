@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { Submission, User } from './../entity';
+import { ArticlePost, Submission, User } from './../entity';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
@@ -160,7 +160,9 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
         };
       }
 
-      const existingPost = await getPostByUrl(cleanUrl, ctx, info);
+      const existingPost = await ctx
+        .getRepository(ArticlePost)
+        .findOneBy([{ url }, { canonicalUrl: url }]);
       if (existingPost) {
         if (existingPost.deleted) {
           return {
@@ -168,7 +170,11 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
             reason: SubmissionFailErrorMessage.POST_DELETED,
           };
         }
-        return { result: 'exists', post: existingPost };
+
+        return {
+          result: 'exists',
+          post: await getPostByUrl(cleanUrl, ctx, info),
+        };
       }
 
       const existingSubmission = await submissionRepo.findOneBy({

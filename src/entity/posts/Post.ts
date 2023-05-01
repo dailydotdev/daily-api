@@ -15,10 +15,13 @@ import { User } from '../User';
 export enum PostType {
   Article = 'article',
   Share = 'share',
+  Freeform = 'freeform',
+  Welcome = 'welcome',
 }
 
 export enum PostOrigin {
   CommunityPicks = 'community_picks',
+  Squad = 'squads',
   UserGenerated = 'user_generated',
   Crawler = 'crawler',
 }
