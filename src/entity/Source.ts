@@ -100,4 +100,10 @@ export class MachineSource extends Source {
 export class SquadSource extends Source {
   @Column({ type: 'text', nullable: true })
   description?: string;
+
+  @Column({ default: 0 })
+  memberPostingRank?: number;
+
+  @Column({ default: 0 })
+  memberInviteRank?: number;
 }

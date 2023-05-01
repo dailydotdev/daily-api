@@ -76,7 +76,7 @@ export default async function app(
 
   app.register(helmet);
   app.register(cors, {
-    origin: process.env.NODE_ENV === 'production' ? /daily\.dev$/ : true,
+    origin: isProd ? /daily\.dev$/ : true,
     credentials: true,
   });
   app.register(cookie, {
@@ -126,7 +126,7 @@ export default async function app(
     // Disable GraphQL introspection in production
     graphiql: !isProd,
     validationRules: isProd && [NoSchemaIntrospectionCustomRule],
-    errorFormatter(execution) {
+    errorFormatter(execution, ctx) {
       if (execution.errors?.length > 0) {
         const flatErrors = execution.errors.flatMap<GraphQLError>((error) => {
           if (error.originalError.name === 'FastifyError') {
@@ -156,10 +156,16 @@ export default async function app(
                 (error.originalError as FastifyError)?.code ===
                 'MER_ERR_GQL_PERSISTED_QUERY_NOT_FOUND'
               ) {
-                app.log.debug({ err: error.originalError }, 'unknown query');
+                app.log.debug(
+                  { body: ctx?.reply?.request?.body },
+                  'unknown query',
+                );
               } else if (!error.extensions?.code) {
                 app.log.warn(
-                  { err: error.originalError },
+                  {
+                    err: error.originalError,
+                    body: ctx?.reply?.request?.body,
+                  },
                   'unexpected graphql error',
                 );
                 newError.message = 'Unexpected error';

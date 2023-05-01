@@ -64,7 +64,7 @@ export const validateAndApproveSubmission = async (
       { id: data.submissionId },
       {
         status: SubmissionStatus.Rejected,
-        reason: 'SCOUT_IS_AUTHOR',
+        reason: SubmissionFailErrorKeys.ScoutIsAuthor,
       },
     );
     return { rejected: true };

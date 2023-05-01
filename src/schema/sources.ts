@@ -12,7 +12,11 @@ import {
   SourceType,
   SquadSource,
 } from '../entity';
-import { SourceMemberRoles, sourceRoleRank } from '../roles';
+import {
+  SourceMemberRoles,
+  sourceRoleRank,
+  sourceRoleRankKeys,
+} from '../roles';
 import {
   forwardPagination,
   GQLEmptyResponse,
@@ -33,7 +37,7 @@ import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { randomUUID } from 'crypto';
 import { getSourceLink, uploadSquadImage } from '../common';
 import { GraphQLResolveInfo } from 'graphql';
-import { TypeOrmError } from '../errors';
+import { SourcePermissionErrorKeys, TypeOrmError } from '../errors';
 import {
   descriptionRegex,
   handleRegex,
@@ -52,6 +56,7 @@ export interface GQLSource {
   public: boolean;
   members?: Connection<GQLSourceMember>;
   currentMember?: GQLSourceMember;
+  privilegedMembers?: GQLSourceMember[];
 }
 
 export interface GQLSourceMember {
@@ -60,6 +65,22 @@ export interface GQLSourceMember {
   role: SourceMemberRoles;
   createdAt: Date;
   referralToken: string;
+}
+
+interface UpdateMemberRoleArgs {
+  sourceId: string;
+  memberId: string;
+  role: SourceMemberRoles;
+}
+
+interface SourceMemberArgs extends ConnectionArguments {
+  sourceId: string;
+  role?: SourceMemberRoles;
+}
+
+interface CheckUserMembershipArgs {
+  sourceId: string;
+  memberId: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -126,6 +147,21 @@ export const typeDefs = /* GraphQL */ `
     Logged-in member object
     """
     currentMember: SourceMember
+
+    """
+    Privileged members
+    """
+    privilegedMembers: [SourceMember]
+
+    """
+    Role required for members to post
+    """
+    memberPostingRole: String
+
+    """
+    Role required for members to invite
+    """
+    memberInviteRole: String
   }
 
   type SourceConnection {
@@ -158,7 +194,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Token to be used for inviting new squad members
     """
-    referralToken: String!
+    referralToken: String
     """
     Numerical representation of the user's role
     """
@@ -227,6 +263,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Should return users with this specific role only
+      """
+      role: String
     ): SourceMemberConnection!
 
     """
@@ -243,6 +284,21 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): SourceMemberConnection! @auth
+
+    """
+    Check whether user has membership access to a squad
+    """
+    checkUserMembership(
+      """
+      The source to check whether the user is a part of
+      """
+      sourceId: ID!
+
+      """
+      User id of the member to check
+      """
+      memberId: ID!
+    ): SourceMember @auth
 
     """
     Get source member by referral token
@@ -279,11 +335,19 @@ export const typeDefs = /* GraphQL */ `
       """
       First post to share in the squad
       """
-      postId: ID!
+      postId: ID
       """
       Commentary for the first share
       """
-      commentary: String!
+      commentary: String
+      """
+      Role required for members to post
+      """
+      memberPostingRole: String
+      """
+      Role required for members to invite
+      """
+      memberInviteRole: String
     ): Source! @auth
 
     """
@@ -310,7 +374,50 @@ export const typeDefs = /* GraphQL */ `
       Avatar image for the squad
       """
       image: Upload
+      """
+      Role required for members to post
+      """
+      memberPostingRole: String
+      """
+      Role required for members to invite
+      """
+      memberInviteRole: String
     ): Source! @auth
+
+    """
+    Set the source member's current role
+    """
+    updateMemberRole(
+      """
+      Relevant source the user to update role is a member of
+      """
+      sourceId: ID!
+
+      """
+      Member to update
+      """
+      memberId: ID!
+
+      """
+      Role to update the user to
+      """
+      role: String!
+    ): EmptyResponse! @auth
+
+    """
+    Unblock a removed member with blocked role
+    """
+    unblockMember(
+      """
+      Relevant source the user to update role is a member of
+      """
+      sourceId: ID!
+
+      """
+      Member to update
+      """
+      memberId: ID!
+    ): EmptyResponse! @auth
 
     """
     Adds the logged-in user as member to the source
@@ -355,14 +462,16 @@ const sourceToGQL = (source: Source): GQLSource => ({
 });
 
 export enum SourcePermissions {
+  CommentDelete = 'comment_delete',
   View = 'view',
+  ViewBlockedMembers = 'view_blocked_members',
   Post = 'post',
   PostLimit = 'post_limit',
   PostDelete = 'post_delete',
   MemberRemove = 'member_remove',
-  ModeratorAdd = 'moderator_add',
-  ModeratorRemove = 'moderator_remove',
-  InviteDisable = 'invite_disable',
+  MemberUnblock = 'member_unblock',
+  MemberRoleUpdate = 'member_role_update',
+  Invite = 'invite',
   Leave = 'leave',
   Delete = 'delete',
   Edit = 'edit',
@@ -372,19 +481,21 @@ const memberPermissions = [
   SourcePermissions.View,
   SourcePermissions.Post,
   SourcePermissions.Leave,
+  SourcePermissions.Invite,
 ];
 const moderatorPermissions = [
   ...memberPermissions,
+  SourcePermissions.CommentDelete,
   SourcePermissions.PostDelete,
   SourcePermissions.MemberRemove,
   SourcePermissions.Edit,
+  SourcePermissions.MemberUnblock,
+  SourcePermissions.ViewBlockedMembers,
 ];
-const ownerPermissions = [
+const adminPermissions = [
   ...moderatorPermissions,
+  SourcePermissions.MemberRoleUpdate,
   SourcePermissions.PostLimit,
-  SourcePermissions.ModeratorAdd,
-  SourcePermissions.ModeratorRemove,
-  SourcePermissions.InviteDisable,
   SourcePermissions.Delete,
 ];
 
@@ -392,9 +503,10 @@ export const roleSourcePermissions: Record<
   SourceMemberRoles,
   SourcePermissions[]
 > = {
-  owner: ownerPermissions,
+  admin: adminPermissions,
   moderator: moderatorPermissions,
   member: memberPermissions,
+  blocked: [],
 };
 
 const requireGreaterAccessPrivilege: Partial<
@@ -409,6 +521,10 @@ export const hasGreaterAccessCheck = (
   loggedUser: BaseSourceMember,
   member: BaseSourceMember,
 ) => {
+  if (loggedUser.role === SourceMemberRoles.Admin) {
+    return;
+  }
+
   const memberRank = sourceRoleRank[member.role];
   const loggedUserRank = sourceRoleRank[loggedUser.role];
   const hasGreaterAccess = loggedUserRank > memberRank;
@@ -436,6 +552,7 @@ const hasPermissionCheck = (
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
+  member: SourceMember,
   permission: SourcePermissions,
   validateRankAgainstId?: string,
 ): Promise<boolean> => {
@@ -443,36 +560,41 @@ export const canAccessSource = async (
     return true;
   }
 
-  if (!ctx.userId) {
+  if (!member) {
     return false;
   }
 
   const sourceId = source.id;
   const repo = ctx.getRepository(SourceMember);
-  const [loggedUser, validateRankAgainst] = await Promise.all([
-    repo.findOneBy({ sourceId, userId: ctx.userId }),
-    requireGreaterAccessPrivilege[permission]
-      ? repo.findOneByOrFail({ sourceId, userId: validateRankAgainstId })
-      : Promise.resolve(null),
-  ]);
+  const validateRankAgainst = await (requireGreaterAccessPrivilege[permission]
+    ? repo.findOneByOrFail({ sourceId, userId: validateRankAgainstId })
+    : Promise.resolve(null));
 
-  if (!loggedUser) {
+  return hasPermissionCheck(source, member, permission, validateRankAgainst);
+};
+
+export const canPostToSquad = (
+  ctx: Context,
+  squad: SquadSource,
+  sourceMember: SourceMember,
+): boolean => {
+  if (!sourceMember) {
     return false;
   }
 
-  return hasPermissionCheck(
-    source,
-    loggedUser,
-    permission,
-    validateRankAgainst,
-  );
+  return sourceRoleRank[sourceMember.role] >= squad.memberPostingRank;
 };
 
 const validateSquadData = ({
   handle,
   name,
   description,
-}: Pick<SquadSource, 'handle' | 'name' | 'description'>): string => {
+  memberPostingRole,
+  memberInviteRole,
+}: Pick<SquadSource, 'handle' | 'name' | 'description'> & {
+  memberPostingRole?: SourceMemberRoles;
+  memberInviteRole?: SourceMemberRoles;
+}): string => {
   handle = handle.replace('@', '').trim();
   const regexParams: ValidateRegex[] = [
     ['name', name, nameRegex, true],
@@ -481,6 +603,20 @@ const validateSquadData = ({
   ];
 
   validateRegex(regexParams);
+
+  if (
+    typeof memberPostingRole !== 'undefined' &&
+    !sourceRoleRankKeys.includes(memberPostingRole)
+  ) {
+    throw new ValidationError('Invalid member posting role');
+  }
+
+  if (
+    typeof memberInviteRole !== 'undefined' &&
+    !sourceRoleRankKeys.includes(memberInviteRole)
+  ) {
+    throw new ValidationError('Invalid member invite role');
+  }
 
   return handle;
 };
@@ -495,9 +631,33 @@ export const ensureSourcePermissions = async (
     const source = await ctx.con
       .getRepository(Source)
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
-    if (await canAccessSource(ctx, source, permission, validateRankAgainstId)) {
-      return source;
+    const sourceMember = ctx.userId
+      ? await ctx.con
+          .getRepository(SourceMember)
+          .findOneBy({ sourceId: source.id, userId: ctx.userId })
+      : null;
+
+    const canAccess = await canAccessSource(
+      ctx,
+      source,
+      sourceMember,
+      permission,
+      validateRankAgainstId,
+    );
+
+    if (!canAccess) {
+      throw new ForbiddenError('Access denied!');
     }
+
+    if (
+      source.type === SourceType.Squad &&
+      permission === SourcePermissions.Post &&
+      !canPostToSquad(ctx, source, sourceMember)
+    ) {
+      throw new ForbiddenError('Posting not allowed!');
+    }
+
+    return source;
   }
   throw new ForbiddenError('Access denied!');
 };
@@ -525,8 +685,10 @@ type CreateSquadArgs = {
   handle: string;
   description?: string;
   image?: FileUpload;
-  postId: string;
-  commentary: string;
+  postId?: string;
+  commentary?: string;
+  memberPostingRole?: SourceMemberRoles;
+  memberInviteRole?: SourceMemberRoles;
 };
 
 type EditSquadArgs = {
@@ -535,6 +697,8 @@ type EditSquadArgs = {
   handle: string;
   description?: string;
   image?: FileUpload;
+  memberPostingRole?: SourceMemberRoles;
+  memberInviteRole?: SourceMemberRoles;
 };
 
 const getSourceById = async (
@@ -562,6 +726,31 @@ const addNewSourceMember = async (
     ...member,
     referralToken: await generateMemberToken(),
   });
+};
+
+export const getPermissionsForMember = (
+  member: Pick<SourceMember, 'role'>,
+  source: Pick<SquadSource, 'memberPostingRank' | 'memberInviteRank'>,
+): SourcePermissions[] => {
+  const permissions =
+    roleSourcePermissions[member.role] ?? roleSourcePermissions.member;
+  const memberRank =
+    sourceRoleRank[member.role] ?? sourceRoleRank[SourceMemberRoles.Member];
+  const permissionsToRemove: SourcePermissions[] = [];
+
+  if (memberRank < source.memberPostingRank) {
+    permissionsToRemove.push(SourcePermissions.Post);
+  }
+
+  if (memberRank < source.memberInviteRank) {
+    permissionsToRemove.push(SourcePermissions.Invite);
+  }
+
+  if (permissionsToRemove.length > 0) {
+    return permissions.filter((item) => !permissionsToRemove.includes(item));
+  }
+
+  return permissions;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -612,11 +801,16 @@ export const resolvers: IResolvers<any, Context> = {
     },
     sourceMembers: async (
       _,
-      args: ConnectionArguments & { sourceId: string },
+      { role, sourceId, ...args }: SourceMemberArgs,
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
-      await ensureSourcePermissions(ctx, args.sourceId);
+      const permission =
+        role === SourceMemberRoles.Blocked
+          ? SourcePermissions.ViewBlockedMembers
+          : SourcePermissions.View;
+
+      await ensureSourcePermissions(ctx, sourceId, permission);
       const page = membershipsPageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,
@@ -628,13 +822,27 @@ export const resolvers: IResolvers<any, Context> = {
         (builder) => {
           builder.queryBuilder
             .andWhere(`${builder.alias}."sourceId" = :source`, {
-              source: args.sourceId,
+              source: sourceId,
             })
+
             .addOrderBy(
               graphorm.mappings.SourceMember.fields.roleRank.select as string,
               'DESC',
             )
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+          if (role) {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}.role = :role`,
+              { role },
+            );
+          } else {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${
+                graphorm.mappings.SourceMember.fields.roleRank.select as string
+              } >= 0`,
+            );
+          }
 
           builder.queryBuilder.limit(page.limit);
           if (page.timestamp) {
@@ -664,6 +872,11 @@ export const resolvers: IResolvers<any, Context> = {
         (builder) => {
           builder.queryBuilder
             .andWhere(`${builder.alias}."userId" = :user`, { user: ctx.userId })
+            .andWhere(
+              `${
+                graphorm.mappings.SourceMember.fields.roleRank.select as string
+              } >= 0`,
+            )
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
 
           builder.queryBuilder.limit(page.limit);
@@ -675,6 +888,27 @@ export const resolvers: IResolvers<any, Context> = {
           }
           return builder;
         },
+      );
+    },
+    checkUserMembership: async (
+      _,
+      { sourceId, memberId }: CheckUserMembershipArgs,
+      ctx,
+      info,
+    ): Promise<GQLSourceMember> => {
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
+
+      return graphorm.queryOneOrFail<GQLSourceMember>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.andWhere({
+            sourceId,
+            userId: memberId,
+          });
+          return builder;
+        },
+        SourceMember,
       );
     },
     sourceMemberByToken: async (
@@ -710,6 +944,8 @@ export const resolvers: IResolvers<any, Context> = {
         image,
         postId,
         description,
+        memberPostingRole = SourceMemberRoles.Member,
+        memberInviteRole = SourceMemberRoles.Member,
       }: CreateSquadArgs,
       ctx,
       info,
@@ -718,6 +954,8 @@ export const resolvers: IResolvers<any, Context> = {
         handle: inputHandle,
         name,
         description,
+        memberPostingRole,
+        memberInviteRole,
       });
       try {
         const sourceId = await ctx.con.transaction(async (entityManager) => {
@@ -728,24 +966,28 @@ export const resolvers: IResolvers<any, Context> = {
             id,
             name,
             handle,
-            active: false,
+            active: true,
             description,
             private: true,
+            memberPostingRank: sourceRoleRank[memberPostingRole],
+            memberInviteRank: sourceRoleRank[memberInviteRole],
           });
-          // Add the logged-in user as owner
+          // Add the logged-in user as admin
           await addNewSourceMember(entityManager, {
             sourceId: id,
             userId: ctx.userId,
-            role: SourceMemberRoles.Owner,
+            role: SourceMemberRoles.Admin,
           });
-          // Create the first post of the squad
-          await createSharePost(
-            entityManager,
-            id,
-            ctx.userId,
-            postId,
-            commentary,
-          );
+          if (postId) {
+            // Create the first post of the squad
+            await createSharePost(
+              entityManager,
+              id,
+              ctx.userId,
+              postId,
+              commentary,
+            );
+          }
           // Upload the image (if provided)
           if (image) {
             const { createReadStream } = await image;
@@ -775,6 +1017,8 @@ export const resolvers: IResolvers<any, Context> = {
         handle: inputHandle,
         image,
         description,
+        memberPostingRole,
+        memberInviteRole,
       }: EditSquadArgs,
       ctx,
       info,
@@ -784,6 +1028,8 @@ export const resolvers: IResolvers<any, Context> = {
         handle: inputHandle,
         name,
         description,
+        memberPostingRole,
+        memberInviteRole,
       });
 
       try {
@@ -797,6 +1043,8 @@ export const resolvers: IResolvers<any, Context> = {
                 name,
                 handle,
                 description,
+                memberPostingRank: sourceRoleRank[memberPostingRole],
+                memberInviteRank: sourceRoleRank[memberInviteRole],
               },
             );
             // Upload the image (if provided)
@@ -844,6 +1092,53 @@ export const resolvers: IResolvers<any, Context> = {
       });
       return { _: true };
     },
+    updateMemberRole: async (
+      _,
+      { sourceId, memberId, role }: UpdateMemberRoleArgs,
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      if (role === SourceMemberRoles.Blocked) {
+        await ensureSourcePermissions(
+          ctx,
+          sourceId,
+          SourcePermissions.MemberRemove,
+          memberId,
+        );
+      } else {
+        await ensureSourcePermissions(
+          ctx,
+          sourceId,
+          SourcePermissions.MemberRoleUpdate,
+        );
+
+        if (!Object.values(SourceMemberRoles).includes(role)) {
+          throw new ValidationError('Role does not exist!');
+        }
+      }
+
+      await ctx.con
+        .getRepository(SourceMember)
+        .update({ sourceId, userId: memberId }, { role });
+
+      return { _: true };
+    },
+    unblockMember: async (
+      _,
+      { sourceId, memberId }: UpdateMemberRoleArgs,
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.MemberUnblock,
+      );
+
+      await ctx.con
+        .getRepository(SourceMember)
+        .delete({ sourceId, userId: memberId });
+
+      return { _: true };
+    },
     joinSource: async (
       _,
       { sourceId, token }: { sourceId: string; token: string },
@@ -871,6 +1166,15 @@ export const resolvers: IResolvers<any, Context> = {
           'Access denied! You do not have permission for this action!',
         );
       }
+
+      const memberRank =
+        sourceRoleRank[member.role] ?? sourceRoleRank[SourceMemberRoles.Member];
+      const squadSource = source as SquadSource;
+
+      if (memberRank < squadSource.memberInviteRank) {
+        throw new ForbiddenError(SourcePermissionErrorKeys.InviteInvalid);
+      }
+
       try {
         await ctx.con.transaction(async (entityManager) => {
           await addNewSourceMember(entityManager, {

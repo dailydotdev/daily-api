@@ -1,9 +1,15 @@
 import { DeepPartial } from 'typeorm';
-import { ArticlePost, PostKeyword, PostTag, PostType } from '../../src/entity';
+import {
+  ArticlePost,
+  PostKeyword,
+  PostTag,
+  PostType,
+  SharePost,
+} from '../../src/entity';
 
 const now = new Date();
 
-export const postsFixture: DeepPartial<ArticlePost>[] = [
+export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
   {
     id: 'p1',
     shortId: 'sp1',
@@ -73,6 +79,32 @@ export const postsFixture: DeepPartial<ArticlePost>[] = [
     sourceId: 'p',
     createdAt: new Date(now.getTime() - 5000),
     type: PostType.Article,
+    private: true,
+  },
+  {
+    id: 'p7',
+    shortId: 'sp7',
+    title: 'P7',
+    url: 'http://p7.com',
+    image: 'https://daily.dev/image.jpg',
+    score: 10,
+    sourceId: 'p',
+    createdAt: new Date(now.getTime() - 5000),
+    type: PostType.Article,
+    visible: false,
+  },
+  {
+    id: 'squadP1',
+    shortId: 'squadP1',
+    title: 'Squad 1',
+    url: 'http://squad1.com',
+    image: 'http://image/sp1',
+    score: 10,
+    sourceId: 'squad',
+    createdAt: new Date(now.getTime() - 5000),
+    type: PostType.Share,
+    visible: true,
+    sharedPostId: 'p1',
     private: true,
   },
 ];

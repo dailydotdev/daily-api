@@ -2,18 +2,22 @@ import { DataSource, EntityManager, In } from 'typeorm';
 import { SubmissionFailErrorKeys, TypeOrmError } from '../../errors';
 import * as he from 'he';
 import { Keyword } from '../Keyword';
-import { uniqueifyArray } from '../../common';
+import {
+  EventLogger,
+  notifyContentRequested,
+  uniqueifyArray,
+} from '../../common';
 import { User } from '../User';
 import { FastifyLoggerInstance } from 'fastify';
-import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { validateAndApproveSubmission } from '../Submission';
 import { ArticlePost, Toc } from './ArticlePost';
 import { Post, PostOrigin } from './Post';
 import { MAX_COMMENTARY_LENGTH, SharePost } from './SharePost';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import { Source } from '../Source';
+import { Source, UNKNOWN_SOURCE } from '../Source';
 import { generateShortId } from '../../ids';
+import { ActivePost } from './ActivePost';
 
 export type PostStats = {
   numPosts: number;
@@ -36,11 +40,10 @@ export const getAuthorPostStats = async (
     .addSelect('sum(post.views)', 'numPostViews')
     .addSelect('sum(post.upvotes)', 'numPostUpvotes')
     .addSelect('sum(post.comments)', 'numPostComments')
-    .from(Post, 'post')
+    .from(ActivePost, 'post')
     .where('(post.authorId = :authorId or post.scoutId = :authorId)', {
       authorId,
     })
-    .andWhere({ deleted: false })
     .getRawOne<StringPostStats>();
   return Object.keys(raw).reduce(
     (acc, key) => ({ ...acc, [key]: parseInt(raw[key]) || raw[key] }),
@@ -78,7 +81,7 @@ export interface AddPostData {
   origin?: PostOrigin;
 }
 
-const parseReadTime = (
+export const parseReadTime = (
   readTime: number | string | undefined,
 ): number | undefined => {
   if (!readTime) {
@@ -104,7 +107,7 @@ const checkRequiredFields = (data: AddPostData): boolean => {
   return !!(data && data.title && data.url && data.publicationId);
 };
 
-const bannedAuthors = ['@NewGenDeveloper'];
+export const bannedAuthors = ['@NewGenDeveloper'];
 
 const shouldAddNewPost = async (
   entityManager: EntityManager,
@@ -120,14 +123,14 @@ const shouldAddNewPost = async (
     )
     .getRawOne();
   if (p) {
-    return 'POST_EXISTS';
+    return SubmissionFailErrorKeys.PostExists;
   }
   if (bannedAuthors.indexOf(data.creatorTwitter) > -1) {
-    return 'AUTHOR_BANNED';
+    return SubmissionFailErrorKeys.AuthorBanned;
   }
 
   if (!data.title) {
-    return 'MISSING_FIELDS';
+    return SubmissionFailErrorKeys.MissingFields;
   }
 };
 
@@ -141,7 +144,7 @@ const fixAddPostData = async (data: AddPostData): Promise<AddPostData> => ({
   publishedAt: data.publishedAt && new Date(data.publishedAt),
 });
 
-const mergeKeywords = async (
+export const mergeKeywords = async (
   entityManager: EntityManager,
   keywords?: string[],
 ): Promise<{ mergedKeywords: string[]; allowedKeywords: string[] }> => {
@@ -175,7 +178,7 @@ const mergeKeywords = async (
   return { allowedKeywords: [], mergedKeywords: [] };
 };
 
-const findAuthor = async (
+export const findAuthor = async (
   entityManager: EntityManager,
   creatorTwitter?: string,
 ): Promise<string | null> => {
@@ -253,14 +256,15 @@ const addPostAndKeywordsToDb = async (
     visibleAt: new Date(),
   });
   await entityManager.save(post);
-  if (data.tags?.length) {
-    await entityManager.getRepository(PostTag).insert(
-      data.tags.map((t) => ({
-        tag: t,
-        postId: data.id,
-      })),
-    );
-  }
+  await addKeywords(entityManager, mergedKeywords, data.id);
+  return data.id;
+};
+
+export const addKeywords = async (
+  entityManager: EntityManager,
+  mergedKeywords: string[],
+  postId: string,
+): Promise<void> => {
   if (mergedKeywords?.length) {
     await entityManager
       .createQueryBuilder()
@@ -274,11 +278,11 @@ const addPostAndKeywordsToDb = async (
     await entityManager.getRepository(PostKeyword).insert(
       mergedKeywords.map((keyword) => ({
         keyword,
-        postId: data.id,
+        postId,
       })),
     );
   }
-  return data.id;
+  return;
 };
 
 export const addNewPost = async (
@@ -287,7 +291,7 @@ export const addNewPost = async (
   logger: FastifyLoggerInstance,
 ): Promise<AddNewPostResult> => {
   if (!checkRequiredFields(data)) {
-    return { status: 'failed', reason: 'MISSING_FIELDS' };
+    return { status: 'failed', reason: SubmissionFailErrorKeys.MissingFields };
   }
 
   const creatorTwitter =
@@ -314,7 +318,10 @@ export const addNewPost = async (
     )) || { scoutId: null, rejected: false };
 
     if (rejected) {
-      return { status: 'failed', reason: 'SCOUT_IS_AUTHOR' };
+      return {
+        status: 'failed',
+        reason: SubmissionFailErrorKeys.ScoutIsAuthor,
+      };
     }
 
     const combinedData = {
@@ -333,14 +340,87 @@ export const addNewPost = async (
     } catch (error) {
       // Unique
       if (error?.code === TypeOrmError.DUPLICATE_ENTRY) {
-        return { status: 'failed', reason: 'POST_EXISTS', error };
+        return {
+          status: 'failed',
+          reason: SubmissionFailErrorKeys.PostExists,
+          error,
+        };
       }
       // Null violation
       if (error?.code === TypeOrmError.NULL_VIOLATION) {
-        return { status: 'failed', reason: 'MISSING_FIELDS', error };
+        return {
+          status: 'failed',
+          reason: SubmissionFailErrorKeys.MissingFields,
+          error,
+        };
       }
       throw error;
     }
+  });
+};
+
+const validateCommentary = async (commentary: string) => {
+  if (commentary.length > MAX_COMMENTARY_LENGTH) {
+    throw new ValidationError(
+      JSON.stringify({
+        commentary: `max size is ${MAX_COMMENTARY_LENGTH} chars`,
+      }),
+    );
+  }
+  return true;
+};
+
+export interface ExternalLinkPreview {
+  id?: string;
+  title: string;
+  image: string;
+}
+
+export interface ExternalLink extends Partial<ExternalLinkPreview> {
+  url: string;
+}
+
+export const createExternalLink = async (
+  con: DataSource | EntityManager,
+  logger: EventLogger,
+  sourceId: string,
+  userId: string,
+  { url, title, image }: ExternalLink,
+  commentary: string,
+): Promise<void> => {
+  await validateCommentary(commentary);
+  const id = await generateShortId();
+  const isVisible = !!title;
+
+  return con.transaction(async (entityManager) => {
+    await entityManager.getRepository(ArticlePost).insert({
+      id,
+      shortId: id,
+      createdAt: new Date(),
+      sourceId: UNKNOWN_SOURCE,
+      url,
+      canonicalUrl: url,
+      title,
+      image,
+      sentAnalyticsReport: true,
+      private: true,
+      origin: PostOrigin.Squad,
+      visible: isVisible,
+    });
+    await createSharePost(
+      entityManager,
+      sourceId,
+      userId,
+      id,
+      commentary,
+      isVisible,
+    );
+    await notifyContentRequested(logger, {
+      id,
+      url,
+      origin: PostOrigin.Squad,
+    });
+    return;
   });
 };
 
@@ -350,14 +430,9 @@ export const createSharePost = async (
   userId: string,
   postId: string,
   commentary: string,
+  visible = true,
 ): Promise<SharePost> => {
-  if (commentary.length > MAX_COMMENTARY_LENGTH) {
-    throw new ValidationError(
-      JSON.stringify({
-        commentary: `max size is ${MAX_COMMENTARY_LENGTH} chars`,
-      }),
-    );
-  }
+  await validateCommentary(commentary);
   const id = await generateShortId();
   try {
     const { private: privacy } = await con
@@ -374,8 +449,8 @@ export const createSharePost = async (
       sentAnalyticsReport: true,
       private: privacy,
       origin: PostOrigin.UserGenerated,
-      visible: true,
-      visibleAt: new Date(),
+      visible,
+      visibleAt: visible ? new Date() : null,
     });
   } catch (err) {
     if (err.code === TypeOrmError.FOREIGN_KEY) {
