@@ -16,6 +16,7 @@ export enum PostType {
   Article = 'article',
   Share = 'share',
   Freeform = 'freeform',
+  Welcome = 'welcome',
 }
 
 export enum PostOrigin {
@@ -150,4 +151,7 @@ export class Post {
 
   @Column({ default: null, type: 'text' })
   origin: PostOrigin;
+
+  @Column({ type: 'text', array: true, default: [] })
+  contentCuration: string[];
 }

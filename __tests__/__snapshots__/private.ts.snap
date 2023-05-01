@@ -6,6 +6,7 @@ Object {
   "banned": false,
   "canonicalUrl": "https://post.com",
   "comments": 0,
+  "contentCuration": Any<Array>,
   "createdAt": Any<Date>,
   "creatorTwitter": null,
   "deleted": false,
