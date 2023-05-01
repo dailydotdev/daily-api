@@ -99,7 +99,31 @@ describe('POST /p/newPost', () => {
       score: expect.any(Number),
       id: expect.any(String),
       shortId: expect.any(String),
+      contentCuration: expect.any(Array),
     });
+  });
+
+  it('should save a new post with content curation', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newPost')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: 'p1',
+        title: 'Title',
+        url: 'https://post.com',
+        publicationId: 'a',
+        contentCuration: ['news', 'story', 'release'],
+      })
+      .expect(200);
+    const posts = await con.getRepository(Post).find();
+    expect(posts.length).toEqual(1);
+    expect(body).toEqual({ status: 'ok', postId: posts[0].id });
+    expect(posts[0].contentCuration).toStrictEqual([
+      'news',
+      'story',
+      'release',
+    ]);
   });
 
   it('save a post as public if source is public', async () => {

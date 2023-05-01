@@ -181,3 +181,21 @@ it('should save a new post with the relevant keywords', async () => {
   // should increase from 1 to 2
   expect(keywords[0].occurrences).toEqual(2);
 });
+
+it('should save a new post with the relevant content curation', async () => {
+  await createDefaultKeywords();
+  await expectSuccessfulBackground(worker, {
+    post_id: 'p1',
+    updated_at: new Date('01-05-2023 12:00:00'),
+    title: 'test',
+    extra: {
+      content_curation: ['news', 'story', 'release'],
+    },
+  });
+  const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
+  expect(post.metadataChangedAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
+  expect(post.visible).toEqual(true);
+  expect(post.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
+  expect(post.title).toEqual('test');
+  expect(post.contentCuration).toEqual(['news', 'story', 'release']);
+});

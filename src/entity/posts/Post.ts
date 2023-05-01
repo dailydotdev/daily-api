@@ -151,4 +151,7 @@ export class Post {
 
   @Column({ default: null, type: 'text' })
   origin: PostOrigin;
+
+  @Column({ type: 'text', array: true, default: [] })
+  contentCuration: string[];
 }
