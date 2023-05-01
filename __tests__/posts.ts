@@ -32,6 +32,7 @@ import {
   Upvote,
   User,
   View,
+  WelcomePost,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
@@ -607,6 +608,35 @@ describe('freeformPost type', () => {
     expect(res.data).toEqual({
       post: {
         type: PostType.Freeform,
+        content: '#Test',
+        contentHtml: '<h1>Test</h1>',
+      },
+    });
+  });
+});
+
+describe('welcomePost type', () => {
+  const QUERY = `{
+    post(id: "wp") {
+      type
+      content
+      contentHtml
+    }
+  }`;
+
+  it('should return the welcome post properties', async () => {
+    await con.getRepository(WelcomePost).save({
+      id: 'wp',
+      shortId: 'wp',
+      sourceId: 'a',
+      title: 'Welcome post',
+      content: '#Test',
+      contentHtml: '<h1>Test</h1>',
+    });
+    const res = await client.query(QUERY);
+    expect(res.data).toEqual({
+      post: {
+        type: PostType.Welcome,
         content: '#Test',
         contentHtml: '<h1>Test</h1>',
       },

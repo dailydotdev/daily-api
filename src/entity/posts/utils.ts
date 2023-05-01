@@ -79,6 +79,7 @@ export interface AddPostData {
   submissionId?: string;
   scoutId?: string;
   origin?: PostOrigin;
+  contentCuration?: string[];
 }
 
 export const parseReadTime = (
@@ -254,6 +255,7 @@ const addPostAndKeywordsToDb = async (
       : data.origin ?? PostOrigin.Crawler,
     visible: true,
     visibleAt: new Date(),
+    contentCuration: data.contentCuration,
   });
   await entityManager.save(post);
   await addKeywords(entityManager, mergedKeywords, data.id);

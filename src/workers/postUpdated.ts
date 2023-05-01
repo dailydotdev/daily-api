@@ -34,6 +34,7 @@ interface Data {
     site_twitter?: string;
     creator_twitter?: string;
     toc?: Toc;
+    content_curation?: string[];
   };
 }
 
@@ -126,6 +127,7 @@ const worker: Worker = {
           description: data?.extra?.description,
           siteTwitter: data?.extra?.site_twitter,
           toc: data?.extra?.toc,
+          contentCuration: data?.extra?.content_curation,
         };
 
         await entityManager
