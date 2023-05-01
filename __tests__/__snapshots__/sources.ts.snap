@@ -17,6 +17,33 @@ Array [
 ]
 `;
 
+exports[`members field should exclude blocked members from result 1`] = `
+Object {
+  "source": Object {
+    "id": "a",
+    "members": Object {
+      "edges": Array [
+        Object {
+          "node": Object {
+            "role": "admin",
+            "source": Object {
+              "id": "a",
+            },
+            "user": Object {
+              "id": "1",
+            },
+          },
+        },
+      ],
+      "pageInfo": Object {
+        "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
+        "hasNextPage": false,
+      },
+    },
+  },
+}
+`;
+
 exports[`members field should return source members 1`] = `
 Object {
   "source": Object {
@@ -36,7 +63,7 @@ Object {
         },
         Object {
           "node": Object {
-            "role": "owner",
+            "role": "admin",
             "source": Object {
               "id": "a",
             },
@@ -71,7 +98,7 @@ Object {
     },
     Object {
       "node": Object {
-        "role": "owner",
+        "role": "admin",
         "source": Object {
           "id": "a",
         },
@@ -88,22 +115,14 @@ Object {
 }
 `;
 
-exports[`query mySourceMemberships should return source memberships 1`] = `
+exports[`query mySourceMemberships should not return source memberships in user is blocked 1`] = `
 Object {
   "mySourceMemberships": Object {
     "edges": Array [
       Object {
         "node": Object {
-          "source": Object {
-            "id": "a",
-          },
-          "user": Object {
-            "id": "2",
-          },
-        },
-      },
-      Object {
-        "node": Object {
+          "role": "admin",
+          "roleRank": 10,
           "source": Object {
             "id": "b",
           },
@@ -121,6 +140,83 @@ Object {
 }
 `;
 
+exports[`query mySourceMemberships should return source memberships 1`] = `
+Object {
+  "mySourceMemberships": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "role": "member",
+          "roleRank": 0,
+          "source": Object {
+            "id": "a",
+          },
+          "user": Object {
+            "id": "2",
+          },
+        },
+      },
+      Object {
+        "node": Object {
+          "role": "admin",
+          "roleRank": 10,
+          "source": Object {
+            "id": "b",
+          },
+          "user": Object {
+            "id": "2",
+          },
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query source current member should return current member as admin 1`] = `
+Object {
+  "source": Object {
+    "currentMember": Object {
+      "permissions": Array [
+        "view",
+        "post",
+        "leave",
+        "invite",
+        "comment_delete",
+        "post_delete",
+        "member_remove",
+        "edit",
+        "member_unblock",
+        "view_blocked_members",
+        "member_role_update",
+        "post_limit",
+        "delete",
+      ],
+      "role": "admin",
+      "roleRank": 10,
+    },
+    "id": "a",
+  },
+}
+`;
+
+exports[`query source current member should return current member as blocked 1`] = `
+Object {
+  "source": Object {
+    "currentMember": Object {
+      "permissions": Array [],
+      "role": "blocked",
+      "roleRank": -1,
+    },
+    "id": "a",
+  },
+}
+`;
+
 exports[`query source current member should return current member as member 1`] = `
 Object {
   "source": Object {
@@ -129,34 +225,10 @@ Object {
         "view",
         "post",
         "leave",
+        "invite",
       ],
       "role": "member",
       "roleRank": 0,
-    },
-    "id": "a",
-  },
-}
-`;
-
-exports[`query source current member should return current member as owner 1`] = `
-Object {
-  "source": Object {
-    "currentMember": Object {
-      "permissions": Array [
-        "view",
-        "post",
-        "leave",
-        "post_delete",
-        "member_remove",
-        "edit",
-        "post_limit",
-        "moderator_add",
-        "moderator_remove",
-        "invite_disable",
-        "delete",
-      ],
-      "role": "owner",
-      "roleRank": 10,
     },
     "id": "a",
   },
@@ -192,13 +264,63 @@ Object {
 }
 `;
 
+exports[`query sourceMembers should return blocked users only when user is a moderator 1`] = `
+Object {
+  "sourceMembers": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "role": "blocked",
+          "roleRank": -1,
+          "source": Object {
+            "id": "a",
+          },
+          "user": Object {
+            "id": "2",
+          },
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjcxNDk0NDAwMDAw",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query sourceMembers should return blocked users only when user is the admin 1`] = `
+Object {
+  "sourceMembers": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "role": "blocked",
+          "roleRank": -1,
+          "source": Object {
+            "id": "a",
+          },
+          "user": Object {
+            "id": "2",
+          },
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjcxNDk0NDAwMDAw",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
 exports[`query sourceMembers should return source members of private source when user is a member 1`] = `
 Object {
   "sourceMembers": Object {
     "edges": Array [
       Object {
         "node": Object {
-          "role": "owner",
+          "role": "admin",
           "roleRank": 10,
           "source": Object {
             "id": "a",
@@ -235,7 +357,7 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
-          "role": "owner",
+          "role": "admin",
           "roleRank": 10,
           "source": Object {
             "id": "a",
@@ -260,6 +382,31 @@ Object {
     ],
     "pageInfo": Object {
       "endCursor": "dGltZToxNjcxNDk0NDAwMDAw",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query sourceMembers should return source members of public source without blocked members 1`] = `
+Object {
+  "sourceMembers": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "role": "admin",
+          "roleRank": 10,
+          "source": Object {
+            "id": "a",
+          },
+          "user": Object {
+            "id": "1",
+          },
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
       "hasNextPage": false,
     },
   },

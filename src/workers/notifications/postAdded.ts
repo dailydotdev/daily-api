@@ -8,13 +8,14 @@ import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';
 import { In, Not } from 'typeorm';
+import { SourceMemberRoles } from '../../roles';
 
 interface Data {
   post: ChangeObject<Post>;
 }
 
 const worker: NotificationWorker = {
-  subscription: 'api.post-added-notification',
+  subscription: 'api.post-added-notification-v2',
   handler: async (message, con) => {
     const data: Data = messageToJson(message);
     const baseCtx = await buildPostContext(con, data.post.id);
@@ -35,7 +36,7 @@ const worker: NotificationWorker = {
     if (source) {
       // article_picked notification
       if (source.type === SourceType.Machine) {
-        if (post.authorId) {
+        if (post.authorId && !post.private) {
           const ctx: NotificationPostContext = {
             ...baseCtx,
             userId: post.authorId,
@@ -43,13 +44,17 @@ const worker: NotificationWorker = {
           notifs.push({ type: 'article_picked', ctx });
         }
       }
-      // squad_post_added notification
       if (source.type === SourceType.Squad && post.authorId) {
+        // squad_post_added notification
         const doneBy = await con
           .getRepository(User)
           .findOneBy({ id: post.authorId });
         const members = await con.getRepository(SourceMember).find({
-          where: { sourceId: source.id, userId: Not(In([post.authorId])) },
+          where: {
+            sourceId: source.id,
+            userId: Not(In([post.authorId])),
+            role: Not(SourceMemberRoles.Blocked),
+          },
         });
         members.forEach((member) =>
           notifs.push({

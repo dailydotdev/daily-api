@@ -32,6 +32,7 @@ import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
 import { TypeOrmError, NotFoundError } from '../errors';
 import { deleteUser } from '../directive/user';
+import { ActivePost } from '../entity/posts/ActivePost';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -478,8 +479,7 @@ const readHistoryResolver = async (
         userId: ctx.userId,
       })
       .andWhere(`"${builder.alias}"."hidden" = false`)
-      .innerJoin(Post, 'p', `"${builder.alias}"."postId" = p.id`)
-      .andWhere(`p.deleted = false`)
+      .innerJoin(ActivePost, 'p', `"${builder.alias}"."postId" = p.id`)
       .addSelect(
         `"timestamp"::timestamptz at time zone '${user.timezone ?? 'utc'}'`,
         'timestamp',
@@ -540,8 +540,7 @@ export const resolvers: IResolvers<any, Context> = {
           .addSelect('sum(comment.upvotes)', 'numCommentUpvotes')
           .from(Comment, 'comment')
           .where({ userId: id })
-          .innerJoin(Post, 'p', `comment.postId = p.id`)
-          .andWhere(`p.deleted = false`)
+          .innerJoin(ActivePost, 'p', `comment.postId = p.id`)
           .getRawOne(),
       ]);
       return {
@@ -668,12 +667,11 @@ export const resolvers: IResolvers<any, Context> = {
           WITH search AS (${getSearchQuery('$2')})
           select distinct(ts_headline(process_text(title), search.query,
                                       ('StartSel = <strong>, StopSel = </strong>'))) as title
-          from post
+          from active_post as post
                  INNER JOIN view
                             ON view."postId" = post.id AND view."userId" = $1,
                search
           where tsv @@ search.query
-            and post.deleted = false
           order by title desc
             limit 5;
         `,

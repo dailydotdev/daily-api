@@ -31,7 +31,11 @@ export type NotificationType =
   | 'squad_member_joined'
   | 'squad_new_comment'
   | 'squad_reply'
-  | 'squad_post_viewed';
+  | 'squad_post_viewed'
+  | 'squad_blocked'
+  | 'promoted_to_admin'
+  | 'demoted_to_member'
+  | 'promoted_to_moderator';
 
 export type NotificationReferenceType =
   | 'source_request'

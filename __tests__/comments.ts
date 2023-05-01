@@ -119,6 +119,14 @@ beforeEach(async () => {
       contentHtml: '<p>child comment #3</p>',
       createdAt: new Date(2020, 1, 10, 0, 0),
     },
+    {
+      id: 'c8',
+      postId: 'squadP1',
+      userId: '2',
+      content: 'comment #1',
+      contentHtml: '<p>comment #1</p>',
+      createdAt: new Date(2020, 1, 10, 0, 0),
+    },
   ]);
 });
 
@@ -167,7 +175,7 @@ const saveSquadFixture = async (sourceId: string) => {
     {
       userId: '1',
       sourceId,
-      role: SourceMemberRoles.Owner,
+      role: SourceMemberRoles.Admin,
       referralToken: 'rt1',
       createdAt: new Date(2022, 11, 19),
     },
@@ -331,6 +339,21 @@ describe('query commentPreview', () => {
     expect(res.data.commentPreview).toMatchSnapshot();
 
     const mention = '@Lee';
+    const withMention = await client.query(QUERY, {
+      variables: { content: mention },
+    });
+    expect(withMention.errors).toBeFalsy();
+    expect(withMention.data.commentPreview).toMatchSnapshot();
+  });
+
+  it('should return markdown equivalent of the content with hyphen mention', async () => {
+    loggedUser = '1';
+    await saveCommentMentionFixtures();
+
+    await con
+      .getRepository(User)
+      .update({ username: 'Lee' }, { username: 'Lee-Hansel' });
+    const mention = '@Lee-Hansel';
     const withMention = await client.query(QUERY, {
       variables: { content: mention },
     });
@@ -867,6 +890,42 @@ describe('mutation deleteComment', () => {
     expect(actual.length).toEqual(3);
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.comments).toEqual(-2);
+  });
+
+  it("should forbidden when other user doesn't have the right permissions", async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).insert({
+      userId: '1',
+      sourceId: 'squad',
+      role: SourceMemberRoles.Member,
+      referralToken: 's1',
+    });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'c8' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should delete a comment if source admin has permissions', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).insert({
+      userId: '1',
+      sourceId: 'squad',
+      role: SourceMemberRoles.Admin,
+      referralToken: 's1',
+    });
+    const res = await client.mutate(MUTATION, { variables: { id: 'c8' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con
+      .getRepository(Comment)
+      .find({ select: ['id', 'comments'], where: { postId: 'squadP1' } });
+    expect(actual.length).toEqual(0);
+    const post = await con.getRepository(Post).findOneBy({ id: 'squadP1' });
+    expect(post.comments).toEqual(-1);
   });
 });
 

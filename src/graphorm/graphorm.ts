@@ -1,10 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { GraphQLResolveInfo } from 'graphql';
-import { SelectQueryBuilder, EntityMetadata } from 'typeorm';
+import {
+  SelectQueryBuilder,
+  EntityMetadata,
+  EntityNotFoundError,
+} from 'typeorm';
 import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 import { Context } from '../Context';
 import { Connection, Edge } from 'graphql-relay';
+import { EntityTarget } from 'typeorm/common/EntityTarget';
 
 export type QueryBuilder = SelectQueryBuilder<any>;
 
@@ -58,6 +63,8 @@ export interface GraphORMField {
 export interface GraphORMType {
   // Define manually the table to select from
   from?: string;
+  // Define manually the table to take metadata from
+  metadataFrom?: string;
   // Define fields customizations
   fields?: { [name: string]: GraphORMField };
   // Array of columns to select regardless of the resolve tree
@@ -74,6 +81,16 @@ export class GraphORM {
 
   constructor(mappings?: GraphORMMapping) {
     this.mappings = mappings;
+  }
+
+  /**
+   * Returns the entity metadata
+   * @param ctx GraphQL context of the request
+   * @param type Name of the GraphQL parent type
+   */
+  getMetadata(ctx: Context, type: string): EntityMetadata {
+    const mapping = this.mappings?.[type];
+    return ctx.con.getMetadata(mapping?.metadataFrom ?? mapping?.from ?? type);
   }
 
   /**
@@ -152,7 +169,7 @@ export class GraphORM {
       mapping?.relation ||
       this.findRelation(
         metadata,
-        ctx.con.getMetadata(paginatedType),
+        this.getMetadata(ctx, paginatedType),
         field.name,
       );
     if (!relation) {
@@ -293,13 +310,14 @@ export class GraphORM {
     fieldsByTypeName: { [p: string]: ResolveTree },
   ): GraphORMBuilder {
     const fields = Object.values(fieldsByTypeName);
-    const entityMetadata = ctx.con.getMetadata(
-      this.mappings?.[type]?.from || type,
-    );
+    const originalType = this.mappings?.[type]?.from ?? type;
+    const originalMetadata = ctx.con.getMetadata(originalType);
+    const tableName = originalMetadata.tableName;
+    const entityMetadata = this.getMetadata(ctx, type);
     // Used to make sure no conflicts in aliasing
     const randomStr = Math.random().toString(36).substring(2, 5);
-    const alias = `${entityMetadata.tableName.toLowerCase()}_${randomStr}`;
-    let newBuilder = builder.from(entityMetadata.tableName, alias).select([]);
+    const alias = `${tableName.toLowerCase()}_${randomStr}`;
+    let newBuilder = builder.from(tableName, alias).select([]);
     fields.forEach((field) => {
       newBuilder = this.selectField(
         ctx,
@@ -388,7 +406,7 @@ export class GraphORM {
 
   getMetadataOrNull(ctx: Context, type: string): EntityMetadata | undefined {
     try {
-      return ctx.con.getMetadata(this.mappings?.[type]?.from || type);
+      return this.getMetadata(ctx, type);
     } catch (err) {
       if (err?.name === 'EntityMetadataNotFoundError') {
         return;
@@ -527,6 +545,24 @@ export class GraphORM {
       return this.queryResolveTree(ctx, parsedInfo, beforeQuery);
     }
     throw new Error('Resolve info is empty');
+  }
+
+  async queryOneOrFail<T>(
+    ctx: Context,
+    resolveInfo: GraphQLResolveInfo,
+    beforeQuery?: (builder: GraphORMBuilder) => GraphORMBuilder,
+    entityName?: EntityTarget<T>,
+  ): Promise<T> {
+    const res = await this.query<T>(ctx, resolveInfo, beforeQuery);
+
+    if (!res.length) {
+      throw new EntityNotFoundError(
+        entityName ?? resolveInfo.path.typename,
+        'not found',
+      );
+    }
+
+    return res[0];
   }
 
   /**

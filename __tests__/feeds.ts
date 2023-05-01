@@ -347,9 +347,12 @@ describe('query anonymousFeed', () => {
 
   it('should return anonymous feed v2', async () => {
     nock('http://localhost:6000')
-      .get(
-        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&feed_id=global',
-      )
+      .post('/feed.json', {
+        page_size: 11,
+        fresh_page_size: '4',
+        feed_version: 2,
+        feed_id: 'global',
+      })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
       });
@@ -361,9 +364,12 @@ describe('query anonymousFeed', () => {
 
   it('should safetly handle a case where the feed is empty', async () => {
     nock('http://localhost:6000')
-      .get(
-        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&feed_id=global',
-      )
+      .post('/feed.json', {
+        page_size: 11,
+        fresh_page_size: '4',
+        feed_version: 2,
+        feed_id: 'global',
+      })
       .reply(200, {
         data: [],
       });
@@ -389,9 +395,13 @@ describe('query anonymousFeed', () => {
     ]);
 
     nock('http://localhost:6000')
-      .get(
-        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&user_id=1&feed_id=global',
-      )
+      .post('/feed.json', {
+        page_size: 11,
+        fresh_page_size: '4',
+        feed_version: 2,
+        user_id: '1',
+        feed_id: 'global',
+      })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
       });
@@ -557,12 +567,56 @@ describe('query feed', () => {
     ]);
 
     nock('http://localhost:6000')
-      .get(
-        '/feed.json?token=token&page_size=11&fresh_page_size=4&feed_version=2&user_id=1&feed_id=1&allowed_tags=javascript,golang&blocked_tags=python,java&blocked_sources=a,b',
-      )
+      .post('/feed.json', {
+        page_size: 11,
+        fresh_page_size: '4',
+        feed_version: 2,
+        user_id: '1',
+        feed_id: '1',
+        allowed_tags: ['javascript', 'golang'],
+        blocked_tags: ['python', 'java'],
+        blocked_sources: ['a', 'b'],
+      })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
       });
+    const res = await client.query(QUERY, {
+      variables: { ...variables, version: 2 },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return feed v2 with metadata', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        page_size: 11,
+        fresh_page_size: '4',
+        feed_version: 2,
+        user_id: '1',
+        feed_id: '1',
+      })
+      .reply(200, {
+        data: [
+          { post_id: 'p1', metadata: { p: 'a' } },
+          {
+            post_id: 'p4',
+            metadata: { p: 'b' },
+          },
+        ],
+      });
+    const QUERY = `
+  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
+    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
+      edges {
+        node {
+          id
+          feedMeta
+        }
+      }
+    }
+  }
+`;
     const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
     });
@@ -641,7 +695,7 @@ describe('query sourceFeed', () => {
       {
         userId: '1',
         sourceId: 'b',
-        role: SourceMemberRoles.Owner,
+        role: SourceMemberRoles.Admin,
         referralToken: randomUUID(),
         createdAt: new Date(2022, 11, 19),
       },
@@ -1502,7 +1556,7 @@ describe('function feedToFilters', () => {
       {
         userId: '1',
         sourceId: 'b',
-        role: SourceMemberRoles.Owner,
+        role: SourceMemberRoles.Admin,
         referralToken: 'rt2',
       },
     ]);

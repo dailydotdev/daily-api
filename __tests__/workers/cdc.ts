@@ -1,36 +1,37 @@
 import nock from 'nock';
 import {
   ReputationEvent,
-  ReputationType,
   ReputationReason,
-} from './../../src/entity/ReputationEvent';
+  ReputationType,
+} from '../../src/entity';
 import {
-  notifySourceRequest,
-  notifyPostUpvoted,
-  notifyPostUpvoteCanceled,
-  notifyCommentUpvoted,
-  notifyCommentCommented,
-  notifyPostCommented,
-  notifyCommentUpvoteCanceled,
-  notifySendAnalyticsReport,
-  notifyPostBannedOrRemoved,
-  notifyPostReport,
   notifyAlertsUpdated,
+  notifyCommentCommented,
+  notifyCommentUpvoteCanceled,
+  notifyCommentUpvoted,
+  notifyFeatureAccess,
+  notifyMemberJoinedSource,
+  notifyNewCommentMention,
+  notifyNewNotification,
+  notifyPostBannedOrRemoved,
+  notifyPostCommented,
+  notifyPostReport,
+  notifyPostUpvoteCanceled,
+  notifyPostUpvoted,
+  notifySendAnalyticsReport,
+  notifySettingsUpdated,
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
-  notifySettingsUpdated,
-  notifySubmissionRejected,
+  notifySourcePrivacyUpdated,
+  notifySourceRequest,
   notifySubmissionCreated,
   notifySubmissionGrantedAccess,
-  notifyUsernameChanged,
-  notifyNewNotification,
-  notifyNewCommentMention,
-  notifyPostAdded,
-  notifyMemberJoinedSource,
+  notifySubmissionRejected,
   notifyUserCreated,
+  notifyUsernameChanged,
   notifyUserUpdated,
-  notifyFeatureAccess,
-  notifySourcePrivacyUpdated,
+  notifyPostVisible,
+  notifySourceMemberRoleChanged,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -39,6 +40,7 @@ import {
   saveFixtures,
 } from '../helpers';
 import {
+  Alerts,
   ArticlePost,
   Comment,
   CommentMention,
@@ -49,6 +51,7 @@ import {
   Feed,
   Notification,
   Post,
+  PostReport,
   Settings,
   Source,
   SourceFeed,
@@ -62,15 +65,14 @@ import {
   UserStateKey,
 } from '../../src/entity';
 import { ChangeObject } from '../../src/types';
-import { PostReport } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
-import { Alerts } from '../../src/entity';
 import { randomUUID } from 'crypto';
 import { submissionAccessThreshold } from '../../src/schema/submissions';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { TypeOrmError } from '../../src/errors';
+import { SourceMemberRoles } from '../../src/roles';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -82,7 +84,6 @@ jest.mock('../../src/common', () => ({
   notifyCommentCommented: jest.fn(),
   notifyPostCommented: jest.fn(),
   notifyUsernameChanged: jest.fn(),
-  notifyPostAdded: jest.fn(),
   notifyMemberJoinedSource: jest.fn(),
   notifySendAnalyticsReport: jest.fn(),
   notifyPostBannedOrRemoved: jest.fn(),
@@ -101,6 +102,9 @@ jest.mock('../../src/common', () => ({
   notifyFeatureAccess: jest.fn(),
   sendEmail: jest.fn(),
   notifySourcePrivacyUpdated: jest.fn(),
+  notifyContentRequested: jest.fn(),
+  notifyPostVisible: jest.fn(),
+  notifySourceMemberRoleChanged: jest.fn(),
 }));
 
 let con: DataSource;
@@ -566,7 +570,7 @@ describe('post', () => {
     tagsStr: 'javascript,webdev',
   };
 
-  it('should notify on new post', async () => {
+  it('should not notify on post visible', async () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
@@ -576,8 +580,47 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostAdded).toBeCalledTimes(1);
-    expect(jest.mocked(notifyPostAdded).mock.calls[0].slice(1)).toEqual([base]);
+    expect(notifyPostVisible).toBeCalledTimes(0);
+  });
+
+  it('should notify on post visible on creation', async () => {
+    const after = {
+      ...base,
+      visible: true,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostVisible).toBeCalledTimes(1);
+    expect(jest.mocked(notifyPostVisible).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
+  });
+
+  it('should notify on post visible', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      visible: true,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostVisible).toBeCalledTimes(1);
+    expect(jest.mocked(notifyPostVisible).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
   });
 
   it('should notify on send analytics report', async () => {
@@ -1142,6 +1185,7 @@ describe('source member', () => {
     userId: '1',
     sourceId: 'a',
     referralToken: 'rt',
+    role: SourceMemberRoles.Member,
   };
 
   it('should notify on new source member', async () => {
@@ -1158,6 +1202,44 @@ describe('source member', () => {
     expect(
       jest.mocked(notifyMemberJoinedSource).mock.calls[0].slice(1),
     ).toEqual([base]);
+  });
+
+  it('should notify when role changed', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      role: SourceMemberRoles.Admin,
+    };
+    await saveFixtures(con, User, [defaultUser]);
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'source_member',
+      }),
+    );
+    expect(notifySourceMemberRoleChanged).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifySourceMemberRoleChanged).mock.calls[0].slice(1),
+    ).toEqual([base.role, after]);
+  });
+
+  it("should not notify if role doesn't change", async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      referralToken: 'rtnew',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'source_member',
+      }),
+    );
+    expect(notifySourceMemberRoleChanged).toBeCalledTimes(0);
   });
 });
 

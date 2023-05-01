@@ -8,7 +8,7 @@ interface Data {
 }
 
 const worker: Worker = {
-  subscription: 'api.post-scout-matched-slack',
+  subscription: 'api.post-scout-matched-slack-v2',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     const { post } = data;
