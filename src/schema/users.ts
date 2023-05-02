@@ -429,6 +429,16 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): ReadingHistoryConnection! @auth
+
+    """
+    Create a unique username for the user
+    """
+    generateUniqueUsername(
+      """
+      The name to generate a username from
+      """
+      name: String!
+    ): String!
   }
 
   extend type Mutation {
@@ -694,6 +704,36 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<Connection<GQLView>> => readHistoryResolver(args, ctx, info),
+    generateUniqueUsername: async (
+      _,
+      args: { name: string },
+      ctx: Context,
+    ): Promise<string> => {
+      const name = args.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+      let attemptCount = 0;
+
+      if (name.length === 0) {
+        return '';
+      }
+
+      let username = name.substring(0, 39);
+
+      while (attemptCount < 3) {
+        attemptCount++;
+        const usernameCheck = await ctx
+          .getRepository(User)
+          .findBy({ username });
+
+        if (usernameCheck.length === 0) {
+          break;
+        }
+
+        const random = Math.floor(Math.random() * 100);
+        username = `${username.substring(0, 37)}${random}`;
+      }
+
+      return username;
+    },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
