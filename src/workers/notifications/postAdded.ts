@@ -75,7 +75,7 @@ const worker: NotificationWorker = {
           }),
         );
 
-        const posts = await con.getRepository(SharePost).countBy({
+        const posts = await con.getRepository(Post).countBy({
           authorId: post.authorId,
         });
 

@@ -6,6 +6,7 @@ import {
   MachineSource,
   Post,
   PostReport,
+  PostType,
   Source,
   SourceMember,
   SourceType,
@@ -289,7 +290,12 @@ describe('post added notifications', () => {
     await con
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Squad });
-    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    await con
+      .getRepository(Post)
+      .update(
+        { id: 'p1' },
+        { authorId: '1', sourceId: 'a', type: PostType.Share },
+      );
     await invokeNotificationWorker(worker.default, {
       post: postsFixture[0],
     });

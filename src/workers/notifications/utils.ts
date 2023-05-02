@@ -71,7 +71,7 @@ export async function articleNewCommentHandler(
   if (source.type === SourceType.Squad) {
     const comments = await con
       .getRepository(Comment)
-      .countBy({ userId: comment.id });
+      .countBy({ userId: comment.userId });
     if (comments === 1) {
       await insertOrIgnoreAction(
         con,
