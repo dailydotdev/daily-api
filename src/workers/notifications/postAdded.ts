@@ -1,5 +1,12 @@
 import { messageToJson } from '../worker';
-import { Post, SourceMember, SourceType, User } from '../../entity';
+import {
+  Post,
+  SharePost,
+  SourceMember,
+  SourceType,
+  User,
+  UserActionType,
+} from '../../entity';
 import {
   NotificationDoneByContext,
   NotificationPostContext,
@@ -9,6 +16,7 @@ import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
+import { insertOrIgnoreAction } from '../../schema/actions';
 
 interface Data {
   post: ChangeObject<Post>;
@@ -66,6 +74,18 @@ const worker: NotificationWorker = {
             } as NotificationPostContext & Partial<NotificationDoneByContext>,
           }),
         );
+
+        const posts = await con.getRepository(SharePost).findBy({
+          authorId: post.authorId,
+        });
+
+        if (posts.length === 1) {
+          await insertOrIgnoreAction(
+            con,
+            post.authorId,
+            UserActionType.SquadFirstPost,
+          );
+        }
       }
     }
     return notifs;

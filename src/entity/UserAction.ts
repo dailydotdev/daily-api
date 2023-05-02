@@ -5,6 +5,7 @@ export enum UserActionType {
   CreateSquad = 'create_squad',
   JoinSquad = 'join_squad',
   SquadFirstComment = 'squad_first_comment',
+  SquadFirstPost = 'squad_first_post',
 }
 
 @Entity()
