@@ -77,7 +77,7 @@ const worker: NotificationWorker = {
 
         const subscribed = await con.getRepository(UserAction).findOneBy({
           userId: post.authorId,
-          type: UserActionType.Notification,
+          type: UserActionType.EnableNotification,
         });
 
         if (!subscribed) {

@@ -415,7 +415,7 @@ describe('post added notifications', () => {
     await prepareSubscribeTests();
     await con
       .getRepository(UserAction)
-      .save({ userId: '1', type: UserActionType.Notification });
+      .save({ userId: '1', type: UserActionType.EnableNotification });
     const worker = await import('../../src/workers/notifications/postAdded');
     const actual = await invokeNotificationWorker(worker.default, {
       post: postsFixture[0],

@@ -49,7 +49,7 @@ describe('query actions', () => {
     const actions = repo.create({
       userId: loggedUser,
       completedAt,
-      type: UserActionType.Notification,
+      type: UserActionType.EnableNotification,
     });
     const expected = await repo.save(actions);
     const res = await client.query(QUERY);
@@ -73,13 +73,16 @@ describe('mutation completeAction', () => {
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
       client,
-      { mutation: MUTATION, variables: { type: UserActionType.Notification } },
+      {
+        mutation: MUTATION,
+        variables: { type: UserActionType.EnableNotification },
+      },
       'UNAUTHENTICATED',
     ));
 
   it('should record when the action is completed', async () => {
     loggedUser = '1';
-    const type = UserActionType.Notification;
+    const type = UserActionType.EnableNotification;
     const res = await client.mutate(MUTATION, { variables: { type } });
     const action = await con
       .getRepository(UserAction)
@@ -91,7 +94,7 @@ describe('mutation completeAction', () => {
 
   it('should ignore when record is already completed', async () => {
     loggedUser = '1';
-    const type = UserActionType.Notification;
+    const type = UserActionType.EnableNotification;
     await client.mutate(MUTATION, { variables: { type } });
     const action = await con
       .getRepository(UserAction)
