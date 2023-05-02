@@ -12,6 +12,8 @@ import {
   SubmissionStatus,
   Upvote,
   User,
+  UserAction,
+  UserActionType,
 } from '../../src/entity';
 import { SourceMemberRoles } from '../../src/roles';
 import { DataSource } from 'typeorm';
@@ -1167,6 +1169,56 @@ describe('squad member joined', () => {
     });
     expect(actual).toBeFalsy();
   });
+
+  const testJoinSquadAction = async (
+    type: UserActionType,
+    role: SourceMemberRoles = SourceMemberRoles.Admin,
+  ) => {
+    const worker = await import(
+      '../../src/workers/notifications/squadMemberJoined'
+    );
+    const params = { userId: '2', type };
+    const repo = con.getRepository(UserAction);
+    const exists = await repo.findOneBy(params);
+    expect(exists).toBeFalsy();
+    await con.getRepository(SourceMember).save([
+      {
+        sourceId: 'a',
+        userId: '2',
+        referralToken: 'rt1',
+        role,
+      },
+    ]);
+    await invokeNotificationWorker(worker.default, {
+      sourceMember: {
+        sourceId: 'a',
+        userId: '2',
+        role,
+      },
+    });
+
+    const action = await repo.findOneBy(params);
+    expect(action).toBeTruthy();
+    expect(action.type).toEqual(type);
+
+    await invokeNotificationWorker(worker.default, {
+      sourceMember: {
+        sourceId: 'a',
+        userId: '2',
+      },
+    });
+    const createSquad = await repo.findOneBy(params);
+    expect(action.completedAt).toEqual(createSquad.completedAt);
+  };
+
+  it('should insert or ignore record for action type create_squad when user is an owner', async () =>
+    testJoinSquadAction(UserActionType.CreateSquad));
+
+  it('should insert or ignore record for action type join_squad when user is a member', async () =>
+    testJoinSquadAction(UserActionType.JoinSquad, SourceMemberRoles.Member));
+
+  it('should insert or ignore record for action type join_squad when user is a moderator', async () =>
+    testJoinSquadAction(UserActionType.JoinSquad, SourceMemberRoles.Moderator));
 });
 
 it('should add squad reply notification', async () => {

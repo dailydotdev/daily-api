@@ -36,6 +36,7 @@ const worker: NotificationWorker = {
       member.role === SourceMemberRoles.Admin
         ? UserActionType.CreateSquad
         : UserActionType.JoinSquad;
+
     await insertOrIgnoreAction(con, member.userId, actionType);
 
     if (!admin) {
