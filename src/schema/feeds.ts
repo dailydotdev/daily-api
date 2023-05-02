@@ -1,4 +1,14 @@
-import { FeedAdvancedSettings, AdvancedSettings } from '../entity';
+import {
+  AdvancedSettings,
+  BookmarkList,
+  Feed,
+  FeedAdvancedSettings,
+  FeedSource,
+  FeedTag,
+  Post,
+  Source,
+  UserActionType,
+} from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -22,21 +32,13 @@ import {
   whereKeyword,
 } from '../common';
 import { In, SelectQueryBuilder } from 'typeorm';
-import {
-  BookmarkList,
-  Feed,
-  FeedSource,
-  FeedTag,
-  Post,
-  Source,
-} from '../entity';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
   fixedIdsPageGenerator,
+  getSearchQuery,
   offsetPageGenerator,
   Page,
   PageGenerator,
-  getSearchQuery,
 } from './common';
 import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -46,6 +48,7 @@ import {
   getPersonalizedFeedKeyPrefix,
 } from '../personalizedFeed';
 import { ioRedisPool } from '../redis';
+import { insertOrIgnoreAction } from './actions';
 
 interface GQLTagsCategory {
   id: string;
@@ -771,6 +774,11 @@ const invalidateFeedCache = async (feedId: string): Promise<void> => {
   }
 };
 
+const onFeedUpdated = async (ctx: Context, feedId: string): Promise<void> => {
+  await insertOrIgnoreAction(ctx.con, ctx.userId, UserActionType.MyFeed);
+  await invalidateFeedCache(feedId);
+};
+
 const feedResolverV2: IFieldResolver<
   unknown,
   Context,
@@ -1139,7 +1147,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .execute();
         }
       });
-      await invalidateFeedCache(feedId);
+      await onFeedUpdated(ctx, feedId);
       return getFeedSettings(ctx, info);
     },
     removeFiltersFromFeed: async (
@@ -1170,7 +1178,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           });
         }
       });
-      await invalidateFeedCache(feedId);
+      await onFeedUpdated(ctx, feedId);
       return getFeedSettings(ctx, info);
     },
     updateFeedAdvancedSettings: async (
@@ -1203,7 +1211,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         )
         .execute();
 
-      await invalidateFeedCache(feedId);
+      await onFeedUpdated(ctx, feedId);
 
       return feedAdvSettingsrepo
         .createQueryBuilder()
