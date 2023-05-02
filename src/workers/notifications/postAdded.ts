@@ -75,11 +75,11 @@ const worker: NotificationWorker = {
           }),
         );
 
-        const posts = await con.getRepository(SharePost).findBy({
+        const posts = await con.getRepository(SharePost).countBy({
           authorId: post.authorId,
         });
 
-        if (posts.length === 1) {
+        if (posts === 1) {
           await insertOrIgnoreAction(
             con,
             post.authorId,
