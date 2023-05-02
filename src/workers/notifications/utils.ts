@@ -6,6 +6,7 @@ import {
   SharePost,
   SourceMember,
   SourceType,
+  UserActionType,
 } from '../../entity';
 import {
   NotificationCommenterContext,
@@ -13,6 +14,7 @@ import {
 } from '../../notifications';
 import { DataSource, In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
+import { insertOrIgnoreAction } from '../../schema/actions';
 
 export const uniquePostOwners = (
   post: Pick<Post, 'scoutId' | 'authorId'>,
@@ -64,8 +66,16 @@ export async function articleNewCommentHandler(
 
   const { post, source } = postCtx;
   const excludedUsers = [comment.userId];
-
   const isReply = !!comment.parentId;
+
+  if (source.type === SourceType.Squad) {
+    await insertOrIgnoreAction(
+      con,
+      comment.userId,
+      UserActionType.SquadFirstComment,
+    );
+  }
+
   if (isReply && (post.authorId || post.scoutId)) {
     const ids = [...new Set([post.authorId, post.scoutId])];
     const threadFollower = await repo
