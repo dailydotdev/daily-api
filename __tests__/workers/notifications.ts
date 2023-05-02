@@ -276,6 +276,47 @@ describe('post added notifications', () => {
     expect(ctx.sharedPost).toBeFalsy();
   });
 
+  it('should insert or ignore completed action for squad first post', async () => {
+    const worker = await import('../../src/workers/notifications/postAdded');
+    const repo = con.getRepository(UserAction);
+    const getAction = () =>
+      repo.findOneBy({
+        userId: '1',
+        type: UserActionType.SquadFirstPost,
+      });
+    const exists = await getAction();
+    expect(exists).toBeFalsy();
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+    const inserted = await getAction();
+    expect(inserted).toBeTruthy();
+
+    await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+
+    const sameAction = await getAction();
+    expect(sameAction.completedAt).toEqual(sameAction.completedAt);
+  });
+
+  it('should not add completed action for first post if source is not squad', async () => {
+    const worker = await import('../../src/workers/notifications/postAdded');
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+    const exists = await con.getRepository(UserAction).findOneBy({
+      userId: '1',
+      type: UserActionType.SquadFirstPost,
+    });
+    expect(exists).toBeFalsy();
+  });
+
   it('should not add article picked notification on blocked members', async () => {
     await con
       .getRepository(Source)
@@ -543,23 +584,17 @@ describe('article new comment', () => {
     const worker = await import(
       '../../src/workers/notifications/articleNewCommentCommentCommented'
     );
-    const repo = con.getRepository(UserAction);
-    const getAction = () =>
-      repo.findOneBy({
-        userId: '1',
-        type: UserActionType.SquadFirstComment,
-      });
-    const exists = await getAction();
-    expect(exists).toBeFalsy();
 
     await con.getRepository(Comment).update({ id: 'c1' }, { userId: '1' });
     await invokeNotificationWorker(worker.default, {
       postId: 'p1',
       childCommentId: 'c1',
     });
-
-    const completedAction = await getAction();
-    expect(completedAction).toBeFalsy();
+    const exists = await con.getRepository(UserAction).findOneBy({
+      userId: '1',
+      type: UserActionType.SquadFirstComment,
+    });
+    expect(exists).toBeFalsy();
   });
 
   it('should not add notification for new squad comment when author is blocked from squad', async () => {
