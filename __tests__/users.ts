@@ -1893,7 +1893,7 @@ describe('query generateUniqueUsername', () => {
     query GenerateUniqueUsername($name: String!) {
       generateUniqueUsername(name: $name)
   }`;
-  
+
   it('should return ', async () => {
     const res = await client.query(QUERY, { variables: { name: 'John Doe' } });
     expect(res.errors).toBeFalsy();
