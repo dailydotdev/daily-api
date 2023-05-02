@@ -503,6 +503,65 @@ describe('article new comment', () => {
     expect(actual[1].ctx.userId).toEqual('3');
   });
 
+  it('should insert or ignore completed action type first post comment', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/articleNewCommentCommentCommented'
+    );
+    const repo = con.getRepository(UserAction);
+    const getAction = () =>
+      repo.findOneBy({
+        userId: '1',
+        type: UserActionType.SquadFirstComment,
+      });
+    const exists = await getAction();
+    await con.getRepository(Comment).update({ id: 'c1' }, { userId: '1' });
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    expect(exists).toBeFalsy();
+
+    await invokeNotificationWorker(worker.default, {
+      postId: 'p1',
+      childCommentId: 'c1',
+    });
+
+    const inserted = await getAction();
+    expect(inserted).toBeTruthy();
+
+    await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      postId: 'p1',
+      childCommentId: 'c1',
+    });
+
+    const existing = await getAction();
+    expect(existing).toBeTruthy();
+    expect(existing.completedAt).toEqual(inserted.completedAt);
+  });
+
+  it('should not insert completed action type first post comment if source is not squad', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/articleNewCommentCommentCommented'
+    );
+    const repo = con.getRepository(UserAction);
+    const getAction = () =>
+      repo.findOneBy({
+        userId: '1',
+        type: UserActionType.SquadFirstComment,
+      });
+    const exists = await getAction();
+    expect(exists).toBeFalsy();
+
+    await con.getRepository(Comment).update({ id: 'c1' }, { userId: '1' });
+    await invokeNotificationWorker(worker.default, {
+      postId: 'p1',
+      childCommentId: 'c1',
+    });
+
+    const completedAction = await getAction();
+    expect(completedAction).toBeFalsy();
+  });
+
   it('should not add notification for new squad comment when author is blocked from squad', async () => {
     const worker = await import(
       '../../src/workers/notifications/articleNewCommentPostCommented'
