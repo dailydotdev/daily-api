@@ -69,16 +69,11 @@ export async function articleNewCommentHandler(
   const isReply = !!comment.parentId;
 
   if (source.type === SourceType.Squad) {
-    const comments = await con
-      .getRepository(Comment)
-      .countBy({ userId: comment.userId });
-    if (comments === 1) {
-      await insertOrIgnoreAction(
-        con,
-        comment.userId,
-        UserActionType.SquadFirstComment,
-      );
-    }
+    await insertOrIgnoreAction(
+      con,
+      comment.userId,
+      UserActionType.SquadFirstComment,
+    );
   }
 
   if (isReply && (post.authorId || post.scoutId)) {
