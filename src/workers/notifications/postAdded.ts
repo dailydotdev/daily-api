@@ -1,7 +1,7 @@
 import { messageToJson } from '../worker';
 import {
   Post,
-  SharePost,
+  PostType,
   SourceMember,
   SourceType,
   User,
@@ -77,6 +77,7 @@ const worker: NotificationWorker = {
 
         const posts = await con.getRepository(Post).countBy({
           authorId: post.authorId,
+          type: PostType.Share,
         });
 
         if (posts === 1) {
