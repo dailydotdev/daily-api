@@ -5,6 +5,7 @@ import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { GQLEmptyResponse } from './common';
 import graphorm from '../graphorm';
+import { DataSource } from 'typeorm';
 
 type GQLUserAction = Pick<UserAction, 'userId' | 'type' | 'completedAt'>;
 
@@ -48,6 +49,19 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+export const insertOrIgnoreAction = (
+  con: DataSource,
+  userId: string,
+  type: UserActionType,
+) =>
+  con
+    .getRepository(UserAction)
+    .createQueryBuilder()
+    .insert()
+    .values({ userId, type })
+    .orIgnore()
+    .execute();
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Mutation: {
@@ -56,13 +70,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { type }: CompleteActionParams,
       { con, userId },
     ): Promise<GQLEmptyResponse> => {
-      await con
-        .getRepository(UserAction)
-        .createQueryBuilder()
-        .insert()
-        .values({ userId, type })
-        .orIgnore()
-        .execute();
+      await insertOrIgnoreAction(con, userId, type);
 
       return;
     },

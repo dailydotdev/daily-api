@@ -5,9 +5,16 @@ import {
 } from '../../notifications';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
-import { Source, SourceMember, SourceType, User } from '../../entity';
+import {
+  Source,
+  SourceMember,
+  SourceType,
+  User,
+  UserActionType,
+} from '../../entity';
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
+import { insertOrIgnoreAction } from '../../schema/actions';
 
 interface Data {
   sourceMember: ChangeObject<SourceMember>;
@@ -24,6 +31,13 @@ const worker: NotificationWorker = {
         role: SourceMemberRoles.Admin,
       },
     });
+
+    const actionType =
+      member.role === SourceMemberRoles.Admin
+        ? UserActionType.CreateSquad
+        : UserActionType.JoinSquad;
+    await insertOrIgnoreAction(con, member.userId, actionType);
+
     if (!admin) {
       return;
     }

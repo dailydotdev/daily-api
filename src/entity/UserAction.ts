@@ -2,6 +2,8 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 export enum UserActionType {
   Notification = 'notification',
+  CreateSquad = 'create_squad',
+  JoinSquad = 'join_squad',
 }
 
 @Entity()
