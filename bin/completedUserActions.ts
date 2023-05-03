@@ -106,7 +106,7 @@ const retroCheckActions = async (): Promise<void> => {
     adminStream,
     nonAdminStream,
     filterStream,
-  ].flat();
+  ];
 
   streams.forEach((stream) => stream.on('data', createStreamRunner(con)));
 
