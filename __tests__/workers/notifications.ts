@@ -399,8 +399,8 @@ describe('post added notifications', () => {
   it('should not add squad subscribe to notification when user has made many posts already', async () => {
     await prepareSubscribeTests();
     await con
-      .getRepository(Post)
-      .update({ id: 'p2' }, { authorId: '1', type: PostType.Share });
+      .getRepository(UserAction)
+      .save({ userId: '1', type: UserActionType.SquadFirstPost });
     const worker = await import('../../src/workers/notifications/postAdded');
     const actual = await invokeNotificationWorker(worker.default, {
       post: postsFixture[0],
