@@ -54,6 +54,9 @@ beforeEach(async () => {
       contentHtml: '<p>comment</p>',
     },
   ]);
+  await con
+    .getRepository(UserAction)
+    .save({ userId: '1', type: UserActionType.SquadFirstPost });
 });
 
 it('should add community picks failed notification', async () => {
@@ -380,6 +383,9 @@ describe('post added notifications', () => {
 
   it('should add squad subscribe to notification', async () => {
     await prepareSubscribeTests();
+    await con
+      .getRepository(UserAction)
+      .delete({ userId: '1', type: UserActionType.SquadFirstPost });
     const worker = await import('../../src/workers/notifications/postAdded');
     const actual = await invokeNotificationWorker(worker.default, {
       post: postsFixture[0],
