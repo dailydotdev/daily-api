@@ -17,6 +17,7 @@ import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
+import { insertOrIgnoreAction } from '../../schema/actions';
 
 interface Data {
   post: ChangeObject<Post>;
@@ -75,10 +76,16 @@ const worker: NotificationWorker = {
           }),
         );
 
-        const posts = await con.getRepository(SharePost).countBy({
-          authorId: post.authorId,
+        const hasPostShared = await con.getRepository(UserAction).findOneBy({
+          userId: post.authorId,
+          type: UserActionType.SquadFirstPost,
         });
-        if (posts === 1) {
+        if (!hasPostShared) {
+          await insertOrIgnoreAction(
+            con,
+            post.authorId,
+            UserActionType.SquadFirstPost,
+          );
           const subscribed = await con.getRepository(UserAction).findOneBy({
             userId: post.authorId,
             type: UserActionType.EnableNotification,
