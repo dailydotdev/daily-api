@@ -25,7 +25,7 @@ const streamCallback = (stream: ReadStream) =>
     stream.on('end', resolve);
   });
 
-export const createStreamRunner = (con: DataSource) => {
+const createStreamRunner = (con: DataSource) => {
   let index = 0;
 
   return async ({ userId, type }: ActionRow) => {
@@ -36,7 +36,7 @@ export const createStreamRunner = (con: DataSource) => {
   };
 };
 
-export const runSourceAdminStream = async (con: DataSource) =>
+const runSourceAdminStream = async (con: DataSource) =>
   con
     .createQueryBuilder()
     .select('DISTINCT sm."userId"')
@@ -45,7 +45,7 @@ export const runSourceAdminStream = async (con: DataSource) =>
     .where('sm.role = :role', { role: SourceMemberRoles.Admin })
     .stream();
 
-export const runSourceNonAdminStream = async (con: DataSource) =>
+const runSourceNonAdminStream = async (con: DataSource) =>
   con
     .createQueryBuilder()
     .select('DISTINCT sm."userId"')
@@ -54,7 +54,7 @@ export const runSourceNonAdminStream = async (con: DataSource) =>
     .where('sm.role != :role', { role: SourceMemberRoles.Admin })
     .stream();
 
-export const runFirstCommentStream = async (con: DataSource) =>
+const runFirstCommentStream = async (con: DataSource) =>
   con
     .createQueryBuilder()
     .select('DISTINCT c."userId"')
@@ -64,7 +64,7 @@ export const runFirstCommentStream = async (con: DataSource) =>
     .where('p.type = :type', { type: PostType.Share })
     .stream();
 
-export const runFirstPostStream = async (con: DataSource) =>
+const runFirstPostStream = async (con: DataSource) =>
   con
     .createQueryBuilder()
     .select('DISTINCT p."authorId"', 'userId')
@@ -73,7 +73,7 @@ export const runFirstPostStream = async (con: DataSource) =>
     .where('p.type = :type', { type: PostType.Share })
     .stream();
 
-export const runSquadInviteStream = async (con: DataSource) =>
+const runSquadInviteStream = async (con: DataSource) =>
   con
     .createQueryBuilder()
     .select('DISTINCT u."referralId"', 'userId')
@@ -82,7 +82,7 @@ export const runSquadInviteStream = async (con: DataSource) =>
     .where('u."referralId" IS NOT NULL')
     .stream();
 
-export const runFilterStream = async (con: DataSource) =>
+const runFilterStream = async (con: DataSource) =>
   con
     .createQueryBuilder()
     .select('DISTINCT a."userId"')
@@ -91,8 +91,8 @@ export const runFilterStream = async (con: DataSource) =>
     .where('a.filter IS FALSE')
     .stream();
 
-const retroCheckActions = async (): Promise<void> => {
-  const con = await createOrGetConnection();
+export const retroCheckActions = async (ds?: DataSource): Promise<void> => {
+  const con = ds ?? (await createOrGetConnection());
   const adminStream = await runSourceAdminStream(con);
   const nonAdminStream = await runSourceNonAdminStream(con);
   const commentsStream = await runFirstCommentStream(con);
