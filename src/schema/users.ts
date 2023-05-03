@@ -33,6 +33,8 @@ import { GraphQLResolveInfo } from 'graphql';
 import { TypeOrmError, NotFoundError } from '../errors';
 import { deleteUser } from '../directive/user';
 import { ActivePost } from '../entity/posts/ActivePost';
+import { randomInt } from 'crypto';
+import { In } from 'typeorm';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -438,7 +440,7 @@ export const typeDefs = /* GraphQL */ `
       The name to generate a username from
       """
       name: String!
-    ): String!
+    ): String! @rateLimit(limit: 20, duration: 60)
   }
 
   extend type Mutation {
@@ -710,29 +712,41 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<string> => {
       const name = args.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
-      let attemptCount = 0;
 
       if (name.length === 0) {
         return '';
       }
 
-      let username = name.substring(0, 39);
+      const username = name.substring(0, 39);
+      let generatedUsernames = [username];
 
-      while (attemptCount < 3) {
-        attemptCount++;
-        const usernameCheck = await ctx
-          .getRepository(User)
-          .findBy({ username });
-
-        if (usernameCheck.length === 0) {
-          break;
+      const generateRandomUsernames = (count: number) => {
+        for (let i = 0; i < count; i++) {
+          const random = randomInt(100);
+          const randomUsername = `${username.substring(0, 37)}${random}`;
+          generatedUsernames.push(randomUsername);
         }
+      };
 
-        const random = Math.floor(Math.random() * 100);
-        username = `${username.substring(0, 37)}${random}`;
+      generateRandomUsernames(4);
+
+      const usernameChecks = await (async () => {
+        return ctx
+          .getRepository(User)
+          .findBy({ username: In(generatedUsernames) });
+      })();
+
+      for (const usernameCheck in usernameChecks) {
+        generatedUsernames = generatedUsernames.filter(
+          (item) => item !== usernameChecks[usernameCheck].username,
+        );
       }
 
-      return username;
+      if (generatedUsernames.length === 0) {
+        return '';
+      }
+
+      return generatedUsernames[0];
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
