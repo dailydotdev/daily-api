@@ -1,11 +1,12 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 export enum UserActionType {
-  Notification = 'notification',
+  Notification = 'enabled_notification',
   CreateSquad = 'create_squad',
   JoinSquad = 'join_squad',
   SquadFirstComment = 'squad_first_comment',
   SquadFirstPost = 'squad_first_post',
+  SquadInvite = 'squad_invite',
   MyFeed = 'my_feed',
 }
 
