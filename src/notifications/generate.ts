@@ -77,7 +77,7 @@ export const notificationTitleMap: Record<
   squad_blocked: (ctx: NotificationSourceContext) =>
     `You are no longer part of <b>${ctx.source.name}</b>`,
   squad_subscribe_to_notification: (ctx: NotificationSourceContext) =>
-    `Congrats on your first post on <b>${ctx.source.name}</b>. Subscribe to get updates about activity in your squad.  Subscribe for updates.`,
+    `Congrats on your first post on <b>${ctx.source.name}</b>. Subscribe to get updates about activity in your squad.`,
   promoted_to_admin: (ctx: NotificationSourceContext) =>
     `Congratulations! You are now an <span class="text-theme-color-cabbage">admin</span> of <b>${ctx.source.name}</b>`,
   demoted_to_member: (ctx: NotificationSourceMemberRoleContext) =>
