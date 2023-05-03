@@ -1,7 +1,6 @@
 import { messageToJson } from '../worker';
 import {
   Post,
-  SharePost,
   SourceMember,
   SourceType,
   User,
