@@ -5,6 +5,11 @@ import {
   SourceMember,
   SourceType,
   User,
+  PostType,
+  SourceMember,
+  SourceType,
+  User,
+  UserAction,
   UserActionType,
 } from '../../entity';
 import {
@@ -75,17 +80,27 @@ const worker: NotificationWorker = {
           }),
         );
 
-        const posts = await con.getRepository(Post).countBy({
-          authorId: post.authorId,
-          type: PostType.Share,
+        const hasPostShared = await con.getRepository(UserAction).findOneBy({
+          userId: post.authorId,
+          type: UserActionType.SquadFirstPost,
         });
-
-        if (posts === 1) {
+        if (!hasPostShared) {
           await insertOrIgnoreAction(
             con,
             post.authorId,
             UserActionType.SquadFirstPost,
           );
+          const subscribed = await con.getRepository(UserAction).findOneBy({
+            userId: post.authorId,
+            type: UserActionType.EnableNotification,
+          });
+
+          if (!subscribed) {
+            notifs.push({
+              type: 'squad_subscribe_to_notification',
+              ctx: { ...baseCtx, userId: post.authorId },
+            });
+          }
         }
       }
     }
