@@ -21,7 +21,6 @@
     "lint": "eslint . --ext .js,.ts --max-warnings 0",
     "start": "npm run cli -- api",
     "start:background": "npm run cli -- background",
-    "pretest": "npm run lint && cross-env NODE_ENV=test npm run db:migrate:reset",
     "test": "jest --testEnvironment=node --runInBand",
     "typeorm": "typeorm-ts-node-commonjs"
   },
@@ -45,6 +44,7 @@
     "apollo-server-errors": "^3.3.0",
     "apollo-server-types": "^3.8.0",
     "cloudinary": "^1.36.2",
+    "csv-parse": "^5.3.9",
     "date-fns": "^2.29.3",
     "date-fns-tz": "^2.0.0",
     "fast-json-stringify": "^5.7.0",
