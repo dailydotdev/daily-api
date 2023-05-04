@@ -9014,10 +9014,15 @@ const subscribedUsers = [
 (async () => {
   const con = await createOrGetConnection();
 
-  await con.getRepository(UserAction).save(
-    subscribedUsers.map((userId) => ({
-      userId,
-      type: UserActionType.EnableNotification,
-    })),
-  );
+  await con
+    .createQueryBuilder()
+    .insert()
+    .into(UserAction)
+    .values(
+      subscribedUsers.map((userId) => ({
+        userId,
+        type: UserActionType.EnableNotification,
+      })),
+    )
+    .execute();
 })();
