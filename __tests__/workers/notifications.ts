@@ -283,6 +283,9 @@ describe('post added notifications', () => {
   it('should insert or ignore completed action for squad first post', async () => {
     const worker = await import('../../src/workers/notifications/postAdded');
     const repo = con.getRepository(UserAction);
+    await con
+      .getRepository(UserAction)
+      .delete({ userId: '1', type: UserActionType.SquadFirstPost });
     const getAction = () =>
       repo.findOneBy({
         userId: '1',
@@ -316,6 +319,9 @@ describe('post added notifications', () => {
   it('should not add completed action for first post if source is not squad', async () => {
     const worker = await import('../../src/workers/notifications/postAdded');
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    await con
+      .getRepository(UserAction)
+      .delete({ userId: '1', type: UserActionType.SquadFirstPost });
     await invokeNotificationWorker(worker.default, {
       post: postsFixture[0],
     });
