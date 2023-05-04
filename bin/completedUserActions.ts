@@ -74,19 +74,19 @@ const getFilterQuery = async (con: DataSource) =>
 
 export const retroCheckActions = async (ds?: DataSource): Promise<void> => {
   const con = ds ?? (await createOrGetConnection());
-  const adminStream = await getSourceAdminQuery(con);
-  const nonAdminStream = await getSourceNonAdminQuery(con);
-  const commentsStream = await getFirstCommentQuery(con);
-  const postsStream = await getFirstPostQuery(con);
-  const inviteStream = await getSquadInviteQuery(con);
-  const filterStream = await getFilterQuery(con);
+  const adminQuery = await getSourceAdminQuery(con);
+  const nonAdminQuery = await getSourceNonAdminQuery(con);
+  const commentsQuery = await getFirstCommentQuery(con);
+  const postsQuery = await getFirstPostQuery(con);
+  const inviteQuery = await getSquadInviteQuery(con);
+  const filterQuery = await getFilterQuery(con);
   const queries = [
-    commentsStream,
-    postsStream,
-    inviteStream,
-    adminStream,
-    nonAdminStream,
-    filterStream,
+    commentsQuery,
+    postsQuery,
+    inviteQuery,
+    adminQuery,
+    nonAdminQuery,
+    filterQuery,
   ];
 
   await Promise.all(queries.map((args) => insertSelectAction(con, args)));
