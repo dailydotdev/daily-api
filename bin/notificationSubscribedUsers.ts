@@ -5,9 +5,6 @@ import { parse } from 'csv-parse';
 
 (async () => {
   const con = await createOrGetConnection();
-  const existing = await con
-    .getRepository(UserAction)
-    .findBy({ type: UserActionType.EnableNotification });
   const subscribed = {};
 
   console.log('reading csv');
@@ -20,10 +17,7 @@ import { parse } from 'csv-parse';
   });
 
   stream.on('data', function ([userId]) {
-    if (
-      !userId?.trim() ||
-      existing.some(({ userId: existingId }) => existingId === userId)
-    ) {
+    if (!userId?.trim?.()) {
       return;
     }
 
@@ -42,6 +36,7 @@ import { parse } from 'csv-parse';
           type: UserActionType.EnableNotification,
         })),
       )
+      .orIgnore()
       .execute();
 
     console.log('saved to db');
