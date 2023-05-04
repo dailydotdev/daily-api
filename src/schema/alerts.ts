@@ -111,7 +111,7 @@ export const updateAlerts = async (
   const repo = con.getRepository(Alerts);
   const alerts = await repo.findOneBy({ userId });
 
-  if (data.filter === false || !data.myFeed) {
+  if (data.filter === false) {
     await insertOrIgnoreAction(con, userId, UserActionType.MyFeed);
   }
 
