@@ -1,5 +1,12 @@
 import { messageToJson } from '../worker';
-import { Post, SourceMember, SourceType, User } from '../../entity';
+import {
+  Post,
+  SourceMember,
+  SourceType,
+  User,
+  UserAction,
+  UserActionType,
+} from '../../entity';
 import {
   NotificationDoneByContext,
   NotificationPostContext,
@@ -9,6 +16,7 @@ import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
+import { insertOrIgnoreAction } from '../../schema/actions';
 
 interface Data {
   post: ChangeObject<Post>;
@@ -66,6 +74,29 @@ const worker: NotificationWorker = {
             } as NotificationPostContext & Partial<NotificationDoneByContext>,
           }),
         );
+
+        const hasPostShared = await con.getRepository(UserAction).findOneBy({
+          userId: post.authorId,
+          type: UserActionType.SquadFirstPost,
+        });
+        if (!hasPostShared) {
+          await insertOrIgnoreAction(
+            con,
+            post.authorId,
+            UserActionType.SquadFirstPost,
+          );
+          const subscribed = await con.getRepository(UserAction).findOneBy({
+            userId: post.authorId,
+            type: UserActionType.EnableNotification,
+          });
+
+          if (!subscribed) {
+            notifs.push({
+              type: 'squad_subscribe_to_notification',
+              ctx: { ...baseCtx, userId: post.authorId },
+            });
+          }
+        }
       }
     }
     return notifs;
