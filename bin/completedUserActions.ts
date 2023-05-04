@@ -81,6 +81,7 @@ const getFilterQuery = async (con: DataSource) =>
     .getQueryAndParameters();
 
 export const retroCheckActions = async (ds?: DataSource): Promise<void> => {
+  console.log('starting connection');
   const con = ds ?? (await createOrGetConnection());
   const adminQuery = await getSourceAdminQuery(con);
   const nonAdminQuery = await getSourceNonAdminQuery(con);
@@ -97,7 +98,14 @@ export const retroCheckActions = async (ds?: DataSource): Promise<void> => {
     filterQuery,
   ];
 
-  await Promise.all(queries.map((args) => insertSelectAction(con, args)));
+  await Promise.all(
+    queries.map(async (args, i) => {
+      console.log('inserting rows for query ' + i);
+      await insertSelectAction(con, args);
+      console.log('finished rows for query ' + i);
+    }),
+  );
+  console.log('finished retro checking');
 };
 
 if (process.env.NODE_ENV !== 'test') {
