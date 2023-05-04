@@ -1,7 +1,8 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 export enum UserActionType {
-  Notification = 'notification',
+  EnableNotification = 'enable_notification',
+  SquadFirstPost = 'squad_first_post',
 }
 
 @Entity()
