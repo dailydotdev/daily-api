@@ -44,18 +44,13 @@ beforeEach(async () => {
 const getAction = (type: UserActionType) =>
   con.getRepository(UserAction).findOneBy({ type });
 
-const executeStream = async () => {
-  await retroCheckActions(con);
-  await new Promise((resolve) => setTimeout(resolve, 100));
-};
-
 describe('retro checks for user completed actions', () => {
   it('should insert my_feed action type for users who filtered the feed', async () => {
     await con.getRepository(Alerts).save({ filter: false, userId: '1' });
     const action = await getAction(UserActionType.MyFeed);
     expect(action).toBeFalsy();
 
-    await executeStream();
+    await retroCheckActions(con);
 
     const completed = await getAction(UserActionType.MyFeed);
     expect(completed).toBeTruthy();
@@ -66,7 +61,7 @@ describe('retro checks for user completed actions', () => {
     const action = await getAction(UserActionType.MyFeed);
     expect(action).toBeFalsy();
 
-    await executeStream();
+    await retroCheckActions(con);
 
     const completed = await getAction(UserActionType.MyFeed);
     expect(completed).toBeFalsy();
@@ -82,7 +77,7 @@ describe('retro checks for user completed actions', () => {
     const action = await getAction(UserActionType.SquadFirstPost);
     expect(action).toBeFalsy();
 
-    await executeStream();
+    await retroCheckActions(con);
 
     const completed = await getAction(UserActionType.SquadFirstPost);
     expect(completed).toBeTruthy();
@@ -93,7 +88,7 @@ describe('retro checks for user completed actions', () => {
     const action = await getAction(UserActionType.SquadFirstPost);
     expect(action).toBeFalsy();
 
-    await executeStream();
+    await retroCheckActions(con);
 
     const completed = await getAction(UserActionType.SquadFirstPost);
     expect(completed).toBeFalsy();
@@ -104,7 +99,7 @@ describe('retro checks for user completed actions', () => {
     const action = await getAction(UserActionType.SquadFirstComment);
     expect(action).toBeFalsy();
 
-    await executeStream();
+    await retroCheckActions(con);
 
     const completed = await getAction(UserActionType.SquadFirstComment);
     expect(completed).toBeTruthy();
@@ -115,7 +110,7 @@ describe('retro checks for user completed actions', () => {
     const action = await getAction(UserActionType.SquadFirstComment);
     expect(action).toBeFalsy();
 
-    await executeStream();
+    await retroCheckActions(con);
 
     const completed = await getAction(UserActionType.SquadFirstComment);
     expect(completed).toBeFalsy();
@@ -126,7 +121,7 @@ describe('retro checks for user completed actions', () => {
     const action = await getAction(UserActionType.SquadInvite);
     expect(action).toBeFalsy();
 
-    await executeStream();
+    await retroCheckActions(con);
 
     const completed = await getAction(UserActionType.SquadInvite);
     expect(completed).toBeTruthy();
@@ -137,7 +132,7 @@ describe('retro checks for user completed actions', () => {
     const action = await getAction(UserActionType.SquadInvite);
     expect(action).toBeFalsy();
 
-    await executeStream();
+    await retroCheckActions(con);
 
     const completed = await getAction(UserActionType.SquadInvite);
     expect(completed).toBeFalsy();
@@ -159,7 +154,7 @@ describe('retro checks for user completed actions', () => {
     const action = await getAction(UserActionType.CreateSquad);
     expect(action).toBeFalsy();
 
-    await executeStream();
+    await retroCheckActions(con);
 
     const completed = await getAction(UserActionType.CreateSquad);
     expect(completed).toBeTruthy();
@@ -170,7 +165,7 @@ describe('retro checks for user completed actions', () => {
     const action = await getAction(UserActionType.CreateSquad);
     expect(action).toBeFalsy();
 
-    await executeStream();
+    await retroCheckActions(con);
 
     const completed = await getAction(UserActionType.CreateSquad);
     expect(completed).toBeFalsy();
@@ -181,7 +176,7 @@ describe('retro checks for user completed actions', () => {
     const action = await getAction(UserActionType.JoinSquad);
     expect(action).toBeFalsy();
 
-    await executeStream();
+    await retroCheckActions(con);
 
     const completed = await getAction(UserActionType.JoinSquad);
     expect(completed).toBeTruthy();
@@ -192,7 +187,7 @@ describe('retro checks for user completed actions', () => {
     const action = await getAction(UserActionType.JoinSquad);
     expect(action).toBeFalsy();
 
-    await executeStream();
+    await retroCheckActions(con);
 
     const completed = await getAction(UserActionType.JoinSquad);
     expect(completed).toBeTruthy();
@@ -203,7 +198,7 @@ describe('retro checks for user completed actions', () => {
     const action = await getAction(UserActionType.JoinSquad);
     expect(action).toBeFalsy();
 
-    await executeStream();
+    await retroCheckActions(con);
 
     const completed = await getAction(UserActionType.JoinSquad);
     expect(completed).toBeFalsy();
