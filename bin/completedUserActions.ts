@@ -15,7 +15,15 @@ import { DataSource } from 'typeorm';
 const insertSelectAction = (
   con: DataSource,
   [query, params]: [string, unknown[]],
-) => con.query(`INSERT INTO user_action("userId", type) ${query}`, params);
+) =>
+  con.query(
+    `
+      INSERT INTO user_action("userId", type)
+      ${query}
+      ON CONFLICT DO NOTHING
+    `,
+    params,
+  );
 
 const getSourceAdminQuery = async (con: DataSource) =>
   con
