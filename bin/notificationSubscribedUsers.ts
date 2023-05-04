@@ -13,18 +13,23 @@ import { parse } from 'csv-parse';
   console.log('reading csv');
   const stream = fs
     .createReadStream('bin/onesignal_subscribed_notifications.csv')
-    .pipe(parse({ delimiter: ',', from_line: 2 }))
-    .on('data', function ([userId]) {
-      if (
-        !userId?.trim() ||
-        existing.some(({ userId: existingId }) => existingId === userId)
-      ) {
-        return;
-      }
+    .pipe(parse({ delimiter: ',', from_line: 2 }));
 
-      console.log('pushing: ', userId);
-      subscribed[userId] = true;
-    });
+  stream.on('error', (err) => {
+    console.log('failed to read file: ', err.message);
+  });
+
+  stream.on('data', function ([userId]) {
+    if (
+      !userId?.trim() ||
+      existing.some(({ userId: existingId }) => existingId === userId)
+    ) {
+      return;
+    }
+
+    console.log('pushing: ', userId);
+    subscribed[userId] = true;
+  });
 
   stream.on('end', async () => {
     await con
