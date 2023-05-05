@@ -720,21 +720,16 @@ export const resolvers: IResolvers<any, Context> = {
       const username = name.substring(0, 39);
       let generatedUsernames = [username];
 
-      const generateRandomUsernames = (count: number) => {
-        for (let i = 0; i < count; i++) {
-          const random = randomInt(100);
-          const randomUsername = `${username.substring(0, 37)}${random}`;
-          generatedUsernames.push(randomUsername);
-        }
-      };
+      for (let i = 0; i < 4; i++) {
+        const random = randomInt(100);
+        const randomUsername = `${username.substring(0, 37)}${random}`;
+        generatedUsernames.push(randomUsername);
+      }
 
-      generateRandomUsernames(4);
-
-      const usernameChecks = await (async () => {
-        return ctx
-          .getRepository(User)
-          .findBy({ username: In(generatedUsernames) });
-      })();
+      const usernameChecks = await ctx.getRepository(User).find({
+        where: { username: In(generatedUsernames) },
+        select: ['username'],
+      });
 
       for (const usernameCheck in usernameChecks) {
         generatedUsernames = generatedUsernames.filter(
@@ -743,6 +738,7 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       if (generatedUsernames.length === 0) {
+        ctx.log.info('usernameChecks', usernameChecks);
         return '';
       }
 
