@@ -1,5 +1,10 @@
 import { FastifyInstance } from 'fastify';
-import { Alerts, ALERTS_DEFAULT } from '../src/entity';
+import {
+  Alerts,
+  ALERTS_DEFAULT,
+  UserAction,
+  UserActionType,
+} from '../src/entity';
 import request from 'supertest';
 import {
   authorizeRequest,
@@ -106,6 +111,18 @@ describe('mutation updateUserAlerts', () => {
     expect(res.data).toMatchSnapshot();
   });
 
+  it('should create user action type for my feed if alert is false', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { data: { filter: false } },
+    });
+    const completed = await con
+      .getRepository(UserAction)
+      .findOneBy({ userId: '1', type: UserActionType.MyFeed });
+    expect(completed).toBeTruthy();
+    expect(res.data).toMatchSnapshot();
+  });
+
   it('should update alerts of user', async () => {
     loggedUser = '1';
 
@@ -126,7 +143,6 @@ describe('mutation updateUserAlerts', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         data: {
-          filter: false,
           rankLastSeen: rankLastSeen.toISOString(),
           myFeed: 'created',
           companionHelper: false,
@@ -134,7 +150,11 @@ describe('mutation updateUserAlerts', () => {
         },
       },
     });
+    const completed = await con
+      .getRepository(UserAction)
+      .findOneBy({ userId: '1', type: UserActionType.MyFeed });
 
+    expect(completed).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
 });
