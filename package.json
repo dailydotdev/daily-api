@@ -45,6 +45,7 @@
     "apollo-server-errors": "^3.3.0",
     "apollo-server-types": "^3.8.0",
     "cloudinary": "^1.36.2",
+    "csv-parse": "^5.3.9",
     "date-fns": "^2.29.3",
     "date-fns-tz": "^2.0.0",
     "fast-json-stringify": "^5.7.0",

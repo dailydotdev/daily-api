@@ -70,13 +70,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { type }: CompleteActionParams,
       { con, userId },
     ): Promise<GQLEmptyResponse> => {
-      await con
-        .getRepository(UserAction)
-        .createQueryBuilder()
-        .insert()
-        .values({ userId, type })
-        .orIgnore()
-        .execute();
+      await insertOrIgnoreAction(con, userId, type);
 
       return;
     },

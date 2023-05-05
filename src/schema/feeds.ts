@@ -1,4 +1,13 @@
-import { FeedAdvancedSettings, AdvancedSettings } from '../entity';
+import {
+  AdvancedSettings,
+  BookmarkList,
+  Feed,
+  FeedAdvancedSettings,
+  FeedSource,
+  FeedTag,
+  Post,
+  Source,
+} from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -22,14 +31,6 @@ import {
   whereKeyword,
 } from '../common';
 import { In, SelectQueryBuilder } from 'typeorm';
-import {
-  BookmarkList,
-  Feed,
-  FeedSource,
-  FeedTag,
-  Post,
-  Source,
-} from '../entity';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
   fixedIdsPageGenerator,

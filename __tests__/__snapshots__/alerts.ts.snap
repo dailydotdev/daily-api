@@ -1,5 +1,17 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`mutation updateUserAlerts should create user action type for my feed if alert is false 1`] = `
+Object {
+  "updateUserAlerts": Object {
+    "companionHelper": true,
+    "filter": false,
+    "myFeed": null,
+    "rankLastSeen": null,
+    "squadTour": true,
+  },
+}
+`;
+
 exports[`mutation updateUserAlerts should create user alerts when does not exist 1`] = `
 Object {
   "updateUserAlerts": Object {
@@ -16,7 +28,7 @@ exports[`mutation updateUserAlerts should update alerts of user 1`] = `
 Object {
   "updateUserAlerts": Object {
     "companionHelper": false,
-    "filter": false,
+    "filter": true,
     "myFeed": "created",
     "rankLastSeen": "2020-09-22T12:15:51.247Z",
     "squadTour": false,

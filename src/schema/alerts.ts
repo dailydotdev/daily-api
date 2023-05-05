@@ -1,9 +1,10 @@
-import { ALERTS_DEFAULT, Alerts } from '../entity';
+import { Alerts, ALERTS_DEFAULT, UserActionType } from '../entity';
 
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { DataSource } from 'typeorm';
+import { insertOrIgnoreAction } from './actions';
 
 interface GQLAlerts {
   filter: boolean;
@@ -109,6 +110,10 @@ export const updateAlerts = async (
 ): Promise<GQLAlerts> => {
   const repo = con.getRepository(Alerts);
   const alerts = await repo.findOneBy({ userId });
+
+  if (data.filter === false) {
+    await insertOrIgnoreAction(con, userId, UserActionType.MyFeed);
+  }
 
   if (!alerts) {
     return repo.save({ userId, ...data });

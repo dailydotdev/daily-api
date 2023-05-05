@@ -280,6 +280,58 @@ describe('post added notifications', () => {
     expect(ctx.sharedPost).toBeFalsy();
   });
 
+  it('should insert or ignore completed action for squad first post', async () => {
+    const worker = await import('../../src/workers/notifications/postAdded');
+    const repo = con.getRepository(UserAction);
+    await con
+      .getRepository(UserAction)
+      .delete({ userId: '1', type: UserActionType.SquadFirstPost });
+    const getAction = () =>
+      repo.findOneBy({
+        userId: '1',
+        type: UserActionType.SquadFirstPost,
+      });
+    const exists = await getAction();
+    expect(exists).toBeFalsy();
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con
+      .getRepository(Post)
+      .update(
+        { id: 'p1' },
+        { authorId: '1', sourceId: 'a', type: PostType.Share },
+      );
+    await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+    const inserted = await getAction();
+    expect(inserted).toBeTruthy();
+
+    await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+
+    const sameAction = await getAction();
+    expect(sameAction.completedAt).toEqual(sameAction.completedAt);
+  });
+
+  it('should not add completed action for first post if source is not squad', async () => {
+    const worker = await import('../../src/workers/notifications/postAdded');
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+    await con
+      .getRepository(UserAction)
+      .delete({ userId: '1', type: UserActionType.SquadFirstPost });
+    await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+    const exists = await con.getRepository(UserAction).findOneBy({
+      userId: '1',
+      type: UserActionType.SquadFirstPost,
+    });
+    expect(exists).toBeFalsy();
+  });
+
   it('should not add article picked notification on blocked members', async () => {
     await con
       .getRepository(Source)
@@ -565,6 +617,59 @@ describe('article new comment', () => {
     expect(actual.length).toEqual(2);
     expect(actual[0].ctx.userId).toEqual('1');
     expect(actual[1].ctx.userId).toEqual('3');
+  });
+
+  it('should insert or ignore completed action type first post comment', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/articleNewCommentCommentCommented'
+    );
+    const repo = con.getRepository(UserAction);
+    const getAction = () =>
+      repo.findOneBy({
+        userId: '1',
+        type: UserActionType.SquadFirstComment,
+      });
+    const exists = await getAction();
+    await con.getRepository(Comment).update({ id: 'c1' }, { userId: '1' });
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    expect(exists).toBeFalsy();
+
+    await invokeNotificationWorker(worker.default, {
+      postId: 'p1',
+      childCommentId: 'c1',
+    });
+
+    const inserted = await getAction();
+    expect(inserted).toBeTruthy();
+
+    await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      postId: 'p1',
+      childCommentId: 'c1',
+    });
+
+    const existing = await getAction();
+    expect(existing).toBeTruthy();
+    expect(existing.completedAt).toEqual(inserted.completedAt);
+  });
+
+  it('should not insert completed action type first post comment if source is not squad', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/articleNewCommentCommentCommented'
+    );
+
+    await con.getRepository(Comment).update({ id: 'c1' }, { userId: '1' });
+    await invokeNotificationWorker(worker.default, {
+      postId: 'p1',
+      childCommentId: 'c1',
+    });
+    const exists = await con.getRepository(UserAction).findOneBy({
+      userId: '1',
+      type: UserActionType.SquadFirstComment,
+    });
+    expect(exists).toBeFalsy();
   });
 
   it('should not add notification for new squad comment when author is blocked from squad', async () => {
@@ -1233,6 +1338,56 @@ describe('squad member joined', () => {
     });
     expect(actual).toBeFalsy();
   });
+
+  const testJoinSquadAction = async (
+    type: UserActionType,
+    role: SourceMemberRoles = SourceMemberRoles.Admin,
+  ) => {
+    const worker = await import(
+      '../../src/workers/notifications/squadMemberJoined'
+    );
+    const params = { userId: '2', type };
+    const repo = con.getRepository(UserAction);
+    const exists = await repo.findOneBy(params);
+    expect(exists).toBeFalsy();
+    await con.getRepository(SourceMember).save([
+      {
+        sourceId: 'a',
+        userId: '2',
+        referralToken: 'rt1',
+        role,
+      },
+    ]);
+    await invokeNotificationWorker(worker.default, {
+      sourceMember: {
+        sourceId: 'a',
+        userId: '2',
+        role,
+      },
+    });
+
+    const action = await repo.findOneBy(params);
+    expect(action).toBeTruthy();
+    expect(action.type).toEqual(type);
+
+    await invokeNotificationWorker(worker.default, {
+      sourceMember: {
+        sourceId: 'a',
+        userId: '2',
+      },
+    });
+    const createSquad = await repo.findOneBy(params);
+    expect(action.completedAt).toEqual(createSquad.completedAt);
+  };
+
+  it('should insert or ignore record for action type create_squad when user is an owner', async () =>
+    testJoinSquadAction(UserActionType.CreateSquad));
+
+  it('should insert or ignore record for action type join_squad when user is a member', async () =>
+    testJoinSquadAction(UserActionType.JoinSquad, SourceMemberRoles.Member));
+
+  it('should insert or ignore record for action type join_squad when user is a moderator', async () =>
+    testJoinSquadAction(UserActionType.JoinSquad, SourceMemberRoles.Moderator));
 });
 
 it('should add squad reply notification', async () => {
