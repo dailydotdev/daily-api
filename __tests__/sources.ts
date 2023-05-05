@@ -848,14 +848,14 @@ describe('mutation createSquad', () => {
     expect(member.role).toEqual(SourceMemberRoles.Admin);
     const sharePost = await con
       .getRepository(SharePost)
-      .findOneBy({ sourceId: newId, type: PostType.Share });
+      .findOneBy({ sourceId: newId });
     expect(sharePost.authorId).toEqual('1');
     expect(sharePost.sharedPostId).toEqual('p1');
     expect(sharePost.title).toEqual('My comment');
 
     const welcomePost = await con
       .getRepository(WelcomePost)
-      .findOneBy({ sourceId: newId, type: PostType.Welcome });
+      .findOneBy({ sourceId: newId });
     expect(welcomePost.authorId).toEqual('1');
     expect(welcomePost.title).toEqual(WELCOME_POST_TITLE);
   });
