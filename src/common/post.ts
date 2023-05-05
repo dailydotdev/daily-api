@@ -1,14 +1,17 @@
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import fetch from 'node-fetch';
-import { User } from '../entity';
+import { SquadSource, User, WelcomePost } from '../entity';
 import { Comment, ExternalLinkPreview, Post } from '../entity';
 import { ValidationError } from 'apollo-server-errors';
 import { isValidHttpUrl } from './links';
+import { markdown } from './markdown';
+import { generateShortId } from '../ids';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
   ratio: parseFloat(process.env.DEFAULT_IMAGE_RATIO),
   placeholder: process.env.DEFAULT_IMAGE_PLACEHOLDER,
+  welcomePost: process.env.WELCOME_POST_BANNER,
 };
 
 export const pickImageUrl = (post: {
@@ -79,4 +82,53 @@ export const fetchLinkPreview = async (
   }
 
   throw new Error('Internal server error!');
+};
+
+export const WELCOME_POST_TITLE =
+  process.env.WELCOME_POST_TITLE ??
+  'Hello World! Start your squad journey here';
+
+const getWelcomeContent = (
+  squadName: string,
+) => `Welcome to ${squadName}, a dedicated space to collaborate, share knowledge, and discuss topics that matter to us!
+
+Here are some of the things you can do in Squads:
+
+Say hi: Start by saying hi in the comments below so that we’ll know you’re here
+Create a new post: Share interesting links and your thoughts by creating a new post in the squad
+Interact with others: Comment and upvote on other members' posts and give feedback
+Personalize it: Customize your profile by adding a profile picture, bio, and links to your projects or social media
+Invite other developers you know and appreciate that you think can benefit from this squad
+
+Now that you know what you can do in this squad, we've put together a code of conduct that we expect all of our squad members to follow:
+
+Keep it relevant: Keep your posts and comments relevant to the topic of the Squad. Please refrain from spamming or promoting unrelated content.
+Be respectful: Treat others the way you want to be treated. We do not tolerate hate speech, discrimination, or harassment of any kind.
+Be constructive: Offer helpful feedback and constructive criticism rather than tearing others down.
+Protect your privacy: Do not share personal information or sensitive data in Squads.
+
+We hope you will find ${squadName} useful!`;
+
+export const createSquadWelcomePost = async (
+  con: DataSource | EntityManager,
+  source: SquadSource,
+  adminId: string,
+) => {
+  const content = getWelcomeContent(source.name);
+  const repo = con.getRepository(WelcomePost);
+  const id = await generateShortId();
+
+  return repo.save(
+    repo.create({
+      id,
+      shortId: id,
+      title: WELCOME_POST_TITLE,
+      sourceId: source.id,
+      authorId: adminId,
+      content,
+      contentHtml: markdown.render(content),
+      image: defaultImage.welcomePost,
+      banned: true,
+    }),
+  );
 };
