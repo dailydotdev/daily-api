@@ -6,6 +6,7 @@ import {
   FeedSource,
   FeedTag,
   Post,
+  PostType,
   Source,
 } from '../entity';
 import { Category } from '../entity/Category';
@@ -829,7 +830,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       (ctx, { source }: SourceFeedArgs, builder, alias) =>
         sourceFeedBuilder(ctx, source, builder, alias),
       feedPageGenerator,
-      applyFeedPaging,
+      (ctx, args, page, builder, alias) => {
+        const qb = builder.orderBy(
+          `CASE WHEN ${alias}.type = '${PostType.Welcome}' THEN 1 ELSE 0 END`,
+          'DESC',
+        );
+
+        return applyFeedPaging(ctx, args, page, qb, alias);
+      },
       {
         removeHiddenPosts: true,
         removeBannedPosts: false,

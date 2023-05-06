@@ -655,7 +655,7 @@ describe('query sourceFeed', () => {
     now = new Date(),
     first = 10,
   ): string => `{
-    sourceFeed(source: "${source}", ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}) {
+    sourceFeed(source: "${source}", ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}, supportedTypes: ["article", "share", "welcome"]) {
       ${feedFields()}
     }
   }`;
@@ -669,6 +669,16 @@ describe('query sourceFeed', () => {
     await con.getRepository(Post).update({ id: 'p5' }, { banned: true });
     const res = await client.query(QUERY('b'));
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should display a welcome post first in source feed', async () => {
+    const res1 = await client.query(QUERY('b', Ranking.TIME));
+    expect(res1.data.sourceFeed.edges[0].node.id).not.toEqual('p5');
+    await con
+      .getRepository(Post)
+      .update({ id: 'p5' }, { type: PostType.Welcome });
+    const res2 = await client.query(QUERY('b'));
+    expect(res2.data.sourceFeed.edges[0].node.id).toEqual('p5');
   });
 
   it('should not display a banned post for community source', async () => {
