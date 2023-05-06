@@ -833,7 +833,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       (ctx, args, page, builder, alias) => {
         const qb = builder.orderBy(
           `CASE WHEN ${alias}.type = '${PostType.Welcome}' THEN 1 ELSE 0 END`,
-          'DESC',
+          'DESC', // this will be replaced once we introduce the column named `pinned` on v6.
         );
 
         return applyFeedPaging(ctx, args, page, qb, alias);
