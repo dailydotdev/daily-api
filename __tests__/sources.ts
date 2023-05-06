@@ -11,7 +11,6 @@ import {
 } from './helpers';
 import {
   Post,
-  PostType,
   SharePost,
   Source,
   SourceFeed,
