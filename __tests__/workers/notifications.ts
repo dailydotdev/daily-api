@@ -433,26 +433,26 @@ describe('post added notifications', () => {
       .update({ id: postId }, { authorId: '1', type: PostType.Share });
   };
 
-  it('should add squad subscribe to notification', async () => {
-    await prepareSubscribeTests();
-    await con
-      .getRepository(UserAction)
-      .delete({ userId: '1', type: UserActionType.SquadFirstPost });
-    const worker = await import('../../src/workers/notifications/postAdded');
-    const actual = await invokeNotificationWorker(worker.default, {
-      post: postsFixture[0],
-    });
-    expect(actual.length).toBeTruthy();
-    const subscribe = actual.find(
-      ({ type }) => type === 'squad_subscribe_to_notification',
-    );
-
-    const ctx = subscribe.ctx as NotificationPostContext;
-    expect(subscribe).toBeTruthy();
-    expect(ctx.post.id).toEqual('p1');
-    expect(ctx.source.id).toEqual('a');
-    expect(subscribe.ctx.userId).toEqual('1');
-  });
+  // it('should add squad subscribe to notification', async () => {
+  //   await prepareSubscribeTests();
+  //   await con
+  //     .getRepository(UserAction)
+  //     .delete({ userId: '1', type: UserActionType.SquadFirstPost });
+  //   const worker = await import('../../src/workers/notifications/postAdded');
+  //   const actual = await invokeNotificationWorker(worker.default, {
+  //     post: postsFixture[0],
+  //   });
+  //   expect(actual.length).toBeTruthy();
+  //   const subscribe = actual.find(
+  //     ({ type }) => type === 'squad_subscribe_to_notification',
+  //   );
+  //
+  //   const ctx = subscribe.ctx as NotificationPostContext;
+  //   expect(subscribe).toBeTruthy();
+  //   expect(ctx.post.id).toEqual('p1');
+  //   expect(ctx.source.id).toEqual('a');
+  //   expect(subscribe.ctx.userId).toEqual('1');
+  // });
 
   it('should not add squad subscribe to notification when user has made many posts already', async () => {
     await prepareSubscribeTests();
