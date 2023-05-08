@@ -669,7 +669,7 @@ const applyFeedPaging = (
         : `${alias}."createdAt" as "createdAt"`,
     )
     .limit(page.limit)
-    .orderBy(
+    .addOrderBy(
       ranking === Ranking.POPULARITY
         ? `${alias}.score`
         : `${alias}."createdAt"`,
@@ -684,6 +684,7 @@ const applyFeedPaging = (
       timestamp: page.timestamp,
     });
   }
+  console.log(builder.getSql());
   return newBuilder;
 };
 

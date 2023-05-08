@@ -677,7 +677,7 @@ describe('query sourceFeed', () => {
     await con
       .getRepository(Post)
       .update({ id: 'p5' }, { type: PostType.Welcome });
-    const res2 = await client.query(QUERY('b'));
+    const res2 = await client.query(QUERY('b', Ranking.TIME));
     expect(res2.data.sourceFeed.edges[0].node.id).toEqual('p5');
   });
 
