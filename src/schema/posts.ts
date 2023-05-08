@@ -2,9 +2,9 @@ import {
   Connection as ConnectionRelay,
   ConnectionArguments,
 } from 'graphql-relay';
-import { ValidationError } from 'apollo-server-errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, DeepPartial } from 'typeorm';
+import { DataSource, DeepPartial, EntityManager } from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
@@ -21,6 +21,7 @@ import {
   notifyView,
   pickImageUrl,
   standardizeURL,
+  uploadPostImage,
 } from '../common';
 import {
   ArticlePost,
@@ -28,12 +29,14 @@ import {
   createSharePost,
   ExternalLink,
   ExternalLinkPreview,
+  FreeformPost,
   HiddenPost,
   Post,
   PostReport,
   PostType,
   Toc,
   Upvote,
+  WelcomePost,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -42,13 +45,16 @@ import {
   TypeOrmError,
 } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
-import { GQLComment } from './comments';
+import { getMentions, GQLComment, MentionedUser } from './comments';
 import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { GraphQLResolveInfo } from 'graphql';
 import { Roles } from '../roles';
+import { markdown } from '../common/markdown';
+import { FileUpload } from 'graphql-upload/GraphQLUpload';
+import { PostMention } from '../entity/posts/PostMention';
 
 export interface GQLPost {
   id: string;
@@ -90,6 +96,15 @@ export interface GQLPost {
   feedMeta?: string;
   content?: string;
   contentHtml?: string;
+}
+
+type EditablePost = Pick<
+  FreeformPost,
+  'title' | 'content' | 'image' | 'contentHtml'
+>;
+
+interface EditPostArgs extends Pick<GQLPost, 'id' | 'title' | 'content'> {
+  image: Promise<FileUpload>;
 }
 
 export type GQLPostNotification = Pick<
@@ -509,6 +524,28 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
+    To allow user to edit posts
+    """
+    editPost(
+      """
+      ID of the post to update
+      """
+      id: ID!
+      """
+      Avatar image for the squad
+      """
+      image: Upload
+      """
+      Title of the post (max 80 chars)
+      """
+      title: String
+      """
+      Content of the post (max 4000 chars)
+      """
+      content: String
+    ): EmptyResponse! @auth
+
+    """
     Delete a post permanently
     """
     deletePost(
@@ -621,6 +658,31 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+const saveMentions = (
+  transaction: DataSource | EntityManager,
+  postId: string,
+  postByUserId: string,
+  users: MentionedUser[],
+) => {
+  if (!users.length) {
+    return;
+  }
+
+  const mentions: Partial<PostMention>[] = users.map(({ id }) => ({
+    postId,
+    postByUserId,
+    mentionedUserId: id,
+  }));
+
+  return transaction
+    .createQueryBuilder()
+    .insert()
+    .into(PostMention)
+    .values(mentions)
+    .orIgnore()
+    .execute();
+};
+
 const saveHiddenPost = async (
   con: DataSource,
   hiddenPost: DeepPartial<HiddenPost>,
@@ -640,6 +702,10 @@ const saveHiddenPost = async (
   }
   return true;
 };
+
+const editablePostTypes = [PostType.Welcome, PostType.Freeform];
+const MAX_TITLE_LENGTH = 80;
+const MAX_CONTENT_LENGTH = 4000;
 
 export const reportReasons = new Map([
   ['BROKEN', '💔 Link is broken'],
@@ -855,6 +921,80 @@ export const resolvers: IResolvers<any, Context> = {
 
           await repo.update({ id }, { deleted: true });
         }
+      });
+
+      return { _: true };
+    },
+    editPost: async (
+      source,
+      args: EditPostArgs,
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      const { id, image } = args;
+      const { con, userId } = ctx;
+      const title = args.title?.trim() ?? '';
+      const content = args.content?.trim() ?? '';
+
+      await con.transaction(async (manager) => {
+        const repo = manager.getRepository(Post);
+        const post = (await repo.findOneByOrFail({ id })) as
+          | WelcomePost
+          | FreeformPost;
+
+        if (post.authorId !== userId) {
+          const permission =
+            post.type === PostType.Welcome
+              ? SourcePermissions.WelcomePostEdit
+              : SourcePermissions.Post;
+          await ensureSourcePermissions(ctx, post.sourceId, permission);
+        }
+
+        if (!editablePostTypes.includes(post.type)) {
+          throw new ForbiddenError(
+            'Editing post outside of type welcome_post and freeform is not allowed',
+          );
+        }
+
+        if (title.length > MAX_TITLE_LENGTH) {
+          throw new ValidationError(
+            'Title has a maximum length of 80 characters',
+          );
+        }
+
+        if (content.length > MAX_CONTENT_LENGTH) {
+          throw new ValidationError(
+            'Content has a maximum length of 80 characters',
+          );
+        }
+
+        const updated: Partial<EditablePost> = {};
+
+        if (post.type === PostType.Freeform) {
+          updated.title = title;
+
+          if (image && process.env.CLOUDINARY_URL) {
+            const upload = await image;
+            updated.image = await uploadPostImage(
+              id,
+              upload.createReadStream(),
+            );
+          }
+        }
+
+        const mentions = await getMentions(
+          manager,
+          content,
+          userId,
+          post.sourceId,
+        );
+
+        if (content !== post.content) {
+          updated.content = content;
+          updated.contentHtml = markdown.render(content, { mentions });
+        }
+
+        await repo.update({ id }, updated);
+        await saveMentions(manager, post.id, ctx.userId, mentions);
       });
 
       return { _: true };

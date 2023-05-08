@@ -27,6 +27,7 @@ import {
   SharePost,
   Source,
   SourceMember,
+  SourceType,
   SquadSource,
   UNKNOWN_SOURCE,
   Upvote,
@@ -86,9 +87,12 @@ beforeEach(async () => {
   await con
     .getRepository(User)
     .save({ id: '1', name: 'Ido', image: 'https://daily.dev/ido.jpg' });
-  await con
-    .getRepository(User)
-    .save({ id: '2', name: 'Lee', image: 'https://daily.dev/lee.jpg' });
+  await con.getRepository(User).save({
+    id: '2',
+    name: 'Lee',
+    image: 'https://daily.dev/lee.jpg',
+    username: 'lee',
+  });
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -2136,5 +2140,209 @@ describe('mutation checkLinkPreview', () => {
     const res = await client.mutate(MUTATION, { variables: { url } });
     expect(res.data.checkLinkPreview).toBeTruthy();
     expect(res.data.checkLinkPreview.id).toEqual(foundPost.id);
+  });
+});
+
+describe('mutation editPost', () => {
+  const MUTATION = `
+    mutation EditPost($id: ID!, $title: String, $content: String, $image: Upload) {
+      editPost(id: $id, title: $title, content: $content, image: $image) {
+        _
+      }
+    }
+  `;
+
+  const params = {
+    id: 'p1',
+    title: 'This is a welcome post',
+  };
+
+  beforeEach(async () => {
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con
+      .getRepository(Post)
+      .update(
+        { id: 'p1' },
+        { type: PostType.Welcome, title: 'Welcome post', authorId: '1' },
+      );
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+      {
+        userId: '2',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: randomUUID(),
+      },
+    ]);
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if post type is not allowed to be editable', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.Share });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'FORBIDDEN',
+    );
+
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.Article });
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return an error if title exceeds 80 characters', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          ...params,
+          title:
+            'Hello World! Start your squad journey here - Hello World! Start your squad journey here',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if content exceeds 4000 characters', async () => {
+    loggedUser = '1';
+
+    const content = 'Hello World! Start your squad journey here';
+    const sample = new Array(100).fill(content);
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          ...params,
+          content: sample.join(' - '),
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should restrict member when user is not the author of the post', async () => {
+    loggedUser = '2';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'p1', title: 'Test' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should not update title if the post type is "welcome"', async () => {
+    loggedUser = '1';
+    const title = 'Updated title';
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', title },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(actual.title).not.toEqual(title);
+  });
+
+  it('should update title if the post type is "freeform"', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.Freeform });
+    const title = 'Updated title';
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', title },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(actual.title).toEqual(title);
+  });
+
+  it('should allow moderator to do update even when user is not the author of the post', async () => {
+    loggedUser = '2';
+
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '2', sourceId: 'a' },
+        { role: SourceMemberRoles.Moderator },
+      );
+
+    const content = 'Updated content';
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', content: content },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(WelcomePost).findOneBy({ id: 'p1' });
+    expect(actual.content).toEqual(content);
+  });
+
+  it('should allow admin to do update even when user is not the author of the post', async () => {
+    loggedUser = '2';
+
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '2', sourceId: 'a' },
+        { role: SourceMemberRoles.Admin },
+      );
+
+    const content = 'Updated content';
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', content: content },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(WelcomePost).findOneBy({ id: 'p1' });
+    expect(actual.content).toEqual(content);
+  });
+
+  it('should allow author to update their freeform post', async () => {
+    loggedUser = '1';
+
+    const content = '# Updated content';
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', content: content },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(WelcomePost).findOneBy({ id: 'p1' });
+    expect(actual.contentHtml).toMatchSnapshot();
+  });
+
+  it('should allow mention as part of the content', async () => {
+    loggedUser = '1';
+
+    const content = 'Test @lee';
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', content: content },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(WelcomePost).findOneBy({ id: 'p1' });
+    expect(actual.contentHtml).toMatchSnapshot();
   });
 });

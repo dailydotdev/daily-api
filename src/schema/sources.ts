@@ -465,6 +465,7 @@ export enum SourcePermissions {
   CommentDelete = 'comment_delete',
   View = 'view',
   ViewBlockedMembers = 'view_blocked_members',
+  WelcomePostEdit = 'welcome_post_edit',
   Post = 'post',
   PostLimit = 'post_limit',
   PostDelete = 'post_delete',
@@ -491,6 +492,7 @@ const moderatorPermissions = [
   SourcePermissions.Edit,
   SourcePermissions.MemberUnblock,
   SourcePermissions.ViewBlockedMembers,
+  SourcePermissions.WelcomePostEdit,
 ];
 const adminPermissions = [
   ...moderatorPermissions,

@@ -328,12 +328,12 @@ export interface GQLUserCommentsArgs extends ConnectionArguments {
   userId: string;
 }
 
-interface MentionedUser {
+export interface MentionedUser {
   id: string;
   username?: string;
 }
 
-const getMentions = async (
+export const getMentions = async (
   con: DataSource | EntityManager,
   content: string,
   userId: string,

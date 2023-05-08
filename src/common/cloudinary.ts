@@ -53,3 +53,8 @@ const avatarPreset = 'avatar';
 
 export const uploadAvatar = (userId: string, stream: Readable) =>
   uploadFile(`${avatarPreset}_${userId}`, avatarPreset, stream);
+
+const postPreset = 'post';
+
+export const uploadPostImage = (postId: string, stream: Readable) =>
+  uploadFile(`${postPreset}_${postId}`, postPreset, stream);
