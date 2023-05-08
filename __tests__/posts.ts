@@ -91,7 +91,6 @@ beforeEach(async () => {
     id: '2',
     name: 'Lee',
     image: 'https://daily.dev/lee.jpg',
-    username: 'lee',
   });
 });
 
@@ -2336,7 +2335,7 @@ describe('mutation editPost', () => {
 
   it('should allow mention as part of the content', async () => {
     loggedUser = '1';
-
+    await con.getRepository(User).update({ id: '2' }, { username: 'lee' });
     const content = 'Test @lee';
     const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', content: content },
