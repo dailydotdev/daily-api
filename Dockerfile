@@ -1,5 +1,5 @@
 FROM node:18-alpine
-RUN apk add g++ make python3
+RUN apk add g++ make python3 dumb-init
 
 RUN mkdir -p /opt/app
 WORKDIR /opt/app
@@ -19,5 +19,5 @@ COPY build .
 RUN chown -R node:node /opt/app
 USER node
 
-CMD ["node", "bin/cli", "api"]
+CMD ["dumb-init", "node", "bin/cli", "api"]
 
