@@ -978,12 +978,12 @@ export const resolvers: IResolvers<any, Context> = {
           });
           await repo.insert(source);
           // Add the logged-in user as admin
-          await createSquadWelcomePost(entityManager, source, ctx.userId);
           await addNewSourceMember(entityManager, {
             sourceId: id,
             userId: ctx.userId,
             role: SourceMemberRoles.Admin,
           });
+          await createSquadWelcomePost(entityManager, source, ctx.userId);
 
           if (postId) {
             // Create the first post of the squad
