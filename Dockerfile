@@ -16,5 +16,8 @@ RUN npm i --only=prod
 
 COPY build .
 
+RUN chown -R node:node /opt/app
+USER node
+
 CMD ["node", "bin/cli", "api"]
 
