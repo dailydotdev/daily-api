@@ -12,6 +12,8 @@ interface Data {
   post: ChangeObject<Post>;
 }
 
+const punishableTypes = [PostType.Article];
+
 const worker: Worker = {
   subscription: 'post-banned-rep',
   handler: async (message, con, logger): Promise<void> => {
@@ -33,10 +35,9 @@ const worker: Worker = {
         );
 
         // Skipping penalizing community picks during the beta phase
-        // Skipping penalizing shared post
         if (
           data.post.sourceId !== COMMUNITY_PICKS_SOURCE &&
-          type !== PostType.Share
+          punishableTypes.includes(type)
         ) {
           const ownerProps = {
             targetId: id,

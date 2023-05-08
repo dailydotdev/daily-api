@@ -118,17 +118,16 @@ export const createSquadWelcomePost = async (
   const repo = con.getRepository(WelcomePost);
   const id = await generateShortId();
 
-  return repo.save(
-    repo.create({
-      id,
-      shortId: id,
-      title: WELCOME_POST_TITLE,
-      sourceId: source.id,
-      authorId: adminId,
-      content,
-      contentHtml: markdown.render(content),
-      image: defaultImage.welcomePost,
-      banned: true,
-    }),
-  );
+  return repo.save({
+    id,
+    shortId: id,
+    title: WELCOME_POST_TITLE,
+    sourceId: source.id,
+    authorId: adminId,
+    content,
+    contentHtml: markdown.render(content),
+    image: defaultImage.welcomePost,
+    banned: true,
+    visible: true,
+  });
 };
