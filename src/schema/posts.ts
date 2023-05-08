@@ -661,16 +661,16 @@ export const typeDefs = /* GraphQL */ `
 const saveMentions = (
   transaction: DataSource | EntityManager,
   postId: string,
-  postByUserId: string,
+  mentionedByUserId: string,
   users: MentionedUser[],
 ) => {
   if (!users.length) {
     return;
   }
 
-  const mentions: Partial<PostMention>[] = users.map(({ id }) => ({
+  const mentions: PostMention[] = users.map(({ id }) => ({
     postId,
-    postByUserId,
+    mentionedByUserId,
     mentionedUserId: id,
   }));
 
