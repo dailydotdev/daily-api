@@ -1,6 +1,6 @@
 import { DataSource, EntityManager } from 'typeorm';
 import fetch from 'node-fetch';
-import { SquadSource, User, WelcomePost } from '../entity';
+import { FreeformPost, SquadSource, User, WelcomePost } from '../entity';
 import { Comment, ExternalLinkPreview, Post } from '../entity';
 import { ValidationError } from 'apollo-server-errors';
 import { isValidHttpUrl } from './links';
@@ -113,12 +113,14 @@ export const createSquadWelcomePost = async (
   con: DataSource | EntityManager,
   source: SquadSource,
   adminId: string,
+  args: Partial<FreeformPost> = {},
 ) => {
   const content = getWelcomeContent(source.name);
   const repo = con.getRepository(WelcomePost);
   const id = await generateShortId();
 
   return repo.save({
+    ...args,
     id,
     shortId: id,
     title: WELCOME_POST_TITLE,
@@ -129,5 +131,6 @@ export const createSquadWelcomePost = async (
     image: defaultImage.welcomePost,
     banned: true,
     visible: true,
+    private: true,
   });
 };
