@@ -52,8 +52,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
-import { base64, unbase64 } from 'graphql-relay/utils/base64';
-import { addYears } from 'date-fns';
+import { base64 } from 'graphql-relay/utils/base64';
 import { changeYearToNextYear } from '../src/common/date';
 
 let app: FastifyInstance;
