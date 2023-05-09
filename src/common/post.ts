@@ -88,9 +88,12 @@ export const WELCOME_POST_TITLE =
   process.env.WELCOME_POST_TITLE ??
   'Hello World! Start your squad journey here';
 
-const getWelcomeContent = (
-  squadName: string,
-) => `Welcome to ${squadName}, a dedicated space to collaborate, share knowledge, and discuss topics that matter to us!
+const getWelcomeContent = ({
+  name,
+}: Pick<
+  SquadSource,
+  'name'
+>) => `Welcome to ${name}, a dedicated space to collaborate, share knowledge, and discuss topics that matter to us!
 
 Here are some of the things you can do in Squads:
 
@@ -107,7 +110,7 @@ Be respectful: Treat others the way you want to be treated. We do not tolerate h
 Be constructive: Offer helpful feedback and constructive criticism rather than tearing others down.
 Protect your privacy: Do not share personal information or sensitive data in Squads.
 
-We hope you will find ${squadName} useful!`;
+We hope you will find ${name} useful!`;
 
 export const createSquadWelcomePost = async (
   con: DataSource | EntityManager,
@@ -115,7 +118,7 @@ export const createSquadWelcomePost = async (
   adminId: string,
   args: Partial<FreeformPost> = {},
 ) => {
-  const content = getWelcomeContent(source.name);
+  const content = getWelcomeContent(source);
   const repo = con.getRepository(WelcomePost);
   const id = await generateShortId();
 
