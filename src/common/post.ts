@@ -7,11 +7,14 @@ import { isValidHttpUrl } from './links';
 import { markdown } from './markdown';
 import { generateShortId } from '../ids';
 
+const defaultWelcomeBanner =
+  'https://daily-now-res.cloudinary.com/image/upload/f_auto,q_auto/public/welcome_post';
+
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
   ratio: parseFloat(process.env.DEFAULT_IMAGE_RATIO),
   placeholder: process.env.DEFAULT_IMAGE_PLACEHOLDER,
-  welcomePost: process.env.WELCOME_POST_BANNER,
+  welcomePost: process.env.WELCOME_POST_BANNER ?? defaultWelcomeBanner,
 };
 
 export const pickImageUrl = (post: {
