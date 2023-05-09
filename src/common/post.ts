@@ -1,7 +1,15 @@
 import { DataSource, EntityManager } from 'typeorm';
 import fetch from 'node-fetch';
-import { FreeformPost, SquadSource, User, WelcomePost } from '../entity';
-import { Comment, ExternalLinkPreview, Post } from '../entity';
+import {
+  Comment,
+  ExternalLinkPreview,
+  FreeformPost,
+  Post,
+  PostOrigin,
+  SquadSource,
+  User,
+  WelcomePost,
+} from '../entity';
 import { ValidationError } from 'apollo-server-errors';
 import { isValidHttpUrl } from './links';
 import { markdown } from './markdown';
@@ -138,5 +146,7 @@ export const createSquadWelcomePost = async (
     banned: true,
     visible: true,
     private: true,
+    visibleAt: new Date(),
+    origin: PostOrigin.UserGenerated,
   });
 };
