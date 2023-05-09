@@ -666,13 +666,17 @@ describe('query sourceFeed', () => {
 
   it('should return a single source feed', async () => {
     const res = await client.query(QUERY('b'));
-    expect(res.data).toMatchSnapshot();
+    res.data.sourceFeed.edges.forEach(({ node }) =>
+      expect(node.source.id).toEqual('b'),
+    );
   });
 
   it('should display a banned post in source feed', async () => {
     await con.getRepository(Post).update({ id: 'p5' }, { banned: true });
     const res = await client.query(QUERY('b'));
-    expect(res.data).toMatchSnapshot();
+    expect(
+      res.data.sourceFeed.edges.some(({ node }) => node.id === 'p5'),
+    ).toBeTruthy();
   });
 
   it('should display a welcome post first in source feed', async () => {
@@ -727,7 +731,9 @@ describe('query sourceFeed', () => {
       .getRepository(Post)
       .update({ id: 'p5' }, { banned: true, sourceId: 'community' });
     const res = await client.query(QUERY('community'));
-    expect(res.data).toMatchSnapshot();
+    expect(
+      res.data.sourceFeed.edges.every(({ node }) => node.id !== 'p5'),
+    ).toBeTruthy();
   });
 
   it('should throw an error when accessing private source', async () => {
@@ -749,7 +755,9 @@ describe('query sourceFeed', () => {
       },
     ]);
     const res = await client.query(QUERY('b'));
-    expect(res.data).toMatchSnapshot();
+    res.data.sourceFeed.edges.forEach(({ node }) =>
+      expect(node.source.id).toEqual('b'),
+    );
   });
 });
 

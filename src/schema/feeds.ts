@@ -724,7 +724,6 @@ const applyFeedPagingWithPin = (
 ): SelectQueryBuilder<Post> => {
   const priority = `CASE WHEN ${alias}.type = '${PostType.Welcome}' THEN 1 ELSE 0 END`;
   let newBuilder = builder
-    .addSelect(`${alias}."createdAt" as "createdAt"`)
     .addSelect(priority, 'priority')
     .limit(page.limit)
     .orderBy(`priority`, 'DESC')
