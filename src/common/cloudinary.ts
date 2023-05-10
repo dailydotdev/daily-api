@@ -84,5 +84,5 @@ export const uploadPostFile = (
     stream.pipe(outStream);
   });
 
-export const uploadPostImage = (postId: string, stream: Readable) =>
-  uploadPostFile(`${postPreset}_${postId}`, stream);
+export const uploadPostImage = (identifier: string, stream: Readable) =>
+  uploadPostFile(identifier, stream);
