@@ -2,17 +2,20 @@ import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postBannedRep';
 import {
   ArticlePost,
+  FreeformPost,
   Post,
   PostType,
   SharePost,
   Source,
   User,
+  WelcomePost,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { PostReport, ReputationEvent } from '../../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
+import { createSquadWelcomePost } from '../../src/common';
 
 let con: DataSource;
 
@@ -56,7 +59,7 @@ it('should create a reputation event that increases reputation', async () => {
   expect(events[1].amount).toEqual(100);
 });
 
-const createSharedPost = async (id = 'sp1') => {
+const createSharedPost = async (id = 'sp1', args: Partial<Post> = {}) => {
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   await con.getRepository(SharePost).save({
     ...post,
@@ -64,6 +67,7 @@ const createSharedPost = async (id = 'sp1') => {
     shortId: `short-${id}`,
     sharedPostId: 'p1',
     type: PostType.Share,
+    ...args,
   });
 };
 
@@ -79,5 +83,40 @@ it('should not create a reputation event for the author that shared the post', a
   const events = await con
     .getRepository(ReputationEvent)
     .find({ where: { targetId: 'sp1', grantById: '' } });
+  expect(events.length).toEqual(0);
+});
+
+it('should not create a reputation event for the author of the welcome post', async () => {
+  const source = await con.getRepository(Source).findOneBy({ id: 'b' });
+  const post = await createSquadWelcomePost(con, source, '2');
+  const welcome = await con
+    .getRepository(WelcomePost)
+    .findOneBy({ id: post.id });
+  expect(welcome).toBeTruthy();
+  await expectSuccessfulBackground(worker, {
+    post,
+  });
+  const events = await con
+    .getRepository(ReputationEvent)
+    .find({ where: { targetId: post.id, grantById: '' } });
+  expect(events.length).toEqual(0);
+});
+
+it('should not create a reputation event for the author of the freeform post', async () => {
+  const source = await con.getRepository(Source).findOneBy({ id: 'b' });
+  const post = await createSquadWelcomePost(con, source, '2');
+  await con
+    .getRepository(Post)
+    .update({ id: post.id }, { type: PostType.Freeform });
+  const welcome = await con
+    .getRepository(FreeformPost)
+    .findOneBy({ id: post.id });
+  expect(welcome).toBeTruthy();
+  await expectSuccessfulBackground(worker, {
+    post,
+  });
+  const events = await con
+    .getRepository(ReputationEvent)
+    .find({ where: { targetId: post.id, grantById: '' } });
   expect(events.length).toEqual(0);
 });

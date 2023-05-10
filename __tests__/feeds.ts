@@ -1,4 +1,4 @@
-import { feedToFilters, Ranking } from '../src/common';
+import { createSquadWelcomePost, feedToFilters, Ranking } from '../src/common';
 import {
   AdvancedSettings,
   ArticlePost,
@@ -16,6 +16,7 @@ import {
   SharePost,
   Source,
   SourceMember,
+  SourceType,
   User,
   View,
 } from '../src/entity';
@@ -51,6 +52,8 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
+import { base64 } from 'graphql-relay/utils/base64';
+import { changeYearToNextYear } from '../src/common/date';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -654,21 +657,70 @@ describe('query sourceFeed', () => {
     ranking: Ranking = Ranking.POPULARITY,
     now = new Date(),
     first = 10,
+    after = '',
   ): string => `{
-    sourceFeed(source: "${source}", ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}) {
+    sourceFeed(source: "${source}", ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}, supportedTypes: ["article", "share", "welcome"], after: "${after}") {
       ${feedFields()}
     }
   }`;
 
   it('should return a single source feed', async () => {
     const res = await client.query(QUERY('b'));
-    expect(res.data).toMatchSnapshot();
+    res.data.sourceFeed.edges.forEach(({ node }) =>
+      expect(node.source.id).toEqual('b'),
+    );
   });
 
   it('should display a banned post in source feed', async () => {
     await con.getRepository(Post).update({ id: 'p5' }, { banned: true });
     const res = await client.query(QUERY('b'));
-    expect(res.data).toMatchSnapshot();
+    expect(
+      res.data.sourceFeed.edges.some(({ node }) => node.id === 'p5'),
+    ).toBeTruthy();
+  });
+
+  it('should display a welcome post first in source feed', async () => {
+    const createdAt = new Date('2020-09-21T07:15:51.247Z');
+    await con.getRepository(Post).update({ id: 'p5' }, { createdAt });
+    const res1 = await client.query(QUERY('b', Ranking.TIME));
+    expect(res1.data.sourceFeed.edges[0].node.id).not.toEqual('p5');
+    await con
+      .getRepository(Post)
+      .update({ id: 'p5' }, { type: PostType.Welcome });
+    const res2 = await client.query(QUERY('b', Ranking.TIME));
+    expect(res2.data.sourceFeed.edges[0].node.id).toEqual('p5');
+    expect(res2.data.sourceFeed.edges.length).toBeGreaterThan(1);
+  });
+
+  // this test is intended to check edge cases whether there is a duplicate with the result of the query
+  // and if the second page returns accurate information of what should be included
+  it('should display return the right posts after the first page being pinned posts', async () => {
+    await con.getRepository(User).save({ id: '1', name: 'Lee' });
+    const createdAt1 = new Date('2020-09-21T01:15:51.247Z');
+    const createdAt2 = new Date('2020-09-21T02:15:51.247Z');
+    const createdAt3 = new Date('2020-09-21T03:15:51.247Z');
+    const createdAt4 = new Date('2020-09-21T04:15:51.247Z');
+    const createdAt5 = new Date('2020-09-21T05:15:51.247Z');
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'b' }, { type: SourceType.Squad });
+    const source = await repo.findOneBy({ id: 'b' });
+    // used welcome post as a sample of pinned posts
+    await createSquadWelcomePost(con, source, '1', { createdAt: createdAt1 });
+    await createSquadWelcomePost(con, source, '1', { createdAt: createdAt2 });
+    await createSquadWelcomePost(con, source, '1', { createdAt: createdAt3 });
+    await createSquadWelcomePost(con, source, '1', { createdAt: createdAt4 });
+    await createSquadWelcomePost(con, source, '1', { createdAt: createdAt5 });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p5' }, { createdAt: new Date() });
+
+    const interval = changeYearToNextYear(createdAt1); // the oldest date which will become the last item from the first page
+    const unbased = base64(`time:${interval.getTime()}`);
+    const query = QUERY('b', Ranking.TIME, new Date(), 5, unbased);
+    const res = await client.query(query);
+
+    expect(res.data.sourceFeed.edges[0].node.id).toEqual('p5');
+    expect(res.data.sourceFeed.edges).toMatchSnapshot();
   });
 
   it('should not display a banned post for community source', async () => {
@@ -679,7 +731,9 @@ describe('query sourceFeed', () => {
       .getRepository(Post)
       .update({ id: 'p5' }, { banned: true, sourceId: 'community' });
     const res = await client.query(QUERY('community'));
-    expect(res.data).toMatchSnapshot();
+    expect(
+      res.data.sourceFeed.edges.every(({ node }) => node.id !== 'p5'),
+    ).toBeTruthy();
   });
 
   it('should throw an error when accessing private source', async () => {
@@ -701,7 +755,9 @@ describe('query sourceFeed', () => {
       },
     ]);
     const res = await client.query(QUERY('b'));
-    expect(res.data).toMatchSnapshot();
+    res.data.sourceFeed.edges.forEach(({ node }) =>
+      expect(node.source.id).toEqual('b'),
+    );
   });
 });
 

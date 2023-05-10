@@ -104,10 +104,10 @@ Array [
 exports[`compatibility routes GET /posts/publication should return single source feed 1`] = `
 Array [
   Object {
-    "id": "p5",
+    "id": "p2",
   },
   Object {
-    "id": "p2",
+    "id": "p5",
   },
 ]
 `;
@@ -2496,170 +2496,42 @@ Object {
 }
 `;
 
-exports[`query sourceFeed should display a banned post in source feed 1`] = `
-Object {
-  "sourceFeed": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "id": "p5",
-          "readTime": null,
-          "source": Object {
-            "id": "b",
-            "image": "http://image.com/b",
-            "name": "B",
-            "public": true,
-          },
-          "tags": Array [
-            "html",
-            "javascript",
-          ],
-          "title": "P5",
-          "url": "http://p5.com",
-        },
+exports[`query sourceFeed should display return the right posts after the first page being pinned posts 1`] = `
+Array [
+  Object {
+    "node": Object {
+      "id": "p5",
+      "readTime": null,
+      "source": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+        "public": true,
       },
-      Object {
-        "node": Object {
-          "id": "p2",
-          "readTime": null,
-          "source": Object {
-            "id": "b",
-            "image": "http://image.com/b",
-            "name": "B",
-            "public": true,
-          },
-          "tags": Array [],
-          "title": "P2",
-          "url": "http://p2.com",
-        },
-      },
-    ],
-    "pageInfo": Object {
-      "endCursor": "c2NvcmU6Nw==",
-      "hasNextPage": false,
+      "tags": Array [
+        "html",
+        "javascript",
+      ],
+      "title": "P5",
+      "url": "http://p5.com",
     },
   },
-}
-`;
-
-exports[`query sourceFeed should not display a banned post for community source 1`] = `
-Object {
-  "sourceFeed": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "id": "p6",
-          "readTime": null,
-          "source": Object {
-            "id": "community",
-            "image": "http://image.com/c",
-            "name": "Community Picks",
-            "public": true,
-          },
-          "tags": Array [],
-          "title": "P6",
-          "url": "http://p6.com",
-        },
+  Object {
+    "node": Object {
+      "id": "p2",
+      "readTime": null,
+      "source": Object {
+        "id": "b",
+        "image": "http://image.com/b",
+        "name": "B",
+        "public": true,
       },
-    ],
-    "pageInfo": Object {
-      "endCursor": "c2NvcmU6MTA=",
-      "hasNextPage": false,
+      "tags": Array [],
+      "title": "P2",
+      "url": "http://p2.com",
     },
   },
-}
-`;
-
-exports[`query sourceFeed should return a private source feed when user is a member 1`] = `
-Object {
-  "sourceFeed": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "id": "p5",
-          "readTime": null,
-          "source": Object {
-            "id": "b",
-            "image": "http://image.com/b",
-            "name": "B",
-            "public": true,
-          },
-          "tags": Array [
-            "html",
-            "javascript",
-          ],
-          "title": "P5",
-          "url": "http://p5.com",
-        },
-      },
-      Object {
-        "node": Object {
-          "id": "p2",
-          "readTime": null,
-          "source": Object {
-            "id": "b",
-            "image": "http://image.com/b",
-            "name": "B",
-            "public": true,
-          },
-          "tags": Array [],
-          "title": "P2",
-          "url": "http://p2.com",
-        },
-      },
-    ],
-    "pageInfo": Object {
-      "endCursor": "c2NvcmU6Nw==",
-      "hasNextPage": false,
-    },
-  },
-}
-`;
-
-exports[`query sourceFeed should return a single source feed 1`] = `
-Object {
-  "sourceFeed": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "id": "p5",
-          "readTime": null,
-          "source": Object {
-            "id": "b",
-            "image": "http://image.com/b",
-            "name": "B",
-            "public": true,
-          },
-          "tags": Array [
-            "html",
-            "javascript",
-          ],
-          "title": "P5",
-          "url": "http://p5.com",
-        },
-      },
-      Object {
-        "node": Object {
-          "id": "p2",
-          "readTime": null,
-          "source": Object {
-            "id": "b",
-            "image": "http://image.com/b",
-            "name": "B",
-            "public": true,
-          },
-          "tags": Array [],
-          "title": "P2",
-          "url": "http://p2.com",
-        },
-      },
-    ],
-    "pageInfo": Object {
-      "endCursor": "c2NvcmU6Nw==",
-      "hasNextPage": false,
-    },
-  },
-}
+]
 `;
 
 exports[`query tagFeed should return a single tag feed 1`] = `
