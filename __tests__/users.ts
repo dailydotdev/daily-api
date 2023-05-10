@@ -1887,3 +1887,24 @@ describe('DELETE /v1/users/me', () => {
     expect(cookies['da3'].value).toBeFalsy();
   });
 });
+
+describe('query generateUniqueUsername', () => {
+  const QUERY = `
+    query GenerateUniqueUsername($name: String!) {
+      generateUniqueUsername(name: $name)
+  }`;
+
+  it('should return a unique username', async () => {
+    const res = await client.query(QUERY, { variables: { name: 'John Doe' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.generateUniqueUsername).toEqual('johndoe');
+  });
+
+  it('should return a unique username with a random string', async () => {
+    await con.getRepository(User).update({ id: '1' }, { username: 'johndoe' });
+
+    const res = await client.query(QUERY, { variables: { name: 'John Doe' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.generateUniqueUsername).not.toEqual('johndoe');
+  });
+});
