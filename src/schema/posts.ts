@@ -941,18 +941,18 @@ export const resolvers: IResolvers<any, Context> = {
           | WelcomePost
           | FreeformPost;
 
+        if (!editablePostTypes.includes(post.type)) {
+          throw new ForbiddenError(
+            'Editing post outside of type welcome_post and freeform is not allowed',
+          );
+        }
+
         if (post.authorId !== userId) {
           const permission =
             post.type === PostType.Welcome
               ? SourcePermissions.WelcomePostEdit
               : SourcePermissions.Post;
           await ensureSourcePermissions(ctx, post.sourceId, permission);
-        }
-
-        if (!editablePostTypes.includes(post.type)) {
-          throw new ForbiddenError(
-            'Editing post outside of type welcome_post and freeform is not allowed',
-          );
         }
 
         if (title.length > MAX_TITLE_LENGTH) {
