@@ -4,7 +4,7 @@ import {
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, DeepPartial, EntityManager } from 'typeorm';
+import { DataSource, DeepPartial } from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
@@ -37,6 +37,7 @@ import {
   Toc,
   Upvote,
   WelcomePost,
+  PostMention,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -45,16 +46,15 @@ import {
   TypeOrmError,
 } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
-import { getMentions, GQLComment, MentionedUser } from './comments';
+import { getMentions, GQLComment } from './comments';
 import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { GraphQLResolveInfo } from 'graphql';
 import { Roles } from '../roles';
-import { markdown } from '../common/markdown';
+import { markdown, saveMentions } from '../common/markdown';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
-import { PostMention } from '../entity/posts/PostMention';
 
 export interface GQLPost {
   id: string;
@@ -658,31 +658,6 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-const saveMentions = (
-  transaction: DataSource | EntityManager,
-  postId: string,
-  mentionedByUserId: string,
-  users: MentionedUser[],
-) => {
-  if (!users.length) {
-    return;
-  }
-
-  const mentions: PostMention[] = users.map(({ id }) => ({
-    postId,
-    mentionedByUserId,
-    mentionedUserId: id,
-  }));
-
-  return transaction
-    .createQueryBuilder()
-    .insert()
-    .into(PostMention)
-    .values(mentions)
-    .orIgnore()
-    .execute();
-};
-
 const saveHiddenPost = async (
   con: DataSource,
   hiddenPost: DeepPartial<HiddenPost>,
@@ -990,7 +965,13 @@ export const resolvers: IResolvers<any, Context> = {
           );
           updated.content = content;
           updated.contentHtml = markdown.render(content, { mentions });
-          await saveMentions(manager, post.id, ctx.userId, mentions);
+          await saveMentions(
+            manager,
+            post.id,
+            ctx.userId,
+            mentions,
+            PostMention,
+          );
         }
 
         await repo.update({ id }, updated);
