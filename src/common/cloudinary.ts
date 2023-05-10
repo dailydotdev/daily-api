@@ -76,6 +76,7 @@ export const uploadPostFile = (
             secure: true,
             fetch_format: 'auto',
             quality: 'auto',
+            sign_url: true,
           }),
         );
       },
