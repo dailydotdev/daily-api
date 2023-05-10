@@ -21,6 +21,7 @@ import {
   FreeformPost,
   HiddenPost,
   Post,
+  PostMention,
   PostReport,
   PostTag,
   PostType,
@@ -2335,6 +2336,13 @@ describe('mutation editPost', () => {
 
   it('should allow mention as part of the content', async () => {
     loggedUser = '1';
+    const params = {
+      mentionedUserId: '2',
+      mentionedByUserId: '1',
+      postId: 'p1',
+    };
+    const before = await con.getRepository(PostMention).findOneBy(params);
+    expect(before).toBeFalsy();
     await con.getRepository(User).update({ id: '2' }, { username: 'lee' });
     const content = 'Test @lee';
     const res = await client.mutate(MUTATION, {
@@ -2342,6 +2350,8 @@ describe('mutation editPost', () => {
     });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(WelcomePost).findOneBy({ id: 'p1' });
+    const mention = await con.getRepository(PostMention).findOneBy(params);
+    expect(mention).toBeTruthy();
     expect(actual.contentHtml).toMatchSnapshot();
   });
 });
