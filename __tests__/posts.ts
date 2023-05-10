@@ -2284,7 +2284,45 @@ describe('mutation editPost', () => {
     expect(actual.title).toEqual(title);
   });
 
-  it('should allow moderator to do update even when user is not the author of the post', async () => {
+  it('should not allow moderator or admin to do update posts of other people', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.Freeform, authorId: '2' });
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '1', sourceId: 'a' },
+        { role: SourceMemberRoles.Moderator },
+      );
+    const title = 'Updated title';
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, title },
+      },
+      'FORBIDDEN',
+    );
+
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '1', sourceId: 'a' },
+        { role: SourceMemberRoles.Admin },
+      );
+
+    return await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { ...params, title },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should allow moderator to do update of welcome posts', async () => {
     loggedUser = '2';
 
     await con
@@ -2303,7 +2341,7 @@ describe('mutation editPost', () => {
     expect(actual.content).toEqual(content);
   });
 
-  it('should allow admin to do update even when user is not the author of the post', async () => {
+  it('should allow admin to do update of welcome post', async () => {
     loggedUser = '2';
 
     await con

@@ -923,11 +923,17 @@ export const resolvers: IResolvers<any, Context> = {
         }
 
         if (post.authorId !== userId) {
-          const permission =
-            post.type === PostType.Welcome
-              ? SourcePermissions.WelcomePostEdit
-              : SourcePermissions.Post;
-          await ensureSourcePermissions(ctx, post.sourceId, permission);
+          if (post.type !== PostType.Welcome) {
+            throw new ForbiddenError(
+              `Editing other people's posts is not allowed!`,
+            );
+          }
+
+          await ensureSourcePermissions(
+            ctx,
+            post.sourceId,
+            SourcePermissions.WelcomePostEdit,
+          );
         }
 
         if (title.length > MAX_TITLE_LENGTH) {
