@@ -981,20 +981,19 @@ export const resolvers: IResolvers<any, Context> = {
           }
         }
 
-        const mentions = await getMentions(
-          manager,
-          content,
-          userId,
-          post.sourceId,
-        );
-
         if (content !== post.content) {
+          const mentions = await getMentions(
+            manager,
+            content,
+            userId,
+            post.sourceId,
+          );
           updated.content = content;
           updated.contentHtml = markdown.render(content, { mentions });
+          await saveMentions(manager, post.id, ctx.userId, mentions);
         }
 
         await repo.update({ id }, updated);
-        await saveMentions(manager, post.id, ctx.userId, mentions);
       });
 
       return { _: true };
