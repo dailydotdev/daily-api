@@ -12,6 +12,7 @@ import {
   Post,
   PostReport,
   Settings,
+  SharePost,
   SourceDisplay,
   SourceRequest,
   Upvote,
@@ -41,6 +42,10 @@ export const deleteUser = async (
       await entityManager.getRepository(SourceDisplay).delete({ userId });
       await entityManager.getRepository(SourceRequest).delete({ userId });
       await entityManager.getRepository(Upvote).delete({ userId });
+      // Manually set shared post to 404 dummy user
+      await entityManager
+        .getRepository(SharePost)
+        .update({ authorId: userId }, { authorId: '404' });
       await entityManager
         .getRepository(Post)
         .update({ authorId: userId }, { authorId: null });
