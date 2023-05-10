@@ -6,6 +6,7 @@ import {
   FeedSource,
   FeedTag,
   Post,
+  PostType,
   Source,
 } from '../entity';
 import { Category } from '../entity/Category';
@@ -47,6 +48,7 @@ import {
   getPersonalizedFeedKeyPrefix,
 } from '../personalizedFeed';
 import { ioRedisPool } from '../redis';
+import { changeYearToNextYear } from '../common/date';
 
 interface GQLTagsCategory {
   id: string;
@@ -686,6 +688,65 @@ const applyFeedPaging = (
   return newBuilder;
 };
 
+const feedPageGeneratorWithPin: PageGenerator<
+  GQLPost,
+  FeedArgs,
+  FeedPage,
+  unknown
+> = {
+  connArgsToPage: ({ first, after }: FeedArgs) => {
+    const cursor = getCursorFromAfter(after);
+    const limit = Math.min(first || 30, 50) + 1;
+
+    return cursor
+      ? { limit, timestamp: new Date(parseInt(cursor)) }
+      : { limit };
+  },
+  nodeToCursor: (_, __, node) => {
+    const createdAt = new Date(node.createdAt);
+    const timestamp =
+      node.type === PostType.Welcome
+        ? changeYearToNextYear(createdAt)
+        : createdAt;
+
+    return base64(`time:${new Date(timestamp).getTime()}`);
+  },
+  hasNextPage: (page, nodesSize) => page.limit === nodesSize,
+  hasPreviousPage: (page) => !!page.timestamp,
+  transformNodes: (page, nodes) => nodes.slice(0, page.limit - 1),
+};
+
+const applyFeedPagingWithPin = (
+  ctx: Context,
+  page: FeedPage,
+  builder: SelectQueryBuilder<Post>,
+  alias,
+): SelectQueryBuilder<Post> => {
+  const priority = `CASE WHEN ${alias}.type = '${PostType.Welcome}' THEN 1 ELSE 0 END`;
+  let newBuilder = builder
+    .addSelect(priority, 'priority')
+    .limit(page.limit)
+    .orderBy(`priority`, 'DESC')
+    .addOrderBy(`${alias}."createdAt"`, 'DESC');
+
+  if (page.timestamp) {
+    // to ensure pinned post (or welcome post) be pinned on top of the feed, we need to ensure they have greater date than the rest of the result
+    // that is solved by making the year of pinned posts to the next year and since we retained the other parts of the date, sorting should be accurate.
+    // the current condition is about being a welcome post, but on v6 this will be based on the `pinned` property.
+    const nextYearDifference = `(DATE_PART('year', CURRENT_DATE) - DATE_PART('year', ${alias}."createdAt") + 1)`;
+    newBuilder = newBuilder.andWhere(
+      `
+        CASE
+          WHEN ${alias}.type = '${PostType.Welcome}'
+          THEN ${alias}."createdAt" + (${nextYearDifference} || ' years')::interval
+          ELSE ${alias}."createdAt"
+        END < :timestamp`,
+      { timestamp: page.timestamp },
+    );
+  }
+  return newBuilder;
+};
+
 const getFeedSettings = async (
   ctx: Context,
   info: GraphQLResolveInfo,
@@ -828,8 +889,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     sourceFeed: feedResolver(
       (ctx, { source }: SourceFeedArgs, builder, alias) =>
         sourceFeedBuilder(ctx, source, builder, alias),
-      feedPageGenerator,
-      applyFeedPaging,
+      feedPageGeneratorWithPin,
+      (ctx, args, page, builder, alias) =>
+        applyFeedPagingWithPin(ctx, page, builder, alias),
       {
         removeHiddenPosts: true,
         removeBannedPosts: false,

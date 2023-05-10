@@ -18,6 +18,7 @@ import {
   SourceType,
   SquadSource,
   User,
+  WelcomePost,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { FastifyInstance } from 'fastify';
@@ -30,6 +31,7 @@ import { postsFixture } from './fixture/post';
 import { createSource } from './fixture/source';
 import { SourcePermissions } from '../src/schema/sources';
 import { SourcePermissionErrorKeys } from '../src/errors';
+import { WELCOME_POST_TITLE } from '../src/common';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -843,12 +845,18 @@ describe('mutation createSquad', () => {
       userId: '1',
     });
     expect(member.role).toEqual(SourceMemberRoles.Admin);
-    const post = await con
+    const sharePost = await con
       .getRepository(SharePost)
       .findOneBy({ sourceId: newId });
-    expect(post.authorId).toEqual('1');
-    expect(post.sharedPostId).toEqual('p1');
-    expect(post.title).toEqual('My comment');
+    expect(sharePost.authorId).toEqual('1');
+    expect(sharePost.sharedPostId).toEqual('p1');
+    expect(sharePost.title).toEqual('My comment');
+
+    const welcomePost = await con
+      .getRepository(WelcomePost)
+      .findOneBy({ sourceId: newId });
+    expect(welcomePost.authorId).toEqual('1');
+    expect(welcomePost.title).toEqual(WELCOME_POST_TITLE);
   });
 
   it('should throw error on duplicate handles', async () => {

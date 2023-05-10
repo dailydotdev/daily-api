@@ -35,7 +35,11 @@ import { Connection } from 'graphql-relay/index';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { randomUUID } from 'crypto';
-import { getSourceLink, uploadSquadImage } from '../common';
+import {
+  createSquadWelcomePost,
+  getSourceLink,
+  uploadSquadImage,
+} from '../common';
 import { GraphQLResolveInfo } from 'graphql';
 import { SourcePermissionErrorKeys, TypeOrmError } from '../errors';
 import {
@@ -964,7 +968,7 @@ export const resolvers: IResolvers<any, Context> = {
           const id = randomUUID();
           const repo = entityManager.getRepository(SquadSource);
           // Create a new source
-          await repo.insert({
+          const source = repo.create({
             id,
             name,
             handle,
@@ -974,12 +978,15 @@ export const resolvers: IResolvers<any, Context> = {
             memberPostingRank: sourceRoleRank[memberPostingRole],
             memberInviteRank: sourceRoleRank[memberInviteRole],
           });
+          await repo.insert(source);
           // Add the logged-in user as admin
           await addNewSourceMember(entityManager, {
             sourceId: id,
             userId: ctx.userId,
             role: SourceMemberRoles.Admin,
           });
+          await createSquadWelcomePost(entityManager, source, ctx.userId);
+
           if (postId) {
             // Create the first post of the squad
             await createSharePost(
