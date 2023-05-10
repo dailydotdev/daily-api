@@ -33,6 +33,8 @@ import { GraphQLResolveInfo } from 'graphql';
 import { TypeOrmError, NotFoundError } from '../errors';
 import { deleteUser } from '../directive/user';
 import { ActivePost } from '../entity/posts/ActivePost';
+import { randomInt } from 'crypto';
+import { In } from 'typeorm';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -429,6 +431,16 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): ReadingHistoryConnection! @auth
+
+    """
+    Create a unique username for the user
+    """
+    generateUniqueUsername(
+      """
+      The name to generate a username from
+      """
+      name: String!
+    ): String! @rateLimit(limit: 20, duration: 60)
   }
 
   extend type Mutation {
@@ -694,6 +706,44 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<Connection<GQLView>> => readHistoryResolver(args, ctx, info),
+    generateUniqueUsername: async (
+      _,
+      args: { name: string },
+      ctx: Context,
+    ): Promise<string> => {
+      const name = args.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '');
+
+      if (name.length === 0) {
+        return '';
+      }
+
+      const username = name.substring(0, 39);
+      let generatedUsernames = [username];
+
+      for (let i = 0; i < 4; i++) {
+        const random = randomInt(100);
+        const randomUsername = `${username.substring(0, 37)}${random}`;
+        generatedUsernames.push(randomUsername);
+      }
+
+      const usernameChecks = await ctx.getRepository(User).find({
+        where: { username: In(generatedUsernames) },
+        select: ['username'],
+      });
+
+      for (const usernameCheck in usernameChecks) {
+        generatedUsernames = generatedUsernames.filter(
+          (item) => item !== usernameChecks[usernameCheck].username,
+        );
+      }
+
+      if (generatedUsernames.length === 0) {
+        ctx.log.info('usernameChecks', usernameChecks);
+        return '';
+      }
+
+      return generatedUsernames[0];
+    },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
