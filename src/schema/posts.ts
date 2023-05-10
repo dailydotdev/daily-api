@@ -543,7 +543,7 @@ export const typeDefs = /* GraphQL */ `
       Content of the post (max 4000 chars)
       """
       content: String
-    ): EmptyResponse! @auth
+    ): Post! @auth
 
     """
     Delete a post permanently
@@ -904,7 +904,8 @@ export const resolvers: IResolvers<any, Context> = {
       source,
       args: EditPostArgs,
       ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
+      info,
+    ): Promise<GQLPost> => {
       const { id, image } = args;
       const { con, userId } = ctx;
       const title = args.title?.trim() ?? '';
@@ -983,7 +984,13 @@ export const resolvers: IResolvers<any, Context> = {
         await repo.update({ id }, updated);
       });
 
-      return { _: true };
+      return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."id" = :id`,
+          { id },
+        ),
+        ...builder,
+      }));
     },
     banPost: async (
       source,

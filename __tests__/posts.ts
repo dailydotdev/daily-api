@@ -2147,7 +2147,11 @@ describe('mutation editPost', () => {
   const MUTATION = `
     mutation EditPost($id: ID!, $title: String, $content: String, $image: Upload) {
       editPost(id: $id, title: $title, content: $content, image: $image) {
-        _
+        id
+        title
+        content
+        contentHtml
+        type
       }
     }
   `;
@@ -2266,8 +2270,7 @@ describe('mutation editPost', () => {
       variables: { id: 'p1', title },
     });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(actual.title).not.toEqual(title);
+    expect(res.data.editPost.title).not.toEqual(title);
   });
 
   it('should update title if the post type is "freeform"', async () => {
@@ -2280,8 +2283,7 @@ describe('mutation editPost', () => {
       variables: { id: 'p1', title },
     });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(actual.title).toEqual(title);
+    expect(res.data.editPost.title).toEqual(title);
   });
 
   it('should not allow moderator or admin to do update posts of other people', async () => {
@@ -2337,8 +2339,7 @@ describe('mutation editPost', () => {
       variables: { id: 'p1', content: content },
     });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(WelcomePost).findOneBy({ id: 'p1' });
-    expect(actual.content).toEqual(content);
+    expect(res.data.editPost.content).toEqual(content);
   });
 
   it('should allow admin to do update of welcome post', async () => {
@@ -2356,8 +2357,7 @@ describe('mutation editPost', () => {
       variables: { id: 'p1', content: content },
     });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(WelcomePost).findOneBy({ id: 'p1' });
-    expect(actual.content).toEqual(content);
+    expect(res.data.editPost.content).toEqual(content);
   });
 
   it('should allow author to update their freeform post', async () => {
@@ -2368,8 +2368,7 @@ describe('mutation editPost', () => {
       variables: { id: 'p1', content: content },
     });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(WelcomePost).findOneBy({ id: 'p1' });
-    expect(actual.contentHtml).toMatchSnapshot();
+    expect(res.data.editPost.contentHtml).toMatchSnapshot();
   });
 
   it('should allow mention as part of the content', async () => {
@@ -2387,9 +2386,8 @@ describe('mutation editPost', () => {
       variables: { id: 'p1', content: content },
     });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(WelcomePost).findOneBy({ id: 'p1' });
     const mention = await con.getRepository(PostMention).findOneBy(params);
     expect(mention).toBeTruthy();
-    expect(actual.contentHtml).toMatchSnapshot();
+    expect(res.data.editPost.contentHtml).toMatchSnapshot();
   });
 });
