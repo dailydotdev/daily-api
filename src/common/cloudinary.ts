@@ -53,3 +53,36 @@ const avatarPreset = 'avatar';
 
 export const uploadAvatar = (userId: string, stream: Readable) =>
   uploadFile(`${avatarPreset}_${userId}`, avatarPreset, stream);
+
+const postPreset = 'post_image';
+
+export const uploadPostFile = (
+  name: string,
+  stream: Readable,
+): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const outStream = cloudinary.v2.uploader.upload_stream(
+      {
+        public_id: name,
+        upload_preset: postPreset,
+      },
+      (err, callResult) => {
+        if (err) {
+          return reject(err);
+        }
+
+        return resolve(
+          cloudinary.v2.url(callResult.public_id, {
+            secure: true,
+            fetch_format: 'auto',
+            quality: 'auto',
+            sign_url: true,
+          }),
+        );
+      },
+    );
+    stream.pipe(outStream);
+  });
+
+export const uploadPostImage = (identifier: string, stream: Readable) =>
+  uploadPostFile(identifier, stream);
