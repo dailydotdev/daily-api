@@ -84,10 +84,8 @@ export const notificationTitleMap: Record<
     `You are no longer a <span class="text-theme-color-cabbage">${ctx.role}</span> in <b>${ctx.source.name}</b>`,
   promoted_to_moderator: (ctx: NotificationSourceContext) =>
     `You are now a <span class="text-theme-color-cabbage">moderator</span> in <b>${ctx.source.name}</b>`,
-  welcome_post_mention: (
-    ctx: NotificationPostContext & NotificationDoneByContext,
-  ) =>
-    `<b>${ctx.doneBy.username}</b> <span class="text-theme-color-cabbage">mentioned you</span> on <b>${ctx.source.name}</b>'s welcome post.`,
+  post_mention: (ctx: NotificationPostContext & NotificationDoneByContext) =>
+    `<b>${ctx.doneBy.username}</b> <span class="text-theme-color-cabbage">mentioned you</span> on a post in <b>${ctx.source.name}</b>.`,
 };
 
 export const generateNotificationMap: Record<
@@ -149,7 +147,7 @@ export const generateNotificationMap: Record<
       .descriptionComment(ctx.comment)
       .targetPost(ctx.post, ctx.comment)
       .avatarManyUsers([ctx.commenter]),
-  welcome_post_mention: (
+  post_mention: (
     builder,
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) =>

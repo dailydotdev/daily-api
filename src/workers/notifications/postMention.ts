@@ -32,7 +32,7 @@ const worker: NotificationWorker = {
       userId: mentionedUserId,
       doneBy,
     };
-    return [{ type: 'welcome_post_mention', ctx }];
+    return [{ type: 'post_mention', ctx }];
   },
 };
 

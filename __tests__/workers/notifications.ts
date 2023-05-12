@@ -1020,7 +1020,7 @@ it('should add post mention notification', async () => {
   });
   type Context = NotificationPostContext & NotificationDoneByContext;
   expect(actual.length).toEqual(1);
-  expect(actual[0].type).toEqual('welcome_post_mention');
+  expect(actual[0].type).toEqual('post_mention');
   expect(actual[0].ctx.userId).toEqual('2');
   expect((actual[0].ctx as Context).post.id).toEqual('p1');
   expect((actual[0].ctx as Context).source.id).toEqual('a');

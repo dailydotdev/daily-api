@@ -37,7 +37,7 @@ export type NotificationType =
   | 'promoted_to_admin'
   | 'demoted_to_member'
   | 'promoted_to_moderator'
-  | 'welcome_post_mention';
+  | 'post_mention';
 
 export type NotificationReferenceType =
   | 'source_request'
