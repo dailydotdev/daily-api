@@ -13,6 +13,7 @@ import {
   Feature,
   Source,
   ArticlePost,
+  PostMention,
 } from '../entity';
 import { ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
@@ -42,6 +43,7 @@ const communityLinkAccessTopic = pubsub.topic('community-link-access');
 const communityLinkRejectedTopic = pubsub.topic('community-link-rejected');
 const communityLinkSubmittedTopic = pubsub.topic('community-link-submitted');
 const newNotificationTopic = pubsub.topic('api.v1.new-notification');
+const newPostMentionTopic = pubsub.topic('api.v1.new-post-mention');
 const newCommentMentionTopic = pubsub.topic('api.v1.new-comment-mention');
 const memberJoinedSourceTopic = pubsub.topic('api.v1.member-joined-source');
 const featureAccess = pubsub.topic('api.v1.feature-granted');
@@ -315,6 +317,11 @@ export const notifyNewNotification = async (
   log: EventLogger,
   notification: ChangeObject<Notification>,
 ): Promise<void> => publishEvent(log, newNotificationTopic, { notification });
+
+export const notifyNewPostMention = async (
+  log: EventLogger,
+  postMention: ChangeObject<PostMention>,
+): Promise<void> => publishEvent(log, newPostMentionTopic, { postMention });
 
 export const notifyNewCommentMention = async (
   log: EventLogger,
