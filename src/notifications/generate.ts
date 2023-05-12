@@ -65,7 +65,7 @@ export const notificationTitleMap: Record<
   squad_member_joined: (
     ctx: NotificationSourceContext & NotificationDoneByContext,
   ) =>
-    `Your squad is growing! <b>${ctx.doneBy.name}</b> has <span class="text-theme-color-cabbage">joined</span> <b>${ctx.source.name}</b>.`,
+    `Your squad <b>${ctx.source.name}</b> is <span class="text-theme-color-cabbage">growing</span>! Welcome <b>${ctx.doneBy.name}</b> to the squad with an upvote or comment.`,
   squad_new_comment: (ctx: NotificationCommenterContext) =>
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">commented</span> on your post on <b>${ctx.source.name}</b>.`,
   squad_reply: (ctx: NotificationCommenterContext) =>
