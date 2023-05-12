@@ -1009,6 +1009,24 @@ describe('source request', () => {
   });
 });
 
+it('should add post mention notification', async () => {
+  const worker = await import('../../src/workers/notifications/postMention');
+  const actual = await invokeNotificationWorker(worker.default, {
+    postMention: {
+      postId: 'p1',
+      mentionedUserId: '2',
+      mentionedByUserId: '1',
+    },
+  });
+  type Context = NotificationPostContext & NotificationDoneByContext;
+  expect(actual.length).toEqual(1);
+  expect(actual[0].type).toEqual('welcome_post_mention');
+  expect(actual[0].ctx.userId).toEqual('2');
+  expect((actual[0].ctx as Context).post.id).toEqual('p1');
+  expect((actual[0].ctx as Context).source.id).toEqual('a');
+  expect((actual[0].ctx as Context).doneBy.id).toEqual('1');
+});
+
 it('should add comment mention notification', async () => {
   const worker = await import('../../src/workers/notifications/commentMention');
   const actual = await invokeNotificationWorker(worker.default, {
