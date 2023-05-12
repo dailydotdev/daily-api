@@ -57,6 +57,7 @@ const notificationToTemplateId: Record<NotificationType, string> = {
   squad_blocked: '',
   promoted_to_admin: 'd-397a5e4a394a4b7f91ea33c29efb8d01',
   demoted_to_member: '',
+  welcome_post_mention: '',
   promoted_to_moderator: 'd-b1dbd1e86ee14bf094f7616f7469fee8',
   squad_subscribe_to_notification: '',
 };
@@ -474,6 +475,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return null;
   },
   demoted_to_member: async () => {
+    return null;
+  },
+  welcome_post_mention: async () => {
     return null;
   },
   promoted_to_moderator: async (con, user, notification) => {
