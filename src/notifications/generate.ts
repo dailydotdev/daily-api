@@ -155,6 +155,10 @@ export const generateNotificationMap: Record<
       .referencePost(ctx.post)
       .icon(NotificationIcon.Comment)
       .description((ctx.post as WelcomePost).content)
+      .targetPost(ctx.post)
+      .setTargetUrlParameter([
+        ['comment', `@${ctx.doneBy.username} welcome to ${ctx.source.name}!`],
+      ])
       .avatarManyUsers([ctx.doneBy]),
   comment_reply: (builder, ctx: NotificationCommenterContext) =>
     builder

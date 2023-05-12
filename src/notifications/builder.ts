@@ -142,6 +142,19 @@ export class NotificationBuilder {
     });
   }
 
+  setTargetUrlParameter(params: Array<[string, string]>) {
+    if (!this.notification.targetUrl) {
+      throw new Error('There is currently no target URL');
+    }
+
+    const url = new URL(this.notification.targetUrl);
+    params.forEach(([key, value]) => url.searchParams.set(key, value));
+
+    return this.enrichNotification({
+      targetUrl: url.href,
+    });
+  }
+
   attachmentPost(post: Reference<Post>): NotificationBuilder {
     this.attachments.push({
       order: this.attachments.length,
