@@ -638,6 +638,12 @@ describe('mutation commentOnPost', () => {
   it('should comment markdown on a post with user mention', async () => {
     loggedUser = '1';
     await saveCommentMentionFixtures();
+    const params = {
+      commentByUserId: '1',
+      mentionedUserId: '4',
+    };
+    const before = await con.getRepository(CommentMention).findBy(params);
+    expect(before.length).toEqual(1);
     const res = await client.mutate(MUTATION, {
       variables: { postId: 'p1', content: '@Lee' },
     });
@@ -654,6 +660,8 @@ describe('mutation commentOnPost', () => {
     });
     expect(res.data.commentOnPost.id).toEqual(actual[0].id);
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    const after = await con.getRepository(CommentMention).findBy(params);
+    expect(after.length).toEqual(2);
     expect(post.comments).toEqual(1);
   });
 

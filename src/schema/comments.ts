@@ -9,10 +9,10 @@ import {
   recommendUsersByQuery,
   recommendUsersToMention,
 } from '../common';
-import { CommentMention } from './../entity/CommentMention';
 import {
   Comment,
   CommentUpvote,
+  CommentMention,
   Post,
   Source,
   SourceMember,
@@ -27,7 +27,11 @@ import graphorm from '../graphorm';
 import { GQLPost } from './posts';
 import { Roles } from '../roles';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
-import { markdown, mentionSpecialCharacters } from '../common/markdown';
+import {
+  markdown,
+  mentionSpecialCharacters,
+  saveMentions,
+} from '../common/markdown';
 import { ensureSourcePermissions, SourcePermissions } from './sources';
 import { generateShortId } from '../ids';
 import { ActivePost } from '../entity/posts/ActivePost';
@@ -328,12 +332,12 @@ export interface GQLUserCommentsArgs extends ConnectionArguments {
   userId: string;
 }
 
-interface MentionedUser {
+export interface MentionedUser {
   id: string;
   username?: string;
 }
 
-const getMentions = async (
+export const getMentions = async (
   con: DataSource | EntityManager,
   content: string,
   userId: string,
@@ -377,31 +381,6 @@ const getMentions = async (
     .getRawMany();
 };
 
-const saveMentions = (
-  transaction: DataSource | EntityManager,
-  commentId: string,
-  commentByUserId: string,
-  users: MentionedUser[],
-) => {
-  if (!users.length) {
-    return;
-  }
-
-  const mentions: Partial<CommentMention>[] = users.map(({ id }) => ({
-    commentId,
-    commentByUserId,
-    mentionedUserId: id,
-  }));
-
-  return transaction
-    .createQueryBuilder()
-    .insert()
-    .into(CommentMention)
-    .values(mentions)
-    .orIgnore()
-    .execute();
-};
-
 export const saveComment = async (
   con: DataSource | EntityManager,
   comment: Comment,
@@ -416,7 +395,13 @@ export const saveComment = async (
   const contentHtml = markdown.render(comment.content, { mentions });
   comment.contentHtml = contentHtml;
   const savedComment = await con.getRepository(Comment).save(comment);
-  await saveMentions(con, savedComment.id, savedComment.userId, mentions);
+  await saveMentions(
+    con,
+    savedComment.id,
+    savedComment.userId,
+    mentions,
+    CommentMention,
+  );
 
   return savedComment;
 };
