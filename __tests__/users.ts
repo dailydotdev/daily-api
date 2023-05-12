@@ -1811,10 +1811,20 @@ describe('mutation deleteUser', () => {
   it('should delete user from database', async () => {
     loggedUser = '1';
 
+    await con.getRepository(User).save([
+      {
+        id: '404',
+        name: 'Not found',
+        image: 'https://daily.dev/404.jpg',
+        timezone: 'utc',
+        createdAt: new Date(),
+      },
+    ]);
+
     await client.mutate(MUTATION);
 
     const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(2);
+    expect(users.length).toEqual(3);
 
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });
     expect(userOne).toEqual(null);
@@ -1822,6 +1832,16 @@ describe('mutation deleteUser', () => {
 
   it('should delete author ID from post', async () => {
     loggedUser = '1';
+
+    await con.getRepository(User).save([
+      {
+        id: '404',
+        name: 'Not found',
+        image: 'https://daily.dev/404.jpg',
+        timezone: 'utc',
+        createdAt: new Date(),
+      },
+    ]);
 
     await client.mutate(MUTATION);
 
@@ -1831,6 +1851,16 @@ describe('mutation deleteUser', () => {
 
   it('should delete scout ID from post', async () => {
     loggedUser = '1';
+
+    await con.getRepository(User).save([
+      {
+        id: '404',
+        name: 'Not found',
+        image: 'https://daily.dev/404.jpg',
+        timezone: 'utc',
+        createdAt: new Date(),
+      },
+    ]);
 
     await client.mutate(MUTATION);
 
@@ -1864,17 +1894,36 @@ describe('DELETE /v1/users/me', () => {
   });
 
   it('should delete user from database', async () => {
+    await con.getRepository(User).save([
+      {
+        id: '404',
+        name: 'Not found',
+        image: 'https://daily.dev/404.jpg',
+        timezone: 'utc',
+        createdAt: new Date(),
+      },
+    ]);
+
     mockLogout();
     await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
 
     const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(2);
+    expect(users.length).toEqual(3);
 
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });
     expect(userOne).toEqual(null);
   });
 
   it('should clear cookies', async () => {
+    await con.getRepository(User).save([
+      {
+        id: '404',
+        name: 'Not found',
+        image: 'https://daily.dev/404.jpg',
+        timezone: 'utc',
+        createdAt: new Date(),
+      },
+    ]);
     mockLogout();
     const res = await authorizeRequest(request(app.server).delete(BASE_PATH))
       .set('User-Agent', TEST_UA)
