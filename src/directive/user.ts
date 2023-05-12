@@ -13,7 +13,6 @@ import {
   Post,
   PostReport,
   Settings,
-  SharePost,
   SourceDisplay,
   SourceRequest,
   Upvote,
