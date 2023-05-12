@@ -2,7 +2,7 @@ import {
   Connection as ConnectionRelay,
   ConnectionArguments,
 } from 'graphql-relay';
-import { ValidationError } from 'apollo-server-errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, DeepPartial } from 'typeorm';
 import {
@@ -21,6 +21,7 @@ import {
   notifyView,
   pickImageUrl,
   standardizeURL,
+  uploadPostImage,
 } from '../common';
 import {
   ArticlePost,
@@ -28,12 +29,15 @@ import {
   createSharePost,
   ExternalLink,
   ExternalLinkPreview,
+  FreeformPost,
   HiddenPost,
   Post,
   PostReport,
   PostType,
   Toc,
   Upvote,
+  WelcomePost,
+  PostMention,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -42,13 +46,15 @@ import {
   TypeOrmError,
 } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
-import { GQLComment } from './comments';
+import { getMentions, GQLComment } from './comments';
 import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import { redisPubSub } from '../redis';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { GraphQLResolveInfo } from 'graphql';
 import { Roles } from '../roles';
+import { markdown, saveMentions } from '../common/markdown';
+import { FileUpload } from 'graphql-upload/GraphQLUpload';
 
 export interface GQLPost {
   id: string;
@@ -90,6 +96,15 @@ export interface GQLPost {
   feedMeta?: string;
   content?: string;
   contentHtml?: string;
+}
+
+type EditablePost = Pick<
+  FreeformPost,
+  'title' | 'content' | 'image' | 'contentHtml'
+>;
+
+interface EditPostArgs extends Pick<GQLPost, 'id' | 'title' | 'content'> {
+  image: Promise<FileUpload>;
 }
 
 export type GQLPostNotification = Pick<
@@ -509,6 +524,28 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
+    To allow user to edit posts
+    """
+    editPost(
+      """
+      ID of the post to update
+      """
+      id: ID!
+      """
+      Avatar image for the squad
+      """
+      image: Upload
+      """
+      Title of the post (max 80 chars)
+      """
+      title: String
+      """
+      Content of the post (max 4000 chars)
+      """
+      content: String
+    ): Post! @auth
+
+    """
     Delete a post permanently
     """
     deletePost(
@@ -640,6 +677,10 @@ const saveHiddenPost = async (
   }
   return true;
 };
+
+const editablePostTypes = [PostType.Welcome, PostType.Freeform];
+const MAX_TITLE_LENGTH = 80;
+const MAX_CONTENT_LENGTH = 4000;
 
 export const reportReasons = new Map([
   ['BROKEN', '💔 Link is broken'],
@@ -858,6 +899,98 @@ export const resolvers: IResolvers<any, Context> = {
       });
 
       return { _: true };
+    },
+    editPost: async (
+      source,
+      args: EditPostArgs,
+      ctx: Context,
+      info,
+    ): Promise<GQLPost> => {
+      const { id, image } = args;
+      const { con, userId } = ctx;
+      const title = args.title?.trim() ?? '';
+      const content = args.content?.trim() ?? '';
+
+      await con.transaction(async (manager) => {
+        const repo = manager.getRepository(Post);
+        const post = (await repo.findOneByOrFail({ id })) as
+          | WelcomePost
+          | FreeformPost;
+
+        if (!editablePostTypes.includes(post.type)) {
+          throw new ForbiddenError(
+            'Editing post outside of type welcome_post and freeform is not allowed',
+          );
+        }
+
+        if (post.authorId !== userId) {
+          if (post.type !== PostType.Welcome) {
+            throw new ForbiddenError(
+              `Editing other people's posts is not allowed!`,
+            );
+          }
+
+          await ensureSourcePermissions(
+            ctx,
+            post.sourceId,
+            SourcePermissions.WelcomePostEdit,
+          );
+        }
+
+        if (title.length > MAX_TITLE_LENGTH) {
+          throw new ValidationError(
+            'Title has a maximum length of 80 characters',
+          );
+        }
+
+        if (content.length > MAX_CONTENT_LENGTH) {
+          throw new ValidationError(
+            'Content has a maximum length of 80 characters',
+          );
+        }
+
+        const updated: Partial<EditablePost> = {};
+
+        if (post.type === PostType.Freeform) {
+          updated.title = title;
+
+          if (image && process.env.CLOUDINARY_URL) {
+            const upload = await image;
+            updated.image = await uploadPostImage(
+              id,
+              upload.createReadStream(),
+            );
+          }
+        }
+
+        if (content !== post.content) {
+          const mentions = await getMentions(
+            manager,
+            content,
+            userId,
+            post.sourceId,
+          );
+          updated.content = content;
+          updated.contentHtml = markdown.render(content, { mentions });
+          await saveMentions(
+            manager,
+            post.id,
+            ctx.userId,
+            mentions,
+            PostMention,
+          );
+        }
+
+        await repo.update({ id }, updated);
+      });
+
+      return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."id" = :id`,
+          { id },
+        ),
+        ...builder,
+      }));
     },
     banPost: async (
       source,

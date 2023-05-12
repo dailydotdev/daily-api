@@ -88,6 +88,16 @@ Object {
 }
 `;
 
+exports[`mutation editPost should allow author to update their freeform post 1`] = `
+"<h1>Updated content</h1>
+"
+`;
+
+exports[`mutation editPost should allow mention as part of the content 1`] = `
+"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\">@lee</a></p>
+"
+`;
+
 exports[`mutation hidePost should hide the post 1`] = `
 Array [
   HiddenPost {

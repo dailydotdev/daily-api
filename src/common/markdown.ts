@@ -1,7 +1,10 @@
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import { getUserProfileUrl } from './users';
-import { User } from '../entity';
+import { CommentMention, PostMention, User } from '../entity';
+import { DataSource, EntityManager } from 'typeorm';
+import { MentionedUser } from '../schema/comments';
+import { EntityTarget } from 'typeorm/common/EntityTarget';
 
 export const markdown: MarkdownIt = MarkdownIt({
   html: false,
@@ -93,4 +96,38 @@ markdown.renderer.rules.link_open = function (tokens, idx, options, env, self) {
   tokens[idx] = setTokenAttribute(tokens[idx], 'target', '_blank');
   tokens[idx] = setTokenAttribute(tokens[idx], 'rel', 'noopener nofollow');
   return defaultRender(tokens, idx, options, env, self);
+};
+
+export const saveMentions = (
+  transaction: DataSource | EntityManager,
+  referenceId: string,
+  mentionedByUserId: string,
+  users: MentionedUser[],
+  target: EntityTarget<PostMention | CommentMention>,
+) => {
+  if (!users.length) {
+    return;
+  }
+
+  const query = transaction.createQueryBuilder().insert().into(target);
+
+  if (target === PostMention) {
+    query.values(
+      users.map(({ id }) => ({
+        postId: referenceId,
+        mentionedByUserId,
+        mentionedUserId: id,
+      })),
+    );
+  } else {
+    query.values(
+      users.map(({ id }) => ({
+        commentId: referenceId,
+        commentByUserId: mentionedByUserId,
+        mentionedUserId: id,
+      })),
+    );
+  }
+
+  return query.orIgnore().execute();
 };
