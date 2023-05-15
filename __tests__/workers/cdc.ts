@@ -1,5 +1,6 @@
 import nock from 'nock';
 import {
+  PostMention,
   ReputationEvent,
   ReputationReason,
   ReputationType,
@@ -11,6 +12,7 @@ import {
   notifyCommentUpvoted,
   notifyFeatureAccess,
   notifyMemberJoinedSource,
+  notifyNewPostMention,
   notifyNewCommentMention,
   notifyNewNotification,
   notifyPostBannedOrRemoved,
@@ -95,6 +97,7 @@ jest.mock('../../src/common', () => ({
   notifySubmissionRejected: jest.fn(),
   notifySubmissionCreated: jest.fn(),
   notifySubmissionGrantedAccess: jest.fn(),
+  notifyNewPostMention: jest.fn(),
   notifyNewCommentMention: jest.fn(),
   notifyNewNotification: jest.fn(),
   notifyUserCreated: jest.fn(),
@@ -554,6 +557,32 @@ describe('comment mention', () => {
     expect(jest.mocked(notifyNewCommentMention).mock.calls[0].slice(1)).toEqual(
       [after],
     );
+  });
+});
+
+describe('post mention', () => {
+  type ObjectType = PostMention;
+  const base: ChangeObject<ObjectType> = {
+    postId: 'c1',
+    mentionedByUserId: '1',
+    mentionedUserId: '2',
+  };
+
+  it('should notify on new post mention', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post_mention',
+      }),
+    );
+    expect(notifyNewPostMention).toBeCalledTimes(1);
+    expect(jest.mocked(notifyNewPostMention).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
   });
 });
 

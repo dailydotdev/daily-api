@@ -119,8 +119,14 @@ export class NotificationBuilder {
     return this.enrichNotification({ title });
   }
 
-  description(description: string): NotificationBuilder {
-    return this.enrichNotification({ description });
+  description(description: string, simplified?: boolean): NotificationBuilder {
+    if (!simplified) {
+      return this.enrichNotification({ description });
+    }
+
+    return this.enrichNotification({
+      description: simplifyComment(description),
+    });
   }
 
   targetUrl(targetUrl: string): NotificationBuilder {
@@ -139,6 +145,19 @@ export class NotificationBuilder {
   targetSource(source: Reference<Source>): NotificationBuilder {
     return this.enrichNotification({
       targetUrl: getSourceLink(source),
+    });
+  }
+
+  setTargetUrlParameter(params: Array<[string, string]>) {
+    if (!this.notification.targetUrl) {
+      throw new Error('There is currently no target URL');
+    }
+
+    const url = new URL(this.notification.targetUrl);
+    params.forEach(([key, value]) => url.searchParams.set(key, value));
+
+    return this.enrichNotification({
+      targetUrl: url.href,
     });
   }
 

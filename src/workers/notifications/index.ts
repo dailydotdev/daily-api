@@ -20,6 +20,7 @@ import memberJoinedSource from './squadMemberJoined';
 import featureAccessNotification from './featureAccessNotification';
 import sourceMemberRoleChanged from './sourceMemberRoleChanged';
 import { TypeOrmError } from '../../errors';
+import postMention from './postMention';
 
 function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -60,6 +61,7 @@ const notificationWorkers: NotificationWorker[] = [
   articleAnalytics,
   sourceRequest,
   commentMention,
+  postMention,
   commentReply,
   commentUpvoteMilestone,
   postAdded,
