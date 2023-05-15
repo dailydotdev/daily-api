@@ -2390,4 +2390,31 @@ describe('mutation editPost', () => {
     expect(mention).toBeTruthy();
     expect(res.data.editPost.contentHtml).toMatchSnapshot();
   });
+
+  it('should not throw if no changes are made to post during edit mutation', async () => {
+    loggedUser = '2';
+
+    await con.getRepository(WelcomePost).save({
+      id: 'wp',
+      shortId: 'wp',
+      sourceId: 'a',
+      title: 'Welcome post',
+      content: '#Test',
+      contentHtml: '<h1>Test</h1>',
+    });
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '2', sourceId: 'a' },
+        { role: SourceMemberRoles.Admin },
+      );
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'wp',
+        content: '#Test',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+  });
 });
