@@ -119,8 +119,14 @@ export class NotificationBuilder {
     return this.enrichNotification({ title });
   }
 
-  description(description: string): NotificationBuilder {
-    return this.enrichNotification({ description });
+  description(description: string, simplified?: boolean): NotificationBuilder {
+    if (!simplified) {
+      return this.enrichNotification({ description });
+    }
+
+    return this.enrichNotification({
+      description: simplifyComment(description),
+    });
   }
 
   targetUrl(targetUrl: string): NotificationBuilder {

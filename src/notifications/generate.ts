@@ -154,7 +154,7 @@ export const generateNotificationMap: Record<
     builder
       .referencePost(ctx.post)
       .icon(NotificationIcon.Comment)
-      .description((ctx.post as WelcomePost).content)
+      .description((ctx.post as WelcomePost).content, true)
       .targetPost(ctx.post)
       .setTargetUrlParameter(
         ctx.post.type === PostType.Welcome
