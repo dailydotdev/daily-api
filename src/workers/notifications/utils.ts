@@ -32,12 +32,12 @@ export const buildPostContext = async (
     .getRepository(Post)
     .findOne({ where: { id: postId }, relations: ['source'] });
   let sharedPost: Post;
-  if (post.type === PostType.Share) {
-    sharedPost = await con
-      .getRepository(Post)
-      .findOneBy({ id: (post as SharePost).sharedPostId });
-  }
   if (post) {
+    if (post.type === PostType.Share) {
+      sharedPost = await con
+        .getRepository(Post)
+        .findOneBy({ id: (post as SharePost).sharedPostId });
+    }
     return {
       post,
       source: await post.source,
