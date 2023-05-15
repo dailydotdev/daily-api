@@ -38,6 +38,7 @@ import {
   Upvote,
   WelcomePost,
   PostMention,
+  UserActionType,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -55,6 +56,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { Roles } from '../roles';
 import { markdown, saveMentions } from '../common/markdown';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
+import { insertOrIgnoreAction } from './actions';
 
 export interface GQLPost {
   id: string;
@@ -978,6 +980,14 @@ export const resolvers: IResolvers<any, Context> = {
             ctx.userId,
             mentions,
             PostMention,
+          );
+        }
+
+        if (post.type === PostType.Welcome) {
+          await insertOrIgnoreAction(
+            con,
+            ctx.userId,
+            UserActionType.EditWelcomePost,
           );
         }
 

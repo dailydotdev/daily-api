@@ -13,19 +13,41 @@ import {
   User,
   UserAction,
   UserActionType,
+  WelcomePost,
 } from '../../src/entity';
-import { saveFixtures } from '../helpers';
+import {
+  GraphQLTestClient,
+  GraphQLTestingState,
+  MockContext,
+  disposeGraphQLTesting,
+  initializeGraphQLTesting,
+  saveFixtures,
+} from '../helpers';
 import { usersFixture } from '../fixture/user';
 import { retroCheckActions } from '../../bin/completedUserActions';
-import { SourceMemberRoles } from '../../src/roles';
+import { Roles, SourceMemberRoles } from '../../src/roles';
 
 let con: DataSource;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
+let loggedUser: string | null = null;
+let premiumUser = false;
+let roles: Roles[] = [];
 
 beforeAll(async () => {
   con = await createOrGetConnection();
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser, premiumUser, roles),
+  );
+  client = state.client;
 });
 
 beforeEach(async () => {
+  loggedUser = null;
+  premiumUser = false;
+  roles = [];
+  jest.clearAllMocks();
+
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Source, sourcesFixture);
@@ -40,6 +62,8 @@ beforeEach(async () => {
     },
   ]);
 });
+
+afterAll(() => disposeGraphQLTesting(state));
 
 const getAction = (type: UserActionType) =>
   con.getRepository(UserAction).findOneBy({ type });
@@ -202,5 +226,40 @@ describe('retro checks for user completed actions', () => {
 
     const completed = await getAction(UserActionType.JoinSquad);
     expect(completed).toBeFalsy();
+  });
+});
+
+describe('user action', () => {
+  it('should complete edit welcome post action when updating welcome post', async () => {
+    loggedUser = '1';
+    const MUTATION = `
+    mutation EditPost($id: ID!, $title: String, $content: String, $image: Upload) {
+      editPost(id: $id, title: $title, content: $content, image: $image) {
+        id
+        title
+        content
+        contentHtml
+        type
+      }
+    }
+  `;
+    await con.getRepository(WelcomePost).save({
+      id: 'wp',
+      shortId: 'wp',
+      sourceId: 'a',
+      title: 'Welcome post',
+      content: '#Test',
+      contentHtml: '<h1>Test</h1>',
+      authorId: '1',
+    });
+    const title = 'Updated title';
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'wp', title },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editPost.title).not.toEqual(title);
+
+    const completed = await getAction(UserActionType.EditWelcomePost);
+    expect(completed).toBeTruthy();
   });
 });
