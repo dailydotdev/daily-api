@@ -132,6 +132,10 @@ export const workers: Worker[] = [
     subscription: 'api.source-request-notification',
   },
   {
+    topic: 'api.v1.new-post-mention',
+    subscription: 'api.post-mention-notification',
+  },
+  {
     topic: 'api.v1.new-comment-mention',
     subscription: 'api.comment-mention-notification',
   },

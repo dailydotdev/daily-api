@@ -36,7 +36,8 @@ export type NotificationType =
   | 'squad_blocked'
   | 'promoted_to_admin'
   | 'demoted_to_member'
-  | 'promoted_to_moderator';
+  | 'promoted_to_moderator'
+  | 'post_mention';
 
 export type NotificationReferenceType =
   | 'source_request'

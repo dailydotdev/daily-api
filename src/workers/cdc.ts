@@ -19,6 +19,7 @@ import {
   User,
   Feature,
   Source,
+  PostMention,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -52,6 +53,7 @@ import {
   notifySourcePrivacyUpdated,
   notifyPostVisible,
   notifySourceMemberRoleChanged,
+  notifyNewPostMention,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
@@ -143,6 +145,16 @@ const onCommentUpvoteChange = async (
       data.payload.before.commentId,
       data.payload.before.userId,
     );
+  }
+};
+
+const onPostMentionChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<PostMention>,
+): Promise<void> => {
+  if (data.payload.op === 'c') {
+    await notifyNewPostMention(logger, data.payload.after);
   }
 };
 
@@ -471,6 +483,9 @@ const worker: Worker = {
           break;
         case getTableName(con, CommentMention):
           await onCommentMentionChange(con, logger, data);
+          break;
+        case getTableName(con, PostMention):
+          await onPostMentionChange(con, logger, data);
           break;
         case getTableName(con, Comment):
           await onCommentChange(con, logger, data);

@@ -1,4 +1,4 @@
-import { NotificationType } from '../entity';
+import { NotificationType, PostType, WelcomePost } from '../entity';
 import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
 import {
@@ -84,6 +84,8 @@ export const notificationTitleMap: Record<
     `You are no longer a <span class="text-theme-color-cabbage">${ctx.role}</span> in <b>${ctx.source.name}</b>`,
   promoted_to_moderator: (ctx: NotificationSourceContext) =>
     `You are now a <span class="text-theme-color-cabbage">moderator</span> in <b>${ctx.source.name}</b>`,
+  post_mention: (ctx: NotificationPostContext & NotificationDoneByContext) =>
+    `<b>${ctx.doneBy.username}</b> <span class="text-theme-color-cabbage">mentioned you</span> on a post in <b>${ctx.source.name}</b>.`,
 };
 
 export const generateNotificationMap: Record<
@@ -145,6 +147,26 @@ export const generateNotificationMap: Record<
       .descriptionComment(ctx.comment)
       .targetPost(ctx.post, ctx.comment)
       .avatarManyUsers([ctx.commenter]),
+  post_mention: (
+    builder,
+    ctx: NotificationPostContext & NotificationDoneByContext,
+  ) =>
+    builder
+      .referencePost(ctx.post)
+      .icon(NotificationIcon.Comment)
+      .description((ctx.post as WelcomePost).content, true)
+      .targetPost(ctx.post)
+      .setTargetUrlParameter(
+        ctx.post.type === PostType.Welcome
+          ? [
+              [
+                'comment',
+                `@${ctx.doneBy.username} welcome to ${ctx.source.name}!`,
+              ],
+            ]
+          : [],
+      )
+      .avatarManyUsers([ctx.doneBy]),
   comment_reply: (builder, ctx: NotificationCommenterContext) =>
     builder
       .referenceComment(ctx.comment)
