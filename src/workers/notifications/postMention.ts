@@ -13,7 +13,7 @@ interface Data {
 }
 
 const worker: NotificationWorker = {
-  subscription: 'api.comment-mention-notification',
+  subscription: 'api.post-mention-notification',
   handler: async (message, con) => {
     const { postMention }: Data = messageToJson(message);
     const { postId, mentionedByUserId, mentionedUserId } = postMention;
@@ -26,6 +26,10 @@ const worker: NotificationWorker = {
     const doneBy = await con
       .getRepository(User)
       .findOneBy({ id: mentionedByUserId });
+
+    if (!doneBy) {
+      return;
+    }
 
     const ctx: NotificationPostContext & NotificationDoneByContext = {
       ...postCtx,
