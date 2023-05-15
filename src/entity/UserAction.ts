@@ -8,6 +8,7 @@ export enum UserActionType {
   SquadFirstPost = 'squad_first_post',
   SquadInvite = 'squad_invite',
   MyFeed = 'my_feed',
+  EditWelcomePost = 'edit_welcome_post',
 }
 
 @Entity()

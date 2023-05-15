@@ -38,6 +38,7 @@ import {
   Upvote,
   WelcomePost,
   PostMention,
+  UserActionType,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -55,6 +56,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { Roles } from '../roles';
 import { markdown, saveMentions } from '../common/markdown';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
+import { insertOrIgnoreAction } from './actions';
 
 export interface GQLPost {
   id: string;
@@ -981,7 +983,17 @@ export const resolvers: IResolvers<any, Context> = {
           );
         }
 
-        await repo.update({ id }, updated);
+        if (post.type === PostType.Welcome) {
+          await insertOrIgnoreAction(
+            con,
+            ctx.userId,
+            UserActionType.EditWelcomePost,
+          );
+        }
+
+        if (Object.keys(updated).length) {
+          await repo.update({ id }, updated);
+        }
       });
 
       return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
