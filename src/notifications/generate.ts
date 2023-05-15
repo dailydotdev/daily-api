@@ -1,4 +1,4 @@
-import { NotificationType, WelcomePost } from '../entity';
+import { NotificationType, PostType, WelcomePost } from '../entity';
 import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
 import {
@@ -156,9 +156,16 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Comment)
       .description((ctx.post as WelcomePost).content)
       .targetPost(ctx.post)
-      .setTargetUrlParameter([
-        ['comment', `@${ctx.doneBy.username} welcome to ${ctx.source.name}!`],
-      ])
+      .setTargetUrlParameter(
+        ctx.post.type === PostType.Welcome
+          ? [
+              [
+                'comment',
+                `@${ctx.doneBy.username} welcome to ${ctx.source.name}!`,
+              ],
+            ]
+          : [],
+      )
       .avatarManyUsers([ctx.doneBy]),
   comment_reply: (builder, ctx: NotificationCommenterContext) =>
     builder
