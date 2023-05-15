@@ -994,7 +994,6 @@ export const resolvers: IResolvers<any, Context> = {
         if (Object.keys(updated).length) {
           await repo.update({ id }, updated);
         }
-
       });
 
       return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
