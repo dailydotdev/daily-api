@@ -5,8 +5,8 @@ import {
   NotificationCommenterContext,
   NotificationDoneByContext,
   NotificationPostContext,
-  NotificationSourceMemberRoleContext,
   NotificationSourceContext,
+  NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
@@ -22,11 +22,14 @@ import {
   Post,
   PostType,
   Source,
+  SourceMember,
   SourceRequest,
   SourceType,
+  SquadSource,
   User,
+  WelcomePost,
 } from '../../src/entity';
-import { scoutArticleLink } from '../../src/common';
+import { createSquadWelcomePost, scoutArticleLink } from '../../src/common';
 import { usersFixture } from '../fixture/user';
 import createOrGetConnection from '../../src/db';
 import { DataSource } from 'typeorm';
@@ -623,25 +626,40 @@ describe('generateNotification', () => {
     ]);
   });
 
-  it('should generate squad_member_joined notification', () => {
+  it('should generate squad_member_joined notification', async () => {
     const type = 'squad_member_joined';
-    const ctx: NotificationSourceContext & NotificationDoneByContext = {
+    await con.getRepository(Source).save(sourcesFixture[0]);
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    await con.getRepository(User).save(usersFixture);
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      role: SourceMemberRoles.Admin,
+      referralToken: 'random',
+    });
+    const post = await createSquadWelcomePost(con, source as SquadSource, '1');
+    await con
+      .getRepository(WelcomePost)
+      .update({ id: post.id }, { id: 'welcome1' });
+    post.id = 'welcome1'; // for a consistent id in the test
+    const ctx: NotificationPostContext & NotificationDoneByContext = {
       userId,
-      source: {
-        ...sourcesFixture[0],
-        type: SourceType.Squad,
-      } as Reference<Source>,
+      post,
+      source,
       doneBy: usersFixture[1] as Reference<User>,
     };
     const actual = generateNotification(type, ctx);
     expect(actual.notification.type).toEqual(type);
     expect(actual.notification.userId).toEqual(userId);
     expect(actual.notification.public).toEqual(true);
-    expect(actual.notification.referenceId).toEqual('a');
-    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.referenceId).toEqual(post.id);
+    expect(actual.notification.referenceType).toEqual('post');
     expect(actual.notification.uniqueKey).toEqual('2');
     expect(actual.notification.targetUrl).toEqual(
-      'http://localhost:5002/squads/a',
+      'http://localhost:5002/posts/welcome1?comment=%40tsahidaily+welcome+to+A%21',
     );
     expect(actual.avatars).toEqual([
       {
