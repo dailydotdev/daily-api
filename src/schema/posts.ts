@@ -204,6 +204,11 @@ export const typeDefs = /* GraphQL */ `
     publishedAt: DateTime
 
     """
+    Time the post was pinned to the database
+    """
+    pinnedAt: DateTime
+
+    """
     Time the post was added to the database
     """
     createdAt: DateTime!

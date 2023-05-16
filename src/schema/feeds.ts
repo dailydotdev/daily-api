@@ -724,7 +724,7 @@ const applyFeedPagingWithPin = (
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder
     .limit(page.limit)
-    .orderBy(`${alias}."pinnedAt"`, 'DESC')
+    .orderBy(`${alias}."pinnedAt"`, 'DESC', 'NULLS LAST')
     .addOrderBy(`${alias}."createdAt"`, 'DESC');
 
   if (page.timestamp) {

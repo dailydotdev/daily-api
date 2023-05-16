@@ -660,7 +660,7 @@ describe('query sourceFeed', () => {
     after = '',
   ): string => `{
     sourceFeed(source: "${source}", ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}, supportedTypes: ["article", "share", "welcome"], after: "${after}") {
-      ${feedFields()}
+      ${feedFields('pinnedAt')}
     }
   }`;
 
@@ -684,11 +684,17 @@ describe('query sourceFeed', () => {
     await con.getRepository(Post).update({ id: 'p5' }, { createdAt });
     const res1 = await client.query(QUERY('b', Ranking.TIME));
     expect(res1.data.sourceFeed.edges[0].node.id).not.toEqual('p5');
-    await con
-      .getRepository(Post)
-      .update({ id: 'p5' }, { type: PostType.Welcome });
+
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'b' }, { type: SourceType.Squad });
+    const source = await repo.findOneBy({ id: 'b' });
+
+    await con.getRepository(User).save(usersFixture[0]);
+    const post = await createSquadWelcomePost(con, source, '1', {
+      createdAt: new Date(),
+    });
     const res2 = await client.query(QUERY('b', Ranking.TIME));
-    expect(res2.data.sourceFeed.edges[0].node.id).toEqual('p5');
+    expect(res2.data.sourceFeed.edges[0].node.id).toEqual(post.id);
     expect(res2.data.sourceFeed.edges.length).toBeGreaterThan(1);
   });
 
