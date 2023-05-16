@@ -85,17 +85,17 @@ const worker: NotificationWorker = {
             post.authorId,
             UserActionType.SquadFirstPost,
           );
-          //   const subscribed = await con.getRepository(UserAction).findOneBy({
-          //     userId: post.authorId,
-          //     type: UserActionType.EnableNotification,
-          //   });
-          //
-          //   if (!subscribed) {
-          //     notifs.push({
-          //       type: 'squad_subscribe_to_notification',
-          //       ctx: { ...baseCtx, userId: post.authorId },
-          //     });
-          //   }
+          const subscribed = await con.getRepository(UserAction).findOneBy({
+            userId: post.authorId,
+            type: UserActionType.EnableNotification,
+          });
+
+          if (!subscribed) {
+            notifs.push({
+              type: 'squad_subscribe_to_notification',
+              ctx: { ...baseCtx, userId: post.authorId },
+            });
+          }
         }
       }
     }
