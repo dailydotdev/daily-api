@@ -722,11 +722,9 @@ const applyFeedPagingWithPin = (
   builder: SelectQueryBuilder<Post>,
   alias,
 ): SelectQueryBuilder<Post> => {
-  const priority = `CASE WHEN ${alias}.type = '${PostType.Welcome}' THEN 1 ELSE 0 END`;
   let newBuilder = builder
-    .addSelect(priority, 'priority')
     .limit(page.limit)
-    .orderBy(`priority`, 'DESC')
+    .orderBy(`${alias}."pinnedAt"`, 'DESC')
     .addOrderBy(`${alias}."createdAt"`, 'DESC');
 
   if (page.timestamp) {
@@ -737,7 +735,7 @@ const applyFeedPagingWithPin = (
     newBuilder = newBuilder.andWhere(
       `
         CASE
-          WHEN ${alias}.type = '${PostType.Welcome}'
+          WHEN ${alias}."pinnedAt" IS NOT NULL
           THEN ${alias}."createdAt" + (${nextYearDifference} || ' years')::interval
           ELSE ${alias}."createdAt"
         END < :timestamp`,
