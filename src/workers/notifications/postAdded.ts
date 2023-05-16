@@ -1,6 +1,7 @@
 import { messageToJson } from '../worker';
 import {
   Post,
+  PostType,
   SourceMember,
   SourceType,
   User,
@@ -31,6 +32,11 @@ const worker: NotificationWorker = {
       return;
     }
     const { post, source } = baseCtx;
+
+    if (post.type === PostType.Welcome) {
+      return;
+    }
+
     const notifs: NotificationHandlerReturn = [];
     // community_picks_succeeded notification
     if (post.scoutId) {
