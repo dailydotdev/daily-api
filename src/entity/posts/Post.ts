@@ -151,7 +151,7 @@ export class Post {
 
   @Column({ default: null })
   @Index()
-  pinnedAt: Date;
+  pinnedAt?: Date;
 
   @Column({ default: null, type: 'text' })
   origin: PostOrigin;
