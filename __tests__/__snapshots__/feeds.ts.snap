@@ -2501,6 +2501,7 @@ Array [
   Object {
     "node": Object {
       "id": "p5",
+      "pinnedAt": null,
       "readTime": null,
       "source": Object {
         "id": "b",
@@ -2519,6 +2520,7 @@ Array [
   Object {
     "node": Object {
       "id": "p2",
+      "pinnedAt": null,
       "readTime": null,
       "source": Object {
         "id": "b",
