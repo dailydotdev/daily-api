@@ -156,16 +156,6 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Comment)
       .description((ctx.post as WelcomePost).content, true)
       .targetPost(ctx.post)
-      .setTargetUrlParameter(
-        ctx.post.type === PostType.Welcome
-          ? [
-              [
-                'comment',
-                `@${ctx.doneBy.username} welcome to ${ctx.source.name}!`,
-              ],
-            ]
-          : [],
-      )
       .avatarManyUsers([ctx.doneBy]),
   comment_reply: (builder, ctx: NotificationCommenterContext) =>
     builder
@@ -199,15 +189,25 @@ export const generateNotificationMap: Record<
       .avatarManyUsers([ctx.doneBy]),
   squad_member_joined: (
     builder,
-    ctx: NotificationSourceContext & NotificationDoneByContext,
+    ctx: NotificationPostContext & NotificationDoneByContext,
   ) =>
     builder
       .icon(NotificationIcon.Bell)
-      .referenceSource(ctx.source)
-      .targetSource(ctx.source)
+      .referencePost(ctx.post)
+      .targetPost(ctx.post)
       .avatarSource(ctx.source)
       .avatarManyUsers([ctx.doneBy])
-      .uniqueKey(ctx.doneBy.id),
+      .uniqueKey(ctx.doneBy.id)
+      .setTargetUrlParameter(
+        ctx.post.type === PostType.Welcome
+          ? [
+              [
+                'comment',
+                `@${ctx.doneBy.username} welcome to ${ctx.source.name}!`,
+              ],
+            ]
+          : [],
+      ),
   squad_new_comment: (builder, ctx: NotificationCommenterContext) =>
     builder
       .referenceComment(ctx.comment)
