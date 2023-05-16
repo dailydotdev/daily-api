@@ -10,6 +10,7 @@ import {
   Source,
   SourceMember,
   SourceType,
+  SquadSource,
   SubmissionStatus,
   Upvote,
   User,
@@ -31,7 +32,7 @@ import {
   NotificationSourceRequestContext,
   NotificationUpvotersContext,
 } from '../../src/notifications';
-import { NotificationReason } from '../../src/common';
+import { createSquadWelcomePost, NotificationReason } from '../../src/common';
 import { randomUUID } from 'crypto';
 
 let con: DataSource;
@@ -1313,6 +1314,8 @@ describe('squad member joined', () => {
     await con
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    await createSquadWelcomePost(con, source as SquadSource, '1');
     await con.getRepository(SourceMember).save([
       {
         sourceId: 'a',

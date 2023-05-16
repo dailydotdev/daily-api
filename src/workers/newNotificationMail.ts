@@ -14,6 +14,7 @@ import {
   SourceRequest,
   Submission,
   User,
+  WelcomePost,
 } from '../entity';
 import { getAuthorPostStats } from '../entity/posts';
 import {
@@ -281,10 +282,13 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   squad_member_joined: async (con, user, notification) => {
-    const [joinedUser, source] = await Promise.all([
+    const [joinedUser, post] = await Promise.all([
       con.getRepository(User).findOneBy({ id: notification.uniqueKey }),
-      con.getRepository(Source).findOneBy({ id: notification.referenceId }),
+      con
+        .getRepository(WelcomePost)
+        .findOneBy({ id: notification.referenceId }),
     ]);
+    const source = await post.source;
     if (!joinedUser || !source) {
       return;
     }

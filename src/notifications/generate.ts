@@ -65,7 +65,7 @@ export const notificationTitleMap: Record<
   squad_member_joined: (
     ctx: NotificationSourceContext & NotificationDoneByContext,
   ) =>
-    `Your squad is growing! <b>${ctx.doneBy.name}</b> has <span class="text-theme-color-cabbage">joined</span> <b>${ctx.source.name}</b>.`,
+    `Your squad <b>${ctx.source.name}</b> is <span class="text-theme-color-cabbage">growing</span>! Welcome <b>${ctx.doneBy.name}</b> to the squad with a comment.`,
   squad_new_comment: (ctx: NotificationCommenterContext) =>
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">commented</span> on your post on <b>${ctx.source.name}</b>.`,
   squad_reply: (ctx: NotificationCommenterContext) =>
@@ -156,16 +156,6 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Comment)
       .description((ctx.post as WelcomePost).content, true)
       .targetPost(ctx.post)
-      .setTargetUrlParameter(
-        ctx.post.type === PostType.Welcome
-          ? [
-              [
-                'comment',
-                `@${ctx.doneBy.username} welcome to ${ctx.source.name}!`,
-              ],
-            ]
-          : [],
-      )
       .avatarManyUsers([ctx.doneBy]),
   comment_reply: (builder, ctx: NotificationCommenterContext) =>
     builder
@@ -199,15 +189,25 @@ export const generateNotificationMap: Record<
       .avatarManyUsers([ctx.doneBy]),
   squad_member_joined: (
     builder,
-    ctx: NotificationSourceContext & NotificationDoneByContext,
+    ctx: NotificationPostContext & NotificationDoneByContext,
   ) =>
     builder
       .icon(NotificationIcon.Bell)
-      .referenceSource(ctx.source)
-      .targetSource(ctx.source)
+      .referencePost(ctx.post)
+      .targetPost(ctx.post)
       .avatarSource(ctx.source)
       .avatarManyUsers([ctx.doneBy])
-      .uniqueKey(ctx.doneBy.id),
+      .uniqueKey(ctx.doneBy.id)
+      .setTargetUrlParameter(
+        ctx.post.type === PostType.Welcome
+          ? [
+              [
+                'comment',
+                `@${ctx.doneBy.username} welcome to ${ctx.source.name}!`,
+              ],
+            ]
+          : [],
+      ),
   squad_new_comment: (builder, ctx: NotificationCommenterContext) =>
     builder
       .referenceComment(ctx.comment)

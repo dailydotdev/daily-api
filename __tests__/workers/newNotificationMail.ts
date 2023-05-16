@@ -2,7 +2,7 @@ import {
   expectSuccessfulBackground,
   saveNotificationFixture,
 } from '../helpers';
-import { sendEmail } from '../../src/common';
+import { createSquadWelcomePost, sendEmail } from '../../src/common';
 import worker from '../../src/workers/newNotificationMail';
 import {
   ArticlePost,
@@ -14,6 +14,7 @@ import {
   Submission,
   SubmissionStatus,
   User,
+  WelcomePost,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { DataSource } from 'typeorm';
@@ -716,10 +717,16 @@ it('should set parameters for squad_member_joined email', async () => {
     .update({ id: 'a' }, { type: SourceType.Squad });
   const source = await con.getRepository(Source).findOneBy({ id: 'a' });
   const doneBy = await con.getRepository(User).findOneBy({ id: '2' });
-  const ctx: NotificationSourceContext & NotificationDoneByContext = {
+  const post = await createSquadWelcomePost(con, source, '1');
+  await con
+    .getRepository(WelcomePost)
+    .update({ id: post.id }, { id: 'welcome1' });
+  post.id = 'welcome1'; // for a consistent id in the test
+  const ctx: NotificationPostContext & NotificationDoneByContext = {
     userId: '1',
     source,
     doneBy,
+    post,
   };
 
   const notificationId = await saveNotificationFixture(
@@ -739,7 +746,7 @@ it('should set parameters for squad_member_joined email', async () => {
     full_name: 'Tsahi',
     new_member_handle: 'tsahidaily',
     post_link:
-      'http://localhost:5002/squads/a?utm_source=notification&utm_medium=email&utm_campaign=squad_member_joined',
+      'http://localhost:5002/posts/welcome1?comment=%40tsahidaily+welcome+to+A%21&utm_source=notification&utm_medium=email&utm_campaign=squad_member_joined',
     profile_image: 'https://daily.dev/tsahi.jpg',
     squad_image: 'http://image.com/a',
     squad_name: 'A',

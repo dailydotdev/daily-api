@@ -1,7 +1,7 @@
 import { messageToJson } from '../worker';
 import {
   NotificationDoneByContext,
-  NotificationSourceContext,
+  NotificationPostContext,
 } from '../../notifications';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
@@ -11,6 +11,7 @@ import {
   SourceType,
   User,
   UserActionType,
+  WelcomePost,
 } from '../../entity';
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
@@ -42,15 +43,17 @@ const worker: NotificationWorker = {
     if (!admin) {
       return;
     }
-    const [doneBy, source] = await Promise.all([
+    const [doneBy, source, post] = await Promise.all([
       con.getRepository(User).findOneBy({ id: member.userId }),
       con.getRepository(Source).findOneBy({ id: member.sourceId }),
+      con.getRepository(WelcomePost).findOneBy({ sourceId: member.sourceId }),
     ]);
-    if (!doneBy || !source || source.type !== SourceType.Squad) {
+    if (!doneBy || !post || source.type !== SourceType.Squad) {
       return;
     }
-    const ctx: NotificationSourceContext & NotificationDoneByContext = {
+    const ctx: NotificationPostContext & NotificationDoneByContext = {
       userId: admin.userId,
+      post,
       source,
       doneBy,
     };
