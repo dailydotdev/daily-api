@@ -149,6 +149,10 @@ export class Post {
   @Column({ default: null })
   visibleAt: Date;
 
+  @Column({ default: null })
+  @Index()
+  pinnedAt: Date;
+
   @Column({ default: null, type: 'text' })
   origin: PostOrigin;
 
