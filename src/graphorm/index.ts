@@ -76,6 +76,7 @@ const obj = new GraphORM({
       'id',
       'shortId',
       'createdAt',
+      'pinnedAt',
       'authorId',
       'scoutId',
       'private',
