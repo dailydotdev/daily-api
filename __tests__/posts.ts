@@ -95,6 +95,32 @@ beforeEach(async () => {
   });
 });
 
+const saveSquadFixtures = async () => {
+  await con
+    .getRepository(Source)
+    .update({ id: 'a' }, { type: SourceType.Squad });
+  await con
+    .getRepository(Post)
+    .update(
+      { id: 'p1' },
+      { type: PostType.Welcome, title: 'Welcome post', authorId: '1' },
+    );
+  await con.getRepository(SourceMember).save([
+    {
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+    {
+      userId: '2',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: randomUUID(),
+    },
+  ]);
+};
+
 afterAll(() => disposeGraphQLTesting(state));
 
 describe('image fields', () => {
@@ -2162,29 +2188,7 @@ describe('mutation editPost', () => {
   };
 
   beforeEach(async () => {
-    await con
-      .getRepository(Source)
-      .update({ id: 'a' }, { type: SourceType.Squad });
-    await con
-      .getRepository(Post)
-      .update(
-        { id: 'p1' },
-        { type: PostType.Welcome, title: 'Welcome post', authorId: '1' },
-      );
-    await con.getRepository(SourceMember).save([
-      {
-        userId: '1',
-        sourceId: 'a',
-        role: SourceMemberRoles.Member,
-        referralToken: randomUUID(),
-      },
-      {
-        userId: '2',
-        sourceId: 'a',
-        role: SourceMemberRoles.Member,
-        referralToken: randomUUID(),
-      },
-    ]);
+    await saveSquadFixtures();
   });
 
   it('should not authorize when not logged in', () =>
@@ -2416,5 +2420,76 @@ describe('mutation editPost', () => {
       },
     });
     expect(res.errors).toBeFalsy();
+  });
+});
+
+describe('mutation updatePinPost', () => {
+  const MUTATION = `
+    mutation UpdatePinPost($id: ID!, $shouldBePinned: Boolean!) {
+      updatePinPost(id: $id, shouldBePinned: $shouldBePinned) {
+        _
+      }
+    }
+  `;
+
+  const params = { id: 'p1', shouldBePinned: false };
+
+  beforeEach(async () => {
+    await saveSquadFixtures();
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if user is not a moderator or an admin', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should update pinnedAt property based on the parameter if user is admin or moderator', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
+
+    const getPost = () => con.getRepository(Post).findOneBy({ id: 'p1' });
+
+    const unpinned = await getPost();
+    expect(unpinned.pinnedAt).toBeNull();
+
+    await client.mutate(MUTATION, {
+      variables: { id: 'p1', shouldBePinned: true },
+    });
+
+    const pinned = await getPost();
+    expect(pinned.pinnedAt).not.toBeNull();
+
+    await client.mutate(MUTATION, {
+      variables: { id: 'p1', shouldBePinned: false },
+    });
+
+    const unpinnedAgain = await getPost();
+    expect(unpinnedAgain.pinnedAt).toBeNull();
+
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Moderator });
+
+    await client.mutate(MUTATION, {
+      variables: { id: 'p1', shouldBePinned: true },
+    });
+
+    const pinnedAgain = await getPost();
+    expect(pinnedAgain.pinnedAt).not.toBeNull();
   });
 });
