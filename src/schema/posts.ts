@@ -57,6 +57,7 @@ import { Roles } from '../roles';
 import { markdown, saveMentions } from '../common/markdown';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
+import { generateShortId } from '../ids';
 
 export interface GQLPost {
   id: string;
@@ -548,6 +549,16 @@ export const typeDefs = /* GraphQL */ `
     ): Post! @auth
 
     """
+    Upload an asset from writing a post
+    """
+    uploadContentImage(
+      """
+      Asset to upload to our cloudinary server
+      """
+      image: Upload
+    ): String! @auth
+
+    """
     Delete a post permanently
     """
     deletePost(
@@ -873,6 +884,24 @@ export const resolvers: IResolvers<any, Context> = {
         }
       }
       return { _: true };
+    },
+    uploadContentImage: async (
+      _,
+      { image }: { image: Promise<FileUpload> },
+    ): Promise<string> => {
+      if (!image) {
+        throw new ValidationError('File is missing!');
+      }
+
+      if (!process.env.CLOUDINARY_URL) {
+        throw new Error('Unable to upload asset to cloudinary!');
+      }
+
+      const upload = await image;
+      const id = generateShortId();
+      const filename = `post_content_${id}`;
+
+      return uploadPostImage(filename, upload.createReadStream());
     },
     deletePost: async (
       _,
