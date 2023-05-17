@@ -11,7 +11,7 @@ export interface GraphqlPayload {
 
 export const postFields = (userId?: string): string => {
   const base =
-    'id,title,url,publishedAt,createdAt,image,ratio,placeholder,readTime,publication { id, name, image },tags';
+    'id,title,url,publishedAt,createdAt,pinnedAt,image,ratio,placeholder,readTime,publication { id, name, image },tags';
   if (userId) {
     return `${base},bookmarked,read`;
   }
