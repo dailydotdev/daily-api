@@ -264,6 +264,26 @@ describe('source member role changed', () => {
 });
 
 describe('post added notifications', () => {
+  it('should not add any notification if post is a welcome post', async () => {
+    const worker = await import('../../src/workers/notifications/postAdded');
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { authorId: '1', type: PostType.Welcome });
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con.getRepository(SourceMember).save({
+      userId: '2',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: 'random',
+    });
+    const actual = await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+    expect(actual).toBeFalsy();
+  });
+
   it('should add article picked notification', async () => {
     const worker = await import('../../src/workers/notifications/postAdded');
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
