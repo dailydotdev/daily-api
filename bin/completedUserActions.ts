@@ -108,4 +108,6 @@ export const retroCheckActions = async (ds?: DataSource): Promise<void> => {
   console.log('finished retro checking');
 };
 
-// retroCheckActions();
+if (process.env.NODE_ENV !== 'test') {
+  retroCheckActions();
+}
