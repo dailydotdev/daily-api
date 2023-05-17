@@ -702,7 +702,7 @@ const feedPageGeneratorWithPin: PageGenerator<
       return { limit };
     }
 
-    const [time, pinned] = unbased?.split(';');
+    const [time, pinned] = unbased.split(';');
     const createdAt = time?.split(':')[1];
     const pinnedAt = pinned?.split(':')[1];
     const result: FeedPage = { limit };
@@ -713,10 +713,6 @@ const feedPageGeneratorWithPin: PageGenerator<
 
     if (pinnedAt) {
       result.pinned = new Date(parseInt(pinnedAt));
-    }
-
-    if (!createdAt) {
-      return { limit };
     }
 
     return result;
