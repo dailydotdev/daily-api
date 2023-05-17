@@ -6,7 +6,6 @@ import {
   FeedSource,
   FeedTag,
   Post,
-  PostType,
   Source,
 } from '../entity';
 import { Category } from '../entity/Category';
@@ -49,7 +48,6 @@ import {
   getPersonalizedFeedKeyPrefix,
 } from '../personalizedFeed';
 import { ioRedisPool } from '../redis';
-import { changeYearToNextYear } from '../common/date';
 
 interface GQLTagsCategory {
   id: string;
