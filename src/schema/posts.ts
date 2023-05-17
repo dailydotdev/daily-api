@@ -63,6 +63,7 @@ export interface GQLPost {
   type: string;
   shortId: string;
   publishedAt?: Date;
+  pinnedAt?: Date;
   createdAt: Date;
   url: string;
   title?: string;
