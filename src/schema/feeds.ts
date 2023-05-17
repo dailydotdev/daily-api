@@ -695,17 +695,22 @@ const feedPageGeneratorWithPin: PageGenerator<
   unknown
 > = {
   connArgsToPage: ({ first, after }: FeedArgs) => {
-    const unbased = unbase64(after);
     const limit = Math.min(first || 30, 50) + 1;
+    const result: FeedPage = { limit };
+
+    if (!after) {
+      return result;
+    }
+
+    const unbased = unbase64(after);
 
     if (!unbased) {
-      return { limit };
+      return result;
     }
 
     const [time, pinned] = unbased.split(';');
     const createdAt = time?.split(':')[1];
     const pinnedAt = pinned?.split(':')[1];
-    const result: FeedPage = { limit };
 
     if (createdAt) {
       result.timestamp = new Date(parseInt(createdAt));
