@@ -101,6 +101,11 @@ export interface GQLPost {
   contentHtml?: string;
 }
 
+interface PinPostArgs {
+  id: string;
+  pinned: boolean;
+}
+
 type EditablePost = Pick<
   FreeformPost,
   'title' | 'content' | 'image' | 'contentHtml'
@@ -554,6 +559,21 @@ export const typeDefs = /* GraphQL */ `
     ): Post! @auth
 
     """
+    Pin or unpin a post
+    """
+    updatePinPost(
+      """
+      Id of the post to update the pinnedAt property
+      """
+      id: ID!
+
+      """
+      Whether to pin the post or not
+      """
+      pinned: Boolean!
+    ): EmptyResponse @auth
+
+    """
     Delete a post permanently
     """
     deletePost(
@@ -904,6 +924,26 @@ export const resolvers: IResolvers<any, Context> = {
 
           await repo.update({ id }, { deleted: true });
         }
+      });
+
+      return { _: true };
+    },
+    updatePinPost: async (
+      _,
+      { id, pinned }: PinPostArgs,
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.transaction(async (manager) => {
+        const repo = manager.getRepository(Post);
+        const post = await repo.findOneBy({ id });
+
+        await ensureSourcePermissions(
+          ctx,
+          post.sourceId,
+          SourcePermissions.PostPin,
+        );
+
+        await repo.update({ id }, { pinnedAt: pinned ? new Date() : null });
       });
 
       return { _: true };
