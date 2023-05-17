@@ -2425,14 +2425,14 @@ describe('mutation editPost', () => {
 
 describe('mutation updatePinPost', () => {
   const MUTATION = `
-    mutation UpdatePinPost($id: ID!, $shouldBePinned: Boolean!) {
-      updatePinPost(id: $id, shouldBePinned: $shouldBePinned) {
+    mutation UpdatePinPost($id: ID!, $pinned: Boolean!) {
+      updatePinPost(id: $id, pinned: $pinned) {
         _
       }
     }
   `;
 
-  const params = { id: 'p1', shouldBePinned: false };
+  const params = { id: 'p1', pinned: false };
 
   beforeEach(async () => {
     await saveSquadFixtures();
@@ -2468,14 +2468,14 @@ describe('mutation updatePinPost', () => {
     expect(unpinned.pinnedAt).toBeNull();
 
     await client.mutate(MUTATION, {
-      variables: { id: 'p1', shouldBePinned: true },
+      variables: { id: 'p1', pinned: true },
     });
 
     const pinned = await getPost();
     expect(pinned.pinnedAt).not.toBeNull();
 
     await client.mutate(MUTATION, {
-      variables: { id: 'p1', shouldBePinned: false },
+      variables: { id: 'p1', pinned: false },
     });
 
     const unpinnedAgain = await getPost();
@@ -2486,7 +2486,7 @@ describe('mutation updatePinPost', () => {
       .update({ userId: '1' }, { role: SourceMemberRoles.Moderator });
 
     await client.mutate(MUTATION, {
-      variables: { id: 'p1', shouldBePinned: true },
+      variables: { id: 'p1', pinned: true },
     });
 
     const pinnedAgain = await getPost();

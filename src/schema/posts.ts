@@ -102,7 +102,7 @@ export interface GQLPost {
 
 interface PinPostArgs {
   id: string;
-  shouldBePinned: boolean;
+  pinned: boolean;
 }
 
 type EditablePost = Pick<
@@ -557,10 +557,14 @@ export const typeDefs = /* GraphQL */ `
     """
     updatePinPost(
       """
-      Id of the post to delete
+      Id of the post to update the pinnedAt property
       """
       id: ID!
-      shouldBePinned: Boolean!
+
+      """
+      Whether to pin the post or not
+      """
+      pinned: Boolean!
     ): EmptyResponse @auth
 
     """
@@ -920,7 +924,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     updatePinPost: async (
       _,
-      { id, shouldBePinned }: PinPostArgs,
+      { id, pinned }: PinPostArgs,
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (manager) => {
@@ -933,10 +937,7 @@ export const resolvers: IResolvers<any, Context> = {
           SourcePermissions.PostPin,
         );
 
-        await repo.update(
-          { id },
-          { pinnedAt: shouldBePinned ? new Date() : null },
-        );
+        await repo.update({ id }, { pinnedAt: pinned ? new Date() : null });
       });
 
       return { _: true };
