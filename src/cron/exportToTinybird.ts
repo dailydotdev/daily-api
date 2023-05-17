@@ -2,7 +2,7 @@ import { Cron } from './cron';
 import fetch from 'node-fetch';
 import jsonexport from 'jsonexport';
 import FormData from 'form-data';
-import { UNKNOWN_SOURCE } from '../entity';
+import { PostType, UNKNOWN_SOURCE } from '../entity';
 
 import { promisify } from 'util';
 
@@ -36,6 +36,7 @@ const cron: Cron = {
        WHERE "metadataChangedAt" > $1
          and "sourceId" != '${UNKNOWN_SOURCE}'
          and "visible" = true
+         and "type" != '${PostType.Welcome}'
      `,
       [latest],
     );
