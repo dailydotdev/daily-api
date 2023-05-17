@@ -23,12 +23,12 @@ import {
   feedResolver,
   feedToFilters,
   fixedIdsFeedBuilder,
+  getArgsFromAfter,
   getCursorFromAfter,
   randomPostsResolver,
   Ranking,
   sourceFeedBuilder,
   tagFeedBuilder,
-  unbase64,
   whereKeyword,
 } from '../common';
 import { In, SelectQueryBuilder } from 'typeorm';
@@ -697,27 +697,14 @@ const feedPageGeneratorWithPin: PageGenerator<
   connArgsToPage: ({ first, after }: FeedArgs) => {
     const limit = Math.min(first || 30, 50) + 1;
     const result: FeedPage = { limit };
+    const { time, pinned } = getArgsFromAfter(after);
 
-    if (!after) {
-      return result;
+    if (time) {
+      result.timestamp = new Date(parseInt(time));
     }
 
-    const unbased = unbase64(after);
-
-    if (!unbased) {
-      return result;
-    }
-
-    const [time, pinned] = unbased.split(';');
-    const createdAt = time?.split(':')[1];
-    const pinnedAt = pinned?.split(':')[1];
-
-    if (createdAt) {
-      result.timestamp = new Date(parseInt(createdAt));
-    }
-
-    if (pinnedAt) {
-      result.pinned = new Date(parseInt(pinnedAt));
+    if (pinned) {
+      result.pinned = new Date(parseInt(pinned));
     }
 
     return result;
