@@ -1,6 +1,5 @@
 import cloudinary from 'cloudinary';
 import { Readable } from 'stream';
-import { SourceType } from '../entity';
 
 export const uploadLogo = (name: string, stream: Readable): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -21,9 +20,17 @@ export const uploadLogo = (name: string, stream: Readable): Promise<string> =>
     stream.pipe(outStream);
   });
 
+export enum UploadPreset {
+  DevCard = 'devcard',
+  Avatar = 'avatar',
+  SquadImage = 'squad',
+  PostBannerImage = 'post_image',
+  FreeformImage = 'freeform_image',
+}
+
 export const uploadFile = (
   name: string,
-  preset: string,
+  preset: UploadPreset,
   stream: Readable,
 ): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -44,27 +51,26 @@ export const uploadFile = (
   });
 
 export const uploadDevCardBackground = (name: string, stream: Readable) =>
-  uploadFile(name, 'devcard', stream);
+  uploadFile(name, UploadPreset.DevCard, stream);
 
 export const uploadSquadImage = (name: string, stream: Readable) =>
-  uploadFile(name, SourceType.Squad, stream);
-
-const avatarPreset = 'avatar';
+  uploadFile(name, UploadPreset.SquadImage, stream);
 
 export const uploadAvatar = (userId: string, stream: Readable) =>
-  uploadFile(`${avatarPreset}_${userId}`, avatarPreset, stream);
+  uploadFile(`${UploadPreset.Avatar}_${userId}`, UploadPreset.Avatar, stream);
 
-const postPreset = 'post_image';
+type PostPreset = UploadPreset.PostBannerImage | UploadPreset.FreeformImage;
 
 export const uploadPostFile = (
   name: string,
   stream: Readable,
+  preset: PostPreset,
 ): Promise<string> =>
   new Promise((resolve, reject) => {
     const outStream = cloudinary.v2.uploader.upload_stream(
       {
         public_id: name,
-        upload_preset: postPreset,
+        upload_preset: preset,
       },
       (err, callResult) => {
         if (err) {
@@ -83,6 +89,3 @@ export const uploadPostFile = (
     );
     stream.pipe(outStream);
   });
-
-export const uploadPostImage = (identifier: string, stream: Readable) =>
-  uploadPostFile(identifier, stream);

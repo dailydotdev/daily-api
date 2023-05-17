@@ -21,7 +21,8 @@ import {
   notifyView,
   pickImageUrl,
   standardizeURL,
-  uploadPostImage,
+  uploadPostFile,
+  UploadPreset,
 } from '../common';
 import {
   ArticlePost,
@@ -901,7 +902,11 @@ export const resolvers: IResolvers<any, Context> = {
       const id = generateShortId();
       const filename = `post_content_${id}`;
 
-      return uploadPostImage(filename, upload.createReadStream());
+      return uploadPostFile(
+        filename,
+        upload.createReadStream(),
+        UploadPreset.FreeformImage,
+      );
     },
     deletePost: async (
       _,
@@ -987,9 +992,10 @@ export const resolvers: IResolvers<any, Context> = {
 
           if (image && process.env.CLOUDINARY_URL) {
             const upload = await image;
-            updated.image = await uploadPostImage(
+            updated.image = await uploadPostFile(
               id,
               upload.createReadStream(),
+              UploadPreset.PostBannerImage,
             );
           }
         }
