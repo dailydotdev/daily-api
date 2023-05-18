@@ -63,6 +63,7 @@ export interface GQLPost {
   type: string;
   shortId: string;
   publishedAt?: Date;
+  pinnedAt?: Date;
   createdAt: Date;
   url: string;
   title?: string;
@@ -207,6 +208,11 @@ export const typeDefs = /* GraphQL */ `
     Time the post was published
     """
     publishedAt: DateTime
+
+    """
+    Time the post was pinned to the database
+    """
+    pinnedAt: DateTime
 
     """
     Time the post was added to the database
