@@ -17,6 +17,7 @@ Object {
   "lastTrending": null,
   "metadataChangedAt": Any<Date>,
   "origin": "crawler",
+  "pinnedAt": null,
   "placeholder": null,
   "private": false,
   "publishedAt": null,

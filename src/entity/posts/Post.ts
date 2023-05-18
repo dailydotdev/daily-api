@@ -27,6 +27,11 @@ export enum PostOrigin {
 }
 
 @Entity()
+@Index('IDX_post_source_id_pinned_at_created_at', [
+  'sourceId',
+  'pinnedAt',
+  'createdAt',
+])
 @TableInheritance({
   column: { type: 'varchar', name: 'type', default: PostType.Article },
 })
@@ -148,6 +153,10 @@ export class Post {
 
   @Column({ default: null })
   visibleAt: Date;
+
+  @Column({ default: null })
+  @Index()
+  pinnedAt?: Date;
 
   @Column({ default: null, type: 'text' })
   origin: PostOrigin;

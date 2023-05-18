@@ -144,6 +144,7 @@ export const createSquadWelcomePost = async (
     banned: true,
     visible: true,
     private: true,
+    pinnedAt: new Date(),
     visibleAt: new Date(),
     origin: PostOrigin.UserGenerated,
   });
