@@ -26,6 +26,7 @@ export enum UploadPreset {
   SquadImage = 'squad',
   PostBannerImage = 'post_image',
   FreeformImage = 'freeform_image',
+  FreeformGif = 'freeform_gif',
 }
 
 export const uploadFile = (
@@ -59,7 +60,10 @@ export const uploadSquadImage = (name: string, stream: Readable) =>
 export const uploadAvatar = (userId: string, stream: Readable) =>
   uploadFile(`${UploadPreset.Avatar}_${userId}`, UploadPreset.Avatar, stream);
 
-type PostPreset = UploadPreset.PostBannerImage | UploadPreset.FreeformImage;
+type PostPreset =
+  | UploadPreset.PostBannerImage
+  | UploadPreset.FreeformImage
+  | UploadPreset.FreeformGif;
 
 export const uploadPostFile = (
   name: string,

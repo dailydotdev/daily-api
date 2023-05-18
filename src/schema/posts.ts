@@ -556,7 +556,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Asset to upload to our cloudinary server
       """
-      image: Upload
+      image: Upload!
     ): String! @auth
 
     """
@@ -899,14 +899,15 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       const upload = await image;
+      const extension = upload.filename.split('.').pop();
+      const preset =
+        extension === 'gif'
+          ? UploadPreset.FreeformGif
+          : UploadPreset.FreeformImage;
       const id = generateShortId();
       const filename = `post_content_${id}`;
 
-      return uploadPostFile(
-        filename,
-        upload.createReadStream(),
-        UploadPreset.FreeformImage,
-      );
+      return uploadPostFile(filename, upload.createReadStream(), preset);
     },
     deletePost: async (
       _,
