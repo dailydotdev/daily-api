@@ -65,6 +65,7 @@ export interface GQLPost {
   type: string;
   shortId: string;
   publishedAt?: Date;
+  pinnedAt?: Date;
   createdAt: Date;
   url: string;
   title?: string;
@@ -100,6 +101,11 @@ export interface GQLPost {
   feedMeta?: string;
   content?: string;
   contentHtml?: string;
+}
+
+interface PinPostArgs {
+  id: string;
+  pinned: boolean;
 }
 
 type EditablePost = Pick<
@@ -204,6 +210,11 @@ export const typeDefs = /* GraphQL */ `
     Time the post was published
     """
     publishedAt: DateTime
+
+    """
+    Time the post was pinned to the database
+    """
+    pinnedAt: DateTime
 
     """
     Time the post was added to the database
@@ -558,6 +569,20 @@ export const typeDefs = /* GraphQL */ `
       """
       image: Upload!
     ): String! @auth
+
+    Pin or unpin a post
+    """
+    updatePinPost(
+      """
+      Id of the post to update the pinnedAt property
+      """
+      id: ID!
+
+      """
+      Whether to pin the post or not
+      """
+      pinned: Boolean!
+    ): EmptyResponse @auth
 
     """
     Delete a post permanently
@@ -933,6 +958,26 @@ export const resolvers: IResolvers<any, Context> = {
 
           await repo.update({ id }, { deleted: true });
         }
+      });
+
+      return { _: true };
+    },
+    updatePinPost: async (
+      _,
+      { id, pinned }: PinPostArgs,
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.transaction(async (manager) => {
+        const repo = manager.getRepository(Post);
+        const post = await repo.findOneBy({ id });
+
+        await ensureSourcePermissions(
+          ctx,
+          post.sourceId,
+          SourcePermissions.PostPin,
+        );
+
+        await repo.update({ id }, { pinnedAt: pinned ? new Date() : null });
       });
 
       return { _: true };

@@ -188,6 +188,7 @@ Object {
         "invite",
         "comment_delete",
         "post_delete",
+        "post_pin",
         "member_remove",
         "edit",
         "member_unblock",

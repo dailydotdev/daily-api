@@ -53,7 +53,6 @@ import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
-import { changeYearToNextYear } from '../src/common/date';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -660,7 +659,7 @@ describe('query sourceFeed', () => {
     after = '',
   ): string => `{
     sourceFeed(source: "${source}", ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}, supportedTypes: ["article", "share", "welcome"], after: "${after}") {
-      ${feedFields()}
+      ${feedFields('pinnedAt')}
     }
   }`;
 
@@ -684,16 +683,20 @@ describe('query sourceFeed', () => {
     await con.getRepository(Post).update({ id: 'p5' }, { createdAt });
     const res1 = await client.query(QUERY('b', Ranking.TIME));
     expect(res1.data.sourceFeed.edges[0].node.id).not.toEqual('p5');
-    await con
-      .getRepository(Post)
-      .update({ id: 'p5' }, { type: PostType.Welcome });
+
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'b' }, { type: SourceType.Squad });
+    const source = await repo.findOneBy({ id: 'b' });
+
+    await con.getRepository(User).save(usersFixture[0]);
+    const post = await createSquadWelcomePost(con, source, '1', {
+      createdAt: new Date(),
+    });
     const res2 = await client.query(QUERY('b', Ranking.TIME));
-    expect(res2.data.sourceFeed.edges[0].node.id).toEqual('p5');
+    expect(res2.data.sourceFeed.edges[0].node.id).toEqual(post.id);
     expect(res2.data.sourceFeed.edges.length).toBeGreaterThan(1);
   });
 
-  // this test is intended to check edge cases whether there is a duplicate with the result of the query
-  // and if the second page returns accurate information of what should be included
   it('should display return the right posts after the first page being pinned posts', async () => {
     await con.getRepository(User).save({ id: '1', name: 'Lee' });
     const createdAt1 = new Date('2020-09-21T01:15:51.247Z');
@@ -705,7 +708,9 @@ describe('query sourceFeed', () => {
     await repo.update({ id: 'b' }, { type: SourceType.Squad });
     const source = await repo.findOneBy({ id: 'b' });
     // used welcome post as a sample of pinned posts
-    await createSquadWelcomePost(con, source, '1', { createdAt: createdAt1 });
+    const pin = await createSquadWelcomePost(con, source, '1', {
+      createdAt: createdAt1,
+    });
     await createSquadWelcomePost(con, source, '1', { createdAt: createdAt2 });
     await createSquadWelcomePost(con, source, '1', { createdAt: createdAt3 });
     await createSquadWelcomePost(con, source, '1', { createdAt: createdAt4 });
@@ -714,12 +719,39 @@ describe('query sourceFeed', () => {
       .getRepository(Post)
       .update({ id: 'p5' }, { createdAt: new Date() });
 
-    const interval = changeYearToNextYear(createdAt1); // the oldest date which will become the last item from the first page
-    const unbased = base64(`time:${interval.getTime()}`);
+    const unbased = base64(
+      `time:${createdAt1.getTime()};pinned:${pin.pinnedAt.getTime()}`,
+    );
     const query = QUERY('b', Ranking.TIME, new Date(), 5, unbased);
     const res = await client.query(query);
 
     expect(res.data.sourceFeed.edges[0].node.id).toEqual('p5');
+    expect(res.data.sourceFeed.edges).toMatchSnapshot();
+  });
+
+  it('should display return the right posts after the first page being a mix of pinned and unpinned posts', async () => {
+    await con.getRepository(User).save({ id: '1', name: 'Lee' });
+    const createdAt1 = new Date('2020-09-21T01:15:51.247Z');
+    const createdAt2 = new Date('2020-09-21T02:15:51.247Z');
+    const createdAt3 = new Date('2020-09-21T03:15:51.247Z');
+    const createdAt4 = new Date('2020-09-21T04:15:51.247Z');
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'b' }, { type: SourceType.Squad });
+    const source = await repo.findOneBy({ id: 'b' });
+    // used welcome post as a sample of pinned posts
+    await createSquadWelcomePost(con, source, '1', { createdAt: createdAt1 });
+    await createSquadWelcomePost(con, source, '1', { createdAt: createdAt2 });
+    await createSquadWelcomePost(con, source, '1', { createdAt: createdAt3 });
+    await createSquadWelcomePost(con, source, '1', { createdAt: createdAt4 });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p5' }, { createdAt: new Date() });
+    const post = await con.getRepository(Post).findOneBy({ id: 'p5' });
+    const unbased = base64(`time:${post.createdAt.getTime()}`);
+    const query = QUERY('b', Ranking.TIME, new Date(), 5, unbased);
+    const res = await client.query(query);
+
+    expect(res.data.sourceFeed.edges[0].node.id).toEqual('p2');
     expect(res.data.sourceFeed.edges).toMatchSnapshot();
   });
 

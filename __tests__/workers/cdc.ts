@@ -745,6 +745,7 @@ describe('post', () => {
       lastTrending: 0,
       visible: true,
       visibleAt: 0,
+      pinnedAt: null,
     };
     const after: ChangeObject<ObjectType> = {
       ...localBase,
