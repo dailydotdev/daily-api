@@ -568,8 +568,9 @@ export const typeDefs = /* GraphQL */ `
       Asset to upload to our cloudinary server
       """
       image: Upload!
-    ): String! @auth
+    ): String! @auth @rateLimit(limit: 5, duration: 60)
 
+    """
     Pin or unpin a post
     """
     updatePinPost(
