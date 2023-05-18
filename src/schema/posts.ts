@@ -899,7 +899,7 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       const upload = await image;
-      const extension = upload.filename.split('.').pop();
+      const extension = upload.filename?.split('.').pop().toLowerCase();
       const preset =
         extension === 'gif'
           ? UploadPreset.FreeformGif
