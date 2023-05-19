@@ -1,6 +1,5 @@
 import { DataSource, EntityManager, In } from 'typeorm';
-import { SubmissionFailErrorKeys, TypeOrmError } from '../../errors';
-import * as he from 'he';
+import { TypeOrmError } from '../../errors';
 import { Keyword } from '../Keyword';
 import {
   EventLogger,
@@ -8,10 +7,8 @@ import {
   uniqueifyArray,
 } from '../../common';
 import { User } from '../User';
-import { FastifyLoggerInstance } from 'fastify';
 import { PostKeyword } from '../PostKeyword';
-import { validateAndApproveSubmission } from '../Submission';
-import { ArticlePost, Toc } from './ArticlePost';
+import { ArticlePost } from './ArticlePost';
 import { Post, PostOrigin } from './Post';
 import { MAX_COMMENTARY_LENGTH, SharePost } from './SharePost';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
@@ -52,37 +49,6 @@ export const getAuthorPostStats = async (
   ) as PostStats;
 };
 
-export interface RejectPostData {
-  submissionId: string;
-  reason?: string;
-}
-
-export interface AddPostData {
-  id: string;
-  title: string;
-  url: string;
-  publicationId: string;
-  publishedAt?: string | Date;
-  createdAt?: Date;
-  image?: string;
-  ratio?: number;
-  placeholder?: string;
-  tags?: string[];
-  siteTwitter?: string;
-  creatorTwitter?: string;
-  authorId?: string;
-  readTime?: number;
-  canonicalUrl?: string;
-  keywords?: string[];
-  description?: string;
-  toc?: Toc;
-  summary?: string;
-  submissionId?: string;
-  scoutId?: string;
-  origin?: PostOrigin;
-  contentCuration?: string[];
-}
-
 export const parseReadTime = (
   readTime: number | string | undefined,
 ): number | undefined => {
@@ -95,56 +61,7 @@ export const parseReadTime = (
   return Math.floor(parseInt(readTime));
 };
 
-type Reason = SubmissionFailErrorKeys;
-export type AddNewPostResult =
-  | { status: 'ok'; postId: string }
-  | { status: 'failed'; reason: Reason; error?: Error };
-
-type RejectReason = 'missing submission id';
-export type RejectPostResult =
-  | { status: 'ok'; submissionId: string }
-  | { status: 'failed'; reason: RejectReason; error?: Error };
-
-const checkRequiredFields = (data: AddPostData): boolean => {
-  return !!(data && data.title && data.url && data.publicationId);
-};
-
 export const bannedAuthors = ['@NewGenDeveloper'];
-
-const shouldAddNewPost = async (
-  entityManager: EntityManager,
-  data: AddPostData,
-): Promise<Reason | null> => {
-  const p = await entityManager
-    .getRepository(Post)
-    .createQueryBuilder()
-    .select('id')
-    .where(
-      'url = :url or url = :canonicalUrl or "canonicalUrl" = :url or "canonicalUrl" = :canonicalUrl',
-      { url: data.url, canonicalUrl: data.canonicalUrl },
-    )
-    .getRawOne();
-  if (p) {
-    return SubmissionFailErrorKeys.PostExists;
-  }
-  if (bannedAuthors.indexOf(data.creatorTwitter) > -1) {
-    return SubmissionFailErrorKeys.AuthorBanned;
-  }
-
-  if (!data.title) {
-    return SubmissionFailErrorKeys.MissingFields;
-  }
-};
-
-const fixAddPostData = async (data: AddPostData): Promise<AddPostData> => ({
-  ...data,
-  id: await generateShortId(),
-  canonicalUrl: data.canonicalUrl || data.url,
-  title: data.title && he.decode(data.title),
-  createdAt: new Date(),
-  readTime: parseReadTime(data.readTime),
-  publishedAt: data.publishedAt && new Date(data.publishedAt),
-});
 
 export const mergeKeywords = async (
   entityManager: EntityManager,
@@ -206,63 +123,6 @@ export const findAuthor = async (
   return null;
 };
 
-const addPostAndKeywordsToDb = async (
-  entityManager: EntityManager,
-  data: AddPostData,
-  logger: FastifyLoggerInstance,
-): Promise<string> => {
-  const { allowedKeywords, mergedKeywords } = await mergeKeywords(
-    entityManager,
-    data.keywords,
-  );
-  if (allowedKeywords.length > 5) {
-    logger.info(
-      {
-        url: data.url,
-        keywords: allowedKeywords,
-      },
-      'created an article with more than 5 keywords',
-    );
-  }
-  const { private: privacy } = await entityManager
-    .getRepository(Source)
-    .findOneBy({ id: data.publicationId });
-  const post = await entityManager.getRepository(ArticlePost).create({
-    id: data.id,
-    shortId: data.id,
-    publishedAt: data.publishedAt,
-    createdAt: data.createdAt,
-    sourceId: data.publicationId,
-    url: data.url,
-    title: data.title,
-    image: data.image,
-    ratio: data.ratio,
-    placeholder: data.placeholder,
-    score: Math.floor(data.createdAt.getTime() / (1000 * 60)),
-    siteTwitter: data.siteTwitter,
-    creatorTwitter: data.creatorTwitter,
-    readTime: data.readTime,
-    tagsStr: allowedKeywords?.join(',') || null,
-    canonicalUrl: data.canonicalUrl,
-    authorId: data.authorId,
-    sentAnalyticsReport: !(data.authorId || data.scoutId),
-    description: data.description,
-    toc: data.toc,
-    summary: data.summary,
-    scoutId: data.scoutId,
-    private: privacy,
-    origin: data.scoutId
-      ? PostOrigin.CommunityPicks
-      : data.origin ?? PostOrigin.Crawler,
-    visible: true,
-    visibleAt: new Date(),
-    contentCuration: data.contentCuration,
-  });
-  await entityManager.save(post);
-  await addKeywords(entityManager, mergedKeywords, data.id);
-  return data.id;
-};
-
 export const addKeywords = async (
   entityManager: EntityManager,
   mergedKeywords: string[],
@@ -286,80 +146,6 @@ export const addKeywords = async (
     );
   }
   return;
-};
-
-export const addNewPost = async (
-  con: DataSource,
-  data: AddPostData,
-  logger: FastifyLoggerInstance,
-): Promise<AddNewPostResult> => {
-  if (!checkRequiredFields(data)) {
-    return { status: 'failed', reason: SubmissionFailErrorKeys.MissingFields };
-  }
-
-  const creatorTwitter =
-    data.creatorTwitter === '' || data.creatorTwitter === '@'
-      ? null
-      : data.creatorTwitter;
-
-  return con.transaction(async (entityManager) => {
-    const authorId = await findAuthor(entityManager, creatorTwitter);
-    const fixedData = await fixAddPostData({
-      ...data,
-      creatorTwitter,
-      authorId,
-    });
-
-    const reason = await shouldAddNewPost(entityManager, fixedData);
-    if (reason) {
-      return { status: 'failed', reason };
-    }
-
-    const { scoutId, rejected } = (await validateAndApproveSubmission(
-      entityManager,
-      fixedData,
-    )) || { scoutId: null, rejected: false };
-
-    if (rejected) {
-      return {
-        status: 'failed',
-        reason: SubmissionFailErrorKeys.ScoutIsAuthor,
-      };
-    }
-
-    const combinedData = {
-      ...fixedData,
-      scoutId,
-    };
-
-    try {
-      const postId = await addPostAndKeywordsToDb(
-        entityManager,
-        combinedData,
-        logger,
-      );
-
-      return { status: 'ok', postId };
-    } catch (error) {
-      // Unique
-      if (error?.code === TypeOrmError.DUPLICATE_ENTRY) {
-        return {
-          status: 'failed',
-          reason: SubmissionFailErrorKeys.PostExists,
-          error,
-        };
-      }
-      // Null violation
-      if (error?.code === TypeOrmError.NULL_VIOLATION) {
-        return {
-          status: 'failed',
-          reason: SubmissionFailErrorKeys.MissingFields,
-          error,
-        };
-      }
-      throw error;
-    }
-  });
 };
 
 const validateCommentary = async (commentary: string) => {

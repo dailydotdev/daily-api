@@ -7,12 +7,17 @@ import {
   findAuthor,
   mergeKeywords,
   parseReadTime,
+  Post,
   PostOrigin,
   SharePost,
   Source,
+  Submission,
+  SubmissionStatus,
   Toc,
   UNKNOWN_SOURCE,
 } from '../entity';
+import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
+import { generateShortId } from '../ids';
 
 interface Data {
   post_id: string;
@@ -20,6 +25,8 @@ interface Data {
   image?: string;
   title?: string;
   content_type?: string;
+  reject_reason?: string;
+  submission_id?: string;
   source_id?: string;
   origin?: string;
   published_at?: Date;
@@ -44,26 +51,29 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     logger.info({ data }, 'content-updated received');
     try {
-      const { post_id, updated_at } = data;
-      if (!post_id) {
-        return;
-      }
-      const updatedDate = new Date(updated_at);
+      // See if we received any rejections
+      const { reject_reason, post_id, updated_at, submission_id } = data;
       await con.transaction(async (entityManager) => {
-        // For now, we only allow Squad posts to be updated through this flow
-        const databasePost = await entityManager
-          .getRepository(ArticlePost)
-          .findOneBy({ id: post_id, origin: PostOrigin.Squad });
+        if (reject_reason) {
+          // Check if we have a submission id, we need to notify
+          if (!submission_id) {
+            logger.info({ data }, 'received rejection without submission id');
+          }
 
-        if (data?.origin === PostOrigin.Squad) {
-          data.source_id = UNKNOWN_SOURCE;
-        }
-
-        if (
-          !databasePost ||
-          databasePost.metadataChangedAt.toISOString() >=
-            updatedDate.toISOString()
-        ) {
+          const submissionRepo = con.getRepository(Submission);
+          const submission = await submissionRepo.findOneBy({
+            id: submission_id,
+          });
+          if (submission.status === SubmissionStatus.Started) {
+            await submissionRepo.save({
+              ...submission,
+              status: SubmissionStatus.Rejected,
+              reason:
+                reject_reason in SubmissionFailErrorMessage
+                  ? <SubmissionFailErrorKeys>reject_reason
+                  : SubmissionFailErrorKeys.GenericError,
+            });
+          }
           return;
         }
 
@@ -82,8 +92,10 @@ const worker: Worker = {
             : data?.extra?.creator_twitter;
 
         const authorId = await findAuthor(entityManager, creatorTwitter);
-        const title = data?.title || databasePost.title;
-        const becomesVisible = !!title?.length;
+
+        const { private: privacy } = await entityManager
+          .getRepository(Source)
+          .findOneBy({ id: data?.source_id });
 
         const { allowedKeywords, mergedKeywords } = await mergeKeywords(
           entityManager,
@@ -100,10 +112,9 @@ const worker: Worker = {
           );
         }
 
-        const { private: privacy } = await entityManager
-          .getRepository(Source)
-          .findOneBy({ id: data?.source_id });
+        const becomesVisible = !!data?.title?.length;
 
+        // Try and fix generic data here
         const fixedData: Partial<ArticlePost> = {
           origin: data?.origin as PostOrigin,
           authorId,
@@ -112,14 +123,12 @@ const worker: Worker = {
           canonicalUrl: data?.extra?.canonical_url || data?.url,
           image: data?.image,
           sourceId: data?.source_id,
-          title: title && he.decode(title),
+          title: data?.title && he.decode(data?.title),
           readTime: parseReadTime(data?.extra?.read_time),
           publishedAt: data?.published_at && new Date(data?.published_at),
-          metadataChangedAt: updatedDate,
+          metadataChangedAt: new Date(),
           visible: becomesVisible,
-          visibleAt: becomesVisible
-            ? databasePost.visibleAt ?? updatedDate
-            : null,
+          visibleAt: becomesVisible ? new Date() : null,
           tagsStr: allowedKeywords?.join(',') || null,
           private: privacy,
           sentAnalyticsReport: privacy || !authorId,
@@ -130,21 +139,120 @@ const worker: Worker = {
           contentCuration: data?.extra?.content_curation,
         };
 
-        await entityManager
-          .getRepository(ArticlePost)
-          .update({ id: databasePost.id }, fixedData);
-
-        if (becomesVisible) {
-          // Update all reffering posts to become visible
-          await entityManager
-            .getRepository(SharePost)
-            .update(
-              { sharedPostId: databasePost.id },
-              { visible: true, visibleAt: updatedDate, private: privacy },
+        // See if post id is not available
+        if (!post_id) {
+          // Handle creation of new post
+          const existingPost = await entityManager
+            .getRepository(Post)
+            .createQueryBuilder()
+            .select('id')
+            .where(
+              'url = :url or url = :canonicalUrl or "canonicalUrl" = :url or "canonicalUrl" = :canonicalUrl',
+              { url: fixedData.url, canonicalUrl: fixedData.canonicalUrl },
+            )
+            .getRawOne();
+          if (existingPost) {
+            logger.info(
+              { data },
+              'failed creating post because it exists already',
             );
+            return;
+          }
+
+          if (data?.submission_id) {
+            const submission = await entityManager
+              .getRepository(Submission)
+              .findOneBy({ id: data.submission_id });
+
+            if (submission) {
+              if (fixedData.authorId === submission.userId) {
+                await entityManager.getRepository(Submission).update(
+                  { id: data.submission_id },
+                  {
+                    status: SubmissionStatus.Rejected,
+                    reason: SubmissionFailErrorKeys.ScoutIsAuthor,
+                  },
+                );
+                return;
+              }
+
+              await entityManager.getRepository(Submission).update(
+                { id: data.submission_id },
+                {
+                  status: SubmissionStatus.Accepted,
+                },
+              );
+              fixedData.scoutId = submission.userId;
+            }
+          }
+
+          const postId = await generateShortId();
+          const postCreatedAt = new Date();
+          fixedData.id = postId;
+          fixedData.shortId = postId;
+          fixedData.createdAt = postCreatedAt;
+          fixedData.score = Math.floor(postCreatedAt.getTime() / (1000 * 60));
+          fixedData.origin = fixedData?.scoutId
+            ? PostOrigin.CommunityPicks
+            : fixedData.origin ?? PostOrigin.Crawler;
+
+          // TODO: Not sure if these are still needed?
+          fixedData.ratio = null;
+          fixedData.placeholder = null;
+
+          const post = await entityManager
+            .getRepository(ArticlePost)
+            .create(fixedData);
+          await entityManager.save(post);
+        } else {
+          // Handle update of existing post
+          const updatedDate = new Date(updated_at);
+          const databasePost = await entityManager
+            .getRepository(ArticlePost)
+            .findOneBy({ id: post_id });
+
+          if (data?.origin === PostOrigin.Squad) {
+            data.source_id = UNKNOWN_SOURCE;
+          }
+
+          if (
+            !databasePost ||
+            databasePost.metadataChangedAt.toISOString() >=
+              updatedDate.toISOString()
+          ) {
+            return;
+          }
+
+          const title = data?.title || databasePost.title;
+          const updateBecameVisible = !!title?.length;
+
+          fixedData.id = databasePost.id;
+          fixedData.metadataChangedAt = updatedDate;
+          fixedData.title = title;
+          fixedData.visible = updateBecameVisible;
+          fixedData.visibleAt = updateBecameVisible
+            ? databasePost.visibleAt ?? updatedDate
+            : null;
+
+          await entityManager
+            .getRepository(ArticlePost)
+            .update({ id: databasePost.id }, fixedData);
         }
 
-        await addKeywords(entityManager, mergedKeywords, data.post_id);
+        // After add or update:
+        if (becomesVisible) {
+          // Update all reffering posts to become visible
+          await entityManager.getRepository(SharePost).update(
+            { sharedPostId: fixedData.id },
+            {
+              visible: true,
+              visibleAt: fixedData.visibleAt,
+              private: privacy,
+            },
+          );
+        }
+
+        await addKeywords(entityManager, mergedKeywords, fixedData.id);
       });
     } catch (err) {
       logger.error(
