@@ -17,7 +17,6 @@ import { MAX_COMMENTARY_LENGTH, SharePost } from './SharePost';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { Source, UNKNOWN_SOURCE } from '../Source';
 import { generateShortId } from '../../ids';
-import { ActivePost } from './ActivePost';
 
 export type PostStats = {
   numPosts: number;
@@ -40,10 +39,12 @@ export const getAuthorPostStats = async (
     .addSelect('sum(post.views)', 'numPostViews')
     .addSelect('sum(post.upvotes)', 'numPostUpvotes')
     .addSelect('sum(post.comments)', 'numPostComments')
-    .from(ActivePost, 'post')
+    .from(Post, 'post')
     .where('(post.authorId = :authorId or post.scoutId = :authorId)', {
       authorId,
     })
+    .andWhere('post.visible = true')
+    .andWhere('post.deleted = false')
     .getRawOne<StringPostStats>();
   return Object.keys(raw).reduce(
     (acc, key) => ({ ...acc, [key]: parseInt(raw[key]) || raw[key] }),
