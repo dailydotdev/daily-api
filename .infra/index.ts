@@ -101,13 +101,13 @@ const wsMemory = 3072;
 const wsLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
-  cpu: '1',
+  cpu: '500m',
   memory: `${wsMemory}Mi`,
 };
 
 const bgLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
-}> = { cpu: '500m', memory: '256Mi' };
+}> = { cpu: '250m', memory: '256Mi' };
 
 const readinessProbe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
@@ -168,7 +168,7 @@ if (isAdhocEnv) {
       limits,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 80 },
+      metric: { type: 'memory_cpu', cpu: 85 },
       createService: true,
       enableCdn: true,
       disableLifecycle: true,
@@ -185,7 +185,7 @@ if (isAdhocEnv) {
       limits: wsLimits,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 80 },
+      metric: { type: 'memory_cpu', cpu: 85 },
       disableLifecycle: true,
     },
     {
@@ -212,7 +212,7 @@ if (isAdhocEnv) {
       limits,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 80 },
+      metric: { type: 'memory_cpu', cpu: 85 },
       createService: true,
       serviceType: 'ClusterIP',
       disableLifecycle: true,
