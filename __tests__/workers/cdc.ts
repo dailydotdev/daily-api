@@ -26,7 +26,6 @@ import {
   notifySourceFeedRemoved,
   notifySourcePrivacyUpdated,
   notifySourceRequest,
-  notifySubmissionCreated,
   notifySubmissionGrantedAccess,
   notifySubmissionRejected,
   notifyUserCreated,
@@ -34,6 +33,7 @@ import {
   notifyUserUpdated,
   notifyPostVisible,
   notifySourceMemberRoleChanged,
+  notifyContentRequested,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -95,7 +95,6 @@ jest.mock('../../src/common', () => ({
   notifySourceFeedRemoved: jest.fn(),
   notifySettingsUpdated: jest.fn(),
   notifySubmissionRejected: jest.fn(),
-  notifySubmissionCreated: jest.fn(),
   notifySubmissionGrantedAccess: jest.fn(),
   notifyNewPostMention: jest.fn(),
   notifyNewCommentMention: jest.fn(),
@@ -1142,16 +1141,14 @@ describe('submission', () => {
         table: 'submission',
       }),
     );
-    expect(notifySubmissionCreated).toBeCalledTimes(1);
-    expect(jest.mocked(notifySubmissionCreated).mock.calls[0].slice(1)).toEqual(
-      [
-        {
-          url: after.url,
-          submissionId: after.id,
-          sourceId: COMMUNITY_PICKS_SOURCE,
-        },
-      ],
-    );
+    expect(notifyContentRequested).toBeCalledTimes(1);
+    expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
+      {
+        url: after.url,
+        submissionId: after.id,
+        sourceId: COMMUNITY_PICKS_SOURCE,
+      },
+    ]);
   });
 
   it('should notify when the status turns to rejected', async () => {
