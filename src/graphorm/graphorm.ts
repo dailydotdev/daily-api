@@ -69,6 +69,12 @@ export interface GraphORMType {
   fields?: { [name: string]: GraphORMField };
   // Array of columns to select regardless of the resolve tree
   requiredColumns?: string[];
+  // Define a function to manipulate the query every time
+  additionalQuery?: (
+    ctx: Context,
+    alias: string,
+    qb: QueryBuilder,
+  ) => QueryBuilder;
 }
 
 // Define custom mapping to types
@@ -328,6 +334,9 @@ export class GraphORM {
         field,
       );
     });
+    if (this.mappings?.[type]?.additionalQuery) {
+      newBuilder = this.mappings[type].additionalQuery(ctx, alias, newBuilder);
+    }
     (this.mappings?.[type]?.requiredColumns ?? []).forEach((col) => {
       newBuilder = newBuilder.addSelect(`${alias}."${col}"`, col);
     });

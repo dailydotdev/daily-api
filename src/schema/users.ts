@@ -32,7 +32,6 @@ import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
 import { TypeOrmError, NotFoundError } from '../errors';
 import { deleteUser } from '../directive/user';
-import { ActivePost } from '../entity/posts/ActivePost';
 import { randomInt } from 'crypto';
 import { In } from 'typeorm';
 
@@ -491,12 +490,14 @@ const readHistoryResolver = async (
         userId: ctx.userId,
       })
       .andWhere(`"${builder.alias}"."hidden" = false`)
-      .innerJoin(ActivePost, 'p', `"${builder.alias}"."postId" = p.id`)
+      .innerJoin(Post, 'p', `"${builder.alias}"."postId" = p.id`)
       .addSelect(
         `"timestamp"::timestamptz at time zone '${user.timezone ?? 'utc'}'`,
         'timestamp',
       )
-      .addSelect('timestamp', 'timestampDb');
+      .addSelect('timestamp', 'timestampDb')
+      .andWhere('p.visible = true')
+      .andWhere('p.deleted = false');
 
     if (args?.query) {
       builder.queryBuilder.andWhere(`p.tsv @@ (${getSearchQuery(':query')})`, {
@@ -552,7 +553,9 @@ export const resolvers: IResolvers<any, Context> = {
           .addSelect('sum(comment.upvotes)', 'numCommentUpvotes')
           .from(Comment, 'comment')
           .where({ userId: id })
-          .innerJoin(ActivePost, 'p', `comment.postId = p.id`)
+          .innerJoin(Post, 'p', `comment.postId = p.id`)
+          .andWhere('p.visible = true')
+          .andWhere('p.deleted = false')
           .getRawOne(),
       ]);
       return {

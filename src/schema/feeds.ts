@@ -6,7 +6,6 @@ import {
   FeedSource,
   FeedTag,
   Post,
-  PostType,
   Source,
 } from '../entity';
 import { Category } from '../entity/Category';
@@ -24,6 +23,7 @@ import {
   feedResolver,
   feedToFilters,
   fixedIdsFeedBuilder,
+  getArgsFromAfter,
   getCursorFromAfter,
   randomPostsResolver,
   Ranking,
@@ -48,7 +48,6 @@ import {
   getPersonalizedFeedKeyPrefix,
 } from '../personalizedFeed';
 import { ioRedisPool } from '../redis';
-import { changeYearToNextYear } from '../common/date';
 
 interface GQLTagsCategory {
   id: string;
@@ -629,6 +628,7 @@ interface AuthorFeedArgs extends FeedArgs {
 
 interface FeedPage extends Page {
   timestamp?: Date;
+  pinned?: Date;
   score?: number;
 }
 
@@ -695,21 +695,27 @@ const feedPageGeneratorWithPin: PageGenerator<
   unknown
 > = {
   connArgsToPage: ({ first, after }: FeedArgs) => {
-    const cursor = getCursorFromAfter(after);
     const limit = Math.min(first || 30, 50) + 1;
+    const result: FeedPage = { limit };
+    const { time, pinned } = getArgsFromAfter(after);
 
-    return cursor
-      ? { limit, timestamp: new Date(parseInt(cursor)) }
-      : { limit };
+    if (time) {
+      result.timestamp = new Date(parseInt(time));
+    }
+
+    if (pinned) {
+      result.pinned = new Date(parseInt(pinned));
+    }
+
+    return result;
   },
   nodeToCursor: (_, __, node) => {
-    const createdAt = new Date(node.createdAt);
-    const timestamp =
-      node.type === PostType.Welcome
-        ? changeYearToNextYear(createdAt)
-        : createdAt;
+    const params = [`time:${new Date(node.createdAt).getTime()}`];
+    if (node.pinnedAt) {
+      params.push(`pinned:${new Date(node.pinnedAt).getTime()}`);
+    }
 
-    return base64(`time:${new Date(timestamp).getTime()}`);
+    return base64(params.join(';'));
   },
   hasNextPage: (page, nodesSize) => page.limit === nodesSize,
   hasPreviousPage: (page) => !!page.timestamp,
@@ -718,32 +724,30 @@ const feedPageGeneratorWithPin: PageGenerator<
 
 const applyFeedPagingWithPin = (
   ctx: Context,
-  page: FeedPage,
+  { limit, timestamp, pinned }: FeedPage,
   builder: SelectQueryBuilder<Post>,
   alias,
 ): SelectQueryBuilder<Post> => {
-  const priority = `CASE WHEN ${alias}.type = '${PostType.Welcome}' THEN 1 ELSE 0 END`;
-  let newBuilder = builder
-    .addSelect(priority, 'priority')
-    .limit(page.limit)
-    .orderBy(`priority`, 'DESC')
+  const newBuilder = builder
+    .limit(limit)
+    .orderBy(`${alias}."pinnedAt"`, 'DESC', 'NULLS LAST')
     .addOrderBy(`${alias}."createdAt"`, 'DESC');
 
-  if (page.timestamp) {
-    // to ensure pinned post (or welcome post) be pinned on top of the feed, we need to ensure they have greater date than the rest of the result
-    // that is solved by making the year of pinned posts to the next year and since we retained the other parts of the date, sorting should be accurate.
-    // the current condition is about being a welcome post, but on v6 this will be based on the `pinned` property.
-    const nextYearDifference = `(DATE_PART('year', CURRENT_DATE) - DATE_PART('year', ${alias}."createdAt") + 1)`;
-    newBuilder = newBuilder.andWhere(
-      `
-        CASE
-          WHEN ${alias}.type = '${PostType.Welcome}'
-          THEN ${alias}."createdAt" + (${nextYearDifference} || ' years')::interval
-          ELSE ${alias}."createdAt"
-        END < :timestamp`,
-      { timestamp: page.timestamp },
+  if (pinned) {
+    return newBuilder.andWhere(
+      `(${alias}."pinnedAt" < :pinned OR ${alias}."pinnedAt" IS NULL)`,
+      { pinned },
     );
   }
+
+  if (timestamp) {
+    return newBuilder
+      .andWhere(`${alias}."createdAt" < :timestamp`, {
+        timestamp,
+      })
+      .andWhere(`${alias}."pinnedAt" IS NULL`);
+  }
+
   return newBuilder;
 };
 

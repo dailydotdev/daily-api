@@ -33,3 +33,25 @@ export const getCursorFromAfter = (after?: string): string => {
   }
   return unbase64(after).split(':')[1];
 };
+
+export const getArgsFromAfter = <
+  T extends Record<string, string> = Record<string, string>,
+>(
+  after: string,
+): Partial<T> => {
+  if (!after) {
+    return {};
+  }
+
+  const unbased = unbase64(after);
+
+  if (!unbased) {
+    return {};
+  }
+
+  return unbased.split(';').reduce((result, param) => {
+    const [key, value] = param.split(':');
+
+    return { ...result, [key]: value };
+  }, {});
+};

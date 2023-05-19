@@ -21,7 +21,8 @@ import {
   notifyView,
   pickImageUrl,
   standardizeURL,
-  uploadPostImage,
+  uploadPostFile,
+  UploadPreset,
 } from '../common';
 import {
   ArticlePost,
@@ -57,12 +58,14 @@ import { Roles } from '../roles';
 import { markdown, saveMentions } from '../common/markdown';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
+import { generateShortId } from '../ids';
 
 export interface GQLPost {
   id: string;
   type: string;
   shortId: string;
   publishedAt?: Date;
+  pinnedAt?: Date;
   createdAt: Date;
   url: string;
   title?: string;
@@ -98,6 +101,11 @@ export interface GQLPost {
   feedMeta?: string;
   content?: string;
   contentHtml?: string;
+}
+
+interface PinPostArgs {
+  id: string;
+  pinned: boolean;
 }
 
 type EditablePost = Pick<
@@ -202,6 +210,11 @@ export const typeDefs = /* GraphQL */ `
     Time the post was published
     """
     publishedAt: DateTime
+
+    """
+    Time the post was pinned to the database
+    """
+    pinnedAt: DateTime
 
     """
     Time the post was added to the database
@@ -548,6 +561,31 @@ export const typeDefs = /* GraphQL */ `
     ): Post! @auth
 
     """
+    Upload an asset from writing a post
+    """
+    uploadContentImage(
+      """
+      Asset to upload to our cloudinary server
+      """
+      image: Upload!
+    ): String! @auth @rateLimit(limit: 5, duration: 60)
+
+    """
+    Pin or unpin a post
+    """
+    updatePinPost(
+      """
+      Id of the post to update the pinnedAt property
+      """
+      id: ID!
+
+      """
+      Whether to pin the post or not
+      """
+      pinned: Boolean!
+    ): EmptyResponse @auth
+
+    """
     Delete a post permanently
     """
     deletePost(
@@ -874,6 +912,29 @@ export const resolvers: IResolvers<any, Context> = {
       }
       return { _: true };
     },
+    uploadContentImage: async (
+      _,
+      { image }: { image: Promise<FileUpload> },
+    ): Promise<string> => {
+      if (!image) {
+        throw new ValidationError('File is missing!');
+      }
+
+      if (!process.env.CLOUDINARY_URL) {
+        throw new Error('Unable to upload asset to cloudinary!');
+      }
+
+      const upload = await image;
+      const extension = upload.filename?.split('.').pop().toLowerCase();
+      const preset =
+        extension === 'gif'
+          ? UploadPreset.FreeformGif
+          : UploadPreset.FreeformImage;
+      const id = generateShortId();
+      const filename = `post_content_${id}`;
+
+      return uploadPostFile(filename, upload.createReadStream(), preset);
+    },
     deletePost: async (
       _,
       { id }: { id: string },
@@ -898,6 +959,26 @@ export const resolvers: IResolvers<any, Context> = {
 
           await repo.update({ id }, { deleted: true });
         }
+      });
+
+      return { _: true };
+    },
+    updatePinPost: async (
+      _,
+      { id, pinned }: PinPostArgs,
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.transaction(async (manager) => {
+        const repo = manager.getRepository(Post);
+        const post = await repo.findOneBy({ id });
+
+        await ensureSourcePermissions(
+          ctx,
+          post.sourceId,
+          SourcePermissions.PostPin,
+        );
+
+        await repo.update({ id }, { pinnedAt: pinned ? new Date() : null });
       });
 
       return { _: true };
@@ -958,9 +1039,10 @@ export const resolvers: IResolvers<any, Context> = {
 
           if (image && process.env.CLOUDINARY_URL) {
             const upload = await image;
-            updated.image = await uploadPostImage(
+            updated.image = await uploadPostFile(
               id,
               upload.createReadStream(),
+              UploadPreset.PostBannerImage,
             );
           }
         }
