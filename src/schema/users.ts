@@ -682,11 +682,13 @@ export const resolvers: IResolvers<any, Context> = {
           WITH search AS (${getSearchQuery('$2')})
           select distinct(ts_headline(process_text(title), search.query,
                                       ('StartSel = <strong>, StopSel = </strong>'))) as title
-          from active_post as post
+          from post
                  INNER JOIN view
                             ON view."postId" = post.id AND view."userId" = $1,
                search
           where tsv @@ search.query
+            and post.visible = true
+            and post.deleted = false
           order by title desc
             limit 5;
         `,
