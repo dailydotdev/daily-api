@@ -1056,7 +1056,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         alias,
       ) => {
         const similarPostsQuery = `select post.id
-                                   from active_post as post
+                                   from post
                                           inner join (select count(*)           as similar,
                                                              min(k.occurrences) as occurrences,
                                                              pk."postId"
@@ -1070,6 +1070,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                                    where post.id != :postId
                                      and post."createdAt" >= now() - interval '6 month'
                                      and post."upvotes" > 0
+                                     and post.visible = true and post.deleted = false
                                    order by (pow(post.upvotes, k.similar) *
                                      1000 / k.occurrences) desc
                                      limit 25`;
@@ -1092,7 +1093,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         let similarPostsQuery;
         if (tags?.length > 0) {
           similarPostsQuery = `select post.id
-                               from active_post as post
+                               from post
                                       inner join (select count(*)           as similar,
                                                          min(k.occurrences) as occurrences,
                                                          pk."postId"
@@ -1104,6 +1105,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
                                                  on k."postId" = post.id
                                where post.id != :postId
                                  and post."createdAt" >= now() - interval '6 month'
+                                 and post.visible = true and post.deleted = false
                                order by (pow(post.upvotes, k.similar) * 1000 /
                                  k.occurrences) desc
                                  limit 25`;
