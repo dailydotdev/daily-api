@@ -70,8 +70,10 @@ const obj = new GraphORM({
     requiredColumns: ['createdAt'],
   },
   Post: {
-    from: 'ActivePost',
-    metadataFrom: 'Post',
+    additionalQuery: (ctx, alias, qb) =>
+      qb
+        .andWhere(`"${alias}"."deleted" = false`)
+        .andWhere(`"${alias}"."visible" = true`),
     requiredColumns: [
       'id',
       'shortId',
