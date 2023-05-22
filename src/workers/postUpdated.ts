@@ -105,7 +105,7 @@ const createPost = async ({
     .getRawOne();
   if (existingPost) {
     logger.info({ data }, 'failed creating post because it exists already');
-    throw 'failed';
+    return null;
   }
 
   if (submission_id) {
@@ -122,7 +122,7 @@ const createPost = async ({
             reason: SubmissionFailErrorKeys.ScoutIsAuthor,
           },
         );
-        throw 'rejected';
+        return null;
       }
 
       await entityManager.getRepository(Submission).update(
@@ -144,10 +144,6 @@ const createPost = async ({
   data.origin = data?.scoutId
     ? PostOrigin.CommunityPicks
     : data.origin ?? PostOrigin.Crawler;
-
-  // TODO: Not sure if these are still needed?
-  data.ratio = null;
-  data.placeholder = null;
 
   const post = await entityManager.getRepository(ArticlePost).create(data);
   await entityManager.save(post);
@@ -177,7 +173,7 @@ const updatePost = async ({ entityManager, data, id }: UpdatePostProps) => {
   }
 
   const title = data?.title || databasePost.title;
-  const updateBecameVisible = !!title?.length;
+  const updateBecameVisible = !databasePost.visible && !!title?.length;
 
   data.id = databasePost.id;
   data.metadataChangedAt = updatedDate;
@@ -190,7 +186,7 @@ const updatePost = async ({ entityManager, data, id }: UpdatePostProps) => {
   await entityManager
     .getRepository(ArticlePost)
     .update({ id: databasePost.id }, data);
-  return data;
+  return { data, becameVisible: updateBecameVisible };
 };
 
 type FixDataProps = {
@@ -281,7 +277,7 @@ const worker: Worker = {
       const { reject_reason, post_id } = data;
       await con.transaction(async (entityManager) => {
         if (reject_reason) {
-          return await handleRejection({ logger, data, entityManager });
+          return handleRejection({ logger, data, entityManager });
         }
 
         if (bannedAuthors.indexOf(data?.extra?.creator_twitter) > -1) {
@@ -298,31 +294,33 @@ const worker: Worker = {
           data,
         });
 
-        // See if post id is not available
         let combinedPost: Partial<ArticlePost>;
+        let postBecameVisible = true;
+        // See if post id is not available
         if (!post_id) {
           // Handle creation of new post
-          try {
-            combinedPost = await createPost({
-              logger,
-              entityManager,
-              data: fixedData,
-              submission_id: data?.submission_id,
-            });
-          } catch (e) {
+          combinedPost = await createPost({
+            logger,
+            entityManager,
+            data: fixedData,
+            submission_id: data?.submission_id,
+          });
+          if (!combinedPost) {
             return;
           }
         } else {
           // Handle update of existing post
-          combinedPost = await updatePost({
+          const { data: updatedPost, becameVisible } = await updatePost({
             entityManager,
             data: fixedData,
             id: post_id,
           });
+          postBecameVisible = becameVisible;
+          combinedPost = updatedPost;
         }
 
         // After add or update:
-        if (combinedPost.visible) {
+        if (postBecameVisible) {
           // Update all referring posts to become visible
           await entityManager.getRepository(SharePost).update(
             { sharedPostId: combinedPost.id },
