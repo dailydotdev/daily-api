@@ -9,6 +9,7 @@ import {
   parseReadTime,
   Post,
   PostOrigin,
+  removeKeywords,
   SharePost,
   Source,
   Submission,
@@ -86,13 +87,15 @@ type CreatePostProps = {
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
-  submission_id?: string;
+  submissionId?: string;
+  mergedKeywords: string[];
 };
 const createPost = async ({
   logger,
   entityManager,
   data,
-  submission_id,
+  submissionId,
+  mergedKeywords,
 }: CreatePostProps) => {
   const existingPost = await entityManager
     .getRepository(Post)
@@ -108,15 +111,15 @@ const createPost = async ({
     return null;
   }
 
-  if (submission_id) {
+  if (submissionId) {
     const submission = await entityManager
       .getRepository(Submission)
-      .findOneBy({ id: submission_id });
+      .findOneBy({ id: submissionId });
 
     if (submission) {
       if (data.authorId === submission.userId) {
         await entityManager.getRepository(Submission).update(
-          { id: submission_id },
+          { id: submissionId },
           {
             status: SubmissionStatus.Rejected,
             reason: SubmissionFailErrorKeys.ScoutIsAuthor,
@@ -126,7 +129,7 @@ const createPost = async ({
       }
 
       await entityManager.getRepository(Submission).update(
-        { id: submission_id },
+        { id: submissionId },
         {
           status: SubmissionStatus.Accepted,
         },
@@ -147,15 +150,24 @@ const createPost = async ({
 
   const post = await entityManager.getRepository(ArticlePost).create(data);
   await entityManager.save(post);
-  return data;
+
+  await addKeywords(entityManager, mergedKeywords, data.id);
+
+  return;
 };
 
 type UpdatePostProps = {
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
   id: string;
+  mergedKeywords: string[];
 };
-const updatePost = async ({ entityManager, data, id }: UpdatePostProps) => {
+const updatePost = async ({
+  entityManager,
+  data,
+  id,
+  mergedKeywords,
+}: UpdatePostProps) => {
   const updatedDate = new Date(data.metadataChangedAt);
   const databasePost = await entityManager
     .getRepository(ArticlePost)
@@ -169,7 +181,7 @@ const updatePost = async ({ entityManager, data, id }: UpdatePostProps) => {
     !databasePost ||
     databasePost.metadataChangedAt.toISOString() >= updatedDate.toISOString()
   ) {
-    return;
+    return null;
   }
 
   const title = data?.title || databasePost.title;
@@ -186,7 +198,28 @@ const updatePost = async ({ entityManager, data, id }: UpdatePostProps) => {
   await entityManager
     .getRepository(ArticlePost)
     .update({ id: databasePost.id }, data);
-  return { data, becameVisible: updateBecameVisible };
+
+  if (updateBecameVisible) {
+    await entityManager.getRepository(SharePost).update(
+      { sharedPostId: data.id },
+      {
+        visible: true,
+        visibleAt: data.visibleAt,
+        private: data.private,
+      },
+    );
+  }
+
+  if (databasePost.tagsStr !== data.tagsStr) {
+    await removeKeywords(
+      entityManager,
+      databasePost.tagsStr.split(','),
+      data.id,
+    );
+    await addKeywords(entityManager, mergedKeywords, data.id);
+  }
+
+  return;
 };
 
 type FixDataProps = {
@@ -294,45 +327,25 @@ const worker: Worker = {
           data,
         });
 
-        let combinedPost: Partial<ArticlePost>;
-        let postBecameVisible = true;
         // See if post id is not available
         if (!post_id) {
           // Handle creation of new post
-          combinedPost = await createPost({
+          await createPost({
             logger,
             entityManager,
             data: fixedData,
-            submission_id: data?.submission_id,
+            submissionId: data?.submission_id,
+            mergedKeywords,
           });
-          if (!combinedPost) {
-            return;
-          }
         } else {
           // Handle update of existing post
-          const { data: updatedPost, becameVisible } = await updatePost({
+          await updatePost({
             entityManager,
             data: fixedData,
             id: post_id,
+            mergedKeywords,
           });
-          postBecameVisible = becameVisible;
-          combinedPost = updatedPost;
         }
-
-        // After add or update:
-        if (postBecameVisible) {
-          // Update all referring posts to become visible
-          await entityManager.getRepository(SharePost).update(
-            { sharedPostId: combinedPost.id },
-            {
-              visible: true,
-              visibleAt: combinedPost.visibleAt,
-              private: combinedPost.private,
-            },
-          );
-        }
-
-        await addKeywords(entityManager, mergedKeywords, combinedPost.id);
       });
     } catch (err) {
       logger.error(

@@ -5,6 +5,7 @@ import {
   COMMUNITY_PICKS_SOURCE,
   Keyword,
   Post,
+  PostKeyword,
   PostOrigin,
   PostType,
   SharePost,
@@ -175,31 +176,52 @@ it('should update all the post related shared posts to visible', async () => {
   expect(sharedPost2?.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
 });
 
-it('should save a new post with the relevant keywords', async () => {
+it('should update post and not modify keywords', async () => {
+  await createDefaultUser();
   await createDefaultKeywords();
+  await con
+    .getRepository(Post)
+    .update({ id: 'p1' }, { tagsStr: 'mongodb, alpinejs' });
   await expectSuccessfulBackground(worker, {
     post_id: 'p1',
-    updated_at: new Date('01-05-2023 12:00:00'),
-    title: 'test',
+    title: 'New title',
     extra: {
-      keywords: ['alpine', 'a-b-testing', 'mongodb'],
+      keywords: ['mongodb', 'alpinejs'],
     },
   });
-  const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
-  expect(post.metadataChangedAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
-  expect(post.visible).toEqual(true);
-  expect(post.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
-  expect(post.title).toEqual('test');
-  expect(post.tagsStr).toEqual('mongodb,alpinejs,ab-testing');
-  const keywords = await con.getRepository(Keyword).find({
+  const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+  expect(post.title).toEqual('New title');
+  expect(post.tagsStr).toEqual('mongodb,alpinejs');
+  const postKeywords = await con.getRepository(PostKeyword).find({
     where: {
-      value: 'alpine',
+      postId: 'p1',
     },
   });
-  // since I am adding a post which has `alpine`
-  // as a tag, occurences of `alpine` in the db
-  // should increase from 1 to 2
-  expect(keywords[0].occurrences).toEqual(2);
+  expect(postKeywords.length).toEqual(2);
+});
+
+it('should update post and modify keywords', async () => {
+  await createDefaultUser();
+  await createDefaultKeywords();
+  await con
+    .getRepository(Post)
+    .update({ id: 'p1' }, { tagsStr: 'mongodb, alpinejs' });
+  await expectSuccessfulBackground(worker, {
+    post_id: 'p1',
+    title: 'New title',
+    extra: {
+      keywords: ['mongodb', 'ab-testing'],
+    },
+  });
+  const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+  expect(post.title).toEqual('New title');
+  expect(post.tagsStr).toEqual('mongodb,ab-testing');
+  const postKeywords = await con.getRepository(PostKeyword).find({
+    where: {
+      postId: 'p1',
+    },
+  });
+  expect(postKeywords.length).toEqual(2);
 });
 
 it('should save a new post with the relevant content curation', async () => {

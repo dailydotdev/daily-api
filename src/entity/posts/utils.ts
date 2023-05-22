@@ -123,6 +123,17 @@ export const findAuthor = async (
   return null;
 };
 
+export const removeKeywords = async (
+  entityManager: EntityManager,
+  mergedKeywords: string[],
+  postId: string,
+) => {
+  if (mergedKeywords.length) {
+    await entityManager.getRepository(PostKeyword).delete({ postId });
+  }
+  return;
+};
+
 export const addKeywords = async (
   entityManager: EntityManager,
   mergedKeywords: string[],
