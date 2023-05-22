@@ -2267,27 +2267,27 @@ describe('mutation editPost', () => {
     );
   });
 
-  it('should not update title if the post type is "welcome"', async () => {
-    loggedUser = '1';
-    const title = 'Updated title';
-    const res = await client.mutate(MUTATION, {
-      variables: { id: 'p1', title },
-    });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.editPost.title).not.toEqual(title);
-  });
-
-  it('should update title if the post type is "freeform"', async () => {
+  it('should update title of the post if it is either freeform or welcome post', async () => {
     loggedUser = '1';
     await con
       .getRepository(Post)
       .update({ id: 'p1' }, { type: PostType.Freeform });
     const title = 'Updated title';
-    const res = await client.mutate(MUTATION, {
+    const res1 = await client.mutate(MUTATION, {
       variables: { id: 'p1', title },
     });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.editPost.title).toEqual(title);
+    expect(res1.errors).toBeFalsy();
+    expect(res1.data.editPost.title).toEqual(title);
+
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.Welcome, title: 'Test' });
+
+    const res2 = await client.mutate(MUTATION, {
+      variables: { id: 'p1', title },
+    });
+    expect(res2.errors).toBeFalsy();
+    expect(res2.data.editPost.title).toEqual(title);
   });
 
   it('should not allow moderator or admin to do update posts of other people', async () => {

@@ -1028,23 +1028,23 @@ export const resolvers: IResolvers<any, Context> = {
 
         if (content.length > MAX_CONTENT_LENGTH) {
           throw new ValidationError(
-            'Content has a maximum length of 80 characters',
+            'Content has a maximum length of 4000 characters',
           );
         }
 
         const updated: Partial<EditablePost> = {};
 
-        if (post.type === PostType.Freeform) {
+        if (title && title !== post.title) {
           updated.title = title;
+        }
 
-          if (image && process.env.CLOUDINARY_URL) {
-            const upload = await image;
-            updated.image = await uploadPostFile(
-              id,
-              upload.createReadStream(),
-              UploadPreset.PostBannerImage,
-            );
-          }
+        if (image && process.env.CLOUDINARY_URL) {
+          const upload = await image;
+          updated.image = await uploadPostFile(
+            id,
+            upload.createReadStream(),
+            UploadPreset.PostBannerImage,
+          );
         }
 
         if (content !== post.content) {
