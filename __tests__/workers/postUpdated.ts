@@ -318,9 +318,10 @@ it('should save a new post with the relevant scout id and update submission', as
     submission_id: uuid,
   });
 
-  const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(2);
-  expect(posts[1].scoutId).toEqual('1');
+  const post = await con
+    .getRepository(ArticlePost)
+    .findOneBy({ url: 'https://post.com' });
+  expect(post.scoutId).toEqual('1');
   const submissions = await con.getRepository(Submission).find();
   const [submission] = submissions;
   expect(submissions.length).toEqual(1);
