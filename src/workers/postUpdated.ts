@@ -155,17 +155,11 @@ const createPost = async ({
 };
 
 type UpdatePostProps = {
-  logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
   id: string;
 };
-const updatePost = async ({
-  logger,
-  entityManager,
-  data,
-  id,
-}: UpdatePostProps) => {
+const updatePost = async ({ entityManager, data, id }: UpdatePostProps) => {
   const updatedDate = new Date(data.metadataChangedAt);
   const databasePost = await entityManager
     .getRepository(ArticlePost)
@@ -321,7 +315,6 @@ const worker: Worker = {
         } else {
           // Handle update of existing post
           combinedPost = await updatePost({
-            logger,
             entityManager,
             data: fixedData,
             id: post_id,
