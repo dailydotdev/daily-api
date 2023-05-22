@@ -41,7 +41,6 @@ const sourceFeedAddedTopic = pubsub.topic('source-feed-added');
 const sourceFeedRemovedTopic = pubsub.topic('source-feed-removed');
 const communityLinkAccessTopic = pubsub.topic('community-link-access');
 const communityLinkRejectedTopic = pubsub.topic('community-link-rejected');
-const communityLinkSubmittedTopic = pubsub.topic('community-link-submitted');
 const newNotificationTopic = pubsub.topic('api.v1.new-notification');
 const newPostMentionTopic = pubsub.topic('api.v1.new-post-mention');
 const newCommentMentionTopic = pubsub.topic('api.v1.new-comment-mention');
@@ -287,17 +286,6 @@ export const notifySubmissionRejected = async (
   submission: ChangeObject<Submission>,
 ): Promise<void> => publishEvent(log, communityLinkRejectedTopic, submission);
 
-interface NewSubmission {
-  sourceId: string;
-  url: string;
-  submissionId: string;
-}
-
-export const notifySubmissionCreated = async (
-  log: EventLogger,
-  submission: ChangeObject<NewSubmission>,
-): Promise<void> => publishEvent(log, communityLinkSubmittedTopic, submission);
-
 export const notifySubmissionGrantedAccess = async (
   log: EventLogger,
   userId: string,
@@ -356,7 +344,12 @@ export const notifyUserCreated = async (
 export const notifyFeaturesReset = async (log: EventLogger): Promise<void> =>
   publishEvent(log, featuresResetTopic, {});
 
-export type ContentRequested = Pick<ArticlePost, 'id' | 'url' | 'origin'>;
+type ContentRequestedSubmission = { submissionId: string } & Pick<
+  ArticlePost,
+  'sourceId' | 'url'
+>;
+type ContentRequestedURL = Pick<ArticlePost, 'id' | 'origin' | 'url'>;
+export type ContentRequested = ContentRequestedSubmission | ContentRequestedURL;
 
 export const notifyContentRequested = async (
   log: EventLogger,

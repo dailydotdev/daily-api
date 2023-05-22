@@ -39,7 +39,6 @@ import {
   increaseReputation,
   decreaseReputation,
   notifySubmissionRejected,
-  notifySubmissionCreated,
   notifySubmissionGrantedAccess,
   NotificationReason,
   notifyUserDeleted,
@@ -54,6 +53,7 @@ import {
   notifyPostVisible,
   notifySourceMemberRoleChanged,
   notifyNewPostMention,
+  notifyContentRequested,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
@@ -397,9 +397,9 @@ const onSubmissionChange = async (
 ) => {
   const entity = data.payload.after;
   if (data.payload.op === 'c') {
-    await notifySubmissionCreated(logger, {
-      sourceId: COMMUNITY_PICKS_SOURCE,
+    await notifyContentRequested(logger, {
       url: entity.url,
+      sourceId: COMMUNITY_PICKS_SOURCE,
       submissionId: entity.id,
     });
   } else if (data.payload.op === 'u') {
