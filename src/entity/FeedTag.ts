@@ -2,6 +2,7 @@ import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Feed } from './Feed';
 
 @Entity()
+@Index('IDX_feed_id_blocked', ['feedId', 'blocked'])
 export class FeedTag {
   @PrimaryColumn({ type: 'text' })
   @Index()
@@ -12,7 +13,6 @@ export class FeedTag {
   tag: string;
 
   @Column({ default: false })
-  @Index('IDX_feedTag_blocked')
   blocked: boolean;
 
   @ManyToOne(() => Feed, {
