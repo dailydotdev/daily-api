@@ -49,7 +49,7 @@ export interface GQLComment {
 }
 
 interface GQLMentionUserArgs {
-  postId: string;
+  postId?: string;
   query?: string;
   limit?: number;
   sourceId?: string;
@@ -232,7 +232,7 @@ export const typeDefs = /* GraphQL */ `
     Recommend users to mention in the comments
     """
     recommendedMentions(
-      postId: String!
+      postId: String
       query: String
       limit: Int
       sourceId: String
@@ -561,7 +561,7 @@ export const resolvers: IResolvers<any, Context> = {
       const { con, userId } = ctx;
       const ids = await (query
         ? recommendUsersByQuery(con, userId, { query, limit, sourceId })
-        : recommendUsersToMention(con, postId, userId, { limit, sourceId }));
+        : recommendUsersToMention(con, userId, { limit, postId, sourceId }));
 
       if (ids.length === 0) {
         return [];
