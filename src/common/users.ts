@@ -193,33 +193,39 @@ export const recommendUsersToMention = async (
   userId: string,
   { limit, postId, sourceId }: RecentMentionsProps,
 ): Promise<string[]> => {
-  const [post, commenterIds] = await Promise.all([
-    con.getRepository(Post).findOneBy({ id: postId, authorId: Not(userId) }),
-    getPostCommenterIds(con, postId, { limit, userId }),
-  ]);
+  const ids: string[] = [];
 
-  if (post?.authorId) {
-    commenterIds.unshift(post.authorId);
-    if (commenterIds.length > 5) {
-      commenterIds.pop();
+  if (postId) {
+    const [post, commenterIds] = await Promise.all([
+      con.getRepository(Post).findOneBy({ id: postId, authorId: Not(userId) }),
+      getPostCommenterIds(con, postId, { limit, userId }),
+    ]);
+
+    if (post?.authorId) {
+      commenterIds.unshift(post.authorId);
+      if (commenterIds.length > 5) {
+        commenterIds.pop();
+      }
     }
+
+    ids.push(...commenterIds);
   }
 
-  const missing = limit - commenterIds.length;
+  const missing = limit - ids.length;
 
   if (missing === 0) {
-    return commenterIds;
+    return ids;
   }
 
   const privateSource = await (sourceId &&
     con.getRepository(Source).findOneBy({ id: sourceId, private: true }));
   const recent = await getRecentMentionsIds(con, userId, {
     limit: missing,
-    excludeIds: commenterIds,
+    excludeIds: ids,
     sourceId: privateSource?.id,
   });
 
-  return commenterIds.concat(recent);
+  return ids.concat(recent);
 };
 
 export const getUserReadingTags = (
