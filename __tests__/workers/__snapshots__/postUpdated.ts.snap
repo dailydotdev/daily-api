@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`POST /p/newPost should save a new post with basic information 1`] = `
+exports[`should save a new post with basic information 1`] = `
 Object {
   "authorId": null,
   "banned": false,

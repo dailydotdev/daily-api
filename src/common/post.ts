@@ -4,7 +4,6 @@ import {
   Comment,
   ExternalLinkPreview,
   FreeformPost,
-  Post,
   PostOrigin,
   SquadSource,
   User,
@@ -61,9 +60,6 @@ export const getPostCommenterIds = async (
 
   return result.map((comment) => comment.userId);
 };
-
-export const hasAuthorScout = (post: Post): boolean =>
-  !!post?.authorId || !!post?.scoutId;
 
 export const DEFAULT_POST_TITLE = 'No title';
 
