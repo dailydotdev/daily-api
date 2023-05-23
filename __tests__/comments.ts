@@ -459,7 +459,7 @@ describe('query commentPreview', () => {
 
 describe('query recommendedMentions', () => {
   const QUERY = `
-    query RecommendedMentions($postId: String!, $query: String, $limit: Int, $sourceId: String) {
+    query RecommendedMentions($postId: String, $query: String, $limit: Int, $sourceId: String) {
       recommendedMentions(postId: $postId, query: $query, limit: $limit, sourceId: $sourceId) {
         name
         username
@@ -485,6 +485,15 @@ describe('query recommendedMentions', () => {
     expect(res.data.recommendedMentions).toMatchSnapshot(); // to easily see there's no duplicates
     expect(res.data.recommendedMentions.length).toEqual(5);
     expect(res.data.recommendedMentions[0].name).toEqual(author.name);
+  });
+
+  it('should still work without post id and return previously mentioned users if query is empty', async () => {
+    loggedUser = '1';
+    await saveCommentMentionFixtures();
+
+    const res = await client.query(QUERY, { variables: {} });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.recommendedMentions.length).toEqual(5);
   });
 
   it('should return users with user or username starting with the query prioritizing previously mentioned ones', async () => {

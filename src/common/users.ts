@@ -84,6 +84,7 @@ export interface ReadingDaysArgs {
 interface RecentMentionsProps {
   query?: string;
   limit?: number;
+  postId?: string;
   sourceId?: string;
   excludeIds?: string[];
 }
@@ -189,9 +190,8 @@ export const recommendUsersByQuery = async (
 
 export const recommendUsersToMention = async (
   con: DataSource,
-  postId: string,
   userId: string,
-  { limit, sourceId }: RecentMentionsProps,
+  { limit, postId, sourceId }: RecentMentionsProps,
 ): Promise<string[]> => {
   const [post, commenterIds] = await Promise.all([
     con.getRepository(Post).findOneBy({ id: postId, authorId: Not(userId) }),
