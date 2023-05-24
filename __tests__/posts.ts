@@ -2169,6 +2169,156 @@ describe('mutation checkLinkPreview', () => {
   });
 });
 
+describe('mutation createPost', () => {
+  const MUTATION = `
+    mutation CreatePost($id: ID!, $title: String!, $content: String!, $image: Upload) {
+      createPost(id: $id, title: $title, content: $content, image: $image) {
+        id
+        author {
+          id
+        }
+        source {
+          id
+        }
+        title
+        content
+        contentHtml
+        type
+      }
+    }
+  `;
+
+  const params = {
+    id: 'a',
+    title: 'This is a welcome post',
+    content: 'Sample content',
+  };
+
+  beforeEach(async () => {
+    await saveSquadFixtures();
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if title is an empty space', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, title: ' ' } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if content is an empty space', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, content: ' ' } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if title exceeds 80 characters', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          ...params,
+          title:
+            'Hello World! Start your squad journey here - Hello World! Start your squad journey here',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if content exceeds 4000 characters', async () => {
+    loggedUser = '1';
+
+    const content = 'Hello World! Start your squad journey here';
+    const sample = new Array(100).fill(content);
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          ...params,
+          content: sample.join(' - '),
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should create a freeform post if all parameters have passed', async () => {
+    loggedUser = '1';
+
+    const content = '# Updated content';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, content },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createPost.type).toEqual(PostType.Freeform);
+    expect(res.data.createPost.author.id).toEqual('1');
+    expect(res.data.createPost.source.id).toEqual('a');
+    expect(res.data.createPost.title).toEqual(params.title);
+    expect(res.data.createPost.content).toEqual(content);
+    expect(res.data.createPost.contentHtml).toMatchSnapshot();
+  });
+
+  const args = {
+    mentionedUserId: '2',
+    mentionedByUserId: '1',
+  };
+  const setupMention = async (mutationParams: {
+    title?: string;
+    content?: string;
+  }): Promise<FreeformPost> => {
+    const before = await con.getRepository(PostMention).findOneBy(args);
+    expect(before).toBeFalsy();
+    await con.getRepository(User).update({ id: '2' }, { username: 'lee' });
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, ...mutationParams },
+    });
+    expect(res.errors).toBeFalsy();
+    return res.data.createPost;
+  };
+
+  it('should allow mention as part of the content', async () => {
+    loggedUser = '1';
+    const content = 'Test @lee';
+    const post = await setupMention({ content });
+    const mention = await con
+      .getRepository(PostMention)
+      .findOneBy({ ...args, postId: post.id });
+    expect(mention).toBeTruthy();
+    expect(post.contentHtml).toMatchSnapshot();
+  });
+
+  // I was way too ahead of myself and forgot the mention comes in at v7 - so no need to test for now
+  // it('should not allow mention as part of the title being a freeform post', async () => {
+  //   loggedUser = '1';
+  //   const title = 'Test @lee';
+  //   const post = await setupMention({ title });
+  //   const mention = await con
+  //     .getRepository(PostMention)
+  //     .findOneBy({ ...args, postId: post.id });
+  //   expect(mention).toBeFalsy();
+  //   expect(post.titleHtml).toMatchSnapshot();
+  // });
+});
+
 describe('mutation editPost', () => {
   const MUTATION = `
     mutation EditPost($id: ID!, $title: String, $content: String, $image: Upload) {

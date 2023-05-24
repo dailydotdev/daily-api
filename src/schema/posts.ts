@@ -13,8 +13,12 @@ import {
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
+  createFreeFormPost,
+  CreatePost,
   DEFAULT_POST_TITLE,
   defaultImage,
+  EditablePost,
+  EditPostArgs,
   fetchLinkPreview,
   getDiscussionLink,
   isValidHttpUrl,
@@ -23,6 +27,7 @@ import {
   standardizeURL,
   uploadPostFile,
   UploadPreset,
+  validatePost,
 } from '../common';
 import {
   ArticlePost,
@@ -106,15 +111,6 @@ export interface GQLPost {
 interface PinPostArgs {
   id: string;
   pinned: boolean;
-}
-
-type EditablePost = Pick<
-  FreeformPost,
-  'title' | 'content' | 'image' | 'contentHtml'
->;
-
-interface EditPostArgs extends Pick<GQLPost, 'id' | 'title' | 'content'> {
-  image: Promise<FileUpload>;
 }
 
 export type GQLPostNotification = Pick<
@@ -537,6 +533,31 @@ export const typeDefs = /* GraphQL */ `
       """
       comment: String
     ): EmptyResponse @auth
+
+    """
+    To allow user to create freeform posts
+    """
+    createPost(
+      """
+      ID of the squad to post to
+      """
+      id: ID!
+
+      """
+      Avatar image for the squad
+      """
+      image: Upload
+
+      """
+      Title of the post (max 80 chars)
+      """
+      title: String!
+
+      """
+      Content of the post (max 4000 chars)
+      """
+      content: String!
+    ): Post! @auth
 
     """
     To allow user to edit posts
@@ -982,6 +1003,64 @@ export const resolvers: IResolvers<any, Context> = {
       });
 
       return { _: true };
+    },
+    createPost: async (
+      source,
+      args: EditPostArgs,
+      ctx: Context,
+      info,
+    ): Promise<GQLPost> => {
+      const { id: sourceId, image } = args;
+      const { con, userId } = ctx;
+      const title = args.title?.trim() ?? '';
+      const content = args.content?.trim() ?? '';
+      const id = await generateShortId();
+
+      if (!title) {
+        throw new ValidationError('Title can not be an empty string!');
+      }
+
+      if (!content) {
+        throw new ValidationError('Content can not be an empty string!');
+      }
+
+      await con.transaction(async (manager) => {
+        await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+
+        validatePost(args);
+
+        const mentions = await getMentions(manager, content, userId, sourceId);
+        const contentHtml = markdown.render(content, { mentions });
+        const params: CreatePost = {
+          id,
+          shortId: id,
+          title,
+          content,
+          contentHtml,
+          authorId: userId,
+          sourceId,
+        };
+
+        if (image && process.env.CLOUDINARY_URL) {
+          const upload = await image;
+          params.image = await uploadPostFile(
+            id,
+            upload.createReadStream(),
+            UploadPreset.PostBannerImage,
+          );
+        }
+
+        await createFreeFormPost(manager, params);
+        await saveMentions(manager, id, userId, mentions, PostMention);
+      });
+
+      return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."id" = :id`,
+          { id },
+        ),
+        ...builder,
+      }));
     },
     editPost: async (
       source,
