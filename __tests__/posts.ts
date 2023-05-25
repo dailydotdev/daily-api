@@ -2171,8 +2171,8 @@ describe('mutation checkLinkPreview', () => {
 
 describe('mutation createPost', () => {
   const MUTATION = `
-    mutation CreatePost($id: ID!, $title: String!, $content: String!, $image: Upload) {
-      createPost(id: $id, title: $title, content: $content, image: $image) {
+    mutation CreateFreeformPost($sourceId: ID!, $title: String!, $content: String!, $image: Upload) {
+      createFreeformPost($sourceId: $$sourceId, title: $title, content: $content, image: $image) {
         id
         author {
           id
