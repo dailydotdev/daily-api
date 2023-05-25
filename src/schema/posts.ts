@@ -15,6 +15,7 @@ import { traceResolverObject } from './trace';
 import {
   createFreeFormPost,
   CreatePost,
+  CreatePostArgs,
   DEFAULT_POST_TITLE,
   defaultImage,
   EditablePost,
@@ -537,11 +538,11 @@ export const typeDefs = /* GraphQL */ `
     """
     To allow user to create freeform posts
     """
-    createPost(
+    createFreeformPost(
       """
       ID of the squad to post to
       """
-      id: ID!
+      sourceId: ID!
 
       """
       Avatar image for the squad
@@ -1004,34 +1005,32 @@ export const resolvers: IResolvers<any, Context> = {
 
       return { _: true };
     },
-    createPost: async (
+    createFreeformPost: async (
       source,
-      args: EditPostArgs,
+      args: CreatePostArgs,
       ctx: Context,
       info,
     ): Promise<GQLPost> => {
-      const { id: sourceId, image } = args;
+      const { sourceId, image } = args;
       const { con, userId } = ctx;
       const id = await generateShortId();
+      const { title, content } = validatePost(args);
+
+      if (!title) {
+        throw new ValidationError('Title can not be an empty string!');
+      }
+
+      if (!content) {
+        throw new ValidationError('Content can not be an empty string!');
+      }
 
       await con.transaction(async (manager) => {
         await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
-
-        const { title, content } = validatePost(args);
-
-        if (!title) {
-          throw new ValidationError('Title can not be an empty string!');
-        }
-
-        if (!content) {
-          throw new ValidationError('Content can not be an empty string!');
-        }
 
         const mentions = await getMentions(manager, content, userId, sourceId);
         const contentHtml = markdown.render(content, { mentions });
         const params: CreatePost = {
           id,
-          shortId: id,
           title,
           content,
           contentHtml,

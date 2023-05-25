@@ -155,14 +155,7 @@ export type EditablePost = Pick<
 
 export type CreatePost = Pick<
   FreeformPost,
-  | 'title'
-  | 'content'
-  | 'image'
-  | 'contentHtml'
-  | 'authorId'
-  | 'sourceId'
-  | 'id'
-  | 'shortId'
+  'title' | 'content' | 'image' | 'contentHtml' | 'authorId' | 'sourceId' | 'id'
 >;
 
 export const createFreeFormPost = async (
@@ -171,6 +164,7 @@ export const createFreeFormPost = async (
 ) =>
   con.getRepository(FreeformPost).save({
     ...args,
+    shortId: args.id,
     visible: true,
     private: true,
     visibleAt: new Date(),
@@ -182,12 +176,17 @@ export interface EditPostArgs
   image: Promise<FileUpload>;
 }
 
+export interface CreatePostArgs
+  extends Pick<EditPostArgs, 'title' | 'content' | 'image'> {
+  sourceId: string;
+}
+
 const MAX_TITLE_LENGTH = 80;
 const MAX_CONTENT_LENGTH = 4000;
 
-export const validatePost = (
-  args: EditPostArgs,
-): Pick<EditPostArgs, 'title' | 'content'> => {
+type ValidatePostArgs = Pick<EditPostArgs, 'title' | 'content'>;
+
+export const validatePost = (args: ValidatePostArgs): ValidatePostArgs => {
   const title = args.title?.trim() ?? '';
   const content = args.content?.trim() ?? '';
 
