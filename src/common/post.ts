@@ -13,6 +13,8 @@ import { ValidationError } from 'apollo-server-errors';
 import { isValidHttpUrl } from './links';
 import { markdown } from './markdown';
 import { generateShortId } from '../ids';
+import { GQLPost } from '../schema/posts';
+import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
@@ -144,4 +146,59 @@ export const createSquadWelcomePost = async (
     visibleAt: new Date(),
     origin: PostOrigin.UserGenerated,
   });
+};
+
+export type EditablePost = Pick<
+  FreeformPost,
+  'title' | 'content' | 'image' | 'contentHtml'
+>;
+
+export type CreatePost = Pick<
+  FreeformPost,
+  'title' | 'content' | 'image' | 'contentHtml' | 'authorId' | 'sourceId' | 'id'
+>;
+
+export const saveFreeformPost = async (
+  con: DataSource | EntityManager,
+  args: CreatePost,
+) =>
+  con.getRepository(FreeformPost).save({
+    ...args,
+    shortId: args.id,
+    visible: true,
+    private: true,
+    visibleAt: new Date(),
+    origin: PostOrigin.UserGenerated,
+  });
+
+export interface EditPostArgs
+  extends Pick<GQLPost, 'id' | 'title' | 'content'> {
+  image: Promise<FileUpload>;
+}
+
+export interface CreatePostArgs
+  extends Pick<EditPostArgs, 'title' | 'content' | 'image'> {
+  sourceId: string;
+}
+
+const MAX_TITLE_LENGTH = 80;
+const MAX_CONTENT_LENGTH = 4000;
+
+type ValidatePostArgs = Pick<EditPostArgs, 'title' | 'content'>;
+
+export const validatePost = (args: ValidatePostArgs): ValidatePostArgs => {
+  const title = args.title?.trim() ?? '';
+  const content = args.content?.trim() ?? '';
+
+  if (title.length > MAX_TITLE_LENGTH) {
+    throw new ValidationError('Title has a maximum length of 80 characters');
+  }
+
+  if (content.length > MAX_CONTENT_LENGTH) {
+    throw new ValidationError(
+      'Content has a maximum length of 4000 characters',
+    );
+  }
+
+  return { title, content };
 };
