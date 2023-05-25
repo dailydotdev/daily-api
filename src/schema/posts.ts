@@ -1067,8 +1067,7 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLPost> => {
       const { id, image } = args;
       const { con, userId } = ctx;
-      const title = args.title?.trim() ?? '';
-      const content = args.content?.trim() ?? '';
+      const { title, content } = validatePost(args);
 
       await con.transaction(async (manager) => {
         const repo = manager.getRepository(Post);
@@ -1093,18 +1092,6 @@ export const resolvers: IResolvers<any, Context> = {
             ctx,
             post.sourceId,
             SourcePermissions.WelcomePostEdit,
-          );
-        }
-
-        if (title.length > MAX_TITLE_LENGTH) {
-          throw new ValidationError(
-            'Title has a maximum length of 80 characters',
-          );
-        }
-
-        if (content.length > MAX_CONTENT_LENGTH) {
-          throw new ValidationError(
-            'Content has a maximum length of 4000 characters',
           );
         }
 
