@@ -741,8 +741,6 @@ const saveHiddenPost = async (
 };
 
 const editablePostTypes = [PostType.Welcome, PostType.Freeform];
-const MAX_TITLE_LENGTH = 80;
-const MAX_CONTENT_LENGTH = 4000;
 
 export const reportReasons = new Map([
   ['BROKEN', '💔 Link is broken'],
