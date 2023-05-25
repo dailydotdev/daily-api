@@ -13,7 +13,7 @@ import {
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
-  createFreeFormPost,
+  saveFreeformPost,
   CreatePost,
   CreatePostArgs,
   DEFAULT_POST_TITLE,
@@ -1045,7 +1045,7 @@ export const resolvers: IResolvers<any, Context> = {
           );
         }
 
-        await createFreeFormPost(manager, params);
+        await saveFreeformPost(manager, params);
         await saveMentions(manager, id, userId, mentions, PostMention);
       });
 

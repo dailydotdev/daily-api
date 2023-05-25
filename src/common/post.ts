@@ -158,7 +158,7 @@ export type CreatePost = Pick<
   'title' | 'content' | 'image' | 'contentHtml' | 'authorId' | 'sourceId' | 'id'
 >;
 
-export const createFreeFormPost = async (
+export const saveFreeformPost = async (
   con: DataSource | EntityManager,
   args: CreatePost,
 ) =>
