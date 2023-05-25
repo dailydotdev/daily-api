@@ -2169,10 +2169,10 @@ describe('mutation checkLinkPreview', () => {
   });
 });
 
-describe('mutation createPost', () => {
+describe('mutation createFreeformPost', () => {
   const MUTATION = `
     mutation CreateFreeformPost($sourceId: ID!, $title: String!, $content: String!, $image: Upload) {
-      createFreeformPost($sourceId: $$sourceId, title: $title, content: $content, image: $image) {
+      createFreeformPost(sourceId: $sourceId, title: $title, content: $content, image: $image) {
         id
         author {
           id
@@ -2189,7 +2189,7 @@ describe('mutation createPost', () => {
   `;
 
   const params = {
-    id: 'a',
+    sourceId: 'a',
     title: 'This is a welcome post',
     content: 'Sample content',
   };
@@ -2261,6 +2261,19 @@ describe('mutation createPost', () => {
     );
   });
 
+  it('should return error if user is not part of the squad', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'b' }, { type: SourceType.Squad });
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...params, sourceId: 'b' } },
+      'FORBIDDEN',
+    );
+  });
+
   it('should create a freeform post if all parameters have passed', async () => {
     loggedUser = '1';
 
@@ -2269,12 +2282,12 @@ describe('mutation createPost', () => {
       variables: { ...params, content },
     });
     expect(res.errors).toBeFalsy();
-    expect(res.data.createPost.type).toEqual(PostType.Freeform);
-    expect(res.data.createPost.author.id).toEqual('1');
-    expect(res.data.createPost.source.id).toEqual('a');
-    expect(res.data.createPost.title).toEqual(params.title);
-    expect(res.data.createPost.content).toEqual(content);
-    expect(res.data.createPost.contentHtml).toMatchSnapshot();
+    expect(res.data.createFreeformPost.type).toEqual(PostType.Freeform);
+    expect(res.data.createFreeformPost.author.id).toEqual('1');
+    expect(res.data.createFreeformPost.source.id).toEqual('a');
+    expect(res.data.createFreeformPost.title).toEqual(params.title);
+    expect(res.data.createFreeformPost.content).toEqual(content);
+    expect(res.data.createFreeformPost.contentHtml).toMatchSnapshot();
   });
 
   const args = {
@@ -2292,7 +2305,7 @@ describe('mutation createPost', () => {
       variables: { ...params, ...mutationParams },
     });
     expect(res.errors).toBeFalsy();
-    return res.data.createPost;
+    return res.data.createFreeformPost;
   };
 
   it('should allow mention as part of the content', async () => {
@@ -2303,6 +2316,18 @@ describe('mutation createPost', () => {
       .getRepository(PostMention)
       .findOneBy({ ...args, postId: post.id });
     expect(mention).toBeTruthy();
+    expect(post.contentHtml).toMatchSnapshot();
+  });
+
+  it('should not allow mention outside of squad as part of the content being a freeform post', async () => {
+    loggedUser = '1';
+    const content = 'Test @sample';
+    await con.getRepository(User).update({ id: '5' }, { username: 'sample' });
+    const post = await setupMention({ content });
+    const mention = await con
+      .getRepository(PostMention)
+      .findOneBy({ ...args, postId: post.id });
+    expect(mention).toBeFalsy();
     expect(post.contentHtml).toMatchSnapshot();
   });
 

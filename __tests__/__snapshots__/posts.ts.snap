@@ -88,6 +88,21 @@ Object {
 }
 `;
 
+exports[`mutation createFreeformPost should allow mention as part of the content 1`] = `
+"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\">@lee</a></p>
+"
+`;
+
+exports[`mutation createFreeformPost should create a freeform post if all parameters have passed 1`] = `
+"<h1>Updated content</h1>
+"
+`;
+
+exports[`mutation createFreeformPost should not allow mention outside of squad as part of the content being a freeform post 1`] = `
+"<p>Test @sample</p>
+"
+`;
+
 exports[`mutation createPost should allow mention as part of the content 1`] = `
 "<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\">@lee</a></p>
 "
