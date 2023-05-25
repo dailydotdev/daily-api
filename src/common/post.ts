@@ -185,7 +185,9 @@ export interface EditPostArgs
 const MAX_TITLE_LENGTH = 80;
 const MAX_CONTENT_LENGTH = 4000;
 
-export const validatePost = (args: EditPostArgs) => {
+export const validatePost = (
+  args: EditPostArgs,
+): Pick<EditPostArgs, 'title' | 'content'> => {
   const title = args.title?.trim() ?? '';
   const content = args.content?.trim() ?? '';
 
@@ -198,4 +200,6 @@ export const validatePost = (args: EditPostArgs) => {
       'Content has a maximum length of 4000 characters',
     );
   }
+
+  return { title, content };
 };

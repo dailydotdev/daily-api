@@ -1012,22 +1012,20 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLPost> => {
       const { id: sourceId, image } = args;
       const { con, userId } = ctx;
-      const title = args.title?.trim() ?? '';
-      const content = args.content?.trim() ?? '';
       const id = await generateShortId();
-
-      if (!title) {
-        throw new ValidationError('Title can not be an empty string!');
-      }
-
-      if (!content) {
-        throw new ValidationError('Content can not be an empty string!');
-      }
 
       await con.transaction(async (manager) => {
         await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
-        validatePost(args);
+        const { title, content } = validatePost(args);
+
+        if (!title) {
+          throw new ValidationError('Title can not be an empty string!');
+        }
+
+        if (!content) {
+          throw new ValidationError('Content can not be an empty string!');
+        }
 
         const mentions = await getMentions(manager, content, userId, sourceId);
         const contentHtml = markdown.render(content, { mentions });
