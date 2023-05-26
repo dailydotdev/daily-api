@@ -36,3 +36,4 @@ export * from './NotificationAttachment';
 export * from './Notification';
 export * from './Feature';
 export * from './UserAction';
+export * from './ContentImage';

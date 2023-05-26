@@ -33,7 +33,7 @@ export const uploadFile = (
   name: string,
   preset: UploadPreset,
   stream: Readable,
-): Promise<string> =>
+): Promise<{ url: string; id: string }> =>
   new Promise((resolve, reject) => {
     const outStream = cloudinary.v2.uploader.upload_stream(
       {
@@ -45,7 +45,15 @@ export const uploadFile = (
           return reject(err);
         }
 
-        return resolve(callResult.secure_url);
+        return resolve({
+          url: cloudinary.v2.url(callResult.public_id, {
+            secure: true,
+            fetch_format: 'auto',
+            quality: 'auto',
+            sign_url: true,
+          }),
+          id: callResult.public_id,
+        });
       },
     );
     stream.pipe(outStream);
@@ -69,27 +77,4 @@ export const uploadPostFile = (
   name: string,
   stream: Readable,
   preset: PostPreset,
-): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const outStream = cloudinary.v2.uploader.upload_stream(
-      {
-        public_id: name,
-        upload_preset: preset,
-      },
-      (err, callResult) => {
-        if (err) {
-          return reject(err);
-        }
-
-        return resolve(
-          cloudinary.v2.url(callResult.public_id, {
-            secure: true,
-            fetch_format: 'auto',
-            quality: 'auto',
-            sign_url: true,
-          }),
-        );
-      },
-    );
-    stream.pipe(outStream);
-  });
+) => uploadFile(name, preset, stream);

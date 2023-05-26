@@ -36,4 +36,8 @@ export const crons: Cron[] = [
     name: 'clean-zombie-users',
     schedule: '32 */1 * * *',
   },
+  {
+    name: 'clean-zombie-images',
+    schedule: '3 5 * * *',
+  },
 ];

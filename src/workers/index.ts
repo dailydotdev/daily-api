@@ -28,6 +28,8 @@ import sourcePrivacyUpdated from './sourcePrivacyUpdated';
 import postChangelogAdded from './postChangelogAdded';
 import clearFeaturesCache from './clearFeaturesCache';
 import postUpdated from './postUpdated';
+import freeformImages from './freeformImages';
+import deleteCloudinaryImage from './deleteCloudinaryImage';
 
 export { Worker } from './worker';
 
@@ -59,6 +61,8 @@ export const workers: Worker[] = [
   postChangelogAdded,
   clearFeaturesCache,
   postUpdated,
+  freeformImages,
+  deleteCloudinaryImage,
   cdc,
   ...notificationWorkers,
 ];

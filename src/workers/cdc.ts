@@ -54,12 +54,13 @@ import {
   notifySourceMemberRoleChanged,
   notifyNewPostMention,
   notifyContentRequested,
+  notifyContentImageDeleted,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
-import { PostReport, Alerts } from '../entity';
+import { PostReport, Alerts, ContentImage } from '../entity';
 import { reportReasons } from '../schema/posts';
 import { updateAlerts } from '../schema/alerts';
 import { submissionAccessThreshold } from '../schema/submissions';
@@ -440,6 +441,18 @@ const onSourceMemberChange = async (
   }
 };
 
+const onContentImageChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<ContentImage>,
+) => {
+  if (data.payload.op === 'd') {
+    if (data.payload.before.shouldDelete) {
+      await notifyContentImageDeleted(logger, data.payload.before);
+    }
+  }
+};
+
 const onFeatureChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -525,6 +538,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Feature):
           await onFeatureChange(con, logger, data);
+          break;
+        case getTableName(con, ContentImage):
+          await onContentImageChange(con, logger, data);
           break;
       }
     } catch (err) {

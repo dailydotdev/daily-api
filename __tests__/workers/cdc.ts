@@ -34,6 +34,7 @@ import {
   notifyPostVisible,
   notifySourceMemberRoleChanged,
   notifyContentRequested,
+  notifyContentImageDeleted,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -75,6 +76,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { TypeOrmError } from '../../src/errors';
 import { SourceMemberRoles } from '../../src/roles';
+import { ContentImage } from '../../src/entity/ContentImage';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -107,6 +109,7 @@ jest.mock('../../src/common', () => ({
   notifyContentRequested: jest.fn(),
   notifyPostVisible: jest.fn(),
   notifySourceMemberRoleChanged: jest.fn(),
+  notifyContentImageDeleted: jest.fn(),
 }));
 
 let con: DataSource;
@@ -1317,5 +1320,44 @@ describe('source', () => {
     expect(
       jest.mocked(notifySourcePrivacyUpdated).mock.calls[0].slice(1),
     ).toEqual([after]);
+  });
+});
+
+describe('content image', () => {
+  type ObjectType = Partial<ContentImage>;
+  const base: ChangeObject<ObjectType> = {
+    serviceId: '1',
+    shouldDelete: false,
+  };
+
+  it('should do nothing on delete when the image not mark for deletion', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        before: base,
+        op: 'd',
+        table: 'content_image',
+      }),
+    );
+    expect(notifyContentImageDeleted).toBeCalledTimes(0);
+  });
+
+  it('should notify on content image deleted', async () => {
+    const before = {
+      ...base,
+      shouldDelete: true,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        before,
+        op: 'd',
+        table: 'content_image',
+      }),
+    );
+    expect(notifyContentImageDeleted).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifyContentImageDeleted).mock.calls[0].slice(1),
+    ).toEqual([before]);
   });
 });

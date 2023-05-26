@@ -30,6 +30,10 @@ export const workers: Worker[] = [
     subscription: 'api.post-scout-matched-slack-v2',
   },
   {
+    topic: 'api.v1.post-visible',
+    subscription: 'api.freeform-images',
+  },
+  {
     topic: 'comment-commented',
     subscription: 'comment-commented-slack-message',
   },
@@ -97,6 +101,10 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.source-privacy-updated',
     subscription: 'api.source-privacy-updated',
+  },
+  {
+    topic: 'api.v1.content-image-deleted',
+    subscription: 'api.delete-cloudinary-image',
   },
   // Notifications
   {
