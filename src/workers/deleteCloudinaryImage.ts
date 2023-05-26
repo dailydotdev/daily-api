@@ -12,7 +12,7 @@ const worker: Worker = {
   handler: async (message, _, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     const { contentImage } = data;
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       cloudinary.v2.uploader.destroy(contentImage.serviceId, (err) => {
         if (err) {
           return reject(err);
