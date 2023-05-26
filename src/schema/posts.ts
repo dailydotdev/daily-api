@@ -950,7 +950,7 @@ export const resolvers: IResolvers<any, Context> = {
         extension === 'gif'
           ? UploadPreset.FreeformGif
           : UploadPreset.FreeformImage;
-      const id = generateShortId();
+      const id = await generateShortId();
       const filename = `post_content_${id}`;
 
       return uploadPostFile(filename, upload.createReadStream(), preset);
