@@ -1,9 +1,12 @@
 import { expectSuccessfulBackground } from '../helpers';
-import worker from '../../src/workers/freeformImages';
-import { PostType } from '../../src/entity';
-import { DataSource } from 'typeorm';
+import worker from '../../src/workers/postFreeformImages';
+import {
+  PostType,
+  ContentImage,
+  ContentImageUsedByType,
+} from '../../src/entity';
+import { DataSource, IsNull, Not } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { ContentImage } from '../../src/entity/ContentImage';
 import { postsFixture } from '../fixture/post';
 import { markdown } from '../../src/common/markdown';
 
@@ -26,6 +29,11 @@ it('should do nothing for post without a content html', async () => {
   await expectSuccessfulBackground(worker, {
     post: postsFixture[0],
   });
+  const actual = await con.getRepository(ContentImage).find({
+    where: { usedByType: Not(IsNull()) },
+    order: { serviceId: 'ASC' },
+  });
+  expect(actual.length).toEqual(0);
 });
 
 it('should set used images as not marked for deletion', async () => {
@@ -44,9 +52,15 @@ it('should set used images as not marked for deletion', async () => {
       contentHtml: html,
     },
   });
-  const deletion = await con
-    .getRepository(ContentImage)
-    .findBy({ shouldDelete: true });
-  expect(deletion.length).toEqual(1);
-  expect(deletion[0].serviceId).toEqual('3');
+  const actual = await con.getRepository(ContentImage).find({
+    where: { usedByType: Not(IsNull()) },
+    order: { serviceId: 'ASC' },
+  });
+  expect(actual.length).toEqual(2);
+  expect(actual[0].serviceId).toEqual('1');
+  expect(actual[1].serviceId).toEqual('2');
+  actual.forEach((image) => {
+    expect(image.usedByType).toEqual(ContentImageUsedByType.POST);
+    expect(image.usedById).toEqual('p1');
+  });
 });

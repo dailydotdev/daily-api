@@ -2,7 +2,7 @@ import cron from '../../src/cron/cleanZombieImages';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { ContentImage } from '../../src/entity';
+import { ContentImage, ContentImageUsedByType } from '../../src/entity';
 import { subDays } from 'date-fns';
 
 let con: DataSource;
@@ -16,7 +16,8 @@ beforeEach(async () => {
     {
       serviceId: '1',
       url: 'https://daily.dev/1.jpg',
-      shouldDelete: false,
+      usedByType: ContentImageUsedByType.POST,
+      usedById: 'p1',
       createdAt: subDays(new Date(), 31),
     },
     {
@@ -34,7 +35,10 @@ beforeEach(async () => {
 
 it('should delete images older than 30 days', async () => {
   await expectSuccessfulCron(cron);
-  const images = await con.getRepository(ContentImage).find();
-  expect(images.length).toEqual(1);
-  expect(images[0].serviceId).toEqual('3');
+  const images = await con
+    .getRepository(ContentImage)
+    .find({ order: { serviceId: 'ASC' } });
+  expect(images.length).toEqual(2);
+  expect(images[0].serviceId).toEqual('1');
+  expect(images[1].serviceId).toEqual('3');
 });

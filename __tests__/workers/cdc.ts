@@ -1,5 +1,6 @@
 import nock from 'nock';
 import {
+  FreeformPost,
   PostMention,
   ReputationEvent,
   ReputationReason,
@@ -35,6 +36,7 @@ import {
   notifySourceMemberRoleChanged,
   notifyContentRequested,
   notifyContentImageDeleted,
+  notifyPostContentEdited,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -66,6 +68,7 @@ import {
   User,
   UserState,
   UserStateKey,
+  ContentImage,
 } from '../../src/entity';
 import { ChangeObject } from '../../src/types';
 import { sourcesFixture } from '../fixture/source';
@@ -76,7 +79,6 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { TypeOrmError } from '../../src/errors';
 import { SourceMemberRoles } from '../../src/roles';
-import { ContentImage } from '../../src/entity/ContentImage';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -110,6 +112,7 @@ jest.mock('../../src/common', () => ({
   notifyPostVisible: jest.fn(),
   notifySourceMemberRoleChanged: jest.fn(),
   notifyContentImageDeleted: jest.fn(),
+  notifyPostContentEdited: jest.fn(),
 }));
 
 let con: DataSource;
@@ -652,6 +655,53 @@ describe('post', () => {
     expect(jest.mocked(notifyPostVisible).mock.calls[0].slice(1)).toEqual([
       after,
     ]);
+  });
+
+  it('should not notify on post edited', async () => {
+    const after: ChangeObject<Partial<FreeformPost>> = {
+      ...(base as ChangeObject<Partial<Post>>),
+      visible: true,
+      content: '1',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Partial<FreeformPost>>({
+        after,
+        before: {
+          ...(base as ChangeObject<Partial<Post>>),
+          visible: false,
+          content: '2',
+        },
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostContentEdited).toBeCalledTimes(0);
+  });
+
+  it('should notify on post edited', async () => {
+    const after: ChangeObject<Partial<FreeformPost>> = {
+      ...(base as ChangeObject<Partial<Post>>),
+      visible: true,
+      content: '1',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Partial<FreeformPost>>({
+        after,
+        before: {
+          ...(base as ChangeObject<Partial<Post>>),
+          visible: true,
+          content: '2',
+        },
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostContentEdited).toBeCalledTimes(1);
+    expect(jest.mocked(notifyPostContentEdited).mock.calls[0].slice(1)).toEqual(
+      [after],
+    );
   });
 
   it('should notify on send analytics report', async () => {
@@ -1327,26 +1377,10 @@ describe('content image', () => {
   type ObjectType = Partial<ContentImage>;
   const base: ChangeObject<ObjectType> = {
     serviceId: '1',
-    shouldDelete: false,
   };
 
-  it('should do nothing on delete when the image not mark for deletion', async () => {
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        before: base,
-        op: 'd',
-        table: 'content_image',
-      }),
-    );
-    expect(notifyContentImageDeleted).toBeCalledTimes(0);
-  });
-
   it('should notify on content image deleted', async () => {
-    const before = {
-      ...base,
-      shouldDelete: true,
-    };
+    const before = base;
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({

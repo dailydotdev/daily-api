@@ -20,6 +20,7 @@ import {
   Feature,
   Source,
   PostMention,
+  FreeformPost,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -55,6 +56,7 @@ import {
   notifyNewPostMention,
   notifyContentRequested,
   notifyContentImageDeleted,
+  notifyPostContentEdited,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
@@ -280,8 +282,18 @@ const onPostChange = async (
       await notifyPostVisible(logger, data.payload.after);
     }
   } else if (data.payload.op === 'u') {
-    if (!data.payload.before.visible && data.payload.after.visible) {
-      await notifyPostVisible(logger, data.payload.after);
+    if (data.payload.after.visible) {
+      if (!data.payload.before.visible) {
+        await notifyPostVisible(logger, data.payload.after);
+      } else {
+        // Trigger message only if the post is already visible and the conte was edited
+        const freeform = data as unknown as ChangeMessage<FreeformPost>;
+        if (
+          isChanged(freeform.payload.before, freeform.payload.after, 'content')
+        ) {
+          await notifyPostContentEdited(logger, data.payload.after);
+        }
+      }
     }
     if (
       !data.payload.before.sentAnalyticsReport &&
@@ -447,9 +459,7 @@ const onContentImageChange = async (
   data: ChangeMessage<ContentImage>,
 ) => {
   if (data.payload.op === 'd') {
-    if (data.payload.before.shouldDelete) {
-      await notifyContentImageDeleted(logger, data.payload.before);
-    }
+    await notifyContentImageDeleted(logger, data.payload.before);
   }
 };
 

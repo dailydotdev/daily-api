@@ -56,6 +56,7 @@ const sourceMemberRoleChangedTopic = pubsub.topic(
   'api.v1.source-member-role-changed',
 );
 const contentImageDeletedTopic = pubsub.topic('api.v1.content-image-deleted');
+const postContentEditedTopic = pubsub.topic('api.v1.post-content-edited');
 
 export enum NotificationReason {
   New = 'new',
@@ -363,3 +364,8 @@ export const notifyContentImageDeleted = async (
   contentImage: ChangeObject<ContentImage>,
 ): Promise<void> =>
   publishEvent(log, contentImageDeletedTopic, { contentImage });
+
+export const notifyPostContentEdited = async (
+  log: EventLogger,
+  post: ChangeObject<Post>,
+): Promise<void> => publishEvent(log, postContentEditedTopic, { post });

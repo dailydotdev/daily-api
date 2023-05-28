@@ -31,7 +31,11 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.post-visible',
-    subscription: 'api.freeform-images',
+    subscription: 'api.post-freeform-images',
+  },
+  {
+    topic: 'api.v1.post-content-edited',
+    subscription: 'api.post-edited-freeform-images',
   },
   {
     topic: 'comment-commented',

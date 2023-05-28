@@ -11,7 +11,7 @@
     "db:migrate:latest": "npm run typeorm -- migration:run -d src/data-source.ts",
     "db:migrate:make": "npm run typeorm -- migration:generate -d src/data-source.ts",
     "db:migrate:reset": "npm run db:schema:drop && npm run db:migrate:latest",
-    "db:migrate:rollback": "npm run typeorm -- migration:revert",
+    "db:migrate:rollback": "npm run typeorm -- migration:revert -d src/data-source.ts",
     "db:schema:drop": "npm run typeorm schema:drop -- -d src/data-source.ts",
     "db:schema:sync": "npm run typeorm -- schema:sync",
     "db:seed:export": "ts-node bin/export.ts",

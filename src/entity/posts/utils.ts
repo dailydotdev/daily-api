@@ -14,6 +14,9 @@ import { MAX_COMMENTARY_LENGTH, SharePost } from './SharePost';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { Source, UNKNOWN_SOURCE } from '../Source';
 import { generateShortId } from '../../ids';
+import { FreeformPost } from './FreeformPost';
+import { parse } from 'node-html-parser';
+import { ContentImage, ContentImageUsedByType } from '../ContentImage';
 
 export type PostStats = {
   numPosts: number;
@@ -262,4 +265,21 @@ export const createSharePost = async (
     }
     throw err;
   }
+};
+
+export const updateUsedImagesInContent = async (
+  con: DataSource | EntityManager,
+  type: ContentImageUsedByType,
+  { id, contentHtml }: Pick<FreeformPost, 'contentHtml' | 'id'>,
+): Promise<void> => {
+  const root = parse(contentHtml);
+  const images = root.querySelectorAll('img');
+  const urls = images.map((img) => img.getAttribute('src'));
+  await con.getRepository(ContentImage).update(
+    { url: In(urls) },
+    {
+      usedByType: type,
+      usedById: id,
+    },
+  );
 };

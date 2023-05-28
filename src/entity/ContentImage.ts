@@ -1,6 +1,12 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
+export enum ContentImageUsedByType {
+  POST = 'post',
+}
+
 @Entity()
+@Index('IDX_content_image_used_by', ['usedByType', 'usedById'])
+@Index('IDX_content_image_created_at_type', ['createdAt', 'usedByType'])
 export class ContentImage {
   @PrimaryColumn({ type: 'text' })
   url: string;
@@ -9,9 +15,11 @@ export class ContentImage {
   serviceId: string;
 
   @Column({ default: () => 'now()' })
-  @Index('IDX_content_image_created_at')
   createdAt: Date;
 
-  @Column({ default: true })
-  shouldDelete: boolean;
+  @Column({ type: 'text', nullable: true })
+  usedByType: ContentImageUsedByType;
+
+  @Column({ type: 'text', nullable: true })
+  usedById: string;
 }
