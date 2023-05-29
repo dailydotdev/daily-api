@@ -2171,7 +2171,7 @@ describe('mutation checkLinkPreview', () => {
 
 describe('mutation createFreeformPost', () => {
   const MUTATION = `
-    mutation CreateFreeformPost($sourceId: ID!, $title: String!, $content: String!, $image: Upload) {
+    mutation CreateFreeformPost($sourceId: ID!, $title: String!, $content: String, $image: Upload) {
       createFreeformPost(sourceId: $sourceId, title: $title, content: $content, image: $image) {
         id
         author {
@@ -2215,14 +2215,29 @@ describe('mutation createFreeformPost', () => {
     );
   });
 
-  it('should return an error if content is an empty space', async () => {
+  it('should not return an error if content is an empty space or null', async () => {
     loggedUser = '1';
 
-    return testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { ...params, content: ' ' } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
+    const res1 = await client.mutate(MUTATION, {
+      variables: { ...params, content: ' ' },
+    });
+
+    const verifyResponse = (response: typeof res1) => {
+      expect(response.errors).toBeFalsy();
+      expect(response.data.createFreeformPost.type).toEqual(PostType.Freeform);
+      expect(response.data.createFreeformPost.author.id).toEqual('1');
+      expect(response.data.createFreeformPost.source.id).toEqual('a');
+      expect(response.data.createFreeformPost.title).toEqual(params.title);
+      expect(response.data.createFreeformPost.content).toEqual('');
+    };
+
+    verifyResponse(res1);
+
+    const res2 = await client.mutate(MUTATION, {
+      variables: { ...params, content: null },
+    });
+
+    verifyResponse(res2);
   });
 
   it('should return an error if title exceeds 80 characters', async () => {

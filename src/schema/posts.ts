@@ -558,7 +558,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Content of the post (max 4000 chars)
       """
-      content: String!
+      content: String
     ): Post! @auth
 
     """
@@ -1028,10 +1028,6 @@ export const resolvers: IResolvers<any, Context> = {
 
       if (!title) {
         throw new ValidationError('Title can not be an empty string!');
-      }
-
-      if (!content) {
-        throw new ValidationError('Content can not be an empty string!');
       }
 
       await con.transaction(async (manager) => {
