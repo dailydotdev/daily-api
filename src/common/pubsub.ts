@@ -17,6 +17,7 @@ import {
 } from '../entity';
 import { ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
+import { ContentImage } from '../entity/ContentImage';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
@@ -54,6 +55,8 @@ const postVisibleTopic = pubsub.topic('api.v1.post-visible');
 const sourceMemberRoleChangedTopic = pubsub.topic(
   'api.v1.source-member-role-changed',
 );
+const contentImageDeletedTopic = pubsub.topic('api.v1.content-image-deleted');
+const postContentEditedTopic = pubsub.topic('api.v1.post-content-edited');
 
 export enum NotificationReason {
   New = 'new',
@@ -355,3 +358,14 @@ export const notifyContentRequested = async (
   log: EventLogger,
   content: ContentRequested,
 ): Promise<void> => publishEvent(log, contentRequestedTopic, content);
+
+export const notifyContentImageDeleted = async (
+  log: EventLogger,
+  contentImage: ChangeObject<ContentImage>,
+): Promise<void> =>
+  publishEvent(log, contentImageDeletedTopic, { contentImage });
+
+export const notifyPostContentEdited = async (
+  log: EventLogger,
+  post: ChangeObject<Post>,
+): Promise<void> => publishEvent(log, postContentEditedTopic, { post });

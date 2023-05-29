@@ -767,7 +767,7 @@ export const resolvers: IResolvers<any, Context> = {
       if (file) {
         const { createReadStream } = await file;
         const stream = createReadStream();
-        const backgroundImage = await uploadDevCardBackground(
+        const { url: backgroundImage } = await uploadDevCardBackground(
           devCard.id,
           stream,
         );
@@ -832,7 +832,7 @@ export const resolvers: IResolvers<any, Context> = {
 
       const avatar =
         upload && process.env.CLOUDINARY_URL
-          ? await uploadAvatar(user.id, (await upload).createReadStream())
+          ? (await uploadAvatar(user.id, (await upload).createReadStream())).url
           : data.image || user.image;
 
       try {

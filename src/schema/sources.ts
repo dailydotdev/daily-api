@@ -1003,7 +1003,7 @@ export const resolvers: IResolvers<any, Context> = {
           if (image) {
             const { createReadStream } = await image;
             const stream = createReadStream();
-            const imageUrl = await uploadSquadImage(id, stream);
+            const { url: imageUrl } = await uploadSquadImage(id, stream);
             await repo.update({ id }, { image: imageUrl });
           }
           return id;
@@ -1062,7 +1062,10 @@ export const resolvers: IResolvers<any, Context> = {
             if (image) {
               const { createReadStream } = await image;
               const stream = createReadStream();
-              const imageUrl = await uploadSquadImage(sourceId, stream);
+              const { url: imageUrl } = await uploadSquadImage(
+                sourceId,
+                stream,
+              );
               await repo.update({ id: sourceId }, { image: imageUrl });
             }
             return sourceId;

@@ -64,7 +64,8 @@ import { Roles } from '../roles';
 import { markdown, saveMentions } from '../common/markdown';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
-import { generateShortId } from '../ids';
+import { generateShortId, generateUUID } from '../ids';
+import { ContentImage } from '../entity/ContentImage';
 
 export interface GQLPost {
   id: string;
@@ -935,6 +936,7 @@ export const resolvers: IResolvers<any, Context> = {
     uploadContentImage: async (
       _,
       { image }: { image: Promise<FileUpload> },
+      ctx,
     ): Promise<string> => {
       if (!image) {
         throw new ValidationError('File is missing!');
@@ -950,10 +952,18 @@ export const resolvers: IResolvers<any, Context> = {
         extension === 'gif'
           ? UploadPreset.FreeformGif
           : UploadPreset.FreeformImage;
-      const id = generateShortId();
-      const filename = `post_content_${id}`;
-
-      return uploadPostFile(filename, upload.createReadStream(), preset);
+      const id = generateUUID();
+      const filename = `content_${id}`;
+      const { url: imageUrl, id: imageId } = await uploadPostFile(
+        filename,
+        upload.createReadStream(),
+        preset,
+      );
+      await ctx.con.getRepository(ContentImage).save({
+        serviceId: imageId,
+        url: imageUrl,
+      });
+      return imageUrl;
     },
     deletePost: async (
       _,
@@ -1038,11 +1048,12 @@ export const resolvers: IResolvers<any, Context> = {
 
         if (image && process.env.CLOUDINARY_URL) {
           const upload = await image;
-          params.image = await uploadPostFile(
+          const { url: coverImageUrl } = await uploadPostFile(
             id,
             upload.createReadStream(),
             UploadPreset.PostBannerImage,
           );
+          params.image = coverImageUrl;
         }
 
         await saveFreeformPost(manager, params);
@@ -1101,11 +1112,12 @@ export const resolvers: IResolvers<any, Context> = {
 
         if (image && process.env.CLOUDINARY_URL) {
           const upload = await image;
-          updated.image = await uploadPostFile(
+          const { url: coverImageUrl } = await uploadPostFile(
             id,
             upload.createReadStream(),
             UploadPreset.PostBannerImage,
           );
+          updated.image = coverImageUrl;
         }
 
         if (content !== post.content) {

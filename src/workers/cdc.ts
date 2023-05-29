@@ -20,6 +20,7 @@ import {
   Feature,
   Source,
   PostMention,
+  FreeformPost,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -54,12 +55,14 @@ import {
   notifySourceMemberRoleChanged,
   notifyNewPostMention,
   notifyContentRequested,
+  notifyContentImageDeleted,
+  notifyPostContentEdited,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
-import { PostReport, Alerts } from '../entity';
+import { PostReport, Alerts, ContentImage } from '../entity';
 import { reportReasons } from '../schema/posts';
 import { updateAlerts } from '../schema/alerts';
 import { submissionAccessThreshold } from '../schema/submissions';
@@ -279,8 +282,18 @@ const onPostChange = async (
       await notifyPostVisible(logger, data.payload.after);
     }
   } else if (data.payload.op === 'u') {
-    if (!data.payload.before.visible && data.payload.after.visible) {
-      await notifyPostVisible(logger, data.payload.after);
+    if (data.payload.after.visible) {
+      if (!data.payload.before.visible) {
+        await notifyPostVisible(logger, data.payload.after);
+      } else {
+        // Trigger message only if the post is already visible and the conte was edited
+        const freeform = data as unknown as ChangeMessage<FreeformPost>;
+        if (
+          isChanged(freeform.payload.before, freeform.payload.after, 'content')
+        ) {
+          await notifyPostContentEdited(logger, data.payload.after);
+        }
+      }
     }
     if (
       !data.payload.before.sentAnalyticsReport &&
@@ -440,6 +453,16 @@ const onSourceMemberChange = async (
   }
 };
 
+const onContentImageChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<ContentImage>,
+) => {
+  if (data.payload.op === 'd') {
+    await notifyContentImageDeleted(logger, data.payload.before);
+  }
+};
+
 const onFeatureChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -525,6 +548,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Feature):
           await onFeatureChange(con, logger, data);
+          break;
+        case getTableName(con, ContentImage):
+          await onContentImageChange(con, logger, data);
           break;
       }
     } catch (err) {
