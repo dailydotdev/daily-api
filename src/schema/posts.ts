@@ -13,7 +13,6 @@ import {
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import {
-  saveFreeformPost,
   CreatePost,
   CreatePostArgs,
   DEFAULT_POST_TITLE,
@@ -25,6 +24,7 @@ import {
   isValidHttpUrl,
   notifyView,
   pickImageUrl,
+  saveFreeformPost,
   standardizeURL,
   uploadPostFile,
   UploadPreset,
@@ -39,13 +39,13 @@ import {
   FreeformPost,
   HiddenPost,
   Post,
+  PostMention,
   PostReport,
   PostType,
   Toc,
   Upvote,
-  WelcomePost,
-  PostMention,
   UserActionType,
+  WelcomePost,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -69,7 +69,7 @@ import { ContentImage } from '../entity/ContentImage';
 
 export interface GQLPost {
   id: string;
-  type: string;
+  type: PostType;
   shortId: string;
   publishedAt?: Date;
   pinnedAt?: Date;
@@ -721,6 +721,8 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+const nullableImageType = [PostType.Freeform, PostType.Welcome];
+
 const saveHiddenPost = async (
   con: DataSource,
   hiddenPost: DeepPartial<HiddenPost>,
@@ -1347,7 +1349,11 @@ export const resolvers: IResolvers<any, Context> = {
     },
   },
   Post: {
-    image: (post: GQLPost): string => post.image || pickImageUrl(post),
+    image: (post: GQLPost): string => {
+      if (nullableImageType.includes(post.type)) return post.image;
+
+      return post.image || pickImageUrl(post);
+    },
     placeholder: (post: GQLPost): string =>
       post.image ? post.placeholder : defaultImage.placeholder,
     ratio: (post: GQLPost): number =>
