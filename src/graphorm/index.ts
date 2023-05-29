@@ -82,6 +82,7 @@ const obj = new GraphORM({
       'authorId',
       'scoutId',
       'private',
+      'type',
     ],
     fields: {
       tags: {
