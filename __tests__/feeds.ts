@@ -7,6 +7,7 @@ import {
   FeedAdvancedSettings,
   FeedSource,
   FeedTag,
+  FreeformPost,
   Keyword,
   MachineSource,
   Post,
@@ -19,6 +20,7 @@ import {
   SourceType,
   User,
   View,
+  WelcomePost,
 } from '../src/entity';
 import { SourceMemberRoles } from '../src/roles';
 import { Category } from '../src/entity/Category';
@@ -651,6 +653,7 @@ describe('query feed', () => {
 });
 
 describe('query sourceFeed', () => {
+  let additionalProps = '';
   const QUERY = (
     source: string,
     ranking: Ranking = Ranking.POPULARITY,
@@ -658,10 +661,14 @@ describe('query sourceFeed', () => {
     first = 10,
     after = '',
   ): string => `{
-    sourceFeed(source: "${source}", ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}, supportedTypes: ["article", "share", "welcome"], after: "${after}") {
-      ${feedFields('pinnedAt')}
+    sourceFeed(source: "${source}", ranking: ${ranking}, now: "${now.toISOString()}", first: ${first}, supportedTypes: ["article", "share", "welcome", "freeform"], after: "${after}") {
+      ${feedFields(`pinnedAt ${additionalProps}`)}
     }
   }`;
+
+  beforeEach(() => {
+    additionalProps = '';
+  });
 
   it('should return a single source feed', async () => {
     const res = await client.query(QUERY('b'));
@@ -790,6 +797,47 @@ describe('query sourceFeed', () => {
     res.data.sourceFeed.edges.forEach(({ node }) =>
       expect(node.source.id).toEqual('b'),
     );
+  });
+
+  it('should return a freeform or welcome post without image', async () => {
+    loggedUser = '1';
+    additionalProps = 'type image';
+    await con.getRepository(User).save(usersFixture[0]);
+    const repo = con.getRepository(Source);
+    await repo.update({ id: 'b' }, { private: true });
+    const source = await repo.findOneBy({ id: 'b' });
+    const welcome = await createSquadWelcomePost(con, source, '1');
+    const freeform = await createSquadWelcomePost(con, source, '1');
+    await con
+      .getRepository(Post)
+      .update({ id: freeform.id }, { type: PostType.Freeform });
+    await con
+      .getRepository(FreeformPost)
+      .update({ id: freeform.id }, { image: null });
+    await con
+      .getRepository(WelcomePost)
+      .update({ id: welcome.id }, { image: null });
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'b',
+        role: SourceMemberRoles.Admin,
+        referralToken: randomUUID(),
+        createdAt: new Date(2022, 11, 19),
+      },
+    ]);
+
+    const res = await client.query(QUERY('b'));
+    const edges = res.data?.sourceFeed?.edges;
+    edges.forEach(({ node }) => expect(node.source.id).toEqual('b'));
+    const welcomePost = edges.find(
+      ({ node }) => node.type === PostType.Welcome,
+    );
+    expect(welcomePost.node.image).toBeNull();
+    const freeformPost = edges.find(
+      ({ node }) => node.type === PostType.Freeform,
+    );
+    expect(freeformPost.node.image).toBeNull();
   });
 });
 
