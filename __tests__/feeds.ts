@@ -50,7 +50,7 @@ import {
   getPersonalizedFeedKey,
   getPersonalizedFeedKeyPrefix,
 } from '../src/personalizedFeed';
-import { DataSource, In } from 'typeorm';
+import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
