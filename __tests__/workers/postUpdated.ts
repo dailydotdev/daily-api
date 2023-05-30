@@ -247,6 +247,7 @@ it('should save a new post with basic information', async () => {
     title: 'Title',
     url: 'https://post.com',
     source_id: 'a',
+    order: 0,
   });
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(2);
@@ -261,7 +262,20 @@ it('should save a new post with basic information', async () => {
     contentCuration: expect.any(Array),
     sourceId: 'a',
     title: 'Title',
+    showOnFeed: true,
   });
+});
+
+it('should save a new post with showOnFeed information', async () => {
+  await expectSuccessfulBackground(worker, {
+    title: 'Title',
+    url: 'https://post.com',
+    source_id: 'a',
+    order: 1,
+  });
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(2);
+  expect(posts[1].showOnFeed).toEqual(false);
 });
 
 it('should save a new post with content curation', async () => {
