@@ -1135,10 +1135,7 @@ describe('mutation deletePost', () => {
     loggedUser = '2';
     const id = 'sp1';
     await createSharedPost(id);
-    const res = await client.mutate(MUTATION, { variables: { id: 'sp1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(SharePost).findOneBy({ id: 'sp1' });
-    expect(actual?.deleted).toBeTruthy();
+    verifyPostDeleted(id);
   });
 
   const verifyPostDeleted = async (id: string) => {
@@ -1229,10 +1226,7 @@ describe('mutation deletePost', () => {
     loggedUser = '2';
     const id = 'sp1';
     await createSharedPost(id, { role: SourceMemberRoles.Admin }, '1');
-    const res = await client.mutate(MUTATION, { variables: { id: 'sp1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(SharePost).findOneBy({ id: 'sp1' });
-    expect(actual?.deleted).toBeTruthy();
+    verifyPostDeleted(id);
   });
 
   it('should do nothing if post is not a shared post', async () => {
