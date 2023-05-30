@@ -510,8 +510,11 @@ describe('query feed', () => {
 
   it('should return preconfigured feed with sources filtered based on advanced settings', async () => {
     loggedUser = '1';
-    await con.getRepository(Post).delete({ id: 'p6' });
+    const repo = con.getRepository(Post);
+    await repo.delete({ id: 'p6' });
     await saveAdvancedSettingsFiltersFixtures();
+    await repo.update({ id: 'p1' }, { score: 2 });
+    await repo.update({ id: 'includedPost' }, { score: 1 });
 
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
