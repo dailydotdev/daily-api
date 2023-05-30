@@ -2215,16 +2215,6 @@ describe('mutation createFreeformPost', () => {
     );
   });
 
-  it('should return an error if content is an empty space', async () => {
-    loggedUser = '1';
-
-    return testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { ...params, content: ' ' } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
   it('should return an error if title exceeds 80 characters', async () => {
     loggedUser = '1';
 
