@@ -48,6 +48,7 @@ import {
   notifyView,
   DEFAULT_POST_TITLE,
   pickImageUrl,
+  createSquadWelcomePost,
 } from '../src/common';
 import { randomUUID } from 'crypto';
 import nock from 'nock';
@@ -1140,14 +1141,66 @@ describe('mutation deletePost', () => {
     expect(actual?.deleted).toBeTruthy();
   });
 
+  const verifyPostDeleted = async (id: string) => {
+    const res = await client.mutate(MUTATION, { variables: { id } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Post).findOneBy({ id });
+    expect(actual.deleted).toBeTruthy();
+  };
+
+  it('should allow member to delete their own freeform post', async () => {
+    loggedUser = '2';
+    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    const post = await createSquadWelcomePost(con, source, '2');
+    await con
+      .getRepository(Post)
+      .update({ id: post.id }, { type: PostType.Freeform });
+    const res = await client.mutate(MUTATION, { variables: { id: post.id } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Post).findOneBy({ id: post.id });
+    expect(actual.deleted).toBeTruthy();
+  });
+
+  it('should not allow member to delete their other freeform post', async () => {
+    loggedUser = '2';
+    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    const post = await createSquadWelcomePost(con, source, '1');
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: post.id } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should delete the welcome post by a moderator or an admin', async () => {
+    loggedUser = '2';
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Moderator,
+      referralToken: randomUUID(),
+    });
+    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    const post = await createSquadWelcomePost(con, source, '2');
+    await verifyPostDeleted(post.id);
+    await con
+      .getRepository(SourceMember)
+      .update(
+        { userId: '1', sourceId: 'a' },
+        { role: SourceMemberRoles.Admin },
+      );
+    const welcome = await createSquadWelcomePost(con, source, '2');
+    await con
+      .getRepository(Post)
+      .update({ id: welcome.id }, { type: PostType.Freeform });
+    await verifyPostDeleted(welcome.id);
+  });
+
   it('should delete the shared post from a member as a moderator', async () => {
     loggedUser = '2';
     const id = 'sp1';
     await createSharedPost(id, { role: SourceMemberRoles.Moderator }, '1');
-    const res = await client.mutate(MUTATION, { variables: { id: 'sp1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(SharePost).findOneBy({ id: 'sp1' });
-    expect(actual?.deleted).toBeTruthy();
+    await verifyPostDeleted(id);
   });
 
   it('should allow moderator deleting a post from other moderators', async () => {
@@ -1158,10 +1211,7 @@ describe('mutation deletePost', () => {
       .getRepository(SourceMember)
       .update({ userId: '1' }, { role: SourceMemberRoles.Moderator });
 
-    const res = await client.mutate(MUTATION, { variables: { id: 'sp1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(SharePost).findOneBy({ id: 'sp1' });
-    expect(actual?.deleted).toBeTruthy();
+    await verifyPostDeleted(id);
   });
 
   it('should allow moderator deleting a post from the admin', async () => {
@@ -1172,10 +1222,7 @@ describe('mutation deletePost', () => {
       .getRepository(SourceMember)
       .update({ userId: '1' }, { role: SourceMemberRoles.Moderator });
 
-    const res = await client.mutate(MUTATION, { variables: { id: 'sp1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(SharePost).findOneBy({ id: 'sp1' });
-    expect(actual?.deleted).toBeTruthy();
+    await verifyPostDeleted(id);
   });
 
   it('should delete the shared post as an admin of the squad', async () => {
