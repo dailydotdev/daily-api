@@ -20,6 +20,7 @@ import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import {
+  getShortUrl,
   getUserReadingRank,
   isValidHttpUrl,
   TagsReadingStatus,
@@ -110,6 +111,11 @@ export interface ReadingRankArgs {
   id: string;
   version?: number;
   limit?: number;
+}
+
+export interface ReferralCampaign {
+  referredUsersCount: number;
+  url: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -335,6 +341,11 @@ export const typeDefs = /* GraphQL */ `
     edges: [ReadingHistoryEdge]!
   }
 
+  type ReferralCampaign {
+    referredUsersCount: Int!
+    url: String!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -440,6 +451,16 @@ export const typeDefs = /* GraphQL */ `
       """
       name: String!
     ): String! @rateLimit(limit: 20, duration: 60)
+
+    """
+    Get referral campaign progress for user
+    """
+    referralCampaign(
+      """
+      Referral origin for campaign
+      """
+      referralOrigin: String!
+    ): ReferralCampaign! @auth
   }
 
   extend type Mutation {
@@ -748,6 +769,30 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       return generatedUsernames[0];
+    },
+    referralCampaign: async (
+      source,
+      args: { referralOrigin: string },
+      ctx: Context,
+    ): Promise<ReferralCampaign> => {
+      const { referralOrigin } = args;
+      const userRepo = ctx.getRepository(User);
+
+      const campaignUrl = new URL('/join', process.env.COMMENTS_PREFIX);
+      campaignUrl.searchParams.append('cid', referralOrigin);
+      campaignUrl.searchParams.append('userid', ctx.userId);
+
+      const [referredUsersCount, url] = await Promise.all([
+        userRepo.count({
+          where: { referralId: ctx.userId, referralOrigin },
+        }),
+        getShortUrl(campaignUrl),
+      ]);
+
+      return {
+        referredUsersCount,
+        url,
+      };
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
