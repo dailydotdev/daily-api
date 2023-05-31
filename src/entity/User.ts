@@ -94,6 +94,10 @@ export class User {
   @Index('IDX_user_referral')
   referralId?: string | null;
 
+  @Column({ length: 36, nullable: true })
+  @Index('IDX_user_referral_origin')
+  referralOrigin?: string | null;
+
   @ManyToOne(() => User, {
     lazy: true,
     onDelete: 'SET NULL',
