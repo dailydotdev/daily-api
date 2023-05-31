@@ -35,6 +35,7 @@ interface Data {
   published_at?: Date;
   updated_at?: Date;
   paid?: boolean;
+  order?: number;
   extra?: {
     keywords?: string[];
     summary?: string;
@@ -296,6 +297,7 @@ const fixData = async ({
       siteTwitter: data?.extra?.site_twitter,
       toc: data?.extra?.toc,
       contentCuration: data?.extra?.content_curation,
+      showOnFeed: data?.order === 0,
     },
   };
 };

@@ -27,6 +27,7 @@ Object {
   "scoutId": null,
   "sentAnalyticsReport": true,
   "shortId": Any<String>,
+  "showOnFeed": true,
   "siteTwitter": null,
   "sourceId": "a",
   "summary": null,
