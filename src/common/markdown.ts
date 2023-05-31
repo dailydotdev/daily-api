@@ -11,12 +11,14 @@ export const markdown: MarkdownIt = MarkdownIt({
   linkify: true,
   typographer: true,
   highlight: function (str, lang) {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
+    try {
+      if (lang) {
         return hljs.highlight(str, { language: lang }).value;
-      } catch (__) {}
+      }
+      return hljs.highlightAuto(str).value;
+    } catch (e) {
+      return markdown.utils.escapeHtml(str);
     }
-    return str;
   },
 });
 
