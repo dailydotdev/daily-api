@@ -986,9 +986,8 @@ export const resolvers: IResolvers<any, Context> = {
             post.sourceId,
             SourcePermissions.PostDelete,
           );
-
-          await repo.update({ id }, { deleted: true });
         }
+        await repo.update({ id }, { deleted: true });
       });
 
       return { _: true };

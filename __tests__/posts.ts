@@ -1018,22 +1018,10 @@ describe('mutation deletePost', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should do nothing if post is not a shared post and the user is not a moderator', async () => {
-    loggedUser = '1';
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post).toBeTruthy();
-    expect(post?.deleted).toBeFalsy();
-  });
-
   it('should delete the post', async () => {
     loggedUser = '1';
     roles = [Roles.Moderator];
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(actual.deleted).toBeTruthy();
+    await verifyPostDeleted('p1');
   });
 
   it('should do nothing if post is already deleted', async () => {
@@ -1135,7 +1123,7 @@ describe('mutation deletePost', () => {
     loggedUser = '2';
     const id = 'sp1';
     await createSharedPost(id);
-    verifyPostDeleted(id);
+    await verifyPostDeleted(id);
   });
 
   const verifyPostDeleted = async (id: string) => {
@@ -1152,10 +1140,7 @@ describe('mutation deletePost', () => {
     await con
       .getRepository(Post)
       .update({ id: post.id }, { type: PostType.Freeform });
-    const res = await client.mutate(MUTATION, { variables: { id: post.id } });
-    expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Post).findOneBy({ id: post.id });
-    expect(actual.deleted).toBeTruthy();
+    await verifyPostDeleted(post.id);
   });
 
   it('should delete the welcome post by a moderator or an admin', async () => {
@@ -1215,16 +1200,7 @@ describe('mutation deletePost', () => {
     loggedUser = '2';
     const id = 'sp1';
     await createSharedPost(id, { role: SourceMemberRoles.Admin }, '1');
-    verifyPostDeleted(id);
-  });
-
-  it('should do nothing if post is not a shared post', async () => {
-    loggedUser = '1';
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post).toBeTruthy();
-    expect(post?.deleted).toBeFalsy();
+    await verifyPostDeleted(id);
   });
 });
 
