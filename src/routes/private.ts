@@ -29,7 +29,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       referralOrigin = 'squad';
     }
 
-    const body = { ...rest, referralId: referralId, referralOrigin };
+    const body = { ...rest, referralId, referralOrigin };
     const operationResult = await addNewUser(con, body, req.log);
     return res.status(200).send(operationResult);
   });
