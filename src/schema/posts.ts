@@ -980,17 +980,14 @@ export const resolvers: IResolvers<any, Context> = {
       await ctx.con.transaction(async (manager) => {
         const repo = manager.getRepository(Post);
         const post = await repo.findOneBy({ id });
-        if (post.type === PostType.Share) {
-          if (post.authorId !== ctx.userId) {
-            await ensureSourcePermissions(
-              ctx,
-              post.sourceId,
-              SourcePermissions.PostDelete,
-            );
-          }
-
-          await repo.update({ id }, { deleted: true });
+        if (post.authorId !== ctx.userId) {
+          await ensureSourcePermissions(
+            ctx,
+            post.sourceId,
+            SourcePermissions.PostDelete,
+          );
         }
+        await repo.update({ id }, { deleted: true });
       });
 
       return { _: true };
