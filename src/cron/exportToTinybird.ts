@@ -13,14 +13,13 @@ const cron: Cron = {
   name: 'export-to-tinybird',
   handler: async (con, logger) => {
     const headers = { Authorization: `Bearer ${process.env.TINYBIRD_TOKEN}` };
-    // const latestResponse = await (
-    //   await fetch(
-    //     `${process.env.TINYBIRD_HOST}/v0/sql?q=SELECT max(metadata_changed_at) as latest FROM posts_metadata FORMAT JSON`,
-    //     { headers },
-    //   )
-    // ).json();
-    // const latest = new Date(latestResponse.data[0].latest);
-    const latest = new Date(Date.parse('2023-05-30T00:00:00+00:00'));
+    const latestResponse = await (
+      await fetch(
+        `${process.env.TINYBIRD_HOST}/v0/sql?q=SELECT max(metadata_changed_at) as latest FROM posts_metadata FORMAT JSON`,
+        { headers },
+      )
+    ).json();
+    const latest = new Date(latestResponse.data[0].latest);
     logger.info(`fetching post changes since ${latest.toISOString()}`);
     const posts = await con.query(
       `SELECT "id",
@@ -37,7 +36,8 @@ const cron: Cron = {
        WHERE "metadataChangedAt" > $1
          and "sourceId" != '${UNKNOWN_SOURCE}'
          and "visible" = true
-         and "type" != '${PostType.Welcome}'
+         and "type" != '${PostType.Welcome}
+         and "showOnFeed" = true'
      `,
       [latest],
     );

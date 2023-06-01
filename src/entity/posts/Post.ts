@@ -163,4 +163,7 @@ export class Post {
 
   @Column({ type: 'text', array: true, default: [] })
   contentCuration: string[];
+
+  @Column({ default: true })
+  showOnFeed: boolean;
 }
