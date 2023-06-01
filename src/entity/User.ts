@@ -131,6 +131,7 @@ export type AddUserData = Pick<
   | 'github'
   | 'twitter'
   | 'referralId'
+  | 'referralOrigin'
   | 'infoConfirmed'
   | 'profileConfirmed'
   | 'acceptedMarketing'
@@ -287,6 +288,7 @@ export const addNewUser = async (
         infoConfirmed: isInfoConfirmed(data),
         createdAt: data.createdAt,
         referralId: data.referralId,
+        referralOrigin: data.referralOrigin,
         acceptedMarketing: data.acceptedMarketing,
         timezone: data.timezone,
         github,
