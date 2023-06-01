@@ -722,7 +722,6 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 const nullableImageType = [PostType.Freeform, PostType.Welcome];
-const squadPostTypes = [PostType.Share, PostType.Freeform, PostType.Welcome];
 
 const saveHiddenPost = async (
   con: DataSource,
@@ -981,14 +980,12 @@ export const resolvers: IResolvers<any, Context> = {
       await ctx.con.transaction(async (manager) => {
         const repo = manager.getRepository(Post);
         const post = await repo.findOneBy({ id });
-        if (squadPostTypes.includes(post.type)) {
-          if (post.authorId !== ctx.userId) {
-            await ensureSourcePermissions(
-              ctx,
-              post.sourceId,
-              SourcePermissions.PostDelete,
-            );
-          }
+        if (post.authorId !== ctx.userId) {
+          await ensureSourcePermissions(
+            ctx,
+            post.sourceId,
+            SourcePermissions.PostDelete,
+          );
 
           await repo.update({ id }, { deleted: true });
         }

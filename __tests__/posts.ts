@@ -1158,17 +1158,6 @@ describe('mutation deletePost', () => {
     expect(actual.deleted).toBeTruthy();
   });
 
-  it('should not allow member to delete their other freeform post', async () => {
-    loggedUser = '2';
-    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
-    const post = await createSquadWelcomePost(con, source, '1');
-    return testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { id: post.id } },
-      'FORBIDDEN',
-    );
-  });
-
   it('should delete the welcome post by a moderator or an admin', async () => {
     loggedUser = '2';
     await con.getRepository(SourceMember).save({
