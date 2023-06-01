@@ -94,7 +94,7 @@ export class User {
   @Index('IDX_user_referral')
   referralId?: string | null;
 
-  @Column({ length: 36, nullable: true })
+  @Column({ type: 'text', nullable: true })
   @Index('IDX_user_referral_origin')
   referralOrigin?: string | null;
 
