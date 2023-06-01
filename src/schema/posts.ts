@@ -695,7 +695,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Commentary for the share
       """
-      commentary: String!
+      commentary: String
       """
       Source to share the post to
       """
@@ -1286,19 +1286,20 @@ export const resolvers: IResolvers<any, Context> = {
         id,
         commentary,
         sourceId,
-      }: { id: string; commentary: string; sourceId: string },
+      }: { id: string; commentary?: string; sourceId: string },
       ctx,
       info,
     ): Promise<GQLPost> => {
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
+      const strippedCommentary = commentary.trim();
       const newPost = await createSharePost(
         ctx.con,
         sourceId,
         ctx.userId,
         id,
-        commentary,
+        strippedCommentary,
       );
       return getPostById(ctx, info, newPost.id);
     },
