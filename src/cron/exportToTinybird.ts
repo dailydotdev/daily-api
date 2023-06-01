@@ -36,7 +36,8 @@ const cron: Cron = {
        WHERE "metadataChangedAt" > $1
          and "sourceId" != '${UNKNOWN_SOURCE}'
          and "visible" = true
-         and "type" != '${PostType.Welcome}'
+         and "type" != '${PostType.Welcome}
+         and "showOnFeed" = true'
      `,
       [latest],
     );
