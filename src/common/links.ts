@@ -54,15 +54,16 @@ export function isValidHttpUrl(link: string): boolean {
 }
 
 export const getShortUrl = async (url: string | URL): Promise<string> => {
-  const urlSHortenerSecret = process.env.URL_SHORTENER_SECRET;
+  const urlShortenerSecret = process.env.URL_SHORTENER_SECRET;
+  const urlShortenerBaseUrl = process.env.URL_SHORTENER_BASE_URL;
 
-  if (!urlSHortenerSecret) {
+  if (!urlShortenerSecret || !urlShortenerBaseUrl) {
     return url.toString();
   }
 
-  const fetchUrl = new URL('/shorten', process.env.URL_SHORTENER_BASE_URL);
+  const fetchUrl = new URL('/shorten', urlShortenerBaseUrl);
   const headers = new Headers({
-    Authorization: `Bearer ${urlSHortenerSecret}`,
+    Authorization: `Bearer ${urlShortenerSecret}`,
   });
 
   const response = await fetch(fetchUrl, {
