@@ -21,7 +21,15 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const con = await createOrGetConnection();
     // Temporary fix to migrate existing "referral" to "referralId" for backward compatability
     const { referral, ...rest } = req.body || ({} as AddUserDataPost);
-    const body = { ...rest, referralId: rest.referralId || referral };
+    const referralId = rest.referralId || referral;
+    let referralOrigin = rest.referralOrigin;
+
+    // Temporary fix to set referralOrigin to "squad" for backward compatability
+    if (referralId && !referralOrigin) {
+      referralOrigin = 'squad';
+    }
+
+    const body = { ...rest, referralId, referralOrigin };
     const operationResult = await addNewUser(con, body, req.log);
     return res.status(200).send(operationResult);
   });

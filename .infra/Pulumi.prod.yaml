@@ -95,6 +95,10 @@ config:
       secure: AAABAAUY1umWmVMVzZ6t6TePAAmqCFeED54L8NvlKSfBfHAyvz3vQQ==
     urlPrefix:
       secure: AAABADJrOx1jlyXkz+WbN5zL/iPmvpqaVVV2bBaBt/uY36W3kv6wgiJeF4b1EXF8Hk1HzCM=
+    urlShortenerBaseUrl:
+      secure: AAABAGMQe8VlALUgGiG/LIL6W50y/meU3GbSzUqaQtpaxT6q0BkQefV2X9+fHg==
+    urlShortenerSecret:
+      secure: AAABABn4A3L8LlBI77M+EM73dUMete6GUvoWIcaEj4DYxn+wNRB3lKKnSVNOZxb3/D9jniDoQIWOvPPeZkzOoQ==
     webflowToken:
       secure: AAABAEGzQasDisCZXKxcKbA7RJ/+nJLyzh6hNUcRCeBx3727YfGxBF8IUhJiDNK9ibava+80BbSSM2+zQxm020TtaQc3uUmVih19EXTVd6cP9YvRC9JorQKwvH9rSZSy
     webhookSecret:
