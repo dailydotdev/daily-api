@@ -266,6 +266,17 @@ it('should save a new post with basic information', async () => {
   });
 });
 
+it('should set show on feed to true when order is missing', async () => {
+  await expectSuccessfulBackground(worker, {
+    title: 'Title',
+    url: 'https://post.com',
+    source_id: 'a',
+  });
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(2);
+  expect(posts[1].showOnFeed).toEqual(true);
+});
+
 it('should save a new post with showOnFeed information', async () => {
   await expectSuccessfulBackground(worker, {
     title: 'Title',

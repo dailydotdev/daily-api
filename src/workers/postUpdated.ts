@@ -297,7 +297,7 @@ const fixData = async ({
       siteTwitter: data?.extra?.site_twitter,
       toc: data?.extra?.toc,
       contentCuration: data?.extra?.content_curation,
-      showOnFeed: data?.order === 0,
+      showOnFeed: !data?.order,
     },
   };
 };
