@@ -1,4 +1,5 @@
 import { Source, SourceType } from '../entity';
+import fetch, { Headers } from 'node-fetch';
 
 const excludeFromStandardization = [
   'youtube.com',
@@ -51,3 +52,31 @@ export function isValidHttpUrl(link: string): boolean {
     return false;
   }
 }
+
+export const getShortUrl = async (url: string): Promise<string> => {
+  const urlShortenerSecret = process.env.URL_SHORTENER_SECRET;
+  const urlShortenerBaseUrl = process.env.URL_SHORTENER_BASE_URL;
+
+  if (!urlShortenerSecret || !urlShortenerBaseUrl) {
+    return url;
+  }
+
+  const fetchUrl = new URL('/shorten', urlShortenerBaseUrl);
+  const headers = new Headers({
+    Authorization: `Bearer ${urlShortenerSecret}`,
+  });
+
+  const response = await fetch(fetchUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ url }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to shorten URL, HTTP status ${response.status}}`);
+  }
+
+  const result = await response.json();
+
+  return result.url;
+};

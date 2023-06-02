@@ -1957,3 +1957,47 @@ describe('query generateUniqueUsername', () => {
     expect(res.data.generateUniqueUsername).not.toEqual('johndoe');
   });
 });
+
+describe('query referralCampaign', () => {
+  const QUERY = `
+    query ReferralCampaign($referralOrigin: String!) {
+      referralCampaign(referralOrigin: $referralOrigin) {
+        referredUsersCount
+        url
+      }
+  }`;
+
+  it('should return campaign progress for user', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(User)
+      .update(
+        { id: '2' },
+        { referralId: '1', referralOrigin: 'knightcampaign' },
+      );
+    await con
+      .getRepository(User)
+      .update(
+        { id: '3' },
+        { referralId: '1', referralOrigin: 'knightcampaign' },
+      );
+
+    const res = await client.query(QUERY, {
+      variables: { referralOrigin: 'knightcampaign' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.referralCampaign.referredUsersCount).toBe(2);
+    expect(res.data.referralCampaign.url).toBe(
+      `${process.env.COMMENTS_PREFIX}/join?cid=knightcampaign&userid=1`,
+    );
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { referralOrigin: 'knightcampaign' } },
+      'UNAUTHENTICATED',
+    );
+  });
+});

@@ -263,6 +263,7 @@ const loggedInBoot = async (
       ...excludeProperties(user, [
         'updatedAt',
         'referralId',
+        'referralOrigin',
         'profileConfirmed',
         'devcardEligible',
       ]),
