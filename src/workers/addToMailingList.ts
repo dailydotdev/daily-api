@@ -8,6 +8,8 @@ interface Data {
 const worker: Worker = {
   subscription: 'api.add-to-mailing-list',
   handler: async (message, con, log) => {
+    if (process.env.NODE_ENV === 'development') return;
+
     const data = messageToJson<Data>(message);
     const { user } = data;
     if (user.infoConfirmed && user.email) {
