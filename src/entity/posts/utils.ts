@@ -252,7 +252,7 @@ export const createSharePost = async (
     const { private: privacy } = await con
       .getRepository(Source)
       .findOneBy({ id: sourceId });
-    return con.getRepository(SharePost).save({
+    return await con.getRepository(SharePost).save({
       id,
       shortId: id,
       createdAt: new Date(),
