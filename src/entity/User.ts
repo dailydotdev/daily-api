@@ -94,6 +94,10 @@ export class User {
   @Index('IDX_user_referral')
   referralId?: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  @Index('IDX_user_referral_origin')
+  referralOrigin?: string | null;
+
   @ManyToOne(() => User, {
     lazy: true,
     onDelete: 'SET NULL',
@@ -127,6 +131,7 @@ export type AddUserData = Pick<
   | 'github'
   | 'twitter'
   | 'referralId'
+  | 'referralOrigin'
   | 'infoConfirmed'
   | 'profileConfirmed'
   | 'acceptedMarketing'
@@ -283,6 +288,7 @@ export const addNewUser = async (
         infoConfirmed: isInfoConfirmed(data),
         createdAt: data.createdAt,
         referralId: data.referralId,
+        referralOrigin: data.referralOrigin,
         acceptedMarketing: data.acceptedMarketing,
         timezone: data.timezone,
         github,
