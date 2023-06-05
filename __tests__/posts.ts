@@ -2687,6 +2687,6 @@ describe('util checkHasMention', () => {
   });
 
   it('should return false if mention was not found', () => {
-    expect(checkHasMention('sample title lee abc', 'lee')).toBeTruthy();
+    expect(checkHasMention('sample title lee abc', 'lee')).toBeFalsy();
   });
 });
