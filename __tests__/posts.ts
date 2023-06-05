@@ -1604,6 +1604,10 @@ describe('mutation sharePost', () => {
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.titleHtml).toMatchSnapshot();
+    const mentions = await con
+      .getRepository(PostMention)
+      .findOneBy({ mentionedUserId: '2', mentionedByUserId: '1' });
+    expect(mentions).toBeTruthy();
   });
 
   it('should throw error when sharing to non-squad', async () => {
