@@ -681,7 +681,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Commentary for the share
       """
-      commentary: String!
+      commentary: String
     ): EmptyResponse @auth
 
     """
@@ -1250,6 +1250,7 @@ export const resolvers: IResolvers<any, Context> = {
           throw new ValidationError('URL is not valid');
         }
 
+        const strippedCommentary = commentary ? commentary.trim() : '';
         const existingPost: Pick<ArticlePost, 'id' | 'deleted' | 'visible'> =
           await manager.getRepository(ArticlePost).findOne({
             select: ['id', 'deleted', 'visible'],
@@ -1259,12 +1260,13 @@ export const resolvers: IResolvers<any, Context> = {
           if (existingPost.deleted) {
             throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);
           }
+
           await createSharePost(
             manager,
             sourceId,
             ctx.userId,
             existingPost.id,
-            commentary,
+            strippedCommentary,
             existingPost.visible,
           );
           return { _: true };
@@ -1275,7 +1277,7 @@ export const resolvers: IResolvers<any, Context> = {
           sourceId,
           ctx.userId,
           { url, title, image },
-          commentary,
+          strippedCommentary,
         );
       });
       return { _: true };
@@ -1293,7 +1295,7 @@ export const resolvers: IResolvers<any, Context> = {
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
-      const strippedCommentary = commentary.trim();
+      const strippedCommentary = commentary ? commentary.trim() : '';
       const newPost = await createSharePost(
         ctx.con,
         sourceId,
