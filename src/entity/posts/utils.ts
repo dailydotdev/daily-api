@@ -18,7 +18,8 @@ import { FreeformPost } from './FreeformPost';
 import { parse } from 'node-html-parser';
 import { ContentImage, ContentImageUsedByType } from '../ContentImage';
 import { getMentions, MentionedUser } from '../../schema/comments';
-import { renderMentions } from '../../common/markdown';
+import { renderMentions, saveMentions } from '../../common/markdown';
+import { PostMention } from './PostMention';
 
 export type PostStats = {
   numPosts: number;
@@ -252,7 +253,8 @@ export const createSharePost = async (
     const { private: privacy } = await con
       .getRepository(Source)
       .findOneBy({ id: sourceId });
-    return await con.getRepository(SharePost).save({
+
+    const post = await con.getRepository(SharePost).save({
       id,
       shortId: id,
       createdAt: new Date(),
@@ -267,6 +269,12 @@ export const createSharePost = async (
       visible,
       visibleAt: visible ? new Date() : null,
     });
+
+    if (mentions.length) {
+      await saveMentions(con, post.id, userId, mentions, PostMention);
+    }
+
+    return post;
   } catch (err) {
     if (err.code === TypeOrmError.FOREIGN_KEY) {
       if (err.detail.indexOf('sharedPostId') > -1) {
