@@ -1288,7 +1288,7 @@ export const resolvers: IResolvers<any, Context> = {
         id,
         commentary,
         sourceId,
-      }: { id: string; commentary?: string; sourceId: string },
+      }: { id: string; commentary: string; sourceId: string },
       ctx,
       info,
     ): Promise<GQLPost> => {
