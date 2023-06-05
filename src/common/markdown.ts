@@ -133,3 +133,12 @@ export const saveMentions = (
 
   return query.orIgnore().execute();
 };
+
+export const checkHasMention = (content: string, username: string) =>
+  content.split(' ').some((word) => {
+    if (word.charAt(0) !== '@') return false;
+
+    const mention = word.substring(1);
+
+    return mention === username;
+  });

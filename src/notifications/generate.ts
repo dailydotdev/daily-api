@@ -1,4 +1,4 @@
-import { NotificationType, PostType, WelcomePost } from '../entity';
+import { NotificationType, PostType, FreeformPost } from '../entity';
 import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
 import {
@@ -19,6 +19,7 @@ import {
   NotificationUpvotersContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
+import { checkHasMention } from '../common/markdown';
 
 const systemTitle = () => undefined;
 
@@ -149,12 +150,17 @@ export const generateNotificationMap: Record<
       .avatarManyUsers([ctx.commenter]),
   post_mention: (
     builder,
-    ctx: NotificationPostContext & NotificationDoneByContext,
+    ctx: NotificationPostContext<FreeformPost> & NotificationDoneByContext,
   ) =>
     builder
       .referencePost(ctx.post)
       .icon(NotificationIcon.Comment)
-      .description((ctx.post as WelcomePost).content, true)
+      .description(
+        checkHasMention(ctx.post.title, ctx.doneBy.username)
+          ? ctx.post.title
+          : ctx.post.content,
+        true,
+      )
       .targetPost(ctx.post)
       .avatarManyUsers([ctx.doneBy]),
   comment_reply: (builder, ctx: NotificationCommenterContext) =>
