@@ -1544,6 +1544,7 @@ describe('mutation sharePost', () => {
   mutation SharePost($sourceId: ID!, $id: ID!, $commentary: String!) {
   sharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
     id
+    titleHtml
   }
 }`;
 
@@ -1588,6 +1589,21 @@ describe('mutation sharePost', () => {
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toEqual('My comment');
+  });
+
+  it('should share to squad with mentioned users', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).update({ id: '2' }, { username: 'lee' });
+    const params = { ...variables };
+    params.commentary = 'Test @lee @non-existent';
+    const res = await client.mutate(MUTATION, { variables: params });
+    expect(res.errors).toBeFalsy();
+    const post = await con
+      .getRepository(SharePost)
+      .findOneBy({ id: res.data.sharePost.id });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.titleHtml).toMatchSnapshot();
   });
 
   it('should throw error when sharing to non-squad', async () => {

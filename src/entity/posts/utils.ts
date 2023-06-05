@@ -17,6 +17,8 @@ import { generateShortId } from '../../ids';
 import { FreeformPost } from './FreeformPost';
 import { parse } from 'node-html-parser';
 import { ContentImage, ContentImageUsedByType } from '../ContentImage';
+import { getMentions, MentionedUser } from '../../schema/comments';
+import { renderMentions } from '../../common/markdown';
 
 export type PostStats = {
   numPosts: number;
@@ -227,6 +229,11 @@ export const createExternalLink = async (
   });
 };
 
+export const generateTitleHtml = (
+  title: string,
+  mentions: MentionedUser[],
+): string => `<p>${renderMentions(title, mentions)}</p>`;
+
 export const createSharePost = async (
   con: DataSource | EntityManager,
   sourceId: string,
@@ -238,10 +245,12 @@ export const createSharePost = async (
   await validateCommentary(commentary);
   const id = await generateShortId();
   try {
+    const mentions = await getMentions(con, commentary, userId, sourceId);
+    const titleHtml = generateTitleHtml(commentary, mentions);
     const { private: privacy } = await con
       .getRepository(Source)
       .findOneBy({ id: sourceId });
-    return await con.getRepository(SharePost).save({
+    return con.getRepository(SharePost).save({
       id,
       shortId: id,
       createdAt: new Date(),
@@ -249,6 +258,7 @@ export const createSharePost = async (
       authorId: userId,
       sharedPostId: postId,
       title: commentary,
+      titleHtml,
       sentAnalyticsReport: true,
       private: privacy,
       origin: PostOrigin.UserGenerated,
