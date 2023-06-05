@@ -246,7 +246,9 @@ export const createSharePost = async (
   const id = await generateShortId();
   try {
     const mentions = await getMentions(con, commentary, userId, sourceId);
-    const titleHtml = generateTitleHtml(commentary, mentions);
+    const titleHtml = commentary?.length
+      ? generateTitleHtml(commentary, mentions)
+      : null;
     const { private: privacy } = await con
       .getRepository(Source)
       .findOneBy({ id: sourceId });
