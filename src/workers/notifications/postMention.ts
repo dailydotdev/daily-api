@@ -18,14 +18,16 @@ const worker: NotificationWorker = {
     const { postMention }: Data = messageToJson(message);
     const { postId, mentionedByUserId, mentionedUserId } = postMention;
     const postCtx = await buildPostContext(con, postId);
+    const repo = con.getRepository(User);
 
     if (!postCtx) {
       return;
     }
 
-    const doneBy = await con
-      .getRepository(User)
-      .findOneBy({ id: mentionedByUserId });
+    const [doneBy, doneTo] = await Promise.all([
+      repo.findOneBy({ id: mentionedByUserId }),
+      repo.findOneBy({ id: mentionedUserId }),
+    ]);
 
     if (!doneBy) {
       return;
@@ -35,6 +37,7 @@ const worker: NotificationWorker = {
       ...postCtx,
       userId: mentionedUserId,
       doneBy,
+      doneTo,
     };
     return [{ type: 'post_mention', ctx }];
   },
