@@ -157,6 +157,24 @@ describe('anonymous boot', () => {
       },
     });
   });
+
+  it('should read join_referral cookie', async () => {
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', ['join_referral=1:knightcampaign'])
+      .expect(200);
+    expect(res.body).toEqual({
+      ...ANONYMOUS_BODY,
+      user: {
+        id: null,
+        referralId: '1',
+        referralOrigin: 'knightcampaign',
+      },
+      visit: {
+        visitId: expect.any(String),
+      },
+    });
+  });
 });
 
 describe('logged in boot', () => {

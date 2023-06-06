@@ -52,8 +52,13 @@ export type BaseBoot = {
   squads: BootSquadSource[];
 };
 
+export type BootUserReferral = Partial<{
+  referralId?: string;
+  referralOrigin?: string;
+}>;
+
 export type AnonymousBoot = BaseBoot & {
-  user: { id: string };
+  user: { id: string } & BootUserReferral;
   shouldLogout: boolean;
 };
 
@@ -223,6 +228,29 @@ const getAndUpdateLastChangelogRedis = async (
   return lastChangelogFromRedis;
 };
 
+export function getReferralFromCookie({
+  req,
+}: {
+  req: FastifyRequest;
+}): BootUserReferral | undefined {
+  const joinReferralCookie = req.cookies.join_referral;
+
+  if (!joinReferralCookie) {
+    return undefined;
+  }
+
+  const [referralId, referralOrigin] = joinReferralCookie.split(':');
+
+  if (!referralId || !referralOrigin) {
+    return undefined;
+  }
+
+  return {
+    referralId,
+    referralOrigin,
+  };
+}
+
 const loggedInBoot = async (
   con: DataSource,
   req: FastifyRequest,
@@ -305,6 +333,7 @@ const anonymousBoot = async (
   return {
     user: {
       id: req.trackingId,
+      ...getReferralFromCookie({ req }),
     },
     visit,
     flags,
