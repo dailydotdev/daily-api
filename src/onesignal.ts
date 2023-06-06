@@ -22,6 +22,8 @@ export async function sendPushNotification(
   }: Notification | ChangeObject<Notification>,
   avatar?: NotificationAvatar,
 ): Promise<void> {
+  if (!appId || !apiKey) return;
+
   const push = new OneSignal.Notification();
   push.app_id = appId;
   push.include_external_user_ids = [userId];
