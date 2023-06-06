@@ -45,6 +45,9 @@ export class Post {
   @Column({ type: 'text', nullable: true })
   title?: string;
 
+  @Column({ type: 'text', nullable: true })
+  titleHtml?: string;
+
   @Column({ length: 14 })
   @Index('IDX_post_shortid', { unique: true })
   shortId: string;
