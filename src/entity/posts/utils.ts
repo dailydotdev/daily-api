@@ -232,10 +232,15 @@ export const createSharePost = async (
   sourceId: string,
   userId: string,
   postId: string,
-  commentary: string,
+  commentary: string | null,
   visible = true,
 ): Promise<SharePost> => {
-  await validateCommentary(commentary);
+  let strippedCommentary = commentary;
+
+  if (commentary) {
+    strippedCommentary = commentary.trim();
+    await validateCommentary(strippedCommentary);
+  }
   const id = await generateShortId();
   try {
     const { private: privacy } = await con
@@ -248,7 +253,7 @@ export const createSharePost = async (
       sourceId,
       authorId: userId,
       sharedPostId: postId,
-      title: commentary,
+      title: strippedCommentary,
       sentAnalyticsReport: true,
       private: privacy,
       origin: PostOrigin.UserGenerated,

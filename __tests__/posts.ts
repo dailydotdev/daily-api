@@ -1590,6 +1590,19 @@ describe('mutation sharePost', () => {
     expect(post.title).toEqual('My comment');
   });
 
+  it('should share to squad and trim the commentary', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, commentary: '  My comment  ' },
+    });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
+  });
+
   it('should share to squad without commentary', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
@@ -1600,7 +1613,7 @@ describe('mutation sharePost', () => {
     const post = await con.getRepository(SharePost).findOneBy({ id: newId });
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
-    expect(post.title).toEqual('');
+    expect(post.title).toBeNull();
   });
 
   it('should throw error when sharing to non-squad', async () => {
@@ -1898,7 +1911,7 @@ describe('mutation submitExternalLink', () => {
       .getRepository(SharePost)
       .findOneBy({ sharedPostId: articlePost.id });
     expect(sharedPost.authorId).toEqual('1');
-    expect(sharedPost.title).toEqual('');
+    expect(sharedPost.title).toBeNull();
     expect(sharedPost.visible).toEqual(true);
   });
 

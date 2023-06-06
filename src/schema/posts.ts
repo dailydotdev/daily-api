@@ -1250,7 +1250,6 @@ export const resolvers: IResolvers<any, Context> = {
           throw new ValidationError('URL is not valid');
         }
 
-        const strippedCommentary = commentary ? commentary.trim() : '';
         const existingPost: Pick<ArticlePost, 'id' | 'deleted' | 'visible'> =
           await manager.getRepository(ArticlePost).findOne({
             select: ['id', 'deleted', 'visible'],
@@ -1266,7 +1265,7 @@ export const resolvers: IResolvers<any, Context> = {
             sourceId,
             ctx.userId,
             existingPost.id,
-            strippedCommentary,
+            commentary,
             existingPost.visible,
           );
           return { _: true };
@@ -1277,7 +1276,7 @@ export const resolvers: IResolvers<any, Context> = {
           sourceId,
           ctx.userId,
           { url, title, image },
-          strippedCommentary,
+          commentary,
         );
       });
       return { _: true };
@@ -1295,13 +1294,12 @@ export const resolvers: IResolvers<any, Context> = {
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
-      const strippedCommentary = commentary ? commentary.trim() : '';
       const newPost = await createSharePost(
         ctx.con,
         sourceId,
         ctx.userId,
         id,
-        strippedCommentary,
+        commentary,
       );
       return getPostById(ctx, info, newPost.id);
     },
