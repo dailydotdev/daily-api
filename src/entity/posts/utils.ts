@@ -18,7 +18,7 @@ import { FreeformPost } from './FreeformPost';
 import { parse } from 'node-html-parser';
 import { ContentImage, ContentImageUsedByType } from '../ContentImage';
 import { getMentions, MentionedUser } from '../../schema/comments';
-import { renderMentions, saveMentions } from '../../common/markdown';
+import { markdown, renderMentions, saveMentions } from '../../common/markdown';
 import { PostMention } from './PostMention';
 
 export type PostStats = {
@@ -233,7 +233,8 @@ export const createExternalLink = async (
 export const generateTitleHtml = (
   title: string,
   mentions: MentionedUser[],
-): string => `<p>${renderMentions(title, mentions)}</p>`;
+): string =>
+  `<p>${renderMentions(markdown.utils.escapeHtml(title), mentions)}</p>`;
 
 export const createSharePost = async (
   con: DataSource | EntityManager,
