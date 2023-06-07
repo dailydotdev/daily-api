@@ -2,6 +2,7 @@ import { NotificationType, PostType, FreeformPost } from '../entity';
 import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
 import {
+  notificationsLink,
   scoutArticleLink,
   squadCreateLink,
   subscribeNotificationsLink,
@@ -256,7 +257,11 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source)
       .icon(NotificationIcon.Star)
       .referenceSource(ctx.source)
-      .targetSource(ctx.source),
+      .targetUrl(notificationsLink)
+      .setTargetUrlParameter([
+        ['promoted', 'true'],
+        ['sid', ctx.source.handle],
+      ]),
   demoted_to_member: (builder, ctx: NotificationSourceMemberRoleContext) =>
     builder
       .avatarSource(ctx.source)
@@ -268,5 +273,9 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source)
       .icon(NotificationIcon.User)
       .referenceSource(ctx.source)
-      .targetSource(ctx.source),
+      .targetUrl(notificationsLink)
+      .setTargetUrlParameter([
+        ['promoted', 'true'],
+        ['sid', ctx.source.handle],
+      ]),
 };
