@@ -1,6 +1,7 @@
 import {
   generateNotification,
   NotificationBaseContext,
+  NotificationBundle,
   NotificationCommentContext,
   NotificationCommenterContext,
   NotificationDoneByContext,
@@ -16,6 +17,7 @@ import {
 import { postsFixture } from '../fixture/post';
 import {
   Comment,
+  FreeformPost,
   Notification,
   NotificationAttachment,
   NotificationAvatar,
@@ -53,6 +55,73 @@ beforeAll(async () => {
 });
 
 describe('generateNotification', () => {
+  const verifyPostMention = (actual: NotificationBundle) => {
+    const type = 'post_mention';
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/p1',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'https://daily.dev/tsahi.jpg',
+        name: 'Tsahi',
+        order: 0,
+        referenceId: '2',
+        targetUrl: 'http://localhost:5002/tsahidaily',
+        type: 'user',
+      },
+    ]);
+    expect(actual.attachments.length).toEqual(0);
+  };
+
+  it('should generate post_mention notification with mention on title', async () => {
+    const type = 'post_mention';
+    const title = `Some title mention @${usersFixture[0].username}`;
+    const post = { ...postsFixture[0], title } as Reference<Post>;
+    const ctx: NotificationPostContext & NotificationDoneByContext = {
+      userId,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+      post,
+      doneBy: usersFixture[1] as Reference<User>,
+      doneTo: usersFixture[0] as Reference<User>,
+    };
+
+    const actual = generateNotification(type, ctx);
+    verifyPostMention(actual);
+    expect(actual.notification.description).toEqual(title);
+  });
+
+  it('should generate post_mention notification with mention on content', async () => {
+    const type = 'post_mention';
+    const title = `Some title without mention `;
+    const content = `Some content mention @${usersFixture[0].username}`;
+    const post = {
+      ...postsFixture[0],
+      title,
+      content,
+    } as Reference<FreeformPost>;
+    const ctx: NotificationPostContext & NotificationDoneByContext = {
+      userId,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+      post,
+      doneBy: usersFixture[1] as Reference<User>,
+      doneTo: usersFixture[0] as Reference<User>,
+    };
+
+    const actual = generateNotification(type, ctx);
+    verifyPostMention(actual);
+    expect(actual.notification.description).toEqual(content);
+  });
+
   it('should generate community_picks_failed notification', () => {
     const type = 'community_picks_failed';
     const ctx: NotificationSubmissionContext = {

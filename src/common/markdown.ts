@@ -140,3 +140,13 @@ export const saveMentions = (
 
   return query.orIgnore().execute();
 };
+
+export const checkHasMention = (content: string, username: string) => {
+  const lines = content.split('\n');
+
+  return lines.some((line) => {
+    const words = line.split(' ');
+
+    return words.some((word) => word === `@${username}`);
+  });
+};
