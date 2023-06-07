@@ -1611,6 +1611,21 @@ describe('mutation sharePost', () => {
     expect(mentions).toBeTruthy();
   });
 
+  it('should escape html content on the title', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).update({ id: '2' }, { username: 'lee' });
+    const params = { ...variables };
+    params.commentary = `<style>html { color: red !important; }</style>`;
+    const res = await client.mutate(MUTATION, { variables: params });
+    expect(res.errors).toBeFalsy();
+    const post = await con
+      .getRepository(SharePost)
+      .findOneBy({ id: res.data.sharePost.id });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.titleHtml).toMatchSnapshot();
+  });
+
   it('should throw error when sharing to non-squad', async () => {
     loggedUser = '1';
     return testMutationErrorCode(
