@@ -237,10 +237,13 @@ export const createSharePost = async (
 ): Promise<SharePost> => {
   let strippedCommentary = commentary;
 
-  if (commentary) {
+  if (commentary?.length) {
     strippedCommentary = commentary.trim();
     await validateCommentary(strippedCommentary);
+  } else {
+    strippedCommentary = null;
   }
+
   const id = await generateShortId();
   try {
     const { private: privacy } = await con
