@@ -342,6 +342,7 @@ export const getMentions = async (
   userId: string,
   sourceId?: string,
 ): Promise<MentionedUser[]> => {
+  if (!content?.length) return [];
   const replaced = content.replace(mentionSpecialCharacters, ' ');
   const words = replaced.split(' ');
   const result = words.reduce((list, word) => {

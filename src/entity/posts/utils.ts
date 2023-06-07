@@ -241,10 +241,18 @@ export const createSharePost = async (
   sourceId: string,
   userId: string,
   postId: string,
-  commentary: string,
+  commentary: string | null,
   visible = true,
 ): Promise<SharePost> => {
-  await validateCommentary(commentary);
+  let strippedCommentary = commentary;
+
+  if (commentary?.length) {
+    strippedCommentary = commentary.trim();
+    await validateCommentary(strippedCommentary);
+  } else {
+    strippedCommentary = null;
+  }
+
   const id = await generateShortId();
   try {
     const mentions = await getMentions(con, commentary, userId, sourceId);
@@ -262,7 +270,7 @@ export const createSharePost = async (
       sourceId,
       authorId: userId,
       sharedPostId: postId,
-      title: commentary,
+      title: strippedCommentary,
       titleHtml,
       sentAnalyticsReport: true,
       private: privacy,

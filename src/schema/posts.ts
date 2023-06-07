@@ -686,7 +686,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Commentary for the share
       """
-      commentary: String!
+      commentary: String
     ): EmptyResponse @auth
 
     """
@@ -700,7 +700,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Commentary for the share
       """
-      commentary: String!
+      commentary: String
       """
       Source to share the post to
       """
@@ -1264,6 +1264,7 @@ export const resolvers: IResolvers<any, Context> = {
           if (existingPost.deleted) {
             throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);
           }
+
           await createSharePost(
             manager,
             sourceId,

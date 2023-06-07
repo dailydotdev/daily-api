@@ -1542,7 +1542,7 @@ describe('compatibility routes', () => {
 
 describe('mutation sharePost', () => {
   const MUTATION = `
-  mutation SharePost($sourceId: ID!, $id: ID!, $commentary: String!) {
+  mutation SharePost($sourceId: ID!, $id: ID!, $commentary: String) {
   sharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
     id
     titleHtml
@@ -1590,6 +1590,32 @@ describe('mutation sharePost', () => {
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toEqual('My comment');
+  });
+
+  it('should share to squad and trim the commentary', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, commentary: '  My comment  ' },
+    });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toEqual('My comment');
+  });
+
+  it('should share to squad without commentary', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, commentary: null },
+    });
+    expect(res.errors).toBeFalsy();
+    const newId = res.data.sharePost.id;
+    const post = await con.getRepository(SharePost).findOneBy({ id: newId });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.title).toBeNull();
   });
 
   it('should share to squad with mentioned users', async () => {
@@ -1798,7 +1824,7 @@ describe('mutation viewPost', () => {
 
 describe('mutation submitExternalLink', () => {
   const MUTATION = `
-  mutation SubmitExternalLink($sourceId: ID!, $url: String!, $commentary: String!, $title: String, $image: String) {
+  mutation SubmitExternalLink($sourceId: ID!, $url: String!, $commentary: String, $title: String, $image: String) {
   submitExternalLink(sourceId: $sourceId, url: $url, commentary: $commentary, title: $title, image: $image) {
     _
   }
@@ -1899,6 +1925,29 @@ describe('mutation submitExternalLink', () => {
       .findOneBy({ sharedPostId: articlePost.id });
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should share existing post to squad without commentary', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'http://p6.com', commentary: null },
+    });
+    expect(res.errors).toBeFalsy();
+    const articlePost = await con
+      .getRepository(ArticlePost)
+      .findOneBy({ url: 'http://p6.com' });
+    expect(articlePost.url).toEqual('http://p6.com');
+    expect(articlePost.visible).toEqual(true);
+    expect(articlePost.id).toEqual('p6');
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toBeNull();
     expect(sharedPost.visible).toEqual(true);
   });
 
