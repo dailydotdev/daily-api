@@ -31,7 +31,11 @@ import {
   User,
   WelcomePost,
 } from '../../src/entity';
-import { createSquadWelcomePost, scoutArticleLink } from '../../src/common';
+import {
+  createSquadWelcomePost,
+  notificationsLink,
+  scoutArticleLink,
+} from '../../src/common';
 import { usersFixture } from '../fixture/user';
 import createOrGetConnection from '../../src/db';
 import { DataSource } from 'typeorm';
@@ -782,6 +786,10 @@ describe('generateNotification', () => {
       } as Reference<Source>,
       role: SourceMemberRoles.Admin,
     };
+    const url = new URL(notificationsLink);
+    url.searchParams.set('promoted', 'true');
+    url.searchParams.set('sid', sourcesFixture[0].handle);
+
     const actual = generateNotification(type, ctx);
     expect(actual.notification.type).toEqual(type);
     expect(actual.notification.userId).toEqual(userId);
@@ -792,9 +800,7 @@ describe('generateNotification', () => {
     expect(actual.notification.title).toEqual(
       `Congratulations! You are now an <span class="text-theme-color-cabbage">${SourceMemberRoles.Admin}</span> of <b>${sourcesFixture[0].name}</b>`,
     );
-    expect(actual.notification.targetUrl).toEqual(
-      'http://localhost:5002/squads/a',
-    );
+    expect(actual.notification.targetUrl).toEqual(url.toString());
   });
 
   it('should generate demoted_to_member notification', () => {
@@ -831,6 +837,9 @@ describe('generateNotification', () => {
         type: SourceType.Squad,
       } as Reference<Source>,
     };
+    const url = new URL(notificationsLink);
+    url.searchParams.set('promoted', 'true');
+    url.searchParams.set('sid', sourcesFixture[0].handle);
     const actual = generateNotification(type, ctx);
     expect(actual.notification.type).toEqual(type);
     expect(actual.notification.userId).toEqual(userId);
@@ -841,9 +850,7 @@ describe('generateNotification', () => {
     expect(actual.notification.title).toEqual(
       `You are now a <span class="text-theme-color-cabbage">moderator</span> in <b>${sourcesFixture[0].name}</b>`,
     );
-    expect(actual.notification.targetUrl).toEqual(
-      'http://localhost:5002/squads/a',
-    );
+    expect(actual.notification.targetUrl).toEqual(url.toString());
   });
 });
 
