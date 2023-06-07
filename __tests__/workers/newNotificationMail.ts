@@ -2,7 +2,11 @@ import {
   expectSuccessfulBackground,
   saveNotificationFixture,
 } from '../helpers';
-import { createSquadWelcomePost, sendEmail } from '../../src/common';
+import {
+  createSquadWelcomePost,
+  notificationsLink,
+  sendEmail,
+} from '../../src/common';
 import worker from '../../src/workers/newNotificationMail';
 import {
   ArticlePost,
@@ -918,12 +922,22 @@ it('should set parameters for promoted_to_admin email', async () => {
       userId: '1',
     },
   });
+  const url = new URL(notificationsLink);
+  url.searchParams.set('promoted', 'true');
+  url.searchParams.set('sid', sourcesFixture[0].handle);
+  const params =
+    'utm_source=notification&utm_medium=email&utm_campaign=promoted_to_admin'.split(
+      '&',
+    );
+  params.forEach((param) => {
+    const [key, value] = param.split('=');
+    url.searchParams.set(key, value);
+  });
   expect(sendEmail).toBeCalledTimes(1);
   const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
   expect(args.dynamicTemplateData).toEqual({
     first_name: 'Ido',
-    squad_link:
-      'http://localhost:5002/squads/a?utm_source=notification&utm_medium=email&utm_campaign=promoted_to_admin',
+    squad_link: url.toString(),
     squad_name: 'A',
   });
   expect(args.templateId).toEqual('d-397a5e4a394a4b7f91ea33c29efb8d01');
@@ -952,10 +966,20 @@ it('should set parameters for promoted_to_moderator email', async () => {
   });
   expect(sendEmail).toBeCalledTimes(1);
   const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+  const url = new URL(notificationsLink);
+  url.searchParams.set('promoted', 'true');
+  url.searchParams.set('sid', sourcesFixture[0].handle);
+  const params =
+    'utm_source=notification&utm_medium=email&utm_campaign=promoted_to_moderator'.split(
+      '&',
+    );
+  params.forEach((param) => {
+    const [key, value] = param.split('=');
+    url.searchParams.set(key, value);
+  });
   expect(args.dynamicTemplateData).toEqual({
     first_name: 'Ido',
-    squad_link:
-      'http://localhost:5002/squads/a?utm_source=notification&utm_medium=email&utm_campaign=promoted_to_moderator',
+    squad_link: url.toString(),
     squad_name: 'A',
   });
   expect(args.templateId).toEqual('d-b1dbd1e86ee14bf094f7616f7469fee8');

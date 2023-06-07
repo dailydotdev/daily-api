@@ -1,6 +1,7 @@
 import {
   generateNotification,
   NotificationBaseContext,
+  NotificationBundle,
   NotificationCommentContext,
   NotificationCommenterContext,
   NotificationDoneByContext,
@@ -16,6 +17,7 @@ import {
 import { postsFixture } from '../fixture/post';
 import {
   Comment,
+  FreeformPost,
   Notification,
   NotificationAttachment,
   NotificationAvatar,
@@ -29,7 +31,11 @@ import {
   User,
   WelcomePost,
 } from '../../src/entity';
-import { createSquadWelcomePost, scoutArticleLink } from '../../src/common';
+import {
+  createSquadWelcomePost,
+  notificationsLink,
+  scoutArticleLink,
+} from '../../src/common';
 import { usersFixture } from '../fixture/user';
 import createOrGetConnection from '../../src/db';
 import { DataSource } from 'typeorm';
@@ -53,6 +59,73 @@ beforeAll(async () => {
 });
 
 describe('generateNotification', () => {
+  const verifyPostMention = (actual: NotificationBundle) => {
+    const type = 'post_mention';
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/p1',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'https://daily.dev/tsahi.jpg',
+        name: 'Tsahi',
+        order: 0,
+        referenceId: '2',
+        targetUrl: 'http://localhost:5002/tsahidaily',
+        type: 'user',
+      },
+    ]);
+    expect(actual.attachments.length).toEqual(0);
+  };
+
+  it('should generate post_mention notification with mention on title', async () => {
+    const type = 'post_mention';
+    const title = `Some title mention @${usersFixture[0].username}`;
+    const post = { ...postsFixture[0], title } as Reference<Post>;
+    const ctx: NotificationPostContext & NotificationDoneByContext = {
+      userId,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+      post,
+      doneBy: usersFixture[1] as Reference<User>,
+      doneTo: usersFixture[0] as Reference<User>,
+    };
+
+    const actual = generateNotification(type, ctx);
+    verifyPostMention(actual);
+    expect(actual.notification.description).toEqual(title);
+  });
+
+  it('should generate post_mention notification with mention on content', async () => {
+    const type = 'post_mention';
+    const title = `Some title without mention `;
+    const content = `Some content mention @${usersFixture[0].username}`;
+    const post = {
+      ...postsFixture[0],
+      title,
+      content,
+    } as Reference<FreeformPost>;
+    const ctx: NotificationPostContext & NotificationDoneByContext = {
+      userId,
+      source: {
+        ...sourcesFixture[0],
+        type: SourceType.Squad,
+      } as Reference<Source>,
+      post,
+      doneBy: usersFixture[1] as Reference<User>,
+      doneTo: usersFixture[0] as Reference<User>,
+    };
+
+    const actual = generateNotification(type, ctx);
+    verifyPostMention(actual);
+    expect(actual.notification.description).toEqual(content);
+  });
+
   it('should generate community_picks_failed notification', () => {
     const type = 'community_picks_failed';
     const ctx: NotificationSubmissionContext = {
@@ -713,6 +786,10 @@ describe('generateNotification', () => {
       } as Reference<Source>,
       role: SourceMemberRoles.Admin,
     };
+    const url = new URL(notificationsLink);
+    url.searchParams.set('promoted', 'true');
+    url.searchParams.set('sid', sourcesFixture[0].handle);
+
     const actual = generateNotification(type, ctx);
     expect(actual.notification.type).toEqual(type);
     expect(actual.notification.userId).toEqual(userId);
@@ -723,9 +800,7 @@ describe('generateNotification', () => {
     expect(actual.notification.title).toEqual(
       `Congratulations! You are now an <span class="text-theme-color-cabbage">${SourceMemberRoles.Admin}</span> of <b>${sourcesFixture[0].name}</b>`,
     );
-    expect(actual.notification.targetUrl).toEqual(
-      'http://localhost:5002/squads/a',
-    );
+    expect(actual.notification.targetUrl).toEqual(url.toString());
   });
 
   it('should generate demoted_to_member notification', () => {
@@ -762,6 +837,9 @@ describe('generateNotification', () => {
         type: SourceType.Squad,
       } as Reference<Source>,
     };
+    const url = new URL(notificationsLink);
+    url.searchParams.set('promoted', 'true');
+    url.searchParams.set('sid', sourcesFixture[0].handle);
     const actual = generateNotification(type, ctx);
     expect(actual.notification.type).toEqual(type);
     expect(actual.notification.userId).toEqual(userId);
@@ -772,9 +850,7 @@ describe('generateNotification', () => {
     expect(actual.notification.title).toEqual(
       `You are now a <span class="text-theme-color-cabbage">moderator</span> in <b>${sourcesFixture[0].name}</b>`,
     );
-    expect(actual.notification.targetUrl).toEqual(
-      'http://localhost:5002/squads/a',
-    );
+    expect(actual.notification.targetUrl).toEqual(url.toString());
   });
 });
 

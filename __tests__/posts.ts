@@ -53,6 +53,7 @@ import {
 import { randomUUID } from 'crypto';
 import nock from 'nock';
 import { deleteKeysByPattern } from '../src/redis';
+import { checkHasMention } from '../src/common/markdown';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -1544,6 +1545,7 @@ describe('mutation sharePost', () => {
   mutation SharePost($sourceId: ID!, $id: ID!, $commentary: String) {
   sharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
     id
+    titleHtml
   }
 }`;
 
@@ -1614,6 +1616,40 @@ describe('mutation sharePost', () => {
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toBeNull();
+  });
+
+  it('should share to squad with mentioned users', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).update({ id: '2' }, { username: 'lee' });
+    const params = { ...variables };
+    params.commentary = 'Test @lee @non-existent';
+    const res = await client.mutate(MUTATION, { variables: params });
+    expect(res.errors).toBeFalsy();
+    const post = await con
+      .getRepository(SharePost)
+      .findOneBy({ id: res.data.sharePost.id });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.titleHtml).toMatchSnapshot();
+    const mentions = await con
+      .getRepository(PostMention)
+      .findOneBy({ mentionedUserId: '2', mentionedByUserId: '1' });
+    expect(mentions).toBeTruthy();
+  });
+
+  it('should escape html content on the title', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).update({ id: '2' }, { username: 'lee' });
+    const params = { ...variables };
+    params.commentary = `<style>html { color: red !important; }</style>`;
+    const res = await client.mutate(MUTATION, { variables: params });
+    expect(res.errors).toBeFalsy();
+    const post = await con
+      .getRepository(SharePost)
+      .findOneBy({ id: res.data.sharePost.id });
+    expect(post.authorId).toEqual('1');
+    expect(post.sharedPostId).toEqual('p1');
+    expect(post.titleHtml).toMatchSnapshot();
   });
 
   it('should throw error when sharing to non-squad', async () => {
@@ -2726,5 +2762,15 @@ describe('mutation updatePinPost', () => {
 
     const pinnedAgain = await getPost();
     expect(pinnedAgain.pinnedAt).not.toBeNull();
+  });
+});
+
+describe('util checkHasMention', () => {
+  it('should return true if mention was found', () => {
+    expect(checkHasMention('sample title @lee abc', 'lee')).toBeTruthy();
+  });
+
+  it('should return false if mention was not found', () => {
+    expect(checkHasMention('sample title lee abc', 'lee')).toBeFalsy();
   });
 });

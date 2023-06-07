@@ -17,6 +17,9 @@ import { generateShortId } from '../../ids';
 import { FreeformPost } from './FreeformPost';
 import { parse } from 'node-html-parser';
 import { ContentImage, ContentImageUsedByType } from '../ContentImage';
+import { getMentions, MentionedUser } from '../../schema/comments';
+import { markdown, renderMentions, saveMentions } from '../../common/markdown';
+import { PostMention } from './PostMention';
 
 export type PostStats = {
   numPosts: number;
@@ -227,6 +230,12 @@ export const createExternalLink = async (
   });
 };
 
+export const generateTitleHtml = (
+  title: string,
+  mentions: MentionedUser[],
+): string =>
+  `<p>${renderMentions(markdown.utils.escapeHtml(title), mentions)}</p>`;
+
 export const createSharePost = async (
   con: DataSource | EntityManager,
   sourceId: string,
@@ -246,10 +255,15 @@ export const createSharePost = async (
 
   const id = await generateShortId();
   try {
+    const mentions = await getMentions(con, commentary, userId, sourceId);
+    const titleHtml = commentary?.length
+      ? generateTitleHtml(commentary, mentions)
+      : null;
     const { private: privacy } = await con
       .getRepository(Source)
       .findOneBy({ id: sourceId });
-    return await con.getRepository(SharePost).save({
+
+    const post = await con.getRepository(SharePost).save({
       id,
       shortId: id,
       createdAt: new Date(),
@@ -257,12 +271,19 @@ export const createSharePost = async (
       authorId: userId,
       sharedPostId: postId,
       title: strippedCommentary,
+      titleHtml,
       sentAnalyticsReport: true,
       private: privacy,
       origin: PostOrigin.UserGenerated,
       visible,
       visibleAt: visible ? new Date() : null,
     });
+
+    if (mentions.length) {
+      await saveMentions(con, post.id, userId, mentions, PostMention);
+    }
+
+    return post;
   } catch (err) {
     if (err.code === TypeOrmError.FOREIGN_KEY) {
       if (err.detail.indexOf('sharedPostId') > -1) {

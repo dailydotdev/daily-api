@@ -1,7 +1,8 @@
-import { NotificationType, PostType, WelcomePost } from '../entity';
+import { NotificationType, PostType, FreeformPost } from '../entity';
 import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
 import {
+  notificationsLink,
   scoutArticleLink,
   squadCreateLink,
   subscribeNotificationsLink,
@@ -19,6 +20,7 @@ import {
   NotificationUpvotersContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
+import { checkHasMention } from '../common/markdown';
 
 const systemTitle = () => undefined;
 
@@ -149,12 +151,17 @@ export const generateNotificationMap: Record<
       .avatarManyUsers([ctx.commenter]),
   post_mention: (
     builder,
-    ctx: NotificationPostContext & NotificationDoneByContext,
+    ctx: NotificationPostContext<FreeformPost> & NotificationDoneByContext,
   ) =>
     builder
       .referencePost(ctx.post)
       .icon(NotificationIcon.Comment)
-      .description((ctx.post as WelcomePost).content, true)
+      .description(
+        checkHasMention(ctx.post.title, ctx.doneTo.username)
+          ? ctx.post.title
+          : ctx.post.content,
+        true,
+      )
       .targetPost(ctx.post)
       .avatarManyUsers([ctx.doneBy]),
   comment_reply: (builder, ctx: NotificationCommenterContext) =>
@@ -250,7 +257,11 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source)
       .icon(NotificationIcon.Star)
       .referenceSource(ctx.source)
-      .targetSource(ctx.source),
+      .targetUrl(notificationsLink)
+      .setTargetUrlParameter([
+        ['promoted', 'true'],
+        ['sid', ctx.source.handle],
+      ]),
   demoted_to_member: (builder, ctx: NotificationSourceMemberRoleContext) =>
     builder
       .avatarSource(ctx.source)
@@ -262,5 +273,9 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source)
       .icon(NotificationIcon.User)
       .referenceSource(ctx.source)
-      .targetSource(ctx.source),
+      .targetUrl(notificationsLink)
+      .setTargetUrlParameter([
+        ['promoted', 'true'],
+        ['sid', ctx.source.handle],
+      ]),
 };

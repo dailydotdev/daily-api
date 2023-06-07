@@ -230,6 +230,11 @@ export const typeDefs = /* GraphQL */ `
     title: String
 
     """
+    HTML equivalent of the title
+    """
+    titleHtml: String
+
+    """
     URL to the image of post
     """
     image: String
