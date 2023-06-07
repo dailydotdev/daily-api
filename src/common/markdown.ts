@@ -64,20 +64,18 @@ const getReplacedCharacters = (word: string): [string, ReplacedCharacters] => {
   return [word.replace(mentionSpecialCharacters, ' '), specialCharacters];
 };
 
-markdown.renderer.rules.text = function (tokens, idx, options, env, self) {
-  const content = defaultTextRender(tokens, idx, options, env, self);
-  const mentions = env?.mentions as MarkdownMention[];
-  if (!mentions?.length) {
-    return content;
-  }
-
+export const renderMentions = (
+  content: string,
+  mentions: MarkdownMention[],
+) => {
   const words = content.split(' ').map((word: string) => {
     if (word.indexOf('@') === -1) {
       return word;
     }
 
     const [replaced, specialCharacters] = getReplacedCharacters(word);
-    const result = replaced.split(' ').reduce((result, section, i) => {
+
+    return replaced.split(' ').reduce((result, section, i) => {
       const removed = specialCharacters[i] ?? '';
       if (section.indexOf('@') === -1) {
         return result + section + removed;
@@ -87,11 +85,20 @@ markdown.renderer.rules.text = function (tokens, idx, options, env, self) {
       const reconstructed = user ? getMentionLink(user) : section;
       return result + reconstructed + removed;
     }, '');
-
-    return result;
   });
 
   return words.join(' ');
+};
+
+markdown.renderer.rules.text = function (tokens, idx, options, env, self) {
+  const content = defaultTextRender(tokens, idx, options, env, self);
+  const mentions = env?.mentions as MarkdownMention[];
+
+  if (!mentions?.length) {
+    return content;
+  }
+
+  return renderMentions(content, mentions);
 };
 
 markdown.renderer.rules.link_open = function (tokens, idx, options, env, self) {
