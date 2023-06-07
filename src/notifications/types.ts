@@ -30,11 +30,12 @@ export type NotificationSourceContext = NotificationBaseContext & {
   source: Reference<Source>;
 };
 
-export type NotificationPostContext = NotificationBaseContext &
-  NotificationSourceContext & {
-    post: Reference<Post>;
-    sharedPost?: Reference<Post>;
-  };
+export type NotificationPostContext<T extends Post = Post> =
+  NotificationBaseContext &
+    NotificationSourceContext & {
+      post: Reference<T>;
+      sharedPost?: Reference<Post>;
+    };
 
 export type NotificationCommentContext = NotificationPostContext & {
   comment: Reference<Comment>;
@@ -55,6 +56,7 @@ export type NotificationSourceRequestContext = NotificationBaseContext & {
 
 export type NotificationDoneByContext = NotificationBaseContext & {
   doneBy: Reference<User>;
+  doneTo?: Reference<User>;
 };
 
 export type NotificationSourceMemberRoleContext = NotificationSourceContext & {

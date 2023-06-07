@@ -53,6 +53,7 @@ import {
 import { randomUUID } from 'crypto';
 import nock from 'nock';
 import { deleteKeysByPattern } from '../src/redis';
+import { checkHasMention } from '../src/common/markdown';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -2677,5 +2678,15 @@ describe('mutation updatePinPost', () => {
 
     const pinnedAgain = await getPost();
     expect(pinnedAgain.pinnedAt).not.toBeNull();
+  });
+});
+
+describe('util checkHasMention', () => {
+  it('should return true if mention was found', () => {
+    expect(checkHasMention('sample title @lee abc', 'lee')).toBeTruthy();
+  });
+
+  it('should return false if mention was not found', () => {
+    expect(checkHasMention('sample title lee abc', 'lee')).toBeFalsy();
   });
 });
