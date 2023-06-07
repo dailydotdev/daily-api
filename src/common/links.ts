@@ -30,6 +30,7 @@ export const getSourceLink = (
     source.type === SourceType.Squad ? 'squads' : 'sources'
   }/${source.handle}`;
 
+export const notificationsLink = `${process.env.COMMENTS_PREFIX}/notifications`;
 export const scoutArticleLink = `${process.env.COMMENTS_PREFIX}?scout=true`;
 export const squadCreateLink = `${process.env.COMMENTS_PREFIX}?squad=true`;
 export const subscribeNotificationsLink = `${process.env.COMMENTS_PREFIX}?notify=true`;
