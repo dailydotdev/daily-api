@@ -166,7 +166,7 @@ export class NotificationBuilder {
       order: this.attachments.length,
       type: 'post',
       image: (post as ArticlePost)?.image || pickImageUrl(post),
-      title: post.title,
+      title: post.title ?? '',
       referenceId: post.id,
     });
     return this;

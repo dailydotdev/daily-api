@@ -142,6 +142,8 @@ export const saveMentions = (
 };
 
 export const checkHasMention = (content: string, username: string) => {
+  if (!content?.length) return false;
+
   const lines = content.split('\n');
 
   return lines.some((line) => {
