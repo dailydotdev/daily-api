@@ -20,7 +20,7 @@ const worker: Worker = {
         text: 'New community link!',
         attachments: [
           {
-            title: post.title,
+            title: post.title ?? '',
             title_link: getDiscussionLink(post.id),
             fields: [
               {

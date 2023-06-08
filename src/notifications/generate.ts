@@ -157,7 +157,7 @@ export const generateNotificationMap: Record<
       .referencePost(ctx.post)
       .icon(NotificationIcon.Comment)
       .description(
-        checkHasMention(ctx.post.title, ctx.doneTo.username)
+        checkHasMention(ctx.post.title ?? '', ctx.doneTo.username)
           ? ctx.post.title
           : ctx.post.content,
         true,
