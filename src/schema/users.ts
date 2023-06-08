@@ -786,7 +786,7 @@ export const resolvers: IResolvers<any, Context> = {
         userRepo.count({
           where: { referralId: ctx.userId, referralOrigin },
         }),
-        getShortUrl(campaignUrl.toString()),
+        getShortUrl(campaignUrl.toString(), ctx.log),
       ]);
 
       return {

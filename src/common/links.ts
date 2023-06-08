@@ -1,5 +1,6 @@
 import { Source, SourceType } from '../entity';
 import fetch, { Headers } from 'node-fetch';
+import { FastifyBaseLogger } from 'fastify';
 
 const excludeFromStandardization = [
   'youtube.com',
@@ -54,7 +55,10 @@ export function isValidHttpUrl(link: string): boolean {
   }
 }
 
-export const getShortUrl = async (url: string): Promise<string> => {
+export const getShortUrl = async (
+  url: string,
+  log: FastifyBaseLogger,
+): Promise<string> => {
   const urlShortenerSecret = process.env.URL_SHORTENER_SECRET;
   const urlShortenerBaseUrl = process.env.URL_SHORTENER_BASE_URL;
 
@@ -74,7 +78,8 @@ export const getShortUrl = async (url: string): Promise<string> => {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to shorten URL, HTTP status ${response.status}}`);
+    log.warn({ status: response.status, url }, 'failed to shorten url');
+    return url;
   }
 
   const result = await response.json();
