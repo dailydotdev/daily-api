@@ -234,9 +234,8 @@ export class NotificationBuilder {
       newBuilder = newBuilder.avatarSource(source);
     }
     if (post.type === PostType.Share) {
-      newBuilder = newBuilder
-        .description(simplifyComment(post.title))
-        .attachmentPost(sharedPost);
+      const title = post.title?.length ? simplifyComment(post.title) : '';
+      newBuilder = newBuilder.description(title).attachmentPost(sharedPost);
     } else {
       newBuilder = newBuilder.attachmentPost(post);
     }
