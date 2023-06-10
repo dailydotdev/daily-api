@@ -15,6 +15,7 @@ interface FeedParams {
   page_size: number;
   fresh_page_size: string;
   feed_version: number;
+  total_pages: number;
   user_id?: string;
   feed_id?: string;
   allowed_tags?: string[];
@@ -36,6 +37,7 @@ export async function fetchTinybirdFeed(
     page_size: pageSize,
     fresh_page_size: freshPageSize,
     feed_version: feedVersion,
+    total_pages: 40,
   };
   if (userId) {
     params.user_id = userId;

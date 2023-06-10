@@ -56,6 +56,7 @@ const setCache = (
 it('should fetch anonymous feed and serve consequent pages from cache', async () => {
   nock('http://localhost:6000')
     .post('/feed.json', {
+      total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
       feed_version: 5,
@@ -89,6 +90,7 @@ it('should fetch anonymous feed and serve consequent pages from cache', async ()
 it('should fetch anonymous feed and serve consequent calls from cache', async () => {
   nock('http://localhost:6000')
     .post('/feed.json', {
+      total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
       feed_version: 5,
@@ -129,6 +131,7 @@ it('should fetch anonymous feed even when cache is old', async () => {
 
   nock('http://localhost:6000')
     .post('/feed.json', {
+      total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
       feed_version: 5,
@@ -160,6 +163,7 @@ it('should not fetch anonymous feed even when cache is still fresh', async () =>
 
   nock('http://localhost:6000')
     .post('/feed.json', {
+      total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
       feed_version: 5,
@@ -196,6 +200,7 @@ it('should fetch anonymous feed when last updated time is greater than last gene
 
   nock('http://localhost:6000')
     .post('/feed.json', {
+      total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
       feed_version: 5,
@@ -229,6 +234,7 @@ it('should set the correct query parameters', async () => {
   ]);
   nock('http://localhost:6000')
     .post('/feed.json', {
+      total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
       feed_version: 5,
@@ -259,6 +265,7 @@ it('should encode query parameters', async () => {
   await con.getRepository(FeedTag).save([{ feedId: '1', tag: 'c#' }]);
   nock('http://localhost:6000')
     .post('/feed.json', {
+      total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
       feed_version: 5,
@@ -300,6 +307,7 @@ it('should send source memberships as parameter', async () => {
   ]);
   nock('http://localhost:6000')
     .post('/feed.json', {
+      total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
       feed_version: 5,
@@ -332,6 +340,7 @@ it('should support legacy cache format', async () => {
 
   nock('http://localhost:6000')
     .post('/feed.json', {
+      total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
       feed_version: 5,
