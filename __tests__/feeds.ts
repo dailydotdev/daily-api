@@ -352,6 +352,7 @@ describe('query anonymousFeed', () => {
   it('should return anonymous feed v2', async () => {
     nock('http://localhost:6000')
       .post('/feed.json', {
+        total_pages: 40,
         page_size: 11,
         fresh_page_size: '4',
         feed_version: 2,
@@ -369,6 +370,7 @@ describe('query anonymousFeed', () => {
   it('should safetly handle a case where the feed is empty', async () => {
     nock('http://localhost:6000')
       .post('/feed.json', {
+        total_pages: 40,
         page_size: 11,
         fresh_page_size: '4',
         feed_version: 2,
@@ -400,6 +402,7 @@ describe('query anonymousFeed', () => {
 
     nock('http://localhost:6000')
       .post('/feed.json', {
+        total_pages: 40,
         page_size: 11,
         fresh_page_size: '4',
         feed_version: 2,
@@ -575,6 +578,7 @@ describe('query feed', () => {
 
     nock('http://localhost:6000')
       .post('/feed.json', {
+        total_pages: 40,
         page_size: 11,
         fresh_page_size: '4',
         feed_version: 2,
@@ -597,6 +601,7 @@ describe('query feed', () => {
     loggedUser = '1';
     nock('http://localhost:6000')
       .post('/feed.json', {
+        total_pages: 40,
         page_size: 11,
         fresh_page_size: '4',
         feed_version: 2,
