@@ -12,6 +12,7 @@ Object {
   "deleted": false,
   "description": null,
   "discussionScore": null,
+  "downvotes": 0,
   "id": Any<String>,
   "image": null,
   "lastTrending": null,
