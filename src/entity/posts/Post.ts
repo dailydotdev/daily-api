@@ -169,4 +169,8 @@ export class Post {
 
   @Column({ default: true })
   showOnFeed: boolean;
+
+  @Column({ type: 'integer', default: 0 })
+  @Index('IDX_post_downvotes')
+  downvotes: number;
 }
