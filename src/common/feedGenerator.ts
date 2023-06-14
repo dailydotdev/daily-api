@@ -240,7 +240,9 @@ export const applyFeedWhere = (
       .andWhere('hidden.postId IS NULL');
   }
   if (removeBannedPosts) {
-    newBuilder = newBuilder.andWhere(`"${alias}".banned = FALSE`);
+    newBuilder = newBuilder
+      .andWhere(`"${alias}".banned = FALSE`)
+      .andWhere(`"${alias}"."showOnFeed" = TRUE`);
   }
   return newBuilder;
 };
