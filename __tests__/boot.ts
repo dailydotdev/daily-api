@@ -648,6 +648,7 @@ describe('companion boot', () => {
     title: 'P1',
     trending: null,
     upvoted: null,
+    downvoted: null,
   };
 
   it('should support anonymous user', async () => {
@@ -676,6 +677,7 @@ describe('companion boot', () => {
         ...POST_DATA,
         bookmarked: false,
         upvoted: false,
+        downvoted: false,
       },
     });
   });
