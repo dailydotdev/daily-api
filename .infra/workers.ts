@@ -114,6 +114,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.content-image-deleted',
     subscription: 'api.delete-cloudinary-image',
   },
+  {
+    topic: 'api.v1.comment-deleted',
+    subscription: 'api.comment-edited-images',
+  },
   // Notifications
   {
     topic: 'community-link-rejected',

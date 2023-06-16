@@ -198,7 +198,11 @@ const onCommentChange = async (
   } else if (data.payload.op === 'u') {
     await notifyCommentEdited(logger, data.payload.after);
   } else if (data.payload.op === 'd') {
-    await notifyCommentDeleted(logger, data.payload.after);
+    await notifyCommentDeleted(logger, {
+      ...data.payload.before,
+      content: undefined,
+      contentHtml: undefined,
+    });
   }
 };
 
