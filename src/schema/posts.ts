@@ -108,6 +108,7 @@ export interface GQLPost {
   feedMeta?: string;
   content?: string;
   contentHtml?: string;
+  downvoted?: boolean;
 }
 
 interface PinPostArgs {
@@ -383,6 +384,11 @@ export const typeDefs = /* GraphQL */ `
     HTML Parsed content of the comment
     """
     contentHtml: String
+
+    """
+    Whether the user downvoted this post
+    """
+    downvoted: Boolean
   }
 
   type PostConnection {
