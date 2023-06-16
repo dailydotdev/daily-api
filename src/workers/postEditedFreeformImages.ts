@@ -21,7 +21,7 @@ const worker: Worker = {
     await con.transaction(async (entityManager) => {
       await entityManager.getRepository(ContentImage).update(
         {
-          usedByType: ContentImageUsedByType.POST,
+          usedByType: ContentImageUsedByType.Post,
           usedById: post.id,
         },
         { usedByType: null, usedById: null },
@@ -31,7 +31,7 @@ const worker: Worker = {
       }
       await updateUsedImagesInContent(
         entityManager,
-        ContentImageUsedByType.POST,
+        ContentImageUsedByType.Post,
         freeform,
       );
     });

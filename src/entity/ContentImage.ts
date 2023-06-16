@@ -1,7 +1,7 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 export enum ContentImageUsedByType {
-  POST = 'post',
+  Post = 'post',
 }
 
 @Entity()

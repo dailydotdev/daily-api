@@ -20,7 +20,7 @@ const worker: Worker = {
     if (!freeform?.contentHtml) {
       return;
     }
-    await updateUsedImagesInContent(con, ContentImageUsedByType.POST, freeform);
+    await updateUsedImagesInContent(con, ContentImageUsedByType.Post, freeform);
   },
 };
 
