@@ -37,6 +37,8 @@ import {
   notifyContentRequested,
   notifyContentImageDeleted,
   notifyPostContentEdited,
+  notifyCommentEdited,
+  notifyCommentDeleted,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -89,6 +91,8 @@ jest.mock('../../src/common', () => ({
   notifyCommentUpvoted: jest.fn(),
   notifyCommentCommented: jest.fn(),
   notifyPostCommented: jest.fn(),
+  notifyCommentEdited: jest.fn(),
+  notifyCommentDeleted: jest.fn(),
   notifyUsernameChanged: jest.fn(),
   notifyMemberJoinedSource: jest.fn(),
   notifySendAnalyticsReport: jest.fn(),
@@ -388,6 +392,47 @@ describe('comment', () => {
       '1',
       'c2',
       'c1',
+    ]);
+  });
+
+  it('should notify on edit comment', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      parentId: 'c2',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'u',
+        table: 'comment',
+      }),
+    );
+    expect(notifyCommentEdited).toBeCalledTimes(1);
+    expect(jest.mocked(notifyCommentEdited).mock.calls[0].slice(1)).toEqual([
+      after,
+    ]);
+  });
+
+  it('should notify on delete comment', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      content: undefined,
+      contentHtml: undefined,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'd',
+        table: 'comment',
+      }),
+    );
+    expect(notifyCommentDeleted).toBeCalledTimes(1);
+    expect(jest.mocked(notifyCommentDeleted).mock.calls[0].slice(1)).toEqual([
+      after,
     ]);
   });
 });
