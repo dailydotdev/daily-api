@@ -24,7 +24,7 @@ export const generateEditImagesHandler =
     const data: T = messageToJson(message);
     const obj = data[key];
 
-    if (!obj || !obj?.id || !obj?.contentHtml) return;
+    if (!obj?.id) return;
 
     await con.transaction(async (entityManager) => {
       await entityManager
@@ -33,6 +33,8 @@ export const generateEditImagesHandler =
           { usedByType: type, usedById: obj.id },
           { usedByType: null, usedById: null },
         );
+
+      if (!obj.contentHtml) return;
 
       await updateUsedImagesInContent(entityManager, type, obj);
     });
