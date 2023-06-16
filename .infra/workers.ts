@@ -51,6 +51,10 @@ export const workers: Worker[] = [
   },
   {
     topic: 'post-commented',
+    subscription: 'api.comment-markdown-images',
+  },
+  {
+    topic: 'post-commented',
     subscription: 'post-commented-redis',
   },
   {
@@ -126,6 +130,10 @@ export const workers: Worker[] = [
   {
     topic: 'comment-commented',
     subscription: 'api.article-new-comment-notification.comment-commented',
+  },
+  {
+    topic: 'comment-commented',
+    subscription: 'api.comment-markdown-images',
   },
   {
     topic: 'post-upvoted',
