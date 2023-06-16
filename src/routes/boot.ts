@@ -394,6 +394,7 @@ const COMPANION_QUERY = parse(`query Post($url: String) {
           author {
             id
           }
+          downvoted
         }
       }`);
 
