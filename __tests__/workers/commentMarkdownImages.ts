@@ -7,7 +7,6 @@ import {
 } from '../../src/entity';
 import { DataSource, IsNull, Not } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { postsFixture } from '../fixture/post';
 import { markdown } from '../../src/common/markdown';
 
 let con: DataSource;
