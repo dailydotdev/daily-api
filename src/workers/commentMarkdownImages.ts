@@ -1,10 +1,10 @@
 import { ContentImageUsedByType } from '../entity';
 import { Worker } from './worker';
-import { generateNewImageHandler } from './generators';
+import { generateNewImagesHandler } from './generators';
 
 const worker: Worker = {
   subscription: 'api.comment-markdown-images',
-  handler: generateNewImageHandler('comment', ContentImageUsedByType.Comment),
+  handler: generateNewImagesHandler('comment', ContentImageUsedByType.Comment),
 };
 
 export default worker;

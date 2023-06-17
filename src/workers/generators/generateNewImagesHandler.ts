@@ -14,7 +14,7 @@ interface Data<T extends Content> {
   [key: string]: ChangeObject<T>;
 }
 
-export const generateNewImageHandler =
+export const generateNewImagesHandler =
   <T extends Data<Content> = Data<Content>>(
     key: keyof T,
     type: ContentImageUsedByType,
