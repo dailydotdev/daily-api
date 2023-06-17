@@ -115,6 +115,10 @@ export const workers: Worker[] = [
     subscription: 'api.delete-cloudinary-image',
   },
   {
+    topic: 'api.v1.comment-edited',
+    subscription: 'api.comment-edited-images',
+  },
+  {
     topic: 'api.v1.comment-deleted',
     subscription: 'api.comment-edited-images',
   },
