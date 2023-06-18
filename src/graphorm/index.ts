@@ -160,6 +160,10 @@ const obj = new GraphORM({
           parentColumn: 'sharedPostId',
         },
       },
+      downvoted: {
+        select: existsByUserAndPost('Downvote'),
+        transform: nullIfNotLoggedIn,
+      },
     },
   },
   Source: {
