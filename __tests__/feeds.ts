@@ -349,6 +349,14 @@ describe('query anonymousFeed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
+  it('should remove posts with "showOnFeed" false', async () => {
+    await con.getRepository(Post).delete({ id: 'p6' });
+    await con.getRepository(Post).update({ id: 'p5' }, { showOnFeed: false });
+
+    const res = await client.query(QUERY, { variables });
+    expect(res.data).toMatchSnapshot();
+  });
+
   it('should return anonymous feed v2', async () => {
     nock('http://localhost:6000')
       .post('/feed.json', {

@@ -1256,9 +1256,6 @@ export const resolvers: IResolvers<any, Context> = {
             postId: id,
             userId: ctx.userId,
           });
-          await entityManager
-            .getRepository(Post)
-            .decrement({ id }, 'upvotes', 1);
           return true;
         }
         return false;

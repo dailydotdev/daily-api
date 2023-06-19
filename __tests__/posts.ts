@@ -1434,7 +1434,7 @@ describe('mutation upvote', () => {
     });
     expect(actual).toMatchSnapshot();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post.upvotes).toEqual(0);
+    expect(post.upvotes).toEqual(1);
   });
 });
 
@@ -1465,7 +1465,7 @@ describe('mutation cancelUpvote', () => {
     const actual = await con.getRepository(Upvote).find();
     expect(actual).toEqual([]);
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post.upvotes).toEqual(-1);
+    expect(post.upvotes).toEqual(0);
   });
 
   it('should ignore if no upvotes', async () => {
