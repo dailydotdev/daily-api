@@ -31,6 +31,8 @@ import postUpdated from './postUpdated';
 import postFreeformImages from './postFreeformImages';
 import postEditedFreeformImages from './postEditedFreeformImages';
 import deleteCloudinaryImage from './deleteCloudinaryImage';
+import commentMarkdownImages from './commentMarkdownImages';
+import commentEditedImages from './commentEditedImages';
 
 export { Worker } from './worker';
 
@@ -40,6 +42,8 @@ export const workers: Worker[] = [
   deleteUserFromMailingList,
   commentUpvotedRep,
   commentUpvoteCanceledRep,
+  commentMarkdownImages,
+  commentEditedImages,
   postScoutMatchedSlack,
   commentCommentedSlackMessage,
   postCommentedSlackMessage,
