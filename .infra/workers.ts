@@ -140,10 +140,6 @@ export const workers: Worker[] = [
     subscription: 'api.article-new-comment-notification.comment-commented',
   },
   {
-    topic: 'comment-commented',
-    subscription: 'api.comment-markdown-images',
-  },
-  {
     topic: 'post-upvoted',
     subscription: 'api.article-upvote-milestone-notification',
   },
