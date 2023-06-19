@@ -196,7 +196,9 @@ const onCommentChange = async (
       );
     }
   } else if (data.payload.op === 'u') {
-    await notifyCommentEdited(logger, data.payload.after);
+    if (data.payload.before.contentHtml !== data.payload.after.contentHtml) {
+      await notifyCommentEdited(logger, data.payload.after);
+    }
   } else if (data.payload.op === 'd') {
     await notifyCommentDeleted(logger, {
       ...data.payload.before,

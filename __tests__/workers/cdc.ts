@@ -398,13 +398,13 @@ describe('comment', () => {
   it('should notify on edit comment', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
-      parentId: 'c2',
+      contentHtml: 'test',
     };
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
         after,
-        before: null,
+        before: base,
         op: 'u',
         table: 'comment',
       }),
