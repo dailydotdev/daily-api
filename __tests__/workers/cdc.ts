@@ -416,15 +416,10 @@ describe('comment', () => {
   });
 
   it('should notify on delete comment', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      content: undefined,
-      contentHtml: undefined,
-    };
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<ObjectType>({
-        after,
+        after: null,
         before: base,
         op: 'd',
         table: 'comment',
@@ -432,7 +427,7 @@ describe('comment', () => {
     );
     expect(notifyCommentDeleted).toBeCalledTimes(1);
     expect(jest.mocked(notifyCommentDeleted).mock.calls[0].slice(1)).toEqual([
-      after,
+      base,
     ]);
   });
 });

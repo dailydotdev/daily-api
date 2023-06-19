@@ -9,5 +9,9 @@ export const commentEditedWorker: Worker = {
 
 export const commentDeletedWorker: Worker = {
   subscription: 'api.comment-deleted-images',
-  handler: generateEditImagesHandler('comment', ContentImageUsedByType.Comment),
+  handler: generateEditImagesHandler(
+    'comment',
+    ContentImageUsedByType.Comment,
+    { shouldClearOnly: true },
+  ),
 };

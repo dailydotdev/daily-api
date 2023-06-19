@@ -15,10 +15,15 @@ interface Data<T extends Content> {
   [key: string]: ChangeObject<T>;
 }
 
+interface OptionalParams {
+  shouldClearOnly?: boolean;
+}
+
 export const generateEditImagesHandler =
   <T extends Data<Content> = Data<Content>>(
     key: keyof T,
     type: ContentImageUsedByType,
+    { shouldClearOnly }: OptionalParams = {},
   ) =>
   async (message, con): Promise<void> => {
     const data: T = messageToJson(message);
@@ -34,7 +39,7 @@ export const generateEditImagesHandler =
           { usedByType: null, usedById: null },
         );
 
-      if (!obj.contentHtml) return;
+      if (!obj.contentHtml || shouldClearOnly) return;
 
       await updateUsedImagesInContent(entityManager, type, obj);
     });
