@@ -54,6 +54,7 @@ import { randomUUID } from 'crypto';
 import nock from 'nock';
 import { deleteKeysByPattern } from '../src/redis';
 import { checkHasMention } from '../src/common/markdown';
+import { Downvote } from '../src/entity/Downvote';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -2772,5 +2773,37 @@ describe('util checkHasMention', () => {
 
   it('should return false if mention was not found', () => {
     expect(checkHasMention('sample title lee abc', 'lee')).toBeFalsy();
+  });
+});
+
+describe('downvoted field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      downvoted
+    }
+  }`;
+
+  it('should return null when user is not logged in', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data.post.downvoted).toEqual(null);
+  });
+
+  it('should return false when user did not downvoted the post', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY);
+    expect(res.data.post.downvoted).toEqual(false);
+  });
+
+  it('should return true when user did downvoted the post', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Downvote);
+    await repo.save(
+      repo.create({
+        postId: 'p1',
+        userId: loggedUser,
+      }),
+    );
+    const res = await client.query(QUERY);
+    expect(res.data.post.downvoted).toEqual(true);
   });
 });
