@@ -1,5 +1,8 @@
 import { expectSuccessfulBackground } from '../helpers';
-import worker from '../../src/workers/commentEditedImages';
+import {
+  commentEditedWorker,
+  commentDeletedWorker,
+} from '../../src/workers/commentEditedImages';
 import {
   Comment,
   ContentImage,
@@ -41,33 +44,68 @@ beforeEach(async () => {
   ]);
 });
 
-it('should clear all used images when content is empty', async () => {
-  await expectSuccessfulBackground(worker, { comment });
-  const actual = await con.getRepository(ContentImage).find({
-    where: { usedByType: Not(IsNull()) },
-    order: { serviceId: 'ASC' },
+describe('worker commentEditedWorker', () => {
+  it('should clear all used images when content is empty', async () => {
+    await expectSuccessfulBackground(commentEditedWorker, { comment });
+    const actual = await con.getRepository(ContentImage).find({
+      where: { usedByType: Not(IsNull()) },
+      order: { serviceId: 'ASC' },
+    });
+    expect(actual.length).toEqual(1);
+    expect(actual[0].serviceId).toEqual('3');
   });
-  expect(actual.length).toEqual(1);
-  expect(actual[0].serviceId).toEqual('3');
-});
 
-it('should update used images', async () => {
-  const content = `
+  it('should update used images', async () => {
+    const content = `
   # Here's my test markdown
   ![alt2](https://daily.dev/2.jpg) image 2
   `;
-  const html = markdown.render(content);
-  await expectSuccessfulBackground(worker, {
-    comment: {
-      ...comment,
-      content,
-      contentHtml: html,
-    },
+    const html = markdown.render(content);
+    await expectSuccessfulBackground(commentEditedWorker, {
+      comment: {
+        ...comment,
+        content,
+        contentHtml: html,
+      },
+    });
+    const actual = await con.getRepository(ContentImage).find({
+      where: { usedById: 'c1' },
+      order: { serviceId: 'ASC' },
+    });
+    expect(actual.length).toEqual(1);
+    expect(actual[0].serviceId).toEqual('2');
   });
-  const actual = await con.getRepository(ContentImage).find({
-    where: { usedById: 'c1' },
-    order: { serviceId: 'ASC' },
+});
+
+describe('worker commentDeletedWorker', () => {
+  it('should clear all used images when content is empty', async () => {
+    await expectSuccessfulBackground(commentDeletedWorker, { comment });
+    const actual = await con.getRepository(ContentImage).find({
+      where: { usedByType: Not(IsNull()) },
+      order: { serviceId: 'ASC' },
+    });
+    expect(actual.length).toEqual(1);
+    expect(actual[0].serviceId).toEqual('3');
   });
-  expect(actual.length).toEqual(1);
-  expect(actual[0].serviceId).toEqual('2');
+
+  it('should update used images', async () => {
+    const content = `
+  # Here's my test markdown
+  ![alt2](https://daily.dev/2.jpg) image 2
+  `;
+    const html = markdown.render(content);
+    await expectSuccessfulBackground(commentDeletedWorker, {
+      comment: {
+        ...comment,
+        content,
+        contentHtml: html,
+      },
+    });
+    const actual = await con.getRepository(ContentImage).find({
+      where: { usedById: 'c1' },
+      order: { serviceId: 'ASC' },
+    });
+    expect(actual.length).toEqual(1);
+    expect(actual[0].serviceId).toEqual('2');
+  });
 });

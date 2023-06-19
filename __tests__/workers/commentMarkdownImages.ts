@@ -1,5 +1,8 @@
 import { expectSuccessfulBackground } from '../helpers';
-import worker from '../../src/workers/commentMarkdownImages';
+import {
+  postCommentedWorker,
+  commentCommentedWorker,
+} from '../../src/workers/commentMarkdownImages';
 import {
   ContentImage,
   ContentImageUsedByType,
@@ -31,39 +34,80 @@ beforeEach(async () => {
   ]);
 });
 
-it('should do nothing for comment without a content html', async () => {
-  await expectSuccessfulBackground(worker, { comment });
-  const actual = await con.getRepository(ContentImage).find({
-    where: { usedByType: Not(IsNull()) },
-    order: { serviceId: 'ASC' },
+describe('worker postCommentedWorker', () => {
+  it('should do nothing for comment without a content html', async () => {
+    await expectSuccessfulBackground(postCommentedWorker, { comment });
+    const actual = await con.getRepository(ContentImage).find({
+      where: { usedByType: Not(IsNull()) },
+      order: { serviceId: 'ASC' },
+    });
+    expect(actual.length).toEqual(0);
   });
-  expect(actual.length).toEqual(0);
-});
 
-it('should set used images as not marked for deletion', async () => {
-  const content = `
+  it('should set used images as not marked for deletion', async () => {
+    const content = `
   # Here's my test markdown
   ![alt1](https://daily.dev/1.jpg) image 1
   ![alt2](https://daily.dev/2.jpg) image 2
   ![alt3](https://daily.dev/doesnotexist.jpg) does not exist
   `;
-  const html = markdown.render(content);
-  await expectSuccessfulBackground(worker, {
-    comment: {
-      ...comment,
-      content,
-      contentHtml: html,
-    },
+    const html = markdown.render(content);
+    await expectSuccessfulBackground(postCommentedWorker, {
+      comment: {
+        ...comment,
+        content,
+        contentHtml: html,
+      },
+    });
+    const actual = await con.getRepository(ContentImage).find({
+      where: { usedByType: Not(IsNull()) },
+      order: { serviceId: 'ASC' },
+    });
+    expect(actual.length).toEqual(2);
+    expect(actual[0].serviceId).toEqual('1');
+    expect(actual[1].serviceId).toEqual('2');
+    actual.forEach((image) => {
+      expect(image.usedByType).toEqual(ContentImageUsedByType.Comment);
+      expect(image.usedById).toEqual('c1');
+    });
   });
-  const actual = await con.getRepository(ContentImage).find({
-    where: { usedByType: Not(IsNull()) },
-    order: { serviceId: 'ASC' },
+});
+
+describe('worker commentCommentedWorker', () => {
+  it('should do nothing for comment without a content html', async () => {
+    await expectSuccessfulBackground(commentCommentedWorker, { comment });
+    const actual = await con.getRepository(ContentImage).find({
+      where: { usedByType: Not(IsNull()) },
+      order: { serviceId: 'ASC' },
+    });
+    expect(actual.length).toEqual(0);
   });
-  expect(actual.length).toEqual(2);
-  expect(actual[0].serviceId).toEqual('1');
-  expect(actual[1].serviceId).toEqual('2');
-  actual.forEach((image) => {
-    expect(image.usedByType).toEqual(ContentImageUsedByType.Comment);
-    expect(image.usedById).toEqual('c1');
+
+  it('should set used images as not marked for deletion', async () => {
+    const content = `
+  # Here's my test markdown
+  ![alt1](https://daily.dev/1.jpg) image 1
+  ![alt2](https://daily.dev/2.jpg) image 2
+  ![alt3](https://daily.dev/doesnotexist.jpg) does not exist
+  `;
+    const html = markdown.render(content);
+    await expectSuccessfulBackground(commentCommentedWorker, {
+      comment: {
+        ...comment,
+        content,
+        contentHtml: html,
+      },
+    });
+    const actual = await con.getRepository(ContentImage).find({
+      where: { usedByType: Not(IsNull()) },
+      order: { serviceId: 'ASC' },
+    });
+    expect(actual.length).toEqual(2);
+    expect(actual[0].serviceId).toEqual('1');
+    expect(actual[1].serviceId).toEqual('2');
+    actual.forEach((image) => {
+      expect(image.usedByType).toEqual(ContentImageUsedByType.Comment);
+      expect(image.usedById).toEqual('c1');
+    });
   });
 });
