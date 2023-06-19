@@ -31,7 +31,7 @@ beforeEach(async () => {
   ]);
 });
 
-it('should do nothing for post without a content html', async () => {
+it('should do nothing for comment without a content html', async () => {
   await expectSuccessfulBackground(worker, { comment });
   const actual = await con.getRepository(ContentImage).find({
     where: { usedByType: Not(IsNull()) },
