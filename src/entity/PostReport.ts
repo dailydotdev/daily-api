@@ -17,6 +17,9 @@ export class PostReport {
   @Column({ length: 12 })
   reason: string;
 
+  @Column({ type: 'text', array: true, default: null })
+  tags?: string[];
+
   @Column({ type: 'text', nullable: true })
   comment: string;
 
