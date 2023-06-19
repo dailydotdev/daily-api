@@ -120,7 +120,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.comment-deleted',
-    subscription: 'api.comment-edited-images',
+    subscription: 'api.comment-deleted-images',
   },
   // Notifications
   {
