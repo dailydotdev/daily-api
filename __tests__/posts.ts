@@ -1315,6 +1315,7 @@ describe('mutation reportPost', () => {
       userId: '1',
       createdAt: expect.anything(),
       reason: 'BROKEN',
+      tags: null,
       comment: 'Test comment',
     });
   });
@@ -1336,6 +1337,7 @@ describe('mutation reportPost', () => {
       userId: '1',
       createdAt: expect.anything(),
       reason: 'BROKEN',
+      tags: null,
       comment: null,
     });
   });
