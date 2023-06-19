@@ -16,7 +16,7 @@ beforeEach(async () => {
     {
       serviceId: '1',
       url: 'https://daily.dev/1.jpg',
-      usedByType: ContentImageUsedByType.POST,
+      usedByType: ContentImageUsedByType.Post,
       usedById: 'p1',
       createdAt: subDays(new Date(), 31),
     },

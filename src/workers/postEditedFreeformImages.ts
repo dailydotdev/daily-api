@@ -1,41 +1,10 @@
-import {
-  FreeformPost,
-  Post,
-  ContentImage,
-  ContentImageUsedByType,
-  updateUsedImagesInContent,
-} from '../entity';
-import { messageToJson, Worker } from './worker';
-import { ChangeObject } from '../types';
-
-interface Data {
-  post: ChangeObject<Post>;
-}
+import { ContentImageUsedByType } from '../entity';
+import { Worker } from './worker';
+import { generateEditImagesHandler } from './generators';
 
 const worker: Worker = {
   subscription: 'api.post-edited-freeform-images',
-  handler: async (message, con): Promise<void> => {
-    const data: Data = messageToJson(message);
-    const { post } = data;
-    const freeform = post as unknown as FreeformPost;
-    await con.transaction(async (entityManager) => {
-      await entityManager.getRepository(ContentImage).update(
-        {
-          usedByType: ContentImageUsedByType.POST,
-          usedById: post.id,
-        },
-        { usedByType: null, usedById: null },
-      );
-      if (!freeform?.contentHtml) {
-        return;
-      }
-      await updateUsedImagesInContent(
-        entityManager,
-        ContentImageUsedByType.POST,
-        freeform,
-      );
-    });
-  },
+  handler: generateEditImagesHandler('post', ContentImageUsedByType.Post),
 };
 
 export default worker;

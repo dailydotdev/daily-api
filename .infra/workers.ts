@@ -51,6 +51,10 @@ export const workers: Worker[] = [
   },
   {
     topic: 'post-commented',
+    subscription: 'api.post-commented-images',
+  },
+  {
+    topic: 'post-commented',
     subscription: 'post-commented-redis',
   },
   {
@@ -110,6 +114,14 @@ export const workers: Worker[] = [
     topic: 'api.v1.content-image-deleted',
     subscription: 'api.delete-cloudinary-image',
   },
+  {
+    topic: 'api.v1.comment-edited',
+    subscription: 'api.comment-edited-images',
+  },
+  {
+    topic: 'api.v1.comment-deleted',
+    subscription: 'api.comment-deleted-images',
+  },
   // Notifications
   {
     topic: 'community-link-rejected',
@@ -126,6 +138,10 @@ export const workers: Worker[] = [
   {
     topic: 'comment-commented',
     subscription: 'api.article-new-comment-notification.comment-commented',
+  },
+  {
+    topic: 'comment-commented',
+    subscription: 'api.comment-commented-images',
   },
   {
     topic: 'post-upvoted',

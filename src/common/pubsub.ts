@@ -14,10 +14,11 @@ import {
   Source,
   ArticlePost,
   PostMention,
+  Comment,
+  ContentImage,
 } from '../entity';
 import { ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
-import { ContentImage } from '../entity/ContentImage';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
@@ -57,6 +58,8 @@ const sourceMemberRoleChangedTopic = pubsub.topic(
 );
 const contentImageDeletedTopic = pubsub.topic('api.v1.content-image-deleted');
 const postContentEditedTopic = pubsub.topic('api.v1.post-content-edited');
+const commentEditedTopic = pubsub.topic('api.v1.comment-edited');
+const commentDeletedTopic = pubsub.topic('api.v1.comment-deleted');
 
 export enum NotificationReason {
   New = 'new',
@@ -369,3 +372,13 @@ export const notifyPostContentEdited = async (
   log: EventLogger,
   post: ChangeObject<Post>,
 ): Promise<void> => publishEvent(log, postContentEditedTopic, { post });
+
+export const notifyCommentEdited = async (
+  log: EventLogger,
+  comment: ChangeObject<Comment>,
+): Promise<void> => publishEvent(log, commentEditedTopic, { comment });
+
+export const notifyCommentDeleted = async (
+  log: EventLogger,
+  comment: ChangeObject<Comment>,
+): Promise<void> => publishEvent(log, commentDeletedTopic, { comment });
