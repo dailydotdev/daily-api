@@ -820,7 +820,7 @@ describe('article upvote milestone', () => {
       {
         scoutId: '1',
         authorId: '3',
-        upvotes: 5,
+        upvotes: 3,
       },
     );
     await con.getRepository(Upvote).save([
