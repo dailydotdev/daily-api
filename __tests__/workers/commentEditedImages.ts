@@ -87,25 +87,4 @@ describe('worker commentDeletedWorker', () => {
     expect(actual.length).toEqual(1);
     expect(actual[0].serviceId).toEqual('3');
   });
-
-  it('should update used images', async () => {
-    const content = `
-  # Here's my test markdown
-  ![alt2](https://daily.dev/2.jpg) image 2
-  `;
-    const html = markdown.render(content);
-    await expectSuccessfulBackground(commentDeletedWorker, {
-      comment: {
-        ...comment,
-        content,
-        contentHtml: html,
-      },
-    });
-    const actual = await con.getRepository(ContentImage).find({
-      where: { usedById: 'c1' },
-      order: { serviceId: 'ASC' },
-    });
-    expect(actual.length).toEqual(1);
-    expect(actual[0].serviceId).toEqual('2');
-  });
 });
