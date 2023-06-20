@@ -22,14 +22,14 @@ beforeEach(async () => {
     {
       serviceId: '1',
       url: 'https://daily.dev/1.jpg',
-      usedByType: ContentImageUsedByType.POST,
+      usedByType: ContentImageUsedByType.Post,
       usedById: 'p1',
     },
     { serviceId: '2', url: 'https://daily.dev/2.jpg' },
     {
       serviceId: '3',
       url: 'https://daily.dev/3.jpg',
-      usedByType: ContentImageUsedByType.POST,
+      usedByType: ContentImageUsedByType.Post,
       usedById: 'p2',
     },
   ]);

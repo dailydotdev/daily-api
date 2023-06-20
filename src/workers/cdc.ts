@@ -57,6 +57,8 @@ import {
   notifyContentRequested,
   notifyContentImageDeleted,
   notifyPostContentEdited,
+  notifyCommentEdited,
+  notifyCommentDeleted,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
@@ -193,6 +195,12 @@ const onCommentChange = async (
         data.payload.after.id,
       );
     }
+  } else if (data.payload.op === 'u') {
+    if (data.payload.before.contentHtml !== data.payload.after.contentHtml) {
+      await notifyCommentEdited(logger, data.payload.after);
+    }
+  } else if (data.payload.op === 'd') {
+    await notifyCommentDeleted(logger, data.payload.before);
   }
 };
 

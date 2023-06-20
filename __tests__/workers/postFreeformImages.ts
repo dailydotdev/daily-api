@@ -60,7 +60,7 @@ it('should set used images as not marked for deletion', async () => {
   expect(actual[0].serviceId).toEqual('1');
   expect(actual[1].serviceId).toEqual('2');
   actual.forEach((image) => {
-    expect(image.usedByType).toEqual(ContentImageUsedByType.POST);
+    expect(image.usedByType).toEqual(ContentImageUsedByType.Post);
     expect(image.usedById).toEqual('p1');
   });
 });
