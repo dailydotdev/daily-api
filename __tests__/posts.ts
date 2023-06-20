@@ -2809,3 +2809,143 @@ describe('downvoted field', () => {
     expect(res.data.post.downvoted).toEqual(true);
   });
 });
+
+describe('mutation downvote', () => {
+  const MUTATION = `
+  mutation Downvote($id: ID!) {
+  downvote(id: $id) {
+    _
+  }
+}`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw not found when cannot find post', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'invalid' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw not found when cannot find user', () => {
+    loggedUser = '3';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should downvote post', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con
+      .getRepository(Downvote)
+      .findOneBy({ postId: 'p1', userId: loggedUser });
+    expect(actual).toMatchObject({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.downvotes).toEqual(1);
+    const hiddenPost = await con.getRepository(HiddenPost).findOneBy({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    expect(hiddenPost).toMatchObject({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+  });
+
+  it('should ignore conflicts', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Downvote);
+    await repo.save({ postId: 'p1', userId: loggedUser });
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await repo.findOneBy({ postId: 'p1', userId: loggedUser });
+    expect(actual).toMatchObject({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.downvotes).toEqual(1);
+  });
+});
+
+describe('mutation cancelDownvote', () => {
+  const MUTATION = `
+  mutation CancelDownvote($id: ID!) {
+  cancelDownvote(id: $id) {
+    _
+  }
+}`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should cancel post downvote', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Downvote);
+    await repo.save({ postId: 'p1', userId: loggedUser });
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Downvote).find();
+    expect(actual).toEqual([]);
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.downvotes).toEqual(0);
+    const hiddenPost = await con.getRepository(HiddenPost).findOneBy({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    expect(hiddenPost).toBeNull();
+  });
+
+  it('should ignore if no downvote', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(Downvote).find();
+    expect(actual).toEqual([]);
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.downvotes).toEqual(0);
+  });
+});
