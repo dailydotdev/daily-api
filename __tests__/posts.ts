@@ -1438,6 +1438,28 @@ describe('mutation upvote', () => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.upvotes).toEqual(1);
   });
+
+  it('should remove downvote and hidden when upvoting', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Downvote)
+      .save({ postId: 'p1', userId: loggedUser });
+    await con
+      .getRepository(HiddenPost)
+      .save({ postId: 'p1', userId: loggedUser });
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+
+    const upvote = await con
+      .getRepository(Downvote)
+      .findOneBy({ postId: 'p1', userId: loggedUser });
+    expect(upvote).toBeNull();
+    const hiddenPost = await con
+      .getRepository(HiddenPost)
+      .findOneBy({ postId: 'p1', userId: loggedUser });
+    expect(hiddenPost).toBeNull();
+  });
 });
 
 describe('mutation cancelUpvote', () => {
@@ -2901,6 +2923,19 @@ describe('mutation downvote', () => {
     });
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.downvotes).toEqual(1);
+  });
+
+  it('should remove upvote when downvoting', async () => {
+    loggedUser = '1';
+    await con.getRepository(Upvote).save({ postId: 'p1', userId: loggedUser });
+
+    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
+    expect(res.errors).toBeFalsy();
+
+    const upvote = await con
+      .getRepository(Upvote)
+      .findOneBy({ postId: 'p1', userId: loggedUser });
+    expect(upvote).toBeNull();
   });
 });
 
