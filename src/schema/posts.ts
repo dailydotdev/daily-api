@@ -4,7 +4,7 @@ import {
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, DeepPartial } from 'typeorm';
+import { DataSource, DeepPartial, EntityManager } from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
@@ -775,6 +775,18 @@ const saveHiddenPost = async (
   return true;
 };
 
+const revertPostDownvote = async (
+  con: DataSource | EntityManager,
+  postId: string,
+  userId: string,
+): Promise<void> => {
+  await con.getRepository(Downvote).delete({
+    postId,
+    userId,
+  });
+  await con.getRepository(HiddenPost).delete({ postId, userId });
+};
+
 const editablePostTypes = [PostType.Welcome, PostType.Freeform];
 
 export const reportReasons = new Map([
@@ -1211,23 +1223,7 @@ export const resolvers: IResolvers<any, Context> = {
             userId: ctx.userId,
           });
 
-          const downvote = await entityManager
-            .getRepository(Downvote)
-            .findOneBy({
-              postId: id,
-              userId: ctx.userId,
-            });
-
-          if (downvote) {
-            await entityManager.getRepository(Downvote).delete({
-              postId: id,
-              userId: ctx.userId,
-            });
-
-            await entityManager
-              .getRepository(HiddenPost)
-              .delete({ postId: id, userId: ctx.userId });
-          }
+          await revertPostDownvote(entityManager, id, ctx.userId);
         });
       } catch (err) {
         // Foreign key violation
@@ -1247,18 +1243,10 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
-        const upvote = await entityManager.getRepository(Upvote).findOneBy({
+        await entityManager.getRepository(Upvote).delete({
           postId: id,
           userId: ctx.userId,
         });
-        if (upvote) {
-          await entityManager.getRepository(Upvote).delete({
-            postId: id,
-            userId: ctx.userId,
-          });
-          return true;
-        }
-        return false;
       });
       return { _: true };
     },
@@ -1385,17 +1373,10 @@ export const resolvers: IResolvers<any, Context> = {
             postId: id,
           });
 
-          const upvote = entityManager.getRepository(Upvote).findOneBy({
+          await entityManager.getRepository(Upvote).delete({
             postId: id,
             userId: ctx.userId,
           });
-
-          if (upvote) {
-            await entityManager.getRepository(Upvote).delete({
-              postId: id,
-              userId: ctx.userId,
-            });
-          }
         });
       } catch (err) {
         // Foreign key violation
@@ -1415,24 +1396,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
-        const downvote = await entityManager.getRepository(Downvote).findOneBy({
-          postId: id,
-          userId: ctx.userId,
-        });
-
-        if (downvote) {
-          await entityManager.getRepository(Downvote).delete({
-            postId: id,
-            userId: ctx.userId,
-          });
-
-          await entityManager
-            .getRepository(HiddenPost)
-            .delete({ postId: id, userId: ctx.userId });
-
-          return true;
-        }
-        return false;
+        await revertPostDownvote(entityManager, id, ctx.userId);
       });
       return { _: true };
     },
