@@ -4,7 +4,7 @@ import {
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, DeepPartial } from 'typeorm';
+import { DataSource, DeepPartial, EntityManager } from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
@@ -66,6 +66,7 @@ import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
 import { ContentImage } from '../entity/ContentImage';
+import { Downvote } from '../entity/Downvote';
 
 export interface GQLPost {
   id: string;
@@ -737,6 +738,26 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): EmptyResponse @auth
+
+    """
+    Downvote to the post
+    """
+    downvote(
+      """
+      Id of the post to downvote
+      """
+      id: ID!
+    ): EmptyResponse @auth
+
+    """
+    Cancel an downvote of a post
+    """
+    cancelDownvote(
+      """
+      Id of the post
+      """
+      id: ID!
+    ): EmptyResponse @auth
   }
 
   extend type Subscription {
@@ -767,6 +788,18 @@ const saveHiddenPost = async (
     return false;
   }
   return true;
+};
+
+const revertPostDownvote = async (
+  con: DataSource | EntityManager,
+  postId: string,
+  userId: string,
+): Promise<void> => {
+  await con.getRepository(Downvote).delete({
+    postId,
+    userId,
+  });
+  await con.getRepository(HiddenPost).delete({ postId, userId });
 };
 
 const editablePostTypes = [PostType.Welcome, PostType.Freeform];
@@ -1211,6 +1244,8 @@ export const resolvers: IResolvers<any, Context> = {
             postId: id,
             userId: ctx.userId,
           });
+
+          await revertPostDownvote(entityManager, id, ctx.userId);
         });
       } catch (err) {
         // Foreign key violation
@@ -1230,18 +1265,10 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
-        const upvote = await entityManager.getRepository(Upvote).findOneBy({
+        await entityManager.getRepository(Upvote).delete({
           postId: id,
           userId: ctx.userId,
         });
-        if (upvote) {
-          await entityManager.getRepository(Upvote).delete({
-            postId: id,
-            userId: ctx.userId,
-          });
-          return true;
-        }
-        return false;
       });
       return { _: true };
     },
@@ -1347,6 +1374,52 @@ export const resolvers: IResolvers<any, Context> = {
           post.tagsStr?.split?.(',') ?? [],
         );
       }
+      return { _: true };
+    },
+    downvote: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      try {
+        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+        await ensureSourcePermissions(ctx, post.sourceId);
+        await ctx.con.transaction(async (entityManager) => {
+          await entityManager.getRepository(Downvote).insert({
+            postId: id,
+            userId: ctx.userId,
+          });
+
+          await saveHiddenPost(entityManager.connection, {
+            userId: ctx.userId,
+            postId: id,
+          });
+
+          await entityManager.getRepository(Upvote).delete({
+            postId: id,
+            userId: ctx.userId,
+          });
+        });
+      } catch (err) {
+        // Foreign key violation
+        if (err?.code === TypeOrmError.FOREIGN_KEY) {
+          throw new NotFoundError('Post or user not found');
+        }
+        // Unique violation
+        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
+          throw err;
+        }
+      }
+      return { _: true };
+    },
+    cancelDownvote: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.transaction(async (entityManager) => {
+        await revertPostDownvote(entityManager, id, ctx.userId);
+      });
       return { _: true };
     },
   }),
