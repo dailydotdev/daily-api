@@ -368,7 +368,7 @@ it('should save a new post with the relevant keywords', async () => {
   await createDefaultKeywords();
   await expectSuccessfulBackground(worker, {
     title: 'Title',
-    url: 'https://post.com',
+    url: `https://post.com/${uuid}`,
     source_id: COMMUNITY_PICKS_SOURCE,
     submission_id: uuid,
     extra: {
