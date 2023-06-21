@@ -1257,8 +1257,8 @@ describe('mutation banPost', () => {
 
 describe('mutation reportPost', () => {
   const MUTATION = `
-  mutation ReportPost($id: ID!, $reason: ReportReason, $comment: String) {
-  reportPost(id: $id, reason: $reason, comment: $comment) {
+  mutation ReportPost($id: ID!, $reason: ReportReason, $comment: String, $tags: [String]) {
+  reportPost(id: $id, reason: $reason, comment: $comment, tags: $tags) {
     _
   }
 }`;
@@ -1355,6 +1355,48 @@ describe('mutation reportPost', () => {
       select: ['postId', 'userId'],
     });
     expect(actual).toMatchSnapshot();
+  });
+
+  it('should save all the irrelevant tags', async () => {
+    loggedUser = '1';
+    const tags = ['js', 'react'];
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', tags, reason: 'IRRELEVANT' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con
+      .getRepository(HiddenPost)
+      .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
+    expect(actual.length).toEqual(1);
+    expect(
+      await con.getRepository(PostReport).findOneBy({ postId: 'p1' }),
+    ).toEqual({
+      postId: 'p1',
+      userId: '1',
+      createdAt: expect.anything(),
+      reason: 'IRRELEVANT',
+      tags,
+      comment: null,
+    });
+  });
+
+  it('should throw an error if there is no irrelevant tags when the reason is IRRELEVANT', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1', tags: [], reason: 'IRRELEVANT' },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { id: 'p1', reason: 'IRRELEVANT' } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
   });
 });
 

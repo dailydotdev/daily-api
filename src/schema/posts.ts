@@ -149,6 +149,13 @@ export const getPostNotification = async (
   return { id: post.id, numUpvotes: post.upvotes, numComments: post.comments };
 };
 
+interface ReportPostArgs {
+  id: string;
+  reason: string;
+  comment: string;
+  tags?: string[];
+}
+
 export const typeDefs = /* GraphQL */ `
   type TocItem {
     """
@@ -465,6 +472,10 @@ export const typeDefs = /* GraphQL */ `
     Reason doesnt fit any specific category
     """
     OTHER
+    """
+    When the reason is the post having irrelevant tags
+    """
+    IRRELEVANT
   }
 
   extend type Query {
@@ -546,6 +557,10 @@ export const typeDefs = /* GraphQL */ `
       Additional comment about report reason
       """
       comment: String
+      """
+      List of irrelevant tags
+      """
+      tags: [String]
     ): EmptyResponse @auth
 
     """
@@ -795,6 +810,7 @@ export const reportReasons = new Map([
   ['CLICKBAIT', '🎣 Clickbait!!!'],
   ['LOW', '💩 Low quality content'],
   ['OTHER', '🤔 Other'],
+  ['IRRELEVANT', `Post's tags are irrelevant`],
 ]);
 
 export const getPostPermalink = (post: Pick<GQLPost, 'shortId'>): string =>
@@ -944,12 +960,17 @@ export const resolvers: IResolvers<any, Context> = {
     },
     reportPost: async (
       source,
-      { id, reason, comment }: { id: string; reason: string; comment: string },
+      { id, reason, comment, tags }: ReportPostArgs,
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       if (!reportReasons.has(reason)) {
         throw new ValidationError('Reason is invalid');
       }
+
+      if (reason === 'IRRELEVANT' && !tags?.length) {
+        throw new ValidationError('You must include the irrelevant tags!');
+      }
+
       const added = await saveHiddenPost(ctx.con, {
         userId: ctx.userId,
         postId: id,
@@ -964,6 +985,7 @@ export const resolvers: IResolvers<any, Context> = {
               userId: ctx.userId,
               reason,
               comment,
+              tags,
             });
           } catch (err) {
             if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
