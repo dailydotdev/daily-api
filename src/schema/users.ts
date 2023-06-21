@@ -35,6 +35,7 @@ import { TypeOrmError, NotFoundError } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
 import { In } from 'typeorm';
+import { DisallowHandle } from '../entity/DisallowHandle';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -756,10 +757,23 @@ export const resolvers: IResolvers<any, Context> = {
         where: { username: In(generatedUsernames) },
         select: ['username'],
       });
+      const disallowHandles = await ctx.getRepository(DisallowHandle).find({
+        where: { value: In(generatedUsernames) },
+        select: ['value'],
+      });
 
-      for (const usernameCheck in usernameChecks) {
+      const disallowedUsernames = [...usernameChecks, ...disallowHandles].map(
+        (handle) => {
+          if (handle instanceof User) {
+            return handle.username;
+          }
+          return handle.value;
+        },
+      );
+
+      for (const usernameCheck in disallowedUsernames) {
         generatedUsernames = generatedUsernames.filter(
-          (item) => item !== usernameChecks[usernameCheck].username,
+          (item) => item !== disallowedUsernames[usernameCheck],
         );
       }
 

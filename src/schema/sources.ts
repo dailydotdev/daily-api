@@ -49,6 +49,7 @@ import {
   validateRegex,
   ValidateRegex,
 } from '../common/object';
+import { DisallowHandle } from '../entity/DisallowHandle';
 
 export interface GQLSource {
   id: string;
@@ -805,7 +806,11 @@ export const resolvers: IResolvers<any, Context> = {
         .getRepository(Source)
         .findOneBy({ handle: handle.toLowerCase() });
 
-      return !!source;
+      const disallowHandle = await ctx
+        .getRepository(DisallowHandle)
+        .findOneBy({ value: handle.toLowerCase() });
+
+      return !!source || !!disallowHandle;
     },
     sourceMembers: async (
       _,
@@ -967,6 +972,15 @@ export const resolvers: IResolvers<any, Context> = {
       });
       try {
         const sourceId = await ctx.con.transaction(async (entityManager) => {
+          const disallowHandle = await entityManager
+            .getRepository(DisallowHandle)
+            .findOneBy({ value: handle });
+          if (!!disallowHandle) {
+            throw new ValidationError(
+              JSON.stringify({ handle: 'handle is already used' }),
+            );
+          }
+
           const id = randomUUID();
           const repo = entityManager.getRepository(SquadSource);
           // Create a new source
@@ -1046,6 +1060,15 @@ export const resolvers: IResolvers<any, Context> = {
       try {
         const editedSourceId = await ctx.con.transaction(
           async (entityManager) => {
+            const disallowHandle = await entityManager
+              .getRepository(DisallowHandle)
+              .findOneBy({ value: handle });
+            if (!!disallowHandle) {
+              throw new ValidationError(
+                JSON.stringify({ handle: 'handle is already used' }),
+              );
+            }
+
             const repo = entityManager.getRepository(SquadSource);
             // Update existing squad
             await repo.update(

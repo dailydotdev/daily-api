@@ -32,6 +32,7 @@ import { createSource } from './fixture/source';
 import { SourcePermissions } from '../src/schema/sources';
 import { SourcePermissionErrorKeys } from '../src/errors';
 import { WELCOME_POST_TITLE } from '../src/common';
+import { DisallowHandle } from '../src/entity/DisallowHandle';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -387,6 +388,15 @@ describe('query sourceHandleExists', () => {
     loggedUser = '3';
     await updateHandle();
     const res = await client.query(QUERY, { variables: { handle: 'a' } });
+    expect(res.data.sourceHandleExists).toBeTruthy();
+  });
+
+  it('should return true if the source handle is not allowed', async () => {
+    loggedUser = '3';
+    await con.getRepository(DisallowHandle).save({ value: 'disallow' });
+    const res = await client.query(QUERY, {
+      variables: { handle: 'disallow' },
+    });
     expect(res.data.sourceHandleExists).toBeTruthy();
   });
 
@@ -874,6 +884,18 @@ describe('mutation createSquad', () => {
     );
   });
 
+  it('should throw error on disallowed handles', async () => {
+    loggedUser = '1';
+    await con.getRepository(DisallowHandle).save({
+      value: variables.handle,
+    });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should throw error when post does not exist', async () => {
     loggedUser = '1';
     return testMutationErrorCode(
@@ -1130,6 +1152,18 @@ describe('mutation editSquad', () => {
       handle: 'existing',
       name: 'Dup squad',
       active: false,
+    });
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, handle: 'existing' } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw error on disallow handles', async () => {
+    loggedUser = '1';
+    await con.getRepository(DisallowHandle).save({
+      value: 'existing',
     });
     return testMutationErrorCode(
       client,

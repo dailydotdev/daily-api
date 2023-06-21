@@ -18,6 +18,7 @@ import {
   UserFailErrorKeys,
 } from '../errors';
 import { fallbackImages } from '../config';
+import { checkDissalowHandle } from './DisallowHandle';
 
 @Entity()
 export class User {
@@ -249,7 +250,11 @@ export const addNewUser = async (
 
   return con.transaction(async (entityManager) => {
     const isUniqueUser = await checkUsernameAndEmail(entityManager, data);
-    if (!isUniqueUser) {
+    const isDissalowHandle = await checkDissalowHandle(
+      entityManager,
+      data.username,
+    );
+    if (!isUniqueUser || isDissalowHandle) {
       return {
         status: 'failed',
         reason: UserFailErrorKeys.UsernameEmailExists,
