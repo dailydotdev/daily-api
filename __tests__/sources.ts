@@ -400,6 +400,15 @@ describe('query sourceHandleExists', () => {
     expect(res.data.sourceHandleExists).toBeTruthy();
   });
 
+  it('should return true if the source handle is not allowed without case sensitivity', async () => {
+    loggedUser = '3';
+    await con.getRepository(DisallowHandle).save({ value: 'disallow' });
+    const res = await client.query(QUERY, {
+      variables: { handle: 'Disallow' },
+    });
+    expect(res.data.sourceHandleExists).toBeTruthy();
+  });
+
   it('should return true if the source handle is taken considering uppercase characters', async () => {
     loggedUser = '3';
     await updateHandle();

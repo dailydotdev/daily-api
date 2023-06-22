@@ -1,14 +1,13 @@
-import { Entity, EntityManager, Index, PrimaryColumn } from 'typeorm';
+import { DataSource, Entity, EntityManager, PrimaryColumn } from 'typeorm';
 
 @Entity()
 export class DisallowHandle {
   @PrimaryColumn({ unique: true })
-  @Index({ unique: true })
   value: string;
 }
 
-export const checkDissalowHandle = async (
-  entityManager: EntityManager,
+export const checkDisallowHandle = async (
+  entityManager: EntityManager | DataSource,
   value: string,
 ): Promise<boolean> => {
   const handle = await entityManager
@@ -16,7 +15,7 @@ export const checkDissalowHandle = async (
     .createQueryBuilder()
     .select('value')
     .where('value = :value', {
-      value,
+      value: value?.toLowerCase(),
     })
     .getRawOne();
   return !!handle;

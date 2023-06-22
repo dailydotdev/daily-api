@@ -49,7 +49,7 @@ import {
   validateRegex,
   ValidateRegex,
 } from '../common/object';
-import { DisallowHandle } from '../entity/DisallowHandle';
+import { checkDisallowHandle } from '../entity/DisallowHandle';
 
 export interface GQLSource {
   id: string;
@@ -802,15 +802,11 @@ export const resolvers: IResolvers<any, Context> = {
     sourceHandleExists: async (_, { handle }: { handle: string }, ctx) => {
       validateRegex([['handle', handle, handleRegex, true]]);
 
-      const source = await ctx
-        .getRepository(Source)
-        .findOneBy({ handle: handle.toLowerCase() });
-
-      const disallowHandle = await ctx
-        .getRepository(DisallowHandle)
-        .findOneBy({ value: handle.toLowerCase() });
-
-      return !!source || !!disallowHandle;
+      const [source, disallowHandle] = await Promise.all([
+        ctx.getRepository(Source).findOneBy({ handle: handle.toLowerCase() }),
+        checkDisallowHandle(ctx.con, handle),
+      ]);
+      return !!source || disallowHandle;
     },
     sourceMembers: async (
       _,
@@ -972,10 +968,11 @@ export const resolvers: IResolvers<any, Context> = {
       });
       try {
         const sourceId = await ctx.con.transaction(async (entityManager) => {
-          const disallowHandle = await entityManager
-            .getRepository(DisallowHandle)
-            .findOneBy({ value: handle });
-          if (!!disallowHandle) {
+          const disallowHandle = await checkDisallowHandle(
+            entityManager,
+            handle,
+          );
+          if (disallowHandle) {
             throw new ValidationError(
               JSON.stringify({ handle: 'handle is already used' }),
             );
@@ -1060,10 +1057,11 @@ export const resolvers: IResolvers<any, Context> = {
       try {
         const editedSourceId = await ctx.con.transaction(
           async (entityManager) => {
-            const disallowHandle = await entityManager
-              .getRepository(DisallowHandle)
-              .findOneBy({ value: handle });
-            if (!!disallowHandle) {
+            const disallowHandle = await checkDisallowHandle(
+              entityManager,
+              handle,
+            );
+            if (disallowHandle) {
               throw new ValidationError(
                 JSON.stringify({ handle: 'handle is already used' }),
               );

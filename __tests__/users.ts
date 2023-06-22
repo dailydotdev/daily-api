@@ -1636,6 +1636,18 @@ describe('mutation updateUserProfile', () => {
     );
   });
 
+  it('should not allow disallowed username', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(DisallowHandle).save({ value: 'disallow' });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { username: 'disallow' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should not allow invalid github handle', async () => {
     loggedUser = '1';
 

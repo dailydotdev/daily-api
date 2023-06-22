@@ -7,7 +7,7 @@ import {
   User,
 } from '../entity';
 import createOrGetConnection from '../db';
-import { DisallowHandle } from '../entity/DisallowHandle';
+import { checkDisallowHandle } from '../entity/DisallowHandle';
 
 interface SearchUsername {
   search: string;
@@ -63,10 +63,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const user = await con
         .getRepository(User)
         .findOneBy({ username: search });
-      const disallowHandle = await con
-        .getRepository(DisallowHandle)
-        .findOneBy({ value: search });
-      return res.status(200).send({ isTaken: !!user || !!disallowHandle });
+      const disallowHandle = await checkDisallowHandle(con, search);
+      return res.status(200).send({ isTaken: !!user || disallowHandle });
     },
   );
 }

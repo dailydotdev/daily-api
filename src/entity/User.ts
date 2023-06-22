@@ -18,7 +18,7 @@ import {
   UserFailErrorKeys,
 } from '../errors';
 import { fallbackImages } from '../config';
-import { checkDissalowHandle } from './DisallowHandle';
+import { checkDisallowHandle } from './DisallowHandle';
 
 @Entity()
 export class User {
@@ -249,11 +249,11 @@ export const addNewUser = async (
   }
 
   return con.transaction(async (entityManager) => {
-    const isUniqueUser = await checkUsernameAndEmail(entityManager, data);
-    const isDissalowHandle = await checkDissalowHandle(
-      entityManager,
-      data.username,
-    );
+    const [isUniqueUser, isDissalowHandle] = await Promise.all([
+      checkUsernameAndEmail(entityManager, data),
+      checkDisallowHandle(entityManager, data.username),
+    ]);
+
     if (!isUniqueUser || isDissalowHandle) {
       return {
         status: 'failed',
