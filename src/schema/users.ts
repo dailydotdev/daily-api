@@ -35,6 +35,7 @@ import { TypeOrmError, NotFoundError } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
 import { In } from 'typeorm';
+import { checkDisallowHandle, DisallowHandle } from '../entity/DisallowHandle';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -752,16 +753,29 @@ export const resolvers: IResolvers<any, Context> = {
         generatedUsernames.push(randomUsername);
       }
 
-      const usernameChecks = await ctx.getRepository(User).find({
-        where: { username: In(generatedUsernames) },
-        select: ['username'],
-      });
+      const [usernameChecks, disallowHandles] = await Promise.all([
+        ctx.getRepository(User).find({
+          where: { username: In(generatedUsernames) },
+          select: ['username'],
+        }),
+        ctx.getRepository(DisallowHandle).find({
+          where: { value: In(generatedUsernames) },
+          select: ['value'],
+        }),
+      ]);
 
-      for (const usernameCheck in usernameChecks) {
-        generatedUsernames = generatedUsernames.filter(
-          (item) => item !== usernameChecks[usernameCheck].username,
-        );
-      }
+      const disallowedUsernames = [...usernameChecks, ...disallowHandles].map(
+        (handle) => {
+          if (handle instanceof User) {
+            return handle.username;
+          }
+          return handle.value;
+        },
+      );
+
+      generatedUsernames = generatedUsernames.filter(
+        (item) => !disallowedUsernames.includes(item),
+      );
 
       if (generatedUsernames.length === 0) {
         ctx.log.info('usernameChecks', usernameChecks);
@@ -879,6 +893,13 @@ export const resolvers: IResolvers<any, Context> = {
         upload && process.env.CLOUDINARY_URL
           ? (await uploadAvatar(user.id, (await upload).createReadStream())).url
           : data.image || user.image;
+
+      const disallowHandle = await checkDisallowHandle(ctx.con, data.username);
+      if (disallowHandle) {
+        throw new ValidationError(
+          JSON.stringify({ handle: 'handle is already used' }),
+        );
+      }
 
       try {
         const updatedUser = { ...user, ...data, image: avatar };

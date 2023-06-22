@@ -7,6 +7,7 @@ import request from 'supertest';
 import { usersFixture } from './fixture/user';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { DisallowHandle } from '../src/entity/DisallowHandle';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -73,6 +74,24 @@ describe('POST /p/newUser', () => {
         name: usersFixture[0].name,
         image: usersFixture[0].image,
         username: usersFixture[0].username,
+        email: 'randomNewEmail@gmail.com',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' });
+  });
+
+  it('should handle disallowed username', async () => {
+    await con.getRepository(DisallowHandle).save({ value: 'disallow' });
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: 'disallow',
         email: 'randomNewEmail@gmail.com',
       })
       .expect(200);
@@ -337,6 +356,17 @@ describe('POST /p/checkUsername', () => {
     await createDefaultUser();
     const { body } = await request(app.server)
       .get('/p/checkUsername?search=idoshamun')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send()
+      .expect(200);
+
+    expect(body).toEqual({ isTaken: true });
+  });
+
+  it('should return correct response if disallowed handle', async () => {
+    await con.getRepository(DisallowHandle).save({ value: 'disallow' });
+    const { body } = await request(app.server)
+      .get('/p/checkUsername?search=disallow')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
       .send()
       .expect(200);

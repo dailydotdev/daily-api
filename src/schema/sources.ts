@@ -49,6 +49,7 @@ import {
   validateRegex,
   ValidateRegex,
 } from '../common/object';
+import { checkDisallowHandle } from '../entity/DisallowHandle';
 
 export interface GQLSource {
   id: string;
@@ -801,11 +802,11 @@ export const resolvers: IResolvers<any, Context> = {
     sourceHandleExists: async (_, { handle }: { handle: string }, ctx) => {
       validateRegex([['handle', handle, handleRegex, true]]);
 
-      const source = await ctx
-        .getRepository(Source)
-        .findOneBy({ handle: handle.toLowerCase() });
-
-      return !!source;
+      const [source, disallowHandle] = await Promise.all([
+        ctx.getRepository(Source).findOneBy({ handle: handle.toLowerCase() }),
+        checkDisallowHandle(ctx.con, handle),
+      ]);
+      return !!source || disallowHandle;
     },
     sourceMembers: async (
       _,
@@ -967,6 +968,16 @@ export const resolvers: IResolvers<any, Context> = {
       });
       try {
         const sourceId = await ctx.con.transaction(async (entityManager) => {
+          const disallowHandle = await checkDisallowHandle(
+            entityManager,
+            handle,
+          );
+          if (disallowHandle) {
+            throw new ValidationError(
+              JSON.stringify({ handle: 'handle is already used' }),
+            );
+          }
+
           const id = randomUUID();
           const repo = entityManager.getRepository(SquadSource);
           // Create a new source
@@ -1046,6 +1057,16 @@ export const resolvers: IResolvers<any, Context> = {
       try {
         const editedSourceId = await ctx.con.transaction(
           async (entityManager) => {
+            const disallowHandle = await checkDisallowHandle(
+              entityManager,
+              handle,
+            );
+            if (disallowHandle) {
+              throw new ValidationError(
+                JSON.stringify({ handle: 'handle is already used' }),
+              );
+            }
+
             const repo = entityManager.getRepository(SquadSource);
             // Update existing squad
             await repo.update(

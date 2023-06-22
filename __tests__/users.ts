@@ -38,6 +38,7 @@ import createOrGetConnection from '../src/db';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
 import setCookieParser from 'set-cookie-parser';
+import { DisallowHandle } from '../src/entity/DisallowHandle';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -1635,6 +1636,18 @@ describe('mutation updateUserProfile', () => {
     );
   });
 
+  it('should not allow disallowed username', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(DisallowHandle).save({ value: 'disallow' });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { username: 'disallow' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should not allow invalid github handle', async () => {
     loggedUser = '1';
 
@@ -1951,6 +1964,14 @@ describe('query generateUniqueUsername', () => {
 
   it('should return a unique username with a random string', async () => {
     await con.getRepository(User).update({ id: '1' }, { username: 'johndoe' });
+
+    const res = await client.query(QUERY, { variables: { name: 'John Doe' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.generateUniqueUsername).not.toEqual('johndoe');
+  });
+
+  it('should return a unique username with a random string if disallowed', async () => {
+    await con.getRepository(DisallowHandle).save({ value: 'johndoe' });
 
     const res = await client.query(QUERY, { variables: { name: 'John Doe' } });
     expect(res.errors).toBeFalsy();
