@@ -60,10 +60,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       }
 
       const con = await createOrGetConnection();
-      const user = await con
-        .getRepository(User)
-        .findOneBy({ username: search });
-      const disallowHandle = await checkDisallowHandle(con, search);
+      const [user, disallowHandle] = await Promise.all([
+        con.getRepository(User).findOneBy({ username: search }),
+        checkDisallowHandle(con, search),
+      ]);
       return res.status(200).send({ isTaken: !!user || disallowHandle });
     },
   );
