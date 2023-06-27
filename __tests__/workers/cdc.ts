@@ -892,6 +892,32 @@ describe('post report', () => {
       post,
       '💔 Link is broken',
       'Test comment',
+      undefined,
+    );
+  });
+
+  it('should notify on new post report with tags', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...after,
+          tags: ['php', 'webdev'],
+        },
+        before: null,
+        op: 'c',
+        table: 'post_report',
+      }),
+    );
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(notifyPostReport).toBeCalledTimes(1);
+    expect(notifyPostReport).toBeCalledWith(
+      'u1',
+      post,
+      '💔 Link is broken',
+      'Test comment',
+      ['php', 'webdev'],
     );
   });
 });
