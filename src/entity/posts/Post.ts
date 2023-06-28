@@ -26,6 +26,16 @@ export enum PostOrigin {
   Crawler = 'crawler',
 }
 
+export type PostFlags = {
+  sentAnalyticsReport: boolean;
+  banned: boolean;
+  deleted: boolean;
+  private: boolean;
+  visible: boolean;
+  showOnFeed: boolean;
+  promoteToPublic: boolean;
+};
+
 @Entity()
 @Index('IDX_post_source_id_pinned_at_created_at', [
   'sourceId',
@@ -173,4 +183,11 @@ export class Post {
   @Column({ type: 'integer', default: 0 })
   @Index('IDX_post_downvotes')
   downvotes: number;
+
+  @Column({ type: 'jsonb', default: {} })
+  @Index('IDX_post_flags_sentAnalyticsReport', { synchronize: false })
+  @Index('IDX_post_flags_banned', { synchronize: false })
+  @Index('IDX_post_flags_deleted', { synchronize: false })
+  @Index('IDX_post_flags_promoteToPublic', { synchronize: false })
+  flags: PostFlags;
 }
