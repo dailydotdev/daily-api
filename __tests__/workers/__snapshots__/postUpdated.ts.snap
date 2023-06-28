@@ -13,6 +13,7 @@ Object {
   "description": null,
   "discussionScore": null,
   "downvotes": 0,
+  "flags": Object {},
   "id": Any<String>,
   "image": null,
   "lastTrending": null,
