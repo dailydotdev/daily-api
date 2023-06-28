@@ -346,6 +346,7 @@ const onPostReportChange = async (
         post,
         reportReasons.get(data.payload.after.reason),
         data.payload.after.comment,
+        data.payload.after.tags,
       );
     }
   }

@@ -39,6 +39,7 @@ export const notifyPostReport = async (
   post: Post,
   reason: string,
   comment?: string,
+  tags?: string[],
 ): Promise<void> => {
   await webhook.send({
     text: 'Post was just reported!',
@@ -58,6 +59,10 @@ export const notifyPostReport = async (
           {
             title: 'Comment',
             value: comment,
+          },
+          {
+            title: 'Tags',
+            value: tags?.join(', '),
           },
         ],
         color: '#FF1E1F',
