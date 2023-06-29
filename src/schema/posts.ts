@@ -782,11 +782,9 @@ const saveHiddenPost = async (
       throw new NotFoundError('Post not found');
     }
     // Unique violation
-    if (err?.code === TypeOrmError.DUPLICATE_ENTRY) {
-      return true;
+    if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
+      throw err;
     }
-
-    throw err;
   }
   return true;
 };
