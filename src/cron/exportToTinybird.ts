@@ -28,6 +28,7 @@ const cron: Cron = {
               "metadataChangedAt" AS "metadata_changed_at",
               "creatorTwitter"    AS "creator_twitter",
               "sourceId"          AS "source_id",
+              (SELECT "s"."type" FROM "source" AS "s" WHERE "s"."id" === "sourceId") AS "source_type",
               "tagsStr"           AS "tags_str",
               ("banned" or "deleted" or not "showOnFeed")::int AS "banned", "type" AS "post_type",
               "private"::int      AS "post_private"
