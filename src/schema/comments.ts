@@ -168,6 +168,36 @@ export const typeDefs = /* GraphQL */ `
     edges: [CommentUpvoteEdge!]!
   }
 
+  """
+  Enum of the possible reasons to report a comment
+  """
+  enum ReportCommentReason {
+    """
+    The comment is hateful
+    """
+    HATEFUL
+    """
+    The comment is in any form of bullying or harassment
+    """
+    HARASSMENT
+    """
+    The comment is a spam or a scam
+    """
+    SPAM
+    """
+    The comment contains any sexual or explicit content
+    """
+    EXPLICIT
+    """
+    The comment contains incorrect information
+    """
+    MISINFORMATION
+    """
+    Reason doesnt fit any specific category
+    """
+    OTHER
+  }
+
   extend type Query {
     """
     Get the comments of a post
@@ -461,6 +491,15 @@ const getCommentById = async (
   });
   return res[0];
 };
+
+export const reportCommentReasons = new Map([
+  ['HATEFUL', 'Hateful or Offensive Content'],
+  ['HARASSMENT', 'Harassment or Bullying'],
+  ['SPAM', 'Spam or Scams'],
+  ['EXPLICIT', 'Explicit Sexual Content'],
+  ['MISINFORMATION', 'False Information or Misinformation'],
+  ['OTHER', 'Other'],
+]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
