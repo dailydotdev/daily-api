@@ -785,7 +785,6 @@ const saveHiddenPost = async (
     if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
       throw err;
     }
-    return false;
   }
   return true;
 };
