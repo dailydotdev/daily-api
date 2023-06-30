@@ -14,7 +14,7 @@ export class CommentReport {
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
-  @Column({ length: 12 })
+  @Column({ length: 36 })
   reason: string;
 
   @Column({ type: 'text', nullable: true })
