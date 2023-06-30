@@ -38,7 +38,11 @@ interface UploadResult {
   id: string;
 }
 
-type UploadFn = (name: string, stream: Readable) => Promise<UploadResult>;
+type UploadFn = (
+  name: string,
+  stream: Readable,
+  options?: OptionalProps,
+) => Promise<UploadResult>;
 
 export const uploadFile = (
   name: string,
@@ -51,6 +55,7 @@ export const uploadFile = (
       {
         public_id: name,
         upload_preset: preset,
+        invalidate,
       },
       (err, callResult) => {
         if (err) {
@@ -63,7 +68,6 @@ export const uploadFile = (
             fetch_format: 'auto',
             quality: 'auto',
             sign_url: true,
-            invalidate,
           }),
           id: callResult.public_id,
         });
@@ -72,14 +76,19 @@ export const uploadFile = (
     stream.pipe(outStream);
   });
 
-export const uploadDevCardBackground: UploadFn = (name, stream) =>
-  uploadFile(name, UploadPreset.DevCard, stream);
+export const uploadDevCardBackground: UploadFn = (name, stream, options) =>
+  uploadFile(name, UploadPreset.DevCard, stream, options);
 
-export const uploadSquadImage: UploadFn = (name, stream) =>
-  uploadFile(name, UploadPreset.SquadImage, stream);
+export const uploadSquadImage: UploadFn = (name, stream, options) =>
+  uploadFile(name, UploadPreset.SquadImage, stream, options);
 
-export const uploadAvatar: UploadFn = (userId, stream) =>
-  uploadFile(`${UploadPreset.Avatar}_${userId}`, UploadPreset.Avatar, stream);
+export const uploadAvatar: UploadFn = (userId, stream, options) =>
+  uploadFile(
+    `${UploadPreset.Avatar}_${userId}`,
+    UploadPreset.Avatar,
+    stream,
+    options,
+  );
 
 type PostPreset =
   | UploadPreset.PostBannerImage
