@@ -1398,6 +1398,29 @@ describe('mutation reportPost', () => {
       'GRAPHQL_VALIDATION_FAILED',
     );
   });
+
+  it('should save report if post is hidden already', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(HiddenPost)
+      .save(
+        con
+          .getRepository(HiddenPost)
+          .create({ postId: 'p1', userId: loggedUser }),
+      );
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', reason: 'BROKEN', comment: 'Test comment' },
+    });
+    expect(res.errors).toBeFalsy();
+    const actual = await con.getRepository(PostReport).findOne({
+      where: { userId: loggedUser },
+      select: ['postId', 'userId'],
+    });
+    expect(actual).toEqual({
+      postId: 'p1',
+      userId: '1',
+    });
+  });
 });
 
 describe('mutation upvote', () => {
