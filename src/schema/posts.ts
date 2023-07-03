@@ -1039,7 +1039,13 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       if (ctx.roles.includes(Roles.Moderator)) {
-        await ctx.getRepository(Post).update({ id }, { deleted: true });
+        await ctx.getRepository(Post).update(
+          { id },
+          {
+            deleted: true,
+            flags: updateFlagsStatement<Post>({ deleted: true }),
+          },
+        );
         return { _: true };
       }
 
@@ -1053,7 +1059,13 @@ export const resolvers: IResolvers<any, Context> = {
             SourcePermissions.PostDelete,
           );
         }
-        await repo.update({ id }, { deleted: true });
+        await repo.update(
+          { id },
+          {
+            deleted: true,
+            flags: updateFlagsStatement<Post>({ deleted: true }),
+          },
+        );
       });
 
       return { _: true };
