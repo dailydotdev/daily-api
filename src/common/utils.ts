@@ -18,3 +18,11 @@ export const getTimezonedEndOfISOWeek = ({
 }: GetTimezonedIsoWeekProps): Date => {
   return zonedTimeToUtc(endOfISOWeek(date), timezone);
 };
+
+export const updateFlagsStatement = <
+  Entity extends { flags: Record<string, unknown> },
+>(
+  update: Entity['flags'],
+): (() => string) => {
+  return () => `flags || '${JSON.stringify(update)}'`;
+};

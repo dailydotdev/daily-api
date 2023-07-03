@@ -26,7 +26,7 @@ export enum PostOrigin {
   Crawler = 'crawler',
 }
 
-export type PostFlags = {
+export type PostFlags = Partial<{
   sentAnalyticsReport: boolean;
   banned: boolean;
   deleted: boolean;
@@ -34,7 +34,7 @@ export type PostFlags = {
   visible: boolean;
   showOnFeed: boolean;
   promoteToPublic: boolean;
-};
+}>;
 
 @Entity()
 @Index('IDX_post_source_id_pinned_at_created_at', [
