@@ -201,7 +201,7 @@ const updatePost = async ({
     { id: databasePost.id },
     {
       ...data,
-      flags: updateFlagsStatement({ visible: data.visible }),
+      flags: updateFlagsStatement({ ...data.flags, visible: data.visible }),
     },
   );
 
@@ -213,6 +213,7 @@ const updatePost = async ({
         visibleAt: data.visibleAt,
         private: data.private,
         flags: updateFlagsStatement({
+          ...data.flags,
           private: data.private,
           visible: true,
         }),
@@ -310,6 +311,7 @@ const fixData = async ({
       flags: {
         private: privacy,
         visible: becomesVisible,
+        showOnFeed: !data?.order,
       },
     },
   };
