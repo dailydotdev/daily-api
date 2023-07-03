@@ -4,6 +4,7 @@ import {
   Comment,
   ExternalLinkPreview,
   FreeformPost,
+  Post,
   PostOrigin,
   SquadSource,
   User,
@@ -140,12 +141,17 @@ export const createSquadWelcomePost = async (
     contentHtml: markdown.render(content),
     image: defaultImage.welcomePost,
     banned: true,
+    flags: {
+      banned: true,
+      private: true,
+      visible: true,
+    },
     visible: true,
     private: true,
     pinnedAt: new Date(),
     visibleAt: new Date(),
     origin: PostOrigin.UserGenerated,
-  });
+  } as Partial<Post>);
 };
 
 export type EditablePost = Pick<

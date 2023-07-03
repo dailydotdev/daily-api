@@ -26,6 +26,7 @@ import {
   pickImageUrl,
   saveFreeformPost,
   standardizeURL,
+  updateFlagsStatement,
   uploadPostFile,
   UploadPreset,
   validatePost,
@@ -1227,7 +1228,13 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLEmptyResponse> => {
       const post = await ctx.getRepository(Post).findOneByOrFail({ id });
       if (!post.banned) {
-        await ctx.getRepository(Post).update({ id }, { banned: true });
+        await ctx.getRepository(Post).update(
+          { id },
+          {
+            banned: true,
+            flags: updateFlagsStatement<Post>({ banned: true }),
+          },
+        );
       }
       return { _: true };
     },
