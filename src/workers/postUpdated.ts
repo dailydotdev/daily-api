@@ -312,6 +312,7 @@ const fixData = async ({
         private: privacy,
         visible: becomesVisible,
         showOnFeed: !data?.order,
+        sentAnalyticsReport: privacy || !authorId,
       },
     },
   };

@@ -213,6 +213,7 @@ export const createExternalLink = async (
       origin: PostOrigin.Squad,
       visible: isVisible,
       flags: {
+        sentAnalyticsReport: true,
         private: true,
         visible: true,
       },
@@ -282,6 +283,7 @@ export const createSharePost = async (
       visible,
       visibleAt: visible ? new Date() : null,
       flags: {
+        sentAnalyticsReport: true,
         private: privacy,
         visible,
       },
