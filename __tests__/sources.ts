@@ -23,7 +23,7 @@ import {
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { randomUUID } from 'crypto';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
@@ -134,6 +134,61 @@ describe('query sources', () => {
     ]);
     const res = await client.query(QUERY());
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query openSquads', () => {
+  const QUERY = (first = 10): string => `{
+    openSquads(first: ${first}) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          id
+          name
+          image
+          public
+          type
+          createdAt
+        }
+      }
+    }
+  }`;
+
+  const prepareSquads = async () => {
+    const repo = con.getRepository(Source);
+    const sources = await repo.find();
+    expect(sources.length).toEqual(2);
+    const res = await client.query(QUERY());
+    expect(res.errors).toBeFalsy();
+    expect(res.data.openSquads.edges.length).toEqual(0);
+
+    await repo.update(
+      { id: In(['a', 'b']) },
+      { type: SourceType.Squad, private: true },
+    );
+    await repo.update({ id: 'b' }, { private: false });
+  };
+
+  it('should return only public squads', async () => {
+    await prepareSquads();
+
+    const res = await client.query(QUERY());
+    expect(res.errors).toBeFalsy();
+    expect(res.data.openSquads.edges.length).toEqual(1);
+    const allSquad = res.data.openSquads.edges.every(
+      ({ node }) => node.type === SourceType.Squad && node.public === true,
+    );
+    expect(allSquad).toBeTruthy();
+  });
+
+  it('should return only active sources', async () => {
+    await prepareSquads();
+    await con.getRepository(Source).update({ id: 'b' }, { active: false });
+    const res = await client.query(QUERY());
+    expect(res.data.openSquads.edges.length).toEqual(0);
   });
 });
 

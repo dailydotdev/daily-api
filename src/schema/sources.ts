@@ -62,6 +62,7 @@ export interface GQLSource {
   members?: Connection<GQLSourceMember>;
   currentMember?: GQLSourceMember;
   privilegedMembers?: GQLSourceMember[];
+  createdAt: Date;
 }
 
 export interface GQLSourceMember {
@@ -167,6 +168,11 @@ export const typeDefs = /* GraphQL */ `
     Role required for members to invite
     """
     memberInviteRole: String
+
+    """
+    Date when the Source was created
+    """
+    createdAt: DateTime
   }
 
   type SourceConnection {
@@ -249,6 +255,21 @@ export const typeDefs = /* GraphQL */ `
     Get source by ID
     """
     source(id: ID!): Source
+
+    """
+    Get all public Squads
+    """
+    openSquads(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourceConnection!
 
     """
     Get source members
@@ -799,6 +820,25 @@ export const resolvers: IResolvers<any, Context> = {
       await ensureSourcePermissions(ctx, id);
       return getSourceById(ctx, info, id);
     },
+    openSquads: forwardPagination(
+      async (
+        source,
+        args: ConnectionArguments,
+        ctx,
+        { limit, offset },
+      ): Promise<PaginationResponse<GQLSource>> => {
+        const res = await ctx.con.getRepository(SquadSource).find({
+          where: { active: true, private: false },
+          order: { name: 'ASC' },
+          take: limit,
+          skip: offset,
+        });
+        return {
+          nodes: res.map(sourceToGQL),
+        };
+      },
+      offsetPageGenerator(100, 500),
+    ),
     sourceHandleExists: async (_, { handle }: { handle: string }, ctx) => {
       validateRegex([['handle', handle, handleRegex, true]]);
 
