@@ -62,7 +62,6 @@ export interface GQLSource {
   members?: Connection<GQLSourceMember>;
   currentMember?: GQLSourceMember;
   privilegedMembers?: GQLSourceMember[];
-  createdAt: Date;
 }
 
 export interface GQLSourceMember {
@@ -168,11 +167,6 @@ export const typeDefs = /* GraphQL */ `
     Role required for members to invite
     """
     memberInviteRole: String
-
-    """
-    Date when the Source was created
-    """
-    createdAt: DateTime
   }
 
   type SourceConnection {

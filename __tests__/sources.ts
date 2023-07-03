@@ -151,7 +151,6 @@ describe('query openSquads', () => {
           image
           public
           type
-          createdAt
         }
       }
     }
