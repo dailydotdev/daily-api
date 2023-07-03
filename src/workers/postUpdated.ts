@@ -197,9 +197,13 @@ const updatePost = async ({
     ? databasePost.visibleAt ?? updatedDate
     : null;
 
-  await entityManager
-    .getRepository(ArticlePost)
-    .update({ id: databasePost.id }, data);
+  await entityManager.getRepository(ArticlePost).update(
+    { id: databasePost.id },
+    {
+      ...data,
+      flags: updateFlagsStatement({ visible: data.visible }),
+    },
+  );
 
   if (updateBecameVisible) {
     await entityManager.getRepository(SharePost).update(
@@ -208,7 +212,10 @@ const updatePost = async ({
         visible: true,
         visibleAt: data.visibleAt,
         private: data.private,
-        flags: updateFlagsStatement({ private: data.private }),
+        flags: updateFlagsStatement({
+          private: data.private,
+          visible: true,
+        }),
       },
     );
   }
@@ -302,6 +309,7 @@ const fixData = async ({
       showOnFeed: !data?.order,
       flags: {
         private: privacy,
+        visible: becomesVisible,
       },
     },
   };

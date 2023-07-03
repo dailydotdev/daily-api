@@ -214,6 +214,7 @@ export const createExternalLink = async (
       visible: isVisible,
       flags: {
         private: true,
+        visible: true,
       },
     });
     await createSharePost(
@@ -282,6 +283,7 @@ export const createSharePost = async (
       visibleAt: visible ? new Date() : null,
       flags: {
         private: privacy,
+        visible,
       },
     });
 

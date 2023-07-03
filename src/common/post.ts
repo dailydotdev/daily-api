@@ -176,6 +176,7 @@ export const createFreeformPost = async (
     visibleAt: new Date(),
     origin: PostOrigin.UserGenerated,
     flags: {
+      visible: true,
       private: true,
     },
   });
