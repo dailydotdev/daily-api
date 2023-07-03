@@ -24,7 +24,7 @@ import {
   isValidHttpUrl,
   notifyView,
   pickImageUrl,
-  saveFreeformPost,
+  createFreeformPost,
   standardizeURL,
   updateFlagsStatement,
   uploadPostFile,
@@ -1129,7 +1129,7 @@ export const resolvers: IResolvers<any, Context> = {
           params.image = coverImageUrl;
         }
 
-        await saveFreeformPost(manager, params);
+        await createFreeformPost(manager, params);
         await saveMentions(manager, id, userId, mentions, PostMention);
       });
 

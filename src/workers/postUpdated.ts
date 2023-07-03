@@ -21,6 +21,7 @@ import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
+import { updateFlagsStatement } from '../common';
 
 interface Data {
   post_id: string;
@@ -207,6 +208,7 @@ const updatePost = async ({
         visible: true,
         visibleAt: data.visibleAt,
         private: data.private,
+        flags: updateFlagsStatement({ private: data.private }),
       },
     );
   }
@@ -298,6 +300,9 @@ const fixData = async ({
       toc: data?.extra?.toc,
       contentCuration: data?.extra?.content_curation,
       showOnFeed: !data?.order,
+      flags: {
+        private: privacy,
+      },
     },
   };
 };

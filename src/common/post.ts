@@ -164,7 +164,7 @@ export type CreatePost = Pick<
   'title' | 'content' | 'image' | 'contentHtml' | 'authorId' | 'sourceId' | 'id'
 >;
 
-export const saveFreeformPost = async (
+export const createFreeformPost = async (
   con: DataSource | EntityManager,
   args: CreatePost,
 ) =>
@@ -175,6 +175,9 @@ export const saveFreeformPost = async (
     private: true,
     visibleAt: new Date(),
     origin: PostOrigin.UserGenerated,
+    flags: {
+      private: true,
+    },
   });
 
 export interface EditPostArgs

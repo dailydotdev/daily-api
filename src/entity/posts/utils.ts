@@ -212,6 +212,9 @@ export const createExternalLink = async (
       private: true,
       origin: PostOrigin.Squad,
       visible: isVisible,
+      flags: {
+        private: true,
+      },
     });
     await createSharePost(
       entityManager,
@@ -277,6 +280,9 @@ export const createSharePost = async (
       origin: PostOrigin.UserGenerated,
       visible,
       visibleAt: visible ? new Date() : null,
+      flags: {
+        private: privacy,
+      },
     });
 
     if (mentions.length) {
