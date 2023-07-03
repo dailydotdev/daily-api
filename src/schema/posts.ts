@@ -785,7 +785,6 @@ const saveHiddenPost = async (
     if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
       throw err;
     }
-    return false;
   }
   return true;
 };
@@ -1177,6 +1176,7 @@ export const resolvers: IResolvers<any, Context> = {
             id,
             upload.createReadStream(),
             UploadPreset.PostBannerImage,
+            { invalidate: true },
           );
           updated.image = coverImageUrl;
         }
