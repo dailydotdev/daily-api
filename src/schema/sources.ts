@@ -1206,26 +1206,32 @@ export const resolvers: IResolvers<any, Context> = {
           'Access denied! You do not have permission for this action!',
         );
       }
-      if (source.private && !token) {
-        throw new ForbiddenError(
-          'Access denied! You do not have permission for this action!',
-        );
-      }
-      const member = await ctx.con
-        .getRepository(SourceMember)
-        .findOneBy({ referralToken: token });
-      if (!member) {
-        throw new ForbiddenError(
-          'Access denied! You do not have permission for this action!',
-        );
-      }
 
-      const memberRank =
-        sourceRoleRank[member.role] ?? sourceRoleRank[SourceMemberRoles.Member];
-      const squadSource = source as SquadSource;
+      if (source.private) {
+        if (!token) {
+          throw new ForbiddenError(
+            'Access denied! You do not have permission for this action!',
+          );
+        }
 
-      if (memberRank < squadSource.memberInviteRank) {
-        throw new ForbiddenError(SourcePermissionErrorKeys.InviteInvalid);
+        const member = await ctx.con
+          .getRepository(SourceMember)
+          .findOneBy({ referralToken: token });
+
+        if (!member) {
+          throw new ForbiddenError(
+            'Access denied! You do not have permission for this action!',
+          );
+        }
+
+        const memberRank =
+          sourceRoleRank[member.role] ??
+          sourceRoleRank[SourceMemberRoles.Member];
+        const squadSource = source as SquadSource;
+
+        if (memberRank < squadSource.memberInviteRank) {
+          throw new ForbiddenError(SourcePermissionErrorKeys.InviteInvalid);
+        }
       }
 
       try {
