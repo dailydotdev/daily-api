@@ -183,12 +183,12 @@ export const updateUserContactLists = async (
         'length should be less than 50 chars'
     ) {
       log.warn(
-        { err, userId: oldProfile.id },
+        { err, userId: oldProfile?.id },
         'skipped updating user in mailing list',
       );
     } else {
       log.error(
-        { err, userId: oldProfile.id },
+        { err, userId: oldProfile?.id },
         'failed to update user in mailing list',
       );
       throw err;
