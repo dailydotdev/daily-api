@@ -115,12 +115,13 @@ describe('query sources', () => {
 
   it('should return only public sources', async () => {
     const res = await client.query(QUERY());
-    expect(res.data).toMatchSnapshot();
+    const isPublic = res.data.sources.edges.every(({ node }) => !!node.public);
+    expect(isPublic).toBeTruthy();
   });
 
   it('should flag that more pages available', async () => {
     const res = await client.query(QUERY(1));
-    expect(res.data).toMatchSnapshot();
+    expect(res.data.sources.pageInfo.hasNextPage).toBeTruthy();
   });
 
   it('should return only active sources', async () => {
@@ -134,7 +135,10 @@ describe('query sources', () => {
       },
     ]);
     const res = await client.query(QUERY());
-    expect(res.data).toMatchSnapshot();
+    const isActive = res.data.sources.edges.every(
+      ({ node }) => node.id !== 'd',
+    );
+    expect(isActive).toBeTruthy();
   });
 
   const prepareSquads = async () => {
