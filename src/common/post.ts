@@ -5,9 +5,7 @@ import {
   ExternalLinkPreview,
   FreeformPost,
   PostOrigin,
-  PostType,
   SquadSource,
-  UNKNOWN_SOURCE,
   User,
   WelcomePost,
 } from '../entity';

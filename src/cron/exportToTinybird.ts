@@ -2,9 +2,9 @@ import { Cron } from './cron';
 import fetch from 'node-fetch';
 import jsonexport from 'jsonexport';
 import FormData from 'form-data';
-import { promisify } from 'util';
 import { DataSource } from 'typeorm';
 import { PostType, UNKNOWN_SOURCE } from '../entity';
+import { promisify } from 'util';
 
 export const getPostsTinybirdExport = (con: DataSource, latest: Date) =>
   con.query(
