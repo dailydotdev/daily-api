@@ -819,7 +819,9 @@ export const resolvers: IResolvers<any, Context> = {
         throw new ValidationError('Reason is invalid');
       }
 
-      await ctx.getRepository(Comment).findOneByOrFail({ id });
+      await ctx
+        .getRepository(Comment)
+        .findOneOrFail({ where: { id }, select: ['id'] });
 
       try {
         await ctx.getRepository(CommentReport).insert({
