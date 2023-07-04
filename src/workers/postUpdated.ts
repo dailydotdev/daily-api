@@ -212,7 +212,7 @@ const updatePost = async ({
   }
 
   if (databasePost.tagsStr !== data.tagsStr) {
-    if (databasePost.tagsStr.length) {
+    if (databasePost.tagsStr?.length) {
       await removeKeywords(
         entityManager,
         databasePost.tagsStr.split(','),
