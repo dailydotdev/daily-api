@@ -2784,6 +2784,59 @@ describe('mutation editPost', () => {
   });
 });
 
+describe('mutation updatePromoteToPublic', () => {
+  const MUTATION = `
+    mutation UpdatePromoteToPublic($id: ID!, $promoteToPublic: Boolean!) {
+      updatePromoteToPublic(id: $id, promoteToPublic: $promoteToPublic) {
+        _
+      }
+    }
+  `;
+
+  const params = { id: 'p1', promoteToPublic: false };
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if user is not a system moderator', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should promote post to public', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    await client.mutate(MUTATION, {
+      variables: { id: 'p1', promoteToPublic: true },
+    });
+
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post.flags.promoteToPublic).toEqual(true);
+  });
+
+  it('should demote post from public', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    await client.mutate(MUTATION, {
+      variables: { id: 'p1', promoteToPublic: false },
+    });
+
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post.flags.promoteToPublic).toEqual(false);
+  });
+});
+
 describe('mutation updatePinPost', () => {
   const MUTATION = `
     mutation UpdatePinPost($id: ID!, $pinned: Boolean!) {

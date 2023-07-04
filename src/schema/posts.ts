@@ -636,6 +636,21 @@ export const typeDefs = /* GraphQL */ `
     ): String! @auth @rateLimit(limit: 5, duration: 60)
 
     """
+    Promote or demote a post
+    """
+    updatePromoteToPublic(
+      """
+      Id of the post to update the promoteToPublic flag for
+      """
+      id: ID!
+
+      """
+      Whether to promote or demote the post
+      """
+      promoteToPublic: Boolean!
+    ): EmptyResponse @auth
+
+    """
     Pin or unpin a post
     """
     updatePinPost(
@@ -1081,6 +1096,24 @@ export const resolvers: IResolvers<any, Context> = {
           },
         );
       });
+
+      return { _: true };
+    },
+    updatePromoteToPublic: async (
+      _,
+      { id, promoteToPublic }: { id: string; promoteToPublic: boolean },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      if (!ctx.roles.includes(Roles.Moderator)) {
+        throw new ForbiddenError('Access denied!');
+      }
+
+      await ctx.getRepository(Post).update(
+        { id },
+        {
+          flags: updateFlagsStatement<Post>({ promoteToPublic }),
+        },
+      );
 
       return { _: true };
     },
