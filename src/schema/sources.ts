@@ -29,6 +29,7 @@ import {
   DeepPartial,
   EntityManager,
   EntityNotFoundError,
+  FindOptionsWhere,
 } from 'typeorm';
 import { GQLUser } from './users';
 import { Connection } from 'graphql-relay/index';
@@ -238,6 +239,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      Fetch public Squads
+      """
+      filterOpenSquads: Boolean
     ): SourceConnection!
 
     """
@@ -762,6 +768,10 @@ export const getPermissionsForMember = (
   return permissions;
 };
 
+interface SourcesArgs extends ConnectionArguments {
+  filterOpenSquads?: boolean;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -769,12 +779,19 @@ export const resolvers: IResolvers<any, Context> = {
     sources: forwardPagination(
       async (
         source,
-        args: ConnectionArguments,
+        args: SourcesArgs,
         ctx,
         { limit, offset },
       ): Promise<PaginationResponse<GQLSource>> => {
+        const filter: FindOptionsWhere<Source> = { active: true };
+
+        if (args.filterOpenSquads) {
+          filter.type = SourceType.Squad;
+          filter.private = false;
+        }
+
         const res = await ctx.con.getRepository(Source).find({
-          where: { active: true },
+          where: filter,
           order: { name: 'ASC' },
           take: limit,
           skip: offset,
@@ -1189,26 +1206,32 @@ export const resolvers: IResolvers<any, Context> = {
           'Access denied! You do not have permission for this action!',
         );
       }
-      if (source.private && !token) {
-        throw new ForbiddenError(
-          'Access denied! You do not have permission for this action!',
-        );
-      }
-      const member = await ctx.con
-        .getRepository(SourceMember)
-        .findOneBy({ referralToken: token });
-      if (!member) {
-        throw new ForbiddenError(
-          'Access denied! You do not have permission for this action!',
-        );
-      }
 
-      const memberRank =
-        sourceRoleRank[member.role] ?? sourceRoleRank[SourceMemberRoles.Member];
-      const squadSource = source as SquadSource;
+      if (source.private) {
+        if (!token) {
+          throw new ForbiddenError(
+            'Access denied! You do not have permission for this action!',
+          );
+        }
 
-      if (memberRank < squadSource.memberInviteRank) {
-        throw new ForbiddenError(SourcePermissionErrorKeys.InviteInvalid);
+        const member = await ctx.con
+          .getRepository(SourceMember)
+          .findOneBy({ referralToken: token });
+
+        if (!member) {
+          throw new ForbiddenError(
+            'Access denied! You do not have permission for this action!',
+          );
+        }
+
+        const memberRank =
+          sourceRoleRank[member.role] ??
+          sourceRoleRank[SourceMemberRoles.Member];
+        const squadSource = source as SquadSource;
+
+        if (memberRank < squadSource.memberInviteRank) {
+          throw new ForbiddenError(SourcePermissionErrorKeys.InviteInvalid);
+        }
       }
 
       try {
