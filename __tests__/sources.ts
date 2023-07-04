@@ -95,8 +95,8 @@ beforeEach(async () => {
 afterAll(() => disposeGraphQLTesting(state));
 
 describe('query sources', () => {
-  const QUERY = (first = 10): string => `{
-  sources(first: ${first}) {
+  const QUERY = (first = 10, filterOpenSquads = false): string => `{
+  sources(first: ${first}, filterOpenSquads: ${filterOpenSquads}) {
     pageInfo {
       endCursor
       hasNextPage
@@ -107,6 +107,7 @@ describe('query sources', () => {
         name
         image
         public
+        type
       }
     }
   }
@@ -135,34 +136,12 @@ describe('query sources', () => {
     const res = await client.query(QUERY());
     expect(res.data).toMatchSnapshot();
   });
-});
-
-describe('query openSquads', () => {
-  const QUERY = (first = 10): string => `{
-    openSquads(first: ${first}) {
-      pageInfo {
-        endCursor
-        hasNextPage
-      }
-      edges {
-        node {
-          id
-          name
-          image
-          public
-          type
-        }
-      }
-    }
-  }`;
 
   const prepareSquads = async () => {
     const repo = con.getRepository(Source);
-    const sources = await repo.find();
-    expect(sources.length).toEqual(2);
-    const res = await client.query(QUERY());
+    const res = await client.query(QUERY(10, true));
     expect(res.errors).toBeFalsy();
-    expect(res.data.openSquads.edges.length).toEqual(0);
+    expect(res.data.sources.edges.length).toEqual(0);
 
     await repo.update(
       { id: In(['a', 'b']) },
@@ -174,20 +153,13 @@ describe('query openSquads', () => {
   it('should return only public squads', async () => {
     await prepareSquads();
 
-    const res = await client.query(QUERY());
+    const res = await client.query(QUERY(10, true));
     expect(res.errors).toBeFalsy();
-    expect(res.data.openSquads.edges.length).toEqual(1);
-    const allSquad = res.data.openSquads.edges.every(
+    expect(res.data.sources.edges.length).toEqual(1);
+    const allSquad = res.data.sources.edges.every(
       ({ node }) => node.type === SourceType.Squad && node.public === true,
     );
     expect(allSquad).toBeTruthy();
-  });
-
-  it('should return only active sources', async () => {
-    await prepareSquads();
-    await con.getRepository(Source).update({ id: 'b' }, { active: false });
-    const res = await client.query(QUERY());
-    expect(res.data.openSquads.edges.length).toEqual(0);
   });
 });
 
