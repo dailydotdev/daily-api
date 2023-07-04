@@ -52,7 +52,13 @@ beforeEach(async () => {
 
 describe('getPostsTinybirdExport function', () => {
   it('should return posts to export to tinybird with specific properties', async () => {
-    const posts = await getPostsTinybirdExport(con, new Date());
+    const now = new Date();
+    const latest = new Date(now.getTime() - 10000);
+    const posts = await getPostsTinybirdExport(con, latest);
+    posts.forEach((post) => {
+      post.created_at = '';
+      post.metadata_changed_at = '';
+    });
     expect(posts).toMatchSnapshot();
   });
 });
