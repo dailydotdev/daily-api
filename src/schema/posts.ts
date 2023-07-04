@@ -40,6 +40,7 @@ import {
   FreeformPost,
   HiddenPost,
   Post,
+  PostFlagsPublic,
   PostMention,
   PostReport,
   PostType,
@@ -111,6 +112,7 @@ export interface GQLPost {
   content?: string;
   contentHtml?: string;
   downvoted?: boolean;
+  flags?: PostFlagsPublic;
 }
 
 interface PinPostArgs {
@@ -193,6 +195,13 @@ export const typeDefs = /* GraphQL */ `
     Total number of comments
     """
     numComments: Int!
+  }
+
+  type PostFlagsPublic {
+    """
+    Whether the post's source is private or not
+    """
+    private: Boolean
   }
 
   """
@@ -398,6 +407,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the user downvoted this post
     """
     downvoted: Boolean
+
+    """
+    All the flags for the post
+    """
+    flags: PostFlagsPublic
   }
 
   type PostConnection {
