@@ -4,7 +4,7 @@ import createOrGetConnection from '../../src/db';
 import { ArticlePost, PostTag, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture, postTagsFixture } from '../fixture/post';
-import { getPostsTinybirdExport } from '../../src/common';
+import { getPostsTinybirdExport } from '../../src/cron/exportToTinybird';
 
 let con: DataSource;
 

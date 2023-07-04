@@ -2,9 +2,30 @@ import { Cron } from './cron';
 import fetch from 'node-fetch';
 import jsonexport from 'jsonexport';
 import FormData from 'form-data';
-
 import { promisify } from 'util';
-import { getPostsTinybirdExport } from '../common';
+import { DataSource } from 'typeorm';
+import { PostType, UNKNOWN_SOURCE } from '../entity';
+
+export const getPostsTinybirdExport = (con: DataSource, latest: Date) =>
+  con.query(
+    `SELECT "id",
+              "authorId"          AS "author_id",
+              "createdAt"         AS "created_at",
+              "metadataChangedAt" AS "metadata_changed_at",
+              "creatorTwitter"    AS "creator_twitter",
+              "sourceId"          AS "source_id",
+              (SELECT "s"."type" FROM "source" AS "s" WHERE "s"."id" = "sourceId") AS "source_type",
+              "tagsStr"           AS "tags_str",
+              ("banned" or "deleted" or not "showOnFeed")::int AS "banned", "type" AS "post_type",
+              "private"::int      AS "post_private"
+       FROM "post"
+       WHERE "metadataChangedAt" > $1
+         and "sourceId" != '${UNKNOWN_SOURCE}'
+         and "visible" = true
+         and "type" != '${PostType.Welcome}'
+      `,
+    [latest],
+  );
 
 const jsonexportPromise = promisify(jsonexport);
 
