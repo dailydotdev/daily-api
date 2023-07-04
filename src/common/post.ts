@@ -5,7 +5,9 @@ import {
   ExternalLinkPreview,
   FreeformPost,
   PostOrigin,
+  PostType,
   SquadSource,
+  UNKNOWN_SOURCE,
   User,
   WelcomePost,
 } from '../entity';
@@ -202,3 +204,24 @@ export const validatePost = (args: ValidatePostArgs): ValidatePostArgs => {
 
   return { title, content };
 };
+
+export const getPostsTinybirdExport = (con: DataSource, latest: Date) =>
+  con.query(
+    `SELECT "id",
+              "authorId"          AS "author_id",
+              "createdAt"         AS "created_at",
+              "metadataChangedAt" AS "metadata_changed_at",
+              "creatorTwitter"    AS "creator_twitter",
+              "sourceId"          AS "source_id",
+              (SELECT "s"."type" FROM "source" AS "s" WHERE "s"."id" = "sourceId") AS "source_type",
+              "tagsStr"           AS "tags_str",
+              ("banned" or "deleted" or not "showOnFeed")::int AS "banned", "type" AS "post_type",
+              "private"::int      AS "post_private"
+       FROM "post"
+       WHERE "metadataChangedAt" > $1
+         and "sourceId" != '${UNKNOWN_SOURCE}'
+         and "visible" = true
+         and "type" != '${PostType.Welcome}'
+      `,
+    [latest],
+  );

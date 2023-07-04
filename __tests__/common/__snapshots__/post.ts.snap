@@ -1,0 +1,3 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`getPostsTinybirdExport function should return posts to export to tinybird with specific properties 1`] = `Array []`;
