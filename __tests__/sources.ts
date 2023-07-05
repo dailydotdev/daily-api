@@ -378,6 +378,16 @@ query Source($id: ID!) {
     expect(res.errors).toBeFalsy();
     expect(res.data.source.id).toEqual('a');
   });
+
+  it('should return correct public property when source is private', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { handle: 'handle', private: true });
+    const res = await client.query(QUERY, { variables: { id: 'handle' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.public).toEqual(false);
+  });
 });
 
 describe('query sourceHandleExists', () => {
