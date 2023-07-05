@@ -36,7 +36,7 @@ export type PostFlags = Partial<{
   promoteToPublic: boolean;
 }>;
 
-export type PostFlagsPublic = Pick<PostFlags, 'private'>;
+export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
 
 @Entity()
 @Index('IDX_post_source_id_pinned_at_created_at', [

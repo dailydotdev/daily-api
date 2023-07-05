@@ -202,6 +202,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the post's source is private or not
     """
     private: Boolean
+
+    """
+    Wheter the post is promoted to public
+    """
+    promoteToPublic: Boolean
   }
 
   """
