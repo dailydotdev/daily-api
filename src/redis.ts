@@ -44,8 +44,16 @@ export function deleteKeysByPattern(pattern: string): Promise<void> {
   );
 }
 
-export const setRedisObject = (key, value) =>
+export const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
+
+export const setRedisObject = (key: string, value: string | Buffer | number) =>
   ioRedisPool.execute((client) => client.set(key, value));
+
+export const setTimedRedisObject = (
+  key: string,
+  value: string | Buffer | number,
+  seconds: number,
+) => ioRedisPool.execute((client) => client.set(key, value, 'EX', seconds));
 
 export const getRedisObject = (key) =>
   ioRedisPool.execute((client) => client.get(key));

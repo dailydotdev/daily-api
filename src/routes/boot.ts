@@ -18,15 +18,24 @@ import {
   User,
 } from '../entity';
 import {
+  getPermissionsForMember,
   GQLSource,
   SourcePermissions,
-  getPermissionsForMember,
 } from '../schema/sources';
 import { adjustFlagsToUser, getUserFeatureFlags } from '../featureFlags';
 import { getAlerts } from '../schema/alerts';
 import { getSettings } from '../schema/settings';
-import { getRedisObject, setRedisObject } from '../redis';
-import { REDIS_CHANGELOG_KEY } from '../config';
+import {
+  getRedisObject,
+  ONE_DAY_IN_SECONDS,
+  setRedisObject,
+  setTimedRedisObject,
+} from '../redis';
+import {
+  generateStorageKey,
+  REDIS_CHANGELOG_KEY,
+  StorageTopic,
+} from '../config';
 import { getSourceLink } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -57,8 +66,13 @@ export type BootUserReferral = Partial<{
   referralOrigin?: string;
 }>;
 
+interface AnonymousUser extends BootUserReferral {
+  id: string;
+  firstVisit: number;
+}
+
 export type AnonymousBoot = BaseBoot & {
-  user: { id: string } & BootUserReferral;
+  user: AnonymousUser;
   shouldLogout: boolean;
 };
 
@@ -318,6 +332,18 @@ const loggedInBoot = async (
   };
 };
 
+const getAnonymousFirstVisit = async (trackingId: string) => {
+  const key = generateStorageKey(StorageTopic.Boot, 'first_visit', trackingId);
+  const firstVisit = await getRedisObject(key);
+
+  if (!firstVisit) {
+    const now = new Date();
+    await setTimedRedisObject(key, now.getTime(), ONE_DAY_IN_SECONDS * 30);
+  }
+
+  return parseInt(firstVisit);
+};
+
 const anonymousBoot = async (
   con: DataSource,
   req: FastifyRequest,
@@ -325,13 +351,15 @@ const anonymousBoot = async (
   middleware?: BootMiddleware,
   shouldLogout = false,
 ): Promise<AnonymousBoot> => {
-  const [visit, flags, extra] = await Promise.all([
+  const [visit, flags, extra, firstVisit] = await Promise.all([
     visitSection(req, res),
     getUserFeatureFlags(req, con),
     middleware ? middleware(con, req, res) : {},
+    getAnonymousFirstVisit(req.trackingId),
   ]);
   return {
     user: {
+      firstVisit,
       id: req.trackingId,
       ...getReferralFromCookie({ req }),
     },
