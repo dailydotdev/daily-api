@@ -20,7 +20,7 @@ import createOrGetConnection from '../src/db';
 
   await con.transaction(async (manager) => {
     await manager.query(
-      `UPDATE post SET flags = flags || jsonb_build_object('sentAnalyticsReport', "sentAnalyticsReport", 'banned', "banned", 'deleted', "deleted", 'private', "private", 'visible', "visible", 'showOnFeed', "showOnFeed") where "createdAt" > '${createdAfterDate.toISOString()}'`,
+      `UPDATE post SET flags = flags || jsonb_build_object('sentAnalyticsReport', "sentAnalyticsReport", 'banned', "banned", 'deleted', "deleted", 'private', "private", 'visible', "visible", 'showOnFeed', "showOnFeed") WHERE "createdAt" > '${createdAfterDate.toISOString()}'`,
     );
   });
 
