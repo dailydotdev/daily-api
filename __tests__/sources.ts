@@ -23,7 +23,7 @@ import {
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { randomUUID } from 'crypto';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
@@ -95,8 +95,8 @@ beforeEach(async () => {
 afterAll(() => disposeGraphQLTesting(state));
 
 describe('query sources', () => {
-  const QUERY = (first = 10): string => `{
-  sources(first: ${first}) {
+  const QUERY = (first = 10, filterOpenSquads = false): string => `{
+  sources(first: ${first}, filterOpenSquads: ${filterOpenSquads}) {
     pageInfo {
       endCursor
       hasNextPage
@@ -107,6 +107,7 @@ describe('query sources', () => {
         name
         image
         public
+        type
       }
     }
   }
@@ -114,12 +115,13 @@ describe('query sources', () => {
 
   it('should return only public sources', async () => {
     const res = await client.query(QUERY());
-    expect(res.data).toMatchSnapshot();
+    const isPublic = res.data.sources.edges.every(({ node }) => !!node.public);
+    expect(isPublic).toBeTruthy();
   });
 
   it('should flag that more pages available', async () => {
     const res = await client.query(QUERY(1));
-    expect(res.data).toMatchSnapshot();
+    expect(res.data.sources.pageInfo.hasNextPage).toBeTruthy();
   });
 
   it('should return only active sources', async () => {
@@ -133,7 +135,35 @@ describe('query sources', () => {
       },
     ]);
     const res = await client.query(QUERY());
-    expect(res.data).toMatchSnapshot();
+    const isActive = res.data.sources.edges.every(
+      ({ node }) => node.id !== 'd',
+    );
+    expect(isActive).toBeTruthy();
+  });
+
+  const prepareSquads = async () => {
+    const repo = con.getRepository(Source);
+    const res = await client.query(QUERY(10, true));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sources.edges.length).toEqual(0);
+
+    await repo.update(
+      { id: In(['a', 'b']) },
+      { type: SourceType.Squad, private: true },
+    );
+    await repo.update({ id: 'b' }, { private: false });
+  };
+
+  it('should return only public squads', async () => {
+    await prepareSquads();
+
+    const res = await client.query(QUERY(10, true));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sources.edges.length).toEqual(1);
+    const allSquad = res.data.sources.edges.every(
+      ({ node }) => node.type === SourceType.Squad && node.public === true,
+    );
+    expect(allSquad).toBeTruthy();
   });
 });
 
@@ -347,6 +377,16 @@ query Source($id: ID!) {
     const res = await client.query(QUERY, { variables: { id: 'handle' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.source.id).toEqual('a');
+  });
+
+  it('should return correct public property when source is private', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { handle: 'handle', private: true });
+    const res = await client.query(QUERY, { variables: { id: 'handle' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.public).toEqual(false);
   });
 });
 

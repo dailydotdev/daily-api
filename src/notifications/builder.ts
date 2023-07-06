@@ -24,6 +24,7 @@ import { SourceMemberRoles } from '../roles';
 const MAX_COMMENT_LENGTH = 320;
 
 export const simplifyComment = (comment: string): string => {
+  if (!comment) return '';
   const simplified = markdownToTxt(comment);
   return simplified.length <= MAX_COMMENT_LENGTH
     ? simplified
