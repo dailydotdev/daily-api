@@ -388,6 +388,68 @@ query Source($id: ID!) {
     expect(res.errors).toBeFalsy();
     expect(res.data.source.public).toEqual(false);
   });
+
+  it('should return public source referralUrl for logged source member', async () => {
+    const QUERY = `
+    query Source($id: ID!) {
+      source(id: $id) {
+        id
+        name
+        image
+        public
+        currentMember {
+          referralToken
+        }
+        referralUrl
+      }
+    }`;
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { handle: 'handle', private: false });
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: 'referraltoken1',
+    });
+    const res = await client.query(QUERY, { variables: { id: 'handle' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.referralUrl).toBe(
+      `${process.env.COMMENTS_PREFIX}/squads/handle?cid=squad&userid=1`,
+    );
+  });
+
+  it('should return private source referralUrl for logged source member', async () => {
+    const QUERY = `
+    query Source($id: ID!) {
+      source(id: $id) {
+        id
+        name
+        image
+        public
+        currentMember {
+          referralToken
+        }
+        referralUrl
+      }
+    }`;
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { handle: 'handle', private: true });
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: 'referraltoken1',
+    });
+    const res = await client.query(QUERY, { variables: { id: 'handle' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.referralUrl).toBe(
+      `${process.env.COMMENTS_PREFIX}/squads/handle/referraltoken1`,
+    );
+  });
 });
 
 describe('query sourceHandleExists', () => {

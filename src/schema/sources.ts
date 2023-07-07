@@ -38,6 +38,7 @@ import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { randomUUID } from 'crypto';
 import {
   createSquadWelcomePost,
+  getShortUrl,
   getSourceLink,
   uploadSquadImage,
 } from '../common';
@@ -63,6 +64,7 @@ export interface GQLSource {
   members?: Connection<GQLSourceMember>;
   currentMember?: GQLSourceMember;
   privilegedMembers?: GQLSourceMember[];
+  referralUrl?: string;
 }
 
 export interface GQLSourceMember {
@@ -168,6 +170,11 @@ export const typeDefs = /* GraphQL */ `
     Role required for members to invite
     """
     memberInviteRole: String
+
+    """
+    URL for inviting and referring new users
+    """
+    referralUrl: String
   }
 
   type SourceConnection {
@@ -814,7 +821,26 @@ export const resolvers: IResolvers<any, Context> = {
       info,
     ): Promise<GQLSource> => {
       await ensureSourcePermissions(ctx, id);
-      return getSourceById(ctx, info, id);
+
+      const source = await getSourceById(ctx, info, id);
+      const sourceMember = source.currentMember;
+
+      if (sourceMember) {
+        const referralUrl = new URL(
+          `/squads/${source.handle}/${source.currentMember.referralToken}`,
+          process.env.COMMENTS_PREFIX,
+        );
+
+        if (source.public) {
+          referralUrl.pathname = `/squads/${source.handle}`;
+          referralUrl.searchParams.append('cid', 'squad');
+          referralUrl.searchParams.append('userid', ctx.userId);
+        }
+
+        source.referralUrl = await getShortUrl(referralUrl.toString(), ctx.log);
+      }
+
+      return source;
     },
     sourceHandleExists: async (_, { handle }: { handle: string }, ctx) => {
       validateRegex([['handle', handle, handleRegex, true]]);
