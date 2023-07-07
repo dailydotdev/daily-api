@@ -333,19 +333,17 @@ const loggedInBoot = async (
 };
 
 const getAnonymousFirstVisit = async (trackingId: string) => {
+  if (!trackingId) return null;
+
   const key = generateStorageKey(StorageTopic.Boot, 'first_visit', trackingId);
   const firstVisit = await getRedisObject(key);
+  const finalValue = firstVisit ?? new Date().toISOString();
 
   if (!firstVisit) {
-    const now = new Date();
-    await setRedisObjectWithExpiry(
-      key,
-      now.toISOString(),
-      ONE_DAY_IN_SECONDS * 30,
-    );
+    await setRedisObjectWithExpiry(key, finalValue, ONE_DAY_IN_SECONDS * 30);
   }
 
-  return firstVisit;
+  return finalValue;
 };
 
 const anonymousBoot = async (

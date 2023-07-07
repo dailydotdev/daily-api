@@ -87,6 +87,7 @@ const ANONYMOUS_BODY = {
   settings: SETTINGS_DEFAULT,
   user: {
     id: expect.any(String),
+    firstVisit: expect.any(String),
   },
   shouldLogout: false,
 };
@@ -151,6 +152,7 @@ describe('anonymous boot', () => {
       ...ANONYMOUS_BODY,
       user: {
         id: null,
+        firstVisit: null,
       },
       visit: {
         visitId: expect.any(String),
@@ -167,6 +169,7 @@ describe('anonymous boot', () => {
       ...ANONYMOUS_BODY,
       user: {
         id: null,
+        firstVisit: null,
         referralId: '1',
         referralOrigin: 'knightcampaign',
       },
