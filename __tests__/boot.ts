@@ -29,11 +29,7 @@ import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { notificationFixture } from './fixture/notifications';
 import { usersFixture } from './fixture/user';
 import { getRedisObject, ioRedisPool, setRedisObject } from '../src/redis';
-import {
-  generateStorageKey,
-  REDIS_CHANGELOG_KEY,
-  StorageTopic,
-} from '../src/config';
+import { REDIS_CHANGELOG_KEY } from '../src/config';
 import nock from 'nock';
 import { addDays, setMilliseconds } from 'date-fns';
 import setCookieParser from 'set-cookie-parser';
