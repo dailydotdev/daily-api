@@ -29,7 +29,7 @@ import {
   getRedisObject,
   ONE_DAY_IN_SECONDS,
   setRedisObject,
-  setTimedRedisObject,
+  setRedisObjectWithExpiry,
 } from '../redis';
 import {
   generateStorageKey,
@@ -338,7 +338,7 @@ const getAnonymousFirstVisit = async (trackingId: string) => {
 
   if (!firstVisit) {
     const now = new Date();
-    await setTimedRedisObject(key, now.getTime(), ONE_DAY_IN_SECONDS * 30);
+    await setRedisObjectWithExpiry(key, now.getTime(), ONE_DAY_IN_SECONDS * 30);
   }
 
   return parseInt(firstVisit);
