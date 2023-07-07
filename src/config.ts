@@ -19,5 +19,5 @@ export enum StorageTopic {
 export const generateStorageKey = (
   topic: StorageTopic,
   key: string,
-  identifier = 'global',
+  identifier: string, // mostly used for user id - "global" for global keys
 ): string => `${topic}:${key}:${identifier}`;

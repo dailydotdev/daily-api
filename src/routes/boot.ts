@@ -68,7 +68,7 @@ export type BootUserReferral = Partial<{
 
 interface AnonymousUser extends BootUserReferral {
   id: string;
-  firstVisit: number;
+  firstVisit: string;
 }
 
 export type AnonymousBoot = BaseBoot & {
@@ -338,10 +338,14 @@ const getAnonymousFirstVisit = async (trackingId: string) => {
 
   if (!firstVisit) {
     const now = new Date();
-    await setRedisObjectWithExpiry(key, now.getTime(), ONE_DAY_IN_SECONDS * 30);
+    await setRedisObjectWithExpiry(
+      key,
+      now.toISOString(),
+      ONE_DAY_IN_SECONDS * 30,
+    );
   }
 
-  return parseInt(firstVisit);
+  return firstVisit;
 };
 
 const anonymousBoot = async (
