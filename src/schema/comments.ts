@@ -832,7 +832,7 @@ export const resolvers: IResolvers<any, Context> = {
         });
       } catch (err) {
         if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
-          ctx.log.error({ err }, 'failed to save report to database');
+          throw new Error('Failed to save report to database');
         }
       }
 
