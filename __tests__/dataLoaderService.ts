@@ -3,11 +3,6 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { Context } from '../src/Context';
 
-jest.mock('../src/common', () => ({
-  ...(jest.requireActual('../src/common') as Record<string, unknown>),
-  notifyFeaturesReset: jest.fn(),
-}));
-
 let con: DataSource;
 let ctx: MockContext;
 

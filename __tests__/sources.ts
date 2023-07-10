@@ -389,7 +389,7 @@ query Source($id: ID!) {
     expect(res.data.source.public).toEqual(false);
   });
 
-  it('should return public source referralUrl for logged source member', async () => {
+  it('should return public squad referralUrl for logged source member', async () => {
     const QUERY = `
     query Source($id: ID!) {
       source(id: $id) {
@@ -406,7 +406,10 @@ query Source($id: ID!) {
     loggedUser = '1';
     await con
       .getRepository(Source)
-      .update({ id: 'a' }, { handle: 'handle', private: false });
+      .update(
+        { id: 'a' },
+        { handle: 'handle', private: false, type: SourceType.Squad },
+      );
     await con.getRepository(SourceMember).save({
       userId: '1',
       sourceId: 'a',
@@ -420,7 +423,7 @@ query Source($id: ID!) {
     );
   });
 
-  it('should return private source referralUrl for logged source member', async () => {
+  it('should return private squad referralUrl for logged source member', async () => {
     const QUERY = `
     query Source($id: ID!) {
       source(id: $id) {
@@ -437,7 +440,10 @@ query Source($id: ID!) {
     loggedUser = '1';
     await con
       .getRepository(Source)
-      .update({ id: 'a' }, { handle: 'handle', private: true });
+      .update(
+        { id: 'a' },
+        { handle: 'handle', private: true, type: SourceType.Squad },
+      );
     await con.getRepository(SourceMember).save({
       userId: '1',
       sourceId: 'a',
