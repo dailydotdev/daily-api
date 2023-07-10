@@ -38,7 +38,6 @@ import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { randomUUID } from 'crypto';
 import {
   createSquadWelcomePost,
-  getShortUrl,
   getSourceLink,
   uploadSquadImage,
 } from '../common';
@@ -821,26 +820,7 @@ export const resolvers: IResolvers<any, Context> = {
       info,
     ): Promise<GQLSource> => {
       await ensureSourcePermissions(ctx, id);
-
-      const source = await getSourceById(ctx, info, id);
-      const sourceMember = source.currentMember;
-
-      if (sourceMember) {
-        const referralUrl = new URL(
-          `/squads/${source.handle}/${source.currentMember.referralToken}`,
-          process.env.COMMENTS_PREFIX,
-        );
-
-        if (source.public) {
-          referralUrl.pathname = `/squads/${source.handle}`;
-          referralUrl.searchParams.append('cid', 'squad');
-          referralUrl.searchParams.append('userid', ctx.userId);
-        }
-
-        source.referralUrl = await getShortUrl(referralUrl.toString(), ctx.log);
-      }
-
-      return source;
+      return getSourceById(ctx, info, id);
     },
     sourceHandleExists: async (_, { handle }: { handle: string }, ctx) => {
       validateRegex([['handle', handle, handleRegex, true]]);
@@ -1282,5 +1262,48 @@ export const resolvers: IResolvers<any, Context> = {
   }),
   Source: {
     permalink: (source: GQLSource): string => getSourceLink(source),
+    referralUrl: async (source: GQLSource, _, ctx): Promise<string> => {
+      if (!ctx.userId) {
+        return null;
+      }
+
+      if (source.type !== SourceType.Squad) {
+        return null;
+      }
+
+      const referralUrl = new URL(
+        `/squads/${source.handle}`,
+        process.env.COMMENTS_PREFIX,
+      );
+
+      if (source.public) {
+        referralUrl.searchParams.append('cid', 'squad');
+        referralUrl.searchParams.append('userid', ctx.userId);
+      } else {
+        let referralToken = null;
+
+        if (!referralToken) {
+          const sourceMember: Pick<SourceMember, 'referralToken'> =
+            await ctx.con.getRepository(SourceMember).findOne({
+              select: ['referralToken'],
+              where: { sourceId: source.id, userId: ctx.userId },
+            });
+
+          referralToken = sourceMember?.referralToken;
+        }
+
+        if (!referralToken) {
+          return null;
+        }
+
+        referralUrl.pathname = `/squads/${source.handle}/${referralToken}`;
+      }
+
+      const shortUrl = await ctx.dataLoader.shortUrl.load(
+        referralUrl.toString(),
+      );
+
+      return shortUrl;
+    },
   },
 };

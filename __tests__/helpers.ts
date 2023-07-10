@@ -37,6 +37,7 @@ import {
 } from '../src/notifications';
 import flagsmith from '../src/flagsmith';
 import { Flags } from 'flagsmith-nodejs';
+import { DataLoaderService } from '../src/dataLoaderService';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -322,3 +323,22 @@ export const mockFeatureFlagForUser = (
 
 export const TEST_UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36';
+
+export class MockDataLoaderService extends DataLoaderService {
+  public loaders: DataLoaderService['loaders'];
+  public getLoader: DataLoaderService['getLoader'];
+  public mockLoadFn = jest.fn(async (key) => {
+    if (key instanceof Error) {
+      throw key;
+    }
+
+    return key;
+  });
+
+  get test() {
+    return this.getLoader({
+      type: 'test',
+      loadFn: this.mockLoadFn,
+    });
+  }
+}
