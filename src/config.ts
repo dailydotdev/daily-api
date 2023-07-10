@@ -11,3 +11,13 @@ export const fallbackImages = {
 };
 
 export const REDIS_CHANGELOG_KEY = 'boot:latest_changelog';
+
+export enum StorageTopic {
+  Boot = 'boot',
+}
+
+export const generateStorageKey = (
+  topic: StorageTopic,
+  key: string,
+  identifier: string, // mostly used for user id - "global" for global keys
+): string => `${topic}:${key}:${identifier}`;
