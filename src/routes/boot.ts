@@ -352,6 +352,7 @@ const getAnonymousFirstVisit = async (trackingId: string) => {
 
 // We released the firstVisit at July 10, 2023 - so to have a buffer time, the requirement is the day after.
 export const onboardingV2Requirement = new Date(2023, 6, 11);
+console.log('make changes here before releasing onboarding v2'); // just to make the fail test and avoid releasing onboarding v2
 
 const anonymousBoot = async (
   con: DataSource,
