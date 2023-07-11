@@ -215,7 +215,7 @@ export const createExternalLink = async (
       flags: {
         sentAnalyticsReport: true,
         private: true,
-        visible: true,
+        visible: isVisible,
       },
     });
     await createSharePost(

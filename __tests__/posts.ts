@@ -1245,6 +1245,7 @@ describe('mutation banPost', () => {
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.banned).toEqual(true);
+    expect(post.flags.banned).toEqual(true);
   });
 
   it('should do nothing if post is already banned', async () => {
