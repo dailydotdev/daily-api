@@ -520,7 +520,6 @@ const worker: Worker = {
       if (data.schema.name === 'io.debezium.connector.common.Heartbeat') {
         return;
       }
-      console.log('cdc!!');
       switch (data.payload.source.table) {
         case getTableName(con, Source):
           await onSourceChange(con, logger, data);
