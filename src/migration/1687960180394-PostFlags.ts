@@ -5,36 +5,17 @@ export class PostFlags1687960180394 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`ALTER TABLE "post" ADD "flags" jsonb NOT NULL DEFAULT '{}'`);
-
         await queryRunner.query(`CREATE INDEX "IDX_post_flags_sentAnalyticsReport" ON post USING HASH (((flags->'sentAnalyticsReport')::boolean))`);
         await queryRunner.query(`CREATE INDEX "IDX_post_flags_banned" ON post USING HASH (((flags->'banned')::boolean))`);
         await queryRunner.query(`CREATE INDEX "IDX_post_flags_deleted" ON post USING HASH (((flags->'deleted')::boolean))`);
         await queryRunner.query(`CREATE INDEX "IDX_post_flags_promoteToPublic" ON post USING HASH (((flags->'promoteToPublic')::boolean))`);
-
-        await queryRunner.query(`
-          CREATE OR REPLACE FUNCTION post_default_flags()
-            RETURNS TRIGGER
-            LANGUAGE PLPGSQL
-            AS
-          $$
-          BEGIN
-            NEW."flags" = '{"sentAnalyticsReport":true,"banned":false,"deleted":false,"private":false,"visible":true,"showOnFeed":true,"promoteToPublic":false}' || NEW."flags";
-            RETURN NEW;
-          END;
-          $$
-        `)
-        await queryRunner.query('CREATE TRIGGER post_default_flags_trigger BEFORE INSERT ON "post" FOR EACH ROW EXECUTE PROCEDURE post_default_flags()')
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query('DROP TRIGGER IF EXISTS post_default_flags_trigger ON post')
-        await queryRunner.query('DROP FUNCTION IF EXISTS post_default_flags')
-
         await queryRunner.query(`DROP INDEX "IDX_post_flags_sentAnalyticsReport"`);
         await queryRunner.query(`DROP INDEX "IDX_post_flags_banned"`);
         await queryRunner.query(`DROP INDEX "IDX_post_flags_deleted"`);
         await queryRunner.query(`DROP INDEX "IDX_post_flags_promoteToPublic"`);
-
         await queryRunner.query(`ALTER TABLE "post" DROP COLUMN "flags"`);
     }
 
