@@ -91,7 +91,6 @@ const ANONYMOUS_BODY = {
   user: {
     id: expect.any(String),
     firstVisit: expect.any(String),
-    isPreOnboardingV2: false,
   },
   shouldLogout: false,
 };
@@ -158,7 +157,6 @@ describe('anonymous boot', () => {
       user: {
         id: null,
         firstVisit: null,
-        isPreOnboardingV2: false,
       },
       visit: {
         visitId: expect.any(String),
@@ -176,7 +174,6 @@ describe('anonymous boot', () => {
       user: {
         id: null,
         firstVisit: null,
-        isPreOnboardingV2: false,
         referralId: '1',
         referralOrigin: 'knightcampaign',
       },
@@ -234,22 +231,23 @@ describe('anonymous boot', () => {
         new Date(2023, 6, 10).toISOString(),
       ),
     );
+    mockFeatureFlagForUser('onboarding_v2', true, 'v1');
     const second = await request(app.server)
       .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
       .set('Cookie', first.headers['set-cookie'])
       .expect(200);
     expect(second.body.user.id).toEqual(first.body.user.id);
-    expect(second.body.user.isPreOnboardingV2).toBeTruthy();
+    expect(second.body.flags.onboarding_v2.value).toEqual('control');
+  });
 
-    await ioRedisPool.execute((client) => client.flushall());
-
-    const third = await request(app.server)
+  it('should not change value if user is not a pre onboarding v2 user', async () => {
+    mockFeatureFlagForUser('onboarding_v2', true, 'v1');
+    const res = await request(app.server)
       .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
       .expect(200);
-    expect(third.body.user.id).not.toEqual(first.body.user.id);
-    expect(third.body.user.isPreOnboardingV2).toBeFalsy();
+    expect(res.body.flags.onboarding_v2.value).toEqual('v1');
   });
 });
 

@@ -95,14 +95,15 @@ export const adjustAnonymousFlags = (
   flags: IFlags,
   updates: UpdateParam[],
 ): IFlags => {
+  const updatedFlags = { ...flags };
+
   updates.forEach(({ feature, onCheckValidity, replacement }) => {
-    const isValid = onCheckValidity(flags[feature].value);
-    if (flags[feature].enabled && isValid) {
-      flags[feature] = { enabled: true, value: replacement };
+    if (flags?.[feature]?.enabled && onCheckValidity(flags[feature].value)) {
+      updatedFlags[feature] = { enabled: true, value: replacement };
     }
   });
 
-  return flags;
+  return updatedFlags;
 };
 
 export const adjustFlagsToUser = (flags: IFlags, user: User): IFlags => {
