@@ -212,11 +212,13 @@ const updatePost = async ({
   }
 
   if (databasePost.tagsStr !== data.tagsStr) {
-    await removeKeywords(
-      entityManager,
-      databasePost.tagsStr.split(','),
-      data.id,
-    );
+    if (databasePost.tagsStr?.length) {
+      await removeKeywords(
+        entityManager,
+        databasePost.tagsStr.split(','),
+        data.id,
+      );
+    }
     await addKeywords(entityManager, mergedKeywords, data.id);
   }
 

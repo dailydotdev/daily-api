@@ -34,6 +34,7 @@ import {
 } from '../common/markdown';
 import { ensureSourcePermissions, SourcePermissions } from './sources';
 import { generateShortId } from '../ids';
+import { CommentReport } from '../entity/CommentReport';
 
 export interface GQLComment {
   id: string;
@@ -73,6 +74,12 @@ interface GQLCommentCommentArgs {
 export interface GQLCommentUpvote {
   createdAt: Date;
   comment: GQLComment;
+}
+
+interface ReportCommentArgs {
+  commentId: string;
+  note: string;
+  reason: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -325,6 +332,24 @@ export const typeDefs = /* GraphQL */ `
       Id of the comment
       """
       id: ID!
+    ): EmptyResponse @auth
+
+    """
+    Report a comment from a post
+    """
+    reportComment(
+      """
+      Id of the comment to report
+      """
+      commentId: ID!
+      """
+      Reason the user would like to report
+      """
+      reason: ReportCommentReason
+      """
+      Additional comment about report reason
+      """
+      note: String
     ): EmptyResponse @auth
 
     """
@@ -783,6 +808,34 @@ export const resolvers: IResolvers<any, Context> = {
           .decrement({ id: comment.postId }, 'comments', 1 + childComments);
         await repo.delete({ id: comment.id });
       });
+      return { _: true };
+    },
+    reportComment: async (
+      source,
+      { commentId: id, reason, note }: ReportCommentArgs,
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      if (!reportCommentReasons.has(reason)) {
+        throw new ValidationError('Reason is invalid');
+      }
+
+      await ctx
+        .getRepository(Comment)
+        .findOneOrFail({ where: { id }, select: ['id'] });
+
+      try {
+        await ctx.getRepository(CommentReport).insert({
+          commentId: id,
+          userId: ctx.userId,
+          reason,
+          note,
+        });
+      } catch (err) {
+        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
+          throw new Error('Failed to save report to database');
+        }
+      }
+
       return { _: true };
     },
     upvoteComment: async (
