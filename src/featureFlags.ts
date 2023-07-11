@@ -100,7 +100,7 @@ export const adjustAnonymousFlags = (
     if (!flags?.[feature]?.enabled) return;
 
     if (!checkIsApplicable(flags[feature].value)) {
-      updatedFlags[feature] = { enabled: false, value: '' };
+      updatedFlags[feature] = { enabled: false, value: null };
     }
   });
 
