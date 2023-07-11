@@ -1,7 +1,7 @@
 import { Post } from '../entity';
 
 export const truncatePostToTweet = (post: Pick<Post, 'title'>): string => {
-  if (!post.title?.length) return '';
+  if (!post || !post.title?.length) return '';
 
   return post.title.length <= 130
     ? post.title

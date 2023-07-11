@@ -166,7 +166,7 @@ export const addKeywords = async (
 };
 
 const validateCommentary = async (commentary: string) => {
-  if (commentary.length > MAX_COMMENTARY_LENGTH) {
+  if (commentary?.length > MAX_COMMENTARY_LENGTH) {
     throw new ValidationError(
       JSON.stringify({
         commentary: `max size is ${MAX_COMMENTARY_LENGTH} chars`,
