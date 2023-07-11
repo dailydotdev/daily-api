@@ -1280,7 +1280,7 @@ export const resolvers: IResolvers<any, Context> = {
         referralUrl.searchParams.append('cid', 'squad');
         referralUrl.searchParams.append('userid', ctx.userId);
       } else {
-        let referralToken = null;
+        let referralToken = source.currentMember?.referralToken;
 
         if (!referralToken) {
           const sourceMember: Pick<SourceMember, 'referralToken'> =
