@@ -363,7 +363,9 @@ const anonymousBoot = async (
     middleware ? middleware(con, req, res) : {},
     getAnonymousFirstVisit(req.trackingId),
   ]);
-  const isPreOnboardingV2 = new Date(firstVisit) < onboardingV2Requirement;
+  const isPreOnboardingV2 = firstVisit
+    ? new Date(firstVisit) < onboardingV2Requirement
+    : false;
   return {
     user: {
       firstVisit,
