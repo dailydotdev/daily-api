@@ -22,7 +22,11 @@ import {
   GQLSource,
   SourcePermissions,
 } from '../schema/sources';
-import { adjustFlagsToUser, getUserFeatureFlags } from '../featureFlags';
+import {
+  adjustAnonymousFlags,
+  adjustFlagsToUser,
+  getUserFeatureFlags,
+} from '../featureFlags';
 import { getAlerts } from '../schema/alerts';
 import { getSettings } from '../schema/settings';
 import {
@@ -69,7 +73,6 @@ export type BootUserReferral = Partial<{
 interface AnonymousUser extends BootUserReferral {
   id: string;
   firstVisit: string;
-  isPreOnboardingV2: boolean;
 }
 
 export type AnonymousBoot = BaseBoot & {
@@ -366,15 +369,23 @@ const anonymousBoot = async (
   const isPreOnboardingV2 = firstVisit
     ? new Date(firstVisit) < onboardingV2Requirement
     : false;
+
+  const anonymousFlags = adjustAnonymousFlags(flags, [
+    {
+      replacement: 'control',
+      feature: 'onboarding_v2',
+      onCheckValidity: (value) => value !== 'control' && isPreOnboardingV2,
+    },
+  ]);
+
   return {
     user: {
       firstVisit,
-      isPreOnboardingV2,
       id: req.trackingId,
       ...getReferralFromCookie({ req }),
     },
     visit,
-    flags,
+    flags: anonymousFlags,
     alerts: { ...ALERTS_DEFAULT, changelog: false },
     settings: SETTINGS_DEFAULT,
     notifications: { unreadNotificationsCount: 0 },

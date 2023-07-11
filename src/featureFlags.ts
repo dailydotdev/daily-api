@@ -3,6 +3,7 @@ import pTimeout from 'p-timeout';
 import flagsmith, { IFlags } from './flagsmith';
 import { DataSource } from 'typeorm';
 import { Feature, User } from './entity';
+import { Flag } from 'flagsmith-nodejs/sdk/models';
 
 const FLAGSMITH_TIMEOUT = 1000;
 export const DEFAULT_FLAGS = {
@@ -82,6 +83,26 @@ const getSubmitArticleState = (flags: IFlags, user: User) => {
   }
 
   return flags?.submit_article;
+};
+
+interface UpdateParam {
+  feature: string;
+  replacement: Flag['value'];
+  onCheckValidity(value: Flag['value']): boolean;
+}
+
+export const adjustAnonymousFlags = (
+  flags: IFlags,
+  updates: UpdateParam[],
+): IFlags => {
+  updates.forEach(({ feature, onCheckValidity, replacement }) => {
+    const isValid = onCheckValidity(flags[feature].value);
+    if (flags[feature].enabled && isValid) {
+      flags[feature] = { enabled: true, value: replacement };
+    }
+  });
+
+  return flags;
 };
 
 export const adjustFlagsToUser = (flags: IFlags, user: User): IFlags => {
