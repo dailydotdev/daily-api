@@ -29,7 +29,11 @@ import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { notificationFixture } from './fixture/notifications';
 import { usersFixture } from './fixture/user';
 import { getRedisObject, ioRedisPool, setRedisObject } from '../src/redis';
-import { REDIS_CHANGELOG_KEY } from '../src/config';
+import {
+  generateStorageKey,
+  REDIS_CHANGELOG_KEY,
+  StorageTopic,
+} from '../src/config';
 import nock from 'nock';
 import { addDays, setMilliseconds } from 'date-fns';
 import setCookieParser from 'set-cookie-parser';
@@ -210,6 +214,39 @@ describe('anonymous boot', () => {
     expect(second.body.user.id).toEqual(first.body.user.id);
     expect(second.body.user.firstVisit).toBeTruthy();
     expect(second.body.user.firstVisit).toEqual(first.body.user.firstVisit);
+  });
+
+  it('should validate onboarding v2 requirement', async () => {
+    const first = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    await ioRedisPool.execute((client) =>
+      client.set(
+        generateStorageKey(
+          StorageTopic.Boot,
+          'first_visit',
+          first.body.user.id,
+        ),
+        new Date(2023, 6, 10).toISOString(),
+      ),
+    );
+    const second = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', first.headers['set-cookie'])
+      .expect(200);
+    expect(second.body.user.id).toEqual(first.body.user.id);
+    expect(second.body.user.isPreOnboardingV2).toBeTruthy();
+
+    await ioRedisPool.execute((client) => client.flushall());
+
+    const third = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(third.body.user.id).not.toEqual(first.body.user.id);
+    expect(third.body.user.isPreOnboardingV2).toBeFalsy();
   });
 });
 

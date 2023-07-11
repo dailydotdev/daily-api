@@ -69,6 +69,7 @@ export type BootUserReferral = Partial<{
 interface AnonymousUser extends BootUserReferral {
   id: string;
   firstVisit: string;
+  isPreOnboardingV2: boolean;
 }
 
 export type AnonymousBoot = BaseBoot & {
@@ -346,6 +347,9 @@ const getAnonymousFirstVisit = async (trackingId: string) => {
   return finalValue;
 };
 
+// We released the firstVisit at July 10, 2023 - so to have a buffer time, the requirement is the day after.
+export const onboardingV2Requirement = new Date(2023, 6, 11);
+
 const anonymousBoot = async (
   con: DataSource,
   req: FastifyRequest,
@@ -359,9 +363,11 @@ const anonymousBoot = async (
     middleware ? middleware(con, req, res) : {},
     getAnonymousFirstVisit(req.trackingId),
   ]);
+  const isPreOnboardingV2 = new Date(firstVisit) < onboardingV2Requirement;
   return {
     user: {
       firstVisit,
+      isPreOnboardingV2,
       id: req.trackingId,
       ...getReferralFromCookie({ req }),
     },
