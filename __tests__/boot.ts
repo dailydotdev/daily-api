@@ -238,7 +238,7 @@ describe('anonymous boot', () => {
       .set('Cookie', first.headers['set-cookie'])
       .expect(200);
     expect(second.body.user.id).toEqual(first.body.user.id);
-    expect(second.body.flags.onboarding_v2.value).toEqual('control');
+    expect(second.body.flags.onboarding_v2.enabled).toBeFalsy();
   });
 
   it('should not change value if user is not a pre onboarding v2 user', async () => {
@@ -247,6 +247,7 @@ describe('anonymous boot', () => {
       .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
       .expect(200);
+    expect(res.body.flags.onboarding_v2.enabled).toBeTruthy();
     expect(res.body.flags.onboarding_v2.value).toEqual('v1');
   });
 });

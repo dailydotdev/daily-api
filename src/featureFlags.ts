@@ -87,8 +87,7 @@ const getSubmitArticleState = (flags: IFlags, user: User) => {
 
 interface UpdateParam {
   feature: string;
-  replacement: Flag['value'];
-  onCheckValidity(value: Flag['value']): boolean;
+  checkIsApplicable(value: Flag['value']): boolean;
 }
 
 export const adjustAnonymousFlags = (
@@ -97,9 +96,11 @@ export const adjustAnonymousFlags = (
 ): IFlags => {
   const updatedFlags = { ...flags };
 
-  updates.forEach(({ feature, onCheckValidity, replacement }) => {
-    if (flags?.[feature]?.enabled && onCheckValidity(flags[feature].value)) {
-      updatedFlags[feature] = { enabled: true, value: replacement };
+  updates.forEach(({ feature, checkIsApplicable }) => {
+    if (!flags?.[feature]?.enabled) return;
+
+    if (!checkIsApplicable(flags[feature].value)) {
+      updatedFlags[feature] = { enabled: false, value: '' };
     }
   });
 

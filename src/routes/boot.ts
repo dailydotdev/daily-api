@@ -372,9 +372,8 @@ const anonymousBoot = async (
 
   const anonymousFlags = adjustAnonymousFlags(flags, [
     {
-      replacement: 'control',
+      checkIsApplicable: () => !isPreOnboardingV2,
       feature: 'onboarding_v2',
-      onCheckValidity: (value) => value !== 'control' && isPreOnboardingV2,
     },
   ]);
 
