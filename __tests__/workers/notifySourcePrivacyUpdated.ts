@@ -26,4 +26,5 @@ it('should change post privacy on source privacy update', async () => {
     .getRepository(Post)
     .findOneBy({ id: postsFixture[0].id });
   expect(post.private).toEqual(true);
+  expect(post.flags.private).toEqual(true);
 });
