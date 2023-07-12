@@ -11,7 +11,7 @@ export class PostFlagsDefaultValueTrigger1689068187186 implements MigrationInter
             AS
           $$
           BEGIN
-            NEW."flags" = '{"sentAnalyticsReport":true,"banned":false,"deleted":false,"private":false,"visible":true,"showOnFeed":true,"promoteToPublic":false}' || NEW."flags";
+            NEW."flags" = '{"sentAnalyticsReport":true,"visible":true,"showOnFeed":true}' || NEW."flags";
             RETURN NEW;
           END;
           $$
