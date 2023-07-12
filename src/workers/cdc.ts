@@ -523,7 +523,7 @@ const worker: Worker = {
       ) {
         return;
       }
-      logger.info({ data }, 'cdc message received');
+      // logger.info({ data }, 'cdc message received');
       switch (data.payload.source.table) {
         case getTableName(con, Source):
           await onSourceChange(con, logger, data);
