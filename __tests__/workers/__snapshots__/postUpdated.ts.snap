@@ -14,10 +14,7 @@ Object {
   "discussionScore": null,
   "downvotes": 0,
   "flags": Object {
-    "banned": false,
-    "deleted": false,
     "private": false,
-    "promoteToPublic": false,
     "sentAnalyticsReport": true,
     "showOnFeed": true,
     "visible": true,

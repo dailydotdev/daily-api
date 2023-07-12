@@ -3069,21 +3069,17 @@ describe('flags field', () => {
     expect(res.data.post.flags).toEqual({ private: true });
   });
 
-  it('should return default values for public flags', async () => {
+  it('should return null values for unset flags', async () => {
     const res = await client.query(QUERY);
-    expect(res.data.post.flags).toEqual({ private: false });
+    expect(res.data.post.flags).toEqual({ private: null });
   });
 
-  it('should contain all values in db query', async () => {
+  it('should contain all default values in db query', async () => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags).toEqual({
       sentAnalyticsReport: true,
-      banned: false,
-      deleted: false,
-      private: false,
       visible: true,
       showOnFeed: true,
-      promoteToPublic: false,
     });
   });
 });
