@@ -1,6 +1,7 @@
 import { messageToJson, Worker } from './worker';
 import { Post, Source } from '../entity';
 import { ChangeObject } from '../types';
+import { updateFlagsStatement } from '../common';
 
 interface Data {
   source: ChangeObject<Source>;
@@ -17,6 +18,7 @@ const worker: Worker = {
         },
         {
           private: source.private,
+          flags: updateFlagsStatement<Post>({ private: source.private }),
         },
       );
       logger.info(

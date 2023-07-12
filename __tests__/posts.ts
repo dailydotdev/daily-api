@@ -49,6 +49,7 @@ import {
   DEFAULT_POST_TITLE,
   pickImageUrl,
   createSquadWelcomePost,
+  updateFlagsStatement,
 } from '../src/common';
 import { randomUUID } from 'crypto';
 import nock from 'nock';
@@ -1244,6 +1245,7 @@ describe('mutation banPost', () => {
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.banned).toEqual(true);
+    expect(post.flags.banned).toEqual(true);
   });
 
   it('should do nothing if post is already banned', async () => {
@@ -3047,5 +3049,41 @@ describe('mutation cancelDownvote', () => {
     expect(actual).toEqual([]);
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.downvotes).toEqual(0);
+  });
+});
+
+describe('flags field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      flags {
+        private
+      }
+    }
+  }`;
+
+  it('should return all the public flags', async () => {
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { flags: updateFlagsStatement({ private: true }) });
+    const res = await client.query(QUERY);
+    expect(res.data.post.flags).toEqual({ private: true });
+  });
+
+  it('should return default values for public flags', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data.post.flags).toEqual({ private: false });
+  });
+
+  it('should contain all values in db query', async () => {
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags).toEqual({
+      sentAnalyticsReport: true,
+      banned: false,
+      deleted: false,
+      private: false,
+      visible: true,
+      showOnFeed: true,
+      promoteToPublic: false,
+    });
   });
 });
