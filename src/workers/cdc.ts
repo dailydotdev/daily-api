@@ -517,10 +517,13 @@ const worker: Worker = {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data: ChangeMessage<any> = messageToJson(message);
-      if (data.schema.name === 'io.debezium.connector.common.Heartbeat') {
+      if (
+        data.schema.name === 'io.debezium.connector.common.Heartbeat' ||
+        data.payload.op === 'r'
+      ) {
         return;
       }
-      logger.info({data}, 'cdc message received');
+      logger.info({ data }, 'cdc message received');
       switch (data.payload.source.table) {
         case getTableName(con, Source):
           await onSourceChange(con, logger, data);
