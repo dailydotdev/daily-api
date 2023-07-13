@@ -250,6 +250,12 @@ const [apps] = deployApplicationSuite(
         database_dbname: name,
         hostname: envVars.typeormHost as string,
       },
+      env: [
+        {
+          name: 'ENABLE_DEBEZIUM_SCRIPTING',
+          value: 'true',
+        },
+      ],
     },
     apps: appsArgs,
     crons: isAdhocEnv

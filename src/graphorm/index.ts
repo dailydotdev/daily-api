@@ -164,6 +164,9 @@ const obj = new GraphORM({
         select: existsByUserAndPost('Downvote'),
         transform: nullIfNotLoggedIn,
       },
+      flags: {
+        jsonType: true,
+      },
     },
   },
   Source: {
