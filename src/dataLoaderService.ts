@@ -4,7 +4,7 @@ import { getShortUrl } from './common';
 import { SourceMember } from './entity';
 import { GQLSource } from './schema/sources';
 
-const defaultCacheKeyFn = <K>(key: K) => {
+export const defaultCacheKeyFn = <K>(key: K) => {
   if (typeof key === 'object') {
     return JSON.stringify(key);
   }

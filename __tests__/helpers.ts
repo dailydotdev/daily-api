@@ -37,7 +37,7 @@ import {
 } from '../src/notifications';
 import flagsmith from '../src/flagsmith';
 import { Flags } from 'flagsmith-nodejs';
-import { DataLoaderService } from '../src/dataLoaderService';
+import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<RootSpan> & RootSpan;
@@ -339,6 +339,7 @@ export class MockDataLoaderService extends DataLoaderService {
     return this.getLoader({
       type: 'test',
       loadFn: this.mockLoadFn,
+      cacheKeyFn: defaultCacheKeyFn,
     });
   }
 }
