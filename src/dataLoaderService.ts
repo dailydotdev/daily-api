@@ -1,6 +1,16 @@
 import DataLoader, { BatchLoadFn } from 'dataloader';
 import { Context } from './Context';
 import { getShortUrl } from './common';
+import { SourceMember } from './entity';
+import { GQLSource } from './schema/sources';
+
+const defaultCacheKeyFn = <K>(key: K) => {
+  if (typeof key === 'object') {
+    return JSON.stringify(key);
+  }
+
+  return key.toString();
+};
 
 export class DataLoaderService {
   protected loaders: Record<string, DataLoader<unknown, unknown>>;
@@ -14,9 +24,11 @@ export class DataLoaderService {
   protected getLoader<K, V>({
     type,
     loadFn,
+    cacheKeyFn,
   }: {
     type: string;
     loadFn: (params: K) => Promise<V> | V;
+    cacheKeyFn: (key: K) => string;
   }): DataLoader<K, V> {
     if (!this.loaders[type]) {
       const batchLoadFn: BatchLoadFn<K, V> = async (keys) => {
@@ -32,13 +44,7 @@ export class DataLoaderService {
       };
 
       this.loaders[type] = new DataLoader(batchLoadFn, {
-        cacheKeyFn: (key: K) => {
-          if (typeof key === 'object') {
-            return JSON.stringify(key);
-          }
-
-          return key.toString();
-        },
+        cacheKeyFn,
         maxBatchSize: 30,
         name: `${DataLoaderService.name}.${type}`,
       });
@@ -51,6 +57,58 @@ export class DataLoaderService {
     return this.getLoader<string, string>({
       type: 'shortUrl',
       loadFn: (url) => getShortUrl(url, this.ctx.log),
+      cacheKeyFn: defaultCacheKeyFn,
+    });
+  }
+
+  get referralUrl() {
+    return this.getLoader<
+      {
+        source: Pick<GQLSource, 'id' | 'handle' | 'public' | 'currentMember'>;
+        userId: string;
+      },
+      string
+    >({
+      type: 'referralUrl',
+      loadFn: async ({ source, userId }) => {
+        const referralUrl = new URL(
+          `/squads/${source.handle}`,
+          process.env.COMMENTS_PREFIX,
+        );
+
+        if (source.public) {
+          referralUrl.searchParams.append('cid', 'squad');
+          referralUrl.searchParams.append('userid', userId);
+        } else {
+          let referralToken = source.currentMember?.referralToken;
+
+          if (!referralToken) {
+            const sourceMember: Pick<SourceMember, 'referralToken'> =
+              await this.ctx.con.getRepository(SourceMember).findOne({
+                select: ['referralToken'],
+                where: { sourceId: source.id, userId },
+              });
+
+            referralToken = sourceMember?.referralToken;
+          }
+
+          if (!referralToken) {
+            return null;
+          }
+
+          referralUrl.pathname = `/squads/${source.handle}/${referralToken}`;
+        }
+
+        const shortUrl = this.shortUrl.load(referralUrl.toString());
+
+        return shortUrl;
+      },
+      cacheKeyFn: (key) => {
+        const { source, userId } = key;
+        const { id: sourceId } = source;
+
+        return defaultCacheKeyFn({ sourceId, userId });
+      },
     });
   }
 }

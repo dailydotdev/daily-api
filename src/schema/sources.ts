@@ -1271,39 +1271,12 @@ export const resolvers: IResolvers<any, Context> = {
         return null;
       }
 
-      const referralUrl = new URL(
-        `/squads/${source.handle}`,
-        process.env.COMMENTS_PREFIX,
-      );
+      const referralUrl = await ctx.dataLoader.referralUrl.load({
+        source,
+        userId: ctx.userId,
+      });
 
-      if (source.public) {
-        referralUrl.searchParams.append('cid', 'squad');
-        referralUrl.searchParams.append('userid', ctx.userId);
-      } else {
-        let referralToken = source.currentMember?.referralToken;
-
-        if (!referralToken) {
-          const sourceMember: Pick<SourceMember, 'referralToken'> =
-            await ctx.con.getRepository(SourceMember).findOne({
-              select: ['referralToken'],
-              where: { sourceId: source.id, userId: ctx.userId },
-            });
-
-          referralToken = sourceMember?.referralToken;
-        }
-
-        if (!referralToken) {
-          return null;
-        }
-
-        referralUrl.pathname = `/squads/${source.handle}/${referralToken}`;
-      }
-
-      const shortUrl = await ctx.dataLoader.shortUrl.load(
-        referralUrl.toString(),
-      );
-
-      return shortUrl;
+      return referralUrl;
     },
   },
 };
