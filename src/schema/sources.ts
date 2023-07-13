@@ -794,7 +794,10 @@ export const resolvers: IResolvers<any, Context> = {
         (node, index) =>
           sourcePageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
-          builder.queryBuilder.andWhere(filter).limit(page.limit);
+          builder.queryBuilder
+            .andWhere(filter)
+            .limit(page.limit)
+            .offset(page.offset);
           return builder;
         },
       );
