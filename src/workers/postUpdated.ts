@@ -21,6 +21,7 @@ import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
+import { updateFlagsStatement } from '../common';
 
 interface Data {
   post_id: string;
@@ -196,9 +197,16 @@ const updatePost = async ({
     ? databasePost.visibleAt ?? updatedDate
     : null;
 
-  await entityManager
-    .getRepository(ArticlePost)
-    .update({ id: databasePost.id }, data);
+  await entityManager.getRepository(ArticlePost).update(
+    { id: databasePost.id },
+    {
+      ...data,
+      flags: updateFlagsStatement<Post>({
+        ...data.flags,
+        visible: data.visible,
+      }),
+    },
+  );
 
   if (updateBecameVisible) {
     await entityManager.getRepository(SharePost).update(
@@ -207,6 +215,11 @@ const updatePost = async ({
         visible: true,
         visibleAt: data.visibleAt,
         private: data.private,
+        flags: updateFlagsStatement<Post>({
+          ...data.flags,
+          private: data.private,
+          visible: true,
+        }),
       },
     );
   }
@@ -300,6 +313,12 @@ const fixData = async ({
       toc: data?.extra?.toc,
       contentCuration: data?.extra?.content_curation,
       showOnFeed: !data?.order,
+      flags: {
+        private: privacy,
+        visible: becomesVisible,
+        showOnFeed: !data?.order,
+        sentAnalyticsReport: privacy || !authorId,
+      },
     },
   };
 };
