@@ -241,7 +241,7 @@ const [apps] = deployApplicationSuite(
           ],
     },
     debezium: {
-      version: isAdhocEnv ? '2.0' : '1.9',
+      version: '2.0',
       topicName: debeziumTopicName,
       propsPath: './application.properties',
       propsVars: {
