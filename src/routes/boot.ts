@@ -22,7 +22,11 @@ import {
   GQLSource,
   SourcePermissions,
 } from '../schema/sources';
-import { adjustFlagsToUser, getUserFeatureFlags } from '../featureFlags';
+import {
+  adjustAnonymousFlags,
+  adjustFlagsToUser,
+  getUserFeatureFlags,
+} from '../featureFlags';
 import { getAlerts } from '../schema/alerts';
 import { getSettings } from '../schema/settings';
 import {
@@ -346,6 +350,10 @@ const getAnonymousFirstVisit = async (trackingId: string) => {
   return finalValue;
 };
 
+// We released the firstVisit at July 10, 2023.
+// There should have been enough buffer time since we are releasing on July 13, 2023.
+export const onboardingV2Requirement = new Date(2023, 6, 13);
+
 const anonymousBoot = async (
   con: DataSource,
   req: FastifyRequest,
@@ -359,6 +367,17 @@ const anonymousBoot = async (
     middleware ? middleware(con, req, res) : {},
     getAnonymousFirstVisit(req.trackingId),
   ]);
+  const isPreOnboardingV2 = firstVisit
+    ? new Date(firstVisit) < onboardingV2Requirement
+    : false;
+
+  const anonymousFlags = adjustAnonymousFlags(flags, [
+    {
+      checkIsApplicable: () => !isPreOnboardingV2,
+      feature: 'onboarding_v2',
+    },
+  ]);
+
   return {
     user: {
       firstVisit,
@@ -366,7 +385,7 @@ const anonymousBoot = async (
       ...getReferralFromCookie({ req }),
     },
     visit,
-    flags,
+    flags: anonymousFlags,
     alerts: { ...ALERTS_DEFAULT, changelog: false },
     settings: SETTINGS_DEFAULT,
     notifications: { unreadNotificationsCount: 0 },

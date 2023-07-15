@@ -17,12 +17,7 @@ import {
   sourceRoleRank,
   sourceRoleRankKeys,
 } from '../roles';
-import {
-  forwardPagination,
-  GQLEmptyResponse,
-  offsetPageGenerator,
-  PaginationResponse,
-} from './common';
+import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import graphorm from '../graphorm';
 import {
   DataSource,
@@ -695,6 +690,8 @@ const membershipsPageGenerator = createDatePageGenerator<
   key: 'createdAt',
 });
 
+const sourcePageGenerator = offsetPageGenerator<GQLSource>(100, 500);
+
 type CreateSquadArgs = {
   name: string;
   handle: string;
@@ -776,32 +773,35 @@ interface SourcesArgs extends ConnectionArguments {
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Query: traceResolverObject<any, any>({
-    sources: forwardPagination(
-      async (
-        source,
-        args: SourcesArgs,
+    sources: async (
+      _,
+      args: SourcesArgs,
+      ctx,
+      info,
+    ): Promise<Connection<GQLSource>> => {
+      const filter: FindOptionsWhere<Source> = { active: true };
+
+      if (args.filterOpenSquads) {
+        filter.type = SourceType.Squad;
+        filter.private = false;
+      }
+      const page = sourcePageGenerator.connArgsToPage(args);
+      return graphorm.queryPaginated(
         ctx,
-        { limit, offset },
-      ): Promise<PaginationResponse<GQLSource>> => {
-        const filter: FindOptionsWhere<Source> = { active: true };
-
-        if (args.filterOpenSquads) {
-          filter.type = SourceType.Squad;
-          filter.private = false;
-        }
-
-        const res = await ctx.con.getRepository(Source).find({
-          where: filter,
-          order: { name: 'ASC' },
-          take: limit,
-          skip: offset,
-        });
-        return {
-          nodes: res.map(sourceToGQL),
-        };
-      },
-      offsetPageGenerator(100, 500),
-    ),
+        info,
+        (nodeSize) => sourcePageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => sourcePageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          sourcePageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .andWhere(filter)
+            .limit(page.limit)
+            .offset(page.offset);
+          return builder;
+        },
+      );
+    },
     sourceByFeed: async (
       _,
       { feed }: { feed: string },
