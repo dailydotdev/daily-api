@@ -1,4 +1,4 @@
-import { ChildEntity, ManyToMany, PrimaryColumn } from 'typeorm';
+import { ChildEntity, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Post } from '../posts';
 import { NotificationPreferenceType } from '../../notifications/common';
 import { NotificationPreference } from './NotificationPreference';
@@ -8,6 +8,6 @@ export class NotificationPreferencePost extends NotificationPreference {
   @PrimaryColumn({ type: 'text', default: null })
   postId?: string;
 
-  @ManyToMany(() => Post, { lazy: true, onDelete: 'CASCADE' })
+  @ManyToOne(() => Post, { lazy: true, onDelete: 'CASCADE' })
   post: Promise<Post>;
 }
