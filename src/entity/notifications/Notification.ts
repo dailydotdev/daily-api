@@ -11,7 +11,7 @@ import {
 import { User } from '../User';
 import { NotificationAvatar } from './NotificationAvatar';
 import { NotificationAttachment } from './NotificationAttachment';
-import { NotificationType } from './common';
+import { NotificationType } from '../../notifications';
 
 export type NotificationReferenceType =
   | 'source_request'

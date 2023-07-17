@@ -4,7 +4,6 @@ import {
   CommentUpvote,
   FeatureType,
   MachineSource,
-  NotificationType,
   Post,
   PostReport,
   PostType,
@@ -32,6 +31,7 @@ import {
   NotificationSourceContext,
   NotificationSourceRequestContext,
   NotificationUpvotersContext,
+  NotificationType,
 } from '../../src/notifications';
 import { createSquadWelcomePost, NotificationReason } from '../../src/common';
 import { randomUUID } from 'crypto';

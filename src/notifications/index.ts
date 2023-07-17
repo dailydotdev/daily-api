@@ -2,14 +2,15 @@ import {
   Notification,
   NotificationAttachment,
   NotificationAvatar,
-  NotificationType,
 } from '../entity';
 import { DeepPartial, EntityManager } from 'typeorm';
 import { NotificationBuilder } from './builder';
 import { NotificationBaseContext, NotificationBundle } from './types';
 import { generateNotificationMap, notificationTitleMap } from './generate';
+import { NotificationType } from './common';
 
 export * from './types';
+export * from './common';
 
 export function generateNotification(
   type: NotificationType,

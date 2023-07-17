@@ -25,3 +25,13 @@ export enum NotificationType {
   PromotedToModerator = 'promoted_to_moderator',
   PostMention = 'post_mention',
 }
+
+export enum NotificationPreferenceType {
+  Post = 'post',
+  Comment = 'comment',
+  Source = 'source',
+}
+
+export enum NotificationPreferenceStatus {
+  Muted = 'muted',
+}

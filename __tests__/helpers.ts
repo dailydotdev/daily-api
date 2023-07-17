@@ -29,11 +29,11 @@ import {
   NotificationHandlerReturn,
   NotificationWorker,
 } from '../src/workers/notifications/worker';
-import { NotificationType } from '../src/entity';
 import {
   generateNotification,
   NotificationBaseContext,
   storeNotificationBundle,
+  NotificationType,
 } from '../src/notifications';
 import flagsmith from '../src/flagsmith';
 import { Flags } from 'flagsmith-nodejs';

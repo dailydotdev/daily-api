@@ -1,8 +1,7 @@
 import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import { Message } from '../worker';
-import { NotificationType } from '../../entity';
-import { NotificationBaseContext } from '../../notifications';
+import { NotificationBaseContext, NotificationType } from '../../notifications';
 
 export type NotificationHandlerReturn = {
   type: NotificationType;

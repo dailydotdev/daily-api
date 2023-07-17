@@ -1,15 +1,9 @@
 import { Column, Entity, PrimaryColumn, TableInheritance } from 'typeorm';
-import { NotificationType } from './common';
-
-export enum NotificationPreferenceType {
-  Post = 'post',
-  Comment = 'comment',
-  Source = 'source',
-}
-
-enum NotificationPreferenceStatus {
-  Muted = 'muted',
-}
+import {
+  NotificationPreferenceStatus,
+  NotificationPreferenceType,
+  NotificationType,
+} from '../../notifications';
 
 @Entity()
 @TableInheritance({ column: { type: 'varchar', name: 'type' } })
