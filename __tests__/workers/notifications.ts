@@ -1038,7 +1038,7 @@ it('should add comment mention notification', async () => {
     },
   });
   expect(actual.length).toEqual(1);
-  expect(actual[0].type).toEqual('comment_mention');
+  expect(actual[0].type).toEqual(NotificationType.CommentMention);
   expect(actual[0].ctx.userId).toEqual('1');
   expect((actual[0].ctx as NotificationPostContext).post.id).toEqual('p1');
   expect((actual[0].ctx as NotificationPostContext).source.id).toEqual('a');
