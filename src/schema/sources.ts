@@ -58,6 +58,7 @@ export interface GQLSource {
   members?: Connection<GQLSourceMember>;
   currentMember?: GQLSourceMember;
   privilegedMembers?: GQLSourceMember[];
+  referralUrl?: string;
 }
 
 export interface GQLSourceMember {
@@ -163,6 +164,11 @@ export const typeDefs = /* GraphQL */ `
     Role required for members to invite
     """
     memberInviteRole: String
+
+    """
+    URL for inviting and referring new users
+    """
+    referralUrl: String
   }
 
   type SourceConnection {
@@ -1256,5 +1262,21 @@ export const resolvers: IResolvers<any, Context> = {
   }),
   Source: {
     permalink: (source: GQLSource): string => getSourceLink(source),
+    referralUrl: async (source: GQLSource, _, ctx): Promise<string> => {
+      if (!ctx.userId) {
+        return null;
+      }
+
+      if (source.type !== SourceType.Squad) {
+        return null;
+      }
+
+      const referralUrl = await ctx.dataLoader.referralUrl.load({
+        source,
+        userId: ctx.userId,
+      });
+
+      return referralUrl;
+    },
   },
 };
