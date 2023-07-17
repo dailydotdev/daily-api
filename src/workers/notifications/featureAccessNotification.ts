@@ -3,7 +3,7 @@ import { ChangeObject } from '../../types';
 import { Feature } from '../../entity/Feature';
 import { NotificationWorker } from './worker';
 import { SourceMember } from '../../entity';
-import { NotificationType } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 
 interface Data {
   feature: ChangeObject<Feature>;

@@ -2,8 +2,8 @@ import { messageToJson } from '../worker';
 import {
   NotificationDoneByContext,
   NotificationPostContext,
-  NotificationType,
 } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import {

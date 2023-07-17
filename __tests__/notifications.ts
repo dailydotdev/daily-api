@@ -22,7 +22,7 @@ import { notificationFixture } from './fixture/notifications';
 import { subDays } from 'date-fns';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
-import { NotificationType } from '../src/notifications';
+import { NotificationType } from '../src/notifications/common';
 
 let app: FastifyInstance;
 let con: DataSource;

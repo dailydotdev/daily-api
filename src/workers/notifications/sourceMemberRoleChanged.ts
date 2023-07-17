@@ -4,7 +4,7 @@ import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { Source, SourceMember } from '../../entity';
 import { SourceMemberRoles } from '../../roles';
-import { NotificationType } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 
 interface Data {
   previousRole: SourceMemberRoles;

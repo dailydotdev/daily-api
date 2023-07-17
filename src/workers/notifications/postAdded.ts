@@ -11,8 +11,8 @@ import {
 import {
   NotificationDoneByContext,
   NotificationPostContext,
-  NotificationType,
 } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';

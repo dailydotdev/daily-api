@@ -1,9 +1,7 @@
 import { messageToJson } from '../worker';
 import { Comment, CommentMention } from '../../entity';
-import {
-  NotificationCommenterContext,
-  NotificationType,
-} from '../../notifications';
+import { NotificationCommenterContext } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';

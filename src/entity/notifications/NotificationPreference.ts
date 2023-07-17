@@ -3,7 +3,7 @@ import {
   NotificationPreferenceStatus,
   NotificationPreferenceType,
   NotificationType,
-} from '../../notifications';
+} from '../../notifications/common';
 
 @Entity()
 @TableInheritance({ column: { type: 'varchar', name: 'type' } })

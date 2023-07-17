@@ -3,8 +3,8 @@ import { PostMention, User } from '../../entity';
 import {
   NotificationDoneByContext,
   NotificationPostContext,
-  NotificationType,
 } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';

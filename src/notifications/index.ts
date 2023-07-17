@@ -10,8 +10,6 @@ import { generateNotificationMap, notificationTitleMap } from './generate';
 import { NotificationType } from './common';
 
 export * from './types';
-export * from './common';
-
 export function generateNotification(
   type: NotificationType,
   ctx: NotificationBaseContext,

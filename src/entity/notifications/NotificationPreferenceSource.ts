@@ -1,6 +1,6 @@
 import { ChildEntity, ManyToMany, PrimaryColumn } from 'typeorm';
 import { Source } from '../Source';
-import { NotificationPreferenceType } from '../../notifications';
+import { NotificationPreferenceType } from '../../notifications/common';
 
 @ChildEntity(NotificationPreferenceType.Source)
 export class NotificationPreferencePost {

@@ -31,8 +31,8 @@ import {
   NotificationSourceContext,
   NotificationSourceRequestContext,
   NotificationUpvotersContext,
-  NotificationType,
 } from '../../src/notifications';
+import { NotificationType } from '../../src/notifications/common';
 import { createSquadWelcomePost, NotificationReason } from '../../src/common';
 import { randomUUID } from 'crypto';
 

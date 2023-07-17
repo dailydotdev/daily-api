@@ -1,5 +1,5 @@
 import { ChildEntity, ManyToMany, PrimaryColumn } from 'typeorm';
-import { NotificationPreferenceType } from '../../notifications';
+import { NotificationPreferenceType } from '../../notifications/common';
 import { Comment } from '../Comment';
 
 @ChildEntity(NotificationPreferenceType.Comment)

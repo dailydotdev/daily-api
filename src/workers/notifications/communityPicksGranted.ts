@@ -1,5 +1,6 @@
 import { messageToJson } from '../worker';
-import { NotificationBaseContext, NotificationType } from '../../notifications';
+import { NotificationBaseContext } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 
 interface Data {

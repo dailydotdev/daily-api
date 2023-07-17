@@ -11,8 +11,8 @@ import {
 import {
   NotificationCommenterContext,
   NotificationPostContext,
-  NotificationType,
 } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { DataSource, In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';

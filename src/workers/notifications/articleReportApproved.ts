@@ -3,7 +3,7 @@ import { Post, PostReport } from '../../entity';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';
-import { NotificationType } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 
 interface Data {
   post: ChangeObject<Post>;

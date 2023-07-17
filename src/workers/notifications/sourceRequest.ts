@@ -1,9 +1,7 @@
 import { messageToJson } from '../worker';
 import { Source, SourceRequest } from '../../entity';
-import {
-  NotificationSourceRequestContext,
-  NotificationType,
-} from '../../notifications';
+import { NotificationSourceRequestContext } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { NotificationReason } from '../../common';
 import { ChangeObject } from '../../types';

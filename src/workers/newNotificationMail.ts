@@ -29,7 +29,7 @@ import {
 import { DataSource } from 'typeorm';
 import { SubmissionFailErrorMessage } from '../errors';
 import { simplifyComment } from '../notifications/builder';
-import { NotificationType } from '../notifications';
+import { NotificationType } from '../notifications/common';
 
 interface Data {
   notification: ChangeObject<Notification>;

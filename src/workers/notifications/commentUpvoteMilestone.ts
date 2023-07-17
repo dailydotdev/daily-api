@@ -2,9 +2,9 @@ import { messageToJson } from '../worker';
 import { Comment, CommentUpvote, SourceMember, SourceType } from '../../entity';
 import {
   NotificationCommentContext,
-  NotificationType,
   NotificationUpvotersContext,
 } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { buildPostContext, UPVOTE_MILESTONES } from './utils';
 import { Not } from 'typeorm';

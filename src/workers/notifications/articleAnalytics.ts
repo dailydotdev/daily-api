@@ -1,7 +1,7 @@
 import { messageToJson } from '../worker';
 import { NotificationWorker } from './worker';
 import { buildPostContext, uniquePostOwners } from './utils';
-import { NotificationType } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 
 interface Data {
   postId: string;

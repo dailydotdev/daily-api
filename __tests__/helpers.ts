@@ -33,8 +33,8 @@ import {
   generateNotification,
   NotificationBaseContext,
   storeNotificationBundle,
-  NotificationType,
 } from '../src/notifications';
+import { NotificationType } from '../src/notifications/common';
 import flagsmith from '../src/flagsmith';
 import { Flags } from 'flagsmith-nodejs';
 
