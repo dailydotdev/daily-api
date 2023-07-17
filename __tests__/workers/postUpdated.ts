@@ -136,6 +136,7 @@ it('should update the post and keep it invisible if title is missing', async () 
   const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
   expect(post.metadataChangedAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
   expect(post.visible).toEqual(false);
+  expect(post.flags.visible).toEqual(false);
 });
 
 it('should update the post and make it visible if title is available', async () => {
@@ -147,6 +148,7 @@ it('should update the post and make it visible if title is available', async () 
   const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
   expect(post.metadataChangedAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
   expect(post.visible).toEqual(true);
+  expect(post.flags.visible).toEqual(true);
   expect(post.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
   expect(post.title).toEqual('test');
 });
@@ -162,17 +164,20 @@ it('should update all the post related shared posts to visible', async () => {
   const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
   expect(post.metadataChangedAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
   expect(post.visible).toEqual(true);
+  expect(post.flags.visible).toEqual(true);
   expect(post.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
   expect(post.title).toEqual('test');
   const sharedPost = await con
     .getRepository(SharePost)
     .findOneBy({ id: 'sp1' });
   expect(sharedPost.visible).toEqual(true);
+  expect(sharedPost.flags.visible).toEqual(true);
   expect(sharedPost.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
   const sharedPost2 = await con
     .getRepository(SharePost)
     .findOneBy({ id: 'sp2' });
   expect(sharedPost2?.visible).toEqual(true);
+  expect(sharedPost2?.flags.visible).toEqual(true);
   expect(sharedPost2?.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
 });
 
@@ -237,6 +242,7 @@ it('should save a new post with the relevant content curation', async () => {
   const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
   expect(post.metadataChangedAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
   expect(post.visible).toEqual(true);
+  expect(post.flags.visible).toEqual(true);
   expect(post.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
   expect(post.title).toEqual('test');
   expect(post.contentCuration).toEqual(['news', 'story', 'release']);
@@ -312,6 +318,7 @@ it('save a post as public if source is public', async () => {
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(2);
   expect(posts[1].private).toEqual(false);
+  expect(posts[1].flags.private).toEqual(false);
 });
 
 it('save a post as private if source is private', async () => {
@@ -323,6 +330,7 @@ it('save a post as private if source is private', async () => {
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(2);
   expect(posts[1].private).toBe(true);
+  expect(posts[1].flags.private).toBe(true);
 });
 
 it('should save a new post with the relevant scout id and update submission', async () => {

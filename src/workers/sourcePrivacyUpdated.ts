@@ -18,7 +18,7 @@ const worker: Worker = {
         },
         {
           private: source.private,
-          flags: updateFlagsStatement({ private: source.private }),
+          flags: updateFlagsStatement<Post>({ private: source.private }),
         },
       );
       logger.info(

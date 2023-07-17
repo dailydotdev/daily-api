@@ -201,7 +201,10 @@ const updatePost = async ({
     { id: databasePost.id },
     {
       ...data,
-      flags: updateFlagsStatement({ ...data.flags, visible: data.visible }),
+      flags: updateFlagsStatement<Post>({
+        ...data.flags,
+        visible: data.visible,
+      }),
     },
   );
 
@@ -212,7 +215,7 @@ const updatePost = async ({
         visible: true,
         visibleAt: data.visibleAt,
         private: data.private,
-        flags: updateFlagsStatement({
+        flags: updateFlagsStatement<Post>({
           ...data.flags,
           private: data.private,
           visible: true,
@@ -222,11 +225,13 @@ const updatePost = async ({
   }
 
   if (databasePost.tagsStr !== data.tagsStr) {
-    await removeKeywords(
-      entityManager,
-      databasePost.tagsStr.split(','),
-      data.id,
-    );
+    if (databasePost.tagsStr?.length) {
+      await removeKeywords(
+        entityManager,
+        databasePost.tagsStr.split(','),
+        data.id,
+      );
+    }
     await addKeywords(entityManager, mergedKeywords, data.id);
   }
 

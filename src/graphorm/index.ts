@@ -173,6 +173,7 @@ const obj = new GraphORM({
     requiredColumns: ['id', 'private', 'handle', 'type'],
     fields: {
       public: {
+        select: 'private',
         transform: (value: boolean): boolean => !value,
       },
       members: {

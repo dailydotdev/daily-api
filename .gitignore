@@ -9,3 +9,4 @@ prod.sh
 schema.graphql
 debezium/conf/key.json
 debezium/data
+coverage

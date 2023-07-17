@@ -18,15 +18,28 @@ import {
   User,
 } from '../entity';
 import {
+  getPermissionsForMember,
   GQLSource,
   SourcePermissions,
-  getPermissionsForMember,
 } from '../schema/sources';
-import { adjustFlagsToUser, getUserFeatureFlags } from '../featureFlags';
+import {
+  adjustAnonymousFlags,
+  adjustFlagsToUser,
+  getUserFeatureFlags,
+} from '../featureFlags';
 import { getAlerts } from '../schema/alerts';
 import { getSettings } from '../schema/settings';
-import { getRedisObject, setRedisObject } from '../redis';
-import { REDIS_CHANGELOG_KEY } from '../config';
+import {
+  getRedisObject,
+  ONE_DAY_IN_SECONDS,
+  setRedisObject,
+  setRedisObjectWithExpiry,
+} from '../redis';
+import {
+  generateStorageKey,
+  REDIS_CHANGELOG_KEY,
+  StorageTopic,
+} from '../config';
 import { getSourceLink } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -57,8 +70,13 @@ export type BootUserReferral = Partial<{
   referralOrigin?: string;
 }>;
 
+interface AnonymousUser extends BootUserReferral {
+  id: string;
+  firstVisit: string;
+}
+
 export type AnonymousBoot = BaseBoot & {
-  user: { id: string } & BootUserReferral;
+  user: AnonymousUser;
   shouldLogout: boolean;
 };
 
@@ -318,6 +336,24 @@ const loggedInBoot = async (
   };
 };
 
+const getAnonymousFirstVisit = async (trackingId: string) => {
+  if (!trackingId) return null;
+
+  const key = generateStorageKey(StorageTopic.Boot, 'first_visit', trackingId);
+  const firstVisit = await getRedisObject(key);
+  const finalValue = firstVisit ?? new Date().toISOString();
+
+  if (!firstVisit) {
+    await setRedisObjectWithExpiry(key, finalValue, ONE_DAY_IN_SECONDS * 30);
+  }
+
+  return finalValue;
+};
+
+// We released the firstVisit at July 10, 2023.
+// There should have been enough buffer time since we are releasing on July 13, 2023.
+export const onboardingV2Requirement = new Date(2023, 6, 13);
+
 const anonymousBoot = async (
   con: DataSource,
   req: FastifyRequest,
@@ -325,18 +361,31 @@ const anonymousBoot = async (
   middleware?: BootMiddleware,
   shouldLogout = false,
 ): Promise<AnonymousBoot> => {
-  const [visit, flags, extra] = await Promise.all([
+  const [visit, flags, extra, firstVisit] = await Promise.all([
     visitSection(req, res),
     getUserFeatureFlags(req, con),
     middleware ? middleware(con, req, res) : {},
+    getAnonymousFirstVisit(req.trackingId),
   ]);
+  const isPreOnboardingV2 = firstVisit
+    ? new Date(firstVisit) < onboardingV2Requirement
+    : false;
+
+  const anonymousFlags = adjustAnonymousFlags(flags, [
+    {
+      checkIsApplicable: () => !isPreOnboardingV2,
+      feature: 'onboarding_v2',
+    },
+  ]);
+
   return {
     user: {
+      firstVisit,
       id: req.trackingId,
       ...getReferralFromCookie({ req }),
     },
     visit,
-    flags,
+    flags: anonymousFlags,
     alerts: { ...ALERTS_DEFAULT, changelog: false },
     settings: SETTINGS_DEFAULT,
     notifications: { unreadNotificationsCount: 0 },

@@ -1,5 +1,5 @@
 import { IncomingWebhook } from '@slack/webhook';
-import { Post } from '../entity';
+import { Post, Comment } from '../entity';
 import { getDiscussionLink } from './links';
 
 export const webhook = process.env.SLACK_WEBHOOK
@@ -63,6 +63,38 @@ export const notifyPostReport = async (
           {
             title: 'Tags',
             value: tags?.join(', '),
+          },
+        ],
+        color: '#FF1E1F',
+      },
+    ],
+  });
+};
+
+export const notifyCommentReport = async (
+  userId: string,
+  comment: Comment,
+  reason: string,
+  note?: string,
+): Promise<void> => {
+  await webhook.send({
+    text: 'Comment was just reported!',
+    attachments: [
+      {
+        title: comment.content,
+        title_link: getDiscussionLink(comment.postId, comment.id),
+        fields: [
+          {
+            title: 'User',
+            value: userId,
+          },
+          {
+            title: 'Reason',
+            value: reason,
+          },
+          {
+            title: 'Note',
+            value: note,
           },
         ],
         color: '#FF1E1F',
