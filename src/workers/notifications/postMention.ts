@@ -3,6 +3,7 @@ import { PostMention, User } from '../../entity';
 import {
   NotificationDoneByContext,
   NotificationPostContext,
+  NotificationType,
 } from '../../notifications';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
@@ -39,7 +40,7 @@ const worker: NotificationWorker = {
       doneBy,
       doneTo,
     };
-    return [{ type: 'post_mention', ctx }];
+    return [{ type: NotificationType.PostMention, ctx }];
   },
 };
 

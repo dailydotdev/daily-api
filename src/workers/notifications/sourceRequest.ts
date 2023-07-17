@@ -1,6 +1,9 @@
 import { messageToJson } from '../worker';
 import { Source, SourceRequest } from '../../entity';
-import { NotificationSourceRequestContext } from '../../notifications';
+import {
+  NotificationSourceRequestContext,
+  NotificationType,
+} from '../../notifications';
 import { NotificationWorker } from './worker';
 import { NotificationReason } from '../../common';
 import { ChangeObject } from '../../types';
@@ -23,11 +26,13 @@ const worker: NotificationWorker = {
         const source = await con
           .getRepository(Source)
           .findOneBy({ id: data.sourceRequest.sourceId });
-        return [{ type: 'source_approved', ctx: { ...ctx, source } }];
+        return [
+          { type: NotificationType.SourceApproved, ctx: { ...ctx, source } },
+        ];
       }
       case NotificationReason.Decline:
       case NotificationReason.Exists: {
-        return [{ type: 'source_rejected', ctx }];
+        return [{ type: NotificationType.SourceRejected, ctx }];
       }
       default:
         return null;

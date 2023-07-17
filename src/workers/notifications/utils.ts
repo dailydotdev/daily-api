@@ -11,6 +11,7 @@ import {
 import {
   NotificationCommenterContext,
   NotificationPostContext,
+  NotificationType,
 } from '../../notifications';
 import { DataSource, In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
@@ -106,8 +107,8 @@ export async function articleNewCommentHandler(
   };
   const type =
     ctx.source.type === SourceType.Squad
-      ? 'squad_new_comment'
-      : 'article_new_comment';
+      ? NotificationType.SquadNewComment
+      : NotificationType.ArticleNewComment;
 
   if (source.type === SourceType.Squad) {
     const members = await con.getRepository(SourceMember).findBy({

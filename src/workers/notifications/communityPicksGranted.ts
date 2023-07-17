@@ -1,5 +1,5 @@
 import { messageToJson } from '../worker';
-import { NotificationBaseContext } from '../../notifications';
+import { NotificationBaseContext, NotificationType } from '../../notifications';
 import { NotificationWorker } from './worker';
 
 interface Data {
@@ -13,7 +13,7 @@ const worker: NotificationWorker = {
     const ctx: NotificationBaseContext = {
       userId: data.userId,
     };
-    return [{ type: 'community_picks_granted', ctx }];
+    return [{ type: NotificationType.CommunityPicksGranted, ctx }];
   },
 };
 

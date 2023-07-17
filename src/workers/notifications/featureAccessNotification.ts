@@ -3,6 +3,7 @@ import { ChangeObject } from '../../types';
 import { Feature } from '../../entity/Feature';
 import { NotificationWorker } from './worker';
 import { SourceMember } from '../../entity';
+import { NotificationType } from '../../notifications';
 
 interface Data {
   feature: ChangeObject<Feature>;
@@ -26,7 +27,12 @@ const worker: NotificationWorker = {
       return;
     }
 
-    return [{ type: 'squad_access', ctx: { userId: changeFeature.userId } }];
+    return [
+      {
+        type: NotificationType.SquadAccess,
+        ctx: { userId: changeFeature.userId },
+      },
+    ];
   },
 };
 

@@ -11,6 +11,7 @@ import {
 import {
   NotificationDoneByContext,
   NotificationPostContext,
+  NotificationType,
 } from '../../notifications';
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
@@ -44,7 +45,7 @@ const worker: NotificationWorker = {
         ...baseCtx,
         userId: post.scoutId,
       };
-      notifs.push({ type: 'community_picks_succeeded', ctx });
+      notifs.push({ type: NotificationType.CommunityPicksSucceeded, ctx });
     }
 
     if (source) {
@@ -55,7 +56,7 @@ const worker: NotificationWorker = {
             ...baseCtx,
             userId: post.authorId,
           };
-          notifs.push({ type: 'article_picked', ctx });
+          notifs.push({ type: NotificationType.ArticlePicked, ctx });
         }
       }
       if (source.type === SourceType.Squad && post.authorId) {
@@ -72,7 +73,7 @@ const worker: NotificationWorker = {
         });
         members.forEach((member) =>
           notifs.push({
-            type: 'squad_post_added',
+            type: NotificationType.SquadPostAdded,
             ctx: {
               ...baseCtx,
               doneBy,
@@ -98,7 +99,7 @@ const worker: NotificationWorker = {
 
           if (!subscribed) {
             notifs.push({
-              type: 'squad_subscribe_to_notification',
+              type: NotificationType.SquadSubscribeToNotification,
               ctx: { ...baseCtx, userId: post.authorId },
             });
           }

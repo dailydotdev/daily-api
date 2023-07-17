@@ -2,6 +2,7 @@ import { messageToJson } from '../worker';
 import { SourceMember, SourceType, Upvote } from '../../entity';
 import {
   NotificationPostContext,
+  NotificationType,
   NotificationUpvotersContext,
 } from '../../notifications';
 import { NotificationWorker } from './worker';
@@ -55,13 +56,13 @@ const worker: NotificationWorker = {
       }
 
       return members.map(({ userId }) => ({
-        type: 'article_upvote_milestone',
+        type: NotificationType.ArticleUpvoteMilestone,
         ctx: { ...ctx, userId },
       }));
     }
 
     return users.map((userId) => ({
-      type: 'article_upvote_milestone',
+      type: NotificationType.ArticleUpvoteMilestone,
       ctx: { ...ctx, userId },
     }));
   },

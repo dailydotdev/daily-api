@@ -2,6 +2,7 @@ import { messageToJson } from '../worker';
 import { Comment, CommentUpvote, SourceMember, SourceType } from '../../entity';
 import {
   NotificationCommentContext,
+  NotificationType,
   NotificationUpvotersContext,
 } from '../../notifications';
 import { NotificationWorker } from './worker';
@@ -60,7 +61,7 @@ const worker: NotificationWorker = {
       }
     }
 
-    return [{ type: 'comment_upvote_milestone', ctx }];
+    return [{ type: NotificationType.CommentUpvoteMilestone, ctx }];
   },
 };
 

@@ -1,6 +1,7 @@
 import { messageToJson } from '../worker';
 import { NotificationWorker } from './worker';
 import { buildPostContext, uniquePostOwners } from './utils';
+import { NotificationType } from '../../notifications';
 
 interface Data {
   postId: string;
@@ -19,7 +20,7 @@ const worker: NotificationWorker = {
       return;
     }
     return users.map((userId) => ({
-      type: 'article_analytics',
+      type: NotificationType.ArticleAnalytics,
       ctx: { ...ctx, userId },
     }));
   },

@@ -3,6 +3,7 @@ import { Post, PostReport } from '../../entity';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';
+import { NotificationType } from '../../notifications';
 
 interface Data {
   post: ChangeObject<Post>;
@@ -24,7 +25,7 @@ const worker: NotificationWorker = {
       return;
     }
     return users.map((userId) => ({
-      type: 'article_report_approved',
+      type: NotificationType.ArticleReportApproved,
       ctx: { ...ctx, userId },
     }));
   },
