@@ -15,6 +15,7 @@ import { createDatePageGenerator } from '../common/datePageGenerator';
 import { GQLEmptyResponse } from './common';
 import { notifyNotificationsRead } from '../common';
 import { redisPubSub } from '../redis';
+import { NotificationPreferenceType } from '../notifications/common';
 
 interface GQLBanner {
   timestamp: Date;
@@ -27,8 +28,12 @@ interface GQLBanner {
 
 type GQLNotificationPreference = Pick<
   NotificationPreference,
-  'uniqueKey' | 'userId' | 'notificationType' | 'status'
+  'uniqueKey' | 'userId' | 'notificationType' | 'status' | 'type'
 >;
+
+interface NotificationPreferenceArgs {
+  type: NotificationPreferenceType;
+}
 
 export const typeDefs = /* GraphQL */ `
   type NotificationAvatar {
@@ -181,6 +186,11 @@ export const typeDefs = /* GraphQL */ `
     notificationType: String!
 
     """
+    Type of the notification preference which can be "post", "source", "comment"
+    """
+    type: String!
+
+    """
     Status whether the user has "subscribed" or "muted" the notification
     """
     status: String!
@@ -213,7 +223,7 @@ export const typeDefs = /* GraphQL */ `
       first: Int
     ): NotificationConnection! @auth
 
-    notificationPreferences: [NotificationPreference]! @auth
+    notificationPreferences(type: String): [NotificationPreference]! @auth
   }
 
   extend type Mutation {
@@ -289,10 +299,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     notificationPreferences: (
       _,
-      __,
-      ctx,
+      { type }: NotificationPreferenceArgs,
+      { con, userId },
     ): Promise<GQLNotificationPreference[]> =>
-      ctx.getRepository(NotificationPreference).findBy({ userId: ctx.userId }),
+      con.getRepository(NotificationPreference).findBy({ userId, type }),
   },
   Mutation: {
     readNotifications: async (source, _, ctx): Promise<GQLEmptyResponse> => {

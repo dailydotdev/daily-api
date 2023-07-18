@@ -18,6 +18,7 @@ import {
   Post,
   User,
   Source,
+  NotificationPreferenceSource,
 } from '../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -28,6 +29,7 @@ import request from 'supertest';
 import { FastifyInstance } from 'fastify';
 import {
   NotificationPreferenceStatus,
+  NotificationPreferenceType,
   NotificationType,
 } from '../src/notifications/common';
 import { postsFixture } from './fixture/post';
@@ -302,12 +304,13 @@ describe('query notifications', () => {
 
 describe('query notificationPreferences', () => {
   const QUERY = `
-    query NotificationPreferences {
-      notificationPreferences {
+    query NotificationPreferences($type: String) {
+      notificationPreferences(type: $type) {
         uniqueKey
         userId
         notificationType
         status
+        type
       }
     }
   `;
@@ -315,9 +318,7 @@ describe('query notificationPreferences', () => {
   it('should not authorize when not logged-in', () =>
     testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
 
-  it("should return logged in user's notification preferences", async () => {
-    loggedUser = '1';
-
+  const prepareNotificationPreferences = async () => {
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Source, sourcesFixture);
     await saveFixtures(con, Post, postsFixture);
@@ -337,10 +338,39 @@ describe('query notificationPreferences', () => {
         status: NotificationPreferenceStatus.Muted,
       },
     ]);
+    await con.getRepository(NotificationPreferenceSource).save([
+      {
+        userId: '1',
+        sourceId: sourcesFixture[0].id,
+        uniqueKey: sourcesFixture[0].id,
+        notificationType: NotificationType.SourceApproved,
+        status: NotificationPreferenceStatus.Muted,
+      },
+    ]);
+  };
+
+  it("should return logged in user's notification preferences", async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences();
 
     const res = await client.query(QUERY);
     const isValid = res.data.notificationPreferences.every(
       ({ userId }: NotificationPreferencePost) => userId === loggedUser,
+    );
+    expect(isValid).toBeTruthy();
+  });
+
+  it('should return based on notification preferences type', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences();
+
+    const requestType = NotificationPreferenceType.Post;
+    const res = await client.query(QUERY, { variables: { type: requestType } });
+    const isValid = res.data.notificationPreferences.every(
+      ({ userId, type }: NotificationPreferencePost) =>
+        userId === loggedUser && type === requestType,
     );
     expect(isValid).toBeTruthy();
   });
