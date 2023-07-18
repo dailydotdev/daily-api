@@ -517,7 +517,10 @@ const worker: Worker = {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data: ChangeMessage<any> = messageToJson(message);
-      if (data.schema.name === 'io.debezium.connector.common.Heartbeat') {
+      if (
+        data.schema.name === 'io.debezium.connector.common.Heartbeat' ||
+        data.payload.op === 'r'
+      ) {
         return;
       }
       switch (data.payload.source.table) {
