@@ -6,6 +6,7 @@ import {
 } from '../entity';
 import { ValidationError } from 'apollo-server-errors';
 import { DataSource, EntityManager } from 'typeorm';
+import { NotFoundError, TypeOrmError } from '../errors';
 
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
@@ -58,7 +59,7 @@ type NotificationPreferenceUnion = NotificationPreferenceComment &
   NotificationPreferencePost &
   NotificationPreferenceSource;
 
-export const saveNotificationPreference = (
+export const saveNotificationPreference = async (
   con: DataSource | EntityManager,
   userId: string,
   referenceId: string,
@@ -91,11 +92,19 @@ export const saveNotificationPreference = (
       break;
   }
 
-  return con
-    .getRepository(NotificationPreference)
-    .createQueryBuilder()
-    .insert()
-    .values(params)
-    .orIgnore()
-    .execute();
+  try {
+    await con
+      .getRepository(NotificationPreference)
+      .createQueryBuilder()
+      .insert()
+      .values(params)
+      .orIgnore()
+      .execute();
+  } catch (err) {
+    if (err.code === TypeOrmError.FOREIGN_KEY) {
+      throw new NotFoundError('Invalid reference id');
+    }
+
+    throw new Error('Something went wrong');
+  }
 };

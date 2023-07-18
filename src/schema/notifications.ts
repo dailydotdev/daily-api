@@ -345,21 +345,13 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         throw new ValidationError('Invalid notification type');
       }
 
-      try {
-        await saveNotificationPreference(
-          con,
-          userId,
-          referenceId,
-          type,
-          NotificationPreferenceStatus.Muted,
-        );
-      } catch (err) {
-        if (err.code === TypeOrmError.FOREIGN_KEY) {
-          throw new NotFoundError('Invalid reference id');
-        }
-
-        throw new Error('Something went wrong');
-      }
+      await saveNotificationPreference(
+        con,
+        userId,
+        referenceId,
+        type,
+        NotificationPreferenceStatus.Muted,
+      );
 
       return { _: true };
     },
