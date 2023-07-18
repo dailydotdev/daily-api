@@ -240,11 +240,35 @@ export const typeDefs = /* GraphQL */ `
   extend type Mutation {
     readNotifications: EmptyResponse @auth
 
-    muteNotificationPreference(referenceId: ID!, type: String!): EmptyResponse
-      @auth
+    """
+    Set the status of the user's notification preference to "muted"
+    """
+    muteNotificationPreference(
+      """
+      The ID of the relevant entity to mute
+      """
+      referenceId: ID!
 
-    clearNotificationPreference(referenceId: ID!, type: String!): EmptyResponse
-      @auth
+      """
+      Notification type for which kind of notification you want to mute
+      """
+      type: String!
+    ): EmptyResponse @auth
+
+    """
+    Remove notification preference if it exists
+    """
+    clearNotificationPreference(
+      """
+      The ID of the relevant entity to mute
+      """
+      referenceId: ID!
+
+      """
+      Notification type for which kind of notification you want to mute
+      """
+      type: String!
+    ): EmptyResponse @auth
   }
 
   type Subscription {
