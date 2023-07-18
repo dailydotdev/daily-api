@@ -19,6 +19,7 @@ import {
   User,
   Source,
   NotificationPreferenceSource,
+  NotificationPreference,
 } from '../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -302,6 +303,37 @@ describe('query notifications', () => {
   });
 });
 
+const prepareNotificationPreferences = async () => {
+  await saveFixtures(con, User, usersFixture);
+  await saveFixtures(con, Source, sourcesFixture);
+  await saveFixtures(con, Post, postsFixture);
+  await con.getRepository(NotificationPreferencePost).save([
+    {
+      userId: '1',
+      postId: postsFixture[0].id,
+      uniqueKey: postsFixture[0].id,
+      notificationType: NotificationType.ArticleNewComment,
+      status: NotificationPreferenceStatus.Muted,
+    },
+    {
+      userId: '2',
+      postId: postsFixture[1].id,
+      uniqueKey: postsFixture[1].id,
+      notificationType: NotificationType.ArticleNewComment,
+      status: NotificationPreferenceStatus.Muted,
+    },
+  ]);
+  await con.getRepository(NotificationPreferenceSource).save([
+    {
+      userId: '1',
+      sourceId: sourcesFixture[0].id,
+      uniqueKey: sourcesFixture[0].id,
+      notificationType: NotificationType.SourceApproved,
+      status: NotificationPreferenceStatus.Muted,
+    },
+  ]);
+};
+
 describe('query notificationPreferences', () => {
   const QUERY = `
     query NotificationPreferences($type: String) {
@@ -317,37 +349,6 @@ describe('query notificationPreferences', () => {
 
   it('should not authorize when not logged-in', () =>
     testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
-
-  const prepareNotificationPreferences = async () => {
-    await saveFixtures(con, User, usersFixture);
-    await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, Post, postsFixture);
-    await con.getRepository(NotificationPreferencePost).save([
-      {
-        userId: '1',
-        postId: postsFixture[0].id,
-        uniqueKey: postsFixture[0].id,
-        notificationType: NotificationType.ArticleNewComment,
-        status: NotificationPreferenceStatus.Muted,
-      },
-      {
-        userId: '2',
-        postId: postsFixture[1].id,
-        uniqueKey: postsFixture[1].id,
-        notificationType: NotificationType.ArticleNewComment,
-        status: NotificationPreferenceStatus.Muted,
-      },
-    ]);
-    await con.getRepository(NotificationPreferenceSource).save([
-      {
-        userId: '1',
-        sourceId: sourcesFixture[0].id,
-        uniqueKey: sourcesFixture[0].id,
-        notificationType: NotificationType.SourceApproved,
-        status: NotificationPreferenceStatus.Muted,
-      },
-    ]);
-  };
 
   it("should return logged in user's notification preferences", async () => {
     loggedUser = '1';
@@ -419,5 +420,117 @@ describe('mutation readNotifications', () => {
       .getRepository(Notification)
       .find({ where: { userId: '2' }, order: { createdAt: 'desc' } });
     res2.map((notification) => expect(notification.readAt).toBeFalsy());
+  });
+});
+
+describe('mutation muteNotificationPreference', () => {
+  const MUTATION = `
+    mutation MuteNotificationPreference($referenceId: ID!, $type: String!) {
+      muteNotificationPreference(referenceId: $referenceId, type: $type) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(client, { mutation: MUTATION }, 'UNAUTHENTICATED'));
+
+  it('should throw an error when type is not yet defined in the map', () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { referenceId: '1', type: NotificationType.ArticlePicked },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw an error referenced id is not found', () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          referenceId: '1',
+          type: NotificationType.ArticleNewComment,
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should set notification preference to muted', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences();
+
+    const params = {
+      userId: loggedUser,
+      uniqueKey: postsFixture[2].id,
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeFalsy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.uniqueKey,
+        type: params.notificationType,
+      },
+    });
+
+    const muted = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(muted).toBeTruthy();
+  });
+
+  it('should ignore when preference is already muted', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences();
+
+    const params = {
+      userId: loggedUser,
+      uniqueKey: postsFixture[2].id,
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.uniqueKey,
+        type: params.notificationType,
+      },
+    });
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeTruthy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.uniqueKey,
+        type: params.notificationType,
+      },
+    });
+
+    const muted = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(muted).toBeTruthy();
+    expect(muted.status).toEqual(NotificationPreferenceStatus.Muted);
   });
 });

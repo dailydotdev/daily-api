@@ -15,7 +15,14 @@ import { createDatePageGenerator } from '../common/datePageGenerator';
 import { GQLEmptyResponse } from './common';
 import { notifyNotificationsRead } from '../common';
 import { redisPubSub } from '../redis';
-import { NotificationPreferenceType } from '../notifications/common';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+  saveNotificationPreference,
+  NotificationPreferenceType,
+} from '../notifications/common';
+import { ValidationError } from 'apollo-server-errors';
+import { NotFoundError, TypeOrmError } from '../errors';
 
 interface GQLBanner {
   timestamp: Date;
@@ -33,6 +40,11 @@ type GQLNotificationPreference = Pick<
 
 interface NotificationPreferenceArgs {
   type: NotificationPreferenceType;
+}
+
+interface NotificationPreferenceMutationArgs {
+  type: NotificationType;
+  referenceId: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -228,6 +240,9 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Mutation {
     readNotifications: EmptyResponse @auth
+
+    muteNotificationPreference(referenceId: ID!, type: String!): EmptyResponse
+      @auth
   }
 
   type Subscription {
@@ -305,7 +320,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       con.getRepository(NotificationPreference).findBy({ userId, type }),
   },
   Mutation: {
-    readNotifications: async (source, _, ctx): Promise<GQLEmptyResponse> => {
+    readNotifications: async (_, __, ctx): Promise<GQLEmptyResponse> => {
       await ctx.getRepository(Notification).update(
         {
           userId: ctx.userId,
@@ -316,6 +331,33 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       await notifyNotificationsRead(ctx.log, {
         unreadNotificationsCount: 0,
       });
+      return { _: true };
+    },
+    muteNotificationPreference: async (
+      _,
+      { type, referenceId }: NotificationPreferenceMutationArgs,
+      { con, userId },
+    ): Promise<GQLEmptyResponse> => {
+      if (!Object.values(NotificationType).includes(type)) {
+        throw new ValidationError('Invalid notification type');
+      }
+
+      try {
+        await saveNotificationPreference(
+          con,
+          userId,
+          referenceId,
+          type,
+          NotificationPreferenceStatus.Muted,
+        );
+      } catch (err) {
+        if (err.code === TypeOrmError.FOREIGN_KEY) {
+          throw new NotFoundError('Invalid reference id');
+        }
+
+        throw new Error('Something went wrong');
+      }
+
       return { _: true };
     },
   },
