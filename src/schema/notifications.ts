@@ -1,7 +1,12 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context, SubscriptionContext } from '../Context';
-import { Banner, getUnreadNotificationsCount, Notification } from '../entity';
+import {
+  Banner,
+  getUnreadNotificationsCount,
+  Notification,
+  NotificationPreference,
+} from '../entity';
 import { ConnectionArguments } from 'graphql-relay';
 import { IsNull } from 'typeorm';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
@@ -19,6 +24,11 @@ interface GQLBanner {
   url: string;
   theme: string;
 }
+
+type GQLNotificationPreference = Pick<
+  NotificationPreference,
+  'uniqueKey' | 'userId' | 'notificationType' | 'status'
+>;
 
 export const typeDefs = /* GraphQL */ `
   type NotificationAvatar {
@@ -151,6 +161,31 @@ export const typeDefs = /* GraphQL */ `
     theme: String!
   }
 
+  """
+  User's preference towards certain notification types to specific entities
+  """
+  type NotificationPreference {
+    """
+    Reference to id of the related entity
+    """
+    uniqueKey: ID!
+
+    """
+    User id of the related user
+    """
+    userId: ID!
+
+    """
+    Type of the notification
+    """
+    notificationType: String!
+
+    """
+    Status whether the user has "subscribed" or "muted" the notification
+    """
+    status: String!
+  }
+
   extend type Query {
     """
     Get the active notification count for a user
@@ -177,6 +212,8 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): NotificationConnection! @auth
+
+    notificationPreferences: [NotificationPreference]! @auth
   }
 
   extend type Mutation {
@@ -250,6 +287,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
       );
     },
+    notificationPreferences: (
+      _,
+      __,
+      ctx,
+    ): Promise<GQLNotificationPreference[]> =>
+      ctx.getRepository(NotificationPreference).findBy({ userId: ctx.userId }),
   },
   Mutation: {
     readNotifications: async (source, _, ctx): Promise<GQLEmptyResponse> => {

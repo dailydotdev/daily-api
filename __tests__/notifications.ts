@@ -5,6 +5,7 @@ import {
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
+  saveFixtures,
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
@@ -13,7 +14,10 @@ import {
   Notification,
   NotificationAttachment,
   NotificationAvatar,
+  NotificationPreferencePost,
+  Post,
   User,
+  Source,
 } from '../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -22,7 +26,12 @@ import { notificationFixture } from './fixture/notifications';
 import { subDays } from 'date-fns';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
-import { NotificationType } from '../src/notifications/common';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../src/notifications/common';
+import { postsFixture } from './fixture/post';
+import { sourcesFixture } from './fixture/source';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -288,6 +297,52 @@ describe('query notifications', () => {
       },
     });
     expect(res2.data).toMatchSnapshot();
+  });
+});
+
+describe('query notificationPreferences', () => {
+  const QUERY = `
+    query NotificationPreferences {
+      notificationPreferences {
+        uniqueKey
+        userId
+        notificationType
+        status
+      }
+    }
+  `;
+
+  it('should not authorize when not logged-in', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it("should return logged in user's notification preferences", async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, postsFixture);
+    await con.getRepository(NotificationPreferencePost).save([
+      {
+        userId: '1',
+        postId: postsFixture[0].id,
+        uniqueKey: postsFixture[0].id,
+        notificationType: NotificationType.ArticleNewComment,
+        status: NotificationPreferenceStatus.Muted,
+      },
+      {
+        userId: '2',
+        postId: postsFixture[1].id,
+        uniqueKey: postsFixture[1].id,
+        notificationType: NotificationType.ArticleNewComment,
+        status: NotificationPreferenceStatus.Muted,
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+    const isValid = res.data.notificationPreferences.every(
+      ({ userId }: NotificationPreferencePost) => userId === loggedUser,
+    );
+    expect(isValid).toBeTruthy();
   });
 });
 
