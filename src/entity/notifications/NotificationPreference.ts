@@ -9,6 +9,9 @@ import {
 @TableInheritance({ column: { type: 'varchar', name: 'type' } })
 export class NotificationPreference {
   @PrimaryColumn({ type: 'text' })
+  uniqueKey: string;
+
+  @PrimaryColumn({ type: 'text' })
   userId: string;
 
   @PrimaryColumn({ type: 'text' })
