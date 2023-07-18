@@ -243,6 +243,9 @@ export const typeDefs = /* GraphQL */ `
 
     muteNotificationPreference(referenceId: ID!, type: String!): EmptyResponse
       @auth
+
+    clearNotificationPreference(referenceId: ID!, type: String!): EmptyResponse
+      @auth
   }
 
   type Subscription {
@@ -357,6 +360,17 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
         throw new Error('Something went wrong');
       }
+
+      return { _: true };
+    },
+    clearNotificationPreference: async (
+      _,
+      { type, referenceId }: NotificationPreferenceMutationArgs,
+      { con, userId },
+    ): Promise<GQLEmptyResponse> => {
+      await con
+        .getRepository(NotificationPreference)
+        .delete({ userId, notificationType: type, uniqueKey: referenceId });
 
       return { _: true };
     },

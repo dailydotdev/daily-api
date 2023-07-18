@@ -433,7 +433,17 @@ describe('mutation muteNotificationPreference', () => {
   `;
 
   it('should not authorize when not logged-in', () =>
-    testMutationErrorCode(client, { mutation: MUTATION }, 'UNAUTHENTICATED'));
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          referenceId: postsFixture[0].id,
+          type: NotificationType.ArticleNewComment,
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
 
   it('should throw an error when type is not yet defined in the map', () => {
     loggedUser = '1';
@@ -532,5 +542,65 @@ describe('mutation muteNotificationPreference', () => {
 
     expect(muted).toBeTruthy();
     expect(muted.status).toEqual(NotificationPreferenceStatus.Muted);
+  });
+});
+
+describe('mutation clearNotificationPreference', () => {
+  const MUTATION = `
+    mutation ClearNotificationPreference($referenceId: ID!, $type: String!) {
+      clearNotificationPreference(referenceId: $referenceId, type: $type) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          referenceId: postsFixture[0].id,
+          type: NotificationType.ArticleNewComment,
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should remove preference if it exists', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences();
+
+    const params = {
+      userId: loggedUser,
+      uniqueKey: postsFixture[0].id,
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeTruthy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.uniqueKey,
+        type: params.notificationType,
+      },
+    });
+
+    const muted = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(muted).toBeFalsy();
+
+    const other = await con
+      .getRepository(NotificationPreference)
+      .findOneBy({ userId: '2' });
+
+    expect(other).toBeTruthy();
   });
 });
