@@ -22,7 +22,6 @@ import {
   NotificationPreferenceType,
 } from '../notifications/common';
 import { ValidationError } from 'apollo-server-errors';
-import { NotFoundError, TypeOrmError } from '../errors';
 
 interface GQLBanner {
   timestamp: Date;
