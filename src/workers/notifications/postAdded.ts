@@ -1,5 +1,6 @@
 import { messageToJson } from '../worker';
 import {
+  NotificationPreferenceSource,
   Post,
   PostType,
   SourceMember,
@@ -12,7 +13,10 @@ import {
   NotificationDoneByContext,
   NotificationPostContext,
 } from '../../notifications';
-import { NotificationType } from '../../notifications/common';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../notifications/common';
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';
@@ -61,13 +65,20 @@ const worker: NotificationWorker = {
       }
       if (source.type === SourceType.Squad && post.authorId) {
         // squad_post_added notification
-        const doneBy = await con
-          .getRepository(User)
-          .findOneBy({ id: post.authorId });
+        const [doneBy, mutes] = await Promise.all([
+          con.getRepository(User).findOneBy({ id: post.authorId }),
+          con.getRepository(NotificationPreferenceSource).findBy({
+            referenceId: source.id,
+            status: NotificationPreferenceStatus.Muted,
+            notificationType: NotificationType.SquadPostAdded,
+          }),
+        ]);
+        const ignored = mutes.map(({ userId }) => userId);
+        ignored.push(post.authorId);
         const members = await con.getRepository(SourceMember).find({
           where: {
             sourceId: source.id,
-            userId: Not(In([post.authorId])),
+            userId: Not(In(ignored)),
             role: Not(SourceMemberRoles.Blocked),
           },
         });

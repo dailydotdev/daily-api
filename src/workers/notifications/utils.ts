@@ -138,7 +138,7 @@ export async function articleNewCommentHandler(
   });
 
   return users
-    .filter((id) => !muted.some(({ userId }) => userId === id))
+    .filter((id) => muted.every(({ userId }) => userId !== id))
     .map((userId) => ({ type, ctx: { ...ctx, userId } }));
 }
 
