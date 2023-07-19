@@ -1,6 +1,7 @@
 import { messageToJson } from '../worker';
 import { Comment, SourceType } from '../../entity';
 import { NotificationCommenterContext } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { buildPostContext } from './utils';
 
@@ -52,7 +53,9 @@ const worker: NotificationWorker = {
       userIds.push(parent.userId);
     }
     const type =
-      ctx.source.type === SourceType.Squad ? 'squad_reply' : 'comment_reply';
+      ctx.source.type === SourceType.Squad
+        ? NotificationType.SquadReply
+        : NotificationType.CommentReply;
     return userIds.map((userId) => ({
       type,
       ctx: { ...ctx, userId },
