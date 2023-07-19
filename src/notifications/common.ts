@@ -77,7 +77,7 @@ export const saveNotificationPreference = async (
     userId,
     status,
     notificationType,
-    uniqueKey: referenceId,
+    referenceId,
   };
 
   switch (type) {

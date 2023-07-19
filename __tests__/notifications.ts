@@ -481,7 +481,7 @@ describe('mutation muteNotificationPreference', () => {
 
     const params = {
       userId: loggedUser,
-      uniqueKey: postsFixture[2].id,
+      referenceId: postsFixture[2].id,
       notificationType: NotificationType.ArticleNewComment,
     };
 
@@ -493,7 +493,7 @@ describe('mutation muteNotificationPreference', () => {
 
     await client.mutate(MUTATION, {
       variables: {
-        referenceId: params.uniqueKey,
+        referenceId: params.referenceId,
         type: params.notificationType,
       },
     });
@@ -512,13 +512,13 @@ describe('mutation muteNotificationPreference', () => {
 
     const params = {
       userId: loggedUser,
-      uniqueKey: postsFixture[2].id,
+      referenceId: postsFixture[2].id,
       notificationType: NotificationType.ArticleNewComment,
     };
 
     await client.mutate(MUTATION, {
       variables: {
-        referenceId: params.uniqueKey,
+        referenceId: params.referenceId,
         type: params.notificationType,
       },
     });
@@ -531,7 +531,7 @@ describe('mutation muteNotificationPreference', () => {
 
     await client.mutate(MUTATION, {
       variables: {
-        referenceId: params.uniqueKey,
+        referenceId: params.referenceId,
         type: params.notificationType,
       },
     });
@@ -574,7 +574,7 @@ describe('mutation clearNotificationPreference', () => {
 
     const params = {
       userId: loggedUser,
-      uniqueKey: postsFixture[0].id,
+      referenceId: postsFixture[0].id,
       notificationType: NotificationType.ArticleNewComment,
     };
 
@@ -586,7 +586,7 @@ describe('mutation clearNotificationPreference', () => {
 
     await client.mutate(MUTATION, {
       variables: {
-        referenceId: params.uniqueKey,
+        referenceId: params.referenceId,
         type: params.notificationType,
       },
     });

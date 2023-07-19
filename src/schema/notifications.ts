@@ -385,7 +385,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ): Promise<GQLEmptyResponse> => {
       await con
         .getRepository(NotificationPreference)
-        .delete({ userId, notificationType: type, uniqueKey: referenceId });
+        .delete({ userId, notificationType: type, referenceId });
 
       return { _: true };
     },
