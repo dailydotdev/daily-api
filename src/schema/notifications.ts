@@ -223,7 +223,7 @@ export const typeDefs = /* GraphQL */ `
       first: Int
     ): NotificationConnection! @auth
 
-    notificationPreferences(type: String): [NotificationPreference]! @auth
+    notificationPreferences(type: String!): [NotificationPreference]! @auth
   }
 
   extend type Mutation {

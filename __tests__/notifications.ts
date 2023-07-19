@@ -349,18 +349,6 @@ describe('query notificationPreferences', () => {
     ]);
   };
 
-  it("should return logged in user's notification preferences", async () => {
-    loggedUser = '1';
-
-    await prepareNotificationPreferences();
-
-    const res = await client.query(QUERY);
-    const isValid = res.data.notificationPreferences.every(
-      ({ userId }: NotificationPreferencePost) => userId === loggedUser,
-    );
-    expect(isValid).toBeTruthy();
-  });
-
   it('should return based on notification preferences type', async () => {
     loggedUser = '1';
 
