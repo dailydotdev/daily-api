@@ -59,6 +59,19 @@ type NotificationPreferenceUnion = NotificationPreferenceComment &
   NotificationPreferencePost &
   NotificationPreferenceSource;
 
+type Properties = Pick<NotificationPreferencePost, 'postId'> &
+  Pick<NotificationPreferenceComment, 'commentId'> &
+  Pick<NotificationPreferenceSource, 'sourceId'>;
+
+const notificationPreferenceProp: Record<
+  NotificationPreferenceType,
+  keyof Properties
+> = {
+  post: 'postId',
+  comment: 'commentId',
+  source: 'sourceId',
+};
+
 export const saveNotificationPreference = async (
   con: DataSource | EntityManager,
   userId: string,
@@ -72,25 +85,15 @@ export const saveNotificationPreference = async (
     throw new ValidationError('Notification type not supported');
   }
 
+  const prop = notificationPreferenceProp[type];
   const params: Partial<NotificationPreferenceUnion> = {
     type,
     userId,
     status,
     notificationType,
     referenceId,
+    [prop]: referenceId,
   };
-
-  switch (type) {
-    case NotificationPreferenceType.Comment:
-      params.commentId = referenceId;
-      break;
-    case NotificationPreferenceType.Post:
-      params.postId = referenceId;
-      break;
-    case NotificationPreferenceType.Source:
-      params.sourceId = referenceId;
-      break;
-  }
 
   try {
     await con
