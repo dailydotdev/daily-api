@@ -51,9 +51,15 @@ export const notificationPreferenceMap: Partial<
 > = {
   [NotificationType.ArticleNewComment]: NotificationPreferenceType.Post,
   [NotificationType.CommentReply]: NotificationPreferenceType.Comment,
+  [NotificationType.SquadReply]: NotificationPreferenceType.Comment,
   [NotificationType.SquadPostAdded]: NotificationPreferenceType.Source,
   [NotificationType.SquadMemberJoined]: NotificationPreferenceType.Source,
 };
+
+export const commentNotificationTypes = [
+  NotificationType.CommentReply,
+  NotificationType.SquadReply,
+];
 
 type NotificationPreferenceUnion = NotificationPreferenceComment &
   NotificationPreferencePost &

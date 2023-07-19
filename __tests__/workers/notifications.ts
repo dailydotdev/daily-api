@@ -4,6 +4,7 @@ import {
   CommentUpvote,
   FeatureType,
   MachineSource,
+  NotificationPreferenceComment,
   NotificationPreferencePost,
   NotificationPreferenceSource,
   Post,
@@ -1206,87 +1207,124 @@ it('should not add comment mention notification when you mentioned someone in th
   expect(actual).toBeFalsy();
 });
 
-it('should add comment reply notification', async () => {
-  await con.getRepository(Comment).save([
-    {
-      id: 'c2',
-      postId: 'p1',
-      userId: '2',
-      content: 'sub comment',
-      createdAt: new Date(2020, 1, 6, 0, 0),
-      parentId: 'c1',
-    },
-    {
-      id: 'c3',
-      postId: 'p1',
-      userId: '1',
-      content: 'sub comment2',
-      createdAt: new Date(2020, 1, 6, 0, 0),
-      parentId: 'c1',
-    },
-    {
-      id: 'c4',
-      postId: 'p1',
-      userId: '3',
-      content: 'sub comment3',
-      createdAt: new Date(2020, 1, 6, 0, 0),
-      parentId: 'c1',
-    },
-    {
-      id: 'c5',
+describe('comment reply worker', () => {
+  const prepareComments = async () =>
+    con.getRepository(Comment).save([
+      {
+        id: 'c2',
+        postId: 'p1',
+        userId: '2',
+        content: 'sub comment',
+        createdAt: new Date(2020, 1, 6, 0, 0),
+        parentId: 'c1',
+      },
+      {
+        id: 'c3',
+        postId: 'p1',
+        userId: '1',
+        content: 'sub comment2',
+        createdAt: new Date(2020, 1, 6, 0, 0),
+        parentId: 'c1',
+      },
+      {
+        id: 'c4',
+        postId: 'p1',
+        userId: '3',
+        content: 'sub comment3',
+        createdAt: new Date(2020, 1, 6, 0, 0),
+        parentId: 'c1',
+      },
+      {
+        id: 'c5',
+        postId: 'p1',
+        userId: '4',
+        content: 'sub comment4',
+        createdAt: new Date(2020, 1, 6, 0, 0),
+        parentId: 'c1',
+      },
+    ]);
+
+  it('should add comment reply notification', async () => {
+    await prepareComments();
+    const worker = await import('../../src/workers/notifications/commentReply');
+    const actual = await invokeNotificationWorker(worker.default, {
       postId: 'p1',
       userId: '4',
-      content: 'sub comment4',
-      createdAt: new Date(2020, 1, 6, 0, 0),
-      parentId: 'c1',
-    },
-  ]);
-  const worker = await import('../../src/workers/notifications/commentReply');
-  const actual = await invokeNotificationWorker(worker.default, {
-    postId: 'p1',
-    userId: '4',
-    childCommentId: 'c5',
+      childCommentId: 'c5',
+    });
+    expect(actual.length).toEqual(3);
+    actual.forEach((bundle) => {
+      expect(bundle.type).toEqual('comment_reply');
+      expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
+      expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
+      expect((bundle.ctx as NotificationCommentContext).comment.id).toEqual(
+        'c5',
+      );
+      expect((bundle.ctx as NotificationCommenterContext).commenter.id).toEqual(
+        '4',
+      );
+    });
+    expect(actual.map((bundle) => bundle.ctx.userId)).toEqual(['1', '3', '2']);
   });
-  expect(actual.length).toEqual(3);
-  actual.forEach((bundle) => {
-    expect(bundle.type).toEqual('comment_reply');
-    expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
-    expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
-    expect((bundle.ctx as NotificationCommentContext).comment.id).toEqual('c5');
-    expect((bundle.ctx as NotificationCommenterContext).commenter.id).toEqual(
-      '4',
-    );
-  });
-  expect(actual.map((bundle) => bundle.ctx.userId)).toEqual(['1', '3', '2']);
-});
 
-it('should not add comment reply notification to comment author on their reply', async () => {
-  await con.getRepository(Comment).save([
-    {
-      id: 'c2',
+  it('should add comment reply notification but ignore muted users', async () => {
+    await prepareComments();
+    await con.getRepository(NotificationPreferenceComment).save({
+      userId: '3',
+      commentId: 'c5',
+      referenceId: 'c5',
+      status: NotificationPreferenceStatus.Muted,
+      notificationType: NotificationType.CommentReply,
+    });
+    const worker = await import('../../src/workers/notifications/commentReply');
+    const actual = await invokeNotificationWorker(worker.default, {
       postId: 'p1',
-      userId: '2',
-      content: 'sub comment',
-      createdAt: new Date(2020, 1, 6, 0, 0),
-      parentId: 'c1',
-    },
-    {
-      id: 'c3',
+      userId: '4',
+      childCommentId: 'c5',
+    });
+    expect(actual.length).toEqual(2);
+    actual.forEach((bundle) => {
+      expect(bundle.type).toEqual('comment_reply');
+      expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
+      expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
+      expect((bundle.ctx as NotificationCommentContext).comment.id).toEqual(
+        'c5',
+      );
+      expect((bundle.ctx as NotificationCommenterContext).commenter.id).toEqual(
+        '4',
+      );
+    });
+    expect(actual.map((bundle) => bundle.ctx.userId)).toEqual(['1', '2']);
+  });
+
+  it('should not add comment reply notification to comment author on their reply', async () => {
+    await con.getRepository(Comment).save([
+      {
+        id: 'c2',
+        postId: 'p1',
+        userId: '2',
+        content: 'sub comment',
+        createdAt: new Date(2020, 1, 6, 0, 0),
+        parentId: 'c1',
+      },
+      {
+        id: 'c3',
+        postId: 'p1',
+        userId: '1',
+        content: 'sub comment2',
+        createdAt: new Date(2020, 1, 6, 0, 0),
+        parentId: 'c1',
+      },
+    ]);
+    const worker = await import('../../src/workers/notifications/commentReply');
+    const actual = await invokeNotificationWorker(worker.default, {
       postId: 'p1',
       userId: '1',
-      content: 'sub comment2',
-      createdAt: new Date(2020, 1, 6, 0, 0),
-      parentId: 'c1',
-    },
-  ]);
-  const worker = await import('../../src/workers/notifications/commentReply');
-  const actual = await invokeNotificationWorker(worker.default, {
-    postId: 'p1',
-    userId: '1',
-    childCommentId: 'c3',
+      childCommentId: 'c3',
+    });
+    expect(actual.length).toEqual(1);
+    expect(actual[0].ctx.userId).toEqual('2');
   });
-  expect(actual.length).toEqual(1);
-  expect(actual[0].ctx.userId).toEqual('2');
 });
 
 describe('comment upvote milestone', () => {
