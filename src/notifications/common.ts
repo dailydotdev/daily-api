@@ -108,6 +108,6 @@ export const saveNotificationPreference = async (
       throw new NotFoundError('Invalid reference id');
     }
 
-    throw new Error('Something went wrong');
+    throw err;
   }
 };
