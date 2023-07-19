@@ -32,6 +32,7 @@ import {
   NotificationSourceRequestContext,
   NotificationUpvotersContext,
 } from '../../src/notifications';
+import { NotificationType } from '../../src/notifications/common';
 import { createSquadWelcomePost, NotificationReason } from '../../src/common';
 import { randomUUID } from 'crypto';
 
@@ -454,27 +455,6 @@ describe('post added notifications', () => {
       .update({ id: postId }, { authorId: '1', type: PostType.Share });
   };
 
-  // it('should add squad subscribe to notification', async () => {
-  //   await prepareSubscribeTests();
-  //   await con
-  //     .getRepository(UserAction)
-  //     .delete({ userId: '1', type: UserActionType.SquadFirstPost });
-  //   const worker = await import('../../src/workers/notifications/postAdded');
-  //   const actual = await invokeNotificationWorker(worker.default, {
-  //     post: postsFixture[0],
-  //   });
-  //   expect(actual.length).toBeTruthy();
-  //   const subscribe = actual.find(
-  //     ({ type }) => type === 'squad_subscribe_to_notification',
-  //   );
-  //
-  //   const ctx = subscribe.ctx as NotificationPostContext;
-  //   expect(subscribe).toBeTruthy();
-  //   expect(ctx.post.id).toEqual('p1');
-  //   expect(ctx.source.id).toEqual('a');
-  //   expect(subscribe.ctx.userId).toEqual('1');
-  // });
-
   it('should not add squad subscribe to notification when user has made many posts already', async () => {
     await prepareSubscribeTests();
     await con
@@ -485,7 +465,7 @@ describe('post added notifications', () => {
       post: postsFixture[0],
     });
     const subscribe = actual.some(
-      ({ type }) => type === 'squad_subscribe_to_notification',
+      ({ type }) => type === NotificationType.SquadSubscribeToNotification,
     );
     expect(subscribe).toBeFalsy();
   });
@@ -500,7 +480,7 @@ describe('post added notifications', () => {
       post: postsFixture[0],
     });
     const subscribe = actual.some(
-      ({ type }) => type === 'squad_subscribe_to_notification',
+      ({ type }) => type === NotificationType.SquadSubscribeToNotification,
     );
     expect(subscribe).toBeFalsy();
   });
@@ -1058,7 +1038,7 @@ it('should add comment mention notification', async () => {
     },
   });
   expect(actual.length).toEqual(1);
-  expect(actual[0].type).toEqual('comment_mention');
+  expect(actual[0].type).toEqual(NotificationType.CommentMention);
   expect(actual[0].ctx.userId).toEqual('1');
   expect((actual[0].ctx as NotificationPostContext).post.id).toEqual('p1');
   expect((actual[0].ctx as NotificationPostContext).source.id).toEqual('a');

@@ -29,12 +29,12 @@ import {
   NotificationHandlerReturn,
   NotificationWorker,
 } from '../src/workers/notifications/worker';
-import { NotificationType } from '../src/entity';
 import {
   generateNotification,
   NotificationBaseContext,
   storeNotificationBundle,
 } from '../src/notifications';
+import { NotificationType } from '../src/notifications/common';
 import flagsmith from '../src/flagsmith';
 import { Flags } from 'flagsmith-nodejs';
 import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
