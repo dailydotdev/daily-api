@@ -9,7 +9,7 @@ import {
 @TableInheritance({ column: { type: 'varchar', name: 'type' } })
 export class NotificationPreference {
   @PrimaryColumn({ type: 'text' })
-  uniqueKey: string;
+  referenceId: string;
 
   @PrimaryColumn({ type: 'text' })
   userId: string;

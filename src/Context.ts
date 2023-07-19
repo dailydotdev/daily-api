@@ -3,16 +3,19 @@ import { FastifyRequest, FastifyBaseLogger } from 'fastify';
 import { RootSpan } from '@google-cloud/trace-agent/build/src/plugin-types';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
 import { Roles } from './roles';
+import { DataLoaderService } from './dataLoaderService';
 
 export class Context {
   req: FastifyRequest;
   con: DataSource;
   loader: GraphQLDatabaseLoader;
+  dataLoader: DataLoaderService;
 
   constructor(req: FastifyRequest, con) {
     this.req = req;
     this.con = con;
     this.loader = new GraphQLDatabaseLoader(con);
+    this.dataLoader = new DataLoaderService({ ctx: this });
   }
 
   get service(): boolean | null {
