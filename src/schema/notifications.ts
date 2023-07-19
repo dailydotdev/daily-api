@@ -34,7 +34,7 @@ interface GQLBanner {
 
 type GQLNotificationPreference = Pick<
   NotificationPreference,
-  'uniqueKey' | 'userId' | 'notificationType' | 'status' | 'type'
+  'referenceId' | 'userId' | 'notificationType' | 'status' | 'type'
 >;
 
 interface NotificationPreferenceArgs {
@@ -184,7 +184,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Reference to id of the related entity
     """
-    uniqueKey: ID!
+    referenceId: ID!
 
     """
     User id of the related user
