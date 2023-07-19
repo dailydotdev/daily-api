@@ -1,12 +1,12 @@
 import { messageToJson } from '../worker';
 import {
-  NotificationDoneByContext,
-  NotificationPostContext,
-} from '../../notifications';
-import { NotificationType } from '../../notifications/common';
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import {
+  NotificationPreferenceSource,
   Source,
   SourceMember,
   SourceType,
@@ -26,10 +26,17 @@ const worker: NotificationWorker = {
   subscription: 'api.member-joined-source-notification',
   handler: async (message, con) => {
     const { sourceMember: member }: Data = messageToJson(message);
-    const admin = await con.getRepository(SourceMember).findOne({
+    const mutes = await con.getRepository(NotificationPreferenceSource).findBy({
+      referenceId: member.sourceId,
+      notificationType: NotificationType.SquadMemberJoined,
+      status: NotificationPreferenceStatus.Muted,
+    });
+    const ignored = mutes.map(({ userId }) => userId);
+    ignored.push(member.userId);
+    const admins = await con.getRepository(SourceMember).find({
       where: {
         sourceId: member.sourceId,
-        userId: Not(In([member.userId])),
+        userId: Not(In(ignored)),
         role: SourceMemberRoles.Admin,
       },
     });
@@ -41,7 +48,7 @@ const worker: NotificationWorker = {
 
     await insertOrIgnoreAction(con, member.userId, actionType);
 
-    if (!admin) {
+    if (!admins?.length) {
       return;
     }
     const [doneBy, source, post] = await Promise.all([
@@ -52,13 +59,16 @@ const worker: NotificationWorker = {
     if (!doneBy || !post || source.type !== SourceType.Squad) {
       return;
     }
-    const ctx: NotificationPostContext & NotificationDoneByContext = {
-      userId: admin.userId,
-      post,
-      source,
-      doneBy,
-    };
-    return [{ type: NotificationType.SquadMemberJoined, ctx }];
+
+    return admins.map(({ userId }) => ({
+      type: NotificationType.SquadMemberJoined,
+      ctx: {
+        userId,
+        post,
+        source,
+        doneBy,
+      },
+    }));
   },
 };
 

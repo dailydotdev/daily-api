@@ -1415,10 +1415,7 @@ describe('comment upvote milestone', () => {
 });
 
 describe('squad member joined', () => {
-  it('should add notification to squad admin', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadMemberJoined'
-    );
+  const prepareSquad = async () => {
     await con
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Squad });
@@ -1432,6 +1429,46 @@ describe('squad member joined', () => {
         role: SourceMemberRoles.Admin,
       },
     ]);
+  };
+
+  it('should add notification to squad admin', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/squadMemberJoined'
+    );
+    await prepareSquad();
+    const actual = await invokeNotificationWorker(worker.default, {
+      sourceMember: {
+        sourceId: 'a',
+        userId: '1',
+      },
+    });
+    expect(actual.length).toEqual(1);
+    expect(actual[0].type).toEqual('squad_member_joined');
+    expect(actual[0].ctx.userId).toEqual('2');
+    const ctx = actual[0].ctx as NotificationSourceContext &
+      NotificationDoneByContext;
+    expect(ctx.source.id).toEqual('a');
+    expect(ctx.doneBy.id).toEqual('1');
+  });
+
+  it('should add notification to squad admin but exclude muted users', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/squadMemberJoined'
+    );
+    await prepareSquad();
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '3',
+      role: SourceMemberRoles.Admin,
+      referralToken: 'token',
+    });
+    await con.getRepository(NotificationPreferenceSource).save({
+      userId: '3',
+      sourceId: 'a',
+      referenceId: 'a',
+      status: NotificationPreferenceStatus.Muted,
+      notificationType: NotificationType.SquadMemberJoined,
+    });
     const actual = await invokeNotificationWorker(worker.default, {
       sourceMember: {
         sourceId: 'a',
