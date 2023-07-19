@@ -9,6 +9,7 @@ import {
   ensureSourcePermissions,
   GQLSource,
   SourcePermissions,
+  sourceTypesWithMembers,
 } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
@@ -44,6 +45,7 @@ import {
   PostMention,
   PostReport,
   PostType,
+  SourceType,
   Toc,
   Upvote,
   UserActionType,
@@ -881,12 +883,18 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<GQLPost> => {
-      const post = await ctx.con.getRepository(Post).findOneOrFail({
-        select: ['sourceId', 'private'],
+      const partialPost = await ctx.con.getRepository(Post).findOneOrFail({
+        select: ['id', 'sourceId', 'private'],
+        relations: ['source'],
         where: { id },
       });
-      if (post.private) {
-        await ensureSourcePermissions(ctx, post.sourceId);
+      const postSource = await partialPost.source;
+
+      if (
+        partialPost.private ||
+        sourceTypesWithMembers.includes(postSource.type)
+      ) {
+        await ensureSourcePermissions(ctx, partialPost.sourceId);
       }
       return getPostById(ctx, info, id);
     },
