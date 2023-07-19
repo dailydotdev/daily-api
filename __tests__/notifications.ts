@@ -306,7 +306,7 @@ describe('query notificationPreferences', () => {
   const QUERY = `
     query NotificationPreferences($type: String) {
       notificationPreferences(type: $type) {
-        uniqueKey
+        referenceId
         userId
         notificationType
         status
@@ -326,14 +326,14 @@ describe('query notificationPreferences', () => {
       {
         userId: '1',
         postId: postsFixture[0].id,
-        uniqueKey: postsFixture[0].id,
+        referenceId: postsFixture[0].id,
         notificationType: NotificationType.ArticleNewComment,
         status: NotificationPreferenceStatus.Muted,
       },
       {
         userId: '2',
         postId: postsFixture[1].id,
-        uniqueKey: postsFixture[1].id,
+        referenceId: postsFixture[1].id,
         notificationType: NotificationType.ArticleNewComment,
         status: NotificationPreferenceStatus.Muted,
       },
@@ -342,7 +342,7 @@ describe('query notificationPreferences', () => {
       {
         userId: '1',
         sourceId: sourcesFixture[0].id,
-        uniqueKey: sourcesFixture[0].id,
+        referenceId: sourcesFixture[0].id,
         notificationType: NotificationType.SourceApproved,
         status: NotificationPreferenceStatus.Muted,
       },
