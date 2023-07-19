@@ -42,6 +42,8 @@ import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { DEFAULT_FLAGS } from '../src/featureFlags';
 import { SourcePermissions } from '../src/schema/sources';
+import { getEncryptedFeatures } from '../src/growthbook';
+import { base64 } from 'graphql-relay/utils/base64';
 
 jest.mock('../src/flagsmith', () => ({
   getIdentityFlags: jest.fn(),
@@ -61,6 +63,7 @@ const BASE_BODY = {
     sessionId: expect.any(String),
     visitId: expect.any(String),
   },
+  exp: { f: 'enc', e: [] },
 };
 
 const LOGGED_IN_BODY = {
@@ -103,6 +106,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   jest.resetAllMocks();
+  jest.mocked(getEncryptedFeatures).mockReturnValue('enc');
   await con.getRepository(User).save(usersFixture[0]);
   await con.getRepository(Source).save(sourcesFixture);
   await con.getRepository(Post).save(postsFixture);
@@ -698,6 +702,24 @@ describe('boot feature flags', () => {
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
     expect(res.body).toEqual(LOGGED_IN_BODY);
+  });
+});
+
+describe('boot experimentation', () => {
+  it('should return recent experiments from redis', async () => {
+    mockLoggedIn();
+    await ioRedisPool.execute((client) =>
+      client.hset('exp:1', {
+        e1: `v1:${new Date(2023, 5, 20).getTime()}`,
+        e2: `v2:${new Date(2023, 5, 19).getTime()}`,
+      }),
+    );
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.exp.e).toEqual([base64('e1:v1'), base64('e2:v2')]);
   });
 });
 

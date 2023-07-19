@@ -27,6 +27,7 @@ import { GraphQLError } from 'graphql';
 import cookie, { FastifyCookieOptions } from '@fastify/cookie';
 import { getSubscriptionSettings } from './subscription';
 import { ioRedisPool } from './redis';
+import { loadFeatures } from './growthbook';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -60,6 +61,9 @@ export default async function app(
     disableRequestLogging: true,
     trustProxy: true,
   });
+
+  app.log.info('loading features');
+  await loadFeatures();
 
   const gracefulShutdown = () => {
     app.log.info('starting termination');
