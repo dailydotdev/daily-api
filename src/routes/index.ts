@@ -35,4 +35,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     req.log.debug({ body: req.body }, 'events received');
     return res.status(204).send();
   });
+
+  fastify.post('/e/x', (req, res) => {
+    req.log.debug({ body: req.body }, 'allocation received');
+    return res.status(204).send();
+  });
 }
