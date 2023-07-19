@@ -4,6 +4,7 @@ import {
   CommentUpvote,
   FeatureType,
   MachineSource,
+  NotificationPreferencePost,
   Post,
   PostReport,
   PostType,
@@ -32,7 +33,10 @@ import {
   NotificationSourceRequestContext,
   NotificationUpvotersContext,
 } from '../../src/notifications';
-import { NotificationType } from '../../src/notifications/common';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../src/notifications/common';
 import { createSquadWelcomePost, NotificationReason } from '../../src/common';
 import { randomUUID } from 'crypto';
 
@@ -618,6 +622,29 @@ describe('article new comment', () => {
     expect(actual.length).toEqual(2);
     expect(actual[0].ctx.userId).toEqual('1');
     expect(actual[1].ctx.userId).toEqual('3');
+  });
+
+  it('should add notification but ignore users with muted settings', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/articleNewCommentCommentCommented'
+    );
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { scoutId: '1', authorId: '3' });
+    await con.getRepository(NotificationPreferencePost).save({
+      userId: '1',
+      postId: 'p1',
+      referenceId: 'p1',
+      status: NotificationPreferenceStatus.Muted,
+      notificationType: NotificationType.ArticleNewComment,
+    });
+    const actual = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      postId: 'p1',
+      childCommentId: 'c1',
+    });
+    expect(actual.length).toEqual(1);
+    expect(actual[0].ctx.userId).toEqual('3');
   });
 
   it('should insert or ignore completed action type first post comment', async () => {

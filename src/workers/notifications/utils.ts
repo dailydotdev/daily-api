@@ -1,6 +1,7 @@
 import { NotificationHandlerReturn } from './worker';
 import {
   Comment,
+  NotificationPreferencePost,
   Post,
   PostType,
   SharePost,
@@ -12,7 +13,10 @@ import {
   NotificationCommenterContext,
   NotificationPostContext,
 } from '../../notifications';
-import { NotificationType } from '../../notifications/common';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../notifications/common';
 import { DataSource, In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
@@ -127,10 +131,15 @@ export async function articleNewCommentHandler(
     }));
   }
 
-  return users.map((userId) => ({
-    type,
-    ctx: { ...ctx, userId },
-  }));
+  const muted = await con.getRepository(NotificationPreferencePost).findBy({
+    userId: In(users),
+    referenceId: post.id,
+    status: NotificationPreferenceStatus.Muted,
+  });
+
+  return users
+    .filter((id) => !muted.some(({ userId }) => userId === id))
+    .map((userId) => ({ type, ctx: { ...ctx, userId } }));
 }
 
 export const UPVOTE_TITLES = {
