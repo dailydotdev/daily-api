@@ -304,7 +304,7 @@ describe('query notifications', () => {
 
 describe('query notificationPreferences', () => {
   const QUERY = `
-    query NotificationPreferences($type: String) {
+    query NotificationPreferences($type: String!) {
       notificationPreferences(type: $type) {
         referenceId
         userId
@@ -316,7 +316,11 @@ describe('query notificationPreferences', () => {
   `;
 
   it('should not authorize when not logged-in', () =>
-    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { type: '' } },
+      'UNAUTHENTICATED',
+    ));
 
   const prepareNotificationPreferences = async () => {
     await saveFixtures(con, User, usersFixture);
