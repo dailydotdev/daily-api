@@ -45,7 +45,6 @@ import {
   PostMention,
   PostReport,
   PostType,
-  SourceType,
   Toc,
   Upvote,
   UserActionType,
