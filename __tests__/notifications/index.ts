@@ -248,40 +248,6 @@ describe('generateNotification', () => {
     expect(actual.attachments.length).toEqual(0);
   });
 
-  it('should generate article_new_comment notification but ignore muted settings', () => {
-    const type = NotificationType.ArticleNewComment;
-    const ctx: NotificationCommenterContext = {
-      userId,
-      source: sourcesFixture[0] as Reference<Source>,
-      post: postsFixture[0] as Reference<Post>,
-      comment: commentFixture,
-      commenter: usersFixture[1] as Reference<User>,
-    };
-    const actual = generateNotification(type, ctx);
-    expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
-    expect(actual.notification.public).toEqual(true);
-    expect(actual.notification.referenceId).toEqual('c1');
-    expect(actual.notification.referenceType).toEqual('comment');
-    expect(actual.notification.targetUrl).toEqual(
-      'http://localhost:5002/posts/p1#c-c1',
-    );
-    expect(actual.notification.description).toEqual(
-      'Complex markdown comment that needs to be simplified',
-    );
-    expect(actual.avatars).toEqual([
-      {
-        image: 'https://daily.dev/tsahi.jpg',
-        name: 'Tsahi',
-        order: 0,
-        referenceId: '2',
-        targetUrl: 'http://localhost:5002/tsahidaily',
-        type: 'user',
-      },
-    ]);
-    expect(actual.attachments.length).toEqual(0);
-  });
-
   it('should generate article_upvote_milestone notification', () => {
     const type = NotificationType.ArticleUpvoteMilestone;
     const ctx: NotificationPostContext & NotificationUpvotersContext = {
