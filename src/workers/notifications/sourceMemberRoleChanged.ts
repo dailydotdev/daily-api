@@ -2,8 +2,9 @@ import { messageToJson } from '../worker';
 import { NotificationSourceContext } from '../../notifications';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
-import { NotificationType, Source, SourceMember } from '../../entity';
+import { Source, SourceMember } from '../../entity';
 import { SourceMemberRoles } from '../../roles';
+import { NotificationType } from '../../notifications/common';
 
 interface Data {
   previousRole: SourceMemberRoles;
@@ -17,19 +18,19 @@ const previousRoleToNewRole: Partial<
   >
 > = {
   [SourceMemberRoles.Member]: {
-    [SourceMemberRoles.Blocked]: 'squad_blocked',
-    [SourceMemberRoles.Admin]: 'promoted_to_admin',
-    [SourceMemberRoles.Moderator]: 'promoted_to_moderator',
+    [SourceMemberRoles.Blocked]: NotificationType.SquadBlocked,
+    [SourceMemberRoles.Admin]: NotificationType.PromotedToAdmin,
+    [SourceMemberRoles.Moderator]: NotificationType.PromotedToModerator,
   },
   [SourceMemberRoles.Moderator]: {
-    [SourceMemberRoles.Blocked]: 'squad_blocked',
-    [SourceMemberRoles.Admin]: 'promoted_to_admin',
-    [SourceMemberRoles.Member]: 'demoted_to_member',
+    [SourceMemberRoles.Blocked]: NotificationType.SquadBlocked,
+    [SourceMemberRoles.Admin]: NotificationType.PromotedToAdmin,
+    [SourceMemberRoles.Member]: NotificationType.DemotedToMember,
   },
   [SourceMemberRoles.Admin]: {
-    [SourceMemberRoles.Blocked]: 'squad_blocked',
-    [SourceMemberRoles.Moderator]: 'promoted_to_moderator',
-    [SourceMemberRoles.Member]: 'demoted_to_member',
+    [SourceMemberRoles.Blocked]: NotificationType.SquadBlocked,
+    [SourceMemberRoles.Moderator]: NotificationType.PromotedToModerator,
+    [SourceMemberRoles.Member]: NotificationType.DemotedToMember,
   },
 };
 

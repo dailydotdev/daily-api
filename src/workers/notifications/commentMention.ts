@@ -1,6 +1,7 @@
 import { messageToJson } from '../worker';
 import { Comment, CommentMention } from '../../entity';
 import { NotificationCommenterContext } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';
@@ -50,7 +51,7 @@ const worker: NotificationWorker = {
       commenter,
       comment,
     };
-    return [{ type: 'comment_mention', ctx }];
+    return [{ type: NotificationType.CommentMention, ctx }];
   },
 };
 

@@ -3,6 +3,7 @@ import {
   NotificationDoneByContext,
   NotificationPostContext,
 } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import {
@@ -57,7 +58,7 @@ const worker: NotificationWorker = {
       source,
       doneBy,
     };
-    return [{ type: 'squad_member_joined', ctx }];
+    return [{ type: NotificationType.SquadMemberJoined, ctx }];
   },
 };
 
