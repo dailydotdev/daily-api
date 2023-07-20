@@ -145,6 +145,7 @@ export const createSquadWelcomePost = async (
       banned: true,
       private: true,
       visible: true,
+      showOnFeed: false,
     },
     visible: true,
     private: true,
