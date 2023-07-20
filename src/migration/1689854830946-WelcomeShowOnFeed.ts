@@ -5,13 +5,13 @@ export class WelcomeShowOnFeed1689854830946 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `UPDATE post SET flags = flags || '{"showOnFeed": false}' WHERE type = 'welcome'`,
+      `UPDATE post SET flags = flags || '{"showOnFeed": false}', "showOnFeed" = false WHERE type = 'welcome'`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `UPDATE post SET flags = flags || '{"showOnFeed": true}', "showOnFeed" = false WHERE type = 'welcome'`,
+      `UPDATE post SET flags = flags || '{"showOnFeed": true}', "showOnFeed" = true WHERE type = 'welcome'`,
     );
   }
 }
