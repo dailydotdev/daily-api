@@ -63,7 +63,7 @@ export default async function app(
   });
 
   app.log.info('loading features');
-  await loadFeatures();
+  await loadFeatures(app.log);
 
   const gracefulShutdown = () => {
     app.log.info('starting termination');

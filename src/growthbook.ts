@@ -4,6 +4,7 @@ import {
   setPolyfills,
 } from '@growthbook/growthbook';
 import { encrypt } from './common';
+import { FastifyBaseLogger } from 'fastify';
 
 setPolyfills({
   EventSource: require('eventsource'),
@@ -16,7 +17,7 @@ const gb = new GrowthBook({
 
 let encryptedFeatures: string;
 
-const updateFeatures = async () => {
+const updateFeatures = (log: FastifyBaseLogger) => async () => {
   const features = gb.getFeatures();
   if (process.env.NODE_ENV === 'production') {
     encryptedFeatures = await encrypt(
@@ -28,15 +29,16 @@ const updateFeatures = async () => {
   } else {
     encryptedFeatures = JSON.stringify(features);
   }
-  console.log('updated features');
+  log.info('updated features');
 };
 
 export type Features = Record<string, FeatureDefinition<unknown>>;
 
-export async function loadFeatures(): Promise<void> {
+export async function loadFeatures(log: FastifyBaseLogger): Promise<void> {
   await gb.loadFeatures({ autoRefresh: true });
-  await updateFeatures();
-  gb.setRenderer(updateFeatures);
+  const renderer = updateFeatures(log);
+  await renderer();
+  gb.setRenderer(renderer);
 }
 
 export function getEncryptedFeatures(): string {
