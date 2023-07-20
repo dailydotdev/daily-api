@@ -456,6 +456,28 @@ query Source($id: ID!) {
       `${process.env.COMMENTS_PREFIX}/squads/handle/referraltoken1`,
     );
   });
+
+  it('should disallow access to public source for blocked members', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad, private: false });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Blocked,
+    });
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: 'a' },
+      },
+      'FORBIDDEN',
+    );
+  });
 });
 
 describe('query sourceHandleExists', () => {
