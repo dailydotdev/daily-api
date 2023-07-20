@@ -152,6 +152,7 @@ export const createSquadWelcomePost = async (
     pinnedAt: new Date(),
     visibleAt: new Date(),
     origin: PostOrigin.UserGenerated,
+    showOnFeed: false,
   } as Partial<Post>);
 };
 
