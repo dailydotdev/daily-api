@@ -5,13 +5,13 @@ Array [
   Object {
     "enabled": true,
     "id": "a",
-    "image": "http://a.com",
+    "image": "http://image.com/a",
     "name": "A",
   },
   Object {
     "enabled": true,
     "id": "b",
-    "image": "http://b.com",
+    "image": "http://image.com/b",
     "name": "B",
   },
 ]
@@ -259,7 +259,7 @@ exports[`query source should return source by id 1`] = `
 Object {
   "source": Object {
     "id": "a",
-    "image": "http://a.com",
+    "image": "http://image.com/a",
     "name": "A",
     "public": true,
   },

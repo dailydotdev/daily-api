@@ -50,6 +50,12 @@ export class Source {
   @Column({ default: false })
   private: boolean;
 
+  @Column({ type: 'text', nullable: true })
+  headerImage: string;
+
+  @Column({ type: 'text', nullable: true })
+  color: string;
+
   @Column({
     length: 36,
     transformer: {
