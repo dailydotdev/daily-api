@@ -45,6 +45,9 @@ const cron: Cron = {
         includeHeaders: false,
         typeHandlers: {
           Date: (date: Date) => date.toISOString(),
+          Array: (arr: string[]) => {
+            return '[' + arr.map((x) => `'${x}'`).join(', ') + ']';
+          },
         },
       });
 
