@@ -116,6 +116,16 @@ export const typeDefs = /* GraphQL */ `
     public: Boolean
 
     """
+    URL to an header image of the source
+    """
+    headerImage: String
+
+    """
+    Accent color that applies to the source
+    """
+    color: String
+
+    """
     Whether the source is active or not (applicable for squads)
     """
     active: Boolean
