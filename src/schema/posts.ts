@@ -205,9 +205,9 @@ export const typeDefs = /* GraphQL */ `
     private: Boolean
 
     """
-    Wheter the post is promoted to public
+    The datetime the post will be promoted to public to
     """
-    promoteToPublic: Boolean
+    promoteToPublic: DateTime
   }
 
   """
@@ -642,18 +642,28 @@ export const typeDefs = /* GraphQL */ `
     ): String! @auth @rateLimit(limit: 5, duration: 60)
 
     """
-    Promote or demote a post
+    Promote a post
     """
-    updatePromoteToPublic(
+    promoteToPublic(
       """
       Id of the post to update the promoteToPublic flag for
       """
       id: ID!
 
       """
-      Whether to promote or demote the post
+      The datetime to promote the post to public
       """
-      promoteToPublic: Boolean!
+      promoteToPublic: DateTime!
+    ): EmptyResponse @auth
+
+    """
+    Demote a post
+    """
+    demoteFromPublic(
+      """
+      Id of the post to demote from the public
+      """
+      id: ID!
     ): EmptyResponse @auth
 
     """
@@ -873,6 +883,25 @@ export const getPostByUrl = async (
   );
 
   return res[0];
+};
+
+const updatePromoteToPublicFlag = async (
+  ctx: Context,
+  id: string,
+  value: Date | null,
+): Promise<GQLEmptyResponse> => {
+  if (!ctx.roles.includes(Roles.Moderator)) {
+    throw new ForbiddenError('Access denied!');
+  }
+
+  await ctx.getRepository(Post).update(
+    { id },
+    {
+      flags: updateFlagsStatement<Post>({ promoteToPublic: value }),
+    },
+  );
+
+  return { _: true };
 };
 
 const getPostById = async (
@@ -1106,24 +1135,17 @@ export const resolvers: IResolvers<any, Context> = {
 
       return { _: true };
     },
-    updatePromoteToPublic: async (
+    promoteToPublic: async (
       _,
-      { id, promoteToPublic }: { id: string; promoteToPublic: boolean },
+      { id, promoteToPublic }: { id: string; promoteToPublic: Date },
       ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
-      if (!ctx.roles.includes(Roles.Moderator)) {
-        throw new ForbiddenError('Access denied!');
-      }
-
-      await ctx.getRepository(Post).update(
-        { id },
-        {
-          flags: updateFlagsStatement<Post>({ promoteToPublic }),
-        },
-      );
-
-      return { _: true };
-    },
+    ): Promise<GQLEmptyResponse> =>
+      updatePromoteToPublicFlag(ctx, id, promoteToPublic),
+    demoteFromPublic: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => updatePromoteToPublicFlag(ctx, id, null),
     updatePinPost: async (
       _,
       { id, pinned }: PinPostArgs,

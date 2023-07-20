@@ -2810,16 +2810,18 @@ describe('mutation editPost', () => {
   });
 });
 
-describe('mutation updatePromoteToPublic', () => {
+describe('mutation promoteToPublic', () => {
   const MUTATION = `
-    mutation UpdatePromoteToPublic($id: ID!, $promoteToPublic: Boolean!) {
-      updatePromoteToPublic(id: $id, promoteToPublic: $promoteToPublic) {
+    mutation PromoteToPublic($id: ID!, $promoteToPublic: DateTime!) {
+      promoteToPublic(id: $id, promoteToPublic: $promoteToPublic) {
         _
       }
     }
   `;
 
-  const params = { id: 'p1', promoteToPublic: false };
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  const params = { id: 'p1', promoteToPublic: date };
 
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
@@ -2843,23 +2845,61 @@ describe('mutation updatePromoteToPublic', () => {
     roles = [Roles.Moderator];
 
     await client.mutate(MUTATION, {
-      variables: { id: 'p1', promoteToPublic: true },
+      variables: params,
     });
 
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post.flags.promoteToPublic).toEqual(true);
+    expect(post.flags.promoteToPublic).toEqual(date.toISOString());
+  });
+});
+
+describe('mutation demoteFromPublic', () => {
+  const MUTATION = `
+    mutation DemoteFromPublic($id: ID!) {
+      demoteFromPublic(id: $id) {
+        _
+      }
+    }
+  `;
+
+  const params = { id: 'p1' };
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if user is not a system moderator', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'FORBIDDEN',
+    );
   });
 
   it('should demote post from public', async () => {
     loggedUser = '1';
     roles = [Roles.Moderator];
 
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({
+          promoteToPublic: new Date('2021-01-01T10:16:20.797Z'),
+        }),
+      },
+    );
+
     await client.mutate(MUTATION, {
-      variables: { id: 'p1', promoteToPublic: false },
+      variables: params,
     });
 
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post.flags.promoteToPublic).toEqual(false);
+    expect(post.flags.promoteToPublic).toEqual(null);
   });
 });
 
