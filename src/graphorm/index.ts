@@ -164,12 +164,16 @@ const obj = new GraphORM({
         select: existsByUserAndPost('Downvote'),
         transform: nullIfNotLoggedIn,
       },
+      flags: {
+        jsonType: true,
+      },
     },
   },
   Source: {
     requiredColumns: ['id', 'private', 'handle', 'type'],
     fields: {
       public: {
+        select: 'private',
         transform: (value: boolean): boolean => !value,
       },
       members: {

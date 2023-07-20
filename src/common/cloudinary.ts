@@ -29,16 +29,33 @@ export enum UploadPreset {
   FreeformGif = 'freeform_gif',
 }
 
+interface OptionalProps {
+  invalidate?: boolean;
+}
+
+interface UploadResult {
+  url: string;
+  id: string;
+}
+
+type UploadFn = (
+  name: string,
+  stream: Readable,
+  options?: OptionalProps,
+) => Promise<UploadResult>;
+
 export const uploadFile = (
   name: string,
   preset: UploadPreset,
   stream: Readable,
-): Promise<{ url: string; id: string }> =>
+  { invalidate }: OptionalProps = {},
+): Promise<UploadResult> =>
   new Promise((resolve, reject) => {
     const outStream = cloudinary.v2.uploader.upload_stream(
       {
         public_id: name,
         upload_preset: preset,
+        invalidate,
       },
       (err, callResult) => {
         if (err) {
@@ -59,14 +76,19 @@ export const uploadFile = (
     stream.pipe(outStream);
   });
 
-export const uploadDevCardBackground = (name: string, stream: Readable) =>
-  uploadFile(name, UploadPreset.DevCard, stream);
+export const uploadDevCardBackground: UploadFn = (name, stream, options) =>
+  uploadFile(name, UploadPreset.DevCard, stream, options);
 
-export const uploadSquadImage = (name: string, stream: Readable) =>
-  uploadFile(name, UploadPreset.SquadImage, stream);
+export const uploadSquadImage: UploadFn = (name, stream, options) =>
+  uploadFile(name, UploadPreset.SquadImage, stream, options);
 
-export const uploadAvatar = (userId: string, stream: Readable) =>
-  uploadFile(`${UploadPreset.Avatar}_${userId}`, UploadPreset.Avatar, stream);
+export const uploadAvatar: UploadFn = (userId, stream, options) =>
+  uploadFile(
+    `${UploadPreset.Avatar}_${userId}`,
+    UploadPreset.Avatar,
+    stream,
+    options,
+  );
 
 type PostPreset =
   | UploadPreset.PostBannerImage
@@ -77,4 +99,5 @@ export const uploadPostFile = (
   name: string,
   stream: Readable,
   preset: PostPreset,
-) => uploadFile(name, preset, stream);
+  props: OptionalProps = {},
+) => uploadFile(name, preset, stream, props);

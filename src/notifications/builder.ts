@@ -5,7 +5,6 @@ import {
   Notification,
   NotificationAttachment,
   NotificationAvatar,
-  NotificationType,
   Post,
   PostType,
   Source,
@@ -20,10 +19,12 @@ import { markdownToTxt } from 'markdown-to-txt';
 import { NotificationBundle, Reference } from './types';
 import { NotificationIcon } from './icons';
 import { SourceMemberRoles } from '../roles';
+import { NotificationType } from './common';
 
 const MAX_COMMENT_LENGTH = 320;
 
 export const simplifyComment = (comment: string): string => {
+  if (!comment) return '';
   const simplified = markdownToTxt(comment);
   return simplified.length <= MAX_COMMENT_LENGTH
     ? simplified

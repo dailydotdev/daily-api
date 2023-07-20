@@ -29,6 +29,7 @@ import {
   notifyPostBannedOrRemoved,
   notifyPostCommented,
   notifyPostReport,
+  notifyCommentReport,
   notifyPostUpvoteCanceled,
   notifyPostUpvoted,
   notifySendAnalyticsReport,
@@ -69,6 +70,8 @@ import { reportReasons } from '../schema/posts';
 import { updateAlerts } from '../schema/alerts';
 import { submissionAccessThreshold } from '../schema/submissions';
 import { TypeOrmError } from '../errors';
+import { CommentReport } from '../entity/CommentReport';
+import { reportCommentReasons } from '../schema/comments';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
@@ -352,6 +355,26 @@ const onPostReportChange = async (
   }
 };
 
+const onCommentReportChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<CommentReport>,
+) => {
+  if (data.payload.op === 'c') {
+    const comment = await con
+      .getRepository(Comment)
+      .findOneBy({ id: data.payload.after.commentId });
+    if (comment) {
+      await notifyCommentReport(
+        data.payload.after.userId,
+        comment,
+        reportCommentReasons.get(data.payload.after.reason),
+        data.payload.after.note,
+      );
+    }
+  }
+};
+
 const onSourceFeedChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -494,7 +517,10 @@ const worker: Worker = {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const data: ChangeMessage<any> = messageToJson(message);
-      if (data.schema.name === 'io.debezium.connector.common.Heartbeat') {
+      if (
+        data.schema.name === 'io.debezium.connector.common.Heartbeat' ||
+        data.payload.op === 'r'
+      ) {
         return;
       }
       switch (data.payload.source.table) {
@@ -530,6 +556,9 @@ const worker: Worker = {
           break;
         case getTableName(con, PostReport):
           await onPostReportChange(con, logger, data);
+          break;
+        case getTableName(con, CommentReport):
+          await onCommentReportChange(con, logger, data);
           break;
         case getTableName(con, Alerts):
           await onAlertsChange(con, logger, data);

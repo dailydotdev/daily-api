@@ -41,6 +41,7 @@ import createOrGetConnection from '../../src/db';
 import { DataSource } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { SourceMemberRoles } from '../../src/roles';
+import { NotificationType } from '../../src/notifications/common';
 
 const userId = '1';
 const commentFixture: Reference<Comment> = {
@@ -82,7 +83,7 @@ describe('generateNotification', () => {
   };
 
   it('should generate post_mention notification with mention on title', async () => {
-    const type = 'post_mention';
+    const type = NotificationType.PostMention;
     const title = `Some title mention @${usersFixture[0].username}`;
     const post = { ...postsFixture[0], title } as Reference<Post>;
     const ctx: NotificationPostContext & NotificationDoneByContext = {
@@ -102,7 +103,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate post_mention notification with mention on content', async () => {
-    const type = 'post_mention';
+    const type = NotificationType.PostMention;
     const title = `Some title without mention `;
     const content = `Some content mention @${usersFixture[0].username}`;
     const post = {
@@ -127,7 +128,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate community_picks_failed notification', () => {
-    const type = 'community_picks_failed';
+    const type = NotificationType.CommunityPicksFailed;
     const ctx: NotificationSubmissionContext = {
       userId,
       submission: { id: 's1' },
@@ -143,7 +144,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate community_picks_succeeded notification', () => {
-    const type = 'community_picks_succeeded';
+    const type = NotificationType.CommunityPicksSucceeded;
     const ctx: NotificationSubmissionContext & NotificationPostContext = {
       userId,
       submission: { id: 's1' },
@@ -172,7 +173,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate community_picks_granted notification', () => {
-    const type = 'community_picks_granted';
+    const type = NotificationType.CommunityPicksGranted;
     const ctx: NotificationBaseContext = { userId };
     const actual = generateNotification(type, ctx);
     expect(actual.notification.type).toEqual(type);
@@ -186,7 +187,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate article_picked notification', () => {
-    const type = 'article_picked';
+    const type = NotificationType.ArticlePicked;
     const ctx: NotificationPostContext = {
       userId,
       source: sourcesFixture[0] as Reference<Source>,
@@ -214,7 +215,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate article_new_comment notification', () => {
-    const type = 'article_new_comment';
+    const type = NotificationType.ArticleNewComment;
     const ctx: NotificationCommenterContext = {
       userId,
       source: sourcesFixture[0] as Reference<Source>,
@@ -248,7 +249,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate article_upvote_milestone notification', () => {
-    const type = 'article_upvote_milestone';
+    const type = NotificationType.ArticleUpvoteMilestone;
     const ctx: NotificationPostContext & NotificationUpvotersContext = {
       userId,
       source: sourcesFixture[0] as Reference<Source>,
@@ -296,7 +297,7 @@ describe('generateNotification', () => {
   });
 
   it('should add source avatar to article_upvote_milestone when it is a squad post', () => {
-    const type = 'article_upvote_milestone';
+    const type = NotificationType.ArticleUpvoteMilestone;
     const ctx: NotificationPostContext & NotificationUpvotersContext = {
       userId,
       source: {
@@ -338,7 +339,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate article_report_approved notification', () => {
-    const type = 'article_report_approved';
+    const type = NotificationType.ArticleReportApproved;
     const ctx: NotificationPostContext = {
       userId,
       source: sourcesFixture[0] as Reference<Source>,
@@ -355,7 +356,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate article_analytics notification', () => {
-    const type = 'article_analytics';
+    const type = NotificationType.ArticleAnalytics;
     const ctx: NotificationPostContext = {
       userId,
       source: sourcesFixture[0] as Reference<Source>,
@@ -372,7 +373,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate source_approved notification', () => {
-    const type = 'source_approved';
+    const type = NotificationType.SourceApproved;
     const ctx: NotificationSourceRequestContext & NotificationSourceContext = {
       userId,
       source: {
@@ -407,7 +408,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate source_rejected notification', () => {
-    const type = 'source_rejected';
+    const type = NotificationType.SourceRejected;
     const ctx: NotificationSourceRequestContext = {
       userId,
       sourceRequest: {
@@ -425,7 +426,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate comment_mention notification', () => {
-    const type = 'comment_mention';
+    const type = NotificationType.CommentMention;
     const ctx: NotificationCommenterContext = {
       userId,
       source: sourcesFixture[0] as Reference<Source>,
@@ -459,7 +460,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate comment_reply notification', () => {
-    const type = 'comment_reply';
+    const type = NotificationType.CommentReply;
     const ctx: NotificationCommenterContext = {
       userId,
       source: sourcesFixture[0] as Reference<Source>,
@@ -493,7 +494,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate comment_upvote_milestone notification', () => {
-    const type = 'comment_upvote_milestone';
+    const type = NotificationType.CommentUpvoteMilestone;
     const ctx: NotificationCommentContext & NotificationUpvotersContext = {
       userId,
       source: sourcesFixture[0] as Reference<Source>,
@@ -537,7 +538,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate squad_post_added notification', () => {
-    const type = 'squad_post_added';
+    const type = NotificationType.SquadPostAdded;
     const ctx: NotificationPostContext & NotificationDoneByContext = {
       userId,
       source: {
@@ -587,7 +588,7 @@ describe('generateNotification', () => {
   });
 
   it('should set attachment as shared post on squad_post_added notification', () => {
-    const type = 'squad_post_added';
+    const type = NotificationType.SquadPostAdded;
     const ctx: NotificationPostContext & NotificationDoneByContext = {
       userId,
       source: {
@@ -643,7 +644,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate squad_post_viewed notification', () => {
-    const type = 'squad_post_viewed';
+    const type = NotificationType.SquadPostViewed;
     const ctx: NotificationPostContext & NotificationDoneByContext = {
       userId,
       source: {
@@ -700,7 +701,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate squad_member_joined notification', async () => {
-    const type = 'squad_member_joined';
+    const type = NotificationType.SquadMemberJoined;
     await con.getRepository(Source).save(sourcesFixture[0]);
     await con
       .getRepository(Source)
@@ -756,7 +757,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate squad_blocked notification', () => {
-    const type = 'squad_blocked';
+    const type = NotificationType.SquadBlocked;
     const ctx: NotificationSourceContext = {
       userId,
       source: {
@@ -777,7 +778,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate promoted_to_admin notification', () => {
-    const type = 'promoted_to_admin';
+    const type = NotificationType.PromotedToAdmin;
     const ctx: NotificationSourceMemberRoleContext = {
       userId,
       source: {
@@ -804,7 +805,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate demoted_to_member notification', () => {
-    const type = 'demoted_to_member';
+    const type = NotificationType.DemotedToMember;
     const ctx: NotificationSourceMemberRoleContext = {
       userId,
       source: {
@@ -829,7 +830,7 @@ describe('generateNotification', () => {
   });
 
   it('should generate promoted_to_moderator notification', () => {
-    const type = 'promoted_to_moderator';
+    const type = NotificationType.PromotedToModerator;
     const ctx: NotificationSourceContext = {
       userId,
       source: {
@@ -869,7 +870,7 @@ describe('storeNotificationBundle', () => {
     };
     await con.transaction((manager) =>
       storeNotificationBundle(manager, [
-        generateNotification('article_upvote_milestone', ctx),
+        generateNotification(NotificationType.ArticleUpvoteMilestone, ctx),
       ]),
     );
     const notifications = await con.getRepository(Notification).find();
@@ -890,8 +891,8 @@ describe('storeNotificationBundle', () => {
     };
     await con.transaction((manager) =>
       storeNotificationBundle(manager, [
-        generateNotification('article_upvote_milestone', ctx),
-        generateNotification('article_upvote_milestone', ctx),
+        generateNotification(NotificationType.ArticleUpvoteMilestone, ctx),
+        generateNotification(NotificationType.ArticleUpvoteMilestone, ctx),
       ]),
     );
     const notifications = await con.getRepository(Notification).find();
@@ -903,7 +904,7 @@ describe('storeNotificationBundle', () => {
   });
 
   it('should generate squad_new_comment notification', () => {
-    const type = 'squad_new_comment';
+    const type = NotificationType.SquadNewComment;
     const ctx: NotificationCommenterContext = {
       userId,
       source: {
@@ -948,7 +949,7 @@ describe('storeNotificationBundle', () => {
   });
 
   it('should generate squad_reply notification', () => {
-    const type = 'squad_reply';
+    const type = NotificationType.SquadReply;
     const ctx: NotificationCommenterContext = {
       userId,
       source: {
@@ -993,7 +994,7 @@ describe('storeNotificationBundle', () => {
   });
 
   it('should generate squad_access notification', () => {
-    const type = 'squad_access';
+    const type = NotificationType.SquadAccess;
     const ctx: NotificationBaseContext = {
       userId,
     };

@@ -49,6 +49,7 @@ import {
   DEFAULT_POST_TITLE,
   pickImageUrl,
   createSquadWelcomePost,
+  updateFlagsStatement,
 } from '../src/common';
 import { randomUUID } from 'crypto';
 import nock from 'nock';
@@ -773,6 +774,30 @@ describe('query post', () => {
     const res = await client.query(QUERY('p1'));
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should disallow access to post from public source for blocked members', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad, private: false });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { private: false, sourceId: 'a' });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Blocked,
+    });
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY('p1'),
+      },
+      'FORBIDDEN',
+    );
+  });
 });
 
 describe('query postByUrl', () => {
@@ -1244,6 +1269,7 @@ describe('mutation banPost', () => {
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.banned).toEqual(true);
+    expect(post.flags.banned).toEqual(true);
   });
 
   it('should do nothing if post is already banned', async () => {
@@ -3047,5 +3073,37 @@ describe('mutation cancelDownvote', () => {
     expect(actual).toEqual([]);
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.downvotes).toEqual(0);
+  });
+});
+
+describe('flags field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      flags {
+        private
+      }
+    }
+  }`;
+
+  it('should return all the public flags', async () => {
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { flags: updateFlagsStatement({ private: true }) });
+    const res = await client.query(QUERY);
+    expect(res.data.post.flags).toEqual({ private: true });
+  });
+
+  it('should return null values for unset flags', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data.post.flags).toEqual({ private: null });
+  });
+
+  it('should contain all default values in db query', async () => {
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags).toEqual({
+      sentAnalyticsReport: true,
+      visible: true,
+      showOnFeed: true,
+    });
   });
 });

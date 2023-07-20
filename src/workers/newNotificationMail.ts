@@ -7,7 +7,6 @@ import {
   Notification,
   NotificationAttachment,
   NotificationAvatar,
-  NotificationType,
   Post,
   SharePost,
   Source,
@@ -30,6 +29,7 @@ import {
 import { DataSource } from 'typeorm';
 import { SubmissionFailErrorMessage } from '../errors';
 import { simplifyComment } from '../notifications/builder';
+import { NotificationType } from '../notifications/common';
 
 interface Data {
   notification: ChangeObject<Notification>;

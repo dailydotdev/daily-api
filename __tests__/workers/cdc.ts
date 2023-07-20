@@ -19,6 +19,7 @@ import {
   notifyPostBannedOrRemoved,
   notifyPostCommented,
   notifyPostReport,
+  notifyCommentReport,
   notifyPostUpvoteCanceled,
   notifyPostUpvoted,
   notifySendAnalyticsReport,
@@ -81,6 +82,9 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { TypeOrmError } from '../../src/errors';
 import { SourceMemberRoles } from '../../src/roles';
+import { CommentReport } from '../../src/entity/CommentReport';
+import { usersFixture } from '../fixture/user';
+import { NotificationType } from '../../src/notifications/common';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -98,6 +102,7 @@ jest.mock('../../src/common', () => ({
   notifySendAnalyticsReport: jest.fn(),
   notifyPostBannedOrRemoved: jest.fn(),
   notifyPostReport: jest.fn(),
+  notifyCommentReport: jest.fn(),
   notifyAlertsUpdated: jest.fn(),
   notifySourceFeedAdded: jest.fn(),
   notifySourceFeedRemoved: jest.fn(),
@@ -859,6 +864,50 @@ describe('post', () => {
   });
 });
 
+describe('comment report', () => {
+  type ObjectType = CommentReport;
+  const base: ChangeObject<ObjectType> = {
+    userId: 'u1',
+    commentId: 'c1',
+    createdAt: 0,
+    reason: 'MISINFORMATION',
+    note: 'Test note',
+  };
+
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, ArticlePost, postsFixture);
+    await con.getRepository(Comment).save({
+      id: 'c1',
+      postId: 'p1',
+      content: 'User placed comment',
+      userId: '1',
+    });
+  });
+
+  it('should notify on new comment report', async () => {
+    const after: ChangeObject<ObjectType> = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'comment_report',
+      }),
+    );
+    const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
+    expect(notifyCommentReport).toBeCalledTimes(1);
+    expect(notifyCommentReport).toBeCalledWith(
+      'u1',
+      comment,
+      'False Information or Misinformation',
+      'Test note',
+    );
+  });
+});
+
 describe('post report', () => {
   type ObjectType = PostReport;
   const base: ChangeObject<ObjectType> = {
@@ -1299,7 +1348,7 @@ describe('notification', () => {
   const base: ChangeObject<ObjectType> = {
     id,
     userId: '1',
-    type: 'community_picks_granted',
+    type: NotificationType.CommunityPicksGranted,
     title: 'hello',
     targetUrl: 'target',
     icon: 'icon',

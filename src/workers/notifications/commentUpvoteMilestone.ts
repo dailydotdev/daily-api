@@ -4,6 +4,7 @@ import {
   NotificationCommentContext,
   NotificationUpvotersContext,
 } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { buildPostContext, UPVOTE_MILESTONES } from './utils';
 import { Not } from 'typeorm';
@@ -60,7 +61,7 @@ const worker: NotificationWorker = {
       }
     }
 
-    return [{ type: 'comment_upvote_milestone', ctx }];
+    return [{ type: NotificationType.CommentUpvoteMilestone, ctx }];
   },
 };
 

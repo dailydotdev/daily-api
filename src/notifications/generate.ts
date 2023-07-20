@@ -1,4 +1,4 @@
-import { NotificationType, PostType, FreeformPost } from '../entity';
+import { PostType, FreeformPost } from '../entity';
 import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
 import {
@@ -21,6 +21,7 @@ import {
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
+import { NotificationType } from './common';
 
 const systemTitle = () => undefined;
 

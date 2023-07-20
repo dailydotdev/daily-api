@@ -12,24 +12,28 @@ import { DataSource } from 'typeorm';
 import {
   Alerts,
   ALERTS_DEFAULT,
+  ArticlePost,
+  MachineSource,
+  Notification,
+  Post,
   Settings,
   SETTINGS_DEFAULT,
-  Notification,
-  User,
-  SquadSource,
   Source,
   SourceMember,
-  MachineSource,
-  SQUAD_IMAGE_PLACEHOLDER,
   SourceType,
-  Post,
-  ArticlePost,
+  SQUAD_IMAGE_PLACEHOLDER,
+  SquadSource,
+  User,
 } from '../src/entity';
-import { SourceMemberRoles } from '../src/roles';
+import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { notificationFixture } from './fixture/notifications';
 import { usersFixture } from './fixture/user';
-import { getRedisObject, setRedisObject } from '../src/redis';
-import { REDIS_CHANGELOG_KEY } from '../src/config';
+import { getRedisObject, ioRedisPool, setRedisObject } from '../src/redis';
+import {
+  generateStorageKey,
+  REDIS_CHANGELOG_KEY,
+  StorageTopic,
+} from '../src/config';
 import nock from 'nock';
 import { addDays, setMilliseconds } from 'date-fns';
 import setCookieParser from 'set-cookie-parser';
@@ -38,7 +42,6 @@ import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { DEFAULT_FLAGS } from '../src/featureFlags';
 import { SourcePermissions } from '../src/schema/sources';
-import { sourceRoleRank } from '../src/roles';
 
 jest.mock('../src/flagsmith', () => ({
   getIdentityFlags: jest.fn(),
@@ -87,6 +90,7 @@ const ANONYMOUS_BODY = {
   settings: SETTINGS_DEFAULT,
   user: {
     id: expect.any(String),
+    firstVisit: expect.any(String),
   },
   shouldLogout: false,
 };
@@ -103,6 +107,7 @@ beforeEach(async () => {
   await con.getRepository(Source).save(sourcesFixture);
   await con.getRepository(Post).save(postsFixture);
   mockFeatureFlagForUser();
+  await ioRedisPool.execute((client) => client.flushall());
 });
 
 const BASE_PATH = '/boot';
@@ -151,6 +156,7 @@ describe('anonymous boot', () => {
       ...ANONYMOUS_BODY,
       user: {
         id: null,
+        firstVisit: null,
       },
       visit: {
         visitId: expect.any(String),
@@ -167,6 +173,7 @@ describe('anonymous boot', () => {
       ...ANONYMOUS_BODY,
       user: {
         id: null,
+        firstVisit: null,
         referralId: '1',
         referralOrigin: 'knightcampaign',
       },
@@ -174,6 +181,74 @@ describe('anonymous boot', () => {
         visitId: expect.any(String),
       },
     });
+  });
+
+  it('should set first visit value if null', async () => {
+    const first = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(first.body.user.firstVisit).toBeTruthy();
+    await ioRedisPool.execute((client) => client.flushall());
+    const second = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', first.headers['set-cookie'])
+      .expect(200);
+    expect(second.body.user.id).toEqual(first.body.user.id);
+    expect(second.body.user.firstVisit).toBeTruthy();
+    expect(second.body.user.firstVisit).not.toEqual(first.body.user.firstVisit);
+  });
+
+  it('should retain first visit value if not null', async () => {
+    const first = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(first.body.user.firstVisit).toBeTruthy();
+    const second = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', first.headers['set-cookie'])
+      .expect(200);
+    expect(second.body.user.id).toEqual(first.body.user.id);
+    expect(second.body.user.firstVisit).toBeTruthy();
+    expect(second.body.user.firstVisit).toEqual(first.body.user.firstVisit);
+  });
+
+  it('should validate onboarding v2 requirement', async () => {
+    const first = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    await ioRedisPool.execute((client) =>
+      client.set(
+        generateStorageKey(
+          StorageTopic.Boot,
+          'first_visit',
+          first.body.user.id,
+        ),
+        new Date(2023, 6, 10).toISOString(),
+      ),
+    );
+    mockFeatureFlagForUser('onboarding_v2', true, 'v1');
+    const second = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', first.headers['set-cookie'])
+      .expect(200);
+    expect(second.body.user.id).toEqual(first.body.user.id);
+    expect(second.body.flags.onboarding_v2.enabled).toBeFalsy();
+  });
+
+  it('should not change value if user is not a pre onboarding v2 user', async () => {
+    mockFeatureFlagForUser('onboarding_v2', true, 'v1');
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(res.body.flags.onboarding_v2.enabled).toBeTruthy();
+    expect(res.body.flags.onboarding_v2.value).toEqual('v1');
   });
 });
 
