@@ -84,6 +84,7 @@ import { TypeOrmError } from '../../src/errors';
 import { SourceMemberRoles } from '../../src/roles';
 import { CommentReport } from '../../src/entity/CommentReport';
 import { usersFixture } from '../fixture/user';
+import { NotificationType } from '../../src/notifications/common';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -1347,7 +1348,7 @@ describe('notification', () => {
   const base: ChangeObject<ObjectType> = {
     id,
     userId: '1',
-    type: 'community_picks_granted',
+    type: NotificationType.CommunityPicksGranted,
     title: 'hello',
     targetUrl: 'target',
     icon: 'icon',

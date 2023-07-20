@@ -4,6 +4,7 @@ import {
   NotificationPostContext,
   NotificationUpvotersContext,
 } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { buildPostContext, uniquePostOwners, UPVOTE_MILESTONES } from './utils';
 import { In, Not } from 'typeorm';
@@ -55,13 +56,13 @@ const worker: NotificationWorker = {
       }
 
       return members.map(({ userId }) => ({
-        type: 'article_upvote_milestone',
+        type: NotificationType.ArticleUpvoteMilestone,
         ctx: { ...ctx, userId },
       }));
     }
 
     return users.map((userId) => ({
-      type: 'article_upvote_milestone',
+      type: NotificationType.ArticleUpvoteMilestone,
       ctx: { ...ctx, userId },
     }));
   },

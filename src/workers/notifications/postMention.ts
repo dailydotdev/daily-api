@@ -4,6 +4,7 @@ import {
   NotificationDoneByContext,
   NotificationPostContext,
 } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import { buildPostContext } from './utils';
@@ -39,7 +40,7 @@ const worker: NotificationWorker = {
       doneBy,
       doneTo,
     };
-    return [{ type: 'post_mention', ctx }];
+    return [{ type: NotificationType.PostMention, ctx }];
   },
 };
 

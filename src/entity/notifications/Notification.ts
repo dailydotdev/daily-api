@@ -8,36 +8,10 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { User } from './User';
+import { User } from '../User';
 import { NotificationAvatar } from './NotificationAvatar';
 import { NotificationAttachment } from './NotificationAttachment';
-
-export type NotificationType =
-  | 'community_picks_failed'
-  | 'community_picks_succeeded'
-  | 'community_picks_granted'
-  | 'article_picked'
-  | 'article_new_comment'
-  | 'article_upvote_milestone'
-  | 'article_report_approved'
-  | 'article_analytics'
-  | 'source_approved'
-  | 'source_rejected'
-  | 'comment_mention'
-  | 'comment_reply'
-  | 'comment_upvote_milestone'
-  | 'squad_access'
-  | 'squad_post_added'
-  | 'squad_member_joined'
-  | 'squad_new_comment'
-  | 'squad_reply'
-  | 'squad_post_viewed'
-  | 'squad_subscribe_to_notification'
-  | 'squad_blocked'
-  | 'promoted_to_admin'
-  | 'demoted_to_member'
-  | 'promoted_to_moderator'
-  | 'post_mention';
+import { NotificationType } from '../../notifications/common';
 
 export type NotificationReferenceType =
   | 'source_request'

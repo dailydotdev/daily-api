@@ -8,8 +8,8 @@ import {
   Comment,
   NotificationAvatar,
   Post,
-  User,
   Source,
+  User,
 } from '../../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -17,6 +17,7 @@ import { usersFixture } from '../fixture/user';
 import { NotificationCommenterContext } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
+import { NotificationType } from '../../src/notifications/common';
 
 let con: DataSource;
 
@@ -47,7 +48,7 @@ it('should update targetUrl of user avatars', async () => {
     comment: comment1,
     commenter: commenter1,
   };
-  await saveNotificationFixture(con, 'comment_mention', ctx1);
+  await saveNotificationFixture(con, NotificationType.CommentMention, ctx1);
   const comment2 = await con.getRepository(Comment).save({
     id: 'c2',
     postId: 'p1',
@@ -62,7 +63,7 @@ it('should update targetUrl of user avatars', async () => {
     comment: comment2,
     commenter: commenter2,
   };
-  await saveNotificationFixture(con, 'comment_mention', ctx2);
+  await saveNotificationFixture(con, NotificationType.CommentMention, ctx2);
   await con.getRepository(User).update({ id: '2' }, { username: 'test' });
   await expectSuccessfulBackground(worker, { userId: '2' });
   const avatars = await con

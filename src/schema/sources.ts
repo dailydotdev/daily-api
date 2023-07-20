@@ -565,6 +565,8 @@ const hasPermissionCheck = (
   return rolePermissions?.includes?.(permission);
 };
 
+export const sourceTypesWithMembers = ['squad'];
+
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
@@ -573,6 +575,13 @@ export const canAccessSource = async (
   validateRankAgainstId?: string,
 ): Promise<boolean> => {
   if (permission === SourcePermissions.View && !source.private) {
+    if (sourceTypesWithMembers.includes(source.type)) {
+      const isMemberBlocked = member?.role === SourceMemberRoles.Blocked;
+      const canAccess = !isMemberBlocked;
+
+      return canAccess;
+    }
+
     return true;
   }
 

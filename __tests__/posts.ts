@@ -774,6 +774,30 @@ describe('query post', () => {
     const res = await client.query(QUERY('p1'));
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should disallow access to post from public source for blocked members', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad, private: false });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { private: false, sourceId: 'a' });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Blocked,
+    });
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY('p1'),
+      },
+      'FORBIDDEN',
+    );
+  });
 });
 
 describe('query postByUrl', () => {
