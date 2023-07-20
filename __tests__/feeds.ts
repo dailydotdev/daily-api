@@ -855,6 +855,28 @@ describe('query sourceFeed', () => {
     );
     expect(freeformPost.node.image).toBeNull();
   });
+
+  it('should disallow access to feed for public source for blocked members', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save(usersFixture[0]);
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad, private: false });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Blocked,
+    });
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY('a'),
+      },
+      'FORBIDDEN',
+    );
+  });
 });
 
 describe('query tagFeed', () => {
