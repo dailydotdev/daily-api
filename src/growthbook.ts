@@ -35,10 +35,18 @@ const updateFeatures = (log: FastifyBaseLogger) => async () => {
 export type Features = Record<string, FeatureDefinition<unknown>>;
 
 export async function loadFeatures(log: FastifyBaseLogger): Promise<void> {
-  await gb.loadFeatures({ autoRefresh: true });
-  const renderer = updateFeatures(log);
-  await renderer();
-  gb.setRenderer(renderer);
+  try {
+    await gb.loadFeatures({ autoRefresh: true });
+    const renderer = updateFeatures(log);
+    await renderer();
+    gb.setRenderer(renderer);
+  } catch (err) {
+    if (process.env.NODE_ENV === 'production') {
+      throw err;
+    }
+    log.error({ err }, 'failed to load features');
+    encryptedFeatures = JSON.stringify({});
+  }
 }
 
 export function getEncryptedFeatures(): string {
