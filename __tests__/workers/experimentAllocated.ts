@@ -45,3 +45,19 @@ it('should update redis cache and limit items', async () => {
     e9: `v9:${new Date(2023, 5, 12).getTime()}`,
   });
 });
+
+it('should handle empty cache', async () => {
+  await expectSuccessfulBackground(worker, {
+    user_id: 'u2',
+    experiment_id: 'e1',
+    variation_id: 'v1',
+    server_timestamp: new Date(2023, 5, 21),
+  });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const expected = await ioRedisPool.execute((client) =>
+    client.hgetall('exp:u2'),
+  );
+  expect(expected).toEqual({
+    e1: `v1:${new Date(2023, 5, 21).getTime()}`,
+  });
+});

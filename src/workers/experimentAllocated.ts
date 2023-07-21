@@ -43,7 +43,9 @@ const worker: Worker = {
       };
       exps[data.experiment_id] = current;
       const drop = keysToDrop(exps);
-      await client.hdel(key, ...drop);
+      if (drop.length) {
+        await client.hdel(key, ...drop);
+      }
       await client.hset(
         key,
         data.experiment_id,
