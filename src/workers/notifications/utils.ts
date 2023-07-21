@@ -144,7 +144,7 @@ export async function articleNewCommentHandler(
       : NotificationType.ArticleNewComment;
 
   if (source.type === SourceType.Squad) {
-    const members = await con.getRepository(SourceMember).findBy({
+    const members = await getSubscribedMembers(con, type, post.id, {
       userId: In(users),
       sourceId: source.id,
       role: Not(SourceMemberRoles.Blocked),
@@ -163,6 +163,8 @@ export async function articleNewCommentHandler(
   const muted = await con.getRepository(NotificationPreferencePost).findBy({
     userId: In(users),
     referenceId: post.id,
+    notificationType: type,
+    type: notificationPreferenceMap[type],
     status: NotificationPreferenceStatus.Muted,
   });
 
