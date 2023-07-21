@@ -883,7 +883,7 @@ export const getPostByUrl = async (
 const updatePromoteToPublicFlag = async (
   ctx: Context,
   id: string,
-  value: number | null,
+  value: number,
 ): Promise<GQLEmptyResponse> => {
   if (!ctx.roles.includes(Roles.Moderator)) {
     throw new ForbiddenError('Access denied!');
