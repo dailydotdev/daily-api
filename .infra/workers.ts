@@ -211,4 +211,8 @@ export const workers: Worker[] = [
     topic: 'api.v1.source-member-role-changed',
     subscription: 'api.source-member-role-changed-notification',
   },
+  {
+    topic: 'analytics-api.v1.experiment-allocated',
+    subscription: 'api.experiment-allocated',
+  },
 ];
