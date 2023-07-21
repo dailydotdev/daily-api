@@ -1,12 +1,8 @@
 import { messageToJson } from '../worker';
-import {
-  NotificationPreferenceStatus,
-  NotificationType,
-} from '../../notifications/common';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import {
-  NotificationPreferenceSource,
   Source,
   SourceMember,
   SourceType,

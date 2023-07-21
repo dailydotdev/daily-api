@@ -1,10 +1,7 @@
 import { messageToJson } from '../worker';
 import {
-  NotificationPreference,
-  NotificationPreferenceSource,
   Post,
   PostType,
-  SourceMember,
   SourceType,
   User,
   UserAction,
