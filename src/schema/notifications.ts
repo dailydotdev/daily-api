@@ -32,7 +32,12 @@ type GQLNotificationPreference = Pick<
 >;
 
 interface NotificationPreferenceArgs {
+  referenceId: string;
   type: NotificationPreferenceType;
+}
+
+interface NotificationPreferenceInput {
+  data: NotificationPreferenceArgs[];
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -196,6 +201,18 @@ export const typeDefs = /* GraphQL */ `
     status: String!
   }
 
+  input NotificationPreferenceInput {
+    """
+    Reference to id of the related entity
+    """
+    referenceId: ID!
+
+    """
+    Type of the notification preference
+    """
+    type: String!
+  }
+
   extend type Query {
     """
     Get the active notification count for a user
@@ -223,7 +240,9 @@ export const typeDefs = /* GraphQL */ `
       first: Int
     ): NotificationConnection! @auth
 
-    notificationPreferences(type: String!): [NotificationPreference]! @auth
+    notificationPreferences(
+      data: [NotificationPreferenceInput]!
+    ): [NotificationPreference]! @auth
   }
 
   extend type Mutation {
@@ -299,10 +318,15 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     notificationPreferences: (
       _,
-      { type }: NotificationPreferenceArgs,
+      { data }: NotificationPreferenceInput,
       { con, userId },
-    ): Promise<GQLNotificationPreference[]> =>
-      con.getRepository(NotificationPreference).findBy({ userId, type }),
+    ): Promise<GQLNotificationPreference[]> => {
+      const params = data.reduce((args, value) => {
+        return [...args, { ...value, userId }];
+      }, []);
+
+      return con.getRepository(NotificationPreference).find({ where: params });
+    },
   },
   Mutation: {
     readNotifications: async (source, _, ctx): Promise<GQLEmptyResponse> => {

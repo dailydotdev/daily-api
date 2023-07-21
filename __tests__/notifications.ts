@@ -304,8 +304,8 @@ describe('query notifications', () => {
 
 describe('query notificationPreferences', () => {
   const QUERY = `
-    query NotificationPreferences($type: String!) {
-      notificationPreferences(type: $type) {
+    query NotificationPreferences($data: [NotificationPreferenceInput]!) {
+      notificationPreferences(data: $data) {
         referenceId
         userId
         notificationType
@@ -318,7 +318,7 @@ describe('query notificationPreferences', () => {
   it('should not authorize when not logged-in', () =>
     testQueryErrorCode(
       client,
-      { query: QUERY, variables: { type: '' } },
+      { query: QUERY, variables: { data: [] } },
       'UNAUTHENTICATED',
     ));
 
@@ -353,18 +353,64 @@ describe('query notificationPreferences', () => {
     ]);
   };
 
-  it('should return based on notification preferences type', async () => {
+  it('should return based on notification preferences type and reference id', async () => {
     loggedUser = '1';
 
     await prepareNotificationPreferences();
 
     const requestType = NotificationPreferenceType.Post;
-    const res = await client.query(QUERY, { variables: { type: requestType } });
+    const res = await client.query(QUERY, {
+      variables: {
+        data: [
+          {
+            type: NotificationPreferenceType.Post,
+            referenceId: postsFixture[0].id,
+          },
+        ],
+      },
+    });
+    expect(res.data.notificationPreferences.length).toEqual(1);
     const isValid = res.data.notificationPreferences.every(
       ({ userId, type }: NotificationPreferencePost) =>
         userId === loggedUser && type === requestType,
     );
     expect(isValid).toBeTruthy();
+  });
+
+  it('should return different reference types and ids using notification preferences type and reference id', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences();
+
+    const postParam = {
+      type: NotificationPreferenceType.Post,
+      referenceId: postsFixture[0].id,
+    };
+    const sourceParam = {
+      type: NotificationPreferenceType.Source,
+      referenceId: sourcesFixture[0].id,
+    };
+    const res = await client.query(QUERY, {
+      variables: { data: [postParam, sourceParam] },
+    });
+    expect(res.data.notificationPreferences.length).toEqual(2);
+
+    const hasPost = res.data.notificationPreferences.some(
+      ({ type, referenceId }) =>
+        type === postParam.type && referenceId === postParam.referenceId,
+    );
+    expect(hasPost).toBeTruthy();
+
+    const hasSource = res.data.notificationPreferences.some(
+      ({ type, referenceId }) =>
+        type === sourceParam.type && referenceId === sourceParam.referenceId,
+    );
+    expect(hasSource).toBeTruthy();
+
+    const isLoggedUserOnly = res.data.notificationPreferences.every(
+      ({ userId }) => userId === loggedUser,
+    );
+    expect(isLoggedUserOnly).toBeTruthy();
   });
 });
 
