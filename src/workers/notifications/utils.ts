@@ -14,12 +14,14 @@ import {
   NotificationPostContext,
 } from '../../notifications';
 import {
+  notificationPreferenceMap,
   NotificationPreferenceStatus,
   NotificationType,
 } from '../../notifications/common';
 import { DataSource, In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
+import { ObjectLiteral } from 'typeorm/common/ObjectLiteral';
 
 export const uniquePostOwners = (
   post: Pick<Post, 'scoutId' | 'authorId'>,
@@ -28,6 +30,33 @@ export const uniquePostOwners = (
   [...new Set([post.scoutId, post.authorId])].filter(
     (userId) => userId && !ignoreIds.includes(userId),
   );
+
+export const getSubscribedMembers = (
+  con: DataSource,
+  type: NotificationType,
+  referenceId: string,
+  where: ObjectLiteral,
+) =>
+  con
+    .getRepository(SourceMember)
+    .createQueryBuilder('sm')
+    .select('"userId"')
+    .where(where)
+    .andWhere(
+      `
+              EXISTS(
+                SELECT  np."userId"
+                FROM    "notification_preference" np
+                WHERE   np."userId" = "sm"."userId"
+                AND     np."notificationType" = :type
+                AND     np."referenceId" = :referenceId
+                AND     np."type" = '${notificationPreferenceMap[type]}'
+                AND     np."status" = '${NotificationPreferenceStatus.Muted}'
+              ) IS FALSE
+            `,
+      { type, referenceId },
+    )
+    .getRawMany<SourceMember>();
 
 export const buildPostContext = async (
   con: DataSource,

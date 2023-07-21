@@ -1,5 +1,6 @@
 import { messageToJson } from '../worker';
 import {
+  NotificationPreference,
   NotificationPreferenceSource,
   Post,
   PostType,
@@ -13,13 +14,10 @@ import {
   NotificationDoneByContext,
   NotificationPostContext,
 } from '../../notifications';
-import {
-  NotificationPreferenceStatus,
-  NotificationType,
-} from '../../notifications/common';
+import { NotificationType } from '../../notifications/common';
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
-import { buildPostContext } from './utils';
+import { buildPostContext, getSubscribedMembers } from './utils';
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
@@ -65,30 +63,26 @@ const worker: NotificationWorker = {
       }
       if (source.type === SourceType.Squad && post.authorId) {
         // squad_post_added notification
-        const [doneBy, mutes] = await Promise.all([
-          con.getRepository(User).findOneBy({ id: post.authorId }),
-          con.getRepository(NotificationPreferenceSource).findBy({
-            referenceId: source.id,
-            status: NotificationPreferenceStatus.Muted,
-            notificationType: NotificationType.SquadPostAdded,
-          }),
-        ]);
-        const ignored = mutes.map(({ userId }) => userId);
-        ignored.push(post.authorId);
-        const members = await con.getRepository(SourceMember).find({
-          where: {
+        const doneBy = await con
+          .getRepository(User)
+          .findOneBy({ id: post.authorId });
+        const members = await getSubscribedMembers(
+          con,
+          NotificationType.SquadPostAdded,
+          source.id,
+          {
             sourceId: source.id,
-            userId: Not(In(ignored)),
+            userId: Not(In([post.authorId])),
             role: Not(SourceMemberRoles.Blocked),
           },
-        });
-        members.forEach((member) =>
+        );
+        members.forEach(({ userId }) =>
           notifs.push({
             type: NotificationType.SquadPostAdded,
             ctx: {
               ...baseCtx,
               doneBy,
-              userId: member.userId,
+              userId,
             } as NotificationPostContext & Partial<NotificationDoneByContext>,
           }),
         );
