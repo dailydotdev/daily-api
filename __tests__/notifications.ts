@@ -335,6 +335,13 @@ describe('query notificationPreferences', () => {
         status: NotificationPreferenceStatus.Muted,
       },
       {
+        userId: '1',
+        postId: postsFixture[1].id,
+        referenceId: postsFixture[1].id,
+        notificationType: NotificationType.ArticleNewComment,
+        status: NotificationPreferenceStatus.Muted,
+      },
+      {
         userId: '2',
         postId: postsFixture[1].id,
         referenceId: postsFixture[1].id,
