@@ -33,7 +33,7 @@ export type PostFlags = Partial<{
   private: boolean;
   visible: boolean;
   showOnFeed: boolean;
-  promoteToPublic: Date;
+  promoteToPublic: number | 'null';
 }>;
 
 export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;

@@ -649,11 +649,6 @@ export const typeDefs = /* GraphQL */ `
       Id of the post to update the promoteToPublic flag for
       """
       id: ID!
-
-      """
-      The datetime to promote the post to public
-      """
-      promoteToPublic: DateTime!
     ): EmptyResponse @auth
 
     """
@@ -888,7 +883,7 @@ export const getPostByUrl = async (
 const updatePromoteToPublicFlag = async (
   ctx: Context,
   id: string,
-  value: Date | null,
+  value: number | null,
 ): Promise<GQLEmptyResponse> => {
   if (!ctx.roles.includes(Roles.Moderator)) {
     throw new ForbiddenError('Access denied!');
@@ -1137,10 +1132,14 @@ export const resolvers: IResolvers<any, Context> = {
     },
     promoteToPublic: async (
       _,
-      { id, promoteToPublic }: { id: string; promoteToPublic: Date },
+      { id }: { id: string },
       ctx: Context,
-    ): Promise<GQLEmptyResponse> =>
-      updatePromoteToPublicFlag(ctx, id, promoteToPublic),
+    ): Promise<GQLEmptyResponse> => {
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      const timeToSeconds = Math.floor(nextWeek.valueOf() / 1000);
+      return updatePromoteToPublicFlag(ctx, id, timeToSeconds);
+    },
     demoteFromPublic: async (
       _,
       { id }: { id: string },

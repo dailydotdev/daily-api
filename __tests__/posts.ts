@@ -2819,16 +2819,14 @@ describe('mutation editPost', () => {
 
 describe('mutation promoteToPublic', () => {
   const MUTATION = `
-    mutation PromoteToPublic($id: ID!, $promoteToPublic: DateTime!) {
-      promoteToPublic(id: $id, promoteToPublic: $promoteToPublic) {
+    mutation PromoteToPublic($id: ID!) {
+      promoteToPublic(id: $id) {
         _
       }
     }
   `;
 
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-  const params = { id: 'p1', promoteToPublic: date };
+  const params = { id: 'p1' };
 
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
@@ -2856,7 +2854,11 @@ describe('mutation promoteToPublic', () => {
     });
 
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post.flags.promoteToPublic).toEqual(date.toISOString());
+    const sixDays = new Date();
+    sixDays.setDate(sixDays.getDate() + 6);
+    const timeToSeconds = Math.floor(sixDays.valueOf() / 1000);
+    expect(`${post.flags.promoteToPublic}`.length).toEqual(10);
+    expect(post.flags.promoteToPublic).toBeGreaterThan(timeToSeconds);
   });
 });
 
@@ -2896,7 +2898,7 @@ describe('mutation demoteFromPublic', () => {
       { id: 'p1' },
       {
         flags: updateFlagsStatement<Post>({
-          promoteToPublic: new Date('2021-01-01T10:16:20.797Z'),
+          promoteToPublic: 1690552747,
         }),
       },
     );
