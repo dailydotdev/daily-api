@@ -1,25 +1,32 @@
-import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
+import { webcrypto as crypto } from 'node:crypto';
 
-export const encrypt = (
+const bufToBase64 = (x: ArrayBuffer) => Buffer.from(x).toString('base64');
+
+export const encrypt = async (
   input: string,
   key: string,
-  algorithm = 'aes256',
+  algorithmName = 'AES-CBC',
+  algorithmLength = 256,
   ivLength = 16,
-): string => {
-  const iv = randomBytes(ivLength);
-  const cipher = createCipheriv(algorithm, key, iv);
-  const ciphered = cipher.update(input, 'utf8', 'hex') + cipher.final('hex');
-  return `${iv.toString('hex')}:${ciphered}`;
-};
-
-export const decrypt = (
-  input: string,
-  key: string,
-  algorithm = 'aes256',
-): string => {
-  const components = input.split(':');
-  const iv = Buffer.from(components.shift(), 'hex');
-  const decipher = createDecipheriv(algorithm, key, iv);
-  const deciphered = decipher.update(components.join(':'), 'hex', 'utf8');
-  return deciphered + decipher.final('utf8');
+): Promise<string> => {
+  const keyObject = await crypto.subtle.importKey(
+    'raw',
+    Buffer.from(key, 'utf-8'),
+    {
+      name: algorithmName,
+      length: algorithmLength,
+    },
+    true,
+    ['encrypt', 'decrypt'],
+  );
+  const iv = crypto.getRandomValues(new Uint8Array(ivLength));
+  const encrypted = await crypto.subtle.encrypt(
+    {
+      name: algorithmName,
+      iv,
+    },
+    keyObject,
+    new TextEncoder().encode(input),
+  );
+  return bufToBase64(iv) + ':' + bufToBase64(encrypted);
 };

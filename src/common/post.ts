@@ -145,12 +145,14 @@ export const createSquadWelcomePost = async (
       banned: true,
       private: true,
       visible: true,
+      showOnFeed: false,
     },
     visible: true,
     private: true,
     pinnedAt: new Date(),
     visibleAt: new Date(),
     origin: PostOrigin.UserGenerated,
+    showOnFeed: false,
   } as Partial<Post>);
 };
 

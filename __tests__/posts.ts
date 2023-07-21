@@ -676,6 +676,13 @@ describe('welcomePost type', () => {
       },
     });
   });
+
+  it('should add welcome post with showOnFeed as false by default', async () => {
+    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    const post = await createSquadWelcomePost(con, source, '1');
+    expect(post.showOnFeed).toEqual(false);
+    expect(post.flags.showOnFeed).toEqual(false);
+  });
 });
 
 describe('query post', () => {

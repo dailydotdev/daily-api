@@ -30,7 +30,8 @@ const cron: Cron = {
               "sourceId"          AS "source_id",
               "tagsStr"           AS "tags_str",
               ("banned" or "deleted" or not "showOnFeed")::int AS "banned", "type" AS "post_type",
-              "private"::int      AS "post_private"
+              "private"::int      AS "post_private",
+              "contentCuration"   AS "content_curation"
        FROM "post"
        WHERE "metadataChangedAt" > $1
          and "sourceId" != '${UNKNOWN_SOURCE}'
@@ -44,6 +45,9 @@ const cron: Cron = {
         includeHeaders: false,
         typeHandlers: {
           Date: (date: Date) => date.toISOString(),
+          Array: (arr: string[]) => {
+            return '[' + arr.map((x) => `'${x}'`).join(', ') + ']';
+          },
         },
       });
 
