@@ -17,6 +17,7 @@ import {
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
+import { getSubscribedMembers } from './utils';
 
 interface Data {
   sourceMember: ChangeObject<SourceMember>;
@@ -26,20 +27,16 @@ const worker: NotificationWorker = {
   subscription: 'api.member-joined-source-notification',
   handler: async (message, con) => {
     const { sourceMember: member }: Data = messageToJson(message);
-    const mutes = await con.getRepository(NotificationPreferenceSource).findBy({
-      referenceId: member.sourceId,
-      notificationType: NotificationType.SquadMemberJoined,
-      status: NotificationPreferenceStatus.Muted,
-    });
-    const ignored = mutes.map(({ userId }) => userId);
-    ignored.push(member.userId);
-    const admins = await con.getRepository(SourceMember).find({
-      where: {
+    const admins = await getSubscribedMembers(
+      con,
+      NotificationType.SquadMemberJoined,
+      member.sourceId,
+      {
         sourceId: member.sourceId,
-        userId: Not(In(ignored)),
+        userId: Not(In([member.userId])),
         role: SourceMemberRoles.Admin,
       },
-    });
+    );
 
     const actionType =
       member.role === SourceMemberRoles.Admin
