@@ -6,7 +6,7 @@ import {
 } from '../../entity';
 import { NotificationCommenterContext } from '../../notifications';
 import {
-  commentNotificationTypes,
+  commentReplyNotificationTypes,
   NotificationType,
 } from '../../notifications/common';
 import { NotificationWorker } from './worker';
@@ -39,7 +39,7 @@ const worker: NotificationWorker = {
       comment.user,
       con.getRepository(NotificationPreferenceComment).findBy({
         referenceId: comment.id,
-        notificationType: In(commentNotificationTypes),
+        notificationType: In(commentReplyNotificationTypes),
       }),
     ]);
     const threadFollowers = await con

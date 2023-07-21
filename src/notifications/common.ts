@@ -56,7 +56,7 @@ export const notificationPreferenceMap: Partial<
   [NotificationType.SquadMemberJoined]: NotificationPreferenceType.Source,
 };
 
-export const commentNotificationTypes = [
+export const commentReplyNotificationTypes = [
   NotificationType.CommentReply,
   NotificationType.SquadReply,
 ];
