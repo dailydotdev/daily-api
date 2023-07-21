@@ -17,5 +17,3 @@ export class PromoteDateTime1689851339253 implements MigrationInterface {
     );
   }
 }
-1689948250;
-1690552747559;

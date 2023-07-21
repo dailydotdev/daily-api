@@ -205,9 +205,9 @@ export const typeDefs = /* GraphQL */ `
     private: Boolean
 
     """
-    The datetime the post will be promoted to public to
+    The unix timestamp (seconds) the post will be promoted to public to
     """
-    promoteToPublic: DateTime
+    promoteToPublic: Int
   }
 
   """
