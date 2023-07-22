@@ -1,6 +1,7 @@
 import { NotificationHandlerReturn } from './worker';
 import {
   Comment,
+  NotificationPreference,
   NotificationPreferencePost,
   Post,
   PostType,
@@ -36,27 +37,25 @@ export const getSubscribedMembers = (
   type: NotificationType,
   referenceId: string,
   where: ObjectLiteral,
-) =>
-  con
-    .getRepository(SourceMember)
-    .createQueryBuilder('sm')
-    .select('"userId"')
-    .where(where)
-    .andWhere(
-      `
-              EXISTS(
-                SELECT  np."userId"
-                FROM    "notification_preference" np
-                WHERE   np."userId" = "sm"."userId"
-                AND     np."notificationType" = :type
-                AND     np."referenceId" = :referenceId
-                AND     np."type" = '${notificationPreferenceMap[type]}'
-                AND     np."status" = '${NotificationPreferenceStatus.Muted}'
-              ) IS FALSE
-            `,
-      { type, referenceId },
-    )
+) => {
+  const builder = con.getRepository(SourceMember).createQueryBuilder('sm');
+  const memberQuery = builder.select('"userId"').where(where);
+  const muteQuery = builder
+    .subQuery()
+    .select('np."userId"')
+    .from(NotificationPreference, 'np')
+    .where(`"np"."userId" = "${memberQuery.alias}"."userId"`)
+    .andWhere({
+      notificationType: type,
+      referenceId,
+      type: notificationPreferenceMap[type],
+      status: NotificationPreferenceStatus.Muted,
+    });
+
+  return memberQuery
+    .andWhere(`EXISTS(${muteQuery.getQuery()}) IS FALSE`)
     .getRawMany<SourceMember>();
+};
 
 export const buildPostContext = async (
   con: DataSource,
