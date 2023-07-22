@@ -319,13 +319,18 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     notificationPreferences: (
       _,
       { data }: NotificationPreferenceInput,
-      { con, userId },
+      ctx,
+      info,
     ): Promise<GQLNotificationPreference[]> => {
       const params = data.reduce((args, value) => {
-        return [...args, { ...value, userId }];
+        return [...args, { ...value, userId: ctx.userId }];
       }, []);
 
-      return con.getRepository(NotificationPreference).find({ where: params });
+      return graphorm.query(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder.where(params);
+
+        return builder;
+      });
     },
   },
   Mutation: {
