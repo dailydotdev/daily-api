@@ -2,13 +2,20 @@ import '../src/config';
 import createOrGetConnection from '../src/db';
 import { ioRedisPool, redisPubSub, singleRedisClient } from '../src/redis';
 
+jest.mock('../src/growthbook', () => ({
+  ...(jest.requireActual('../src/growthbook') as Record<string, unknown>),
+  loadFeatures: jest.fn(),
+  getEncryptedFeatures: jest.fn(),
+}));
+
 let con;
 
 const cleanDatabase = async (): Promise<void> => {
   for (const entity of con.entityMetadatas) {
     const repository = con.getRepository(entity.name);
     if (repository.metadata.tableType === 'view') continue;
-    await repository.query(`DELETE FROM "${entity.tableName}";`);
+    await repository.query(`DELETE
+                            FROM "${entity.tableName}";`);
 
     for (const column of entity.primaryColumns) {
       if (column.generationStrategy === 'increment') {

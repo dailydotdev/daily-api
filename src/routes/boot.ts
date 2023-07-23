@@ -31,6 +31,7 @@ import { getAlerts } from '../schema/alerts';
 import { getSettings } from '../schema/settings';
 import {
   getRedisObject,
+  ioRedisPool,
   ONE_DAY_IN_SECONDS,
   setRedisObject,
   setRedisObjectWithExpiry,
@@ -40,7 +41,7 @@ import {
   REDIS_CHANGELOG_KEY,
   StorageTopic,
 } from '../config';
-import { getSourceLink } from '../common';
+import { base64, getSourceLink } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
 import { parse } from 'graphql/language/parser';
@@ -48,12 +49,18 @@ import { execute } from 'graphql/execution/execute';
 import { schema } from '../graphql';
 import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
+import { getEncryptedFeatures } from '../growthbook';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
   currentMember: {
     permissions: SourcePermissions[];
   };
+};
+
+export type Experimentation = {
+  f: string;
+  e: string[];
 };
 
 export type BaseBoot = {
@@ -63,6 +70,7 @@ export type BaseBoot = {
   settings: Omit<Settings, 'userId' | 'updatedAt'>;
   notifications: { unreadNotificationsCount: number };
   squads: BootSquadSource[];
+  exp?: Experimentation;
 };
 
 export type BootUserReferral = Partial<{
@@ -269,6 +277,20 @@ export function getReferralFromCookie({
   };
 }
 
+const getExperimentation = async (userId: string): Promise<Experimentation> => {
+  const hash = await ioRedisPool.execute((client) =>
+    client.hgetall(`exp:${userId}`),
+  );
+  const e = Object.keys(hash || {}).map((key) => {
+    const [variation] = hash[key].split(':');
+    return base64(`${key}:${variation}`);
+  });
+  return {
+    f: getEncryptedFeatures(),
+    e,
+  };
+};
+
 const loggedInBoot = async (
   con: DataSource,
   req: FastifyRequest,
@@ -286,6 +308,7 @@ const loggedInBoot = async (
     unreadNotificationsCount,
     squads,
     lastChangelog,
+    exp,
     extra,
   ] = await Promise.all([
     visitSection(req, res),
@@ -297,6 +320,7 @@ const loggedInBoot = async (
     getUnreadNotificationsCount(con, userId),
     getSquads(con, userId),
     getAndUpdateLastChangelogRedis(con),
+    getExperimentation(userId),
     middleware ? middleware(con, req, res) : {},
   ]);
   if (!user) {
@@ -332,6 +356,7 @@ const loggedInBoot = async (
     notifications: { unreadNotificationsCount },
     squads,
     accessToken,
+    exp,
     ...extra,
   };
 };
@@ -361,11 +386,12 @@ const anonymousBoot = async (
   middleware?: BootMiddleware,
   shouldLogout = false,
 ): Promise<AnonymousBoot> => {
-  const [visit, flags, extra, firstVisit] = await Promise.all([
+  const [visit, flags, extra, firstVisit, exp] = await Promise.all([
     visitSection(req, res),
     getUserFeatureFlags(req, con),
     middleware ? middleware(con, req, res) : {},
     getAnonymousFirstVisit(req.trackingId),
+    getExperimentation(req.trackingId),
   ]);
   const isPreOnboardingV2 = firstVisit
     ? new Date(firstVisit) < onboardingV2Requirement
@@ -391,6 +417,7 @@ const anonymousBoot = async (
     notifications: { unreadNotificationsCount: 0 },
     squads: [],
     shouldLogout,
+    exp,
     ...extra,
   };
 };

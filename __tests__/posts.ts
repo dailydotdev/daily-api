@@ -676,6 +676,13 @@ describe('welcomePost type', () => {
       },
     });
   });
+
+  it('should add welcome post with showOnFeed as false by default', async () => {
+    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    const post = await createSquadWelcomePost(con, source, '1');
+    expect(post.showOnFeed).toEqual(false);
+    expect(post.flags.showOnFeed).toEqual(false);
+  });
 });
 
 describe('query post', () => {
@@ -773,6 +780,30 @@ describe('query post', () => {
   it('should return post by id', async () => {
     const res = await client.query(QUERY('p1'));
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should disallow access to post from public source for blocked members', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad, private: false });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { private: false, sourceId: 'a' });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Blocked,
+    });
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY('p1'),
+      },
+      'FORBIDDEN',
+    );
   });
 });
 

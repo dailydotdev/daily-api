@@ -113,12 +113,14 @@ const readinessProbe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
   failureThreshold: 2,
   periodSeconds: 2,
+  initialDelaySeconds: 20,
 };
 
 const livenessProbe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/liveness', port: 'http' },
   failureThreshold: 3,
   periodSeconds: 5,
+  initialDelaySeconds: 20,
 };
 
 let appsArgs: ApplicationArgs[];
