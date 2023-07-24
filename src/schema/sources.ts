@@ -34,6 +34,7 @@ import { randomUUID } from 'crypto';
 import {
   createSquadWelcomePost,
   getSourceLink,
+  updateFlagsStatement,
   uploadSquadImage,
 } from '../common';
 import { GraphQLResolveInfo } from 'graphql';
@@ -471,6 +472,26 @@ export const typeDefs = /* GraphQL */ `
     leaveSource(
       """
       Source to leave
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Hide source posts from feed for member
+    """
+    hideSourceFeedPosts(
+      """
+      Source id to hide posts from
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Show source posts on feed for member
+    """
+    showSourceFeedPosts(
+      """
+      Source id to show posts on feed
       """
       sourceId: ID!
     ): EmptyResponse! @auth
@@ -1277,6 +1298,30 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       return getSourceById(ctx, info, sourceId);
+    },
+    hideSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
+      await ctx.con.getRepository(SourceMember).update(
+        { sourceId },
+        {
+          flags: updateFlagsStatement<SourceMember>({
+            showPostsOnFeed: false,
+          }),
+        },
+      );
+      return { _: true };
+    },
+    showSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
+      await ctx.con.getRepository(SourceMember).update(
+        { sourceId },
+        {
+          flags: updateFlagsStatement<SourceMember>({
+            showPostsOnFeed: true,
+          }),
+        },
+      );
+      return { _: true };
     },
   }),
   Source: {

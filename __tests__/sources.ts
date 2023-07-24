@@ -2259,3 +2259,143 @@ query Source($id: ID!) {
     });
   });
 });
+
+describe('mutation hideSourceFeedPosts', () => {
+  const MUTATION = `
+    mutation HideSourceFeedPosts($sourceId: ID!) {
+    hideSourceFeedPosts(sourceId: $sourceId) {
+      _
+    }
+  }`;
+
+  const variables = {
+    sourceId: 's1',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw when user is not a member', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).delete({
+      sourceId: 's1',
+      userId: '1',
+    });
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should set flags.showPostsOnFeed to false', async () => {
+    loggedUser = '1';
+    let sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember?.flags.showPostsOnFeed).toEqual(undefined);
+
+    await client.mutate(MUTATION, { variables: { sourceId: 's1' } });
+    sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember?.flags.showPostsOnFeed).toEqual(false);
+  });
+});
+
+describe('mutation showSourceFeedPosts', () => {
+  const MUTATION = `
+    mutation ShowSourceFeedPosts($sourceId: ID!) {
+      showSourceFeedPosts(sourceId: $sourceId) {
+      _
+    }
+  }`;
+
+  const variables = {
+    sourceId: 's1',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw when user is not a member', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).delete({
+      sourceId: 's1',
+      userId: '1',
+    });
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should set flags.showPostsOnFeed to true', async () => {
+    loggedUser = '1';
+    let sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember?.flags.showPostsOnFeed).toEqual(undefined);
+
+    await client.mutate(MUTATION, { variables: { sourceId: 's1' } });
+    sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember?.flags.showPostsOnFeed).toEqual(true);
+  });
+});
