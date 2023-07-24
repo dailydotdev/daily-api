@@ -31,7 +31,7 @@ import { postsFixture } from './fixture/post';
 import { createSource, sourcesFixture } from './fixture/source';
 import { SourcePermissions } from '../src/schema/sources';
 import { SourcePermissionErrorKeys } from '../src/errors';
-import { WELCOME_POST_TITLE } from '../src/common';
+import { updateFlagsStatement, WELCOME_POST_TITLE } from '../src/common';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 
 let app: FastifyInstance;
@@ -2397,5 +2397,41 @@ describe('mutation showSourceFeedPosts', () => {
       userId: '1',
     });
     expect(sourceMember?.flags.showPostsOnFeed).toEqual(true);
+  });
+});
+
+describe('SourceMember flags field', () => {
+  const QUERY = `{
+    source(id: "a") {
+      currentMember {
+        flags {
+          showPostsOnFeed
+        }
+      }
+    }
+  }`;
+
+  it('should return all the public flags for source member', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).update(
+      { userId: '1', sourceId: 'a' },
+      {
+        flags: updateFlagsStatement({ showPostsOnFeed: true }),
+      },
+    );
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    console.log(res.data);
+    expect(res.data.source.currentMember.flags).toEqual({
+      showPostsOnFeed: true,
+    });
+  });
+
+  it('should return null values for unset flags', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY);
+    expect(res.data.source.currentMember.flags).toEqual({
+      showPostsOnFeed: null,
+    });
   });
 });

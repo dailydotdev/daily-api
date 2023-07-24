@@ -9,6 +9,7 @@ import {
   Source,
   SourceFeed,
   SourceMember,
+  SourceMemberFlagsPublic,
   SourceType,
   SquadSource,
 } from '../entity';
@@ -68,6 +69,7 @@ export interface GQLSourceMember {
   role: SourceMemberRoles;
   createdAt: Date;
   referralToken: string;
+  flags?: SourceMemberFlagsPublic;
 }
 
 interface UpdateMemberRoleArgs {
@@ -196,6 +198,13 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  type SourceMemberFlagsPublic {
+    """
+    Whether the source posts are shown on feed
+    """
+    showPostsOnFeed: Boolean
+  }
+
   type SourceMember {
     """
     Relevant user who is part of the source
@@ -221,6 +230,11 @@ export const typeDefs = /* GraphQL */ `
     User squad permissions
     """
     permissions: [String]
+
+    """
+    All the flags for source member
+    """
+    flags: SourceMemberFlagsPublic
   }
 
   type SourceMemberConnection {
