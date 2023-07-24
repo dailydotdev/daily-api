@@ -1,5 +1,5 @@
 import { ForbiddenError, AuthenticationError } from 'apollo-server-errors';
-import { defaultFieldResolver } from 'graphql';
+import { defaultFieldResolver, GraphQLScalarType } from 'graphql';
 import { GraphQLSchema } from 'graphql';
 import { mapSchema, getDirective, MapperKind } from '@graphql-tools/utils';
 import { Context } from '../Context';
@@ -65,6 +65,11 @@ export const transformer = (schema: GraphQLSchema): GraphQLSchema =>
                   ) > -1;
               }
               if (!authorized) {
+                if (fieldConfig.type instanceof GraphQLScalarType) {
+                  resolve(source, args, ctx, info);
+                  return null;
+                }
+
                 throw new ForbiddenError(
                   'Access denied! You do not have permission for this action!',
                 );
