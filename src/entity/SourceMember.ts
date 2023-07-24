@@ -11,7 +11,13 @@ export type SourceMemberFlags = Partial<{
   showPostsOnFeed: boolean;
 }>;
 
+export type SourceMemberFlagsPublic = Pick<
+  SourceMemberFlags,
+  'showPostsOnFeed'
+>;
+
 @Entity()
+@Index('IDX_source_member_userId_flags_showPostsOnFeed', { synchronize: false })
 export class SourceMember {
   @PrimaryColumn({ type: 'text' })
   @Index('IDX_source_member_sourceId')
@@ -44,7 +50,6 @@ export class SourceMember {
   referralToken: string;
 
   @Column({ type: 'jsonb', default: {} })
-  @Index('IDX_source_member_flags_showPostsOnFeed', { synchronize: false })
   flags: SourceMemberFlags;
 }
 
