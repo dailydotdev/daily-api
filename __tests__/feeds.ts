@@ -1736,4 +1736,67 @@ describe('function feedToFilters', () => {
     ]);
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
+
+  it('should not return source in sourceIds if member set showPostsOnFeed to false', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save(usersFixture[0]);
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad, private: true });
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt2',
+        createdAt: new Date(2022, 11, 19),
+        flags: { showPostsOnFeed: false },
+      },
+    ]);
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.sourceIds).not.toContain('a');
+  });
+
+  it('should return source in sourceIds if member set showPostsOnFeed to true', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save(usersFixture[0]);
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad, private: true });
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt2',
+        createdAt: new Date(2022, 11, 19),
+        flags: { showPostsOnFeed: true },
+      },
+    ]);
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.sourceIds).toContain('a');
+  });
+
+  it('should return source in sourceIds if showPostsOnFeed is not set', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).save(usersFixture[0]);
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad, private: true });
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'a',
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt2',
+        createdAt: new Date(2022, 11, 19),
+        flags: {},
+      },
+    ]);
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.sourceIds).toContain('a');
+  });
 });
