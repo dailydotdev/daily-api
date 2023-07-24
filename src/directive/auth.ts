@@ -1,5 +1,5 @@
 import { ForbiddenError, AuthenticationError } from 'apollo-server-errors';
-import { defaultFieldResolver, GraphQLScalarType } from 'graphql';
+import { defaultFieldResolver } from 'graphql';
 import { GraphQLSchema } from 'graphql';
 import { mapSchema, getDirective, MapperKind } from '@graphql-tools/utils';
 import { Context } from '../Context';
@@ -49,14 +49,14 @@ export const transformer = (schema: GraphQLSchema): GraphQLSchema =>
               return resolve(source, args, ctx, info);
             }
             if (!ctx.userId) {
-              if (fieldConfig.type instanceof GraphQLScalarType) {
-                resolve(source, args, ctx, info);
-                return null;
+              if (['Query', 'Mutation'].includes(typeName)) {
+                throw new AuthenticationError(
+                  'Access denied! You need to be authorized to perform this action!',
+                );
               }
 
-              throw new AuthenticationError(
-                'Access denied! You need to be authorized to perform this action!',
-              );
+              resolve(source, args, ctx, info);
+              return null;
             }
             if (requires.length > 0 || premium) {
               let authorized: boolean;
@@ -70,14 +70,14 @@ export const transformer = (schema: GraphQLSchema): GraphQLSchema =>
                   ) > -1;
               }
               if (!authorized) {
-                if (fieldConfig.type instanceof GraphQLScalarType) {
-                  resolve(source, args, ctx, info);
-                  return null;
+                if (['Query', 'Mutation'].includes(typeName)) {
+                  throw new ForbiddenError(
+                    'Access denied! You do not have permission for this action!',
+                  );
                 }
 
-                throw new ForbiddenError(
-                  'Access denied! You do not have permission for this action!',
-                );
+                resolve(source, args, ctx, info);
+                return null;
               }
             }
             return resolve(source, args, ctx, info);
