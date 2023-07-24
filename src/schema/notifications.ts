@@ -1,7 +1,12 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context, SubscriptionContext } from '../Context';
-import { Banner, getUnreadNotificationsCount, Notification } from '../entity';
+import {
+  Banner,
+  getUnreadNotificationsCount,
+  Notification,
+  NotificationPreference,
+} from '../entity';
 import { ConnectionArguments } from 'graphql-relay';
 import { IsNull } from 'typeorm';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
@@ -10,6 +15,13 @@ import { createDatePageGenerator } from '../common/datePageGenerator';
 import { GQLEmptyResponse } from './common';
 import { notifyNotificationsRead } from '../common';
 import { redisPubSub } from '../redis';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+  saveNotificationPreference,
+  NotificationPreferenceType,
+} from '../notifications/common';
+import { ValidationError } from 'apollo-server-errors';
 
 interface GQLBanner {
   timestamp: Date;
@@ -18,6 +30,25 @@ interface GQLBanner {
   cta: string;
   url: string;
   theme: string;
+}
+
+type GQLNotificationPreference = Pick<
+  NotificationPreference,
+  'referenceId' | 'userId' | 'notificationType' | 'status' | 'type'
+>;
+
+interface NotificationPreferenceArgs {
+  referenceId: string;
+  type: NotificationPreferenceType;
+}
+
+interface NotificationPreferenceMutationArgs {
+  type: NotificationType;
+  referenceId: string;
+}
+
+interface NotificationPreferenceInput {
+  data: NotificationPreferenceArgs[];
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -151,6 +182,48 @@ export const typeDefs = /* GraphQL */ `
     theme: String!
   }
 
+  """
+  User's preference towards certain notification types to specific entities
+  """
+  type NotificationPreference {
+    """
+    Reference to id of the related entity
+    """
+    referenceId: ID!
+
+    """
+    User id of the related user
+    """
+    userId: ID!
+
+    """
+    Type of the notification
+    """
+    notificationType: String!
+
+    """
+    Type of the notification preference which can be "post", "source", "comment"
+    """
+    type: String!
+
+    """
+    Status whether the user has "subscribed" or "muted" the notification
+    """
+    status: String!
+  }
+
+  input NotificationPreferenceInput {
+    """
+    Reference to id of the related entity
+    """
+    referenceId: ID!
+
+    """
+    Type of the notification preference
+    """
+    type: String!
+  }
+
   extend type Query {
     """
     Get the active notification count for a user
@@ -177,10 +250,44 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): NotificationConnection! @auth
+
+    notificationPreferences(
+      data: [NotificationPreferenceInput]!
+    ): [NotificationPreference]! @auth
   }
 
   extend type Mutation {
     readNotifications: EmptyResponse @auth
+
+    """
+    Set the status of the user's notification preference to "muted"
+    """
+    muteNotificationPreference(
+      """
+      The ID of the relevant entity to mute
+      """
+      referenceId: ID!
+
+      """
+      Notification type for which kind of notification you want to mute
+      """
+      type: String!
+    ): EmptyResponse @auth
+
+    """
+    Remove notification preference if it exists
+    """
+    clearNotificationPreference(
+      """
+      The ID of the relevant entity to mute
+      """
+      referenceId: ID!
+
+      """
+      Notification type for which kind of notification you want to mute
+      """
+      type: String!
+    ): EmptyResponse @auth
   }
 
   type Subscription {
@@ -250,9 +357,25 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
       );
     },
+    notificationPreferences: (
+      _,
+      { data }: NotificationPreferenceInput,
+      ctx,
+      info,
+    ): Promise<GQLNotificationPreference[]> => {
+      const params = data.reduce((args, value) => {
+        return [...args, { ...value, userId: ctx.userId }];
+      }, []);
+
+      return graphorm.query(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder.where(params);
+
+        return builder;
+      });
+    },
   },
   Mutation: {
-    readNotifications: async (source, _, ctx): Promise<GQLEmptyResponse> => {
+    readNotifications: async (_, __, ctx): Promise<GQLEmptyResponse> => {
       await ctx.getRepository(Notification).update(
         {
           userId: ctx.userId,
@@ -263,6 +386,36 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       await notifyNotificationsRead(ctx.log, {
         unreadNotificationsCount: 0,
       });
+      return { _: true };
+    },
+    muteNotificationPreference: async (
+      _,
+      { type, referenceId }: NotificationPreferenceMutationArgs,
+      { con, userId },
+    ): Promise<GQLEmptyResponse> => {
+      if (!Object.values(NotificationType).includes(type)) {
+        throw new ValidationError('Invalid notification type');
+      }
+
+      await saveNotificationPreference(
+        con,
+        userId,
+        referenceId,
+        type,
+        NotificationPreferenceStatus.Muted,
+      );
+
+      return { _: true };
+    },
+    clearNotificationPreference: async (
+      _,
+      { type, referenceId }: NotificationPreferenceMutationArgs,
+      { con, userId },
+    ): Promise<GQLEmptyResponse> => {
+      await con
+        .getRepository(NotificationPreference)
+        .delete({ userId, notificationType: type, referenceId });
+
       return { _: true };
     },
   },
