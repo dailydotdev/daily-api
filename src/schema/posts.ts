@@ -649,7 +649,7 @@ export const typeDefs = /* GraphQL */ `
       Id of the post to update the promoteToPublic flag for
       """
       id: ID!
-    ): EmptyResponse @auth
+    ): EmptyResponse @auth(requires: [MODERATOR])
 
     """
     Demote a post
@@ -659,7 +659,7 @@ export const typeDefs = /* GraphQL */ `
       Id of the post to demote from the public
       """
       id: ID!
-    ): EmptyResponse @auth
+    ): EmptyResponse @auth(requires: [MODERATOR])
 
     """
     Pin or unpin a post

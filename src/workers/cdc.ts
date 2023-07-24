@@ -322,7 +322,8 @@ const onPostChange = async (
     if (
       isChanged(data.payload.before, data.payload.after, 'deleted') ||
       isChanged(data.payload.before, data.payload.after, 'banned') ||
-      isChanged(data.payload.before, data.payload.after, 'tagsStr')
+      isChanged(data.payload.before, data.payload.after, 'tagsStr') ||
+      isChanged(data.payload.before, data.payload.after, 'flags')
     ) {
       await con
         .getRepository(Post)
