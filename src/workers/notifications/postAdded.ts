@@ -2,7 +2,6 @@ import { messageToJson } from '../worker';
 import {
   Post,
   PostType,
-  SourceMember,
   SourceType,
   User,
   UserAction,
@@ -15,7 +14,7 @@ import {
 import { NotificationType } from '../../notifications/common';
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
-import { buildPostContext } from './utils';
+import { buildPostContext, getSubscribedMembers } from './utils';
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
@@ -64,20 +63,23 @@ const worker: NotificationWorker = {
         const doneBy = await con
           .getRepository(User)
           .findOneBy({ id: post.authorId });
-        const members = await con.getRepository(SourceMember).find({
-          where: {
+        const members = await getSubscribedMembers(
+          con,
+          NotificationType.SquadPostAdded,
+          source.id,
+          {
             sourceId: source.id,
             userId: Not(In([post.authorId])),
             role: Not(SourceMemberRoles.Blocked),
           },
-        });
-        members.forEach((member) =>
+        );
+        members.forEach(({ userId }) =>
           notifs.push({
             type: NotificationType.SquadPostAdded,
             ctx: {
               ...baseCtx,
               doneBy,
-              userId: member.userId,
+              userId,
             } as NotificationPostContext & Partial<NotificationDoneByContext>,
           }),
         );

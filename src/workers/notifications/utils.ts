@@ -1,6 +1,8 @@
 import { NotificationHandlerReturn } from './worker';
 import {
   Comment,
+  NotificationPreference,
+  NotificationPreferencePost,
   Post,
   PostType,
   SharePost,
@@ -12,10 +14,15 @@ import {
   NotificationCommenterContext,
   NotificationPostContext,
 } from '../../notifications';
-import { NotificationType } from '../../notifications/common';
+import {
+  notificationPreferenceMap,
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../notifications/common';
 import { DataSource, In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
+import { ObjectLiteral } from 'typeorm/common/ObjectLiteral';
 
 export const uniquePostOwners = (
   post: Pick<Post, 'scoutId' | 'authorId'>,
@@ -24,6 +31,31 @@ export const uniquePostOwners = (
   [...new Set([post.scoutId, post.authorId])].filter(
     (userId) => userId && !ignoreIds.includes(userId),
   );
+
+export const getSubscribedMembers = (
+  con: DataSource,
+  type: NotificationType,
+  referenceId: string,
+  where: ObjectLiteral,
+) => {
+  const builder = con.getRepository(SourceMember).createQueryBuilder('sm');
+  const memberQuery = builder.select('"userId"').where(where);
+  const muteQuery = builder
+    .subQuery()
+    .select('np."userId"')
+    .from(NotificationPreference, 'np')
+    .where(`"np"."userId" = "${memberQuery.alias}"."userId"`)
+    .andWhere({
+      notificationType: type,
+      referenceId,
+      type: notificationPreferenceMap[type],
+      status: NotificationPreferenceStatus.Muted,
+    });
+
+  return memberQuery
+    .andWhere(`EXISTS(${muteQuery.getQuery()}) IS FALSE`)
+    .getRawMany<SourceMember>();
+};
 
 export const buildPostContext = async (
   con: DataSource,
@@ -111,7 +143,7 @@ export async function articleNewCommentHandler(
       : NotificationType.ArticleNewComment;
 
   if (source.type === SourceType.Squad) {
-    const members = await con.getRepository(SourceMember).findBy({
+    const members = await getSubscribedMembers(con, type, post.id, {
       userId: In(users),
       sourceId: source.id,
       role: Not(SourceMemberRoles.Blocked),
@@ -127,10 +159,17 @@ export async function articleNewCommentHandler(
     }));
   }
 
-  return users.map((userId) => ({
-    type,
-    ctx: { ...ctx, userId },
-  }));
+  const muted = await con.getRepository(NotificationPreferencePost).findBy({
+    userId: In(users),
+    referenceId: post.id,
+    notificationType: type,
+    type: notificationPreferenceMap[type],
+    status: NotificationPreferenceStatus.Muted,
+  });
+
+  return users
+    .filter((id) => muted.every(({ userId }) => userId !== id))
+    .map((userId) => ({ type, ctx: { ...ctx, userId } }));
 }
 
 export const UPVOTE_TITLES = {

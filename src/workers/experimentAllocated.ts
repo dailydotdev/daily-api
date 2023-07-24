@@ -43,13 +43,15 @@ const worker: Worker = {
       };
       exps[data.experiment_id] = current;
       const drop = keysToDrop(exps);
-      client.hdel(key, ...drop);
-      client.hset(
+      if (drop.length) {
+        await client.hdel(key, ...drop);
+      }
+      await client.hset(
         key,
         data.experiment_id,
         `${current.variation}:${current.timestamp.getTime()}`,
       );
-      client.expire(key, 60 * 60 * 24 * 30);
+      await client.expire(key, 60 * 60 * 24 * 30);
     });
   },
 };
