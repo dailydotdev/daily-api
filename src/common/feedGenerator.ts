@@ -3,7 +3,7 @@ import {
   FeedAdvancedSettings,
   SourceMember,
 } from '../entity';
-import { DataSource, SelectQueryBuilder } from 'typeorm';
+import { Brackets, DataSource, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from '@graphql-tools/utils';
 import {
@@ -113,10 +113,19 @@ export const feedToFilters = async (
       })
       .execute(),
     feedId
-      ? con.getRepository(SourceMember).find({
-          where: { userId },
-          select: ['sourceId'],
-        })
+      ? con
+          .getRepository(SourceMember)
+          .createQueryBuilder('sm')
+          .select('sm."sourceId"')
+          .where('sm."userId" = :userId', { userId })
+          .andWhere(
+            new Brackets((qb) => {
+              qb.where(
+                `(sm."flags"->'showPostsOnFeed')::boolean = TRUE`,
+              ).orWhere(`sm."flags"->'showPostsOnFeed' IS NULL`);
+            }),
+          )
+          .execute()
       : [],
   ]);
   const tagFilters = tags.reduce(
@@ -133,7 +142,9 @@ export const feedToFilters = async (
   return {
     ...tagFilters,
     excludeSources: excludeSources.map((sources: Source) => sources.id),
-    sourceIds: sourceIds.map((member) => member.sourceId),
+    sourceIds: sourceIds.map(
+      (member: Pick<SourceMember, 'sourceId'>) => member.sourceId,
+    ),
   };
 };
 
