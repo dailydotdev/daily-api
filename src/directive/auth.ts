@@ -49,9 +49,14 @@ export const transformer = (schema: GraphQLSchema): GraphQLSchema =>
               return resolve(source, args, ctx, info);
             }
             if (!ctx.userId) {
-              throw new AuthenticationError(
-                'Access denied! You need to be authorized to perform this action!',
-              );
+              if (['Query', 'Mutation'].includes(typeName)) {
+                throw new AuthenticationError(
+                  'Access denied! You need to be authorized to perform this action!',
+                );
+              }
+
+              resolve(source, args, ctx, info);
+              return null;
             }
             if (requires.length > 0 || premium) {
               let authorized: boolean;
@@ -65,9 +70,14 @@ export const transformer = (schema: GraphQLSchema): GraphQLSchema =>
                   ) > -1;
               }
               if (!authorized) {
-                throw new ForbiddenError(
-                  'Access denied! You do not have permission for this action!',
-                );
+                if (['Query', 'Mutation'].includes(typeName)) {
+                  throw new ForbiddenError(
+                    'Access denied! You do not have permission for this action!',
+                  );
+                }
+
+                resolve(source, args, ctx, info);
+                return null;
               }
             }
             return resolve(source, args, ctx, info);
