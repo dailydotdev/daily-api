@@ -3220,7 +3220,10 @@ describe('flags field', () => {
 
   it('should return null values for unset flags', async () => {
     const res = await client.query(QUERY);
-    expect(res.data.post.flags).toEqual({ private: null });
+    expect(res.data.post.flags).toEqual({
+      private: null,
+      promoteToPublic: null,
+    });
   });
 
   it('should contain all default values in db query', async () => {
