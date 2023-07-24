@@ -49,6 +49,11 @@ export const transformer = (schema: GraphQLSchema): GraphQLSchema =>
               return resolve(source, args, ctx, info);
             }
             if (!ctx.userId) {
+              if (fieldConfig.type instanceof GraphQLScalarType) {
+                resolve(source, args, ctx, info);
+                return null;
+              }
+
               throw new AuthenticationError(
                 'Access denied! You need to be authorized to perform this action!',
               );
