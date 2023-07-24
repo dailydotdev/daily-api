@@ -3188,7 +3188,7 @@ describe('flags field', () => {
     }
   }`;
 
-  it('should return all the public flags', async () => {
+  it('should return all the public flags for anonymous user', async () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -3196,6 +3196,23 @@ describe('flags field', () => {
       },
     );
     const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.flags).toEqual({
+      private: true,
+      promoteToPublic: null,
+    });
+  });
+
+  it('should return all flags to logged user', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement({ private: true, promoteToPublic: 123 }),
+      },
+    );
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
     expect(res.data.post.flags).toEqual({
       private: true,
       promoteToPublic: null,
@@ -3212,6 +3229,7 @@ describe('flags field', () => {
       },
     );
     const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
     expect(res.data.post.flags).toEqual({
       private: true,
       promoteToPublic: 123,
