@@ -203,6 +203,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the post's source is private or not
     """
     private: Boolean
+
+    """
+    The unix timestamp (seconds) the post will be promoted to public to
+    """
+    promoteToPublic: Int @auth(requires: [MODERATOR])
   }
 
   """
@@ -637,6 +642,26 @@ export const typeDefs = /* GraphQL */ `
     ): String! @auth @rateLimit(limit: 5, duration: 60)
 
     """
+    Promote a post
+    """
+    promoteToPublic(
+      """
+      Id of the post to update the promoteToPublic flag for
+      """
+      id: ID!
+    ): EmptyResponse @auth(requires: [MODERATOR])
+
+    """
+    Demote a post
+    """
+    demoteFromPublic(
+      """
+      Id of the post to demote from the public
+      """
+      id: ID!
+    ): EmptyResponse @auth(requires: [MODERATOR])
+
+    """
     Pin or unpin a post
     """
     updatePinPost(
@@ -853,6 +878,25 @@ export const getPostByUrl = async (
   );
 
   return res[0];
+};
+
+const updatePromoteToPublicFlag = async (
+  ctx: Context,
+  id: string,
+  value: number,
+): Promise<GQLEmptyResponse> => {
+  if (!ctx.roles.includes(Roles.Moderator)) {
+    throw new ForbiddenError('Access denied!');
+  }
+
+  await ctx.getRepository(Post).update(
+    { id },
+    {
+      flags: updateFlagsStatement<Post>({ promoteToPublic: value }),
+    },
+  );
+
+  return { _: true };
 };
 
 const getPostById = async (
@@ -1086,6 +1130,21 @@ export const resolvers: IResolvers<any, Context> = {
 
       return { _: true };
     },
+    promoteToPublic: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      const timeToSeconds = Math.floor(nextWeek.valueOf() / 1000);
+      return updatePromoteToPublicFlag(ctx, id, timeToSeconds);
+    },
+    demoteFromPublic: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => updatePromoteToPublicFlag(ctx, id, null),
     updatePinPost: async (
       _,
       { id, pinned }: PinPostArgs,

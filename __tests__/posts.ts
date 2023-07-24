@@ -2817,6 +2817,101 @@ describe('mutation editPost', () => {
   });
 });
 
+describe('mutation promoteToPublic', () => {
+  const MUTATION = `
+    mutation PromoteToPublic($id: ID!) {
+      promoteToPublic(id: $id) {
+        _
+      }
+    }
+  `;
+
+  const params = { id: 'p1' };
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if user is not a system moderator', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should promote post to public', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    const sixDays = new Date();
+    sixDays.setDate(sixDays.getDate() + 6);
+    const timeToSeconds = Math.floor(sixDays.valueOf() / 1000);
+    expect(`${post.flags.promoteToPublic}`.length).toEqual(10);
+    expect(post.flags.promoteToPublic).toBeGreaterThan(timeToSeconds);
+  });
+});
+
+describe('mutation demoteFromPublic', () => {
+  const MUTATION = `
+    mutation DemoteFromPublic($id: ID!) {
+      demoteFromPublic(id: $id) {
+        _
+      }
+    }
+  `;
+
+  const params = { id: 'p1' };
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if user is not a system moderator', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should demote post from public', async () => {
+    loggedUser = '1';
+    roles = [Roles.Moderator];
+
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({
+          promoteToPublic: 1690552747,
+        }),
+      },
+    );
+
+    await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post.flags.promoteToPublic).toEqual(null);
+  });
+});
+
 describe('mutation updatePinPost', () => {
   const MUTATION = `
     mutation UpdatePinPost($id: ID!, $pinned: Boolean!) {
@@ -3088,21 +3183,47 @@ describe('flags field', () => {
     post(id: "p1") {
       flags {
         private
+        promoteToPublic
       }
     }
   }`;
 
   it('should return all the public flags', async () => {
-    await con
-      .getRepository(Post)
-      .update({ id: 'p1' }, { flags: updateFlagsStatement({ private: true }) });
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement({ private: true, promoteToPublic: 123 }),
+      },
+    );
     const res = await client.query(QUERY);
-    expect(res.data.post.flags).toEqual({ private: true });
+    expect(res.data.post.flags).toEqual({
+      private: true,
+      promoteToPublic: null,
+    });
+  });
+
+  it('should return all flags to system moderator', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement({ private: true, promoteToPublic: 123 }),
+      },
+    );
+    const res = await client.query(QUERY);
+    expect(res.data.post.flags).toEqual({
+      private: true,
+      promoteToPublic: 123,
+    });
   });
 
   it('should return null values for unset flags', async () => {
     const res = await client.query(QUERY);
-    expect(res.data.post.flags).toEqual({ private: null });
+    expect(res.data.post.flags).toEqual({
+      private: null,
+      promoteToPublic: null,
+    });
   });
 
   it('should contain all default values in db query', async () => {
