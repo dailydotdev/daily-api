@@ -728,6 +728,30 @@ describe('mutation commentOnPost', () => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.comments).toEqual(1);
   });
+
+  it('should disallow comment on post from public source for blocked members', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad, private: false });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { private: false, sourceId: 'a' });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Blocked,
+    });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { postId: 'p1', content: 'comment' },
+      },
+      'FORBIDDEN',
+    );
+  });
 });
 
 describe('mutation commentOnComment', () => {
@@ -842,6 +866,34 @@ describe('mutation commentOnComment', () => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.comments).toEqual(1);
     expect(actual.find((c) => c.id === 'c1').comments).toEqual(1);
+  });
+
+  it('should disallow comment on comment from post on public source for blocked members', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad, private: false });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { private: false, sourceId: 'a' });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Blocked,
+    });
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          content: '# my comment http://daily.dev',
+          commentId: 'c1',
+        },
+      },
+      'FORBIDDEN',
+    );
   });
 });
 

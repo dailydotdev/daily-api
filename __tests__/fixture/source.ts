@@ -27,6 +27,8 @@ export const sourcesFixture: DeepPartial<MachineSource>[] = [
     name: 'B',
     image: 'http://image.com/b',
     handle: 'b',
+    headerImage: 'http://image.com/header',
+    color: 'avocado',
   },
   { id: 'c', name: 'C', image: 'http://image.com/c', handle: 'c' },
   {

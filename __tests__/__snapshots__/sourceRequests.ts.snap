@@ -96,7 +96,9 @@ exports[`mutation publishSourceRequest should publish a source request 2`] = `
 MachineSource {
   "active": true,
   "advancedSettings": Array [],
+  "color": null,
   "handle": "a",
+  "headerImage": null,
   "id": "a",
   "image": "http://a.com",
   "name": "A",

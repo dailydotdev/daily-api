@@ -336,8 +336,8 @@ const prepareNotificationPreferences = async () => {
 
 describe('query notificationPreferences', () => {
   const QUERY = `
-    query NotificationPreferences($type: String) {
-      notificationPreferences(type: $type) {
+    query NotificationPreferences($data: [NotificationPreferenceInput]!) {
+      notificationPreferences(data: $data) {
         referenceId
         userId
         notificationType
@@ -348,32 +348,108 @@ describe('query notificationPreferences', () => {
   `;
 
   it('should not authorize when not logged-in', () =>
-    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { data: [] } },
+      'UNAUTHENTICATED',
+    ));
 
-  it("should return logged in user's notification preferences", async () => {
-    loggedUser = '1';
+  const prepareNotificationPreferences = async () => {
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, postsFixture);
+    await con.getRepository(NotificationPreferencePost).save([
+      {
+        userId: '1',
+        postId: postsFixture[0].id,
+        referenceId: postsFixture[0].id,
+        notificationType: NotificationType.ArticleNewComment,
+        status: NotificationPreferenceStatus.Muted,
+      },
+      {
+        userId: '1',
+        postId: postsFixture[1].id,
+        referenceId: postsFixture[1].id,
+        notificationType: NotificationType.ArticleNewComment,
+        status: NotificationPreferenceStatus.Muted,
+      },
+      {
+        userId: '2',
+        postId: postsFixture[1].id,
+        referenceId: postsFixture[1].id,
+        notificationType: NotificationType.ArticleNewComment,
+        status: NotificationPreferenceStatus.Muted,
+      },
+    ]);
+    await con.getRepository(NotificationPreferenceSource).save([
+      {
+        userId: '1',
+        sourceId: sourcesFixture[0].id,
+        referenceId: sourcesFixture[0].id,
+        notificationType: NotificationType.SourceApproved,
+        status: NotificationPreferenceStatus.Muted,
+      },
+    ]);
+  };
 
-    await prepareNotificationPreferences();
-
-    const res = await client.query(QUERY);
-    const isValid = res.data.notificationPreferences.every(
-      ({ userId }: NotificationPreferencePost) => userId === loggedUser,
-    );
-    expect(isValid).toBeTruthy();
-  });
-
-  it('should return based on notification preferences type', async () => {
+  it('should return based on notification preferences type and reference id', async () => {
     loggedUser = '1';
 
     await prepareNotificationPreferences();
 
     const requestType = NotificationPreferenceType.Post;
-    const res = await client.query(QUERY, { variables: { type: requestType } });
+    const res = await client.query(QUERY, {
+      variables: {
+        data: [
+          {
+            type: NotificationPreferenceType.Post,
+            referenceId: postsFixture[0].id,
+          },
+        ],
+      },
+    });
+    expect(res.data.notificationPreferences.length).toEqual(1);
     const isValid = res.data.notificationPreferences.every(
       ({ userId, type }: NotificationPreferencePost) =>
         userId === loggedUser && type === requestType,
     );
     expect(isValid).toBeTruthy();
+  });
+
+  it('should return different reference types and ids using notification preferences type and reference id', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences();
+
+    const postParam = {
+      type: NotificationPreferenceType.Post,
+      referenceId: postsFixture[0].id,
+    };
+    const sourceParam = {
+      type: NotificationPreferenceType.Source,
+      referenceId: sourcesFixture[0].id,
+    };
+    const res = await client.query(QUERY, {
+      variables: { data: [postParam, sourceParam] },
+    });
+    expect(res.data.notificationPreferences.length).toEqual(2);
+
+    const hasPost = res.data.notificationPreferences.some(
+      ({ type, referenceId }) =>
+        type === postParam.type && referenceId === postParam.referenceId,
+    );
+    expect(hasPost).toBeTruthy();
+
+    const hasSource = res.data.notificationPreferences.some(
+      ({ type, referenceId }) =>
+        type === sourceParam.type && referenceId === sourceParam.referenceId,
+    );
+    expect(hasSource).toBeTruthy();
+
+    const isLoggedUserOnly = res.data.notificationPreferences.every(
+      ({ userId }) => userId === loggedUser,
+    );
+    expect(isLoggedUserOnly).toBeTruthy();
   });
 });
 

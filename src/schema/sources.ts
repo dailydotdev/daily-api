@@ -116,6 +116,16 @@ export const typeDefs = /* GraphQL */ `
     public: Boolean
 
     """
+    URL to an header image of the source
+    """
+    headerImage: String
+
+    """
+    Accent color that applies to the source
+    """
+    color: String
+
+    """
     Whether the source is active or not (applicable for squads)
     """
     active: Boolean
@@ -565,6 +575,8 @@ const hasPermissionCheck = (
   return rolePermissions?.includes?.(permission);
 };
 
+export const sourceTypesWithMembers = ['squad'];
+
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
@@ -573,6 +585,13 @@ export const canAccessSource = async (
   validateRankAgainstId?: string,
 ): Promise<boolean> => {
   if (permission === SourcePermissions.View && !source.private) {
+    if (sourceTypesWithMembers.includes(source.type)) {
+      const isMemberBlocked = member?.role === SourceMemberRoles.Blocked;
+      const canAccess = !isMemberBlocked;
+
+      return canAccess;
+    }
+
     return true;
   }
 
