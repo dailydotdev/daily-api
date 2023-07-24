@@ -3183,16 +3183,39 @@ describe('flags field', () => {
     post(id: "p1") {
       flags {
         private
+        promoteToPublic
       }
     }
   }`;
 
   it('should return all the public flags', async () => {
-    await con
-      .getRepository(Post)
-      .update({ id: 'p1' }, { flags: updateFlagsStatement({ private: true }) });
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement({ private: true, promoteToPublic: 123 }),
+      },
+    );
     const res = await client.query(QUERY);
-    expect(res.data.post.flags).toEqual({ private: true });
+    expect(res.data.post.flags).toEqual({
+      private: true,
+      promoteToPublic: null,
+    });
+  });
+
+  it('should return all flags to system moderator', async () => {
+    roles = [Roles.Moderator];
+    loggedUser = '1';
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement({ private: true, promoteToPublic: 123 }),
+      },
+    );
+    const res = await client.query(QUERY);
+    expect(res.data.post.flags).toEqual({
+      private: true,
+      promoteToPublic: 123,
+    });
   });
 
   it('should return null values for unset flags', async () => {
