@@ -15,7 +15,13 @@ import { createDatePageGenerator } from '../common/datePageGenerator';
 import { GQLEmptyResponse } from './common';
 import { notifyNotificationsRead } from '../common';
 import { redisPubSub } from '../redis';
-import { NotificationPreferenceType } from '../notifications/common';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+  saveNotificationPreference,
+  NotificationPreferenceType,
+} from '../notifications/common';
+import { ValidationError } from 'apollo-server-errors';
 
 interface GQLBanner {
   timestamp: Date;
@@ -34,6 +40,11 @@ type GQLNotificationPreference = Pick<
 interface NotificationPreferenceArgs {
   referenceId: string;
   type: NotificationPreferenceType;
+}
+
+interface NotificationPreferenceMutationArgs {
+  type: NotificationType;
+  referenceId: string;
 }
 
 interface NotificationPreferenceInput {
@@ -247,6 +258,36 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Mutation {
     readNotifications: EmptyResponse @auth
+
+    """
+    Set the status of the user's notification preference to "muted"
+    """
+    muteNotificationPreference(
+      """
+      The ID of the relevant entity to mute
+      """
+      referenceId: ID!
+
+      """
+      Notification type for which kind of notification you want to mute
+      """
+      type: String!
+    ): EmptyResponse @auth
+
+    """
+    Remove notification preference if it exists
+    """
+    clearNotificationPreference(
+      """
+      The ID of the relevant entity to mute
+      """
+      referenceId: ID!
+
+      """
+      Notification type for which kind of notification you want to mute
+      """
+      type: String!
+    ): EmptyResponse @auth
   }
 
   type Subscription {
@@ -334,7 +375,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
   },
   Mutation: {
-    readNotifications: async (source, _, ctx): Promise<GQLEmptyResponse> => {
+    readNotifications: async (_, __, ctx): Promise<GQLEmptyResponse> => {
       await ctx.getRepository(Notification).update(
         {
           userId: ctx.userId,
@@ -345,6 +386,36 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       await notifyNotificationsRead(ctx.log, {
         unreadNotificationsCount: 0,
       });
+      return { _: true };
+    },
+    muteNotificationPreference: async (
+      _,
+      { type, referenceId }: NotificationPreferenceMutationArgs,
+      { con, userId },
+    ): Promise<GQLEmptyResponse> => {
+      if (!Object.values(NotificationType).includes(type)) {
+        throw new ValidationError('Invalid notification type');
+      }
+
+      await saveNotificationPreference(
+        con,
+        userId,
+        referenceId,
+        type,
+        NotificationPreferenceStatus.Muted,
+      );
+
+      return { _: true };
+    },
+    clearNotificationPreference: async (
+      _,
+      { type, referenceId }: NotificationPreferenceMutationArgs,
+      { con, userId },
+    ): Promise<GQLEmptyResponse> => {
+      await con
+        .getRepository(NotificationPreference)
+        .delete({ userId, notificationType: type, referenceId });
+
       return { _: true };
     },
   },
