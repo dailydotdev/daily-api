@@ -207,7 +207,7 @@ export const typeDefs = /* GraphQL */ `
     """
     The unix timestamp (seconds) the post will be promoted to public to
     """
-    promoteToPublic: Int @auth(requires: [MODERATOR])
+    promoteToPublic: Int
   }
 
   """
