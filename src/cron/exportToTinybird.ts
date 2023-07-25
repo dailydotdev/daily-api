@@ -17,8 +17,8 @@ export const getPostsTinybirdExport = (con: DataSource, latest: Date) =>
               "tagsStr"           AS "tags_str",
               ("banned" or "deleted" or not "showOnFeed")::int AS "banned", "type" AS "post_type",
               "private"::int      AS "post_private",
-              "contentCuration"   AS "content_curation"
-              (SELECT "s"."type" FROM "source" AS "s" WHERE "s"."id" = "sourceId") AS "source_type",
+              "contentCuration"   AS "content_curation",
+              (SELECT "s"."type" FROM "source" AS "s" WHERE "s"."id" = "sourceId") AS "source_type"
        FROM "post"
        WHERE "metadataChangedAt" > $1
          and "sourceId" != '${UNKNOWN_SOURCE}'
