@@ -17,7 +17,6 @@ import commentReply from './commentReply';
 import commentUpvoteMilestone from './commentUpvoteMilestone';
 import postAdded from './postAdded';
 import memberJoinedSource from './squadMemberJoined';
-import featureAccessNotification from './featureAccessNotification';
 import sourceMemberRoleChanged from './sourceMemberRoleChanged';
 import { TypeOrmError } from '../../errors';
 import postMention from './postMention';
@@ -66,7 +65,6 @@ const notificationWorkers: NotificationWorker[] = [
   commentUpvoteMilestone,
   postAdded,
   memberJoinedSource,
-  featureAccessNotification,
   sourceMemberRoleChanged,
 ];
 
