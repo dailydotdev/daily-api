@@ -37,6 +37,6 @@ describe('getPostsTinybirdExport function', () => {
       post.created_at = '';
       post.metadata_changed_at = '';
     });
-    expect(posts.sort()).toMatchSnapshot();
+    expect(posts.sort((a, b) => a.id > b.id)).toMatchSnapshot();
   });
 });
