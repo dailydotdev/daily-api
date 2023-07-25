@@ -1,8 +1,5 @@
 import { messageToJson } from '../worker';
-import {
-  NotificationDoneByContext,
-  NotificationPostContext,
-} from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
 import {
@@ -16,6 +13,7 @@ import {
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
+import { getSubscribedMembers } from './utils';
 
 interface Data {
   sourceMember: ChangeObject<SourceMember>;
@@ -25,13 +23,16 @@ const worker: NotificationWorker = {
   subscription: 'api.member-joined-source-notification',
   handler: async (message, con) => {
     const { sourceMember: member }: Data = messageToJson(message);
-    const admin = await con.getRepository(SourceMember).findOne({
-      where: {
+    const admins = await getSubscribedMembers(
+      con,
+      NotificationType.SquadMemberJoined,
+      member.sourceId,
+      {
         sourceId: member.sourceId,
         userId: Not(In([member.userId])),
         role: SourceMemberRoles.Admin,
       },
-    });
+    );
 
     const actionType =
       member.role === SourceMemberRoles.Admin
@@ -40,7 +41,7 @@ const worker: NotificationWorker = {
 
     await insertOrIgnoreAction(con, member.userId, actionType);
 
-    if (!admin) {
+    if (!admins?.length) {
       return;
     }
     const [doneBy, source, post] = await Promise.all([
@@ -51,13 +52,16 @@ const worker: NotificationWorker = {
     if (!doneBy || !post || source.type !== SourceType.Squad) {
       return;
     }
-    const ctx: NotificationPostContext & NotificationDoneByContext = {
-      userId: admin.userId,
-      post,
-      source,
-      doneBy,
-    };
-    return [{ type: 'squad_member_joined', ctx }];
+
+    return admins.map(({ userId }) => ({
+      type: NotificationType.SquadMemberJoined,
+      ctx: {
+        userId,
+        post,
+        source,
+        doneBy,
+      },
+    }));
   },
 };
 

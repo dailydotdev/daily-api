@@ -17,12 +17,7 @@ import {
   sourceRoleRank,
   sourceRoleRankKeys,
 } from '../roles';
-import {
-  forwardPagination,
-  GQLEmptyResponse,
-  offsetPageGenerator,
-  PaginationResponse,
-} from './common';
+import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import graphorm from '../graphorm';
 import {
   DataSource,
@@ -63,6 +58,7 @@ export interface GQLSource {
   members?: Connection<GQLSourceMember>;
   currentMember?: GQLSourceMember;
   privilegedMembers?: GQLSourceMember[];
+  referralUrl?: string;
 }
 
 export interface GQLSourceMember {
@@ -120,6 +116,16 @@ export const typeDefs = /* GraphQL */ `
     public: Boolean
 
     """
+    URL to an header image of the source
+    """
+    headerImage: String
+
+    """
+    Accent color that applies to the source
+    """
+    color: String
+
+    """
     Whether the source is active or not (applicable for squads)
     """
     active: Boolean
@@ -168,6 +174,11 @@ export const typeDefs = /* GraphQL */ `
     Role required for members to invite
     """
     memberInviteRole: String
+
+    """
+    URL for inviting and referring new users
+    """
+    referralUrl: String
   }
 
   type SourceConnection {
@@ -564,6 +575,8 @@ const hasPermissionCheck = (
   return rolePermissions?.includes?.(permission);
 };
 
+export const sourceTypesWithMembers = ['squad'];
+
 export const canAccessSource = async (
   ctx: Context,
   source: Source,
@@ -572,6 +585,13 @@ export const canAccessSource = async (
   validateRankAgainstId?: string,
 ): Promise<boolean> => {
   if (permission === SourcePermissions.View && !source.private) {
+    if (sourceTypesWithMembers.includes(source.type)) {
+      const isMemberBlocked = member?.role === SourceMemberRoles.Blocked;
+      const canAccess = !isMemberBlocked;
+
+      return canAccess;
+    }
+
     return true;
   }
 
@@ -695,6 +715,8 @@ const membershipsPageGenerator = createDatePageGenerator<
   key: 'createdAt',
 });
 
+const sourcePageGenerator = offsetPageGenerator<GQLSource>(100, 500);
+
 type CreateSquadArgs = {
   name: string;
   handle: string;
@@ -776,32 +798,35 @@ interface SourcesArgs extends ConnectionArguments {
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Query: traceResolverObject<any, any>({
-    sources: forwardPagination(
-      async (
-        source,
-        args: SourcesArgs,
+    sources: async (
+      _,
+      args: SourcesArgs,
+      ctx,
+      info,
+    ): Promise<Connection<GQLSource>> => {
+      const filter: FindOptionsWhere<Source> = { active: true };
+
+      if (args.filterOpenSquads) {
+        filter.type = SourceType.Squad;
+        filter.private = false;
+      }
+      const page = sourcePageGenerator.connArgsToPage(args);
+      return graphorm.queryPaginated(
         ctx,
-        { limit, offset },
-      ): Promise<PaginationResponse<GQLSource>> => {
-        const filter: FindOptionsWhere<Source> = { active: true };
-
-        if (args.filterOpenSquads) {
-          filter.type = SourceType.Squad;
-          filter.private = false;
-        }
-
-        const res = await ctx.con.getRepository(Source).find({
-          where: filter,
-          order: { name: 'ASC' },
-          take: limit,
-          skip: offset,
-        });
-        return {
-          nodes: res.map(sourceToGQL),
-        };
-      },
-      offsetPageGenerator(100, 500),
-    ),
+        info,
+        (nodeSize) => sourcePageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => sourcePageGenerator.hasNextPage(page, nodeSize),
+        (node, index) =>
+          sourcePageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .andWhere(filter)
+            .limit(page.limit)
+            .offset(page.offset);
+          return builder;
+        },
+      );
+    },
     sourceByFeed: async (
       _,
       { feed }: { feed: string },
@@ -1256,5 +1281,21 @@ export const resolvers: IResolvers<any, Context> = {
   }),
   Source: {
     permalink: (source: GQLSource): string => getSourceLink(source),
+    referralUrl: async (source: GQLSource, _, ctx): Promise<string> => {
+      if (!ctx.userId) {
+        return null;
+      }
+
+      if (source.type !== SourceType.Squad) {
+        return null;
+      }
+
+      const referralUrl = await ctx.dataLoader.referralUrl.load({
+        source,
+        userId: ctx.userId,
+      });
+
+      return referralUrl;
+    },
   },
 };

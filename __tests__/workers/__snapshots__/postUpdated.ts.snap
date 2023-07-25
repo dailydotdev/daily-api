@@ -13,6 +13,12 @@ Object {
   "description": null,
   "discussionScore": null,
   "downvotes": 0,
+  "flags": Object {
+    "private": false,
+    "sentAnalyticsReport": true,
+    "showOnFeed": true,
+    "visible": true,
+  },
   "id": Any<String>,
   "image": null,
   "lastTrending": null,

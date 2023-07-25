@@ -84,6 +84,7 @@ import { TypeOrmError } from '../../src/errors';
 import { SourceMemberRoles } from '../../src/roles';
 import { CommentReport } from '../../src/entity/CommentReport';
 import { usersFixture } from '../fixture/user';
+import { NotificationType } from '../../src/notifications/common';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -861,6 +862,41 @@ describe('post', () => {
       oldPost.metadataChangedAt.getTime(),
     );
   });
+
+  it('should update post metadata changed at for flags', async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, ArticlePost, postsFixture);
+    const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    const localBase: ChangeObject<ArticlePost> = {
+      ...(oldPost as ArticlePost),
+      createdAt: 0,
+      metadataChangedAt: 0,
+      publishedAt: 0,
+      lastTrending: 0,
+      visible: true,
+      visibleAt: 0,
+      pinnedAt: null,
+    };
+    const after: ChangeObject<ObjectType> = {
+      ...localBase,
+      flags: {
+        promoteToPublic: 123,
+      },
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: after,
+        before: localBase,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    const updatedPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(updatedPost.metadataChangedAt.getTime()).toBeGreaterThan(
+      oldPost.metadataChangedAt.getTime(),
+    );
+  });
 });
 
 describe('comment report', () => {
@@ -1347,7 +1383,7 @@ describe('notification', () => {
   const base: ChangeObject<ObjectType> = {
     id,
     userId: '1',
-    type: 'community_picks_granted',
+    type: NotificationType.CommunityPicksGranted,
     title: 'hello',
     targetUrl: 'target',
     icon: 'icon',

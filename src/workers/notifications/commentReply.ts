@@ -1,8 +1,17 @@
 import { messageToJson } from '../worker';
-import { Comment, SourceType } from '../../entity';
+import {
+  Comment,
+  NotificationPreferenceComment,
+  SourceType,
+} from '../../entity';
 import { NotificationCommenterContext } from '../../notifications';
+import {
+  commentReplyNotificationTypes,
+  NotificationType,
+} from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { buildPostContext } from './utils';
+import { In } from 'typeorm';
 
 interface Data {
   userId: string;
@@ -25,8 +34,14 @@ const worker: NotificationWorker = {
     if (!postCtx) {
       return;
     }
-    const parent = await comment.parent;
-    const commenter = await comment.user;
+    const [parent, commenter, mutes] = await Promise.all([
+      comment.parent,
+      comment.user,
+      con.getRepository(NotificationPreferenceComment).findBy({
+        referenceId: comment.id,
+        notificationType: In(commentReplyNotificationTypes),
+      }),
+    ]);
     const threadFollowers = await con
       .getRepository(Comment)
       .createQueryBuilder()
@@ -52,11 +67,15 @@ const worker: NotificationWorker = {
       userIds.push(parent.userId);
     }
     const type =
-      ctx.source.type === SourceType.Squad ? 'squad_reply' : 'comment_reply';
-    return userIds.map((userId) => ({
-      type,
-      ctx: { ...ctx, userId },
-    }));
+      ctx.source.type === SourceType.Squad
+        ? NotificationType.SquadReply
+        : NotificationType.CommentReply;
+    return userIds
+      .filter((id) => mutes.every(({ userId }) => userId !== id))
+      .map((userId) => ({
+        type,
+        ctx: { ...ctx, userId },
+      }));
   },
 };
 

@@ -113,12 +113,14 @@ const readinessProbe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
   failureThreshold: 2,
   periodSeconds: 2,
+  initialDelaySeconds: 20,
 };
 
 const livenessProbe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/liveness', port: 'http' },
   failureThreshold: 3,
   periodSeconds: 5,
+  initialDelaySeconds: 20,
 };
 
 let appsArgs: ApplicationArgs[];
@@ -241,7 +243,7 @@ const [apps] = deployApplicationSuite(
           ],
     },
     debezium: {
-      version: isAdhocEnv ? '2.0' : '1.9',
+      version: '2.0',
       topicName: debeziumTopicName,
       propsPath: './application.properties',
       propsVars: {
@@ -250,6 +252,12 @@ const [apps] = deployApplicationSuite(
         database_dbname: name,
         hostname: envVars.typeormHost as string,
       },
+      env: [
+        {
+          name: 'ENABLE_DEBEZIUM_SCRIPTING',
+          value: 'true',
+        },
+      ],
     },
     apps: appsArgs,
     crons: isAdhocEnv

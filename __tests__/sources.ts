@@ -28,7 +28,7 @@ import { randomUUID } from 'crypto';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
 import { postsFixture } from './fixture/post';
-import { createSource } from './fixture/source';
+import { createSource, sourcesFixture } from './fixture/source';
 import { SourcePermissions } from '../src/schema/sources';
 import { SourcePermissionErrorKeys } from '../src/errors';
 import { WELCOME_POST_TITLE } from '../src/common';
@@ -53,12 +53,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   loggedUser = null;
   premiumUser = false;
-  await con
-    .getRepository(Source)
-    .save([
-      createSource('a', 'A', 'http://a.com'),
-      createSource('b', 'B', 'http://b.com'),
-    ]);
+  await saveFixtures(con, Source, [sourcesFixture[0], sourcesFixture[1]]);
   await saveFixtures(con, User, usersFixture);
   await con.getRepository(SourceMember).save([
     {
@@ -106,8 +101,10 @@ describe('query sources', () => {
         id
         name
         image
+        headerImage
         public
         type
+        color
       }
     }
   }
@@ -165,6 +162,18 @@ describe('query sources', () => {
     );
     expect(allSquad).toBeTruthy();
   });
+
+  it('should return public squad color and headerImage', async () => {
+    await prepareSquads();
+    const res = await client.query(QUERY(10, true));
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sources.edges.length).toEqual(1);
+    expect(res.data.sources.edges[0].node.public).toBeTruthy();
+    expect(res.data.sources.edges[0].node.color).toEqual('avocado');
+    expect(res.data.sources.edges[0].node.headerImage).toEqual(
+      'http://image.com/header',
+    );
+  });
 });
 
 describe('query sourceByFeed', () => {
@@ -207,7 +216,7 @@ query SourceByFeed($data: String!) {
     expect(res.data.sourceByFeed).toEqual({
       id: 'a',
       name: 'A',
-      image: 'http://a.com',
+      image: 'http://image.com/a',
       public: true,
     });
   });
@@ -387,6 +396,96 @@ query Source($id: ID!) {
     const res = await client.query(QUERY, { variables: { id: 'handle' } });
     expect(res.errors).toBeFalsy();
     expect(res.data.source.public).toEqual(false);
+  });
+
+  it('should return public squad referralUrl for logged source member', async () => {
+    const QUERY = `
+    query Source($id: ID!) {
+      source(id: $id) {
+        id
+        name
+        image
+        public
+        currentMember {
+          referralToken
+        }
+        referralUrl
+      }
+    }`;
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update(
+        { id: 'a' },
+        { handle: 'handle', private: false, type: SourceType.Squad },
+      );
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: 'referraltoken1',
+    });
+    const res = await client.query(QUERY, { variables: { id: 'handle' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.referralUrl).toBe(
+      `${process.env.COMMENTS_PREFIX}/squads/handle?cid=squad&userid=1`,
+    );
+  });
+
+  it('should return private squad referralUrl for logged source member', async () => {
+    const QUERY = `
+    query Source($id: ID!) {
+      source(id: $id) {
+        id
+        name
+        image
+        public
+        currentMember {
+          referralToken
+        }
+        referralUrl
+      }
+    }`;
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update(
+        { id: 'a' },
+        { handle: 'handle', private: true, type: SourceType.Squad },
+      );
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      referralToken: 'referraltoken1',
+    });
+    const res = await client.query(QUERY, { variables: { id: 'handle' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.referralUrl).toBe(
+      `${process.env.COMMENTS_PREFIX}/squads/handle/referraltoken1`,
+    );
+  });
+
+  it('should disallow access to public source for blocked members', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad, private: false });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Blocked,
+    });
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: 'a' },
+      },
+      'FORBIDDEN',
+    );
   });
 });
 

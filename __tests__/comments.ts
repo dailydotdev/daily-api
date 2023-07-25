@@ -1,4 +1,3 @@
-import { CommentMention } from './../src/entity/CommentMention';
 import {
   disposeGraphQLTesting,
   GraphQLTestClient,
@@ -19,6 +18,7 @@ import {
   ArticlePost,
   SourceMember,
   SourceType,
+  CommentMention,
 } from '../src/entity';
 import { SourceMemberRoles } from '../src/roles';
 import { createSource, sourcesFixture } from './fixture/source';
@@ -27,6 +27,7 @@ import { getMentionLink } from '../src/common/markdown';
 import { saveComment, updateMentions } from '../src/schema/comments';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { CommentReport } from '../src/entity/CommentReport';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -727,6 +728,30 @@ describe('mutation commentOnPost', () => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.comments).toEqual(1);
   });
+
+  it('should disallow comment on post from public source for blocked members', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad, private: false });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { private: false, sourceId: 'a' });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Blocked,
+    });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { postId: 'p1', content: 'comment' },
+      },
+      'FORBIDDEN',
+    );
+  });
 });
 
 describe('mutation commentOnComment', () => {
@@ -841,6 +866,34 @@ describe('mutation commentOnComment', () => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.comments).toEqual(1);
     expect(actual.find((c) => c.id === 'c1').comments).toEqual(1);
+  });
+
+  it('should disallow comment on comment from post on public source for blocked members', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad, private: false });
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { private: false, sourceId: 'a' });
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Blocked,
+    });
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          content: '# my comment http://daily.dev',
+          commentId: 'c1',
+        },
+      },
+      'FORBIDDEN',
+    );
   });
 });
 
@@ -1155,5 +1208,103 @@ describe('mutation editComment', () => {
       lastUpdatedAt: expect.any(String),
       content: 'Edit',
     });
+  });
+});
+
+describe('mutation reportComment', () => {
+  const MUTATION = `
+    mutation ReportComment($commentId: ID!, $reason: ReportCommentReason, $note: String) {
+      reportComment(commentId: $commentId, reason: $reason, note: $note) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { commentId: 'c1', reason: 'HATEFUL', note: 'Test comment' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw not found when cannot find comment', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          commentId: 'invalid',
+          reason: 'HATEFUL',
+          note: 'Test comment',
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should report comment with note', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        commentId: 'c1',
+        reason: 'HATEFUL',
+        note: 'Test comment',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const comment = await con
+      .getRepository(CommentReport)
+      .findOneBy({ commentId: 'c1' });
+    expect(comment).toEqual({
+      commentId: 'c1',
+      userId: '1',
+      createdAt: expect.anything(),
+      reason: 'HATEFUL',
+      note: 'Test comment',
+    });
+  });
+
+  it('should report comment without note', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { commentId: 'c1', reason: 'HATEFUL' },
+    });
+    expect(res.errors).toBeFalsy();
+    const comment = await con
+      .getRepository(CommentReport)
+      .findOneBy({ commentId: 'c1' });
+    expect(comment).toEqual({
+      commentId: 'c1',
+      userId: '1',
+      createdAt: expect.anything(),
+      reason: 'HATEFUL',
+      note: null,
+    });
+  });
+
+  it('should ignore conflicts', async () => {
+    loggedUser = '1';
+    const res1 = await client.mutate(MUTATION, {
+      variables: { commentId: 'c1', reason: 'HATEFUL' },
+    });
+    expect(res1.errors).toBeFalsy();
+    const comment = await con
+      .getRepository(CommentReport)
+      .findOneBy({ commentId: 'c1' });
+    expect(comment).toEqual({
+      commentId: 'c1',
+      userId: '1',
+      createdAt: expect.anything(),
+      reason: 'HATEFUL',
+      note: null,
+    });
+    const res2 = await client.mutate(MUTATION, {
+      variables: { commentId: 'c1', reason: 'HATEFUL' },
+    });
+    expect(res2.errors).toBeFalsy();
   });
 });

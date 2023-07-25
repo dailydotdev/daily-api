@@ -52,7 +52,7 @@ export const cookies: {
 };
 
 const extractDomain = (req: FastifyRequest): string => {
-  const host = req.hostname;
+  const host = req.hostname.split(':')[0];
   // Localhost fix for local testing
   if (host === '127.0.0.1') return host;
   const parts = host.split('.');

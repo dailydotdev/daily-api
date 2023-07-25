@@ -11,6 +11,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { usersFixture } from '../fixture/user';
 import { notificationFixture } from '../fixture/notifications';
+import { NotificationType } from '../../src/notifications/common';
 
 let con: DataSource;
 
@@ -118,7 +119,7 @@ it('should publish an event to redis', async () => {
           referenceType: null,
           targetUrl: 'https://daily.dev',
           title: 'notification #1',
-          type: 'comment_mention',
+          type: NotificationType.CommentMention,
           uniqueKey: '0',
           userId: '1',
         });

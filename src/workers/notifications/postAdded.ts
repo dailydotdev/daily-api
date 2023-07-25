@@ -2,7 +2,6 @@ import { messageToJson } from '../worker';
 import {
   Post,
   PostType,
-  SourceMember,
   SourceType,
   User,
   UserAction,
@@ -12,9 +11,10 @@ import {
   NotificationDoneByContext,
   NotificationPostContext,
 } from '../../notifications';
+import { NotificationType } from '../../notifications/common';
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
-import { buildPostContext } from './utils';
+import { buildPostContext, getSubscribedMembers } from './utils';
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
@@ -44,7 +44,7 @@ const worker: NotificationWorker = {
         ...baseCtx,
         userId: post.scoutId,
       };
-      notifs.push({ type: 'community_picks_succeeded', ctx });
+      notifs.push({ type: NotificationType.CommunityPicksSucceeded, ctx });
     }
 
     if (source) {
@@ -55,7 +55,7 @@ const worker: NotificationWorker = {
             ...baseCtx,
             userId: post.authorId,
           };
-          notifs.push({ type: 'article_picked', ctx });
+          notifs.push({ type: NotificationType.ArticlePicked, ctx });
         }
       }
       if (source.type === SourceType.Squad && post.authorId) {
@@ -63,20 +63,23 @@ const worker: NotificationWorker = {
         const doneBy = await con
           .getRepository(User)
           .findOneBy({ id: post.authorId });
-        const members = await con.getRepository(SourceMember).find({
-          where: {
+        const members = await getSubscribedMembers(
+          con,
+          NotificationType.SquadPostAdded,
+          source.id,
+          {
             sourceId: source.id,
             userId: Not(In([post.authorId])),
             role: Not(SourceMemberRoles.Blocked),
           },
-        });
-        members.forEach((member) =>
+        );
+        members.forEach(({ userId }) =>
           notifs.push({
-            type: 'squad_post_added',
+            type: NotificationType.SquadPostAdded,
             ctx: {
               ...baseCtx,
               doneBy,
-              userId: member.userId,
+              userId,
             } as NotificationPostContext & Partial<NotificationDoneByContext>,
           }),
         );
@@ -98,7 +101,7 @@ const worker: NotificationWorker = {
 
           if (!subscribed) {
             notifs.push({
-              type: 'squad_subscribe_to_notification',
+              type: NotificationType.SquadSubscribeToNotification,
               ctx: { ...baseCtx, userId: post.authorId },
             });
           }

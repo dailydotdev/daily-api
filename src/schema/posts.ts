@@ -9,6 +9,7 @@ import {
   ensureSourcePermissions,
   GQLSource,
   SourcePermissions,
+  sourceTypesWithMembers,
 } from './sources';
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
@@ -24,8 +25,9 @@ import {
   isValidHttpUrl,
   notifyView,
   pickImageUrl,
-  saveFreeformPost,
+  createFreeformPost,
   standardizeURL,
+  updateFlagsStatement,
   uploadPostFile,
   UploadPreset,
   validatePost,
@@ -39,6 +41,7 @@ import {
   FreeformPost,
   HiddenPost,
   Post,
+  PostFlagsPublic,
   PostMention,
   PostReport,
   PostType,
@@ -110,6 +113,7 @@ export interface GQLPost {
   content?: string;
   contentHtml?: string;
   downvoted?: boolean;
+  flags?: PostFlagsPublic;
 }
 
 interface PinPostArgs {
@@ -192,6 +196,18 @@ export const typeDefs = /* GraphQL */ `
     Total number of comments
     """
     numComments: Int!
+  }
+
+  type PostFlagsPublic {
+    """
+    Whether the post's source is private or not
+    """
+    private: Boolean
+
+    """
+    The unix timestamp (seconds) the post will be promoted to public to
+    """
+    promoteToPublic: Int @auth(requires: [MODERATOR])
   }
 
   """
@@ -397,6 +413,11 @@ export const typeDefs = /* GraphQL */ `
     Whether the user downvoted this post
     """
     downvoted: Boolean
+
+    """
+    All the flags for the post
+    """
+    flags: PostFlagsPublic
   }
 
   type PostConnection {
@@ -621,6 +642,26 @@ export const typeDefs = /* GraphQL */ `
     ): String! @auth @rateLimit(limit: 5, duration: 60)
 
     """
+    Promote a post
+    """
+    promoteToPublic(
+      """
+      Id of the post to update the promoteToPublic flag for
+      """
+      id: ID!
+    ): EmptyResponse @auth(requires: [MODERATOR])
+
+    """
+    Demote a post
+    """
+    demoteFromPublic(
+      """
+      Id of the post to demote from the public
+      """
+      id: ID!
+    ): EmptyResponse @auth(requires: [MODERATOR])
+
+    """
     Pin or unpin a post
     """
     updatePinPost(
@@ -839,6 +880,25 @@ export const getPostByUrl = async (
   return res[0];
 };
 
+const updatePromoteToPublicFlag = async (
+  ctx: Context,
+  id: string,
+  value: number,
+): Promise<GQLEmptyResponse> => {
+  if (!ctx.roles.includes(Roles.Moderator)) {
+    throw new ForbiddenError('Access denied!');
+  }
+
+  await ctx.getRepository(Post).update(
+    { id },
+    {
+      flags: updateFlagsStatement<Post>({ promoteToPublic: value }),
+    },
+  );
+
+  return { _: true };
+};
+
 const getPostById = async (
   ctx: Context,
   info: GraphQLResolveInfo,
@@ -866,12 +926,18 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<GQLPost> => {
-      const post = await ctx.con.getRepository(Post).findOneOrFail({
-        select: ['sourceId', 'private'],
+      const partialPost = await ctx.con.getRepository(Post).findOneOrFail({
+        select: ['id', 'sourceId', 'private'],
+        relations: ['source'],
         where: { id },
       });
-      if (post.private) {
-        await ensureSourcePermissions(ctx, post.sourceId);
+      const postSource = await partialPost.source;
+
+      if (
+        partialPost.private ||
+        sourceTypesWithMembers.includes(postSource.type)
+      ) {
+        await ensureSourcePermissions(ctx, partialPost.sourceId);
       }
       return getPostById(ctx, info, id);
     },
@@ -988,12 +1054,7 @@ export const resolvers: IResolvers<any, Context> = {
             });
           } catch (err) {
             if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
-              ctx.log.error(
-                {
-                  err,
-                },
-                'failed to save report to database',
-              );
+              throw new Error('Failed to save report to database');
             }
           }
         }
@@ -1038,7 +1099,13 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       if (ctx.roles.includes(Roles.Moderator)) {
-        await ctx.getRepository(Post).update({ id }, { deleted: true });
+        await ctx.getRepository(Post).update(
+          { id },
+          {
+            deleted: true,
+            flags: updateFlagsStatement<Post>({ deleted: true }),
+          },
+        );
         return { _: true };
       }
 
@@ -1052,11 +1119,32 @@ export const resolvers: IResolvers<any, Context> = {
             SourcePermissions.PostDelete,
           );
         }
-        await repo.update({ id }, { deleted: true });
+        await repo.update(
+          { id },
+          {
+            deleted: true,
+            flags: updateFlagsStatement<Post>({ deleted: true }),
+          },
+        );
       });
 
       return { _: true };
     },
+    promoteToPublic: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      const nextWeek = new Date();
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      const timeToSeconds = Math.floor(nextWeek.valueOf() / 1000);
+      return updatePromoteToPublicFlag(ctx, id, timeToSeconds);
+    },
+    demoteFromPublic: async (
+      _,
+      { id }: { id: string },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => updatePromoteToPublicFlag(ctx, id, null),
     updatePinPost: async (
       _,
       { id, pinned }: PinPostArgs,
@@ -1116,7 +1204,7 @@ export const resolvers: IResolvers<any, Context> = {
           params.image = coverImageUrl;
         }
 
-        await saveFreeformPost(manager, params);
+        await createFreeformPost(manager, params);
         await saveMentions(manager, id, userId, mentions, PostMention);
       });
 
@@ -1227,7 +1315,13 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLEmptyResponse> => {
       const post = await ctx.getRepository(Post).findOneByOrFail({ id });
       if (!post.banned) {
-        await ctx.getRepository(Post).update({ id }, { banned: true });
+        await ctx.getRepository(Post).update(
+          { id },
+          {
+            banned: true,
+            flags: updateFlagsStatement<Post>({ banned: true }),
+          },
+        );
       }
       return { _: true };
     },

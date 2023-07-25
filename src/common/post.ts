@@ -4,6 +4,7 @@ import {
   Comment,
   ExternalLinkPreview,
   FreeformPost,
+  Post,
   PostOrigin,
   SquadSource,
   User,
@@ -140,12 +141,19 @@ export const createSquadWelcomePost = async (
     contentHtml: markdown.render(content),
     image: defaultImage.welcomePost,
     banned: true,
+    flags: {
+      banned: true,
+      private: true,
+      visible: true,
+      showOnFeed: false,
+    },
     visible: true,
     private: true,
     pinnedAt: new Date(),
     visibleAt: new Date(),
     origin: PostOrigin.UserGenerated,
-  });
+    showOnFeed: false,
+  } as Partial<Post>);
 };
 
 export type EditablePost = Pick<
@@ -158,7 +166,7 @@ export type CreatePost = Pick<
   'title' | 'content' | 'image' | 'contentHtml' | 'authorId' | 'sourceId' | 'id'
 >;
 
-export const saveFreeformPost = async (
+export const createFreeformPost = async (
   con: DataSource | EntityManager,
   args: CreatePost,
 ) =>
@@ -169,6 +177,10 @@ export const saveFreeformPost = async (
     private: true,
     visibleAt: new Date(),
     origin: PostOrigin.UserGenerated,
+    flags: {
+      visible: true,
+      private: true,
+    },
   });
 
 export interface EditPostArgs
