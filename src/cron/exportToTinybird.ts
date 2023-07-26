@@ -1,8 +1,6 @@
 import { Cron } from './cron';
-import jsonexport from 'jsonexport';
 import { DataSource } from 'typeorm';
 import { PostType, UNKNOWN_SOURCE } from '../entity';
-import { promisify } from 'util';
 import { FastifyBaseLogger } from 'fastify';
 import {
   fetchfn,
@@ -73,7 +71,6 @@ export class PostsMetadataRepository implements IPostsMetadataRepository {
   private readonly tinybirdClient: ITinybirdClient;
   private readonly datasource: string;
   private readonly latestQuery: string;
-  private readonly json2csv = promisify(jsonexport);
   constructor(tinybirdClient: ITinybirdClient, datasource: string) {
     this.tinybirdClient = tinybirdClient;
     this.datasource = datasource;
@@ -113,15 +110,7 @@ export class PostsMetadataRepository implements IPostsMetadataRepository {
   }
 
   public async append(posts: TinybirdPost[]): Promise<TinybirdError | null> {
-    const csv: string = await this.json2csv(posts, {
-      includeHeaders: false,
-      typeHandlers: {
-        Date: (date: Date) => date.toISOString(),
-        Array: (arr: string[]) => {
-          return '[' + arr.map((x) => `'${x}'`).join(', ') + ']';
-        },
-      },
-    });
+    const csv: string = await TinybirdClient.Json2Csv(posts);
 
     const result = await this.tinybirdClient.postToDatasource(
       this.datasource,

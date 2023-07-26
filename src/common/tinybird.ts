@@ -1,5 +1,7 @@
 import { RequestInit } from 'node-fetch';
 import FormData from 'form-data';
+import { promisify } from 'util';
+import jsonexport from 'jsonexport';
 
 export type fetchfn = (
   url: RequestInfo,
@@ -122,6 +124,18 @@ export class TinybirdClient implements ITinybirdClient {
     };
   }
 
+  public static async Json2Csv(object: unknown): Promise<string> {
+    return await json2csv(object, {
+      includeHeaders: false,
+      typeHandlers: {
+        Date: (date: Date) => date.toISOString(),
+        Array: (arr: string[]) => {
+          return '[' + arr.map((x) => `'${x}'`).join(', ') + ']';
+        },
+      },
+    });
+  }
+
   private headers(): NonNullable<unknown> {
     return {
       Authorization: `Bearer ${this.accessToken}`,
@@ -137,3 +151,5 @@ export class TinybirdClient implements ITinybirdClient {
       .join('&');
   }
 }
+
+const json2csv = promisify(jsonexport);
