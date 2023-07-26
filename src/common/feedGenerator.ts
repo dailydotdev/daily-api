@@ -113,10 +113,15 @@ export const feedToFilters = async (
       })
       .execute(),
     feedId
-      ? con.getRepository(SourceMember).find({
-          where: { userId },
-          select: ['sourceId'],
-        })
+      ? con
+          .getRepository(SourceMember)
+          .createQueryBuilder('sm')
+          .select('sm."sourceId"')
+          .where('sm."userId" = :userId', { userId })
+          .andWhere(
+            `COALESCE((flags->'hideFeedPosts')::boolean, FALSE) = FALSE`,
+          )
+          .execute()
       : [],
   ]);
   const tagFilters = tags.reduce(
@@ -133,7 +138,9 @@ export const feedToFilters = async (
   return {
     ...tagFilters,
     excludeSources: excludeSources.map((sources: Source) => sources.id),
-    sourceIds: sourceIds.map((member) => member.sourceId),
+    sourceIds: sourceIds.map(
+      (member: Pick<SourceMember, 'sourceId'>) => member.sourceId,
+    ),
   };
 };
 

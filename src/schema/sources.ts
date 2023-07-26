@@ -9,6 +9,7 @@ import {
   Source,
   SourceFeed,
   SourceMember,
+  SourceMemberFlagsPublic,
   SourceType,
   SquadSource,
 } from '../entity';
@@ -34,6 +35,7 @@ import { randomUUID } from 'crypto';
 import {
   createSquadWelcomePost,
   getSourceLink,
+  updateFlagsStatement,
   uploadSquadImage,
 } from '../common';
 import { GraphQLResolveInfo } from 'graphql';
@@ -67,6 +69,7 @@ export interface GQLSourceMember {
   role: SourceMemberRoles;
   createdAt: Date;
   referralToken: string;
+  flags?: SourceMemberFlagsPublic;
 }
 
 interface UpdateMemberRoleArgs {
@@ -195,6 +198,13 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  type SourceMemberFlagsPublic {
+    """
+    Whether the source posts are hidden from feed for member
+    """
+    hideFeedPosts: Boolean
+  }
+
   type SourceMember {
     """
     Relevant user who is part of the source
@@ -220,6 +230,11 @@ export const typeDefs = /* GraphQL */ `
     User squad permissions
     """
     permissions: [String]
+
+    """
+    All the flags for source member
+    """
+    flags: SourceMemberFlagsPublic
   }
 
   type SourceMemberConnection {
@@ -471,6 +486,26 @@ export const typeDefs = /* GraphQL */ `
     leaveSource(
       """
       Source to leave
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Hide source posts from feed for member
+    """
+    hideSourceFeedPosts(
+      """
+      Source id to hide posts from
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Show source posts on feed for member
+    """
+    showSourceFeedPosts(
+      """
+      Source id to show posts on feed
       """
       sourceId: ID!
     ): EmptyResponse! @auth
@@ -793,6 +828,25 @@ export const getPermissionsForMember = (
 interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
 }
+
+const updateHideFeedPostsFlag = async (
+  ctx: Context,
+  sourceId: string,
+  value: boolean,
+): Promise<GQLEmptyResponse> => {
+  await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
+
+  await ctx.con.getRepository(SourceMember).update(
+    { sourceId, userId: ctx.userId },
+    {
+      flags: updateFlagsStatement<SourceMember>({
+        hideFeedPosts: value,
+      }),
+    },
+  );
+
+  return { _: true };
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
@@ -1277,6 +1331,12 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       return getSourceById(ctx, info, sourceId);
+    },
+    hideSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+      return updateHideFeedPostsFlag(ctx, sourceId, true);
+    },
+    showSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+      return updateHideFeedPostsFlag(ctx, sourceId, false);
     },
   }),
   Source: {

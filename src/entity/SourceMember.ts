@@ -7,7 +7,14 @@ import { SourceMemberRoles } from '../roles';
 
 const randomBytesAsync = promisify(randomBytes);
 
+export type SourceMemberFlags = Partial<{
+  hideFeedPosts: boolean;
+}>;
+
+export type SourceMemberFlagsPublic = Pick<SourceMemberFlags, 'hideFeedPosts'>;
+
 @Entity()
+@Index('IDX_source_member_userId_flags_hideFeedPosts', { synchronize: false })
 export class SourceMember {
   @PrimaryColumn({ type: 'text' })
   @Index('IDX_source_member_sourceId')
@@ -38,6 +45,9 @@ export class SourceMember {
   @Column({ type: 'text' })
   @Index('IDX_source_member_referralToken', { unique: true })
   referralToken: string;
+
+  @Column({ type: 'jsonb', default: {} })
+  flags: SourceMemberFlags;
 }
 
 const TOKEN_BYTES = 32;
