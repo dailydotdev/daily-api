@@ -22,7 +22,6 @@ import newNotificationRealTime from './newNotificationRealTime';
 import newNotificationMail from './newNotificationMail';
 import newNotificationPush from './newNotificationPush';
 import addToMailingList from './addToMailingList';
-import squadFeatureAccess from './squadFeatureAccess';
 import { workers as notificationWorkers } from './notifications';
 import sourcePrivacyUpdated from './sourcePrivacyUpdated';
 import postChangelogAdded from './postChangelogAdded';
@@ -69,7 +68,6 @@ export const workers: Worker[] = [
   newNotificationRealTime,
   newNotificationMail,
   newNotificationPush,
-  squadFeatureAccess,
   addToMailingList,
   sourcePrivacyUpdated,
   postChangelogAdded,

@@ -354,43 +354,15 @@ describe('query notificationPreferences', () => {
       'UNAUTHENTICATED',
     ));
 
-  const prepareNotificationPreferences = async () => {
-    await saveFixtures(con, User, usersFixture);
-    await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, Post, postsFixture);
-    await con.getRepository(NotificationPreferencePost).save([
-      {
-        userId: '1',
-        postId: postsFixture[0].id,
-        referenceId: postsFixture[0].id,
-        notificationType: NotificationType.ArticleNewComment,
-        status: NotificationPreferenceStatus.Muted,
-      },
-      {
-        userId: '1',
-        postId: postsFixture[1].id,
-        referenceId: postsFixture[1].id,
-        notificationType: NotificationType.ArticleNewComment,
-        status: NotificationPreferenceStatus.Muted,
-      },
-      {
-        userId: '2',
-        postId: postsFixture[1].id,
-        referenceId: postsFixture[1].id,
-        notificationType: NotificationType.ArticleNewComment,
-        status: NotificationPreferenceStatus.Muted,
-      },
-    ]);
-    await con.getRepository(NotificationPreferenceSource).save([
-      {
-        userId: '1',
-        sourceId: sourcesFixture[0].id,
-        referenceId: sourcesFixture[0].id,
-        notificationType: NotificationType.SourceApproved,
-        status: NotificationPreferenceStatus.Muted,
-      },
-    ]);
-  };
+  it('should throw an error when parameters are empty', () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { data: [] } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
 
   it('should return based on notification preferences type and reference id', async () => {
     loggedUser = '1';

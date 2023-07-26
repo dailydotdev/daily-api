@@ -31,7 +31,7 @@ import { postsFixture } from './fixture/post';
 import { createSource, sourcesFixture } from './fixture/source';
 import { SourcePermissions } from '../src/schema/sources';
 import { SourcePermissionErrorKeys } from '../src/errors';
-import { WELCOME_POST_TITLE } from '../src/common';
+import { updateFlagsStatement, WELCOME_POST_TITLE } from '../src/common';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 
 let app: FastifyInstance;
@@ -2256,6 +2256,226 @@ query Source($id: ID!) {
           },
         ],
       },
+    });
+  });
+});
+
+describe('mutation hideSourceFeedPosts', () => {
+  const MUTATION = `
+    mutation HideSourceFeedPosts($sourceId: ID!) {
+    hideSourceFeedPosts(sourceId: $sourceId) {
+      _
+    }
+  }`;
+
+  const variables = {
+    sourceId: 's1',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw when user is not a member', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).delete({
+      sourceId: 's1',
+      userId: '1',
+    });
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw when user is blocked', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).update(
+      {
+        sourceId: 's1',
+        userId: '1',
+      },
+      {
+        role: SourceMemberRoles.Blocked,
+      },
+    );
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should set flags.hideFeedPosts to true', async () => {
+    loggedUser = '1';
+    let sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember).toBeTruthy();
+    expect(sourceMember?.flags.hideFeedPosts).toEqual(undefined);
+
+    await client.mutate(MUTATION, { variables: { sourceId: 's1' } });
+    sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember?.flags.hideFeedPosts).toEqual(true);
+  });
+});
+
+describe('mutation showSourceFeedPosts', () => {
+  const MUTATION = `
+    mutation ShowSourceFeedPosts($sourceId: ID!) {
+      showSourceFeedPosts(sourceId: $sourceId) {
+      _
+    }
+  }`;
+
+  const variables = {
+    sourceId: 's1',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw when user is not a member', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).delete({
+      sourceId: 's1',
+      userId: '1',
+    });
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw when user is blocked', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).update(
+      {
+        sourceId: 's1',
+        userId: '1',
+      },
+      {
+        role: SourceMemberRoles.Blocked,
+      },
+    );
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should set flags.hideFeedPosts to false', async () => {
+    loggedUser = '1';
+    let sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember).toBeTruthy();
+    expect(sourceMember?.flags.hideFeedPosts).toEqual(undefined);
+
+    await client.mutate(MUTATION, { variables: { sourceId: 's1' } });
+    sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember?.flags.hideFeedPosts).toEqual(false);
+  });
+});
+
+describe('SourceMember flags field', () => {
+  const QUERY = `{
+    source(id: "a") {
+      currentMember {
+        flags {
+          hideFeedPosts
+        }
+      }
+    }
+  }`;
+
+  it('should return all the public flags for source member', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).update(
+      { userId: '1', sourceId: 'a' },
+      {
+        flags: updateFlagsStatement({ hideFeedPosts: true }),
+      },
+    );
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    console.log(res.data);
+    expect(res.data.source.currentMember.flags).toEqual({
+      hideFeedPosts: true,
+    });
+  });
+
+  it('should return null values for unset flags', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY);
+    expect(res.data.source.currentMember.flags).toEqual({
+      hideFeedPosts: null,
     });
   });
 });

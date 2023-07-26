@@ -2,7 +2,6 @@ import { invokeNotificationWorker } from '../helpers';
 import {
   Comment,
   CommentUpvote,
-  FeatureType,
   MachineSource,
   NotificationPreferenceComment,
   NotificationPreferencePost,
@@ -90,42 +89,6 @@ it('should add community picks failed notification', async () => {
       status: SubmissionStatus.Rejected,
     },
   });
-});
-
-it('should send squad access notification if user has no squad', async () => {
-  const worker = await import(
-    '../../src/workers/notifications/featureAccessNotification'
-  );
-  const actual = await invokeNotificationWorker(worker.default, {
-    feature: {
-      feature: FeatureType.Squad,
-      userId: '1',
-    },
-  });
-  expect(actual.length).toEqual(1);
-  expect(actual[0].type).toEqual('squad_access');
-  expect(actual[0].ctx).toEqual({
-    userId: '1',
-  });
-});
-
-it('should not send squad access notification if user is part of squad', async () => {
-  await con.getRepository(SourceMember).save({
-    sourceId: 'a',
-    userId: '1',
-    role: SourceMemberRoles.Admin,
-    referralToken: 'a',
-  });
-  const worker = await import(
-    '../../src/workers/notifications/featureAccessNotification'
-  );
-  const actual = await invokeNotificationWorker(worker.default, {
-    feature: {
-      feature: FeatureType.Squad,
-      userId: '1',
-    },
-  });
-  expect(actual).toBeFalsy();
 });
 
 it('should add community picks granted notification', async () => {
@@ -823,6 +786,41 @@ describe('article new comment', () => {
       );
     });
     expect(actual[0].ctx.userId).toEqual('1');
+  });
+
+  it('should add notification for new squad comment but ignore muted users', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/articleNewCommentPostCommented'
+    );
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: '1',
+      },
+    );
+    await con.getRepository(SourceMember).insert({
+      userId: '1',
+      sourceId: 'a',
+      role: SourceMemberRoles.Member,
+      createdAt: new Date(),
+      referralToken: randomUUID(),
+    });
+    await con.getRepository(NotificationPreferencePost).save({
+      userId: '1',
+      postId: 'p1',
+      referenceId: 'p1',
+      status: NotificationPreferenceStatus.Muted,
+      notificationType: NotificationType.SquadNewComment,
+    });
+    const actual = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      postId: 'p1',
+      commentId: 'c1',
+    });
+    expect(actual).toBeFalsy();
   });
 });
 

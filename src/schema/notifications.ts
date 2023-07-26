@@ -100,6 +100,10 @@ export const typeDefs = /* GraphQL */ `
     """
     type: String!
     """
+    Referenced entity's id of the notification
+    """
+    referenceId: String!
+    """
     Icon type of the notification
     """
     icon: String!
@@ -363,6 +367,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
       info,
     ): Promise<GQLNotificationPreference[]> => {
+      if (!data.length) {
+        throw new ValidationError('parameters must not be empty');
+      }
+
       const params = data.reduce((args, value) => {
         return [...args, { ...value, userId: ctx.userId }];
       }, []);

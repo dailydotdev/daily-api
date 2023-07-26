@@ -285,6 +285,9 @@ const obj = new GraphORM({
           return nullIfNotSameUser(value, ctx, { id: member.userId });
         },
       },
+      flags: {
+        jsonType: true,
+      },
     },
   },
   Comment: {
