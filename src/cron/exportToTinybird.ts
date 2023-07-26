@@ -42,7 +42,7 @@ export class PostsRepository implements IPostsRepository {
               "tagsStr"           AS "tags_str",
               ("banned" or "deleted" or not "showOnFeed")::int AS "banned", "type" AS "post_type",
               "private"::int      AS "post_private",
-         "contentCuration"   AS "content_curation",
+               "contentCuration"   AS "content_curation",
               (SELECT "s"."type" FROM "source" AS "s" WHERE "s"."id" = "sourceId") AS "source_type"
        FROM "post"
        WHERE "metadataChangedAt" > $1
