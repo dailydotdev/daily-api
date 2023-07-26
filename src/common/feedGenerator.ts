@@ -119,11 +119,7 @@ export const feedToFilters = async (
           .select('sm."sourceId"')
           .where('sm."userId" = :userId', { userId })
           .andWhere(
-            new Brackets((qb) => {
-              qb.where(
-                `COALESCE((flags->'hideFeedPosts')::boolean, FALSE) = FALSE`,
-              );
-            }),
+            `COALESCE((flags->'hideFeedPosts')::boolean, FALSE) = FALSE`,
           )
           .execute()
       : [],
