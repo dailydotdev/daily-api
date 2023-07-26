@@ -1,0 +1,3 @@
+describe('TinybirdClient', () => {
+  return;
+});

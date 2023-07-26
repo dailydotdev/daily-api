@@ -5,18 +5,17 @@ import { ArticlePost, PostTag, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture, postTagsFixture } from '../fixture/post';
 import {
-  PostsRepository,
-  TinybirdError,
-  TinybirdDatasourceMode,
   PostsMetadataRepository,
-  ITinybirdClient,
+  PostsRepository,
   TinybirdPost,
-  TinybirdClient,
-  fetchfn,
 } from '../../src/cron/exportToTinybird';
 import * as fs from 'fs';
 import * as path from 'path';
-import fetch from 'node-fetch';
+import {
+  ITinybirdClient,
+  TinybirdDatasourceMode,
+  TinybirdPostDatasourceResult,
+} from '../../src/common/tinybird';
 
 let con: DataSource;
 
@@ -55,27 +54,7 @@ describe('PostsRepository', () => {
   });
 });
 
-describe('TinybirdClient', () => {
-  return;
-});
-
 describe('PostsMetadataRepository', () => {
-  it('latest', async () => {
-    const tinybirdClient = new TinybirdClient(
-      process.env.TINYBIRD_TOKEN,
-      process.env.TINYBIRD_HOST,
-      fetch as unknown as fetchfn,
-    );
-
-    const postsMetadataRepository = new PostsMetadataRepository(
-      tinybirdClient,
-      'posts_metadata',
-    );
-
-    const response = await postsMetadataRepository.latest();
-    expect(response.error).toBeNull();
-  });
-
   it('append', async () => {
     const expectedCsv = fs
       .readFileSync(
@@ -85,16 +64,19 @@ describe('PostsMetadataRepository', () => {
 
     const expectedDataSource = 'posts_metadata';
     const tinybirdMock = {
-      postToDatasource: (
+      postToDatasource: async (
         datasource: string,
         mode: TinybirdDatasourceMode,
         csv: string,
-      ): Promise<null | TinybirdError> => {
+      ): Promise<TinybirdPostDatasourceResult> => {
         expect(datasource).toEqual(expectedDataSource);
         expect(mode).toEqual(TinybirdDatasourceMode.APPEND);
         expect(csv + '\n').toEqual(expectedCsv);
 
-        return null;
+        return Promise.resolve({
+          error: null,
+          success: null,
+        } as TinybirdPostDatasourceResult);
       },
     } as ITinybirdClient;
 
@@ -131,7 +113,7 @@ describe('PostsMetadataRepository', () => {
         source_type: 'source_type2',
       },
     ];
-    const result = await postsMetadataRepository.append(posts);
-    expect(result).toBeNull();
+    const error = await postsMetadataRepository.append(posts);
+    expect(error).toBeNull();
   });
 });

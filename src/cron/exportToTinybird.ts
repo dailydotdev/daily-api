@@ -1,11 +1,16 @@
 import { Cron } from './cron';
-import fetch, { RequestInit } from 'node-fetch';
 import jsonexport from 'jsonexport';
-import FormData from 'form-data';
 import { DataSource } from 'typeorm';
 import { PostType, UNKNOWN_SOURCE } from '../entity';
 import { promisify } from 'util';
 import { FastifyBaseLogger } from 'fastify';
+import {
+  fetchfn,
+  ITinybirdClient,
+  TinybirdClient,
+  TinybirdDatasourceMode,
+  TinybirdError,
+} from '../common/tinybird';
 
 export interface TinybirdPost {
   id: string;
@@ -54,123 +59,6 @@ export class PostsRepository implements IPostsRepository {
     );
   }
 }
-
-const jsonexportPromise = promisify(jsonexport);
-
-export type fetchfn = (
-  url: RequestInfo,
-  init?: RequestInit,
-) => Promise<Response>;
-
-export enum TinybirdDatasourceMode {
-  APPEND = 'append',
-}
-
-export interface ITinybirdClient {
-  query<T>(query: string): Promise<TinybirdQueryResult<T>>;
-  postToDatasource(
-    datasource: string,
-    mode: TinybirdDatasourceMode,
-    csv: string,
-  ): Promise<null | TinybirdError>;
-}
-
-export class TinybirdError {
-  text: string;
-  status: number;
-}
-
-export class TinybirdQueryResult<T> {
-  error: TinybirdError | null;
-  data: T[] | null;
-  rows: number | null;
-}
-
-export class TinybirdClient implements ITinybirdClient {
-  private readonly accessToken: string;
-  private readonly host: string;
-  private readonly fetch: fetchfn;
-  constructor(accessToken: string, host: string, fetch: fetchfn) {
-    this.accessToken = accessToken;
-    this.host = host;
-    this.fetch = fetch;
-  }
-  public async query<T>(query: string): Promise<TinybirdQueryResult<T>> {
-    const url = `${this.host}/v0/sql`;
-
-    const response = await this.fetch(url, {
-      headers: this.headers(),
-      body: query,
-      method: 'POST',
-    } as RequestInit);
-
-    if (!response.ok) {
-      const text = await response.text();
-      return {
-        error: {
-          text: text,
-          status: response.status,
-        },
-        data: null,
-        rows: 0,
-      };
-    }
-
-    const body = await response.json();
-    return {
-      error: null,
-      data: body.data,
-      rows: body.rows,
-    };
-  }
-
-  public async postToDatasource(
-    datasource: string,
-    mode: TinybirdDatasourceMode,
-    csv: string,
-  ): Promise<null | TinybirdError> {
-    const params = TinybirdClient.queryParams({
-      name: datasource,
-      mode: mode,
-    });
-
-    const url = `${this.host}/v0/datasources?${params}`;
-    const body = new FormData();
-    body.append('csv', csv);
-
-    const response = await this.fetch(url, {
-      method: 'POST',
-      headers: this.headers(),
-      body: body,
-    } as RequestInit);
-
-    if (!response.ok) {
-      const text = await response.text();
-      return {
-        text: text,
-        status: response.status,
-      } as TinybirdError;
-    }
-
-    return null;
-  }
-
-  private headers(): NonNullable<unknown> {
-    return {
-      Authorization: `Bearer ${this.accessToken}`,
-    };
-  }
-
-  private static queryParams(params: NonNullable<unknown>): string {
-    return Object.keys(params)
-      .map(
-        (key) =>
-          encodeURIComponent(key) + '=' + encodeURIComponent(params[key]),
-      )
-      .join('&');
-  }
-}
-
 interface LatestResult {
   error: TinybirdError | null;
   latest: Date | null;
@@ -185,6 +73,7 @@ export class PostsMetadataRepository implements IPostsMetadataRepository {
   private readonly tinybirdClient: ITinybirdClient;
   private readonly datasource: string;
   private readonly latestQuery: string;
+  private readonly json2csv = promisify(jsonexport);
   constructor(tinybirdClient: ITinybirdClient, datasource: string) {
     this.tinybirdClient = tinybirdClient;
     this.datasource = datasource;
@@ -224,7 +113,7 @@ export class PostsMetadataRepository implements IPostsMetadataRepository {
   }
 
   public async append(posts: TinybirdPost[]): Promise<TinybirdError | null> {
-    const csv: string = await jsonexportPromise(posts, {
+    const csv: string = await this.json2csv(posts, {
       includeHeaders: false,
       typeHandlers: {
         Date: (date: Date) => date.toISOString(),
@@ -234,11 +123,13 @@ export class PostsMetadataRepository implements IPostsMetadataRepository {
       },
     });
 
-    return await this.tinybirdClient.postToDatasource(
+    const result = await this.tinybirdClient.postToDatasource(
       this.datasource,
       TinybirdDatasourceMode.APPEND,
       csv,
     );
+
+    return result.error;
   }
 }
 
