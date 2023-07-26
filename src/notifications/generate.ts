@@ -31,7 +31,7 @@ export const notificationTitleMap: Record<
 > = {
   community_picks_failed: systemTitle,
   community_picks_succeeded: () =>
-    `<b>Community Picks:</b> a link you scouted was accepted and is now <span class="text-theme-color-cabbage">live</span> on the daily.dev feed!`,
+    `<b>Community Picks:</b> A link you scouted was accepted and is now <span class="text-theme-color-cabbage">live</span> on the daily.dev feed!`,
   community_picks_granted: () =>
     `<b>Community Picks:</b> You have earned enough reputation to <span class="text-theme-color-cabbage">scout and submit</span> links.`,
   article_picked: () =>
