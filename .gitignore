@@ -10,3 +10,4 @@ schema.graphql
 debezium/conf/key.json
 debezium/data
 coverage
+.DS_Store
