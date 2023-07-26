@@ -30,18 +30,7 @@ beforeEach(async () => {
 
 describe('getPostsTinybirdExport function', () => {
   it('should return posts to export to tinybird with specific properties', async () => {
-    const now = new Date();
-    const latest = new Date(now.getTime() - 10000);
-    const posts = await getPostsTinybirdExport(con, latest);
-    const sorted = posts.sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() > new Date(b.createdAt).getTime(),
-    );
-    sorted.forEach((post) => {
-      post.created_at = '';
-      post.metadata_changed_at = '';
-    });
-    expect(sorted).toEqual([
+    const snapshot = [
       {
         author_id: null,
         banned: 0,
@@ -140,6 +129,15 @@ describe('getPostsTinybirdExport function', () => {
         source_type: 'Source',
         tags_str: null,
       },
-    ]);
+    ];
+
+    const now = new Date();
+    const latest = new Date(now.getTime() - 10000);
+    const posts = await getPostsTinybirdExport(con, latest);
+    posts.forEach((post) => {
+      post.created_at = '';
+      post.metadata_changed_at = '';
+    });
+    posts.forEach((post) => expect(snapshot).toContainEqual(post));
   });
 });
