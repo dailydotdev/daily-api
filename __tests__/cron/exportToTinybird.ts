@@ -10,10 +10,11 @@ import {
   TinybirdDatasourceMode,
   PostsMetadataRepository,
   ITinybirdClient,
-  TinybirdPost,
+  TinybirdPost, TinybirdClient, fetchfn,
 } from '../../src/cron/exportToTinybird';
 import * as fs from 'fs';
 import * as path from 'path';
+import fetch from "node-fetch";
 
 let con: DataSource;
 
@@ -57,6 +58,22 @@ describe('TinybirdClient', () => {
 });
 
 describe('PostsMetadataRepository', () => {
+  it('latest', async () => {
+    const tinybirdClient = new TinybirdClient(
+      process.env.TINYBIRD_TOKEN,
+      process.env.TINYBIRD_HOST,
+      fetch as unknown as fetchfn,
+    );
+
+    const postsMetadataRepository = new PostsMetadataRepository(
+      tinybirdClient,
+      'posts_metadata',
+    );
+
+    const response = await postsMetadataRepository.latest();
+    expect(response.error).toBeNull();
+  });
+
   it('append', async () => {
     const expectedCsv = fs
       .readFileSync(
