@@ -10,11 +10,13 @@ import {
   TinybirdDatasourceMode,
   PostsMetadataRepository,
   ITinybirdClient,
-  TinybirdPost, TinybirdClient, fetchfn,
+  TinybirdPost,
+  TinybirdClient,
+  fetchfn,
 } from '../../src/cron/exportToTinybird';
 import * as fs from 'fs';
 import * as path from 'path';
-import fetch from "node-fetch";
+import fetch from 'node-fetch';
 
 let con: DataSource;
 
