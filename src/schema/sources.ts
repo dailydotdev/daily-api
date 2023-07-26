@@ -829,6 +829,25 @@ interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
 }
 
+const updateHideFeedPostsFlag = async (
+  ctx: Context,
+  sourceId: string,
+  value: boolean,
+): Promise<GQLEmptyResponse> => {
+  await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
+
+  await ctx.con.getRepository(SourceMember).update(
+    { sourceId, userId: ctx.userId },
+    {
+      flags: updateFlagsStatement<SourceMember>({
+        hideFeedPosts: value,
+      }),
+    },
+  );
+
+  return { _: true };
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1314,28 +1333,10 @@ export const resolvers: IResolvers<any, Context> = {
       return getSourceById(ctx, info, sourceId);
     },
     hideSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
-      await ctx.con.getRepository(SourceMember).update(
-        { sourceId },
-        {
-          flags: updateFlagsStatement<SourceMember>({
-            hideFeedPosts: true,
-          }),
-        },
-      );
-      return { _: true };
+      return updateHideFeedPostsFlag(ctx, sourceId, true);
     },
     showSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
-      await ctx.con.getRepository(SourceMember).update(
-        { sourceId },
-        {
-          flags: updateFlagsStatement<SourceMember>({
-            hideFeedPosts: false,
-          }),
-        },
-      );
-      return { _: true };
+      return updateHideFeedPostsFlag(ctx, sourceId, false);
     },
   }),
   Source: {

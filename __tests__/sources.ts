@@ -2313,12 +2313,34 @@ describe('mutation hideSourceFeedPosts', () => {
     );
   });
 
+  it('should throw when user is blocked', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).update(
+      {
+        sourceId: 's1',
+        userId: '1',
+      },
+      {
+        role: SourceMemberRoles.Blocked,
+      },
+    );
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should set flags.hideFeedPosts to true', async () => {
     loggedUser = '1';
     let sourceMember = await con.getRepository(SourceMember).findOneBy({
       sourceId: 's1',
       userId: '1',
     });
+    expect(sourceMember).toBeTruthy();
     expect(sourceMember?.flags.hideFeedPosts).toEqual(undefined);
 
     await client.mutate(MUTATION, { variables: { sourceId: 's1' } });
@@ -2383,12 +2405,34 @@ describe('mutation showSourceFeedPosts', () => {
     );
   });
 
+  it('should throw when user is blocked', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).update(
+      {
+        sourceId: 's1',
+        userId: '1',
+      },
+      {
+        role: SourceMemberRoles.Blocked,
+      },
+    );
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should set flags.hideFeedPosts to false', async () => {
     loggedUser = '1';
     let sourceMember = await con.getRepository(SourceMember).findOneBy({
       sourceId: 's1',
       userId: '1',
     });
+    expect(sourceMember).toBeTruthy();
     expect(sourceMember?.flags.hideFeedPosts).toEqual(undefined);
 
     await client.mutate(MUTATION, { variables: { sourceId: 's1' } });
