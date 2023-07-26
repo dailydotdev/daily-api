@@ -3,7 +3,7 @@ import {
   FeedAdvancedSettings,
   SourceMember,
 } from '../entity';
-import { Brackets, DataSource, SelectQueryBuilder } from 'typeorm';
+import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import { IFieldResolver } from '@graphql-tools/utils';
 import {
