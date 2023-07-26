@@ -1,5 +1,4 @@
 import {
-  NotificationPreference,
   NotificationPreferenceComment,
   NotificationPreferencePost,
   NotificationPreferenceSource,
@@ -79,6 +78,22 @@ const notificationPreferenceProp: Record<
   source: 'sourceId',
 };
 
+const getRepository = (
+  con: DataSource | EntityManager,
+  type: NotificationPreferenceType,
+) => {
+  switch (type) {
+    case NotificationPreferenceType.Post:
+      return con.getRepository(NotificationPreferencePost);
+    case NotificationPreferenceType.Comment:
+      return con.getRepository(NotificationPreferenceComment);
+    case NotificationPreferenceType.Source:
+      return con.getRepository(NotificationPreferenceSource);
+    default:
+      throw new ValidationError('Notification type not supported');
+  }
+};
+
 export const saveNotificationPreference = async (
   con: DataSource | EntityManager,
   userId: string,
@@ -103,8 +118,7 @@ export const saveNotificationPreference = async (
   };
 
   try {
-    await con
-      .getRepository(NotificationPreference)
+    await getRepository(con, type)
       .createQueryBuilder()
       .insert()
       .values(params)

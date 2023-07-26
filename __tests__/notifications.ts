@@ -29,6 +29,7 @@ import { subDays } from 'date-fns';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
 import {
+  notificationPreferenceMap,
   NotificationPreferenceStatus,
   NotificationPreferenceType,
   NotificationType,
@@ -551,6 +552,9 @@ describe('mutation muteNotificationPreference', () => {
       .findOneBy(params);
 
     expect(muted).toBeTruthy();
+    expect(muted.type).toEqual(
+      notificationPreferenceMap[params.notificationType],
+    );
   });
 
   it('should ignore when preference is already muted', async () => {
