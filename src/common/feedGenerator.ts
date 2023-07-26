@@ -121,7 +121,7 @@ export const feedToFilters = async (
           .andWhere(
             new Brackets((qb) => {
               qb.where(
-                `COALESCE((flags->'showPostsOnFeed')::boolean, TRUE) = TRUE`,
+                `COALESCE((flags->'hideFeedPosts')::boolean, FALSE) = FALSE`,
               );
             }),
           )

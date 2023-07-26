@@ -2313,20 +2313,20 @@ describe('mutation hideSourceFeedPosts', () => {
     );
   });
 
-  it('should set flags.showPostsOnFeed to false', async () => {
+  it('should set flags.hideFeedPosts to true', async () => {
     loggedUser = '1';
     let sourceMember = await con.getRepository(SourceMember).findOneBy({
       sourceId: 's1',
       userId: '1',
     });
-    expect(sourceMember?.flags.showPostsOnFeed).toEqual(undefined);
+    expect(sourceMember?.flags.hideFeedPosts).toEqual(undefined);
 
     await client.mutate(MUTATION, { variables: { sourceId: 's1' } });
     sourceMember = await con.getRepository(SourceMember).findOneBy({
       sourceId: 's1',
       userId: '1',
     });
-    expect(sourceMember?.flags.showPostsOnFeed).toEqual(false);
+    expect(sourceMember?.flags.hideFeedPosts).toEqual(true);
   });
 });
 
@@ -2383,20 +2383,20 @@ describe('mutation showSourceFeedPosts', () => {
     );
   });
 
-  it('should set flags.showPostsOnFeed to true', async () => {
+  it('should set flags.hideFeedPosts to false', async () => {
     loggedUser = '1';
     let sourceMember = await con.getRepository(SourceMember).findOneBy({
       sourceId: 's1',
       userId: '1',
     });
-    expect(sourceMember?.flags.showPostsOnFeed).toEqual(undefined);
+    expect(sourceMember?.flags.hideFeedPosts).toEqual(undefined);
 
     await client.mutate(MUTATION, { variables: { sourceId: 's1' } });
     sourceMember = await con.getRepository(SourceMember).findOneBy({
       sourceId: 's1',
       userId: '1',
     });
-    expect(sourceMember?.flags.showPostsOnFeed).toEqual(true);
+    expect(sourceMember?.flags.hideFeedPosts).toEqual(false);
   });
 });
 
@@ -2405,7 +2405,7 @@ describe('SourceMember flags field', () => {
     source(id: "a") {
       currentMember {
         flags {
-          showPostsOnFeed
+          hideFeedPosts
         }
       }
     }
@@ -2416,14 +2416,14 @@ describe('SourceMember flags field', () => {
     await con.getRepository(SourceMember).update(
       { userId: '1', sourceId: 'a' },
       {
-        flags: updateFlagsStatement({ showPostsOnFeed: true }),
+        flags: updateFlagsStatement({ hideFeedPosts: true }),
       },
     );
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     console.log(res.data);
     expect(res.data.source.currentMember.flags).toEqual({
-      showPostsOnFeed: true,
+      hideFeedPosts: true,
     });
   });
 
@@ -2431,7 +2431,7 @@ describe('SourceMember flags field', () => {
     loggedUser = '1';
     const res = await client.query(QUERY);
     expect(res.data.source.currentMember.flags).toEqual({
-      showPostsOnFeed: null,
+      hideFeedPosts: null,
     });
   });
 });

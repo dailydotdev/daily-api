@@ -200,9 +200,9 @@ export const typeDefs = /* GraphQL */ `
 
   type SourceMemberFlagsPublic {
     """
-    Whether the source posts are shown on feed
+    Whether the source posts are hidden from feed for member
     """
-    showPostsOnFeed: Boolean
+    hideFeedPosts: Boolean
   }
 
   type SourceMember {
@@ -1319,7 +1319,7 @@ export const resolvers: IResolvers<any, Context> = {
         { sourceId },
         {
           flags: updateFlagsStatement<SourceMember>({
-            showPostsOnFeed: false,
+            hideFeedPosts: true,
           }),
         },
       );
@@ -1331,7 +1331,7 @@ export const resolvers: IResolvers<any, Context> = {
         { sourceId },
         {
           flags: updateFlagsStatement<SourceMember>({
-            showPostsOnFeed: true,
+            hideFeedPosts: false,
           }),
         },
       );

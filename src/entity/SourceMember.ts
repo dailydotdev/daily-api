@@ -8,16 +8,13 @@ import { SourceMemberRoles } from '../roles';
 const randomBytesAsync = promisify(randomBytes);
 
 export type SourceMemberFlags = Partial<{
-  showPostsOnFeed: boolean;
+  hideFeedPosts: boolean;
 }>;
 
-export type SourceMemberFlagsPublic = Pick<
-  SourceMemberFlags,
-  'showPostsOnFeed'
->;
+export type SourceMemberFlagsPublic = Pick<SourceMemberFlags, 'hideFeedPosts'>;
 
 @Entity()
-@Index('IDX_source_member_userId_flags_showPostsOnFeed', { synchronize: false })
+@Index('IDX_source_member_userId_flags_hideFeedPosts', { synchronize: false })
 export class SourceMember {
   @PrimaryColumn({ type: 'text' })
   @Index('IDX_source_member_sourceId')
