@@ -13,51 +13,42 @@ export enum TinybirdDatasourceMode {
 }
 
 export interface ITinybirdClient {
-  query<T>(query: string): Promise<TinybirdQueryResult<T>>;
+  query<T>(query: string): Promise<QueryResult<T>>;
+
   postToDatasource(
     datasource: string,
     mode: TinybirdDatasourceMode,
     csv: string,
-  ): Promise<TinybirdPostDatasourceResult>;
+  ): Promise<PostDatasourceResult>;
 }
 
-export class TinybirdError {
-  text: string;
-  status: number;
-}
-
-export class TinybirdQueryResult<T> {
-  error: TinybirdError | null;
+export class QueryResult<T> {
   data: T[] | null;
   rows: number | null;
 }
 
-export interface TinybirdPostDatasourceSuccess {
-  datasources: TinybirdPostDatasources[];
+export interface PostDatasourceResult {
+  datasources: Datasource[];
 }
 
-export interface TinybirdPostDatasources {
+interface Datasource {
   id: string;
-  name: string;
   // can be extended if needed
   // https://www.tinybird.co/docs/api-reference/datasource-api.html
-}
-
-export class TinybirdPostDatasourceResult {
-  error: TinybirdError | null;
-  success: TinybirdPostDatasourceSuccess | null;
 }
 
 export class TinybirdClient implements ITinybirdClient {
   private readonly accessToken: string;
   private readonly host: string;
   private readonly fetch: fetchfn;
+
   constructor(accessToken: string, host: string, fetch: fetchfn) {
     this.accessToken = accessToken;
     this.host = host;
     this.fetch = fetch;
   }
-  public async query<T>(query: string): Promise<TinybirdQueryResult<T>> {
+
+  public async query<T>(query: string): Promise<QueryResult<T>> {
     const url = `${this.host}/v0/sql`;
 
     const response = await this.fetch(url, {
@@ -68,29 +59,17 @@ export class TinybirdClient implements ITinybirdClient {
 
     if (!response.ok) {
       const text = await response.text();
-      return {
-        error: {
-          text: text,
-          status: response.status,
-        },
-        data: null,
-        rows: 0,
-      };
+      throw new Error(`tinybird response ${response.status}: ${text}`);
     }
 
-    const body = await response.json();
-    return {
-      error: null,
-      data: body.data,
-      rows: body.rows,
-    };
+    return (await response.json()) as QueryResult<T>;
   }
 
   public async postToDatasource(
     datasource: string,
     mode: TinybirdDatasourceMode,
     csv: string,
-  ): Promise<TinybirdPostDatasourceResult> {
+  ): Promise<PostDatasourceResult> {
     const params = TinybirdClient.queryParams({
       name: datasource,
       mode: mode,
@@ -108,24 +87,18 @@ export class TinybirdClient implements ITinybirdClient {
 
     if (!response.ok) {
       const text = await response.text();
-      return {
-        error: {
-          text: text,
-          status: response.status,
-        },
-        success: null,
-      };
+      throw new Error(`tinybird response ${response.status}: ${text}}`);
     }
 
-    const success = await response.json();
-    return {
-      success: success as TinybirdPostDatasourceSuccess,
-      error: null,
-    };
+    return (await response.json()) as PostDatasourceResult;
   }
 
-  public static async Json2Csv(object: unknown): Promise<string> {
-    return await json2csv(object, {
+  public static async Json2Csv<T>(records: T[]): Promise<string> {
+    if (records.length === 0) {
+      throw new Error('records length is 0');
+    }
+
+    const csv = await json2csv(records, {
       includeHeaders: false,
       typeHandlers: {
         Date: (date: Date) => date.toISOString(),
@@ -134,6 +107,8 @@ export class TinybirdClient implements ITinybirdClient {
         },
       },
     });
+
+    return csv + '\n'; // according to standard, csv should end with crlf
   }
 
   private headers(): NonNullable<unknown> {

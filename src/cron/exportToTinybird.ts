@@ -7,7 +7,6 @@ import {
   ITinybirdClient,
   TinybirdClient,
   TinybirdDatasourceMode,
-  TinybirdError,
 } from '../common/tinybird';
 
 export interface TinybirdPost {
@@ -57,14 +56,9 @@ export class PostsRepository implements IPostsRepository {
     );
   }
 }
-interface LatestResult {
-  error: TinybirdError | null;
-  latest: Date | null;
-}
-
 export interface IPostsMetadataRepository {
-  latest(): Promise<LatestResult>;
-  append(posts: TinybirdPost[]): Promise<TinybirdError | null>;
+  latest(): Promise<Date>;
+  append(posts: TinybirdPost[]): Promise<void>;
 }
 
 export class PostsMetadataRepository implements IPostsMetadataRepository {
@@ -83,48 +77,28 @@ export class PostsMetadataRepository implements IPostsMetadataRepository {
     `;
   }
 
-  public async latest(): Promise<LatestResult> {
+  public async latest(): Promise<Date> {
     interface latest {
       latest: string;
     }
 
     const result = await this.tinybirdClient.query<latest>(this.latestQuery);
-    if (result.error) {
-      return {
-        error: result.error,
-        latest: null,
-      };
-    }
-
     if (result.rows === 0) {
-      return {
-        error: null,
-        latest: null,
-      };
+      throw new Error('no rows returned');
     }
 
-    return {
-      error: null,
-      latest: new Date(result.data[0].latest),
-    };
+    return new Date(result.data[0].latest);
   }
 
-  public async append(posts: TinybirdPost[]): Promise<TinybirdError | null> {
+  public async append(posts: TinybirdPost[]): Promise<void> {
     const csv: string = await TinybirdClient.Json2Csv(posts);
 
-    const result = await this.tinybirdClient.postToDatasource(
+    await this.tinybirdClient.postToDatasource(
       this.datasource,
       TinybirdDatasourceMode.APPEND,
       csv,
     );
-
-    return result.error;
   }
-}
-
-interface ExportResult {
-  count: number | null;
-  error: string | null;
 }
 
 export class TinybirdExportService {
@@ -142,64 +116,39 @@ export class TinybirdExportService {
     this.postsMetadataRepository = postsMetadataRepository;
   }
 
-  public async export(): Promise<ExportResult> {
-    const latestResult = await this.postsMetadataRepository.latest();
-    if (latestResult.error) {
-      return {
-        error: latestResult.error.text,
-      } as ExportResult;
-    }
-
-    if (!latestResult.latest) {
-      return {
-        error: 'latest value is null',
-      } as ExportResult;
-    }
-
+  public async export(): Promise<number> {
+    const latest = await this.postsMetadataRepository.latest();
     const postsToExport = await this.postsRepository.getForTinybirdExport(
-      latestResult.latest,
+      latest,
     );
 
-    if (!postsToExport) {
-      return {
-        count: 0,
-      } as ExportResult;
+    if (postsToExport.length === 0) {
+      return 0;
     }
 
-    const appendResultError = await this.postsMetadataRepository.append(
-      postsToExport,
-    );
+    await this.postsMetadataRepository.append(postsToExport);
 
-    if (appendResultError) {
-      return {
-        error: appendResultError.text,
-      } as ExportResult;
-    }
-
-    return {
-      count: postsToExport.length,
-    } as ExportResult;
+    return postsToExport.length;
   }
 
   public async exportAndLog(): Promise<void> {
-    const result = await this.export();
-    if (result.error) {
+    let exported: number;
+
+    try {
+      exported = await this.export();
+    } catch (err) {
       this.logger.error(
-        { tinybirdResponse: result.error },
+        { error: err.message, stacktrace: err.stacktrace },
         `failed to replicate posts to tinybird`,
       );
-      return;
     }
 
-    if (result.count === 0) {
+    if (exported === 0) {
       this.logger.info('no posts to replicate');
       return;
     }
 
-    this.logger.info(
-      `${result.count} posts replicated successfully to tinybird`,
-    );
-
+    this.logger.info(`${exported} posts replicated successfully to tinybird`);
     return;
   }
 }
