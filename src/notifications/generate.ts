@@ -31,24 +31,24 @@ export const notificationTitleMap: Record<
 > = {
   community_picks_failed: systemTitle,
   community_picks_succeeded: () =>
-    `<b>Community picks:</b> An article you Scouted was accepted and is now <span class="text-theme-color-cabbage">live</span> on the daily.dev feed!`,
+    `<b>Community Picks:</b> A link you scouted was accepted and is now <span class="text-theme-color-cabbage">live</span> on the daily.dev feed!`,
   community_picks_granted: () =>
-    `<b>Community picks:</b> You have earned enough reputation to <span class="text-theme-color-cabbage">Scout and submit</span> articles.`,
+    `<b>Community Picks:</b> You have earned enough reputation to <span class="text-theme-color-cabbage">scout and submit</span> links.`,
   article_picked: () =>
-    `Congratulations! <b>Your article</b> got <span class="text-theme-color-cabbage">listed</span> on the daily.dev feed!`,
+    `Congrats! <b>Your post</b> got <span class="text-theme-color-cabbage">listed</span> on the daily.dev feed!`,
   article_new_comment: (ctx: NotificationCommenterContext) =>
-    `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">commented</span> on your article.`,
+    `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">commented</span> on your post.`,
   article_upvote_milestone: (
     ctx: NotificationPostContext & NotificationUpvotersContext,
   ) =>
     UPVOTE_TITLES[ctx.upvotes] ??
-    `<b>You rock!</b> Your article <span class="text-theme-color-avocado">earned ${ctx.upvotes} upvotes!</span>`,
+    `<b>You rock!</b> Your post <span class="text-theme-color-avocado">earned ${ctx.upvotes} upvotes!</span>`,
   article_report_approved: systemTitle,
   article_analytics: systemTitle,
   source_approved: (
     ctx: NotificationSourceRequestContext & NotificationSourceContext,
   ) =>
-    `<b>The source you suggested was</b> <span class="text-theme-color-cabbage">approved!</span> Articles from ${ctx.source.name} will start appearing in the daily.dev feed in the next few days!`,
+    `<b>The source you suggested was</b> <span class="text-theme-color-cabbage">approved!</span> Posts from ${ctx.source.name} will start appearing in the daily.dev feed in the next few days!`,
   source_rejected: systemTitle,
   comment_mention: (ctx: NotificationCommenterContext) =>
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">mentioned you</span> in a comment.`,
@@ -60,11 +60,11 @@ export const notificationTitleMap: Record<
     UPVOTE_TITLES[ctx.upvotes] ??
     `<b>You rock!</b> Your comment <span class="text-theme-color-avocado">earned ${ctx.upvotes} upvotes!</span>`,
   squad_access: () =>
-    `Congratulations! You got access to our <span class="text-theme-color-cabbage">Squad beta.</span>`,
+    `Congratulations! You got access to <span class="text-theme-color-cabbage">Squad beta.</span>`,
   squad_post_added: (
     ctx: NotificationPostContext & NotificationDoneByContext,
   ) =>
-    `<b>${ctx.doneBy.name}</b> posted a new article on <b>${ctx.source.name}</b>`,
+    `<b>${ctx.doneBy.name}</b> shared a new post on <b>${ctx.source.name}</b>`,
   squad_member_joined: (
     ctx: NotificationSourceContext & NotificationDoneByContext,
   ) =>
@@ -108,7 +108,7 @@ export const generateNotificationMap: Record<
     builder
       .referenceSystem()
       .icon(NotificationIcon.DailyDev)
-      .description(`<u>Submit your first article now!</u>`)
+      .description(`<u>Submit your first post now!</u>`)
       .targetUrl(scoutArticleLink),
   article_picked: (builder, ctx: NotificationPostContext) =>
     builder
