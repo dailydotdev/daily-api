@@ -17,6 +17,7 @@ import {
   NotificationPreferencePost,
   Post,
   User,
+  Comment,
   Source,
   NotificationPreferenceSource,
   NotificationPreference,
@@ -550,6 +551,48 @@ describe('mutation muteNotificationPreference', () => {
     const muted = await con
       .getRepository(NotificationPreference)
       .findOneBy(params);
+
+    expect(muted).toBeTruthy();
+    expect(muted.type).toEqual(
+      notificationPreferenceMap[params.notificationType],
+    );
+  });
+
+  it('should set notification preference to muted and fetch the reference id if it is article new comment or squad new comment', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences();
+    const comment = {
+      id: 'c1',
+      postId: postsFixture[0].id,
+      content: '',
+      userId: '1',
+    };
+    await con.getRepository(Comment).save(comment);
+
+    const params = {
+      userId: loggedUser,
+      referenceId: 'c1',
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeFalsy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const muted = await con.getRepository(NotificationPreference).findOneBy({
+      notificationType: params.notificationType,
+      referenceId: comment.postId,
+    });
 
     expect(muted).toBeTruthy();
     expect(muted.type).toEqual(
