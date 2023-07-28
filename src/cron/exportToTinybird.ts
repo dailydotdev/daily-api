@@ -138,9 +138,10 @@ export class TinybirdExportService {
       exported = await this.export();
     } catch (err) {
       this.logger.error(
-        { error: err.message, stacktrace: err.stacktrace },
+        { error: err.message, stack: err.stack },
         `failed to replicate posts to tinybird`,
       );
+      return;
     }
 
     if (exported === 0) {

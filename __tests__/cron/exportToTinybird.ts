@@ -202,7 +202,7 @@ describe('TinybirdExportService', () => {
     expect(exported).toEqual(1);
   });
 
-  it("shouldn't export of posts repository returned 0 posts", async () => {
+  it("shouldn't export if posts repository returned 0 posts", async () => {
     const logger = {} as FastifyBaseLogger;
     const postsRepositoryMock = {
       async getForTinybirdExport(): Promise<TinybirdPost[]> {
@@ -224,5 +224,85 @@ describe('TinybirdExportService', () => {
 
     const exported = await service.export();
     expect(exported).toEqual(0);
+  });
+
+  it('should log exception if occurred', async () => {
+    const logger = {
+      error: (obj, msg) => {
+        expect(obj.error).toEqual('ooops!');
+        expect(obj.stack).toBeDefined();
+        expect(msg).toEqual('failed to replicate posts to tinybird');
+      },
+    } as FastifyBaseLogger;
+    const postsRepositoryMock = {} as IPostsRepository;
+
+    const postsMetadataRepositoryMock = {
+      async latest(): Promise<Date> {
+        throw new Error('ooops!');
+      },
+    } as IPostsMetadataRepository;
+
+    const service = new TinybirdExportService(
+      logger,
+      postsRepositoryMock,
+      postsMetadataRepositoryMock,
+    );
+
+    await service.exportAndLog();
+  });
+
+  it('should log if no posts to be exported', async () => {
+    const logger = {
+      info: (obj) => {
+        expect(obj).toEqual('no posts to replicate');
+      },
+    } as FastifyBaseLogger;
+    const postsRepositoryMock = {
+      async getForTinybirdExport(): Promise<TinybirdPost[]> {
+        return [];
+      },
+    } as IPostsRepository;
+    const postsMetadataRepositoryMock = {
+      async latest(): Promise<Date> {
+        return new Date();
+      },
+    } as IPostsMetadataRepository;
+
+    const service = new TinybirdExportService(
+      logger,
+      postsRepositoryMock,
+      postsMetadataRepositoryMock,
+    );
+
+    await service.exportAndLog();
+  });
+
+  it('should log about posts successfully replicated', async () => {
+    const logger = {
+      info: (obj) => {
+        expect(obj).toEqual('1 posts replicated successfully to tinybird');
+      },
+    } as FastifyBaseLogger;
+    const postsRepositoryMock = {
+      async getForTinybirdExport(): Promise<TinybirdPost[]> {
+        return [{} as TinybirdPost];
+      },
+    } as IPostsRepository;
+    const postsMetadataRepositoryMock = {
+      async latest(): Promise<Date> {
+        return new Date();
+      },
+      async append(): Promise<void> {
+        return;
+      },
+    } as IPostsMetadataRepository;
+
+    const service = new TinybirdExportService(
+      logger,
+      postsRepositoryMock,
+      postsMetadataRepositoryMock,
+    );
+
+    await service.exportAndLog();
   });
 });
