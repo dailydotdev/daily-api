@@ -1,26 +1,6 @@
 import { RequestInit } from 'node-fetch';
-import FormData from 'form-data';
 import { promisify } from 'util';
 import jsonexport from 'jsonexport';
-
-import { Readable } from 'stream';
-class ReadableString extends Readable {
-  private sent = false;
-
-  constructor(private str: string) {
-    super();
-  }
-
-  _read() {
-    if (!this.sent) {
-      this.push(Buffer.from(this.str));
-      this.sent = true;
-      return;
-    }
-
-    this.push(null);
-  }
-}
 
 export type fetchfn = (
   url: RequestInfo,

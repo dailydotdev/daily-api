@@ -4,7 +4,8 @@ import { PostType, UNKNOWN_SOURCE } from '../entity';
 import { FastifyBaseLogger } from 'fastify';
 import {
   fetchfn,
-  ITinybirdClient, PostDatasourceResult,
+  ITinybirdClient,
+  PostDatasourceResult,
   TinybirdClient,
   TinybirdDatasourceMode,
 } from '../common/tinybird';
