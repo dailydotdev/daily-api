@@ -4,7 +4,7 @@ import { PostType, UNKNOWN_SOURCE } from '../entity';
 import { FastifyBaseLogger } from 'fastify';
 import {
   fetchfn,
-  ITinybirdClient,
+  ITinybirdClient, PostDatasourceResult,
   TinybirdClient,
   TinybirdDatasourceMode,
 } from '../common/tinybird';
@@ -58,7 +58,7 @@ export class PostsRepository implements IPostsRepository {
 }
 export interface IPostsMetadataRepository {
   latest(): Promise<Date>;
-  append(posts: TinybirdPost[]): Promise<void>;
+  append(posts: TinybirdPost[]): Promise<PostDatasourceResult>;
 }
 
 export class PostsMetadataRepository implements IPostsMetadataRepository {
@@ -90,17 +90,21 @@ export class PostsMetadataRepository implements IPostsMetadataRepository {
     return new Date(result.data[0].latest);
   }
 
-  public async append(posts: TinybirdPost[]): Promise<void> {
+  public async append(posts: TinybirdPost[]): Promise<PostDatasourceResult> {
     const csv: string = await TinybirdClient.Json2Csv(posts);
 
-    await this.tinybirdClient.postToDatasource(
+    return await this.tinybirdClient.postToDatasource(
       this.datasource,
       TinybirdDatasourceMode.APPEND,
       csv,
     );
   }
 }
-
+export interface TinybirdExportResult {
+  exported: number;
+  since: Date;
+  tinybird: PostDatasourceResult;
+}
 export class TinybirdExportService {
   private readonly logger: FastifyBaseLogger;
   private readonly postsRepository: IPostsRepository;
@@ -116,26 +120,36 @@ export class TinybirdExportService {
     this.postsMetadataRepository = postsMetadataRepository;
   }
 
-  public async export(): Promise<number> {
+  public async export(): Promise<TinybirdExportResult> {
     const latest = await this.postsMetadataRepository.latest();
     const postsToExport = await this.postsRepository.getForTinybirdExport(
       latest,
     );
 
     if (postsToExport.length === 0) {
-      return 0;
+      return {
+        since: latest,
+        exported: 0,
+        tinybird: null,
+      };
     }
 
-    await this.postsMetadataRepository.append(postsToExport);
+    const tinybirdResult = await this.postsMetadataRepository.append(
+      postsToExport,
+    );
 
-    return postsToExport.length;
+    return {
+      since: latest,
+      exported: postsToExport.length,
+      tinybird: tinybirdResult,
+    };
   }
 
   public async exportAndLog(): Promise<void> {
-    let exported: number;
+    let result: TinybirdExportResult;
 
     try {
-      exported = await this.export();
+      result = await this.export();
     } catch (err) {
       this.logger.error(
         { error: err.message, stack: err.stack },
@@ -144,12 +158,12 @@ export class TinybirdExportService {
       return;
     }
 
-    if (exported === 0) {
-      this.logger.info('no posts to replicate');
+    if (result.exported === 0) {
+      this.logger.info(result, 'no posts to replicate');
       return;
     }
 
-    this.logger.info(`${exported} posts replicated successfully to tinybird`);
+    this.logger.info(result, 'posts replicated successfully to tinybird');
     return;
   }
 }

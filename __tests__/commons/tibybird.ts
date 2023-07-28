@@ -86,10 +86,13 @@ describe('TinybirdClient', () => {
       expect(url).toEqual(
         'https://tinybird.co/v0/datasources?name=datasouce&mode=append',
       );
-      expect(init.headers).toEqual({
-        Authorization: 'Bearer token',
+      expect(init).toEqual({
+        headers: {
+          Authorization: 'Bearer token',
+        },
+        method: 'POST',
+        body: mockCsv,
       });
-      expect(init.method).toEqual('POST');
 
       return {
         ok: true,

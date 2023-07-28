@@ -3,6 +3,25 @@ import FormData from 'form-data';
 import { promisify } from 'util';
 import jsonexport from 'jsonexport';
 
+import { Readable } from 'stream';
+class ReadableString extends Readable {
+  private sent = false;
+
+  constructor(private str: string) {
+    super();
+  }
+
+  _read() {
+    if (!this.sent) {
+      this.push(Buffer.from(this.str));
+      this.sent = true;
+      return;
+    }
+
+    this.push(null);
+  }
+}
+
 export type fetchfn = (
   url: RequestInfo,
   init?: RequestInit,
@@ -28,11 +47,24 @@ export class QueryResult<T> {
 }
 
 export interface PostDatasourceResult {
-  datasources: Datasource[];
+  import_id: string;
+  datasource: Datasource;
+  quarantine_rows: number;
+  invalid_lines: number;
+  error: boolean;
+  headers: unknown;
+  type: string;
 }
 
 interface Datasource {
   id: string;
+  name: string;
+  cluster: string;
+  tags: unknown;
+  created_at: string;
+  updated_at: string;
+  replicated: boolean;
+  version: number;
   // can be extended if needed
   // https://www.tinybird.co/docs/api-reference/datasource-api.html
 }
@@ -76,14 +108,11 @@ export class TinybirdClient implements ITinybirdClient {
     });
 
     const url = `${this.host}/v0/datasources?${params}`;
-    const body = new FormData();
-    body.append('csv', csv);
-
     const response = await this.fetch(url, {
       method: 'POST',
       headers: this.headers(),
-      body: body,
-    } as RequestInit);
+      body: csv,
+    });
 
     if (!response.ok) {
       const text = await response.text();
