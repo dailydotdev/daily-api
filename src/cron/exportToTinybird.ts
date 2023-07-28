@@ -43,7 +43,8 @@ export class PostsRepository implements IPostsRepository {
               "creatorTwitter"    AS "creator_twitter",
               "sourceId"          AS "source_id",
               "tagsStr"           AS "tags_str",
-              ("banned" or "deleted" or not "showOnFeed")::int AS "banned", "type" AS "post_type",
+              ("banned" or "deleted" or not "showOnFeed")::int AS "banned",
+              "type"              AS "post_type",
               "private"::int      AS "post_private",
               "contentCuration"   AS "content_curation",
               (SELECT "s"."type" FROM "source" AS "s" WHERE "s"."id" = "sourceId") AS "source_type"
@@ -52,6 +53,7 @@ export class PostsRepository implements IPostsRepository {
          and "sourceId" != '${UNKNOWN_SOURCE}'
          and "visible" = true
          and "type" != '${PostType.Welcome}'
+       ORDER BY "id"
       `,
       [latest],
     );
