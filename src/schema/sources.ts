@@ -1155,7 +1155,7 @@ export const resolvers: IResolvers<any, Context> = {
           async (entityManager) => {
             const current = await entityManager
               .getRepository(SquadSource)
-              .findOneByOrFail({ id: sourceId });
+              .findOneOrFail({ where: { id: sourceId }, select: ['handle'] });
             const disallowHandle =
               current.handle === handle
                 ? false
