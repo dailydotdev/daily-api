@@ -16,11 +16,13 @@ describe('TinybirdClient', () => {
       init?: RequestInit,
     ): Promise<Response> => {
       expect(url).toEqual('https://tinybird.co/v0/sql');
-      expect(init.headers).toEqual({
-        Authorization: 'Bearer token',
+      expect(init).toEqual({
+        headers: {
+          Authorization: 'Bearer token',
+        },
+        method: 'POST',
+        body: mockQuery,
       });
-      expect(init.method).toEqual('POST');
-      expect(init.body).toEqual(mockQuery);
 
       return {
         ok: true,
@@ -144,8 +146,6 @@ describe('TinybirdClient', () => {
   });
 
   it('Json2Csv date', async () => {
-    const expectedCsv = 'test,2023-07-27T16:47:33.000Z\n';
-
     const records = [
       {
         column1: 'test',
@@ -153,13 +153,11 @@ describe('TinybirdClient', () => {
       },
     ];
 
-    const got = await TinybirdClient.Json2Csv(records);
-    expect(got).toEqual(expectedCsv);
+    const got = await TinybirdClient.json2Csv(records);
+    expect(got).toMatchSnapshot();
   });
 
   it('Json2Csv arrays', async () => {
-    const expectedCsv = `test,"['foo', 'bar']"\n`;
-
     const records = [
       {
         column1: 'test',
@@ -167,13 +165,39 @@ describe('TinybirdClient', () => {
       },
     ];
 
-    const got = await TinybirdClient.Json2Csv(records);
-    expect(got).toEqual(expectedCsv);
+    const got = await TinybirdClient.json2Csv(records);
+    expect(got).toMatchSnapshot();
   });
 
   it('Json2Csv empty input', async () => {
     await expect(async () => {
-      await TinybirdClient.Json2Csv([]);
+      await TinybirdClient.json2Csv([]);
     }).rejects.toThrow('records length is 0');
+  });
+
+  it('Json2Csv should respect column orders', async () => {
+    const records = [
+      {
+        column1: 'test',
+        column2: new Date('2023-07-27T16:47:33+0000'),
+      },
+    ];
+
+    const columns = ['column2', 'column1'];
+    const got = await TinybirdClient.json2Csv(records, columns);
+    expect(got).toMatchSnapshot();
+  });
+
+  it('Json2Csv should ignore columns not specified in header', async () => {
+    const records = [
+      {
+        column1: 'test',
+        column2: new Date('2023-07-27T16:47:33+0000'),
+      },
+    ];
+
+    const columns = ['column2'];
+    const got = await TinybirdClient.json2Csv(records, columns);
+    expect(got).toMatchSnapshot();
   });
 });

@@ -1,5 +1,10 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`PostsMetadataRepository append success 1`] = `
+"id1,author_id1,created_at,metadata_changed_at,creator_twitter,source_id,tags_str,,post_type,1,['content_curation'],source_type
+id2,author_id2,created_at2,metadata_changed_at2,creator_twitter2,source_id2,tags_str2,,post_type2,1,\\"['content_curation1', 'content_curation2']\\",source_type2"
+`;
+
 exports[`PostsRepository should return posts to export to tinybird with specific properties 1`] = `
 Array [
   Object {

@@ -5,15 +5,13 @@ import { ArticlePost, PostTag, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture, postTagsFixture } from '../fixture/post';
 import {
-  IPostsMetadataRepository,
-  IPostsRepository,
+  PostsMetadataRepositoryDependency,
+  PostsRepositoryDependency,
   PostsMetadataRepository,
   PostsRepository,
   TinybirdExportService,
   TinybirdPost,
 } from '../../src/cron/exportToTinybird';
-import * as fs from 'fs';
-import * as path from 'path';
 import {
   ITinybirdClient,
   TinybirdDatasourceMode,
@@ -63,12 +61,6 @@ describe('PostsMetadataRepository', () => {
   const dataSource = 'datasource_mock';
 
   it('append success', async () => {
-    const expectedCsv = fs
-      .readFileSync(
-        path.resolve(__dirname, './testdata/expected_tinybird_export.csv'),
-      )
-      .toString();
-
     const tinybirdMock = {
       postToDatasource: async (
         datasource: string,
@@ -77,7 +69,7 @@ describe('PostsMetadataRepository', () => {
       ): Promise<PostDatasourceResult> => {
         expect(datasource).toEqual(dataSource);
         expect(mode).toEqual(TinybirdDatasourceMode.APPEND);
-        expect(csv).toEqual(expectedCsv);
+        expect(csv).toMatchSnapshot();
 
         return {} as PostDatasourceResult;
       },
@@ -180,7 +172,7 @@ describe('TinybirdExportService', () => {
         expect(latest).toEqual(mockLatest);
         return mockPosts;
       },
-    } as IPostsRepository;
+    } as PostsRepositoryDependency;
 
     const postsMetadataRepositoryMock = {
       async latest(): Promise<Date> {
@@ -190,7 +182,7 @@ describe('TinybirdExportService', () => {
         expect(posts).toEqual(mockPosts);
         return {} as PostDatasourceResult;
       },
-    } as IPostsMetadataRepository;
+    } as PostsMetadataRepositoryDependency;
 
     const service = new TinybirdExportService(
       logger,
@@ -212,13 +204,13 @@ describe('TinybirdExportService', () => {
       async getForTinybirdExport(): Promise<TinybirdPost[]> {
         return [];
       },
-    } as IPostsRepository;
+    } as PostsRepositoryDependency;
 
     const postsMetadataRepositoryMock = {
       async latest(): Promise<Date> {
         return mockLatest;
       },
-    } as IPostsMetadataRepository;
+    } as PostsMetadataRepositoryDependency;
 
     const service = new TinybirdExportService(
       logger,
@@ -237,18 +229,17 @@ describe('TinybirdExportService', () => {
   it('should log exception if occurred', async () => {
     const logger = {
       error: (obj, msg) => {
-        expect(obj.error).toEqual('ooops!');
-        expect(obj.stack).toBeDefined();
+        expect(obj.err.message).toEqual('ooops!');
         expect(msg).toEqual('failed to replicate posts to tinybird');
       },
     } as FastifyBaseLogger;
-    const postsRepositoryMock = {} as IPostsRepository;
+    const postsRepositoryMock = {} as PostsRepositoryDependency;
 
     const postsMetadataRepositoryMock = {
       async latest(): Promise<Date> {
         throw new Error('ooops!');
       },
-    } as IPostsMetadataRepository;
+    } as PostsMetadataRepositoryDependency;
 
     const service = new TinybirdExportService(
       logger,
@@ -274,12 +265,12 @@ describe('TinybirdExportService', () => {
       async getForTinybirdExport(): Promise<TinybirdPost[]> {
         return [];
       },
-    } as IPostsRepository;
+    } as PostsRepositoryDependency;
     const postsMetadataRepositoryMock = {
       async latest(): Promise<Date> {
         return mockLatest;
       },
-    } as IPostsMetadataRepository;
+    } as PostsMetadataRepositoryDependency;
 
     const service = new TinybirdExportService(
       logger,
@@ -305,7 +296,7 @@ describe('TinybirdExportService', () => {
       async getForTinybirdExport(): Promise<TinybirdPost[]> {
         return [{} as TinybirdPost];
       },
-    } as IPostsRepository;
+    } as PostsRepositoryDependency;
     const postsMetadataRepositoryMock = {
       async latest(): Promise<Date> {
         return mockLatest;
@@ -313,7 +304,7 @@ describe('TinybirdExportService', () => {
       async append(): Promise<PostDatasourceResult> {
         return {} as PostDatasourceResult;
       },
-    } as IPostsMetadataRepository;
+    } as PostsMetadataRepositoryDependency;
 
     const service = new TinybirdExportService(
       logger,

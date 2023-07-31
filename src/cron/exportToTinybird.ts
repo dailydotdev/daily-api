@@ -23,11 +23,11 @@ export interface TinybirdPost {
   content_curation: string[];
   source_type: string;
 }
-export interface IPostsRepository {
+export interface PostsRepositoryDependency {
   getForTinybirdExport(latest: Date): Promise<TinybirdPost[]>;
 }
 
-export class PostsRepository implements IPostsRepository {
+export class PostsRepository implements PostsRepositoryDependency {
   private readonly con: DataSource;
 
   constructor(con: DataSource) {
@@ -35,6 +35,7 @@ export class PostsRepository implements IPostsRepository {
   }
 
   public async getForTinybirdExport(latest: Date): Promise<TinybirdPost[]> {
+    // remember to keep updated with columns in csv
     return await this.con.query(
       `SELECT "id",
               "authorId"          AS "author_id",
@@ -59,12 +60,14 @@ export class PostsRepository implements IPostsRepository {
     );
   }
 }
-export interface IPostsMetadataRepository {
+export interface PostsMetadataRepositoryDependency {
   latest(): Promise<Date>;
   append(posts: TinybirdPost[]): Promise<PostDatasourceResult>;
 }
 
-export class PostsMetadataRepository implements IPostsMetadataRepository {
+export class PostsMetadataRepository
+  implements PostsMetadataRepositoryDependency
+{
   private readonly tinybirdClient: ITinybirdClient;
   private readonly datasource: string;
   private readonly latestQuery: string;
@@ -93,8 +96,28 @@ export class PostsMetadataRepository implements IPostsMetadataRepository {
     return new Date(result.data[0].latest);
   }
 
+  // Important! make sure columns are following tinybird schema
+  // tinybird accepts csv files without headers
+  // To prevent silently consuming csv with a wrong column order,
+  // it set explicitly.
+  // If more columns exist, they will be added anyway
+  private readonly csv_header: string[] = [
+    'id',
+    'author_id',
+    'created_at',
+    'metadata_changed_at',
+    'creator_twitter',
+    'source_id',
+    'tags_str',
+    'banned',
+    'post_type',
+    'post_private',
+    'content_curation',
+    'source_type',
+  ];
+
   public async append(posts: TinybirdPost[]): Promise<PostDatasourceResult> {
-    const csv: string = await TinybirdClient.Json2Csv(posts);
+    const csv: string = await TinybirdClient.json2Csv(posts, this.csv_header);
 
     return await this.tinybirdClient.postToDatasource(
       this.datasource,
@@ -110,13 +133,13 @@ export interface TinybirdExportResult {
 }
 export class TinybirdExportService {
   private readonly logger: FastifyBaseLogger;
-  private readonly postsRepository: IPostsRepository;
-  private readonly postsMetadataRepository: IPostsMetadataRepository;
+  private readonly postsRepository: PostsRepositoryDependency;
+  private readonly postsMetadataRepository: PostsMetadataRepositoryDependency;
 
   constructor(
     logger: FastifyBaseLogger,
-    postsRepository: IPostsRepository,
-    postsMetadataRepository: IPostsMetadataRepository,
+    postsRepository: PostsRepositoryDependency,
+    postsMetadataRepository: PostsMetadataRepositoryDependency,
   ) {
     this.logger = logger;
     this.postsRepository = postsRepository;
@@ -154,10 +177,7 @@ export class TinybirdExportService {
     try {
       result = await this.export();
     } catch (err) {
-      this.logger.error(
-        { error: err.message, stack: err.stack },
-        `failed to replicate posts to tinybird`,
-      );
+      this.logger.error({ err }, 'failed to replicate posts to tinybird');
       return;
     }
 

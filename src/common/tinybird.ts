@@ -49,6 +49,7 @@ interface Datasource {
   // https://www.tinybird.co/docs/api-reference/datasource-api.html
 }
 
+const json2csv = promisify(jsonexport);
 export class TinybirdClient implements ITinybirdClient {
   private readonly accessToken: string;
   private readonly host: string;
@@ -102,12 +103,16 @@ export class TinybirdClient implements ITinybirdClient {
     return (await response.json()) as PostDatasourceResult;
   }
 
-  public static async Json2Csv<T>(records: T[]): Promise<string> {
+  public static async json2Csv<T>(
+    records: T[],
+    headers?: string[],
+  ): Promise<string> {
     if (records.length === 0) {
       throw new Error('records length is 0');
     }
 
-    const csv = await json2csv(records, {
+    return await json2csv(records, {
+      headers: headers,
       includeHeaders: false,
       typeHandlers: {
         Date: (date: Date) => date.toISOString(),
@@ -116,8 +121,6 @@ export class TinybirdClient implements ITinybirdClient {
         },
       },
     });
-
-    return csv + '\n'; // according to standard, csv should end with crlf
   }
 
   private headers(): NonNullable<unknown> {
@@ -135,5 +138,3 @@ export class TinybirdClient implements ITinybirdClient {
       .join('&');
   }
 }
-
-const json2csv = promisify(jsonexport);
