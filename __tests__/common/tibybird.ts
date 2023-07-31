@@ -188,7 +188,10 @@ describe('TinybirdClient', () => {
     expect(got).toMatchSnapshot();
   });
 
-  it('Json2Csv should ignore columns not specified in header', async () => {
+  it('Json2Csv should not ignore columns not specified in header', async () => {
+    // I wouldn't say it is a desired behavior,
+    // but the library works in this way
+    // so better to have a test for this
     const records = [
       {
         column1: 'test',
