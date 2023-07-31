@@ -145,7 +145,7 @@ describe('TinybirdClient', () => {
     }).rejects.toThrow('tinybird response 500: oops!');
   });
 
-  it('Json2Csv date', async () => {
+  it('json2csv date', async () => {
     const records = [
       {
         column1: 'test',
@@ -157,7 +157,7 @@ describe('TinybirdClient', () => {
     expect(got).toMatchSnapshot();
   });
 
-  it('Json2Csv arrays', async () => {
+  it('json2csv arrays', async () => {
     const records = [
       {
         column1: 'test',
@@ -169,13 +169,13 @@ describe('TinybirdClient', () => {
     expect(got).toMatchSnapshot();
   });
 
-  it('Json2Csv empty input', async () => {
+  it('json2csv empty input', async () => {
     await expect(async () => {
       await TinybirdClient.json2Csv([]);
     }).rejects.toThrow('records length is 0');
   });
 
-  it('Json2Csv should respect column orders', async () => {
+  it('json2csv should respect column orders', async () => {
     const records = [
       {
         column1: 'test',
@@ -188,10 +188,7 @@ describe('TinybirdClient', () => {
     expect(got).toMatchSnapshot();
   });
 
-  it('Json2Csv should not ignore columns not specified in header', async () => {
-    // I wouldn't say it is a desired behavior,
-    // but the library works in this way
-    // so better to have a test for this
+  it('json2csv should throw an exception if headers specified wrong', async () => {
     const records = [
       {
         column1: 'test',
@@ -200,7 +197,8 @@ describe('TinybirdClient', () => {
     ];
 
     const columns = ['column2'];
-    const got = await TinybirdClient.json2Csv(records, columns);
-    expect(got).toMatchSnapshot();
+    await expect(async () => {
+      await TinybirdClient.json2Csv(records, columns);
+    }).rejects.toThrow('object has more properties than specified in header');
   });
 });

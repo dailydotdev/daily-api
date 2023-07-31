@@ -4,6 +4,10 @@ exports[`TinybirdClient Json2Csv arrays 1`] = `"test,\\"['foo', 'bar']\\""`;
 
 exports[`TinybirdClient Json2Csv date 1`] = `"test,2023-07-27T16:47:33.000Z"`;
 
-exports[`TinybirdClient Json2Csv should not ignore columns not specified in header 1`] = `"2023-07-27T16:47:33.000Z,test"`;
-
 exports[`TinybirdClient Json2Csv should respect column orders 1`] = `"2023-07-27T16:47:33.000Z,test"`;
+
+exports[`TinybirdClient json2csv arrays 1`] = `"test,\\"['foo', 'bar']\\""`;
+
+exports[`TinybirdClient json2csv date 1`] = `"test,2023-07-27T16:47:33.000Z"`;
+
+exports[`TinybirdClient json2csv should respect column orders 1`] = `"2023-07-27T16:47:33.000Z,test"`;

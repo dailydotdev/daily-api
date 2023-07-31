@@ -111,12 +111,16 @@ export class TinybirdClient implements ITinybirdClient {
       throw new Error('records length is 0');
     }
 
+    if (headers && Object.keys(records[0]).length !== headers.length) {
+      throw new Error('object has more properties than specified in header');
+    }
+
     return await json2csv(records, {
       headers: headers,
       includeHeaders: false,
       typeHandlers: {
         Date: (date: Date) => date.toISOString(),
-        Array: (arr: string[]) => {
+        Array: (arr: string[]): string => {
           return '[' + arr.map((x) => `'${x}'`).join(', ') + ']';
         },
       },
