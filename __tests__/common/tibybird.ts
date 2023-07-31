@@ -153,7 +153,7 @@ describe('TinybirdClient', () => {
       },
     ];
 
-    const got = await TinybirdClient.json2Csv(records);
+    const got = await TinybirdClient.json2csv(records);
     expect(got).toMatchSnapshot();
   });
 
@@ -165,13 +165,13 @@ describe('TinybirdClient', () => {
       },
     ];
 
-    const got = await TinybirdClient.json2Csv(records);
+    const got = await TinybirdClient.json2csv(records);
     expect(got).toMatchSnapshot();
   });
 
   it('json2csv empty input', async () => {
     await expect(async () => {
-      await TinybirdClient.json2Csv([]);
+      await TinybirdClient.json2csv([]);
     }).rejects.toThrow('records length is 0');
   });
 
@@ -184,7 +184,7 @@ describe('TinybirdClient', () => {
     ];
 
     const columns = ['column2', 'column1'];
-    const got = await TinybirdClient.json2Csv(records, columns);
+    const got = await TinybirdClient.json2csv(records, columns);
     expect(got).toMatchSnapshot();
   });
 
@@ -198,7 +198,7 @@ describe('TinybirdClient', () => {
 
     const columns = ['column2'];
     await expect(async () => {
-      await TinybirdClient.json2Csv(records, columns);
+      await TinybirdClient.json2csv(records, columns);
     }).rejects.toThrow('object has more properties than specified in header');
   });
 });

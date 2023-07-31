@@ -117,7 +117,7 @@ export class PostsMetadataRepository
   ];
 
   public async append(posts: TinybirdPost[]): Promise<PostDatasourceResult> {
-    const csv: string = await TinybirdClient.json2Csv(posts, this.csv_header);
+    const csv: string = await TinybirdClient.json2csv(posts, this.csv_header);
 
     return await this.tinybirdClient.postToDatasource(
       this.datasource,

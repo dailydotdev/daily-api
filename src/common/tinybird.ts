@@ -103,7 +103,7 @@ export class TinybirdClient implements ITinybirdClient {
     return (await response.json()) as PostDatasourceResult;
   }
 
-  public static async json2Csv<T>(
+  public static async json2csv<T>(
     records: T[],
     headers?: string[],
   ): Promise<string> {
