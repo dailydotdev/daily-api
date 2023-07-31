@@ -16,7 +16,7 @@ import {
   ITinybirdClient,
   TinybirdDatasourceMode,
   PostDatasourceResult,
-  QueryResult,
+  QueryResult, fetchfn, TinybirdClient,
 } from '../../src/common/tinybird';
 import { FastifyBaseLogger } from 'fastify';
 
@@ -313,5 +313,31 @@ describe('TinybirdExportService', () => {
     );
 
     await service.exportAndLog();
+  });
+
+  test.skip('test real tinybird', async () => {
+    //it('test real tinybird', async () => {
+    const host = 'https://api.tinybird.co';
+    const token = '';
+    const tinybirdClient = new TinybirdClient(
+      token,
+      host,
+      fetch as unknown as fetchfn,
+    );
+
+    const postsMetadataRepository = new PostsMetadataRepository(
+      tinybirdClient,
+      'posts_metadata',
+    );
+
+    const postsRepository = new PostsRepository(con);
+
+    const exportService = new TinybirdExportService(
+      console as unknown as FastifyBaseLogger,
+      postsRepository,
+      postsMetadataRepository,
+    );
+
+    await exportService.exportAndLog();
   });
 });
