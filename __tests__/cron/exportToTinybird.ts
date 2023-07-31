@@ -16,7 +16,9 @@ import {
   ITinybirdClient,
   TinybirdDatasourceMode,
   PostDatasourceResult,
-  QueryResult, fetchfn, TinybirdClient,
+  QueryResult,
+  fetchfn,
+  TinybirdClient,
 } from '../../src/common/tinybird';
 import { FastifyBaseLogger } from 'fastify';
 
