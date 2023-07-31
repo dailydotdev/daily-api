@@ -1153,10 +1153,14 @@ export const resolvers: IResolvers<any, Context> = {
       try {
         const editedSourceId = await ctx.con.transaction(
           async (entityManager) => {
-            const disallowHandle = await checkDisallowHandle(
-              entityManager,
-              handle,
-            );
+            const current = await entityManager
+              .getRepository(SquadSource)
+              .findOneOrFail({ where: { id: sourceId }, select: ['handle'] });
+            const disallowHandle =
+              current.handle === handle
+                ? false
+                : await checkDisallowHandle(entityManager, handle);
+
             if (disallowHandle) {
               throw new ValidationError(
                 JSON.stringify({ handle: 'handle is already used' }),
