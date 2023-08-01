@@ -56,7 +56,7 @@ describe('PostsRepository', () => {
       post.metadata_changed_at = '';
     });
     expect(posts).toHaveLength(7);
-    expect(posts).toContainEqual({
+    expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
       banned: 0,
       content_curation: [],
@@ -69,8 +69,8 @@ describe('PostsRepository', () => {
       source_id: 'a',
       source_type: 'Source',
       tags_str: 'javascript,webdev',
-    } as TinybirdPost);
-    expect(posts).toContainEqual({
+    });
+    expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
       banned: 0,
       content_curation: [],
@@ -83,8 +83,8 @@ describe('PostsRepository', () => {
       source_id: 'b',
       source_type: 'Source',
       tags_str: null,
-    } as TinybirdPost);
-    expect(posts).toContainEqual({
+    });
+    expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
       banned: 0,
       content_curation: [],
@@ -97,8 +97,8 @@ describe('PostsRepository', () => {
       source_id: 'c',
       source_type: 'Source',
       tags_str: null,
-    } as TinybirdPost);
-    expect(posts).toContainEqual({
+    });
+    expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
       banned: 0,
       content_curation: [],
@@ -111,8 +111,8 @@ describe('PostsRepository', () => {
       source_id: 'a',
       source_type: 'Source',
       tags_str: 'backend,data,javascript',
-    } as TinybirdPost);
-    expect(posts).toContainEqual({
+    });
+    expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
       banned: 0,
       content_curation: [],
@@ -125,8 +125,8 @@ describe('PostsRepository', () => {
       source_id: 'b',
       source_type: 'Source',
       tags_str: 'html,javascript',
-    } as TinybirdPost);
-    expect(posts).toContainEqual({
+    });
+    expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
       banned: 0,
       content_curation: [],
@@ -139,8 +139,8 @@ describe('PostsRepository', () => {
       source_id: 'p',
       source_type: 'Source',
       tags_str: null,
-    } as TinybirdPost);
-    expect(posts).toContainEqual({
+    });
+    expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
       banned: 0,
       content_curation: [],
@@ -153,7 +153,7 @@ describe('PostsRepository', () => {
       source_id: 'squad',
       source_type: 'Source',
       tags_str: null,
-    } as TinybirdPost);
+    });
   });
 });
 
