@@ -1320,6 +1320,25 @@ describe('mutation editSquad', () => {
     );
   });
 
+  it('should not throw error on disallow handles if the value did not change', async () => {
+    loggedUser = '1';
+    const handle = 'existing';
+    await con.getRepository(Source).update({ id: 's1' }, { handle });
+    await con.getRepository(DisallowHandle).save({ value: handle });
+    const description = 'New description';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        handle: 'existing',
+        description,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const edited = await con.getRepository(SquadSource).findOneBy({ handle });
+    expect(edited.description).toEqual(description);
+  });
+
   it(`should throw error if squad doesn't exist`, async () => {
     loggedUser = '1';
     return testMutationErrorCode(
