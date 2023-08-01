@@ -387,6 +387,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         const comments = await ctx
           .getRepository(Comment)
           .find({ select: ['id', 'postId'], where: { id: In(ids) } });
+
         comments.forEach(({ id, postId }) => {
           const param = params.find(({ referenceId }) => referenceId === id);
           param.referenceId = postId;
