@@ -20,8 +20,8 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
   saveNotificationPreference,
-  NotificationPreferenceType,
   postNewCommentNotificationTypes,
+  notificationPreferenceMap,
 } from '../notifications/common';
 import { ValidationError } from 'apollo-server-errors';
 
@@ -41,7 +41,6 @@ type GQLNotificationPreference = Pick<
 
 interface NotificationPreferenceArgs {
   referenceId: string;
-  type: NotificationPreferenceType;
   notificationType: NotificationType;
 }
 
@@ -226,11 +225,6 @@ export const typeDefs = /* GraphQL */ `
     referenceId: ID!
 
     """
-    Type of the notification preference whether it is "post", "source", "comment"
-    """
-    type: String!
-
-    """
     Notification type for which kind of notification you want to mute
     """
     notificationType: String!
@@ -380,7 +374,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       }
 
       const params = data.reduce((args, value) => {
-        return [...args, { ...value, userId: ctx.userId }];
+        const type = notificationPreferenceMap[value.notificationType];
+        return [...args, { ...value, type, userId: ctx.userId }];
       }, []);
 
       const newComments = data.filter(({ notificationType }) =>

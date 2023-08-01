@@ -331,7 +331,7 @@ const prepareNotificationPreferences = async () => {
       userId: '1',
       sourceId: sourcesFixture[0].id,
       referenceId: sourcesFixture[0].id,
-      notificationType: NotificationType.SourceApproved,
+      notificationType: NotificationType.SquadPostAdded,
       status: NotificationPreferenceStatus.Muted,
     },
   ]);
@@ -377,7 +377,6 @@ describe('query notificationPreferences', () => {
       variables: {
         data: [
           {
-            type: NotificationPreferenceType.Post,
             referenceId: postsFixture[0].id,
             notificationType: NotificationType.ArticleNewComment,
           },
@@ -398,14 +397,12 @@ describe('query notificationPreferences', () => {
     await prepareNotificationPreferences();
 
     const postParam = {
-      type: NotificationPreferenceType.Post,
       referenceId: postsFixture[0].id,
       notificationType: NotificationType.ArticleNewComment,
     };
     const sourceParam = {
-      type: NotificationPreferenceType.Source,
       referenceId: sourcesFixture[0].id,
-      notificationType: NotificationType.SourceApproved,
+      notificationType: NotificationType.SquadPostAdded,
     };
     const res = await client.query(QUERY, {
       variables: { data: [postParam, sourceParam] },
@@ -413,14 +410,16 @@ describe('query notificationPreferences', () => {
     expect(res.data.notificationPreferences.length).toEqual(2);
 
     const hasPost = res.data.notificationPreferences.some(
-      ({ type, referenceId }) =>
-        type === postParam.type && referenceId === postParam.referenceId,
+      ({ notificationType, referenceId }) =>
+        notificationType === postParam.notificationType &&
+        referenceId === postParam.referenceId,
     );
     expect(hasPost).toBeTruthy();
 
     const hasSource = res.data.notificationPreferences.some(
-      ({ type, referenceId }) =>
-        type === sourceParam.type && referenceId === sourceParam.referenceId,
+      ({ notificationType, referenceId }) =>
+        notificationType === sourceParam.notificationType &&
+        referenceId === sourceParam.referenceId,
     );
     expect(hasSource).toBeTruthy();
 
