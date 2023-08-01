@@ -6,9 +6,10 @@ import {
   getUnreadNotificationsCount,
   Notification,
   NotificationPreference,
+  Comment,
 } from '../entity';
 import { ConnectionArguments } from 'graphql-relay';
-import { IsNull } from 'typeorm';
+import { In, IsNull } from 'typeorm';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
 import graphorm from '../graphorm';
 import { createDatePageGenerator } from '../common/datePageGenerator';
@@ -19,7 +20,8 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
   saveNotificationPreference,
-  NotificationPreferenceType,
+  postNewCommentNotificationTypes,
+  notificationPreferenceMap,
 } from '../notifications/common';
 import { ValidationError } from 'apollo-server-errors';
 
@@ -39,7 +41,7 @@ type GQLNotificationPreference = Pick<
 
 interface NotificationPreferenceArgs {
   referenceId: string;
-  type: NotificationPreferenceType;
+  notificationType: NotificationType;
 }
 
 interface NotificationPreferenceMutationArgs {
@@ -223,9 +225,9 @@ export const typeDefs = /* GraphQL */ `
     referenceId: ID!
 
     """
-    Type of the notification preference
+    Notification type for which kind of notification you want to mute
     """
-    type: String!
+    notificationType: String!
   }
 
   extend type Query {
@@ -361,7 +363,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
       );
     },
-    notificationPreferences: (
+    notificationPreferences: async (
       _,
       { data }: NotificationPreferenceInput,
       ctx,
@@ -372,8 +374,25 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       }
 
       const params = data.reduce((args, value) => {
-        return [...args, { ...value, userId: ctx.userId }];
+        const type = notificationPreferenceMap[value.notificationType];
+        return [...args, { ...value, type, userId: ctx.userId }];
       }, []);
+
+      const newComments = data.filter(({ notificationType }) =>
+        postNewCommentNotificationTypes.includes(notificationType),
+      );
+
+      if (newComments.length) {
+        const ids = newComments.map(({ referenceId }) => referenceId);
+        const comments = await ctx
+          .getRepository(Comment)
+          .find({ select: ['id', 'postId'], where: { id: In(ids) } });
+
+        comments.forEach(({ id, postId }) => {
+          const param = params.find(({ referenceId }) => referenceId === id);
+          param.referenceId = postId;
+        });
+      }
 
       return graphorm.query(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder.where(params);
@@ -420,6 +439,19 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { type, referenceId }: NotificationPreferenceMutationArgs,
       { con, userId },
     ): Promise<GQLEmptyResponse> => {
+      if (postNewCommentNotificationTypes.includes(type)) {
+        const comment = await con.getRepository(Comment).findOne({
+          where: { id: referenceId },
+          select: ['postId'],
+        });
+
+        if (!comment) {
+          throw new ValidationError('Comment not found');
+        }
+
+        referenceId = comment.postId;
+      }
+
       await con
         .getRepository(NotificationPreference)
         .delete({ userId, notificationType: type, referenceId });

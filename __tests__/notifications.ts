@@ -34,6 +34,7 @@ import {
   NotificationPreferenceStatus,
   NotificationPreferenceType,
   NotificationType,
+  saveNotificationPreference,
 } from '../src/notifications/common';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
@@ -330,7 +331,7 @@ const prepareNotificationPreferences = async () => {
       userId: '1',
       sourceId: sourcesFixture[0].id,
       referenceId: sourcesFixture[0].id,
-      notificationType: NotificationType.SourceApproved,
+      notificationType: NotificationType.SquadPostAdded,
       status: NotificationPreferenceStatus.Muted,
     },
   ]);
@@ -376,8 +377,8 @@ describe('query notificationPreferences', () => {
       variables: {
         data: [
           {
-            type: NotificationPreferenceType.Post,
             referenceId: postsFixture[0].id,
+            notificationType: NotificationType.ArticleNewComment,
           },
         ],
       },
@@ -396,12 +397,12 @@ describe('query notificationPreferences', () => {
     await prepareNotificationPreferences();
 
     const postParam = {
-      type: NotificationPreferenceType.Post,
       referenceId: postsFixture[0].id,
+      notificationType: NotificationType.ArticleNewComment,
     };
     const sourceParam = {
-      type: NotificationPreferenceType.Source,
       referenceId: sourcesFixture[0].id,
+      notificationType: NotificationType.SquadPostAdded,
     };
     const res = await client.query(QUERY, {
       variables: { data: [postParam, sourceParam] },
@@ -409,14 +410,16 @@ describe('query notificationPreferences', () => {
     expect(res.data.notificationPreferences.length).toEqual(2);
 
     const hasPost = res.data.notificationPreferences.some(
-      ({ type, referenceId }) =>
-        type === postParam.type && referenceId === postParam.referenceId,
+      ({ notificationType, referenceId }) =>
+        notificationType === postParam.notificationType &&
+        referenceId === postParam.referenceId,
     );
     expect(hasPost).toBeTruthy();
 
     const hasSource = res.data.notificationPreferences.some(
-      ({ type, referenceId }) =>
-        type === sourceParam.type && referenceId === sourceParam.referenceId,
+      ({ notificationType, referenceId }) =>
+        notificationType === sourceParam.notificationType &&
+        referenceId === sourceParam.referenceId,
     );
     expect(hasSource).toBeTruthy();
 
@@ -669,8 +672,8 @@ describe('mutation clearNotificationPreference', () => {
 
     const params = {
       userId: loggedUser,
-      referenceId: postsFixture[0].id,
-      notificationType: NotificationType.ArticleNewComment,
+      referenceId: sourcesFixture[0].id,
+      notificationType: NotificationType.SquadPostAdded,
     };
 
     const preference = await con
@@ -697,5 +700,52 @@ describe('mutation clearNotificationPreference', () => {
       .findOneBy({ userId: '2' });
 
     expect(other).toBeTruthy();
+  });
+
+  it('should clear notification preference by fetching the reference id if it is article new comment or squad new comment', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences();
+    const repo = con.getRepository(NotificationPreference);
+    const comment = {
+      id: 'c1',
+      postId: postsFixture[0].id,
+      content: '',
+      userId: '1',
+    };
+    await con.getRepository(Comment).save(comment);
+
+    const params = {
+      userId: loggedUser,
+      referenceId: 'c1',
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    await saveNotificationPreference(
+      con,
+      params.userId,
+      params.referenceId,
+      params.notificationType,
+      NotificationPreferenceStatus.Muted,
+    );
+    const preference = await repo.findOneBy({
+      ...params,
+      referenceId: postsFixture[0].id,
+    });
+    expect(preference).toBeTruthy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const muted = await repo.findOneBy({
+      notificationType: params.notificationType,
+      referenceId: postsFixture[0].id,
+    });
+
+    expect(muted).toBeFalsy();
   });
 });
