@@ -205,7 +205,9 @@ describe('TinybirdClient', () => {
     const columns = ['column2'];
     await expect(async () => {
       await TinybirdClient.json2csv(records, columns);
-    }).rejects.toThrow('object has more properties than specified in header');
+    }).rejects.toThrow(
+      'object has different properties than specified in header',
+    );
   });
 
   it('json2csv should throw an exception if headers is not defined in a object', async () => {

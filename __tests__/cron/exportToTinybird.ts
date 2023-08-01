@@ -55,7 +55,105 @@ describe('PostsRepository', () => {
       post.created_at = '';
       post.metadata_changed_at = '';
     });
-    expect(posts).toMatchSnapshot();
+    expect(posts).toHaveLength(7);
+    expect(posts).toContainEqual({
+      author_id: null,
+      banned: 0,
+      content_curation: [],
+      created_at: '',
+      creator_twitter: null,
+      id: 'p1',
+      metadata_changed_at: '',
+      post_private: 0,
+      post_type: 'article',
+      source_id: 'a',
+      source_type: 'Source',
+      tags_str: 'javascript,webdev',
+    } as TinybirdPost);
+    expect(posts).toContainEqual({
+      author_id: null,
+      banned: 0,
+      content_curation: [],
+      created_at: '',
+      creator_twitter: null,
+      id: 'p2',
+      metadata_changed_at: '',
+      post_private: 0,
+      post_type: 'article',
+      source_id: 'b',
+      source_type: 'Source',
+      tags_str: null,
+    } as TinybirdPost);
+    expect(posts).toContainEqual({
+      author_id: null,
+      banned: 0,
+      content_curation: [],
+      created_at: '',
+      creator_twitter: null,
+      id: 'p3',
+      metadata_changed_at: '',
+      post_private: 0,
+      post_type: 'article',
+      source_id: 'c',
+      source_type: 'Source',
+      tags_str: null,
+    } as TinybirdPost);
+    expect(posts).toContainEqual({
+      author_id: null,
+      banned: 0,
+      content_curation: [],
+      created_at: '',
+      creator_twitter: null,
+      id: 'p4',
+      metadata_changed_at: '',
+      post_private: 0,
+      post_type: 'article',
+      source_id: 'a',
+      source_type: 'Source',
+      tags_str: 'backend,data,javascript',
+    } as TinybirdPost);
+    expect(posts).toContainEqual({
+      author_id: null,
+      banned: 0,
+      content_curation: [],
+      created_at: '',
+      creator_twitter: null,
+      id: 'p5',
+      metadata_changed_at: '',
+      post_private: 0,
+      post_type: 'article',
+      source_id: 'b',
+      source_type: 'Source',
+      tags_str: 'html,javascript',
+    } as TinybirdPost);
+    expect(posts).toContainEqual({
+      author_id: null,
+      banned: 0,
+      content_curation: [],
+      created_at: '',
+      creator_twitter: null,
+      id: 'p6',
+      metadata_changed_at: '',
+      post_private: 1,
+      post_type: 'article',
+      source_id: 'p',
+      source_type: 'Source',
+      tags_str: null,
+    } as TinybirdPost);
+    expect(posts).toContainEqual({
+      author_id: null,
+      banned: 0,
+      content_curation: [],
+      created_at: '',
+      creator_twitter: null,
+      id: 'squadP1',
+      metadata_changed_at: '',
+      post_private: 1,
+      post_type: 'article',
+      source_id: 'squad',
+      source_type: 'Source',
+      tags_str: null,
+    } as TinybirdPost);
   });
 });
 
@@ -95,6 +193,7 @@ describe('PostsMetadataRepository', () => {
         post_private: 1,
         content_curation: ['content_curation'],
         source_type: 'source_type',
+        banned: 0,
       },
       {
         id: 'id2',
@@ -108,6 +207,7 @@ describe('PostsMetadataRepository', () => {
         post_private: 1,
         content_curation: ['content_curation1', 'content_curation2'],
         source_type: 'source_type2',
+        banned: 0,
       },
     ];
 

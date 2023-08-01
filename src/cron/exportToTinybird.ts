@@ -22,6 +22,7 @@ export interface TinybirdPost {
   post_private: number;
   content_curation: string[];
   source_type: string;
+  banned: number;
 }
 export interface PostsRepositoryDependency {
   getForTinybirdExport(latest: Date): Promise<TinybirdPost[]>;
@@ -54,7 +55,6 @@ export class PostsRepository implements PostsRepositoryDependency {
          and "sourceId" != '${UNKNOWN_SOURCE}'
          and "visible" = true
          and "type" != '${PostType.Welcome}'
-       ORDER BY "id"
       `,
       [latest],
     );

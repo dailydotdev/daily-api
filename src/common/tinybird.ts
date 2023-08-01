@@ -1,7 +1,6 @@
 import { RequestInit } from 'node-fetch';
 import { promisify } from 'util';
 import jsonexport from 'jsonexport';
-import { forEach } from 'lodash';
 
 export type fetchfn = (
   url: RequestInfo,
@@ -113,14 +112,18 @@ export class TinybirdClient implements ITinybirdClient {
     }
 
     if (headers && Object.keys(records[0]).length !== headers.length) {
-      throw new Error('object has more properties than specified in header');
+      throw new Error(
+        'object has different properties than specified in header',
+      );
     }
 
-    forEach(headers, (column: string): void => {
-      if (!(column in records[0])) {
-        throw new Error(`${column} is not defined in object`);
-      }
-    });
+    if (headers) {
+      headers.forEach((column: string): void => {
+        if (!(column in records[0])) {
+          throw new Error(`${column} is not defined in object`);
+        }
+      });
+    }
 
     return await json2csv(records, {
       headers: headers,
