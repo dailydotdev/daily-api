@@ -153,8 +153,10 @@ describe('TinybirdClient', () => {
       },
     ];
 
+    const expectedCsv = 'test,2023-07-27T16:47:33.000Z';
+
     const got = await TinybirdClient.json2csv(records);
-    expect(got).toMatchSnapshot();
+    expect(got).toEqual(expectedCsv);
   });
 
   it('json2csv arrays', async () => {
@@ -165,8 +167,10 @@ describe('TinybirdClient', () => {
       },
     ];
 
+    const expectedCsv = "test,\"['foo', 'bar']\"";
+
     const got = await TinybirdClient.json2csv(records);
-    expect(got).toMatchSnapshot();
+    expect(got).toEqual(expectedCsv);
   });
 
   it('json2csv empty input', async () => {
@@ -183,9 +187,11 @@ describe('TinybirdClient', () => {
       },
     ];
 
+    const expectedCsv = '2023-07-27T16:47:33.000Z,test';
+
     const columns = ['column2', 'column1'];
     const got = await TinybirdClient.json2csv(records, columns);
-    expect(got).toMatchSnapshot();
+    expect(got).toEqual(expectedCsv);
   });
 
   it('json2csv should throw an exception if headers specified wrong', async () => {
@@ -200,5 +206,18 @@ describe('TinybirdClient', () => {
     await expect(async () => {
       await TinybirdClient.json2csv(records, columns);
     }).rejects.toThrow('object has more properties than specified in header');
+  });
+
+  it('json2csv should throw an exception if headers is not defined in a object', async () => {
+    const records = [
+      {
+        column1: 'test',
+      },
+    ];
+
+    const columns = ['column2'];
+    await expect(async () => {
+      await TinybirdClient.json2csv(records, columns);
+    }).rejects.toThrow('column2 is not defined in object');
   });
 });

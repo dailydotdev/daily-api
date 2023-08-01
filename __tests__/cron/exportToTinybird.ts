@@ -318,7 +318,6 @@ describe('TinybirdExportService', () => {
   });
 
   test.skip('test real tinybird', async () => {
-    //it('test real tinybird', async () => {
     const host = 'https://api.tinybird.co';
     const token = '';
     const tinybirdClient = new TinybirdClient(
