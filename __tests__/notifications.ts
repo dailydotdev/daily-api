@@ -672,8 +672,8 @@ describe('mutation clearNotificationPreference', () => {
 
     const params = {
       userId: loggedUser,
-      referenceId: postsFixture[0].id,
-      notificationType: NotificationType.ArticleNewComment,
+      referenceId: sourcesFixture[0].id,
+      notificationType: NotificationType.SquadPostAdded,
     };
 
     const preference = await con
