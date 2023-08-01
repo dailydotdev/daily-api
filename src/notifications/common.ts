@@ -2,6 +2,7 @@ import {
   NotificationPreferenceComment,
   NotificationPreferencePost,
   NotificationPreferenceSource,
+  Comment,
 } from '../entity';
 import { ValidationError } from 'apollo-server-errors';
 import { DataSource, EntityManager } from 'typeorm';
@@ -61,6 +62,11 @@ export const commentReplyNotificationTypes = [
   NotificationType.SquadReply,
 ];
 
+export const postNewCommentNotificationTypes = [
+  NotificationType.ArticleNewComment,
+  NotificationType.SquadNewComment,
+];
+
 type NotificationPreferenceUnion = NotificationPreferenceComment &
   NotificationPreferencePost &
   NotificationPreferenceSource;
@@ -94,6 +100,22 @@ const getRepository = (
   }
 };
 
+const getReferenceId = async (
+  con: DataSource | EntityManager,
+  type: NotificationType,
+  referenceId: string,
+) => {
+  if (postNewCommentNotificationTypes.includes(type)) {
+    const comment = await con
+      .getRepository(Comment)
+      .findOneBy({ id: referenceId });
+
+    return comment?.postId ?? referenceId;
+  }
+
+  return referenceId;
+};
+
 export const saveNotificationPreference = async (
   con: DataSource | EntityManager,
   userId: string,
@@ -108,13 +130,14 @@ export const saveNotificationPreference = async (
   }
 
   const prop = notificationPreferenceProp[type];
+  const id = await getReferenceId(con, notificationType, referenceId);
   const params: Partial<NotificationPreferenceUnion> = {
     type,
     userId,
     status,
     notificationType,
-    referenceId,
-    [prop]: referenceId,
+    referenceId: id,
+    [prop]: id,
   };
 
   try {
