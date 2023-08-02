@@ -98,6 +98,7 @@ const createSharedPost = async (id = 'sp1') => {
 
 it('should not update if the database updated date is newer', async () => {
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     post_id: 'p1',
     updated_at: new Date('01-05-1990 12:00:00'),
   });
@@ -110,6 +111,7 @@ it('should not update if the post is not a squad origin', async () => {
     .getRepository(ArticlePost)
     .update({ id: 'p1' }, { origin: PostOrigin.CommunityPicks });
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     post_id: 'p1',
     updated_at: new Date('01-05-1990 12:00:00'),
   });
@@ -122,6 +124,7 @@ it(`should not update if the post object doesn't have ID`, async () => {
     .getRepository(ArticlePost)
     .update({ id: 'p1' }, { origin: PostOrigin.CommunityPicks });
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     updated_at: new Date('01-05-1990 12:00:00'),
   });
   const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
@@ -130,6 +133,7 @@ it(`should not update if the post object doesn't have ID`, async () => {
 
 it('should update the post and keep it invisible if title is missing', async () => {
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     post_id: 'p1',
     updated_at: new Date('01-05-2023 12:00:00'),
   });
@@ -141,6 +145,7 @@ it('should update the post and keep it invisible if title is missing', async () 
 
 it('should update the post and make it visible if title is available', async () => {
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     post_id: 'p1',
     updated_at: new Date('01-05-2023 12:00:00'),
     title: 'test',
@@ -157,6 +162,7 @@ it('should update all the post related shared posts to visible', async () => {
   await createSharedPost();
   await createSharedPost('sp2');
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     post_id: 'p1',
     updated_at: new Date('01-05-2023 12:00:00'),
     title: 'test',
@@ -188,6 +194,7 @@ it('should update post and not modify keywords', async () => {
     .getRepository(Post)
     .update({ id: 'p1' }, { tagsStr: 'mongodb, alpinejs' });
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     post_id: 'p1',
     title: 'New title',
     extra: {
@@ -212,6 +219,7 @@ it('should update post and modify keywords', async () => {
     .getRepository(Post)
     .update({ id: 'p1' }, { tagsStr: 'mongodb, alpinejs' });
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     post_id: 'p1',
     title: 'New title',
     extra: {
@@ -232,6 +240,7 @@ it('should update post and modify keywords', async () => {
 it('should save a new post with the relevant content curation', async () => {
   await createDefaultKeywords();
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     post_id: 'p1',
     updated_at: new Date('01-05-2023 12:00:00'),
     title: 'test',
@@ -250,6 +259,7 @@ it('should save a new post with the relevant content curation', async () => {
 
 it('should save a new post with basic information', async () => {
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     title: 'Title',
     url: 'https://post.com',
     source_id: 'a',
@@ -274,6 +284,7 @@ it('should save a new post with basic information', async () => {
 
 it('should set show on feed to true when order is missing', async () => {
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     title: 'Title',
     url: 'https://post.com',
     source_id: 'a',
@@ -285,6 +296,7 @@ it('should set show on feed to true when order is missing', async () => {
 
 it('should save a new post with showOnFeed information', async () => {
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     title: 'Title',
     url: 'https://post.com',
     source_id: 'a',
@@ -297,6 +309,7 @@ it('should save a new post with showOnFeed information', async () => {
 
 it('should save a new post with content curation', async () => {
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     title: 'Title',
     url: 'https://post.com',
     source_id: 'a',
@@ -311,6 +324,7 @@ it('should save a new post with content curation', async () => {
 
 it('save a post as public if source is public', async () => {
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     title: 'Title',
     url: 'https://post.com',
     source_id: 'a',
@@ -323,6 +337,7 @@ it('save a post as public if source is public', async () => {
 
 it('save a post as private if source is private', async () => {
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     title: 'Title',
     url: 'https://post.com',
     source_id: 'p',
@@ -345,6 +360,7 @@ it('should save a new post with the relevant scout id and update submission', as
   await createDefaultUser();
   await createDefaultSubmission(uuid);
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     title: 'Title',
     url: 'https://post.com',
     source_id: COMMUNITY_PICKS_SOURCE,
@@ -375,6 +391,7 @@ it('should save a new post with the relevant keywords', async () => {
   await createDefaultSubmission(uuid);
   await createDefaultKeywords();
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     title: 'Title',
     url: `https://post.com/${uuid}`,
     source_id: COMMUNITY_PICKS_SOURCE,
@@ -403,6 +420,7 @@ it('should not accept post with same author and scout', async () => {
   await createDefaultUser();
   await createDefaultSubmission(uuid);
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     title: 'Title',
     url: 'https://post.com',
     source_id: 'a',
@@ -424,6 +442,7 @@ it('should update submission to rejected', async () => {
   await createDefaultUser();
   await createDefaultSubmission(uuid);
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     title: 'Title',
     url: 'https://post.com',
     source_id: 'a',
@@ -448,6 +467,7 @@ it('should not update already approved post', async () => {
     status: SubmissionStatus.Accepted,
   });
   await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     title: 'Title',
     url: 'https://post.com',
     source_id: 'a',
