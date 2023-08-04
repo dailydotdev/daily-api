@@ -1022,6 +1022,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         removeHiddenPosts: true,
         removeBannedPosts: false,
         allowPrivateSources: false,
+        allowSquadPosts: false,
       },
     ),
     mostDiscussedFeed: feedResolver(
@@ -1033,7 +1034,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       offsetPageGenerator(30, 50, 100),
       (ctx, args, { limit, offset }, builder) =>
         builder.limit(limit).offset(offset),
-      { removeHiddenPosts: true, allowPrivateSources: false },
+      {
+        removeHiddenPosts: true,
+        allowPrivateSources: false,
+        allowSquadPosts: false,
+      },
     ),
     randomTrendingPosts: randomPostsResolver(
       (
