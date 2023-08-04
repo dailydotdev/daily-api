@@ -192,4 +192,8 @@ export class Post {
   @Index('IDX_post_flags_deleted', { synchronize: false })
   @Index('IDX_post_flags_promoteToPublic', { synchronize: false })
   flags: PostFlags;
+
+  @Column({ type: 'uuid', nullable: true })
+  @Index('IDX_yggdrasil_id')
+  yggdrasilId: string;
 }

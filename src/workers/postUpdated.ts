@@ -24,6 +24,7 @@ import { EntityManager } from 'typeorm';
 import { updateFlagsStatement } from '../common';
 
 interface Data {
+  id: string;
   post_id: string;
   url: string;
   image?: string;
@@ -319,6 +320,7 @@ const fixData = async ({
         showOnFeed: !data?.order,
         sentAnalyticsReport: privacy || !authorId,
       },
+      yggdrasilId: data?.id,
     },
   };
 };

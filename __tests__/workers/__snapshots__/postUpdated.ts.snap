@@ -50,5 +50,6 @@ Object {
   "viewsThreshold": 0,
   "visible": true,
   "visibleAt": Any<Date>,
+  "yggdrasilId": "f99a445f-e2fb-48e8-959c-e02a17f5e816",
 }
 `;
