@@ -1230,6 +1230,35 @@ describe('query mostDiscussedFeed', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should not return posts from private squads', async () => {
+    const sourceRepo = con.getRepository(Source);
+    await sourceRepo.update({ id: 'squad' }, { type: SourceType.Squad });
+    const repo = con.getRepository(Post);
+    await repo.update({ id: 'p1' }, { comments: 5 });
+    await repo.update({ id: 'p3' }, { comments: 5 });
+    await repo.update({ id: 'p2' }, { comments: 5, sourceId: 'squad' });
+
+    const res = await client.query(QUERY(30));
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should not return posts from public squads', async () => {
+    const sourceRepo = con.getRepository(Source);
+    await sourceRepo.update(
+      { id: 'squad' },
+      { type: SourceType.Squad, private: false },
+    );
+    const repo = con.getRepository(Post);
+    await repo.update({ id: 'p1' }, { comments: 5 });
+    await repo.update({ id: 'p3' }, { comments: 5 });
+    await repo.update({ id: 'p2' }, { comments: 5, sourceId: 'squad' });
+
+    const res = await client.query(QUERY(30));
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toMatchSnapshot();
+  });
 });
 
 describe('query randomTrendingPosts', () => {
