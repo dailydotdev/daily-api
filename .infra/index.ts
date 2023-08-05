@@ -209,7 +209,7 @@ if (isAdhocEnv) {
         nodeOptions(memory),
         { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
       ],
-      minReplicas: 1,
+      minReplicas: 2,
       maxReplicas: 2,
       limits,
       readinessProbe,
