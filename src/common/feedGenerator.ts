@@ -222,6 +222,7 @@ export const applyFeedWhere = (
   removeHiddenPosts = true,
   removeBannedPosts = true,
   allowPrivateSources = true,
+  allowSquadPosts = true,
 ): SelectQueryBuilder<Post> => {
   let newBuilder = builder.andWhere(`${alias}."type" in (:...postTypes)`, {
     postTypes,
@@ -236,6 +237,19 @@ export const applyFeedWhere = (
       userId: ctx.userId,
     });
   }
+
+  if (!allowSquadPosts) {
+    const selectSource = builder
+      .subQuery()
+      .from(Source, 'source')
+      .where("source.type = 'squad'")
+      .andWhere(`source.id = "${alias}"."sourceId"`);
+
+    newBuilder = builder.andWhere(`NOT EXISTS${selectSource.getQuery()}`, {
+      userId: ctx.userId,
+    });
+  }
+
   if (ctx.userId && removeHiddenPosts) {
     newBuilder = newBuilder
       .leftJoin(
@@ -264,6 +278,7 @@ export type FeedResolverOptions<TArgs, TParams, TPage extends Page> = {
   ) => Promise<TParams>;
   warnOnPartialFirstPage?: boolean;
   allowPrivateSources?: boolean;
+  allowSquadPosts?: boolean;
 };
 
 export function feedResolver<
@@ -293,6 +308,7 @@ export function feedResolver<
     fetchQueryParams,
     warnOnPartialFirstPage = false,
     allowPrivateSources = true,
+    allowSquadPosts = true,
   }: FeedResolverOptions<TArgs, TParams, TPage> = {},
 ): IFieldResolver<TSource, Context, TArgs> {
   return async (source, args, context, info): Promise<Connection<GQLPost>> => {
@@ -341,6 +357,7 @@ export function feedResolver<
               removeHiddenPosts,
               removeBannedPosts,
               allowPrivateSources,
+              allowSquadPosts,
             );
             // console.log(builder.queryBuilder.getSql());
             return builder;

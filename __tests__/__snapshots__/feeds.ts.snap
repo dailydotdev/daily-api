@@ -2249,9 +2249,193 @@ Object {
 }
 `;
 
+exports[`query mostDiscussedFeed should not return posts from private squads 1`] = `
+Object {
+  "mostDiscussedFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p3",
+          "readTime": null,
+          "source": Object {
+            "id": "c",
+            "image": "http://image.com/c",
+            "name": "C",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P3",
+          "url": "http://p3.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query mostDiscussedFeed should not return posts from public squads 1`] = `
+Object {
+  "mostDiscussedFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p3",
+          "readTime": null,
+          "source": Object {
+            "id": "c",
+            "image": "http://image.com/c",
+            "name": "C",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P3",
+          "url": "http://p3.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
 exports[`query mostDiscussedFeed should return a most discussed feed 1`] = `
 Object {
   "mostDiscussedFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p3",
+          "readTime": null,
+          "source": Object {
+            "id": "c",
+            "image": "http://image.com/c",
+            "name": "C",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P3",
+          "url": "http://p3.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query mostUpvotedFeed should not return posts from private squads 1`] = `
+Object {
+  "mostUpvotedFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p3",
+          "readTime": null,
+          "source": Object {
+            "id": "c",
+            "image": "http://image.com/c",
+            "name": "C",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "P3",
+          "url": "http://p3.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query mostUpvotedFeed should not return posts from public squads 1`] = `
+Object {
+  "mostUpvotedFeed": Object {
     "edges": Array [
       Object {
         "node": Object {

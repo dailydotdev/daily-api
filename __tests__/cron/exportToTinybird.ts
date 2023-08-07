@@ -446,7 +446,7 @@ describe('TinybirdExportService', () => {
 
     const postsMetadataRepository = new PostsMetadataRepository(
       tinybirdClient,
-      'posts_metadata_v2',
+      'posts_metadata',
     );
 
     const postsRepository = new PostsRepository(con);
