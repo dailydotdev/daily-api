@@ -97,7 +97,7 @@ const limits: pulumi.Input<{
   memory: `${memory}Mi`,
 };
 
-const wsMemory = 3072;
+const wsMemory = 2048;
 const wsLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
@@ -205,13 +205,13 @@ if (isAdhocEnv) {
     {
       nameSuffix: 'private',
       port: 3000,
-      env: [
-        nodeOptions(memory),
-        { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
-      ],
-      minReplicas: 1,
+      env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }],
+      minReplicas: 2,
       maxReplicas: 2,
-      limits,
+      limits: {
+        memory: '256Mi',
+        cpu: '500m',
+      },
       readinessProbe,
       livenessProbe,
       metric: { type: 'memory_cpu', cpu: 85 },
