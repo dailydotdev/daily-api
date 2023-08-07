@@ -69,6 +69,8 @@ describe('PostsRepository', () => {
       source_id: 'a',
       source_type: 'Source',
       tags_str: 'javascript,webdev',
+      flags_json_str:
+        '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
@@ -83,6 +85,8 @@ describe('PostsRepository', () => {
       source_id: 'b',
       source_type: 'Source',
       tags_str: null,
+      flags_json_str:
+        '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
@@ -97,6 +101,8 @@ describe('PostsRepository', () => {
       source_id: 'c',
       source_type: 'Source',
       tags_str: null,
+      flags_json_str:
+        '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
@@ -111,6 +117,8 @@ describe('PostsRepository', () => {
       source_id: 'a',
       source_type: 'Source',
       tags_str: 'backend,data,javascript',
+      flags_json_str:
+        '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
@@ -125,6 +133,8 @@ describe('PostsRepository', () => {
       source_id: 'b',
       source_type: 'Source',
       tags_str: 'html,javascript',
+      flags_json_str:
+        '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
@@ -139,6 +149,8 @@ describe('PostsRepository', () => {
       source_id: 'p',
       source_type: 'Source',
       tags_str: null,
+      flags_json_str:
+        '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
     });
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
@@ -153,6 +165,8 @@ describe('PostsRepository', () => {
       source_id: 'squad',
       source_type: 'Source',
       tags_str: null,
+      flags_json_str:
+        '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
     });
   });
 });
@@ -194,6 +208,8 @@ describe('PostsMetadataRepository', () => {
         content_curation: ['content_curation'],
         source_type: 'source_type',
         banned: 0,
+        flags_json_str:
+          '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
       },
       {
         id: 'id2',
@@ -208,6 +224,8 @@ describe('PostsMetadataRepository', () => {
         content_curation: ['content_curation1', 'content_curation2'],
         source_type: 'source_type2',
         banned: 0,
+        flags_json_str:
+          '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
       },
     ];
 
