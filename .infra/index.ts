@@ -109,7 +109,7 @@ const bgLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = { cpu: '250m', memory: '256Mi' };
 
-const initialDelaySeconds = 30;
+const initialDelaySeconds = 20;
 const readinessProbe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
   failureThreshold: 2,
