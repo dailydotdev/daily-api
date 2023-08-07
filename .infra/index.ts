@@ -97,7 +97,7 @@ const limits: pulumi.Input<{
   memory: `${memory}Mi`,
 };
 
-const wsMemory = 3072;
+const wsMemory = 2048;
 const wsLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
@@ -109,18 +109,19 @@ const bgLimits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = { cpu: '250m', memory: '256Mi' };
 
+const initialDelaySeconds = 30;
 const readinessProbe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/health', port: 'http' },
   failureThreshold: 2,
   periodSeconds: 2,
-  initialDelaySeconds: 20,
+  initialDelaySeconds,
 };
 
 const livenessProbe: k8s.types.input.core.v1.Probe = {
   httpGet: { path: '/liveness', port: 'http' },
   failureThreshold: 3,
   periodSeconds: 5,
-  initialDelaySeconds: 20,
+  initialDelaySeconds,
 };
 
 let appsArgs: ApplicationArgs[];
@@ -205,13 +206,13 @@ if (isAdhocEnv) {
     {
       nameSuffix: 'private',
       port: 3000,
-      env: [
-        nodeOptions(memory),
-        { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
-      ],
-      minReplicas: 1,
+      env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }],
+      minReplicas: 2,
       maxReplicas: 2,
-      limits,
+      limits: {
+        memory: '256Mi',
+        cpu: '500m',
+      },
       readinessProbe,
       livenessProbe,
       metric: { type: 'memory_cpu', cpu: 85 },
