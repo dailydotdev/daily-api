@@ -169,19 +169,24 @@ export type CreatePost = Pick<
 export const createFreeformPost = async (
   con: DataSource | EntityManager,
   args: CreatePost,
-) =>
-  con.getRepository(FreeformPost).save({
+) => {
+  const { private: privacy } = await con
+    .getRepository(SquadSource)
+    .findOneBy({ id: args.sourceId });
+
+  return con.getRepository(FreeformPost).save({
     ...args,
     shortId: args.id,
     visible: true,
-    private: true,
+    private: privacy,
     visibleAt: new Date(),
     origin: PostOrigin.UserGenerated,
     flags: {
       visible: true,
-      private: true,
+      private: privacy,
     },
   });
+};
 
 export interface EditPostArgs
   extends Pick<GQLPost, 'id' | 'title' | 'content'> {
