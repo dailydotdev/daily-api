@@ -2398,6 +2398,7 @@ describe('mutation createFreeformPost', () => {
         content
         contentHtml
         type
+        private
       }
     }
   `;
@@ -2492,6 +2493,32 @@ describe('mutation createFreeformPost', () => {
     expect(res.data.createFreeformPost.title).toEqual(params.title);
     expect(res.data.createFreeformPost.content).toEqual(content);
     expect(res.data.createFreeformPost.contentHtml).toMatchSnapshot();
+  });
+
+  it('should set the post to be private if source is private', async () => {
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    loggedUser = '1';
+
+    const content = '# Updated content';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, content },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createFreeformPost.type).toEqual(PostType.Freeform);
+    expect(res.data.createFreeformPost.private).toEqual(true);
+  });
+
+  it('should set the post to be public if source is public', async () => {
+    await con.getRepository(Source).update({ id: 'a' }, { private: false });
+    loggedUser = '1';
+
+    const content = '# Updated content';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...params, content },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createFreeformPost.type).toEqual(PostType.Freeform);
+    expect(res.data.createFreeformPost.private).toEqual(false);
   });
 
   it('should handle markdown injections', async () => {
