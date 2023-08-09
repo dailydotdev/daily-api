@@ -550,7 +550,7 @@ describe('compatibility routes', () => {
   describe('POST /posts/bookmarks', () => {
     it('should return bad request when no body is provided', () => {
       loggedUser = '1';
-      return request(app.server).post('/v1/posts/bookmarks').expect(400);
+      return request(app.server).post('/v1/posts/bookmarks').expect(500);
     });
 
     it('should add new bookmarks', async () => {

@@ -8,7 +8,7 @@ import {
   Source,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { postsFixture } from '../fixture/post';
+import { postsFixture, sharedPostsFixture } from '../fixture/post';
 import { Checkpoint } from '../../src/entity/Checkpoint';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -22,6 +22,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
+  await saveFixtures(con, ArticlePost, sharedPostsFixture);
 });
 
 it('should update post tagsStr with the all recently updated keywords', async () => {

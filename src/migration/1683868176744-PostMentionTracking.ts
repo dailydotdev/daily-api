@@ -1,5 +1,4 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
-
 export class PostMentionTracking1683868176744 implements MigrationInterface {
   name = 'PostMentionTracking1683868176744';
 

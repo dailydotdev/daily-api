@@ -17,7 +17,7 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     url: 'http://p1.com',
     canonicalUrl: 'http://p1c.com',
     image: 'https://daily.dev/image.jpg',
-    score: 0,
+    score: 1,
     sourceId: 'a',
     createdAt: now,
     tagsStr: 'javascript,webdev',
@@ -93,6 +93,9 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     type: PostType.Article,
     visible: false,
   },
+];
+
+export const sharedPostsFixture: DeepPartial<ArticlePost | SharePost>[] = [
   {
     id: 'squadP1',
     shortId: 'squadP1',

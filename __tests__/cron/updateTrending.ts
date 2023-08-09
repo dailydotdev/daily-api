@@ -2,7 +2,7 @@ import cron from '../../src/cron/updateTrending';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { ArticlePost, Post, Source, View } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { postsFixture } from '../fixture/post';
+import { postsFixture, sharedPostsFixture } from '../fixture/post';
 
 import { DeepPartial } from 'typeorm/common/DeepPartial';
 import { DataSource } from 'typeorm';
@@ -17,6 +17,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
+  await saveFixtures(con, ArticlePost, sharedPostsFixture);
 });
 
 const addViewsToPost = async (

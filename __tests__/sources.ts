@@ -2484,7 +2484,6 @@ describe('SourceMember flags field', () => {
     );
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
-    console.log(res.data);
     expect(res.data.source.currentMember.flags).toEqual({
       hideFeedPosts: true,
     });

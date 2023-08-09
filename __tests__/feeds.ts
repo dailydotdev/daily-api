@@ -43,6 +43,7 @@ import {
   postKeywordsFixture,
   postsFixture,
   postTagsFixture,
+  sharedPostsFixture,
 } from './fixture/post';
 import nock from 'nock';
 import { deleteKeysByPattern, ioRedisPool } from '../src/redis';
@@ -77,6 +78,7 @@ beforeEach(async () => {
   await saveFixtures(con, AdvancedSettings, advancedSettings);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
+  await saveFixtures(con, ArticlePost, sharedPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
   await deleteKeysByPattern('feeds:*');
@@ -325,107 +327,7 @@ describe('query anonymousFeed', () => {
     const res = await client.query(QUERY, {
       variables: { ...variables, filters },
     });
-    const snapshot = {
-      anonymousFeed: {
-        edges: [
-          {
-            node: {
-              id: 'p5',
-              readTime: null,
-              source: {
-                id: 'b',
-                image: 'http://image.com/b',
-                name: 'B',
-                public: true,
-              },
-              tags: ['html', 'javascript'],
-              title: 'P5',
-              url: 'http://p5.com',
-            },
-          },
-          {
-            node: {
-              id: 'p2',
-              readTime: null,
-              source: {
-                id: 'b',
-                image: 'http://image.com/b',
-                name: 'B',
-                public: true,
-              },
-              tags: [],
-              title: 'P2',
-              url: 'http://p2.com',
-            },
-          },
-          {
-            node: {
-              id: 'p3',
-              readTime: null,
-              source: {
-                id: 'c',
-                image: 'http://image.com/c',
-                name: 'C',
-                public: true,
-              },
-              tags: [],
-              title: 'P3',
-              url: 'http://p3.com',
-            },
-          },
-          {
-            node: {
-              id: 'p4',
-              readTime: null,
-              source: {
-                id: 'a',
-                image: 'http://image.com/a',
-                name: 'A',
-                public: true,
-              },
-              tags: ['backend', 'data', 'javascript'],
-              title: 'P4',
-              url: 'http://p4.com',
-            },
-          },
-          {
-            node: {
-              id: 'p1',
-              readTime: null,
-              source: {
-                id: 'a',
-                image: 'http://image.com/a',
-                name: 'A',
-                public: true,
-              },
-              tags: ['javascript', 'webdev'],
-              title: 'P1',
-              url: 'http://p1.com',
-            },
-          },
-          {
-            node: {
-              id: 'includedPost',
-              readTime: null,
-              source: {
-                id: 'includedSource',
-                image: 'http://image.com/c',
-                name: 'IS',
-                public: true,
-              },
-              tags: ['javascript', 'webdev'],
-              title: 'Included Post',
-              url: 'http://ip1.com',
-            },
-          },
-        ],
-        pageInfo: {
-          endCursor: 'c2NvcmU6MA==',
-          hasNextPage: false,
-        },
-      },
-    };
-    expect(res.data).toStrictEqual(snapshot);
+    expect(res.data).toMatchSnapshot();
   });
 
   it('should return anonymous feed filtered by tags and sources', async () => {

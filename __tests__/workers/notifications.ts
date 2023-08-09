@@ -24,7 +24,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { usersFixture } from '../fixture/user';
 import { postsFixture } from '../fixture/post';
-import { createSource, sourcesFixture } from '../fixture/source';
+import { sourcesFixture } from '../fixture/source';
 import {
   NotificationCommentContext,
   NotificationCommenterContext,
@@ -111,12 +111,6 @@ describe('source member role changed', () => {
     sourceId: 'squad',
     referralToken: 'rt1',
   };
-
-  beforeEach(async () => {
-    await con
-      .getRepository(Source)
-      .save(createSource('squad', 'A', 'http://a.com', SourceType.Squad, true));
-  });
 
   it('should add blocked notification', async () => {
     const worker = await import(
