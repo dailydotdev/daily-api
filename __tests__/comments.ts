@@ -175,9 +175,6 @@ const saveSquadFixture = async (sourceId: string) => {
     },
   ]);
   await con.getRepository(Source).update({ id: sourceId }, { private: true });
-  // await con
-  //   .getRepository(Source)
-  //   .save(createSource(sourceId, 'A', 'http://a.com', SourceType.Squad, true));
   await con.getRepository(SourceMember).save([
     {
       userId: '1',
