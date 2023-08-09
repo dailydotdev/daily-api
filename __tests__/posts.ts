@@ -40,7 +40,7 @@ import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
-import { DataSource, DeepPartial } from 'typeorm';
+import { DataSource, DeepPartial, In } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
   postScraperOrigin,
@@ -56,6 +56,7 @@ import nock from 'nock';
 import { deleteKeysByPattern } from '../src/redis';
 import { checkHasMention } from '../src/common/markdown';
 import { Downvote } from '../src/entity/Downvote';
+import { PostQuestion } from '../src/entity/posts/PostQuestion';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -947,6 +948,62 @@ describe('query postUpvotes', () => {
     expect(new Date(secondUpvote.node.createdAt).getTime()).toBeGreaterThan(
       new Date(firstUpvote.node.createdAt).getTime(),
     );
+  });
+});
+
+describe('query searchQuestionRecommendations', () => {
+  const QUERY = `
+    query SearchQuestionRecommendations {
+      searchQuestionRecommendations {
+        id
+        postId
+        question
+      }
+    }
+  `;
+
+  it('should throw error when user is not logged in', async () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it('should return questions related to upvoted posts of user', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(PostQuestion).save([
+      { postId: postsFixture[0].id, question: 'Question 1' },
+      { postId: postsFixture[1].id, question: 'Question 2' },
+      { postId: postsFixture[2].id, question: 'Question 3' },
+      { postId: postsFixture[3].id, question: 'Question 4' },
+      { postId: postsFixture[4].id, question: 'Question 5' },
+      { postId: postsFixture[5].id, question: 'Question 6' },
+      { postId: postsFixture[6].id, question: 'Question 7' },
+    ]);
+
+    const otherUserUpvotes = [postsFixture[5].id, postsFixture[6].id];
+    await con.getRepository(Upvote).save([
+      { userId: '1', postId: postsFixture[0].id },
+      { userId: '1', postId: postsFixture[1].id },
+      { userId: '1', postId: postsFixture[2].id },
+      { userId: '1', postId: postsFixture[3].id },
+      { userId: '1', postId: postsFixture[4].id },
+      { userId: '2', postId: otherUserUpvotes[0] },
+      { userId: '2', postId: otherUserUpvotes[1] },
+    ]);
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    const loggedUserOnly = res.data.searchQuestionRecommendations.every(
+      ({ postId }) => !otherUserUpvotes.includes(postId),
+    );
+    expect(loggedUserOnly).toBeTruthy();
+
+    const postIds = res.data.searchQuestionRecommendations.map(
+      ({ postId }) => postId,
+    );
+    const loggedUserUpvotes = await con
+      .getRepository(Upvote)
+      .findBy({ postId: In(postIds), userId: loggedUser }); // verify every item is for the logged user
+    expect(loggedUserUpvotes).toHaveLength(3);
   });
 });
 

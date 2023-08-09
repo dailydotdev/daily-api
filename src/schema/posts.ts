@@ -70,6 +70,7 @@ import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
 import { ContentImage } from '../entity/ContentImage';
 import { Downvote } from '../entity/Downvote';
+import { PostQuestion } from '../entity/posts/PostQuestion';
 
 export interface GQLPost {
   id: string;
@@ -120,6 +121,8 @@ interface PinPostArgs {
   id: string;
   pinned: boolean;
 }
+
+type GQLPostQuestion = Pick<PostQuestion, 'id' | 'postId' | 'question'>;
 
 export type GQLPostNotification = Pick<
   GQLPost,
@@ -469,6 +472,12 @@ export const typeDefs = /* GraphQL */ `
     image: String!
   }
 
+  type PostQuestion {
+    id: String!
+    postId: String!
+    question: String!
+  }
+
   """
   Enum of the possible reasons to report a post
   """
@@ -539,6 +548,8 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): UpvoteConnection!
+
+    searchQuestionRecommendations: [PostQuestion]! @auth
   }
 
   extend type Mutation {
@@ -1001,6 +1012,35 @@ export const resolvers: IResolvers<any, Context> = {
           orderByKey: 'DESC',
         },
       );
+    },
+    searchQuestionRecommendations: async (
+      source,
+      _,
+      ctx: Context,
+    ): Promise<GQLPostQuestion[]> => {
+      const res = await ctx.con
+        .getRepository(PostQuestion)
+        .createQueryBuilder('pq')
+        .select('pq.id', 'id')
+        .addSelect('pq."postId"', 'postId')
+        .addSelect('pq.question', 'question')
+        .addSelect('random()', 'rand')
+        .innerJoin(
+          (query) =>
+            query
+              .select('u."postId"')
+              .from(Upvote, 'u')
+              .where({ userId: ctx.userId })
+              .orderBy('u."createdAt"', 'DESC')
+              .limit(5),
+          'upvoted',
+          'pq."postId" = upvoted."postId"',
+        )
+        .orderBy('rand', 'DESC')
+        .limit(3)
+        .getRawMany();
+
+      return res;
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
