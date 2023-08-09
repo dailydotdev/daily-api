@@ -5,10 +5,10 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Post } from '../posts';
+import { Post } from './Post';
 
 @Entity()
-export class SearchRecommendation {
+export class PostQuestion {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

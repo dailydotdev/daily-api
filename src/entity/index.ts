@@ -32,7 +32,6 @@ export * from './CommentMention';
 export * from './ReputationEvent';
 export * from './Submission';
 export * from './notifications';
-export * from './search';
 export * from './Feature';
 export * from './UserAction';
 export * from './ContentImage';
