@@ -93,6 +93,9 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     type: PostType.Article,
     visible: false,
   },
+];
+
+export const sharedPostsFixture: DeepPartial<ArticlePost | SharePost>[] = [
   {
     id: 'squadP1',
     shortId: 'squadP1',

@@ -43,6 +43,7 @@ import {
   postKeywordsFixture,
   postsFixture,
   postTagsFixture,
+  sharedPostsFixture,
 } from './fixture/post';
 import nock from 'nock';
 import { deleteKeysByPattern, ioRedisPool } from '../src/redis';
@@ -77,6 +78,7 @@ beforeEach(async () => {
   await saveFixtures(con, AdvancedSettings, advancedSettings);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
+  await saveFixtures(con, ArticlePost, sharedPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await saveFixtures(con, PostKeyword, postKeywordsFixture);
   await deleteKeysByPattern('feeds:*');

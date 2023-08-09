@@ -3,7 +3,11 @@ import { saveFixtures } from '../helpers';
 import createOrGetConnection from '../../src/db';
 import { ArticlePost, PostTag, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
-import { postsFixture, postTagsFixture } from '../fixture/post';
+import {
+  postsFixture,
+  postTagsFixture,
+  sharedPostsFixture,
+} from '../fixture/post';
 import {
   PostsMetadataRepositoryDependency,
   PostsRepositoryDependency,
@@ -33,6 +37,7 @@ beforeEach(async () => {
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
+  await saveFixtures(con, ArticlePost, sharedPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await con
     .getRepository(User)
@@ -67,7 +72,7 @@ describe('PostsRepository', () => {
       post_private: 0,
       post_type: 'article',
       source_id: 'a',
-      source_type: 'Source',
+      source_type: 'machine',
       tags_str: 'javascript,webdev',
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
@@ -83,7 +88,7 @@ describe('PostsRepository', () => {
       post_private: 0,
       post_type: 'article',
       source_id: 'b',
-      source_type: 'Source',
+      source_type: 'machine',
       tags_str: null,
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
@@ -99,7 +104,7 @@ describe('PostsRepository', () => {
       post_private: 0,
       post_type: 'article',
       source_id: 'c',
-      source_type: 'Source',
+      source_type: 'machine',
       tags_str: null,
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
@@ -115,7 +120,7 @@ describe('PostsRepository', () => {
       post_private: 0,
       post_type: 'article',
       source_id: 'a',
-      source_type: 'Source',
+      source_type: 'machine',
       tags_str: 'backend,data,javascript',
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
@@ -131,7 +136,7 @@ describe('PostsRepository', () => {
       post_private: 0,
       post_type: 'article',
       source_id: 'b',
-      source_type: 'Source',
+      source_type: 'machine',
       tags_str: 'html,javascript',
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
@@ -147,7 +152,7 @@ describe('PostsRepository', () => {
       post_private: 1,
       post_type: 'article',
       source_id: 'p',
-      source_type: 'Source',
+      source_type: 'machine',
       tags_str: null,
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
@@ -163,7 +168,7 @@ describe('PostsRepository', () => {
       post_private: 1,
       post_type: 'article',
       source_id: 'squad',
-      source_type: 'Source',
+      source_type: 'squad',
       tags_str: null,
       flags_json_str:
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',

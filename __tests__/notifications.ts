@@ -36,7 +36,7 @@ import {
   NotificationType,
   saveNotificationPreference,
 } from '../src/notifications/common';
-import { postsFixture } from './fixture/post';
+import { postsFixture, sharedPostsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 
 let app: FastifyInstance;
@@ -310,6 +310,7 @@ const prepareNotificationPreferences = async () => {
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, Post, sharedPostsFixture);
   await con.getRepository(NotificationPreferencePost).save([
     {
       userId: '1',
