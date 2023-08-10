@@ -48,7 +48,7 @@ describe('query popularIntegrations', () => {
   }
 }`;
 
-  it('should return the popular routes', async () => {
+  it('should return the popular integrations', async () => {
     const expected = integrations.map((i) => _.omit(i, 'timestamp'));
 
     const res = await client.query(QUERY);
