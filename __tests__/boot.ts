@@ -245,6 +245,30 @@ describe('anonymous boot', () => {
     expect(second.body.flags.onboarding_v2.enabled).toBeFalsy();
   });
 
+  it('should extend the TTL for redis cache if user visits a second time', async () => {
+    const first = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+
+    const key = generateStorageKey(
+      StorageTopic.Boot,
+      'first_visit',
+      first.body.user.id,
+    );
+
+    const firstTTL = await ioRedisPool.execute((client) => client.ttl(key));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', first.headers['set-cookie'])
+      .expect(200);
+    const secondTTL = await ioRedisPool.execute((client) => client.ttl(key));
+    // Should have reset the TTL
+    expect(firstTTL).toEqual(secondTTL);
+  });
+
   it('should not change value if user is not a pre onboarding v2 user', async () => {
     mockFeatureFlagForUser('onboarding_v2', true, 'v1');
     const res = await request(app.server)
