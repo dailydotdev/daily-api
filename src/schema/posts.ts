@@ -1019,11 +1019,8 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<GQLPostQuestion[]> =>
-      graphorm.query<GQLPostQuestion>(ctx, info, (builder) => ({
+      graphorm.query(ctx, info, (builder) => ({
         queryBuilder: builder.queryBuilder
-          .select(`"${builder.alias}".id`, 'id')
-          .addSelect(`"${builder.alias}"."postId"`, 'postId')
-          .addSelect(`"${builder.alias}".question`, 'question')
           .addSelect('random()', 'rand')
           .innerJoin(
             (query) =>
