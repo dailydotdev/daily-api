@@ -3515,7 +3515,7 @@ describe('mutation votePost', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'p1', vote: 'invalid' },
+        variables: { id: 'p1', vote: 3 },
       },
       'GRAPHQL_VALIDATION_FAILED',
     );
