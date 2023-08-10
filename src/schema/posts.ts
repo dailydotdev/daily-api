@@ -226,7 +226,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Whether user dismissed feedback prompt for post
     """
-    feedbackDimiss: Boolean
+    feedbackDismiss: Boolean
   }
 
   type UserPost {

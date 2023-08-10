@@ -11,10 +11,10 @@ import { Post } from './posts';
 import { User } from './User';
 
 export type UserPostFlags = Partial<{
-  feedbackDimiss: boolean;
+  feedbackDismiss: boolean;
 }>;
 
-export type UserPostFlagsPublic = Pick<UserPostFlags, 'feedbackDimiss'>;
+export type UserPostFlagsPublic = Pick<UserPostFlags, 'feedbackDismiss'>;
 
 export enum UserPostVote {
   Up = 1,

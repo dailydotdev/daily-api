@@ -52,7 +52,11 @@ import nock from 'nock';
 import { deleteKeysByPattern } from '../src/redis';
 import { checkHasMention } from '../src/common/markdown';
 import { Downvote } from '../src/entity/Downvote';
-import { UserPost, UserPostVote } from '../src/entity/UserPost';
+import {
+  UserPost,
+  userPostDefaultData,
+  UserPostVote,
+} from '../src/entity/UserPost';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -3398,6 +3402,48 @@ describe('flags field', () => {
       sentAnalyticsReport: true,
       visible: true,
       showOnFeed: true,
+    });
+  });
+});
+
+describe('userState field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      userState {
+        vote
+        hidden
+        flags {
+          feedbackDismiss
+        }
+      }
+    }
+  }`;
+
+  it('should return null if anonymous user', async () => {
+    const res = await client.query(QUERY);
+    expect(res.data.post.userState).toBeNull();
+  });
+
+  it('should return default state if state does not exist', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY);
+    expect(res.data.post.userState).toMatchObject(userPostDefaultData);
+  });
+
+  it('should return user state', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Up,
+      hidden: true,
+      flags: { feedbackDismiss: false },
+    });
+    const res = await client.query(QUERY);
+    expect(res.data.post.userState).toMatchObject({
+      vote: UserPostVote.Up,
+      hidden: true,
+      flags: { feedbackDismiss: false },
     });
   });
 });
