@@ -21,8 +21,12 @@ import {
   CommentMention,
 } from '../src/entity';
 import { SourceMemberRoles } from '../src/roles';
-import { createSource, sourcesFixture } from './fixture/source';
-import { postsFixture, postTagsFixture } from './fixture/post';
+import { sourcesFixture } from './fixture/source';
+import {
+  postsFixture,
+  postTagsFixture,
+  sharedPostsFixture,
+} from './fixture/post';
 import { getMentionLink } from '../src/common/markdown';
 import { saveComment, updateMentions } from '../src/schema/comments';
 import { DataSource } from 'typeorm';
@@ -58,6 +62,7 @@ beforeEach(async () => {
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
+  await saveFixtures(con, ArticlePost, sharedPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await con.getRepository(User).save(usersFixture);
   await con.getRepository(Comment).save([
@@ -169,9 +174,7 @@ const saveSquadFixture = async (sourceId: string) => {
       image: 'sample2/image',
     },
   ]);
-  await con
-    .getRepository(Source)
-    .save(createSource(sourceId, 'A', 'http://a.com', SourceType.Squad, true));
+  await con.getRepository(Source).update({ id: sourceId }, { private: true });
   await con.getRepository(SourceMember).save([
     {
       userId: '1',

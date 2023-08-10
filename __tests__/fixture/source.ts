@@ -20,7 +20,13 @@ export const createSource = (
 };
 
 export const sourcesFixture: DeepPartial<MachineSource>[] = [
-  { id: 'a', name: 'A', image: 'http://image.com/a', handle: 'a' },
+  {
+    id: 'a',
+    name: 'A',
+    image: 'http://image.com/a',
+    handle: 'a',
+    type: SourceType.Machine,
+  },
   {
     id: 'b',
     rankBoost: 10,
@@ -29,8 +35,15 @@ export const sourcesFixture: DeepPartial<MachineSource>[] = [
     handle: 'b',
     headerImage: 'http://image.com/header',
     color: 'avocado',
+    type: SourceType.Machine,
   },
-  { id: 'c', name: 'C', image: 'http://image.com/c', handle: 'c' },
+  {
+    id: 'c',
+    name: 'C',
+    image: 'http://image.com/c',
+    handle: 'c',
+    type: SourceType.Machine,
+  },
   {
     id: 'p',
     name: 'Private',
@@ -38,12 +51,14 @@ export const sourcesFixture: DeepPartial<MachineSource>[] = [
     private: true,
     active: false,
     handle: 'p',
+    type: SourceType.Machine,
   },
   {
     id: 'community',
     name: 'Community Picks',
     image: 'http://image.com/c',
     handle: 'community',
+    type: SourceType.Machine,
   },
   {
     id: 'squad',
