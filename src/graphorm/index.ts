@@ -167,6 +167,16 @@ const obj = new GraphORM({
       flags: {
         jsonType: true,
       },
+      userState: {
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
+            return qb
+              .where(`${childAlias}."userId" = :userId`, { userId: ctx.userId })
+              .andWhere(`${childAlias}."postId" = "${parentAlias}".id`);
+          },
+        },
+      },
     },
   },
   Source: {
@@ -395,6 +405,13 @@ const obj = new GraphORM({
           childColumn: 'notificationId',
           parentColumn: 'id',
         },
+      },
+    },
+  },
+  UserPost: {
+    fields: {
+      flags: {
+        jsonType: true,
       },
     },
   },

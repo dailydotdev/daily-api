@@ -70,7 +70,11 @@ import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
 import { ContentImage } from '../entity/ContentImage';
 import { Downvote } from '../entity/Downvote';
-import { UserPost, UserPostVote } from '../entity/UserPost';
+import {
+  UserPost,
+  UserPostFlagsPublic,
+  UserPostVote,
+} from '../entity/UserPost';
 
 export interface GQLPost {
   id: string;
@@ -115,6 +119,7 @@ export interface GQLPost {
   contentHtml?: string;
   downvoted?: boolean;
   flags?: PostFlagsPublic;
+  userState?: GQLUserPost;
 }
 
 interface PinPostArgs {
@@ -130,6 +135,12 @@ export type GQLPostNotification = Pick<
 export interface GQLPostUpvote {
   createdAt: Date;
   post: GQLPost;
+}
+
+export interface GQLUserPost {
+  vote: UserPostVote;
+  hidden: boolean;
+  flags?: UserPostFlagsPublic;
 }
 
 export interface GQLPostUpvoteArgs extends ConnectionArguments {
@@ -209,6 +220,30 @@ export const typeDefs = /* GraphQL */ `
     The unix timestamp (seconds) the post will be promoted to public to
     """
     promoteToPublic: Int @auth(requires: [MODERATOR])
+  }
+
+  type UserPostFlagsPublic {
+    """
+    Whether user dismissed feedback prompt for post
+    """
+    feedbackDimiss: Boolean
+  }
+
+  type UserPost {
+    """
+    The user's vote for the post
+    """
+    vote: Int!
+
+    """
+    Whether the post is hidden or not
+    """
+    hidden: Boolean!
+
+    """
+    The post's flags
+    """
+    flags: UserPostFlagsPublic
   }
 
   """
@@ -419,6 +454,11 @@ export const typeDefs = /* GraphQL */ `
     All the flags for the post
     """
     flags: PostFlagsPublic
+
+    """
+    User state for the post
+    """
+    userState: UserPost
   }
 
   type PostConnection {
@@ -799,6 +839,21 @@ export const typeDefs = /* GraphQL */ `
       Id of the post
       """
       id: ID!
+    ): EmptyResponse @auth
+
+    """
+    Vote post
+    """
+    votePost(
+      """
+      Id of the post
+      """
+      id: ID!
+
+      """
+      Vote type
+      """
+      vote: Int!
     ): EmptyResponse @auth
   }
 
@@ -1568,6 +1623,52 @@ export const resolvers: IResolvers<any, Context> = {
       await ctx.con.transaction(async (entityManager) => {
         await revertPostDownvote(entityManager, id, ctx.userId);
       });
+      return { _: true };
+    },
+    votePost: async (
+      source,
+      { id, vote }: { id: string; vote: UserPostVote },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      if (!Object.values(UserPostVote).includes(vote)) {
+        throw new ValidationError('Unsupported vote type');
+      }
+
+      const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      await ensureSourcePermissions(ctx, post.sourceId);
+      const userPostRepo = ctx.con.getRepository(UserPost);
+
+      switch (vote) {
+        case UserPostVote.Up:
+          await userPostRepo.save({
+            postId: id,
+            userId: ctx.userId,
+            vote: UserPostVote.Up,
+            hidden: false,
+          });
+
+          break;
+        case UserPostVote.Down:
+          await userPostRepo.save({
+            postId: id,
+            userId: ctx.userId,
+            vote: UserPostVote.Down,
+            hidden: true,
+          });
+
+          break;
+
+        case UserPostVote.None:
+          await userPostRepo.save({
+            postId: id,
+            userId: ctx.userId,
+            vote: UserPostVote.None,
+            hidden: false,
+          });
+        default:
+          throw new ValidationError('Unsupported vote type');
+      }
+
       return { _: true };
     },
   }),
