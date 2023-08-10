@@ -1,5 +1,3 @@
-import { FastifyInstance } from 'fastify';
-import request from 'supertest';
 import {
   disposeGraphQLTesting,
   GraphQLTestClient,
@@ -13,7 +11,6 @@ import { keywordsFixture } from './fixture/keywords';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 
-let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
@@ -25,7 +22,6 @@ beforeAll(async () => {
     () => new MockContext(con, loggedUser),
   );
   client = state.client;
-  app = state.app;
 });
 
 beforeEach(async () => {
@@ -67,27 +63,5 @@ describe('query searchTags', () => {
   it('should take into account keyword synonyms', async () => {
     const res = await client.query(QUERY('web-dev'));
     expect(res.data).toMatchSnapshot();
-  });
-});
-
-describe('compatibility routes', () => {
-  describe('GET /tags/latest', () => {
-    it('should return most popular tags ordered by value', async () => {
-      const res = await request(app.server)
-        .get('/v1/tags/popular')
-        .send()
-        .expect(200);
-      expect(res.body).toMatchSnapshot();
-    });
-  });
-
-  describe('GET /tags/search', () => {
-    it('should search for tags and order by value', async () => {
-      const res = await request(app.server)
-        .get('/v1/tags/search?query=dev')
-        .send()
-        .expect(200);
-      expect(res.body).toMatchSnapshot();
-    });
   });
 });

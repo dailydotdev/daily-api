@@ -21,8 +21,6 @@ import {
   WelcomePost,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
-import { FastifyInstance } from 'fastify';
-import request from 'supertest';
 import { DataSource, In } from 'typeorm';
 import { randomUUID } from 'crypto';
 import createOrGetConnection from '../src/db';
@@ -34,7 +32,6 @@ import { SourcePermissionErrorKeys } from '../src/errors';
 import { updateFlagsStatement, WELCOME_POST_TITLE } from '../src/common';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 
-let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
@@ -47,7 +44,6 @@ beforeAll(async () => {
     () => new MockContext(con, loggedUser, premiumUser),
   );
   client = state.client;
-  app = state.app;
 });
 
 beforeEach(async () => {
@@ -944,13 +940,6 @@ query SourceMemberByToken($token: String!) {
     expect(res.errors).toBeFalsy();
     expect(res.data.sourceMemberByToken.user.id).toEqual('1');
     expect(res.data.sourceMemberByToken.source.id).toEqual('a');
-  });
-});
-
-describe('compatibility route /publications', () => {
-  it('should return only public sources', async () => {
-    const res = await request(app.server).get('/v1/publications').expect(200);
-    expect(res.body).toMatchSnapshot();
   });
 });
 

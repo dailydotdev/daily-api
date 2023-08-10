@@ -1,29 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`compatibility routes GET /posts/bookmarks should return bookmarks ordered by time 1`] = `
-Array [
-  Object {
-    "id": "p3",
-  },
-  Object {
-    "id": "p1",
-  },
-]
-`;
-
-exports[`compatibility routes POST /posts/bookmarks should add new bookmarks 1`] = `
-Array [
-  Bookmark {
-    "postId": "p1",
-    "userId": "1",
-  },
-  Bookmark {
-    "postId": "p3",
-    "userId": "1",
-  },
-]
-`;
-
 exports[`mutation addBookmarks should add new bookmarks 1`] = `
 Array [
   Bookmark {

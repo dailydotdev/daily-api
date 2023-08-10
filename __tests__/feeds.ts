@@ -25,11 +25,7 @@ import {
 import { SourceMemberRoles } from '../src/roles';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
-import request from 'supertest';
-import _ from 'lodash';
-
 import {
-  authorizeRequest,
   GraphQLTestClient,
   GraphQLTestingState,
   initializeGraphQLTesting,
@@ -1616,161 +1612,14 @@ describe('mutation removeFiltersFromFeed', () => {
   });
 });
 
-describe('compatibility routes', () => {
-  describe('GET /posts/latest', () => {
-    it('should return anonymous feed with no filters ordered by popularity', async () => {
-      await con.getRepository(Post).delete({ id: 'p6' });
-      const res = await request(app.server)
-        .get('/v1/posts/latest')
-        .query({ latest: new Date(), pageSize: 2, page: 0 })
-        .send()
-        .expect(200);
-      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
-    });
-
-    it('should return anonymous feed filtered by sources', async () => {
-      const res = await request(app.server)
-        .get('/v1/posts/latest')
-        .query({ latest: new Date(), sources: ['a', 'b'] })
-        .send()
-        .expect(200);
-      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
-    });
-
-    it('should return anonymous feed filtered by tags', async () => {
-      const res = await request(app.server)
-        .get('/v1/posts/latest')
-        .query({ latest: new Date(), tags: ['html', 'webdev'] })
-        .send()
-        .expect(200);
-      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
-    });
-
-    it('should return anonymous feed filtered by tags and sources', async () => {
-      const res = await request(app.server)
-        .get('/v1/posts/latest')
-        .query({
-          latest: new Date(),
-          tags: ['javascript'],
-          sources: ['a', 'b'],
-        })
-        .send()
-        .expect(200);
-      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
-    });
-
-    it('should return preconfigured feed when logged-in', async () => {
-      await saveFeedFixtures();
-      loggedUser = '1';
-
-      const res = await authorizeRequest(
-        request(app.server)
-          .get('/v1/posts/latest')
-          .query({ latest: new Date() }),
-      )
-        .send()
-        .expect(200);
-      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
-    });
-  });
-
-  describe('GET /posts/publication', () => {
-    it('should return single source feed', async () => {
-      const res = await request(app.server)
-        .get('/v1/posts/publication')
-        .query({ latest: new Date(), pub: 'b' })
-        .send()
-        .expect(200);
-      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
-    });
-  });
-
-  describe('GET /posts/tag', () => {
-    it('should return single tag feed', async () => {
-      const res = await request(app.server)
-        .get('/v1/posts/tag')
-        .query({ latest: new Date(), tag: 'javascript' })
-        .send()
-        .expect(200);
-      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
-    });
-  });
-
-  describe('GET /feeds/publications', () => {
-    it('should return feed publications filters', async () => {
-      await saveFeedFixtures();
-      loggedUser = '1';
-      const res = await request(app.server)
-        .get('/v1/feeds/publications')
-        .expect(200);
-      expect(res.body).toMatchSnapshot();
-    });
-  });
-
-  describe('POST /feeds/publications', () => {
-    it('should add new feed publications filters', async () => {
-      loggedUser = '1';
-      const res = await request(app.server)
-        .post('/v1/feeds/publications')
-        .send([
-          { publicationId: 'a', enabled: false },
-          { publicationId: 'b', enabled: false },
-        ])
-        .expect(200);
-      expect(res.body).toMatchSnapshot();
-    });
-
-    it('should remove existing feed publications filters', async () => {
-      await saveFeedFixtures();
-      loggedUser = '1';
-      const res = await request(app.server)
-        .post('/v1/feeds/publications')
-        .send([{ publicationId: 'b', enabled: true }])
-        .expect(200);
-      expect(res.body).toMatchSnapshot();
-    });
-  });
-
-  describe('GET /feeds/tags', () => {
-    it('should return feed tags filters', async () => {
-      await saveFeedFixtures();
-      loggedUser = '1';
-      const res = await request(app.server).get('/v1/feeds/tags').expect(200);
-      expect(res.body).toMatchSnapshot();
-    });
-  });
-
-  describe('POST /feeds/tags', () => {
-    it('should add new feed tags filters', async () => {
-      loggedUser = '1';
-      const res = await request(app.server)
-        .post('/v1/feeds/tags')
-        .send([{ tag: 'html' }, { tag: 'javascript' }])
-        .expect(200);
-      expect(res.body).toMatchSnapshot();
-    });
-  });
-  describe('DELETE /feeds/tags', () => {
-    it('should remove existing feed tags filters', async () => {
-      await saveFeedFixtures();
-      loggedUser = '1';
-      const res = await request(app.server)
-        .delete('/v1/feeds/tags')
-        .send({ tag: 'javascript' })
-        .expect(200);
-      expect(res.body).toMatchSnapshot();
-    });
-  });
-});
-
 describe('function feedToFilters', () => {
-  it('shoud return filters having excluded sources based on advanced settings', async () => {
+  it('should return filters having excluded sources based on advanced settings', async () => {
     loggedUser = '1';
     await saveAdvancedSettingsFiltersFixtures();
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
   });
 
-  it('shoud return filters for tags/sources based on the values from our data', async () => {
+  it('should return filters for tags/sources based on the values from our data', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
     expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
