@@ -1630,43 +1630,53 @@ export const resolvers: IResolvers<any, Context> = {
       { id, vote }: { id: string; vote: UserPostVote },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      if (!Object.values(UserPostVote).includes(vote)) {
-        throw new ValidationError('Unsupported vote type');
-      }
-
-      const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
-      await ensureSourcePermissions(ctx, post.sourceId);
-      const userPostRepo = ctx.con.getRepository(UserPost);
-
-      switch (vote) {
-        case UserPostVote.Up:
-          await userPostRepo.save({
-            postId: id,
-            userId: ctx.userId,
-            vote: UserPostVote.Up,
-            hidden: false,
-          });
-
-          break;
-        case UserPostVote.Down:
-          await userPostRepo.save({
-            postId: id,
-            userId: ctx.userId,
-            vote: UserPostVote.Down,
-            hidden: true,
-          });
-
-          break;
-
-        case UserPostVote.None:
-          await userPostRepo.save({
-            postId: id,
-            userId: ctx.userId,
-            vote: UserPostVote.None,
-            hidden: false,
-          });
-        default:
+      try {
+        if (!Object.values(UserPostVote).includes(vote)) {
           throw new ValidationError('Unsupported vote type');
+        }
+
+        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+        await ensureSourcePermissions(ctx, post.sourceId);
+        const userPostRepo = ctx.con.getRepository(UserPost);
+
+        switch (vote) {
+          case UserPostVote.Up:
+            await userPostRepo.save({
+              postId: id,
+              userId: ctx.userId,
+              vote: UserPostVote.Up,
+              hidden: false,
+            });
+
+            break;
+          case UserPostVote.Down:
+            await userPostRepo.save({
+              postId: id,
+              userId: ctx.userId,
+              vote: UserPostVote.Down,
+              hidden: true,
+            });
+
+            break;
+          case UserPostVote.None:
+            await userPostRepo.save({
+              postId: id,
+              userId: ctx.userId,
+              vote: UserPostVote.None,
+              hidden: false,
+            });
+
+            break;
+          default:
+            throw new ValidationError('Unsupported vote type');
+        }
+      } catch (err) {
+        // Foreign key violation
+        if (err?.code === TypeOrmError.FOREIGN_KEY) {
+          throw new NotFoundError('Post or user not found');
+        }
+
+        throw err;
       }
 
       return { _: true };

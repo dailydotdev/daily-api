@@ -1708,6 +1708,11 @@ describe('mutation cancelUpvote', () => {
     loggedUser = '1';
     const repo = con.getRepository(Upvote);
     await repo.save({ postId: 'p1', userId: loggedUser });
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Up,
+    });
     const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
     const actual = await con.getRepository(Upvote).find();
@@ -3294,6 +3299,7 @@ describe('mutation cancelDownvote', () => {
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
+      vote: UserPostVote.Down,
       hidden: true,
     });
     const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
@@ -3444,6 +3450,130 @@ describe('userState field', () => {
       vote: UserPostVote.Up,
       hidden: true,
       flags: { feedbackDismiss: false },
+    });
+  });
+});
+
+describe('mutation votePost', () => {
+  const MUTATION = `
+    mutation VotePost($id: ID!, $vote: Int!) {
+      votePost(id: $id, vote: $vote) {
+        _
+      }
+    }`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1', vote: UserPostVote.Up },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw not found when cannot find post', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'invalid', vote: UserPostVote.Up },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw not found when cannot find user', () => {
+    loggedUser = '3';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1', vote: UserPostVote.Up },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1', vote: UserPostVote.Up },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw when invalid vote option', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1', vote: 'invalid' },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should upvote', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.Up },
+    });
+    expect(res.errors).toBeFalsy();
+    const userPost = await con.getRepository(UserPost).findOneBy({
+      userId: loggedUser,
+      postId: 'p1',
+    });
+    expect(userPost).toMatchObject({
+      userId: loggedUser,
+      postId: 'p1',
+      vote: UserPostVote.Up,
+      hidden: false,
+    });
+  });
+
+  it('should downvote', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.Down },
+    });
+    expect(res.errors).toBeFalsy();
+    const userPost = await con.getRepository(UserPost).findOneBy({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    expect(userPost).toMatchObject({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Down,
+      hidden: true,
+    });
+  });
+
+  it('should cancel vote', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(Upvote);
+    await repo.save({ postId: 'p1', userId: loggedUser });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.None },
+    });
+    const userPost = await con.getRepository(UserPost).findOneBy({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    expect(res.errors).toBeFalsy();
+    expect(userPost).toMatchObject({
+      userId: loggedUser,
+      postId: 'p1',
+      vote: UserPostVote.None,
+      hidden: false,
     });
   });
 });
