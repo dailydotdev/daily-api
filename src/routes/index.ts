@@ -6,7 +6,6 @@ import settings from './settings';
 import redirector from './redirector';
 import devcards from './devcards';
 import privateRoutes from './private';
-import search from './search';
 import whoami from './whoami';
 import notifications from './notifications';
 import boot from './boot';
@@ -24,7 +23,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   if (process.env.ENABLE_PRIVATE_ROUTES === 'true') {
     fastify.register(privateRoutes, { prefix: '/p' });
   }
-  fastify.register(search, { prefix: '/search' });
   fastify.register(whoami, { prefix: '/whoami' });
   fastify.register(boot, { prefix: '/boot' });
   fastify.register(boot, { prefix: '/new_boot' });

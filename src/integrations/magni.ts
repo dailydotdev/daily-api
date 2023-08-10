@@ -1,16 +1,23 @@
 import fetch, { Response } from 'node-fetch';
 import { fetchOptions } from '../http';
-import { FastifyRequest } from 'fastify';
 
 const magniOrigin = process.env.MAGNI_ORIGIN;
 
-export const postFeedback = async (req: FastifyRequest): Promise<Response> =>
+export interface SearchResultFeedback {
+  chunkId: string;
+  feedback: number;
+}
+
+export const postFeedback = async (
+  userId: string,
+  params: SearchResultFeedback,
+): Promise<Response> =>
   fetch(`${magniOrigin}/feedback`, {
     ...fetchOptions,
     method: 'post',
-    body: JSON.stringify(req.params),
+    body: JSON.stringify(params),
     headers: {
-      cookie: req.headers.cookie,
+      'X-User-Id': userId,
       'Content-Type': 'application/json',
     },
   });
