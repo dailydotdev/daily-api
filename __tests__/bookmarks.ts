@@ -1,7 +1,3 @@
-import { FastifyInstance } from 'fastify';
-import request from 'supertest';
-import _ from 'lodash';
-
 import {
   disposeGraphQLTesting,
   GraphQLTestClient,
@@ -26,7 +22,6 @@ import { postsFixture, postTagsFixture } from './fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 
-let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
@@ -58,7 +53,6 @@ beforeAll(async () => {
     () => new MockContext(con, loggedUser, premiumUser),
   );
   client = state.client;
-  app = state.app;
 });
 
 beforeEach(async () => {
@@ -543,58 +537,6 @@ describe('query bookmarksLists', () => {
     const res = await client.query(QUERY);
     delete list.userId;
     expect(res.data.bookmarkLists).toEqual([list]);
-  });
-});
-
-describe('compatibility routes', () => {
-  describe('POST /posts/bookmarks', () => {
-    it('should return bad request when no body is provided', () => {
-      loggedUser = '1';
-      return request(app.server).post('/v1/posts/bookmarks').expect(500);
-    });
-
-    it('should add new bookmarks', async () => {
-      loggedUser = '1';
-      await request(app.server)
-        .post('/v1/posts/bookmarks')
-        .send(['p1', 'p3'])
-        .expect(204);
-      const actual = await con.getRepository(Bookmark).find({
-        where: { userId: '1' },
-        select: ['postId', 'userId'],
-      });
-      expect(actual).toMatchSnapshot();
-    });
-  });
-
-  describe('POST /posts/:id/bookmarks', () => {
-    it('should remove existing bookmark', async () => {
-      const repo = con.getRepository(Bookmark);
-      await repo.save(repo.create({ postId: 'p1', userId: '1' }));
-      loggedUser = '1';
-      await request(app.server)
-        .delete('/v1/posts/p1/bookmark')
-        .send()
-        .expect(204);
-      const actual = await repo.find({
-        where: { userId: '1' },
-        select: ['postId', 'userId'],
-      });
-      expect(actual.length).toEqual(0);
-    });
-  });
-
-  describe('GET /posts/bookmarks', () => {
-    it('should return bookmarks ordered by time', async () => {
-      await saveFixtures(con, Bookmark, bookmarksFixture);
-      loggedUser = '1';
-      const res = await request(app.server)
-        .get('/v1/posts/bookmarks')
-        .query({ latest: now, pageSize: 2, page: 0 })
-        .send()
-        .expect(200);
-      expect(res.body.map((x) => _.pick(x, ['id']))).toMatchSnapshot();
-    });
   });
 });
 
