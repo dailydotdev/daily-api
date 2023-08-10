@@ -3577,3 +3577,98 @@ describe('mutation votePost', () => {
     });
   });
 });
+
+describe('mutation dismissPostFeedback', () => {
+  const MUTATION = `
+    mutation DismissPostFeedback($id: ID!) {
+      dismissPostFeedback(id: $id) {
+        _
+      }
+    }`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw not found when cannot find post', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'invalid' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw not found when cannot find user', () => {
+    loggedUser = '3';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: 'p1' },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should dismiss feedback', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const userPost = await con.getRepository(UserPost).findOneBy({
+      userId: loggedUser,
+      postId: 'p1',
+    });
+    expect(userPost).toMatchObject({
+      userId: loggedUser,
+      postId: 'p1',
+      flags: { feedbackDismiss: true },
+    });
+  });
+
+  it('should dismiss feedback when user state exists', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      userId: loggedUser,
+      postId: 'p1',
+      flags: { feedbackDismiss: false },
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    const userPost = await con.getRepository(UserPost).findOneBy({
+      userId: loggedUser,
+      postId: 'p1',
+    });
+    expect(userPost).toMatchObject({
+      userId: loggedUser,
+      postId: 'p1',
+      flags: { feedbackDismiss: true },
+    });
+  });
+});

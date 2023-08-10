@@ -855,6 +855,16 @@ export const typeDefs = /* GraphQL */ `
       """
       vote: Int!
     ): EmptyResponse @auth
+
+    """
+    Dismiss user post feedback
+    """
+    dismissPostFeedback(
+      """
+      Id of the post
+      """
+      id: ID!
+    ): EmptyResponse @auth
   }
 
   extend type Subscription {
@@ -1670,6 +1680,56 @@ export const resolvers: IResolvers<any, Context> = {
           default:
             throw new ValidationError('Unsupported vote type');
         }
+      } catch (err) {
+        // Foreign key violation
+        if (err?.code === TypeOrmError.FOREIGN_KEY) {
+          throw new NotFoundError('Post or user not found');
+        }
+
+        throw err;
+      }
+
+      return { _: true };
+    },
+    dismissPostFeedback: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ) => {
+      try {
+        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+        await ensureSourcePermissions(ctx, post.sourceId);
+
+        await ctx.con.transaction(async (entityManager) => {
+          const userPost = await entityManager
+            .getRepository(UserPost)
+            .findOneBy({
+              postId: id,
+              userId: ctx.userId,
+            });
+
+          if (userPost) {
+            await entityManager.getRepository(UserPost).update(
+              {
+                postId: id,
+                userId: ctx.userId,
+              },
+              {
+                flags: updateFlagsStatement<UserPost>({
+                  feedbackDismiss: true,
+                }),
+              },
+            );
+          } else {
+            await entityManager.getRepository(UserPost).insert({
+              postId: id,
+              userId: ctx.userId,
+              flags: {
+                feedbackDismiss: true,
+              },
+            });
+          }
+        });
       } catch (err) {
         // Foreign key violation
         if (err?.code === TypeOrmError.FOREIGN_KEY) {
