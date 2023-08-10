@@ -368,9 +368,7 @@ const getAnonymousFirstVisit = async (trackingId: string) => {
   const firstVisit = await getRedisObject(key);
   const finalValue = firstVisit ?? new Date().toISOString();
 
-  if (!firstVisit) {
-    await setRedisObjectWithExpiry(key, finalValue, ONE_DAY_IN_SECONDS * 30);
-  }
+  await setRedisObjectWithExpiry(key, finalValue, ONE_DAY_IN_SECONDS * 30);
 
   return finalValue;
 };
