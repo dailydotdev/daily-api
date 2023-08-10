@@ -1017,31 +1017,30 @@ export const resolvers: IResolvers<any, Context> = {
       source,
       _,
       ctx: Context,
-    ): Promise<GQLPostQuestion[]> => {
-      const res = await ctx.con
-        .getRepository(PostQuestion)
-        .createQueryBuilder('pq')
-        .select('pq.id', 'id')
-        .addSelect('pq."postId"', 'postId')
-        .addSelect('pq.question', 'question')
-        .addSelect('random()', 'rand')
-        .innerJoin(
-          (query) =>
-            query
-              .select('u."postId"')
-              .from(Upvote, 'u')
-              .where({ userId: ctx.userId })
-              .orderBy('u."createdAt"', 'DESC')
-              .limit(5),
-          'upvoted',
-          'pq."postId" = upvoted."postId"',
-        )
-        .orderBy('rand', 'DESC')
-        .limit(3)
-        .getRawMany();
-
-      return res;
-    },
+      info,
+    ): Promise<GQLPostQuestion[]> =>
+      graphorm.query<GQLPostQuestion>(ctx, info, (builder) => ({
+        queryBuilder: builder.queryBuilder
+          .select(`"${builder.alias}".id`, 'id')
+          .addSelect(`"${builder.alias}"."postId"`, 'postId')
+          .addSelect(`"${builder.alias}".question`, 'question')
+          .addSelect('random()', 'rand')
+          .innerJoin(
+            (query) =>
+              query
+                .select('u."postId"')
+                .from(Upvote, 'u')
+                .where({ userId: ctx.userId })
+                .orderBy('u."createdAt"', 'DESC')
+                .limit(5),
+            'upvoted',
+            `"${builder.alias}"."postId" = upvoted."postId"`,
+          )
+          .orderBy('rand', 'DESC')
+          .limit(3)
+          .getRawMany(),
+        ...builder,
+      })),
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
