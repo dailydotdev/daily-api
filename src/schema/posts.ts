@@ -68,7 +68,7 @@ import { markdown, saveMentions } from '../common/markdown';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
-import { ContentImage } from '../entity/ContentImage';
+import { ContentImage } from '../entity';
 import { Downvote } from '../entity/Downvote';
 import { PostQuestion } from '../entity/posts/PostQuestion';
 
@@ -122,7 +122,7 @@ interface PinPostArgs {
   pinned: boolean;
 }
 
-type GQLPostQuestion = Pick<PostQuestion, 'id' | 'postId' | 'question'>;
+type GQLPostQuestion = Pick<PostQuestion, 'id' | 'post' | 'question'>;
 
 export type GQLPostNotification = Pick<
   GQLPost,
@@ -474,7 +474,7 @@ export const typeDefs = /* GraphQL */ `
 
   type PostQuestion {
     id: String!
-    postId: String!
+    post: Post!
     question: String!
   }
 
@@ -1021,7 +1021,6 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLPostQuestion[]> =>
       graphorm.query(ctx, info, (builder) => ({
         queryBuilder: builder.queryBuilder
-          .addSelect('random()', 'rand')
           .innerJoin(
             (query) =>
               query
@@ -1033,9 +1032,8 @@ export const resolvers: IResolvers<any, Context> = {
             'upvoted',
             `"${builder.alias}"."postId" = upvoted."postId"`,
           )
-          .orderBy('rand', 'DESC')
-          .limit(3)
-          .getRawMany(),
+          .orderBy('random()', 'DESC')
+          .limit(3),
         ...builder,
       })),
   }),

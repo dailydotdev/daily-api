@@ -956,8 +956,10 @@ describe('query searchQuestionRecommendations', () => {
     query SearchQuestionRecommendations {
       searchQuestionRecommendations {
         id
-        postId
         question
+        post {
+          id
+        }
       }
     }
   `;
@@ -993,12 +995,12 @@ describe('query searchQuestionRecommendations', () => {
 
     expect(res.errors).toBeFalsy();
     const loggedUserOnly = res.data.searchQuestionRecommendations.every(
-      ({ postId }) => !otherUserUpvotes.includes(postId),
+      ({ post }) => !otherUserUpvotes.includes(post.id),
     );
     expect(loggedUserOnly).toBeTruthy();
 
     const postIds = res.data.searchQuestionRecommendations.map(
-      ({ postId }) => postId,
+      ({ post }) => post.id,
     );
     const loggedUserUpvotes = await con
       .getRepository(Upvote)
