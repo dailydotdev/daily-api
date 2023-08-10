@@ -22,6 +22,12 @@ export enum UserPostVote {
   Down = -1,
 }
 
+export const userPostDefaultData = Object.freeze({
+  vote: UserPostVote.None,
+  hidden: false,
+  flags: {},
+});
+
 @Entity()
 @Index(['postId', 'userId'], { unique: true })
 export class UserPost {
