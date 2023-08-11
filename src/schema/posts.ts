@@ -1732,36 +1732,20 @@ export const resolvers: IResolvers<any, Context> = {
         const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
         await ensureSourcePermissions(ctx, post.sourceId);
 
-        await ctx.con.transaction(async (entityManager) => {
-          const userPost = await entityManager
-            .getRepository(UserPost)
-            .findOneBy({
-              postId: id,
-              userId: ctx.userId,
-            });
-
-          if (userPost) {
-            await entityManager.getRepository(UserPost).update(
-              {
-                postId: id,
-                userId: ctx.userId,
-              },
-              {
-                flags: updateFlagsStatement<UserPost>({
-                  feedbackDismiss: true,
-                }),
-              },
-            );
-          } else {
-            await entityManager.getRepository(UserPost).insert({
-              postId: id,
-              userId: ctx.userId,
-              flags: {
-                feedbackDismiss: true,
-              },
-            });
-          }
-        });
+        await ctx.con
+          .createQueryBuilder(UserPost, 'up')
+          .insert()
+          .values({
+            postId: id,
+            userId: ctx.userId,
+            flags: {
+              feedbackDismiss: true,
+            },
+          })
+          .onConflict(
+            `("postId", "userId") DO UPDATE SET flags = up."flags" || excluded.flags`,
+          )
+          .execute();
       } catch (err) {
         // Foreign key violation
         if (err?.code === TypeOrmError.FOREIGN_KEY) {

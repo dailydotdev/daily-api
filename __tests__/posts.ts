@@ -3703,6 +3703,7 @@ describe('mutation dismissPostFeedback', () => {
     expect(userPost).toMatchObject({
       userId: loggedUser,
       postId: 'p1',
+      vote: UserPostVote.None,
       flags: { feedbackDismiss: true },
     });
   });
@@ -3712,6 +3713,7 @@ describe('mutation dismissPostFeedback', () => {
     await con.getRepository(UserPost).save({
       userId: loggedUser,
       postId: 'p1',
+      vote: UserPostVote.Up,
       flags: { feedbackDismiss: false },
     });
     const res = await client.mutate(MUTATION, {
@@ -3725,6 +3727,7 @@ describe('mutation dismissPostFeedback', () => {
     expect(userPost).toMatchObject({
       userId: loggedUser,
       postId: 'p1',
+      vote: UserPostVote.Up,
       flags: { feedbackDismiss: true },
     });
   });
