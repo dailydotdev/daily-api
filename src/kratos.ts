@@ -1,10 +1,10 @@
-import fetch, {RequestInit, Headers} from 'node-fetch';
-import pRetry, {AbortError} from 'p-retry';
-import {fetchOptions} from './http';
-import {FastifyReply, FastifyRequest} from 'fastify';
-import {cookies, setCookie} from './cookies';
-import {setTrackingId} from './tracking';
-import {generateTrackingId} from './ids';
+import fetch, { RequestInit, Headers } from 'node-fetch';
+import pRetry, { AbortError } from 'p-retry';
+import { fetchOptions } from './http';
+import { FastifyReply, FastifyRequest } from 'fastify';
+import { cookies, setCookie } from './cookies';
+import { setTrackingId } from './tracking';
+import { generateTrackingId } from './ids';
 
 const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
@@ -41,7 +41,7 @@ const fetchKratos = async (
         ...opts,
       });
       if (res.status < 300) {
-        return {res: await res.json(), headers: res.headers};
+        return { res: await res.json(), headers: res.headers };
       }
       const err = new KratosError(res.status, await res.text());
       if (res.status >= 500) {
@@ -49,7 +49,7 @@ const fetchKratos = async (
       }
       throw new AbortError(err);
     },
-    {retries: 5},
+    { retries: 5 },
   );
 };
 
@@ -82,10 +82,10 @@ export const dispatchWhoami = async (
   req: FastifyRequest,
 ): Promise<WhoamiResponse> => {
   if (heimdallOrigin === 'disabled' || !req.cookies[cookies.kratos.key]) {
-    return {valid: false};
+    return { valid: false };
   }
   try {
-    const {res: whoami, headers} = await fetchKratos(
+    const { res: whoami, headers } = await fetchKratos(
       req,
       `${heimdallOrigin}/api/whoami`,
     );
@@ -103,7 +103,7 @@ export const dispatchWhoami = async (
     }
   }
 
-  return {valid: false};
+  return { valid: false };
 };
 
 export const logout = async (
@@ -111,14 +111,14 @@ export const logout = async (
   res: FastifyReply,
 ): Promise<FastifyReply> => {
   try {
-    const {res: logoutFlow} = await fetchKratos(
+    const { res: logoutFlow } = await fetchKratos(
       req,
       `${kratosOrigin}/self-service/logout/browser`,
     );
     if (logoutFlow?.logout_url) {
       const logoutParts = logoutFlow.logout_url.split('/self-service/');
       const logoutUrl = `${kratosOrigin}/self-service/${logoutParts[1]}`;
-      await fetchKratos(req, logoutUrl, {redirect: 'manual'});
+      await fetchKratos(req, logoutUrl, { redirect: 'manual' });
     }
   } catch (e) {
     if (e.statusCode !== 303 && e.statusCode !== 401) {
