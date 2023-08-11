@@ -43,6 +43,9 @@ export class UserPost {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  @Column({ default: null, nullable: true })
+  votedAt: Date;
+
   @Column({ type: 'smallint', default: UserPostVote.None })
   vote: UserPostVote;
 

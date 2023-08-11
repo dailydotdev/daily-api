@@ -3616,8 +3616,12 @@ describe('mutation votePost', () => {
 
   it('should cancel vote', async () => {
     loggedUser = '1';
-    const repo = con.getRepository(Upvote);
-    await repo.save({ postId: 'p1', userId: loggedUser });
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Up,
+      hidden: false,
+    });
     const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', vote: UserPostVote.None },
     });
@@ -3632,6 +3636,89 @@ describe('mutation votePost', () => {
       vote: UserPostVote.None,
       hidden: false,
     });
+  });
+
+  it('should not set votedAt when vote is not set on insert', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      hidden: false,
+    });
+    const userPostBefore = await con.getRepository(UserPost).findOneBy({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    expect(userPostBefore?.votedAt).toBeNull();
+  });
+
+  it('should set votedAt when user votes for the first time', async () => {
+    loggedUser = '1';
+    const userPostBefore = await con.getRepository(UserPost).findOneBy({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    expect(userPostBefore).toBeNull();
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.Down },
+    });
+    const userPost = await con.getRepository(UserPost).findOneBy({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    expect(res.errors).toBeFalsy();
+    expect(userPost?.votedAt).not.toBeNull();
+  });
+
+  it('should update votedAt when vote value changes', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Up,
+      hidden: false,
+    });
+    const userPostBefore = await con.getRepository(UserPost).findOneBy({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.Down },
+    });
+    const userPost = await con.getRepository(UserPost).findOneBy({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    expect(res.errors).toBeFalsy();
+    expect(userPostBefore?.votedAt?.toISOString()).not.toBe(
+      userPost?.votedAt?.toISOString(),
+    );
+  });
+
+  it('should not update votedAt when vote value stays the same', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Up,
+      hidden: false,
+    });
+    const userPostBefore = await con.getRepository(UserPost).findOneBy({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    console.log(userPostBefore);
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.Up },
+    });
+    const userPost = await con.getRepository(UserPost).findOneBy({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    expect(res.errors).toBeFalsy();
+    expect(userPostBefore?.votedAt?.toISOString()).toBe(
+      userPost?.votedAt?.toISOString(),
+    );
   });
 });
 
