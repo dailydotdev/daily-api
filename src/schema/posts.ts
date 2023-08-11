@@ -49,6 +49,9 @@ import {
   Upvote,
   UserActionType,
   WelcomePost,
+  ContentImage,
+  PostQuestion,
+  Downvote,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -68,8 +71,6 @@ import { markdown, saveMentions } from '../common/markdown';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
-import { ContentImage } from '../entity/ContentImage';
-import { Downvote } from '../entity/Downvote';
 import {
   UserPost,
   UserPostFlagsPublic,
@@ -126,6 +127,8 @@ interface PinPostArgs {
   id: string;
   pinned: boolean;
 }
+
+type GQLPostQuestion = Pick<PostQuestion, 'id' | 'post' | 'question'>;
 
 export type GQLPostNotification = Pick<
   GQLPost,
@@ -510,6 +513,12 @@ export const typeDefs = /* GraphQL */ `
     image: String!
   }
 
+  type PostQuestion {
+    id: String!
+    post: Post!
+    question: String!
+  }
+
   """
   Enum of the possible reasons to report a post
   """
@@ -580,6 +589,8 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): UpvoteConnection!
+
+    searchQuestionRecommendations: [PostQuestion]! @auth
   }
 
   extend type Mutation {
@@ -1093,6 +1104,29 @@ export const resolvers: IResolvers<any, Context> = {
         },
       );
     },
+    searchQuestionRecommendations: async (
+      source,
+      _,
+      ctx: Context,
+      info,
+    ): Promise<GQLPostQuestion[]> =>
+      graphorm.query(ctx, info, (builder) => ({
+        queryBuilder: builder.queryBuilder
+          .innerJoin(
+            (query) =>
+              query
+                .select('u."postId"')
+                .from(Upvote, 'u')
+                .where({ userId: ctx.userId })
+                .orderBy('u."createdAt"', 'DESC')
+                .limit(5),
+            'upvoted',
+            `"${builder.alias}"."postId" = upvoted."postId"`,
+          )
+          .orderBy('random()', 'DESC')
+          .limit(3),
+        ...builder,
+      })),
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
