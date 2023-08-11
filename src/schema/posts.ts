@@ -52,6 +52,9 @@ import {
   ContentImage,
   PostQuestion,
   Downvote,
+  UserPost,
+  UserPostFlagsPublic,
+  UserPostVote,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -71,11 +74,6 @@ import { markdown, saveMentions } from '../common/markdown';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
-import {
-  UserPost,
-  UserPostFlagsPublic,
-  UserPostVote,
-} from '../entity/UserPost';
 
 export interface GQLPost {
   id: string;

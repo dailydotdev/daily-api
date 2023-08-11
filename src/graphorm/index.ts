@@ -9,6 +9,7 @@ import {
   Source,
   SourceMember,
   User,
+  userPostDefaultData,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -22,7 +23,6 @@ import { GQLBookmarkList } from '../schema/bookmarks';
 import { base64 } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
-import { userPostDefaultData } from '../entity/UserPost';
 
 const existsByUserAndPost =
   (entity: string) =>
