@@ -5,8 +5,10 @@ import {
   getSessions,
   postFeedback,
   SearchResultFeedback,
+  Search,
   SearchSession,
   SearchSessionParams,
+  getSession,
 } from '../integrations';
 import { ValidationError } from 'apollo-server-errors';
 import { GQLEmptyResponse } from './common';
@@ -21,11 +23,45 @@ export const typeDefs = /* GraphQL */ `
     createdAt: String!
   }
 
+  type SearchChunkError {
+    message: String!
+    code: String!
+  }
+
+  type SearchChunkSource {
+    id: String!
+    title: String!
+    snippet: String!
+    url: String!
+  }
+
+  type SearchChunk {
+    id: String!
+    prompt: String!
+    response: String!
+    error: SearchChunkError
+    createdAt: String!
+    completedAt: String!
+    feedback: Int
+    sources: [SearchChunkSource]
+  }
+
+  type Search {
+    id: String!
+    createdAt: String!
+    chunks: [SearchChunk]
+  }
+
   extend type Query {
     """
     Get user's search history
     """
     searchSessionHistory(limit: Int, lastId: String): [SearchSession]! @auth
+
+    """
+    Get a search session by id
+    """
+    searchSession(id: String!): Search! @auth
   }
 
   extend type Mutation {
@@ -44,6 +80,8 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       ctx,
     ): Promise<GQLSearchSession[]> =>
       getSessions(ctx.userId, { limit, lastId }),
+    searchSession: async (_, { id }: { id: string }, ctx): Promise<Search> =>
+      getSession(ctx.userId, id),
   },
   Mutation: {
     searchResultFeedback: async (

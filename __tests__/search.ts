@@ -161,3 +161,88 @@ describe('searchSessionHistory query', () => {
     expect(res.data.searchSessionHistory).toEqual(mockResponse.sessions);
   });
 });
+
+describe('searchSession query', () => {
+  const mockResponse = {
+    id: 'session id',
+    createdAt: 'Time of the search',
+    chunks: [
+      {
+        id: 'chunk id',
+        prompt: 'user prompt',
+        response: 'response as markdown',
+        error: {
+          code: 'error code (string)',
+          message: 'error message',
+        },
+        createdAt: 'Time of creation',
+        completedAt: 'Time of completion',
+        feedback: 1,
+        sources: [
+          {
+            id: 'source id',
+            title: 'title returned from the search engine',
+            snippet: 'text snippet returned from the search engine',
+            url: 'URL to the page itself (external link)',
+          },
+        ],
+      },
+    ],
+  };
+
+  const mockSession = (id: string) => {
+    nock(magniOrigin)
+      .get(`/sessions?id=${id}`)
+      .matchHeader('X-User-Id', loggedUser)
+      .reply(200, mockResponse);
+  };
+
+  const QUERY = `
+    query SearchSession($id: String!) {
+      searchSession(id: $id) {
+        id
+        createdAt
+        chunks {
+          id
+          prompt
+          response
+          error {
+            message
+            code
+          }
+          createdAt
+          completedAt
+          feedback
+          sources  {
+            id
+            title
+            snippet
+            url
+          }
+        }
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', async () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'session id' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw an error when id is missing', async () =>
+    testQueryErrorCode(client, { query: QUERY }, 'GRAPHQL_VALIDATION_FAILED'));
+
+  it('should get user search session with id', async () => {
+    loggedUser = '1';
+    const id = 'session id';
+
+    mockSession(id);
+
+    const res = await client.mutate(QUERY, { variables: { id } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchSession).toEqual(mockResponse);
+  });
+});
