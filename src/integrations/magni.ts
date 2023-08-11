@@ -18,8 +18,8 @@ export interface SearchSession {
 export const postFeedback = async (
   userId: string,
   params: SearchResultFeedback,
-): Promise<Response> =>
-  fetch(`${magniOrigin}/feedback`, {
+): Promise<void> => {
+  const res = await fetch(`${magniOrigin}/feedback`, {
     ...fetchOptions,
     method: 'post',
     body: JSON.stringify(params),
@@ -28,6 +28,9 @@ export const postFeedback = async (
       'Content-Type': 'application/json',
     },
   });
+
+  if (!res.ok) throw new ValidationError(await res.text());
+};
 
 interface SessionResponse {
   sessions: SearchSession[];
