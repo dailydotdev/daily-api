@@ -144,44 +144,6 @@ export const feedToFilters = async (
   };
 };
 
-export const whereTagsInFeed = (
-  feedId: string,
-  builder: SelectQueryBuilder<Post>,
-  alias: string,
-): string => {
-  const feedTag = builder
-    .subQuery()
-    .select('feed.tag')
-    .from(FeedTag, 'feed')
-    .where('feed.feedId = :feedId', { feedId })
-    // .andWhere('feed.blocked = false')
-    .getQuery();
-
-  const query = builder
-    .subQuery()
-    .select('1')
-    .from(PostKeyword, 'pk')
-    .where(`pk.keyword IN ${feedTag}`)
-    .andWhere(`pk.postId = ${alias}.id`)
-    .getQuery();
-
-  return `(NOT EXISTS${feedTag} OR EXISTS${query})`;
-};
-
-export const whereSourcesInFeed = (
-  feedId: string,
-  builder: SelectQueryBuilder<Post>,
-  alias: string,
-): string => {
-  const query = builder
-    .subQuery()
-    .select('feed.sourceId')
-    .from(FeedSource, 'feed')
-    .where('feed.feedId = :feedId', { feedId })
-    .getQuery();
-  return `${alias}.sourceId NOT IN${query}`;
-};
-
 export const selectRead = (
   userId: string,
   builder: SelectQueryBuilder<Post>,
