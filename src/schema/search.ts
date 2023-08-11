@@ -23,7 +23,7 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     """
-    Send a feedback regarding the search result
+    Get user's search history
     """
     searchSessionHistory(limit: Int, lastId: String): [SearchSession]! @auth
   }

@@ -12,7 +12,7 @@ export interface SearchResultFeedback {
 export interface SearchSession {
   id: string;
   prompt: string;
-  createdAt: Date;
+  createdAt: string;
 }
 
 export const postFeedback = async (
