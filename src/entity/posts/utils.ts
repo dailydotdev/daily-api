@@ -74,17 +74,22 @@ export const mergeKeywords = async (
   keywords?: string[],
 ): Promise<{ mergedKeywords: string[]; allowedKeywords: string[] }> => {
   if (keywords?.length) {
+    const cleanedKeywords = uniqueifyArray(
+      keywords
+        .map((keyword) => keyword.replace(/[^a-zA-Z0-9-_#.]/g, ''))
+        .filter(Boolean),
+    );
     const synonymKeywords = await entityManager.getRepository(Keyword).find({
       where: {
         status: 'synonym',
-        value: In(keywords),
+        value: In(cleanedKeywords),
       },
     });
     const additionalKeywords = synonymKeywords.map(
       (synonym) => synonym.synonym,
     );
     const mergedKeywords = uniqueifyArray(
-      [...keywords, ...additionalKeywords].filter(
+      [...cleanedKeywords, ...additionalKeywords].filter(
         (keyword) => !keyword.match(/^\d+$/),
       ),
     );
