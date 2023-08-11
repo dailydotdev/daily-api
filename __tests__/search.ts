@@ -42,8 +42,8 @@ describe('searchResultFeedback mutation', () => {
   };
 
   const MUTATION = `
-    mutation SearchResultFeedback($chunkId: String!, $feedback: Int!) {
-      searchResultFeedback(chunkId: $chunkId, feedback: $feedback) {
+    mutation SearchResultFeedback($chunkId: String!, $value: Int!) {
+      searchResultFeedback(chunkId: $chunkId, value: $value) {
         _
       }
     }
@@ -52,7 +52,7 @@ describe('searchResultFeedback mutation', () => {
   it('should not authorize when not logged in', async () =>
     testMutationErrorCode(
       client,
-      { mutation: MUTATION, variables: { chunkId, feedback: 1 } },
+      { mutation: MUTATION, variables: { chunkId, value: 1 } },
       'UNAUTHENTICATED',
     ));
 
@@ -61,7 +61,7 @@ describe('searchResultFeedback mutation', () => {
 
     return testMutationErrorCode(
       client,
-      { mutation: MUTATION, variables: { chunkId, feedback: 2 } },
+      { mutation: MUTATION, variables: { chunkId, value: 2 } },
       'GRAPHQL_VALIDATION_FAILED',
     );
   });
@@ -71,7 +71,7 @@ describe('searchResultFeedback mutation', () => {
 
     return testMutationErrorCode(
       client,
-      { mutation: MUTATION, variables: { chunkId, feedback: -2 } },
+      { mutation: MUTATION, variables: { chunkId, value: -2 } },
       'GRAPHQL_VALIDATION_FAILED',
     );
   });
@@ -81,7 +81,7 @@ describe('searchResultFeedback mutation', () => {
 
     return testMutationErrorCode(
       client,
-      { mutation: MUTATION, variables: { chunkId, feedback: 2 } },
+      { mutation: MUTATION, variables: { value: 2 } },
       'GRAPHQL_VALIDATION_FAILED',
     );
   });
@@ -89,10 +89,10 @@ describe('searchResultFeedback mutation', () => {
   it('should send feedback to magni if all values are valid', async () => {
     loggedUser = '1';
 
-    mockFeedback({ feedback: 1, chunkId });
+    mockFeedback({ value: 1, chunkId });
 
     const res = await client.mutate(MUTATION, {
-      variables: { chunkId, feedback: 1 },
+      variables: { chunkId, value: 1 },
     });
 
     expect(res.errors).toBeFalsy();

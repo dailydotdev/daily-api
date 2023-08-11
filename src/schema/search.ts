@@ -10,7 +10,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Send a feedback regarding the search result
     """
-    searchResultFeedback(chunkId: String!, feedback: Int!): EmptyResponse! @auth
+    searchResultFeedback(chunkId: String!, value: Int!): EmptyResponse! @auth
   }
 `;
 
@@ -18,14 +18,14 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
   Mutation: {
     searchResultFeedback: async (
       _,
-      { chunkId, feedback }: SearchResultFeedback,
+      { chunkId, value }: SearchResultFeedback,
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      if (feedback > 1 || feedback < -1) {
+      if (value > 1 || value < -1) {
         throw new ValidationError('Invalid value');
       }
 
-      await postFeedback(ctx.userId, { chunkId, feedback });
+      await postFeedback(ctx.userId, { chunkId, value });
 
       return { _: true };
     },

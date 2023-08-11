@@ -5,7 +5,7 @@ const magniOrigin = process.env.MAGNI_ORIGIN;
 
 export interface SearchResultFeedback {
   chunkId: string;
-  feedback: number;
+  value: number;
 }
 
 export const postFeedback = async (
