@@ -45,6 +45,7 @@ const fetchKratos = async (
       }
       const err = new KratosError(res.status, await res.text());
       if (res.status >= 500) {
+        req.log.warn({ err }, 'unexpected error from kratos');
         throw err;
       }
       throw new AbortError(err);
