@@ -2,14 +2,14 @@ import fetch, { Response } from 'node-fetch';
 import { fetchOptions } from '../http';
 import { ValidationError } from 'apollo-server-errors';
 
-const magniOrigin = process.env.MAGNI_ORIGIN;
+export const magniOrigin = process.env.MAGNI_ORIGIN;
 
 export interface SearchResultFeedback {
   chunkId: string;
   value: number;
 }
 
-export interface SearchSessionHistory {
+export interface SearchSession {
   id: string;
   prompt: string;
   createdAt: Date;
@@ -30,25 +30,26 @@ export const postFeedback = async (
   });
 
 interface SessionResponse {
-  sessions: SearchSessionHistory[];
+  sessions: SearchSession[];
+}
+
+export interface SearchSessionParams {
+  limit?: number;
+  lastId?: string;
 }
 
 export const getSessions = async (
   userId: string,
-  limit = 30,
-  lastId?: string,
-): Promise<SearchSessionHistory[]> => {
+  { limit = 30, lastId }: SearchSessionParams = {},
+): Promise<SearchSession[]> => {
   const params = new URLSearchParams({ limit: limit.toString() });
 
   if (lastId) params.append('lastId', lastId);
 
-  const res = await fetch(`${magniOrigin}/feedback`, {
+  const url = `${magniOrigin}/sessions?${params.toString()}`;
+  const res = await fetch(url, {
     ...fetchOptions,
-    method: 'get',
-    headers: {
-      'X-User-Id': userId,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'X-User-Id': userId },
   });
 
   if (!res.ok) throw new ValidationError(await res.text());

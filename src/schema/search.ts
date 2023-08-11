@@ -5,22 +5,27 @@ import {
   getSessions,
   postFeedback,
   SearchResultFeedback,
-  SearchSessionHistory,
+  SearchSession,
+  SearchSessionParams,
 } from '../integrations';
 import { ValidationError } from 'apollo-server-errors';
 import { GQLEmptyResponse } from './common';
 
-type GQLSearchSessionHistory = Pick<
-  SearchSessionHistory,
-  'id' | 'prompt' | 'createdAt'
->;
+type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
+type GQLSearchSessionParams = Pick<SearchSessionParams, 'limit' | 'lastId'>;
 
 export const typeDefs = /* GraphQL */ `
+  type SearchSession {
+    id: String!
+    prompt: String!
+    createdAt: DateTime!
+  }
+
   extend type Query {
     """
     Send a feedback regarding the search result
     """
-    searchSessionHistory: EmptyResponse! @auth
+    searchSessionHistory(limit: Int, lastId: String): [SearchSession]! @auth
   }
 
   extend type Mutation {
@@ -35,9 +40,10 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
   Query: {
     searchSessionHistory: async (
       _,
-      __,
+      { limit, lastId }: GQLSearchSessionParams,
       ctx,
-    ): Promise<GQLSearchSessionHistory[]> => getSessions(ctx.userId),
+    ): Promise<GQLSearchSession[]> =>
+      getSessions(ctx.userId, { limit, lastId }),
   },
   Mutation: {
     searchResultFeedback: async (
