@@ -1,6 +1,4 @@
-import request from 'supertest';
 import {
-  authorizeRequest,
   disposeGraphQLTesting,
   GraphQLTestingState,
   initializeGraphQLTesting,
@@ -8,13 +6,11 @@ import {
   testMutationErrorCode,
 } from './helpers';
 import { DataSource } from 'typeorm';
-import { FastifyInstance } from 'fastify';
 import createOrGetConnection from '../src/db';
 import nock from 'nock';
 import { GraphQLTestClient } from './helpers';
 import { SearchResultFeedback } from '../src/integrations';
 
-let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
@@ -26,7 +22,6 @@ beforeAll(async () => {
     () => new MockContext(con, loggedUser),
   );
   client = state.client;
-  app = state.app;
 });
 
 afterAll(() => disposeGraphQLTesting(state));
