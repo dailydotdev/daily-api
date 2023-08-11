@@ -1,4 +1,4 @@
-import fetch, { Response } from 'node-fetch';
+import fetch from 'node-fetch';
 import { fetchOptions } from '../http';
 import { ValidationError } from 'apollo-server-errors';
 
