@@ -49,6 +49,9 @@ import {
   Upvote,
   UserActionType,
   WelcomePost,
+  ContentImage,
+  PostQuestion,
+  Downvote,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -68,9 +71,6 @@ import { markdown, saveMentions } from '../common/markdown';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
-import { ContentImage } from '../entity';
-import { Downvote } from '../entity/Downvote';
-import { PostQuestion } from '../entity/posts/PostQuestion';
 
 export interface GQLPost {
   id: string;

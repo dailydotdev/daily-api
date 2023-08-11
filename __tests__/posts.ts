@@ -35,6 +35,8 @@ import {
   User,
   View,
   WelcomePost,
+  Downvote,
+  PostQuestion,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
@@ -55,8 +57,6 @@ import { randomUUID } from 'crypto';
 import nock from 'nock';
 import { deleteKeysByPattern } from '../src/redis';
 import { checkHasMention } from '../src/common/markdown';
-import { Downvote } from '../src/entity/Downvote';
-import { PostQuestion } from '../src/entity/posts/PostQuestion';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
