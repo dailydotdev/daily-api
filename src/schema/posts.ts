@@ -459,7 +459,7 @@ export const typeDefs = /* GraphQL */ `
     """
     User state for the post
     """
-    userState: UserPost
+    userState: UserPost @auth
   }
 
   type PostConnection {
