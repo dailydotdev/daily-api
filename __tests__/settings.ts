@@ -312,48 +312,6 @@ describe('mutation setBookmarksSharing', () => {
   });
 });
 
-describe('compatibility routes', () => {
-  describe('GET /settings', () => {
-    it('should return user settings', async () => {
-      const repo = con.getRepository(Settings);
-      const settings = repo.create({
-        userId: '1',
-        theme: 'bright',
-        insaneMode: true,
-      });
-      const data = await repo.save(settings);
-      const expected = new Object({ ...data, ...compatibilityProps });
-      expected['showOnlyNotReadPosts'] = expected['showOnlyUnreadPosts'];
-      delete expected['updatedAt'];
-      delete expected['showOnlyUnreadPosts'];
-      delete expected['bookmarkSlug'];
-      delete expected['optOutWeeklyGoal'];
-      delete expected['optOutCompanion'];
-
-      loggedUser = '1';
-      const res = await authorizeRequest(
-        request(app.server).get('/v1/settings'),
-      ).expect(200);
-      expect(res.body).toEqual(expected);
-    });
-  });
-
-  describe('POST /settings', () => {
-    it('should update user settings', async () => {
-      loggedUser = '1';
-      await authorizeRequest(
-        request(app.server).post('/v1/settings').send({ theme: 'bright' }),
-      ).expect(204);
-      expect(
-        await con.getRepository(Settings).findOne({
-          where: { userId: '1' },
-          select: ['userId', 'theme', 'insaneMode'],
-        }),
-      ).toMatchSnapshot();
-    });
-  });
-});
-
 describe('dedicated api routes', () => {
   describe('GET /settings', () => {
     it('should return user settings', async () => {

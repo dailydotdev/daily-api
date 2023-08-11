@@ -1,8 +1,4 @@
-import { FastifyInstance } from 'fastify';
-import request from 'supertest';
-import _ from 'lodash';
 import {
-  authorizeRequest,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
@@ -63,7 +59,6 @@ jest.mock('../src/common/pubsub', () => ({
   notifyContentRequested: jest.fn(),
 }));
 
-let app: FastifyInstance;
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
@@ -77,7 +72,6 @@ beforeAll(async () => {
     () => new MockContext(con, loggedUser, premiumUser, roles),
   );
   client = state.client;
-  app = state.app;
 });
 
 beforeEach(async () => {
@@ -1598,68 +1592,6 @@ describe('mutation cancelUpvote', () => {
     expect(actual).toEqual([]);
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post.upvotes).toEqual(0);
-  });
-});
-
-describe('compatibility routes', () => {
-  describe('GET /posts/:id', () => {
-    it('should throw not found when cannot find post', () =>
-      request(app.server).get('/v1/posts/invalid').send().expect(404));
-
-    it('should return post by id', async () => {
-      const res = await request(app.server)
-        .get('/v1/posts/p1')
-        .send()
-        .expect(200);
-      expect(_.pick(res.body, ['id'])).toMatchSnapshot();
-    });
-
-    it('should return private post by id', async () => {
-      const res = await request(app.server)
-        .get('/v1/posts/p6')
-        .send()
-        .expect(200);
-      expect(_.pick(res.body, ['id'])).toMatchSnapshot();
-    });
-
-    it('should return post by short id', async () => {
-      const res = await request(app.server)
-        .get('/v1/posts/sp1')
-        .send()
-        .expect(200);
-      expect(_.pick(res.body, ['id'])).toMatchSnapshot();
-    });
-  });
-
-  describe('POST /posts/:id/hide', () => {
-    it('should hide the post', async () => {
-      loggedUser = '1';
-      await authorizeRequest(request(app.server).post('/v1/posts/p1/hide'))
-        .send()
-        .expect(204);
-      const actual = await con
-        .getRepository(HiddenPost)
-        .find({ where: { userId: '1' }, select: ['postId', 'userId'] });
-      expect(actual).toMatchSnapshot();
-    });
-  });
-
-  describe('POST /posts/:id/report', () => {
-    it('should return bad request when no body is provided', () =>
-      authorizeRequest(request(app.server).post('/v1/posts/p1/report')).expect(
-        400,
-      ));
-
-    it('should report the post', async () => {
-      loggedUser = '1';
-      await authorizeRequest(request(app.server).post('/v1/posts/p1/report'))
-        .send({ reason: 'broken' })
-        .expect(204);
-      const actual = await con
-        .getRepository(HiddenPost)
-        .find({ where: { userId: '1' }, select: ['postId', 'userId'] });
-      expect(actual).toMatchSnapshot();
-    });
   });
 });
 

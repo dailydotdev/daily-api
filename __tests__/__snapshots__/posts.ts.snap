@@ -19,42 +19,6 @@ Object {
 }
 `;
 
-exports[`compatibility routes GET /posts/:id should return post by id 1`] = `
-Object {
-  "id": "p1",
-}
-`;
-
-exports[`compatibility routes GET /posts/:id should return post by short id 1`] = `
-Object {
-  "id": "p1",
-}
-`;
-
-exports[`compatibility routes GET /posts/:id should return private post by id 1`] = `
-Object {
-  "id": "p6",
-}
-`;
-
-exports[`compatibility routes POST /posts/:id/hide should hide the post 1`] = `
-Array [
-  HiddenPost {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
-
-exports[`compatibility routes POST /posts/:id/report should report the post 1`] = `
-Array [
-  HiddenPost {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
-
 exports[`featuredComments field should return array with the featured comments 1`] = `
 Array [
   Object {

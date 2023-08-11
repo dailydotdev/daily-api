@@ -20,8 +20,6 @@ export interface User {
   acceptedMarketing?: boolean;
 }
 
-export type CustomObject<T> = Record<string, T> | Record<number, T>;
-
 export const fetchUser = async (
   userId: string,
   con: DataSource,

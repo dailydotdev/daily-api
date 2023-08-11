@@ -48,11 +48,6 @@ export function createDatePageGenerator<
   };
 }
 
-export type GQLDatePageGeneratorType<
-  TEntity extends Record<TKey, Date>,
-  TKey extends keyof TEntity,
-> = PageGenerator<TEntity, ConnectionArguments, GQLPage>;
-
 export interface QueryOptions {
   queryBuilder?: (builder: GraphORMBuilder) => GraphORMBuilder;
   orderByKey?: 'ASC' | 'DESC';
