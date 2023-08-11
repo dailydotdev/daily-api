@@ -1,11 +1,28 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { postFeedback, SearchResultFeedback } from '../integrations';
+import {
+  getSessions,
+  postFeedback,
+  SearchResultFeedback,
+  SearchSessionHistory,
+} from '../integrations';
 import { ValidationError } from 'apollo-server-errors';
 import { GQLEmptyResponse } from './common';
 
+type GQLSearchSessionHistory = Pick<
+  SearchSessionHistory,
+  'id' | 'prompt' | 'createdAt'
+>;
+
 export const typeDefs = /* GraphQL */ `
+  extend type Query {
+    """
+    Send a feedback regarding the search result
+    """
+    searchSessionHistory: EmptyResponse! @auth
+  }
+
   extend type Mutation {
     """
     Send a feedback regarding the search result
@@ -15,6 +32,13 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 export const resolvers: IResolvers<unknown, Context> = traceResolvers({
+  Query: {
+    searchSessionHistory: async (
+      _,
+      __,
+      ctx,
+    ): Promise<GQLSearchSessionHistory[]> => getSessions(ctx.userId),
+  },
   Mutation: {
     searchResultFeedback: async (
       _,
