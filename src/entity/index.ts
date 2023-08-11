@@ -4,6 +4,7 @@ export * from './Banner';
 export * from './Bookmark';
 export * from './BookmarkList';
 export * from './DevCard';
+export * from './Downvote';
 export * from './Feed';
 export * from './FeedAdvancedSettings';
 export * from './FeedSource';
