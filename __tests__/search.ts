@@ -106,7 +106,7 @@ describe('searchSessionHistory query', () => {
       {
         id: 'unique id',
         prompt: 'the first question',
-        createdAt: new Date(),
+        createdAt: new Date(2023, 7, 11).toString(),
       },
     ],
   };
@@ -158,5 +158,6 @@ describe('searchSessionHistory query', () => {
     const res = await client.mutate(QUERY, { variables: { limit, lastId } });
 
     expect(res.errors).toBeFalsy();
+    expect(res.data.searchSessionHistory).toEqual(mockResponse.sessions);
   });
 });

@@ -18,7 +18,7 @@ export const typeDefs = /* GraphQL */ `
   type SearchSession {
     id: String!
     prompt: String!
-    createdAt: DateTime!
+    createdAt: String!
   }
 
   extend type Query {
