@@ -17,6 +17,7 @@ import './config';
 import trace from './trace';
 import tracking from './tracking';
 import auth from './auth';
+import compatibility from './compatibility';
 import routes from './routes';
 import { Context } from './Context';
 import { schema } from './graphql';
@@ -266,6 +267,7 @@ export default async function app(
     });
   }
 
+  app.register(compatibility, { prefix: '/v1' });
   app.register(routes, { prefix: '/' });
 
   return app;
