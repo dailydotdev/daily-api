@@ -40,15 +40,15 @@ export const typeDefs = /* GraphQL */ `
     prompt: String!
     response: String!
     error: SearchChunkError
-    createdAt: String!
-    completedAt: String!
+    createdAt: DateTime!
+    completedAt: DateTime!
     feedback: Int
     sources: [SearchChunkSource]
   }
 
   type Search {
     id: String!
-    createdAt: String!
+    createdAt: DateTime!
     chunks: [SearchChunk]
   }
 
