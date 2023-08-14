@@ -34,7 +34,6 @@ import {
   Downvote,
   PostQuestion,
   UserPost,
-  userPostDefaultData,
   UserPostVote,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
@@ -3490,7 +3489,12 @@ describe('userState field', () => {
   it('should return default state if state does not exist', async () => {
     loggedUser = '1';
     const res = await client.query(QUERY);
-    expect(res.data.post.userState).toMatchObject(userPostDefaultData);
+    const { vote, hidden, flags } = con.getRepository(UserPost).create();
+    expect(res.data.post.userState).toMatchObject({
+      vote,
+      hidden,
+      flags,
+    });
   });
 
   it('should return user state', async () => {
@@ -3707,7 +3711,6 @@ describe('mutation votePost', () => {
       postId: 'p1',
       userId: loggedUser,
     });
-    console.log(userPostBefore);
     const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', vote: UserPostVote.Up },
     });

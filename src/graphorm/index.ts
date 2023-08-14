@@ -9,7 +9,7 @@ import {
   Source,
   SourceMember,
   User,
-  userPostDefaultData,
+  UserPost,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -184,7 +184,7 @@ const obj = new GraphORM({
           }
 
           if (!value) {
-            return userPostDefaultData;
+            return ctx.con.getRepository(UserPost).create();
           }
 
           return value;

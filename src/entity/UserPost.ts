@@ -22,12 +22,6 @@ export enum UserPostVote {
   Down = -1,
 }
 
-export const userPostDefaultData = Object.freeze({
-  vote: UserPostVote.None,
-  hidden: false,
-  flags: {},
-});
-
 @Entity()
 @Index(['postId', 'userId'], { unique: true })
 export class UserPost {
@@ -47,13 +41,13 @@ export class UserPost {
   votedAt: Date;
 
   @Column({ type: 'smallint', default: UserPostVote.None })
-  vote: UserPostVote;
+  vote: UserPostVote = UserPostVote.None;
 
-  @Column({ default: false })
-  hidden: boolean;
+  @Column({ type: 'boolean', default: false })
+  hidden = false;
 
   @Column({ type: 'jsonb', default: {} })
-  flags: UserPostFlags;
+  flags: UserPostFlags = {};
 
   @ManyToOne(() => Post, {
     lazy: true,
