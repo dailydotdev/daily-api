@@ -54,20 +54,34 @@ import { Downvote, HiddenPost, Upvote } from '../src/entity';
     switch (entity) {
       case Upvote:
         await manager.query(`
-          INSERT INTO user_post ("postId", "userId", "createdAt", vote)
-          SELECT "postId", "userId", "createdAt", 1 AS vote
+          INSERT INTO user_post ("postId", "userId", vote)
+          SELECT "postId", "userId", 1 AS vote
           FROM upvote
           WHERE "createdAt" > '${createdFromDate.toISOString()}' AND "createdAt" < '${createdToDate.toISOString()}'
           ON CONFLICT ("postId", "userId") DO UPDATE SET vote = 1;
         `);
+        await manager.query(`
+          INSERT INTO user_post ("postId", "userId", "votedAt")
+          SELECT "postId", "userId", "createdAt" as "votedAt"
+          FROM upvote
+          WHERE "createdAt" > '${createdFromDate.toISOString()}' AND "createdAt" < '${createdToDate.toISOString()}'
+          ON CONFLICT ("postId", "userId") DO UPDATE SET "votedAt" = EXCLUDED."votedAt";
+        `);
         break;
       case Downvote:
         await manager.query(`
-          INSERT INTO user_post ("postId", "userId", "createdAt", vote)
-          SELECT "postId", "userId", "createdAt", -1 AS vote
+          INSERT INTO user_post ("postId", "userId", vote)
+          SELECT "postId", "userId", -1 AS vote
           FROM downvote
           WHERE "createdAt" > '${createdFromDate.toISOString()}' AND "createdAt" < '${createdToDate.toISOString()}'
-          ON CONFLICT ("postId", "userId") DO UPDATE SET vote = -1
+          ON CONFLICT ("postId", "userId") DO UPDATE SET vote = -1;
+        `);
+        await manager.query(`
+          INSERT INTO user_post ("postId", "userId", "votedAt")
+          SELECT "postId", "userId", "createdAt" as "votedAt"
+          FROM downvote
+          WHERE "createdAt" > '${createdFromDate.toISOString()}' AND "createdAt" < '${createdToDate.toISOString()}'
+          ON CONFLICT ("postId", "userId") DO UPDATE SET "votedAt" = EXCLUDED."votedAt";
         `);
         break;
       case HiddenPost:
