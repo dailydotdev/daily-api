@@ -1,6 +1,6 @@
 import '../src/config';
 import createOrGetConnection from '../src/db';
-import { Downvote, HiddenPost, Upvote } from '../src/entity';
+import { Downvote, Upvote } from '../src/entity';
 
 (async (): Promise<void> => {
   const entityArgument = process.argv[2];
@@ -10,7 +10,6 @@ import { Downvote, HiddenPost, Upvote } from '../src/entity';
   const argumentToEntityMap = {
     Upvote: Upvote,
     Downvote: Downvote,
-    HiddenPost: HiddenPost,
   };
   const entity = argumentToEntityMap[entityArgument];
 
@@ -82,14 +81,6 @@ import { Downvote, HiddenPost, Upvote } from '../src/entity';
           FROM downvote
           WHERE "createdAt" > '${createdFromDate.toISOString()}' AND "createdAt" < '${createdToDate.toISOString()}'
           ON CONFLICT ("postId", "userId") DO UPDATE SET "votedAt" = EXCLUDED."votedAt";
-        `);
-        break;
-      case HiddenPost:
-        await manager.query(`
-          INSERT INTO user_post ("postId", "userId", hidden)
-          SELECT "postId", "userId", true AS hidden
-          FROM hidden_post
-          ON CONFLICT ("postId", "userId") DO UPDATE SET hidden = true;
         `);
         break;
       default:
