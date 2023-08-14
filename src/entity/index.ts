@@ -36,3 +36,4 @@ export * from './notifications';
 export * from './Feature';
 export * from './UserAction';
 export * from './ContentImage';
+export * from './UserPost';
