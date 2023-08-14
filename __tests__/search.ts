@@ -165,7 +165,7 @@ describe('searchSessionHistory query', () => {
 describe('searchSession query', () => {
   const mockResponse = {
     id: 'session id',
-    createdAt: 'Time of the search',
+    createdAt: new Date(2023, 7, 14).toISOString(),
     chunks: [
       {
         id: 'chunk id',
@@ -175,8 +175,8 @@ describe('searchSession query', () => {
           code: 'error code (string)',
           message: 'error message',
         },
-        createdAt: 'Time of creation',
-        completedAt: 'Time of completion',
+        createdAt: new Date(2023, 7, 14).toISOString(),
+        completedAt: new Date(2023, 7, 14).toISOString(),
         feedback: 1,
         sources: [
           {
