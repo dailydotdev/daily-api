@@ -16,6 +16,7 @@ import {
   PostMention,
   Comment,
   ContentImage,
+  FreeformPost,
 } from '../entity';
 import { ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
@@ -355,7 +356,11 @@ type ContentRequestedSubmission = { submissionId: string } & Pick<
   'sourceId' | 'url'
 >;
 type ContentRequestedURL = Pick<ArticlePost, 'id' | 'origin' | 'url'>;
-export type ContentRequested = ContentRequestedSubmission | ContentRequestedURL;
+type ContentRequestedFreeForm = Pick<FreeformPost, 'id' | 'content' | 'type'>;
+export type ContentRequested =
+  | ContentRequestedSubmission
+  | ContentRequestedURL
+  | ContentRequestedFreeForm;
 
 export const notifyContentRequested = async (
   log: EventLogger,
