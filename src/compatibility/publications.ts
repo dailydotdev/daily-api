@@ -4,31 +4,6 @@ import { SourceRequest } from '../entity';
 import { toLegacySourceRequest } from './entity';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
-  fastify.get('/', async (req, res) => {
-    const query = `{
-  sources(first: 500) {
-    edges {
-      node {
-        id
-        name
-        image
-      }
-    }
-  }
-}`;
-    return injectGraphql(
-      fastify,
-      { query },
-      (obj) =>
-        obj['data']['sources']['edges'].map((e) => ({
-          ...e['node'],
-          enabled: true,
-        })),
-      req,
-      res,
-    );
-  });
-
   const requestSource = (
     req: FastifyRequest<{ Body: { source: string } }>,
     res: FastifyReply,

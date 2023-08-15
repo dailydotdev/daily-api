@@ -9,6 +9,7 @@ import {
   Source,
   SourceMember,
   User,
+  UserPost,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -21,6 +22,7 @@ import { Context } from '../Context';
 import { GQLBookmarkList } from '../schema/bookmarks';
 import { base64 } from '../common';
 import { GQLComment } from '../schema/comments';
+import { GQLUserPost } from '../schema/posts';
 
 const existsByUserAndPost =
   (entity: string) =>
@@ -166,6 +168,27 @@ const obj = new GraphORM({
       },
       flags: {
         jsonType: true,
+      },
+      userState: {
+        relation: {
+          isMany: false,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
+            return qb
+              .where(`${childAlias}."userId" = :userId`, { userId: ctx.userId })
+              .andWhere(`${childAlias}."postId" = "${parentAlias}".id`);
+          },
+        },
+        transform: (value: GQLUserPost, ctx: Context) => {
+          if (!ctx.userId) {
+            return null;
+          }
+
+          if (!value) {
+            return ctx.con.getRepository(UserPost).create();
+          }
+
+          return value;
+        },
       },
     },
   },
@@ -395,6 +418,13 @@ const obj = new GraphORM({
           childColumn: 'notificationId',
           parentColumn: 'id',
         },
+      },
+    },
+  },
+  UserPost: {
+    fields: {
+      flags: {
+        jsonType: true,
       },
     },
   },

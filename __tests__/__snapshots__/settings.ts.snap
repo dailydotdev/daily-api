@@ -1,13 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`compatibility routes POST /settings should update user settings 1`] = `
-Settings {
-  "insaneMode": false,
-  "theme": "bright",
-  "userId": "1",
-}
-`;
-
 exports[`mutation updateUserSettings should create user settings when does not exist 1`] = `
 Object {
   "updateUserSettings": Object {
