@@ -57,7 +57,9 @@ export default async function app(
   const connection = await createOrGetConnection();
 
   const app = fastify({
-    logger: true,
+    logger: {
+      level: process.env.LOG_LEVEL || 'info',
+    },
     disableRequestLogging: true,
     trustProxy: true,
   });
