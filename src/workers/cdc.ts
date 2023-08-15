@@ -23,6 +23,7 @@ import {
   FreeformPost,
   PostType,
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
+  FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -321,6 +322,23 @@ const onPostChange = async (
         }
       }
     }
+
+    if (data.payload.after.type === PostType.Freeform) {
+      const freeform = data as unknown as ChangeMessage<FreeformPost>;
+      if (
+        Math.abs(
+          freeform.payload.before.content.length -
+            freeform.payload.after.content.length,
+        ) >= FREEFORM_POST_MINIMUM_CHANGE_LENGTH
+      ) {
+        await notifyContentRequested(logger, {
+          id: freeform.payload.after.id,
+          content: freeform.payload.after.content,
+          type: freeform.payload.after.type,
+        });
+      }
+    }
+
     if (
       !data.payload.before.sentAnalyticsReport &&
       data.payload.after.sentAnalyticsReport
