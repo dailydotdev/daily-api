@@ -1152,7 +1152,7 @@ describe('query mostDiscussedFeed', () => {
       .getRepository(Source)
       .update({ id: 'squad' }, { type: SourceType.Squad });
     const repo = con.getRepository(Post);
-    await repo.update({ id: 'p1' }, { comments: 5 });
+    await repo.update({ id: 'p1' }, { comments: 6 });
     await repo.update({ id: 'p3' }, { comments: 5 });
     await repo.update({ id: 'p2' }, { comments: 5, sourceId: 'squad' });
 
@@ -1166,7 +1166,7 @@ describe('query mostDiscussedFeed', () => {
       .getRepository(Source)
       .update({ id: 'squad' }, { type: SourceType.Squad, private: false });
     const repo = con.getRepository(Post);
-    await repo.update({ id: 'p1' }, { comments: 5 });
+    await repo.update({ id: 'p1' }, { comments: 6 });
     await repo.update({ id: 'p3' }, { comments: 5 });
     await repo.update({ id: 'p2' }, { comments: 5, sourceId: 'squad' });
 
