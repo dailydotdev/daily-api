@@ -11,10 +11,20 @@ interface TinybirdResponse<T> {
   data: T[];
 }
 
+export enum FeedConfigName {
+  Personalise = 'personalise',
+  Vector = 'vector',
+}
+
+const FeedVersionToConfigMap = {
+  11: FeedConfigName.Personalise,
+  14: FeedConfigName.Vector,
+};
+
 interface FeedParams {
   page_size: number;
   fresh_page_size: string;
-  feed_version: number;
+  feed_config_name: FeedConfigName;
   total_pages: number;
   user_id?: string;
   feed_id?: string;
@@ -24,19 +34,29 @@ interface FeedParams {
   squad_ids?: string[];
 }
 
+const feedVersionToFeedConfigName = (feedVersion?: number): FeedConfigName => {
+  if (!feedVersion || feedVersion < 11) {
+    return FeedConfigName.Personalise;
+  }
+
+  return FeedVersionToConfigMap[feedVersion] ?? FeedConfigName.Personalise;
+};
+
 export async function fetchTinybirdFeed(
   con: DataSource,
   pageSize: number,
-  feedVersion: number,
+  feedVersion?: number,
   userId?: string,
   feedId?: string,
   ctx?: Context,
 ): Promise<{ post_id: string; metadata: Record<string, string> }[]> {
+  const feedConfigName = feedVersionToFeedConfigName(feedVersion);
+
   const freshPageSize = Math.ceil(pageSize / 3).toFixed(0);
   const params: FeedParams = {
     page_size: pageSize,
     fresh_page_size: freshPageSize,
-    feed_version: feedVersion,
+    feed_config_name: feedConfigName,
     total_pages: 40,
   };
   if (userId) {
@@ -81,10 +101,6 @@ export async function fetchTinybirdFeed(
         ctx?.span,
         'Feed_v2.fetchTinybirdFeed',
         async () => {
-          // Make sure we forward legacy versions to the feed service
-          if (feedVersion < 10) {
-            feedVersion = 12;
-          }
           const url = process.env.INTERNAL_FEED;
           const res = await fetch(url, {
             ...fetchOptions,
@@ -104,7 +120,7 @@ export async function fetchTinybirdFeed(
             `unexpecetd response from feed service: ${res.status}`,
           );
         },
-        { params, feedVersion },
+        { params },
       ),
     { retries: 5 },
   );
@@ -134,7 +150,7 @@ const ONE_DAY_SECONDS = 24 * 60 * 60;
 async function fetchAndCacheFeed(
   con: DataSource,
   pageSize: number,
-  feedVersion: number,
+  feedVersion?: number,
   userId?: string,
   feedId?: string,
   ctx?: Context,

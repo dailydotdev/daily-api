@@ -871,6 +871,56 @@ Object {
 }
 `;
 
+exports[`query anonymousFeed should return anonymous feed vector type 1`] = `
+Object {
+  "anonymousFeed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p4",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "backend",
+            "data",
+            "javascript",
+          ],
+          "title": "P4",
+          "url": "http://p4.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
 exports[`query anonymousFeed should return anonymous feed while excluding sources 1`] = `
 Object {
   "anonymousFeed": Object {
@@ -1368,6 +1418,56 @@ Object {
 `;
 
 exports[`query feed should respect the supportedTypes argument 1`] = `
+Object {
+  "feed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p4",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "backend",
+            "data",
+            "javascript",
+          ],
+          "title": "P4",
+          "url": "http://p4.com",
+        },
+      },
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "url": "http://p1.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "c2NvcmU6MQ==",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query feed should respect the supportedTypes argument 2`] = `
 Object {
   "feed": Object {
     "edges": Array [
@@ -2537,6 +2637,8 @@ Object {
   },
 }
 `;
+
+exports[`query randomDiscussedPosts should filter out the given post 1`] = `null`;
 
 exports[`query searchPostSuggestions should return search suggestions 1`] = `
 Object {
