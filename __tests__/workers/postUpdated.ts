@@ -237,7 +237,7 @@ it('should update post and modify keywords', async () => {
   expect(postKeywords.length).toEqual(2);
 });
 
-it('should save keywords in cleaned versions', async () => {
+it('should save keywords without special characters', async () => {
   await createDefaultUser();
   await con
     .createQueryBuilder()

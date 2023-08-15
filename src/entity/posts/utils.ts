@@ -4,6 +4,8 @@ import { Keyword } from '../Keyword';
 import {
   EventLogger,
   notifyContentRequested,
+  removeEmptyValues,
+  removeSpecialCharacters,
   uniqueifyArray,
 } from '../../common';
 import { User } from '../User';
@@ -75,9 +77,9 @@ export const mergeKeywords = async (
 ): Promise<{ mergedKeywords: string[]; allowedKeywords: string[] }> => {
   if (keywords?.length) {
     const cleanedKeywords = uniqueifyArray(
-      keywords
-        .map((keyword) => keyword.replace(/[^a-zA-Z0-9-_#.]/g, ''))
-        .filter(Boolean),
+      removeEmptyValues(
+        keywords.map((keyword) => removeSpecialCharacters(keyword)),
+      ),
     );
     const synonymKeywords = await entityManager.getRepository(Keyword).find({
       where: {
