@@ -237,6 +237,47 @@ it('should update post and modify keywords', async () => {
   expect(postKeywords.length).toEqual(2);
 });
 
+it('should save keywords without special characters', async () => {
+  await createDefaultUser();
+  await con
+    .createQueryBuilder()
+    .insert()
+    .into(Keyword)
+    .values([
+      { value: 'abc', status: 'allow' },
+      { value: 'ab', status: 'allow' },
+      { value: 'a1-b2', status: 'allow' },
+      { value: 'a_1.net', status: 'allow' },
+      { value: '#c', status: 'allow' },
+      { value: 'a-b', status: 'allow' },
+      { value: '__', status: 'allow' },
+    ])
+    .execute();
+
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    post_id: 'p1',
+    title: 'New title',
+    extra: {
+      keywords: [
+        'abc',
+        'a b ',
+        'a1-b2',
+        "'a1-b2'",
+        'a_1.net',
+        '#c',
+        'a-b?',
+        '_ツ_',
+        '?',
+        "a'b",
+      ],
+    },
+  });
+  const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+  expect(post.title).toEqual('New title');
+  expect(post.tagsStr).toEqual('abc,ab,a1-b2,a_1.net,#c,a-b,__');
+});
+
 it('should save a new post with the relevant content curation', async () => {
   await createDefaultKeywords();
   await expectSuccessfulBackground(worker, {
