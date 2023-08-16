@@ -9,6 +9,7 @@ import {
   parseReadTime,
   Post,
   PostOrigin,
+  PostType,
   removeKeywords,
   SharePost,
   Source,
@@ -245,6 +246,7 @@ type FixDataProps = {
 };
 type FixData = {
   mergedKeywords: string[];
+  content_type: PostType;
   fixedData: Partial<ArticlePost>;
 };
 const fixData = async ({
@@ -290,6 +292,7 @@ const fixData = async ({
   // Try and fix generic data here
   return {
     mergedKeywords,
+    content_type: data?.content_type as PostType,
     fixedData: {
       origin: data?.origin as PostOrigin,
       authorId,
@@ -346,7 +349,7 @@ const worker: Worker = {
           return;
         }
 
-        const { mergedKeywords, fixedData } = await fixData({
+        const { mergedKeywords, content_type, fixedData } = await fixData({
           logger,
           entityManager,
           data,
