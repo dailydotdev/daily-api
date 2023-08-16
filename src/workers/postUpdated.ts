@@ -171,7 +171,6 @@ const updatePost = async ({
   id,
   mergedKeywords,
 }: UpdatePostProps) => {
-  const updatedDate = new Date(data.metadataChangedAt);
   const databasePost = await entityManager
     .getRepository(ArticlePost)
     .findOneBy({ id });
@@ -182,7 +181,8 @@ const updatePost = async ({
 
   if (
     !databasePost ||
-    databasePost.metadataChangedAt.toISOString() >= updatedDate.toISOString()
+    databasePost.metadataChangedAt.toISOString() >=
+      data.metadataChangedAt.toISOString()
   ) {
     return null;
   }
@@ -191,11 +191,10 @@ const updatePost = async ({
   const updateBecameVisible = !databasePost.visible && !!title?.length;
 
   data.id = databasePost.id;
-  data.metadataChangedAt = updatedDate;
   data.title = title;
   data.visible = updateBecameVisible;
   data.visibleAt = updateBecameVisible
-    ? databasePost.visibleAt ?? updatedDate
+    ? databasePost.visibleAt ?? data.metadataChangedAt
     : null;
 
   await entityManager.getRepository(ArticlePost).update(
@@ -302,7 +301,8 @@ const fixData = async ({
       title: data?.title && he.decode(data?.title),
       readTime: parseReadTime(data?.extra?.read_time),
       publishedAt: data?.published_at && new Date(data?.published_at),
-      metadataChangedAt: data?.updated_at || new Date(),
+      metadataChangedAt:
+        (data?.updated_at && new Date(data.updated_at)) || new Date(),
       visible: becomesVisible,
       visibleAt: becomesVisible ? new Date() : null,
       tagsStr: allowedKeywords?.join(',') || null,
