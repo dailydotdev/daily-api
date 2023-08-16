@@ -304,7 +304,7 @@ const onPostChange = async (
         await notifyContentRequested(logger, {
           id: freeform.payload.after.id,
           content: freeform.payload.after.content,
-          type: freeform.payload.after.type,
+          post_type: freeform.payload.after.type,
         });
       }
     }
@@ -334,7 +334,7 @@ const onPostChange = async (
         await notifyContentRequested(logger, {
           id: freeform.payload.after.id,
           content: freeform.payload.after.content,
-          type: freeform.payload.after.type,
+          post_type: freeform.payload.after.type,
         });
       }
     }

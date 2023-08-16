@@ -356,7 +356,9 @@ type ContentRequestedSubmission = { submissionId: string } & Pick<
   'sourceId' | 'url'
 >;
 type ContentRequestedURL = Pick<ArticlePost, 'id' | 'origin' | 'url'>;
-type ContentRequestedFreeForm = Pick<FreeformPost, 'id' | 'content' | 'type'>;
+type ContentRequestedFreeForm = Pick<FreeformPost, 'id' | 'content'> & {
+  post_type;
+};
 export type ContentRequested =
   | ContentRequestedSubmission
   | ContentRequestedURL
