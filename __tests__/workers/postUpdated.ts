@@ -252,7 +252,6 @@ it('should update post and modify keywords', async () => {
 });
 
 it('should update freeform post and only modify allowed fields', async () => {
-  // await createDefaultKeywords();
   await expectSuccessfulBackground(worker, {
     id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     post_id: 'p2',
