@@ -219,7 +219,6 @@ const updatePost = async ({
   if (content_type in allowedFieldsMapping) {
     const allowedFields = [
       'id',
-      'title',
       'visible',
       'visibleAt',
       'flags',

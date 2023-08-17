@@ -274,7 +274,7 @@ it('should update freeform post and only modify allowed fields', async () => {
   expect(post.contentCuration).toEqual(['news', 'story', 'release']);
   expect(post.siteTwitter).toEqual('text');
 
-  expect(post.title).toEqual('test');
+  expect(post.title).toEqual('freeform post');
   expect(post.canonicalUrl).toBeNull();
   expect(post.url).toBeNull();
 });
