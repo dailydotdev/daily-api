@@ -12,6 +12,9 @@ import {
 } from '../integrations';
 import { ValidationError } from 'apollo-server-errors';
 import { GQLEmptyResponse } from './common';
+import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
+import { base64 } from '../common';
+import graphorm from '../graphorm';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 type GQLSearchSessionParams = Pick<SearchSessionParams, 'limit' | 'lastId'>;
@@ -21,6 +24,20 @@ export const typeDefs = /* GraphQL */ `
     id: String!
     prompt: String!
     createdAt: DateTime!
+  }
+
+  type SearchSessionEdge {
+    node: SearchSession!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type SearchSessionConnection {
+    pageInfo: PageInfo!
+    edges: [SearchSessionEdge!]!
   }
 
   type SearchChunkError {
@@ -78,8 +95,14 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       _,
       { limit, lastId }: GQLSearchSessionParams,
       ctx,
-    ): Promise<GQLSearchSession[]> =>
-      getSessions(ctx.userId, { limit, lastId }),
+    ): Promise<ConnectionRelay<GQLSearchSession>> => {
+      return graphorm.queryPaginatedIntegration(
+        () => !!lastId,
+        (nodeSize) => nodeSize === limit,
+        (node) => base64(`timestamp:${node.createdAt}`),
+        () => getSessions(ctx.userId, { limit, lastId }),
+      );
+    },
     searchSession: async (_, { id }: { id: string }, ctx): Promise<Search> =>
       getSession(ctx.userId, id),
   },
