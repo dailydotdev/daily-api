@@ -16,6 +16,7 @@ import {
   Submission,
   SubmissionStatus,
   Toc,
+  UNKNOWN_SOURCE,
 } from '../entity';
 import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
@@ -189,6 +190,10 @@ const updatePost = async ({
   const databasePost = await entityManager
     .getRepository(ArticlePost)
     .findOneBy({ id });
+
+  if (data?.origin === PostOrigin.Squad) {
+    data.sourceId = UNKNOWN_SOURCE;
+  }
 
   if (
     !databasePost ||
