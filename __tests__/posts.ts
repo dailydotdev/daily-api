@@ -890,7 +890,7 @@ describe('query postUpvotes', () => {
     postUpvotes(id: $id) {
       edges {
         node {
-          createdAt
+          createdAt: votedAt
           user {
             name
             username
@@ -918,7 +918,7 @@ describe('query postUpvotes', () => {
 
   it('should return users that upvoted the post by id in descending order', async () => {
     const userRepo = con.getRepository(User);
-    const upvoteRepo = con.getRepository(Upvote);
+    const userPostRepo = con.getRepository(UserPost);
     const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
     const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
     await userRepo.save({
@@ -926,15 +926,27 @@ describe('query postUpvotes', () => {
       name: 'Lee',
       image: 'https://daily.dev/lee.jpg',
     });
-    await upvoteRepo.save({
+    await userPostRepo.save({
       userId: '1',
       postId: 'p1',
-      createdAt: createdAtOld,
+      vote: UserPostVote.Up,
     });
-    await upvoteRepo.save({
+    await userPostRepo.save({
+      userId: '1',
+      postId: 'p1',
+      votedAt: createdAtOld,
+      vote: UserPostVote.Up,
+    });
+    await userPostRepo.save({
       userId: '2',
       postId: 'p1',
-      createdAt: createdAtNew,
+      vote: UserPostVote.Up,
+    });
+    await userPostRepo.save({
+      userId: '2',
+      postId: 'p1',
+      votedAt: createdAtNew,
+      vote: UserPostVote.Up,
     });
 
     const res = await client.query(QUERY, { variables: { id: 'p1' } });

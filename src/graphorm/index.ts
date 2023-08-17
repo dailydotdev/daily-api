@@ -431,6 +431,7 @@ const obj = new GraphORM({
     },
   },
   UserPost: {
+    requiredColumns: ['votedAt'],
     fields: {
       flags: {
         jsonType: true,
