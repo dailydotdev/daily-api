@@ -14,7 +14,7 @@ export const typeDefs = /* GraphQL */ `
   type SearchSession {
     id: String!
     prompt: String!
-    createdAt: String!
+    createdAt: DateTime!
   }
 
   type SearchChunkError {

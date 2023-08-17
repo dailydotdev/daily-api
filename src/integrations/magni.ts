@@ -43,15 +43,15 @@ interface SearchChunk {
   prompt: string;
   response: string; // markdown
   error: SearchChunkError;
-  createdAt: string;
-  completedAt: string;
+  createdAt: Date;
+  completedAt: Date;
   feedback: number;
   sources: SearchChunkSource[];
 }
 
 export interface Search {
   id: string;
-  createdAt: string;
+  createdAt: Date;
   chunks: SearchChunk[];
 }
 
