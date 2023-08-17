@@ -5,6 +5,7 @@ import {
   ReputationEvent,
   ReputationReason,
   ReputationType,
+  PostType,
 } from '../../src/entity';
 import {
   notifyAlertsUpdated,
@@ -896,6 +897,53 @@ describe('post', () => {
     expect(updatedPost.metadataChangedAt.getTime()).toBeGreaterThan(
       oldPost.metadataChangedAt.getTime(),
     );
+  });
+
+  it('should notify for new freeform post greater than 1000 characters', async () => {
+    const after = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1'.repeat(1000),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyContentRequested).toBeCalledTimes(1);
+    expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
+      {
+        id: after.id,
+        content: after.content,
+        post_type: PostType.Freeform,
+      },
+    ]);
+  });
+
+  it('should not notify for new freeform post less than 1000 characters', async () => {
+    const after = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1'.repeat(999),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
   });
 });
 
