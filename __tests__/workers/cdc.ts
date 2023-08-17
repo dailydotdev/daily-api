@@ -946,6 +946,46 @@ describe('post', () => {
     expect(notifyContentRequested).toBeCalledTimes(0);
   });
 
+  it('should not notify on welcome post', async () => {
+    const after = {
+      ...base,
+      type: PostType.Welcome,
+      content: '1'.repeat(1000),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+  });
+
+  it('should not notify on shared post', async () => {
+    const after = {
+      ...base,
+      type: PostType.Share,
+      content: '1'.repeat(1000),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+  });
+
   it('should notify for edited freeform post greater than 200 edited characters', async () => {
     const before = {
       ...base,
