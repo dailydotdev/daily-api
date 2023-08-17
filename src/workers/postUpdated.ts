@@ -16,7 +16,6 @@ import {
   Submission,
   SubmissionStatus,
   Toc,
-  UNKNOWN_SOURCE,
 } from '../entity';
 import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';

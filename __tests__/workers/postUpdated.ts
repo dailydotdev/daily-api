@@ -3,7 +3,6 @@ import worker from '../../src/workers/postUpdated';
 import {
   ArticlePost,
   COMMUNITY_PICKS_SOURCE,
-  FreeformPost,
   Keyword,
   Post,
   PostKeyword,
