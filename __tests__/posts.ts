@@ -372,11 +372,12 @@ describe('upvoted field', () => {
 
   it('should return true when user did upvoted the post', async () => {
     loggedUser = '1';
-    const repo = con.getRepository(Upvote);
+    const repo = con.getRepository(UserPost);
     await repo.save(
       repo.create({
         postId: 'p1',
         userId: loggedUser,
+        vote: UserPostVote.Up,
       }),
     );
     const res = await client.query(QUERY);
@@ -3174,11 +3175,12 @@ describe('downvoted field', () => {
 
   it('should return true when user did downvoted the post', async () => {
     loggedUser = '1';
-    const repo = con.getRepository(Downvote);
+    const repo = con.getRepository(UserPost);
     await repo.save(
       repo.create({
         postId: 'p1',
         userId: loggedUser,
+        vote: UserPostVote.Down,
       }),
     );
     const res = await client.query(QUERY);

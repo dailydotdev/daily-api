@@ -25,13 +25,18 @@ import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 
 const existsByUserAndPost =
-  (entity: string) =>
+  (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
   (ctx: Context, alias: string, qb: QueryBuilder): string => {
-    const query = qb
+    let query = qb
       .select('1')
       .from(entity, 'a')
       .where(`a."userId" = :userId`, { userId: ctx.userId })
       .andWhere(`a."postId" = ${alias}.id`);
+
+    if (typeof build === 'function') {
+      query = build(query);
+    }
+
     return `EXISTS${query.getQuery()}`;
   };
 
@@ -100,7 +105,9 @@ const obj = new GraphORM({
         transform: nullIfNotLoggedIn,
       },
       upvoted: {
-        select: existsByUserAndPost('Upvote'),
+        select: existsByUserAndPost('UserPost', (qb) =>
+          qb.andWhere(`${qb.alias}.vote = 1`),
+        ),
         transform: nullIfNotLoggedIn,
       },
       commented: {
@@ -163,7 +170,9 @@ const obj = new GraphORM({
         },
       },
       downvoted: {
-        select: existsByUserAndPost('Downvote'),
+        select: existsByUserAndPost('UserPost', (qb) =>
+          qb.andWhere(`${qb.alias}.vote = -1`),
+        ),
         transform: nullIfNotLoggedIn,
       },
       flags: {
