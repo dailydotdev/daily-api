@@ -2,19 +2,13 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import {
-  getSessions,
   postFeedback,
   SearchResultFeedback,
   Search,
-  SearchSession,
-  SearchSessionParams,
   getSession,
 } from '../integrations';
 import { ValidationError } from 'apollo-server-errors';
 import { GQLEmptyResponse } from './common';
-
-type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
-type GQLSearchSessionParams = Pick<SearchSessionParams, 'limit' | 'lastId'>;
 
 export const typeDefs = /* GraphQL */ `
   type SearchSession {
@@ -54,11 +48,6 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     """
-    Get user's search history
-    """
-    searchSessionHistory(limit: Int, lastId: String): [SearchSession]! @auth
-
-    """
     Get a search session by id
     """
     searchSession(id: String!): Search! @auth
@@ -74,12 +63,6 @@ export const typeDefs = /* GraphQL */ `
 
 export const resolvers: IResolvers<unknown, Context> = traceResolvers({
   Query: {
-    searchSessionHistory: async (
-      _,
-      { limit, lastId }: GQLSearchSessionParams,
-      ctx,
-    ): Promise<GQLSearchSession[]> =>
-      getSessions(ctx.userId, { limit, lastId }),
     searchSession: async (_, { id }: { id: string }, ctx): Promise<Search> =>
       getSession(ctx.userId, id),
   },

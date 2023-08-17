@@ -35,7 +35,7 @@ describe('searchResultFeedback mutation', () => {
   const chunkId = 'chunk';
 
   const mockFeedback = (params: SearchResultFeedback) => {
-    nock(magniOrigin)
+    nock(process.env.MAGNI_ORIGIN)
       .post('/feedback')
       .matchHeader('Content-Type', 'application/json')
       .matchHeader('X-User-Id', loggedUser)
@@ -97,68 +97,6 @@ describe('searchResultFeedback mutation', () => {
     });
 
     expect(res.errors).toBeFalsy();
-  });
-});
-
-describe('searchSessionHistory query', () => {
-  const mockResponse = {
-    sessions: [
-      {
-        id: 'unique id',
-        prompt: 'the first question',
-        createdAt: new Date(2023, 7, 11).toString(),
-      },
-    ],
-  };
-
-  const mockHistory = (limit = 30, lastId?: string) => {
-    const params = new URLSearchParams({ limit: limit.toString() });
-
-    if (lastId) params.append('lastId', lastId);
-
-    nock(magniOrigin)
-      .get(`/sessions?${params.toString()}`)
-      .matchHeader('X-User-Id', loggedUser)
-      .reply(200, mockResponse);
-  };
-
-  const QUERY = `
-    query SearchSessionHistory($limit: Int, $lastId: String) {
-      searchSessionHistory(limit: $limit, lastId: $lastId) {
-        id
-        prompt
-        createdAt
-      }
-    }
-  `;
-
-  it('should not authorize when not logged in', async () =>
-    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
-
-  it('should get user search history with limit', async () => {
-    loggedUser = '1';
-
-    const limit = 20;
-
-    mockHistory(limit);
-
-    const res = await client.mutate(QUERY, { variables: { limit } });
-
-    expect(res.errors).toBeFalsy();
-  });
-
-  it('should get user search history with limit and last id', async () => {
-    loggedUser = '1';
-
-    const limit = 20;
-    const lastId = 'last id';
-
-    mockHistory(limit, lastId);
-
-    const res = await client.mutate(QUERY, { variables: { limit, lastId } });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.searchSessionHistory).toEqual(mockResponse.sessions);
   });
 });
 

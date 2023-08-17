@@ -9,7 +9,7 @@ export interface SearchResultFeedback {
   value: number;
 }
 
-export interface SearchSession {
+export interface SearchSessionHistory {
   id: string;
   prompt: string;
   createdAt: string;
@@ -33,26 +33,25 @@ export const postFeedback = async (
 };
 
 interface SessionResponse {
-  sessions: SearchSession[];
-}
-
-export interface SearchSessionParams {
-  limit?: number;
-  lastId?: string;
+  sessions: SearchSessionHistory[];
 }
 
 export const getSessions = async (
   userId: string,
-  { limit = 30, lastId }: SearchSessionParams = {},
-): Promise<SearchSession[]> => {
+  limit = 30,
+  lastId?: string,
+): Promise<SearchSessionHistory[]> => {
   const params = new URLSearchParams({ limit: limit.toString() });
 
   if (lastId) params.append('lastId', lastId);
 
-  const url = `${magniOrigin}/sessions?${params.toString()}`;
-  const res = await fetch(url, {
+  const res = await fetch(`${magniOrigin}/feedback`, {
     ...fetchOptions,
-    headers: { 'X-User-Id': userId },
+    method: 'get',
+    headers: {
+      'X-User-Id': userId,
+      'Content-Type': 'application/json',
+    },
   });
 
   if (!res.ok) throw new ValidationError(await res.text());
