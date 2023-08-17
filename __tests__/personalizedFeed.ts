@@ -59,7 +59,7 @@ it('should fetch anonymous feed and serve consequent pages from cache', async ()
       total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
-      feed_version: 5,
+      feed_config_name: 'personalise',
       feed_id: 'global',
     })
     .reply(200, feedResponse);
@@ -93,7 +93,7 @@ it('should fetch anonymous feed and serve consequent calls from cache', async ()
       total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
-      feed_version: 5,
+      feed_config_name: 'personalise',
       feed_id: 'global',
     })
     .reply(200, feedResponse);
@@ -134,7 +134,7 @@ it('should fetch anonymous feed even when cache is old', async () => {
       total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
-      feed_version: 5,
+      feed_config_name: 'personalise',
       feed_id: 'global',
     })
     .reply(200, feedResponse);
@@ -166,7 +166,7 @@ it('should not fetch anonymous feed even when cache is still fresh', async () =>
       total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
-      feed_version: 5,
+      feed_config_name: 'personalise',
     })
     .reply(200, feedResponse);
   const page0 = await generatePersonalizedFeed({
@@ -203,7 +203,7 @@ it('should fetch anonymous feed when last updated time is greater than last gene
       total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
-      feed_version: 5,
+      feed_config_name: 'personalise',
       feed_id: 'global',
     })
     .reply(200, feedResponse);
@@ -237,7 +237,7 @@ it('should set the correct query parameters', async () => {
       total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
-      feed_version: 5,
+      feed_config_name: 'personalise',
       user_id: 'u1',
       feed_id: '1',
       allowed_tags: ['javascript', 'golang'],
@@ -268,7 +268,7 @@ it('should encode query parameters', async () => {
       total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
-      feed_version: 5,
+      feed_config_name: 'personalise',
       user_id: 'u1',
       feed_id: '1',
       allowed_tags: ['c#'],
@@ -310,7 +310,7 @@ it('should send source memberships as parameter', async () => {
       total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
-      feed_version: 5,
+      feed_config_name: 'personalise',
       user_id: '1',
       feed_id: '1',
       squad_ids: ['a', 'b'],
@@ -343,7 +343,7 @@ it('should support legacy cache format', async () => {
       total_pages: 40,
       page_size: 2,
       fresh_page_size: '1',
-      feed_version: 5,
+      feed_config_name: 'personalise',
     })
     .reply(200, feedResponse);
   const page0 = await generatePersonalizedFeed({

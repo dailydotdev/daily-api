@@ -1,4 +1,5 @@
 import fetch, { RequestInit, Headers } from 'node-fetch';
+import pRetry, { AbortError } from 'p-retry';
 import { fetchOptions } from './http';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { cookies, setCookie } from './cookies';
@@ -15,21 +16,42 @@ const addKratosHeaderCookies = (req: FastifyRequest): RequestInit => ({
   },
 });
 
+class KratosError extends Error {
+  statusCode: number;
+  body: string;
+
+  constructor(statusCode: number, body: string) {
+    super(`Kratos error: ${statusCode}`);
+    this.statusCode = statusCode;
+    this.body = body;
+  }
+}
+
 const fetchKratos = async (
   req: FastifyRequest,
   endpoint: string,
   opts: RequestInit = {},
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<{ res: any; headers: Headers }> => {
-  const res = await fetch(endpoint, {
-    ...fetchOptions,
-    ...addKratosHeaderCookies(req),
-    ...opts,
-  });
-  if (res.status >= 300) {
-    throw { statusCode: res.status, body: await res.text() };
-  }
-  return { res: await res.json(), headers: res.headers };
+  return pRetry(
+    async () => {
+      const res = await fetch(endpoint, {
+        ...fetchOptions,
+        ...addKratosHeaderCookies(req),
+        ...opts,
+      });
+      if (res.status < 300) {
+        return { res: await res.json(), headers: res.headers };
+      }
+      const err = new KratosError(res.status, await res.text());
+      if (res.status >= 500) {
+        req.log.warn({ err }, 'unexpected error from kratos');
+        throw err;
+      }
+      throw new AbortError(err);
+    },
+    { retries: 5 },
+  );
 };
 
 export const clearAuthentication = async (

@@ -361,7 +361,7 @@ describe('query anonymousFeed', () => {
         total_pages: 40,
         page_size: 11,
         fresh_page_size: '4',
-        feed_version: 2,
+        feed_config_name: 'personalise',
         feed_id: 'global',
       })
       .reply(200, {
@@ -373,13 +373,31 @@ describe('query anonymousFeed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
+  it('should return anonymous feed vector type', async () => {
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        total_pages: 40,
+        page_size: 11,
+        fresh_page_size: '4',
+        feed_config_name: 'vector',
+        feed_id: 'global',
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+      });
+    const res = await client.query(QUERY, {
+      variables: { ...variables, version: 14 },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+
   it('should safetly handle a case where the feed is empty', async () => {
     nock('http://localhost:6000')
       .post('/feed.json', {
         total_pages: 40,
         page_size: 11,
         fresh_page_size: '4',
-        feed_version: 2,
+        feed_config_name: 'personalise',
         feed_id: 'global',
       })
       .reply(200, {
@@ -411,7 +429,7 @@ describe('query anonymousFeed', () => {
         total_pages: 40,
         page_size: 11,
         fresh_page_size: '4',
-        feed_version: 2,
+        feed_config_name: 'personalise',
         user_id: '1',
         feed_id: 'global',
       })
@@ -587,7 +605,7 @@ describe('query feed', () => {
         total_pages: 40,
         page_size: 11,
         fresh_page_size: '4',
-        feed_version: 2,
+        feed_config_name: 'personalise',
         user_id: '1',
         feed_id: '1',
         allowed_tags: ['javascript', 'golang'],
@@ -610,7 +628,7 @@ describe('query feed', () => {
         total_pages: 40,
         page_size: 11,
         fresh_page_size: '4',
-        feed_version: 2,
+        feed_config_name: 'personalise',
         user_id: '1',
         feed_id: '1',
       })
@@ -1134,7 +1152,7 @@ describe('query mostDiscussedFeed', () => {
       .getRepository(Source)
       .update({ id: 'squad' }, { type: SourceType.Squad });
     const repo = con.getRepository(Post);
-    await repo.update({ id: 'p1' }, { comments: 5 });
+    await repo.update({ id: 'p1' }, { comments: 6 });
     await repo.update({ id: 'p3' }, { comments: 5 });
     await repo.update({ id: 'p2' }, { comments: 5, sourceId: 'squad' });
 
@@ -1148,7 +1166,7 @@ describe('query mostDiscussedFeed', () => {
       .getRepository(Source)
       .update({ id: 'squad' }, { type: SourceType.Squad, private: false });
     const repo = con.getRepository(Post);
-    await repo.update({ id: 'p1' }, { comments: 5 });
+    await repo.update({ id: 'p1' }, { comments: 6 });
     await repo.update({ id: 'p3' }, { comments: 5 });
     await repo.update({ id: 'p2' }, { comments: 5, sourceId: 'squad' });
 

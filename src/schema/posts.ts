@@ -4,7 +4,7 @@ import {
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, DeepPartial, EntityManager } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
@@ -52,6 +52,9 @@ import {
   ContentImage,
   PostQuestion,
   Downvote,
+  UserPost,
+  UserPostFlagsPublic,
+  UserPostVote,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -115,6 +118,7 @@ export interface GQLPost {
   contentHtml?: string;
   downvoted?: boolean;
   flags?: PostFlagsPublic;
+  userState?: GQLUserPost;
 }
 
 interface PinPostArgs {
@@ -132,6 +136,12 @@ export type GQLPostNotification = Pick<
 export interface GQLPostUpvote {
   createdAt: Date;
   post: GQLPost;
+}
+
+export interface GQLUserPost {
+  vote: UserPostVote;
+  hidden: boolean;
+  flags?: UserPostFlagsPublic;
 }
 
 export interface GQLPostUpvoteArgs extends ConnectionArguments {
@@ -211,6 +221,30 @@ export const typeDefs = /* GraphQL */ `
     The unix timestamp (seconds) the post will be promoted to public to
     """
     promoteToPublic: Int @auth(requires: [MODERATOR])
+  }
+
+  type UserPostFlagsPublic {
+    """
+    Whether user dismissed feedback prompt for post
+    """
+    feedbackDismiss: Boolean
+  }
+
+  type UserPost {
+    """
+    The user's vote for the post
+    """
+    vote: Int!
+
+    """
+    Whether the post is hidden or not
+    """
+    hidden: Boolean!
+
+    """
+    The post's flags
+    """
+    flags: UserPostFlagsPublic
   }
 
   """
@@ -421,6 +455,11 @@ export const typeDefs = /* GraphQL */ `
     All the flags for the post
     """
     flags: PostFlagsPublic
+
+    """
+    User state for the post
+    """
+    userState: UserPost @auth
   }
 
   type PostConnection {
@@ -810,6 +849,31 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): EmptyResponse @auth
+
+    """
+    Vote post
+    """
+    votePost(
+      """
+      Id of the post
+      """
+      id: ID!
+
+      """
+      Vote type
+      """
+      vote: Int!
+    ): EmptyResponse @auth
+
+    """
+    Dismiss user post feedback
+    """
+    dismissPostFeedback(
+      """
+      Id of the post
+      """
+      id: ID!
+    ): EmptyResponse @auth
   }
 
   extend type Subscription {
@@ -824,10 +888,27 @@ const nullableImageType = [PostType.Freeform, PostType.Welcome];
 
 const saveHiddenPost = async (
   con: DataSource,
-  hiddenPost: DeepPartial<HiddenPost>,
+  {
+    postId,
+    userId,
+  }: {
+    postId: string;
+    userId: string;
+  },
 ): Promise<boolean> => {
   try {
-    await con.getRepository(HiddenPost).insert(hiddenPost);
+    await con.transaction(async (entityManager) => {
+      await entityManager.getRepository(HiddenPost).insert({
+        postId,
+        userId,
+      });
+
+      await entityManager.getRepository(UserPost).save({
+        postId,
+        userId,
+        hidden: true,
+      });
+    });
   } catch (err) {
     // Foreign key violation
     if (err?.code === TypeOrmError.FOREIGN_KEY) {
@@ -850,6 +931,14 @@ const revertPostDownvote = async (
     postId,
     userId,
   });
+
+  await con.getRepository(UserPost).save({
+    postId,
+    userId,
+    vote: UserPostVote.None,
+    hidden: false,
+  });
+
   await con.getRepository(HiddenPost).delete({ postId, userId });
 };
 
@@ -1052,9 +1141,18 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      await ctx.con
-        .getRepository(HiddenPost)
-        .delete({ postId: id, userId: ctx.userId });
+      await ctx.con.transaction(async (entityManager) => {
+        await entityManager
+          .getRepository(HiddenPost)
+          .delete({ postId: id, userId: ctx.userId });
+
+        await entityManager.getRepository(UserPost).save({
+          postId: id,
+          userId: ctx.userId,
+          hidden: false,
+        });
+      });
+
       return { _: true };
     },
     reportPost: async (
@@ -1074,6 +1172,7 @@ export const resolvers: IResolvers<any, Context> = {
         userId: ctx.userId,
         postId: id,
       });
+
       if (added) {
         const post = await ctx.getRepository(Post).findOneByOrFail({ id });
         await ensureSourcePermissions(ctx, post.sourceId);
@@ -1374,6 +1473,12 @@ export const resolvers: IResolvers<any, Context> = {
           });
 
           await revertPostDownvote(entityManager, id, ctx.userId);
+
+          await entityManager.getRepository(UserPost).save({
+            postId: id,
+            userId: ctx.userId,
+            vote: UserPostVote.Up,
+          });
         });
       } catch (err) {
         // Foreign key violation
@@ -1396,6 +1501,12 @@ export const resolvers: IResolvers<any, Context> = {
         await entityManager.getRepository(Upvote).delete({
           postId: id,
           userId: ctx.userId,
+        });
+
+        await entityManager.getRepository(UserPost).save({
+          postId: id,
+          userId: ctx.userId,
+          vote: UserPostVote.None,
         });
       });
       return { _: true };
@@ -1523,6 +1634,12 @@ export const resolvers: IResolvers<any, Context> = {
             postId: id,
           });
 
+          await entityManager.getRepository(UserPost).save({
+            postId: id,
+            userId: ctx.userId,
+            vote: UserPostVote.Down,
+          });
+
           await entityManager.getRepository(Upvote).delete({
             postId: id,
             userId: ctx.userId,
@@ -1548,6 +1665,96 @@ export const resolvers: IResolvers<any, Context> = {
       await ctx.con.transaction(async (entityManager) => {
         await revertPostDownvote(entityManager, id, ctx.userId);
       });
+      return { _: true };
+    },
+    votePost: async (
+      source,
+      { id, vote }: { id: string; vote: UserPostVote },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      try {
+        if (!Object.values(UserPostVote).includes(vote)) {
+          throw new ValidationError('Unsupported vote type');
+        }
+
+        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+        await ensureSourcePermissions(ctx, post.sourceId);
+        const userPostRepo = ctx.con.getRepository(UserPost);
+
+        switch (vote) {
+          case UserPostVote.Up:
+            await userPostRepo.save({
+              postId: id,
+              userId: ctx.userId,
+              vote: UserPostVote.Up,
+              hidden: false,
+            });
+
+            break;
+          case UserPostVote.Down:
+            await userPostRepo.save({
+              postId: id,
+              userId: ctx.userId,
+              vote: UserPostVote.Down,
+              hidden: true,
+            });
+
+            break;
+          case UserPostVote.None:
+            await userPostRepo.save({
+              postId: id,
+              userId: ctx.userId,
+              vote: UserPostVote.None,
+              hidden: false,
+            });
+
+            break;
+          default:
+            throw new ValidationError('Unsupported vote type');
+        }
+      } catch (err) {
+        // Foreign key violation
+        if (err?.code === TypeOrmError.FOREIGN_KEY) {
+          throw new NotFoundError('Post or user not found');
+        }
+
+        throw err;
+      }
+
+      return { _: true };
+    },
+    dismissPostFeedback: async (
+      source,
+      { id }: { id: string },
+      ctx: Context,
+    ) => {
+      try {
+        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+        await ensureSourcePermissions(ctx, post.sourceId);
+
+        await ctx.con
+          .createQueryBuilder(UserPost, 'up')
+          .insert()
+          .values({
+            postId: id,
+            userId: ctx.userId,
+            flags: {
+              feedbackDismiss: true,
+            },
+          })
+          .onConflict(
+            `("postId", "userId") DO UPDATE SET flags = up."flags" || excluded.flags`,
+          )
+          .execute();
+      } catch (err) {
+        // Foreign key violation
+        if (err?.code === TypeOrmError.FOREIGN_KEY) {
+          throw new NotFoundError('Post or user not found');
+        }
+
+        throw err;
+      }
+
       return { _: true };
     },
   }),
