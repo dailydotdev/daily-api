@@ -3584,6 +3584,10 @@ describe('mutation votePost', () => {
 
   it('should upvote', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).save({
+      id: 'p1',
+      upvotes: 3,
+    });
     const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', vote: UserPostVote.Up },
     });
@@ -3598,10 +3602,16 @@ describe('mutation votePost', () => {
       vote: UserPostVote.Up,
       hidden: false,
     });
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(4);
   });
 
   it('should downvote', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).save({
+      id: 'p1',
+      downvotes: 3,
+    });
     const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', vote: UserPostVote.Down },
     });
@@ -3616,10 +3626,16 @@ describe('mutation votePost', () => {
       vote: UserPostVote.Down,
       hidden: true,
     });
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.downvotes).toEqual(4);
   });
 
   it('should cancel vote', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).save({
+      id: 'p1',
+      upvotes: 3,
+    });
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
@@ -3640,6 +3656,8 @@ describe('mutation votePost', () => {
       vote: UserPostVote.None,
       hidden: false,
     });
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(3);
   });
 
   it('should not set votedAt when vote is not set on insert', async () => {
@@ -3722,6 +3740,162 @@ describe('mutation votePost', () => {
     expect(userPostBefore?.votedAt?.toISOString()).toBe(
       userPost?.votedAt?.toISOString(),
     );
+  });
+
+  it('should increment post upvotes when user upvotes', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save({
+      id: 'p1',
+      upvotes: 3,
+    });
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.None,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.Up },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(4);
+  });
+
+  it('should increment post downvotes when user downvotes', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save({
+      id: 'p1',
+      downvotes: 3,
+    });
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.None,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.Down },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.downvotes).toEqual(4);
+  });
+
+  it('should decrement post upvotes when user cancels upvote', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Up,
+    });
+    await con.getRepository(Post).save({
+      id: 'p1',
+      upvotes: 3,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.None },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(2);
+  });
+
+  it('should decrement post downvotes when user cancels downvote', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Down,
+    });
+    await con.getRepository(Post).save({
+      id: 'p1',
+      downvotes: 3,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.None },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.downvotes).toEqual(2);
+  });
+
+  it('should decrement post upvotes and increment downvotes when user changes vote from up to down', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Up,
+    });
+    await con.getRepository(Post).save({
+      id: 'p1',
+      upvotes: 3,
+      downvotes: 2,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.Down },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(2);
+    expect(post?.downvotes).toEqual(3);
+  });
+
+  it('should increment post upvotes and decrement downvotes when user changes vote from down to up', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Down,
+    });
+    await con.getRepository(Post).save({
+      id: 'p1',
+      upvotes: 2,
+      downvotes: 3,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.Up },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(3);
+    expect(post?.downvotes).toEqual(2);
+  });
+
+  it('should decrement post upvotes when UserPost entity is removed', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Up,
+    });
+    await con.getRepository(Post).save({
+      id: 'p1',
+      upvotes: 3,
+    });
+    await con.getRepository(UserPost).delete({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(2);
+  });
+
+  it('should decrement post downvotes when UserPost entity is removed', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Down,
+    });
+    await con.getRepository(Post).save({
+      id: 'p1',
+      downvotes: 3,
+    });
+    await con.getRepository(UserPost).delete({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.downvotes).toEqual(2);
   });
 });
 
