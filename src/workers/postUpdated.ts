@@ -160,25 +160,36 @@ const createPost = async ({
   return;
 };
 
+const allowedFieldsMapping = {
+  freeform: [
+    'contentCuration',
+    'description',
+    'metadataChangedAt',
+    'readTime',
+    'siteTwitter',
+    'summary',
+    'tagsStr',
+    'toc',
+  ],
+};
+
 type UpdatePostProps = {
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
   id: string;
   mergedKeywords: string[];
+  content_type: PostType;
 };
 const updatePost = async ({
   entityManager,
   data,
   id,
   mergedKeywords,
+  content_type,
 }: UpdatePostProps) => {
   const databasePost = await entityManager
     .getRepository(ArticlePost)
     .findOneBy({ id });
-
-  if (data?.origin === PostOrigin.Squad) {
-    data.sourceId = UNKNOWN_SOURCE;
-  }
 
   if (
     !databasePost ||
@@ -197,6 +208,23 @@ const updatePost = async ({
   data.visibleAt = updateBecameVisible
     ? databasePost.visibleAt ?? data.metadataChangedAt
     : null;
+
+  if (content_type in allowedFieldsMapping) {
+    const allowedFields = [
+      'id',
+      'title',
+      'visible',
+      'visibleAt',
+      'flags',
+      ...allowedFieldsMapping[content_type],
+    ];
+
+    Object.keys(data).forEach((key) => {
+      if (allowedFields.indexOf(key) === -1) {
+        delete data[key];
+      }
+    });
+  }
 
   await entityManager.getRepository(ArticlePost).update(
     { id: databasePost.id },
@@ -372,6 +400,7 @@ const worker: Worker = {
             data: fixedData,
             id: post_id,
             mergedKeywords,
+            content_type,
           });
         }
       });
