@@ -4,12 +4,13 @@ import {
   initializeGraphQLTesting,
   MockContext,
   testMutationErrorCode,
+  testQueryErrorCode,
 } from './helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import nock from 'nock';
 import { GraphQLTestClient } from './helpers';
-import { SearchResultFeedback } from '../src/integrations';
+import { magniOrigin, SearchResultFeedback } from '../src/integrations';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -96,5 +97,90 @@ describe('searchResultFeedback mutation', () => {
     });
 
     expect(res.errors).toBeFalsy();
+  });
+});
+
+describe('searchSession query', () => {
+  const mockResponse = {
+    id: 'session id',
+    createdAt: new Date(2023, 7, 14).toISOString(),
+    chunks: [
+      {
+        id: 'chunk id',
+        prompt: 'user prompt',
+        response: 'response as markdown',
+        error: {
+          code: 'error code (string)',
+          message: 'error message',
+        },
+        createdAt: new Date(2023, 7, 14).toISOString(),
+        completedAt: new Date(2023, 7, 14).toISOString(),
+        feedback: 1,
+        sources: [
+          {
+            id: 'source id',
+            title: 'title returned from the search engine',
+            snippet: 'text snippet returned from the search engine',
+            url: 'URL to the page itself (external link)',
+          },
+        ],
+      },
+    ],
+  };
+
+  const mockSession = (id: string) => {
+    nock(magniOrigin)
+      .get(`/sessions?id=${id}`)
+      .matchHeader('X-User-Id', loggedUser)
+      .reply(200, mockResponse);
+  };
+
+  const QUERY = `
+    query SearchSession($id: String!) {
+      searchSession(id: $id) {
+        id
+        createdAt
+        chunks {
+          id
+          prompt
+          response
+          error {
+            message
+            code
+          }
+          createdAt
+          completedAt
+          feedback
+          sources  {
+            id
+            title
+            snippet
+            url
+          }
+        }
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', async () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'session id' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw an error when id is missing', async () =>
+    testQueryErrorCode(client, { query: QUERY }, 'GRAPHQL_VALIDATION_FAILED'));
+
+  it('should get user search session with id', async () => {
+    loggedUser = '1';
+    const id = 'session id';
+
+    mockSession(id);
+
+    const res = await client.mutate(QUERY, { variables: { id } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchSession).toEqual(mockResponse);
   });
 });
