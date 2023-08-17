@@ -296,7 +296,7 @@ const onPostChange = async (
       await notifyPostVisible(logger, data.payload.after);
     }
     if (data.payload.after.type === PostType.Freeform) {
-      const freeform = data as unknown as ChangeMessage<FreeformPost>;
+      const freeform = data as ChangeMessage<FreeformPost>;
       if (
         freeform.payload.after.content.length >=
         FREEFORM_POST_MINIMUM_CONTENT_LENGTH
@@ -314,7 +314,7 @@ const onPostChange = async (
         await notifyPostVisible(logger, data.payload.after);
       } else {
         // Trigger message only if the post is already visible and the conte was edited
-        const freeform = data as unknown as ChangeMessage<FreeformPost>;
+        const freeform = data as ChangeMessage<FreeformPost>;
         if (
           isChanged(freeform.payload.before, freeform.payload.after, 'content')
         ) {
