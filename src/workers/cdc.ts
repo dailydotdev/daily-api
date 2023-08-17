@@ -324,7 +324,7 @@ const onPostChange = async (
     }
 
     if (data.payload.after.type === PostType.Freeform) {
-      const freeform = data as unknown as ChangeMessage<FreeformPost>;
+      const freeform = data as ChangeMessage<FreeformPost>;
       if (
         Math.abs(
           freeform.payload.before.content.length -
