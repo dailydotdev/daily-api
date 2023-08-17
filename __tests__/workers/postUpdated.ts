@@ -252,6 +252,34 @@ it('should update post and modify keywords', async () => {
   expect(postKeywords.length).toEqual(2);
 });
 
+it('should update freeform post and only modify allowed fields', async () => {
+  // await createDefaultKeywords();
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    post_id: 'p2',
+    updated_at: new Date('01-05-2023 12:00:00'),
+    title: 'test',
+    url: 'https://test.com',
+    extra: {
+      site_twitter: 'text',
+      canonical_url: 'https://test.com/canon',
+      content_curation: ['news', 'story', 'release'],
+    },
+    content_type: PostType.Freeform,
+  });
+  const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p2' });
+  expect(post.metadataChangedAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
+  expect(post.visible).toEqual(true);
+  expect(post.flags.visible).toEqual(true);
+  expect(post.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
+  expect(post.contentCuration).toEqual(['news', 'story', 'release']);
+  expect(post.siteTwitter).toEqual('text');
+
+  expect(post.title).toEqual('test');
+  expect(post.canonicalUrl).toBeNull();
+  expect(post.url).toBeNull();
+});
+
 it('should save keywords without special characters', async () => {
   await createDefaultUser();
   await con
