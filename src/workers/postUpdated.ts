@@ -200,7 +200,10 @@ const updatePost = async ({
   }
 
   const title = data?.title || databasePost.title;
-  const updateBecameVisible = !databasePost.visible && !!title?.length;
+  const updateBecameVisible =
+    content_type === PostType.Freeform
+      ? true
+      : !databasePost.visible && !!title?.length;
 
   data.id = databasePost.id;
   data.title = title;
