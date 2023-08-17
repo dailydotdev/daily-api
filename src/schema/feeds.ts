@@ -1013,7 +1013,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             `${alias}."createdAt" > now() - interval '${interval} days'`,
           )
           .andWhere(`${alias}."upvotes" >= 10`)
-          .orderBy(`${alias}."upvotes"`, 'DESC');
+          .orderBy(`${alias}."upvotes"`, 'DESC')
+          .addOrderBy(`${alias}."createdAt"`, 'DESC');
       },
       offsetPageGenerator(30, 50, 100),
       (ctx, args, { limit, offset }, builder) =>
@@ -1030,7 +1031,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         builder
           .andWhere(`${alias}."createdAt" > now() - interval '30 days'`)
           .andWhere(`${alias}."comments" >= 1`)
-          .orderBy(`${alias}."comments"`, 'DESC'),
+          .orderBy(`${alias}."comments"`, 'DESC')
+          .addOrderBy(`${alias}."createdAt"`, 'DESC'),
       offsetPageGenerator(30, 50, 100),
       (ctx, args, { limit, offset }, builder) =>
         builder.limit(limit).offset(offset),
