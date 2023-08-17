@@ -1,6 +1,7 @@
 import { GraphQLResponse } from 'apollo-server-types';
 import { FastifyInstance } from 'fastify';
 import request from 'supertest';
+import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import {
   authorizeRequest,
@@ -336,5 +337,154 @@ describe('query pendingSourceRequests', () => {
 
     const res = await client.query(QUERY());
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('compatibility routes', () => {
+  describe('POST /publications/request', () => {
+    it('should not authorize when not logged in', () => {
+      return request(app.server)
+        .post('/v1/publications/request')
+        .send({ source: 'http://source.com' })
+        .expect(401);
+    });
+
+    it('should return bad request when url is not valid', async () => {
+      await con.getRepository(User).save([usersFixture[0]]);
+      loggedUser = '1';
+      return authorizeRequest(
+        request(app.server).post('/v1/publications/request'),
+      )
+        .send({ source: 'invalid' })
+        .expect(400);
+    });
+
+    it('should request new source', async () => {
+      await con.getRepository(User).save([usersFixture[0]]);
+      loggedUser = '1';
+      return authorizeRequest(
+        request(app.server).post('/v1/publications/request'),
+      )
+        .send({ source: 'http://source.com' })
+        .expect(204);
+    });
+
+    it('should request new source (/requests)', async () => {
+      await con.getRepository(User).save([usersFixture[0]]);
+      loggedUser = '1';
+      return authorizeRequest(
+        request(app.server).post('/v1/publications/requests'),
+      )
+        .send({ source: 'http://source.com' })
+        .expect(204);
+    });
+  });
+
+  describe('GET /publications/requests/open', () => {
+    it('should return pending source requests', async () => {
+      await con.getRepository(SourceRequest).save(sourceRequestFixture);
+
+      loggedUser = '1';
+      roles = [Roles.Moderator];
+      const res = await authorizeRequest(
+        request(app.server).get('/v1/publications/requests/open'),
+        loggedUser,
+        roles,
+      ).expect(200);
+      const actual = res.body.map((x) => _.omit(x, ['id', 'createdAt']));
+      expect(actual).toMatchSnapshot();
+    });
+  });
+
+  describe('PUT /publications/requests/:id', () => {
+    it('should update an existing source request', async () => {
+      loggedUser = '1';
+      roles = [Roles.Moderator];
+      const req = await con
+        .getRepository(SourceRequest)
+        .save(sourceRequestFixture[2]);
+      await authorizeRequest(
+        request(app.server).put(`/v1/publications/requests/${req.id}`),
+        loggedUser,
+        roles,
+      )
+        .send({ url: 'http://source.com', pubImage: 'http://image.com' })
+        .expect(204);
+      expect(
+        await con.getRepository(SourceRequest).findOne({
+          where: { id: req.id },
+          select: ['sourceUrl', 'sourceImage', 'sourceName', 'sourceTwitter'],
+        }),
+      ).toMatchSnapshot();
+    });
+  });
+
+  describe('POST /publications/requests/:id/decline', () => {
+    it('should decline a source request', async () => {
+      loggedUser = '1';
+      roles = [Roles.Moderator];
+      const req = await con
+        .getRepository(SourceRequest)
+        .save(sourceRequestFixture[2]);
+      await authorizeRequest(
+        request(app.server).post(`/v1/publications/requests/${req.id}/decline`),
+        loggedUser,
+        roles,
+      )
+        .send({ reason: 'not-active' })
+        .expect(204);
+      expect(
+        await con.getRepository(SourceRequest).findOne({
+          where: { id: req.id },
+          select: ['approved', 'closed', 'reason'],
+        }),
+      ).toMatchSnapshot();
+    });
+  });
+
+  describe('POST /publications/requests/:id/approve', () => {
+    it('should approve a source request', async () => {
+      loggedUser = '1';
+      roles = [Roles.Moderator];
+      const req = await con
+        .getRepository(SourceRequest)
+        .save(sourceRequestFixture[2]);
+      await authorizeRequest(
+        request(app.server).post(`/v1/publications/requests/${req.id}/approve`),
+        loggedUser,
+        roles,
+      )
+        .send()
+        .expect(204);
+      expect(
+        await con.getRepository(SourceRequest).findOne({
+          where: { id: req.id },
+          select: ['approved', 'closed', 'reason'],
+        }),
+      ).toMatchSnapshot();
+    });
+  });
+
+  describe('POST /publications/requests/:id/publish', () => {
+    it('should publish a source request', async () => {
+      loggedUser = '1';
+      roles = [Roles.Moderator];
+      const req = await con
+        .getRepository(SourceRequest)
+        .save(sourceRequestFixture[2]);
+      await authorizeRequest(
+        request(app.server).post(`/v1/publications/requests/${req.id}/publish`),
+        loggedUser,
+        roles,
+      )
+        .send()
+        .expect(204);
+      expect(
+        await con.getRepository(SourceRequest).findOne({
+          where: { id: req.id },
+          select: ['approved', 'closed'],
+        }),
+      ).toMatchSnapshot();
+    });
   });
 });
