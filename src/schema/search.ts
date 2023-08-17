@@ -73,7 +73,8 @@ export const typeDefs = /* GraphQL */ `
     """
     Get user's search history
     """
-    searchSessionHistory(limit: Int, lastId: String): [SearchSession]! @auth
+    searchSessionHistory(limit: Int, lastId: String): SearchSessionConnection!
+      @auth
 
     """
     Get a search session by id
