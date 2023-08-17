@@ -945,6 +945,63 @@ describe('post', () => {
 
     expect(notifyContentRequested).toBeCalledTimes(0);
   });
+
+  it('should notify for edited freeform post greater than 200 edited characters', async () => {
+    const before = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1',
+    };
+
+    const after = {
+      ...before,
+      content: before.content + '2'.repeat(200),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyContentRequested).toBeCalledTimes(1);
+    expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
+      {
+        id: after.id,
+        content: after.content,
+        post_type: PostType.Freeform,
+      },
+    ]);
+  });
+
+  it('should not notify for edited freeform post less than 200 edited characters', async () => {
+    const before = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1',
+    };
+
+    const after = {
+      ...before,
+      content: before.content + '2'.repeat(100),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+  });
 });
 
 describe('comment report', () => {
