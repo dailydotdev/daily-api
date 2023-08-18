@@ -990,14 +990,14 @@ describe('query searchQuestionRecommendations', () => {
     ]);
 
     const otherUserUpvotes = [postsFixture[5].id, postsFixture[6].id];
-    await con.getRepository(Upvote).save([
-      { userId: '1', postId: postsFixture[0].id },
-      { userId: '1', postId: postsFixture[1].id },
-      { userId: '1', postId: postsFixture[2].id },
-      { userId: '1', postId: postsFixture[3].id },
-      { userId: '1', postId: postsFixture[4].id },
-      { userId: '2', postId: otherUserUpvotes[0] },
-      { userId: '2', postId: otherUserUpvotes[1] },
+    await con.getRepository(UserPost).save([
+      { userId: '1', postId: postsFixture[0].id, vote: UserPostVote.Up },
+      { userId: '1', postId: postsFixture[1].id, vote: UserPostVote.Up },
+      { userId: '1', postId: postsFixture[2].id, vote: UserPostVote.Up },
+      { userId: '1', postId: postsFixture[3].id, vote: UserPostVote.Up },
+      { userId: '1', postId: postsFixture[4].id, vote: UserPostVote.Up },
+      { userId: '2', postId: otherUserUpvotes[0], vote: UserPostVote.Up },
+      { userId: '2', postId: otherUserUpvotes[1], vote: UserPostVote.Up },
     ]);
 
     const res = await client.query(QUERY);
@@ -1011,9 +1011,11 @@ describe('query searchQuestionRecommendations', () => {
     const postIds = res.data.searchQuestionRecommendations.map(
       ({ post }) => post.id,
     );
-    const loggedUserUpvotes = await con
-      .getRepository(Upvote)
-      .findBy({ postId: In(postIds), userId: loggedUser }); // verify every item is for the logged user
+    const loggedUserUpvotes = await con.getRepository(UserPost).findBy({
+      postId: In(postIds),
+      userId: loggedUser,
+      vote: UserPostVote.Up,
+    }); // verify every item is for the logged user
     expect(loggedUserUpvotes).toHaveLength(3);
   });
 });

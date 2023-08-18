@@ -1124,10 +1124,10 @@ export const resolvers: IResolvers<any, Context> = {
           .innerJoin(
             (query) =>
               query
-                .select('u."postId"')
-                .from(Upvote, 'u')
-                .where({ userId: ctx.userId })
-                .orderBy('u."createdAt"', 'DESC')
+                .select('up."postId"')
+                .from(UserPost, 'up')
+                .where({ userId: ctx.userId, vote: UserPostVote.Up })
+                .orderBy('up."votedAt"', 'DESC')
                 .limit(5),
             'upvoted',
             `"${builder.alias}"."postId" = upvoted."postId"`,
