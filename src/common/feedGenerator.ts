@@ -2,6 +2,7 @@ import {
   AdvancedSettings,
   FeedAdvancedSettings,
   SourceMember,
+  UserPost,
 } from '../entity';
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -12,7 +13,6 @@ import {
   Post,
   View,
   FeedSource,
-  HiddenPost,
   PostKeyword,
   Source,
 } from '../entity';
@@ -215,12 +215,12 @@ export const applyFeedWhere = (
   if (ctx.userId && removeHiddenPosts) {
     newBuilder = newBuilder
       .leftJoin(
-        HiddenPost,
-        'hidden',
-        `hidden.postId = "${alias}".id AND hidden.userId = :userId`,
+        UserPost,
+        'userpost',
+        `userpost."postId" = "${alias}".id AND userpost."userId" = :userId AND userpost.hidden = TRUE`,
         { userId: ctx.userId },
       )
-      .andWhere('hidden.postId IS NULL');
+      .andWhere('userpost."postId" IS NULL');
   }
   if (removeBannedPosts) {
     newBuilder = newBuilder
