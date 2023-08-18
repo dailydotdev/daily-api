@@ -373,7 +373,7 @@ export const notifyFreeformContentRequested = async (
   logger: EventLogger,
   freeform: ChangeMessage<FreeformPost>,
 ): Promise<void> =>
-  await notifyContentRequested(logger, {
+  notifyContentRequested(logger, {
     id: freeform.payload.after.id,
     content: freeform.payload.after.content,
     post_type: freeform.payload.after.type,
