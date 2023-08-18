@@ -890,7 +890,7 @@ describe('query postUpvotes', () => {
     postUpvotes(id: $id) {
       edges {
         node {
-          createdAt: votedAt
+          votedAt
           user {
             name
             username
@@ -954,8 +954,8 @@ describe('query postUpvotes', () => {
     const [secondUpvote, firstUpvote] = res.data.postUpvotes.edges;
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
-    expect(new Date(secondUpvote.node.createdAt).getTime()).toBeGreaterThan(
-      new Date(firstUpvote.node.createdAt).getTime(),
+    expect(new Date(secondUpvote.node.votedAt).getTime()).toBeGreaterThan(
+      new Date(firstUpvote.node.votedAt).getTime(),
     );
   });
 });
