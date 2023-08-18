@@ -41,6 +41,7 @@ import {
   notifyPostContentEdited,
   notifyCommentEdited,
   notifyCommentDeleted,
+  notifyFreeformContentRequested,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -119,6 +120,7 @@ jest.mock('../../src/common', () => ({
   sendEmail: jest.fn(),
   notifySourcePrivacyUpdated: jest.fn(),
   notifyContentRequested: jest.fn(),
+  notifyFreeformContentRequested: jest.fn(),
   notifyPostVisible: jest.fn(),
   notifySourceMemberRoleChanged: jest.fn(),
   notifyContentImageDeleted: jest.fn(),
@@ -916,14 +918,11 @@ describe('post', () => {
       }),
     );
 
-    expect(notifyContentRequested).toBeCalledTimes(1);
-    expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
-      {
-        id: after.id,
-        content: after.content,
-        post_type: PostType.Freeform,
-      },
-    ]);
+    expect(notifyFreeformContentRequested).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifyFreeformContentRequested).mock.calls[0][1].payload
+        .after,
+    ).toEqual(after);
   });
 
   it('should not notify for new freeform post less than 1000 characters', async () => {
@@ -943,7 +942,7 @@ describe('post', () => {
       }),
     );
 
-    expect(notifyContentRequested).toBeCalledTimes(0);
+    expect(notifyFreeformContentRequested).toBeCalledTimes(0);
   });
 
   it('should not notify on welcome post', async () => {
@@ -1008,14 +1007,15 @@ describe('post', () => {
       }),
     );
 
-    expect(notifyContentRequested).toBeCalledTimes(1);
-    expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
-      {
-        id: after.id,
-        content: after.content,
-        post_type: PostType.Freeform,
-      },
-    ]);
+    expect(notifyFreeformContentRequested).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifyFreeformContentRequested).mock.calls[0][1].payload
+        .before,
+    ).toEqual(before);
+    expect(
+      jest.mocked(notifyFreeformContentRequested).mock.calls[0][1].payload
+        .after,
+    ).toEqual(after);
   });
 
   it('should not notify for edited freeform post less than 200 edited characters', async () => {
