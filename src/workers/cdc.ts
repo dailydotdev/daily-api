@@ -80,6 +80,19 @@ import { reportCommentReasons } from '../schema/comments';
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
 
+const isFreeformPostLongEnough = (
+  freeform: ChangeMessage<FreeformPost>,
+): boolean =>
+  freeform.payload.after.content.length >= FREEFORM_POST_MINIMUM_CONTENT_LENGTH;
+
+const isFreeformPostChangeLongEnough = (
+  freeform: ChangeMessage<FreeformPost>,
+): boolean =>
+  Math.abs(
+    freeform.payload.before.content.length -
+      freeform.payload.after.content.length,
+  ) >= FREEFORM_POST_MINIMUM_CHANGE_LENGTH;
+
 const onSourceRequestChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -298,10 +311,7 @@ const onPostChange = async (
     }
     if (data.payload.after.type === PostType.Freeform) {
       const freeform = data as ChangeMessage<FreeformPost>;
-      if (
-        freeform.payload.after.content.length >=
-        FREEFORM_POST_MINIMUM_CONTENT_LENGTH
-      ) {
+      if (isFreeformPostLongEnough(freeform)) {
         await notifyFreeformContentRequested(logger, freeform);
       }
     }
@@ -322,12 +332,7 @@ const onPostChange = async (
 
     if (data.payload.after.type === PostType.Freeform) {
       const freeform = data as ChangeMessage<FreeformPost>;
-      if (
-        Math.abs(
-          freeform.payload.before.content.length -
-            freeform.payload.after.content.length,
-        ) >= FREEFORM_POST_MINIMUM_CHANGE_LENGTH
-      ) {
+      if (isFreeformPostChangeLongEnough(freeform)) {
         await notifyFreeformContentRequested(logger, freeform);
       }
     }
