@@ -63,6 +63,7 @@ import {
   notifyPostContentEdited,
   notifyCommentEdited,
   notifyCommentDeleted,
+  notifyFreeformContentRequested,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
@@ -301,11 +302,7 @@ const onPostChange = async (
         freeform.payload.after.content.length >=
         FREEFORM_POST_MINIMUM_CONTENT_LENGTH
       ) {
-        await notifyContentRequested(logger, {
-          id: freeform.payload.after.id,
-          content: freeform.payload.after.content,
-          post_type: freeform.payload.after.type,
-        });
+        await notifyFreeformContentRequested(logger, freeform);
       }
     }
   } else if (data.payload.op === 'u') {
@@ -331,11 +328,7 @@ const onPostChange = async (
             freeform.payload.after.content.length,
         ) >= FREEFORM_POST_MINIMUM_CHANGE_LENGTH
       ) {
-        await notifyContentRequested(logger, {
-          id: freeform.payload.after.id,
-          content: freeform.payload.after.content,
-          post_type: freeform.payload.after.type,
-        });
+        await notifyFreeformContentRequested(logger, freeform);
       }
     }
 

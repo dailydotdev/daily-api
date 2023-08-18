@@ -18,7 +18,7 @@ import {
   ContentImage,
   FreeformPost,
 } from '../entity';
-import { ChangeObject } from '../types';
+import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
 
 const pubsub = new PubSub();
@@ -368,6 +368,16 @@ export const notifyContentRequested = async (
   log: EventLogger,
   content: ContentRequested,
 ): Promise<void> => publishEvent(log, contentRequestedTopic, content);
+
+export const notifyFreeformContentRequested = async (
+  logger: EventLogger,
+  freeform: ChangeMessage<FreeformPost>,
+): Promise<void> =>
+  await notifyContentRequested(logger, {
+    id: freeform.payload.after.id,
+    content: freeform.payload.after.content,
+    post_type: freeform.payload.after.type,
+  });
 
 export const notifyContentImageDeleted = async (
   log: EventLogger,
