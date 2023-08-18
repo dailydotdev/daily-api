@@ -3775,6 +3775,7 @@ describe('mutation votePost', () => {
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.upvotes).toEqual(4);
+    expect(post?.downvotes).toEqual(0);
   });
 
   it('should increment post downvotes when user downvotes', async () => {
@@ -3793,6 +3794,7 @@ describe('mutation votePost', () => {
     });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(0);
     expect(post?.downvotes).toEqual(4);
   });
 
@@ -3813,6 +3815,7 @@ describe('mutation votePost', () => {
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.upvotes).toEqual(2);
+    expect(post?.downvotes).toEqual(0);
   });
 
   it('should decrement post downvotes when user cancels downvote', async () => {
@@ -3831,6 +3834,7 @@ describe('mutation votePost', () => {
     });
     expect(res.errors).toBeFalsy();
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(0);
     expect(post?.downvotes).toEqual(2);
   });
 
@@ -3893,6 +3897,7 @@ describe('mutation votePost', () => {
     });
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.upvotes).toEqual(2);
+    expect(post?.downvotes).toEqual(0);
   });
 
   it('should decrement post downvotes when UserPost entity is removed', async () => {
@@ -3911,6 +3916,7 @@ describe('mutation votePost', () => {
       userId: loggedUser,
     });
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(0);
     expect(post?.downvotes).toEqual(2);
   });
 });
