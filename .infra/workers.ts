@@ -192,6 +192,10 @@ export const workers: Worker[] = [
     subscription: 'api.post-changelog-added-v2',
   },
   {
+    topic: 'api.v1.banner-added',
+    subscription: 'api.banner-added',
+  },
+  {
     topic: 'features-reset',
     subscription: 'api.clear-features-cache',
   },

@@ -1,5 +1,6 @@
 import nock from 'nock';
 import {
+  Banner,
   FreeformPost,
   PostMention,
   ReputationEvent,
@@ -40,6 +41,8 @@ import {
   notifyPostContentEdited,
   notifyCommentEdited,
   notifyCommentDeleted,
+  notifyBannerCreated,
+  notifyBannerRemoved,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -122,6 +125,8 @@ jest.mock('../../src/common', () => ({
   notifySourceMemberRoleChanged: jest.fn(),
   notifyContentImageDeleted: jest.fn(),
   notifyPostContentEdited: jest.fn(),
+  notifyBannerCreated: jest.fn(),
+  notifyBannerRemoved: jest.fn(),
 }));
 
 let con: DataSource;
@@ -1017,6 +1022,7 @@ describe('alerts', () => {
     myFeed: 'created',
     companionHelper: true,
     lastChangelog: null,
+    lastBanner: null,
     squadTour: true,
   };
 
@@ -1543,5 +1549,50 @@ describe('content image', () => {
     expect(
       jest.mocked(notifyContentImageDeleted).mock.calls[0].slice(1),
     ).toEqual([before]);
+  });
+});
+
+describe('banner', () => {
+  type ObjectType = Partial<Banner>;
+  const base: ChangeObject<ObjectType> = {
+    timestamp: Date.now(),
+    title: 'test',
+    subtitle: 'test',
+    cta: 'test',
+    url: 'test',
+    theme: 'cabbage',
+  };
+
+  it('should notify on banner created', async () => {
+    const before = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: before,
+        before,
+        op: 'c',
+        table: 'banner',
+      }),
+    );
+    expect(notifyBannerCreated).toBeCalledTimes(1);
+    expect(jest.mocked(notifyBannerCreated).mock.calls[0].slice(1)).toEqual([
+      before,
+    ]);
+  });
+
+  it('should notify on banner deleted', async () => {
+    const before = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        before,
+        op: 'd',
+        table: 'banner',
+      }),
+    );
+    expect(notifyBannerRemoved).toBeCalledTimes(1);
+    expect(jest.mocked(notifyBannerRemoved).mock.calls[0].slice(1)).toEqual([
+      before,
+    ]);
   });
 });

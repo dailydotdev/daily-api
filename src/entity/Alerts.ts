@@ -24,7 +24,12 @@ export class Alerts {
   @Column({ type: 'timestamp without time zone', default: () => 'now()' })
   lastChangelog: Date | null;
 
+  @Column({ type: 'timestamp without time zone', default: () => 'now()' })
+  lastBanner: Date | null;
+
   changelog?: boolean;
+
+  banner?: boolean;
 }
 
 export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
@@ -33,6 +38,8 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
   myFeed: null,
   companionHelper: true,
   lastChangelog: new Date(),
+  lastBanner: new Date(),
   changelog: false,
+  banner: false,
   squadTour: true,
 };

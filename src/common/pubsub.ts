@@ -16,6 +16,7 @@ import {
   PostMention,
   Comment,
   ContentImage,
+  Banner,
 } from '../entity';
 import { ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
@@ -53,6 +54,8 @@ const sourcePrivacyUpdatedTopic = pubsub.topic('api.v1.source-privacy-updated');
 const featuresResetTopic = pubsub.topic('features-reset');
 const contentRequestedTopic = pubsub.topic('api.v1.content-requested');
 const postVisibleTopic = pubsub.topic('api.v1.post-visible');
+const bannerAddedTopic = pubsub.topic('api.v1.banner-added');
+const bannerRemovedTopic = pubsub.topic('api.v1.banner-deleted');
 const sourceMemberRoleChangedTopic = pubsub.topic(
   'api.v1.source-member-role-changed',
 );
@@ -338,6 +341,16 @@ export const notifyPostVisible = async (
   log: EventLogger,
   post: ChangeObject<Post>,
 ): Promise<void> => publishEvent(log, postVisibleTopic, { post });
+
+export const notifyBannerCreated = async (
+  log: EventLogger,
+  banner: ChangeObject<Banner>,
+): Promise<void> => publishEvent(log, bannerAddedTopic, { banner });
+
+export const notifyBannerRemoved = async (
+  log: EventLogger,
+  banner: ChangeObject<Banner>,
+): Promise<void> => publishEvent(log, bannerRemovedTopic, { banner });
 
 export const notifyUserCreated = async (
   log: EventLogger,
