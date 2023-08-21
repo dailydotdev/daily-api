@@ -5,6 +5,7 @@ import {
 } from './../entity/ReputationEvent';
 import { messageToJson, Worker } from './worker';
 import { Post } from '../entity';
+import { In } from 'typeorm';
 
 interface Data {
   userId: string;
@@ -17,52 +18,33 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     try {
       const post = await con.getRepository(Post).findOneBy({ id: data.postId });
+      const userIds = [];
 
-      await con.transaction(async (manager) => {
-        const reputationRepo = manager.getRepository(ReputationEvent);
+      if (post?.authorId && post.authorId !== data.userId) {
+        userIds.push(post.authorId);
+      }
 
-        if (post?.authorId && post?.authorId !== data.userId) {
-          await reputationRepo
-            .createQueryBuilder()
-            .delete()
-            .where({
-              grantById: data.userId,
-              grantToId: post.authorId,
-              targetId: post.id,
-              targetType: ReputationType.Post,
-              reason: ReputationReason.PostUpvoted,
-            })
-            .execute();
-          logger.info(
-            {
-              data,
-              messageId: message.messageId,
-            },
-            'decreased reputation due to post upvote cancellation',
-          );
-        }
+      if (post?.scoutId && post.scoutId !== data.userId) {
+        userIds.push(post.scoutId);
+      }
 
-        if (post?.scoutId && post?.scoutId !== data.userId) {
-          await reputationRepo
-            .createQueryBuilder()
-            .delete()
-            .where({
-              grantById: data.userId,
-              grantToId: post.scoutId,
-              targetId: post.id,
-              targetType: ReputationType.Post,
-              reason: ReputationReason.PostUpvoted,
-            })
-            .execute();
-          logger.info(
-            {
-              data,
-              messageId: message.messageId,
-            },
-            'decreased scout reputation due to post upvote cancellation',
-          );
-        }
-      });
+      if (userIds.length) {
+        await con.getRepository(ReputationEvent).delete({
+          grantById: data.userId,
+          grantToId: In(userIds),
+          targetId: post.id,
+          targetType: ReputationType.Post,
+          reason: ReputationReason.PostUpvoted,
+        });
+
+        logger.info(
+          {
+            data,
+            messageId: message.messageId,
+          },
+          'decreased reputation due to post upvote cancellation',
+        );
+      }
     } catch (err) {
       logger.error(
         {
