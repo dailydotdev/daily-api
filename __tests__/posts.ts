@@ -372,11 +372,12 @@ describe('upvoted field', () => {
 
   it('should return true when user did upvoted the post', async () => {
     loggedUser = '1';
-    const repo = con.getRepository(Upvote);
+    const repo = con.getRepository(UserPost);
     await repo.save(
       repo.create({
         postId: 'p1',
         userId: loggedUser,
+        vote: UserPostVote.Up,
       }),
     );
     const res = await client.query(QUERY);
@@ -889,7 +890,7 @@ describe('query postUpvotes', () => {
     postUpvotes(id: $id) {
       edges {
         node {
-          createdAt
+          votedAt
           user {
             name
             username
@@ -917,7 +918,7 @@ describe('query postUpvotes', () => {
 
   it('should return users that upvoted the post by id in descending order', async () => {
     const userRepo = con.getRepository(User);
-    const upvoteRepo = con.getRepository(Upvote);
+    const userPostRepo = con.getRepository(UserPost);
     const createdAtOld = new Date('2020-09-22T07:15:51.247Z');
     const createdAtNew = new Date('2021-09-22T07:15:51.247Z');
     await userRepo.save({
@@ -925,15 +926,27 @@ describe('query postUpvotes', () => {
       name: 'Lee',
       image: 'https://daily.dev/lee.jpg',
     });
-    await upvoteRepo.save({
+    await userPostRepo.save({
       userId: '1',
       postId: 'p1',
-      createdAt: createdAtOld,
+      vote: UserPostVote.Up,
     });
-    await upvoteRepo.save({
+    await userPostRepo.save({
+      userId: '1',
+      postId: 'p1',
+      votedAt: createdAtOld,
+      vote: UserPostVote.Up,
+    });
+    await userPostRepo.save({
       userId: '2',
       postId: 'p1',
-      createdAt: createdAtNew,
+      vote: UserPostVote.Up,
+    });
+    await userPostRepo.save({
+      userId: '2',
+      postId: 'p1',
+      votedAt: createdAtNew,
+      vote: UserPostVote.Up,
     });
 
     const res = await client.query(QUERY, { variables: { id: 'p1' } });
@@ -941,8 +954,8 @@ describe('query postUpvotes', () => {
     const [secondUpvote, firstUpvote] = res.data.postUpvotes.edges;
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
-    expect(new Date(secondUpvote.node.createdAt).getTime()).toBeGreaterThan(
-      new Date(firstUpvote.node.createdAt).getTime(),
+    expect(new Date(secondUpvote.node.votedAt).getTime()).toBeGreaterThan(
+      new Date(firstUpvote.node.votedAt).getTime(),
     );
   });
 });
@@ -977,14 +990,14 @@ describe('query searchQuestionRecommendations', () => {
     ]);
 
     const otherUserUpvotes = [postsFixture[5].id, postsFixture[6].id];
-    await con.getRepository(Upvote).save([
-      { userId: '1', postId: postsFixture[0].id },
-      { userId: '1', postId: postsFixture[1].id },
-      { userId: '1', postId: postsFixture[2].id },
-      { userId: '1', postId: postsFixture[3].id },
-      { userId: '1', postId: postsFixture[4].id },
-      { userId: '2', postId: otherUserUpvotes[0] },
-      { userId: '2', postId: otherUserUpvotes[1] },
+    await con.getRepository(UserPost).save([
+      { userId: '1', postId: postsFixture[0].id, vote: UserPostVote.Up },
+      { userId: '1', postId: postsFixture[1].id, vote: UserPostVote.Up },
+      { userId: '1', postId: postsFixture[2].id, vote: UserPostVote.Up },
+      { userId: '1', postId: postsFixture[3].id, vote: UserPostVote.Up },
+      { userId: '1', postId: postsFixture[4].id, vote: UserPostVote.Up },
+      { userId: '2', postId: otherUserUpvotes[0], vote: UserPostVote.Up },
+      { userId: '2', postId: otherUserUpvotes[1], vote: UserPostVote.Up },
     ]);
 
     const res = await client.query(QUERY);
@@ -998,9 +1011,11 @@ describe('query searchQuestionRecommendations', () => {
     const postIds = res.data.searchQuestionRecommendations.map(
       ({ post }) => post.id,
     );
-    const loggedUserUpvotes = await con
-      .getRepository(Upvote)
-      .findBy({ postId: In(postIds), userId: loggedUser }); // verify every item is for the logged user
+    const loggedUserUpvotes = await con.getRepository(UserPost).findBy({
+      postId: In(postIds),
+      userId: loggedUser,
+      vote: UserPostVote.Up,
+    }); // verify every item is for the logged user
     expect(loggedUserUpvotes).toHaveLength(3);
   });
 });
@@ -3174,11 +3189,12 @@ describe('downvoted field', () => {
 
   it('should return true when user did downvoted the post', async () => {
     loggedUser = '1';
-    const repo = con.getRepository(Downvote);
+    const repo = con.getRepository(UserPost);
     await repo.save(
       repo.create({
         postId: 'p1',
         userId: loggedUser,
+        vote: UserPostVote.Down,
       }),
     );
     const res = await client.query(QUERY);
@@ -3584,6 +3600,10 @@ describe('mutation votePost', () => {
 
   it('should upvote', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).save({
+      id: 'p1',
+      upvotes: 3,
+    });
     const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', vote: UserPostVote.Up },
     });
@@ -3598,10 +3618,16 @@ describe('mutation votePost', () => {
       vote: UserPostVote.Up,
       hidden: false,
     });
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(4);
   });
 
   it('should downvote', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).save({
+      id: 'p1',
+      downvotes: 3,
+    });
     const res = await client.mutate(MUTATION, {
       variables: { id: 'p1', vote: UserPostVote.Down },
     });
@@ -3616,10 +3642,16 @@ describe('mutation votePost', () => {
       vote: UserPostVote.Down,
       hidden: true,
     });
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.downvotes).toEqual(4);
   });
 
   it('should cancel vote', async () => {
     loggedUser = '1';
+    await con.getRepository(Post).save({
+      id: 'p1',
+      upvotes: 3,
+    });
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
@@ -3640,6 +3672,8 @@ describe('mutation votePost', () => {
       vote: UserPostVote.None,
       hidden: false,
     });
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(3);
   });
 
   it('should not set votedAt when vote is not set on insert', async () => {
@@ -3722,6 +3756,168 @@ describe('mutation votePost', () => {
     expect(userPostBefore?.votedAt?.toISOString()).toBe(
       userPost?.votedAt?.toISOString(),
     );
+  });
+
+  it('should increment post upvotes when user upvotes', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save({
+      id: 'p1',
+      upvotes: 3,
+    });
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.None,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.Up },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(4);
+    expect(post?.downvotes).toEqual(0);
+  });
+
+  it('should increment post downvotes when user downvotes', async () => {
+    loggedUser = '1';
+    await con.getRepository(Post).save({
+      id: 'p1',
+      downvotes: 3,
+    });
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.None,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.Down },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(0);
+    expect(post?.downvotes).toEqual(4);
+  });
+
+  it('should decrement post upvotes when user cancels upvote', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Up,
+    });
+    await con.getRepository(Post).save({
+      id: 'p1',
+      upvotes: 3,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.None },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(2);
+    expect(post?.downvotes).toEqual(0);
+  });
+
+  it('should decrement post downvotes when user cancels downvote', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Down,
+    });
+    await con.getRepository(Post).save({
+      id: 'p1',
+      downvotes: 3,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.None },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(0);
+    expect(post?.downvotes).toEqual(2);
+  });
+
+  it('should decrement post upvotes and increment downvotes when user changes vote from up to down', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Up,
+    });
+    await con.getRepository(Post).save({
+      id: 'p1',
+      upvotes: 3,
+      downvotes: 2,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.Down },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(2);
+    expect(post?.downvotes).toEqual(3);
+  });
+
+  it('should increment post upvotes and decrement downvotes when user changes vote from down to up', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Down,
+    });
+    await con.getRepository(Post).save({
+      id: 'p1',
+      upvotes: 2,
+      downvotes: 3,
+    });
+    const res = await client.mutate(MUTATION, {
+      variables: { id: 'p1', vote: UserPostVote.Up },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(3);
+    expect(post?.downvotes).toEqual(2);
+  });
+
+  it('should decrement post upvotes when UserPost entity is removed', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Up,
+    });
+    await con.getRepository(Post).save({
+      id: 'p1',
+      upvotes: 3,
+    });
+    await con.getRepository(UserPost).delete({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(2);
+    expect(post?.downvotes).toEqual(0);
+  });
+
+  it('should decrement post downvotes when UserPost entity is removed', async () => {
+    loggedUser = '1';
+    await con.getRepository(UserPost).save({
+      postId: 'p1',
+      userId: loggedUser,
+      vote: UserPostVote.Down,
+    });
+    await con.getRepository(Post).save({
+      id: 'p1',
+      downvotes: 3,
+    });
+    await con.getRepository(UserPost).delete({
+      postId: 'p1',
+      userId: loggedUser,
+    });
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.upvotes).toEqual(0);
+    expect(post?.downvotes).toEqual(2);
   });
 });
 

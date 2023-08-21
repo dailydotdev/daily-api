@@ -1,5 +1,5 @@
 import { messageToJson } from '../worker';
-import { SourceMember, SourceType, Upvote } from '../../entity';
+import { SourceMember, SourceType, UserPost, UserPostVote } from '../../entity';
 import {
   NotificationPostContext,
   NotificationUpvotersContext,
@@ -28,8 +28,8 @@ const worker: NotificationWorker = {
     if (!users.length || !UPVOTE_MILESTONES.includes(post.upvotes.toString())) {
       return;
     }
-    const upvotes = await con.getRepository(Upvote).find({
-      where: { postId: post.id },
+    const upvotes = await con.getRepository(UserPost).find({
+      where: { postId: post.id, vote: UserPostVote.Up },
       take: 5,
       order: { createdAt: 'desc' },
       relations: ['user'],
