@@ -196,6 +196,10 @@ export const workers: Worker[] = [
     subscription: 'api.banner-added',
   },
   {
+    topic: 'api.v1.banner-deleted',
+    subscription: 'api.banner-deleted',
+  },
+  {
     topic: 'features-reset',
     subscription: 'api.clear-features-cache',
   },
