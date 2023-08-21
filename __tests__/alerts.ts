@@ -47,6 +47,7 @@ describe('query userAlerts', () => {
       myFeed
       companionHelper
       lastChangelog
+      lastBanner
       squadTour
     }
   }`;
@@ -54,8 +55,10 @@ describe('query userAlerts', () => {
   it('should return alerts default values if anonymous', async () => {
     const res = await client.query(QUERY);
     res.data.userAlerts.changelog = false;
+    res.data.userAlerts.banner = false;
     expect(res.data.userAlerts).toEqual({
       ...ALERTS_DEFAULT,
+      lastBanner: res.data.userAlerts.lastBanner,
       lastChangelog: res.data.userAlerts.lastChangelog,
     });
   });
@@ -75,6 +78,7 @@ describe('query userAlerts', () => {
 
     expect(res.data.userAlerts).toEqual({
       ...expected,
+      lastBanner: expected.lastBanner.toISOString(),
       lastChangelog: expected.lastChangelog.toISOString(),
     });
   });
@@ -177,6 +181,7 @@ describe('dedicated api routes', () => {
       ).expect(200);
       expect(res.body).toEqual({
         ...expected,
+        lastBanner: expected['lastBanner'].toISOString(),
         lastChangelog: expected['lastChangelog'].toISOString(),
       });
     });
