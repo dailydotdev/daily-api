@@ -211,24 +211,24 @@ Object {
     "edges": Array [
       Object {
         "node": Object {
-          "createdAt": "2021-09-22T07:15:51.247Z",
           "user": Object {
             "bio": null,
             "image": "https://daily.dev/lee.jpg",
             "name": "Lee",
             "username": null,
           },
+          "votedAt": "2021-09-22T07:15:51.247Z",
         },
       },
       Object {
         "node": Object {
-          "createdAt": "2020-09-22T07:15:51.247Z",
           "user": Object {
             "bio": null,
             "image": "https://daily.dev/ido.jpg",
             "name": "Ido",
             "username": null,
           },
+          "votedAt": "2020-09-22T07:15:51.247Z",
         },
       },
     ],

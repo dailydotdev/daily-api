@@ -14,10 +14,11 @@ import {
   SourceType,
   SquadSource,
   SubmissionStatus,
-  Upvote,
   User,
   UserAction,
   UserActionType,
+  UserPost,
+  UserPostVote,
 } from '../../src/entity';
 import { SourceMemberRoles } from '../../src/roles';
 import { DataSource } from 'typeorm';
@@ -831,12 +832,13 @@ describe('article upvote milestone', () => {
         upvotes: 5,
       },
     );
-    await con.getRepository(Upvote).save([
+    await con.getRepository(UserPost).save([
       {
         userId: '2',
         postId: 'p1',
+        vote: UserPostVote.Up,
       },
-      { userId: '4', postId: 'p1' },
+      { userId: '4', postId: 'p1', vote: UserPostVote.Up },
     ]);
     await con
       .getRepository(Source)
@@ -866,12 +868,13 @@ describe('article upvote milestone', () => {
         upvotes: 3,
       },
     );
-    await con.getRepository(Upvote).save([
+    await con.getRepository(UserPost).save([
       {
         userId: '2',
         postId: 'p1',
+        vote: UserPostVote.Up,
       },
-      { userId: '4', postId: 'p1' },
+      { userId: '4', postId: 'p1', vote: UserPostVote.Up },
     ]);
     const actual = await invokeNotificationWorker(worker.default, {
       userId: '2',

@@ -142,6 +142,7 @@ export interface GQLUserPost {
   vote: UserPostVote;
   hidden: boolean;
   flags?: UserPostFlagsPublic;
+  votedAt: Date | null;
 }
 
 export interface GQLPostUpvoteArgs extends ConnectionArguments {
@@ -245,6 +246,15 @@ export const typeDefs = /* GraphQL */ `
     The post's flags
     """
     flags: UserPostFlagsPublic
+
+    """
+    Time when vote for the post was last updated
+    """
+    votedAt: DateTime
+
+    user: User!
+
+    post: Post!
   }
 
   """
@@ -488,7 +498,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type UpvoteEdge {
-    node: Upvote!
+    node: UserPost!
 
     """
     Used in \`before\` and \`after\` args
@@ -1079,7 +1089,7 @@ export const resolvers: IResolvers<any, Context> = {
       args: GQLPostUpvoteArgs,
       ctx,
       info,
-    ): Promise<ConnectionRelay<GQLPostUpvote>> => {
+    ): Promise<ConnectionRelay<GQLUserPost>> => {
       const post = await ctx.con
         .getRepository(Post)
         .findOneByOrFail({ id: args.id });
@@ -1088,13 +1098,14 @@ export const resolvers: IResolvers<any, Context> = {
         ctx,
         info,
         args,
-        { key: 'createdAt' },
+        { key: 'votedAt' },
         {
           queryBuilder: (builder) => {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
-              `${builder.alias}.postId = :postId`,
-              { postId: args.id },
-            );
+            builder.queryBuilder = builder.queryBuilder
+              .andWhere(`${builder.alias}.postId = :postId`, {
+                postId: args.id,
+              })
+              .andWhere(`${builder.alias}.vote = 1`);
 
             return builder;
           },
@@ -1113,10 +1124,10 @@ export const resolvers: IResolvers<any, Context> = {
           .innerJoin(
             (query) =>
               query
-                .select('u."postId"')
-                .from(Upvote, 'u')
-                .where({ userId: ctx.userId })
-                .orderBy('u."createdAt"', 'DESC')
+                .select('up."postId"')
+                .from(UserPost, 'up')
+                .where({ userId: ctx.userId, vote: UserPostVote.Up })
+                .orderBy('up."votedAt"', 'DESC')
                 .limit(5),
             'upvoted',
             `"${builder.alias}"."postId" = upvoted."postId"`,

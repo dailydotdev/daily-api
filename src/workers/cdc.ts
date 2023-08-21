@@ -15,12 +15,17 @@ import {
   SourceRequest,
   Submission,
   SubmissionStatus,
-  Upvote,
   User,
   Feature,
   Source,
   PostMention,
   FreeformPost,
+  Banner,
+  PostType,
+  FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
+  FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
+  UserPost,
+  UserPostVote,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -60,6 +65,9 @@ import {
   notifyPostContentEdited,
   notifyCommentEdited,
   notifyCommentDeleted,
+  notifyBannerCreated,
+  notifyBannerRemoved,
+  notifyFreeformContentRequested,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
@@ -75,6 +83,19 @@ import { reportCommentReasons } from '../schema/comments';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
+
+const isFreeformPostLongEnough = (
+  freeform: ChangeMessage<FreeformPost>,
+): boolean =>
+  freeform.payload.after.content.length >= FREEFORM_POST_MINIMUM_CONTENT_LENGTH;
+
+const isFreeformPostChangeLongEnough = (
+  freeform: ChangeMessage<FreeformPost>,
+): boolean =>
+  Math.abs(
+    freeform.payload.before.content.length -
+      freeform.payload.after.content.length,
+  ) >= FREEFORM_POST_MINIMUM_CHANGE_LENGTH;
 
 const onSourceRequestChange = async (
   con: DataSource,
@@ -119,20 +140,59 @@ const onSourceRequestChange = async (
 const onPostUpvoteChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
-  data: ChangeMessage<Upvote>,
+  data: ChangeMessage<UserPost>,
 ): Promise<void> => {
-  if (data.payload.op === 'c') {
-    await notifyPostUpvoted(
-      logger,
-      data.payload.after.postId,
-      data.payload.after.userId,
-    );
-  } else if (data.payload.op === 'd') {
-    await notifyPostUpvoteCanceled(
-      logger,
-      data.payload.before.postId,
-      data.payload.before.userId,
-    );
+  const isUpvote =
+    data.payload.after?.vote === UserPostVote.Up ||
+    data.payload.before?.vote === UserPostVote.Up;
+
+  if (!isUpvote) {
+    return;
+  }
+
+  switch (data.payload.op) {
+    case 'c':
+      await notifyPostUpvoted(
+        logger,
+        data.payload.after.postId,
+        data.payload.after.userId,
+      );
+
+      break;
+    case 'u': {
+      const isUpvoteCanceled = data.payload.after.vote === UserPostVote.None;
+
+      if (isUpvoteCanceled) {
+        await notifyPostUpvoteCanceled(
+          logger,
+          data.payload.before.postId,
+          data.payload.before.userId,
+        );
+      } else {
+        await notifyPostUpvoted(
+          logger,
+          data.payload.after.postId,
+          data.payload.after.userId,
+        );
+      }
+
+      break;
+    }
+    case 'd': {
+      const wasUpvoted = data.payload.before.vote === UserPostVote.Up;
+
+      if (wasUpvoted) {
+        await notifyPostUpvoteCanceled(
+          logger,
+          data.payload.before.postId,
+          data.payload.before.userId,
+        );
+      }
+
+      break;
+    }
+    default:
+      break;
   }
 };
 
@@ -292,13 +352,19 @@ const onPostChange = async (
     if (data.payload.after.visible) {
       await notifyPostVisible(logger, data.payload.after);
     }
+    if (data.payload.after.type === PostType.Freeform) {
+      const freeform = data as ChangeMessage<FreeformPost>;
+      if (isFreeformPostLongEnough(freeform)) {
+        await notifyFreeformContentRequested(logger, freeform);
+      }
+    }
   } else if (data.payload.op === 'u') {
     if (data.payload.after.visible) {
       if (!data.payload.before.visible) {
         await notifyPostVisible(logger, data.payload.after);
       } else {
         // Trigger message only if the post is already visible and the conte was edited
-        const freeform = data as unknown as ChangeMessage<FreeformPost>;
+        const freeform = data as ChangeMessage<FreeformPost>;
         if (
           isChanged(freeform.payload.before, freeform.payload.after, 'content')
         ) {
@@ -306,6 +372,14 @@ const onPostChange = async (
         }
       }
     }
+
+    if (data.payload.after.type === PostType.Freeform) {
+      const freeform = data as ChangeMessage<FreeformPost>;
+      if (isFreeformPostChangeLongEnough(freeform)) {
+        await notifyFreeformContentRequested(logger, freeform);
+      }
+    }
+
     if (
       !data.payload.before.sentAnalyticsReport &&
       data.payload.after.sentAnalyticsReport
@@ -393,6 +467,19 @@ const onSourceFeedChange = async (
       data.payload.before.sourceId,
       data.payload.before.feed,
     );
+  }
+};
+
+const onBannerChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<Banner>,
+) => {
+  if (data.payload.op === 'c') {
+    await notifyBannerCreated(logger, data.payload.after);
+  }
+  if (data.payload.op === 'd') {
+    await notifyBannerRemoved(logger, data.payload.before);
   }
 };
 
@@ -525,6 +612,9 @@ const worker: Worker = {
         return;
       }
       switch (data.payload.source.table) {
+        case getTableName(con, Banner):
+          await onBannerChange(con, logger, data);
+          break;
         case getTableName(con, Source):
           await onSourceChange(con, logger, data);
           break;
@@ -534,7 +624,7 @@ const worker: Worker = {
         case getTableName(con, SourceRequest):
           await onSourceRequestChange(con, logger, data);
           break;
-        case getTableName(con, Upvote):
+        case getTableName(con, UserPost):
           await onPostUpvoteChange(con, logger, data);
           break;
         case getTableName(con, CommentUpvote):
