@@ -38,7 +38,7 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
   myFeed: null,
   companionHelper: true,
   lastChangelog: new Date(),
-  lastBanner: new Date(),
+  lastBanner: new Date('2023-02-05 12:00:00'), // Has to be in the past to accommodate new users
   changelog: false,
   banner: false,
   squadTour: true,
