@@ -5,6 +5,7 @@ import {
   ReputationEvent,
   ReputationReason,
   ReputationType,
+  PostType,
 } from '../../src/entity';
 import {
   notifyAlertsUpdated,
@@ -40,6 +41,7 @@ import {
   notifyPostContentEdited,
   notifyCommentEdited,
   notifyCommentDeleted,
+  notifyFreeformContentRequested,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -118,6 +120,7 @@ jest.mock('../../src/common', () => ({
   sendEmail: jest.fn(),
   notifySourcePrivacyUpdated: jest.fn(),
   notifyContentRequested: jest.fn(),
+  notifyFreeformContentRequested: jest.fn(),
   notifyPostVisible: jest.fn(),
   notifySourceMemberRoleChanged: jest.fn(),
   notifyContentImageDeleted: jest.fn(),
@@ -896,6 +899,148 @@ describe('post', () => {
     expect(updatedPost.metadataChangedAt.getTime()).toBeGreaterThan(
       oldPost.metadataChangedAt.getTime(),
     );
+  });
+
+  it('should notify for new freeform post greater than 1000 characters', async () => {
+    const after = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1'.repeat(1000),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyFreeformContentRequested).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifyFreeformContentRequested).mock.calls[0][1].payload
+        .after,
+    ).toEqual(after);
+  });
+
+  it('should not notify for new freeform post less than 1000 characters', async () => {
+    const after = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1'.repeat(999),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyFreeformContentRequested).toBeCalledTimes(0);
+  });
+
+  it('should not notify on welcome post', async () => {
+    const after = {
+      ...base,
+      type: PostType.Welcome,
+      content: '1'.repeat(1000),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+  });
+
+  it('should not notify on shared post', async () => {
+    const after = {
+      ...base,
+      type: PostType.Share,
+      content: '1'.repeat(1000),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+  });
+
+  it('should notify for edited freeform post greater than 200 edited characters', async () => {
+    const before = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1',
+    };
+
+    const after = {
+      ...before,
+      content: before.content + '2'.repeat(200),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyFreeformContentRequested).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifyFreeformContentRequested).mock.calls[0][1].payload
+        .before,
+    ).toEqual(before);
+    expect(
+      jest.mocked(notifyFreeformContentRequested).mock.calls[0][1].payload
+        .after,
+    ).toEqual(after);
+  });
+
+  it('should not notify for edited freeform post less than 200 edited characters', async () => {
+    const before = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1',
+    };
+
+    const after = {
+      ...before,
+      content: before.content + '2'.repeat(100),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
   });
 });
 
