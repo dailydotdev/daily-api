@@ -17,27 +17,52 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     try {
       const post = await con.getRepository(Post).findOneBy({ id: data.postId });
-      if (post?.authorId && post?.authorId !== data.userId) {
-        await con
-          .getRepository(ReputationEvent)
-          .createQueryBuilder()
-          .delete()
-          .where({
-            grantById: data.userId,
-            grantToId: post.authorId,
-            targetId: post.id,
-            targetType: ReputationType.Post,
-            reason: ReputationReason.PostUpvoted,
-          })
-          .execute();
-        logger.info(
-          {
-            data,
-            messageId: message.messageId,
-          },
-          'decreased reputation due to post upvote cancellation',
-        );
-      }
+
+      await con.transaction(async (manager) => {
+        const reputationRepo = manager.getRepository(ReputationEvent);
+
+        if (post?.authorId && post?.authorId !== data.userId) {
+          await reputationRepo
+            .createQueryBuilder()
+            .delete()
+            .where({
+              grantById: data.userId,
+              grantToId: post.authorId,
+              targetId: post.id,
+              targetType: ReputationType.Post,
+              reason: ReputationReason.PostUpvoted,
+            })
+            .execute();
+          logger.info(
+            {
+              data,
+              messageId: message.messageId,
+            },
+            'decreased reputation due to post upvote cancellation',
+          );
+        }
+
+        if (post?.scoutId && post?.scoutId !== data.userId) {
+          await reputationRepo
+            .createQueryBuilder()
+            .delete()
+            .where({
+              grantById: data.userId,
+              grantToId: post.scoutId,
+              targetId: post.id,
+              targetType: ReputationType.Post,
+              reason: ReputationReason.PostUpvoted,
+            })
+            .execute();
+          logger.info(
+            {
+              data,
+              messageId: message.messageId,
+            },
+            'decreased scout reputation due to post upvote cancellation',
+          );
+        }
+      });
     } catch (err) {
       logger.error(
         {
