@@ -43,6 +43,20 @@ beforeEach(async () => {
       origin: PostOrigin.Squad,
     },
   ]);
+  await saveFixtures(con, ArticlePost, [
+    {
+      id: 'p2',
+      shortId: 'p2',
+      title: 'freeform post',
+      score: 0,
+      metadataChangedAt: new Date('01-05-2020 12:00:00'),
+      sourceId: 'squad',
+      visible: true,
+      createdAt: new Date('01-05-2020 12:00:00'),
+      type: PostType.Freeform,
+      origin: PostOrigin.UserGenerated,
+    },
+  ]);
 });
 
 const createDefaultSubmission = async (id: string = randomUUID()) => {
@@ -237,6 +251,33 @@ it('should update post and modify keywords', async () => {
   expect(postKeywords.length).toEqual(2);
 });
 
+it('should update freeform post and only modify allowed fields', async () => {
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    post_id: 'p2',
+    updated_at: new Date('01-05-2023 12:00:00'),
+    title: 'test',
+    url: 'https://test.com',
+    extra: {
+      site_twitter: 'text',
+      canonical_url: 'https://test.com/canon',
+      content_curation: ['news', 'story', 'release'],
+    },
+    content_type: PostType.Freeform,
+  });
+  const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p2' });
+  expect(post.metadataChangedAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
+  expect(post.visible).toEqual(true);
+  expect(post.flags.visible).toEqual(true);
+  expect(post.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
+  expect(post.contentCuration).toEqual(['news', 'story', 'release']);
+  expect(post.siteTwitter).toEqual('text');
+
+  expect(post.title).toEqual('freeform post');
+  expect(post.canonicalUrl).toBeNull();
+  expect(post.url).toBeNull();
+});
+
 it('should save keywords without special characters', async () => {
   await createDefaultUser();
   await con
@@ -307,8 +348,8 @@ it('should save a new post with basic information', async () => {
     order: 0,
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(2);
-  expect(posts[1]).toMatchSnapshot({
+  expect(posts.length).toEqual(3);
+  expect(posts[2]).toMatchSnapshot({
     visible: true,
     visibleAt: expect.any(Date),
     createdAt: expect.any(Date),
@@ -331,8 +372,8 @@ it('should set show on feed to true when order is missing', async () => {
     source_id: 'a',
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(2);
-  expect(posts[1].showOnFeed).toEqual(true);
+  expect(posts.length).toEqual(3);
+  expect(posts[2].showOnFeed).toEqual(true);
 });
 
 it('should save a new post with showOnFeed information', async () => {
@@ -344,8 +385,8 @@ it('should save a new post with showOnFeed information', async () => {
     order: 1,
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(2);
-  expect(posts[1].showOnFeed).toEqual(false);
+  expect(posts.length).toEqual(3);
+  expect(posts[2].showOnFeed).toEqual(false);
 });
 
 it('should save a new post with content curation', async () => {
@@ -359,8 +400,8 @@ it('should save a new post with content curation', async () => {
     },
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(2);
-  expect(posts[1].contentCuration).toStrictEqual(['news', 'story', 'release']);
+  expect(posts.length).toEqual(3);
+  expect(posts[2].contentCuration).toStrictEqual(['news', 'story', 'release']);
 });
 
 it('save a post as public if source is public', async () => {
@@ -371,9 +412,9 @@ it('save a post as public if source is public', async () => {
     source_id: 'a',
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(2);
-  expect(posts[1].private).toEqual(false);
-  expect(posts[1].flags.private).toEqual(false);
+  expect(posts.length).toEqual(3);
+  expect(posts[2].private).toEqual(false);
+  expect(posts[2].flags.private).toEqual(false);
 });
 
 it('save a post as private if source is private', async () => {
@@ -384,9 +425,9 @@ it('save a post as private if source is private', async () => {
     source_id: 'p',
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(2);
-  expect(posts[1].private).toBe(true);
-  expect(posts[1].flags.private).toBe(true);
+  expect(posts.length).toEqual(3);
+  expect(posts[2].private).toBe(true);
+  expect(posts[2].flags.private).toBe(true);
 });
 
 it('should save a new post with the relevant scout id and update submission', async () => {
@@ -442,9 +483,9 @@ it('should save a new post with the relevant keywords', async () => {
     },
   });
   const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(2);
-  expect(posts[1].scoutId).toEqual('1');
-  expect(posts[1].tagsStr).toEqual('mongodb,alpinejs,ab-testing');
+  expect(posts.length).toEqual(3);
+  expect(posts[2].scoutId).toEqual('1');
+  expect(posts[2].tagsStr).toEqual('mongodb,alpinejs,ab-testing');
   const keywords = await con.getRepository(Keyword).find({
     where: {
       value: 'alpine',

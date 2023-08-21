@@ -22,6 +22,9 @@ import {
   PostMention,
   FreeformPost,
   Banner,
+  PostType,
+  FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
+  FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -63,6 +66,7 @@ import {
   notifyCommentDeleted,
   notifyBannerCreated,
   notifyBannerRemoved,
+  notifyFreeformContentRequested,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
@@ -78,6 +82,19 @@ import { reportCommentReasons } from '../schema/comments';
 
 const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
   before[property] != after[property];
+
+const isFreeformPostLongEnough = (
+  freeform: ChangeMessage<FreeformPost>,
+): boolean =>
+  freeform.payload.after.content.length >= FREEFORM_POST_MINIMUM_CONTENT_LENGTH;
+
+const isFreeformPostChangeLongEnough = (
+  freeform: ChangeMessage<FreeformPost>,
+): boolean =>
+  Math.abs(
+    freeform.payload.before.content.length -
+      freeform.payload.after.content.length,
+  ) >= FREEFORM_POST_MINIMUM_CHANGE_LENGTH;
 
 const onSourceRequestChange = async (
   con: DataSource,
@@ -295,13 +312,19 @@ const onPostChange = async (
     if (data.payload.after.visible) {
       await notifyPostVisible(logger, data.payload.after);
     }
+    if (data.payload.after.type === PostType.Freeform) {
+      const freeform = data as ChangeMessage<FreeformPost>;
+      if (isFreeformPostLongEnough(freeform)) {
+        await notifyFreeformContentRequested(logger, freeform);
+      }
+    }
   } else if (data.payload.op === 'u') {
     if (data.payload.after.visible) {
       if (!data.payload.before.visible) {
         await notifyPostVisible(logger, data.payload.after);
       } else {
         // Trigger message only if the post is already visible and the conte was edited
-        const freeform = data as unknown as ChangeMessage<FreeformPost>;
+        const freeform = data as ChangeMessage<FreeformPost>;
         if (
           isChanged(freeform.payload.before, freeform.payload.after, 'content')
         ) {
@@ -309,6 +332,14 @@ const onPostChange = async (
         }
       }
     }
+
+    if (data.payload.after.type === PostType.Freeform) {
+      const freeform = data as ChangeMessage<FreeformPost>;
+      if (isFreeformPostChangeLongEnough(freeform)) {
+        await notifyFreeformContentRequested(logger, freeform);
+      }
+    }
+
     if (
       !data.payload.before.sentAnalyticsReport &&
       data.payload.after.sentAnalyticsReport

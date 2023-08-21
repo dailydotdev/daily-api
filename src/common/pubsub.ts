@@ -17,8 +17,9 @@ import {
   Comment,
   ContentImage,
   Banner,
+  FreeformPost,
 } from '../entity';
-import { ChangeObject } from '../types';
+import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
 
 const pubsub = new PubSub();
@@ -368,12 +369,28 @@ type ContentRequestedSubmission = { submissionId: string } & Pick<
   'sourceId' | 'url'
 >;
 type ContentRequestedURL = Pick<ArticlePost, 'id' | 'origin' | 'url'>;
-export type ContentRequested = ContentRequestedSubmission | ContentRequestedURL;
+type ContentRequestedFreeForm = Pick<FreeformPost, 'id' | 'content'> & {
+  post_type;
+};
+export type ContentRequested =
+  | ContentRequestedSubmission
+  | ContentRequestedURL
+  | ContentRequestedFreeForm;
 
 export const notifyContentRequested = async (
   log: EventLogger,
   content: ContentRequested,
 ): Promise<void> => publishEvent(log, contentRequestedTopic, content);
+
+export const notifyFreeformContentRequested = async (
+  logger: EventLogger,
+  freeform: ChangeMessage<FreeformPost>,
+): Promise<void> =>
+  notifyContentRequested(logger, {
+    id: freeform.payload.after.id,
+    content: freeform.payload.after.content,
+    post_type: freeform.payload.after.type,
+  });
 
 export const notifyContentImageDeleted = async (
   log: EventLogger,
