@@ -12,6 +12,8 @@ export const fallbackImages = {
 
 export const REDIS_CHANGELOG_KEY = 'boot:latest_changelog';
 
+export const REDIS_BANNER_KEY = 'boot:latest_banner';
+
 export enum StorageTopic {
   Boot = 'boot',
 }

@@ -20,6 +20,7 @@ import {
   Source,
   PostMention,
   FreeformPost,
+  Banner,
   PostType,
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
@@ -64,6 +65,8 @@ import {
   notifyPostContentEdited,
   notifyCommentEdited,
   notifyCommentDeleted,
+  notifyBannerCreated,
+  notifyBannerRemoved,
   notifyFreeformContentRequested,
 } from '../common';
 import { ChangeMessage } from '../types';
@@ -467,6 +470,19 @@ const onSourceFeedChange = async (
   }
 };
 
+const onBannerChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<Banner>,
+) => {
+  if (data.payload.op === 'c') {
+    await notifyBannerCreated(logger, data.payload.after);
+  }
+  if (data.payload.op === 'd') {
+    await notifyBannerRemoved(logger, data.payload.before);
+  }
+};
+
 const onSourceChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -596,6 +612,9 @@ const worker: Worker = {
         return;
       }
       switch (data.payload.source.table) {
+        case getTableName(con, Banner):
+          await onBannerChange(con, logger, data);
+          break;
         case getTableName(con, Source):
           await onSourceChange(con, logger, data);
           break;

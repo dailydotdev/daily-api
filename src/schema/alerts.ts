@@ -51,6 +51,11 @@ export const typeDefs = /* GraphQL */ `
     lastChangelog: DateTime
 
     """
+    Date of the last banner user saw
+    """
+    lastBanner: DateTime
+
+    """
     Whether to show the squad tour and sync across devices
     """
     squadTour: Boolean!
@@ -81,6 +86,11 @@ export const typeDefs = /* GraphQL */ `
     Date of the last changelog user saw
     """
     lastChangelog: DateTime
+
+    """
+    Date of the last banner user saw
+    """
+    lastBanner: DateTime
 
     """
     Whether to show the squad tour and sync across devices
