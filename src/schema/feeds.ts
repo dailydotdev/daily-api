@@ -43,11 +43,12 @@ import {
 import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
-import {
-  generatePersonalizedFeed,
-  getPersonalizedFeedKeyPrefix,
-} from '../personalizedFeed';
 import { ioRedisPool } from '../redis';
+import {
+  cachedFeedClient,
+  feedGenerators,
+  versionToFeedGenerator,
+} from '../integrations/feed';
 
 interface GQLTagsCategory {
   id: string;
@@ -823,7 +824,7 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
 
 const invalidateFeedCache = async (feedId: string): Promise<void> => {
   try {
-    const key = getPersonalizedFeedKeyPrefix(feedId);
+    const key = cachedFeedClient.getCacheKeyPrefix(feedId);
     await ioRedisPool.execute(async (client) => {
       return client.set(
         `${key}:update`,
@@ -857,15 +858,16 @@ const feedResolverV2: IFieldResolver<
       args: FeedArgs & { version: number; feedId?: string },
       page,
     ) =>
-      generatePersonalizedFeed({
-        con: ctx.con,
-        pageSize: page.limit,
-        offset: page.offset,
-        feedVersion: args.version,
-        userId: ctx.userId || ctx.trackingId,
-        feedId: args.feedId,
+      (args.feedId
+        ? versionToFeedGenerator(args.version)
+        : feedGenerators['popular']
+      ).generate(
         ctx,
-      }),
+        ctx.userId || ctx.trackingId,
+        args.feedId,
+        page.limit,
+        page.offset,
+      ),
     warnOnPartialFirstPage: true,
   },
 );

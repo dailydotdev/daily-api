@@ -43,15 +43,12 @@ import {
 } from './fixture/post';
 import nock from 'nock';
 import { deleteKeysByPattern, ioRedisPool } from '../src/redis';
-import {
-  getPersonalizedFeedKey,
-  getPersonalizedFeedKeyPrefix,
-} from '../src/personalizedFeed';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
+import { cachedFeedClient } from '../src/integrations/feed';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -373,24 +370,6 @@ describe('query anonymousFeed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should return anonymous feed vector type', async () => {
-    nock('http://localhost:6000')
-      .post('/feed.json', {
-        total_pages: 40,
-        page_size: 11,
-        fresh_page_size: '4',
-        feed_config_name: 'vector',
-        feed_id: 'global',
-      })
-      .reply(200, {
-        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
-      });
-    const res = await client.query(QUERY, {
-      variables: { ...variables, version: 14 },
-    });
-    expect(res.data).toMatchSnapshot();
-  });
-
   it('should safetly handle a case where the feed is empty', async () => {
     nock('http://localhost:6000')
       .post('/feed.json', {
@@ -617,6 +596,26 @@ describe('query feed', () => {
       });
     const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
+    });
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return feed with vector config', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        total_pages: 40,
+        page_size: 11,
+        fresh_page_size: '4',
+        feed_config_name: 'vector',
+        user_id: '1',
+        feed_id: '1',
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+      });
+    const res = await client.query(QUERY, {
+      variables: { ...variables, version: 14 },
     });
     expect(res.data).toMatchSnapshot();
   });
@@ -1402,10 +1401,10 @@ describe('mutation updateFeedAdvancedSettings', () => {
   it('should add the new feed advanced settings', async () => {
     loggedUser = '1';
     await ioRedisPool.execute(async (client) => {
-      return client.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
+      return client.set(`${cachedFeedClient.getCacheKey('2', '1')}:time`, '1');
     });
     await ioRedisPool.execute(async (client) => {
-      return client.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
+      return client.set(`${cachedFeedClient.getCacheKey('2', '2')}:time`, '2');
     });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, AdvancedSettings, advancedSettings);
@@ -1421,7 +1420,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
     expect(res.data).toMatchSnapshot();
     expect(
       await ioRedisPool.execute(async (client) => {
-        return client.get(`${getPersonalizedFeedKeyPrefix('1')}:update`);
+        return client.get(`${cachedFeedClient.getCacheKeyPrefix('1')}:update`);
       }),
     ).toBeTruthy();
   });
@@ -1444,10 +1443,10 @@ describe('mutation updateFeedAdvancedSettings', () => {
   it('should update existing feed advanced settings', async () => {
     loggedUser = '1';
     await ioRedisPool.execute(async (client) => {
-      return client.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
+      return client.set(`${cachedFeedClient.getCacheKey('2', '1')}:time`, '1');
     });
     await ioRedisPool.execute(async (client) => {
-      return client.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
+      return client.set(`${cachedFeedClient.getCacheKey('2', '2')}:time`, '2');
     });
     await saveFeedFixtures();
     const res = await client.mutate(MUTATION, {
@@ -1463,7 +1462,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
     expect(res.data).toMatchSnapshot();
     expect(
       await ioRedisPool.execute(async (client) => {
-        return client.get(`${getPersonalizedFeedKeyPrefix('1')}:update`);
+        return client.get(`${cachedFeedClient.getCacheKeyPrefix('1')}:update`);
       }),
     ).toBeTruthy();
   });
@@ -1519,10 +1518,10 @@ describe('mutation addFiltersToFeed', () => {
   it('should add the new feed settings', async () => {
     loggedUser = '1';
     await ioRedisPool.execute(async (client) => {
-      return client.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
+      return client.set(`${cachedFeedClient.getCacheKey('2', '1')}:time`, '1');
     });
     await ioRedisPool.execute(async (client) => {
-      await client.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
+      await client.set(`${cachedFeedClient.getCacheKey('2', '2')}:time`, '2');
     });
     await saveFixtures(con, Feed, [{ id: '2', userId: '1' }]);
     await saveFixtures(con, AdvancedSettings, advancedSettings);
@@ -1538,7 +1537,7 @@ describe('mutation addFiltersToFeed', () => {
     expect(res.data).toMatchSnapshot();
     expect(
       await ioRedisPool.execute(async (client) => {
-        return client.get(`${getPersonalizedFeedKeyPrefix('1')}:update`);
+        return client.get(`${cachedFeedClient.getCacheKeyPrefix('1')}:update`);
       }),
     ).toBeTruthy();
   });
@@ -1606,10 +1605,10 @@ describe('mutation removeFiltersFromFeed', () => {
   it('should remove existing filters', async () => {
     loggedUser = '1';
     await ioRedisPool.execute(async (client) => {
-      return client.set(`${getPersonalizedFeedKey('2', '1')}:time`, '1');
+      return client.set(`${cachedFeedClient.getCacheKey('2', '1')}:time`, '1');
     });
     await ioRedisPool.execute(async (client) => {
-      return client.set(`${getPersonalizedFeedKey('2', '2')}:time`, '2');
+      return client.set(`${cachedFeedClient.getCacheKey('2', '2')}:time`, '2');
     });
     await saveFeedFixtures();
     const res = await client.mutate(MUTATION, {
@@ -1624,7 +1623,7 @@ describe('mutation removeFiltersFromFeed', () => {
     expect(res.data).toMatchSnapshot();
     expect(
       await ioRedisPool.execute(async (client) => {
-        return client.get(`${getPersonalizedFeedKeyPrefix('1')}:update`);
+        return client.get(`${cachedFeedClient.getCacheKeyPrefix('1')}:update`);
       }),
     ).toBeTruthy();
   });
