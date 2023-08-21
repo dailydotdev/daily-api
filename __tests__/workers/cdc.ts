@@ -7,6 +7,8 @@ import {
   ReputationReason,
   ReputationType,
   PostType,
+  UserPost,
+  UserPostVote,
 } from '../../src/entity';
 import {
   notifyAlertsUpdated,
@@ -72,7 +74,6 @@ import {
   SourceRequest,
   Submission,
   SubmissionStatus,
-  Upvote,
   User,
   UserState,
   UserStateKey,
@@ -265,11 +266,16 @@ describe('source request', () => {
 });
 
 describe('post upvote', () => {
-  type ObjectType = Upvote;
+  type ObjectType = UserPost;
   const base: ChangeObject<ObjectType> = {
     userId: '1',
     postId: 'p1',
+    votedAt: 0,
+    vote: UserPostVote.Up,
+    hidden: false,
+    updatedAt: 0,
     createdAt: 0,
+    flags: {},
   };
 
   it('should notify on new upvote', async () => {
@@ -280,10 +286,11 @@ describe('post upvote', () => {
         after,
         before: null,
         op: 'c',
-        table: 'upvote',
+        table: 'user_post',
       }),
     );
     expect(notifyPostUpvoted).toBeCalledTimes(1);
+    expect(notifyPostUpvoteCanceled).toBeCalledTimes(0);
     expect(jest.mocked(notifyPostUpvoted).mock.calls[0].slice(1)).toEqual([
       'p1',
       '1',
@@ -297,13 +304,75 @@ describe('post upvote', () => {
         after: null,
         before: base,
         op: 'd',
-        table: 'upvote',
+        table: 'user_post',
       }),
     );
+    expect(notifyPostUpvoted).toBeCalledTimes(0);
     expect(notifyPostUpvoteCanceled).toBeCalledTimes(1);
     expect(
       jest.mocked(notifyPostUpvoteCanceled).mock.calls[0].slice(1),
     ).toEqual(['p1', '1']);
+  });
+
+  it('should notify on upvote updated', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: {
+          ...base,
+          vote: UserPostVote.None,
+        },
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(notifyPostUpvoted).toBeCalledTimes(1);
+    expect(notifyPostUpvoteCanceled).toBeCalledTimes(0);
+    expect(jest.mocked(notifyPostUpvoted).mock.calls[0].slice(1)).toEqual([
+      'p1',
+      '1',
+    ]);
+  });
+
+  it('should notify on upvote canceled', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserPostVote.None,
+        },
+        before: base,
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(notifyPostUpvoted).toBeCalledTimes(0);
+    expect(notifyPostUpvoteCanceled).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifyPostUpvoteCanceled).mock.calls[0].slice(1),
+    ).toEqual(['p1', '1']);
+  });
+
+  it('should not notify if entity is not upvote', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserPostVote.None,
+        },
+        before: {
+          ...base,
+          vote: UserPostVote.Down,
+        },
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(notifyPostUpvoted).toBeCalledTimes(0);
+    expect(notifyPostUpvoteCanceled).toBeCalledTimes(0);
   });
 });
 

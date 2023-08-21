@@ -15,7 +15,6 @@ import {
   SourceRequest,
   Submission,
   SubmissionStatus,
-  Upvote,
   User,
   Feature,
   Source,
@@ -25,6 +24,8 @@ import {
   PostType,
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
+  UserPost,
+  UserPostVote,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -139,20 +140,59 @@ const onSourceRequestChange = async (
 const onPostUpvoteChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
-  data: ChangeMessage<Upvote>,
+  data: ChangeMessage<UserPost>,
 ): Promise<void> => {
-  if (data.payload.op === 'c') {
-    await notifyPostUpvoted(
-      logger,
-      data.payload.after.postId,
-      data.payload.after.userId,
-    );
-  } else if (data.payload.op === 'd') {
-    await notifyPostUpvoteCanceled(
-      logger,
-      data.payload.before.postId,
-      data.payload.before.userId,
-    );
+  const isUpvote =
+    data.payload.after?.vote === UserPostVote.Up ||
+    data.payload.before?.vote === UserPostVote.Up;
+
+  if (!isUpvote) {
+    return;
+  }
+
+  switch (data.payload.op) {
+    case 'c':
+      await notifyPostUpvoted(
+        logger,
+        data.payload.after.postId,
+        data.payload.after.userId,
+      );
+
+      break;
+    case 'u': {
+      const isUpvoteCanceled = data.payload.after.vote === UserPostVote.None;
+
+      if (isUpvoteCanceled) {
+        await notifyPostUpvoteCanceled(
+          logger,
+          data.payload.before.postId,
+          data.payload.before.userId,
+        );
+      } else {
+        await notifyPostUpvoted(
+          logger,
+          data.payload.after.postId,
+          data.payload.after.userId,
+        );
+      }
+
+      break;
+    }
+    case 'd': {
+      const wasUpvoted = data.payload.before.vote === UserPostVote.Up;
+
+      if (wasUpvoted) {
+        await notifyPostUpvoteCanceled(
+          logger,
+          data.payload.before.postId,
+          data.payload.before.userId,
+        );
+      }
+
+      break;
+    }
+    default:
+      break;
   }
 };
 
@@ -584,7 +624,7 @@ const worker: Worker = {
         case getTableName(con, SourceRequest):
           await onSourceRequestChange(con, logger, data);
           break;
-        case getTableName(con, Upvote):
+        case getTableName(con, UserPost):
           await onPostUpvoteChange(con, logger, data);
           break;
         case getTableName(con, CommentUpvote):
