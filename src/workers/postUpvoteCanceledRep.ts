@@ -5,6 +5,7 @@ import {
 } from './../entity/ReputationEvent';
 import { messageToJson, Worker } from './worker';
 import { Post } from '../entity';
+import { In } from 'typeorm';
 
 interface Data {
   userId: string;
@@ -17,19 +18,25 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     try {
       const post = await con.getRepository(Post).findOneBy({ id: data.postId });
-      if (post?.authorId && post?.authorId !== data.userId) {
-        await con
-          .getRepository(ReputationEvent)
-          .createQueryBuilder()
-          .delete()
-          .where({
-            grantById: data.userId,
-            grantToId: post.authorId,
-            targetId: post.id,
-            targetType: ReputationType.Post,
-            reason: ReputationReason.PostUpvoted,
-          })
-          .execute();
+      const userIds = [];
+
+      if (post?.authorId && post.authorId !== data.userId) {
+        userIds.push(post.authorId);
+      }
+
+      if (post?.scoutId && post.scoutId !== data.userId) {
+        userIds.push(post.scoutId);
+      }
+
+      if (userIds.length) {
+        await con.getRepository(ReputationEvent).delete({
+          grantById: data.userId,
+          grantToId: In(userIds),
+          targetId: post.id,
+          targetType: ReputationType.Post,
+          reason: ReputationReason.PostUpvoted,
+        });
+
         logger.info(
           {
             data,
