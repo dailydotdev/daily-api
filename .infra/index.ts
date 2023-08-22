@@ -124,6 +124,25 @@ const livenessProbe: k8s.types.input.core.v1.Probe = {
   initialDelaySeconds,
 };
 
+const jwtVols = {
+  volumes: [
+    {
+      name: 'cert',
+      secret: {
+        secretName: 'cert-secret',
+      },
+    },
+  ],
+  volumeMounts: [{ name: 'cert', mountPath: '/opt/app/cert' }],
+};
+const jwtEnv = [
+  {
+    name: 'JWT_PUBLIC_KEY_PATH',
+    value: '/opt/app/cert/public.pem',
+  },
+  { name: 'JWT_PRIVATE_KEY_PATH', value: '/opt/app/cert/key.pem' },
+];
+
 let appsArgs: ApplicationArgs[];
 if (isAdhocEnv) {
   appsArgs = [
@@ -141,12 +160,14 @@ if (isAdhocEnv) {
           value: 'true',
         },
         { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
+        ...jwtEnv,
       ],
       minReplicas: 3,
       maxReplicas: 15,
       limits,
       metric: { type: 'memory_cpu', cpu: 70 },
       createService: true,
+      ...jwtVols,
     },
     {
       nameSuffix: 'bg',
@@ -165,7 +186,7 @@ if (isAdhocEnv) {
   appsArgs = [
     {
       port: 3000,
-      env: [nodeOptions(memory)],
+      env: [nodeOptions(memory), ...jwtEnv],
       minReplicas: 3,
       maxReplicas: 10,
       limits,
@@ -175,6 +196,7 @@ if (isAdhocEnv) {
       createService: true,
       enableCdn: true,
       disableLifecycle: true,
+      ...jwtVols,
     },
     {
       nameSuffix: 'ws',
@@ -182,6 +204,7 @@ if (isAdhocEnv) {
       env: [
         nodeOptions(wsMemory),
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
+        ...jwtEnv,
       ],
       minReplicas: 3,
       maxReplicas: 10,
@@ -190,6 +213,7 @@ if (isAdhocEnv) {
       livenessProbe,
       metric: { type: 'memory_cpu', cpu: 85 },
       disableLifecycle: true,
+      ...jwtVols,
     },
     {
       nameSuffix: 'bg',
@@ -206,7 +230,7 @@ if (isAdhocEnv) {
     {
       nameSuffix: 'private',
       port: 3000,
-      env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }],
+      env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }, ...jwtEnv],
       minReplicas: 2,
       maxReplicas: 2,
       limits: {
@@ -219,11 +243,13 @@ if (isAdhocEnv) {
       createService: true,
       serviceType: 'ClusterIP',
       disableLifecycle: true,
+      ...jwtVols,
     },
   ];
 }
 
 const vpcNativeProvider = isAdhocEnv ? undefined : getVpcNativeCluster();
+const cert = config.requireObject<Record<string, string>>('cert');
 const [apps] = deployApplicationSuite(
   {
     name,
@@ -260,6 +286,15 @@ const [apps] = deployApplicationSuite(
         },
       ],
     },
+    additionalSecrets: [
+      {
+        name: 'cert-secret',
+        data: {
+          'public.pem': Buffer.from(cert.public).toString('base64'),
+          'key.pem': Buffer.from(cert.key).toString('base64'),
+        },
+      },
+    ],
     apps: appsArgs,
     crons: isAdhocEnv
       ? []
