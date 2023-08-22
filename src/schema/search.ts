@@ -2,19 +2,40 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import {
+  getSessions,
   postFeedback,
   SearchResultFeedback,
   Search,
   getSession,
+  SearchSession,
 } from '../integrations';
 import { ValidationError } from 'apollo-server-errors';
 import { GQLEmptyResponse } from './common';
+import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
+import graphorm from '../graphorm';
+import { ConnectionArguments } from 'graphql-relay/index';
+
+type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
 export const typeDefs = /* GraphQL */ `
   type SearchSession {
     id: String!
     prompt: String!
     createdAt: DateTime!
+  }
+
+  type SearchSessionEdge {
+    node: SearchSession!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type SearchSessionConnection {
+    pageInfo: PageInfo!
+    edges: [SearchSessionEdge!]!
   }
 
   type SearchChunkError {
@@ -48,6 +69,21 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Query {
     """
+    Get user's search history
+    """
+    searchSessionHistory(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): SearchSessionConnection! @auth
+
+    """
     Get a search session by id
     """
     searchSession(id: String!): Search! @auth
@@ -63,6 +99,20 @@ export const typeDefs = /* GraphQL */ `
 
 export const resolvers: IResolvers<unknown, Context> = traceResolvers({
   Query: {
+    searchSessionHistory: async (
+      _,
+      args: ConnectionArguments,
+      ctx,
+    ): Promise<ConnectionRelay<GQLSearchSession>> => {
+      const { first, after } = args;
+
+      return graphorm.queryPaginatedIntegration(
+        () => !!after,
+        (nodeSize) => nodeSize === first,
+        (node) => node.id,
+        () => getSessions(ctx.userId, { limit: first, lastId: after }),
+      );
+    },
     searchSession: async (_, { id }: { id: string }, ctx): Promise<Search> =>
       getSession(ctx.userId, id),
   },

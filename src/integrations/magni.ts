@@ -9,6 +9,12 @@ export interface SearchResultFeedback {
   value: number;
 }
 
+export interface SearchSession {
+  id: string;
+  prompt: string;
+  createdAt: string;
+}
+
 export const postFeedback = async (
   userId: string,
   params: SearchResultFeedback,
@@ -24,6 +30,36 @@ export const postFeedback = async (
   });
 
   if (!res.ok) throw new ValidationError(await res.text());
+};
+
+interface SessionResponse {
+  sessions: SearchSession[];
+}
+
+export interface SearchSessionParams {
+  limit?: number;
+  lastId?: string;
+}
+
+export const getSessions = async (
+  userId: string,
+  { limit = 30, lastId }: SearchSessionParams = {},
+): Promise<SearchSession[]> => {
+  const params = new URLSearchParams({ limit: limit.toString() });
+
+  if (lastId) params.append('lastId', lastId);
+
+  const url = `${magniOrigin}/sessions?${params.toString()}`;
+  const res = await fetch(url, {
+    ...fetchOptions,
+    headers: { 'X-User-Id': userId },
+  });
+
+  if (!res.ok) throw new ValidationError(await res.text());
+
+  const json: SessionResponse = await res.json();
+
+  return json.sessions;
 };
 
 interface SearchChunkError {
