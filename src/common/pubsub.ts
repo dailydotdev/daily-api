@@ -16,8 +16,10 @@ import {
   PostMention,
   Comment,
   ContentImage,
+  Banner,
+  FreeformPost,
 } from '../entity';
-import { ChangeObject } from '../types';
+import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
 
 const pubsub = new PubSub();
@@ -53,6 +55,8 @@ const sourcePrivacyUpdatedTopic = pubsub.topic('api.v1.source-privacy-updated');
 const featuresResetTopic = pubsub.topic('features-reset');
 const contentRequestedTopic = pubsub.topic('api.v1.content-requested');
 const postVisibleTopic = pubsub.topic('api.v1.post-visible');
+const bannerAddedTopic = pubsub.topic('api.v1.banner-added');
+const bannerRemovedTopic = pubsub.topic('api.v1.banner-deleted');
 const sourceMemberRoleChangedTopic = pubsub.topic(
   'api.v1.source-member-role-changed',
 );
@@ -339,6 +343,16 @@ export const notifyPostVisible = async (
   post: ChangeObject<Post>,
 ): Promise<void> => publishEvent(log, postVisibleTopic, { post });
 
+export const notifyBannerCreated = async (
+  log: EventLogger,
+  banner: ChangeObject<Banner>,
+): Promise<void> => publishEvent(log, bannerAddedTopic, { banner });
+
+export const notifyBannerRemoved = async (
+  log: EventLogger,
+  banner: ChangeObject<Banner>,
+): Promise<void> => publishEvent(log, bannerRemovedTopic, { banner });
+
 export const notifyUserCreated = async (
   log: EventLogger,
   user: ChangeObject<User>,
@@ -355,12 +369,28 @@ type ContentRequestedSubmission = { submissionId: string } & Pick<
   'sourceId' | 'url'
 >;
 type ContentRequestedURL = Pick<ArticlePost, 'id' | 'origin' | 'url'>;
-export type ContentRequested = ContentRequestedSubmission | ContentRequestedURL;
+type ContentRequestedFreeForm = Pick<FreeformPost, 'id' | 'content'> & {
+  post_type;
+};
+export type ContentRequested =
+  | ContentRequestedSubmission
+  | ContentRequestedURL
+  | ContentRequestedFreeForm;
 
 export const notifyContentRequested = async (
   log: EventLogger,
   content: ContentRequested,
 ): Promise<void> => publishEvent(log, contentRequestedTopic, content);
+
+export const notifyFreeformContentRequested = async (
+  logger: EventLogger,
+  freeform: ChangeMessage<FreeformPost>,
+): Promise<void> =>
+  notifyContentRequested(logger, {
+    id: freeform.payload.after.id,
+    content: freeform.payload.after.content,
+    post_type: freeform.payload.after.type,
+  });
 
 export const notifyContentImageDeleted = async (
   log: EventLogger,

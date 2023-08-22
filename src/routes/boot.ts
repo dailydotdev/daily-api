@@ -9,6 +9,7 @@ import { GQLUser } from '../schema/users';
 import {
   Alerts,
   ALERTS_DEFAULT,
+  Banner,
   getUnreadNotificationsCount,
   Post,
   Settings,
@@ -38,6 +39,7 @@ import {
 } from '../redis';
 import {
   generateStorageKey,
+  REDIS_BANNER_KEY,
   REDIS_CHANGELOG_KEY,
   StorageTopic,
 } from '../config';
@@ -226,6 +228,31 @@ const setAuthCookie = async (
   return accessToken;
 };
 
+const getAndUpdateLastBannerRedis = async (
+  con: DataSource,
+): Promise<string> => {
+  let bannerFromRedis = await getRedisObject(REDIS_BANNER_KEY);
+
+  if (!bannerFromRedis) {
+    const banner = await con.getRepository(Banner).findOne({
+      select: ['timestamp'],
+      where: [],
+      order: {
+        timestamp: {
+          direction: 'DESC',
+        },
+      },
+    });
+
+    if (banner) {
+      bannerFromRedis = banner.timestamp.toISOString();
+      await setRedisObject(REDIS_BANNER_KEY, bannerFromRedis);
+    }
+  }
+
+  return bannerFromRedis;
+};
+
 const getAndUpdateLastChangelogRedis = async (
   con: DataSource,
 ): Promise<string> => {
@@ -308,6 +335,7 @@ const loggedInBoot = async (
     unreadNotificationsCount,
     squads,
     lastChangelog,
+    lastBanner,
     exp,
     extra,
   ] = await Promise.all([
@@ -320,6 +348,7 @@ const loggedInBoot = async (
     getUnreadNotificationsCount(con, userId),
     getSquads(con, userId),
     getAndUpdateLastChangelogRedis(con),
+    getAndUpdateLastBannerRedis(con),
     getExperimentation(userId),
     middleware ? middleware(con, req, res) : {},
   ]);
@@ -347,6 +376,9 @@ const loggedInBoot = async (
       ...excludeProperties(alerts, ['userId']),
       // read only, used in frontend to decide if changelog post should be fetched
       changelog: alerts.lastChangelog < new Date(lastChangelog),
+      // read only, used in frontend to decide if banner should be fetched
+      banner:
+        lastBanner !== 'false' && alerts.lastBanner < new Date(lastBanner),
     },
     settings: excludeProperties(settings, [
       'userId',

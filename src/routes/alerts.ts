@@ -10,6 +10,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         myFeed
         companionHelper
         lastChangelog
+        lastBanner
         squadTour
       }
     }`;

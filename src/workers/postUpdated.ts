@@ -9,6 +9,7 @@ import {
   parseReadTime,
   Post,
   PostOrigin,
+  PostType,
   removeKeywords,
   SharePost,
   Source,
@@ -159,19 +160,33 @@ const createPost = async ({
   return;
 };
 
+const allowedFieldsMapping = {
+  freeform: [
+    'contentCuration',
+    'description',
+    'metadataChangedAt',
+    'readTime',
+    'siteTwitter',
+    'summary',
+    'tagsStr',
+    'toc',
+  ],
+};
+
 type UpdatePostProps = {
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
   id: string;
   mergedKeywords: string[];
+  content_type: PostType;
 };
 const updatePost = async ({
   entityManager,
   data,
   id,
   mergedKeywords,
+  content_type,
 }: UpdatePostProps) => {
-  const updatedDate = new Date(data.metadataChangedAt);
   const databasePost = await entityManager
     .getRepository(ArticlePost)
     .findOneBy({ id });
@@ -182,21 +197,41 @@ const updatePost = async ({
 
   if (
     !databasePost ||
-    databasePost.metadataChangedAt.toISOString() >= updatedDate.toISOString()
+    databasePost.metadataChangedAt.toISOString() >=
+      data.metadataChangedAt.toISOString()
   ) {
     return null;
   }
 
   const title = data?.title || databasePost.title;
-  const updateBecameVisible = !databasePost.visible && !!title?.length;
+  const updateBecameVisible =
+    content_type === PostType.Freeform
+      ? databasePost.visible
+      : !databasePost.visible && !!title?.length;
 
   data.id = databasePost.id;
-  data.metadataChangedAt = updatedDate;
   data.title = title;
   data.visible = updateBecameVisible;
   data.visibleAt = updateBecameVisible
-    ? databasePost.visibleAt ?? updatedDate
+    ? databasePost.visibleAt ?? data.metadataChangedAt
     : null;
+
+  if (content_type in allowedFieldsMapping) {
+    const allowedFields = [
+      'id',
+      'visible',
+      'visibleAt',
+      'flags',
+      'yggdrasilId',
+      ...allowedFieldsMapping[content_type],
+    ];
+
+    Object.keys(data).forEach((key) => {
+      if (allowedFields.indexOf(key) === -1) {
+        delete data[key];
+      }
+    });
+  }
 
   await entityManager.getRepository(ArticlePost).update(
     { id: databasePost.id },
@@ -246,6 +281,7 @@ type FixDataProps = {
 };
 type FixData = {
   mergedKeywords: string[];
+  content_type: PostType;
   fixedData: Partial<ArticlePost>;
 };
 const fixData = async ({
@@ -291,6 +327,7 @@ const fixData = async ({
   // Try and fix generic data here
   return {
     mergedKeywords,
+    content_type: data?.content_type as PostType,
     fixedData: {
       origin: data?.origin as PostOrigin,
       authorId,
@@ -302,7 +339,8 @@ const fixData = async ({
       title: data?.title && he.decode(data?.title),
       readTime: parseReadTime(data?.extra?.read_time),
       publishedAt: data?.published_at && new Date(data?.published_at),
-      metadataChangedAt: data?.updated_at || new Date(),
+      metadataChangedAt:
+        (data?.updated_at && new Date(data.updated_at)) || new Date(),
       visible: becomesVisible,
       visibleAt: becomesVisible ? new Date() : null,
       tagsStr: allowedKeywords?.join(',') || null,
@@ -346,7 +384,7 @@ const worker: Worker = {
           return;
         }
 
-        const { mergedKeywords, fixedData } = await fixData({
+        const { mergedKeywords, content_type, fixedData } = await fixData({
           logger,
           entityManager,
           data,
@@ -369,6 +407,7 @@ const worker: Worker = {
             data: fixedData,
             id: post_id,
             mergedKeywords,
+            content_type,
           });
         }
       });

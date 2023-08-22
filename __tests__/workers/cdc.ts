@@ -1,10 +1,14 @@
 import nock from 'nock';
 import {
+  Banner,
   FreeformPost,
   PostMention,
   ReputationEvent,
   ReputationReason,
   ReputationType,
+  PostType,
+  UserPost,
+  UserPostVote,
 } from '../../src/entity';
 import {
   notifyAlertsUpdated,
@@ -40,6 +44,9 @@ import {
   notifyPostContentEdited,
   notifyCommentEdited,
   notifyCommentDeleted,
+  notifyFreeformContentRequested,
+  notifyBannerCreated,
+  notifyBannerRemoved,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -67,7 +74,6 @@ import {
   SourceRequest,
   Submission,
   SubmissionStatus,
-  Upvote,
   User,
   UserState,
   UserStateKey,
@@ -118,10 +124,13 @@ jest.mock('../../src/common', () => ({
   sendEmail: jest.fn(),
   notifySourcePrivacyUpdated: jest.fn(),
   notifyContentRequested: jest.fn(),
+  notifyFreeformContentRequested: jest.fn(),
   notifyPostVisible: jest.fn(),
   notifySourceMemberRoleChanged: jest.fn(),
   notifyContentImageDeleted: jest.fn(),
   notifyPostContentEdited: jest.fn(),
+  notifyBannerCreated: jest.fn(),
+  notifyBannerRemoved: jest.fn(),
 }));
 
 let con: DataSource;
@@ -257,11 +266,16 @@ describe('source request', () => {
 });
 
 describe('post upvote', () => {
-  type ObjectType = Upvote;
+  type ObjectType = UserPost;
   const base: ChangeObject<ObjectType> = {
     userId: '1',
     postId: 'p1',
+    votedAt: 0,
+    vote: UserPostVote.Up,
+    hidden: false,
+    updatedAt: 0,
     createdAt: 0,
+    flags: {},
   };
 
   it('should notify on new upvote', async () => {
@@ -272,10 +286,11 @@ describe('post upvote', () => {
         after,
         before: null,
         op: 'c',
-        table: 'upvote',
+        table: 'user_post',
       }),
     );
     expect(notifyPostUpvoted).toBeCalledTimes(1);
+    expect(notifyPostUpvoteCanceled).toBeCalledTimes(0);
     expect(jest.mocked(notifyPostUpvoted).mock.calls[0].slice(1)).toEqual([
       'p1',
       '1',
@@ -289,13 +304,75 @@ describe('post upvote', () => {
         after: null,
         before: base,
         op: 'd',
-        table: 'upvote',
+        table: 'user_post',
       }),
     );
+    expect(notifyPostUpvoted).toBeCalledTimes(0);
     expect(notifyPostUpvoteCanceled).toBeCalledTimes(1);
     expect(
       jest.mocked(notifyPostUpvoteCanceled).mock.calls[0].slice(1),
     ).toEqual(['p1', '1']);
+  });
+
+  it('should notify on upvote updated', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: base,
+        before: {
+          ...base,
+          vote: UserPostVote.None,
+        },
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(notifyPostUpvoted).toBeCalledTimes(1);
+    expect(notifyPostUpvoteCanceled).toBeCalledTimes(0);
+    expect(jest.mocked(notifyPostUpvoted).mock.calls[0].slice(1)).toEqual([
+      'p1',
+      '1',
+    ]);
+  });
+
+  it('should notify on upvote canceled', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserPostVote.None,
+        },
+        before: base,
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(notifyPostUpvoted).toBeCalledTimes(0);
+    expect(notifyPostUpvoteCanceled).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifyPostUpvoteCanceled).mock.calls[0].slice(1),
+    ).toEqual(['p1', '1']);
+  });
+
+  it('should not notify if entity is not upvote', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: {
+          ...base,
+          vote: UserPostVote.None,
+        },
+        before: {
+          ...base,
+          vote: UserPostVote.Down,
+        },
+        op: 'u',
+        table: 'user_post',
+      }),
+    );
+    expect(notifyPostUpvoted).toBeCalledTimes(0);
+    expect(notifyPostUpvoteCanceled).toBeCalledTimes(0);
   });
 });
 
@@ -897,6 +974,148 @@ describe('post', () => {
       oldPost.metadataChangedAt.getTime(),
     );
   });
+
+  it('should notify for new freeform post greater than 1000 characters', async () => {
+    const after = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1'.repeat(1000),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyFreeformContentRequested).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifyFreeformContentRequested).mock.calls[0][1].payload
+        .after,
+    ).toEqual(after);
+  });
+
+  it('should not notify for new freeform post less than 1000 characters', async () => {
+    const after = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1'.repeat(999),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyFreeformContentRequested).toBeCalledTimes(0);
+  });
+
+  it('should not notify on welcome post', async () => {
+    const after = {
+      ...base,
+      type: PostType.Welcome,
+      content: '1'.repeat(1000),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+  });
+
+  it('should not notify on shared post', async () => {
+    const after = {
+      ...base,
+      type: PostType.Share,
+      content: '1'.repeat(1000),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+  });
+
+  it('should notify for edited freeform post greater than 200 edited characters', async () => {
+    const before = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1',
+    };
+
+    const after = {
+      ...before,
+      content: before.content + '2'.repeat(200),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyFreeformContentRequested).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifyFreeformContentRequested).mock.calls[0][1].payload
+        .before,
+    ).toEqual(before);
+    expect(
+      jest.mocked(notifyFreeformContentRequested).mock.calls[0][1].payload
+        .after,
+    ).toEqual(after);
+  });
+
+  it('should not notify for edited freeform post less than 200 edited characters', async () => {
+    const before = {
+      ...base,
+      type: PostType.Freeform,
+      content: '1',
+    };
+
+    const after = {
+      ...before,
+      content: before.content + '2'.repeat(100),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+
+    expect(notifyContentRequested).toBeCalledTimes(0);
+  });
 });
 
 describe('comment report', () => {
@@ -1017,6 +1236,7 @@ describe('alerts', () => {
     myFeed: 'created',
     companionHelper: true,
     lastChangelog: null,
+    lastBanner: null,
     squadTour: true,
   };
 
@@ -1543,5 +1763,50 @@ describe('content image', () => {
     expect(
       jest.mocked(notifyContentImageDeleted).mock.calls[0].slice(1),
     ).toEqual([before]);
+  });
+});
+
+describe('banner', () => {
+  type ObjectType = Partial<Banner>;
+  const base: ChangeObject<ObjectType> = {
+    timestamp: Date.now(),
+    title: 'test',
+    subtitle: 'test',
+    cta: 'test',
+    url: 'test',
+    theme: 'cabbage',
+  };
+
+  it('should notify on banner created', async () => {
+    const before = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: before,
+        before,
+        op: 'c',
+        table: 'banner',
+      }),
+    );
+    expect(notifyBannerCreated).toBeCalledTimes(1);
+    expect(jest.mocked(notifyBannerCreated).mock.calls[0].slice(1)).toEqual([
+      before,
+    ]);
+  });
+
+  it('should notify on banner deleted', async () => {
+    const before = base;
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        before,
+        op: 'd',
+        table: 'banner',
+      }),
+    );
+    expect(notifyBannerRemoved).toBeCalledTimes(1);
+    expect(jest.mocked(notifyBannerRemoved).mock.calls[0].slice(1)).toEqual([
+      before,
+    ]);
   });
 });
