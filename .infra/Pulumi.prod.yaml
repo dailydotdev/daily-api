@@ -60,6 +60,8 @@ config:
       secure: AAABAFUcG4T/DgIjrCzR9Ka+aUJ5cMeKCm9jCAvWVdLKqFMj4voiYjva1Lrny+7A67xRYg==
     kratosOrigin:
       secure: AAABAAAcNFaMFyerA4UVMKYeQYf69uQ0mMfl2I0DIiKOBa6HwtbnTXoA1N4OwidUgnIRlGzdYrgQWzQTMsimcE/Yarpceg==
+    magniOrigin:
+      secure: AAABADJFG0EyPLABHW2GYoe+G8hmigKXJZ4i+jKUm6i1o9q6vgVJaPbRaiuR9HPlhmKC
     nodeEnv: production
     onesignalApiKey:
       secure: AAABAI/bDI+xz5PMlMZseI2kW5oanHk3z1KcAOZJb+/G8arhgSP1EMdqdOTk0kku1t6KTWtl9+oSSDKWYNH1CG5D+Ac1ZPFAWc/ldmEb/iU=
