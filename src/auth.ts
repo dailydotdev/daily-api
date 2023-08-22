@@ -47,21 +47,7 @@ export const verifyJwt = (token: string): Promise<AuthPayload | null> =>
       },
       (err, payload) => {
         if (err) {
-          // Temporary support old token as well
-          jwt.verify(
-            token,
-            process.env.JWT_SECRET,
-            {
-              audience: process.env.JWT_AUDIENCE,
-              issuer: process.env.JWT_ISSUER,
-            },
-            (err, payload) => {
-              if (err) {
-                return reject(err);
-              }
-              return resolve(payload as AuthPayload | null);
-            },
-          );
+          return reject(err);
         }
         return resolve(payload as AuthPayload | null);
       },
