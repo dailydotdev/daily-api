@@ -222,6 +222,7 @@ const updatePost = async ({
       'visible',
       'visibleAt',
       'flags',
+      'yggdrasilId',
       ...allowedFieldsMapping[content_type],
     ];
 

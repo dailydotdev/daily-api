@@ -272,6 +272,7 @@ it('should update freeform post and only modify allowed fields', async () => {
   expect(post.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
   expect(post.contentCuration).toEqual(['news', 'story', 'release']);
   expect(post.siteTwitter).toEqual('text');
+  expect(post.yggdrasilId).toEqual('f99a445f-e2fb-48e8-959c-e02a17f5e816');
 
   expect(post.title).toEqual('freeform post');
   expect(post.canonicalUrl).toBeNull();
