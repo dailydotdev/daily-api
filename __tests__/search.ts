@@ -106,7 +106,7 @@ describe('searchSessionHistory query', () => {
       {
         id: 'unique id',
         prompt: 'the first question',
-        createdAt: new Date(2023, 7, 11).toString(),
+        createdAt: new Date(2023, 7, 11).toISOString(),
       },
     ],
   };
@@ -123,11 +123,20 @@ describe('searchSessionHistory query', () => {
   };
 
   const QUERY = `
-    query SearchSessionHistory($limit: Int, $lastId: String) {
-      searchSessionHistory(limit: $limit, lastId: $lastId) {
-        id
-        prompt
-        createdAt
+    query SearchSessionHistory($after: String, $first: Int) {
+      searchSessionHistory(after: $after, first: $first) {
+        pageInfo {
+          endCursor
+          hasNextPage
+          hasPreviousPage
+        }
+        edges {
+          node {
+            id
+            prompt
+            createdAt
+          }
+        }
       }
     }
   `;
@@ -142,9 +151,27 @@ describe('searchSessionHistory query', () => {
 
     mockHistory(limit);
 
-    const res = await client.mutate(QUERY, { variables: { limit } });
+    const res = await client.query(QUERY, { variables: { first: limit } });
 
     expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      searchSessionHistory: {
+        edges: [
+          {
+            node: {
+              createdAt: expect.any(String),
+              id: 'unique id',
+              prompt: 'the first question',
+            },
+          },
+        ],
+        pageInfo: {
+          endCursor: 'unique id',
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      },
+    });
   });
 
   it('should get user search history with limit and last id', async () => {
@@ -155,10 +182,27 @@ describe('searchSessionHistory query', () => {
 
     mockHistory(limit, lastId);
 
-    const res = await client.mutate(QUERY, { variables: { limit, lastId } });
+    const res = await client.query(QUERY, {
+      variables: { first: limit, after: lastId },
+    });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.searchSessionHistory).toEqual(mockResponse.sessions);
+    expect(res.data.searchSessionHistory).toEqual({
+      edges: [
+        {
+          node: {
+            createdAt: expect.any(String),
+            id: 'unique id',
+            prompt: 'the first question',
+          },
+        },
+      ],
+      pageInfo: {
+        endCursor: 'unique id',
+        hasNextPage: false,
+        hasPreviousPage: true,
+      },
+    });
   });
 });
 

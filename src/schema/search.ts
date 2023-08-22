@@ -8,16 +8,14 @@ import {
   Search,
   getSession,
   SearchSession,
-  SearchSessionParams,
 } from '../integrations';
 import { ValidationError } from 'apollo-server-errors';
 import { GQLEmptyResponse } from './common';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
-import { base64 } from '../common';
 import graphorm from '../graphorm';
+import { ConnectionArguments } from 'graphql-relay/index';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
-type GQLSearchSessionParams = Pick<SearchSessionParams, 'limit' | 'lastId'>;
 
 export const typeDefs = /* GraphQL */ `
   type SearchSession {
@@ -73,8 +71,17 @@ export const typeDefs = /* GraphQL */ `
     """
     Get user's search history
     """
-    searchSessionHistory(limit: Int, lastId: String): SearchSessionConnection!
-      @auth
+    searchSessionHistory(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): SearchSessionConnection! @auth
 
     """
     Get a search session by id
@@ -94,14 +101,16 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
   Query: {
     searchSessionHistory: async (
       _,
-      { limit, lastId }: GQLSearchSessionParams,
+      args: ConnectionArguments,
       ctx,
     ): Promise<ConnectionRelay<GQLSearchSession>> => {
+      const { first, after } = args;
+
       return graphorm.queryPaginatedIntegration(
-        () => !!lastId,
-        (nodeSize) => nodeSize === limit,
-        (node) => base64(`timestamp:${node.createdAt}`),
-        () => getSessions(ctx.userId, { limit, lastId }),
+        () => !!after,
+        (nodeSize) => nodeSize === first,
+        (node) => node.id,
+        () => getSessions(ctx.userId, { limit: first, lastId: after }),
       );
     },
     searchSession: async (_, { id }: { id: string }, ctx): Promise<Search> =>
