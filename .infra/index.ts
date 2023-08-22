@@ -141,12 +141,23 @@ if (isAdhocEnv) {
           value: 'true',
         },
         { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
+        { name: 'JWT_PUBLIC_KEY_PATH', value: '/opt/app/cert/public.pem' },
+        { name: 'JWT_PRIVATE_KEY_PATH', value: '/opt/app/cert/key.pem' },
       ],
       minReplicas: 3,
       maxReplicas: 15,
       limits,
       metric: { type: 'memory_cpu', cpu: 70 },
       createService: true,
+      volumes: [
+        {
+          name: 'cert',
+          secret: {
+            secretName: 'cert-secret',
+          },
+        },
+      ],
+      volumeMounts: [{ name: 'cert', mountPath: '/opt/app/cert' }],
     },
     {
       nameSuffix: 'bg',
@@ -165,7 +176,11 @@ if (isAdhocEnv) {
   appsArgs = [
     {
       port: 3000,
-      env: [nodeOptions(memory)],
+      env: [
+        nodeOptions(memory),
+        { name: 'JWT_PUBLIC_KEY_PATH', value: '/opt/app/cert/public.pem' },
+        { name: 'JWT_PRIVATE_KEY_PATH', value: '/opt/app/cert/key.pem' },
+      ],
       minReplicas: 3,
       maxReplicas: 10,
       limits,
@@ -175,6 +190,15 @@ if (isAdhocEnv) {
       createService: true,
       enableCdn: true,
       disableLifecycle: true,
+      volumes: [
+        {
+          name: 'cert',
+          secret: {
+            secretName: 'cert-secret',
+          },
+        },
+      ],
+      volumeMounts: [{ name: 'cert', mountPath: '/opt/app/cert' }],
     },
     {
       nameSuffix: 'ws',
@@ -224,6 +248,7 @@ if (isAdhocEnv) {
 }
 
 const vpcNativeProvider = isAdhocEnv ? undefined : getVpcNativeCluster();
+const cert = config.requireObject<Record<string, string>>('cert');
 const [apps] = deployApplicationSuite(
   {
     name,
@@ -260,6 +285,15 @@ const [apps] = deployApplicationSuite(
         },
       ],
     },
+    additionalSecrets: [
+      {
+        name: 'cert-secret',
+        data: {
+          'public.pem': Buffer.from(cert.public).toString('base64'),
+          'key.pem': Buffer.from(cert.key).toString('base64'),
+        },
+      },
+    ],
     apps: appsArgs,
     crons: isAdhocEnv
       ? []
