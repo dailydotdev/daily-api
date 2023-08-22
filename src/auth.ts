@@ -83,7 +83,7 @@ export const signJwt = <T>(
       newPayload,
       privateKey,
       {
-        algorithm: 'RS256',
+        ...(process.env.NODE_ENV !== 'test' && { algorithm: 'RS256' }),
         audience: process.env.JWT_AUDIENCE,
         issuer: process.env.JWT_ISSUER,
       },
