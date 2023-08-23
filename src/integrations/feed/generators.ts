@@ -2,6 +2,7 @@ import {
   FeedConfigGenerator,
   FeedConfigName,
   FeedResponse,
+  FeedVersion,
   IFeedClient,
 } from './types';
 import { Context } from '../../Context';
@@ -50,29 +51,31 @@ const opts = {
   includeSourceMemberships: true,
 };
 
-export const feedGenerators: Record<string, FeedGenerator> = Object.freeze({
-  '11': new FeedGenerator(
-    cachedFeedClient,
-    new FeedPreferencesConfigGenerator(
-      { feed_config_name: FeedConfigName.Personalise },
-      opts,
+export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
+  {
+    '11': new FeedGenerator(
+      cachedFeedClient,
+      new FeedPreferencesConfigGenerator(
+        { feed_config_name: FeedConfigName.Personalise },
+        opts,
+      ),
     ),
-  ),
-  '14': new FeedGenerator(
-    cachedFeedClient,
-    new FeedPreferencesConfigGenerator(
-      { feed_config_name: FeedConfigName.Vector },
-      opts,
+    '14': new FeedGenerator(
+      cachedFeedClient,
+      new FeedPreferencesConfigGenerator(
+        { feed_config_name: FeedConfigName.Vector },
+        opts,
+      ),
     ),
-  ),
-  popular: new FeedGenerator(
-    cachedFeedClient,
-    new SimpleFeedConfigGenerator({
-      feed_config_name: FeedConfigName.Personalise,
-    }),
-    'popular',
-  ),
-});
+    popular: new FeedGenerator(
+      cachedFeedClient,
+      new SimpleFeedConfigGenerator({
+        feed_config_name: FeedConfigName.Personalise,
+      }),
+      'popular',
+    ),
+  },
+);
 
 export const versionToFeedGenerator = (version: number): FeedGenerator => {
   return feedGenerators[version.toString()] ?? feedGenerators['11'];
