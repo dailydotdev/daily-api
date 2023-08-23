@@ -70,7 +70,19 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
     popular: new FeedGenerator(
       cachedFeedClient,
       new SimpleFeedConfigGenerator({
-        feed_config_name: FeedConfigName.Personalise,
+        providers: {
+          fresh: {
+            enable: true,
+            remove_engaged_posts: true,
+            page_size_fraction: 0.1,
+          },
+          engaged: {
+            enable: true,
+            remove_engaged_posts: true,
+            page_size_fraction: 1,
+            fallback_provider: 'fresh',
+          },
+        },
       }),
       'popular',
     ),
