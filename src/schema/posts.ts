@@ -1410,7 +1410,7 @@ export const resolvers: IResolvers<any, Context> = {
             UploadPreset.PostBannerImage,
             { invalidate: true },
           );
-          updated.image = coverImageUrl;
+          updated.image = `${coverImageUrl}v=${Date.now()}`;
         }
 
         if (content !== post.content) {

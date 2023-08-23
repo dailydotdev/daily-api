@@ -1188,7 +1188,10 @@ export const resolvers: IResolvers<any, Context> = {
                 stream,
                 { invalidate: true },
               );
-              await repo.update({ id: sourceId }, { image: imageUrl });
+              await repo.update(
+                { id: sourceId },
+                { image: `${imageUrl}v=${Date.now()}` },
+              );
             }
             return sourceId;
           },
