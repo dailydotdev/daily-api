@@ -1,12 +1,12 @@
 version: 2.1
 orbs:
-  gcp-gcr: circleci/gcp-gcr@0.13.0
+  gcp-gcr: circleci/gcp-gcr@0.15.3
   pulumi: pulumi/pulumi@2.1.0
-  gcp-cli: circleci/gcp-cli@2.4.1
+  gcp-cli: circleci/gcp-cli@3.1.1
 jobs:
   build:
     docker:
-      - image: cimg/node:18.11
+      - image: cimg/node:18.17
     steps:
       - checkout
       - restore_cache:
@@ -28,7 +28,7 @@ jobs:
   test:
     resource_class: medium+
     docker:
-      - image: cimg/node:18.11
+      - image: cimg/node:18.17
       - image: postgres:11.6-alpine
         environment:
           - POSTGRES_DB: api_test
@@ -84,7 +84,7 @@ jobs:
           registry-url: us.gcr.io
   pulumi_preview:
     docker:
-      - image: cimg/node:16.15
+      - image: cimg/node:18.17
     steps:
       - checkout
       - pulumi/login
@@ -99,13 +99,12 @@ jobs:
   pulumi_up:
     circleci_ip_ranges: true
     docker:
-      - image: cimg/node:16.15
+      - image: cimg/node:18.17
     environment:
       USE_GKE_GCLOUD_AUTH_PLUGIN: 'True'
     steps:
       - checkout
-      - gcp-cli/install
-      - gcp-cli/initialize
+      - gcp-cli/setup
       - run:
           name: Install GKE Auth plugin
           command: gcloud components install gke-gcloud-auth-plugin

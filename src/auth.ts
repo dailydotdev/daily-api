@@ -7,6 +7,10 @@ import fp from 'fastify-plugin';
 import jwt from 'jsonwebtoken';
 import { Roles } from './roles';
 import { cookies } from './cookies';
+import * as fs from 'fs';
+
+let publicKey: Buffer = undefined;
+let privateKey: Buffer = undefined;
 
 declare module 'fastify' {
   /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -36,7 +40,7 @@ export const verifyJwt = (token: string): Promise<AuthPayload | null> =>
   new Promise((resolve, reject) => {
     jwt.verify(
       token,
-      process.env.JWT_SECRET,
+      publicKey,
       {
         audience: process.env.JWT_AUDIENCE,
         issuer: process.env.JWT_ISSUER,
@@ -63,8 +67,9 @@ export const signJwt = <T>(
     );
     jwt.sign(
       newPayload,
-      process.env.JWT_SECRET,
+      privateKey,
       {
+        ...(process.env.NODE_ENV !== 'test' && { algorithm: 'RS256' }),
         audience: process.env.JWT_AUDIENCE,
         issuer: process.env.JWT_ISSUER,
       },
@@ -84,6 +89,14 @@ const plugin = async (
   fastify: FastifyInstance,
   opts: Options,
 ): Promise<void> => {
+  if (process.env.NODE_ENV === 'test') {
+    publicKey = Buffer.from('test');
+    privateKey = Buffer.from('test');
+  } else {
+    publicKey = fs.readFileSync(process.env.JWT_PUBLIC_KEY_PATH);
+    privateKey = fs.readFileSync(process.env.JWT_PRIVATE_KEY_PATH);
+  }
+
   fastify.decorateRequest('userId', null);
   fastify.decorateRequest('premium', null);
   fastify.decorateRequest('roles', null);

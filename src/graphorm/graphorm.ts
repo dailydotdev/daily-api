@@ -636,4 +636,34 @@ export class GraphORM {
     }
     throw new Error('Resolve info is empty');
   }
+
+  /**
+   * Queries the database to fulfill a GraphQL request.
+   * Response is returned in a Relay style pagination object.
+   * @param hasPreviousPage Whether there is a previous page (used for PageInfo)
+   * @param hasNextPage Whether there is a previous page (used for PageInfo)
+   * @param nodeToCursor A function that creates a cursor from a node
+   * @param fetchData A callback function that is called before executing the query
+   * @param transformNodes Apply any transformation on the nodes before adding page info
+   */
+  async queryPaginatedIntegration<T>(
+    hasPreviousPage: (nodeSize: number) => boolean,
+    hasNextPage: (nodeSize: number) => boolean,
+    nodeToCursor: (node: T, index: number) => string,
+    fetchData: () => Promise<T[]>,
+    transformNodes?: (nodes: T[]) => T[],
+  ): Promise<Connection<T>> {
+    let nodes = await fetchData();
+    const nodesSize = nodes.length;
+    if (transformNodes) {
+      nodes = transformNodes(nodes);
+    }
+    return this.nodesToConnection(
+      nodes,
+      nodesSize,
+      hasPreviousPage,
+      hasNextPage,
+      nodeToCursor,
+    );
+  }
 }
