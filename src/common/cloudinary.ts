@@ -64,6 +64,7 @@ export const uploadFile = (
 
         return resolve({
           url: cloudinary.v2.url(callResult.public_id, {
+            ...(invalidate && { force_version: true }),
             secure: true,
             fetch_format: 'auto',
             quality: 'auto',
