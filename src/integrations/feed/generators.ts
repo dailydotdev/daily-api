@@ -1,4 +1,9 @@
-import { FeedConfigGenerator, FeedResponse, IFeedClient } from './types';
+import {
+  FeedConfigGenerator,
+  FeedConfigName,
+  FeedResponse,
+  IFeedClient,
+} from './types';
 import { Context } from '../../Context';
 import { CachedFeedClient, FeedClient } from './clients';
 import { ioRedisPool } from '../../redis';
@@ -13,27 +18,26 @@ import {
 export class FeedGenerator {
   private readonly client: IFeedClient;
   private readonly config: FeedConfigGenerator;
+  private readonly feedId?: string;
 
-  constructor(client: IFeedClient, config: FeedConfigGenerator) {
+  constructor(
+    client: IFeedClient,
+    config: FeedConfigGenerator,
+    feedId?: string,
+  ) {
     this.client = client;
     this.config = config;
+    this.feedId = feedId;
   }
 
   async generate(
     ctx: Context,
     userId: string | undefined,
-    feedId: string | undefined,
     pageSize: number,
     offset: number,
   ): Promise<FeedResponse> {
-    const config = await this.config.generate(
-      ctx,
-      userId,
-      feedId,
-      pageSize,
-      offset,
-    );
-    return this.client.fetchFeed(ctx, feedId, config);
+    const config = await this.config.generate(ctx, userId, pageSize, offset);
+    return this.client.fetchFeed(ctx, this.feedId ?? userId, config);
   }
 }
 
@@ -50,17 +54,23 @@ export const feedGenerators: Record<string, FeedGenerator> = Object.freeze({
   '11': new FeedGenerator(
     cachedFeedClient,
     new FeedPreferencesConfigGenerator(
-      { feed_config_name: 'personalise' },
+      { feed_config_name: FeedConfigName.Personalise },
       opts,
     ),
   ),
   '14': new FeedGenerator(
     cachedFeedClient,
-    new FeedPreferencesConfigGenerator({ feed_config_name: 'vector' }, opts),
+    new FeedPreferencesConfigGenerator(
+      { feed_config_name: FeedConfigName.Vector },
+      opts,
+    ),
   ),
   popular: new FeedGenerator(
     cachedFeedClient,
-    new SimpleFeedConfigGenerator({ feed_config_name: 'personalise' }),
+    new SimpleFeedConfigGenerator({
+      feed_config_name: FeedConfigName.Personalise,
+    }),
+    'popular',
   ),
 });
 

@@ -46,6 +46,7 @@ import graphorm from '../graphorm';
 import { ioRedisPool } from '../redis';
 import {
   cachedFeedClient,
+  FeedGenerator,
   feedGenerators,
   versionToFeedGenerator,
 } from '../integrations/feed';
@@ -841,7 +842,7 @@ const invalidateFeedCache = async (feedId: string): Promise<void> => {
 const feedResolverV2: IFieldResolver<
   unknown,
   Context,
-  FeedArgs & { version: number; feedId?: string }
+  FeedArgs & { generator: FeedGenerator }
 > = feedResolver(
   (ctx, args, builder, alias, queryParams) =>
     fixedIdsFeedBuilder(
@@ -855,16 +856,12 @@ const feedResolverV2: IFieldResolver<
   {
     fetchQueryParams: (
       ctx,
-      args: FeedArgs & { version: number; feedId?: string },
+      args: FeedArgs & { generator: FeedGenerator },
       page,
     ) =>
-      (args.feedId
-        ? versionToFeedGenerator(args.version)
-        : feedGenerators['popular']
-      ).generate(
+      args.generator.generate(
         ctx,
         ctx.userId || ctx.trackingId,
-        args.feedId,
         page.limit,
         page.offset,
       ),
@@ -877,7 +874,15 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
-        return feedResolverV2(source, args, ctx, info);
+        return feedResolverV2(
+          source,
+          {
+            ...(args as FeedArgs),
+            generator: feedGenerators['popular'],
+          },
+          ctx,
+          info,
+        );
       }
       return anonymousFeedResolverV1(source, args, ctx, info);
     },
@@ -885,7 +890,10 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
         return feedResolverV2(
           source,
-          { ...args, feedId: ctx.userId },
+          {
+            ...(args as FeedArgs),
+            generator: versionToFeedGenerator(args.version),
+          },
           ctx,
           info,
         );

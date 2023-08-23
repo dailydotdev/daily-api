@@ -2,9 +2,10 @@ import {
   CachedFeedClient,
   FeedClient,
   FeedConfig,
+  FeedConfigName,
+  FeedPreferencesConfigGenerator,
   FeedResponse,
   IFeedClient,
-  FeedPreferencesConfigGenerator,
 } from '../../src/integrations/feed';
 import { MockContext, saveFixtures } from '../helpers';
 import { deleteKeysByPattern, ioRedisPool } from '../../src/redis';
@@ -33,7 +34,7 @@ const config: FeedConfig = {
   page_size: 2,
   offset: 0,
   user_id: '1',
-  feed_config_name: 'config',
+  feed_config_name: FeedConfigName.Personalise,
   total_pages: 20,
 };
 
@@ -95,7 +96,7 @@ describe('CachedFeedClient', () => {
     const feedClient = new CachedFeedClient(mockClient, ioRedisPool);
     const page0 = await feedClient.fetchFeed(ctx, 'id', config);
     expect(page0).toEqual(feedResponse.slice(0, 2));
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise(process.nextTick);
     const page1 = await feedClient.fetchFeed(ctx, 'id', {
       ...config,
       offset: 2,
@@ -213,7 +214,7 @@ describe('FeedPreferencesConfigGenerator', () => {
       allowed_tags: ['javascript', 'golang'],
       blocked_sources: ['a', 'b'],
       blocked_tags: ['python', 'java'],
-      feed_config_name: 'config',
+      feed_config_name: FeedConfigName.Personalise,
       fresh_page_size: '1',
       offset: 3,
       page_size: 2,
@@ -233,7 +234,7 @@ describe('FeedPreferencesConfigGenerator', () => {
     expect(actual).toEqual({
       blocked_sources: ['a', 'b'],
       blocked_tags: ['python', 'java'],
-      feed_config_name: 'config',
+      feed_config_name: FeedConfigName.Personalise,
       fresh_page_size: '1',
       offset: 3,
       page_size: 2,
@@ -247,7 +248,7 @@ describe('FeedPreferencesConfigGenerator', () => {
 
     const actual = await generator.generate(ctx, '1', 2, 3);
     expect(actual).toEqual({
-      feed_config_name: 'config',
+      feed_config_name: FeedConfigName.Personalise,
       fresh_page_size: '1',
       offset: 3,
       page_size: 2,

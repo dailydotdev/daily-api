@@ -359,7 +359,6 @@ describe('query anonymousFeed', () => {
         page_size: 11,
         fresh_page_size: '4',
         feed_config_name: 'personalise',
-        feed_id: 'global',
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -377,7 +376,6 @@ describe('query anonymousFeed', () => {
         page_size: 11,
         fresh_page_size: '4',
         feed_config_name: 'personalise',
-        feed_id: 'global',
       })
       .reply(200, {
         data: [],
@@ -410,7 +408,6 @@ describe('query anonymousFeed', () => {
         fresh_page_size: '4',
         feed_config_name: 'personalise',
         user_id: '1',
-        feed_id: 'global',
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -586,7 +583,6 @@ describe('query feed', () => {
         fresh_page_size: '4',
         feed_config_name: 'personalise',
         user_id: '1',
-        feed_id: '1',
         allowed_tags: ['javascript', 'golang'],
         blocked_tags: ['python', 'java'],
         blocked_sources: ['a', 'b'],
@@ -609,7 +605,6 @@ describe('query feed', () => {
         fresh_page_size: '4',
         feed_config_name: 'vector',
         user_id: '1',
-        feed_id: '1',
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -629,7 +624,6 @@ describe('query feed', () => {
         fresh_page_size: '4',
         feed_config_name: 'personalise',
         user_id: '1',
-        feed_id: '1',
       })
       .reply(200, {
         data: [

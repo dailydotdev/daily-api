@@ -8,10 +8,11 @@ type Options = {
   includeSourceMemberships?: boolean;
 };
 
+type BaseConfig = Partial<Omit<FeedConfig, 'user_id' | 'page_size' | 'offset'>>;
+
 function getDefaultConfig(
-  baseConfig: Partial<FeedConfig>,
+  baseConfig: BaseConfig,
   userId: string | undefined,
-  feedId: string | undefined,
   pageSize: number,
   offset: number,
 ): FeedConfig {
@@ -22,7 +23,6 @@ function getDefaultConfig(
     offset,
     total_pages: baseConfig.total_pages || 40,
     fresh_page_size: freshPageSize,
-    feed_id: feedId || 'global',
   };
   if (userId) {
     config.user_id = userId;
@@ -31,14 +31,14 @@ function getDefaultConfig(
 }
 
 export class SimpleFeedConfigGenerator implements FeedConfigGenerator {
-  private readonly baseConfig: Partial<FeedConfig>;
+  private readonly baseConfig: BaseConfig;
 
-  constructor(baseConfig: Partial<FeedConfig>) {
+  constructor(baseConfig: BaseConfig) {
     this.baseConfig = baseConfig;
   }
 
-  async generate(ctx, userId, feedId, pageSize, offset): Promise<FeedConfig> {
-    return getDefaultConfig(this.baseConfig, userId, feedId, pageSize, offset);
+  async generate(ctx, userId, pageSize, offset): Promise<FeedConfig> {
+    return getDefaultConfig(this.baseConfig, userId, pageSize, offset);
   }
 }
 
@@ -46,22 +46,16 @@ export class SimpleFeedConfigGenerator implements FeedConfigGenerator {
  * Generates config based on the feed preferences (allow/block tags/sources)
  */
 export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
-  private readonly baseConfig: Partial<FeedConfig>;
+  private readonly baseConfig: BaseConfig;
   private readonly opts: Options;
 
-  constructor(baseConfig: Partial<FeedConfig>, opts: Options = {}) {
+  constructor(baseConfig: BaseConfig, opts: Options = {}) {
     this.baseConfig = baseConfig;
     this.opts = opts;
   }
 
-  async generate(ctx, userId, feedId, pageSize, offset): Promise<FeedConfig> {
-    const config = getDefaultConfig(
-      this.baseConfig,
-      userId,
-      feedId,
-      pageSize,
-      offset,
-    );
+  async generate(ctx, userId, pageSize, offset): Promise<FeedConfig> {
+    const config = getDefaultConfig(this.baseConfig, userId, pageSize, offset);
     const filters = await feedToFilters(ctx.con, userId, userId);
     if (filters.includeTags?.length && this.opts.includeAllowedTags) {
       config.allowed_tags = filters.includeTags;

@@ -2,6 +2,11 @@ import { Context } from '../../Context';
 
 export type FeedResponse = [postId: string, metadata: string | undefined][];
 
+export enum FeedConfigName {
+  Personalise = 'personalise',
+  Vector = 'vector',
+}
+
 export type FeedProvider = {
   enable?: boolean;
   remove_engaged_posts?: boolean;
@@ -24,9 +29,8 @@ export type VectorSimilarityProvider = FeedProvider & {
 };
 
 export type FeedConfig = {
-  feed_id: string;
   user_id?: string;
-  feed_config_name?: string;
+  feed_config_name?: FeedConfigName;
   page_size: number;
   offset: number;
   total_pages: number;
@@ -42,7 +46,6 @@ export interface FeedConfigGenerator {
   generate(
     ctx: Context,
     userId: string | undefined,
-    feedId: string | undefined,
     pageSize: number,
     offset: number,
   ): Promise<FeedConfig>;
@@ -55,12 +58,14 @@ export interface IFeedClient {
   /**
    * Fetches the feed from the service
    * @param ctx GraphQL context
-   * @param feedId The feed ID (user id for my feed and fixed value for the rest)
+   * @param feedId The feed ID (used for caching primarily)
    * @param config The feed config
    */
   fetchFeed(
     ctx: Context,
-    feedId: string | undefined,
+    feedId: string,
     config: FeedConfig,
   ): Promise<FeedResponse>;
 }
+
+export type FeedVersion = '11' | '14' | 'popular';
