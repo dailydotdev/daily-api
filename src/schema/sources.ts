@@ -1190,7 +1190,7 @@ export const resolvers: IResolvers<any, Context> = {
               );
               await repo.update(
                 { id: sourceId },
-                { image: `${imageUrl}v=${Date.now()}` },
+                { image: `${imageUrl}?v=${Date.now()}` },
               );
             }
             return sourceId;
