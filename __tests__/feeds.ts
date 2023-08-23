@@ -358,7 +358,19 @@ describe('query anonymousFeed', () => {
         total_pages: 40,
         page_size: 11,
         fresh_page_size: '4',
-        feed_config_name: 'personalise',
+        providers: {
+          fresh: {
+            enable: true,
+            remove_engaged_posts: true,
+            page_size_fraction: 0.1,
+          },
+          engaged: {
+            enable: true,
+            remove_engaged_posts: true,
+            page_size_fraction: 1,
+            fallback_provider: 'fresh',
+          },
+        },
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -370,16 +382,9 @@ describe('query anonymousFeed', () => {
   });
 
   it('should safetly handle a case where the feed is empty', async () => {
-    nock('http://localhost:6000')
-      .post('/feed.json', {
-        total_pages: 40,
-        page_size: 11,
-        fresh_page_size: '4',
-        feed_config_name: 'personalise',
-      })
-      .reply(200, {
-        data: [],
-      });
+    nock('http://localhost:6000').post('/feed.json').reply(200, {
+      data: [],
+    });
     const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
     });
@@ -406,7 +411,19 @@ describe('query anonymousFeed', () => {
         total_pages: 40,
         page_size: 11,
         fresh_page_size: '4',
-        feed_config_name: 'personalise',
+        providers: {
+          fresh: {
+            enable: true,
+            remove_engaged_posts: true,
+            page_size_fraction: 0.1,
+          },
+          engaged: {
+            enable: true,
+            remove_engaged_posts: true,
+            page_size_fraction: 1,
+            fallback_provider: 'fresh',
+          },
+        },
         user_id: '1',
       })
       .reply(200, {
