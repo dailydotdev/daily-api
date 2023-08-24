@@ -46,10 +46,13 @@ import graphorm from '../graphorm';
 import { ioRedisPool } from '../redis';
 import {
   cachedFeedClient,
+  feedClient,
   FeedGenerator,
   feedGenerators,
+  SimpleFeedConfigGenerator,
   versionToFeedGenerator,
 } from '../integrations/feed';
+import { AuthenticationError } from 'apollo-server-errors';
 
 interface GQLTagsCategory {
   id: string;
@@ -226,6 +229,26 @@ export const typeDefs = /* GraphQL */ `
       """
       supportedTypes: [String!]
     ): PostConnection! @auth
+
+    """
+    Get an adhoc feed using a provided config
+    """
+    feedByConfig(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Stringified JSON as the feed config
+      """
+      config: String!
+    ): PostConnection!
 
     """
     Get a single source feed
@@ -899,6 +922,32 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         );
       }
       return feedResolverV1(source, args, ctx, info);
+    },
+    feedByConfig: (
+      source,
+      args: ConnectionArguments & { config: string },
+      ctx: Context,
+      info,
+    ) => {
+      if (process.env.ENABLE_PRIVATE_ROUTES !== 'true') {
+        throw new AuthenticationError(
+          'Access denied! You need to be authorized to perform this action!',
+        );
+      }
+      const generator = new FeedGenerator(
+        feedClient,
+        new SimpleFeedConfigGenerator(JSON.parse(args.config)),
+      );
+      return feedResolverV2(
+        source,
+        {
+          ...(args as ConnectionArguments),
+          ranking: Ranking.POPULARITY,
+          generator,
+        },
+        ctx,
+        info,
+      );
     },
     sourceFeed: feedResolver(
       (ctx, { source }: SourceFeedArgs, builder, alias) =>
