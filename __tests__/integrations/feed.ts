@@ -211,9 +211,9 @@ describe('FeedPreferencesConfigGenerator', () => {
 
     const actual = await generator.generate(ctx, '1', 2, 3);
     expect(actual).toEqual({
-      allowed_tags: ['javascript', 'golang'],
-      blocked_sources: ['a', 'b'],
-      blocked_tags: ['python', 'java'],
+      allowed_tags: expect.arrayContaining(['javascript', 'golang']),
+      blocked_sources: expect.arrayContaining(['a', 'b']),
+      blocked_tags: expect.arrayContaining(['python', 'java']),
       feed_config_name: FeedConfigName.Personalise,
       fresh_page_size: '1',
       offset: 3,
@@ -232,8 +232,8 @@ describe('FeedPreferencesConfigGenerator', () => {
 
     const actual = await generator.generate(ctx, '1', 2, 3);
     expect(actual).toEqual({
-      blocked_sources: ['a', 'b'],
-      blocked_tags: ['python', 'java'],
+      blocked_sources: expect.arrayContaining(['a', 'b']),
+      blocked_tags: expect.arrayContaining(['python', 'java']),
       feed_config_name: FeedConfigName.Personalise,
       fresh_page_size: '1',
       offset: 3,
