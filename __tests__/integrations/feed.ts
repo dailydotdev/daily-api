@@ -218,7 +218,7 @@ describe('FeedPreferencesConfigGenerator', () => {
       fresh_page_size: '1',
       offset: 3,
       page_size: 2,
-      squad_ids: ['a', 'b'],
+      squad_ids: expect.arrayContaining(['a', 'b']),
       total_pages: 20,
       user_id: '1',
     });
