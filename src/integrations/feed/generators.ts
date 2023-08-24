@@ -42,8 +42,8 @@ export class FeedGenerator {
   }
 }
 
-const client = new FeedClient();
-export const cachedFeedClient = new CachedFeedClient(client, ioRedisPool);
+export const feedClient = new FeedClient();
+export const cachedFeedClient = new CachedFeedClient(feedClient, ioRedisPool);
 const opts = {
   includeBlockedTags: true,
   includeAllowedTags: true,

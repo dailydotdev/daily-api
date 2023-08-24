@@ -9,4 +9,5 @@ export {
   feedGenerators,
   versionToFeedGenerator,
   cachedFeedClient,
+  feedClient,
 } from './generators';

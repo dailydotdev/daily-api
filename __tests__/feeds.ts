@@ -694,6 +694,52 @@ describe('query feed', () => {
   });
 });
 
+describe('query feedByConfig', () => {
+  const variables = {
+    first: 10,
+    config: JSON.stringify({ key: 'value' }),
+  };
+
+  const QUERY = `
+  query FeedByConfig($first: Int, $config: String!) {
+    feedByConfig(first: $first, config: $config) {
+      ${feedFields()}
+    }
+  }
+`;
+
+  it('should not authorize when private routes are not enabled', async () => {
+    process.env.ENABLE_PRIVATE_ROUTES = 'false';
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    );
+    process.env.ENABLE_PRIVATE_ROUTES = 'true';
+  });
+
+  it('should send provided config to feed service', async () => {
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        key: 'value',
+        total_pages: 40,
+        page_size: 11,
+        fresh_page_size: '4',
+        offset: 0,
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }],
+      });
+
+    const res = await client.query(QUERY, { variables });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedByConfig.edges[0].node.id).toEqual('p1');
+  });
+});
+
 describe('query sourceFeed', () => {
   let additionalProps = '';
   const QUERY = (
