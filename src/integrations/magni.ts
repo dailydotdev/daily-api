@@ -95,7 +95,7 @@ export const getSession = async (
   userId: string,
   sessionId: string,
 ): Promise<Search> => {
-  const url = `${magniOrigin}/sessions?id=${sessionId}`;
+  const url = `${magniOrigin}/session?id=${sessionId}`;
   const res = await fetch(url, {
     ...fetchOptions,
     headers: { 'X-User-Id': userId },
