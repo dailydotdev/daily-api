@@ -39,13 +39,13 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type SearchChunkError {
-    message: String!
-    code: String!
+    message: String
+    code: String
   }
 
   type SearchChunkSource {
     id: String!
-    title: String!
+    name: String!
     snippet: String!
     url: String!
   }

@@ -225,7 +225,7 @@ describe('searchSession query', () => {
         sources: [
           {
             id: 'source id',
-            title: 'title returned from the search engine',
+            name: 'title returned from the search engine',
             snippet: 'text snippet returned from the search engine',
             url: 'URL to the page itself (external link)',
           },
@@ -259,7 +259,7 @@ describe('searchSession query', () => {
           feedback
           sources  {
             id
-            title
+            name
             snippet
             url
           }
