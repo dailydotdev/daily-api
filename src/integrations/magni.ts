@@ -103,5 +103,5 @@ export const getSession = async (
 
   if (!res.ok) throw new ValidationError(await res.text());
 
-  return res.json();
+  return await res.json();
 };
