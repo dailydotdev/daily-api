@@ -43,11 +43,16 @@ import {
 import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
-import {
-  generatePersonalizedFeed,
-  getPersonalizedFeedKeyPrefix,
-} from '../personalizedFeed';
 import { ioRedisPool } from '../redis';
+import {
+  cachedFeedClient,
+  feedClient,
+  FeedGenerator,
+  feedGenerators,
+  SimpleFeedConfigGenerator,
+  versionToFeedGenerator,
+} from '../integrations/feed';
+import { AuthenticationError } from 'apollo-server-errors';
 
 interface GQLTagsCategory {
   id: string;
@@ -224,6 +229,26 @@ export const typeDefs = /* GraphQL */ `
       """
       supportedTypes: [String!]
     ): PostConnection! @auth
+
+    """
+    Get an adhoc feed using a provided config
+    """
+    feedByConfig(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Stringified JSON as the feed config
+      """
+      config: String!
+    ): PostConnection!
 
     """
     Get a single source feed
@@ -823,7 +848,7 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
 
 const invalidateFeedCache = async (feedId: string): Promise<void> => {
   try {
-    const key = getPersonalizedFeedKeyPrefix(feedId);
+    const key = cachedFeedClient.getCacheKeyPrefix(feedId);
     await ioRedisPool.execute(async (client) => {
       return client.set(
         `${key}:update`,
@@ -840,7 +865,7 @@ const invalidateFeedCache = async (feedId: string): Promise<void> => {
 const feedResolverV2: IFieldResolver<
   unknown,
   Context,
-  FeedArgs & { version: number; feedId?: string }
+  FeedArgs & { generator: FeedGenerator }
 > = feedResolver(
   (ctx, args, builder, alias, queryParams) =>
     fixedIdsFeedBuilder(
@@ -854,18 +879,15 @@ const feedResolverV2: IFieldResolver<
   {
     fetchQueryParams: (
       ctx,
-      args: FeedArgs & { version: number; feedId?: string },
+      args: FeedArgs & { generator: FeedGenerator },
       page,
     ) =>
-      generatePersonalizedFeed({
-        con: ctx.con,
-        pageSize: page.limit,
-        offset: page.offset,
-        feedVersion: args.version,
-        userId: ctx.userId || ctx.trackingId,
-        feedId: args.feedId,
+      args.generator.generate(
         ctx,
-      }),
+        ctx.userId || ctx.trackingId,
+        page.limit,
+        page.offset,
+      ),
     warnOnPartialFirstPage: true,
   },
 );
@@ -875,7 +897,15 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
-        return feedResolverV2(source, args, ctx, info);
+        return feedResolverV2(
+          source,
+          {
+            ...(args as FeedArgs),
+            generator: feedGenerators['popular'],
+          },
+          ctx,
+          info,
+        );
       }
       return anonymousFeedResolverV1(source, args, ctx, info);
     },
@@ -883,12 +913,41 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
         return feedResolverV2(
           source,
-          { ...args, feedId: ctx.userId },
+          {
+            ...(args as FeedArgs),
+            generator: versionToFeedGenerator(args.version),
+          },
           ctx,
           info,
         );
       }
       return feedResolverV1(source, args, ctx, info);
+    },
+    feedByConfig: (
+      source,
+      args: ConnectionArguments & { config: string },
+      ctx: Context,
+      info,
+    ) => {
+      if (process.env.ENABLE_PRIVATE_ROUTES !== 'true') {
+        throw new AuthenticationError(
+          'Access denied! You need to be authorized to perform this action!',
+        );
+      }
+      const generator = new FeedGenerator(
+        feedClient,
+        new SimpleFeedConfigGenerator(JSON.parse(args.config)),
+      );
+      return feedResolverV2(
+        source,
+        {
+          ...(args as ConnectionArguments),
+          ranking: Ranking.POPULARITY,
+          generator,
+        },
+        ctx,
+        info,
+      );
     },
     sourceFeed: feedResolver(
       (ctx, { source }: SourceFeedArgs, builder, alias) =>
