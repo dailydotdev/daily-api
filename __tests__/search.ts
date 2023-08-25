@@ -236,7 +236,7 @@ describe('searchSession query', () => {
 
   const mockSession = (id: string) => {
     nock(magniOrigin)
-      .get(`/sessions?id=${id}`)
+      .get(`/session?id=${id}`)
       .matchHeader('X-User-Id', loggedUser)
       .reply(200, mockResponse);
   };
