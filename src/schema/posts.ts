@@ -55,7 +55,6 @@ import {
   UserPost,
   UserPostFlagsPublic,
   UserPostVote,
-  NotificationPreference,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
