@@ -1134,7 +1134,7 @@ export const resolvers: IResolvers<any, Context> = {
                 .where({ userId: ctx.userId, vote: UserPostVote.Up })
                 .andWhere(`exists(${sub.getQuery()})`)
                 .orderBy('up."votedAt"', 'DESC')
-                .limit(5);
+                .limit(10);
             },
             'upvoted',
             `"${builder.alias}"."postId" = upvoted."postId"`,
