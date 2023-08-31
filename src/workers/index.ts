@@ -30,6 +30,8 @@ import postUpdated from './postUpdated';
 import postFreeformImages from './postFreeformImages';
 import postEditedFreeformImages from './postEditedFreeformImages';
 import deleteCloudinaryImage from './deleteCloudinaryImage';
+import bannerAdded from './bannerAdded';
+import bannerDeleted from './bannerDeleted';
 import {
   postCommentedWorker,
   commentCommentedWorker,
@@ -43,6 +45,8 @@ import experimentAllocated from './experimentAllocated';
 export { Worker } from './worker';
 
 export const workers: Worker[] = [
+  bannerAdded,
+  bannerDeleted,
   newView,
   updateMailingList,
   deleteUserFromMailingList,
