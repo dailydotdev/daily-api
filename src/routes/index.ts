@@ -30,6 +30,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(users, { prefix: '/v1/users' });
   fastify.register(redirects);
 
+  fastify.get('/id', (req, res) => {
+    return res.status(200).send(req.userId);
+  });
+
   // Debugging endpoint
   fastify.post('/e', (req, res) => {
     req.log.debug({ body: req.body }, 'events received');
