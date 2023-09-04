@@ -41,6 +41,7 @@ import {
   commentDeletedWorker,
 } from './commentEditedImages';
 import experimentAllocated from './experimentAllocated';
+import squadMemberJoinedMailing from './squadMemberJoinedMailing';
 
 export { Worker } from './worker';
 
@@ -81,6 +82,7 @@ export const workers: Worker[] = [
   postEditedFreeformImages,
   deleteCloudinaryImage,
   experimentAllocated,
+  squadMemberJoinedMailing,
   cdc,
   ...notificationWorkers,
 ];
