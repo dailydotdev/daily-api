@@ -175,7 +175,10 @@ export const updateUserContactLists = async (
       lists.push(LIST_MARKETING_EMAILS);
     } else if (contactId) {
       // If they no longer subscribe to marketing emails remove them from the contact list
-      await removeUserFromList(LIST_MARKETING_EMAILS, contactId);
+      await Promise.all([
+        removeUserFromList(LIST_MARKETING_EMAILS, contactId),
+        removeUserFromList(LIST_DRIP_CAMPAIGN, contactId),
+      ]);
     }
     await addUserToContacts(newProfile, lists, contactId);
   } catch (err) {
