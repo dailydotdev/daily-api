@@ -15,7 +15,7 @@ import { SourceMember } from './SourceMember';
 export const COMMUNITY_PICKS_SOURCE = 'community';
 
 export const SQUAD_IMAGE_PLACEHOLDER =
-  'https://daily-now-res.cloudinary.com/image/upload/v1672041320/squads/squad_placeholder.jpg';
+  'https://daily-now-res.cloudinary.com/image/upload/s--LrHsyt2T--/f_auto/v1692632054/squad_placeholder_sfwkmj';
 
 export enum SourceType {
   Machine = 'machine',
