@@ -16,6 +16,7 @@ export const REDIS_BANNER_KEY = 'boot:latest_banner';
 
 export enum StorageTopic {
   Boot = 'boot',
+  Search = 'search',
 }
 
 export const generateStorageKey = (
