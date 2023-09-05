@@ -40,7 +40,7 @@ import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
-import { DataSource, DeepPartial, In } from 'typeorm';
+import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
   postScraperOrigin,
