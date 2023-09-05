@@ -438,6 +438,9 @@ const obj = new GraphORM({
       },
     },
   },
+  PostQuestion: {
+    requiredColumns: ['id'],
+  },
 });
 
 export default obj;
