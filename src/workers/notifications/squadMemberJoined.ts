@@ -34,12 +34,9 @@ const worker: NotificationWorker = {
       },
     );
 
-    const actionType =
-      member.role === SourceMemberRoles.Admin
-        ? UserActionType.CreateSquad
-        : UserActionType.JoinSquad;
-
-    await insertOrIgnoreAction(con, member.userId, actionType);
+    if (member.role !== SourceMemberRoles.Admin) {
+      await insertOrIgnoreAction(con, member.userId, UserActionType.JoinSquad);
+    }
 
     if (!admins?.length) {
       return;

@@ -217,6 +217,6 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.source-squad-created',
-    subscription: 'api.source-squad-created-mailing',
+    subscription: 'api.source-squad-created',
   },
 ];
