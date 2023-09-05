@@ -52,6 +52,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .select('unnest("contentCuration")', 'name')
       .from(Post, 'post')
       .distinct(true)
+      .where('"createdAt" > NOW() - INTERVAL \'30 days\'')
       .orderBy('name', 'ASC')
       .getRawMany<{ name: string }>();
 

@@ -39,7 +39,13 @@ describe('GET /p/snotra/all_tags', () => {
       .send()
       .expect(200);
 
-    expect(body).toMatchSnapshot();
+    expect(body).toEqual([
+      { name: 'development' },
+      { name: 'fullstack' },
+      { name: 'golang' },
+      { name: 'rust' },
+      { name: 'webdev' },
+    ]);
   });
 });
 
@@ -55,7 +61,12 @@ describe('GET /p/snotra/all_sources', () => {
       .send()
       .expect(200);
 
-    expect(body).toMatchSnapshot();
+    expect(body).toEqual([
+      { name: 'a' },
+      { name: 'b' },
+      { name: 'c' },
+      { name: 'community' },
+    ]);
   });
 });
 
@@ -73,6 +84,6 @@ describe('GET /p/snotra/all_content_curations', () => {
       .send()
       .expect(200);
 
-    expect(body).toMatchSnapshot();
+    expect(body).toEqual([{ name: 'c1' }, { name: 'c2' }]);
   });
 });
