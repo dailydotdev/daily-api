@@ -1123,16 +1123,10 @@ export const resolvers: IResolvers<any, Context> = {
         queryBuilder: builder.queryBuilder
           .innerJoin(
             (query) => {
-              const sub = query
-                .subQuery()
-                .select('id')
-                .from(PostQuestion, 'pq')
-                .where(`"pq"."postId" = "up"."postId"`);
               return query
                 .select('up."postId"')
                 .from(UserPost, 'up')
                 .where({ userId: ctx.userId, vote: UserPostVote.Up })
-                .andWhere(`exists(${sub.getQuery()})`)
                 .orderBy('up."votedAt"', 'DESC')
                 .limit(10);
             },
