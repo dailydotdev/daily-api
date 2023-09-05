@@ -66,7 +66,12 @@ import { GQLBookmarkList } from './bookmarks';
 import { getMentions, GQLComment } from './comments';
 import graphorm from '../graphorm';
 import { GQLUser } from './users';
-import { redisPubSub } from '../redis';
+import {
+  getRedisObject,
+  ONE_MINUTE_IN_SECONDS,
+  redisPubSub,
+  setRedisObjectWithExpiry,
+} from '../redis';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { GraphQLResolveInfo } from 'graphql';
 import { Roles } from '../roles';
@@ -74,6 +79,7 @@ import { markdown, saveMentions } from '../common/markdown';
 import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
+import { generateStorageKey, StorageTopic } from '../config';
 
 export interface GQLPost {
   id: string;
@@ -1118,25 +1124,44 @@ export const resolvers: IResolvers<any, Context> = {
       _,
       ctx: Context,
       info,
-    ): Promise<GQLPostQuestion[]> =>
-      graphorm.query(ctx, info, (builder) => ({
-        queryBuilder: builder.queryBuilder
-          .innerJoin(
-            (query) => {
-              return query
-                .select('up."postId"')
-                .from(UserPost, 'up')
-                .where({ userId: ctx.userId, vote: UserPostVote.Up })
-                .orderBy('up."votedAt"', 'DESC')
-                .limit(10);
-            },
-            'upvoted',
-            `"${builder.alias}"."postId" = upvoted."postId"`,
-          )
-          .orderBy('random()', 'DESC')
-          .limit(3),
-        ...builder,
-      })),
+    ): Promise<GQLPostQuestion[]> => {
+      const key = generateStorageKey(StorageTopic.Search, 'rec', ctx.userId);
+      const cached = await getRedisObject(key);
+
+      if (cached) {
+        return JSON.parse(cached);
+      }
+
+      const data: GQLPostQuestion[] = await graphorm.query(
+        ctx,
+        info,
+        (builder) => ({
+          queryBuilder: builder.queryBuilder
+            .innerJoin(
+              (query) => {
+                return query
+                  .select('up."postId"')
+                  .from(UserPost, 'up')
+                  .where({ userId: ctx.userId, vote: UserPostVote.Up })
+                  .orderBy('up."votedAt"', 'DESC')
+                  .limit(10);
+              },
+              'upvoted',
+              `"${builder.alias}"."postId" = upvoted."postId"`,
+            )
+            .orderBy('random()', 'DESC')
+            .limit(3),
+          ...builder,
+        }),
+      );
+      await setRedisObjectWithExpiry(
+        key,
+        JSON.stringify(data),
+        ONE_MINUTE_IN_SECONDS * 3,
+      );
+
+      return data;
+    },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
