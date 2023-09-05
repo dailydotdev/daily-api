@@ -40,7 +40,7 @@ import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
-import { DataSource, DeepPartial, In } from 'typeorm';
+import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
   postScraperOrigin,
@@ -53,8 +53,9 @@ import {
 } from '../src/common';
 import { randomUUID } from 'crypto';
 import nock from 'nock';
-import { deleteKeysByPattern } from '../src/redis';
+import { deleteKeysByPattern, ioRedisPool, setRedisObject } from '../src/redis';
 import { checkHasMention } from '../src/common/markdown';
+import { generateStorageKey, StorageTopic } from '../src/config';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -82,6 +83,7 @@ beforeEach(async () => {
   premiumUser = false;
   roles = [];
   jest.clearAllMocks();
+  await ioRedisPool.execute((client) => client.flushall());
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
@@ -966,9 +968,6 @@ describe('query searchQuestionRecommendations', () => {
       searchQuestionRecommendations {
         id
         question
-        post {
-          id
-        }
       }
     }
   `;
@@ -1003,20 +1002,21 @@ describe('query searchQuestionRecommendations', () => {
     const res = await client.query(QUERY);
 
     expect(res.errors).toBeFalsy();
-    const loggedUserOnly = res.data.searchQuestionRecommendations.every(
-      ({ post }) => !otherUserUpvotes.includes(post.id),
-    );
-    expect(loggedUserOnly).toBeTruthy();
+    expect(res.data.searchQuestionRecommendations.length).toEqual(3);
+  });
 
-    const postIds = res.data.searchQuestionRecommendations.map(
-      ({ post }) => post.id,
+  it('should serve cached data if available', async () => {
+    loggedUser = '1';
+    const key = generateStorageKey(StorageTopic.Search, 'rec', loggedUser);
+    await setRedisObject(
+      key,
+      JSON.stringify([{ id: 'c1', question: 'cached' }]),
     );
-    const loggedUserUpvotes = await con.getRepository(UserPost).findBy({
-      postId: In(postIds),
-      userId: loggedUser,
-      vote: UserPostVote.Up,
-    }); // verify every item is for the logged user
-    expect(loggedUserUpvotes).toHaveLength(3);
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchQuestionRecommendations).toEqual([
+      { id: 'c1', question: 'cached' },
+    ]);
   });
 });
 
