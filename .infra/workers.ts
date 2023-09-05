@@ -216,7 +216,7 @@ export const workers: Worker[] = [
     subscription: 'api.experiment-allocated',
   },
   {
-    topic: 'api.v1.member-joined-source',
-    subscription: 'api.member-joined-source-mailing',
+    topic: 'api.v1.source-squad-created',
+    subscription: 'api.source-squad-created-mailing',
   },
 ];
