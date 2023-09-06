@@ -68,6 +68,7 @@ import {
   notifyBannerCreated,
   notifyBannerRemoved,
   notifyFreeformContentRequested,
+  notifySourceCreated,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
@@ -488,6 +489,12 @@ const onSourceChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<Source>,
 ) => {
+  if (data.payload.op === 'c') {
+    await notifySourceCreated(logger, data.payload.after);
+
+    return;
+  }
+
   if (data.payload.op === 'u') {
     // Temporary workaround to handle messages before replica identity full
     if (!data.payload.before) {

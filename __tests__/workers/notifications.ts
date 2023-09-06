@@ -1541,9 +1541,6 @@ describe('squad member joined', () => {
     expect(action.completedAt).toEqual(createSquad.completedAt);
   };
 
-  it('should insert or ignore record for action type create_squad when user is an owner', async () =>
-    testJoinSquadAction(UserActionType.CreateSquad));
-
   it('should insert or ignore record for action type join_squad when user is a member', async () =>
     testJoinSquadAction(UserActionType.JoinSquad, SourceMemberRoles.Member));
 
