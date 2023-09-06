@@ -9,7 +9,7 @@ interface Data {
 }
 
 const worker: Worker = {
-  subscription: 'api.source-created-squad',
+  subscription: 'api.source-created-squad-user-action',
   handler: async (message, con) => {
     const data: Data = messageToJson(message);
 

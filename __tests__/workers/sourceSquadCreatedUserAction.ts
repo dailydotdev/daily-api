@@ -1,5 +1,5 @@
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
-import worker from '../../src/workers/sourceSquadCreated';
+import worker from '../../src/workers/sourceSquadCreatedUserAction';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
@@ -29,30 +29,30 @@ beforeEach(async () => {
     .getRepository(SquadSource)
     .save([
       createSource(
-        'sourceSquadCreated_squad1',
-        'sourceSquadCreated_squad1',
+        'sourceSquadCreatedUserAction_squad1',
+        'sourceSquadCreatedUserAction_squad1',
         'http://c.com',
         SourceType.Squad,
       ),
     ]);
   await con.getRepository(SourceMember).save({
-    sourceId: 'sourceSquadCreated_squad1',
+    sourceId: 'sourceSquadCreatedUserAction_squad1',
     userId: '2',
-    referralToken: 'sourceSquadCreated_rt1',
+    referralToken: 'sourceSquadCreatedUserAction_rt1',
     role: SourceMemberRoles.Admin,
   });
   await con.getRepository(SourceMember).save({
-    sourceId: 'sourceSquadCreated_squad1',
+    sourceId: 'sourceSquadCreatedUserAction_squad1',
     userId: '1',
-    referralToken: 'sourceSquadCreated_rt2',
+    referralToken: 'sourceSquadCreatedUserAction_rt2',
     role: SourceMemberRoles.Admin,
   });
 });
 
-describe('sourceSquadCreated worker', () => {
+describe('sourceSquadCreatedUserAction worker', () => {
   it('should complete create squad user action', async () => {
     const source = await con.getRepository(Source).findOneBy({
-      id: 'sourceSquadCreated_squad1',
+      id: 'sourceSquadCreatedUserAction_squad1',
     });
     const user = await con.getRepository(User).findOneBy({ id: '2' });
 
@@ -69,13 +69,13 @@ describe('sourceSquadCreated worker', () => {
 
   it('should not complete create squad user action if source is not a squad', async () => {
     await con.getRepository(Source).update(
-      { id: 'sourceSquadCreated_squad1' },
+      { id: 'sourceSquadCreatedUserAction_squad1' },
       {
         type: SourceType.Machine,
       },
     );
     const source = await con.getRepository(Source).findOneBy({
-      id: 'sourceSquadCreated_squad1',
+      id: 'sourceSquadCreatedUserAction_squad1',
     });
     const user = await con.getRepository(User).findOneBy({ id: '2' });
 
