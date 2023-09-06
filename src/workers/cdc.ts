@@ -491,6 +491,8 @@ const onSourceChange = async (
 ) => {
   if (data.payload.op === 'c') {
     await notifySourceCreated(logger, data.payload.after);
+
+    return;
   }
 
   if (data.payload.op === 'u') {
