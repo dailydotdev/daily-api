@@ -1,5 +1,10 @@
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
-import worker from '../../src/workers/sourceSquadCreated';
+import {
+  getContactIdByEmail,
+  addUserToContacts,
+  LIST_SQUAD_DRIP_CAMPAIGN,
+} from '../../src/common';
+import worker from '../../src/workers/sourceSquadCreatedMailing';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
@@ -8,8 +13,6 @@ import {
   SourceMember,
   User,
   Source,
-  UserAction,
-  UserActionType,
 } from '../../src/entity';
 import { SourceMemberRoles } from '../../src/roles';
 import { usersFixture } from '../fixture/user';
@@ -40,41 +43,58 @@ beforeEach(async () => {
     .getRepository(SquadSource)
     .save([
       createSource(
-        'sourceSquadCreated_squad1',
-        'sourceSquadCreated_squad1',
+        'sourceSquadCreatedMailing_squad1',
+        'sourceSquadCreatedMailing_squad1',
         'http://c.com',
         SourceType.Squad,
       ),
     ]);
   await con.getRepository(SourceMember).save({
-    sourceId: 'sourceSquadCreated_squad1',
+    sourceId: 'sourceSquadCreatedMailing_squad1',
     userId: '2',
-    referralToken: 'sourceSquadCreated_rt1',
+    referralToken: 'sourceSquadCreatedMailing_rt1',
     role: SourceMemberRoles.Admin,
   });
   await con.getRepository(SourceMember).save({
-    sourceId: 'sourceSquadCreated_squad1',
+    sourceId: 'sourceSquadCreatedMailing_squad1',
     userId: '1',
-    referralToken: 'sourceSquadCreated_rt2',
+    referralToken: 'sourceSquadCreatedMailing_rt2',
     role: SourceMemberRoles.Admin,
   });
 });
 
-describe('sourceSquadCreated worker', () => {
-  it('should complete create squad user action', async () => {
+describe('sourceSquadCreatedMailing worker', () => {
+  it('should add owner to drip campaign mailing list', async () => {
     const source = await con.getRepository(Source).findOneBy({
-      id: 'sourceSquadCreated_squad1',
+      id: 'sourceSquadCreatedMailing_squad1',
     });
     const user = await con.getRepository(User).findOneBy({ id: '2' });
 
     await expectSuccessfulBackground(worker, {
       source,
     });
+    expect(getContactIdByEmail).toBeCalledTimes(1);
+    expect(getContactIdByEmail).toBeCalledWith('tsahi@daily.dev');
+    expect(addUserToContacts).toBeCalledTimes(1);
+    expect(addUserToContacts).toBeCalledWith(
+      user,
+      [LIST_SQUAD_DRIP_CAMPAIGN],
+      undefined,
+    );
+  });
 
-    const action = await con.getRepository(UserAction).findOneBy({
-      userId: user?.id,
-      type: UserActionType.CreateSquad,
+  it('should skip adding to mailing list when no members', async () => {
+    await con.getRepository(SourceMember).delete({
+      sourceId: 'sourceSquadCreatedMailing_squad1',
     });
-    expect(action).toBeTruthy();
+    const source = await con.getRepository(Source).findOneBy({
+      id: 'sourceSquadCreatedMailing_squad1',
+    });
+
+    await expectSuccessfulBackground(worker, {
+      source,
+    });
+    expect(getContactIdByEmail).toBeCalledTimes(0);
+    expect(addUserToContacts).toBeCalledTimes(0);
   });
 });

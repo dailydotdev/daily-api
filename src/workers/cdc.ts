@@ -26,7 +26,6 @@ import {
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
   UserPost,
   UserPostVote,
-  SourceType,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -69,7 +68,7 @@ import {
   notifyBannerCreated,
   notifyBannerRemoved,
   notifyFreeformContentRequested,
-  notifySourceSquadCreated,
+  notifySourceCreated,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
@@ -491,9 +490,7 @@ const onSourceChange = async (
   data: ChangeMessage<Source>,
 ) => {
   if (data.payload.op === 'c') {
-    if (data.payload.after.type === SourceType.Squad) {
-      await notifySourceSquadCreated(logger, data.payload.after);
-    }
+    await notifySourceCreated(logger, data.payload.after);
   }
 
   if (data.payload.op === 'u') {

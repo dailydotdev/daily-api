@@ -1,6 +1,10 @@
-import { Source, SourceMember, UserActionType } from '../entity';
+import {
+  getContactIdByEmail,
+  addUserToContacts,
+  LIST_SQUAD_DRIP_CAMPAIGN,
+} from '../common';
+import { Source, SourceMember } from '../entity';
 import { SourceMemberRoles } from '../roles';
-import { insertOrIgnoreAction } from '../schema/actions';
 import { ChangeObject } from '../types';
 import { messageToJson, Worker } from './worker';
 
@@ -9,14 +13,13 @@ interface Data {
 }
 
 const worker: Worker = {
-  subscription: 'api.source-created-squad',
+  subscription: 'api.source-created-squad-mailing',
   handler: async (message, con) => {
     const data: Data = messageToJson(message);
 
     const { source } = data;
-
     const owner = await con.getRepository(SourceMember).findOne({
-      select: ['userId'],
+      select: ['userId', 'sourceId', 'createdAt'],
       where: {
         sourceId: source.id,
         role: SourceMemberRoles.Admin,
@@ -24,13 +27,24 @@ const worker: Worker = {
       order: {
         createdAt: 'ASC',
       },
+      relations: ['user'],
     });
 
     if (!owner) {
       return;
     }
 
-    await insertOrIgnoreAction(con, owner.userId, UserActionType.CreateSquad);
+    const user = await owner.user;
+
+    if (!user) {
+      return;
+    }
+
+    if (user.acceptedMarketing) {
+      const contactId = await getContactIdByEmail(user.email);
+
+      await addUserToContacts(user, [LIST_SQUAD_DRIP_CAMPAIGN], contactId);
+    }
   },
 };
 
