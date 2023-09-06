@@ -4,7 +4,7 @@ import {
   addUserToContacts,
   LIST_SQUAD_DRIP_CAMPAIGN,
 } from '../../src/common';
-import worker from '../../src/workers/sourceSquadCreatedMailing';
+import worker from '../../src/workers/sourceSquadCreatedOwnerMailing';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
@@ -43,30 +43,30 @@ beforeEach(async () => {
     .getRepository(SquadSource)
     .save([
       createSource(
-        'sourceSquadCreatedMailing_squad1',
-        'sourceSquadCreatedMailing_squad1',
+        'sourceSquadCreatedOwnerMailing_squad1',
+        'sourceSquadCreatedOwnerMailing_squad1',
         'http://c.com',
         SourceType.Squad,
       ),
     ]);
   await con.getRepository(SourceMember).save({
-    sourceId: 'sourceSquadCreatedMailing_squad1',
+    sourceId: 'sourceSquadCreatedOwnerMailing_squad1',
     userId: '2',
-    referralToken: 'sourceSquadCreatedMailing_rt1',
+    referralToken: 'sourceSquadCreatedOwnerMailing_rt1',
     role: SourceMemberRoles.Admin,
   });
   await con.getRepository(SourceMember).save({
-    sourceId: 'sourceSquadCreatedMailing_squad1',
+    sourceId: 'sourceSquadCreatedOwnerMailing_squad1',
     userId: '1',
-    referralToken: 'sourceSquadCreatedMailing_rt2',
+    referralToken: 'sourceSquadCreatedOwnerMailing_rt2',
     role: SourceMemberRoles.Admin,
   });
 });
 
-describe('sourceSquadCreatedMailing worker', () => {
+describe('sourceSquadCreatedOwnerMailing worker', () => {
   it('should add owner to drip campaign mailing list', async () => {
     const source = await con.getRepository(Source).findOneBy({
-      id: 'sourceSquadCreatedMailing_squad1',
+      id: 'sourceSquadCreatedOwnerMailing_squad1',
     });
     const user = await con.getRepository(User).findOneBy({ id: '2' });
 
@@ -85,10 +85,10 @@ describe('sourceSquadCreatedMailing worker', () => {
 
   it('should skip adding to mailing list when no members', async () => {
     await con.getRepository(SourceMember).delete({
-      sourceId: 'sourceSquadCreatedMailing_squad1',
+      sourceId: 'sourceSquadCreatedOwnerMailing_squad1',
     });
     const source = await con.getRepository(Source).findOneBy({
-      id: 'sourceSquadCreatedMailing_squad1',
+      id: 'sourceSquadCreatedOwnerMailing_squad1',
     });
 
     await expectSuccessfulBackground(worker, {
@@ -104,7 +104,7 @@ describe('sourceSquadCreatedMailing worker', () => {
       acceptedMarketing: false,
     });
     const source = await con.getRepository(Source).findOneBy({
-      id: 'sourceSquadCreatedMailing_squad1',
+      id: 'sourceSquadCreatedOwnerMailing_squad1',
     });
 
     await expectSuccessfulBackground(worker, {
@@ -116,13 +116,13 @@ describe('sourceSquadCreatedMailing worker', () => {
 
   it('should skip adding to mailing list when source is not squad', async () => {
     await con.getRepository(Source).update(
-      { id: 'sourceSquadCreatedMailing_squad1' },
+      { id: 'sourceSquadCreatedOwnerMailing_squad1' },
       {
         type: SourceType.Machine,
       },
     );
     const source = await con.getRepository(Source).findOneBy({
-      id: 'sourceSquadCreatedMailing_squad1',
+      id: 'sourceSquadCreatedOwnerMailing_squad1',
     });
 
     await expectSuccessfulBackground(worker, {

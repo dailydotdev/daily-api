@@ -42,7 +42,7 @@ import {
 } from './commentEditedImages';
 import experimentAllocated from './experimentAllocated';
 import sourceSquadCreatedUserAction from './sourceSquadCreatedUserAction';
-import sourceSquadCreatedMailing from './sourceSquadCreatedMailing';
+import sourceSquadCreatedOwnerMailing from './sourceSquadCreatedOwnerMailing';
 
 export { Worker } from './worker';
 
@@ -84,7 +84,7 @@ export const workers: Worker[] = [
   deleteCloudinaryImage,
   experimentAllocated,
   sourceSquadCreatedUserAction,
-  sourceSquadCreatedMailing,
+  sourceSquadCreatedOwnerMailing,
   cdc,
   ...notificationWorkers,
 ];
