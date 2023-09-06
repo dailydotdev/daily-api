@@ -48,14 +48,12 @@ export const uploadFile = (
   name: string,
   preset: UploadPreset,
   stream: Readable,
-  { invalidate }: OptionalProps = {},
 ): Promise<UploadResult> =>
   new Promise((resolve, reject) => {
     const outStream = cloudinary.v2.uploader.upload_stream(
       {
         public_id: name,
         upload_preset: preset,
-        invalidate,
       },
       (err, callResult) => {
         if (err) {
@@ -64,7 +62,7 @@ export const uploadFile = (
 
         return resolve({
           url: cloudinary.v2.url(callResult.public_id, {
-            ...(invalidate && { force_version: true }),
+            version: callResult.version,
             secure: true,
             fetch_format: 'auto',
             quality: 'auto',
@@ -77,19 +75,14 @@ export const uploadFile = (
     stream.pipe(outStream);
   });
 
-export const uploadDevCardBackground: UploadFn = (name, stream, options) =>
-  uploadFile(name, UploadPreset.DevCard, stream, options);
+export const uploadDevCardBackground: UploadFn = (name, stream) =>
+  uploadFile(name, UploadPreset.DevCard, stream);
 
-export const uploadSquadImage: UploadFn = (name, stream, options) =>
-  uploadFile(name, UploadPreset.SquadImage, stream, options);
+export const uploadSquadImage: UploadFn = (name, stream) =>
+  uploadFile(name, UploadPreset.SquadImage, stream);
 
-export const uploadAvatar: UploadFn = (userId, stream, options) =>
-  uploadFile(
-    `${UploadPreset.Avatar}_${userId}`,
-    UploadPreset.Avatar,
-    stream,
-    options,
-  );
+export const uploadAvatar: UploadFn = (userId, stream) =>
+  uploadFile(`${UploadPreset.Avatar}_${userId}`, UploadPreset.Avatar, stream);
 
 type PostPreset =
   | UploadPreset.PostBannerImage
@@ -100,5 +93,4 @@ export const uploadPostFile = (
   name: string,
   stream: Readable,
   preset: PostPreset,
-  props: OptionalProps = {},
-) => uploadFile(name, preset, stream, props);
+) => uploadFile(name, preset, stream);
