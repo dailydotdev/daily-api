@@ -97,4 +97,20 @@ describe('sourceSquadCreatedMailing worker', () => {
     expect(getContactIdByEmail).toBeCalledTimes(0);
     expect(addUserToContacts).toBeCalledTimes(0);
   });
+
+  it('should skip adding to mailing list when owner did not accept marketing', async () => {
+    await con.getRepository(User).save({
+      id: '2',
+      acceptedMarketing: false,
+    });
+    const source = await con.getRepository(Source).findOneBy({
+      id: 'sourceSquadCreatedMailing_squad1',
+    });
+
+    await expectSuccessfulBackground(worker, {
+      source,
+    });
+    expect(getContactIdByEmail).toBeCalledTimes(0);
+    expect(addUserToContacts).toBeCalledTimes(0);
+  });
 });

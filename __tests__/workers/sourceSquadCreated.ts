@@ -15,27 +15,16 @@ import { SourceMemberRoles } from '../../src/roles';
 import { usersFixture } from '../fixture/user';
 import { createSource } from '../fixture/source';
 
-jest.mock('../../src/common', () => ({
-  ...(jest.requireActual('../../src/common') as Record<string, unknown>),
-  getContactIdByEmail: jest.fn(),
-  addUserToContacts: jest.fn(),
-}));
-
 let con: DataSource;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-const usersFixtureWithMarketing = usersFixture.map((item) => ({
-  ...item,
-  acceptedMarketing: true,
-}));
-
 beforeEach(async () => {
   jest.resetAllMocks();
 
-  await saveFixtures(con, User, usersFixtureWithMarketing);
+  await saveFixtures(con, User, usersFixture);
   await con
     .getRepository(SquadSource)
     .save([
