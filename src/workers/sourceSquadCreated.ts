@@ -3,7 +3,7 @@ import {
   addUserToContacts,
   LIST_DRIP_CAMPAIGN,
 } from '../common';
-import { Source, SourceMember, User, UserActionType } from '../entity';
+import { Source, SourceMember, UserActionType } from '../entity';
 import { SourceMemberRoles } from '../roles';
 import { insertOrIgnoreAction } from '../schema/actions';
 import { ChangeObject } from '../types';
@@ -21,7 +21,6 @@ const worker: Worker = {
     try {
       const { source } = data;
       const owner = await con.getRepository(SourceMember).findOne({
-        select: ['userId'],
         where: {
           sourceId: source.id,
           role: SourceMemberRoles.Admin,
@@ -29,15 +28,14 @@ const worker: Worker = {
         order: {
           createdAt: 'ASC',
         },
+        relations: ['user'],
       });
 
       if (!owner) {
         return;
       }
 
-      const user = await con
-        .getRepository(User)
-        .findOneBy({ id: owner.userId });
+      const user = await owner.user;
 
       if (!user) {
         return;
