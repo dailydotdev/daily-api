@@ -43,20 +43,20 @@ beforeEach(async () => {
     .getRepository(SquadSource)
     .save([
       createSource(
-        'sourceSquadCreatedOwnerMailing_squad1',
-        'sourceSquadCreatedOwnerMailing_squad1',
+        'squadOwnerMailing_s1',
+        'squadOwnerMailing_s1',
         'http://c.com',
         SourceType.Squad,
       ),
     ]);
   await con.getRepository(SourceMember).save({
-    sourceId: 'sourceSquadCreatedOwnerMailing_squad1',
+    sourceId: 'squadOwnerMailing_s1',
     userId: '2',
     referralToken: 'sourceSquadCreatedOwnerMailing_rt1',
     role: SourceMemberRoles.Admin,
   });
   await con.getRepository(SourceMember).save({
-    sourceId: 'sourceSquadCreatedOwnerMailing_squad1',
+    sourceId: 'squadOwnerMailing_s1',
     userId: '1',
     referralToken: 'sourceSquadCreatedOwnerMailing_rt2',
     role: SourceMemberRoles.Admin,
@@ -66,7 +66,7 @@ beforeEach(async () => {
 describe('sourceSquadCreatedOwnerMailing worker', () => {
   it('should add owner to drip campaign mailing list', async () => {
     const source = await con.getRepository(Source).findOneBy({
-      id: 'sourceSquadCreatedOwnerMailing_squad1',
+      id: 'squadOwnerMailing_s1',
     });
     const user = await con.getRepository(User).findOneBy({ id: '2' });
 
@@ -85,10 +85,10 @@ describe('sourceSquadCreatedOwnerMailing worker', () => {
 
   it('should skip adding to mailing list when no members', async () => {
     await con.getRepository(SourceMember).delete({
-      sourceId: 'sourceSquadCreatedOwnerMailing_squad1',
+      sourceId: 'squadOwnerMailing_s1',
     });
     const source = await con.getRepository(Source).findOneBy({
-      id: 'sourceSquadCreatedOwnerMailing_squad1',
+      id: 'squadOwnerMailing_s1',
     });
 
     await expectSuccessfulBackground(worker, {
@@ -104,7 +104,7 @@ describe('sourceSquadCreatedOwnerMailing worker', () => {
       acceptedMarketing: false,
     });
     const source = await con.getRepository(Source).findOneBy({
-      id: 'sourceSquadCreatedOwnerMailing_squad1',
+      id: 'squadOwnerMailing_s1',
     });
 
     await expectSuccessfulBackground(worker, {
@@ -116,13 +116,13 @@ describe('sourceSquadCreatedOwnerMailing worker', () => {
 
   it('should skip adding to mailing list when source is not squad', async () => {
     await con.getRepository(Source).update(
-      { id: 'sourceSquadCreatedOwnerMailing_squad1' },
+      { id: 'squadOwnerMailing_s1' },
       {
         type: SourceType.Machine,
       },
     );
     const source = await con.getRepository(Source).findOneBy({
-      id: 'sourceSquadCreatedOwnerMailing_squad1',
+      id: 'squadOwnerMailing_s1',
     });
 
     await expectSuccessfulBackground(worker, {

@@ -29,20 +29,20 @@ beforeEach(async () => {
     .getRepository(SquadSource)
     .save([
       createSource(
-        'sourceSquadCreatedUserAction_squad1',
-        'sourceSquadCreatedUserAction_squad1',
+        'squadCreatedUA_s1',
+        'squadCreatedUA_s1',
         'http://c.com',
         SourceType.Squad,
       ),
     ]);
   await con.getRepository(SourceMember).save({
-    sourceId: 'sourceSquadCreatedUserAction_squad1',
+    sourceId: 'squadCreatedUA_s1',
     userId: '2',
     referralToken: 'sourceSquadCreatedUserAction_rt1',
     role: SourceMemberRoles.Admin,
   });
   await con.getRepository(SourceMember).save({
-    sourceId: 'sourceSquadCreatedUserAction_squad1',
+    sourceId: 'squadCreatedUA_s1',
     userId: '1',
     referralToken: 'sourceSquadCreatedUserAction_rt2',
     role: SourceMemberRoles.Admin,
@@ -52,7 +52,7 @@ beforeEach(async () => {
 describe('sourceSquadCreatedUserAction worker', () => {
   it('should complete create squad user action', async () => {
     const source = await con.getRepository(Source).findOneBy({
-      id: 'sourceSquadCreatedUserAction_squad1',
+      id: 'squadCreatedUA_s1',
     });
     const user = await con.getRepository(User).findOneBy({ id: '2' });
 
@@ -69,13 +69,13 @@ describe('sourceSquadCreatedUserAction worker', () => {
 
   it('should not complete create squad user action if source is not a squad', async () => {
     await con.getRepository(Source).update(
-      { id: 'sourceSquadCreatedUserAction_squad1' },
+      { id: 'squadCreatedUA_s1' },
       {
         type: SourceType.Machine,
       },
     );
     const source = await con.getRepository(Source).findOneBy({
-      id: 'sourceSquadCreatedUserAction_squad1',
+      id: 'squadCreatedUA_s1',
     });
     const user = await con.getRepository(User).findOneBy({ id: '2' });
 
