@@ -20,15 +20,16 @@ const worker: Worker = {
 
     try {
       const { source } = data;
-      const [owner] = await con
-        .getRepository(SourceMember)
-        .createQueryBuilder('sm')
-        .select('sm."userId" as "userId"')
-        .where('sm."sourceId" = :sourceId', { sourceId: source.id })
-        .andWhere('sm."role" = :role', { role: SourceMemberRoles.Admin })
-        .orderBy('sm."createdAt"', 'ASC')
-        .limit(1)
-        .execute();
+      const owner = await con.getRepository(SourceMember).findOne({
+        select: ['userId'],
+        where: {
+          sourceId: source.id,
+          role: SourceMemberRoles.Admin,
+        },
+        order: {
+          createdAt: 'ASC',
+        },
+      });
 
       if (!owner) {
         return;
