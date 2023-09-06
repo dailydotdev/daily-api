@@ -1,4 +1,4 @@
-import { Source, SourceMember, UserActionType } from '../entity';
+import { Source, SourceMember, SourceType, UserActionType } from '../entity';
 import { SourceMemberRoles } from '../roles';
 import { insertOrIgnoreAction } from '../schema/actions';
 import { ChangeObject } from '../types';
@@ -14,6 +14,10 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
 
     const { source } = data;
+
+    if (source.type !== SourceType.Squad) {
+      return;
+    }
 
     const owner = await con.getRepository(SourceMember).findOne({
       select: ['userId'],

@@ -66,4 +66,27 @@ describe('sourceSquadCreated worker', () => {
     });
     expect(action).toBeTruthy();
   });
+
+  it('should not complete create squad user action if source is not a squad', async () => {
+    await con.getRepository(Source).update(
+      { id: 'sourceSquadCreated_squad1' },
+      {
+        type: SourceType.Machine,
+      },
+    );
+    const source = await con.getRepository(Source).findOneBy({
+      id: 'sourceSquadCreated_squad1',
+    });
+    const user = await con.getRepository(User).findOneBy({ id: '2' });
+
+    await expectSuccessfulBackground(worker, {
+      source,
+    });
+
+    const action = await con.getRepository(UserAction).findOneBy({
+      userId: user?.id,
+      type: UserActionType.CreateSquad,
+    });
+    expect(action).toBeFalsy();
+  });
 });

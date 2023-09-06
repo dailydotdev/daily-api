@@ -113,4 +113,22 @@ describe('sourceSquadCreatedMailing worker', () => {
     expect(getContactIdByEmail).toBeCalledTimes(0);
     expect(addUserToContacts).toBeCalledTimes(0);
   });
+
+  it('should skip adding to mailing list when source is not squad', async () => {
+    await con.getRepository(Source).update(
+      { id: 'sourceSquadCreatedMailing_squad1' },
+      {
+        type: SourceType.Machine,
+      },
+    );
+    const source = await con.getRepository(Source).findOneBy({
+      id: 'sourceSquadCreatedMailing_squad1',
+    });
+
+    await expectSuccessfulBackground(worker, {
+      source,
+    });
+    expect(getContactIdByEmail).toBeCalledTimes(0);
+    expect(addUserToContacts).toBeCalledTimes(0);
+  });
 });

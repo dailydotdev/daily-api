@@ -3,7 +3,7 @@ import {
   addUserToContacts,
   LIST_SQUAD_DRIP_CAMPAIGN,
 } from '../common';
-import { Source, SourceMember } from '../entity';
+import { Source, SourceMember, SourceType } from '../entity';
 import { SourceMemberRoles } from '../roles';
 import { ChangeObject } from '../types';
 import { messageToJson, Worker } from './worker';
@@ -13,11 +13,16 @@ interface Data {
 }
 
 const worker: Worker = {
-  subscription: 'api.source-created-squad-mailing',
+  subscription: 'api.source-created-squad-owner-mailing',
   handler: async (message, con) => {
     const data: Data = messageToJson(message);
 
     const { source } = data;
+
+    if (source.type !== SourceType.Squad) {
+      return;
+    }
+
     const owner = await con.getRepository(SourceMember).findOne({
       select: ['userId', 'sourceId', 'createdAt'],
       where: {
