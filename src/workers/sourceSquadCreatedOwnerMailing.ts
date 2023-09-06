@@ -46,6 +46,10 @@ const worker: Worker = {
     }
 
     if (user.acceptedMarketing) {
+      if (process.env.NODE_ENV === 'development') {
+        return;
+      }
+
       const contactId = await getContactIdByEmail(user.email);
 
       await addUserToContacts(user, [LIST_SQUAD_DRIP_CAMPAIGN], contactId);
