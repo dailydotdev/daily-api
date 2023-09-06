@@ -1434,7 +1434,6 @@ export const resolvers: IResolvers<any, Context> = {
             id,
             upload.createReadStream(),
             UploadPreset.PostBannerImage,
-            { invalidate: true },
           );
           updated.image = coverImageUrl;
         }
