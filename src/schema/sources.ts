@@ -1186,7 +1186,6 @@ export const resolvers: IResolvers<any, Context> = {
               const { url: imageUrl } = await uploadSquadImage(
                 sourceId,
                 stream,
-                { invalidate: true },
               );
               await repo.update({ id: sourceId }, { image: imageUrl });
             }
