@@ -501,6 +501,9 @@ const COMPANION_QUERY = parse(`query Post($url: String) {
             id
           }
           downvoted
+          userState {
+            vote
+          }
         }
       }`);
 
