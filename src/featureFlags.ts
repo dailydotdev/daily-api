@@ -20,6 +20,10 @@ export const DEFAULT_FLAGS = {
     enabled: true,
     value: 'v1',
   },
+  submit_article: {
+    enabled: false,
+    value: '',
+  },
 };
 
 export const getInternalFeatureFlags = async (
