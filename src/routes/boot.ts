@@ -4,7 +4,6 @@ import { DataSource } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
 import { generateTrackingId } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
-import { IFlags } from '../flagsmith';
 import { GQLUser } from '../schema/users';
 import {
   Alerts,
@@ -26,6 +25,7 @@ import {
 import {
   adjustAnonymousFlags,
   adjustFlagsToUser,
+  FeatureFlag,
   getUserFeatureFlags,
 } from '../featureFlags';
 import { getAlerts } from '../schema/alerts';
@@ -67,7 +67,7 @@ export type Experimentation = {
 
 export type BaseBoot = {
   visit: { visitId: string; sessionId: string };
-  flags: IFlags;
+  flags: FeatureFlag;
   alerts: Omit<Alerts, 'userId'>;
   settings: Omit<Settings, 'userId' | 'updatedAt'>;
   notifications: { unreadNotificationsCount: number };

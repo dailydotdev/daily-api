@@ -39,17 +39,12 @@ import {
 import nock from 'nock';
 import { addDays, setMilliseconds } from 'date-fns';
 import setCookieParser from 'set-cookie-parser';
-import flagsmith from '../src/flagsmith';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { DEFAULT_FLAGS } from '../src/featureFlags';
 import { SourcePermissions } from '../src/schema/sources';
 import { getEncryptedFeatures } from '../src/growthbook';
 import { base64 } from 'graphql-relay/utils/base64';
-
-jest.mock('../src/flagsmith', () => ({
-  getIdentityFlags: jest.fn(),
-}));
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -834,17 +829,6 @@ describe('boot feature flags', () => {
         value: 'value',
       },
     });
-  });
-
-  it('should return valid response when flagsmith returns error', async () => {
-    mockLoggedIn();
-    jest.mocked(flagsmith.getIdentityFlags).mockRejectedValue('error');
-    const res = await request(app.server)
-      .get(BASE_PATH)
-      .set('User-Agent', TEST_UA)
-      .set('Cookie', 'ory_kratos_session=value;')
-      .expect(200);
-    expect(res.body).toEqual(LOGGED_IN_BODY);
   });
 });
 
