@@ -40,7 +40,7 @@ import { addDays, setMilliseconds } from 'date-fns';
 import setCookieParser from 'set-cookie-parser';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
-import { DEFAULT_FLAGS } from '../src/featureFlags';
+import { DEFAULT_FLAGS, submitArticleThreshold } from '../src/featureFlags';
 import { SourcePermissions } from '../src/schema/sources';
 import { getEncryptedFeatures } from '../src/growthbook';
 import { base64 } from 'graphql-relay/utils/base64';
@@ -285,7 +285,14 @@ describe('logged in boot', () => {
       .set('User-Agent', TEST_UA)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
-    expect(res.body).toEqual(LOGGED_IN_BODY);
+    expect(res.body).toEqual({
+      ...LOGGED_IN_BODY,
+      user: {
+        ...LOGGED_IN_BODY.user,
+        canSubmitArticle:
+          LOGGED_IN_BODY.user.reputation >= submitArticleThreshold,
+      },
+    });
   });
 
   it('should set kratos cookie expiration', async () => {
@@ -818,12 +825,7 @@ describe('boot feature flags', () => {
       .get(BASE_PATH)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
-    expect(res.body.flags).toEqual({
-      my_flag: {
-        enabled: true,
-        value: 'value',
-      },
-    });
+    expect(res.body.flags).toEqual(DEFAULT_FLAGS);
   });
 });
 
@@ -897,6 +899,11 @@ describe('companion boot', () => {
         bookmarked: false,
         upvoted: false,
         downvoted: false,
+      },
+      user: {
+        ...LOGGED_IN_BODY.user,
+        canSubmitArticle:
+          LOGGED_IN_BODY.user.reputation >= submitArticleThreshold,
       },
     });
   });
