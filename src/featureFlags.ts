@@ -51,7 +51,9 @@ export const getUserFeatureFlags = async (
   return { ...external, ...internal };
 };
 
-const submitArticleThreshold = parseInt(process.env.SUBMIT_ARTICLE_THRESHOLD);
+export const submitArticleThreshold = parseInt(
+  process.env.SUBMIT_ARTICLE_THRESHOLD,
+);
 const getSubmitArticleState = (flags: FeatureFlag, user: User) => {
   if (!flags?.submit_article?.enabled) {
     if (user?.reputation >= submitArticleThreshold) {
