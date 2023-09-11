@@ -24,6 +24,7 @@ import {
   SQUAD_IMAGE_PLACEHOLDER,
   SquadSource,
   User,
+  UserPostVote,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { notificationFixture } from './fixture/notifications';
@@ -870,6 +871,7 @@ describe('companion boot', () => {
     trending: null,
     upvoted: null,
     downvoted: null,
+    userState: null,
   };
 
   it('should support anonymous user', async () => {
@@ -899,6 +901,9 @@ describe('companion boot', () => {
         bookmarked: false,
         upvoted: false,
         downvoted: false,
+        userState: {
+          vote: UserPostVote.None,
+        },
       },
       user: {
         ...LOGGED_IN_BODY.user,
