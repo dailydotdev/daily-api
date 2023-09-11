@@ -2,6 +2,7 @@ import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Post } from './posts';
 
 @Entity()
+@Index(['userId', 'timestamp'])
 @Index(['postId', 'userId'])
 @Index(['postId', 'userId', 'hidden'])
 export class View {
