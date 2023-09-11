@@ -689,10 +689,9 @@ export const resolvers: IResolvers<any, Context> = {
         .orderBy('date')
         .getRawMany();
     },
-    userReads: async (source, args, ctx: Context): Promise<number> => {
-      return ctx.con
-        .getRepository(ActiveView)
-        .count({ where: { userId: ctx.userId } });
+    userReads: async (): Promise<number> => {
+      // Kept for backwards compatability
+      return 0;
     },
     searchReadingHistorySuggestions: async (
       source,

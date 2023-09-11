@@ -922,55 +922,6 @@ describe('query userReadingRankHistory', () => {
   });
 });
 
-describe('query userReads', () => {
-  const QUERY = `query UserReads {
-    userReads
-  }`;
-
-  it('should not authorize when not logged-in', () =>
-    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
-
-  it('should return the number of articles the user read', async () => {
-    loggedUser = '1';
-    await con.getRepository(View).save([
-      { userId: loggedUser, postId: 'p1', timestamp: new Date() },
-      {
-        userId: loggedUser,
-        postId: 'p2',
-        timestamp: new Date(),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p3',
-        timestamp: addDays(new Date(), 1),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p4',
-        timestamp: addDays(new Date(), 2),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p5',
-        timestamp: addDays(new Date(), 3),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p6',
-        timestamp: addDays(new Date(), 4),
-      },
-      {
-        userId: loggedUser,
-        postId: 'p7',
-        timestamp: addDays(new Date(), 5),
-      },
-    ]);
-    const res = await client.query(QUERY);
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userReads).toEqual(7);
-  });
-});
-
 describe('query userReadHistory', () => {
   const QUERY = `query UserReadHistory($id: ID!, $after: String!, $before: String!){
     userReadHistory(id: $id, after: $after, before: $before) {
