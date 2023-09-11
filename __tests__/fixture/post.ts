@@ -22,6 +22,7 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     createdAt: now,
     tagsStr: 'javascript,webdev',
     type: PostType.Article,
+    contentCuration: ['c1', 'c2'],
   },
   {
     id: 'p2',
@@ -33,6 +34,7 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     sourceId: 'b',
     createdAt: new Date(now.getTime() - 1000),
     type: PostType.Article,
+    contentCuration: ['c1', 'c2'],
   },
   {
     id: 'p3',
@@ -44,6 +46,7 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     sourceId: 'c',
     createdAt: new Date(now.getTime() - 2000),
     type: PostType.Article,
+    contentCuration: ['c1', 'c2'],
   },
   {
     id: 'p4',
@@ -56,6 +59,7 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     createdAt: new Date(now.getTime() - 3000),
     tagsStr: 'backend,data,javascript',
     type: PostType.Article,
+    contentCuration: ['c1', 'c2'],
   },
   {
     id: 'p5',
@@ -68,6 +72,7 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     createdAt: new Date(now.getTime() - 4000),
     tagsStr: 'html,javascript',
     type: PostType.Article,
+    contentCuration: ['c1', 'c2'],
   },
   {
     id: 'p6',
@@ -80,6 +85,7 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     createdAt: new Date(now.getTime() - 5000),
     type: PostType.Article,
     private: true,
+    contentCuration: ['c1', 'c2'],
   },
   {
     id: 'p7',
@@ -92,6 +98,7 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     createdAt: new Date(now.getTime() - 5000),
     type: PostType.Article,
     visible: false,
+    contentCuration: ['c1', 'c2'],
   },
 ];
 

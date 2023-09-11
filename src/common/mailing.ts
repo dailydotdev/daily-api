@@ -156,6 +156,8 @@ export const getContactIdByEmail = async (email: string) => {
 const LIST_REGISTERED_USERS = '85a1951f-5f0c-459f-bf5e-e5c742986a50';
 // Id of "Weekly recap" contact list on SendGrid
 const LIST_MARKETING_EMAILS = '53d09271-fd3f-4e38-ac21-095bf4f52de6';
+// Id of "Drop campaign" contact list on SendGrid
+export const LIST_SQUAD_DRIP_CAMPAIGN = '919b5624-ccc9-46df-960d-f6a60eb8241b';
 
 export const updateUserContactLists = async (
   log: FastifyBaseLogger,
@@ -173,7 +175,10 @@ export const updateUserContactLists = async (
       lists.push(LIST_MARKETING_EMAILS);
     } else if (contactId) {
       // If they no longer subscribe to marketing emails remove them from the contact list
-      await removeUserFromList(LIST_MARKETING_EMAILS, contactId);
+      await Promise.all([
+        removeUserFromList(LIST_MARKETING_EMAILS, contactId),
+        removeUserFromList(LIST_SQUAD_DRIP_CAMPAIGN, contactId),
+      ]);
     }
     await addUserToContacts(newProfile, lists, contactId);
   } catch (err) {

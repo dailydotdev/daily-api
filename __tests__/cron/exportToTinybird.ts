@@ -64,7 +64,7 @@ describe('PostsRepository', () => {
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
       banned: 0,
-      content_curation: [],
+      content_curation: ['c1', 'c2'],
       created_at: '',
       creator_twitter: null,
       id: 'p1',
@@ -80,7 +80,7 @@ describe('PostsRepository', () => {
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
       banned: 0,
-      content_curation: [],
+      content_curation: ['c1', 'c2'],
       created_at: '',
       creator_twitter: null,
       id: 'p2',
@@ -96,7 +96,7 @@ describe('PostsRepository', () => {
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
       banned: 0,
-      content_curation: [],
+      content_curation: ['c1', 'c2'],
       created_at: '',
       creator_twitter: null,
       id: 'p3',
@@ -112,7 +112,7 @@ describe('PostsRepository', () => {
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
       banned: 0,
-      content_curation: [],
+      content_curation: ['c1', 'c2'],
       created_at: '',
       creator_twitter: null,
       id: 'p4',
@@ -128,7 +128,7 @@ describe('PostsRepository', () => {
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
       banned: 0,
-      content_curation: [],
+      content_curation: ['c1', 'c2'],
       created_at: '',
       creator_twitter: null,
       id: 'p5',
@@ -144,7 +144,7 @@ describe('PostsRepository', () => {
     expect(posts).toContainEqual<TinybirdPost>({
       author_id: null,
       banned: 0,
-      content_curation: [],
+      content_curation: ['c1', 'c2'],
       created_at: '',
       creator_twitter: null,
       id: 'p6',

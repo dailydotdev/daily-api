@@ -64,6 +64,7 @@ const contentImageDeletedTopic = pubsub.topic('api.v1.content-image-deleted');
 const postContentEditedTopic = pubsub.topic('api.v1.post-content-edited');
 const commentEditedTopic = pubsub.topic('api.v1.comment-edited');
 const commentDeletedTopic = pubsub.topic('api.v1.comment-deleted');
+const sourceCreatedTopic = pubsub.topic('api.v1.source-created');
 
 export enum NotificationReason {
   New = 'new',
@@ -412,3 +413,8 @@ export const notifyCommentDeleted = async (
   log: EventLogger,
   comment: ChangeObject<Comment>,
 ): Promise<void> => publishEvent(log, commentDeletedTopic, { comment });
+
+export const notifySourceCreated = async (
+  log: EventLogger,
+  source: ChangeObject<Source>,
+): Promise<void> => publishEvent(log, sourceCreatedTopic, { source });
