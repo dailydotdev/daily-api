@@ -870,16 +870,22 @@ describe('boot experimentation', () => {
 
   it('should return features as attributes', async () => {
     mockLoggedIn();
-    await con.getRepository(Feature).save({
-      userId: '1',
-      feature: FeatureType.Search,
-    });
+    await con.getRepository(Feature).save([
+      {
+        userId: '1',
+        feature: FeatureType.Search,
+      },
+      {
+        userId: '1',
+        feature: FeatureType.Squad,
+      },
+    ]);
     const res = await request(app.server)
       .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
-    expect(res.body.exp.a).toEqual({ search: true });
+    expect(res.body.exp.a).toEqual({ search: true, squad: true });
   });
 });
 
