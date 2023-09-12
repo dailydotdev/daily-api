@@ -215,6 +215,7 @@ const updatePost = async ({
   data.visibleAt = updateBecameVisible
     ? databasePost.visibleAt ?? data.metadataChangedAt
     : null;
+  data.sourceId = data.sourceId || databasePost.sourceId;
 
   if (content_type in allowedFieldsMapping) {
     const allowedFields = [
