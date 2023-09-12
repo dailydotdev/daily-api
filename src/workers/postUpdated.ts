@@ -193,7 +193,7 @@ const updatePost = async ({
   data,
   id,
   mergedKeywords,
-  content_type,
+  content_type = PostType.Article,
 }: UpdatePostProps) => {
   const postType = contentTypeFromPostType[content_type];
   const databasePost = await entityManager
