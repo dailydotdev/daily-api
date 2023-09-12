@@ -5,6 +5,7 @@ import {
   ArticlePost,
   bannedAuthors,
   findAuthor,
+  FreeformPost,
   mergeKeywords,
   parseReadTime,
   Post,
@@ -17,6 +18,7 @@ import {
   SubmissionStatus,
   Toc,
   UNKNOWN_SOURCE,
+  WelcomePost,
 } from '../entity';
 import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
@@ -166,11 +168,17 @@ const allowedFieldsMapping = {
     'description',
     'metadataChangedAt',
     'readTime',
-    'siteTwitter',
     'summary',
     'tagsStr',
     'toc',
   ],
+};
+
+const contentTypeFromPostType: Record<PostType, typeof Post> = {
+  [PostType.Article]: ArticlePost,
+  [PostType.Freeform]: FreeformPost,
+  [PostType.Share]: SharePost,
+  [PostType.Welcome]: WelcomePost,
 };
 
 type UpdatePostProps = {
@@ -187,8 +195,9 @@ const updatePost = async ({
   mergedKeywords,
   content_type,
 }: UpdatePostProps) => {
+  const postType = contentTypeFromPostType[content_type];
   const databasePost = await entityManager
-    .getRepository(ArticlePost)
+    .getRepository(postType)
     .findOneBy({ id });
 
   if (data?.origin === PostOrigin.Squad) {
@@ -234,7 +243,7 @@ const updatePost = async ({
     });
   }
 
-  await entityManager.getRepository(ArticlePost).update(
+  await entityManager.getRepository(postType).update(
     { id: databasePost.id },
     {
       ...data,

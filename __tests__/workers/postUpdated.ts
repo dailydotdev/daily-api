@@ -3,6 +3,7 @@ import worker from '../../src/workers/postUpdated';
 import {
   ArticlePost,
   COMMUNITY_PICKS_SOURCE,
+  FreeformPost,
   Keyword,
   Post,
   PostKeyword,
@@ -43,7 +44,7 @@ beforeEach(async () => {
       origin: PostOrigin.Squad,
     },
   ]);
-  await saveFixtures(con, ArticlePost, [
+  await saveFixtures(con, FreeformPost, [
     {
       id: 'p2',
       shortId: 'p2',
@@ -259,24 +260,21 @@ it('should update freeform post and only modify allowed fields', async () => {
     title: 'test',
     url: 'https://test.com',
     extra: {
+      // Sending this, as it should avoid it for freeform
       site_twitter: 'text',
       canonical_url: 'https://test.com/canon',
       content_curation: ['news', 'story', 'release'],
     },
     content_type: PostType.Freeform,
   });
-  const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p2' });
+  const post = await con.getRepository(FreeformPost).findOneBy({ id: 'p2' });
   expect(post.metadataChangedAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
   expect(post.visible).toEqual(true);
   expect(post.flags.visible).toEqual(true);
   expect(post.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
   expect(post.contentCuration).toEqual(['news', 'story', 'release']);
-  expect(post.siteTwitter).toEqual('text');
   expect(post.yggdrasilId).toEqual('f99a445f-e2fb-48e8-959c-e02a17f5e816');
-
   expect(post.title).toEqual('freeform post');
-  expect(post.canonicalUrl).toBeNull();
-  expect(post.url).toBeNull();
 });
 
 it('should save keywords without special characters', async () => {
