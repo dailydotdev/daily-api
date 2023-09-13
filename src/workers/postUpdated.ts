@@ -170,7 +170,6 @@ const allowedFieldsMapping = {
     'readTime',
     'summary',
     'tagsStr',
-    'toc',
   ],
 };
 
