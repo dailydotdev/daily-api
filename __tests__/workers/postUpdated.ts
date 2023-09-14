@@ -14,6 +14,7 @@ import {
   Submission,
   SubmissionStatus,
   User,
+  WelcomePost,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { DataSource } from 'typeorm';
@@ -252,7 +253,30 @@ it('should update post and modify keywords', async () => {
   expect(postKeywords.length).toEqual(2);
 });
 
+it(`should not update if the post is a welcome post`, async () => {
+  await con.getRepository(WelcomePost).save({
+    id: 'wp1',
+    shortId: 'wp1',
+    score: 0,
+    metadataChangedAt: new Date('01-05-2020 12:00:00'),
+    sourceId: 'a',
+    visible: false,
+    createdAt: new Date('01-05-2020 12:00:00'),
+    origin: PostOrigin.Squad,
+  });
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    post_id: 'wp1',
+    updated_at: new Date('01-05-1990 12:00:00'),
+  });
+  const post = await con.getRepository(ArticlePost).findOneBy({ id: 'p1' });
+  expect(post.metadataChangedAt).toEqual(new Date('2020-01-05T12:00:00.000Z'));
+});
+
 it('should update freeform post and only modify allowed fields', async () => {
+  await createDefaultKeywords();
+  const description = 'description';
+  const summary = 'summary';
   await expectSuccessfulBackground(worker, {
     id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
     post_id: 'p2',
@@ -264,6 +288,10 @@ it('should update freeform post and only modify allowed fields', async () => {
       site_twitter: 'text',
       canonical_url: 'https://test.com/canon',
       content_curation: ['news', 'story', 'release'],
+      read_time: 12,
+      keywords: ['mongodb', 'alpinejs'],
+      description,
+      summary,
     },
     content_type: PostType.Freeform,
   });
@@ -275,6 +303,10 @@ it('should update freeform post and only modify allowed fields', async () => {
   expect(post.contentCuration).toEqual(['news', 'story', 'release']);
   expect(post.yggdrasilId).toEqual('f99a445f-e2fb-48e8-959c-e02a17f5e816');
   expect(post.title).toEqual('freeform post');
+  expect(post.summary).toEqual(summary);
+  expect(post.description).toEqual(description);
+  expect(post.tagsStr).toEqual('mongodb,alpinejs');
+  expect(post.readTime).toEqual(12);
 });
 
 it('should save keywords without special characters', async () => {
