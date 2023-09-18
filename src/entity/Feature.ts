@@ -3,6 +3,7 @@ import { User } from './User';
 
 export enum FeatureType {
   Squad = 'squad',
+  Search = 'search',
 }
 
 @Entity()

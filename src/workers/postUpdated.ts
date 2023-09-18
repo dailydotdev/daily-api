@@ -5,6 +5,7 @@ import {
   ArticlePost,
   bannedAuthors,
   findAuthor,
+  FreeformPost,
   mergeKeywords,
   parseReadTime,
   Post,
@@ -17,6 +18,7 @@ import {
   SubmissionStatus,
   Toc,
   UNKNOWN_SOURCE,
+  WelcomePost,
 } from '../entity';
 import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
@@ -166,11 +168,16 @@ const allowedFieldsMapping = {
     'description',
     'metadataChangedAt',
     'readTime',
-    'siteTwitter',
     'summary',
     'tagsStr',
-    'toc',
   ],
+};
+
+const contentTypeFromPostType: Record<PostType, typeof Post> = {
+  [PostType.Article]: ArticlePost,
+  [PostType.Freeform]: FreeformPost,
+  [PostType.Share]: SharePost,
+  [PostType.Welcome]: WelcomePost,
 };
 
 type UpdatePostProps = {
@@ -185,10 +192,11 @@ const updatePost = async ({
   data,
   id,
   mergedKeywords,
-  content_type,
+  content_type = PostType.Article,
 }: UpdatePostProps) => {
+  const postType = contentTypeFromPostType[content_type];
   const databasePost = await entityManager
-    .getRepository(ArticlePost)
+    .getRepository(postType)
     .findOneBy({ id });
 
   if (data?.origin === PostOrigin.Squad) {
@@ -215,6 +223,7 @@ const updatePost = async ({
   data.visibleAt = updateBecameVisible
     ? databasePost.visibleAt ?? data.metadataChangedAt
     : null;
+  data.sourceId = data.sourceId || databasePost.sourceId;
 
   if (content_type in allowedFieldsMapping) {
     const allowedFields = [
@@ -233,7 +242,7 @@ const updatePost = async ({
     });
   }
 
-  await entityManager.getRepository(ArticlePost).update(
+  await entityManager.getRepository(postType).update(
     { id: databasePost.id },
     {
       ...data,
@@ -274,6 +283,41 @@ const updatePost = async ({
   return;
 };
 
+type GetSourcePrivacyProps = {
+  logger: FastifyBaseLogger;
+  entityManager: EntityManager;
+  data: Data;
+};
+const getSourcePrivacy = async ({
+  logger,
+  entityManager,
+  data,
+}: GetSourcePrivacyProps): Promise<boolean> => {
+  try {
+    let query = entityManager
+      .getRepository(Source)
+      .createQueryBuilder('source')
+      .select(['source.private']);
+
+    // If we don't have a source id, we need to find the source id from the post
+    if (!data?.source_id || data?.source_id === UNKNOWN_SOURCE) {
+      query = query.innerJoinAndSelect(
+        'source.posts',
+        'posts',
+        'posts.id = :id',
+        { id: data?.post_id },
+      );
+    } else {
+      query = query.where('source.id = :id', { id: data?.source_id });
+    }
+
+    const source = await query.getOne();
+    return source?.private;
+  } catch (err) {
+    logger.error({ data, err }, 'failed find source for post');
+  }
+};
+
 type FixDataProps = {
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
@@ -295,17 +339,11 @@ const fixData = async ({
       : data?.extra?.creator_twitter;
 
   const authorId = await findAuthor(entityManager, creatorTwitter);
-
-  const { private: privacy } = await entityManager
-    .getRepository(Source)
-    .findOne({
-      select: {
-        private: true,
-      },
-      where: {
-        id: data?.source_id,
-      },
-    });
+  const privacy = await getSourcePrivacy({
+    logger,
+    entityManager,
+    data,
+  });
 
   const { allowedKeywords, mergedKeywords } = await mergeKeywords(
     entityManager,

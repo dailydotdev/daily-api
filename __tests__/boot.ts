@@ -13,6 +13,8 @@ import {
   ALERTS_DEFAULT,
   ArticlePost,
   Banner,
+  Feature,
+  FeatureType,
   MachineSource,
   Notification,
   Post,
@@ -64,7 +66,7 @@ const BASE_BODY = {
     sessionId: expect.any(String),
     visitId: expect.any(String),
   },
-  exp: { f: 'enc', e: [] },
+  exp: { f: 'enc', e: [], a: {} },
 };
 
 const LOGGED_IN_BODY = {
@@ -845,6 +847,26 @@ describe('boot experimentation', () => {
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
     expect(res.body.exp.e).toEqual([base64('e1:v1'), base64('e2:v2')]);
+  });
+
+  it('should return features as attributes', async () => {
+    mockLoggedIn();
+    await con.getRepository(Feature).save([
+      {
+        userId: '1',
+        feature: FeatureType.Search,
+      },
+      {
+        userId: '1',
+        feature: FeatureType.Squad,
+      },
+    ]);
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.exp.a).toEqual({ search: true, squad: true });
   });
 });
 

@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import createOrGetConnection from '../db';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
 import { generateTrackingId } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
@@ -9,6 +9,7 @@ import {
   Alerts,
   ALERTS_DEFAULT,
   Banner,
+  Feature,
   getUnreadNotificationsCount,
   Post,
   Settings,
@@ -64,6 +65,7 @@ export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
 export type Experimentation = {
   f: string;
   e: string[];
+  a: Record<string, unknown>;
 };
 
 export type BaseBoot = {
@@ -306,10 +308,14 @@ export function getReferralFromCookie({
   };
 }
 
-const getExperimentation = async (userId: string): Promise<Experimentation> => {
-  const hash = await ioRedisPool.execute((client) =>
-    client.hgetall(`exp:${userId}`),
-  );
+const getExperimentation = async (
+  userId: string,
+  con: DataSource | EntityManager,
+): Promise<Experimentation> => {
+  const [hash, features] = await Promise.all([
+    ioRedisPool.execute((client) => client.hgetall(`exp:${userId}`)),
+    con.getRepository(Feature).findBy({ userId }),
+  ]);
   const e = Object.keys(hash || {}).map((key) => {
     const [variation] = hash[key].split(':');
     return base64(`${key}:${variation}`);
@@ -317,6 +323,7 @@ const getExperimentation = async (userId: string): Promise<Experimentation> => {
   return {
     f: getEncryptedFeatures(),
     e,
+    a: features.reduce((acc, { feature }) => ({ [feature]: true, ...acc }), {}),
   };
 };
 
@@ -351,7 +358,7 @@ const loggedInBoot = async (
     getSquads(con, userId),
     getAndUpdateLastChangelogRedis(con),
     getAndUpdateLastBannerRedis(con),
-    getExperimentation(userId),
+    getExperimentation(userId, con),
     middleware ? middleware(con, req, res) : {},
   ]);
   if (!user) {
@@ -424,7 +431,7 @@ const anonymousBoot = async (
     getUserFeatureFlags(req, con),
     middleware ? middleware(con, req, res) : {},
     getAnonymousFirstVisit(req.trackingId),
-    getExperimentation(req.trackingId),
+    getExperimentation(req.trackingId, con),
   ]);
   const isPreOnboardingV2 = firstVisit
     ? new Date(firstVisit) < onboardingV2Requirement
