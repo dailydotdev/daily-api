@@ -4,7 +4,6 @@ import {
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
-  mockFeatureFlagForUser,
   TEST_UA,
 } from './helpers';
 import createOrGetConnection from '../src/db';
@@ -42,17 +41,12 @@ import {
 import nock from 'nock';
 import { addDays, setMilliseconds } from 'date-fns';
 import setCookieParser from 'set-cookie-parser';
-import flagsmith from '../src/flagsmith';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
-import { DEFAULT_FLAGS } from '../src/featureFlags';
+import { DEFAULT_FLAGS, submitArticleThreshold } from '../src/featureFlags';
 import { SourcePermissions } from '../src/schema/sources';
 import { getEncryptedFeatures } from '../src/growthbook';
 import { base64 } from 'graphql-relay/utils/base64';
-
-jest.mock('../src/flagsmith', () => ({
-  getIdentityFlags: jest.fn(),
-}));
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -119,7 +113,6 @@ beforeEach(async () => {
   await con.getRepository(User).save(usersFixture[0]);
   await con.getRepository(Source).save(sourcesFixture);
   await con.getRepository(Post).save(postsFixture);
-  mockFeatureFlagForUser();
   await ioRedisPool.execute((client) => client.flushall());
 });
 
@@ -244,7 +237,6 @@ describe('anonymous boot', () => {
         new Date(2023, 6, 10).toISOString(),
       ),
     );
-    mockFeatureFlagForUser('onboarding_v2', true, 'v1');
     const second = await request(app.server)
       .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
@@ -279,7 +271,6 @@ describe('anonymous boot', () => {
   });
 
   it('should not change value if user is not a pre onboarding v2 user', async () => {
-    mockFeatureFlagForUser('onboarding_v2', true, 'v1');
     const res = await request(app.server)
       .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
@@ -297,7 +288,14 @@ describe('logged in boot', () => {
       .set('User-Agent', TEST_UA)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
-    expect(res.body).toEqual(LOGGED_IN_BODY);
+    expect(res.body).toEqual({
+      ...LOGGED_IN_BODY,
+      user: {
+        ...LOGGED_IN_BODY.user,
+        canSubmitArticle:
+          LOGGED_IN_BODY.user.reputation >= submitArticleThreshold,
+      },
+    });
   });
 
   it('should set kratos cookie expiration', async () => {
@@ -826,28 +824,11 @@ describe('boot misc', () => {
 describe('boot feature flags', () => {
   it('should return user feature flags', async () => {
     mockLoggedIn();
-    mockFeatureFlagForUser('my_flag', true, 'value');
     const res = await request(app.server)
       .get(BASE_PATH)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
-    expect(res.body.flags).toEqual({
-      my_flag: {
-        enabled: true,
-        value: 'value',
-      },
-    });
-  });
-
-  it('should return valid response when flagsmith returns error', async () => {
-    mockLoggedIn();
-    jest.mocked(flagsmith.getIdentityFlags).mockRejectedValue('error');
-    const res = await request(app.server)
-      .get(BASE_PATH)
-      .set('User-Agent', TEST_UA)
-      .set('Cookie', 'ory_kratos_session=value;')
-      .expect(200);
-    expect(res.body).toEqual(LOGGED_IN_BODY);
+    expect(res.body.flags).toEqual(DEFAULT_FLAGS);
   });
 });
 
@@ -945,6 +926,11 @@ describe('companion boot', () => {
         userState: {
           vote: UserPostVote.None,
         },
+      },
+      user: {
+        ...LOGGED_IN_BODY.user,
+        canSubmitArticle:
+          LOGGED_IN_BODY.user.reputation >= submitArticleThreshold,
       },
     });
   });

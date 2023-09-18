@@ -54,7 +54,6 @@
     "fast-json-stringify": "^5.8.0",
     "fastify": "^4.21.0",
     "fastify-plugin": "^4.5.1",
-    "flagsmith-nodejs": "2.5.2",
     "form-data": "^4.0.0",
     "graphql": "^16.7.1",
     "graphql-parse-resolve-info": "^4.13.0",
