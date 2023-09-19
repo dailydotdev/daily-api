@@ -43,7 +43,11 @@ import { addDays, setMilliseconds } from 'date-fns';
 import setCookieParser from 'set-cookie-parser';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
-import { DEFAULT_FLAGS, submitArticleThreshold } from '../src/featureFlags';
+import {
+  DEFAULT_FLAGS,
+  DEFAULT_INTERNAL_FLAGS,
+  submitArticleThreshold,
+} from '../src/featureFlags';
 import { SourcePermissions } from '../src/schema/sources';
 import { getEncryptedFeatures } from '../src/growthbook';
 import { base64 } from 'graphql-relay/utils/base64';
@@ -71,6 +75,7 @@ const BASE_BODY = {
 
 const LOGGED_IN_BODY = {
   ...BASE_BODY,
+  flags: { ...DEFAULT_FLAGS, ...DEFAULT_INTERNAL_FLAGS },
   accessToken: {
     expiresIn: expect.any(String),
     token: expect.any(String),
@@ -828,7 +833,10 @@ describe('boot feature flags', () => {
       .get(BASE_PATH)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
-    expect(res.body.flags).toEqual(DEFAULT_FLAGS);
+    expect(res.body.flags).toEqual({
+      ...DEFAULT_FLAGS,
+      ...DEFAULT_INTERNAL_FLAGS,
+    });
   });
 });
 
