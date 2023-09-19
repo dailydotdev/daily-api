@@ -25,7 +25,7 @@ export const DEFAULT_FLAGS = {
   },
 };
 
-const DEFAULT_INTERNAL_FLAGS = { squad: { enabled: true, value: '' } };
+export const DEFAULT_INTERNAL_FLAGS = { squad: { enabled: true, value: '' } };
 
 export const getUserFeatureFlags = (req: FastifyRequest): FeatureFlag => {
   const external = DEFAULT_FLAGS;
