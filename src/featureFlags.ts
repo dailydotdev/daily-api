@@ -1,6 +1,5 @@
 import { FastifyRequest } from 'fastify';
-import { DataSource } from 'typeorm';
-import { Feature, User } from './entity';
+import { User } from './entity';
 
 type FlagValue = string | number | boolean | null;
 
@@ -26,28 +25,12 @@ export const DEFAULT_FLAGS = {
   },
 };
 
-export const getInternalFeatureFlags = async (
-  con: DataSource,
-  userId?: string,
-): Promise<FeatureFlag> => {
-  if (userId) {
-    const features = await con.getRepository(Feature).findBy({ userId });
-    return features.reduce((prev, { feature }) => {
-      prev[feature] = { enabled: true };
-      return prev;
-    }, {});
-  }
-  return {};
-};
+const DEFAULT_INTERNAL_FLAGS = { squad: { enabled: true, value: '' } };
 
-export const getUserFeatureFlags = async (
-  req: FastifyRequest,
-  con: DataSource,
-): Promise<FeatureFlag> => {
-  const [external, internal] = await Promise.all([
-    Promise.resolve(DEFAULT_FLAGS),
-    getInternalFeatureFlags(con, req.userId),
-  ]);
+export const getUserFeatureFlags = (req: FastifyRequest): FeatureFlag => {
+  const external = DEFAULT_FLAGS;
+  const internal = req.userId ? DEFAULT_INTERNAL_FLAGS : {};
+
   return { ...external, ...internal };
 };
 

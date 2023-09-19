@@ -338,7 +338,6 @@ const loggedInBoot = async (
     visit,
     user,
     roles,
-    flags,
     alerts,
     settings,
     unreadNotificationsCount,
@@ -351,7 +350,6 @@ const loggedInBoot = async (
     visitSection(req, res),
     con.getRepository(User).findOneBy({ id: userId }),
     getRoles(userId),
-    getUserFeatureFlags(req, con),
     getAlerts(con, userId),
     getSettings(con, userId),
     getUnreadNotificationsCount(con, userId),
@@ -364,6 +362,7 @@ const loggedInBoot = async (
   if (!user) {
     return handleNonExistentUser(con, req, res, middleware);
   }
+  const flags = getUserFeatureFlags(req);
   const accessToken = await setAuthCookie(req, res, userId, roles);
 
   return {
@@ -426,13 +425,13 @@ const anonymousBoot = async (
   middleware?: BootMiddleware,
   shouldLogout = false,
 ): Promise<AnonymousBoot> => {
-  const [visit, flags, extra, firstVisit, exp] = await Promise.all([
+  const [visit, extra, firstVisit, exp] = await Promise.all([
     visitSection(req, res),
-    getUserFeatureFlags(req, con),
     middleware ? middleware(con, req, res) : {},
     getAnonymousFirstVisit(req.trackingId),
     getExperimentation(req.trackingId, con),
   ]);
+  const flags = getUserFeatureFlags(req);
   const isPreOnboardingV2 = firstVisit
     ? new Date(firstVisit) < onboardingV2Requirement
     : false;
@@ -541,11 +540,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return {};
     };
     const data = await getBootData(con, req, res, middleware);
-    return res.send(data);
-  });
-
-  fastify.get('/features', async (req, res) => {
-    const data = await getUserFeatureFlags(req, con);
     return res.send(data);
   });
 }
