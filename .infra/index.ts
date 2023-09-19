@@ -192,7 +192,7 @@ if (isAdhocEnv) {
       limits,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 90 },
+      metric: { type: 'memory_cpu', cpu: 85 },
       createService: true,
       enableCdn: true,
       disableLifecycle: true,
