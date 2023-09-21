@@ -1,10 +1,10 @@
 import { FeedConfig, FeedResponse, IFeedClient } from './types';
-import fetch, { RequestInit } from 'node-fetch';
+import { RequestInit } from 'node-fetch';
 import { fetchOptions as globalFetchOptions } from '../../http';
-import pRetry, { AbortError } from 'p-retry';
 import { IORedisPool } from '@dailydotdev/ts-ioredis-pool';
 import { Context } from '../../Context';
 import { ONE_DAY_IN_SECONDS } from '../../redis';
+import { retryFetch } from '../utils';
 
 type RawFeedServiceResponse = {
   data: { post_id: string; metadata: Record<string, string> }[];
@@ -25,28 +25,16 @@ export class FeedClient implements IFeedClient {
     this.fetchOptions = fetchOptions;
   }
 
-  private async internalFetchFeed(
-    config: FeedConfig,
-  ): Promise<RawFeedServiceResponse> {
-    const res = await fetch(this.url, {
-      ...this.fetchOptions,
-      method: 'POST',
-      body: JSON.stringify(config),
-    });
-    if (res.ok) {
-      const bodyText = await res.text();
-      return JSON.parse(bodyText);
-    }
-    if (res.status < 500) {
-      throw new AbortError(`feed service request is invalid: ${res.status}`);
-    }
-    throw new Error(`unexpecetd response from feed service: ${res.status}`);
-  }
-
   async fetchFeed(ctx, feedId, config): Promise<FeedResponse> {
-    const res = await pRetry(() => this.internalFetchFeed(config), {
-      retries: 5,
-    });
+    const res = await retryFetch<RawFeedServiceResponse>(
+      this.url,
+      {
+        ...this.fetchOptions,
+        method: 'POST',
+        body: JSON.stringify(config),
+      },
+      { retries: 5 },
+    );
     if (!res?.data?.length) {
       ctx?.log.warn({ config }, 'empty response received from feed service');
       return [];
