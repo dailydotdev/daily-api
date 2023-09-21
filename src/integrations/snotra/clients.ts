@@ -16,10 +16,14 @@ export class SnotraClient implements ISnotraClient {
   }
 
   fetchUserState(payload: UserStatePayload): Promise<UserStateResponse> {
-    return retryFetch(`${this.url}/api/v1/user/profile`, {
-      ...this.fetchOptions,
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    return retryFetch(
+      `${this.url}/api/v1/user/profile`,
+      {
+        ...this.fetchOptions,
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      { retries: 5 },
+    );
   }
 }
