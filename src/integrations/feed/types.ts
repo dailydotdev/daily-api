@@ -68,4 +68,4 @@ export interface IFeedClient {
   ): Promise<FeedResponse>;
 }
 
-export type FeedVersion = '11' | '14' | 'popular';
+export type FeedVersion = '11' | '14' | '15' | 'popular';
