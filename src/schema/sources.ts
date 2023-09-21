@@ -83,11 +83,6 @@ interface SourceMemberArgs extends ConnectionArguments {
   role?: SourceMemberRoles;
 }
 
-interface CheckUserMembershipArgs {
-  sourceId: string;
-  memberId: string;
-}
-
 export const typeDefs = /* GraphQL */ `
   """
   Source to discover posts from (usually blogs)
