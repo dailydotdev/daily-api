@@ -77,6 +77,8 @@ config:
       secure: AAABANVhXyHAWBYvw2hOFkRdQaqiW2hBtoAc/iqxhUpi/dTEZFjrg1neXRyrs+fNnE5RYeDKy3vyjzDWAPe6ZWtamz46cTyBkcDpFIoqsrGn5CvltYd6O/CautVQQ2+oqUVECQA=
     slackWebhook:
       secure: AAABANMRr419hiCx/eBF5NJvKB8LDGb8GffeQzg5PxXoD5A9iQn7cPM30aB0jl3cWTKX65VrDShNl+GO86zvRIq4nXvwpjSdi/ToCHDBxyg7sIIQvngrlJuPQ9da+fj426VWkg5fFnwg02QuxMoHqrM=
+    snotraOrigin:
+      secure: AAABAM3Qu52eMoaSlPREVb2PqCspNM/PQR5VeM6vguyRKF1E0h9nTwRwcNm7k3FFRfemxOLKmVyJiqfYMg==
     submitArticleThreshold: 250
     tinybirdFeed:
       secure: AAABAFglCRL6LaGNQSA8nLfQ9WFK1LM80KrV4n/1T9RSMCi/AKpYSaCXmy68oyR0/AvIN4E+5HjPyrIGMRhvO3KFcyTlnUYHTXYoYPCIY5a0xp0sArbD3mkvshA2QHhzBSPpzYq/4m++rTu/29ufLd7W86yC3D5oKiR40Fd7+w+QyI5dVYSBmKw90InAHexRNiX8ZttOEMHJJkVMl2tH9rc1p5j4gSOzcX9MrqknNm6ijyioVzDgYw4hbU1I9NTtOru3+xoCwRkZAZBKbgDO5c/V+JV6JpHSEezS+D1B5uYXi49EwC5g4Znd1oN4l6qrfh3JXK1uib4DSVquZWfMCgg=
