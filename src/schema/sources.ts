@@ -323,21 +323,6 @@ export const typeDefs = /* GraphQL */ `
     ): SourceMemberConnection! @auth
 
     """
-    Check whether user has membership access to a squad
-    """
-    checkUserMembership(
-      """
-      The source to check whether the user is a part of
-      """
-      sourceId: ID!
-
-      """
-      User id of the member to check
-      """
-      memberId: ID!
-    ): SourceMember @auth
-
-    """
     Get source member by referral token
     """
     sourceMemberByToken(token: String!): SourceMember!
@@ -993,27 +978,6 @@ export const resolvers: IResolvers<any, Context> = {
           }
           return builder;
         },
-      );
-    },
-    checkUserMembership: async (
-      _,
-      { sourceId, memberId }: CheckUserMembershipArgs,
-      ctx,
-      info,
-    ): Promise<GQLSourceMember> => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
-
-      return graphorm.queryOneOrFail<GQLSourceMember>(
-        ctx,
-        info,
-        (builder) => {
-          builder.queryBuilder = builder.queryBuilder.andWhere({
-            sourceId,
-            userId: memberId,
-          });
-          return builder;
-        },
-        SourceMember,
       );
     },
     sourceMemberByToken: async (
