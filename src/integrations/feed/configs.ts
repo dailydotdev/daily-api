@@ -1,5 +1,6 @@
 import { FeedConfig, FeedConfigGenerator } from './types';
 import { feedToFilters } from '../../common';
+import { ISnotraClient, UserState } from '../snotra';
 
 type Options = {
   includeAllowedTags?: boolean;
@@ -70,5 +71,34 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
       config.squad_ids = filters.sourceIds;
     }
     return config;
+  }
+}
+
+/**
+ * Generates config based on the user state (personalised/non-personalised)
+ */
+export class FeedUserStateConfigGenerator implements FeedConfigGenerator {
+  private readonly snotraClient: ISnotraClient;
+  private readonly generators: Record<UserState, FeedConfigGenerator>;
+
+  constructor(
+    snotraClient: ISnotraClient,
+    generators: Record<UserState, FeedConfigGenerator>,
+  ) {
+    this.snotraClient = snotraClient;
+    this.generators = generators;
+  }
+
+  async generate(ctx, userId, pageSize, offset): Promise<FeedConfig> {
+    const userState = await this.snotraClient.fetchUserState({
+      user_id: userId,
+      providers: { personalise: {} },
+    });
+    return this.generators[userState.personalise.state].generate(
+      ctx,
+      userId,
+      pageSize,
+      offset,
+    );
   }
 }

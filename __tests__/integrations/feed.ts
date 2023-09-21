@@ -2,10 +2,12 @@ import {
   CachedFeedClient,
   FeedClient,
   FeedConfig,
+  FeedConfigGenerator,
   FeedConfigName,
   FeedPreferencesConfigGenerator,
   FeedResponse,
   IFeedClient,
+  SimpleFeedConfigGenerator,
 } from '../../src/integrations/feed';
 import { MockContext, saveFixtures } from '../helpers';
 import { deleteKeysByPattern, ioRedisPool } from '../../src/redis';
@@ -25,6 +27,8 @@ import {
 import { SourceMemberRoles } from '../../src/roles';
 import { sourcesFixture } from '../fixture/source';
 import { usersFixture } from '../fixture/user';
+import { ISnotraClient, UserState } from '../../src/integrations/snotra';
+import { FeedUserStateConfigGenerator } from '../../src/integrations/feed/configs';
 
 let con: DataSource;
 let ctx: Context;
@@ -255,5 +259,41 @@ describe('FeedPreferencesConfigGenerator', () => {
       total_pages: 20,
       user_id: '1',
     });
+  });
+});
+
+describe('FeedUserStateConfigGenerator', () => {
+  const generators: Record<UserState, FeedConfigGenerator> = {
+    personalised: new SimpleFeedConfigGenerator({
+      feed_config_name: FeedConfigName.Vector,
+    }),
+    non_personalised: new SimpleFeedConfigGenerator({
+      feed_config_name: FeedConfigName.Personalise,
+    }),
+  };
+
+  it('should generate config based on user state', async () => {
+    const mockClient = mock<ISnotraClient>();
+    mockClient.fetchUserState.mockResolvedValueOnce({
+      personalise: { state: 'personalised' },
+    });
+    const generator = new FeedUserStateConfigGenerator(mockClient, generators);
+    const actual = await generator.generate(ctx, '1', 2, 3);
+    expect(actual.user_id).toEqual('1');
+    expect(actual.feed_config_name).toEqual('vector');
+    expect(mockClient.fetchUserState).toBeCalledWith({
+      user_id: '1',
+      providers: { personalise: {} },
+    });
+  });
+
+  it('should generate config based on user state', async () => {
+    const mockClient = mock<ISnotraClient>();
+    mockClient.fetchUserState.mockResolvedValueOnce({
+      personalise: { state: 'non_personalised' },
+    });
+    const generator = new FeedUserStateConfigGenerator(mockClient, generators);
+    const actual = await generator.generate(ctx, '1', 2, 3);
+    expect(actual.feed_config_name).toEqual('personalise');
   });
 });
