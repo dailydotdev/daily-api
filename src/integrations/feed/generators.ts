@@ -10,8 +10,10 @@ import { CachedFeedClient, FeedClient } from './clients';
 import { ioRedisPool } from '../../redis';
 import {
   FeedPreferencesConfigGenerator,
+  FeedUserStateConfigGenerator,
   SimpleFeedConfigGenerator,
 } from './configs';
+import { SnotraClient, UserState } from '../snotra';
 
 /**
  * Utility class for easily generating feeds using provided config and client
@@ -42,8 +44,10 @@ export class FeedGenerator {
   }
 }
 
+export const snotraClient = new SnotraClient();
 export const feedClient = new FeedClient();
 export const cachedFeedClient = new CachedFeedClient(feedClient, ioRedisPool);
+
 const opts = {
   includeBlockedTags: true,
   includeAllowedTags: true,
@@ -51,21 +55,27 @@ const opts = {
   includeSourceMemberships: true,
 };
 
+const userStateConfigs: Record<UserState, FeedConfigGenerator> = {
+  personalised: new FeedPreferencesConfigGenerator(
+    { feed_config_name: FeedConfigName.Vector },
+    opts,
+  ),
+  non_personalised: new FeedPreferencesConfigGenerator(
+    { feed_config_name: FeedConfigName.Personalise },
+    opts,
+  ),
+};
+
 export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
   {
     '11': new FeedGenerator(
       cachedFeedClient,
-      new FeedPreferencesConfigGenerator(
-        { feed_config_name: FeedConfigName.Personalise },
-        opts,
-      ),
+      userStateConfigs.non_personalised,
     ),
-    '14': new FeedGenerator(
+    '14': new FeedGenerator(cachedFeedClient, userStateConfigs.personalised),
+    '15': new FeedGenerator(
       cachedFeedClient,
-      new FeedPreferencesConfigGenerator(
-        { feed_config_name: FeedConfigName.Vector },
-        opts,
-      ),
+      new FeedUserStateConfigGenerator(snotraClient, userStateConfigs),
     ),
     popular: new FeedGenerator(
       cachedFeedClient,
