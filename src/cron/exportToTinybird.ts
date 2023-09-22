@@ -25,6 +25,7 @@ export interface TinybirdPost {
   banned: number;
   flags_json_str: string;
 }
+
 export interface PostsRepositoryDependency {
   getForTinybirdExport(latest: Date): Promise<TinybirdPost[]>;
 }
@@ -62,8 +63,10 @@ export class PostsRepository implements PostsRepositoryDependency {
     );
   }
 }
+
 export interface PostsMetadataRepositoryDependency {
   latest(): Promise<Date>;
+
   append(posts: TinybirdPost[]): Promise<PostDatasourceResult>;
 }
 
@@ -73,6 +76,7 @@ export class PostsMetadataRepository
   private readonly tinybirdClient: ITinybirdClient;
   private readonly datasource: string;
   private readonly latestQuery: string;
+
   constructor(tinybirdClient: ITinybirdClient, datasource: string) {
     this.tinybirdClient = tinybirdClient;
     this.datasource = datasource;
@@ -129,11 +133,13 @@ export class PostsMetadataRepository
     );
   }
 }
+
 export interface TinybirdExportResult {
   exported: number;
   since: Date;
   tinybird: PostDatasourceResult;
 }
+
 export class TinybirdExportService {
   private readonly logger: FastifyBaseLogger;
   private readonly postsRepository: PostsRepositoryDependency;
@@ -151,9 +157,8 @@ export class TinybirdExportService {
 
   public async export(): Promise<TinybirdExportResult> {
     const latest = await this.postsMetadataRepository.latest();
-    const postsToExport = await this.postsRepository.getForTinybirdExport(
-      latest,
-    );
+    const postsToExport =
+      await this.postsRepository.getForTinybirdExport(latest);
 
     if (postsToExport.length === 0) {
       return {
@@ -163,9 +168,8 @@ export class TinybirdExportService {
       };
     }
 
-    const tinybirdResult = await this.postsMetadataRepository.append(
-      postsToExport,
-    );
+    const tinybirdResult =
+      await this.postsMetadataRepository.append(postsToExport);
 
     return {
       since: latest,
