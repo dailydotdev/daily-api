@@ -871,50 +871,6 @@ describe('query mySourceMemberships', () => {
   });
 });
 
-describe('query checkUserMembership', () => {
-  const QUERY = `
-    query CheckUserMembership($userId: ID!, $sourceId: ID!) {
-      member: checkUserMembership(memberId: $userId, sourceId: $sourceId) {
-        role
-      }
-    }
-  `;
-
-  it('should not authorize when source does not exist', () =>
-    testQueryErrorCode(
-      client,
-      { query: QUERY, variables: { userId: '2', sourceId: 'a' } },
-      'UNAUTHENTICATED',
-    ));
-
-  it('should return forbidden when user is not a member', async () => {
-    loggedUser = '3';
-    const params = { userId: '2', sourceId: 'a' };
-    await con.getRepository(SourceMember).delete(params);
-    await con.getRepository(Source).update({ id: 'a' }, { private: true });
-
-    return testQueryErrorCode(
-      client,
-      { query: QUERY, variables: params },
-      'FORBIDDEN',
-    );
-  });
-
-  it('should return member', async () => {
-    loggedUser = '1';
-    const params = { userId: '2', sourceId: 'a' };
-    await con
-      .getRepository(SourceMember)
-      .update(params, { role: SourceMemberRoles.Blocked });
-    await con.getRepository(Source).update({ id: 'a' }, { private: true });
-    const res = await client.query(QUERY, {
-      variables: params,
-    });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.member).toBeTruthy();
-  });
-});
-
 describe('query sourceMemberByToken', () => {
   const QUERY = `
 query SourceMemberByToken($token: String!) {
