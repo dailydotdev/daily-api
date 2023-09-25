@@ -1,4 +1,4 @@
-import faker from 'faker';
+import { faker } from '@faker-js/faker';
 import _ from 'lodash';
 import {
   disposeGraphQLTesting,
@@ -23,15 +23,14 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  const now = new Date();
-  const randomDate = (): Date => faker.date.past(null, now);
+  const randomDate = (): Date => faker.date.past();
   integrations = Array.from(Array(5))
     .map(() =>
       con.getRepository(Integration).create({
         timestamp: randomDate(),
-        logo: faker.image.imageUrl(),
-        title: faker.random.words(1),
-        subtitle: faker.random.words(1),
+        logo: faker.image.url(),
+        title: faker.lorem.word(),
+        subtitle: faker.lorem.word(),
         url: faker.internet.url(),
       }),
     )
