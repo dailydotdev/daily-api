@@ -219,4 +219,12 @@ export const workers: Worker[] = [
     topic: 'api.v1.source-created',
     subscription: 'api.source-created-squad-owner-mailing',
   },
+  {
+    topic: 'api.v1.user-created',
+    subscription: 'api.user-created-add-personalized-digest',
+  },
+  {
+    topic: 'user-updated',
+    subscription: 'api.user-updated-toggle-personalized-digest',
+  },
 ];
