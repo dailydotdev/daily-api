@@ -28,9 +28,9 @@
   "dependencies": {
     "@dailydotdev/graphql-redis-subscriptions": "^2.4.3",
     "@dailydotdev/ts-ioredis-pool": "^1.0.2",
-    "@fastify/cookie": "^8.3.0",
+    "@fastify/cookie": "^9.1.0",
     "@fastify/cors": "^8.4.0",
-    "@fastify/helmet": "^10.1.1",
+    "@fastify/helmet": "^11.1.1",
     "@fastify/rate-limit": "^8.0.3",
     "@fastify/websocket": "^8.2.0",
     "@google-cloud/pubsub": "^3.7.1",
