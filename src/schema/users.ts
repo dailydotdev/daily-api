@@ -357,7 +357,7 @@ export const typeDefs = /* GraphQL */ `
 
   type PersonalizedDigest {
     preferredDay: Int!
-    preferredTime: Int!
+    preferredHour: Int!
     preferredTimezone: String!
   }
 
@@ -857,6 +857,10 @@ export const resolvers: IResolvers<any, Context> = {
       const personalizedDigest = await ctx
         .getRepository(UserPersonalizedDigest)
         .findOneBy({ userId: ctx.userId });
+
+      if (!personalizedDigest) {
+        throw new NotFoundError('Not subscribed to personalized digest');
+      }
 
       return personalizedDigest;
     },

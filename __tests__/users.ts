@@ -39,6 +39,7 @@ import request from 'supertest';
 import { FastifyInstance } from 'fastify';
 import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
+import { UserPersonalizedDigest } from '../src/entity/UserPersonalizedDigest';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -1971,5 +1972,53 @@ describe('query referralCampaign', () => {
       { query: QUERY, variables: { referralOrigin: 'knightcampaign' } },
       'UNAUTHENTICATED',
     );
+  });
+});
+
+describe('query personalizedDigest', () => {
+  const QUERY = `
+    query PersonalizedDigest {
+      personalizedDigest {
+        preferredDay
+        preferredHour
+        preferredTimezone
+      }
+  }`;
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: {} },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should throw not found exception when user is not subscribed', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { token: 'notfound' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return personalized digest settings for user', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: loggedUser,
+    });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.personalizedDigest).toMatchObject({
+      preferredDay: 1,
+      preferredHour: 9,
+      preferredTimezone: 'Etc/UTC',
+    });
   });
 });
