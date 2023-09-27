@@ -13,7 +13,7 @@ export class UserPersonalizedDigest {
   @Column({ type: 'smallint', default: DayOfWeek.Monday })
   preferredDay = DayOfWeek.Monday;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', default: 'Etc/UTC' })
   preferredTimezone: string;
 
   @OneToOne(() => User, {

@@ -16,7 +16,7 @@ const worker: Worker = {
     if (!user.acceptedMarketing && newProfile.acceptedMarketing) {
       await con.getRepository(UserPersonalizedDigest).save({
         userId: newProfile.id,
-        timezone: newProfile.timezone, // TODO WT-1820-personalized-digest timezone can be null
+        timezone: newProfile.timezone,
       });
     } else if (user.acceptedMarketing && !newProfile.acceptedMarketing) {
       if (newProfile.id) {
