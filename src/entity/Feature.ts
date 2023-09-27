@@ -7,8 +7,8 @@ export enum FeatureType {
 }
 
 export enum FeatureValue {
-  Up = 1,
-  Down = -1,
+  Allow = 1,
+  Block = -1,
 }
 
 @Entity()
@@ -29,6 +29,6 @@ export class Feature {
   @Column({ default: () => 'now()' })
   createdAt: Date;
 
-  @Column({ type: 'smallint', default: FeatureValue.Up })
-  value: FeatureValue = FeatureValue.Up;
+  @Column({ type: 'smallint', default: FeatureValue.Allow })
+  value: FeatureValue = FeatureValue.Allow;
 }
