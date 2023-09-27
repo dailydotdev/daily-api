@@ -874,7 +874,7 @@ describe('boot experimentation', () => {
       .set('User-Agent', TEST_UA)
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
-    expect(res.body.exp.a).toEqual({ search: true, squad: true });
+    expect(res.body.exp.a).toEqual({ search: 1, squad: 1 });
   });
 });
 
