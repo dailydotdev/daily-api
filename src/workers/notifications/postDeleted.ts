@@ -12,33 +12,35 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     const { post } = data;
 
-    try {
-      await con
-        .getRepository(Notification)
-        .createQueryBuilder()
-        .delete()
-        .where({
-          referenceType: 'post',
-          referenceId: post?.id,
-        })
-        .execute();
-      logger.info(
+    const databasePost = await con
+      .getRepository(Post)
+      .findOneBy({ id: post?.id });
+    if (!databasePost || !databasePost?.deleted) {
+      return logger.error(
         {
           data,
           messageId: message.messageId,
-        },
-        'deleted notifications due to post deletion',
-      );
-    } catch (err) {
-      logger.error(
-        {
-          data,
-          messageId: message.messageId,
-          err,
         },
         'failed to delete notifications due to post deletion',
       );
     }
+
+    await con
+      .getRepository(Notification)
+      .createQueryBuilder()
+      .delete()
+      .where({
+        referenceType: 'post',
+        referenceId: post.id,
+      })
+      .execute();
+    logger.info(
+      {
+        data,
+        messageId: message.messageId,
+      },
+      'deleted notifications due to post deletion',
+    );
   },
 };
 

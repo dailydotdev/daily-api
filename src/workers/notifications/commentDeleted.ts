@@ -1,5 +1,5 @@
 import { messageToJson, Worker } from '../worker';
-import { Notification, Comment } from '../../entity';
+import { Notification, Comment, Post } from '../../entity';
 import { ChangeObject } from '../../types';
 
 interface Data {
@@ -12,33 +12,35 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     const { comment } = data;
 
-    try {
-      await con
-        .getRepository(Notification)
-        .createQueryBuilder()
-        .delete()
-        .where({
-          referenceType: 'comment',
-          referenceId: comment?.id,
-        })
-        .execute();
-      logger.info(
+    const databaseComment = await con
+      .getRepository(Comment)
+      .findOneBy({ id: comment?.id });
+    if (!databaseComment) {
+      return logger.error(
         {
           data,
           messageId: message.messageId,
-        },
-        'deleted notifications due to comment deletion',
-      );
-    } catch (err) {
-      logger.error(
-        {
-          data,
-          messageId: message.messageId,
-          err,
         },
         'failed to delete notifications due to comment deletion',
       );
     }
+
+    await con
+      .getRepository(Notification)
+      .createQueryBuilder()
+      .delete()
+      .where({
+        referenceType: 'comment',
+        referenceId: comment.id,
+      })
+      .execute();
+    logger.info(
+      {
+        data,
+        messageId: message.messageId,
+      },
+      'deleted notifications due to comment deletion',
+    );
   },
 };
 

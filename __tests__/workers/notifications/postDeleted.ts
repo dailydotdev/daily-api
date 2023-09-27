@@ -98,7 +98,23 @@ it('should not delete notification objects if post not found', async () => {
   const avatars = await con.getRepository(NotificationAvatar).find();
   expect(avatars.length).toEqual(1);
 });
+
+it('should not delete notification objects if post not deleted', async () => {
+  await expectSuccessfulBackground(worker, {
+    post: {
+      id: 'sp1',
+    },
+  });
+
+  const notifications = await con.getRepository(Notification).find();
+  expect(notifications.length).toEqual(1);
+  const attachments = await con.getRepository(NotificationAttachment).find();
+  expect(attachments.length).toEqual(1);
+  const avatars = await con.getRepository(NotificationAvatar).find();
+  expect(avatars.length).toEqual(1);
+});
 it('should delete all notification objects related to a deleted post', async () => {
+  await con.getRepository(SharePost).update({ id: 'sp1' }, { deleted: true });
   await expectSuccessfulBackground(worker, {
     post: {
       id: 'sp1',
