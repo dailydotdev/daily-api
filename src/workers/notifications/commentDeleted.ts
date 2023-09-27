@@ -12,11 +12,8 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     const { comment } = data;
 
-    const databaseComment = await con
-      .getRepository(Comment)
-      .findOneBy({ id: comment?.id });
-    if (!databaseComment) {
-      return logger.error(
+    if (!comment?.id) {
+      return logger.info(
         {
           data,
           messageId: message.messageId,

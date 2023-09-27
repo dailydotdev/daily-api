@@ -16,7 +16,7 @@ const worker: Worker = {
       .getRepository(Post)
       .findOneBy({ id: post?.id });
     if (!databasePost || !databasePost?.deleted) {
-      return logger.error(
+      return logger.info(
         {
           data,
           messageId: message.messageId,
