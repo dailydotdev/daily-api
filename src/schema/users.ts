@@ -509,15 +509,15 @@ export const typeDefs = /* GraphQL */ `
     """
     subscribePersonalizedDigest(
       """
-      Preferred time of the day. Expected value is 0-23.
+      Preferred hour of the day. Expected value is 0-23.
       """
-      time: Int!
+      hour: Int!
       """
       Preferred day of the week. Expected value is 0-6
       """
       day: Int!
       """
-      Preferred timezone relevant to the time and day.
+      Preferred timezone relevant to the hour and day.
       """
       timezone: String!
     ): PersonalizedDigest @auth
@@ -1027,16 +1027,16 @@ export const resolvers: IResolvers<any, Context> = {
     subscribePersonalizedDigest: async (
       _,
       args: {
-        time?: number;
+        hour?: number;
         day?: number;
         timezone?: string;
       },
       ctx: Context,
     ): Promise<GQLPersonalizedDigest> => {
-      const { time, day, timezone } = args;
+      const { hour, day, timezone } = args;
 
-      if (time < 0 || time > 23) {
-        throw new ValidationError('Invalid time');
+      if (hour < 0 || hour > 23) {
+        throw new ValidationError('Invalid hour');
       }
 
       if (day < 0 || day > 6) {
@@ -1050,7 +1050,7 @@ export const resolvers: IResolvers<any, Context> = {
       const personalizedDigest = await repo.save({
         userId: ctx.userId,
         preferredDay: day,
-        preferredHour: time,
+        preferredHour: hour,
         preferredTimezone: timezone,
       });
 

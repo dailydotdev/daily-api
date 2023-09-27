@@ -40,6 +40,7 @@ import { FastifyInstance } from 'fastify';
 import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { UserPersonalizedDigest } from '../src/entity/UserPersonalizedDigest';
+import { log } from 'console';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -2020,5 +2021,193 @@ describe('query personalizedDigest', () => {
       preferredHour: 9,
       preferredTimezone: 'Etc/UTC',
     });
+  });
+});
+
+describe('mutation subscribePersonalizedDigest', () => {
+  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int!, $day: Int!, $timezone: String!) {
+    subscribePersonalizedDigest(hour: $hour, day: $day, timezone: $timezone) {
+      preferredDay
+      preferredHour
+      preferredTimezone
+    }
+  }`;
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          day: 1,
+          hour: 9,
+          timezone: 'Etc/UTC',
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should throw validation error if day param is less then 0', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          day: -1,
+          hour: 9,
+          timezone: 'Etc/UTC',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw validation error if day param is more then 6', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          day: 7,
+          hour: 9,
+          timezone: 'Etc/UTC',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw validation error if day param is less then 0', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          day: 1,
+          hour: -1,
+          timezone: 'Etc/UTC',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw validation error if hour param is more then 23', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          day: 1,
+          hour: 24,
+          timezone: 'Etc/UTC',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should subscribe to personal digest for user with settings', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        day: 3,
+        hour: 17,
+        timezone: 'Europe/Zagreb',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.subscribePersonalizedDigest).toMatchObject({
+      preferredDay: 3,
+      preferredHour: 17,
+      preferredTimezone: 'Europe/Zagreb',
+    });
+  });
+
+  it('should update settings for personal digest if already exists', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        day: 3,
+        hour: 17,
+        timezone: 'Europe/Zagreb',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const resUpdate = await client.mutate(MUTATION, {
+      variables: {
+        day: 5,
+        hour: 22,
+        timezone: 'Europe/Athens',
+      },
+    });
+    expect(resUpdate.errors).toBeFalsy();
+    expect(resUpdate.data.subscribePersonalizedDigest).toMatchObject({
+      preferredDay: 5,
+      preferredHour: 22,
+      preferredTimezone: 'Europe/Athens',
+    });
+  });
+});
+
+describe('mutation unsubscribePersonalizedDigest', () => {
+  const MUTATION = `mutation UnsubscribePersonalizedDigest {
+    unsubscribePersonalizedDigest {
+      _
+    }
+  }`;
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should unsubscribe from personal digest for user', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: loggedUser,
+    });
+
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: loggedUser,
+      });
+    expect(personalizedDigest).toBeNull();
+  });
+
+  it('should not throw error if not subscribed', async () => {
+    loggedUser = '1';
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: loggedUser,
+      });
+    expect(personalizedDigest).toBeNull();
+
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
   });
 });
