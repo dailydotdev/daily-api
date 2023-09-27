@@ -1,5 +1,5 @@
 import { messageToJson, Worker } from '../worker';
-import { Notification, Comment, Post } from '../../entity';
+import { Notification, Comment } from '../../entity';
 import { ChangeObject } from '../../types';
 
 interface Data {
