@@ -6,6 +6,11 @@ export enum FeatureType {
   Search = 'search',
 }
 
+export enum FeatureValue {
+  Allow = 1,
+  Block = -1,
+}
+
 @Entity()
 export class Feature {
   @PrimaryColumn({ type: 'text' })
@@ -23,4 +28,7 @@ export class Feature {
 
   @Column({ default: () => 'now()' })
   createdAt: Date;
+
+  @Column({ type: 'smallint', default: FeatureValue.Allow })
+  value: FeatureValue = FeatureValue.Allow;
 }

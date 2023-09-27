@@ -323,7 +323,10 @@ const getExperimentation = async (
   return {
     f: getEncryptedFeatures(),
     e,
-    a: features.reduce((acc, { feature }) => ({ [feature]: true, ...acc }), {}),
+    a: features.reduce(
+      (acc, { feature, value }) => ({ [feature]: value, ...acc }),
+      {},
+    ),
   };
 };
 
