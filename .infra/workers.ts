@@ -124,6 +124,14 @@ export const workers: Worker[] = [
   },
   // Notifications
   {
+    topic: 'api.v1.comment-deleted',
+    subscription: 'api.comment-deleted-notification-cleanup',
+  },
+  {
+    topic: 'post-banned-or-removed',
+    subscription: 'api.post-deleted-notification-cleanup',
+  },
+  {
     topic: 'community-link-rejected',
     subscription: 'api.community-picks-failed-notification',
   },

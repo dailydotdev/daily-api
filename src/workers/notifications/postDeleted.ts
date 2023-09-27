@@ -1,0 +1,45 @@
+import { messageToJson, Worker } from '../worker';
+import { Notification, Post } from '../../entity';
+import { ChangeObject } from '../../types';
+
+interface Data {
+  post: ChangeObject<Post>;
+}
+
+const worker: Worker = {
+  subscription: 'api.post-deleted-notification-cleanup',
+  handler: async (message, con, logger) => {
+    const data: Data = messageToJson(message);
+    const { post } = data;
+
+    try {
+      await con
+        .getRepository(Notification)
+        .createQueryBuilder()
+        .delete()
+        .where({
+          referenceType: 'post',
+          referenceId: post?.id,
+        })
+        .execute();
+      logger.info(
+        {
+          data,
+          messageId: message.messageId,
+        },
+        'deleted notifications due to post deletion',
+      );
+    } catch (err) {
+      logger.error(
+        {
+          data,
+          messageId: message.messageId,
+          err,
+        },
+        'failed to delete notifications due to post deletion',
+      );
+    }
+  },
+};
+
+export default worker;
