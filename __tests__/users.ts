@@ -40,7 +40,6 @@ import { FastifyInstance } from 'fastify';
 import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { UserPersonalizedDigest } from '../src/entity/UserPersonalizedDigest';
-import { log } from 'console';
 
 let con: DataSource;
 let app: FastifyInstance;
