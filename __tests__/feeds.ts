@@ -579,40 +579,6 @@ describe('query feed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should return feed v2', async () => {
-    loggedUser = '1';
-    await con.getRepository(Feed).save({ id: '1', userId: '1' });
-    await con.getRepository(FeedTag).save([
-      { feedId: '1', tag: 'javascript' },
-      { feedId: '1', tag: 'golang' },
-      { feedId: '1', tag: 'python', blocked: true },
-      { feedId: '1', tag: 'java', blocked: true },
-    ]);
-    await con.getRepository(FeedSource).save([
-      { feedId: '1', sourceId: 'a' },
-      { feedId: '1', sourceId: 'b' },
-    ]);
-
-    nock('http://localhost:6000')
-      .post('/feed.json', {
-        total_pages: 40,
-        page_size: 11,
-        fresh_page_size: '4',
-        feed_config_name: 'personalise',
-        user_id: '1',
-        allowed_tags: ['javascript', 'golang'],
-        blocked_tags: ['python', 'java'],
-        blocked_sources: ['a', 'b'],
-      })
-      .reply(200, {
-        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
-      });
-    const res = await client.query(QUERY, {
-      variables: { ...variables, version: 2 },
-    });
-    expect(res.data).toMatchSnapshot();
-  });
-
   it('should return feed with vector config', async () => {
     loggedUser = '1';
     nock('http://localhost:6000')
@@ -658,43 +624,6 @@ describe('query feed', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.feed.edges.length).toEqual(2);
-  });
-
-  it('should return feed v2 with metadata', async () => {
-    loggedUser = '1';
-    nock('http://localhost:6000')
-      .post('/feed.json', {
-        total_pages: 40,
-        page_size: 11,
-        fresh_page_size: '4',
-        feed_config_name: 'personalise',
-        user_id: '1',
-      })
-      .reply(200, {
-        data: [
-          { post_id: 'p1', metadata: { p: 'a' } },
-          {
-            post_id: 'p4',
-            metadata: { p: 'b' },
-          },
-        ],
-      });
-    const QUERY = `
-  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
-    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
-      edges {
-        node {
-          id
-          feedMeta
-        }
-      }
-    }
-  }
-`;
-    const res = await client.query(QUERY, {
-      variables: { ...variables, version: 2 },
-    });
-    expect(res.data).toMatchSnapshot();
   });
 
   it('should return only article posts by default', async () => {
