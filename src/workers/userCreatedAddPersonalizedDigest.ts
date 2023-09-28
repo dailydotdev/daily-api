@@ -12,14 +12,10 @@ const worker: Worker = {
     const data = messageToJson<Data>(message);
     const { user } = data;
 
-    if (user.acceptedMarketing) {
-      if (user.id) {
-        await con.getRepository(UserPersonalizedDigest).save({
-          userId: user.id,
-          timezone: user.timezone,
-        });
-      }
-    }
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: user.id,
+      preferredTimezone: user.timezone,
+    });
   },
 };
 
