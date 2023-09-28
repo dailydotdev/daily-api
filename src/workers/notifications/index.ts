@@ -20,6 +20,8 @@ import memberJoinedSource from './squadMemberJoined';
 import sourceMemberRoleChanged from './sourceMemberRoleChanged';
 import { TypeOrmError } from '../../errors';
 import postMention from './postMention';
+import commentDeleted from './commentDeleted';
+import postDeleted from './postDeleted';
 
 function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -68,4 +70,9 @@ const notificationWorkers: NotificationWorker[] = [
   sourceMemberRoleChanged,
 ];
 
-export const workers = notificationWorkers.map(notificationWorkerToWorker);
+export const workers = [
+  ...notificationWorkers.map(notificationWorkerToWorker),
+  // Regular workers under notification scope
+  commentDeleted,
+  postDeleted,
+];
