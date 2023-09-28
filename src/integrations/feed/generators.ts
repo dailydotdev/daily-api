@@ -100,5 +100,5 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
 );
 
 export const versionToFeedGenerator = (version: number): FeedGenerator => {
-  return feedGenerators[version.toString()] ?? feedGenerators['11'];
+  return feedGenerators[version.toString()] ?? feedGenerators['15'];
 };

@@ -13,7 +13,7 @@ export interface FeatureFlag {
 export const DEFAULT_FLAGS = {
   feed_version: {
     enabled: true,
-    value: process.env.NODE_ENV === 'production' ? 11 : 1,
+    value: process.env.NODE_ENV === 'production' ? 15 : 1,
   },
   onboarding_v2: {
     enabled: true,
