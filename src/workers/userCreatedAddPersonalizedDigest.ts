@@ -9,6 +9,10 @@ interface Data {
 const worker: Worker = {
   subscription: 'api.user-created-add-personalized-digest',
   handler: async (message, con) => {
+    // currently we won't enroll new users to digest until we test
+    // how selected users react to emails in terms of unsubscribing
+    return;
+
     const data = messageToJson<Data>(message);
     const { user } = data;
 
