@@ -42,7 +42,7 @@ import {
 import experimentAllocated from './experimentAllocated';
 import sourceSquadCreatedUserAction from './sourceSquadCreatedUserAction';
 import sourceSquadCreatedOwnerMailing from './sourceSquadCreatedOwnerMailing';
-import userCreatedAddPersonalizedDigest from './userCreatedAddPersonalizedDigest';
+// import userCreatedAddPersonalizedDigest from './userCreatedAddPersonalizedDigest';
 import generatePersonalizedDigestForUser from './generatePersonalizedDigestForUser';
 
 export { Worker } from './worker';
@@ -85,7 +85,9 @@ export const workers: Worker[] = [
   experimentAllocated,
   sourceSquadCreatedUserAction,
   sourceSquadCreatedOwnerMailing,
-  userCreatedAddPersonalizedDigest,
+  // currently we won't enroll new users to digest until we test
+  // how selected users react to emails in terms of unsubscribing
+  // userCreatedAddPersonalizedDigest,
   generatePersonalizedDigestForUser,
   cdc,
   ...notificationWorkers,
