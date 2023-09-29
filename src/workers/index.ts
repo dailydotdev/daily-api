@@ -43,6 +43,7 @@ import experimentAllocated from './experimentAllocated';
 import sourceSquadCreatedUserAction from './sourceSquadCreatedUserAction';
 import sourceSquadCreatedOwnerMailing from './sourceSquadCreatedOwnerMailing';
 import userCreatedAddPersonalizedDigest from './userCreatedAddPersonalizedDigest';
+import generatePersonalizedDigestForUser from './generatePersonalizedDigestForUser';
 
 export { Worker } from './worker';
 
@@ -85,6 +86,7 @@ export const workers: Worker[] = [
   sourceSquadCreatedUserAction,
   sourceSquadCreatedOwnerMailing,
   userCreatedAddPersonalizedDigest,
+  generatePersonalizedDigestForUser,
   cdc,
   ...notificationWorkers,
 ];
