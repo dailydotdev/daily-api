@@ -46,6 +46,6 @@ export const crons: Cron[] = [
   },
   {
     name: 'personalized-digest',
-    schedule: '0 0 * * 0'
+    schedule: '0 0 * * *'
   }
 ];

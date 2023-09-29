@@ -13,34 +13,75 @@ beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-beforeEach(async () => {
-  await saveFixtures(con, User, usersFixture);
-  await con.getRepository(UserPersonalizedDigest).save(
-    usersFixture.map((item) => ({
-      userId: item.id,
-    })),
-  );
-});
-
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
   notifyGeneratePersonalizedDigest: jest.fn(),
 }));
 
-it('should schedule personalized digest generation for users', async () => {
-  await expectSuccessfulCron(cron);
+describe('personalizedDigest cron', () => {
+  const preferredDay = (new Date().getDay() + 1) % 7;
 
-  const personalizedDigests = await con
-    .getRepository(UserPersonalizedDigest)
-    .find();
+  beforeEach(async () => {
+    jest.resetAllMocks();
 
-  expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(
-    personalizedDigests.length,
-  );
-  personalizedDigests.forEach((personalizedDigest) => {
-    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith(
-      expect.anything(),
-      personalizedDigest,
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should schedule generation', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+      })),
     );
+
+    await expectSuccessfulCron(cron);
+
+    const scheduledPersonalizedDigests = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({
+        preferredDay,
+      });
+
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(
+      usersToSchedule.length,
+    );
+    scheduledPersonalizedDigests.forEach((personalizedDigest) => {
+      expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith(
+        expect.anything(),
+        personalizedDigest,
+      );
+    });
+  });
+
+  it('should only schedule generation for next day subscriptions', async () => {
+    const [, ...usersToSchedule] = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+      })),
+    );
+
+    await expectSuccessfulCron(cron);
+
+    const scheduledPersonalizedDigests = await con
+      .getRepository(UserPersonalizedDigest)
+      .findBy({
+        preferredDay,
+      });
+
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(
+      usersToSchedule.length,
+    );
+    scheduledPersonalizedDigests.forEach((personalizedDigest) => {
+      expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith(
+        expect.anything(),
+        personalizedDigest,
+      );
+    });
   });
 });

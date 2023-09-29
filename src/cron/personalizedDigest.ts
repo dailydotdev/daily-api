@@ -5,9 +5,13 @@ import { Cron } from './cron';
 const cron: Cron = {
   name: 'personalized-digest',
   handler: async (con, logger) => {
+    const nextPreferredDay = (new Date().getDay() + 1) % 7;
     const personalizedDigestQuery = con
       .createQueryBuilder()
-      .from(UserPersonalizedDigest, 'upd');
+      .from(UserPersonalizedDigest, 'upd')
+      .where('upd."preferredDay" = :nextPreferredDay', {
+        nextPreferredDay,
+      });
 
     const personalizedDigestStream = await personalizedDigestQuery.stream();
 
