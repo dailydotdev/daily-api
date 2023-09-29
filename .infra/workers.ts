@@ -231,4 +231,8 @@ export const workers: Worker[] = [
     topic: 'api.v1.user-created',
     subscription: 'api.user-created-add-personalized-digest',
   },
+  {
+    topic: 'api.v1.generate-personalized-digest',
+    subscription: 'api.generate-personalized-digest-for-user',
+  }
 ];
