@@ -38,6 +38,7 @@ import { In } from 'typeorm';
 import { checkDisallowHandle, DisallowHandle } from '../entity/DisallowHandle';
 import { DayOfWeek } from '../types';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
+import { getTimezoneOffset } from 'date-fns-tz';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -1027,9 +1028,9 @@ export const resolvers: IResolvers<any, Context> = {
     subscribePersonalizedDigest: async (
       _,
       args: {
-        hour?: number;
-        day?: number;
-        timezone?: string;
+        hour: number;
+        day: number;
+        timezone: string;
       },
       ctx: Context,
     ): Promise<GQLPersonalizedDigest> => {
@@ -1043,7 +1044,9 @@ export const resolvers: IResolvers<any, Context> = {
         throw new ValidationError('Invalid day');
       }
 
-      // TODO WT-1820-personalized-digest validate timezone
+      if (Number.isNaN(getTimezoneOffset(timezone))) {
+        throw new ValidationError('Invalid timezone');
+      }
 
       const repo = ctx.con.getRepository(UserPersonalizedDigest);
 

@@ -2115,6 +2115,23 @@ describe('mutation subscribePersonalizedDigest', () => {
     );
   });
 
+  it('should throw validation error if invalid timezone is provided', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          day: 1,
+          hour: 9,
+          timezone: 'Space/Mars',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should subscribe to personal digest for user with settings', async () => {
     loggedUser = '1';
 
