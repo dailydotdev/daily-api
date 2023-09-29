@@ -1,5 +1,5 @@
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
-import worker from '../../src/workers/generatePersonalizedDigestForUser';
+import worker from '../../src/workers/personalizedDigestEmail';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { Post, Source, User } from '../../src/entity';
@@ -31,7 +31,7 @@ beforeEach(async () => {
   });
 });
 
-describe('generatePersonalizedDigestForUser worker', () => {
+describe('personalizedDigestEmail worker', () => {
   it('should generate personalized digest for user', async () => {
     const personalizedDigest = await con
       .getRepository(UserPersonalizedDigest)

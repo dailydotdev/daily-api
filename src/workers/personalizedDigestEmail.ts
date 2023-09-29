@@ -56,7 +56,7 @@ const getEmailSendDate = ({
 };
 
 const worker: Worker = {
-  subscription: 'api.generate-personalized-digest-for-user',
+  subscription: 'api.personalized-digest-email',
   handler: async (message, con) => {
     const data = messageToJson<Data>(message);
     const { personalizedDigest } = data;
