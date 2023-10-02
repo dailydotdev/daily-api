@@ -40,7 +40,7 @@ describe('GET /r/:postId', () => {
     return request(app.server)
       .get('/r/p1')
       .expect(302)
-      .expect('Location', 'http://p1.com');
+      .expect('Location', 'http://p1.com/?ref=dailydev');
   });
 
   it('should render redirect html and notify view event', async () => {
@@ -52,9 +52,9 @@ describe('GET /r/:postId', () => {
       .expect(200)
       .expect('content-type', 'text/html')
       .expect('referrer-policy', 'origin, origin-when-cross-origin')
-      .expect('link', `<http://p1.com>; rel="preconnect"`)
+      .expect('link', `<http://p1.com/?ref=dailydev>; rel="preconnect"`)
       .expect(
-        '<html><head><meta http-equiv="refresh" content="0;URL=http://p1.com"></head></html>',
+        '<html><head><meta http-equiv="refresh" content="0;URL=http://p1.com/?ref=dailydev"></head></html>',
       );
     expect(notifyView).toBeCalledWith(
       expect.anything(),
@@ -73,9 +73,19 @@ describe('GET /r/:postId', () => {
       .expect(200)
       .expect('content-type', 'text/html')
       .expect('referrer-policy', 'origin, origin-when-cross-origin')
-      .expect('link', `<http://p1.com>; rel="preconnect"`)
+      .expect('link', `<http://p1.com/?ref=dailydev>; rel="preconnect"`)
       .expect(
-        '<html><head><meta http-equiv="refresh" content="0;URL=http://p1.com#id"></head></html>',
+        '<html><head><meta http-equiv="refresh" content="0;URL=http://p1.com/?ref=dailydev#id"></head></html>',
       );
+  });
+
+  it('should concat query params correctly', async () => {
+    await con
+      .getRepository(ArticlePost)
+      .update({ id: 'p1' }, { url: 'http://p1.com/?a=b' });
+    return request(app.server)
+      .get('/r/p1')
+      .expect(302)
+      .expect('Location', 'http://p1.com/?a=b&ref=dailydev');
   });
 });
