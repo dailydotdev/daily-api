@@ -1,5 +1,10 @@
 import { DataSource } from 'typeorm';
-import { getDiscussionLink, pickImageUrl, sendEmail } from '../common';
+import {
+  baseNotificationEmailData,
+  getDiscussionLink,
+  pickImageUrl,
+  sendEmail,
+} from '../common';
 import { ArticlePost, Source, User } from '../entity';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import { messageToJson, Worker } from './worker';
@@ -13,6 +18,8 @@ interface Data {
 }
 
 const personalizedDigestPostsCount = 5;
+
+const emailTemplateId = 'd-328d1104d2e04fa1ab91e410e02751cb';
 
 // TODO WT-1820 replace with feed config fetch
 const getMockedPosts = async ({
@@ -77,16 +84,13 @@ const worker: Worker = {
     const userName = user.name?.trim().split(' ')[0] || user.username;
     const emailSendDate = getEmailSendDate({ personalizedDigest });
     const emailPayload: MailDataRequired = {
+      ...baseNotificationEmailData,
       to: {
         email: user.email,
         name: user.name,
       },
-      from: {
-        email: 'informer@daily.dev',
-        name: 'Weekly digest',
-      },
       sendAt: Math.floor(emailSendDate.getTime() / 1000),
-      templateId: 'd-328d1104d2e04fa1ab91e410e02751cb',
+      templateId: emailTemplateId,
       dynamicTemplateData: {
         day_name: dayName,
         first_name: userName,
