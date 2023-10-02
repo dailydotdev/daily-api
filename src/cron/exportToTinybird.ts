@@ -157,9 +157,8 @@ export class TinybirdExportService {
 
   public async export(): Promise<TinybirdExportResult> {
     const latest = await this.postsMetadataRepository.latest();
-    const postsToExport = await this.postsRepository.getForTinybirdExport(
-      latest,
-    );
+    const postsToExport =
+      await this.postsRepository.getForTinybirdExport(latest);
 
     if (postsToExport.length === 0) {
       return {
@@ -169,9 +168,8 @@ export class TinybirdExportService {
       };
     }
 
-    const tinybirdResult = await this.postsMetadataRepository.append(
-      postsToExport,
-    );
+    const tinybirdResult =
+      await this.postsMetadataRepository.append(postsToExport);
 
     return {
       since: latest,
