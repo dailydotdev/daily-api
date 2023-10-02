@@ -1,5 +1,6 @@
 import {
   handleRegex,
+  isNullOrUndefined,
   nameRegex,
   validateRegex,
   ValidateRegex,
@@ -512,15 +513,15 @@ export const typeDefs = /* GraphQL */ `
       """
       Preferred hour of the day. Expected value is 0-23.
       """
-      hour: Int!
+      hour: Int
       """
       Preferred day of the week. Expected value is 0-6
       """
-      day: Int!
+      day: Int
       """
       Preferred timezone relevant to the hour and day.
       """
-      timezone: String!
+      timezone: String
     ): PersonalizedDigest @auth
 
     """
@@ -1028,23 +1029,26 @@ export const resolvers: IResolvers<any, Context> = {
     subscribePersonalizedDigest: async (
       _,
       args: {
-        hour: number;
-        day: number;
-        timezone: string;
+        hour?: number;
+        day?: number;
+        timezone?: string;
       },
       ctx: Context,
     ): Promise<GQLPersonalizedDigest> => {
       const { hour, day, timezone } = args;
 
-      if (hour < 0 || hour > 23) {
+      if (!isNullOrUndefined(hour) && (hour < 0 || hour > 23)) {
         throw new ValidationError('Invalid hour');
       }
 
-      if (day < 0 || day > 6) {
+      if (!isNullOrUndefined(hour) && (day < 0 || day > 6)) {
         throw new ValidationError('Invalid day');
       }
 
-      if (Number.isNaN(getTimezoneOffset(timezone))) {
+      if (
+        !isNullOrUndefined(timezone) &&
+        Number.isNaN(getTimezoneOffset(timezone))
+      ) {
         throw new ValidationError('Invalid timezone');
       }
 

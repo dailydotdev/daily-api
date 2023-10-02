@@ -40,6 +40,7 @@ import { FastifyInstance } from 'fastify';
 import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { UserPersonalizedDigest } from '../src/entity/UserPersonalizedDigest';
+import { DayOfWeek } from '../src/types';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -2024,7 +2025,7 @@ describe('query personalizedDigest', () => {
 });
 
 describe('mutation subscribePersonalizedDigest', () => {
-  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int!, $day: Int!, $timezone: String!) {
+  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $timezone: String) {
     subscribePersonalizedDigest(hour: $hour, day: $day, timezone: $timezone) {
       preferredDay
       preferredHour
@@ -2038,7 +2039,7 @@ describe('mutation subscribePersonalizedDigest', () => {
       {
         query: MUTATION,
         variables: {
-          day: 1,
+          day: DayOfWeek.Monday,
           hour: 9,
           timezone: 'Etc/UTC',
         },
@@ -2089,7 +2090,7 @@ describe('mutation subscribePersonalizedDigest', () => {
       {
         query: MUTATION,
         variables: {
-          day: 1,
+          day: DayOfWeek.Monday,
           hour: -1,
           timezone: 'Etc/UTC',
         },
@@ -2106,7 +2107,7 @@ describe('mutation subscribePersonalizedDigest', () => {
       {
         query: MUTATION,
         variables: {
-          day: 1,
+          day: DayOfWeek.Monday,
           hour: 24,
           timezone: 'Etc/UTC',
         },
@@ -2123,7 +2124,7 @@ describe('mutation subscribePersonalizedDigest', () => {
       {
         query: MUTATION,
         variables: {
-          day: 1,
+          day: DayOfWeek.Monday,
           hour: 9,
           timezone: 'Space/Mars',
         },
@@ -2132,19 +2133,33 @@ describe('mutation subscribePersonalizedDigest', () => {
     );
   });
 
+  it('should subscribe to personal digest for user with default settings', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {},
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.subscribePersonalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Monday,
+      preferredHour: 9,
+      preferredTimezone: 'Etc/UTC',
+    });
+  });
+
   it('should subscribe to personal digest for user with settings', async () => {
     loggedUser = '1';
 
     const res = await client.mutate(MUTATION, {
       variables: {
-        day: 3,
+        day: DayOfWeek.Wednesday,
         hour: 17,
         timezone: 'Europe/Zagreb',
       },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.subscribePersonalizedDigest).toMatchObject({
-      preferredDay: 3,
+      preferredDay: DayOfWeek.Wednesday,
       preferredHour: 17,
       preferredTimezone: 'Europe/Zagreb',
     });
@@ -2155,7 +2170,7 @@ describe('mutation subscribePersonalizedDigest', () => {
 
     const res = await client.mutate(MUTATION, {
       variables: {
-        day: 3,
+        day: DayOfWeek.Wednesday,
         hour: 17,
         timezone: 'Europe/Zagreb',
       },
@@ -2164,14 +2179,14 @@ describe('mutation subscribePersonalizedDigest', () => {
 
     const resUpdate = await client.mutate(MUTATION, {
       variables: {
-        day: 5,
+        day: DayOfWeek.Friday,
         hour: 22,
         timezone: 'Europe/Athens',
       },
     });
     expect(resUpdate.errors).toBeFalsy();
     expect(resUpdate.data.subscribePersonalizedDigest).toMatchObject({
-      preferredDay: 5,
+      preferredDay: DayOfWeek.Friday,
       preferredHour: 22,
       preferredTimezone: 'Europe/Athens',
     });
