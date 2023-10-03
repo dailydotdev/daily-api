@@ -166,4 +166,29 @@ describe('personalizedDigestEmail worker', () => {
     expect(dateFrom.getHours()).toBe(personalizedDigest!.preferredHour - 6);
     expect(dateFrom.getTimezoneOffset()).toBe(0);
   });
+
+  it('should not generate personalized digest for user that did not confirm their info', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => ({
+        ...item,
+        infoConfirmed: false,
+      })),
+    );
+
+    expect(personalizedDigest).toBeTruthy();
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(0);
+  });
 });

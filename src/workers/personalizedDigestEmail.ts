@@ -1,5 +1,6 @@
 import { In } from 'typeorm';
 import {
+  addNotificationUtm,
   baseNotificationEmailData,
   feedToFilters,
   getDiscussionLink,
@@ -63,15 +64,14 @@ const getPostsTemplateData = async ({ posts }: { posts: ArticlePost[] }) => {
     posts.map(async (post) => {
       const source = await post.source;
 
-      const postUrl = new URL(getDiscussionLink(post.id));
-      postUrl.searchParams.append('utm_source', 'notification');
-      postUrl.searchParams.append('utm_medium', 'email');
-      postUrl.searchParams.append('utm_campaign', 'digest');
-
       return {
         post_title: post.title,
         post_image: post.image || pickImageUrl(post),
-        post_link: postUrl.toString(),
+        post_link: addNotificationUtm(
+          getDiscussionLink(post.id),
+          'email',
+          'digest',
+        ),
         source_name: source.name,
         source_image: source.image,
       };
@@ -95,7 +95,7 @@ const worker: Worker = {
       id: personalizedDigest.userId,
     });
 
-    if (!user || !user.infoConfirmed) {
+    if (!user?.infoConfirmed) {
       return;
     }
 
