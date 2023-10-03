@@ -1,6 +1,6 @@
-import fetch from 'node-fetch';
 import { ValidationError } from 'apollo-server-errors';
 import { fetchOptions } from '../http';
+import { retryFetch } from './utils';
 
 export const magniOrigin = process.env.MAGNI_ORIGIN;
 
@@ -19,7 +19,7 @@ export const postFeedback = async (
   userId: string,
   params: SearchResultFeedback,
 ): Promise<void> => {
-  const res = await fetch(`${magniOrigin}/feedback`, {
+  const res = await retryFetch(`${magniOrigin}/feedback`, {
     ...fetchOptions,
     method: 'post',
     body: JSON.stringify(params),
@@ -50,7 +50,7 @@ export const getSessions = async (
   if (lastId) params.append('lastId', lastId);
 
   const url = `${magniOrigin}/sessions?${params.toString()}`;
-  const res = await fetch(url, {
+  const res = await retryFetch(url, {
     ...fetchOptions,
     headers: { 'X-User-Id': userId },
   });
@@ -96,7 +96,7 @@ export const getSession = async (
   sessionId: string,
 ): Promise<Search> => {
   const url = `${magniOrigin}/session?id=${sessionId}`;
-  const res = await fetch(url, {
+  const res = await retryFetch(url, {
     ...fetchOptions,
     headers: { 'X-User-Id': userId },
   });
