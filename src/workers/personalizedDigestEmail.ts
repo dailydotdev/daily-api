@@ -1,13 +1,13 @@
-import { In } from 'typeorm';
 import {
   addNotificationUtm,
   baseNotificationEmailData,
   feedToFilters,
+  fixedIdsFeedBuilder,
   getDiscussionLink,
   pickImageUrl,
   sendEmail,
 } from '../common';
-import { ArticlePost, User } from '../entity';
+import { ArticlePost, Post, Source, User } from '../entity';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import { messageToJson, Worker } from './worker';
 import { DayOfWeek } from '../types';
@@ -19,6 +19,14 @@ import { personalizedDigestFeedClient } from '../integrations/feed/generators';
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
 }
+
+type TemplatePostData = Pick<
+  ArticlePost,
+  'id' | 'title' | 'image' | 'createdAt'
+> & {
+  sourceName: Source['name'];
+  sourceImage: Source['image'];
+};
 
 const personalizedDigestPostsCount = 5;
 
@@ -59,24 +67,20 @@ const getPreviousSendDate = ({
   return sendDateInPreferredTimezone;
 };
 
-const getPostsTemplateData = async ({ posts }: { posts: ArticlePost[] }) => {
-  const templateData = await Promise.all(
-    posts.map(async (post) => {
-      const source = await post.source;
-
-      return {
-        post_title: post.title,
-        post_image: post.image || pickImageUrl(post),
-        post_link: addNotificationUtm(
-          getDiscussionLink(post.id),
-          'email',
-          'digest',
-        ),
-        source_name: source.name,
-        source_image: source.image,
-      };
-    }),
-  );
+const getPostsTemplateData = ({ posts }: { posts: TemplatePostData[] }) => {
+  const templateData = posts.map((post) => {
+    return {
+      post_title: post.title,
+      post_image: post.image || pickImageUrl(post),
+      post_link: addNotificationUtm(
+        getDiscussionLink(post.id),
+        'email',
+        'digest',
+      ),
+      source_name: post.sourceName,
+      source_image: post.sourceImage,
+    };
+  });
 
   return templateData;
 };
@@ -123,12 +127,17 @@ const worker: Worker = {
       },
     );
 
-    const posts = await con.getRepository(ArticlePost).find({
-      where: {
-        id: In(feedResponse.map(([postId]) => postId)),
-      },
-      relations: ['source'],
-    });
+    const posts: TemplatePostData[] = await fixedIdsFeedBuilder(
+      {},
+      feedResponse.map(([postId]) => postId),
+      con
+        .createQueryBuilder(Post, 'p')
+        .select(
+          'p.id, p.title, p.image, p."createdAt", s.name as "sourceName", s.image as "sourceImage"',
+        )
+        .leftJoin(Source, 's', 'p."sourceId" = s.id'),
+      'p',
+    ).execute();
 
     if (posts.length === 0) {
       logger.warn(

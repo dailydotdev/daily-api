@@ -502,7 +502,7 @@ export const tagFeedBuilder = (
   builder.andWhere((subBuilder) => whereTags([tag], subBuilder, alias));
 
 export const fixedIdsFeedBuilder = (
-  ctx: Context,
+  ctx: unknown,
   ids: string[],
   builder: SelectQueryBuilder<Post & { feedMeta?: string }>,
   alias: string,
