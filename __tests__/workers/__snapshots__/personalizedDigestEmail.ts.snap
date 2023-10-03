@@ -3,9 +3,9 @@
 exports[`personalizedDigestEmail worker should generate personalized digest for user in timezone ahead UTC 1`] = `
 Object {
   "asm": Object {
-    "groupId": 12850,
+    "groupId": 23809,
   },
-  "category": "Notification",
+  "category": "Digests",
   "dynamicTemplateData": Object {
     "day_name": "Monday",
     "first_name": "Ido",
@@ -84,9 +84,9 @@ Object {
 exports[`personalizedDigestEmail worker should generate personalized digest for user in timezone behind UTC 1`] = `
 Object {
   "asm": Object {
-    "groupId": 12850,
+    "groupId": 23809,
   },
-  "category": "Notification",
+  "category": "Digests",
   "dynamicTemplateData": Object {
     "day_name": "Monday",
     "first_name": "Ido",
@@ -165,9 +165,9 @@ Object {
 exports[`personalizedDigestEmail worker should generate personalized digest for user with subscription 1`] = `
 Object {
   "asm": Object {
-    "groupId": 12850,
+    "groupId": 23809,
   },
-  "category": "Notification",
+  "category": "Digests",
   "dynamicTemplateData": Object {
     "day_name": "Monday",
     "first_name": "Ido",

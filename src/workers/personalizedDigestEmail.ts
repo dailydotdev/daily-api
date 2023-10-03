@@ -156,6 +156,10 @@ const worker: Worker = {
         first_name: userName,
         posts: await getPostsTemplateData({ posts }),
       },
+      asm: {
+        groupId: 23809,
+      },
+      category: 'Digests',
     };
 
     await sendEmail(emailPayload);
