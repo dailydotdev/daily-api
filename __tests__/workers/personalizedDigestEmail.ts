@@ -8,6 +8,7 @@ import { UserPersonalizedDigest } from '../../src/entity/UserPersonalizedDigest'
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
 import { sendEmail } from '../../src/common';
+import nock from 'nock';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -15,6 +16,8 @@ jest.mock('../../src/common', () => ({
 }));
 
 let con: DataSource;
+let nockScope: nock.Scope;
+let nockBody: Record<string, string> = {};
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -22,6 +25,8 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   jest.resetAllMocks();
+  nock.cleanAll();
+  nockBody = {};
 
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Source, sourcesFixture);
@@ -29,10 +34,23 @@ beforeEach(async () => {
   await con.getRepository(UserPersonalizedDigest).save({
     userId: '1',
   });
+
+  const mockedPostIds = postsFixture.slice(0, 5).map((post) => post.id);
+
+  nockScope = nock('http://localhost:6000')
+    .post('/feed.json', (body) => {
+      nockBody = body;
+
+      return true;
+    })
+    .reply(200, {
+      data: mockedPostIds,
+      rows: mockedPostIds.length,
+    });
 });
 
 describe('personalizedDigestEmail worker', () => {
-  it('should generate personalized digest for user', async () => {
+  it('should generate personalized digest for user with subscription', async () => {
     const personalizedDigest = await con
       .getRepository(UserPersonalizedDigest)
       .findOneBy({
@@ -50,6 +68,19 @@ describe('personalizedDigestEmail worker', () => {
     expect(emailData).toMatchSnapshot({
       sendAt: expect.any(Number),
     });
+
+    expect(nockScope.isDone()).toBe(true);
+    expect(nockBody).toMatchSnapshot({
+      date_from: expect.any(String),
+      date_to: expect.any(String),
+    });
+
+    const dateFrom = new Date(nockBody.date_from);
+    const dateTo = new Date(nockBody.date_to);
+    expect(dateFrom.getTime()).toBeLessThan(dateTo.getTime());
+    expect(dateFrom.getDay()).toBe(personalizedDigest!.preferredDay);
+    expect(dateFrom.getHours()).toBe(personalizedDigest!.preferredHour);
+    expect(dateFrom.getTimezoneOffset()).toBe(0);
   });
 
   it('should generate personalized digest for user in timezone ahead UTC', async () => {
@@ -79,6 +110,19 @@ describe('personalizedDigestEmail worker', () => {
     expect(sentAtDate.getDay()).toBe(personalizedDigest!.preferredDay);
     expect(sentAtDate.getHours()).toBe(personalizedDigest!.preferredHour + 7);
     expect(sentAtDate.getTimezoneOffset()).toBe(0);
+
+    expect(nockScope.isDone()).toBe(true);
+    expect(nockBody).toMatchSnapshot({
+      date_from: expect.any(String),
+      date_to: expect.any(String),
+    });
+
+    const dateFrom = new Date(nockBody.date_from);
+    const dateTo = new Date(nockBody.date_to);
+    expect(dateFrom.getTime()).toBeLessThan(dateTo.getTime());
+    expect(dateFrom.getDay()).toBe(personalizedDigest!.preferredDay);
+    expect(dateFrom.getHours()).toBe(personalizedDigest!.preferredHour + 7);
+    expect(dateFrom.getTimezoneOffset()).toBe(0);
   });
 
   it('should generate personalized digest for user in timezone behind UTC', async () => {
@@ -108,5 +152,18 @@ describe('personalizedDigestEmail worker', () => {
     expect(sentAtDate.getDay()).toBe(personalizedDigest!.preferredDay);
     expect(sentAtDate.getHours()).toBe(personalizedDigest!.preferredHour - 6);
     expect(sentAtDate.getTimezoneOffset()).toBe(0);
+
+    expect(nockScope.isDone()).toBe(true);
+    expect(nockBody).toMatchSnapshot({
+      date_from: expect.any(String),
+      date_to: expect.any(String),
+    });
+
+    const dateFrom = new Date(nockBody.date_from);
+    const dateTo = new Date(nockBody.date_to);
+    expect(dateFrom.getTime()).toBeLessThan(dateTo.getTime());
+    expect(dateFrom.getDay()).toBe(personalizedDigest!.preferredDay);
+    expect(dateFrom.getHours()).toBe(personalizedDigest!.preferredHour - 6);
+    expect(dateFrom.getTimezoneOffset()).toBe(0);
   });
 });

@@ -1,17 +1,19 @@
-import { DataSource } from 'typeorm';
+import { In } from 'typeorm';
 import {
   baseNotificationEmailData,
+  feedToFilters,
   getDiscussionLink,
   pickImageUrl,
   sendEmail,
 } from '../common';
-import { ArticlePost, Source, User } from '../entity';
+import { ArticlePost, User } from '../entity';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import { messageToJson, Worker } from './worker';
 import { DayOfWeek } from '../types';
 import { MailDataRequired } from '@sendgrid/mail';
-import { nextDay } from 'date-fns';
+import { format, nextDay, previousDay } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
+import { personalizedDigestFeedClient } from '../integrations/feed/generators';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -21,31 +23,7 @@ const personalizedDigestPostsCount = 5;
 
 const emailTemplateId = 'd-328d1104d2e04fa1ab91e410e02751cb';
 
-// TODO WT-1820 replace with feed config fetch
-const getMockedPosts = async ({
-  con,
-}: {
-  con: DataSource;
-}): Promise<(ArticlePost & { source: Source })[]> => {
-  const posts = await con.getRepository(ArticlePost).find({
-    take: personalizedDigestPostsCount,
-    order: {
-      createdAt: 'DESC',
-    },
-    relations: ['source'],
-  });
-
-  return Promise.all(
-    posts.map(async (post) => {
-      const source = await post.source;
-
-      return {
-        ...post,
-        source,
-      } as ArticlePost & { source: Source };
-    }),
-  );
-};
+const personalizedDigestDateFormat = 'yyyy-MM-dd HH:mm:ss';
 
 const getEmailSendDate = ({
   personalizedDigest,
@@ -62,9 +40,54 @@ const getEmailSendDate = ({
   return sendDateInPreferredTimezone;
 };
 
+const getPreviousSendDate = ({
+  personalizedDigest,
+}: {
+  personalizedDigest: UserPersonalizedDigest;
+}): Date => {
+  const nextPreferredDay = previousDay(
+    new Date(),
+    personalizedDigest.preferredDay,
+  );
+  nextPreferredDay.setHours(personalizedDigest.preferredHour, 0, 0, 0);
+  const sendDateInPreferredTimezone = zonedTimeToUtc(
+    nextPreferredDay,
+    personalizedDigest.preferredTimezone,
+  );
+
+  return sendDateInPreferredTimezone;
+};
+
+const getPostsTemplateData = async ({ posts }: { posts: ArticlePost[] }) => {
+  const templateData = await Promise.all(
+    posts.map(async (post) => {
+      const source = await post.source;
+
+      const postUrl = new URL(getDiscussionLink(post.id));
+      postUrl.searchParams.append('utm_source', 'notification');
+      postUrl.searchParams.append('utm_medium', 'email');
+      postUrl.searchParams.append('utm_campaign', 'digest');
+
+      return {
+        post_title: post.title,
+        post_image: post.image || pickImageUrl(post),
+        post_link: postUrl.toString(),
+        source_name: source.name,
+        source_image: source.image,
+      };
+    }),
+  );
+
+  return templateData;
+};
+
 const worker: Worker = {
   subscription: 'api.personalized-digest-email',
-  handler: async (message, con) => {
+  handler: async (message, con, logger) => {
+    if (process.env.NODE_ENV === 'development') {
+      return;
+    }
+
     const data = messageToJson<Data>(message);
     const { personalizedDigest } = data;
 
@@ -76,13 +99,50 @@ const worker: Worker = {
       return;
     }
 
-    const posts = await getMockedPosts({ con });
+    const currentDate = new Date();
+    const emailSendDate = getEmailSendDate({ personalizedDigest });
+    const previousSendDate = getPreviousSendDate({ personalizedDigest });
+
+    const feedConfig = await feedToFilters(
+      con,
+      personalizedDigest.userId,
+      personalizedDigest.userId,
+    );
+
+    const feedResponse = await personalizedDigestFeedClient.fetchFeed(
+      { log: logger },
+      personalizedDigest.userId,
+      {
+        user_id: personalizedDigest.userId,
+        total_posts: personalizedDigestPostsCount,
+        date_from: format(previousSendDate, personalizedDigestDateFormat),
+        date_to: format(currentDate, personalizedDigestDateFormat),
+        allowed_tags: feedConfig.includeTags,
+        blocked_tags: feedConfig.blockedTags,
+        blocked_sources: feedConfig.excludeSources,
+      },
+    );
+
+    const posts = await con.getRepository(ArticlePost).find({
+      where: {
+        id: In(feedResponse.map(([postId]) => postId)),
+      },
+      relations: ['source'],
+    });
+
+    if (posts.length === 0) {
+      logger.warn(
+        { data: messageToJson(message) },
+        'no posts found for personalized digest',
+      );
+
+      return;
+    }
 
     const [dayName] = Object.entries(DayOfWeek).find(
       ([, value]) => value === personalizedDigest.preferredDay,
     );
     const userName = user.name?.trim().split(' ')[0] || user.username;
-    const emailSendDate = getEmailSendDate({ personalizedDigest });
     const emailPayload: MailDataRequired = {
       ...baseNotificationEmailData,
       to: {
@@ -94,20 +154,7 @@ const worker: Worker = {
       dynamicTemplateData: {
         day_name: dayName,
         first_name: userName,
-        posts: posts.map((post) => {
-          const postUrl = new URL(getDiscussionLink(post.id));
-          postUrl.searchParams.append('utm_source', 'notification');
-          postUrl.searchParams.append('utm_medium', 'email');
-          postUrl.searchParams.append('utm_campaign', 'digest');
-
-          return {
-            post_title: post.title,
-            post_image: post.image || pickImageUrl(post),
-            post_link: postUrl.toString(),
-            source_name: post.source.name,
-            source_image: post.source.image,
-          };
-        }),
+        posts: await getPostsTemplateData({ posts }),
       },
     };
 

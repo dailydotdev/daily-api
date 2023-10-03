@@ -65,6 +65,8 @@ config:
       secure: AAABAI/bDI+xz5PMlMZseI2kW5oanHk3z1KcAOZJb+/G8arhgSP1EMdqdOTk0kku1t6KTWtl9+oSSDKWYNH1CG5D+Ac1ZPFAWc/ldmEb/iU=
     onesignalAppId:
       secure: AAABALTizkxZkCfsq6/fx2v7nXxsVP7psWBfSUct0zeyrX0ABxPpD30zIsyx5r5wqt1UJIIXDIVOnhM7W3vzrzaatrE=
+    personalizedDigestFeed:
+      secure: AAABAFlVj3u9LaxdStgIGpCIs84WE9fAfzk5wU9PH+4GjlCxmdQ9Ww33Zqbjv1+R+OfQGilRJ1QE64APszvFEjZhzilQV9QkhDuQ7v4eehIvR2M=
     postScraperOrigin:
       secure: AAABAEUYh/1vRaV7hqp+NfWzHu739GHVadQkJ1veHLTdHjV2kdthStN60SD5VwdPMD7XMLaUu9Yd0jc+gNh57ABjmLigxZnzeTv7ZuEBBzAqPrm/bqCoWEfqdw==
     redisPass:
