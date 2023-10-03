@@ -1,6 +1,5 @@
-import fetch from 'node-fetch';
-import { ValidationError } from 'apollo-server-errors';
 import { fetchOptions } from '../http';
+import { retryFetch } from './utils';
 
 export const magniOrigin = process.env.MAGNI_ORIGIN;
 
@@ -19,7 +18,7 @@ export const postFeedback = async (
   userId: string,
   params: SearchResultFeedback,
 ): Promise<void> => {
-  const res = await fetch(`${magniOrigin}/feedback`, {
+  await retryFetch(`${magniOrigin}/feedback`, {
     ...fetchOptions,
     method: 'post',
     body: JSON.stringify(params),
@@ -28,8 +27,6 @@ export const postFeedback = async (
       'Content-Type': 'application/json',
     },
   });
-
-  if (!res.ok) throw new ValidationError(await res.text());
 };
 
 interface SessionResponse {
@@ -50,16 +47,12 @@ export const getSessions = async (
   if (lastId) params.append('lastId', lastId);
 
   const url = `${magniOrigin}/sessions?${params.toString()}`;
-  const res = await fetch(url, {
+  const res = await retryFetch<SessionResponse>(url, {
     ...fetchOptions,
     headers: { 'X-User-Id': userId },
   });
 
-  if (!res.ok) throw new ValidationError(await res.text());
-
-  const json: SessionResponse = await res.json();
-
-  return json.sessions;
+  return res.sessions;
 };
 
 interface SearchChunkError {
@@ -96,12 +89,8 @@ export const getSession = async (
   sessionId: string,
 ): Promise<Search> => {
   const url = `${magniOrigin}/session?id=${sessionId}`;
-  const res = await fetch(url, {
+  return retryFetch(url, {
     ...fetchOptions,
     headers: { 'X-User-Id': userId },
   });
-
-  if (!res.ok) throw new ValidationError(await res.text());
-
-  return await res.json();
 };

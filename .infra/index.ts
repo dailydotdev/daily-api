@@ -188,7 +188,7 @@ if (isAdhocEnv) {
       port: 3000,
       env: [nodeOptions(memory), ...jwtEnv],
       minReplicas: 3,
-      maxReplicas: 15,
+      maxReplicas: 25,
       limits,
       readinessProbe,
       livenessProbe,
