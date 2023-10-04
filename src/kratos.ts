@@ -4,6 +4,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { cookies, setCookie } from './cookies';
 import { setTrackingId } from './tracking';
 import { generateTrackingId } from './ids';
+import { AbortError, asyncRetry } from './integrations/retry';
 
 const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
@@ -32,29 +33,28 @@ const fetchKratos = async (
   opts: RequestInit = {},
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<{ res: any; headers: Headers }> => {
-  // return pRetry(
-  //   async () => {
-  //
-  //   },
-  //   { retries: 5 },
-  // );
-  const res = await fetch(endpoint, {
-    ...fetchOptions,
-    ...addKratosHeaderCookies(req),
-    ...opts,
-  });
-  if (res.status < 300) {
-    return { res: await res.json(), headers: res.headers };
-  }
-  const err = new KratosError(res.status, await res.text());
-  if (res.status >= 500) {
-    req.log.warn({ err }, 'unexpected error from kratos');
-    throw err;
-  }
-  if (res.status !== 401) {
-    req.log.info({ err }, 'non-401 error from kratos');
-  }
-  throw err;
+  return asyncRetry(
+    async () => {
+      const res = await fetch(endpoint, {
+        ...fetchOptions,
+        ...addKratosHeaderCookies(req),
+        ...opts,
+      });
+      if (res.status < 300) {
+        return { res: await res.json(), headers: res.headers };
+      }
+      const err = new KratosError(res.status, await res.text());
+      if (res.status >= 500) {
+        req.log.warn({ err }, 'unexpected error from kratos');
+        throw err;
+      }
+      if (res.status !== 303 && res.status !== 401) {
+        req.log.info({ err }, 'non-401 error from kratos');
+      }
+      throw new AbortError(err);
+    },
+    { retries: 5 },
+  );
 };
 
 export const clearAuthentication = async (

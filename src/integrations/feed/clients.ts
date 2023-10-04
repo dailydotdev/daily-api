@@ -4,7 +4,7 @@ import { fetchOptions as globalFetchOptions } from '../../http';
 import { IORedisPool } from '@dailydotdev/ts-ioredis-pool';
 import { Context } from '../../Context';
 import { ONE_DAY_IN_SECONDS } from '../../redis';
-import { retryFetch } from '../utils';
+import { retryFetch } from '../retry';
 
 type RawFeedServiceResponse = {
   data: { post_id: string; metadata: Record<string, string> }[];
