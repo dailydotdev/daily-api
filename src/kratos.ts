@@ -1,5 +1,4 @@
-import fetch, { RequestInit, Headers } from 'node-fetch';
-import pRetry, { AbortError } from 'p-retry';
+import fetch, { Headers, RequestInit } from 'node-fetch';
 import { fetchOptions } from './http';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { cookies, setCookie } from './cookies';
@@ -33,25 +32,29 @@ const fetchKratos = async (
   opts: RequestInit = {},
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<{ res: any; headers: Headers }> => {
-  return pRetry(
-    async () => {
-      const res = await fetch(endpoint, {
-        ...fetchOptions,
-        ...addKratosHeaderCookies(req),
-        ...opts,
-      });
-      if (res.status < 300) {
-        return { res: await res.json(), headers: res.headers };
-      }
-      const err = new KratosError(res.status, await res.text());
-      if (res.status >= 500) {
-        req.log.warn({ err }, 'unexpected error from kratos');
-        throw err;
-      }
-      throw new AbortError(err);
-    },
-    { retries: 5 },
-  );
+  // return pRetry(
+  //   async () => {
+  //
+  //   },
+  //   { retries: 5 },
+  // );
+  const res = await fetch(endpoint, {
+    ...fetchOptions,
+    ...addKratosHeaderCookies(req),
+    ...opts,
+  });
+  if (res.status < 300) {
+    return { res: await res.json(), headers: res.headers };
+  }
+  const err = new KratosError(res.status, await res.text());
+  if (res.status >= 500) {
+    req.log.warn({ err }, 'unexpected error from kratos');
+    throw err;
+  }
+  if (res.status !== 401) {
+    req.log.info({ err }, 'non-401 error from kratos');
+  }
+  throw err;
 };
 
 export const clearAuthentication = async (
@@ -98,6 +101,7 @@ export const dispatchWhoami = async (
         cookie: headers.get('set-cookie'),
       };
     }
+    req.log.info({ whoami }, 'invalid whoami response');
   } catch (e) {
     if (e.statusCode !== 401) {
       throw e;
