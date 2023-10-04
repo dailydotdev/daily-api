@@ -1,7 +1,7 @@
-import { ISnotraClient, UserStateResponse, UserStatePayload } from './types';
+import { ISnotraClient, UserStatePayload, UserStateResponse } from './types';
 import { RequestInit } from 'node-fetch';
 import { fetchOptions as globalFetchOptions } from '../../http';
-import { retryFetch } from '../utils';
+import { retryFetch } from '../retry';
 
 export class SnotraClient implements ISnotraClient {
   private readonly url: string;
