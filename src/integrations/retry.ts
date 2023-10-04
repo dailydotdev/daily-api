@@ -1,5 +1,5 @@
 import retry, { OperationOptions } from 'retry';
-import isNetworkError from 'is-network-error';
+import isNetworkError from './networkError';
 import fetch, { RequestInit } from 'node-fetch';
 
 export class AbortError extends Error {
