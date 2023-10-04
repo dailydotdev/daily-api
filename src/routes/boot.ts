@@ -54,6 +54,7 @@ import { schema } from '../graphql';
 import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
 import { getEncryptedFeatures } from '../growthbook';
+import { differenceInMinutes } from 'date-fns';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -334,6 +335,7 @@ const loggedInBoot = async (
   con: DataSource,
   req: FastifyRequest,
   res: FastifyReply,
+  refreshToken: boolean,
   middleware?: BootMiddleware,
 ): Promise<LoggedInBoot | AnonymousBoot> => {
   const { userId } = req;
@@ -366,7 +368,9 @@ const loggedInBoot = async (
     return handleNonExistentUser(con, req, res, middleware);
   }
   const flags = getUserFeatureFlags(req);
-  const accessToken = await setAuthCookie(req, res, userId, roles);
+  const accessToken = refreshToken
+    ? await setAuthCookie(req, res, userId, roles)
+    : req.accessToken;
 
   return {
     user: {
@@ -470,6 +474,13 @@ export const getBootData = async (
   res: FastifyReply,
   middleware?: BootMiddleware,
 ): Promise<AnonymousBoot | LoggedInBoot> => {
+  if (
+    req.userId &&
+    req.accessToken?.expiresIn &&
+    differenceInMinutes(req.accessToken?.expiresIn, new Date()) > 3
+  ) {
+    return loggedInBoot(con, req, res, false, middleware);
+  }
   const whoami = await dispatchWhoami(req);
   if (whoami.valid) {
     if (whoami.cookie) {
@@ -480,8 +491,8 @@ export const getBootData = async (
       req.trackingId = req.userId;
       setTrackingId(req, res, req.trackingId);
     }
-    return loggedInBoot(con, req, res, middleware);
-  } else if (req.userId || req.cookies[cookies.kratos.key]) {
+    return loggedInBoot(con, req, res, true, middleware);
+  } else if (req.cookies[cookies.kratos.key]) {
     await clearAuthentication(req, res, 'invalid cookie');
     return anonymousBoot(con, req, res, middleware, true);
   }

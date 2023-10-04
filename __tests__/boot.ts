@@ -51,6 +51,8 @@ import {
 import { SourcePermissions } from '../src/schema/sources';
 import { getEncryptedFeatures } from '../src/growthbook';
 import { base64 } from 'graphql-relay/utils/base64';
+import { cookies } from '../src/cookies';
+import { signJwt } from '../src/auth';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -359,6 +361,32 @@ describe('logged in boot', () => {
     expect(res.body).toEqual({
       ...ANONYMOUS_BODY,
       shouldLogout: true,
+    });
+  });
+
+  it('should not dispatch whoami when jwt is available', async () => {
+    const accessToken = await signJwt(
+      {
+        userId: '1',
+        roles: [],
+      },
+      15 * 60 * 1000,
+    );
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set(
+        'Cookie',
+        `${cookies.auth.key}=${app.signCookie(accessToken.token)};`,
+      )
+      .expect(200);
+    expect(res.body).toEqual({
+      ...LOGGED_IN_BODY,
+      user: {
+        ...LOGGED_IN_BODY.user,
+        canSubmitArticle:
+          LOGGED_IN_BODY.user.reputation >= submitArticleThreshold,
+      },
     });
   });
 });
