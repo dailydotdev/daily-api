@@ -1,10 +1,10 @@
-import fetch, { RequestInit, Headers } from 'node-fetch';
-import pRetry, { AbortError } from 'p-retry';
+import fetch, { Headers, RequestInit } from 'node-fetch';
 import { fetchOptions } from './http';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { cookies, setCookie } from './cookies';
 import { setTrackingId } from './tracking';
 import { generateTrackingId } from './ids';
+import { AbortError, asyncRetry } from './integrations/retry';
 
 const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
@@ -33,7 +33,7 @@ const fetchKratos = async (
   opts: RequestInit = {},
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<{ res: any; headers: Headers }> => {
-  return pRetry(
+  return asyncRetry(
     async () => {
       const res = await fetch(endpoint, {
         ...fetchOptions,
@@ -47,6 +47,9 @@ const fetchKratos = async (
       if (res.status >= 500) {
         req.log.warn({ err }, 'unexpected error from kratos');
         throw err;
+      }
+      if (res.status !== 303 && res.status !== 401) {
+        req.log.info({ err }, 'non-401 error from kratos');
       }
       throw new AbortError(err);
     },
@@ -98,6 +101,7 @@ export const dispatchWhoami = async (
         cookie: headers.get('set-cookie'),
       };
     }
+    req.log.info({ whoami }, 'invalid whoami response');
   } catch (e) {
     if (e.statusCode !== 401) {
       throw e;

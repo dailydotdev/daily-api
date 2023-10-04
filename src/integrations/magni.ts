@@ -1,5 +1,5 @@
 import { fetchOptions } from '../http';
-import { retryFetch } from './utils';
+import { retryFetch } from './retry';
 
 export const magniOrigin = process.env.MAGNI_ORIGIN;
 
