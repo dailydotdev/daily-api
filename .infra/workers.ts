@@ -70,6 +70,10 @@ export const workers: Worker[] = [
     subscription: 'post-banned-rep',
   },
   {
+    topic: 'post-banned-or-removed',
+    subscription: 'api.post-deleted-comments-cleanup',
+  },
+  {
     topic: 'pub-request',
     subscription: 'pub-request-rep',
   },
