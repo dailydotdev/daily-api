@@ -285,6 +285,25 @@ describe('anonymous boot', () => {
     expect(res.body.flags.onboarding_v2.enabled).toBeTruthy();
     expect(res.body.flags.onboarding_v2.value).toEqual('v1');
   });
+
+  it('should return anonymous boot if jwt is expired', async () => {
+    const accessToken = await signJwt(
+      {
+        userId: '1',
+        roles: [],
+      },
+      -15 * 60 * 1000,
+    );
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set(
+        'Cookie',
+        `${cookies.auth.key}=${app.signCookie(accessToken.token)};`,
+      )
+      .expect(200);
+    expect(res.body).toEqual(ANONYMOUS_BODY);
+  });
 });
 
 describe('logged in boot', () => {
