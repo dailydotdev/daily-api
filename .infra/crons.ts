@@ -41,10 +41,6 @@ export const crons: Cron[] = [
     schedule: '3 5 * * *',
   },
   {
-    name: 'refresh-user-subscriptions',
-    schedule: '0 */3 * * *',
-  },
-  {
     name: 'personalized-digest',
     schedule: '15 0 * * *'
   }
