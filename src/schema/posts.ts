@@ -35,7 +35,7 @@ import {
 import {
   ArticlePost,
   createExternalLink,
-  createSharePost,
+  upsertSharePost,
   ExternalLink,
   ExternalLinkPreview,
   FreeformPost,
@@ -834,6 +834,10 @@ export const typeDefs = /* GraphQL */ `
       Source to share the post to
       """
       sourceId: ID!
+      """
+      The post ID used when updating
+      """
+      postId: ID
     ): Post @auth
 
     """
@@ -1595,7 +1599,7 @@ export const resolvers: IResolvers<any, Context> = {
             throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);
           }
 
-          await createSharePost(
+          await upsertSharePost(
             manager,
             sourceId,
             ctx.userId,
@@ -1622,19 +1626,22 @@ export const resolvers: IResolvers<any, Context> = {
         id,
         commentary,
         sourceId,
-      }: { id: string; commentary: string; sourceId: string },
+        postId,
+      }: { id: string; commentary: string; sourceId: string; postId?: string },
       ctx,
       info,
     ): Promise<GQLPost> => {
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
-      const newPost = await createSharePost(
+      const newPost = await upsertSharePost(
         ctx.con,
         sourceId,
         ctx.userId,
         id,
         commentary,
+        true,
+        postId,
       );
       return getPostById(ctx, info, newPost.id);
     },

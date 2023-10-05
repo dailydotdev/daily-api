@@ -4,7 +4,7 @@ import { ConnectionArguments } from 'graphql-relay';
 import { traceResolverObject } from './trace';
 import { Context } from '../Context';
 import {
-  createSharePost,
+  upsertSharePost,
   generateMemberToken,
   Source,
   SourceFeed,
@@ -1057,7 +1057,7 @@ export const resolvers: IResolvers<any, Context> = {
 
           if (postId) {
             // Create the first post of the squad
-            await createSharePost(
+            await upsertSharePost(
               entityManager,
               id,
               ctx.userId,

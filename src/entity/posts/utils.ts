@@ -225,7 +225,7 @@ export const createExternalLink = async (
         visible: isVisible,
       },
     });
-    await createSharePost(
+    await upsertSharePost(
       entityManager,
       sourceId,
       userId,
@@ -248,13 +248,14 @@ export const generateTitleHtml = (
 ): string =>
   `<p>${renderMentions(markdown.utils.escapeHtml(title), mentions)}</p>`;
 
-export const createSharePost = async (
+export const upsertSharePost = async (
   con: DataSource | EntityManager,
   sourceId: string,
   userId: string,
-  postId: string,
+  sharePostId: string,
   commentary: string | null,
   visible = true,
+  postId?: string,
 ): Promise<SharePost> => {
   let strippedCommentary = commentary;
 
@@ -265,7 +266,6 @@ export const createSharePost = async (
     strippedCommentary = null;
   }
 
-  const id = await generateShortId();
   try {
     const mentions = await getMentions(con, commentary, userId, sourceId);
     const titleHtml = commentary?.length
@@ -275,13 +275,15 @@ export const createSharePost = async (
       .getRepository(Source)
       .findOneBy({ id: sourceId });
 
+    const id = postId ?? (await generateShortId());
+
     const post = await con.getRepository(SharePost).save({
       id,
       shortId: id,
       createdAt: new Date(),
       sourceId,
       authorId: userId,
-      sharedPostId: postId,
+      sharedPostId: sharePostId,
       title: strippedCommentary,
       titleHtml,
       sentAnalyticsReport: true,
