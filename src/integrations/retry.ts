@@ -70,11 +70,15 @@ export function retryFetch<T>(
   url: string,
   fetchOpts: RequestInit,
   retryOpts?: RetryOptions,
+  parseJson = true,
 ): Promise<T> {
   return asyncRetry(async () => {
     const res = await fetch(url, fetchOpts);
     if (res.ok) {
-      return res.json();
+      if (parseJson) {
+        return res.json();
+      }
+      return;
     }
     if (res.status < 500) {
       throw new AbortError(`request is invalid: ${res.status}`);
