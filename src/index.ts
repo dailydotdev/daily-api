@@ -82,7 +82,7 @@ export default async function app(
 
   app.register(helmet);
   app.register(cors, {
-    origin: isProd ? /daily\.dev$/ : true,
+    origin: isProd ? [/daily\.dev$/, /dailydotdev\.vercel\.app$/] : true,
     credentials: true,
   });
   app.register(cookie, {
