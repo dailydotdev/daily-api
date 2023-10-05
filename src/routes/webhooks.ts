@@ -76,7 +76,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         .map((event) => ({
           event_id: event.sg_event_id,
           user_id: userIdsMap[event.email],
-          event_timestamp: new Date(event.timestamp),
+          event_timestamp: new Date(event.timestamp * 1000),
           event_name: `email ${event.event}`,
           user_agent: event.useragent,
           app_platform: 'sendgrid',
