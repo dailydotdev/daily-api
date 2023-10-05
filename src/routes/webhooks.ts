@@ -89,7 +89,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           }),
         }))
         .filter((event) => !!event.user_id);
-      await sendAnalyticsEvent(events);
+      if (events.length) {
+        await sendAnalyticsEvent(events);
+      }
 
       req.log.info(
         { count: events.length },
