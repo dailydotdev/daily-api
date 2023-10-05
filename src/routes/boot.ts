@@ -38,7 +38,7 @@ import {
   REDIS_CHANGELOG_KEY,
   StorageTopic,
 } from '../config';
-import {base64, getSourceLink, submitArticleThreshold} from '../common';
+import { base64, getSourceLink, submitArticleThreshold } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
 import { parse } from 'graphql/language/parser';
