@@ -93,85 +93,97 @@ const worker: Worker = {
     }
 
     const data = messageToJson<Data>(message);
-    const { personalizedDigest } = data;
 
-    const user = await con.getRepository(User).findOneBy({
-      id: personalizedDigest.userId,
-    });
+    try {
+      const { personalizedDigest } = data;
 
-    if (!user?.infoConfirmed) {
-      return;
-    }
+      const user = await con.getRepository(User).findOneBy({
+        id: personalizedDigest.userId,
+      });
 
-    const currentDate = new Date();
-    const emailSendDate = getEmailSendDate({ personalizedDigest });
-    const previousSendDate = getPreviousSendDate({ personalizedDigest });
+      if (!user?.infoConfirmed) {
+        return;
+      }
 
-    const feedConfig = await feedToFilters(
-      con,
-      personalizedDigest.userId,
-      personalizedDigest.userId,
-    );
+      const currentDate = new Date();
+      const emailSendDate = getEmailSendDate({ personalizedDigest });
+      const previousSendDate = getPreviousSendDate({ personalizedDigest });
 
-    const feedResponse = await personalizedDigestFeedClient.fetchFeed(
-      { log: logger },
-      personalizedDigest.userId,
-      {
-        user_id: personalizedDigest.userId,
-        total_posts: personalizedDigestPostsCount,
-        date_from: format(previousSendDate, personalizedDigestDateFormat),
-        date_to: format(currentDate, personalizedDigestDateFormat),
-        allowed_tags: feedConfig.includeTags,
-        blocked_tags: feedConfig.blockedTags,
-        blocked_sources: feedConfig.excludeSources,
-      },
-    );
-
-    const posts: TemplatePostData[] = await fixedIdsFeedBuilder(
-      {},
-      feedResponse.map(([postId]) => postId),
-      con
-        .createQueryBuilder(Post, 'p')
-        .select(
-          'p.id, p.title, p.image, p."createdAt", s.name as "sourceName", s.image as "sourceImage"',
-        )
-        .leftJoin(Source, 's', 'p."sourceId" = s.id'),
-      'p',
-    ).execute();
-
-    if (posts.length === 0) {
-      logger.warn(
-        { data: messageToJson(message) },
-        'no posts found for personalized digest',
+      const feedConfig = await feedToFilters(
+        con,
+        personalizedDigest.userId,
+        personalizedDigest.userId,
       );
 
-      return;
+      const feedResponse = await personalizedDigestFeedClient.fetchFeed(
+        { log: logger },
+        personalizedDigest.userId,
+        {
+          user_id: personalizedDigest.userId,
+          total_posts: personalizedDigestPostsCount,
+          date_from: format(previousSendDate, personalizedDigestDateFormat),
+          date_to: format(currentDate, personalizedDigestDateFormat),
+          allowed_tags: feedConfig.includeTags,
+          blocked_tags: feedConfig.blockedTags,
+          blocked_sources: feedConfig.excludeSources,
+        },
+      );
+
+      const posts: TemplatePostData[] = await fixedIdsFeedBuilder(
+        {},
+        feedResponse.map(([postId]) => postId),
+        con
+          .createQueryBuilder(Post, 'p')
+          .select(
+            'p.id, p.title, p.image, p."createdAt", s.name as "sourceName", s.image as "sourceImage"',
+          )
+          .leftJoin(Source, 's', 'p."sourceId" = s.id'),
+        'p',
+      ).execute();
+
+      if (posts.length === 0) {
+        logger.warn(
+          { data: messageToJson(message) },
+          'no posts found for personalized digest',
+        );
+
+        return;
+      }
+
+      const [dayName] = Object.entries(DayOfWeek).find(
+        ([, value]) => value === personalizedDigest.preferredDay,
+      );
+      const userName = user.name?.trim().split(' ')[0] || user.username;
+      const emailPayload: MailDataRequired = {
+        ...baseNotificationEmailData,
+        to: {
+          email: user.email,
+          name: user.name,
+        },
+        sendAt: Math.floor(emailSendDate.getTime() / 1000),
+        templateId: emailTemplateId,
+        dynamicTemplateData: {
+          day_name: dayName,
+          first_name: userName,
+          posts: await getPostsTemplateData({ posts }),
+        },
+        asm: {
+          groupId: 23809,
+        },
+        category: 'Digests',
+      };
+
+      await sendEmail(emailPayload);
+    } catch (err) {
+      logger.error(
+        {
+          data,
+          messageId: message.messageId,
+          err,
+        },
+        'failed to generate and send personalized digest email',
+      );
     }
-
-    const [dayName] = Object.entries(DayOfWeek).find(
-      ([, value]) => value === personalizedDigest.preferredDay,
-    );
-    const userName = user.name?.trim().split(' ')[0] || user.username;
-    const emailPayload: MailDataRequired = {
-      ...baseNotificationEmailData,
-      to: {
-        email: user.email,
-        name: user.name,
-      },
-      sendAt: Math.floor(emailSendDate.getTime() / 1000),
-      templateId: emailTemplateId,
-      dynamicTemplateData: {
-        day_name: dayName,
-        first_name: userName,
-        posts: await getPostsTemplateData({ posts }),
-      },
-      asm: {
-        groupId: 23809,
-      },
-      category: 'Digests',
-    };
-
-    await sendEmail(emailPayload);
   },
 };
 
