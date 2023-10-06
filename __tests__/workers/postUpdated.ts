@@ -109,13 +109,7 @@ const DEFAULT_QUESTIONS = [
 
 const createDefaultQuestions = async (postId: string) => {
   const repo = con.getRepository(PostQuestion);
-
-  for (const question of DEFAULT_QUESTIONS) {
-    await repo.insert({
-      postId,
-      question,
-    });
-  }
+  await repo.save(DEFAULT_QUESTIONS.map((question) => ({ postId, question })));
 };
 
 const createSharedPost = async (id = 'sp1') => {
@@ -614,14 +608,6 @@ it('should not update already approved post', async () => {
 
 describe('on post create', () => {
   beforeEach(async () => {
-    await saveFixtures(con, Source, [
-      {
-        id: COMMUNITY_PICKS_SOURCE,
-        name: 'Community recommendations',
-        image: 'sample.image.com',
-      },
-    ]);
-
     await createDefaultUser();
   });
 
@@ -638,7 +624,7 @@ describe('on post create', () => {
         id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
         title: 'With questions',
         url: `https://post.com/${uuid}`,
-        source_id: COMMUNITY_PICKS_SOURCE,
+        source_id: 'a',
         submission_id: uuid,
         extra: {
           questions: DEFAULT_QUESTIONS,
@@ -652,14 +638,8 @@ describe('on post create', () => {
         .getRepository(PostQuestion)
         .findBy({ postId: post.id });
       expect(questionsAfter.length).toEqual(3);
-      expect(questionsAfter[0].question).toEqual(
-        'What is the one thing you need to truly understand neural networks?',
-      );
-      expect(questionsAfter[1].question).toEqual(
-        'How do neural networks learn?',
-      );
-      expect(questionsAfter[2].question).toEqual(
-        'What is the process of training a neural network?',
+      expect(questionsAfter.map((q) => q.question)).toEqual(
+        expect.arrayContaining(DEFAULT_QUESTIONS),
       );
     });
   });
@@ -673,7 +653,7 @@ describe('on post create', () => {
         id: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
         title: 'Without questions',
         url: `https://post.com/${uuid}`,
-        source_id: COMMUNITY_PICKS_SOURCE,
+        source_id: 'a',
         submission_id: uuid,
       });
 
@@ -738,14 +718,8 @@ describe('on post update', () => {
         .getRepository(PostQuestion)
         .findBy({ postId });
       expect(questionsAfter.length).toEqual(3);
-      expect(questionsAfter[0].question).toEqual(
-        'What is the one thing you need to truly understand neural networks?',
-      );
-      expect(questionsAfter[1].question).toEqual(
-        'How do neural networks learn?',
-      );
-      expect(questionsAfter[2].question).toEqual(
-        'What is the process of training a neural network?',
+      expect(questionsAfter.map((q) => q.question)).toEqual(
+        expect.arrayContaining(DEFAULT_QUESTIONS),
       );
     });
   });
