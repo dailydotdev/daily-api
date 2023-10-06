@@ -21,6 +21,8 @@ type SendgridEvent = {
     index: number;
   };
   sg_machine_open?: boolean;
+  template_id?: string;
+  template_version_id?: string;
 } & Record<string, unknown>;
 
 const verifyRequest = (publicKey: string, req: FastifyRequest): boolean => {
@@ -81,8 +83,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           user_agent: event.useragent,
           app_platform: 'sendgrid',
           feed_item_target_url: event.url,
+          target_type: event.template_id,
+          target_id: event.template_version_id,
           extra: JSON.stringify({
-            url_offset: event.url_offset?.index,
             category: event.category,
             sg_machine_open: event.sg_machine_open,
             asm_group_id: event.asm_group_id,
