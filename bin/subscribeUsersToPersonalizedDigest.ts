@@ -1,45 +1,52 @@
 import '../src/config';
 import createOrGetConnection from '../src/db';
+import fs from 'fs/promises';
+
+const parseCSV = <T>(csv: string, splitBy: string): T[] => {
+  const [heading, ...rows] = csv.split(/\r?\n/).filter(Boolean);
+  const columns = heading.split(splitBy).map((item) => item.replace(/"/g, ''));
+
+  return rows.map((row) => {
+    const rowData = row.split(splitBy).map((item) => item.replace(/"/g, ''));
+
+    if (rowData.length !== columns.length) {
+      throw new Error(`Invalid CSV, row should have ${columns.length} columns`);
+    }
+
+    return rowData.reduce((acc, rowValue, index) => {
+      const name = columns[index];
+
+      if (name) {
+        acc[name] = rowValue;
+      }
+
+      return acc;
+    }, {});
+  }) as T[];
+};
 
 (async (): Promise<void> => {
-  const createdFromArgument = process.argv[2];
-  const createdToArgument = process.argv[3];
+  const csvFilePath = process.argv[2];
+  const splitBy = process.argv[3] || ',';
 
-  if (!createdFromArgument || !createdToArgument) {
-    throw new Error('createdFrom and createdTo arguments are required');
+  if (!csvFilePath) {
+    throw new Error('CSV file path is required');
   }
 
-  const createdFromDate = new Date(createdFromArgument);
+  const csvFile = await fs.readFile(csvFilePath, 'utf-8');
 
-  if (Number.isNaN(createdFromDate.getTime())) {
-    throw new Error(
-      'createdFromDate argument is invalid, format should be ISO 6801',
-    );
-  }
-
-  const createdToDate = new Date(createdToArgument);
-
-  if (Number.isNaN(createdToDate.getTime())) {
-    throw new Error(
-      'createdToDate argument is invalid, format should be ISO 6801',
-    );
-  }
-
-  if (createdFromDate > createdToDate) {
-    throw new Error(
-      'createdFrom argument should be less than createdTo argument',
-    );
-  }
+  const users = parseCSV<{ user_id?: string }>(csvFile, splitBy);
 
   const con = await createOrGetConnection();
 
   await con.transaction(async (manager) => {
     await manager.query(`
-      INSERT INTO user_personalized_digest ("userId", "preferredTimezone")
-      SELECT id AS "userId", COALESCE(timezone, 'Etc/UTC') AS "preferredTimezone" FROM public.user WHERE "infoConfirmed" IS TRUE
-      AND "createdAt" > '${createdFromDate.toISOString()}' AND "createdAt" < '${createdToDate.toISOString()}'
-      ON CONFLICT DO NOTHING;
-    `);
+        INSERT INTO user_personalized_digest ("userId", "preferredTimezone")
+        SELECT id AS "userId", COALESCE(timezone, 'Etc/UTC') AS "preferredTimezone" FROM public.user WHERE id IN (${users
+          .map((item) => (item.user_id ? `'${item.user_id}'` : null))
+          .filter(Boolean)
+          .join(',')}) ON CONFLICT DO NOTHING;
+      `);
   });
 
   process.exit();
