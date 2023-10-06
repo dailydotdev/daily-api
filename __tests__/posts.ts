@@ -2579,7 +2579,7 @@ describe('mutation createFreeformPost', () => {
     );
   });
 
-  it('should return an error if title exceeds 80 characters', async () => {
+  it('should return an error if title exceeds 250 characters', async () => {
     loggedUser = '1';
 
     return testMutationErrorCode(
@@ -2589,7 +2589,7 @@ describe('mutation createFreeformPost', () => {
         variables: {
           ...params,
           title:
-            'Hello World! Start your squad journey here - Hello World! Start your squad journey here',
+            'Hello World! Start your squad journey here - Hello World! Start your squad journey here Hello World! Start your squad journey here - Hello World! Start your squad journey here Hello World! Start your squad journey here - Hello World! Start your squad journey here',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
@@ -2791,7 +2791,7 @@ describe('mutation editPost', () => {
     );
   });
 
-  it('should return an error if title exceeds 80 characters', async () => {
+  it('should return an error if title exceeds 250 characters', async () => {
     loggedUser = '1';
 
     return testMutationErrorCode(
@@ -2801,7 +2801,7 @@ describe('mutation editPost', () => {
         variables: {
           ...params,
           title:
-            'Hello World! Start your squad journey here - Hello World! Start your squad journey here',
+            'Hello World! Start your squad journey here - Hello World! Start your squad journey here Hello World! Start your squad journey here - Hello World! Start your squad journey here Hello World! Start your squad journey here - Hello World! Start your squad journey here',
         },
       },
       'GRAPHQL_VALIDATION_FAILED',
