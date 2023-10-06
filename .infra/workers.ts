@@ -231,10 +231,12 @@ export const workers: Worker[] = [
     topic: 'api.v1.source-created',
     subscription: 'api.source-created-squad-owner-mailing',
   },
-  {
-    topic: 'api.v1.user-created',
-    subscription: 'api.user-created-add-personalized-digest',
-  },
+  // currently we won't enroll new users to digest until we test
+  // how selected users react to emails in terms of unsubscribing
+  // {
+  //   topic: 'api.v1.user-created',
+  //   subscription: 'api.user-created-add-personalized-digest',
+  // },
   {
     topic: 'api.v1.generate-personalized-digest',
     subscription: 'api.personalized-digest-email',
