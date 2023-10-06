@@ -12,6 +12,7 @@ import notifications from './notifications';
 import boot from './boot';
 import users from './users';
 import redirects from './redirects';
+import webhooks from './webhooks';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -28,6 +29,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(boot, { prefix: '/boot' });
   fastify.register(boot, { prefix: '/new_boot' });
   fastify.register(users, { prefix: '/v1/users' });
+  fastify.register(webhooks, { prefix: '/webhooks' });
   fastify.register(redirects);
 
   fastify.get('/id', (req, res) => {

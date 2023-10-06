@@ -4,6 +4,7 @@ import fastify, {
   FastifyInstance,
   FastifyError,
 } from 'fastify';
+import fastifyRawBody from 'fastify-raw-body';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
 import mercurius, { MercuriusError } from 'mercurius';
@@ -91,6 +92,12 @@ export default async function app(
   app.register(trace, { enabled: isProd });
   app.register(auth, { secret: process.env.ACCESS_SECRET });
   app.register(tracking);
+  app.register(fastifyRawBody, {
+    field: 'rawBody',
+    global: false,
+    encoding: 'utf8',
+    runFirst: true,
+  });
 
   app.setErrorHandler((err, req, res) => {
     req.log.error({ err }, err.message);
