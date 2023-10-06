@@ -8,6 +8,7 @@ import {
   Post,
   PostKeyword,
   PostOrigin,
+  PostQuestion,
   PostType,
   SharePost,
   Source,
@@ -98,6 +99,17 @@ const createDefaultKeywords = async () => {
     status: 'synonym',
     synonym: 'ab-testing',
   });
+};
+
+const DEFAULT_QUESTIONS = [
+  'What is the one thing you need to truly understand neural networks?',
+  'How do neural networks learn?',
+  'What is the process of training a neural network?',
+];
+
+const createDefaultQuestions = async (postId: string) => {
+  const repo = con.getRepository(PostQuestion);
+  await repo.save(DEFAULT_QUESTIONS.map((question) => ({ postId, question })));
 };
 
 const createSharedPost = async (id = 'sp1') => {
@@ -592,4 +604,123 @@ it('should not update already approved post', async () => {
   expect(submissions.length).toEqual(1);
   expect(submission.id).toEqual(uuid);
   expect(submission.status).toEqual(SubmissionStatus.Accepted);
+});
+
+describe('on post create', () => {
+  beforeEach(async () => {
+    await createDefaultUser();
+  });
+
+  describe('when data includes questions', () => {
+    it('creates a question record each one', async () => {
+      const uuid = randomUUID();
+      await createDefaultSubmission(uuid);
+
+      // pre-check
+      const questionsBefore = await con.getRepository(PostQuestion).find();
+      expect(questionsBefore.length).toEqual(0);
+
+      await expectSuccessfulBackground(worker, {
+        id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+        title: 'With questions',
+        url: `https://post.com/${uuid}`,
+        source_id: 'a',
+        submission_id: uuid,
+        extra: {
+          questions: DEFAULT_QUESTIONS,
+        },
+      });
+
+      const post = await con
+        .getRepository(Post)
+        .findOneBy({ title: 'With questions' });
+      const questionsAfter = await con
+        .getRepository(PostQuestion)
+        .findBy({ postId: post.id });
+      expect(questionsAfter.length).toEqual(3);
+      expect(questionsAfter.map((q) => q.question)).toEqual(
+        expect.arrayContaining(DEFAULT_QUESTIONS),
+      );
+    });
+  });
+
+  describe('when data does not include questions', () => {
+    it('does not fail', async () => {
+      const uuid = randomUUID();
+      await createDefaultSubmission(uuid);
+
+      await expectSuccessfulBackground(worker, {
+        id: 'f99a445f-e2fb-48e8-959c-e02a17f5e817',
+        title: 'Without questions',
+        url: `https://post.com/${uuid}`,
+        source_id: 'a',
+        submission_id: uuid,
+      });
+
+      const questions = await con.getRepository(PostQuestion).find();
+      expect(questions.length).toEqual(0);
+    });
+  });
+});
+
+describe('on post update', () => {
+  beforeEach(async () => {
+    await createDefaultUser();
+  });
+
+  describe('without existing questions for the post', () => {
+    it('creates a question record for each one', async () => {
+      const postId = 'p1';
+
+      // pre-check
+      const questionsBefore = await con
+        .getRepository(PostQuestion)
+        .findBy({ postId });
+      expect(questionsBefore.length).toEqual(0);
+
+      await expectSuccessfulBackground(worker, {
+        id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+        post_id: postId,
+        title: 'New title',
+        extra: {
+          questions: DEFAULT_QUESTIONS,
+        },
+      });
+
+      const questionsAfter = await con
+        .getRepository(PostQuestion)
+        .findBy({ postId });
+      expect(questionsAfter.length).toEqual(3);
+    });
+  });
+
+  describe('with existing questions for the post', () => {
+    it('does not create new question records', async () => {
+      const postId = 'p1';
+      await createDefaultQuestions(postId);
+
+      // pre-check
+      const questionsBefore = await con
+        .getRepository(PostQuestion)
+        .findBy({ postId });
+      expect(questionsBefore.length).toEqual(3);
+
+      await expectSuccessfulBackground(worker, {
+        id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+        post_id: postId,
+        title: 'New title',
+        extra: {
+          questions: ['foo', 'bar', 'baz'],
+        },
+      });
+
+      const questionsAfter = await con
+        .getRepository(PostQuestion)
+        .findBy({ postId });
+      expect(questionsAfter.length).toEqual(3);
+      expect(questionsAfter.map((q) => q.question)).toEqual(
+        expect.arrayContaining(DEFAULT_QUESTIONS),
+      );
+    });
+  });
 });

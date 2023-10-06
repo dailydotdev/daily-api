@@ -2,6 +2,7 @@ import { messageToJson, Worker } from './worker';
 import * as he from 'he';
 import {
   addKeywords,
+  addQuestions,
   ArticlePost,
   bannedAuthors,
   findAuthor,
@@ -43,6 +44,7 @@ interface Data {
   order?: number;
   extra?: {
     keywords?: string[];
+    questions?: string[];
     summary?: string;
     description?: string;
     read_time?: number;
@@ -95,6 +97,7 @@ type CreatePostProps = {
   data: Partial<ArticlePost>;
   submissionId?: string;
   mergedKeywords: string[];
+  questions: string[];
 };
 const createPost = async ({
   logger,
@@ -102,6 +105,7 @@ const createPost = async ({
   data,
   submissionId,
   mergedKeywords,
+  questions,
 }: CreatePostProps) => {
   const existingPost = await entityManager
     .getRepository(Post)
@@ -158,6 +162,7 @@ const createPost = async ({
   await entityManager.save(post);
 
   await addKeywords(entityManager, mergedKeywords, data.id);
+  await addQuestions(entityManager, questions, data.id);
 
   return;
 };
@@ -185,6 +190,7 @@ type UpdatePostProps = {
   data: Partial<ArticlePost>;
   id: string;
   mergedKeywords: string[];
+  questions: string[];
   content_type: PostType;
 };
 const updatePost = async ({
@@ -192,6 +198,7 @@ const updatePost = async ({
   data,
   id,
   mergedKeywords,
+  questions,
   content_type = PostType.Article,
 }: UpdatePostProps) => {
   const postType = contentTypeFromPostType[content_type];
@@ -280,6 +287,7 @@ const updatePost = async ({
     await addKeywords(entityManager, mergedKeywords, data.id);
   }
 
+  await addQuestions(entityManager, questions, data.id, true);
   return;
 };
 
@@ -325,6 +333,7 @@ type FixDataProps = {
 };
 type FixData = {
   mergedKeywords: string[];
+  questions: string[];
   content_type: PostType;
   fixedData: Partial<ArticlePost>;
 };
@@ -365,6 +374,7 @@ const fixData = async ({
   // Try and fix generic data here
   return {
     mergedKeywords,
+    questions: data?.extra?.questions || [],
     content_type: data?.content_type as PostType,
     fixedData: {
       origin: data?.origin as PostOrigin,
@@ -422,11 +432,12 @@ const worker: Worker = {
           return;
         }
 
-        const { mergedKeywords, content_type, fixedData } = await fixData({
-          logger,
-          entityManager,
-          data,
-        });
+        const { mergedKeywords, questions, content_type, fixedData } =
+          await fixData({
+            logger,
+            entityManager,
+            data,
+          });
 
         // See if post id is not available
         if (!post_id) {
@@ -437,6 +448,7 @@ const worker: Worker = {
             data: fixedData,
             submissionId: data?.submission_id,
             mergedKeywords,
+            questions,
           });
         } else {
           // Handle update of existing post
@@ -445,6 +457,7 @@ const worker: Worker = {
             data: fixedData,
             id: post_id,
             mergedKeywords,
+            questions,
             content_type,
           });
         }
