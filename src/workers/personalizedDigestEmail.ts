@@ -34,11 +34,7 @@ const emailTemplateId = 'd-328d1104d2e04fa1ab91e410e02751cb';
 
 const personalizedDigestDateFormat = 'yyyy-MM-dd HH:mm:ss';
 
-const getEmailSendDate = ({
-  personalizedDigest,
-}: {
-  personalizedDigest: UserPersonalizedDigest;
-}): Date => {
+const getEmailSendDate = ({ personalizedDigest }: Data): Date => {
   const nextPreferredDay = nextDay(new Date(), personalizedDigest.preferredDay);
   nextPreferredDay.setHours(personalizedDigest.preferredHour, 0, 0, 0);
   const sendDateInPreferredTimezone = zonedTimeToUtc(
@@ -49,11 +45,7 @@ const getEmailSendDate = ({
   return sendDateInPreferredTimezone;
 };
 
-const getPreviousSendDate = ({
-  personalizedDigest,
-}: {
-  personalizedDigest: UserPersonalizedDigest;
-}): Date => {
+const getPreviousSendDate = ({ personalizedDigest }: Data): Date => {
   const nextPreferredDay = previousDay(
     new Date(),
     personalizedDigest.preferredDay,
