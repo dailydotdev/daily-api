@@ -21,6 +21,7 @@ import {
 } from '../entity';
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
+import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
@@ -65,6 +66,9 @@ const postContentEditedTopic = pubsub.topic('api.v1.post-content-edited');
 const commentEditedTopic = pubsub.topic('api.v1.comment-edited');
 const commentDeletedTopic = pubsub.topic('api.v1.comment-deleted');
 const sourceCreatedTopic = pubsub.topic('api.v1.source-created');
+const generatePersonalizedDigestTopic = pubsub.topic(
+  'api.v1.generate-personalized-digest',
+);
 
 export enum NotificationReason {
   New = 'new',
@@ -418,3 +422,9 @@ export const notifySourceCreated = async (
   log: EventLogger,
   source: ChangeObject<Source>,
 ): Promise<void> => publishEvent(log, sourceCreatedTopic, { source });
+
+export const notifyGeneratePersonalizedDigest = async (
+  log: EventLogger,
+  personalizedDigest: ChangeObject<UserPersonalizedDigest>,
+): Promise<void> =>
+  publishEvent(log, generatePersonalizedDigestTopic, { personalizedDigest });

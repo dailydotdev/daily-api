@@ -441,6 +441,9 @@ const obj = new GraphORM({
   PostQuestion: {
     requiredColumns: ['id'],
   },
+  UserPersonalizedDigest: {
+    requiredColumns: ['userId'],
+  },
 });
 
 export default obj;

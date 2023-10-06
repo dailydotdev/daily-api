@@ -40,4 +40,8 @@ export const crons: Cron[] = [
     name: 'clean-zombie-images',
     schedule: '3 5 * * *',
   },
+  {
+    name: 'personalized-digest',
+    schedule: '15 0 * * *'
+  }
 ];

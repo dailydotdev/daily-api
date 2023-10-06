@@ -6,7 +6,11 @@ import {
   IFeedClient,
 } from './types';
 import { Context } from '../../Context';
-import { CachedFeedClient, FeedClient } from './clients';
+import {
+  CachedFeedClient,
+  FeedClient,
+  PersonalizedDigestFeedClient,
+} from './clients';
 import { ioRedisPool } from '../../redis';
 import {
   FeedPreferencesConfigGenerator,
@@ -47,6 +51,7 @@ export class FeedGenerator {
 export const snotraClient = new SnotraClient();
 export const feedClient = new FeedClient();
 export const cachedFeedClient = new CachedFeedClient(feedClient, ioRedisPool);
+export const personalizedDigestFeedClient = new PersonalizedDigestFeedClient();
 
 const opts = {
   includeBlockedTags: true,
