@@ -22,6 +22,7 @@ import { ContentImage, ContentImageUsedByType } from '../ContentImage';
 import { getMentions, MentionedUser } from '../../schema/comments';
 import { markdown, renderMentions, saveMentions } from '../../common/markdown';
 import { PostMention } from './PostMention';
+import { PostQuestion } from './PostQuestion';
 
 export type PostStats = {
   numPosts: number;
@@ -170,6 +171,32 @@ export const addKeywords = async (
     );
   }
   return;
+};
+
+export const addQuestions = async (
+  entityManager: EntityManager,
+  questions: string[],
+  postId: Post['id'],
+  existingPost: boolean = false,
+) => {
+  let existingQuestion: PostQuestion | undefined;
+
+  if (existingPost) {
+    existingQuestion = await entityManager
+      .getRepository(PostQuestion)
+      .findOneBy({ postId });
+  }
+
+  // for now, we only add questions if there aren't any existing ones
+  // this means that questions don't change on a post once initially created
+  if (existingQuestion) return;
+
+  await entityManager.getRepository(PostQuestion).insert(
+    questions.map((question) => ({
+      question,
+      postId,
+    })),
+  );
 };
 
 const validateCommentary = async (commentary: string) => {
