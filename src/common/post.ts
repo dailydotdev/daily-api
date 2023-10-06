@@ -198,7 +198,7 @@ export interface CreatePostArgs
   sourceId: string;
 }
 
-const MAX_TITLE_LENGTH = 80;
+const MAX_TITLE_LENGTH = 250;
 const MAX_CONTENT_LENGTH = 4000;
 
 type ValidatePostArgs = Pick<EditPostArgs, 'title' | 'content'>;
@@ -208,7 +208,9 @@ export const validatePost = (args: ValidatePostArgs): ValidatePostArgs => {
   const content = args.content?.trim() ?? '';
 
   if (title.length > MAX_TITLE_LENGTH) {
-    throw new ValidationError('Title has a maximum length of 80 characters');
+    throw new ValidationError(
+      `Title has a maximum length of ${MAX_TITLE_LENGTH} characters`,
+    );
   }
 
   if (content.length > MAX_CONTENT_LENGTH) {
