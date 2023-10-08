@@ -975,7 +975,7 @@ describe('query searchQuestionRecommendations', () => {
   it('should throw error when user is not logged in', async () =>
     testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
 
-  it('should return questions related to upvoted posts of user', async () => {
+  it('should return questions related to views of user', async () => {
     loggedUser = '1';
 
     await con.getRepository(PostQuestion).save([
@@ -989,14 +989,14 @@ describe('query searchQuestionRecommendations', () => {
     ]);
 
     const otherUserUpvotes = [postsFixture[5].id, postsFixture[6].id];
-    await con.getRepository(UserPost).save([
-      { userId: '1', postId: postsFixture[0].id, vote: UserPostVote.Up },
-      { userId: '1', postId: postsFixture[1].id, vote: UserPostVote.Up },
-      { userId: '1', postId: postsFixture[2].id, vote: UserPostVote.Up },
-      { userId: '1', postId: postsFixture[3].id, vote: UserPostVote.Up },
-      { userId: '1', postId: postsFixture[4].id, vote: UserPostVote.Up },
-      { userId: '2', postId: otherUserUpvotes[0], vote: UserPostVote.Up },
-      { userId: '2', postId: otherUserUpvotes[1], vote: UserPostVote.Up },
+    await con.getRepository(View).save([
+      { userId: '1', postId: postsFixture[0].id },
+      { userId: '1', postId: postsFixture[1].id },
+      { userId: '1', postId: postsFixture[2].id },
+      { userId: '1', postId: postsFixture[3].id },
+      { userId: '1', postId: postsFixture[4].id },
+      { userId: '2', postId: otherUserUpvotes[0] },
+      { userId: '2', postId: otherUserUpvotes[1] },
     ]);
 
     const res = await client.query(QUERY);

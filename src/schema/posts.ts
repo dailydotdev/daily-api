@@ -2,17 +2,17 @@ import {
   Connection as ConnectionRelay,
   ConnectionArguments,
 } from 'graphql-relay';
-import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, EntityManager } from 'typeorm';
+import {ForbiddenError, ValidationError} from 'apollo-server-errors';
+import {IResolvers} from '@graphql-tools/utils';
+import {DataSource, EntityManager, MoreThan} from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
   SourcePermissions,
   sourceTypesWithMembers,
 } from './sources';
-import { Context } from '../Context';
-import { traceResolverObject } from './trace';
+import {Context} from '../Context';
+import {traceResolverObject} from './trace';
 import {
   CreatePost,
   CreatePostArgs,
@@ -55,31 +55,33 @@ import {
   UserPost,
   UserPostFlagsPublic,
   UserPostVote,
+  View,
 } from '../entity';
-import { GQLEmptyResponse } from './common';
+import {GQLEmptyResponse} from './common';
 import {
   NotFoundError,
   SubmissionFailErrorMessage,
   TypeOrmError,
 } from '../errors';
-import { GQLBookmarkList } from './bookmarks';
-import { getMentions, GQLComment } from './comments';
+import {GQLBookmarkList} from './bookmarks';
+import {getMentions, GQLComment} from './comments';
 import graphorm from '../graphorm';
-import { GQLUser } from './users';
+import {GQLUser} from './users';
 import {
   getRedisObject,
   ONE_MINUTE_IN_SECONDS,
   redisPubSub,
   setRedisObjectWithExpiry,
 } from '../redis';
-import { queryPaginatedByDate } from '../common/datePageGenerator';
-import { GraphQLResolveInfo } from 'graphql';
-import { Roles } from '../roles';
-import { markdown, saveMentions } from '../common/markdown';
-import { FileUpload } from 'graphql-upload/GraphQLUpload';
-import { insertOrIgnoreAction } from './actions';
-import { generateShortId, generateUUID } from '../ids';
-import { generateStorageKey, StorageTopic } from '../config';
+import {queryPaginatedByDate} from '../common/datePageGenerator';
+import {GraphQLResolveInfo} from 'graphql';
+import {Roles} from '../roles';
+import {markdown, saveMentions} from '../common/markdown';
+import {FileUpload} from 'graphql-upload/GraphQLUpload';
+import {insertOrIgnoreAction} from './actions';
+import {generateShortId, generateUUID} from '../ids';
+import {generateStorageKey, StorageTopic} from '../config';
+import {subDays} from 'date-fns';
 
 export interface GQLPost {
   id: string;
@@ -134,10 +136,8 @@ interface PinPostArgs {
 
 type GQLPostQuestion = Pick<PostQuestion, 'id' | 'post' | 'question'>;
 
-export type GQLPostNotification = Pick<
-  GQLPost,
-  'id' | 'numUpvotes' | 'numComments'
->;
+export type GQLPostNotification = Pick<GQLPost,
+  'id' | 'numUpvotes' | 'numComments'>;
 
 export interface GQLPostUpvote {
   createdAt: Date;
@@ -166,11 +166,11 @@ export const getPostNotification = async (
 ): Promise<GQLPostNotification> => {
   const post = await con
     .getRepository(Post)
-    .findOne({ where: { id: postId }, select: ['id', 'upvotes', 'comments'] });
+    .findOne({where: {id: postId}, select: ['id', 'upvotes', 'comments']});
   if (!post) {
     return null;
   }
-  return { id: post.id, numUpvotes: post.upvotes, numComments: post.comments };
+  return {id: post.id, numUpvotes: post.upvotes, numComments: post.comments};
 };
 
 interface ReportPostArgs {
@@ -955,7 +955,7 @@ const revertPostDownvote = async (
     hidden: false,
   });
 
-  await con.getRepository(HiddenPost).delete({ postId, userId });
+  await con.getRepository(HiddenPost).delete({postId, userId});
 };
 
 const editablePostTypes = [PostType.Welcome, PostType.Freeform];
@@ -986,7 +986,7 @@ export const getPostByUrl = async (
         .addSelect(`"${builder.alias}"."deleted"`)
         .where(
           `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url)`,
-          { url },
+          {url},
         )
         .limit(1),
       ...builder,
@@ -1006,13 +1006,13 @@ const updatePromoteToPublicFlag = async (
   }
 
   await ctx.getRepository(Post).update(
-    { id },
+    {id},
     {
-      flags: updateFlagsStatement<Post>({ promoteToPublic: value }),
+      flags: updateFlagsStatement<Post>({promoteToPublic: value}),
     },
   );
 
-  return { _: true };
+  return {_: true};
 };
 
 const getPostById = async (
@@ -1023,7 +1023,7 @@ const getPostById = async (
   const res = await graphorm.query<GQLPost>(ctx, info, (builder) => ({
     queryBuilder: builder.queryBuilder.where(
       `"${builder.alias}"."id" = :id AND "${builder.alias}"."deleted" = false`,
-      { id },
+      {id},
     ),
     ...builder,
   }));
@@ -1038,14 +1038,14 @@ export const resolvers: IResolvers<any, Context> = {
   Query: traceResolverObject({
     post: async (
       source,
-      { id }: { id: string },
+      {id}: { id: string },
       ctx: Context,
       info,
     ): Promise<GQLPost> => {
       const partialPost = await ctx.con.getRepository(Post).findOneOrFail({
         select: ['id', 'sourceId', 'private'],
         relations: ['source'],
-        where: { id },
+        where: {id},
       });
       const postSource = await partialPost.source;
 
@@ -1059,7 +1059,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     postByUrl: async (
       source,
-      { url }: { id: string; url: string },
+      {url}: { id: string; url: string },
       ctx: Context,
       info,
     ): Promise<GQLPost> => {
@@ -1068,7 +1068,7 @@ export const resolvers: IResolvers<any, Context> = {
         queryBuilder: builder.queryBuilder
           .where(
             `("${builder.alias}"."canonicalUrl" = :url OR "${builder.alias}"."url" = :url) AND "${builder.alias}"."deleted" = false`,
-            { url: standardizedUrl },
+            {url: standardizedUrl},
           )
           .limit(1),
         ...builder,
@@ -1080,7 +1080,7 @@ export const resolvers: IResolvers<any, Context> = {
           if (!sourceId) {
             const p2 = await ctx.con.getRepository(Post).findOneOrFail({
               select: ['sourceId'],
-              where: { id: post.id },
+              where: {id: post.id},
             });
             sourceId = p2.sourceId;
           }
@@ -1098,13 +1098,13 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<ConnectionRelay<GQLUserPost>> => {
       const post = await ctx.con
         .getRepository(Post)
-        .findOneByOrFail({ id: args.id });
+        .findOneByOrFail({id: args.id});
       await ensureSourcePermissions(ctx, post.sourceId);
       return queryPaginatedByDate(
         ctx,
         info,
         args,
-        { key: 'votedAt' },
+        {key: 'votedAt'},
         {
           queryBuilder: (builder) => {
             builder.queryBuilder = builder.queryBuilder
@@ -1143,17 +1143,20 @@ export const resolvers: IResolvers<any, Context> = {
                   .subQuery()
                   .select('id')
                   .from(PostQuestion, 'pq')
-                  .where(`"pq"."postId" = "up"."postId"`);
+                  .where(`"pq"."postId" = "v"."postId"`);
                 return query
-                  .select('up."postId"')
-                  .from(UserPost, 'up')
-                  .where({ userId: ctx.userId, vote: UserPostVote.Up })
+                  .select('v."postId"')
+                  .from(View, 'v')
+                  .where({
+                    userId: ctx.userId,
+                    timestamp: MoreThan(subDays(new Date(), 30)),
+                  })
                   .andWhere(`exists(${sub.getQuery()})`)
-                  .orderBy('up."votedAt"', 'DESC')
+                  .orderBy('v."timestamp"', 'DESC')
                   .limit(10);
               },
-              'upvoted',
-              `"${builder.alias}"."postId" = upvoted."postId"`,
+              'views',
+              `"${builder.alias}"."postId" = views."postId"`,
             )
             .orderBy('random()', 'DESC')
             .limit(3),
@@ -1173,21 +1176,21 @@ export const resolvers: IResolvers<any, Context> = {
   Mutation: traceResolverObject<any, any>({
     hidePost: async (
       source,
-      { id }: { id: string },
+      {id}: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      await saveHiddenPost(ctx.con, { userId: ctx.userId, postId: id });
-      return { _: true };
+      await saveHiddenPost(ctx.con, {userId: ctx.userId, postId: id});
+      return {_: true};
     },
     unhidePost: async (
       _,
-      { id }: { id: string },
+      {id}: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
         await entityManager
           .getRepository(HiddenPost)
-          .delete({ postId: id, userId: ctx.userId });
+          .delete({postId: id, userId: ctx.userId});
 
         await entityManager.getRepository(UserPost).save({
           postId: id,
@@ -1196,11 +1199,11 @@ export const resolvers: IResolvers<any, Context> = {
         });
       });
 
-      return { _: true };
+      return {_: true};
     },
     reportPost: async (
       source,
-      { id, reason, comment, tags }: ReportPostArgs,
+      {id, reason, comment, tags}: ReportPostArgs,
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       if (!reportReasons.has(reason)) {
@@ -1217,7 +1220,7 @@ export const resolvers: IResolvers<any, Context> = {
       });
 
       if (added) {
-        const post = await ctx.getRepository(Post).findOneByOrFail({ id });
+        const post = await ctx.getRepository(Post).findOneByOrFail({id});
         await ensureSourcePermissions(ctx, post.sourceId);
         if (!post.banned) {
           try {
@@ -1235,11 +1238,11 @@ export const resolvers: IResolvers<any, Context> = {
           }
         }
       }
-      return { _: true };
+      return {_: true};
     },
     uploadContentImage: async (
       _,
-      { image }: { image: Promise<FileUpload> },
+      {image}: { image: Promise<FileUpload> },
       ctx,
     ): Promise<string> => {
       if (!image) {
@@ -1258,7 +1261,7 @@ export const resolvers: IResolvers<any, Context> = {
           : UploadPreset.FreeformImage;
       const id = generateUUID();
       const filename = `content_${id}`;
-      const { url: imageUrl, id: imageId } = await uploadPostFile(
+      const {url: imageUrl, id: imageId} = await uploadPostFile(
         filename,
         upload.createReadStream(),
         preset,
@@ -1271,23 +1274,23 @@ export const resolvers: IResolvers<any, Context> = {
     },
     deletePost: async (
       _,
-      { id }: { id: string },
+      {id}: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       if (ctx.roles.includes(Roles.Moderator)) {
         await ctx.getRepository(Post).update(
-          { id },
+          {id},
           {
             deleted: true,
-            flags: updateFlagsStatement<Post>({ deleted: true }),
+            flags: updateFlagsStatement<Post>({deleted: true}),
           },
         );
-        return { _: true };
+        return {_: true};
       }
 
       await ctx.con.transaction(async (manager) => {
         const repo = manager.getRepository(Post);
-        const post = await repo.findOneBy({ id });
+        const post = await repo.findOneBy({id});
         if (post.authorId !== ctx.userId) {
           await ensureSourcePermissions(
             ctx,
@@ -1296,19 +1299,19 @@ export const resolvers: IResolvers<any, Context> = {
           );
         }
         await repo.update(
-          { id },
+          {id},
           {
             deleted: true,
-            flags: updateFlagsStatement<Post>({ deleted: true }),
+            flags: updateFlagsStatement<Post>({deleted: true}),
           },
         );
       });
 
-      return { _: true };
+      return {_: true};
     },
     promoteToPublic: async (
       _,
-      { id }: { id: string },
+      {id}: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       const nextWeek = new Date();
@@ -1318,17 +1321,17 @@ export const resolvers: IResolvers<any, Context> = {
     },
     demoteFromPublic: async (
       _,
-      { id }: { id: string },
+      {id}: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => updatePromoteToPublicFlag(ctx, id, null),
     updatePinPost: async (
       _,
-      { id, pinned }: PinPostArgs,
+      {id, pinned}: PinPostArgs,
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (manager) => {
         const repo = manager.getRepository(Post);
-        const post = await repo.findOneBy({ id });
+        const post = await repo.findOneBy({id});
 
         await ensureSourcePermissions(
           ctx,
@@ -1336,10 +1339,10 @@ export const resolvers: IResolvers<any, Context> = {
           SourcePermissions.PostPin,
         );
 
-        await repo.update({ id }, { pinnedAt: pinned ? new Date() : null });
+        await repo.update({id}, {pinnedAt: pinned ? new Date() : null});
       });
 
-      return { _: true };
+      return {_: true};
     },
     createFreeformPost: async (
       source,
@@ -1347,10 +1350,10 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<GQLPost> => {
-      const { sourceId, image } = args;
-      const { con, userId } = ctx;
+      const {sourceId, image} = args;
+      const {con, userId} = ctx;
       const id = await generateShortId();
-      const { title, content } = validatePost(args);
+      const {title, content} = validatePost(args);
 
       if (!title) {
         throw new ValidationError('Title can not be an empty string!');
@@ -1360,7 +1363,7 @@ export const resolvers: IResolvers<any, Context> = {
         await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
         const mentions = await getMentions(manager, content, userId, sourceId);
-        const contentHtml = markdown.render(content, { mentions });
+        const contentHtml = markdown.render(content, {mentions});
         const params: CreatePost = {
           id,
           title,
@@ -1372,7 +1375,7 @@ export const resolvers: IResolvers<any, Context> = {
 
         if (image && process.env.CLOUDINARY_URL) {
           const upload = await image;
-          const { url: coverImageUrl } = await uploadPostFile(
+          const {url: coverImageUrl} = await uploadPostFile(
             id,
             upload.createReadStream(),
             UploadPreset.PostBannerImage,
@@ -1387,7 +1390,7 @@ export const resolvers: IResolvers<any, Context> = {
       return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
         queryBuilder: builder.queryBuilder.where(
           `"${builder.alias}"."id" = :id`,
-          { id },
+          {id},
         ),
         ...builder,
       }));
@@ -1398,13 +1401,13 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
       info,
     ): Promise<GQLPost> => {
-      const { id, image } = args;
-      const { con, userId } = ctx;
-      const { title, content } = validatePost(args);
+      const {id, image} = args;
+      const {con, userId} = ctx;
+      const {title, content} = validatePost(args);
 
       await con.transaction(async (manager) => {
         const repo = manager.getRepository(Post);
-        const post = (await repo.findOneByOrFail({ id })) as
+        const post = (await repo.findOneByOrFail({id})) as
           | WelcomePost
           | FreeformPost;
 
@@ -1436,7 +1439,7 @@ export const resolvers: IResolvers<any, Context> = {
 
         if (image && process.env.CLOUDINARY_URL) {
           const upload = await image;
-          const { url: coverImageUrl } = await uploadPostFile(
+          const {url: coverImageUrl} = await uploadPostFile(
             id,
             upload.createReadStream(),
             UploadPreset.PostBannerImage,
@@ -1452,7 +1455,7 @@ export const resolvers: IResolvers<any, Context> = {
             post.sourceId,
           );
           updated.content = content;
-          updated.contentHtml = markdown.render(content, { mentions });
+          updated.contentHtml = markdown.render(content, {mentions});
           await saveMentions(
             manager,
             post.id,
@@ -1471,42 +1474,42 @@ export const resolvers: IResolvers<any, Context> = {
         }
 
         if (Object.keys(updated).length) {
-          await repo.update({ id }, updated);
+          await repo.update({id}, updated);
         }
       });
 
       return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
         queryBuilder: builder.queryBuilder.where(
           `"${builder.alias}"."id" = :id`,
-          { id },
+          {id},
         ),
         ...builder,
       }));
     },
     banPost: async (
       source,
-      { id }: { id: string },
+      {id}: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
-      const post = await ctx.getRepository(Post).findOneByOrFail({ id });
+      const post = await ctx.getRepository(Post).findOneByOrFail({id});
       if (!post.banned) {
         await ctx.getRepository(Post).update(
-          { id },
+          {id},
           {
             banned: true,
-            flags: updateFlagsStatement<Post>({ banned: true }),
+            flags: updateFlagsStatement<Post>({banned: true}),
           },
         );
       }
-      return { _: true };
+      return {_: true};
     },
     upvote: async (
       source,
-      { id }: { id: string },
+      {id}: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       try {
-        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+        const post = await ctx.con.getRepository(Post).findOneByOrFail({id});
         await ensureSourcePermissions(ctx, post.sourceId);
         await ctx.con.transaction(async (entityManager) => {
           await entityManager.getRepository(Upvote).insert({
@@ -1532,11 +1535,11 @@ export const resolvers: IResolvers<any, Context> = {
           throw err;
         }
       }
-      return { _: true };
+      return {_: true};
     },
     cancelUpvote: async (
       source,
-      { id }: { id: string },
+      {id}: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
@@ -1551,11 +1554,11 @@ export const resolvers: IResolvers<any, Context> = {
           vote: UserPostVote.None,
         });
       });
-      return { _: true };
+      return {_: true};
     },
     checkLinkPreview: async (
       _,
-      { url }: SubmitExternalLinkArgs,
+      {url}: SubmitExternalLinkArgs,
       ctx,
     ): Promise<ExternalLinkPreview> => {
       const standardizedUrl = standardizeURL(url);
@@ -1563,8 +1566,8 @@ export const resolvers: IResolvers<any, Context> = {
         .getRepository(ArticlePost)
         .createQueryBuilder()
         .select('id, title, image')
-        .where([{ canonicalUrl: standardizedUrl }, { url: standardizedUrl }])
-        .andWhere({ deleted: false })
+        .where([{canonicalUrl: standardizedUrl}, {url: standardizedUrl}])
+        .andWhere({deleted: false})
         .getRawOne();
 
       if (!post) {
@@ -1575,7 +1578,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     submitExternalLink: async (
       _,
-      { sourceId, commentary, url, title, image }: SubmitExternalLinkArgs,
+      {sourceId, commentary, url, title, image}: SubmitExternalLinkArgs,
       ctx,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (manager) => {
@@ -1588,7 +1591,7 @@ export const resolvers: IResolvers<any, Context> = {
         const existingPost: Pick<ArticlePost, 'id' | 'deleted' | 'visible'> =
           await manager.getRepository(ArticlePost).findOne({
             select: ['id', 'deleted', 'visible'],
-            where: [{ url: cleanUrl }, { canonicalUrl: cleanUrl }],
+            where: [{url: cleanUrl}, {canonicalUrl: cleanUrl}],
           });
         if (existingPost) {
           if (existingPost.deleted) {
@@ -1603,18 +1606,18 @@ export const resolvers: IResolvers<any, Context> = {
             commentary,
             existingPost.visible,
           );
-          return { _: true };
+          return {_: true};
         }
         await createExternalLink(
           manager,
           ctx.log,
           sourceId,
           ctx.userId,
-          { url, title, image },
+          {url, title, image},
           commentary,
         );
       });
-      return { _: true };
+      return {_: true};
     },
     sharePost: async (
       _,
@@ -1626,7 +1629,7 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLPost> => {
-      await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      await ctx.con.getRepository(Post).findOneByOrFail({id});
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
       const newPost = await createSharePost(
@@ -1640,10 +1643,10 @@ export const resolvers: IResolvers<any, Context> = {
     },
     viewPost: async (
       _,
-      { id }: { id: string },
+      {id}: { id: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      const post = await ctx.con.getRepository(Post).findOneByOrFail({id});
       await ensureSourcePermissions(ctx, post.sourceId);
       if (post.type !== PostType.Article) {
         await notifyView(
@@ -1655,15 +1658,15 @@ export const resolvers: IResolvers<any, Context> = {
           post.tagsStr?.split?.(',') ?? [],
         );
       }
-      return { _: true };
+      return {_: true};
     },
     downvote: async (
       source,
-      { id }: { id: string },
+      {id}: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       try {
-        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+        const post = await ctx.con.getRepository(Post).findOneByOrFail({id});
         await ensureSourcePermissions(ctx, post.sourceId);
         await ctx.con.transaction(async (entityManager) => {
           await entityManager.getRepository(Downvote).insert({
@@ -1697,21 +1700,21 @@ export const resolvers: IResolvers<any, Context> = {
           throw err;
         }
       }
-      return { _: true };
+      return {_: true};
     },
     cancelDownvote: async (
       source,
-      { id }: { id: string },
+      {id}: { id: string },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
         await revertPostDownvote(entityManager, id, ctx.userId);
       });
-      return { _: true };
+      return {_: true};
     },
     votePost: async (
       source,
-      { id, vote }: { id: string; vote: UserPostVote },
+      {id, vote}: { id: string; vote: UserPostVote },
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       try {
@@ -1719,7 +1722,7 @@ export const resolvers: IResolvers<any, Context> = {
           throw new ValidationError('Unsupported vote type');
         }
 
-        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+        const post = await ctx.con.getRepository(Post).findOneByOrFail({id});
         await ensureSourcePermissions(ctx, post.sourceId);
         const userPostRepo = ctx.con.getRepository(UserPost);
 
@@ -1763,15 +1766,15 @@ export const resolvers: IResolvers<any, Context> = {
         throw err;
       }
 
-      return { _: true };
+      return {_: true};
     },
     dismissPostFeedback: async (
       source,
-      { id }: { id: string },
+      {id}: { id: string },
       ctx: Context,
     ) => {
       try {
-        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+        const post = await ctx.con.getRepository(Post).findOneByOrFail({id});
         await ensureSourcePermissions(ctx, post.sourceId);
 
         await ctx.con
@@ -1797,14 +1800,12 @@ export const resolvers: IResolvers<any, Context> = {
         throw err;
       }
 
-      return { _: true };
+      return {_: true};
     },
   }),
   Subscription: {
     postsEngaged: {
-      subscribe: async (): Promise<
-        AsyncIterator<{ postsEngaged: GQLPostNotification }>
-      > => {
+      subscribe: async (): Promise<AsyncIterator<{ postsEngaged: GQLPostNotification }>> => {
         const it = {
           [Symbol.asyncIterator]: () =>
             redisPubSub.asyncIterator<GQLPostNotification>('events.posts.*', {
@@ -1813,7 +1814,7 @@ export const resolvers: IResolvers<any, Context> = {
         };
         return (async function* () {
           for await (const value of it) {
-            yield { postsEngaged: value };
+            yield {postsEngaged: value};
           }
         })();
       },
@@ -1840,7 +1841,7 @@ export const resolvers: IResolvers<any, Context> = {
   },
   LinkPreview: {
     image: (preview: ExternalLinkPreview) =>
-      preview.image ?? pickImageUrl({ createdAt: new Date() }),
+      preview.image ?? pickImageUrl({createdAt: new Date()}),
     title: (preview: ExternalLinkPreview) =>
       preview.title?.length ? preview.title : DEFAULT_POST_TITLE,
   },
