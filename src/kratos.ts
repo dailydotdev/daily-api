@@ -43,11 +43,11 @@ const fetchKratos = async (
   } catch (err) {
     if (err instanceof HttpError) {
       const kratosError = new KratosError(err.statusCode, err.response);
-      if (err.statusCode.status >= 500) {
+      if (err.statusCode >= 500) {
         req.log.warn({ err: kratosError }, 'unexpected error from kratos');
         throw err;
       }
-      if (err.statusCode.status !== 303 && err.statusCode.status !== 401) {
+      if (err.statusCode !== 303 && err.statusCode !== 401) {
         req.log.info({ err: kratosError }, 'non-401 error from kratos');
       }
       throw new AbortError(kratosError);
