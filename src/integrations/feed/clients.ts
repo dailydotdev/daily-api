@@ -4,7 +4,7 @@ import { fetchOptions as globalFetchOptions } from '../../http';
 import { IORedisPool } from '@dailydotdev/ts-ioredis-pool';
 import { Context } from '../../Context';
 import { ONE_DAY_IN_SECONDS } from '../../redis';
-import { retryFetch } from '../retry';
+import { retryFetchParse } from '../retry';
 
 type RawFeedServiceResponse = {
   data: { post_id: string; metadata: Record<string, string> }[];
@@ -26,7 +26,7 @@ export class FeedClient implements IFeedClient {
   }
 
   async fetchFeed(ctx, feedId, config): Promise<FeedResponse> {
-    const res = await retryFetch<RawFeedServiceResponse>(
+    const res = await retryFetchParse<RawFeedServiceResponse>(
       this.url,
       {
         ...this.fetchOptions,
@@ -175,7 +175,7 @@ export class PersonalizedDigestFeedClient implements IFeedClient {
   }
 
   async fetchFeed(ctx, feedId, config): Promise<FeedResponse> {
-    const res = await retryFetch<{
+    const res = await retryFetchParse<{
       data: string[];
       rows: number;
     }>(

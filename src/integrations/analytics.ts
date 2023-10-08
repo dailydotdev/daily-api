@@ -31,6 +31,5 @@ export async function sendAnalyticsEvent<
       },
     },
     { retries: 3 },
-    false,
   );
 }
