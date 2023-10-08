@@ -4,7 +4,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { cookies, setCookie } from './cookies';
 import { setTrackingId } from './tracking';
 import { generateTrackingId } from './ids';
-import { AbortError, HttpError, retryFetch } from './integrations/retry';
+import { HttpError, retryFetch } from './integrations/retry';
 
 const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
@@ -45,12 +45,11 @@ const fetchKratos = async (
       const kratosError = new KratosError(err.statusCode, err.response);
       if (err.statusCode >= 500) {
         req.log.warn({ err: kratosError }, 'unexpected error from kratos');
-        throw err;
       }
       if (err.statusCode !== 303 && err.statusCode !== 401) {
         req.log.info({ err: kratosError }, 'non-401 error from kratos');
       }
-      throw new AbortError(kratosError);
+      throw err;
     }
     throw err;
   }
