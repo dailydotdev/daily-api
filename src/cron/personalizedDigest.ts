@@ -1,3 +1,4 @@
+import fastq from 'fastq';
 import { notifyGeneratePersonalizedDigest } from '../common';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import { Cron } from './cron';
@@ -14,11 +15,18 @@ const cron: Cron = {
       });
 
     const personalizedDigestStream = await personalizedDigestQuery.stream();
+    const notifyQueueConcurrency = 1000;
+    const notifyQueue = fastq.promise(
+      async (personalizedDigest: UserPersonalizedDigest) => {
+        await notifyGeneratePersonalizedDigest(logger, personalizedDigest);
+      },
+      notifyQueueConcurrency,
+    );
 
     personalizedDigestStream.on(
       'data',
       (personalizedDigest: UserPersonalizedDigest) => {
-        notifyGeneratePersonalizedDigest(logger, personalizedDigest);
+        notifyQueue.push(personalizedDigest);
       },
     );
 
@@ -33,6 +41,7 @@ const cron: Cron = {
       });
       personalizedDigestStream.on('end', resolve);
     });
+    await notifyQueue.drained();
   },
 };
 

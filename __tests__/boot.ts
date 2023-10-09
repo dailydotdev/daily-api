@@ -60,7 +60,7 @@ const BASE_BODY = {
     lastChangelog: expect.any(String),
     lastBanner: expect.any(String),
   },
-  settings: { ...SETTINGS_DEFAULT, companionExpanded: null },
+  settings: { ...SETTINGS_DEFAULT },
   notifications: { unreadNotificationsCount: 0 },
   squads: [],
   visit: {
