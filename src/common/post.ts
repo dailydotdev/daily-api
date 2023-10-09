@@ -220,3 +220,7 @@ export const validatePost = (args: ValidatePostArgs): ValidatePostArgs => {
 
   return { title, content };
 };
+
+export const submitArticleThreshold = parseInt(
+  process.env.SUBMIT_ARTICLE_THRESHOLD,
+);
