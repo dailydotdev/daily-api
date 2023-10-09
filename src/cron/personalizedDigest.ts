@@ -14,6 +14,7 @@ const cron: Cron = {
         nextPreferredDay,
       });
     const timestamp = Date.now();
+    let digestCount = 0;
 
     const personalizedDigestStream = await personalizedDigestQuery.stream();
     const notifyQueueConcurrency = 1000;
@@ -24,6 +25,8 @@ const cron: Cron = {
           personalizedDigest,
           timestamp,
         );
+
+        digestCount += 1;
       },
       notifyQueueConcurrency,
     );
@@ -47,6 +50,8 @@ const cron: Cron = {
       personalizedDigestStream.on('end', resolve);
     });
     await notifyQueue.drained();
+
+    logger.info({ digestCount }, 'personalized digest sent');
   },
 };
 

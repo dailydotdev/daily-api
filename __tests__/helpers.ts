@@ -18,7 +18,7 @@ import { Roles } from '../src/roles';
 import { Cron } from '../src/cron/cron';
 import { ChangeMessage, ChangeObject } from '../src/types';
 import { PubSub } from '@google-cloud/pubsub';
-import pino from 'pino';
+import pino, { Logger } from 'pino';
 import { createMercuriusTestClient } from 'mercurius-integration-testing';
 import appFunc from '../src';
 import createOrGetConnection from '../src/db';
@@ -212,15 +212,16 @@ export const invokeNotificationWorker = async (
   return worker.handler(mockMessage(data).message, con, logger);
 };
 
-export const invokeCron = async (cron: Cron): Promise<void> => {
+export const invokeCron = async (cron: Cron, logger: Logger): Promise<void> => {
   const con = await createOrGetConnection();
   const pubsub = new PubSub();
-  const logger = pino();
   await cron.handler(con, logger, pubsub);
 };
 
-export const expectSuccessfulCron = (cron: Cron): Promise<void> =>
-  invokeCron(cron);
+export const expectSuccessfulCron = (
+  cron: Cron,
+  logger: Logger = pino(),
+): Promise<void> => invokeCron(cron, logger);
 
 export const mockChangeMessage = <T>({
   before,

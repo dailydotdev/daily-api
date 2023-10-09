@@ -6,6 +6,7 @@ import { User } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { UserPersonalizedDigest } from '../../src/entity/UserPersonalizedDigest';
 import { notifyGeneratePersonalizedDigest } from '../../src/common';
+import pino from 'pino';
 
 let con: DataSource;
 
@@ -85,5 +86,25 @@ describe('personalizedDigest cron', () => {
         expect.any(Number),
       );
     });
+  });
+
+  it('should log notify count', async () => {
+    const [, ...usersToSchedule] = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+      })),
+    );
+
+    const logger = pino();
+    const infoSpy = jest.spyOn(logger, 'info');
+    await expectSuccessfulCron(cron, logger);
+    expect(infoSpy).toHaveBeenCalledTimes(1);
+    expect(infoSpy).toHaveBeenCalledWith(
+      { digestCount: usersToSchedule.length },
+      'personalized digest sent',
+    );
   });
 });
