@@ -1,10 +1,10 @@
-import fetch, { Headers, RequestInit } from 'node-fetch';
+import { Headers, RequestInit } from 'node-fetch';
 import { fetchOptions } from './http';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { cookies, setCookie } from './cookies';
 import { setTrackingId } from './tracking';
 import { generateTrackingId } from './ids';
-import { AbortError, asyncRetry } from './integrations/retry';
+import { HttpError, retryFetch } from './integrations/retry';
 
 const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
@@ -33,28 +33,26 @@ const fetchKratos = async (
   opts: RequestInit = {},
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<{ res: any; headers: Headers }> => {
-  return asyncRetry(
-    async () => {
-      const res = await fetch(endpoint, {
-        ...fetchOptions,
-        ...addKratosHeaderCookies(req),
-        ...opts,
-      });
-      if (res.status < 300) {
-        return { res: await res.json(), headers: res.headers };
+  try {
+    const res = await retryFetch(endpoint, {
+      ...fetchOptions,
+      ...addKratosHeaderCookies(req),
+      ...opts,
+    });
+    return { res: await res.json(), headers: res.headers };
+  } catch (err) {
+    if (err instanceof HttpError) {
+      const kratosError = new KratosError(err.statusCode, err.response);
+      if (err.statusCode >= 500) {
+        req.log.warn({ err: kratosError }, 'unexpected error from kratos');
       }
-      const err = new KratosError(res.status, await res.text());
-      if (res.status >= 500) {
-        req.log.warn({ err }, 'unexpected error from kratos');
-        throw err;
+      if (err.statusCode !== 303 && err.statusCode !== 401) {
+        req.log.info({ err: kratosError }, 'non-401 error from kratos');
       }
-      if (res.status !== 303 && res.status !== 401) {
-        req.log.info({ err }, 'non-401 error from kratos');
-      }
-      throw new AbortError(err);
-    },
-    { retries: 5 },
-  );
+      throw err;
+    }
+    throw err;
+  }
 };
 
 export const clearAuthentication = async (

@@ -1,7 +1,7 @@
 import { ISnotraClient, UserStatePayload, UserStateResponse } from './types';
 import { RequestInit } from 'node-fetch';
 import { fetchOptions as globalFetchOptions } from '../../http';
-import { retryFetch } from '../retry';
+import { retryFetchParse } from '../retry';
 
 export class SnotraClient implements ISnotraClient {
   private readonly url: string;
@@ -16,7 +16,7 @@ export class SnotraClient implements ISnotraClient {
   }
 
   fetchUserState(payload: UserStatePayload): Promise<UserStateResponse> {
-    return retryFetch(
+    return retryFetchParse(
       `${this.url}/api/v1/user/profile`,
       {
         ...this.fetchOptions,
