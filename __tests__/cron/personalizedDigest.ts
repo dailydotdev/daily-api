@@ -52,6 +52,7 @@ describe('personalizedDigest cron', () => {
       expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith(
         expect.anything(),
         personalizedDigest,
+        expect.any(Number),
       );
     });
   });
@@ -81,6 +82,7 @@ describe('personalizedDigest cron', () => {
       expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith(
         expect.anything(),
         personalizedDigest,
+        expect.any(Number),
       );
     });
   });
