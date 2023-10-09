@@ -1,12 +1,11 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { Settings } from '../entity';
+import { Settings, SETTINGS_DEFAULT } from '../entity';
 import { isValidHttpUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 import { v4 as uuidv4 } from 'uuid';
 import { DataSource } from 'typeorm';
-import { TypeOrmError } from '../errors';
 
 interface GQLSettings {
   userId: string;
@@ -246,18 +245,13 @@ export const getSettings = async (
   userId: string,
 ): Promise<Settings> => {
   try {
-    return await con.transaction(async (entityManager) => {
-      const repo = entityManager.getRepository(Settings);
-      const settings = await repo.findOneBy({ userId });
-      if (!settings) {
-        return repo.save({ userId });
-      }
-      return settings;
-    });
-  } catch (err) {
-    if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
-      return con.getRepository(Settings).findOneBy({ userId });
+    const repo = con.getRepository(Settings);
+    const settings = await repo.findOneBy({ userId });
+    if (!settings) {
+      return { ...SETTINGS_DEFAULT, updatedAt: null, userId };
     }
+    return settings;
+  } catch (err) {
     throw err;
   }
 };
