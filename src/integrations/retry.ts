@@ -1,6 +1,6 @@
 import retry, { OperationOptions } from 'retry';
 import isNetworkError from './networkError';
-import fetch, { RequestInit } from 'node-fetch';
+import fetch, { RequestInfo, RequestInit, Response } from 'node-fetch';
 
 export class AbortError extends Error {
   public originalError: Error;
@@ -18,6 +18,21 @@ export class AbortError extends Error {
 
     this.name = 'AbortError';
     this.message = message;
+  }
+}
+
+export class HttpError extends Error {
+  public url: string;
+  public statusCode: number;
+  public response: string;
+
+  constructor(url: string, status: number, response: string) {
+    super(`Unexpected status code: ${status}`);
+
+    this.name = 'HttpError';
+    this.url = url;
+    this.statusCode = status;
+    this.response = response;
   }
 }
 
@@ -66,19 +81,29 @@ export async function asyncRetry<T>(
   });
 }
 
-export function retryFetch<T>(
-  url: string,
+export function retryFetch(
+  url: RequestInfo,
   fetchOpts: RequestInit,
   retryOpts?: RetryOptions,
-): Promise<T> {
+): Promise<Response> {
   return asyncRetry(async () => {
     const res = await fetch(url, fetchOpts);
     if (res.ok) {
-      return res.json();
+      return res;
     }
+    const err = new HttpError(url.toString(), res.status, await res.text());
     if (res.status < 500) {
-      throw new AbortError(`request is invalid: ${res.status}`);
+      throw new AbortError(err);
     }
-    throw new Error(`unexpecetd response from feed service: ${res.status}`);
+    throw err;
   }, retryOpts);
+}
+
+export async function retryFetchParse<T>(
+  url: RequestInfo,
+  fetchOpts: RequestInit,
+  retryOpts?: RetryOptions,
+): Promise<T> {
+  const res = await retryFetch(url, fetchOpts, retryOpts);
+  return res.json();
 }
