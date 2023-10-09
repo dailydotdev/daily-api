@@ -17,8 +17,8 @@ const cron: Cron = {
     const personalizedDigestStream = await personalizedDigestQuery.stream();
     const notifyQueueConcurrency = 1000;
     const notifyQueue = fastq.promise(
-      (personalizedDigest: UserPersonalizedDigest) => {
-        return notifyGeneratePersonalizedDigest(logger, personalizedDigest);
+      async (personalizedDigest: UserPersonalizedDigest) => {
+        await notifyGeneratePersonalizedDigest(logger, personalizedDigest);
       },
       notifyQueueConcurrency,
     );
