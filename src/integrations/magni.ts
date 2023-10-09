@@ -1,5 +1,5 @@
 import { fetchOptions } from '../http';
-import { retryFetch } from './retry';
+import { retryFetch, retryFetchParse } from './retry';
 
 export const magniOrigin = process.env.MAGNI_ORIGIN;
 
@@ -47,7 +47,7 @@ export const getSessions = async (
   if (lastId) params.append('lastId', lastId);
 
   const url = `${magniOrigin}/sessions?${params.toString()}`;
-  const res = await retryFetch<SessionResponse>(url, {
+  const res = await retryFetchParse<SessionResponse>(url, {
     ...fetchOptions,
     headers: { 'X-User-Id': userId },
   });
@@ -89,7 +89,7 @@ export const getSession = async (
   sessionId: string,
 ): Promise<Search> => {
   const url = `${magniOrigin}/session?id=${sessionId}`;
-  return retryFetch(url, {
+  return retryFetchParse(url, {
     ...fetchOptions,
     headers: { 'X-User-Id': userId },
   });

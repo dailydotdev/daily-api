@@ -43,16 +43,12 @@ import { addDays, setMilliseconds } from 'date-fns';
 import setCookieParser from 'set-cookie-parser';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
-import {
-  DEFAULT_FLAGS,
-  DEFAULT_INTERNAL_FLAGS,
-  submitArticleThreshold,
-} from '../src/featureFlags';
 import { SourcePermissions } from '../src/schema/sources';
 import { getEncryptedFeatures } from '../src/growthbook';
 import { base64 } from 'graphql-relay/utils/base64';
 import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
+import { submitArticleThreshold } from '../src/common';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -67,7 +63,6 @@ const BASE_BODY = {
   settings: { ...SETTINGS_DEFAULT, companionExpanded: null },
   notifications: { unreadNotificationsCount: 0 },
   squads: [],
-  flags: DEFAULT_FLAGS,
   visit: {
     sessionId: expect.any(String),
     visitId: expect.any(String),
@@ -77,7 +72,6 @@ const BASE_BODY = {
 
 const LOGGED_IN_BODY = {
   ...BASE_BODY,
-  flags: { ...DEFAULT_FLAGS, ...DEFAULT_INTERNAL_FLAGS },
   accessToken: {
     expiresIn: expect.any(String),
     token: expect.any(String),
@@ -229,30 +223,6 @@ describe('anonymous boot', () => {
     expect(second.body.user.firstVisit).toEqual(first.body.user.firstVisit);
   });
 
-  it('should validate onboarding v2 requirement', async () => {
-    const first = await request(app.server)
-      .get(BASE_PATH)
-      .set('User-Agent', TEST_UA)
-      .expect(200);
-    await ioRedisPool.execute((client) =>
-      client.set(
-        generateStorageKey(
-          StorageTopic.Boot,
-          'first_visit',
-          first.body.user.id,
-        ),
-        new Date(2023, 6, 10).toISOString(),
-      ),
-    );
-    const second = await request(app.server)
-      .get(BASE_PATH)
-      .set('User-Agent', TEST_UA)
-      .set('Cookie', first.headers['set-cookie'])
-      .expect(200);
-    expect(second.body.user.id).toEqual(first.body.user.id);
-    expect(second.body.flags.onboarding_v2.enabled).toBeFalsy();
-  });
-
   it('should extend the TTL for redis cache if user visits a second time', async () => {
     const first = await request(app.server)
       .get(BASE_PATH)
@@ -275,15 +245,6 @@ describe('anonymous boot', () => {
     const secondTTL = await ioRedisPool.execute((client) => client.ttl(key));
     // Should have reset the TTL
     expect(firstTTL).toEqual(secondTTL);
-  });
-
-  it('should not change value if user is not a pre onboarding v2 user', async () => {
-    const res = await request(app.server)
-      .get(BASE_PATH)
-      .set('User-Agent', TEST_UA)
-      .expect(200);
-    expect(res.body.flags.onboarding_v2.enabled).toBeTruthy();
-    expect(res.body.flags.onboarding_v2.value).toEqual('v1');
   });
 
   it('should return anonymous boot if jwt is expired', async () => {
@@ -669,16 +630,6 @@ describe('boot misc', () => {
     expect(res.body.settings).toEqual(settings);
   });
 
-  it('should return submit article true', async () => {
-    mockLoggedIn();
-    await con.getRepository(User).update({ id: '1' }, { reputation: 300 });
-    const res = await request(app.server)
-      .get(BASE_PATH)
-      .set('Cookie', 'ory_kratos_session=value;')
-      .expect(200);
-    expect(res.body.flags.submit_article.enabled).toEqual(true);
-  });
-
   it('should return unread notifications count', async () => {
     mockLoggedIn();
     await con
@@ -870,20 +821,6 @@ describe('boot misc', () => {
         },
       },
     ]);
-  });
-});
-
-describe('boot feature flags', () => {
-  it('should return user feature flags', async () => {
-    mockLoggedIn();
-    const res = await request(app.server)
-      .get(BASE_PATH)
-      .set('Cookie', 'ory_kratos_session=value;')
-      .expect(200);
-    expect(res.body.flags).toEqual({
-      ...DEFAULT_FLAGS,
-      ...DEFAULT_INTERNAL_FLAGS,
-    });
   });
 });
 

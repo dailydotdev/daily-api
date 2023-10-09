@@ -1,9 +1,9 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
-import fetch from 'node-fetch';
 import { DevCard } from '../entity';
 import { generateDevCard } from '../templates/devcard';
 import { getDevCardData } from '../common/devcard';
 import createOrGetConnection from '../db';
+import { retryFetch } from '../integrations/retry';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { id: string } }>(
@@ -31,7 +31,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           backgroundImage: devCard.background,
         });
         if (format === 'png') {
-          const response = await fetch(
+          const response = await retryFetch(
             `${process.env.SCRAPER_URL}/screenshot`,
             {
               method: 'POST',

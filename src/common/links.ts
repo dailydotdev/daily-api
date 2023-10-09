@@ -1,6 +1,7 @@
 import { Source, SourceType } from '../entity';
-import fetch, { Headers } from 'node-fetch';
+import { Headers } from 'node-fetch';
 import { FastifyBaseLogger } from 'fastify';
+import { retryFetchParse } from '../integrations/retry';
 
 const excludeFromStandardization = [
   'youtube.com',
@@ -71,18 +72,16 @@ export const getShortUrl = async (
     Authorization: `Bearer ${urlShortenerSecret}`,
   });
 
-  const response = await fetch(fetchUrl, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ url }),
-  });
+  try {
+    const result = await retryFetchParse<{ url: string }>(fetchUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ url }),
+    });
 
-  if (!response.ok) {
-    log.warn({ status: response.status, url }, 'failed to shorten url');
+    return result.url;
+  } catch (err) {
+    log.warn({ err }, 'failed to shorten url');
     return url;
   }
-
-  const result = await response.json();
-
-  return result.url;
 };

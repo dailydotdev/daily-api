@@ -1,5 +1,4 @@
 import { DataSource, EntityManager } from 'typeorm';
-import fetch from 'node-fetch';
 import {
   Comment,
   ExternalLinkPreview,
@@ -16,6 +15,7 @@ import { markdown } from './markdown';
 import { generateShortId } from '../ids';
 import { GQLPost } from '../schema/posts';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
+import { HttpError, retryFetchParse } from '../integrations/retry';
 
 export const defaultImage = {
   urls: process.env.DEFAULT_IMAGE_URL?.split?.(',') ?? [],
@@ -75,21 +75,20 @@ export const fetchLinkPreview = async (
     throw new ValidationError('URL is not valid');
   }
 
-  const res = await fetch(`${postScraperOrigin}/preview`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url }),
-  });
-
-  if (res.status >= 400 && res.status < 500) {
-    throw new ValidationError('Bad request!');
+  try {
+    return await retryFetchParse(`${postScraperOrigin}/preview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+  } catch (err) {
+    if (err instanceof HttpError) {
+      if (err.statusCode >= 400 && err.statusCode < 500) {
+        throw new ValidationError('Bad request!');
+      }
+    }
+    throw err;
   }
-
-  if (res.status === 200) {
-    return res.json();
-  }
-
-  throw new Error('Internal server error!');
 };
 
 export const WELCOME_POST_TITLE =
@@ -221,3 +220,7 @@ export const validatePost = (args: ValidatePostArgs): ValidatePostArgs => {
 
   return { title, content };
 };
+
+export const submitArticleThreshold = parseInt(
+  process.env.SUBMIT_ARTICLE_THRESHOLD,
+);
