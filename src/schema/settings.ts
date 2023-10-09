@@ -6,7 +6,6 @@ import { isValidHttpUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 import { v4 as uuidv4 } from 'uuid';
 import { DataSource } from 'typeorm';
-import { TypeOrmError } from '../errors';
 
 interface GQLSettings {
   userId: string;
