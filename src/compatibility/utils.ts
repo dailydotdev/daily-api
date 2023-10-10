@@ -1,7 +1,7 @@
 import { GraphQLError } from 'graphql';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { generateTraceContext } from '@google-cloud/trace-agent/build/src/util';
-import { Constants } from '@google-cloud/trace-agent/build/src/constants';
+// import { generateTraceContext } from '@google-cloud/trace-agent/build/src/util';
+// import { Constants } from '@google-cloud/trace-agent/build/src/constants';
 
 export interface GraphqlPayload {
   query: string;
@@ -17,10 +17,10 @@ export const injectGraphql = async (
   req: FastifyRequest,
   res: FastifyReply,
 ): Promise<FastifyReply> => {
-  const traceContext = generateTraceContext(req.span.getTraceContext());
+  // const traceContext = generateTraceContext(req.span.getTraceContext());
   const reqHeaders = {
     ...req.headers,
-    [Constants.TRACE_CONTEXT_HEADER_NAME]: traceContext,
+    // [Constants.TRACE_CONTEXT_HEADER_NAME]: traceContext,
   };
   delete reqHeaders['content-length'];
   const graphqlRes = await fastify.inject({
