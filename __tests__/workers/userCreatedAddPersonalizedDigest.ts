@@ -5,6 +5,7 @@ import createOrGetConnection from '../../src/db';
 import { User } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { UserPersonalizedDigest } from '../../src/entity/UserPersonalizedDigest';
+import { DayOfWeek } from '../../src/types';
 
 let con: DataSource;
 
@@ -39,8 +40,8 @@ describe('userCreatedAddPersonalizedDigest worker', () => {
         userId: user?.id,
       });
     expect(personalizedDigest).toMatchObject({
-      preferredDay: 1,
-      preferredHour: 9,
+      preferredDay: DayOfWeek.Wednesday,
+      preferredHour: 8,
       preferredTimezone: 'Europe/Zagreb',
     });
   });
@@ -65,8 +66,8 @@ describe('userCreatedAddPersonalizedDigest worker', () => {
         userId: user?.id,
       });
     expect(personalizedDigest).toMatchObject({
-      preferredDay: 1,
-      preferredHour: 9,
+      preferredDay: DayOfWeek.Wednesday,
+      preferredHour: 8,
       preferredTimezone: 'Etc/UTC',
     });
   });

@@ -1,5 +1,6 @@
 import { User } from '../common';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
+import { DayOfWeek } from '../types';
 import { messageToJson, Worker } from './worker';
 
 interface Data {
@@ -14,6 +15,8 @@ const worker: Worker = {
 
     await con.getRepository(UserPersonalizedDigest).save({
       userId: user.id,
+      preferredDay: DayOfWeek.Wednesday,
+      preferredHour: 8,
       preferredTimezone: user.timezone,
     });
   },
