@@ -13,12 +13,20 @@ const cron: Cron = {
       .where('upd."preferredDay" = :nextPreferredDay', {
         nextPreferredDay,
       });
+    const timestamp = Date.now();
+    let digestCount = 0;
 
     const personalizedDigestStream = await personalizedDigestQuery.stream();
     const notifyQueueConcurrency = 1000;
     const notifyQueue = fastq.promise(
       async (personalizedDigest: UserPersonalizedDigest) => {
-        await notifyGeneratePersonalizedDigest(logger, personalizedDigest);
+        await notifyGeneratePersonalizedDigest(
+          logger,
+          personalizedDigest,
+          timestamp,
+        );
+
+        digestCount += 1;
       },
       notifyQueueConcurrency,
     );
@@ -42,6 +50,8 @@ const cron: Cron = {
       personalizedDigestStream.on('end', resolve);
     });
     await notifyQueue.drained();
+
+    logger.info({ digestCount }, 'personalized digest sent');
   },
 };
 

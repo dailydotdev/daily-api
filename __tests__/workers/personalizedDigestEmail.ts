@@ -61,6 +61,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
+      generationTimestamp: Date.now(),
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
@@ -99,6 +100,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
+      generationTimestamp: Date.now(),
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
@@ -141,6 +143,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
+      generationTimestamp: Date.now(),
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
@@ -187,6 +190,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
+      generationTimestamp: Date.now(),
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(0);

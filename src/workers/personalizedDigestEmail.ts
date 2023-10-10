@@ -18,6 +18,7 @@ import { personalizedDigestFeedClient } from '../integrations/feed/generators';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
+  generationTimestamp: number;
 }
 
 type TemplatePostData = Pick<
@@ -34,8 +35,14 @@ const emailTemplateId = 'd-328d1104d2e04fa1ab91e410e02751cb';
 
 const personalizedDigestDateFormat = 'yyyy-MM-dd HH:mm:ss';
 
-const getEmailSendDate = ({ personalizedDigest }: Data): Date => {
-  const nextPreferredDay = nextDay(new Date(), personalizedDigest.preferredDay);
+const getEmailSendDate = ({
+  personalizedDigest,
+  generationTimestamp,
+}: Data): Date => {
+  const nextPreferredDay = nextDay(
+    new Date(generationTimestamp),
+    personalizedDigest.preferredDay,
+  );
   nextPreferredDay.setHours(personalizedDigest.preferredHour, 0, 0, 0);
   const sendDateInPreferredTimezone = zonedTimeToUtc(
     nextPreferredDay,
@@ -45,9 +52,12 @@ const getEmailSendDate = ({ personalizedDigest }: Data): Date => {
   return sendDateInPreferredTimezone;
 };
 
-const getPreviousSendDate = ({ personalizedDigest }: Data): Date => {
+const getPreviousSendDate = ({
+  personalizedDigest,
+  generationTimestamp,
+}: Data): Date => {
   const nextPreferredDay = previousDay(
-    new Date(),
+    new Date(generationTimestamp),
     personalizedDigest.preferredDay,
   );
   nextPreferredDay.setHours(personalizedDigest.preferredHour, 0, 0, 0);
@@ -87,7 +97,7 @@ const worker: Worker = {
     const data = messageToJson<Data>(message);
 
     try {
-      const { personalizedDigest } = data;
+      const { personalizedDigest, generationTimestamp } = data;
 
       const user = await con.getRepository(User).findOneBy({
         id: personalizedDigest.userId,
@@ -98,8 +108,14 @@ const worker: Worker = {
       }
 
       const currentDate = new Date();
-      const emailSendDate = getEmailSendDate({ personalizedDigest });
-      const previousSendDate = getPreviousSendDate({ personalizedDigest });
+      const emailSendDate = getEmailSendDate({
+        personalizedDigest,
+        generationTimestamp,
+      });
+      const previousSendDate = getPreviousSendDate({
+        personalizedDigest,
+        generationTimestamp,
+      });
 
       const feedConfig = await feedToFilters(
         con,
