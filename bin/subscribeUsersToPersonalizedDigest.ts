@@ -41,8 +41,9 @@ import { parse } from 'csv-parse';
 
   await con.transaction(async (manager) => {
     await manager.query(`
-        INSERT INTO user_personalized_digest ("userId", "preferredTimezone")
-        SELECT id AS "userId", COALESCE(timezone, 'Etc/UTC') AS "preferredTimezone" FROM public.user WHERE id IN (${userIds
+        INSERT INTO user_personalized_digest ("userId", "preferredTimezone", "preferredHour", "preferredDay")
+        SELECT id AS "userId", COALESCE(timezone, 'Etc/UTC') AS "preferredTimezone", 8 AS "preferredHour", 3 AS "preferredDay"
+        FROM public.user WHERE id IN (${userIds
           .map((userId) => `'${userId}'`)
           .filter(Boolean)
           .join(',')}) ON CONFLICT DO NOTHING;
