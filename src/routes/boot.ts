@@ -23,13 +23,6 @@ import {
   GQLSource,
   SourcePermissions,
 } from '../schema/sources';
-import {
-  adjustAnonymousFlags,
-  adjustFlagsToUser,
-  FeatureFlag,
-  getUserFeatureFlags,
-  submitArticleThreshold,
-} from '../featureFlags';
 import { getAlerts } from '../schema/alerts';
 import { getSettings } from '../schema/settings';
 import {
@@ -45,7 +38,7 @@ import {
   REDIS_CHANGELOG_KEY,
   StorageTopic,
 } from '../config';
-import { base64, getSourceLink } from '../common';
+import { base64, getSourceLink, submitArticleThreshold } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
 import { parse } from 'graphql/language/parser';
@@ -71,7 +64,6 @@ export type Experimentation = {
 
 export type BaseBoot = {
   visit: { visitId: string; sessionId: string };
-  flags: FeatureFlag;
   alerts: Omit<Alerts, 'userId'>;
   settings: Omit<Settings, 'userId' | 'updatedAt'>;
   notifications: { unreadNotificationsCount: number };
@@ -367,7 +359,6 @@ const loggedInBoot = async (
   if (!user) {
     return handleNonExistentUser(con, req, res, middleware);
   }
-  const flags = getUserFeatureFlags(req);
   const accessToken = refreshToken
     ? await setAuthCookie(req, res, userId, roles)
     : req.accessToken;
@@ -387,7 +378,6 @@ const loggedInBoot = async (
       canSubmitArticle: user.reputation >= submitArticleThreshold,
     },
     visit,
-    flags: adjustFlagsToUser(flags, user),
     alerts: {
       ...excludeProperties(alerts, ['userId']),
       // read only, used in frontend to decide if changelog post should be fetched
@@ -438,17 +428,6 @@ const anonymousBoot = async (
     getAnonymousFirstVisit(req.trackingId),
     getExperimentation(req.trackingId, con),
   ]);
-  const flags = getUserFeatureFlags(req);
-  const isPreOnboardingV2 = firstVisit
-    ? new Date(firstVisit) < onboardingV2Requirement
-    : false;
-
-  const anonymousFlags = adjustAnonymousFlags(flags, [
-    {
-      checkIsApplicable: () => !isPreOnboardingV2,
-      feature: 'onboarding_v2',
-    },
-  ]);
 
   return {
     user: {
@@ -457,7 +436,6 @@ const anonymousBoot = async (
       ...getReferralFromCookie({ req }),
     },
     visit,
-    flags: anonymousFlags,
     alerts: { ...ALERTS_DEFAULT, changelog: false },
     settings: SETTINGS_DEFAULT,
     notifications: { unreadNotificationsCount: 0 },

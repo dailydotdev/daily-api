@@ -1,5 +1,6 @@
 import {
   handleRegex,
+  isNullOrUndefined,
   nameRegex,
   validateRegex,
   ValidateRegex,
@@ -36,6 +37,9 @@ import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
 import { In } from 'typeorm';
 import { checkDisallowHandle, DisallowHandle } from '../entity/DisallowHandle';
+import { DayOfWeek } from '../types';
+import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
+import { getTimezoneOffset } from 'date-fns-tz';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -117,6 +121,12 @@ export interface ReadingRankArgs {
 export interface ReferralCampaign {
   referredUsersCount: number;
   url: string;
+}
+
+export interface GQLPersonalizedDigest {
+  preferredDay: DayOfWeek;
+  preferredHour: number;
+  preferredTimezone: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -347,6 +357,12 @@ export const typeDefs = /* GraphQL */ `
     url: String!
   }
 
+  type PersonalizedDigest {
+    preferredDay: Int!
+    preferredHour: Int!
+    preferredTimezone: String!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -462,6 +478,11 @@ export const typeDefs = /* GraphQL */ `
       """
       referralOrigin: String!
     ): ReferralCampaign! @auth
+
+    """
+    Get personalized digest settings
+    """
+    personalizedDigest: PersonalizedDigest @auth
   }
 
   extend type Mutation {
@@ -484,6 +505,29 @@ export const typeDefs = /* GraphQL */ `
     Delete user's account
     """
     deleteUser: EmptyResponse @auth
+
+    """
+    The mutation to subscribe to the personalized digest
+    """
+    subscribePersonalizedDigest(
+      """
+      Preferred hour of the day. Expected value is 0-23.
+      """
+      hour: Int
+      """
+      Preferred day of the week. Expected value is 0-6
+      """
+      day: Int
+      """
+      Preferred timezone relevant to the hour and day.
+      """
+      timezone: String
+    ): PersonalizedDigest @auth
+
+    """
+    The mutation to unsubscribe from the personalized digest
+    """
+    unsubscribePersonalizedDigest: EmptyResponse @auth
   }
 `;
 
@@ -807,6 +851,21 @@ export const resolvers: IResolvers<any, Context> = {
         url,
       };
     },
+    personalizedDigest: async (
+      _,
+      args,
+      ctx: Context,
+    ): Promise<GQLPersonalizedDigest> => {
+      const personalizedDigest = await ctx
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({ userId: ctx.userId });
+
+      if (!personalizedDigest) {
+        throw new NotFoundError('Not subscribed to personalized digest');
+      }
+
+      return personalizedDigest;
+    },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
@@ -967,6 +1026,58 @@ export const resolvers: IResolvers<any, Context> = {
         )
         .andWhere('"userId" = :userId', { userId: ctx.userId })
         .execute(),
+    subscribePersonalizedDigest: async (
+      _,
+      args: {
+        hour?: number;
+        day?: number;
+        timezone?: string;
+      },
+      ctx: Context,
+    ): Promise<GQLPersonalizedDigest> => {
+      const { hour, day, timezone } = args;
+
+      if (!isNullOrUndefined(hour) && (hour < 0 || hour > 23)) {
+        throw new ValidationError('Invalid hour');
+      }
+
+      if (!isNullOrUndefined(hour) && (day < 0 || day > 6)) {
+        throw new ValidationError('Invalid day');
+      }
+
+      if (
+        !isNullOrUndefined(timezone) &&
+        Number.isNaN(getTimezoneOffset(timezone))
+      ) {
+        throw new ValidationError('Invalid timezone');
+      }
+
+      const repo = ctx.con.getRepository(UserPersonalizedDigest);
+
+      const personalizedDigest = await repo.save({
+        userId: ctx.userId,
+        preferredDay: day,
+        preferredHour: hour,
+        preferredTimezone: timezone,
+      });
+
+      return personalizedDigest;
+    },
+    unsubscribePersonalizedDigest: async (
+      _,
+      args,
+      ctx: Context,
+    ): Promise<unknown> => {
+      const repo = ctx.con.getRepository(UserPersonalizedDigest);
+
+      if (ctx.userId) {
+        await repo.delete({
+          userId: ctx.userId,
+        });
+      }
+
+      return { _: true };
+    },
   }),
   User: {
     permalink: getUserPermalink,

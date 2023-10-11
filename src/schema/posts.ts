@@ -4,7 +4,7 @@ import {
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, MoreThan } from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
@@ -56,6 +56,7 @@ import {
   UserPostFlagsPublic,
   UserPostVote,
   updateSharePost,
+  View,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -81,6 +82,7 @@ import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
 import { generateStorageKey, StorageTopic } from '../config';
+import { subDays } from 'date-fns';
 
 export interface GQLPost {
   id: string;
@@ -1162,17 +1164,20 @@ export const resolvers: IResolvers<any, Context> = {
                   .subQuery()
                   .select('id')
                   .from(PostQuestion, 'pq')
-                  .where(`"pq"."postId" = "up"."postId"`);
+                  .where(`"pq"."postId" = "v"."postId"`);
                 return query
-                  .select('up."postId"')
-                  .from(UserPost, 'up')
-                  .where({ userId: ctx.userId, vote: UserPostVote.Up })
+                  .select('v."postId"')
+                  .from(View, 'v')
+                  .where({
+                    userId: ctx.userId,
+                    timestamp: MoreThan(subDays(new Date(), 30)),
+                  })
                   .andWhere(`exists(${sub.getQuery()})`)
-                  .orderBy('up."votedAt"', 'DESC')
+                  .orderBy('v."timestamp"', 'DESC')
                   .limit(10);
               },
-              'upvoted',
-              `"${builder.alias}"."postId" = upvoted."postId"`,
+              'views',
+              `"${builder.alias}"."postId" = views."postId"`,
             )
             .orderBy('random()', 'DESC')
             .limit(3),

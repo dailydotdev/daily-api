@@ -4,7 +4,7 @@ import { fetchOptions as globalFetchOptions } from '../../http';
 import { IORedisPool } from '@dailydotdev/ts-ioredis-pool';
 import { Context } from '../../Context';
 import { ONE_DAY_IN_SECONDS } from '../../redis';
-import { retryFetch } from '../retry';
+import { retryFetchParse } from '../retry';
 
 type RawFeedServiceResponse = {
   data: { post_id: string; metadata: Record<string, string> }[];
@@ -26,7 +26,7 @@ export class FeedClient implements IFeedClient {
   }
 
   async fetchFeed(ctx, feedId, config): Promise<FeedResponse> {
-    const res = await retryFetch<RawFeedServiceResponse>(
+    const res = await retryFetchParse<RawFeedServiceResponse>(
       this.url,
       {
         ...this.fetchOptions,
@@ -156,5 +156,42 @@ export class CachedFeedClient implements IFeedClient {
       this.updateCache(feedId, config, feedRes);
     }
     return feedRes.slice(offset, pageSize + offset);
+  }
+}
+
+/**
+ * Client that fetches posts for personalized digest from feed personalise service
+ */
+export class PersonalizedDigestFeedClient implements IFeedClient {
+  private readonly url: string;
+  private readonly fetchOptions: RequestInit;
+
+  constructor(
+    url = process.env.PERSONALIZED_DIGEST_FEED,
+    fetchOptions: RequestInit = globalFetchOptions,
+  ) {
+    this.url = url;
+    this.fetchOptions = fetchOptions;
+  }
+
+  async fetchFeed(ctx, feedId, config): Promise<FeedResponse> {
+    const res = await retryFetchParse<{
+      data: string[];
+      rows: number;
+    }>(
+      this.url,
+      {
+        ...this.fetchOptions,
+        method: 'POST',
+        body: JSON.stringify(config),
+      },
+      { retries: 0 },
+    );
+    if (!res?.data?.length) {
+      ctx?.log.warn({ config }, 'empty response received from feed service');
+      return [];
+    }
+
+    return res.data.map((post_id) => [post_id, undefined]);
   }
 }
