@@ -363,18 +363,22 @@ export const updateSharePost = async (
       ? generateTitleHtml(commentary, mentions)
       : null;
 
-    const post = await con.getRepository(SharePost).save({
-      id: postId,
-      authorId: userId,
-      title: strippedCommentary,
-      titleHtml,
-    });
+    await con.getRepository(SharePost).update(
+      {
+        id: postId,
+        authorId: userId,
+      },
+      {
+        title: strippedCommentary,
+        titleHtml,
+      },
+    );
 
     if (mentions.length) {
-      await saveMentions(con, post.id, userId, mentions, PostMention);
+      await saveMentions(con, postId, userId, mentions, PostMention);
     }
 
-    return post;
+    return { postId };
   } catch (err) {
     if (err.code === TypeOrmError.FOREIGN_KEY) {
       if (err.detail.indexOf('sharedPostId') > -1) {

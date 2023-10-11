@@ -1815,11 +1815,11 @@ describe('mutation cancelUpvote', () => {
 describe('mutation sharePost', () => {
   const MUTATION = `
   mutation SharePost($sourceId: ID!, $id: ID!, $commentary: String) {
-  sharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
-    id
-    titleHtml
-  }
-}`;
+    sharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
+      id
+      titleHtml
+    }
+  }`;
 
   const variables = {
     sourceId: 's1',
@@ -2008,6 +2008,109 @@ describe('mutation sharePost', () => {
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
     expect(post.title).toEqual('My comment');
+  });
+});
+
+describe('mutation updateSharePost', () => {
+  const MUTATION = `
+  mutation UpdateSharePost($id: ID!, $sourceId: ID!, $commentary: String) {
+    updateSharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
+      id
+    }
+  }`;
+
+  const variables = {
+    sourceId: 's1',
+    id: 'sharePost',
+    commentary: 'My comment',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: false,
+      memberPostingRank: 0,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt',
+      role: SourceMemberRoles.Member,
+    });
+    await con.getRepository(SharePost).save({
+      id: 'sharePost',
+      shortId: 'sharePost',
+      sourceId: 's1',
+      type: PostType.Share,
+      title: 'Foo Bar',
+      authorId: '1',
+    });
+  });
+
+  it('should update the post w/ a trimmed commentary', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, commentary: '  My comment  ' },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con
+      .getRepository(SharePost)
+      .findOneBy({ id: variables.id });
+    expect(post.title).toEqual('My comment');
+  });
+
+  it('should share to squad without commentary', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, commentary: null },
+    });
+    expect(res.errors).toBeFalsy();
+    const post = await con
+      .getRepository(SharePost)
+      .findOneBy({ id: variables.id });
+    expect(post.title).toBeNull();
+  });
+
+  it('should share to squad with mentioned users', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).update({ id: '2' }, { username: 'lee' });
+    const params = { ...variables };
+    params.commentary = 'Test @lee @non-existent';
+    const res = await client.mutate(MUTATION, { variables: params });
+    expect(res.errors).toBeFalsy();
+    const post = await con
+      .getRepository(SharePost)
+      .findOneBy({ id: variables.id });
+    expect(post.authorId).toEqual('1');
+    expect(post.titleHtml).toMatchSnapshot();
+    const mentions = await con
+      .getRepository(PostMention)
+      .findOneBy({ mentionedUserId: '2', mentionedByUserId: '1' });
+    expect(mentions).toBeTruthy();
+  });
+
+  it('should escape html content on the title', async () => {
+    loggedUser = '1';
+    await con.getRepository(User).update({ id: '2' }, { username: 'lee' });
+    const params = { ...variables };
+    params.commentary = `<style>html { color: red !important; }</style>`;
+    const res = await client.mutate(MUTATION, { variables: params });
+    expect(res.errors).toBeFalsy();
+    const post = await con
+      .getRepository(SharePost)
+      .findOneBy({ id: variables.id });
+    expect(post.titleHtml).toMatchSnapshot();
+  });
+
+  it('should throw error when post does not exist', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, id: 'nope' } },
+      'NOT_FOUND',
+    );
   });
 });
 

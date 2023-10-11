@@ -1659,7 +1659,6 @@ export const resolvers: IResolvers<any, Context> = {
         ctx.userId,
         id,
         commentary,
-        true,
       );
       return getPostById(ctx, info, newPost.id);
     },
@@ -1676,14 +1675,14 @@ export const resolvers: IResolvers<any, Context> = {
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
-      const post = await updateSharePost(
+      const { postId } = await updateSharePost(
         ctx.con,
         ctx.userId,
         id,
         sourceId,
         commentary,
       );
-      return getPostById(ctx, info, post.id);
+      return getPostById(ctx, info, postId);
     },
     viewPost: async (
       _,
