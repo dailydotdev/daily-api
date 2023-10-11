@@ -225,7 +225,7 @@ export const createExternalLink = async (
         visible: isVisible,
       },
     });
-    await upsertSharePost(
+    await createSharePost(
       entityManager,
       sourceId,
       userId,
@@ -248,14 +248,13 @@ export const generateTitleHtml = (
 ): string =>
   `<p>${renderMentions(markdown.utils.escapeHtml(title), mentions)}</p>`;
 
-export const upsertSharePost = async (
+export const createSharePost = async (
   con: DataSource | EntityManager,
   sourceId: string,
   userId: string,
-  sharePostId: string,
+  postId: string,
   commentary: string | null,
   visible = true,
-  postId?: string,
 ): Promise<SharePost> => {
   let strippedCommentary = commentary;
 
@@ -275,7 +274,7 @@ export const upsertSharePost = async (
       .getRepository(Source)
       .findOneBy({ id: sourceId });
 
-    const id = postId ?? (await generateShortId());
+    const id = await generateShortId();
 
     const post = await con.getRepository(SharePost).save({
       id,
@@ -283,7 +282,7 @@ export const upsertSharePost = async (
       createdAt: new Date(),
       sourceId,
       authorId: userId,
-      sharedPostId: sharePostId,
+      sharedPostId: postId,
       title: strippedCommentary,
       titleHtml,
       sentAnalyticsReport: true,
@@ -296,6 +295,52 @@ export const upsertSharePost = async (
         private: privacy,
         visible,
       },
+    });
+
+    if (mentions.length) {
+      await saveMentions(con, post.id, userId, mentions, PostMention);
+    }
+
+    return post;
+  } catch (err) {
+    if (err.code === TypeOrmError.FOREIGN_KEY) {
+      if (err.detail.indexOf('sharedPostId') > -1) {
+        throw new ForbiddenError(
+          JSON.stringify({ postId: 'post does not exist' }),
+        );
+      }
+    }
+    throw err;
+  }
+};
+
+export const updateSharePost = async (
+  con: DataSource | EntityManager,
+  userId: string,
+  postId: string,
+  sourceId: string,
+  commentary: string | null,
+) => {
+  let strippedCommentary = commentary;
+
+  if (commentary?.length) {
+    strippedCommentary = commentary.trim();
+    await validateCommentary(strippedCommentary);
+  } else {
+    strippedCommentary = null;
+  }
+
+  try {
+    const mentions = await getMentions(con, commentary, userId, sourceId);
+    const titleHtml = commentary?.length
+      ? generateTitleHtml(commentary, mentions)
+      : null;
+
+    const post = await con.getRepository(SharePost).save({
+      id: postId,
+      authorId: userId,
+      title: strippedCommentary,
+      titleHtml,
     });
 
     if (mentions.length) {

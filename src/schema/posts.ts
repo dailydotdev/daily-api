@@ -35,7 +35,7 @@ import {
 import {
   ArticlePost,
   createExternalLink,
-  upsertSharePost,
+  createSharePost,
   ExternalLink,
   ExternalLinkPreview,
   FreeformPost,
@@ -55,6 +55,7 @@ import {
   UserPost,
   UserPostFlagsPublic,
   UserPostVote,
+  updateSharePost,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -834,10 +835,24 @@ export const typeDefs = /* GraphQL */ `
       Source to share the post to
       """
       sourceId: ID!
+    ): Post @auth
+
+    """
+    Update share type post
+    """
+    updateSharePost(
       """
-      The post ID used when updating
+      Post to update
       """
-      postId: ID
+      id: ID!
+      """
+      Source to share the post to
+      """
+      sourceId: ID!
+      """
+      Commentary for the share
+      """
+      commentary: String
     ): Post @auth
 
     """
@@ -1599,7 +1614,7 @@ export const resolvers: IResolvers<any, Context> = {
             throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);
           }
 
-          await upsertSharePost(
+          await createSharePost(
             manager,
             sourceId,
             ctx.userId,
@@ -1626,24 +1641,44 @@ export const resolvers: IResolvers<any, Context> = {
         id,
         commentary,
         sourceId,
-        postId,
-      }: { id: string; commentary: string; sourceId: string; postId?: string },
+      }: { id: string; commentary: string; sourceId: string },
       ctx,
       info,
     ): Promise<GQLPost> => {
       await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
-      const newPost = await upsertSharePost(
+      const newPost = await createSharePost(
         ctx.con,
         sourceId,
         ctx.userId,
         id,
         commentary,
         true,
-        postId,
       );
       return getPostById(ctx, info, newPost.id);
+    },
+    updateSharePost: async (
+      _,
+      {
+        id,
+        sourceId,
+        commentary,
+      }: { id: string; sourceId: string; commentary: string },
+      ctx,
+      info,
+    ): Promise<GQLPost> => {
+      await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+
+      const post = await updateSharePost(
+        ctx.con,
+        ctx.userId,
+        id,
+        sourceId,
+        commentary,
+      );
+      return getPostById(ctx, info, post.id);
     },
     viewPost: async (
       _,
