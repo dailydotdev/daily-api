@@ -2011,10 +2011,10 @@ describe('mutation sharePost', () => {
   });
 });
 
-describe('mutation updateSharePost', () => {
+describe('mutation editSharePost', () => {
   const MUTATION = `
-  mutation UpdateSharePost($id: ID!, $sourceId: ID!, $commentary: String) {
-    updateSharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
+  mutation editSharePost($id: ID!, $sourceId: ID!, $commentary: String) {
+    editSharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
       id
     }
   }`;
@@ -2047,6 +2047,32 @@ describe('mutation updateSharePost', () => {
       title: 'Foo Bar',
       authorId: '1',
     });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw error when post does not exist', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { ...variables, id: 'nope' } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should restrict member when user is not the author of the post', async () => {
+    loggedUser = '2';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables },
+      'FORBIDDEN',
+    );
   });
 
   it('should update the post w/ a trimmed commentary', async () => {
@@ -2102,15 +2128,6 @@ describe('mutation updateSharePost', () => {
       .getRepository(SharePost)
       .findOneBy({ id: variables.id });
     expect(post.titleHtml).toMatchSnapshot();
-  });
-
-  it('should throw error when post does not exist', async () => {
-    loggedUser = '1';
-    return testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { ...variables, id: 'nope' } },
-      'NOT_FOUND',
-    );
   });
 });
 

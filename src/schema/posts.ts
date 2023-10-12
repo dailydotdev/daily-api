@@ -842,7 +842,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Update share type post
     """
-    updateSharePost(
+    editSharePost(
       """
       Post to update
       """
@@ -1662,7 +1662,7 @@ export const resolvers: IResolvers<any, Context> = {
       );
       return getPostById(ctx, info, newPost.id);
     },
-    updateSharePost: async (
+    editSharePost: async (
       _,
       {
         id,
@@ -1672,7 +1672,14 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLPost> => {
-      await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+
+      if (post.authorId !== ctx.userId) {
+        throw new ForbiddenError(
+          `Editing other people's posts is not allowed!`,
+        );
+      }
+
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
       const { postId } = await updateSharePost(

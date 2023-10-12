@@ -126,9 +126,9 @@ exports[`mutation sharePost should escape html content on the title 1`] = `"<p>&
 
 exports[`mutation sharePost should share to squad with mentioned users 1`] = `"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\">@lee</a> @non-existent</p>"`;
 
-exports[`mutation updateSharePost should escape html content on the title 1`] = `"<p>&lt;style&gt;html { color: red !important; }&lt;/style&gt;</p>"`;
+exports[`mutation editSharePost should escape html content on the title 1`] = `"<p>&lt;style&gt;html { color: red !important; }&lt;/style&gt;</p>"`;
 
-exports[`mutation updateSharePost should share to squad with mentioned users 1`] = `"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\">@lee</a> @non-existent</p>"`;
+exports[`mutation editSharePost should share to squad with mentioned users 1`] = `"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\">@lee</a> @non-existent</p>"`;
 
 exports[`mutation upvote should ignore conflicts 1`] = `
 Array [
