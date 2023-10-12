@@ -13,6 +13,7 @@ import boot from './boot';
 import users from './users';
 import redirects from './redirects';
 import webhooks from './webhooks';
+import localAds from './localAds';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -31,6 +32,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(users, { prefix: '/v1/users' });
   fastify.register(webhooks, { prefix: '/webhooks' });
   fastify.register(redirects);
+
+  if (process.env.NODE_ENV === 'development') {
+    fastify.register(localAds);
+  }
 
   fastify.get('/id', (req, res) => {
     return res.status(200).send(req.userId);
