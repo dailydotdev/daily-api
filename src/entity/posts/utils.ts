@@ -199,15 +199,18 @@ export const addQuestions = async (
   );
 };
 
-const validateCommentary = async (commentary: string) => {
-  if (commentary?.length > MAX_COMMENTARY_LENGTH) {
+const validateCommentary = async (commentary?: string) => {
+  const strippedCommentary = commentary?.trim() || null;
+
+  if ((strippedCommentary?.length ?? 0) > MAX_COMMENTARY_LENGTH) {
     throw new ValidationError(
       JSON.stringify({
         commentary: `max size is ${MAX_COMMENTARY_LENGTH} chars`,
       }),
     );
   }
-  return true;
+
+  return strippedCommentary;
 };
 
 export interface ExternalLinkPreview {
@@ -283,14 +286,7 @@ export const createSharePost = async (
   commentary: string | null,
   visible = true,
 ): Promise<SharePost> => {
-  let strippedCommentary = commentary;
-
-  if (commentary?.length) {
-    strippedCommentary = commentary.trim();
-    await validateCommentary(strippedCommentary);
-  } else {
-    strippedCommentary = null;
-  }
+  const strippedCommentary = await validateCommentary(commentary);
 
   try {
     const mentions = await getMentions(con, commentary, userId, sourceId);
@@ -348,14 +344,7 @@ export const updateSharePost = async (
   sourceId: string,
   commentary: string | null,
 ) => {
-  let strippedCommentary = commentary;
-
-  if (commentary?.length) {
-    strippedCommentary = commentary.trim();
-    await validateCommentary(strippedCommentary);
-  } else {
-    strippedCommentary = null;
-  }
+  const strippedCommentary = await validateCommentary(commentary);
 
   try {
     const mentions = await getMentions(con, commentary, userId, sourceId);

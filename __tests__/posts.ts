@@ -54,7 +54,7 @@ import {
 import { randomUUID } from 'crypto';
 import nock from 'nock';
 import { deleteKeysByPattern, ioRedisPool, setRedisObject } from '../src/redis';
-import { checkHasMention } from '../src/common/markdown';
+import { checkHasMention, markdown } from '../src/common/markdown';
 import { generateStorageKey, StorageTopic } from '../src/config';
 
 jest.mock('../src/common/pubsub', () => ({
@@ -1921,7 +1921,11 @@ describe('mutation sharePost', () => {
       .findOneBy({ id: res.data.sharePost.id });
     expect(post.authorId).toEqual('1');
     expect(post.sharedPostId).toEqual('p1');
-    expect(post.titleHtml).toMatchSnapshot();
+    expect(post.titleHtml).toMatch(
+      markdown.utils.escapeHtml(
+        `<style>html { color: red !important; }</style>`,
+      ),
+    );
   });
 
   it('should throw error when sharing to non-squad', async () => {
@@ -2020,29 +2024,18 @@ describe('mutation editSharePost', () => {
   }`;
 
   const variables = {
-    sourceId: 's1',
+    sourceId: 'a',
     id: 'sharePost',
     commentary: 'My comment',
   };
 
   beforeEach(async () => {
-    await con.getRepository(SquadSource).save({
-      id: 's1',
-      handle: 's1',
-      name: 'Squad',
-      private: false,
-      memberPostingRank: 0,
-    });
-    await con.getRepository(SourceMember).save({
-      sourceId: 's1',
-      userId: '1',
-      referralToken: 'rt',
-      role: SourceMemberRoles.Member,
-    });
+    await saveSquadFixtures();
+
     await con.getRepository(SharePost).save({
       id: 'sharePost',
       shortId: 'sharePost',
-      sourceId: 's1',
+      sourceId: 'a',
       type: PostType.Share,
       title: 'Foo Bar',
       authorId: '1',
@@ -2075,7 +2068,7 @@ describe('mutation editSharePost', () => {
     );
   });
 
-  it('should update the post w/ a trimmed commentary', async () => {
+  it('should update the post with a trimmed commentary', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
       variables: { ...variables, commentary: '  My comment  ' },
@@ -2087,7 +2080,7 @@ describe('mutation editSharePost', () => {
     expect(post.title).toEqual('My comment');
   });
 
-  it('should share to squad without commentary', async () => {
+  it('should update without commentary', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
       variables: { ...variables, commentary: null },
@@ -2099,7 +2092,7 @@ describe('mutation editSharePost', () => {
     expect(post.title).toBeNull();
   });
 
-  it('should share to squad with mentioned users', async () => {
+  it('should update with mentioned users', async () => {
     loggedUser = '1';
     await con.getRepository(User).update({ id: '2' }, { username: 'lee' });
     const params = { ...variables };
@@ -2127,7 +2120,11 @@ describe('mutation editSharePost', () => {
     const post = await con
       .getRepository(SharePost)
       .findOneBy({ id: variables.id });
-    expect(post.titleHtml).toMatchSnapshot();
+    expect(post.titleHtml).toMatch(
+      markdown.utils.escapeHtml(
+        `<style>html { color: red !important; }</style>`,
+      ),
+    );
   });
 });
 

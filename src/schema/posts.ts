@@ -57,6 +57,7 @@ import {
   UserPostVote,
   updateSharePost,
   View,
+  User,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -1054,6 +1055,15 @@ const getPostById = async (
   throw new NotFoundError('Post not found');
 };
 
+const validateEditAllowed = (
+  authorId: Post['authorId'],
+  userId: User['id'],
+) => {
+  if (authorId !== userId) {
+    throw new ForbiddenError(`Editing other people's posts is not allowed!`);
+  }
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   Query: traceResolverObject({
@@ -1673,12 +1683,7 @@ export const resolvers: IResolvers<any, Context> = {
       info,
     ): Promise<GQLPost> => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
-
-      if (post.authorId !== ctx.userId) {
-        throw new ForbiddenError(
-          `Editing other people's posts is not allowed!`,
-        );
-      }
+      validateEditAllowed(post.authorId, ctx.userId);
 
       await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
 
