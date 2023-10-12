@@ -114,6 +114,8 @@ export const saveMentions = (
   users: MentionedUser[],
   target: EntityTarget<PostMention | CommentMention>,
 ) => {
+  // we are intentionally not checking if we need to remove any mentions
+  // for more context see: https://dailydotdev.slack.com/archives/C02E2C3C13R/p1697103348449099
   if (!users.length) {
     return;
   }
