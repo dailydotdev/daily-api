@@ -35,7 +35,9 @@ beforeEach(async () => {
     userId: '1',
   });
 
-  const mockedPostIds = postsFixture.slice(0, 5).map((post) => post.id);
+  const mockedPostIds = postsFixture
+    .slice(0, 5)
+    .map((post) => ({ post_id: post.id }));
 
   nockScope = nock('http://localhost:6000')
     .post('/feed.json', (body) => {
