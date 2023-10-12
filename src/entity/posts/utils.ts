@@ -363,16 +363,9 @@ export const updateSharePost = async (
       ? generateTitleHtml(commentary, mentions)
       : null;
 
-    await con.getRepository(SharePost).update(
-      {
-        id: postId,
-        authorId: userId,
-      },
-      {
-        title: strippedCommentary,
-        titleHtml,
-      },
-    );
+    await con
+      .getRepository(SharePost)
+      .update({ id: postId }, { title: strippedCommentary, titleHtml });
 
     if (mentions.length) {
       await saveMentions(con, postId, userId, mentions, PostMention);
