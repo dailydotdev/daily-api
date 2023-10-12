@@ -14,7 +14,7 @@ import { DayOfWeek } from '../types';
 import { MailDataRequired } from '@sendgrid/mail';
 import { format, nextDay, previousDay } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
-import { personalizedDigestFeedClient } from '../integrations/feed/generators';
+import { FeedClient } from '../integrations/feed';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -121,6 +121,9 @@ const worker: Worker = {
         con,
         personalizedDigest.userId,
         personalizedDigest.userId,
+      );
+      const personalizedDigestFeedClient = new FeedClient(
+        process.env.PERSONALIZED_DIGEST_FEED,
       );
 
       const feedResponse = await personalizedDigestFeedClient.fetchFeed(
