@@ -55,7 +55,9 @@ import {
   UserPost,
   UserPostFlagsPublic,
   UserPostVote,
+  updateSharePost,
   View,
+  User,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -839,6 +841,24 @@ export const typeDefs = /* GraphQL */ `
     ): Post @auth
 
     """
+    Update share type post
+    """
+    editSharePost(
+      """
+      Post to update
+      """
+      id: ID!
+      """
+      Source to share the post to
+      """
+      sourceId: ID!
+      """
+      Commentary for the share
+      """
+      commentary: String
+    ): Post @auth
+
+    """
     Submit a view event to a post
     """
     viewPost(
@@ -1033,6 +1053,15 @@ const getPostById = async (
     return res[0];
   }
   throw new NotFoundError('Post not found');
+};
+
+const validateEditAllowed = (
+  authorId: Post['authorId'],
+  userId: User['id'],
+) => {
+  if (authorId !== userId) {
+    throw new ForbiddenError(`Editing other people's posts is not allowed!`);
+  }
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1642,6 +1671,30 @@ export const resolvers: IResolvers<any, Context> = {
         commentary,
       );
       return getPostById(ctx, info, newPost.id);
+    },
+    editSharePost: async (
+      _,
+      {
+        id,
+        sourceId,
+        commentary,
+      }: { id: string; sourceId: string; commentary: string },
+      ctx,
+      info,
+    ): Promise<GQLPost> => {
+      const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      validateEditAllowed(post.authorId, ctx.userId);
+
+      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+
+      const { postId } = await updateSharePost(
+        ctx.con,
+        ctx.userId,
+        id,
+        sourceId,
+        commentary,
+      );
+      return getPostById(ctx, info, postId);
     },
     viewPost: async (
       _,
