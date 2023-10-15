@@ -85,7 +85,7 @@
     "pg": "^8.11.3",
     "pg-query-stream": "^4.5.3",
     "pino": "^8.16.0",
-    "rate-limiter-flexible": "^2.4.2",
+    "rate-limiter-flexible": "^3.0.0",
     "reflect-metadata": "^0.1.13",
     "retry": "^0.13.1",
     "rss": "^1.2.2",
