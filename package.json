@@ -53,7 +53,7 @@
     "date-fns-tz": "^2.0.0",
     "eventsource": "^2.0.2",
     "fast-json-stringify": "^5.8.0",
-    "fastify": "4.23.2",
+    "fastify": "^4.24.2",
     "fastify-plugin": "^4.5.1",
     "fastify-raw-body": "^4.2.2",
     "fastq": "^1.15.0",
