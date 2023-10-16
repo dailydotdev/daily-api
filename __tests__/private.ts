@@ -70,10 +70,28 @@ describe('POST /p/newUser', () => {
       .set('Content-type', 'application/json')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
       .send({
-        id: usersFixture[0].id,
+        id: '100',
         name: usersFixture[0].name,
         image: usersFixture[0].image,
         username: usersFixture[0].username,
+        email: 'randomNewEmail@gmail.com',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' });
+  });
+
+  it('should handle existing username with different case', async () => {
+    await createDefaultUser();
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: '100',
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username.toUpperCase(),
         email: 'randomNewEmail@gmail.com',
       })
       .expect(200);
@@ -106,11 +124,29 @@ describe('POST /p/newUser', () => {
       .set('Content-type', 'application/json')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
       .send({
-        id: usersFixture[0].id,
+        id: '100',
         name: usersFixture[0].name,
         image: usersFixture[0].image,
         username: 'randomName',
         email: usersFixture[0].email,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' });
+  });
+
+  it('should handle existing email with different case', async () => {
+    await createDefaultUser();
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: '100',
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: 'randomName',
+        email: usersFixture[0].email.toUpperCase(),
       })
       .expect(200);
 
@@ -356,6 +392,17 @@ describe('POST /p/checkUsername', () => {
     await createDefaultUser();
     const { body } = await request(app.server)
       .get('/p/checkUsername?search=idoshamun')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send()
+      .expect(200);
+
+    expect(body).toEqual({ isTaken: true });
+  });
+
+  it('should normalize to lowercase and find duplicates', async () => {
+    await createDefaultUser();
+    const { body } = await request(app.server)
+      .get('/p/checkUsername?search=IdoShamun')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
       .send()
       .expect(200);

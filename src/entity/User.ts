@@ -11,14 +11,22 @@ import {
 } from 'typeorm';
 import { Post } from './posts';
 import { DevCard } from './DevCard';
-import { FastifyLoggerInstance } from 'fastify';
+import { FastifyBaseLogger } from 'fastify';
 import {
   TypeOrmError,
   UpdateUserFailErrorKeys,
   UserFailErrorKeys,
 } from '../errors';
 import { fallbackImages } from '../config';
-import { checkDisallowHandle } from './DisallowHandle';
+import { validateAndTransformHandle } from '../common/handles';
+import { ValidationError } from 'apollo-server-errors';
+import { GQLUpdateUserInput } from '../schema/users';
+import {
+  handleRegex,
+  nameRegex,
+  validateRegex,
+  ValidateRegex,
+} from '../common/object';
 
 @Entity()
 export class User {
@@ -149,20 +157,20 @@ const checkRequiredFields = (data: AddUserData): boolean => {
   return !!(data && data.id);
 };
 
-const checkUsernameAndEmail = async (
-  entityManager: EntityManager,
-  data: AddUserData,
+const checkEmail = async (
+  entityManager: DataSource | EntityManager,
+  email: string,
+  id?: string,
 ): Promise<boolean> => {
-  const { email, username } = data;
-  const user = await entityManager
+  let query = entityManager
     .getRepository(User)
     .createQueryBuilder()
     .select('id')
-    .where('email = :email or username = :username', {
-      email,
-      username,
-    })
-    .getRawOne();
+    .where({ email: email.toLowerCase() });
+  if (id) {
+    query = query.andWhere('id != :id', { id });
+  }
+  const user = await query.getRawOne();
   return !user;
 };
 
@@ -198,7 +206,7 @@ type UpdateUserEmailResult =
 export const updateUserEmail = async (
   con: DataSource,
   data: UpdateUserEmailData,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
 ): Promise<UpdateUserEmailResult> => {
   if (!data.email || !data.id) {
     return { status: 'failed', reason: UpdateUserFailErrorKeys.MissingFields };
@@ -242,7 +250,7 @@ const isInfoConfirmed = (user: AddUserData) =>
 export const addNewUser = async (
   con: DataSource,
   data: AddUserData,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
 ): Promise<AddNewUserResult> => {
   if (!checkRequiredFields(data)) {
     logger.info({ data }, 'missing fields when adding new user');
@@ -250,12 +258,8 @@ export const addNewUser = async (
   }
 
   return con.transaction(async (entityManager) => {
-    const [isUniqueUser, isDissalowHandle] = await Promise.all([
-      checkUsernameAndEmail(entityManager, data),
-      checkDisallowHandle(entityManager, data.username),
-    ]);
-
-    if (!isUniqueUser || isDissalowHandle) {
+    const isEmailAvailable = await checkEmail(entityManager, data.email);
+    if (!isEmailAvailable) {
       return {
         status: 'failed',
         reason: UserFailErrorKeys.UsernameEmailExists,
@@ -288,7 +292,13 @@ export const addNewUser = async (
         id: data.id,
         name: data.name,
         image: data.image ?? fallbackImages.avatar,
-        username: data.username,
+        username: data.username
+          ? await validateAndTransformHandle(
+              data.username,
+              'username',
+              entityManager,
+            )
+          : undefined,
         email: data.email,
         profileConfirmed: data.profileConfirmed,
         infoConfirmed: isInfoConfirmed(data),
@@ -312,13 +322,65 @@ export const addNewUser = async (
         },
         'failed to create user profile',
       );
-
+      if (error instanceof ValidationError) {
+        return {
+          status: 'failed',
+          reason: UserFailErrorKeys.UsernameEmailExists,
+        };
+      }
       // Unique
       if (error?.code === TypeOrmError.DUPLICATE_ENTRY) {
+        if (error.message.indexOf('users_username_unique') > -1) {
+          return {
+            status: 'failed',
+            reason: UserFailErrorKeys.UsernameEmailExists,
+          };
+        }
         return { status: 'failed', reason: UserFailErrorKeys.UserExists };
       }
 
       throw error;
     }
   });
+};
+
+export const validateUserUpdate = async (
+  user: User,
+  data: GQLUpdateUserInput,
+  entityManager: DataSource | EntityManager,
+): Promise<GQLUpdateUserInput> => {
+  const { email, username } = data;
+  if (email && email !== user.email) {
+    const isEmailAvailable = await checkEmail(entityManager, email, user.id);
+    if (!isEmailAvailable) {
+      throw new ValidationError(
+        JSON.stringify({ email: 'email is already used' }),
+      );
+    }
+  }
+
+  if ((username && username !== user.username) || !user.username) {
+    data.username = await validateAndTransformHandle(
+      username,
+      'username',
+      entityManager,
+    );
+  }
+
+  ['name', 'twitter', 'github', 'hashnode'].forEach((key) => {
+    if (data[key]) {
+      data[key] = data[key].replace('@', '').trim();
+    }
+  });
+
+  const regexParams: ValidateRegex[] = [
+    ['name', data.name, nameRegex, !user.name],
+    ['github', data.github, handleRegex],
+    ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
+    ['hashnode', data.hashnode, handleRegex],
+  ];
+
+  validateRegex(regexParams);
+
+  return data;
 };

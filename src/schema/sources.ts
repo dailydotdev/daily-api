@@ -48,6 +48,7 @@ import {
   ValidateRegex,
 } from '../common/object';
 import { checkDisallowHandle } from '../entity/DisallowHandle';
+import { validateAndTransformHandle } from '../common/handles';
 
 export interface GQLSource {
   id: string;
@@ -635,20 +636,25 @@ export const canPostToSquad = (
   return sourceRoleRank[sourceMember.role] >= squad.memberPostingRank;
 };
 
-const validateSquadData = ({
-  handle,
-  name,
-  description,
-  memberPostingRole,
-  memberInviteRole,
-}: Pick<SquadSource, 'handle' | 'name' | 'description'> & {
-  memberPostingRole?: SourceMemberRoles;
-  memberInviteRole?: SourceMemberRoles;
-}): string => {
-  handle = handle.replace('@', '').trim();
+const validateSquadData = async (
+  {
+    handle,
+    name,
+    description,
+    memberPostingRole,
+    memberInviteRole,
+  }: Pick<SquadSource, 'handle' | 'name' | 'description'> & {
+    memberPostingRole?: SourceMemberRoles;
+    memberInviteRole?: SourceMemberRoles;
+  },
+  entityManager: DataSource | EntityManager,
+  handleChanged = true,
+): Promise<string> => {
+  if (handleChanged) {
+    handle = await validateAndTransformHandle(handle, 'handle', entityManager);
+  }
   const regexParams: ValidateRegex[] = [
     ['name', name, nameRegex, true],
-    ['handle', handle, handleRegex, true],
     ['description', description, descriptionRegex, false],
   ];
 
@@ -1014,25 +1020,18 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLSource> => {
-      const handle = validateSquadData({
-        handle: inputHandle,
-        name,
-        description,
-        memberPostingRole,
-        memberInviteRole,
-      });
+      const handle = await validateSquadData(
+        {
+          handle: inputHandle,
+          name,
+          description,
+          memberPostingRole,
+          memberInviteRole,
+        },
+        ctx.con,
+      );
       try {
         const sourceId = await ctx.con.transaction(async (entityManager) => {
-          const disallowHandle = await checkDisallowHandle(
-            entityManager,
-            handle,
-          );
-          if (disallowHandle) {
-            throw new ValidationError(
-              JSON.stringify({ handle: 'handle is already used' }),
-            );
-          }
-
           const id = randomUUID();
           const repo = entityManager.getRepository(SquadSource);
           // Create a new source
@@ -1100,32 +1099,26 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLSource> => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Edit);
-      const handle = validateSquadData({
-        handle: inputHandle,
-        name,
-        description,
-        memberPostingRole,
-        memberInviteRole,
-      });
+      const current = await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.Edit,
+      );
+      const handle = await validateSquadData(
+        {
+          handle: inputHandle,
+          name,
+          description,
+          memberPostingRole,
+          memberInviteRole,
+        },
+        ctx.con,
+        inputHandle !== current.handle,
+      );
 
       try {
         const editedSourceId = await ctx.con.transaction(
           async (entityManager) => {
-            const current = await entityManager
-              .getRepository(SquadSource)
-              .findOneOrFail({ where: { id: sourceId }, select: ['handle'] });
-            const disallowHandle =
-              current.handle === handle
-                ? false
-                : await checkDisallowHandle(entityManager, handle);
-
-            if (disallowHandle) {
-              throw new ValidationError(
-                JSON.stringify({ handle: 'handle is already used' }),
-              );
-            }
-
             const repo = entityManager.getRepository(SquadSource);
             // Update existing squad
             await repo.update(
