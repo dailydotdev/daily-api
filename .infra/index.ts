@@ -18,6 +18,8 @@ import {
   Redis,
   detectIsAdhocEnv,
   SqlDatabase,
+  Worker,
+  Stream
 } from '@dailydotdev/pulumi-common';
 
 const isAdhocEnv = detectIsAdhocEnv();
@@ -83,10 +85,32 @@ const envVars: Record<string, Input<string>> = {
   redisHost,
 };
 
+const deadLetterTopicName = 'api.v1.dead-letter'
+const deadLetterTopic = new Stream(deadLetterTopicName, { isAdhocEnv, name: deadLetterTopicName, })
+
+const addDeadLetterTopicToWorkers = (workers: Worker[]): Worker[] => {
+  return workers.map(worker => {
+    if (worker.args?.deadLetterPolicy) {
+      return {
+        ...worker,
+        args: {
+            ...worker.args,
+            deadLetterPolicy: {
+              ...worker.args.deadLetterPolicy,
+              deadLetterTopic: deadLetterTopic.name.apply(name => name)
+            }
+          }
+        }
+      }
+
+      return worker
+    })
+}
+
 createSubscriptionsFromWorkers(
   name,
   isAdhocEnv,
-  addLabelsToWorkers(workers, { app: name }),
+  addDeadLetterTopicToWorkers(addLabelsToWorkers(workers, { app: name })),
 );
 
 const memory = 512;
