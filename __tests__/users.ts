@@ -20,16 +20,20 @@ import {
   saveFixtures,
   TEST_UA,
   testMutationErrorCode,
+  testQueryError,
   testQueryErrorCode,
 } from './helpers';
 import {
+  ArticlePost,
   Comment,
+  DevCard,
+  Feature,
+  FeatureType,
+  FeatureValue,
   Post,
   Source,
   User,
   View,
-  DevCard,
-  ArticlePost,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
@@ -41,6 +45,7 @@ import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { UserPersonalizedDigest } from '../src/entity/UserPersonalizedDigest';
 import { DayOfWeek } from '../src/types';
+import { CampaignType, Invite } from '../src/entity/Invite';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -1947,9 +1952,20 @@ describe('query referralCampaign', () => {
     query ReferralCampaign($referralOrigin: String!) {
       referralCampaign(referralOrigin: $referralOrigin) {
         referredUsersCount
+        referralCountLimit
         url
       }
   }`;
+
+  beforeEach(async () => {
+    await con.getRepository(Invite).save({
+      userId: '1',
+      campaign: CampaignType.Search,
+      limit: 5,
+      count: 1,
+      token: 'foo',
+    });
+  });
 
   it('should return campaign progress for user', async () => {
     loggedUser = '1';
@@ -1983,6 +1999,32 @@ describe('query referralCampaign', () => {
       { query: QUERY, variables: { referralOrigin: 'knightcampaign' } },
       'UNAUTHENTICATED',
     );
+  });
+
+  describe('with an existing invite record for the user', () => {
+    it('should include the campaign progress from the invite', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY, {
+        variables: { referralOrigin: 'search' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.referralCampaign.referredUsersCount).toBe(1);
+      expect(res.data.referralCampaign.referralCountLimit).toBe(5);
+    });
+
+    it('should include the invite token in the URL', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY, {
+        variables: { referralOrigin: 'search' },
+      });
+
+      expect(res.data.referralCampaign.url).toBe(
+        `${process.env.COMMENTS_PREFIX}/join?cid=search&userid=1&ctoken=foo`,
+      );
+    });
   });
 });
 
@@ -2250,5 +2292,191 @@ describe('mutation unsubscribePersonalizedDigest', () => {
 
     const res = await client.mutate(MUTATION);
     expect(res.errors).toBeFalsy();
+  });
+});
+
+describe('mutation acceptFeatureInvite', () => {
+  const MUTATION = `mutation AcceptFeatureInvite($token: String!, $referrerId: ID!, $feature: String!) {
+    acceptFeatureInvite(token: $token, referrerId: $referrerId, feature: $feature) {
+      _
+    }
+  }`;
+
+  beforeEach(async () => {
+    await con.getRepository(Invite).save({
+      userId: '2',
+      campaign: CampaignType.Search,
+      limit: 5,
+      count: 1,
+      token: 'foo',
+    });
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          token: 'foo',
+          referrerId: 2,
+          feature: CampaignType.Search,
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return a 404 if the token and referrer mismatch', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          token: 'foo',
+          referrerId: 1,
+          feature: CampaignType.Search,
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should raise a validation error if the invite limit has been reached', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(Invite)
+      .update({ token: 'foo' }, { limit: 5, count: 5 });
+
+    await testQueryError(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          token: 'foo',
+          referrerId: 2,
+          feature: CampaignType.Search,
+        },
+      },
+      (errors) => {
+        expect(errors[0].extensions.code).toEqual('GRAPHQL_VALIDATION_FAILED');
+        expect(errors[0].message).toEqual('Invites limit reached');
+      },
+    );
+  });
+
+  it('should do nothing if the feature is already enabled', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Feature).save({
+      feature: FeatureType.Search,
+      userId: loggedUser,
+      value: FeatureValue.Allow,
+    });
+
+    // pre-check
+    const inviteBefore = await con
+      .getRepository(Invite)
+      .findOneBy({ token: 'foo' });
+    expect(inviteBefore.count).toEqual(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        token: 'foo',
+        referrerId: '2',
+        feature: CampaignType.Search,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const inviteAfter = await con
+      .getRepository(Invite)
+      .findOneBy({ token: 'foo' });
+    expect(inviteAfter.count).toEqual(1);
+  });
+
+  it('should update the invite count for the referrer', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        token: 'foo',
+        referrerId: '2',
+        feature: CampaignType.Search,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const invite = await con.getRepository(Invite).findOneBy({ token: 'foo' });
+    expect(invite.count).toEqual(2);
+  });
+
+  it('should create a feature and enable it for the referred', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        token: 'foo',
+        referrerId: '2',
+        feature: CampaignType.Search,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(
+      await con.getRepository(Feature).count({
+        where: {
+          userId: loggedUser,
+          feature: FeatureType.Search,
+        },
+      }),
+    ).toEqual(1);
+
+    const feature = await con.getRepository(Feature).findOneBy({
+      userId: loggedUser,
+      feature: FeatureType.Search,
+    });
+
+    expect(feature.value).toEqual(FeatureValue.Allow);
+    expect(feature.invitedById).toEqual('2');
+  });
+
+  it('should enable the feature for the referred if it already exists', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Feature).save({
+      userId: loggedUser,
+      feature: FeatureType.Search,
+      value: FeatureValue.Block,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        token: 'foo',
+        referrerId: '2',
+        feature: CampaignType.Search,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(
+      await con.getRepository(Feature).count({
+        where: {
+          userId: loggedUser,
+          feature: FeatureType.Search,
+        },
+      }),
+    ).toEqual(1);
+
+    const feature = await con.getRepository(Feature).findOneBy({
+      userId: loggedUser,
+      feature: FeatureType.Search,
+    });
+
+    expect(feature.value).toEqual(FeatureValue.Allow);
+    expect(feature.invitedById).toEqual('2');
   });
 });
