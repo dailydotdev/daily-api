@@ -8,6 +8,12 @@ import {
 
 export type KeywordStatus = 'pending' | 'allow' | 'deny' | 'synonym';
 
+export type KeywordFlags = Partial<{
+  onboarding: boolean;
+}>;
+
+export type KeywordFlagsPublic = never;
+
 @Entity()
 export class Keyword {
   @PrimaryColumn({ type: 'text' })
@@ -33,4 +39,8 @@ export class Keyword {
   @Column({ default: 1 })
   @Index('IDX_keyword_occurrences')
   occurrences: number;
+
+  @Column({ type: 'jsonb', default: {} })
+  @Index('IDX_keyword_flags_onboarding', { synchronize: false })
+  flags: KeywordFlags = {};
 }
