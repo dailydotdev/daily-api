@@ -12,6 +12,8 @@ interface GQLTagSearchResults {
   hits: GQLTag[];
 }
 
+type GQLTagOnboardingResults = Pick<GQLTagSearchResults, 'hits'>;
+
 export const typeDefs = /* GraphQL */ `
   """
   Post tag
@@ -37,6 +39,17 @@ export const typeDefs = /* GraphQL */ `
     hits: [Tag]!
   }
 
+  type TagOnboardingResults {
+    """
+    Query that was searched
+    """
+    query: String!
+    """
+    Search results
+    """
+    hits: [Tag]!
+  }
+
   extend type Query {
     """
     Get the most popular tags
@@ -48,7 +61,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get initial list of tags recommended for onboarding
     """
-    onboardingTags: TagSearchResults!
+    onboardingTags: TagOnboardingResults!
   }
 `;
 
@@ -81,7 +94,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         hits: hits.map((x) => ({ name: x.value })),
       };
     },
-    onboardingTags: async (source, args, ctx): Promise<GQLTagSearchResults> => {
+    onboardingTags: async (
+      source,
+      args,
+      ctx,
+    ): Promise<GQLTagOnboardingResults> => {
       const hits = await ctx.getRepository(Keyword).find({
         select: ['value'],
         where: {
@@ -94,7 +111,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       });
 
       return {
-        query: '',
         hits: hits.map((x) => ({ name: x.value })),
       };
     },
