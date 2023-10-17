@@ -1,3 +1,4 @@
+import { tracer } from '../src/opentelemetry';
 import { parseArgs } from 'node:util';
 import api from '../src';
 import background from '../src/background';
@@ -6,6 +7,7 @@ import cron from '../src/cron';
 async function run(positionals) {
   switch (positionals[0]) {
     case 'api':
+      tracer('api').start();
       const app = await api();
       await app.listen({
         port: parseInt(process.env.PORT) || 3000,

@@ -29,6 +29,7 @@ import cookie, { FastifyCookieOptions } from '@fastify/cookie';
 import { getSubscriptionSettings } from './subscription';
 import { ioRedisPool } from './redis';
 import { loadFeatures } from './growthbook';
+import { runInRootSpan } from './opentelemetry';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -55,7 +56,10 @@ export default async function app(
 ): Promise<FastifyInstance> {
   let isTerminating = false;
   const isProd = process.env.NODE_ENV === 'production';
-  const connection = await createOrGetConnection();
+  const connection = await runInRootSpan(
+    'createOrGetConnection',
+    createOrGetConnection,
+  );
 
   const app = fastify({
     logger: {
