@@ -22,7 +22,7 @@ import { validateAndTransformHandle } from '../common/handles';
 import { ValidationError } from 'apollo-server-errors';
 import { GQLUpdateUserInput } from '../schema/users';
 import {
-  handleRegex,
+  socialHandleRegex,
   nameRegex,
   validateRegex,
   ValidateRegex,
@@ -375,9 +375,9 @@ export const validateUserUpdate = async (
 
   const regexParams: ValidateRegex[] = [
     ['name', data.name, nameRegex, !user.name],
-    ['github', data.github, handleRegex],
+    ['github', data.github, socialHandleRegex],
     ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
-    ['hashnode', data.hashnode, handleRegex],
+    ['hashnode', data.hashnode, socialHandleRegex],
   ];
 
   validateRegex(regexParams);

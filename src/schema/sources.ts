@@ -42,12 +42,10 @@ import { GraphQLResolveInfo } from 'graphql';
 import { SourcePermissionErrorKeys, TypeOrmError } from '../errors';
 import {
   descriptionRegex,
-  handleRegex,
   nameRegex,
   validateRegex,
   ValidateRegex,
 } from '../common/object';
-import { checkDisallowHandle } from '../entity/DisallowHandle';
 import { validateAndTransformHandle } from '../common/handles';
 
 export interface GQLSource {
@@ -882,13 +880,26 @@ export const resolvers: IResolvers<any, Context> = {
       return getSourceById(ctx, info, id);
     },
     sourceHandleExists: async (_, { handle }: { handle: string }, ctx) => {
-      validateRegex([['handle', handle, handleRegex, true]]);
-
-      const [source, disallowHandle] = await Promise.all([
-        ctx.getRepository(Source).findOneBy({ handle: handle.toLowerCase() }),
-        checkDisallowHandle(ctx.con, handle),
-      ]);
-      return !!source || disallowHandle;
+      try {
+        const transformed = await validateAndTransformHandle(
+          handle,
+          'handle',
+          ctx.con,
+        );
+        const source = await ctx.getRepository(Source).findOne({
+          where: { handle: transformed },
+          select: ['id'],
+        });
+        return !!source;
+      } catch (err) {
+        if (
+          err instanceof ValidationError &&
+          err.message.indexOf('invalid') < 0
+        ) {
+          return true;
+        }
+        throw err;
+      }
     },
     sourceMembers: async (
       _,
