@@ -1,14 +1,16 @@
-import {
-  handleRegex,
-  isNullOrUndefined,
-  nameRegex,
-  validateRegex,
-  ValidateRegex,
-} from './../common/object';
+import { isNullOrUndefined } from './../common/object';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
-import { Post, DevCard, User, Comment, PostStats, View } from '../entity';
+import {
+  Post,
+  DevCard,
+  User,
+  Comment,
+  PostStats,
+  View,
+  validateUserUpdate,
+} from '../entity';
 import { getAuthorPostStats } from '../entity/posts';
 import {
   AuthenticationError,
@@ -36,7 +38,7 @@ import { TypeOrmError, NotFoundError } from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
 import { In } from 'typeorm';
-import { checkDisallowHandle, DisallowHandle } from '../entity/DisallowHandle';
+import { DisallowHandle } from '../entity/DisallowHandle';
 import { DayOfWeek } from '../types';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import { getTimezoneOffset } from 'date-fns-tz';
@@ -920,44 +922,13 @@ export const resolvers: IResolvers<any, Context> = {
         // Only accept email changes from Service calls
         delete data.email;
         delete data.infoConfirmed;
-      } else if (data.email !== undefined) {
-        const emailCheck = await repo.findBy({ email: data.email });
-        if (emailCheck.length) {
-          if (emailCheck.some(({ id }) => id !== user.id)) {
-            throw new ValidationError(
-              JSON.stringify({ email: 'email already used' }),
-            );
-          }
-        }
       }
-
-      ['name', 'username', 'twitter', 'github', 'hashnode'].forEach((key) => {
-        if (data[key]) {
-          data[key] = data[key].replace('@', '').trim();
-        }
-      });
-
-      const regexParams: ValidateRegex[] = [
-        ['name', data.name, nameRegex, !user.name],
-        ['username', data.username, handleRegex, !user.username],
-        ['github', data.github, handleRegex],
-        ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
-        ['hashnode', data.hashnode, handleRegex],
-      ];
-
-      validateRegex(regexParams);
+      data = await validateUserUpdate(user, data, ctx.con);
 
       const avatar =
         upload && process.env.CLOUDINARY_URL
           ? (await uploadAvatar(user.id, (await upload).createReadStream())).url
           : data.image || user.image;
-
-      const disallowHandle = await checkDisallowHandle(ctx.con, data.username);
-      if (disallowHandle) {
-        throw new ValidationError(
-          JSON.stringify({ handle: 'handle is already used' }),
-        );
-      }
 
       try {
         const updatedUser = { ...user, ...data, image: avatar };
@@ -972,11 +943,6 @@ export const resolvers: IResolvers<any, Context> = {
         return await ctx.con.getRepository(User).save(updatedUser);
       } catch (err) {
         if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
-          if (err.message.indexOf('users_email_unique') > -1) {
-            throw new ValidationError(
-              JSON.stringify({ email: 'email is already used' }),
-            );
-          }
           if (err.message.indexOf('users_username_unique') > -1) {
             throw new ValidationError(
               JSON.stringify({ username: 'username already exists' }),

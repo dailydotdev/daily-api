@@ -492,20 +492,19 @@ describe('query sourceHandleExists', () => {
     }
   `;
 
-  const updateHandle = (handle = 'a') =>
+  const updateHandle = (handle = 'aaa') =>
     con.getRepository(Source).update({ id: 'a' }, { handle, private: true });
 
   it('should not authorize when user is not logged in', () =>
     testQueryErrorCode(
       client,
-      { query: QUERY, variables: { handle: 'a' } },
+      { query: QUERY, variables: { handle: 'aaa' } },
       'UNAUTHENTICATED',
     ));
 
-  it('should throw validation error when the handle did not pass our criteria', async () => {
+  it('should throw validation error when the handle did not pass our criteria', () => {
     loggedUser = '3';
-    await updateHandle();
-    testQueryErrorCode(
+    return testQueryErrorCode(
       client,
       { query: QUERY, variables: { handle: 'aa aa' } },
       'GRAPHQL_VALIDATION_FAILED',
@@ -515,14 +514,14 @@ describe('query sourceHandleExists', () => {
   it('should return false if the source handle is not taken', async () => {
     loggedUser = '3';
     await updateHandle();
-    const res = await client.query(QUERY, { variables: { handle: 'aa' } });
+    const res = await client.query(QUERY, { variables: { handle: 'aaaa' } });
     expect(res.data.sourceHandleExists).toBeFalsy();
   });
 
   it('should return true if the source handle is taken', async () => {
     loggedUser = '3';
     await updateHandle();
-    const res = await client.query(QUERY, { variables: { handle: 'a' } });
+    const res = await client.query(QUERY, { variables: { handle: 'aaa' } });
     expect(res.data.sourceHandleExists).toBeTruthy();
   });
 
@@ -547,7 +546,7 @@ describe('query sourceHandleExists', () => {
   it('should return true if the source handle is taken considering uppercase characters', async () => {
     loggedUser = '3';
     await updateHandle();
-    const res = await client.query(QUERY, { variables: { handle: 'A' } });
+    const res = await client.query(QUERY, { variables: { handle: 'AAA' } });
     expect(res.data.sourceHandleExists).toBeTruthy();
   });
 });
