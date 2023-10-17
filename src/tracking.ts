@@ -48,6 +48,7 @@ const plugin = async (fastify: FastifyInstance): Promise<void> => {
   fastify.decorateRequest('trackingId', null);
   fastify.decorateRequest('isBot', null);
 
+  // fastify.addHook('onRequest', async (req, res) => {
   fastify.addHook('preHandler', async (req, res) => {
     req.isBot = isBotRequest(req);
     req.sessionId = req.cookies[cookies.session.key];

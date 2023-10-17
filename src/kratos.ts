@@ -1,3 +1,4 @@
+import { runInSpan } from './opentelemetry';
 import { Headers, RequestInit } from 'node-fetch';
 import { fetchOptions } from './http';
 import { FastifyReply, FastifyRequest } from 'fastify';
@@ -32,49 +33,51 @@ const fetchKratos = async (
   endpoint: string,
   opts: RequestInit = {},
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<{ res: any; headers: Headers }> => {
-  try {
-    const res = await retryFetch(endpoint, {
-      ...fetchOptions,
-      ...addKratosHeaderCookies(req),
-      ...opts,
-    });
-    return { res: await res.json(), headers: res.headers };
-  } catch (err) {
-    if (err instanceof HttpError) {
-      const kratosError = new KratosError(err.statusCode, err.response);
-      if (err.statusCode >= 500) {
-        req.log.warn({ err: kratosError }, 'unexpected error from kratos');
-      }
-      if (err.statusCode !== 303 && err.statusCode !== 401) {
-        req.log.info({ err: kratosError }, 'non-401 error from kratos');
+): Promise<{ res: any; headers: Headers }> =>
+  runInSpan('fetchKratos', async () => {
+    try {
+      const res = await retryFetch(endpoint, {
+        ...fetchOptions,
+        ...addKratosHeaderCookies(req),
+        ...opts,
+      });
+      return { res: await res.json(), headers: res.headers };
+    } catch (err) {
+      if (err instanceof HttpError) {
+        const kratosError = new KratosError(err.statusCode, err.response);
+        if (err.statusCode >= 500) {
+          req.log.warn({ err: kratosError }, 'unexpected error from kratos');
+        }
+        if (err.statusCode !== 303 && err.statusCode !== 401) {
+          req.log.info({ err: kratosError }, 'non-401 error from kratos');
+        }
+        throw err;
       }
       throw err;
     }
-    throw err;
-  }
-};
+  });
 
 export const clearAuthentication = async (
   req: FastifyRequest,
   res: FastifyReply,
   reason: string,
-): Promise<void> => {
-  req.log.info(
-    {
-      reason,
-      userId: req.userId,
-      cookie: req.cookies[cookies.kratos.key],
-    },
-    'clearing authentication',
-  );
-  req.trackingId = await generateTrackingId();
-  req.userId = undefined;
-  setTrackingId(req, res, req.trackingId);
-  setCookie(req, res, 'auth', undefined);
-  setCookie(req, res, 'kratosContinuity', undefined);
-  setCookie(req, res, 'kratos', undefined);
-};
+): Promise<void> =>
+  runInSpan('clearAuthentication', async () => {
+    req.log.info(
+      {
+        reason,
+        userId: req.userId,
+        cookie: req.cookies[cookies.kratos.key],
+      },
+      'clearing authentication',
+    );
+    req.trackingId = await generateTrackingId();
+    req.userId = undefined;
+    setTrackingId(req, res, req.trackingId);
+    setCookie(req, res, 'auth', undefined);
+    setCookie(req, res, 'kratosContinuity', undefined);
+    setCookie(req, res, 'kratos', undefined);
+  });
 
 type WhoamiResponse =
   | { valid: true; userId: string; expires: Date; cookie?: string }
@@ -82,52 +85,54 @@ type WhoamiResponse =
 
 export const dispatchWhoami = async (
   req: FastifyRequest,
-): Promise<WhoamiResponse> => {
-  if (heimdallOrigin === 'disabled' || !req.cookies[cookies.kratos.key]) {
-    return { valid: false };
-  }
-  try {
-    const { res: whoami, headers } = await fetchKratos(
-      req,
-      `${heimdallOrigin}/api/whoami`,
-    );
-    if (whoami?.identity?.traits?.userId) {
-      return {
-        valid: true,
-        userId: whoami.identity.traits.userId,
-        expires: new Date(whoami.expires_at),
-        cookie: headers.get('set-cookie'),
-      };
+): Promise<WhoamiResponse> =>
+  runInSpan('dispatchWhoami', async () => {
+    if (heimdallOrigin === 'disabled' || !req.cookies[cookies.kratos.key]) {
+      return { valid: false };
     }
-    req.log.info({ whoami }, 'invalid whoami response');
-  } catch (e) {
-    if (e.statusCode !== 401) {
-      throw e;
+    try {
+      const { res: whoami, headers } = await fetchKratos(
+        req,
+        `${heimdallOrigin}/api/whoami`,
+      );
+      if (whoami?.identity?.traits?.userId) {
+        return {
+          valid: true,
+          userId: whoami.identity.traits.userId,
+          expires: new Date(whoami.expires_at),
+          cookie: headers.get('set-cookie'),
+        };
+      }
+      req.log.info({ whoami }, 'invalid whoami response');
+    } catch (e) {
+      if (e.statusCode !== 401) {
+        throw e;
+      }
     }
-  }
 
-  return { valid: false };
-};
+    return { valid: false };
+  });
 
 export const logout = async (
   req: FastifyRequest,
   res: FastifyReply,
-): Promise<FastifyReply> => {
-  try {
-    const { res: logoutFlow } = await fetchKratos(
-      req,
-      `${kratosOrigin}/self-service/logout/browser`,
-    );
-    if (logoutFlow?.logout_url) {
-      const logoutParts = logoutFlow.logout_url.split('/self-service/');
-      const logoutUrl = `${kratosOrigin}/self-service/${logoutParts[1]}`;
-      await fetchKratos(req, logoutUrl, { redirect: 'manual' });
+): Promise<FastifyReply> =>
+  runInSpan('logout', async () => {
+    try {
+      const { res: logoutFlow } = await fetchKratos(
+        req,
+        `${kratosOrigin}/self-service/logout/browser`,
+      );
+      if (logoutFlow?.logout_url) {
+        const logoutParts = logoutFlow.logout_url.split('/self-service/');
+        const logoutUrl = `${kratosOrigin}/self-service/${logoutParts[1]}`;
+        await fetchKratos(req, logoutUrl, { redirect: 'manual' });
+      }
+    } catch (e) {
+      if (e.statusCode !== 303 && e.statusCode !== 401) {
+        throw e;
+      }
     }
-  } catch (e) {
-    if (e.statusCode !== 303 && e.statusCode !== 401) {
-      throw e;
-    }
-  }
-  await clearAuthentication(req, res, 'manual logout');
-  return res.status(204).send();
-};
+    await clearAuthentication(req, res, 'manual logout');
+    return res.status(204).send();
+  });
