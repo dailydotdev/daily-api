@@ -579,25 +579,6 @@ describe('query feed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should return feed with vector config', async () => {
-    loggedUser = '1';
-    nock('http://localhost:6000')
-      .post('/feed.json', {
-        total_pages: 40,
-        page_size: 11,
-        fresh_page_size: '4',
-        feed_config_name: 'vector',
-        user_id: '1',
-      })
-      .reply(200, {
-        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
-      });
-    const res = await client.query(QUERY, {
-      variables: { ...variables, version: 14 },
-    });
-    expect(res.data).toMatchSnapshot();
-  });
-
   it('should return feed with vector config based on user state', async () => {
     loggedUser = '1';
     nock('http://localhost:6001')

@@ -4,6 +4,7 @@ export type FeedResponse = [postId: string, metadata: string | undefined][];
 
 export enum FeedConfigName {
   Personalise = 'personalise',
+  PersonaliseOnboard = 'personalise_onboard',
   Vector = 'vector',
 }
 
@@ -68,4 +69,4 @@ export interface IFeedClient {
   ): Promise<FeedResponse>;
 }
 
-export type FeedVersion = '11' | '14' | '15' | 'popular';
+export type FeedVersion = '15' | '16' | 'popular';
