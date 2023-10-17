@@ -65,3 +65,42 @@ describe('query searchTags', () => {
     expect(res.data).toMatchSnapshot();
   });
 });
+
+describe('query onboardingTags', () => {
+  const QUERY = `{
+    onboardingTags {
+      hits {
+        name
+      }
+    }
+  }`;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      Keyword,
+      keywordsFixture.map((item) => ({
+        ...item,
+        flags: {
+          onboarding: true,
+        },
+      })),
+    );
+  });
+
+  it('should return onboarding tags', async () => {
+    const res = await client.query(QUERY);
+
+    expect(res.data).toMatchObject({
+      onboardingTags: {
+        hits: [
+          { name: 'development' },
+          { name: 'fullstack' },
+          { name: 'golang' },
+          { name: 'rust' },
+          { name: 'webdev' },
+        ],
+      },
+    });
+  });
+});

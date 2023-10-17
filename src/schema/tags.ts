@@ -44,6 +44,11 @@ export const typeDefs = /* GraphQL */ `
     popularTags: [Tag] @cacheControl(maxAge: 600)
 
     searchTags(query: String!): TagSearchResults @cacheControl(maxAge: 600)
+
+    """
+    Get initial list of tags recommended for onboarding
+    """
+    onboardingTags: TagSearchResults!
   }
 `;
 
@@ -73,6 +78,23 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         .getRawMany();
       return {
         query,
+        hits: hits.map((x) => ({ name: x.value })),
+      };
+    },
+    onboardingTags: async (source, args, ctx): Promise<GQLTagSearchResults> => {
+      const hits = await ctx.getRepository(Keyword).find({
+        select: ['value'],
+        where: {
+          status: 'allow',
+          flags: {
+            onboarding: true,
+          },
+        },
+        order: { value: 'ASC' },
+      });
+
+      return {
+        query: '',
         hits: hits.map((x) => ({ name: x.value })),
       };
     },
