@@ -1,5 +1,6 @@
 import { PubSub, Topic } from '@google-cloud/pubsub';
 import { FastifyBaseLogger } from 'fastify';
+import { SpanKind } from '@opentelemetry/api';
 import {
   Post,
   SourceRequest,
@@ -22,6 +23,7 @@ import {
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
+import { runInSpan } from '../opentelemetry';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
@@ -85,23 +87,30 @@ const publishEvent = async (
   log: EventLogger,
   topic: Topic,
   payload: Record<string, unknown>,
-): Promise<void> => {
-  if (
-    process.env.NODE_ENV === 'production' ||
-    process.env.ENABLE_PUBSUB === 'true'
-  ) {
-    try {
-      await topic.publishMessage({
-        json: payload,
-      });
-    } catch (err) {
-      log.error(
-        { err, topic: topic.name, payload },
-        'failed to publish message',
-      );
-    }
-  }
-};
+): Promise<void> =>
+  runInSpan(
+    `publishEvent ${topic.name}`,
+    async () => {
+      if (
+        process.env.NODE_ENV === 'production' ||
+        process.env.ENABLE_PUBSUB === 'true'
+      ) {
+        try {
+          await topic.publishMessage({
+            json: payload,
+          });
+        } catch (err) {
+          log.error(
+            { err, topic: topic.name, payload },
+            'failed to publish message',
+          );
+        }
+      }
+    },
+    {
+      kind: SpanKind.PRODUCER,
+    },
+  );
 
 export const notifySourceRequest = async (
   log: EventLogger,

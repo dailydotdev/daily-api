@@ -1,3 +1,5 @@
+import { addPubsubSpanLabels, runInRootSpan, runInSpan } from './opentelemetry';
+import { SpanKind } from '@opentelemetry/api';
 import 'reflect-metadata';
 import { PubSub, Message } from '@google-cloud/pubsub';
 import pino from 'pino';
@@ -30,23 +32,41 @@ const subscribe = (
     batching: { maxMilliseconds: 10 },
   });
   const childLogger = logger.child({ subscription });
-  sub.on('message', async (message) => {
-    try {
-      await handler(message, connection, childLogger, pubsub);
-      message.ack();
-    } catch (err) {
-      childLogger.error(
-        { messageId: message.id, data: message.data.toString('utf-8'), err },
-        'failed to process message',
-      );
-      message.nack();
-    }
-  });
+  sub.on('message', async (message) =>
+    runInRootSpan(
+      `message: ${subscription}`,
+      async (span) => {
+        addPubsubSpanLabels(span, subscription, message);
+        try {
+          await runInSpan('handler', async () =>
+            handler(message, connection, childLogger, pubsub),
+          );
+          message.ack();
+        } catch (err) {
+          childLogger.error(
+            {
+              messageId: message.id,
+              data: message.data.toString('utf-8'),
+              err,
+            },
+            'failed to process message',
+          );
+          message.nack();
+        }
+      },
+      {
+        kind: SpanKind.CONSUMER,
+      },
+    ),
+  );
 };
 
 export default async function app(): Promise<void> {
   const logger = pino();
-  const connection = await createOrGetConnection();
+  const connection = await runInRootSpan(
+    'createOrGetConnection',
+    createOrGetConnection,
+  );
   const pubsub = new PubSub();
 
   logger.info('background processing in on');

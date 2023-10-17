@@ -15,6 +15,7 @@ async function run(positionals) {
       });
       break;
     case 'background':
+      tracer('background').start();
       await background();
       break;
     case 'cron':
