@@ -49,10 +49,10 @@ Object {
   "infoConfirmed": false,
   "name": "Ido",
   "notificationEmail": true,
-  "permalink": "http://localhost:5002/a1",
+  "permalink": "http://localhost:5002/aaa1",
   "timezone": "Asia/Manila",
   "twitter": null,
-  "username": "a1",
+  "username": "aaa1",
 }
 `;
 

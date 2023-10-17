@@ -1658,7 +1658,7 @@ describe('mutation updateUserProfile', () => {
     const user = await repo.findOneBy({ id: loggedUser });
     const timezone = 'Asia/Manila';
     const res = await client.mutate(MUTATION, {
-      variables: { data: { timezone, username: 'a1', name: 'Ido' } },
+      variables: { data: { timezone, username: 'aaa1', name: 'Ido' } },
     });
 
     expect(res.errors?.length).toBeFalsy();
@@ -1676,7 +1676,7 @@ describe('mutation updateUserProfile', () => {
     const repo = con.getRepository(User);
     await repo.update({ id: loggedUser }, { email: 'sample@daily.dev' });
     const user = await repo.findOneBy({ id: loggedUser });
-    const username = 'a1';
+    const username = 'aaa1';
     expect(user?.infoConfirmed).toBeFalsy();
     const res = await client.mutate(MUTATION, {
       variables: { data: { username, name: user.name } },
@@ -1695,7 +1695,7 @@ describe('mutation updateUserProfile', () => {
     const email = 'sample@daily.dev';
     expect(user?.infoConfirmed).toBeFalsy();
     const res = await client.mutate(MUTATION, {
-      variables: { data: { email, username: 'u1', name: user.name } },
+      variables: { data: { email, username: 'uuu1', name: user.name } },
     });
     expect(res.errors?.length).toBeFalsy();
     const updatedUser = await repo.findOneBy({ id: loggedUser });
