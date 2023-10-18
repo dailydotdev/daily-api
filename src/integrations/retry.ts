@@ -1,7 +1,7 @@
 import retry, { OperationOptions } from 'retry';
 import isNetworkError from './networkError';
 import fetch, { RequestInfo, RequestInit, Response } from 'node-fetch';
-import { SemanticAttributes, runInSpan } from '../opentelemetry';
+import { SemanticAttributes, runInSpan } from '../telemetry/opentelemetry';
 
 export class AbortError extends Error {
   public originalError: Error;

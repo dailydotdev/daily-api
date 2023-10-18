@@ -1,4 +1,8 @@
-import { addPubsubSpanLabels, runInRootSpan, runInSpan } from './opentelemetry';
+import {
+  addPubsubSpanLabels,
+  runInRootSpan,
+  runInSpan,
+} from './telemetry/opentelemetry';
 import { SpanKind } from '@opentelemetry/api';
 import 'reflect-metadata';
 import { PubSub, Message } from '@google-cloud/pubsub';

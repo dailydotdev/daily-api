@@ -48,7 +48,7 @@ import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
 import { getEncryptedFeatures } from '../growthbook';
 import { differenceInMinutes } from 'date-fns';
-import { runInSpan } from '../opentelemetry';
+import { runInSpan } from '../telemetry/opentelemetry';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;

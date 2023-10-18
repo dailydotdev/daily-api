@@ -1,4 +1,4 @@
-import { runInSpan } from './opentelemetry';
+import { runInSpan } from './telemetry/opentelemetry';
 import { Headers, RequestInit } from 'node-fetch';
 import { fetchOptions } from './http';
 import { FastifyReply, FastifyRequest } from 'fastify';

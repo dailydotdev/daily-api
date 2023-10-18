@@ -1,4 +1,4 @@
-import { tracer } from '../src/opentelemetry';
+import { tracer } from '../src/telemetry/opentelemetry';
 import { parseArgs } from 'node:util';
 import api from '../src';
 import background from '../src/background';

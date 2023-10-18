@@ -23,7 +23,7 @@ import {
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
-import { runInSpan } from '../opentelemetry';
+import { runInSpan } from '../telemetry/opentelemetry';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
