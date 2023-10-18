@@ -1090,45 +1090,40 @@ export const resolvers: IResolvers<any, Context> = {
       },
       ctx: Context,
     ): Promise<unknown> => {
-      const featureRepo = ctx.con.getRepository(Feature);
-      const existingFeature = await featureRepo.findOneBy({
-        userId: ctx.userId,
-        feature: args.feature as FeatureType,
-      });
-
-      // silently fail if we already have the feature
-      if (existingFeature?.value === FeatureValue.Allow) return undefined;
-
-      const inviteRepo = ctx.con.getRepository(Invite);
-      const referrerInvite = await inviteRepo.findOneByOrFail({
-        userId: args.referrerId,
-        token: args.token,
-        campaign: args.feature as CampaignType,
-      });
+      const referrerInvite = await ctx.con
+        .getRepository(Invite)
+        .findOneByOrFail({
+          userId: args.referrerId,
+          token: args.token,
+          campaign: args.feature as CampaignType,
+        });
 
       if (referrerInvite.count >= referrerInvite.limit) {
         throw new ValidationError('Invites limit reached');
       }
 
-      if (existingFeature) {
-        existingFeature.invitedById = args.referrerId;
-        existingFeature.value = FeatureValue.Allow;
-        await featureRepo.save(existingFeature);
-      } else {
-        await featureRepo.save({
-          userId: ctx.userId,
-          feature: args.feature as FeatureType,
-          invitedById: args.referrerId,
-          value: FeatureValue.Allow,
-        });
-      }
+      await ctx.con.transaction(async (entityManager): Promise<void> => {
+        try {
+          await entityManager.getRepository(Feature).insert({
+            userId: ctx.userId,
+            feature: args.feature as FeatureType,
+            invitedById: args.referrerId,
+            value: FeatureValue.Allow,
+          });
+        } catch (err) {
+          if (err.code === '23505') return; // 23505 the postgres uniqueness violation error
+          throw err;
+        }
 
-      await inviteRepo.update(
-        { token: args.token },
-        {
-          count: referrerInvite.count + 1,
-        },
-      );
+        await entityManager.getRepository(Invite).update(
+          { token: args.token },
+          {
+            count: referrerInvite.count + 1,
+          },
+        );
+      });
+
+      return { _: true };
     },
   }),
   User: {

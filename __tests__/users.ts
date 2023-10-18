@@ -2370,7 +2370,7 @@ describe('mutation acceptFeatureInvite', () => {
     );
   });
 
-  it('should do nothing if the feature is already enabled', async () => {
+  it('should do nothing if the feature already exists', async () => {
     loggedUser = '1';
 
     await con.getRepository(Feature).save({
@@ -2446,7 +2446,7 @@ describe('mutation acceptFeatureInvite', () => {
     expect(feature.invitedById).toEqual('2');
   });
 
-  it('should enable the feature for the referred if it already exists', async () => {
+  it('should not enable the feature for the referred if it already blocked', async () => {
     loggedUser = '1';
 
     await con.getRepository(Feature).save({
@@ -2478,7 +2478,7 @@ describe('mutation acceptFeatureInvite', () => {
       feature: FeatureType.Search,
     });
 
-    expect(feature.value).toEqual(FeatureValue.Allow);
-    expect(feature.invitedById).toEqual('2');
+    expect(feature.value).toEqual(FeatureValue.Block);
+    expect(feature.invitedById).toBeNull();
   });
 });
