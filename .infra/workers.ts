@@ -1,8 +1,17 @@
+import * as gcp from '@pulumi/gcp';
+
 interface Worker {
   topic: string;
   subscription: string;
-  args?: { enableMessageOrdering?: boolean };
+  args?: { enableMessageOrdering?: boolean, ackDeadlineSeconds?: number, expirationPolicy?: {
+    ttl: string
+  }, deadLetterPolicy?: {
+    deadLetterTopic: string,
+    maxDeliveryAttempts: number
+  } };
 }
+
+export const digestDeadLetter = 'api.v1.personalized-digest-email-dead-letter';
 
 export const workers: Worker[] = [
   {
@@ -92,7 +101,7 @@ export const workers: Worker[] = [
   {
     topic: 'api.changes',
     subscription: 'api-cdc',
-    args: { enableMessageOrdering: true },
+    args: {enableMessageOrdering: true},
   },
   {
     topic: 'api.v1.new-notification',
@@ -240,5 +249,21 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.generate-personalized-digest',
     subscription: 'api.personalized-digest-email',
+    args: {
+      ackDeadlineSeconds: 60,
+      deadLetterPolicy: {
+        deadLetterTopic: `projects/${gcp.config.project}/topics/${digestDeadLetter}`,
+        maxDeliveryAttempts: 5
+      }
+    }
+  },
+  {
+    topic: digestDeadLetter,
+    subscription: 'api.personalized-digest-email-dead-letter-log',
+    args: {
+      expirationPolicy: {
+        ttl: ''
+      }
+    }
   }
 ];

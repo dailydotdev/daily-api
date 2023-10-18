@@ -45,6 +45,7 @@ import sourceSquadCreatedUserAction from './sourceSquadCreatedUserAction';
 import sourceSquadCreatedOwnerMailing from './sourceSquadCreatedOwnerMailing';
 // import userCreatedAddPersonalizedDigest from './userCreatedAddPersonalizedDigest';
 import personalizedDigestEmail from './personalizedDigestEmail';
+import deadLetterLog from './digestDeadLetterLog';
 
 export { Worker } from './worker';
 
@@ -91,6 +92,7 @@ export const workers: Worker[] = [
   // how selected users react to emails in terms of unsubscribing
   // userCreatedAddPersonalizedDigest,
   personalizedDigestEmail,
+  deadLetterLog,
   cdc,
   ...notificationWorkers,
 ];

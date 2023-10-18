@@ -2,7 +2,7 @@ import * as gcp from '@pulumi/gcp';
 import * as k8s from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import { Input, ProviderResource } from '@pulumi/pulumi';
-import { workers } from './workers';
+import {digestDeadLetter, workers} from './workers';
 import { crons } from './crons';
 import {
   config,
@@ -18,6 +18,7 @@ import {
   Redis,
   detectIsAdhocEnv,
   SqlDatabase,
+  Stream
 } from '@dailydotdev/pulumi-common';
 
 const isAdhocEnv = detectIsAdhocEnv();
@@ -83,10 +84,16 @@ const envVars: Record<string, Input<string>> = {
   redisHost,
 };
 
+const deadLetterTopic = new Stream(digestDeadLetter, {
+  isAdhocEnv,
+  name: digestDeadLetter,
+});
+
 createSubscriptionsFromWorkers(
   name,
   isAdhocEnv,
   addLabelsToWorkers(workers, { app: name }),
+  { dependsOn: [deadLetterTopic] },
 );
 
 const memory = 512;
