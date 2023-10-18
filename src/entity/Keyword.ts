@@ -15,6 +15,7 @@ export type KeywordFlags = Partial<{
 export type KeywordFlagsPublic = never;
 
 @Entity()
+@Index(['value', 'status'])
 export class Keyword {
   @PrimaryColumn({ type: 'text' })
   @Index('IDX_keyword_value')

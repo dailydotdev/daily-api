@@ -116,7 +116,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const hits = await ctx.getRepository(Keyword).find({
         select: ['value'],
         where: {
-          status: 'allow',
           flags: {
             onboarding: true,
           },
