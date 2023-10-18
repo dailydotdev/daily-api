@@ -33,29 +33,28 @@ const fetchKratos = async (
   endpoint: string,
   opts: RequestInit = {},
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<{ res: any; headers: Headers }> =>
-  runInSpan('fetchKratos', async () => {
-    try {
-      const res = await retryFetch(endpoint, {
-        ...fetchOptions,
-        ...addKratosHeaderCookies(req),
-        ...opts,
-      });
-      return { res: await res.json(), headers: res.headers };
-    } catch (err) {
-      if (err instanceof HttpError) {
-        const kratosError = new KratosError(err.statusCode, err.response);
-        if (err.statusCode >= 500) {
-          req.log.warn({ err: kratosError }, 'unexpected error from kratos');
-        }
-        if (err.statusCode !== 303 && err.statusCode !== 401) {
-          req.log.info({ err: kratosError }, 'non-401 error from kratos');
-        }
-        throw err;
+): Promise<{ res: any; headers: Headers }> => {
+  try {
+    const res = await retryFetch(endpoint, {
+      ...fetchOptions,
+      ...addKratosHeaderCookies(req),
+      ...opts,
+    });
+    return { res: await res.json(), headers: res.headers };
+  } catch (err) {
+    if (err instanceof HttpError) {
+      const kratosError = new KratosError(err.statusCode, err.response);
+      if (err.statusCode >= 500) {
+        req.log.warn({ err: kratosError }, 'unexpected error from kratos');
+      }
+      if (err.statusCode !== 303 && err.statusCode !== 401) {
+        req.log.info({ err: kratosError }, 'non-401 error from kratos');
       }
       throw err;
     }
-  });
+    throw err;
+  }
+};
 
 export const clearAuthentication = async (
   req: FastifyRequest,

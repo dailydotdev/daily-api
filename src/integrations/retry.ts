@@ -1,6 +1,7 @@
 import retry, { OperationOptions } from 'retry';
 import isNetworkError from './networkError';
 import fetch, { RequestInfo, RequestInit, Response } from 'node-fetch';
+import { SemanticAttributes, runInSpan } from '../opentelemetry';
 
 export class AbortError extends Error {
   public originalError: Error;
@@ -86,17 +87,28 @@ export function retryFetch(
   fetchOpts: RequestInit,
   retryOpts?: RetryOptions,
 ): Promise<Response> {
-  return asyncRetry(async () => {
-    const res = await fetch(url, fetchOpts);
-    if (res.ok) {
-      return res;
-    }
-    const err = new HttpError(url.toString(), res.status, await res.text());
-    if (res.status < 500) {
-      throw new AbortError(err);
-    }
-    throw err;
-  }, retryOpts);
+  return runInSpan('retryFetch', async (span) =>
+    asyncRetry(async () => {
+      const res = await fetch(url, fetchOpts);
+      span.setAttributes({
+        [SemanticAttributes.HTTP_URL]: url.toString(),
+        [SemanticAttributes.HTTP_STATUS_CODE]: res.status,
+        [SemanticAttributes.HTTP_METHOD]: fetchOpts.method,
+      });
+      if (res.ok) {
+        return res;
+      }
+      const err = new HttpError(url.toString(), res.status, await res.text());
+      if (res.status < 500) {
+        span.setAttributes({
+          [SemanticAttributes.EXCEPTION_TYPE]: err.name,
+          [SemanticAttributes.EXCEPTION_MESSAGE]: err.message,
+        });
+        throw new AbortError(err);
+      }
+      throw err;
+    }, retryOpts),
+  );
 }
 
 export async function retryFetchParse<T>(
