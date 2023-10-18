@@ -34,6 +34,7 @@ export * from './ReputationEvent';
 export * from './Submission';
 export * from './notifications';
 export * from './Feature';
+export * from './Invite';
 export * from './UserAction';
 export * from './ContentImage';
 export * from './UserPost';
