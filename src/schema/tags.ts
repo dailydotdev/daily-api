@@ -146,6 +146,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
         order: {
           probability: 'DESC',
+          keywordY: 'ASC',
         },
       });
 

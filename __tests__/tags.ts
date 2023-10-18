@@ -165,10 +165,10 @@ describe('query recommendedTags', () => {
     expect(res.data).toMatchObject({
       recommendedTags: {
         hits: [
-          { name: 'webdev' },
           { name: 'backend' },
-          { name: 'html' },
           { name: 'data' },
+          { name: 'html' },
+          { name: 'webdev' },
         ],
       },
     });
@@ -205,7 +205,7 @@ describe('query recommendedTags', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchObject({
       recommendedTags: {
-        hits: [{ name: 'webdev' }, { name: 'backend' }],
+        hits: [{ name: 'backend' }, { name: 'webdev' }],
       },
     });
   });
