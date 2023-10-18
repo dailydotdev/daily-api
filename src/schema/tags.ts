@@ -111,7 +111,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       });
 
       return {
-        hits: hits.map((x) => ({ name: x.value })),
+        hits: hits.map((hit) => ({ name: hit.value })),
       };
     },
   },
