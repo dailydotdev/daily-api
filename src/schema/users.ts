@@ -127,6 +127,7 @@ export interface ReadingRankArgs {
 export interface ReferralCampaign {
   referredUsersCount: number;
   referralCountLimit: number;
+  referralToken: string;
   url: string;
 }
 
@@ -362,6 +363,7 @@ export const typeDefs = /* GraphQL */ `
   type ReferralCampaign {
     referredUsersCount: Int!
     referralCountLimit: Int
+    referralToken: String
     url: String!
   }
 
@@ -884,6 +886,7 @@ export const resolvers: IResolvers<any, Context> = {
       return {
         referredUsersCount,
         referralCountLimit: userInvite?.limit,
+        referralToken: userInvite?.token,
         url,
       };
     },

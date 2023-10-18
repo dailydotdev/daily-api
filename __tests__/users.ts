@@ -1953,6 +1953,7 @@ describe('query referralCampaign', () => {
       referralCampaign(referralOrigin: $referralOrigin) {
         referredUsersCount
         referralCountLimit
+        referralToken
         url
       }
   }`;
@@ -2002,7 +2003,7 @@ describe('query referralCampaign', () => {
   });
 
   describe('with an existing invite record for the user', () => {
-    it('should include the campaign progress from the invite', async () => {
+    it('should include the campaign progress & token from the invite', async () => {
       loggedUser = '1';
 
       const res = await client.query(QUERY, {
@@ -2012,6 +2013,7 @@ describe('query referralCampaign', () => {
       expect(res.errors).toBeFalsy();
       expect(res.data.referralCampaign.referredUsersCount).toBe(1);
       expect(res.data.referralCampaign.referralCountLimit).toBe(5);
+      expect(res.data.referralCampaign.referralToken).toBe('foo');
     });
 
     it('should include the invite token in the URL', async () => {
