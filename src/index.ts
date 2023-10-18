@@ -15,7 +15,6 @@ import { NoSchemaIntrospectionCustomRule } from 'graphql';
 
 import './config';
 
-// import trace from './trace';
 import tracking from './tracking';
 import auth from './auth';
 import compatibility from './compatibility';
@@ -93,7 +92,6 @@ export default async function app(
   app.register(cookie, {
     secret: process.env.COOKIES_KEY,
   }) as FastifyCookieOptions;
-  // app.register(trace, { enabled: isProd });
   app.register(auth, { secret: process.env.ACCESS_SECRET });
   app.register(tracking);
   app.register(fastifyRawBody, {
