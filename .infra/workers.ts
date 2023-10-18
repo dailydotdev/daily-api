@@ -1,3 +1,5 @@
+import * as gcp from '@pulumi/gcp';
+
 interface Worker {
   topic: string;
   subscription: string;
@@ -250,7 +252,7 @@ export const workers: Worker[] = [
     args: {
       ackDeadlineSeconds: 60,
       deadLetterPolicy: {
-        deadLetterTopic: digestDeadLetter,
+        deadLetterTopic: `projects/${gcp.config.project}/topics/${digestDeadLetter}`,
         maxDeliveryAttempts: 5
       }
     }
