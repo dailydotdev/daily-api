@@ -45,7 +45,7 @@ import sourceSquadCreatedUserAction from './sourceSquadCreatedUserAction';
 import sourceSquadCreatedOwnerMailing from './sourceSquadCreatedOwnerMailing';
 // import userCreatedAddPersonalizedDigest from './userCreatedAddPersonalizedDigest';
 import personalizedDigestEmail from './personalizedDigestEmail';
-import deadLetterLog from './deadLetterLog';
+import deadLetterLog from './digestDeadLetterLog';
 
 export { Worker } from './worker';
 

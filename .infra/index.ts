@@ -2,7 +2,7 @@ import * as gcp from '@pulumi/gcp';
 import * as k8s from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import { Input, ProviderResource } from '@pulumi/pulumi';
-import { workers } from './workers';
+import {digestDeadLetter, workers} from './workers';
 import { crons } from './crons';
 import {
   config,
@@ -18,7 +18,6 @@ import {
   Redis,
   detectIsAdhocEnv,
   SqlDatabase,
-  Worker,
   Stream
 } from '@dailydotdev/pulumi-common';
 
@@ -85,32 +84,16 @@ const envVars: Record<string, Input<string>> = {
   redisHost,
 };
 
-const deadLetterTopicName = 'api.v1.dead-letter'
-const deadLetterTopic = new Stream(deadLetterTopicName, { isAdhocEnv, name: deadLetterTopicName, })
-
-const addDeadLetterTopicToWorkers = (workers: Worker[]): Worker[] => {
-  return workers.map(worker => {
-    if (worker.args?.deadLetterPolicy) {
-      return {
-        ...worker,
-        args: {
-            ...worker.args,
-            deadLetterPolicy: {
-              ...worker.args.deadLetterPolicy,
-              deadLetterTopic: deadLetterTopic.name.apply(name => name)
-            }
-          }
-        }
-      }
-
-      return worker
-    })
-}
+const deadLetterTopic = new Stream(digestDeadLetter, {
+  isAdhocEnv,
+  name: digestDeadLetter,
+});
 
 createSubscriptionsFromWorkers(
   name,
   isAdhocEnv,
-  addDeadLetterTopicToWorkers(addLabelsToWorkers(workers, { app: name })),
+  addLabelsToWorkers(workers, { app: name }),
+  { dependsOn: [deadLetterTopic] },
 );
 
 const memory = 512;

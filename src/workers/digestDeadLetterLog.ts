@@ -3,7 +3,7 @@ import { messageToJson, Worker } from './worker';
 type Data = unknown;
 
 const worker: Worker = {
-  subscription: 'api.dead-letter-log',
+  subscription: 'api.personalized-digest-email-dead-letter-log',
   handler: async (message, con, logger) => {
     const data = messageToJson<Data>(message);
 

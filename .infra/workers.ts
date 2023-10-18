@@ -1,4 +1,4 @@
-import { SubscriptionArgs } from "@pulumi/gcp/pubsub";
+import {SubscriptionArgs} from "@pulumi/gcp/pubsub";
 
 interface Worker {
   topic: string;
@@ -7,6 +7,8 @@ interface Worker {
     deadLetterPolicy?: Omit<SubscriptionArgs['deadLetterPolicy'], 'deadLetterTopic'>;
   }
 }
+
+export const digestDeadLetter = 'api.v1.personalized-digest-email-dead-letter';
 
 export const workers: Worker[] = [
   {
@@ -96,7 +98,7 @@ export const workers: Worker[] = [
   {
     topic: 'api.changes',
     subscription: 'api-cdc',
-    args: { enableMessageOrdering: true },
+    args: {enableMessageOrdering: true},
   },
   {
     topic: 'api.v1.new-notification',
@@ -247,13 +249,14 @@ export const workers: Worker[] = [
     args: {
       ackDeadlineSeconds: 60,
       deadLetterPolicy: {
+        deadLetterTopic: digestDeadLetter,
         maxDeliveryAttempts: 5
       }
     }
   },
   {
-    topic: 'api.v1.dead-letter',
-    subscription: 'api.dead-letter-log',
+    topic: digestDeadLetter,
+    subscription: 'api.personalized-digest-email-dead-letter-log',
     args: {
       expirationPolicy: {
         ttl: ''
