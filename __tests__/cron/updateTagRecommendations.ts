@@ -6,6 +6,7 @@ import { ArticlePost, Keyword, PostKeyword, Source } from '../../src/entity';
 import { postKeywordsFixture, postsFixture } from '../fixture/post';
 import { TagRecommendation } from '../../src/entity/TagRecommendation';
 import { sourcesFixture } from '../fixture/source';
+import { postRecommendedKeywordsFixture } from '../fixture/keywords';
 
 let con: DataSource;
 
@@ -23,32 +24,10 @@ describe('updateTagRecommendations cron', () => {
 
     await saveFixtures(con, Source, sourcesFixture);
     await saveFixtures(con, ArticlePost, postsFixture);
-    const keywordsInPostsFixture = postsFixture.reduce((acc, item) => {
-      const keywordsInPost = item.tagsStr?.split(',') || [];
-
-      keywordsInPost.forEach((keyword) => {
-        const keywordItem = acc.find((item) => item.value === keyword);
-
-        if (!keywordItem) {
-          acc.push({
-            value: keyword,
-            occurrences: 1,
-            status: 'allow',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            flags: {},
-          });
-        } else {
-          keywordItem.occurrences += 1;
-        }
-      });
-
-      return acc;
-    }, [] as Keyword[]);
     await saveFixtures(
       con,
       Keyword,
-      keywordsInPostsFixture.map((item) => ({
+      postRecommendedKeywordsFixture.map((item) => ({
         ...item,
         status: 'allow',
       })),

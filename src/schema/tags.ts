@@ -2,6 +2,9 @@ import { IResolvers } from '@graphql-tools/utils';
 import { Context } from '../Context';
 import { traceResolvers } from './trace';
 import { Keyword } from '../entity';
+import { TagRecommendation } from '../entity/TagRecommendation';
+import { In, Not } from 'typeorm';
+import { ValidationError } from 'apollo-server-errors';
 
 interface GQLTag {
   name: string;
@@ -12,7 +15,7 @@ interface GQLTagSearchResults {
   hits: GQLTag[];
 }
 
-type GQLTagOnboardingResults = Pick<GQLTagSearchResults, 'hits'>;
+type GQLTagResults = Pick<GQLTagSearchResults, 'hits'>;
 
 export const typeDefs = /* GraphQL */ `
   """
@@ -39,7 +42,7 @@ export const typeDefs = /* GraphQL */ `
     hits: [Tag]!
   }
 
-  type TagOnboardingResults {
+  type TagResults {
     """
     Query that was searched
     """
@@ -61,7 +64,22 @@ export const typeDefs = /* GraphQL */ `
     """
     Get initial list of tags recommended for onboarding
     """
-    onboardingTags: TagOnboardingResults!
+    onboardingTags: TagResults!
+
+    """
+    Get recommended tags based on current selected and shown tags
+    """
+    recommendedTags(
+      """
+      Tags for which we need to find other recommended tags
+      """
+      tags: [String]!
+
+      """
+      Tags which should be excluded from recommendations
+      """
+      excludedTags: [String]!
+    ): TagResults!
   }
 `;
 
@@ -94,11 +112,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         hits: hits.map((x) => ({ name: x.value })),
       };
     },
-    onboardingTags: async (
-      source,
-      args,
-      ctx,
-    ): Promise<GQLTagOnboardingResults> => {
+    onboardingTags: async (source, args, ctx): Promise<GQLTagResults> => {
       const hits = await ctx.getRepository(Keyword).find({
         select: ['value'],
         where: {
@@ -112,6 +126,32 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
       return {
         hits: hits.map((hit) => ({ name: hit.value })),
+      };
+    },
+    recommendedTags: async (
+      source,
+      { tags, excludedTags },
+      ctx,
+    ): Promise<GQLTagResults> => {
+      const uniqueTagsToExclude = new Set([...tags, ...excludedTags]);
+
+      if (uniqueTagsToExclude.size > 1000) {
+        throw new ValidationError('Tag limit reached');
+      }
+
+      const hits = await ctx.getRepository(TagRecommendation).find({
+        select: ['keywordY'],
+        where: {
+          keywordX: In(tags),
+          keywordY: Not(In([...uniqueTagsToExclude])),
+        },
+        order: {
+          probability: 'DESC',
+        },
+      });
+
+      return {
+        hits: hits.map((hit) => ({ name: hit.keywordY })),
       };
     },
   },
