@@ -15,12 +15,17 @@ jobs:
           name: Install dependencies
           command: npm install
       - run:
+          name: Install infra dependencies
+          command: npm install
+          working_directory: .infra
+      - run:
           name: Build
           command: npm run build
       - save_cache:
           key: dependency-v2-cache-{{ checksum "package-lock.json" }}
           paths:
             - ./node_modules
+            - ./.infra/node_modules
       - persist_to_workspace:
           root: .
           paths:
