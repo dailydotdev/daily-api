@@ -53,6 +53,7 @@ export const baseNotificationEmailData: Pick<
   },
   trackingSettings: {
     openTracking: { enable: true },
+    clickTracking: { enable: true },
   },
   asm: {
     groupId: 12850,
