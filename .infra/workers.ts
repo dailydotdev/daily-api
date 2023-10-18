@@ -1,11 +1,12 @@
-import {SubscriptionArgs} from "@pulumi/gcp/pubsub";
-
 interface Worker {
   topic: string;
   subscription: string;
-  args?: Pick<SubscriptionArgs, 'enableMessageOrdering' | 'ackDeadlineSeconds' | 'expirationPolicy'> & {
-    deadLetterPolicy?: Omit<SubscriptionArgs['deadLetterPolicy'], 'deadLetterTopic'>;
-  }
+  args?: { enableMessageOrdering?: boolean, ackDeadlineSeconds?: number, expirationPolicy?: {
+    ttl: string
+  }, deadLetterPolicy?: {
+    deadLetterTopic: string,
+    maxDeliveryAttempts: number
+  } };
 }
 
 export const digestDeadLetter = 'api.v1.personalized-digest-email-dead-letter';
