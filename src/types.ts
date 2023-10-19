@@ -1,3 +1,31 @@
+import { api } from '@opentelemetry/sdk-node';
+import { Roles } from './roles';
+import { AccessToken } from './auth';
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    // Used for auth
+    userId?: string;
+    premium?: boolean;
+    roles?: Roles[];
+    service?: boolean;
+    accessToken?: AccessToken;
+
+    // Used for tracking
+    trackingId?: string;
+    sessionId?: string;
+    isBot?: boolean;
+
+    // Used for tracing
+    span: api.Span;
+  }
+
+  interface FastifyInstance {
+    // Used for tracing
+    tracer: api.Tracer;
+  }
+}
+
 type IgnoredTypes = Promise<unknown> | ((...args: unknown[]) => unknown);
 
 export type ChangeObject<Type> = {

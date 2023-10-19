@@ -25,16 +25,6 @@ import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 import dc from 'node:diagnostics_channel';
 const channel = dc.channel('fastify.initialization');
 
-declare module 'fastify' {
-  interface FastifyRequest {
-    span: api.Span;
-  }
-
-  interface FastifyInstance {
-    tracer: api.Tracer;
-  }
-}
-
 // const metricExporter = new OTLPMetricExporter({
 //   // hostname: 'jaeger-collector',
 //   url: `http://${process.env.OTLP_COLLECTOR_HOST}:${process.env.OTLP_COLLECTOR_PORT}`,
