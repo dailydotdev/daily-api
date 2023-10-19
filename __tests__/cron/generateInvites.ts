@@ -11,7 +11,6 @@ import {
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import cron from '../../src/cron/generateInvites';
-import pino from 'pino';
 
 let con: DataSource;
 const oldDate = new Date();
@@ -48,22 +47,18 @@ const featuresFixture: Partial<Feature>[] = [
     createdAt: oldDate,
   },
 
-  // valid for invite
-  {
-    feature: FeatureType.Squad,
-    userId: '2',
-    value: FeatureValue.Allow,
-    createdAt: oldDate,
-  },
-  {
-    feature: FeatureType.Search,
-    userId: '4',
-    value: FeatureValue.Allow,
-    createdAt: oldDate,
-  },
+  // invalid feature type
   {
     feature: FeatureType.Squad,
     userId: '3',
+    value: FeatureValue.Allow,
+    createdAt: oldDate,
+  },
+
+  // valid for invite
+  {
+    feature: FeatureType.Search,
+    userId: '4',
     value: FeatureValue.Allow,
     createdAt: oldDate,
   },
@@ -71,7 +66,7 @@ const featuresFixture: Partial<Feature>[] = [
 
 const invitesFixture: Partial<Invite>[] = [
   {
-    token: 'foo',
+    token: 'd688afeb-381c-43b5-89af-533f81ccd036',
     campaign: CampaignType.Search,
     userId: '3',
   },
@@ -93,7 +88,7 @@ describe('generateInvites cron', () => {
     await expectSuccessfulCron(cron);
 
     const invites = await con.getRepository(Invite).find();
-    expect(invites.length).toEqual(4);
+    expect(invites.length).toEqual(2);
     expect(
       invites.map(({ campaign, userId }) => ({ campaign, userId })),
     ).toEqual(
@@ -106,23 +101,7 @@ describe('generateInvites cron', () => {
           campaign: CampaignType.Search,
           userId: '4',
         },
-        {
-          campaign: FeatureType.Squad,
-          userId: '2',
-        },
-        {
-          campaign: FeatureType.Squad,
-          userId: '3',
-        },
       ]),
     );
-  });
-
-  it('should log invites count', async () => {
-    const logger = pino();
-    const infoSpy = jest.spyOn(logger, 'info');
-    await expectSuccessfulCron(cron, logger);
-    expect(infoSpy).toHaveBeenCalledTimes(1);
-    expect(infoSpy).toHaveBeenCalledWith({ count: 3 }, 'invites generated');
   });
 });

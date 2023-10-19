@@ -33,11 +33,16 @@ import {
   uploadAvatar,
   uploadDevCardBackground,
 } from '../common';
-import { getSearchQuery } from './common';
+import { getSearchQuery, GQLEmptyResponse } from './common';
 import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
-import { NotFoundError, TypeOrmError } from '../errors';
+import {
+  NotFoundError,
+  SubmissionFailErrorKeys,
+  SubmissionFailErrorMessage,
+  TypeOrmError,
+} from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
 import { In } from 'typeorm';
@@ -1093,7 +1098,7 @@ export const resolvers: IResolvers<any, Context> = {
         feature: string;
       },
       ctx: Context,
-    ): Promise<unknown> => {
+    ): Promise<GQLEmptyResponse> => {
       const referrerInvite = await ctx.con
         .getRepository(Invite)
         .findOneByOrFail({
@@ -1103,7 +1108,7 @@ export const resolvers: IResolvers<any, Context> = {
         });
 
       if (referrerInvite.count >= referrerInvite.limit) {
-        throw new ValidationError('Invites limit reached');
+        throw new ValidationError(SubmissionFailErrorKeys.InviteLimitReached);
       }
 
       await ctx.con.transaction(async (entityManager): Promise<void> => {
@@ -1115,7 +1120,7 @@ export const resolvers: IResolvers<any, Context> = {
             value: FeatureValue.Allow,
           });
         } catch (err) {
-          if (err.code === '23505') return; // 23505 the postgres uniqueness violation error
+          if (err.code === TypeOrmError.DUPLICATE_ENTRY) return;
           throw err;
         }
 

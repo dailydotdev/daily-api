@@ -26,6 +26,7 @@ export enum SubmissionFailErrorKeys {
   ExistsStarted = 'EXISTS_STARTED',
   ExistsAccepted = 'EXISTS_ACCEPTED',
   ExistsRejected = 'EXISTS_REJECTED',
+  InviteLimitReached = 'INVITE_LIMIT_REACHED',
 }
 
 export const SubmissionFailErrorMessage: Record<
@@ -47,6 +48,7 @@ export const SubmissionFailErrorMessage: Record<
     'You do not have sufficient permissions and or reputation to submit a community link yet.',
   LIMIT_REACHED:
     'You can only submit 3 links per day and have reached your limit. Please try again tomorrow.',
+  INVITE_LIMIT_REACHED: 'You have reached your limit of available invites',
   INVALID_URL:
     'The URL you submitted is not valid, please check and try again.',
   POST_DELETED:

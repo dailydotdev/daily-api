@@ -1972,7 +1972,7 @@ describe('query referralCampaign', () => {
       campaign: CampaignType.Search,
       limit: 5,
       count: 1,
-      token: 'foo',
+      token: 'd688afeb-381c-43b5-89af-533f81ccd036',
     });
   });
 
@@ -2318,7 +2318,7 @@ describe('mutation acceptFeatureInvite', () => {
       campaign: CampaignType.Search,
       limit: 5,
       count: 1,
-      token: 'foo',
+      token: 'd688afeb-381c-43b5-89af-533f81ccd036',
     });
   });
 
@@ -2328,7 +2328,7 @@ describe('mutation acceptFeatureInvite', () => {
       {
         query: MUTATION,
         variables: {
-          token: 'foo',
+          token: 'd688afeb-381c-43b5-89af-533f81ccd036',
           referrerId: 2,
           feature: CampaignType.Search,
         },
@@ -2345,7 +2345,7 @@ describe('mutation acceptFeatureInvite', () => {
       {
         query: MUTATION,
         variables: {
-          token: 'foo',
+          token: 'd688afeb-381c-43b5-89af-533f81ccd036',
           referrerId: 1,
           feature: CampaignType.Search,
         },
@@ -2359,21 +2359,24 @@ describe('mutation acceptFeatureInvite', () => {
 
     await con
       .getRepository(Invite)
-      .update({ token: 'foo' }, { limit: 5, count: 5 });
+      .update(
+        { token: 'd688afeb-381c-43b5-89af-533f81ccd036' },
+        { limit: 5, count: 5 },
+      );
 
     await testQueryError(
       client,
       {
         query: MUTATION,
         variables: {
-          token: 'foo',
+          token: 'd688afeb-381c-43b5-89af-533f81ccd036',
           referrerId: 2,
           feature: CampaignType.Search,
         },
       },
       (errors) => {
         expect(errors[0].extensions.code).toEqual('GRAPHQL_VALIDATION_FAILED');
-        expect(errors[0].message).toEqual('Invites limit reached');
+        expect(errors[0].message).toEqual('INVITE_LIMIT_REACHED');
       },
     );
   });
@@ -2390,12 +2393,12 @@ describe('mutation acceptFeatureInvite', () => {
     // pre-check
     const inviteBefore = await con
       .getRepository(Invite)
-      .findOneBy({ token: 'foo' });
+      .findOneBy({ token: 'd688afeb-381c-43b5-89af-533f81ccd036' });
     expect(inviteBefore.count).toEqual(1);
 
     const res = await client.mutate(MUTATION, {
       variables: {
-        token: 'foo',
+        token: 'd688afeb-381c-43b5-89af-533f81ccd036',
         referrerId: '2',
         feature: CampaignType.Search,
       },
@@ -2404,7 +2407,7 @@ describe('mutation acceptFeatureInvite', () => {
     expect(res.errors).toBeFalsy();
     const inviteAfter = await con
       .getRepository(Invite)
-      .findOneBy({ token: 'foo' });
+      .findOneBy({ token: 'd688afeb-381c-43b5-89af-533f81ccd036' });
     expect(inviteAfter.count).toEqual(1);
   });
 
@@ -2413,14 +2416,16 @@ describe('mutation acceptFeatureInvite', () => {
 
     const res = await client.mutate(MUTATION, {
       variables: {
-        token: 'foo',
+        token: 'd688afeb-381c-43b5-89af-533f81ccd036',
         referrerId: '2',
         feature: CampaignType.Search,
       },
     });
 
     expect(res.errors).toBeFalsy();
-    const invite = await con.getRepository(Invite).findOneBy({ token: 'foo' });
+    const invite = await con
+      .getRepository(Invite)
+      .findOneBy({ token: 'd688afeb-381c-43b5-89af-533f81ccd036' });
     expect(invite.count).toEqual(2);
   });
 
@@ -2429,7 +2434,7 @@ describe('mutation acceptFeatureInvite', () => {
 
     const res = await client.mutate(MUTATION, {
       variables: {
-        token: 'foo',
+        token: 'd688afeb-381c-43b5-89af-533f81ccd036',
         referrerId: '2',
         feature: CampaignType.Search,
       },
@@ -2465,7 +2470,7 @@ describe('mutation acceptFeatureInvite', () => {
 
     const res = await client.mutate(MUTATION, {
       variables: {
-        token: 'foo',
+        token: 'd688afeb-381c-43b5-89af-533f81ccd036',
         referrerId: '2',
         feature: CampaignType.Search,
       },
