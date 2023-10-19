@@ -17,6 +17,8 @@ interface GQLTagSearchResults {
 
 type GQLTagResults = Pick<GQLTagSearchResults, 'hits'>;
 
+export const RECOMMENDED_TAGS_LIMIT = 5;
+
 export const typeDefs = /* GraphQL */ `
   """
   Post tag
@@ -44,11 +46,7 @@ export const typeDefs = /* GraphQL */ `
 
   type TagResults {
     """
-    Query that was searched
-    """
-    query: String!
-    """
-    Search results
+    Results
     """
     hits: [Tag]!
   }
@@ -148,6 +146,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           probability: 'DESC',
           keywordY: 'ASC',
         },
+        take: RECOMMENDED_TAGS_LIMIT,
       });
 
       return {

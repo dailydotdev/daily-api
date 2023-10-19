@@ -31,7 +31,11 @@ import { ViewEntity, ViewColumn, Index } from 'typeorm';
     where probability > 0.05
   `,
 })
-@Index(['keywordX', 'keywordY', 'probability'])
+@Index('IDX_keywordX_keywordY_probability', [
+  'keywordX',
+  'keywordY',
+  'probability',
+])
 export class TagRecommendation {
   @ViewColumn()
   keywordX: string;
