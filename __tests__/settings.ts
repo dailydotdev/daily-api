@@ -154,6 +154,7 @@ describe('mutation updateUserSettings', () => {
     customLinks
     optOutWeeklyGoal
     optOutCompanion
+    campaignCtaPlacement
   }
 }`;
 
