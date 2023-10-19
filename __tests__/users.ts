@@ -1870,11 +1870,7 @@ describe('POST /v1/users/logout', () => {
 describe('DELETE /v1/users/me', () => {
   const BASE_PATH = '/v1/users/me';
 
-  it('should not authorize when not logged in', async () => {
-    await request(app.server).delete(BASE_PATH).expect(401);
-  });
-
-  it('should delete user from database', async () => {
+  beforeEach(async () => {
     await con.getRepository(User).save([
       {
         id: '404',
@@ -1884,7 +1880,13 @@ describe('DELETE /v1/users/me', () => {
         createdAt: new Date(),
       },
     ]);
+  });
 
+  it('should not authorize when not logged in', async () => {
+    await request(app.server).delete(BASE_PATH).expect(401);
+  });
+
+  it('should delete user from database', async () => {
     mockLogout();
     await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
 
@@ -1896,15 +1898,6 @@ describe('DELETE /v1/users/me', () => {
   });
 
   it('should clear cookies', async () => {
-    await con.getRepository(User).save([
-      {
-        id: '404',
-        name: 'Not found',
-        image: 'https://daily.dev/404.jpg',
-        timezone: 'utc',
-        createdAt: new Date(),
-      },
-    ]);
     mockLogout();
     const res = await authorizeRequest(request(app.server).delete(BASE_PATH))
       .set('User-Agent', TEST_UA)
@@ -1915,6 +1908,21 @@ describe('DELETE /v1/users/me', () => {
     expect(cookies['da2'].value).toBeTruthy();
     expect(cookies['da2'].value).not.toEqual('1');
     expect(cookies['da3'].value).toBeFalsy();
+  });
+
+  it('clears invitedBy from associated features', async () => {
+    await con.getRepository(Feature).insert({
+      feature: FeatureType.Search,
+      userId: '2',
+      value: FeatureValue.Allow,
+      invitedById: '1',
+    });
+
+    mockLogout();
+    await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
+
+    const feature = await con.getRepository(Feature).findOneBy({ userId: '2' });
+    expect(feature.invitedById).toBeNull();
   });
 });
 

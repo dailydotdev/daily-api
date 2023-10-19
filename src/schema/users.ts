@@ -1083,7 +1083,11 @@ export const resolvers: IResolvers<any, Context> = {
     },
     acceptFeatureInvite: async (
       _,
-      args: {
+      {
+        token,
+        referrerId,
+        feature,
+      }: {
         token: string;
         referrerId: string;
         feature: string;
@@ -1093,9 +1097,9 @@ export const resolvers: IResolvers<any, Context> = {
       const referrerInvite = await ctx.con
         .getRepository(Invite)
         .findOneByOrFail({
-          userId: args.referrerId,
-          token: args.token,
-          campaign: args.feature as CampaignType,
+          userId: referrerId,
+          token: token,
+          campaign: feature as CampaignType,
         });
 
       if (referrerInvite.count >= referrerInvite.limit) {
@@ -1106,8 +1110,8 @@ export const resolvers: IResolvers<any, Context> = {
         try {
           await entityManager.getRepository(Feature).insert({
             userId: ctx.userId,
-            feature: args.feature as FeatureType,
-            invitedById: args.referrerId,
+            feature: feature as FeatureType,
+            invitedById: referrerId,
             value: FeatureValue.Allow,
           });
         } catch (err) {
@@ -1116,7 +1120,7 @@ export const resolvers: IResolvers<any, Context> = {
         }
 
         await entityManager.getRepository(Invite).update(
-          { token: args.token },
+          { token: token },
           {
             count: referrerInvite.count + 1,
           },

@@ -35,6 +35,6 @@ export class Feature {
   @Column({ length: 36, nullable: true })
   invitedById: string;
 
-  @ManyToOne(() => User, { lazy: true, nullable: true })
+  @ManyToOne(() => User, { lazy: true, nullable: true, onDelete: 'SET NULL' })
   invitedBy: Promise<User | null>;
 }

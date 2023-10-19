@@ -1,4 +1,11 @@
-import { Entity, PrimaryColumn, Column, ManyToOne, Index } from 'typeorm';
+import {
+  Entity,
+  PrimaryColumn,
+  Column,
+  ManyToOne,
+  Index,
+  Generated,
+} from 'typeorm';
 import { User } from './User';
 import { FeatureType } from './Feature';
 
@@ -7,9 +14,10 @@ export enum CampaignType {
 }
 
 @Entity()
-@Index(['userId', 'campaign'], { unique: true })
+@Index('IDX_invite_userId_campaign', ['userId', 'campaign'], { unique: true })
 export class Invite {
-  @PrimaryColumn({ type: 'text' })
+  @PrimaryColumn({ type: 'uuid' })
+  @Generated('uuid')
   token: string;
 
   @Column({ type: 'text' })
