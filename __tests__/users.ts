@@ -1924,6 +1924,18 @@ describe('DELETE /v1/users/me', () => {
     const feature = await con.getRepository(Feature).findOneBy({ userId: '2' });
     expect(feature.invitedById).toBeNull();
   });
+
+  it('removes associated invite records', async () => {
+    await con.getRepository(Invite).insert({
+      userId: '1',
+      campaign: CampaignType.Search,
+    });
+
+    mockLogout();
+    await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
+
+    expect(await con.getRepository(Invite).count()).toEqual(0);
+  });
 });
 
 describe('query generateUniqueUsername', () => {
