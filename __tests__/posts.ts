@@ -2017,8 +2017,8 @@ describe('mutation sharePost', () => {
 
 describe('mutation editSharePost', () => {
   const MUTATION = `
-  mutation editSharePost($id: ID!, $sourceId: ID!, $commentary: String) {
-    editSharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
+  mutation editSharePost($id: ID!, $commentary: String) {
+    editSharePost(id: $id, commentary: $commentary) {
       id
     }
   }`;
