@@ -54,6 +54,9 @@ export class Settings {
   @Column({ default: true })
   autoDismissNotifications: boolean;
 
+  @Column({ type: 'text', default: null })
+  campaignCtaPlacement: string | null;
+
   @UpdateDateColumn()
   updatedAt: Date;
 }
@@ -72,4 +75,5 @@ export const SETTINGS_DEFAULT = {
   optOutCompanion: false,
   optOutWeeklyGoal: false,
   sortingEnabled: false,
+  campaignCtaPlacement: null,
 };

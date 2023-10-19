@@ -19,9 +19,15 @@ export class Invites1697708253831 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "invite" ADD CONSTRAINT "FK_91bfeec7a9574f458e5b592472d" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
     );
+    await queryRunner.query(
+      `ALTER TABLE "settings" ADD "campaignCtaPlacement" text`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "settings" DROP COLUMN "campaignCtaPlacement"`,
+    );
     await queryRunner.query(
       `ALTER TABLE "invite" DROP CONSTRAINT "FK_91bfeec7a9574f458e5b592472d"`,
     );

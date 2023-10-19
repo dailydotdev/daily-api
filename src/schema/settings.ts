@@ -128,6 +128,11 @@ export const typeDefs = /* GraphQL */ `
     autoDismissNotifications: Boolean!
 
     """
+    Which campaign to use for as the main CTA
+    """
+    campaignCtaPlacement: String
+
+    """
     Time of last update
     """
     updatedAt: DateTime!

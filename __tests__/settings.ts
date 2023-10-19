@@ -57,6 +57,7 @@ describe('query userSettings', () => {
     optOutWeeklyGoal
     optOutCompanion
     autoDismissNotifications
+    campaignCtaPlacement
   }
 }`;
 
@@ -71,6 +72,7 @@ describe('query userSettings', () => {
       userId: '1',
       theme: 'bright',
       insaneMode: true,
+      campaignCtaPlacement: 'header',
     });
     const data = await repo.save(settings);
     const expected = new Object({ ...data, ...compatibilityProps });
