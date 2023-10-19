@@ -10,7 +10,7 @@ import {
   User,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
-import cron from '../../src/cron/generateInvites';
+import cron from '../../src/cron/generateSearchInvites';
 
 let con: DataSource;
 const oldDate = new Date();
@@ -75,7 +75,7 @@ beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-describe('generateInvites cron', () => {
+describe('generateSearchInvites cron', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
 
