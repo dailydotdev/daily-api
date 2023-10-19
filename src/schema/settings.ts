@@ -1,7 +1,7 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { CtaPlacement, Settings, SETTINGS_DEFAULT } from '../entity';
+import { CampaignCtaPlacement, Settings, SETTINGS_DEFAULT } from '../entity';
 import { isValidHttpUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 import { v4 as uuidv4 } from 'uuid';
@@ -39,7 +39,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   companionExpanded?: boolean;
   sortingEnabled?: boolean;
   autoDismissNotifications?: boolean;
-  campaignCtaPlacement?: CtaPlacement;
+  campaignCtaPlacement?: CampaignCtaPlacement;
   customLinks?: string[];
 }
 
@@ -281,7 +281,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
       if (
         data.campaignCtaPlacement &&
-        Object.values(CtaPlacement).includes(data.campaignCtaPlacement)
+        Object.values(CampaignCtaPlacement).includes(data.campaignCtaPlacement)
       ) {
         throw new ValidationError(`Invalid value for 'campaignCtaPlacement'`);
       }
