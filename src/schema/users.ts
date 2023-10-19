@@ -40,7 +40,6 @@ import { GraphQLResolveInfo } from 'graphql';
 import {
   NotFoundError,
   SubmissionFailErrorKeys,
-  SubmissionFailErrorMessage,
   TypeOrmError,
 } from '../errors';
 import { deleteUser } from '../directive/user';

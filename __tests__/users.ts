@@ -2021,7 +2021,9 @@ describe('query referralCampaign', () => {
       expect(res.errors).toBeFalsy();
       expect(res.data.referralCampaign.referredUsersCount).toBe(1);
       expect(res.data.referralCampaign.referralCountLimit).toBe(5);
-      expect(res.data.referralCampaign.referralToken).toBe('foo');
+      expect(res.data.referralCampaign.referralToken).toBe(
+        'd688afeb-381c-43b5-89af-533f81ccd036',
+      );
     });
 
     it('should include the invite token in the URL', async () => {
@@ -2032,7 +2034,7 @@ describe('query referralCampaign', () => {
       });
 
       expect(res.data.referralCampaign.url).toBe(
-        `${process.env.COMMENTS_PREFIX}/join?cid=search&userid=1&ctoken=foo`,
+        `${process.env.COMMENTS_PREFIX}/join?cid=search&userid=1&ctoken=d688afeb-381c-43b5-89af-533f81ccd036`,
       );
     });
   });

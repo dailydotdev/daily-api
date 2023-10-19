@@ -1362,6 +1362,7 @@ describe('settings', () => {
     optOutWeeklyGoal: false,
     optOutCompanion: false,
     autoDismissNotifications: true,
+    campaignCtaPlacement: 'header',
     updatedAt: date.getTime(),
   };
 
