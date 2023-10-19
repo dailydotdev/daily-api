@@ -20,7 +20,7 @@ export class Invites1697708253831 implements MigrationInterface {
       `ALTER TABLE "invite" ADD CONSTRAINT "FK_91bfeec7a9574f458e5b592472d" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
     );
     await queryRunner.query(
-      `ALTER TABLE "settings" ADD "campaignCtaPlacement" text`,
+      `ALTER TABLE "settings" ADD "campaignCtaPlacement" text NOT NULL DEFAULT 'header'`,
     );
   }
 

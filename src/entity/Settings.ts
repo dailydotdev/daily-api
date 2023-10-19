@@ -6,6 +6,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+export enum CtaPlacement {
+  Header = 'header',
+}
+
 @Entity()
 export class Settings {
   @PrimaryColumn({ type: 'text' })
@@ -54,8 +58,8 @@ export class Settings {
   @Column({ default: true })
   autoDismissNotifications: boolean;
 
-  @Column({ type: 'text', default: null })
-  campaignCtaPlacement: string | null;
+  @Column({ type: 'text', default: CtaPlacement.Header })
+  campaignCtaPlacement: CtaPlacement | null;
 
   @UpdateDateColumn()
   updatedAt: Date;
@@ -75,5 +79,5 @@ export const SETTINGS_DEFAULT = {
   optOutCompanion: false,
   optOutWeeklyGoal: false,
   sortingEnabled: false,
-  campaignCtaPlacement: null,
+  campaignCtaPlacement: CtaPlacement.Header,
 };

@@ -11,7 +11,7 @@ import {
   testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
-import { Settings } from '../src/entity';
+import { CtaPlacement, Settings } from '../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 
@@ -72,7 +72,7 @@ describe('query userSettings', () => {
       userId: '1',
       theme: 'bright',
       insaneMode: true,
-      campaignCtaPlacement: 'header',
+      campaignCtaPlacement: CtaPlacement.Header,
     });
     const data = await repo.save(settings);
     const expected = new Object({ ...data, ...compatibilityProps });
