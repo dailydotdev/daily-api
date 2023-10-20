@@ -32,6 +32,7 @@ import dc from 'node:diagnostics_channel';
 const channel = dc.channel('fastify.initialization');
 
 const isProd = process.env.NODE_ENV === 'production';
+const isTest = process.env.NODE_ENV === 'test';
 const resourceDetectors = [
   resources.envDetectorSync,
   resources.hostDetectorSync,
@@ -139,7 +140,7 @@ export const tracer = (serviceName: string) => {
     spanProcessor,
     instrumentations,
     resourceDetectors,
-    metricReader,
+    metricReader: !isTest ? metricReader : undefined,
     textMapPropagator: new CloudPropagator(),
   });
 
