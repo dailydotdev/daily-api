@@ -42,6 +42,10 @@ export const crons: Cron[] = [
   },
   {
     name: 'personalized-digest',
-    schedule: '15 0 * * *'
-  }
+    schedule: '15 0 * * *',
+  },
+  {
+    name: 'generate-search-invites',
+    schedule: '15 1 * * *',
+  },
 ];

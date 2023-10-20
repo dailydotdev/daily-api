@@ -20,16 +20,20 @@ import {
   saveFixtures,
   TEST_UA,
   testMutationErrorCode,
+  testQueryError,
   testQueryErrorCode,
 } from './helpers';
 import {
+  ArticlePost,
   Comment,
+  DevCard,
+  Feature,
+  FeatureType,
+  FeatureValue,
   Post,
   Source,
   User,
   View,
-  DevCard,
-  ArticlePost,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
@@ -41,6 +45,7 @@ import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { UserPersonalizedDigest } from '../src/entity/UserPersonalizedDigest';
 import { DayOfWeek } from '../src/types';
+import { CampaignType, Invite } from '../src/entity/Invite';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -1865,11 +1870,7 @@ describe('POST /v1/users/logout', () => {
 describe('DELETE /v1/users/me', () => {
   const BASE_PATH = '/v1/users/me';
 
-  it('should not authorize when not logged in', async () => {
-    await request(app.server).delete(BASE_PATH).expect(401);
-  });
-
-  it('should delete user from database', async () => {
+  beforeEach(async () => {
     await con.getRepository(User).save([
       {
         id: '404',
@@ -1879,7 +1880,13 @@ describe('DELETE /v1/users/me', () => {
         createdAt: new Date(),
       },
     ]);
+  });
 
+  it('should not authorize when not logged in', async () => {
+    await request(app.server).delete(BASE_PATH).expect(401);
+  });
+
+  it('should delete user from database', async () => {
     mockLogout();
     await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
 
@@ -1891,15 +1898,6 @@ describe('DELETE /v1/users/me', () => {
   });
 
   it('should clear cookies', async () => {
-    await con.getRepository(User).save([
-      {
-        id: '404',
-        name: 'Not found',
-        image: 'https://daily.dev/404.jpg',
-        timezone: 'utc',
-        createdAt: new Date(),
-      },
-    ]);
     mockLogout();
     const res = await authorizeRequest(request(app.server).delete(BASE_PATH))
       .set('User-Agent', TEST_UA)
@@ -1910,6 +1908,33 @@ describe('DELETE /v1/users/me', () => {
     expect(cookies['da2'].value).toBeTruthy();
     expect(cookies['da2'].value).not.toEqual('1');
     expect(cookies['da3'].value).toBeFalsy();
+  });
+
+  it('clears invitedBy from associated features', async () => {
+    await con.getRepository(Feature).insert({
+      feature: FeatureType.Search,
+      userId: '2',
+      value: FeatureValue.Allow,
+      invitedById: '1',
+    });
+
+    mockLogout();
+    await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
+
+    const feature = await con.getRepository(Feature).findOneBy({ userId: '2' });
+    expect(feature.invitedById).toBeNull();
+  });
+
+  it('removes associated invite records', async () => {
+    await con.getRepository(Invite).insert({
+      userId: '1',
+      campaign: CampaignType.Search,
+    });
+
+    mockLogout();
+    await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
+
+    expect(await con.getRepository(Invite).count()).toEqual(0);
   });
 });
 
@@ -1947,9 +1972,21 @@ describe('query referralCampaign', () => {
     query ReferralCampaign($referralOrigin: String!) {
       referralCampaign(referralOrigin: $referralOrigin) {
         referredUsersCount
+        referralCountLimit
+        referralToken
         url
       }
   }`;
+
+  beforeEach(async () => {
+    await con.getRepository(Invite).save({
+      userId: '1',
+      campaign: CampaignType.Search,
+      limit: 5,
+      count: 1,
+      token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+    });
+  });
 
   it('should return campaign progress for user', async () => {
     loggedUser = '1';
@@ -1983,6 +2020,35 @@ describe('query referralCampaign', () => {
       { query: QUERY, variables: { referralOrigin: 'knightcampaign' } },
       'UNAUTHENTICATED',
     );
+  });
+
+  describe('with an existing invite record for the user', () => {
+    it('should include the campaign progress & token from the invite', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY, {
+        variables: { referralOrigin: 'search' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.referralCampaign.referredUsersCount).toBe(1);
+      expect(res.data.referralCampaign.referralCountLimit).toBe(5);
+      expect(res.data.referralCampaign.referralToken).toBe(
+        'd688afeb-381c-43b5-89af-533f81ccd036',
+      );
+    });
+
+    it('should include the invite token in the URL', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY, {
+        variables: { referralOrigin: 'search' },
+      });
+
+      expect(res.data.referralCampaign.url).toBe(
+        `${process.env.COMMENTS_PREFIX}/join?cid=search&userid=1&ctoken=d688afeb-381c-43b5-89af-533f81ccd036`,
+      );
+    });
   });
 });
 
@@ -2250,5 +2316,196 @@ describe('mutation unsubscribePersonalizedDigest', () => {
 
     const res = await client.mutate(MUTATION);
     expect(res.errors).toBeFalsy();
+  });
+});
+
+describe('mutation acceptFeatureInvite', () => {
+  const MUTATION = `mutation AcceptFeatureInvite($token: String!, $referrerId: ID!, $feature: String!) {
+    acceptFeatureInvite(token: $token, referrerId: $referrerId, feature: $feature) {
+      _
+    }
+  }`;
+
+  beforeEach(async () => {
+    await con.getRepository(Invite).save({
+      userId: '2',
+      campaign: CampaignType.Search,
+      limit: 5,
+      count: 1,
+      token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+    });
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+          referrerId: 2,
+          feature: CampaignType.Search,
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return a 404 if the token and referrer mismatch', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+          referrerId: 1,
+          feature: CampaignType.Search,
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should raise a validation error if the invite limit has been reached', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(Invite)
+      .update(
+        { token: 'd688afeb-381c-43b5-89af-533f81ccd036' },
+        { limit: 5, count: 5 },
+      );
+
+    await testQueryError(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+          referrerId: 2,
+          feature: CampaignType.Search,
+        },
+      },
+      (errors) => {
+        expect(errors[0].extensions.code).toEqual('GRAPHQL_VALIDATION_FAILED');
+        expect(errors[0].message).toEqual('INVITE_LIMIT_REACHED');
+      },
+    );
+  });
+
+  it('should do nothing if the feature already exists', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Feature).save({
+      feature: FeatureType.Search,
+      userId: loggedUser,
+      value: FeatureValue.Allow,
+    });
+
+    // pre-check
+    const inviteBefore = await con
+      .getRepository(Invite)
+      .findOneBy({ token: 'd688afeb-381c-43b5-89af-533f81ccd036' });
+    expect(inviteBefore.count).toEqual(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+        referrerId: '2',
+        feature: CampaignType.Search,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const inviteAfter = await con
+      .getRepository(Invite)
+      .findOneBy({ token: 'd688afeb-381c-43b5-89af-533f81ccd036' });
+    expect(inviteAfter.count).toEqual(1);
+  });
+
+  it('should update the invite count for the referrer', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+        referrerId: '2',
+        feature: CampaignType.Search,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const invite = await con
+      .getRepository(Invite)
+      .findOneBy({ token: 'd688afeb-381c-43b5-89af-533f81ccd036' });
+    expect(invite.count).toEqual(2);
+  });
+
+  it('should create a feature and enable it for the referred', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+        referrerId: '2',
+        feature: CampaignType.Search,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(
+      await con.getRepository(Feature).count({
+        where: {
+          userId: loggedUser,
+          feature: FeatureType.Search,
+        },
+      }),
+    ).toEqual(1);
+
+    const feature = await con.getRepository(Feature).findOneBy({
+      userId: loggedUser,
+      feature: FeatureType.Search,
+    });
+
+    expect(feature.value).toEqual(FeatureValue.Allow);
+    expect(feature.invitedById).toEqual('2');
+  });
+
+  it('should not enable the feature for the referred if it already blocked', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Feature).save({
+      userId: loggedUser,
+      feature: FeatureType.Search,
+      value: FeatureValue.Block,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+        referrerId: '2',
+        feature: CampaignType.Search,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(
+      await con.getRepository(Feature).count({
+        where: {
+          userId: loggedUser,
+          feature: FeatureType.Search,
+        },
+      }),
+    ).toEqual(1);
+
+    const feature = await con.getRepository(Feature).findOneBy({
+      userId: loggedUser,
+      feature: FeatureType.Search,
+    });
+
+    expect(feature.value).toEqual(FeatureValue.Block);
+    expect(feature.invitedById).toBeNull();
   });
 });
