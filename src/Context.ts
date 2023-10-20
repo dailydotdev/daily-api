@@ -10,14 +10,14 @@ export class Context {
   con: DataSource;
   loader: GraphQLDatabaseLoader;
   dataLoader: DataLoaderService;
-  graphqlCounter: Counter;
+  metricGraphqlCounter: Counter;
 
   constructor(req: FastifyRequest, con) {
     this.req = req;
     this.con = con;
     this.loader = new GraphQLDatabaseLoader(con);
     this.dataLoader = new DataLoaderService({ ctx: this });
-    this.graphqlCounter = metrics
+    this.metricGraphqlCounter = metrics
       .getMeter('graphql')
       .createCounter('graphql_operations');
   }
