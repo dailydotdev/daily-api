@@ -61,6 +61,12 @@ const metricReader = isProd
       const { endpoint, port } = PrometheusExporter.DEFAULT_OPTIONS;
       console.log(`metrics endpoint: http://localhost:${port}${endpoint}`);
     });
+
+// Try to get the app version from the header, then query param, then default to unknown
+export const getAppVersion = (req: FastifyRequest): string => {
+  return req.headers['x-app-version'] || req.query['v'] || 'unknown';
+};
+
 export const addApiSpanLabels = (
   span: api.Span,
   req: FastifyRequest,
@@ -69,7 +75,7 @@ export const addApiSpanLabels = (
   res?: FastifyReply,
 ): void => {
   span.setAttributes({
-    ['dailydev.apps.version']: req.query['v'] || 'unknown',
+    ['dailydev.apps.version']: getAppVersion(req),
     ['dailydev.apps.userId']: req.userId || 'unknown',
     ['dailydev.heimdall.session']: req.cookies['das'] || 'unknown',
   });
