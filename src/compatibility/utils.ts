@@ -1,7 +1,5 @@
 import { GraphQLError } from 'graphql';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-// import { generateTraceContext } from '@google-cloud/trace-agent/build/src/util';
-// import { Constants } from '@google-cloud/trace-agent/build/src/constants';
 
 export interface GraphqlPayload {
   query: string;

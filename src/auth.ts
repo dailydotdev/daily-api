@@ -90,8 +90,8 @@ const plugin = async (
   fastify.decorateRequest('premium', null);
   fastify.decorateRequest('roles', null);
   fastify.decorateRequest('accessToken', null);
+
   // Machine-to-machine authentication
-  // fastify.addHook('onRequest', async (req) => {
   fastify.addHook('preHandler', async (req) => {
     if (
       req.headers['authorization'] === `Service ${opts.secret}` &&
