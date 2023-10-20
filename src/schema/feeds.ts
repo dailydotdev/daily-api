@@ -231,6 +231,46 @@ export const typeDefs = /* GraphQL */ `
     ): PostConnection! @auth
 
     """
+    Get feed preview
+    """
+    feedPreview(
+      """
+      Time the pagination started to ignore new items
+      """
+      now: DateTime
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Ranking criteria for the feed
+      """
+      ranking: Ranking = POPULARITY
+
+      """
+      Return only unread posts
+      """
+      unreadOnly: Boolean = false
+
+      """
+      Version of the feed algorithm
+      """
+      version: Int = 1
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection! @auth
+
+    """
     Get an adhoc feed using a provided config
     """
     feedByConfig(
@@ -922,6 +962,21 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         );
       }
       return feedResolverV1(source, args, ctx, info);
+    },
+    feedPreview: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
+      if (process.env.NODE_ENV === 'development') {
+        return feedResolverV1(source, args, ctx, info);
+      }
+
+      return feedResolverV2(
+        source,
+        {
+          ...(args as FeedArgs),
+          generator: feedGenerators.onboarding,
+        },
+        ctx,
+        info,
+      );
     },
     feedByConfig: (
       source,

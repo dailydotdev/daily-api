@@ -1720,3 +1720,46 @@ describe('function feedToFilters', () => {
     expect(filters.sourceIds).toContain('a');
   });
 });
+
+describe('query feedPreview', () => {
+  const variables = {
+    ranking: Ranking.TIME,
+    first: 20,
+  };
+
+  const QUERY = `
+  query FeedPreview($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
+    feedPreview(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
+      ${feedFields()}
+    }
+  }
+`;
+
+  it('should not authorize when not logged-in', () =>
+    testQueryErrorCode(client, { query: QUERY, variables }, 'UNAUTHENTICATED'));
+
+  it('should return feed', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await saveFixtures(con, FeedTag, [{ feedId: '1', tag: 'html' }]);
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        feed_config_name: 'onboarding',
+        total_pages: 1,
+        page_size: 21,
+        fresh_page_size: '7',
+        user_id: '1',
+        allowed_tags: ['html'],
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+      });
+
+    const res = await client.query(QUERY, { variables });
+
+    expect(res.errors).toBeFalsy();
+    console.log(res.data);
+    expect(res.data.feedPreview.edges.length).toEqual(2);
+  });
+});
