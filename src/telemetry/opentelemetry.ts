@@ -144,6 +144,8 @@ export const tracer = (serviceName: string) => {
   });
 
   channel.subscribe(({ fastify }: { fastify: FastifyInstance }) => {
+    const meter = api.metrics.getMeter(serviceName);
+    const requestCounter = meter.createCounter('requests');
 
     fastify.decorate('tracer', api.trace.getTracer('fastify'));
     fastify.decorateRequest('span', null);
@@ -154,8 +156,14 @@ export const tracer = (serviceName: string) => {
 
     // Decorate the main span with some metadata
     fastify.addHook('onResponse', async (req, res) => {
-      const currentSpan = api.trace.getSpan(api.context.active());
-      addApiSpanLabels(currentSpan, req, res);
+      addApiSpanLabels(req.span, req, res);
+
+      requestCounter.add(1, {
+        [SemanticAttributes.HTTP_METHOD]: req.method,
+        [SemanticAttributes.HTTP_ROUTE]: req.routeOptions.url,
+        [SemanticAttributes.HTTP_STATUS_CODE]: res.statusCode,
+        [SemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
+      });
     });
   });
 
@@ -221,4 +229,4 @@ export const runInRootSpanSync = <T>(
   options?: api.SpanOptions,
 ): T => runInSpanSync(name, func, { ...options, root: true });
 
-export const { trace, context, SpanStatusCode, SpanKind } = api;
+export const { context, trace, SpanStatusCode, SpanKind } = api;
