@@ -72,7 +72,6 @@ export const SemanticAttributes = {
   ...SemAttr,
   DAILY_APPS_VERSION: 'dailydev.apps.version',
   DAILY_APPS_USER_ID: 'dailydev.apps.userId',
-  DAILY_HEIMDALL_SESSION: 'dailydev.heimdall.session',
 };
 
 export const addApiSpanLabels = (
@@ -84,9 +83,8 @@ export const addApiSpanLabels = (
 ): void => {
   span.setAttributes({
     [SemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
-    [SemanticAttributes.DAILY_APPS_USER_ID]: req.userId || req.trackingId || 'unknown',
-    [SemanticAttributes.DAILY_HEIMDALL_SESSION]:
-      req.cookies['das'] || 'unknown',
+    [SemanticAttributes.DAILY_APPS_USER_ID]:
+      req.userId || req.trackingId || 'unknown',
   });
 };
 
