@@ -46,6 +46,7 @@ export class MockContext extends Context {
   ) {
     super(mock<FastifyRequest>(), con);
     this.mockSpan = mock<Span>();
+    this.mockSpan.setAttributes.mockImplementation(() => mock<Span>());
     this.mockUserId = userId;
     this.mockPremium = premium;
     this.mockRoles = roles;

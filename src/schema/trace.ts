@@ -18,7 +18,7 @@ export function traceResolver<TSource, TArgs, TReturn>(
   ): Promise<TReturn> => {
     if (context?.span) {
       context.span.setAttributes({
-        ['graphql.operation.name']: info.operation?.name.value,
+        ['graphql.operation.name']: info.operation?.name?.value,
         ['graphql.operation.type']: info.operation.operation,
       });
 
