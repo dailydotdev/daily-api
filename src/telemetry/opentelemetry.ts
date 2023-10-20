@@ -81,7 +81,13 @@ export const addPubsubSpanLabels = (
 };
 
 const instrumentations = [
-  new HttpInstrumentation(),
+  new HttpInstrumentation({
+    // Ignore specific endpoints like health checks or internal metrics
+    ignoreIncomingRequestHook: (request) => {
+      const ignorePaths = ['/health', '/liveness', '/metrics'];
+      return ignorePaths.some((path) => request.url?.includes(path));
+    },
+  }),
   new FastifyInstrumentation({
     requestHook: (span, info) => {
       addApiSpanLabels(span, info.request as FastifyRequest);
