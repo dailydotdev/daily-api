@@ -9,6 +9,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   testMutationErrorCode,
+  testQueryError,
   testQueryErrorCode,
 } from './helpers';
 import { CampaignCtaPlacement, Settings } from '../src/entity';
@@ -254,6 +255,54 @@ describe('mutation updateUserSettings', () => {
       variables: { data: { optOutCompanion: true } },
     });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should update campaignCtaPlacement', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.insert({
+      userId: '1',
+      optOutCompanion: false,
+      campaignCtaPlacement: CampaignCtaPlacement.Header,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: { campaignCtaPlacement: CampaignCtaPlacement.ProfileMenu },
+      },
+    });
+
+    expect(res.data.updateUserSettings.campaignCtaPlacement).toBe(
+      CampaignCtaPlacement.ProfileMenu,
+    );
+  });
+
+  it('should return a validation error if passed an invalid value for campaignCtaPlacement', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.insert({
+      userId: '1',
+      optOutCompanion: false,
+      campaignCtaPlacement: CampaignCtaPlacement.Header,
+    });
+
+    await testQueryError(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          data: { campaignCtaPlacement: 'foo' as CampaignCtaPlacement },
+        },
+      },
+      (errors) => {
+        expect(errors[0].extensions.code).toEqual('GRAPHQL_VALIDATION_FAILED');
+        expect(errors[0].message).toEqual(
+          `Invalid value for 'campaignCtaPlacement'`,
+        );
+      },
+    );
   });
 });
 

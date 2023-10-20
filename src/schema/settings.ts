@@ -281,7 +281,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
 
       if (
         data.campaignCtaPlacement &&
-        Object.values(CampaignCtaPlacement).includes(data.campaignCtaPlacement)
+        !Object.values(CampaignCtaPlacement).includes(data.campaignCtaPlacement)
       ) {
         throw new ValidationError(`Invalid value for 'campaignCtaPlacement'`);
       }
