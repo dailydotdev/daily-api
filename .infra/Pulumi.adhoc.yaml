@@ -56,6 +56,8 @@ config:
     kratosOrigin: http://heimdall-kratos-public
     logLevel: info
     nodeEnv: development
+    otelTracesSampler: parentbased_traceidratio
+    otelTracesSamplerArg: 1
     otlpCollectorHost: jaeger-collector
     otlpCollectorPort: 4317
     postScraperOrigin: http://post-scraper-one-ai-server
