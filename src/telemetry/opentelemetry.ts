@@ -32,7 +32,6 @@ import dc from 'node:diagnostics_channel';
 const channel = dc.channel('fastify.initialization');
 
 const isProd = process.env.NODE_ENV === 'production';
-const isTest = process.env.NODE_ENV === 'test';
 const resourceDetectors = [
   resources.envDetectorSync,
   resources.hostDetectorSync,
@@ -41,27 +40,6 @@ const resourceDetectors = [
   containerDetector,
   gcpDetector,
 ];
-
-const traceExporter = isProd
-  ? new TraceExporter()
-  : new OTLPTraceExporter({
-      // hostname: 'jaeger-collector',
-      url: `http://${process.env.OTLP_COLLECTOR_HOST}:${process.env.OTLP_COLLECTOR_PORT}`,
-    });
-
-const spanProcessor = isProd
-  ? new node.BatchSpanProcessor(traceExporter)
-  : new node.SimpleSpanProcessor(traceExporter);
-
-const metricReader = isProd
-  ? new metrics.PeriodicExportingMetricReader({
-      exportIntervalMillis: 10_000,
-      exporter: new MetricExporter(),
-    })
-  : new PrometheusExporter({}, () => {
-      const { endpoint, port } = PrometheusExporter.DEFAULT_OPTIONS;
-      console.log(`metrics endpoint: http://localhost:${port}${endpoint}`);
-    });
 
 // Try to get the app version from the header, then query param, then default to unknown
 export const getAppVersion = (req: FastifyRequest): string => {
@@ -130,6 +108,26 @@ const instrumentations = [
 api.diag.setLogger(new api.DiagConsoleLogger(), api.DiagLogLevel.INFO);
 
 export const tracer = (serviceName: string) => {
+  const traceExporter = isProd
+    ? new TraceExporter()
+    : new OTLPTraceExporter({
+        url: `http://${process.env.OTLP_COLLECTOR_HOST}:${process.env.OTLP_COLLECTOR_PORT}`,
+      });
+
+  const spanProcessor = isProd
+    ? new node.BatchSpanProcessor(traceExporter)
+    : new node.SimpleSpanProcessor(traceExporter);
+
+  const metricReader = isProd
+    ? new metrics.PeriodicExportingMetricReader({
+        exportIntervalMillis: 10_000,
+        exporter: new MetricExporter(),
+      })
+    : new PrometheusExporter({}, () => {
+        const { endpoint, port } = PrometheusExporter.DEFAULT_OPTIONS;
+        console.log(`metrics endpoint: http://localhost:${port}${endpoint}`);
+      });
+
   const sdk = new NodeSDK({
     serviceName,
     logRecordProcessor: new logs.SimpleLogRecordProcessor(
@@ -138,7 +136,7 @@ export const tracer = (serviceName: string) => {
     spanProcessor,
     instrumentations,
     resourceDetectors,
-    metricReader: !isTest ? metricReader : undefined,
+    metricReader,
     textMapPropagator: new CloudPropagator(),
   });
 
