@@ -7,6 +7,7 @@ import { SpanKind } from '@opentelemetry/api';
 import 'reflect-metadata';
 import { PubSub, Message } from '@google-cloud/pubsub';
 import pino from 'pino';
+import { performance } from 'perf_hooks';
 
 import './config';
 
@@ -46,7 +47,7 @@ const subscribe = (
     runInRootSpan(
       `message: ${subscription}`,
       async (span) => {
-        const startTime = Date.now();
+        const startTime = performance.now();
         let success = true;
         addPubsubSpanLabels(span, subscription, message);
         try {
@@ -66,7 +67,7 @@ const subscribe = (
           );
           message.nack();
         }
-        histogram.record(Date.now() - startTime, {
+        histogram.record(performance.now() - startTime, {
           subscription,
           success,
         });
