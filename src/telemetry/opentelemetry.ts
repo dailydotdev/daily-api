@@ -84,7 +84,7 @@ export const addApiSpanLabels = (
 ): void => {
   span.setAttributes({
     [SemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
-    [SemanticAttributes.DAILY_APPS_USER_ID]: req.userId || 'unknown',
+    [SemanticAttributes.DAILY_APPS_USER_ID]: req.userId || req.trackingId || 'unknown',
     [SemanticAttributes.DAILY_HEIMDALL_SESSION]:
       req.cookies['das'] || 'unknown',
   });
