@@ -14,12 +14,14 @@ import { workers } from './workers';
 import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import createOrGetConnection from './db';
+import { api } from '@opentelemetry/sdk-node';
 
 const subscribe = (
   logger: pino.Logger,
   pubsub: PubSub,
   connection: DataSource,
   subscription: string,
+  meter: api.Meter,
   handler: (
     message: Message,
     con: DataSource,
@@ -36,10 +38,16 @@ const subscribe = (
     batching: { maxMilliseconds: 10 },
   });
   const childLogger = logger.child({ subscription });
+  const histogram = meter.createHistogram('message_processing_time', {
+    unit: 'ms',
+    description: 'time to process a message',
+  });
   sub.on('message', async (message) =>
     runInRootSpan(
       `message: ${subscription}`,
       async (span) => {
+        const startTime = Date.now();
+        let success = true;
         addPubsubSpanLabels(span, subscription, message);
         try {
           await runInSpan('handler', async () =>
@@ -47,6 +55,7 @@ const subscribe = (
           );
           message.ack();
         } catch (err) {
+          success = false;
           childLogger.error(
             {
               messageId: message.id,
@@ -57,6 +66,10 @@ const subscribe = (
           );
           message.nack();
         }
+        histogram.record(Date.now() - startTime, {
+          subscription,
+          success,
+        });
       },
       {
         kind: SpanKind.CONSUMER,
@@ -72,6 +85,7 @@ export default async function app(): Promise<void> {
     createOrGetConnection,
   );
   const pubsub = new PubSub();
+  const meter = api.metrics.getMeter('api-bg');
 
   logger.info('background processing in on');
 
@@ -81,6 +95,7 @@ export default async function app(): Promise<void> {
       pubsub,
       connection,
       worker.subscription,
+      meter,
       (message, con, logger, pubsub) =>
         worker.handler(
           {
