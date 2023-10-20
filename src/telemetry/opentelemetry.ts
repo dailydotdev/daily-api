@@ -68,7 +68,7 @@ export const getAppVersion = (req: FastifyRequest): string => {
   return req.headers['x-app-version'] || req.query['v'] || 'unknown';
 };
 
-export const SemanticAttributes = {
+export const TelemetrySemanticAttributes = {
   ...SemAttr,
   DAILY_APPS_VERSION: 'dailydev.apps.version',
   DAILY_APPS_USER_ID: 'dailydev.apps.userId',
@@ -82,8 +82,8 @@ export const addApiSpanLabels = (
   res?: FastifyReply,
 ): void => {
   span.setAttributes({
-    [SemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
-    [SemanticAttributes.DAILY_APPS_USER_ID]:
+    [TelemetrySemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
+    [TelemetrySemanticAttributes.DAILY_APPS_USER_ID]:
       req.userId || req.trackingId || 'unknown',
   });
 };
@@ -94,10 +94,10 @@ export const addPubsubSpanLabels = (
   message: Message | { id: string; data?: Buffer },
 ): void => {
   span.setAttributes({
-    [SemanticAttributes.MESSAGING_SYSTEM]: 'pubsub',
-    [SemanticAttributes.MESSAGING_DESTINATION]: subscription,
-    [SemanticAttributes.MESSAGING_MESSAGE_ID]: message.id,
-    [SemanticAttributes.MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES]:
+    [TelemetrySemanticAttributes.MESSAGING_SYSTEM]: 'pubsub',
+    [TelemetrySemanticAttributes.MESSAGING_DESTINATION]: subscription,
+    [TelemetrySemanticAttributes.MESSAGING_MESSAGE_ID]: message.id,
+    [TelemetrySemanticAttributes.MESSAGING_MESSAGE_PAYLOAD_SIZE_BYTES]:
       message.data.length,
   });
 };
@@ -158,10 +158,10 @@ export const tracer = (serviceName: string) => {
       addApiSpanLabels(req.span, req, res);
 
       requestCounter.add(1, {
-        [SemanticAttributes.HTTP_METHOD]: req.method,
-        [SemanticAttributes.HTTP_ROUTE]: req.routeOptions.url,
-        [SemanticAttributes.HTTP_STATUS_CODE]: res.statusCode,
-        [SemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
+        [TelemetrySemanticAttributes.HTTP_METHOD]: req.method,
+        [TelemetrySemanticAttributes.HTTP_ROUTE]: req.routeOptions.url,
+        [TelemetrySemanticAttributes.HTTP_STATUS_CODE]: res.statusCode,
+        [TelemetrySemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
       });
     });
   });
