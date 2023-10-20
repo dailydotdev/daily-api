@@ -156,7 +156,6 @@ if (isAdhocEnv) {
   appsArgs = [
     {
       args: ['npm', 'run', 'dev'],
-      port: 3000,
       env: [
         nodeOptions(memory),
         {
@@ -174,6 +173,14 @@ if (isAdhocEnv) {
       maxReplicas: 15,
       limits,
       metric: { type: 'memory_cpu', cpu: 70 },
+      ports: [
+        { containerPort: 3000, name: 'http' },
+        { containerPort: 9464, name: 'metrics' },
+      ],
+      servicePorts: [
+        { targetPort: 3000, port: 80, name: 'http' },
+        { targetPort: 9464, port: 9464, name: 'metrics' },
+      ],
       createService: true,
       ...jwtVols,
     },
@@ -188,6 +195,12 @@ if (isAdhocEnv) {
         labels: { app: name },
         targetAverageValue: 50,
       },
+      ports: [
+        { containerPort: 9464, name: 'metrics' },
+      ],
+      servicePorts: [
+        { targetPort: 9464, port: 9464, name: 'metrics' },
+      ],
     },
   ];
 } else {
