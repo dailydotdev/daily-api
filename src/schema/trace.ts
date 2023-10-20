@@ -16,25 +16,13 @@ export function traceResolver<TSource, TArgs, TReturn>(
     context: Context,
     info: GraphQLResolveInfo,
   ): Promise<TReturn> => {
-    // if (context?.span) {
-    //   const name = `${info.parentType.name}.${info.fieldName}`;
-    //   const childSpan = context.span.createChildSpan({ name });
-    //   childSpan.addLabel('/graphql/parent', info.parentType.name);
-    //   childSpan.addLabel('/graphql/field', info.fieldName);
-    //   childSpan.addLabel(
-    //     '/graphql/operation/name',
-    //     info.operation?.name?.value,
-    //   );
-    //   childSpan.addLabel('/graphql/operation/type', info.operation?.operation);
-    //   try {
-    //     const res = await next(source, args, context, info);
-    //     childSpan.endSpan();
-    //     return res;
-    //   } catch (err) {
-    //     childSpan.endSpan();
-    //     throw err;
-    //   }
-    // }
+    if (context?.span) {
+      context.span.setAttributes({
+        ['graphql.operation.name']: info.operation?.name.value,
+        ['graphql.operation.type']: info.operation.operation,
+      });
+
+    }
     return next(source, args, context, info);
   };
 }

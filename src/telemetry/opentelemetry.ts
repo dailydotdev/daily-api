@@ -144,9 +144,10 @@ export const tracer = (serviceName: string) => {
   });
 
   channel.subscribe(({ fastify }: { fastify: FastifyInstance }) => {
-    fastify.decorate('tracer', api.trace.getTracer('fastify'));
 
+    fastify.decorate('tracer', api.trace.getTracer('fastify'));
     fastify.decorateRequest('span', null);
+
     fastify.addHook('onRequest', async (req) => {
       req.span = api.trace.getSpan(api.context.active());
     });
