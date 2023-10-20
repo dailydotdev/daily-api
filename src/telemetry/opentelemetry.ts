@@ -20,7 +20,7 @@ import {
 } from '@opentelemetry/sdk-node';
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
-import { SemanticAttributes } from '@opentelemetry/semantic-conventions';
+import { SemanticAttributes as SemAttr } from '@opentelemetry/semantic-conventions';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
 import { CloudPropagator } from '@google-cloud/opentelemetry-cloud-trace-propagator';
@@ -67,6 +67,13 @@ export const getAppVersion = (req: FastifyRequest): string => {
   return req.headers['x-app-version'] || req.query['v'] || 'unknown';
 };
 
+export const SemanticAttributes = {
+  ...SemAttr,
+  DAILY_APPS_VERSION: 'dailydev.apps.version',
+  DAILY_APPS_USER_ID: 'dailydev.apps.userId',
+  DAILY_HEIMDALL_SESSION: 'dailydev.heimdall.session',
+};
+
 export const addApiSpanLabels = (
   span: api.Span,
   req: FastifyRequest,
@@ -75,9 +82,10 @@ export const addApiSpanLabels = (
   res?: FastifyReply,
 ): void => {
   span.setAttributes({
-    ['dailydev.apps.version']: getAppVersion(req),
-    ['dailydev.apps.userId']: req.userId || 'unknown',
-    ['dailydev.heimdall.session']: req.cookies['das'] || 'unknown',
+    [SemanticAttributes.DAILY_APPS_VERSION]: getAppVersion(req),
+    [SemanticAttributes.DAILY_APPS_USER_ID]: req.userId || 'unknown',
+    [SemanticAttributes.DAILY_HEIMDALL_SESSION]:
+      req.cookies['das'] || 'unknown',
   });
 };
 
@@ -213,4 +221,3 @@ export const runInRootSpanSync = <T>(
 ): T => runInSpanSync(name, func, { ...options, root: true });
 
 export const { trace, context, SpanStatusCode, SpanKind } = api;
-export { SemanticAttributes };
