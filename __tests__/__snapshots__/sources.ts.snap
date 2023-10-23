@@ -411,15 +411,3 @@ Object {
   },
 }
 `;
-
-exports[`query sourceMembers should return source members without blocked members and based on query 1`] = `
-Object {
-  "sourceMembers": Object {
-    "edges": Array [],
-    "pageInfo": Object {
-      "endCursor": null,
-      "hasNextPage": false,
-    },
-  },
-}
-`;
