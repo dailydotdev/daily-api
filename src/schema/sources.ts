@@ -9,7 +9,6 @@ import {
   Source,
   SourceFeed,
   SourceMember,
-  SourceMemberFlags,
   SourceMemberFlagsPublic,
   SourceType,
   SquadSource,
