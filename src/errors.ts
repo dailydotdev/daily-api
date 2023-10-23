@@ -27,6 +27,7 @@ export enum SubmissionFailErrorKeys {
   ExistsAccepted = 'EXISTS_ACCEPTED',
   ExistsRejected = 'EXISTS_REJECTED',
   InviteLimitReached = 'INVITE_LIMIT_REACHED',
+  OnboardingTagLimitReached = 'ONBOARDING_TAG_LIMIT_REACHED',
 }
 
 export const SubmissionFailErrorMessage: Record<
@@ -59,6 +60,7 @@ export const SubmissionFailErrorMessage: Record<
     'This article has already been submitted and is currently being added to the daily.dev feed',
   EXISTS_REJECTED:
     'This article has already been submitted but did not meet our technical requirements, it cannot be submitted again',
+  ONBOARDING_TAG_LIMIT_REACHED: 'Tag limit reached',
 };
 
 export class NotFoundError extends ApolloError {
