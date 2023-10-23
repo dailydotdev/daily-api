@@ -5,7 +5,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
-  testQueryErrorCode,
+  testQueryError,
 } from './helpers';
 import { ArticlePost, Keyword, PostKeyword, Source } from '../src/entity';
 import {
@@ -17,6 +17,7 @@ import createOrGetConnection from '../src/db';
 import { postsFixture, postKeywordsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { TagRecommendation } from '../src/entity/TagRecommendation';
+import { SubmissionFailErrorMessage } from '../src/errors';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -227,7 +228,7 @@ describe('query recommendedTags', () => {
   });
 
   it('should throw validation error if more then 1000 tags is included', async () => {
-    testQueryErrorCode(
+    await testQueryError(
       client,
       {
         query: QUERY,
@@ -238,7 +239,12 @@ describe('query recommendedTags', () => {
             .map((item, index) => item + index),
         },
       },
-      'GRAPHQL_VALIDATION_FAILED',
+      (errors) => {
+        expect(errors[0].extensions?.code).toEqual('GRAPHQL_VALIDATION_FAILED');
+        expect(errors[0].message).toEqual(
+          SubmissionFailErrorMessage.ONBOARDING_TAG_LIMIT_REACHED,
+        );
+      },
     );
   });
 });

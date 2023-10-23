@@ -5,6 +5,7 @@ import { Keyword } from '../entity';
 import { TagRecommendation } from '../entity/TagRecommendation';
 import { In, Not } from 'typeorm';
 import { ValidationError } from 'apollo-server-errors';
+import { SubmissionFailErrorMessage } from '../errors';
 
 interface GQLTag {
   name: string;
@@ -133,7 +134,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const uniqueTagsToExclude = new Set([...tags, ...excludedTags]);
 
       if (uniqueTagsToExclude.size > 1000) {
-        throw new ValidationError('Tag limit reached');
+        throw new ValidationError(
+          SubmissionFailErrorMessage.ONBOARDING_TAG_LIMIT_REACHED,
+        );
       }
 
       const hits = await ctx.getRepository(TagRecommendation).find({
