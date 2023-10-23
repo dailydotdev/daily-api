@@ -838,10 +838,9 @@ interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
 }
 
-const updateSourceMemberFlag = async (
+const updateHideFeedPostsFlag = async (
   ctx: Context,
   sourceId: string,
-  flag: keyof SourceMemberFlags,
   value: boolean,
 ): Promise<GQLEmptyResponse> => {
   await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
@@ -850,7 +849,26 @@ const updateSourceMemberFlag = async (
     { sourceId, userId: ctx.userId },
     {
       flags: updateFlagsStatement<SourceMember>({
-        [flag]: value,
+        hideFeedPosts: value,
+      }),
+    },
+  );
+
+  return { _: true };
+};
+
+const togglePinnedPosts = async (
+  ctx: Context,
+  sourceId: string,
+  value: boolean,
+): Promise<GQLEmptyResponse> => {
+  await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
+
+  await ctx.con.getRepository(SourceMember).update(
+    { sourceId, userId: ctx.userId },
+    {
+      flags: updateFlagsStatement<SourceMember>({
+        collapsePinnedPosts: value,
       }),
     },
   );
@@ -1325,21 +1343,16 @@ export const resolvers: IResolvers<any, Context> = {
       return getSourceById(ctx, info, sourceId);
     },
     hideSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
-      return updateSourceMemberFlag(ctx, sourceId, 'hideFeedPosts', true);
+      return updateHideFeedPostsFlag(ctx, sourceId, true);
     },
     showSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
-      return updateSourceMemberFlag(ctx, sourceId, 'hideFeedPosts', false);
+      return updateHideFeedPostsFlag(ctx, sourceId, false);
     },
     collapsePinnedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
-      return updateSourceMemberFlag(ctx, sourceId, 'collapsePinnedPosts', true);
+      return togglePinnedPosts(ctx, sourceId, true);
     },
     expandPinnedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
-      return updateSourceMemberFlag(
-        ctx,
-        sourceId,
-        'collapsePinnedPosts',
-        false,
-      );
+      return togglePinnedPosts(ctx, sourceId, false);
     },
   }),
   Source: {
