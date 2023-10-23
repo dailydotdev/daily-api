@@ -444,6 +444,13 @@ const obj = new GraphORM({
   UserPersonalizedDigest: {
     requiredColumns: ['userId'],
   },
+  Keyword: {
+    fields: {
+      flags: {
+        jsonType: true,
+      },
+    },
+  },
 });
 
 export default obj;

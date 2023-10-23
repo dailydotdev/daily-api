@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
+import { TagRecommendation } from '../src/entity/TagRecommendation';
 
 const importEntity = async (con: DataSource, name: string): Promise<void> => {
   console.log(`importing ${name}`);
@@ -22,6 +23,11 @@ const start = async (): Promise<void> => {
   // Manually have to reset these as insert has a issue with `type` columns
   await con.query(`update post set type = 'article' where type = 'Post'`);
   await con.query(`update source set type = 'machine' where type = 'Source'`);
+  await con.query(
+    `REFRESH MATERIALIZED VIEW ${
+      con.getRepository(TagRecommendation).metadata.tableName
+    }`,
+  );
 };
 
 start()
