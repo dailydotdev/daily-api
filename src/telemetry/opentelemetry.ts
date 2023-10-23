@@ -150,10 +150,13 @@ export const tracer = (serviceName: string) => {
     const meter = api.metrics.getMeter(serviceName);
     const requestCounter = meter.createCounter('requests');
 
-    fastify.decorate('tracer', api.trace.getTracer('fastify'));
+    fastify.decorate('tracer', api.trace.getTracer(serviceName));
+    fastify.decorate('meter', meter);
+    fastify.decorateRequest('meter', null);
     fastify.decorateRequest('span', null);
 
     fastify.addHook('onRequest', async (req) => {
+      req.meter = meter;
       req.span = api.trace.getSpan(api.context.active());
     });
 

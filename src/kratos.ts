@@ -60,6 +60,9 @@ export const clearAuthentication = async (
   res: FastifyReply,
   reason: string,
 ): Promise<void> => {
+  req.meter.createCounter('clear_authentication').add(1, {
+    reason,
+  });
   req.log.info(
     {
       reason,
