@@ -48,4 +48,8 @@ export const crons: Cron[] = [
   //   name: 'generate-search-invites',
   //   schedule: '15 1 * * *',
   // },
+  {
+    name: 'update-tag-recommendations',
+    schedule: '5 3 * * 0'
+  },
 ];

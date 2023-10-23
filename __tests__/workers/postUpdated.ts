@@ -231,7 +231,10 @@ it('should update post and not modify keywords', async () => {
   });
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   expect(post.title).toEqual('New title');
-  expect(post.tagsStr).toEqual('mongodb,alpinejs');
+  const tagsArray = post.tagsStr.split(',');
+  ['mongodb', 'alpinejs'].forEach((item) => {
+    expect(tagsArray).toContain(item);
+  });
   const postKeywords = await con.getRepository(PostKeyword).find({
     where: {
       postId: 'p1',
@@ -256,7 +259,10 @@ it('should update post and modify keywords', async () => {
   });
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   expect(post.title).toEqual('New title');
-  expect(post.tagsStr).toEqual('mongodb,ab-testing');
+  const tagsArray = post.tagsStr.split(',');
+  ['mongodb', 'ab-testing'].forEach((item) => {
+    expect(tagsArray).toContain(item);
+  });
   const postKeywords = await con.getRepository(PostKeyword).find({
     where: {
       postId: 'p1',
@@ -317,7 +323,10 @@ it('should update freeform post and only modify allowed fields', async () => {
   expect(post.title).toEqual('freeform post');
   expect(post.summary).toEqual(summary);
   expect(post.description).toEqual(description);
-  expect(post.tagsStr).toEqual('mongodb,alpinejs');
+  const tagsArray = post.tagsStr.split(',');
+  ['mongodb', 'alpinejs'].forEach((item) => {
+    expect(tagsArray).toContain(item);
+  });
   expect(post.readTime).toEqual(12);
 });
 

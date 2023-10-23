@@ -1,5 +1,6 @@
 import { DeepPartial } from 'typeorm';
 import { Keyword } from '../../src/entity';
+import { postsFixture } from './post';
 
 export const keywordsFixture: DeepPartial<Keyword>[] = [
   { value: 'webdev', occurrences: 100, status: 'allow' },
@@ -16,3 +17,29 @@ export const keywordsFixture: DeepPartial<Keyword>[] = [
   { value: 'politics', occurrences: 100, status: 'deny' },
   { value: 'pending' },
 ];
+
+export const postRecommendedKeywordsFixture = postsFixture.reduce(
+  (acc, item) => {
+    const keywordsInPost = item.tagsStr?.split(',') || [];
+
+    keywordsInPost.forEach((keyword) => {
+      const keywordItem = acc.find((item) => item.value === keyword);
+
+      if (!keywordItem) {
+        acc.push({
+          value: keyword,
+          occurrences: 1,
+          status: 'allow',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          flags: {},
+        });
+      } else {
+        keywordItem.occurrences += 1;
+      }
+    });
+
+    return acc;
+  },
+  [] as Keyword[],
+);
