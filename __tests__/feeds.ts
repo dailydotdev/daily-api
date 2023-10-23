@@ -1727,8 +1727,8 @@ describe('query feedPreview', () => {
   };
 
   const QUERY = `
-  query FeedPreview($ranking: Ranking, $supportedTypes: [String!]) {
-    feedPreview(ranking: $ranking, supportedTypes: $supportedTypes) {
+  query FeedPreview($supportedTypes: [String!]) {
+    feedPreview(supportedTypes: $supportedTypes) {
       ${feedFields()}
     }
   }

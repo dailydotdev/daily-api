@@ -235,11 +235,6 @@ export const typeDefs = /* GraphQL */ `
     """
     feedPreview(
       """
-      Ranking criteria for the feed
-      """
-      ranking: Ranking = POPULARITY
-
-      """
       Array of supported post types
       """
       supportedTypes: [String!]
@@ -940,7 +935,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     feedPreview: (
       source,
-      args: Pick<ConfiguredFeedArgs, 'ranking' | 'supportedTypes'>,
+      args: Pick<ConfiguredFeedArgs, 'supportedTypes'>,
       ctx: Context,
       info,
     ) => {
