@@ -19,7 +19,10 @@ export class Context {
     this.dataLoader = new DataLoaderService({ ctx: this });
     this.metricGraphqlCounter = opentelemetry.metrics
       .getMeter('graphql')
-      .createCounter('graphql_operations');
+      .createCounter('graphql_operations', {
+        description:
+          'How many graphql operations have been performed, their operation type and name',
+      });
   }
 
   get service(): boolean | null {

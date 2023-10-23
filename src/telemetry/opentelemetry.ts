@@ -148,7 +148,9 @@ export const tracer = (serviceName: string) => {
 
   channel.subscribe(({ fastify }: { fastify: FastifyInstance }) => {
     const meter = api.metrics.getMeter(serviceName);
-    const requestCounter = meter.createCounter('requests');
+    const requestCounter = meter.createCounter('requests', {
+      description: 'How many requests have been processed',
+    });
 
     fastify.decorate('tracer', api.trace.getTracer(serviceName));
     fastify.decorate('meter', meter);
