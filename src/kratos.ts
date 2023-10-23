@@ -60,13 +60,6 @@ export const clearAuthentication = async (
   res: FastifyReply,
   reason: string,
 ): Promise<void> => {
-  req.meter
-    .createCounter('clear_authentication', {
-      description: 'How many times the authentication has been cleared',
-    })
-    .add(1, {
-      reason,
-    });
   req.log.info(
     {
       reason,
@@ -81,6 +74,13 @@ export const clearAuthentication = async (
   setCookie(req, res, 'auth', undefined);
   setCookie(req, res, 'kratosContinuity', undefined);
   setCookie(req, res, 'kratos', undefined);
+  req.meter
+    .createCounter('clear_authentication', {
+      description: 'How many times the authentication has been cleared',
+    })
+    .add(1, {
+      reason,
+    });
 };
 
 type WhoamiResponse =
