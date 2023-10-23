@@ -262,6 +262,8 @@ Object {
           },
           "user": Object {
             "id": "2",
+            "name": "Tsahi",
+            "username": "tsahidaily",
           },
         },
       },
@@ -287,6 +289,8 @@ Object {
           },
           "user": Object {
             "id": "2",
+            "name": "Tsahi",
+            "username": "tsahidaily",
           },
         },
       },
@@ -312,6 +316,8 @@ Object {
           },
           "user": Object {
             "id": "1",
+            "name": "Ido",
+            "username": "idoshamun",
           },
         },
       },
@@ -324,6 +330,8 @@ Object {
           },
           "user": Object {
             "id": "2",
+            "name": "Tsahi",
+            "username": "tsahidaily",
           },
         },
       },
@@ -349,6 +357,8 @@ Object {
           },
           "user": Object {
             "id": "1",
+            "name": "Ido",
+            "username": "idoshamun",
           },
         },
       },
@@ -361,6 +371,8 @@ Object {
           },
           "user": Object {
             "id": "2",
+            "name": "Tsahi",
+            "username": "tsahidaily",
           },
         },
       },
@@ -386,12 +398,26 @@ Object {
           },
           "user": Object {
             "id": "1",
+            "name": "Ido",
+            "username": "idoshamun",
           },
         },
       },
     ],
     "pageInfo": Object {
       "endCursor": "dGltZToxNjcxNDA4MDAwMDAw",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
+exports[`query sourceMembers should return source members without blocked members and based on query 1`] = `
+Object {
+  "sourceMembers": Object {
+    "edges": Array [],
+    "pageInfo": Object {
+      "endCursor": null,
       "hasNextPage": false,
     },
   },
