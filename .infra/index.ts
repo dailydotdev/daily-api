@@ -34,7 +34,7 @@ const { serviceAccount } = createServiceAccountAndGrantRoles(
   [
     { name: 'profiler', role: 'roles/cloudprofiler.agent' },
     { name: 'trace', role: 'roles/cloudtrace.agent' },
-    { name: 'monioring', role: 'roles/monitoring.metricWriter' },
+    { name: 'monitoring', role: 'roles/monitoring.metricWriter' },
     { name: 'secret', role: 'roles/secretmanager.secretAccessor' },
     { name: 'pubsub', role: 'roles/pubsub.editor' },
   ],
