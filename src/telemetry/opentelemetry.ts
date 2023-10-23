@@ -117,7 +117,7 @@ export const tracer = (serviceName: string) => {
   const traceExporter = isProd
     ? new TraceExporter()
     : new OTLPTraceExporter({
-        url: `http://${process.env.OTLP_COLLECTOR_HOST}:${process.env.OTLP_COLLECTOR_PORT}`,
+        url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
       });
 
   const spanProcessor = isProd
