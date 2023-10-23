@@ -9,6 +9,7 @@ import {
   Source,
   SourceFeed,
   SourceMember,
+  SourceMemberFlags,
   SourceMemberFlagsPublic,
   SourceType,
   SquadSource,
@@ -197,6 +198,10 @@ export const typeDefs = /* GraphQL */ `
     Whether the source posts are hidden from feed for member
     """
     hideFeedPosts: Boolean
+    """
+    Whether the source pinned posts are collapsed or not
+    """
+    collapsePinnedPosts: Boolean
   }
 
   type SourceMember {
@@ -485,6 +490,26 @@ export const typeDefs = /* GraphQL */ `
     showSourceFeedPosts(
       """
       Source id to show posts on feed
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Collapse source pinned posts
+    """
+    collapsePinnedPosts(
+      """
+      Source id to collapse posts in
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Expand source pinned posts
+    """
+    expandPinnedPosts(
+      """
+      Source id to expand posts in
       """
       sourceId: ID!
     ): EmptyResponse! @auth
@@ -813,9 +838,10 @@ interface SourcesArgs extends ConnectionArguments {
   filterOpenSquads?: boolean;
 }
 
-const updateHideFeedPostsFlag = async (
+const updateSourceMemberFlag = async (
   ctx: Context,
   sourceId: string,
+  flag: keyof SourceMemberFlags,
   value: boolean,
 ): Promise<GQLEmptyResponse> => {
   await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
@@ -824,7 +850,7 @@ const updateHideFeedPostsFlag = async (
     { sourceId, userId: ctx.userId },
     {
       flags: updateFlagsStatement<SourceMember>({
-        hideFeedPosts: value,
+        [flag]: value,
       }),
     },
   );
@@ -1299,10 +1325,21 @@ export const resolvers: IResolvers<any, Context> = {
       return getSourceById(ctx, info, sourceId);
     },
     hideSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
-      return updateHideFeedPostsFlag(ctx, sourceId, true);
+      return updateSourceMemberFlag(ctx, sourceId, 'hideFeedPosts', true);
     },
     showSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
-      return updateHideFeedPostsFlag(ctx, sourceId, false);
+      return updateSourceMemberFlag(ctx, sourceId, 'hideFeedPosts', false);
+    },
+    collapsePinnedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+      return updateSourceMemberFlag(ctx, sourceId, 'collapsePinnedPosts', true);
+    },
+    expandPinnedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+      return updateSourceMemberFlag(
+        ctx,
+        sourceId,
+        'collapsePinnedPosts',
+        false,
+      );
     },
   }),
   Source: {
