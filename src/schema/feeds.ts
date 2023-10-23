@@ -235,34 +235,9 @@ export const typeDefs = /* GraphQL */ `
     """
     feedPreview(
       """
-      Time the pagination started to ignore new items
-      """
-      now: DateTime
-
-      """
-      Paginate after opaque cursor
-      """
-      after: String
-
-      """
-      Paginate first
-      """
-      first: Int
-
-      """
       Ranking criteria for the feed
       """
       ranking: Ranking = POPULARITY
-
-      """
-      Return only unread posts
-      """
-      unreadOnly: Boolean = false
-
-      """
-      Version of the feed algorithm
-      """
-      version: Int = 1
 
       """
       Array of supported post types
@@ -963,11 +938,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       }
       return feedResolverV1(source, args, ctx, info);
     },
-    feedPreview: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
-      if (process.env.NODE_ENV === 'development') {
-        return feedResolverV1(source, args, ctx, info);
-      }
-
+    feedPreview: (
+      source,
+      args: Pick<ConfiguredFeedArgs, 'ranking' | 'supportedTypes'>,
+      ctx: Context,
+      info,
+    ) => {
       return feedResolverV2(
         source,
         {
