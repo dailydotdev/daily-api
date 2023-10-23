@@ -849,10 +849,6 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
       """
-      Source to share the post to
-      """
-      sourceId: ID!
-      """
       Commentary for the share
       """
       commentary: String
@@ -1674,24 +1670,20 @@ export const resolvers: IResolvers<any, Context> = {
     },
     editSharePost: async (
       _,
-      {
-        id,
-        sourceId,
-        commentary,
-      }: { id: string; sourceId: string; commentary: string },
+      { id, commentary }: { id: string; commentary: string },
       ctx,
       info,
     ): Promise<GQLPost> => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
       validateEditAllowed(post.authorId, ctx.userId);
 
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post);
+      await ensureSourcePermissions(ctx, post.sourceId, SourcePermissions.Post);
 
       const { postId } = await updateSharePost(
         ctx.con,
         ctx.userId,
         id,
-        sourceId,
+        post.sourceId,
         commentary,
       );
       return getPostById(ctx, info, postId);
