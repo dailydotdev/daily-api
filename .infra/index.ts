@@ -181,6 +181,10 @@ if (isAdhocEnv) {
         { targetPort: 3000, port: 80, name: 'http' },
         { targetPort: 9464, port: 9464, name: 'metrics' },
       ],
+      podAnnotations: {
+        'prometheus.io/scrape': 'true',
+        'prometheus.io/port': '9464',
+      },
       createService: true,
       ...jwtVols,
     },
@@ -201,6 +205,10 @@ if (isAdhocEnv) {
       servicePorts: [
         { targetPort: 9464, port: 9464, name: 'metrics' },
       ],
+      podAnnotations: {
+        'prometheus.io/scrape': 'true',
+        'prometheus.io/port': '9464',
+      },
     },
   ];
 } else {
