@@ -1724,12 +1724,11 @@ describe('function feedToFilters', () => {
 describe('query feedPreview', () => {
   const variables = {
     ranking: Ranking.TIME,
-    first: 20,
   };
 
   const QUERY = `
-  query FeedPreview($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
-    feedPreview(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
+  query FeedPreview($ranking: Ranking, $supportedTypes: [String!]) {
+    feedPreview(ranking: $ranking, supportedTypes: $supportedTypes) {
       ${feedFields()}
     }
   }
@@ -1759,7 +1758,6 @@ describe('query feedPreview', () => {
     const res = await client.query(QUERY, { variables });
 
     expect(res.errors).toBeFalsy();
-    console.log(res.data);
     expect(res.data.feedPreview.edges.length).toEqual(2);
   });
 });

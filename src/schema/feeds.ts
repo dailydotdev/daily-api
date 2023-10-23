@@ -948,6 +948,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         source,
         {
           ...(args as FeedArgs),
+          first: 20,
           generator: feedGenerators.onboarding,
         },
         ctx,
