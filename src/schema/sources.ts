@@ -948,8 +948,6 @@ export const resolvers: IResolvers<any, Context> = {
               );
           }
 
-          console.log(builder.queryBuilder.getQuery());
-
           if (role) {
             builder.queryBuilder = builder.queryBuilder.andWhere(
               `${builder.alias}.role = :role`,
