@@ -6,7 +6,6 @@ import {
 } from 'fastify';
 import { DataSource, DeepPartial, ObjectType } from 'typeorm';
 import request from 'supertest';
-import { Span } from '@opentelemetry/api';
 import { GraphQLFormattedError } from 'graphql';
 import { Context } from '../src/Context';
 import { Message, Worker } from '../src/workers/worker';
@@ -30,9 +29,10 @@ import {
 } from '../src/notifications';
 import { NotificationType } from '../src/notifications/common';
 import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
+import { opentelemetry } from '../src/telemetry/opentelemetry';
 
 export class MockContext extends Context {
-  mockSpan: MockProxy<Span> & Span;
+  mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
   mockUserId: string | null;
   mockPremium: boolean;
   mockRoles: Roles[];
@@ -45,15 +45,17 @@ export class MockContext extends Context {
     roles = [],
   ) {
     super(mock<FastifyRequest>(), con);
-    this.mockSpan = mock<Span>();
-    this.mockSpan.setAttributes.mockImplementation(() => mock<Span>());
+    this.mockSpan = mock<opentelemetry.Span>();
+    this.mockSpan.setAttributes.mockImplementation(() =>
+      mock<opentelemetry.Span>(),
+    );
     this.mockUserId = userId;
     this.mockPremium = premium;
     this.mockRoles = roles;
     this.logger = mock<FastifyLoggerInstance>();
   }
 
-  get span(): Span {
+  get span(): opentelemetry.Span {
     return this.mockSpan;
   }
 

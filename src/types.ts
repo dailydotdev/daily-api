@@ -1,6 +1,6 @@
-import { api } from '@opentelemetry/sdk-node';
 import { Roles } from './roles';
 import { AccessToken } from './auth';
+import { opentelemetry } from './telemetry/opentelemetry';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -17,12 +17,12 @@ declare module 'fastify' {
     isBot?: boolean;
 
     // Used for tracing
-    span: api.Span;
+    span: opentelemetry.Span;
   }
 
   interface FastifyInstance {
     // Used for tracing
-    tracer: api.Tracer;
+    tracer: opentelemetry.Tracer;
   }
 }
 

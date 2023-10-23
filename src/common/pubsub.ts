@@ -1,6 +1,5 @@
 import { PubSub, Topic } from '@google-cloud/pubsub';
 import { FastifyBaseLogger } from 'fastify';
-import { SpanKind } from '@opentelemetry/api';
 import {
   Post,
   SourceRequest,
@@ -23,7 +22,7 @@ import {
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
-import { runInSpan } from '../telemetry/opentelemetry';
+import { opentelemetry, runInSpan } from '../telemetry/opentelemetry';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
@@ -108,7 +107,7 @@ const publishEvent = async (
       }
     },
     {
-      kind: SpanKind.PRODUCER,
+      kind: opentelemetry.SpanKind.PRODUCER,
     },
   );
 

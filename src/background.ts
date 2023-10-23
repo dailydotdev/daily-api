@@ -2,8 +2,8 @@ import {
   addPubsubSpanLabels,
   runInRootSpan,
   runInSpan,
+  opentelemetry,
 } from './telemetry/opentelemetry';
-import { SpanKind } from '@opentelemetry/api';
 import 'reflect-metadata';
 import { PubSub, Message } from '@google-cloud/pubsub';
 import pino from 'pino';
@@ -15,14 +15,13 @@ import { workers } from './workers';
 import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import createOrGetConnection from './db';
-import { api } from '@opentelemetry/sdk-node';
 
 const subscribe = (
   logger: pino.Logger,
   pubsub: PubSub,
   connection: DataSource,
   subscription: string,
-  meter: api.Meter,
+  meter: opentelemetry.Meter,
   handler: (
     message: Message,
     con: DataSource,
@@ -73,7 +72,7 @@ const subscribe = (
         });
       },
       {
-        kind: SpanKind.CONSUMER,
+        kind: opentelemetry.SpanKind.CONSUMER,
       },
     ),
   );
@@ -86,7 +85,7 @@ export default async function app(): Promise<void> {
     createOrGetConnection,
   );
   const pubsub = new PubSub();
-  const meter = api.metrics.getMeter('api-bg');
+  const meter = opentelemetry.metrics.getMeter('api-bg');
 
   logger.info('background processing in on');
 

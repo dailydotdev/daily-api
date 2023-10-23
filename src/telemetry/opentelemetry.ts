@@ -232,4 +232,4 @@ export const runInRootSpanSync = <T>(
   options?: api.SpanOptions,
 ): T => runInSpanSync(name, func, { ...options, root: true });
 
-export const { context, trace, SpanStatusCode, SpanKind } = api;
+export { api as opentelemetry };

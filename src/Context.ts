@@ -1,4 +1,4 @@
-import { Span, Counter, metrics } from '@opentelemetry/api';
+import { opentelemetry } from './telemetry/opentelemetry';
 import { DataSource, EntitySchema, ObjectType, Repository } from 'typeorm';
 import { FastifyRequest, FastifyBaseLogger } from 'fastify';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
@@ -10,14 +10,14 @@ export class Context {
   con: DataSource;
   loader: GraphQLDatabaseLoader;
   dataLoader: DataLoaderService;
-  metricGraphqlCounter: Counter;
+  metricGraphqlCounter: opentelemetry.Counter;
 
   constructor(req: FastifyRequest, con) {
     this.req = req;
     this.con = con;
     this.loader = new GraphQLDatabaseLoader(con);
     this.dataLoader = new DataLoaderService({ ctx: this });
-    this.metricGraphqlCounter = metrics
+    this.metricGraphqlCounter = opentelemetry.metrics
       .getMeter('graphql')
       .createCounter('graphql_operations');
   }
@@ -46,7 +46,7 @@ export class Context {
     return this.req.log;
   }
 
-  get span(): Span {
+  get span(): opentelemetry.Span {
     return this.req.span;
   }
 
