@@ -17,14 +17,14 @@ declare module 'fastify' {
     isBot?: boolean;
 
     // Used for tracing
-    span: opentelemetry.Span;
-    meter: opentelemetry.Meter;
+    span?: opentelemetry.Span;
+    meter?: opentelemetry.Meter;
   }
 
   interface FastifyInstance {
     // Used for tracing
-    tracer: opentelemetry.Tracer;
-    meter: opentelemetry.Meter;
+    tracer?: opentelemetry.Tracer;
+    meter?: opentelemetry.Meter;
   }
 }
 
