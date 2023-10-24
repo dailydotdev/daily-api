@@ -309,7 +309,9 @@ const getExperimentation = async (
 ): Promise<Experimentation> => {
   const [hash, features] = await Promise.all([
     ioRedisPool.execute((client) => client.hgetall(`exp:${userId}`)),
-    con.getRepository(Feature).findBy({ userId }),
+    con
+      .getRepository(Feature)
+      .find({ where: { userId }, select: ['feature', 'value'] }),
   ]);
   const e = Object.keys(hash || {}).map((key) => {
     const [variation] = hash[key].split(':');
