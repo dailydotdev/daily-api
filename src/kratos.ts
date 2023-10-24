@@ -128,7 +128,10 @@ export const logout = async (
       req,
       `${kratosOrigin}/self-service/logout/browser`,
     );
-    if (logoutFlow?.logout_url) {
+    if (
+      logoutFlow?.logout_url &&
+      !logoutFlow.logout_url.startsWith('https://app.daily.dev/error')
+    ) {
       const logoutParts = logoutFlow.logout_url.split('/self-service/');
       const logoutUrl = `${kratosOrigin}/self-service/${logoutParts[1]}`;
       await fetchKratos(req, logoutUrl, { redirect: 'manual' });
