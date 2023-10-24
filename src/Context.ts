@@ -1,6 +1,6 @@
+import { opentelemetry } from './telemetry/opentelemetry';
 import { DataSource, EntitySchema, ObjectType, Repository } from 'typeorm';
 import { FastifyRequest, FastifyBaseLogger } from 'fastify';
-import { RootSpan } from '@google-cloud/trace-agent/build/src/plugin-types';
 import { GraphQLDatabaseLoader } from '@mando75/typeorm-graphql-loader';
 import { Roles } from './roles';
 import { DataLoaderService } from './dataLoaderService';
@@ -10,12 +10,19 @@ export class Context {
   con: DataSource;
   loader: GraphQLDatabaseLoader;
   dataLoader: DataLoaderService;
+  metricGraphqlCounter: opentelemetry.Counter;
 
   constructor(req: FastifyRequest, con) {
     this.req = req;
     this.con = con;
     this.loader = new GraphQLDatabaseLoader(con);
     this.dataLoader = new DataLoaderService({ ctx: this });
+    this.metricGraphqlCounter = opentelemetry.metrics
+      .getMeter('graphql')
+      .createCounter('graphql_operations', {
+        description:
+          'How many graphql operations have been performed, their operation type and name',
+      });
   }
 
   get service(): boolean | null {
@@ -42,7 +49,7 @@ export class Context {
     return this.req.log;
   }
 
-  get span(): RootSpan {
+  get span(): opentelemetry.Span {
     return this.req.span;
   }
 

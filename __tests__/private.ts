@@ -224,6 +224,7 @@ describe('POST /p/newUser', () => {
     expect(users.length).toEqual(1);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].infoConfirmed).toBeTruthy();
+    expect(users[0].createdAt).not.toBeNull();
   });
 
   it('should allow underscore in username', async () => {

@@ -10,19 +10,6 @@ let privateKey: Buffer = undefined;
 
 export type AccessToken = { token: string; expiresIn: Date };
 
-declare module 'fastify' {
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  interface FastifyRequest {
-    userId?: string;
-    premium?: boolean;
-    roles?: Roles[];
-    service?: boolean;
-    accessToken?: AccessToken;
-  }
-
-  /* eslint-enable @typescript-eslint/no-unused-vars */
-}
-
 interface Options {
   secret: string;
 }
@@ -103,6 +90,7 @@ const plugin = async (
   fastify.decorateRequest('premium', null);
   fastify.decorateRequest('roles', null);
   fastify.decorateRequest('accessToken', null);
+
   // Machine-to-machine authentication
   fastify.addHook('preHandler', async (req) => {
     if (
