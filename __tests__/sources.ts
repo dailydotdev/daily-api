@@ -708,7 +708,7 @@ describe('query sourceMembers', () => {
   });
 
   it('should return source members based on query with spaces', async () => {
-    await con.getRepository(User).update({ id: '1' }, { name: 'Lee Hansel'});
+    await con.getRepository(User).update({ id: '1' }, { name: 'Lee Hansel' });
     const res = await client.query(QUERY, {
       variables: { id: 'a', query: 'lee h' },
     });
