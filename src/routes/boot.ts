@@ -307,12 +307,16 @@ const getExperimentation = async (
   userId: string,
   con: DataSource | EntityManager,
 ): Promise<Experimentation> => {
-  const [hash, features] = await Promise.all([
-    ioRedisPool.execute((client) => client.hgetall(`exp:${userId}`)),
-    con
-      .getRepository(Feature)
-      .find({ where: { userId }, select: ['feature', 'value'] }),
-  ]);
+  const [hash, features] = await Promise.all(
+    userId
+      ? [
+          ioRedisPool.execute((client) => client.hgetall(`exp:${userId}`)),
+          con
+            .getRepository(Feature)
+            .find({ where: { userId }, select: ['feature', 'value'] }),
+        ]
+      : [{}, []],
+  );
   const e = Object.keys(hash || {}).map((key) => {
     const [variation] = hash[key].split(':');
     return base64(`${key}:${variation}`);
