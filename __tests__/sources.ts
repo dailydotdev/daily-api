@@ -707,6 +707,16 @@ describe('query sourceMembers', () => {
     expect(found.node.user.name).toEqual('Ido');
   });
 
+  it('should return source members based on query with spaces', async () => {
+    await con.getRepository(User).update({ id: '1' }, { name: 'Lee Hansel'});
+    const res = await client.query(QUERY, {
+      variables: { id: 'a', query: 'lee h' },
+    });
+    expect(res.errors).toBeFalsy();
+    const [found] = res.data.sourceMembers.edges;
+    expect(found.node.user.id).toEqual('1');
+  });
+
   it('should return source members and order by their role', async () => {
     const repo = con.getRepository(SourceMember);
     await repo.update(

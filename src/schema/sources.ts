@@ -986,7 +986,7 @@ export const resolvers: IResolvers<any, Context> = {
             builder.queryBuilder = builder.queryBuilder
               .innerJoin(User, 'u', `${builder.alias}."userId" = u.id`)
               .andWhere(
-                `(REPLACE(u.name, ' ', '') ILIKE :name OR u.username ILIKE :name)`,
+                `(u.name ILIKE :name OR u.username ILIKE :name)`,
                 { name: `${query}%` },
               );
           }
