@@ -172,6 +172,34 @@ describe('personalizedDigestEmail worker', () => {
     expect(dateFrom.getTimezoneOffset()).toBe(0);
   });
 
+  it('should generate personalized digest for user with no name set', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => ({
+        ...item,
+        name: null,
+      })),
+    );
+
+    expect(personalizedDigest).toBeTruthy();
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      generationTimestamp: Date.now(),
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
+    expect(emailData.to.name).toEqual('idoshamun');
+  });
+
   it('should not generate personalized digest for user that did not confirm their info', async () => {
     const personalizedDigest = await con
       .getRepository(UserPersonalizedDigest)
