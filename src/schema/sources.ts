@@ -12,6 +12,7 @@ import {
   SourceMemberFlagsPublic,
   SourceType,
   SquadSource,
+  User,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -79,6 +80,7 @@ interface UpdateMemberRoleArgs {
 
 interface SourceMemberArgs extends ConnectionArguments {
   sourceId: string;
+  query?: string;
   role?: SourceMemberRoles;
 }
 
@@ -303,6 +305,11 @@ export const typeDefs = /* GraphQL */ `
       Should return users with this specific role only
       """
       role: String
+
+      """
+      Property to utilize for searching members
+      """
+      query: String
     ): SourceMemberConnection!
 
     """
@@ -946,7 +953,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     sourceMembers: async (
       _,
-      { role, sourceId, ...args }: SourceMemberArgs,
+      { role, sourceId, query, ...args }: SourceMemberArgs,
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
@@ -969,12 +976,20 @@ export const resolvers: IResolvers<any, Context> = {
             .andWhere(`${builder.alias}."sourceId" = :source`, {
               source: sourceId,
             })
-
             .addOrderBy(
               graphorm.mappings.SourceMember.fields.roleRank.select as string,
               'DESC',
             )
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+          if (query) {
+            builder.queryBuilder = builder.queryBuilder
+              .innerJoin(User, 'u', `${builder.alias}."userId" = u.id`)
+              .andWhere(
+                `(REPLACE(u.name, ' ', '') ILIKE :name OR u.username ILIKE :name)`,
+                { name: `${query}%` },
+              );
+          }
 
           if (role) {
             builder.queryBuilder = builder.queryBuilder.andWhere(

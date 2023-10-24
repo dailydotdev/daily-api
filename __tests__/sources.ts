@@ -654,22 +654,26 @@ query Source($id: ID!) {
 
 describe('query sourceMembers', () => {
   const QUERY = `
-query SourceMembers($id: ID!, $role: String) {
-  sourceMembers(sourceId: $id, role: $role) {
-    pageInfo {
-      endCursor
-      hasNextPage
-    }
-    edges {
-      node {
-        role
-        roleRank
-        user { id }
-        source { id }
+    query SourceMembers($id: ID!, $role: String, $query: String) {
+      sourceMembers(sourceId: $id, role: $role, query: $query) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            role
+            roleRank
+            user {
+              id
+              name
+              username
+            }
+            source { id }
+          }
+        }
       }
     }
-  }
-}
   `;
 
   it('should not authorize when source does not exist', () =>
@@ -692,6 +696,15 @@ query SourceMembers($id: ID!, $role: String) {
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return source members without blocked members and based on query', async () => {
+    const res = await client.query(QUERY, {
+      variables: { id: 'a', query: 'i' },
+    });
+    expect(res.errors).toBeFalsy();
+    const [found] = res.data.sourceMembers.edges;
+    expect(found.node.user.name).toEqual('Ido');
   });
 
   it('should return source members and order by their role', async () => {
