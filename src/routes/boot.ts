@@ -48,6 +48,7 @@ import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
 import { getEncryptedFeatures } from '../growthbook';
 import { differenceInMinutes } from 'date-fns';
+import { runInSpan } from '../telemetry/opentelemetry';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -131,52 +132,53 @@ const excludeProperties = <T, K extends keyof T>(
 const getSquads = async (
   con: DataSource,
   userId: string,
-): Promise<BootSquadSource[]> => {
-  const sources = await con
-    .createQueryBuilder()
-    .select('id')
-    .addSelect('type')
-    .addSelect('name')
-    .addSelect('handle')
-    .addSelect('image')
-    .addSelect('NOT private', 'public')
-    .addSelect('active')
-    .addSelect('role')
-    .addSelect('"memberPostingRank"')
-    .from(SourceMember, 'sm')
-    .innerJoin(
-      SquadSource,
-      's',
-      'sm."sourceId" = s."id" and s."type" = \'squad\'',
-    )
-    .where('sm."userId" = :userId', { userId })
-    .andWhere('sm."role" != :role', { role: SourceMemberRoles.Blocked })
-    .orderBy('LOWER(s.name)', 'ASC')
-    .getRawMany<
-      GQLSource & { role: SourceMemberRoles; memberPostingRank: number }
-    >();
+): Promise<BootSquadSource[]> =>
+  runInSpan('getSquads', async () => {
+    const sources = await con
+      .createQueryBuilder()
+      .select('id')
+      .addSelect('type')
+      .addSelect('name')
+      .addSelect('handle')
+      .addSelect('image')
+      .addSelect('NOT private', 'public')
+      .addSelect('active')
+      .addSelect('role')
+      .addSelect('"memberPostingRank"')
+      .from(SourceMember, 'sm')
+      .innerJoin(
+        SquadSource,
+        's',
+        'sm."sourceId" = s."id" and s."type" = \'squad\'',
+      )
+      .where('sm."userId" = :userId', { userId })
+      .andWhere('sm."role" != :role', { role: SourceMemberRoles.Blocked })
+      .orderBy('LOWER(s.name)', 'ASC')
+      .getRawMany<
+        GQLSource & { role: SourceMemberRoles; memberPostingRank: number }
+      >();
 
-  return sources.map((source) => {
-    const { role, memberPostingRank, ...restSource } = source;
+    return sources.map((source) => {
+      const { role, memberPostingRank, ...restSource } = source;
 
-    const permissions = getPermissionsForMember(
-      { role },
-      { memberPostingRank },
-    );
-    // we only send posting permissions from boot to keep the payload small
-    const postingPermissions = permissions.filter(
-      (item) => item === SourcePermissions.Post,
-    );
+      const permissions = getPermissionsForMember(
+        { role },
+        { memberPostingRank },
+      );
+      // we only send posting permissions from boot to keep the payload small
+      const postingPermissions = permissions.filter(
+        (item) => item === SourcePermissions.Post,
+      );
 
-    return {
-      ...restSource,
-      permalink: getSourceLink(source),
-      currentMember: {
-        permissions: postingPermissions,
-      },
-    };
+      return {
+        ...restSource,
+        permalink: getSourceLink(source),
+        currentMember: {
+          permissions: postingPermissions,
+        },
+      };
+    });
   });
-};
 
 const moderators = [
   '1d339aa5b85c4e0ba85fdedb523c48d4',
@@ -329,75 +331,76 @@ const loggedInBoot = async (
   res: FastifyReply,
   refreshToken: boolean,
   middleware?: BootMiddleware,
-): Promise<LoggedInBoot | AnonymousBoot> => {
-  const { userId } = req;
-  const [
-    visit,
-    user,
-    roles,
-    alerts,
-    settings,
-    unreadNotificationsCount,
-    squads,
-    lastChangelog,
-    lastBanner,
-    exp,
-    extra,
-  ] = await Promise.all([
-    visitSection(req, res),
-    con.getRepository(User).findOneBy({ id: userId }),
-    getRoles(userId),
-    getAlerts(con, userId),
-    getSettings(con, userId),
-    getUnreadNotificationsCount(con, userId),
-    getSquads(con, userId),
-    getAndUpdateLastChangelogRedis(con),
-    getAndUpdateLastBannerRedis(con),
-    getExperimentation(userId, con),
-    middleware ? middleware(con, req, res) : {},
-  ]);
-  if (!user) {
-    return handleNonExistentUser(con, req, res, middleware);
-  }
-  const accessToken = refreshToken
-    ? await setAuthCookie(req, res, userId, roles)
-    : req.accessToken;
-
-  return {
-    user: {
-      ...excludeProperties(user, [
-        'updatedAt',
-        'referralId',
-        'referralOrigin',
-        'profileConfirmed',
-        'devcardEligible',
-      ]),
-      providers: [null],
+): Promise<LoggedInBoot | AnonymousBoot> =>
+  runInSpan('loggedInBoot', async () => {
+    const { userId } = req;
+    const [
+      visit,
+      user,
       roles,
-      permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
-      canSubmitArticle: user.reputation >= submitArticleThreshold,
-    },
-    visit,
-    alerts: {
-      ...excludeProperties(alerts, ['userId']),
-      // read only, used in frontend to decide if changelog post should be fetched
-      changelog: alerts.lastChangelog < new Date(lastChangelog),
-      // read only, used in frontend to decide if banner should be fetched
-      banner:
-        lastBanner !== 'false' && alerts.lastBanner < new Date(lastBanner),
-    },
-    settings: excludeProperties(settings, [
-      'userId',
-      'updatedAt',
-      'bookmarkSlug',
-    ]),
-    notifications: { unreadNotificationsCount },
-    squads,
-    accessToken,
-    exp,
-    ...extra,
-  };
-};
+      alerts,
+      settings,
+      unreadNotificationsCount,
+      squads,
+      lastChangelog,
+      lastBanner,
+      exp,
+      extra,
+    ] = await Promise.all([
+      visitSection(req, res),
+      con.getRepository(User).findOneBy({ id: userId }),
+      getRoles(userId),
+      getAlerts(con, userId),
+      getSettings(con, userId),
+      getUnreadNotificationsCount(con, userId),
+      getSquads(con, userId),
+      getAndUpdateLastChangelogRedis(con),
+      getAndUpdateLastBannerRedis(con),
+      getExperimentation(userId, con),
+      middleware ? middleware(con, req, res) : {},
+    ]);
+    if (!user) {
+      return handleNonExistentUser(con, req, res, middleware);
+    }
+    const accessToken = refreshToken
+      ? await setAuthCookie(req, res, userId, roles)
+      : req.accessToken;
+
+    return {
+      user: {
+        ...excludeProperties(user, [
+          'updatedAt',
+          'referralId',
+          'referralOrigin',
+          'profileConfirmed',
+          'devcardEligible',
+        ]),
+        providers: [null],
+        roles,
+        permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
+        canSubmitArticle: user.reputation >= submitArticleThreshold,
+      },
+      visit,
+      alerts: {
+        ...excludeProperties(alerts, ['userId']),
+        // read only, used in frontend to decide if changelog post should be fetched
+        changelog: alerts.lastChangelog < new Date(lastChangelog),
+        // read only, used in frontend to decide if banner should be fetched
+        banner:
+          lastBanner !== 'false' && alerts.lastBanner < new Date(lastBanner),
+      },
+      settings: excludeProperties(settings, [
+        'userId',
+        'updatedAt',
+        'bookmarkSlug',
+      ]),
+      notifications: { unreadNotificationsCount },
+      squads,
+      accessToken,
+      exp,
+      ...extra,
+    };
+  });
 
 const getAnonymousFirstVisit = async (trackingId: string) => {
   if (!trackingId) return null;

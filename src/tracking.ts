@@ -1,24 +1,8 @@
-import {
-  FastifyInstance,
-  FastifyReply,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  FastifyRequest,
-} from 'fastify';
+import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 import isbot from 'isbot';
 import { cookies, setCookie } from './cookies';
 import { generateTrackingId } from './ids';
-
-declare module 'fastify' {
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  interface FastifyRequest {
-    trackingId?: string;
-    sessionId?: string;
-    isBot?: boolean;
-  }
-
-  /* eslint-enable @typescript-eslint/no-unused-vars */
-}
 
 const isBotRequest = (req: FastifyRequest): boolean =>
   !req.headers['user-agent'] || isbot(req.headers['user-agent']);

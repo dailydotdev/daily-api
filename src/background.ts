@@ -1,6 +1,13 @@
+import {
+  addPubsubSpanLabels,
+  runInRootSpan,
+  runInSpan,
+  opentelemetry,
+} from './telemetry/opentelemetry';
 import 'reflect-metadata';
 import { PubSub, Message } from '@google-cloud/pubsub';
 import pino from 'pino';
+import { performance } from 'perf_hooks';
 
 import './config';
 
@@ -14,6 +21,7 @@ const subscribe = (
   pubsub: PubSub,
   connection: DataSource,
   subscription: string,
+  meter: opentelemetry.Meter,
   handler: (
     message: Message,
     con: DataSource,
@@ -30,24 +38,54 @@ const subscribe = (
     batching: { maxMilliseconds: 10 },
   });
   const childLogger = logger.child({ subscription });
-  sub.on('message', async (message) => {
-    try {
-      await handler(message, connection, childLogger, pubsub);
-      message.ack();
-    } catch (err) {
-      childLogger.error(
-        { messageId: message.id, data: message.data.toString('utf-8'), err },
-        'failed to process message',
-      );
-      message.nack();
-    }
+  const histogram = meter.createHistogram('message_processing_time', {
+    unit: 'ms',
+    description: 'time to process a message',
   });
+  sub.on('message', async (message) =>
+    runInRootSpan(
+      `message: ${subscription}`,
+      async (span) => {
+        const startTime = performance.now();
+        let success = true;
+        addPubsubSpanLabels(span, subscription, message);
+        try {
+          await runInSpan('handler', async () =>
+            handler(message, connection, childLogger, pubsub),
+          );
+          message.ack();
+        } catch (err) {
+          success = false;
+          childLogger.error(
+            {
+              messageId: message.id,
+              data: message.data.toString('utf-8'),
+              err,
+            },
+            'failed to process message',
+          );
+          message.nack();
+        }
+        histogram.record(performance.now() - startTime, {
+          subscription,
+          success,
+        });
+      },
+      {
+        kind: opentelemetry.SpanKind.CONSUMER,
+      },
+    ),
+  );
 };
 
 export default async function app(): Promise<void> {
   const logger = pino();
-  const connection = await createOrGetConnection();
+  const connection = await runInRootSpan(
+    'createOrGetConnection',
+    createOrGetConnection,
+  );
   const pubsub = new PubSub();
+  const meter = opentelemetry.metrics.getMeter('api-bg');
 
   logger.info('background processing in on');
 
@@ -57,6 +95,7 @@ export default async function app(): Promise<void> {
       pubsub,
       connection,
       worker.subscription,
+      meter,
       (message, con, logger, pubsub) =>
         worker.handler(
           {

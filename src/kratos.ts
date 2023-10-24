@@ -74,6 +74,16 @@ export const clearAuthentication = async (
   setCookie(req, res, 'auth', undefined);
   setCookie(req, res, 'kratosContinuity', undefined);
   setCookie(req, res, 'kratos', undefined);
+
+  if (req.meter) {
+    req.meter
+      .createCounter('clear_authentication', {
+        description: 'How many times the authentication has been cleared',
+      })
+      .add(1, {
+        reason,
+      });
+  }
 };
 
 type WhoamiResponse =
