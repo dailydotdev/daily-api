@@ -23,7 +23,7 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 import { SemanticAttributes as SemAttr } from '@opentelemetry/semantic-conventions';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
-import { CloudPropagator } from '@google-cloud/opentelemetry-cloud-trace-propagator';
+// import { CloudPropagator } from '@google-cloud/opentelemetry-cloud-trace-propagator';
 
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
@@ -143,7 +143,7 @@ export const tracer = (serviceName: string) => {
     instrumentations,
     resourceDetectors,
     metricReader,
-    textMapPropagator: new CloudPropagator(),
+    // textMapPropagator: new CloudPropagator(),
   });
 
   channel.subscribe(({ fastify }: { fastify: FastifyInstance }) => {
