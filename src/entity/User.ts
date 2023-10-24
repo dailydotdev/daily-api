@@ -95,7 +95,7 @@ export class User {
 
   @Column({ nullable: false, default: () => 'now()' })
   @Index('IDX_user_createdAt')
-  createdAt: Date;
+  createdAt?: Date;
 
   @Column({ nullable: true })
   updatedAt?: Date;
