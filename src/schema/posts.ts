@@ -134,6 +134,8 @@ export interface GQLPost {
 interface PinPostArgs {
   id: string;
   pinned: boolean;
+  nextPostId?: Post['id'];
+  prevPostId?: Post['id'];
 }
 
 type GQLPostQuestion = Pick<PostQuestion, 'id' | 'post' | 'question'>;
@@ -744,6 +746,12 @@ export const typeDefs = /* GraphQL */ `
       Whether to pin the post or not
       """
       pinned: Boolean!
+
+      """
+      If passed in, will update the pinned timestamp to be before the given post ID
+      """
+      nextPostId: ID
+      prevPostId: ID
     ): EmptyResponse @auth
 
     """
@@ -1353,12 +1361,13 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLEmptyResponse> => updatePromoteToPublicFlag(ctx, id, null),
     updatePinPost: async (
       _,
-      { id, pinned }: PinPostArgs,
+      { id, pinned, nextPostId, prevPostId }: PinPostArgs,
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (manager) => {
         const repo = manager.getRepository(Post);
         const post = await repo.findOneBy({ id });
+        const args = { pinnedAt: pinned ? new Date() : null };
 
         await ensureSourcePermissions(
           ctx,
@@ -1366,7 +1375,28 @@ export const resolvers: IResolvers<any, Context> = {
           SourcePermissions.PostPin,
         );
 
-        await repo.update({ id }, { pinnedAt: pinned ? new Date() : null });
+        if (post.pinnedAt && (nextPostId || prevPostId)) {
+          const swapWithPost = await repo.findOneBy({
+            id: nextPostId || prevPostId,
+          });
+          const swapPinnedTime = swapWithPost.pinnedAt.getTime();
+          const randomizedIncrement = Math.floor(Math.random() * 10) * 1000;
+
+          console.log(
+            { swapPinnedTime, post: post.pinnedAt.getTime() },
+            swapPinnedTime > post.pinnedAt.getTime(),
+          );
+
+          if (nextPostId) {
+            args.pinnedAt = new Date(swapPinnedTime - 10 * 1000);
+          }
+
+          if (prevPostId) {
+            args.pinnedAt = new Date(swapPinnedTime + 10 * 1000);
+          }
+        }
+
+        await repo.update({ id }, args);
       });
 
       return { _: true };

@@ -40,7 +40,7 @@ import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
-import { DataSource, DeepPartial } from 'typeorm';
+import { DataSource, DeepPartial, IsNull, Not } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
   postScraperOrigin,
@@ -3207,8 +3207,8 @@ describe('mutation demoteFromPublic', () => {
 
 describe('mutation updatePinPost', () => {
   const MUTATION = `
-    mutation UpdatePinPost($id: ID!, $pinned: Boolean!) {
-      updatePinPost(id: $id, pinned: $pinned) {
+    mutation UpdatePinPost($id: ID!, $pinned: Boolean!, $swapWithPostId: ID) {
+      updatePinPost(id: $id, pinned: $pinned, swapWithPostId: $swapWithPostId) {
         _
       }
     }
@@ -3273,6 +3273,45 @@ describe('mutation updatePinPost', () => {
 
     const pinnedAgain = await getPost();
     expect(pinnedAgain.pinnedAt).not.toBeNull();
+  });
+
+  it('should allow swapping 2 pinned post positions based on pinnedAt', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
+
+    const currentDate = new Date();
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        pinnedAt: new Date(currentDate.getTime() - 2000),
+      },
+    );
+
+    await con.getRepository(Post).update(
+      { id: 'p2' },
+      {
+        pinnedAt: new Date(currentDate.getTime() - 1000),
+      },
+    );
+
+    const pinnedQuery = () =>
+      con.getRepository(Post).find({
+        where: { pinnedAt: Not(IsNull()) },
+        order: { pinnedAt: 'DESC' },
+      });
+
+    const postsBefore = await pinnedQuery();
+    expect(postsBefore.map((p) => p.id).slice(0, 2)).toEqual(['p2', 'p1']);
+
+    await client.mutate(MUTATION, {
+      variables: { id: 'p1', pinned: true, swapWithPostId: 'p2' },
+    });
+
+    const postsAfter = await pinnedQuery();
+    expect(postsAfter.map((p) => p.id).slice(0, 2)).toEqual(['p1', 'p2']);
   });
 });
 
