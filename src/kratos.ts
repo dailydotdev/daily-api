@@ -31,6 +31,7 @@ const fetchKratos = async (
   req: FastifyRequest,
   endpoint: string,
   opts: RequestInit = {},
+  parseResponse = true,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<{ res: any; headers: Headers }> => {
   try {
@@ -39,7 +40,10 @@ const fetchKratos = async (
       ...addKratosHeaderCookies(req),
       ...opts,
     });
-    return { res: await res.json(), headers: res.headers };
+    return {
+      res: parseResponse ? await res.json() : null,
+      headers: res.headers,
+    };
   } catch (err) {
     if (err instanceof HttpError) {
       const kratosError = new KratosError(err.statusCode, err.response);
@@ -128,17 +132,14 @@ export const logout = async (
       req,
       `${kratosOrigin}/self-service/logout/browser`,
     );
-    if (
-      logoutFlow?.logout_url &&
-      !logoutFlow.logout_url.startsWith('https://app.daily.dev/error')
-    ) {
+    if (logoutFlow?.logout_url) {
       const logoutParts = logoutFlow.logout_url.split('/self-service/');
       const logoutUrl = `${kratosOrigin}/self-service/${logoutParts[1]}`;
-      await fetchKratos(req, logoutUrl, { redirect: 'manual' });
+      await fetchKratos(req, logoutUrl, { redirect: 'manual' }, false);
     }
   } catch (e) {
     if (e.statusCode !== 303 && e.statusCode !== 401) {
-      throw e;
+      req.log.warn({ err: e }, 'unexpected error while logging out');
     }
   }
   await clearAuthentication(req, res, 'manual logout');
