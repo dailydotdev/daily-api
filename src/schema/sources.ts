@@ -199,6 +199,10 @@ export const typeDefs = /* GraphQL */ `
     Whether the source posts are hidden from feed for member
     """
     hideFeedPosts: Boolean
+    """
+    Whether the source pinned posts are collapsed or not
+    """
+    collapsePinnedPosts: Boolean
   }
 
   type SourceMember {
@@ -492,6 +496,26 @@ export const typeDefs = /* GraphQL */ `
     showSourceFeedPosts(
       """
       Source id to show posts on feed
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Collapse source pinned posts
+    """
+    collapsePinnedPosts(
+      """
+      Source id to collapse posts in
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Expand source pinned posts
+    """
+    expandPinnedPosts(
+      """
+      Source id to expand posts in
       """
       sourceId: ID!
     ): EmptyResponse! @auth
@@ -832,6 +856,25 @@ const updateHideFeedPostsFlag = async (
     {
       flags: updateFlagsStatement<SourceMember>({
         hideFeedPosts: value,
+      }),
+    },
+  );
+
+  return { _: true };
+};
+
+const togglePinnedPosts = async (
+  ctx: Context,
+  sourceId: string,
+  value: boolean,
+): Promise<GQLEmptyResponse> => {
+  await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
+
+  await ctx.con.getRepository(SourceMember).update(
+    { sourceId, userId: ctx.userId },
+    {
+      flags: updateFlagsStatement<SourceMember>({
+        collapsePinnedPosts: value,
       }),
     },
   );
@@ -1318,6 +1361,12 @@ export const resolvers: IResolvers<any, Context> = {
     },
     showSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
       return updateHideFeedPostsFlag(ctx, sourceId, false);
+    },
+    collapsePinnedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+      return togglePinnedPosts(ctx, sourceId, true);
+    },
+    expandPinnedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+      return togglePinnedPosts(ctx, sourceId, false);
     },
   }),
   Source: {
