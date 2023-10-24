@@ -9,6 +9,7 @@ import {
   PostType,
   UserPost,
   UserPostVote,
+  CampaignCtaPlacement,
 } from '../../src/entity';
 import {
   notifyAlertsUpdated,
@@ -1362,6 +1363,7 @@ describe('settings', () => {
     optOutWeeklyGoal: false,
     optOutCompanion: false,
     autoDismissNotifications: true,
+    campaignCtaPlacement: CampaignCtaPlacement.Header,
     updatedAt: date.getTime(),
   };
 

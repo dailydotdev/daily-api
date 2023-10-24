@@ -168,7 +168,7 @@ const worker: Worker = {
       ...baseNotificationEmailData,
       to: {
         email: user.email,
-        name: user.name,
+        name: userName,
       },
       sendAt: Math.floor(emailSendDate.getTime() / 1000),
       templateId: emailTemplateId,

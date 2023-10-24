@@ -654,22 +654,26 @@ query Source($id: ID!) {
 
 describe('query sourceMembers', () => {
   const QUERY = `
-query SourceMembers($id: ID!, $role: String) {
-  sourceMembers(sourceId: $id, role: $role) {
-    pageInfo {
-      endCursor
-      hasNextPage
-    }
-    edges {
-      node {
-        role
-        roleRank
-        user { id }
-        source { id }
+    query SourceMembers($id: ID!, $role: String, $query: String) {
+      sourceMembers(sourceId: $id, role: $role, query: $query) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            role
+            roleRank
+            user {
+              id
+              name
+              username
+            }
+            source { id }
+          }
+        }
       }
     }
-  }
-}
   `;
 
   it('should not authorize when source does not exist', () =>
@@ -692,6 +696,15 @@ query SourceMembers($id: ID!, $role: String) {
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return source members without blocked members and based on query', async () => {
+    const res = await client.query(QUERY, {
+      variables: { id: 'a', query: 'i' },
+    });
+    expect(res.errors).toBeFalsy();
+    const [found] = res.data.sourceMembers.edges;
+    expect(found.node.user.name).toEqual('Ido');
   });
 
   it('should return source members and order by their role', async () => {
@@ -2407,12 +2420,197 @@ describe('mutation showSourceFeedPosts', () => {
   });
 });
 
+describe('mutation collapsePinnedPosts', () => {
+  const MUTATION = `
+    mutation CollapsePinnedPosts($sourceId: ID!) {
+      collapsePinnedPosts(sourceId: $sourceId) {
+        _
+      }
+  }`;
+
+  const variables = {
+    sourceId: 's1',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw when user is not a member', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).delete({
+      sourceId: 's1',
+      userId: '1',
+    });
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw when user is blocked', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).update(
+      {
+        sourceId: 's1',
+        userId: '1',
+      },
+      {
+        role: SourceMemberRoles.Blocked,
+      },
+    );
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should set flags.collapsePinnedPosts to true', async () => {
+    loggedUser = '1';
+    let sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember).toBeTruthy();
+    expect(sourceMember?.flags.collapsePinnedPosts).toEqual(undefined);
+
+    await client.mutate(MUTATION, { variables: { sourceId: 's1' } });
+    sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember?.flags.collapsePinnedPosts).toEqual(true);
+  });
+});
+
+describe('mutation expandPinnedPosts', () => {
+  const MUTATION = `
+    mutation ExpandPinnedPosts($sourceId: ID!) {
+      expandPinnedPosts(sourceId: $sourceId) {
+      _
+    }
+  }`;
+
+  const variables = {
+    sourceId: 's1',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw when user is not a member', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).delete({
+      sourceId: 's1',
+      userId: '1',
+    });
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw when user is blocked', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).update(
+      {
+        sourceId: 's1',
+        userId: '1',
+      },
+      {
+        role: SourceMemberRoles.Blocked,
+      },
+    );
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should set flags.collapsePinnedPosts to false', async () => {
+    loggedUser = '1';
+    let sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember).toBeTruthy();
+    expect(sourceMember?.flags.collapsePinnedPosts).toEqual(undefined);
+
+    await client.mutate(MUTATION, { variables: { sourceId: 's1' } });
+    sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember?.flags.collapsePinnedPosts).toEqual(false);
+  });
+});
+
 describe('SourceMember flags field', () => {
   const QUERY = `{
     source(id: "a") {
       currentMember {
         flags {
           hideFeedPosts
+          collapsePinnedPosts
         }
       }
     }
@@ -2423,13 +2621,17 @@ describe('SourceMember flags field', () => {
     await con.getRepository(SourceMember).update(
       { userId: '1', sourceId: 'a' },
       {
-        flags: updateFlagsStatement({ hideFeedPosts: true }),
+        flags: updateFlagsStatement({
+          hideFeedPosts: true,
+          collapsePinnedPosts: true,
+        }),
       },
     );
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.source.currentMember.flags).toEqual({
       hideFeedPosts: true,
+      collapsePinnedPosts: true,
     });
   });
 
@@ -2438,6 +2640,7 @@ describe('SourceMember flags field', () => {
     const res = await client.query(QUERY);
     expect(res.data.source.currentMember.flags).toEqual({
       hideFeedPosts: null,
+      collapsePinnedPosts: null,
     });
   });
 });

@@ -3,19 +3,22 @@ import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
-  Post,
-  DevCard,
-  User,
   Comment,
+  DevCard,
+  Feature,
+  FeatureType,
+  FeatureValue,
+  Post,
   PostStats,
-  View,
+  User,
   validateUserUpdate,
+  View,
 } from '../entity';
 import { getAuthorPostStats } from '../entity/posts';
 import {
   AuthenticationError,
-  ValidationError,
   ForbiddenError,
+  ValidationError,
 } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
@@ -30,11 +33,15 @@ import {
   uploadAvatar,
   uploadDevCardBackground,
 } from '../common';
-import { getSearchQuery } from './common';
+import { getSearchQuery, GQLEmptyResponse } from './common';
 import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
-import { TypeOrmError, NotFoundError } from '../errors';
+import {
+  NotFoundError,
+  SubmissionFailErrorKeys,
+  TypeOrmError,
+} from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
 import { In } from 'typeorm';
@@ -42,6 +49,7 @@ import { DisallowHandle } from '../entity/DisallowHandle';
 import { DayOfWeek } from '../types';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import { getTimezoneOffset } from 'date-fns-tz';
+import { CampaignType, Invite } from '../entity/Invite';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -122,6 +130,8 @@ export interface ReadingRankArgs {
 
 export interface ReferralCampaign {
   referredUsersCount: number;
+  referralCountLimit: number;
+  referralToken: string;
   url: string;
 }
 
@@ -356,6 +366,8 @@ export const typeDefs = /* GraphQL */ `
 
   type ReferralCampaign {
     referredUsersCount: Int!
+    referralCountLimit: Int
+    referralToken: String
     url: String!
   }
 
@@ -530,6 +542,23 @@ export const typeDefs = /* GraphQL */ `
     The mutation to unsubscribe from the personalized digest
     """
     unsubscribePersonalizedDigest: EmptyResponse @auth
+    """
+    The mutation to accept feature invites from another user
+    """
+    acceptFeatureInvite(
+      """
+      The token to validate whether the inviting user has access to the relevant feature
+      """
+      token: String!
+      """
+      The user id of the inviting user to cross-check token validity
+      """
+      referrerId: ID!
+      """
+      Name of the feature the user is getting invited to
+      """
+      feature: String!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -841,15 +870,27 @@ export const resolvers: IResolvers<any, Context> = {
       campaignUrl.searchParams.append('cid', referralOrigin);
       campaignUrl.searchParams.append('userid', ctx.userId);
 
+      const userInvite = await ctx.getRepository(Invite).findOneBy({
+        userId: ctx.userId,
+        campaign: referralOrigin as CampaignType,
+      });
+
+      if (userInvite) {
+        campaignUrl.searchParams.append('ctoken', userInvite.token);
+      }
+
       const [referredUsersCount, url] = await Promise.all([
-        userRepo.count({
-          where: { referralId: ctx.userId, referralOrigin },
-        }),
+        userInvite?.count ||
+          userRepo.count({
+            where: { referralId: ctx.userId, referralOrigin },
+          }),
         getShortUrl(campaignUrl.toString(), ctx.log),
       ]);
 
       return {
         referredUsersCount,
+        referralCountLimit: userInvite?.limit,
+        referralToken: userInvite?.token,
         url,
       };
     },
@@ -1041,6 +1082,54 @@ export const resolvers: IResolvers<any, Context> = {
           userId: ctx.userId,
         });
       }
+
+      return { _: true };
+    },
+    acceptFeatureInvite: async (
+      _,
+      {
+        token,
+        referrerId,
+        feature,
+      }: {
+        token: string;
+        referrerId: string;
+        feature: string;
+      },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      const referrerInvite = await ctx.con
+        .getRepository(Invite)
+        .findOneByOrFail({
+          userId: referrerId,
+          token: token,
+          campaign: feature as CampaignType,
+        });
+
+      if (referrerInvite.count >= referrerInvite.limit) {
+        throw new ValidationError(SubmissionFailErrorKeys.InviteLimitReached);
+      }
+
+      await ctx.con.transaction(async (entityManager): Promise<void> => {
+        try {
+          await entityManager.getRepository(Feature).insert({
+            userId: ctx.userId,
+            feature: feature as FeatureType,
+            invitedById: referrerId,
+            value: FeatureValue.Allow,
+          });
+        } catch (err) {
+          if (err.code === TypeOrmError.DUPLICATE_ENTRY) return;
+          throw err;
+        }
+
+        await entityManager.getRepository(Invite).update(
+          { token: token },
+          {
+            count: referrerInvite.count + 1,
+          },
+        );
+      });
 
       return { _: true };
     },

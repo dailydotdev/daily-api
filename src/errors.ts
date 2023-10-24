@@ -26,6 +26,8 @@ export enum SubmissionFailErrorKeys {
   ExistsStarted = 'EXISTS_STARTED',
   ExistsAccepted = 'EXISTS_ACCEPTED',
   ExistsRejected = 'EXISTS_REJECTED',
+  InviteLimitReached = 'INVITE_LIMIT_REACHED',
+  OnboardingTagLimitReached = 'ONBOARDING_TAG_LIMIT_REACHED',
 }
 
 export const SubmissionFailErrorMessage: Record<
@@ -47,6 +49,7 @@ export const SubmissionFailErrorMessage: Record<
     'You do not have sufficient permissions and or reputation to submit a community link yet.',
   LIMIT_REACHED:
     'You can only submit 3 links per day and have reached your limit. Please try again tomorrow.',
+  INVITE_LIMIT_REACHED: 'You have reached your limit of available invites',
   INVALID_URL:
     'The URL you submitted is not valid, please check and try again.',
   POST_DELETED:
@@ -57,6 +60,7 @@ export const SubmissionFailErrorMessage: Record<
     'This article has already been submitted and is currently being added to the daily.dev feed',
   EXISTS_REJECTED:
     'This article has already been submitted but did not meet our technical requirements, it cannot be submitted again',
+  ONBOARDING_TAG_LIMIT_REACHED: 'Tag limit reached',
 };
 
 export class NotFoundError extends ApolloError {

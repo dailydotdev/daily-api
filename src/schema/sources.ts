@@ -12,6 +12,7 @@ import {
   SourceMemberFlagsPublic,
   SourceType,
   SquadSource,
+  User,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -79,6 +80,7 @@ interface UpdateMemberRoleArgs {
 
 interface SourceMemberArgs extends ConnectionArguments {
   sourceId: string;
+  query?: string;
   role?: SourceMemberRoles;
 }
 
@@ -197,6 +199,10 @@ export const typeDefs = /* GraphQL */ `
     Whether the source posts are hidden from feed for member
     """
     hideFeedPosts: Boolean
+    """
+    Whether the source pinned posts are collapsed or not
+    """
+    collapsePinnedPosts: Boolean
   }
 
   type SourceMember {
@@ -299,6 +305,11 @@ export const typeDefs = /* GraphQL */ `
       Should return users with this specific role only
       """
       role: String
+
+      """
+      Property to utilize for searching members
+      """
+      query: String
     ): SourceMemberConnection!
 
     """
@@ -485,6 +496,26 @@ export const typeDefs = /* GraphQL */ `
     showSourceFeedPosts(
       """
       Source id to show posts on feed
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Collapse source pinned posts
+    """
+    collapsePinnedPosts(
+      """
+      Source id to collapse posts in
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Expand source pinned posts
+    """
+    expandPinnedPosts(
+      """
+      Source id to expand posts in
       """
       sourceId: ID!
     ): EmptyResponse! @auth
@@ -832,6 +863,25 @@ const updateHideFeedPostsFlag = async (
   return { _: true };
 };
 
+const togglePinnedPosts = async (
+  ctx: Context,
+  sourceId: string,
+  value: boolean,
+): Promise<GQLEmptyResponse> => {
+  await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
+
+  await ctx.con.getRepository(SourceMember).update(
+    { sourceId, userId: ctx.userId },
+    {
+      flags: updateFlagsStatement<SourceMember>({
+        collapsePinnedPosts: value,
+      }),
+    },
+  );
+
+  return { _: true };
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -903,7 +953,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     sourceMembers: async (
       _,
-      { role, sourceId, ...args }: SourceMemberArgs,
+      { role, sourceId, query, ...args }: SourceMemberArgs,
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
@@ -926,12 +976,20 @@ export const resolvers: IResolvers<any, Context> = {
             .andWhere(`${builder.alias}."sourceId" = :source`, {
               source: sourceId,
             })
-
             .addOrderBy(
               graphorm.mappings.SourceMember.fields.roleRank.select as string,
               'DESC',
             )
             .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+
+          if (query) {
+            builder.queryBuilder = builder.queryBuilder
+              .innerJoin(User, 'u', `${builder.alias}."userId" = u.id`)
+              .andWhere(
+                `(REPLACE(u.name, ' ', '') ILIKE :name OR u.username ILIKE :name)`,
+                { name: `${query}%` },
+              );
+          }
 
           if (role) {
             builder.queryBuilder = builder.queryBuilder.andWhere(
@@ -1303,6 +1361,12 @@ export const resolvers: IResolvers<any, Context> = {
     },
     showSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
       return updateHideFeedPostsFlag(ctx, sourceId, false);
+    },
+    collapsePinnedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+      return togglePinnedPosts(ctx, sourceId, true);
+    },
+    expandPinnedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+      return togglePinnedPosts(ctx, sourceId, false);
     },
   }),
   Source: {

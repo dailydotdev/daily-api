@@ -31,4 +31,10 @@ export class Feature {
 
   @Column({ type: 'smallint', default: FeatureValue.Allow })
   value: FeatureValue = FeatureValue.Allow;
+
+  @Column({ length: 36, nullable: true })
+  invitedById: string;
+
+  @ManyToOne(() => User, { lazy: true, nullable: true, onDelete: 'SET NULL' })
+  invitedBy: Promise<User | null>;
 }
