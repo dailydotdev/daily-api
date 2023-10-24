@@ -93,9 +93,9 @@ export class User {
   @Index('IDX_user_profileConfirmed')
   profileConfirmed: boolean | null;
 
-  @Column({ nullable: true })
+  @Column({ nullable: false, default: () => 'now()' })
   @Index('IDX_user_createdAt')
-  createdAt?: Date;
+  createdAt: Date;
 
   @Column({ nullable: true })
   updatedAt?: Date;
