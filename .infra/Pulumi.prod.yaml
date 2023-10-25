@@ -65,6 +65,8 @@ config:
       secure: AAABAI/bDI+xz5PMlMZseI2kW5oanHk3z1KcAOZJb+/G8arhgSP1EMdqdOTk0kku1t6KTWtl9+oSSDKWYNH1CG5D+Ac1ZPFAWc/ldmEb/iU=
     onesignalAppId:
       secure: AAABALTizkxZkCfsq6/fx2v7nXxsVP7psWBfSUct0zeyrX0ABxPpD30zIsyx5r5wqt1UJIIXDIVOnhM7W3vzrzaatrE=
+    otelTracesSampler: parentbased_traceidratio
+    otelTracesSamplerArg: 0.1
     personalizedDigestFeed:
       secure: AAABAGP/d+fM8gESq9WXxiaYwkOKuNYIkM2xsxIh0gBoFnHaoak40gPpBfPYgE2GYZGjjln+XhVt406Ci+IIPcw=
     postScraperOrigin:

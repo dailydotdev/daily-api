@@ -2473,7 +2473,7 @@ describe('mutation acceptFeatureInvite', () => {
     expect(feature.invitedById).toEqual('2');
   });
 
-  it('should not enable the feature for the referred if it already blocked', async () => {
+  it('should not enable the feature or increment invites count for the referred if it already exists', async () => {
     loggedUser = '1';
 
     await con.getRepository(Feature).save({
@@ -2507,5 +2507,10 @@ describe('mutation acceptFeatureInvite', () => {
 
     expect(feature.value).toEqual(FeatureValue.Block);
     expect(feature.invitedById).toBeNull();
+
+    const invite = await con
+      .getRepository(Invite)
+      .findOneBy({ token: 'd688afeb-381c-43b5-89af-533f81ccd036' });
+    expect(invite.count).toEqual(1);
   });
 });

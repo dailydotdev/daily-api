@@ -21,7 +21,7 @@ import { Context } from '../Context';
 import { Page, PageGenerator, getSearchQuery } from '../schema/common';
 import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
-import { runInSpan } from '../trace';
+import { runInSpan } from '../telemetry/opentelemetry';
 
 export const whereTags = (
   tags: string[],
@@ -277,56 +277,48 @@ export function feedResolver<
     const page = pageGenerator.connArgsToPage(args);
     const queryParams =
       fetchQueryParams &&
-      (await runInSpan(context.span, 'feedResolver.fetchQueryParams', () =>
+      (await runInSpan('feedResolver.fetchQueryParams', async () =>
         fetchQueryParams(context, args, page),
       ));
-    const result = await runInSpan(
-      context.span,
-      'feedResolver.queryPaginated',
-      () =>
-        graphorm.queryPaginated<GQLPost>(
-          context,
-          info,
-          (nodeSize) =>
-            pageGenerator.hasPreviousPage(
-              page,
-              nodeSize,
-              undefined,
-              queryParams,
-            ),
-          (nodeSize) =>
-            pageGenerator.hasNextPage(page, nodeSize, undefined, queryParams),
-          (node, index) =>
-            pageGenerator.nodeToCursor(page, args, node, index, queryParams),
-          (builder) => {
-            builder.queryBuilder = applyFeedWhere(
+    const result = await runInSpan('feedResolver.queryPaginated', async () =>
+      graphorm.queryPaginated<GQLPost>(
+        context,
+        info,
+        (nodeSize) =>
+          pageGenerator.hasPreviousPage(page, nodeSize, undefined, queryParams),
+        (nodeSize) =>
+          pageGenerator.hasNextPage(page, nodeSize, undefined, queryParams),
+        (node, index) =>
+          pageGenerator.nodeToCursor(page, args, node, index, queryParams),
+        (builder) => {
+          builder.queryBuilder = applyFeedWhere(
+            context,
+            applyPaging(
               context,
-              applyPaging(
+              args,
+              page,
+              query(
                 context,
                 args,
-                page,
-                query(
-                  context,
-                  args,
-                  builder.queryBuilder,
-                  builder.alias,
-                  queryParams,
-                ),
+                builder.queryBuilder,
                 builder.alias,
+                queryParams,
               ),
               builder.alias,
-              args.supportedTypes || ['article'],
-              removeHiddenPosts,
-              removeBannedPosts,
-              allowPrivateSources,
-              allowSquadPosts,
-            );
-            // console.log(builder.queryBuilder.getSql());
-            return builder;
-          },
-          (nodes) =>
-            pageGenerator.transformNodes?.(page, nodes, queryParams) ?? nodes,
-        ),
+            ),
+            builder.alias,
+            args.supportedTypes || ['article'],
+            removeHiddenPosts,
+            removeBannedPosts,
+            allowPrivateSources,
+            allowSquadPosts,
+          );
+          // console.log(builder.queryBuilder.getSql());
+          return builder;
+        },
+        (nodes) =>
+          pageGenerator.transformNodes?.(page, nodes, queryParams) ?? nodes,
+      ),
     );
     // Sometimes the feed can have a bit less posts than requested due to recent ban or deletion
     if (

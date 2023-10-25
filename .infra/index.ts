@@ -34,6 +34,7 @@ const { serviceAccount } = createServiceAccountAndGrantRoles(
   [
     { name: 'profiler', role: 'roles/cloudprofiler.agent' },
     { name: 'trace', role: 'roles/cloudtrace.agent' },
+    { name: 'monitoring', role: 'roles/monitoring.metricWriter' },
     { name: 'secret', role: 'roles/secretmanager.secretAccessor' },
     { name: 'pubsub', role: 'roles/pubsub.editor' },
   ],
@@ -155,7 +156,6 @@ if (isAdhocEnv) {
   appsArgs = [
     {
       args: ['npm', 'run', 'dev'],
-      port: 3000,
       env: [
         nodeOptions(memory),
         {
@@ -173,6 +173,18 @@ if (isAdhocEnv) {
       maxReplicas: 15,
       limits,
       metric: { type: 'memory_cpu', cpu: 70 },
+      ports: [
+        { containerPort: 3000, name: 'http' },
+        { containerPort: 9464, name: 'metrics' },
+      ],
+      servicePorts: [
+        { targetPort: 3000, port: 80, name: 'http' },
+        { targetPort: 9464, port: 9464, name: 'metrics' },
+      ],
+      podAnnotations: {
+        'prometheus.io/scrape': 'true',
+        'prometheus.io/port': '9464',
+      },
       createService: true,
       ...jwtVols,
     },
@@ -186,6 +198,16 @@ if (isAdhocEnv) {
         type: 'pubsub',
         labels: { app: name },
         targetAverageValue: 50,
+      },
+      ports: [
+        { containerPort: 9464, name: 'metrics' },
+      ],
+      servicePorts: [
+        { targetPort: 9464, port: 9464, name: 'metrics' },
+      ],
+      podAnnotations: {
+        'prometheus.io/scrape': 'true',
+        'prometheus.io/port': '9464',
       },
     },
   ];
