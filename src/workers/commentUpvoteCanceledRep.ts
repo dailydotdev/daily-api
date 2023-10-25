@@ -15,10 +15,18 @@ const worker: Worker = {
   subscription: 'comment-upvote-canceled-rep',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
+    const logDetails = { data, messageId: message.messageId };
+
     try {
       const comment = await con
         .getRepository(Comment)
         .findOneBy({ id: data.commentId });
+
+      if (!comment) {
+        logger.info(logDetails, 'comment does not exist');
+        return;
+      }
+
       if (comment.userId !== data.userId) {
         await con
           .getRepository(ReputationEvent)
