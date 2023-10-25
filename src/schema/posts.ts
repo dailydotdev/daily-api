@@ -134,8 +134,11 @@ export interface GQLPost {
 interface PinPostArgs {
   id: string;
   pinned: boolean;
-  nextPostId?: Post['id'];
-  prevPostId?: Post['id'];
+}
+
+interface SwapPinnedPostArgs {
+  id: Post['id'];
+  swapWithId: Post['id'];
 }
 
 type GQLPostQuestion = Pick<PostQuestion, 'id' | 'post' | 'question'>;
@@ -746,12 +749,21 @@ export const typeDefs = /* GraphQL */ `
       Whether to pin the post or not
       """
       pinned: Boolean!
+    ): EmptyResponse @auth
+
+    """
+    Swap the order of 2 pinned posts based on their pinnedAt timestamp
+    """
+    swapPinnedPosts(
+      """
+      Id of the post to update the pinnedAt property
+      """
+      id: ID!
 
       """
-      If passed in, will update the pinned timestamp to be before the given post ID
+      The post ID to swap with
       """
-      nextPostId: ID
-      prevPostId: ID
+      swapWithId: ID!
     ): EmptyResponse @auth
 
     """
@@ -1361,13 +1373,12 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLEmptyResponse> => updatePromoteToPublicFlag(ctx, id, null),
     updatePinPost: async (
       _,
-      { id, pinned, nextPostId, prevPostId }: PinPostArgs,
+      { id, pinned }: PinPostArgs,
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (manager) => {
         const repo = manager.getRepository(Post);
         const post = await repo.findOneBy({ id });
-        const args = { pinnedAt: pinned ? new Date() : null };
 
         await ensureSourcePermissions(
           ctx,
@@ -1375,28 +1386,59 @@ export const resolvers: IResolvers<any, Context> = {
           SourcePermissions.PostPin,
         );
 
-        if (post.pinnedAt && (nextPostId || prevPostId)) {
-          const swapWithPost = await repo.findOneBy({
-            id: nextPostId || prevPostId,
-          });
-          const swapPinnedTime = swapWithPost.pinnedAt.getTime();
-          const randomizedIncrement = Math.floor(Math.random() * 10) * 1000;
+        await repo.update({ id }, { pinnedAt: pinned ? new Date() : null });
+      });
 
-          console.log(
-            { swapPinnedTime, post: post.pinnedAt.getTime() },
-            swapPinnedTime > post.pinnedAt.getTime(),
-          );
+      return { _: true };
+    },
+    swapPinnedPosts: async (
+      _,
+      { id, swapWithId }: SwapPinnedPostArgs,
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.transaction(async (manager) => {
+        const repo = manager.getRepository(Post);
+        const post = await repo.findOneBy({ id });
+        const swapWithPost = await repo.findOneBy({
+          id: swapWithId,
+        });
 
-          if (nextPostId) {
-            args.pinnedAt = new Date(swapPinnedTime - 10 * 1000);
-          }
+        await ensureSourcePermissions(
+          ctx,
+          post.sourceId,
+          SourcePermissions.PostPin,
+        );
 
-          if (prevPostId) {
-            args.pinnedAt = new Date(swapPinnedTime + 10 * 1000);
-          }
+        if (!post.pinnedAt || !swapWithPost.pinnedAt) {
+          throw new ValidationError('Posts must be pinned first');
         }
 
-        await repo.update({ id }, args);
+        const isNextPost = swapWithPost.pinnedAt > post.pinnedAt;
+        const swapPinnedTime = new Date(
+          swapWithPost.pinnedAt.getTime() + 1000 * (isNextPost ? 1 : -1),
+        );
+        const operation = isNextPost
+          ? `+ interval '1 second'`
+          : `- interval '1 second'`;
+        const comparison = isNextPost ? '>=' : '<=';
+
+        await manager.query(
+          `
+          UPDATE post
+          SET "pinnedAt" = "pinnedAt" ${operation}
+          WHERE "pinnedAt" IS NOT NULL
+            AND "pinnedAt" ${comparison} $1
+            AND "sourceId" = $2
+        `,
+          [swapPinnedTime, post.sourceId],
+        );
+
+        await repo.update(
+          { id },
+          {
+            pinnedAt: swapPinnedTime,
+          },
+        );
       });
 
       return { _: true };
