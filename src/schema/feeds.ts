@@ -231,6 +231,16 @@ export const typeDefs = /* GraphQL */ `
     ): PostConnection! @auth
 
     """
+    Get feed preview
+    """
+    feedPreview(
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection! @auth
+
+    """
     Get an adhoc feed using a provided config
     """
     feedByConfig(
@@ -922,6 +932,24 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         );
       }
       return feedResolverV1(source, args, ctx, info);
+    },
+    feedPreview: (
+      source,
+      args: Pick<ConfiguredFeedArgs, 'supportedTypes'>,
+      ctx: Context,
+      info,
+    ) => {
+      return feedResolverV2(
+        source,
+        {
+          ...(args as FeedArgs),
+          first: 20,
+          ranking: Ranking.POPULARITY,
+          generator: feedGenerators.onboarding,
+        },
+        ctx,
+        info,
+      );
     },
     feedByConfig: (
       source,

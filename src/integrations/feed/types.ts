@@ -6,6 +6,7 @@ export enum FeedConfigName {
   Personalise = 'personalise',
   PersonaliseOnboard = 'personalise_onboard',
   Vector = 'vector',
+  Onboarding = 'onboarding',
 }
 
 export type FeedProvider = {
@@ -69,4 +70,4 @@ export interface IFeedClient {
   ): Promise<FeedResponse>;
 }
 
-export type FeedVersion = '15' | '16' | 'popular';
+export type FeedVersion = '15' | '16' | 'popular' | 'onboarding';
