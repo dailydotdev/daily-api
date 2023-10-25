@@ -944,6 +944,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         {
           ...(args as FeedArgs),
           first: 20,
+          ranking: Ranking.POPULARITY,
           generator: feedGenerators.onboarding,
         },
         ctx,

@@ -1722,10 +1722,6 @@ describe('function feedToFilters', () => {
 });
 
 describe('query feedPreview', () => {
-  const variables = {
-    ranking: Ranking.TIME,
-  };
-
   const QUERY = `
   query FeedPreview($supportedTypes: [String!]) {
     feedPreview(supportedTypes: $supportedTypes) {
@@ -1735,7 +1731,11 @@ describe('query feedPreview', () => {
 `;
 
   it('should not authorize when not logged-in', () =>
-    testQueryErrorCode(client, { query: QUERY, variables }, 'UNAUTHENTICATED'));
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: {} },
+      'UNAUTHENTICATED',
+    ));
 
   it('should return feed', async () => {
     loggedUser = '1';
@@ -1755,7 +1755,7 @@ describe('query feedPreview', () => {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
       });
 
-    const res = await client.query(QUERY, { variables });
+    const res = await client.query(QUERY, { variables: {} });
 
     expect(res.errors).toBeFalsy();
     expect(res.data.feedPreview.edges.length).toEqual(2);
