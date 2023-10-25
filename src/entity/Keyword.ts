@@ -43,6 +43,5 @@ export class Keyword {
   occurrences: number;
 
   @Column({ type: 'jsonb', default: {} })
-  @Index('IDX_keyword_flags_onboarding', { synchronize: false })
   flags: KeywordFlags = {};
 }
