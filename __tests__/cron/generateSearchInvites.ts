@@ -14,7 +14,7 @@ import cron from '../../src/cron/generateSearchInvites';
 
 let con: DataSource;
 const oldDate = new Date();
-oldDate.setDate(oldDate.getDate() - 8);
+oldDate.setDate(oldDate.getDate() - 2);
 
 const featuresFixture: Partial<Feature>[] = [
   // invalid for invite, createdAt not within threshold

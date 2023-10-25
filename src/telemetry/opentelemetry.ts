@@ -10,28 +10,20 @@ import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { GrpcInstrumentation } from '@opentelemetry/instrumentation-grpc';
 import { TypeormInstrumentation } from 'opentelemetry-instrumentation-typeorm';
 
-import {
-  NodeSDK,
-  logs,
-  node,
-  api,
-  resources,
-  metrics,
-} from '@opentelemetry/sdk-node';
-import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
+import { NodeSDK, logs, node, api, resources } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 import { SemanticAttributes as SemAttr } from '@opentelemetry/semantic-conventions';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
-import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
 // import { CloudPropagator } from '@google-cloud/opentelemetry-cloud-trace-propagator';
 
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
 
 import dc from 'node:diagnostics_channel';
+import { isProd } from '../common';
+import { startMetrics } from './metrics';
 const channel = dc.channel('fastify.initialization');
 
-const isProd = process.env.NODE_ENV === 'production';
 const resourceDetectors = [
   resources.envDetectorSync,
   resources.hostDetectorSync,
@@ -124,16 +116,6 @@ export const tracer = (serviceName: string) => {
     ? new node.BatchSpanProcessor(traceExporter)
     : new node.SimpleSpanProcessor(traceExporter);
 
-  const metricReader = isProd
-    ? new metrics.PeriodicExportingMetricReader({
-        exportIntervalMillis: 10_000,
-        exporter: new MetricExporter(),
-      })
-    : new PrometheusExporter({}, () => {
-        const { endpoint, port } = PrometheusExporter.DEFAULT_OPTIONS;
-        console.log(`metrics endpoint: http://localhost:${port}${endpoint}`);
-      });
-
   const sdk = new NodeSDK({
     serviceName,
     logRecordProcessor: new logs.SimpleLogRecordProcessor(
@@ -142,7 +124,6 @@ export const tracer = (serviceName: string) => {
     spanProcessor,
     instrumentations,
     resourceDetectors,
-    metricReader,
     // textMapPropagator: new CloudPropagator(),
   });
 
@@ -180,7 +161,10 @@ export const tracer = (serviceName: string) => {
   });
 
   return {
-    start: () => sdk.start(),
+    start: () => {
+      sdk.start();
+      startMetrics(serviceName);
+    },
     tracer,
   };
 };
