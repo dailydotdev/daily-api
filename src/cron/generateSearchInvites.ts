@@ -10,7 +10,7 @@ const cron: Cron = {
       SELECT  f.feature,
               f."userId"
       FROM    feature f
-      WHERE   f."createdAt" < now() - interval '7 days'
+      WHERE   f."createdAt" < now() - interval '1 days'
         AND   f."value" = $1
         AND   f."feature" = $2
         AND NOT EXISTS (
