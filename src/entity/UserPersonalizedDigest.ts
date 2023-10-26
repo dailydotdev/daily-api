@@ -17,6 +17,9 @@ export class UserPersonalizedDigest {
   @Column({ type: 'text', default: 'Etc/UTC' })
   preferredTimezone: string;
 
+  @Column({ default: 1, nullable: false })
+  variation: number;
+
   @OneToOne(() => User, {
     lazy: true,
     onDelete: 'CASCADE',

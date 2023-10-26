@@ -23,7 +23,7 @@ interface Data {
 
 type TemplatePostData = Pick<
   ArticlePost,
-  'id' | 'title' | 'image' | 'createdAt'
+  'id' | 'title' | 'image' | 'createdAt' | 'summary'
 > & {
   sourceName: Source['name'];
   sourceImage: Source['image'];
@@ -44,12 +44,7 @@ const getEmailSendDate = ({
     personalizedDigest.preferredDay,
   );
   nextPreferredDay.setHours(personalizedDigest.preferredHour, 0, 0, 0);
-  const sendDateInPreferredTimezone = zonedTimeToUtc(
-    nextPreferredDay,
-    personalizedDigest.preferredTimezone,
-  );
-
-  return sendDateInPreferredTimezone;
+  return zonedTimeToUtc(nextPreferredDay, personalizedDigest.preferredTimezone);
 };
 
 const getPreviousSendDate = ({
@@ -70,7 +65,7 @@ const getPreviousSendDate = ({
 };
 
 const getPostsTemplateData = ({ posts }: { posts: TemplatePostData[] }) => {
-  const templateData = posts.map((post) => {
+  return posts.map((post) => {
     return {
       post_title: post.title,
       post_image: post.image || pickImageUrl(post),
@@ -83,8 +78,41 @@ const getPostsTemplateData = ({ posts }: { posts: TemplatePostData[] }) => {
       source_image: post.sourceImage,
     };
   });
+};
 
-  return templateData;
+const getEmailVariation = async (
+  variation: number,
+  firstName: string,
+  dayName: string,
+  posts: TemplatePostData[],
+): Promise<Partial<MailDataRequired>> => {
+  const defaultPreview = `Every ${dayName}, we'll send you five posts you haven't read. Each post was carefully picked based topics you love reading about. Let's get to it!`;
+  const data = {
+    day_name: dayName,
+    first_name: firstName,
+    posts: getPostsTemplateData({ posts }),
+  };
+  if (variation === 2) {
+    return {
+      dynamicTemplateData: {
+        ...data,
+        title: posts[0].title,
+        preview: posts[0].summary || defaultPreview,
+      },
+      from: {
+        email: 'digest@daily.dev',
+        name: 'Weekly Digest',
+      },
+    };
+  }
+
+  return {
+    dynamicTemplateData: {
+      ...data,
+      title: `${firstName}, your personal weekly update from daily.dev is ready`,
+      preview: defaultPreview,
+    },
+  };
 };
 
 const worker: Worker = {
@@ -145,7 +173,7 @@ const worker: Worker = {
       con
         .createQueryBuilder(Post, 'p')
         .select(
-          'p.id, p.title, p.image, p."createdAt", s.name as "sourceName", s.image as "sourceImage"',
+          'p.id, p.title, p.image, p."createdAt", p.summary, s.name as "sourceName", s.image as "sourceImage"',
         )
         .leftJoin(Source, 's', 'p."sourceId" = s.id'),
       'p',
@@ -164,6 +192,12 @@ const worker: Worker = {
       ([, value]) => value === personalizedDigest.preferredDay,
     );
     const userName = user.name?.trim().split(' ')[0] || user.username;
+    const variationProps = await getEmailVariation(
+      personalizedDigest.variation,
+      userName,
+      dayName,
+      posts,
+    );
     const emailPayload: MailDataRequired = {
       ...baseNotificationEmailData,
       to: {
@@ -172,15 +206,11 @@ const worker: Worker = {
       },
       sendAt: Math.floor(emailSendDate.getTime() / 1000),
       templateId: emailTemplateId,
-      dynamicTemplateData: {
-        day_name: dayName,
-        first_name: userName,
-        posts: await getPostsTemplateData({ posts }),
-      },
       asm: {
         groupId: 23809,
       },
       category: 'Digests',
+      ...variationProps,
     };
 
     await sendEmail(emailPayload);
