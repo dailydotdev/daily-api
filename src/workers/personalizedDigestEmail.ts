@@ -86,6 +86,7 @@ const getEmailVariation = async (
   dayName: string,
   posts: TemplatePostData[],
 ): Promise<Partial<MailDataRequired>> => {
+  const defaultPreview = `Every ${dayName}, we'll send you five posts you haven't read. Each post was carefully picked based topics you love reading about. Let's get to it!`;
   const data = {
     day_name: dayName,
     first_name: firstName,
@@ -96,6 +97,7 @@ const getEmailVariation = async (
       dynamicTemplateData: {
         ...data,
         title: posts[0].title,
+        preview: posts[0].summary || defaultPreview,
       },
       from: {
         email: 'digest@daily.dev',
@@ -108,6 +110,7 @@ const getEmailVariation = async (
     dynamicTemplateData: {
       ...data,
       title: `${firstName}, your personal weekly update from daily.dev is ready`,
+      preview: defaultPreview,
     },
   };
 };
