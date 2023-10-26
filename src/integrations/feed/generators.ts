@@ -103,7 +103,7 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
       'popular',
     ),
     onboarding: new FeedGenerator(
-      cachedFeedClient,
+      feedClient,
       new FeedPreferencesConfigGenerator(
         {
           feed_config_name: FeedConfigName.Onboarding,

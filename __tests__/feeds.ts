@@ -1747,6 +1747,7 @@ describe('query feedPreview', () => {
         feed_config_name: 'onboarding',
         total_pages: 1,
         page_size: 21,
+        offset: 0,
         fresh_page_size: '7',
         user_id: '1',
         allowed_tags: ['html'],
