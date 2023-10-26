@@ -16,6 +16,7 @@ export type KeywordFlagsPublic = never;
 
 @Entity()
 @Index('IDX_status_value', ['status', 'value'])
+@Index('IDX_keyword_flags_onboarding_value', { synchronize: false })
 export class Keyword {
   @PrimaryColumn({ type: 'text' })
   @Index('IDX_keyword_value')
@@ -42,6 +43,5 @@ export class Keyword {
   occurrences: number;
 
   @Column({ type: 'jsonb', default: {} })
-  @Index('IDX_keyword_flags_onboarding', { synchronize: false })
   flags: KeywordFlags = {};
 }

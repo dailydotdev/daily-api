@@ -54,3 +54,10 @@ export const uniqueifyArray = <T>(array: T[]): T[] => {
  * @param array
  */
 export const removeEmptyValues = <T>(array: T[]): T[] => array.filter(Boolean);
+
+/**
+ * Check if the current environment is production
+ *
+ * @returns boolean
+ */
+export const isProd = process.env.NODE_ENV === 'production';
