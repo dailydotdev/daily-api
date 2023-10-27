@@ -112,15 +112,13 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       };
     },
     onboardingTags: async (source, args, ctx): Promise<GQLTagResults> => {
-      const hits = await ctx.getRepository(Keyword).find({
-        select: ['value'],
-        where: {
-          flags: {
-            onboarding: true,
-          },
-        },
-        order: { value: 'ASC' },
-      });
+      const hits = await ctx
+        .getRepository(Keyword)
+        .createQueryBuilder()
+        .select('value')
+        .where(`(flags->'onboarding') = 'true'`)
+        .orderBy('value', 'ASC')
+        .execute();
 
       return {
         hits: hits.map((hit) => ({ name: hit.value })),

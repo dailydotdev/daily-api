@@ -225,4 +225,24 @@ describe('personalizedDigestEmail worker', () => {
 
     expect(sendEmail).toHaveBeenCalledTimes(0);
   });
+
+  it('should set parameters based on variation', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+    personalizedDigest.variation = 2;
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      generationTimestamp: Date.now(),
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
+    expect(emailData).toMatchSnapshot({
+      sendAt: expect.any(Number),
+    });
+  });
 });

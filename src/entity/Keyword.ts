@@ -16,7 +16,7 @@ export type KeywordFlagsPublic = never;
 
 @Entity()
 @Index('IDX_status_value', ['status', 'value'])
-@Index('IDX_keyword_flags_onboarding_value', { synchronize: false })
+@Index('IDX_keyword_flags_onboarding_value_text', { synchronize: false })
 export class Keyword {
   @PrimaryColumn({ type: 'text' })
   @Index('IDX_keyword_value')

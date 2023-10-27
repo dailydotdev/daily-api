@@ -46,6 +46,8 @@ Object {
         "source_name": "B",
       },
     ],
+    "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
+    "title": "Ido, your personal weekly update from daily.dev is ready",
   },
   "from": Object {
     "email": "informer@daily.dev",
@@ -130,6 +132,8 @@ Object {
         "source_name": "B",
       },
     ],
+    "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
+    "title": "Ido, your personal weekly update from daily.dev is ready",
   },
   "from": Object {
     "email": "informer@daily.dev",
@@ -214,6 +218,8 @@ Object {
         "source_name": "B",
       },
     ],
+    "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
+    "title": "Ido, your personal weekly update from daily.dev is ready",
   },
   "from": Object {
     "email": "informer@daily.dev",
@@ -249,5 +255,79 @@ Object {
   "date_to": Any<String>,
   "total_posts": 5,
   "user_id": "1",
+}
+`;
+
+exports[`personalizedDigestEmail worker should set parameters based on variation 1`] = `
+Object {
+  "asm": Object {
+    "groupId": 23809,
+  },
+  "category": "Digests",
+  "dynamicTemplateData": Object {
+    "day_name": "Monday",
+    "first_name": "Ido",
+    "posts": Array [
+      Object {
+        "post_image": "https://daily.dev/image.jpg",
+        "post_link": "http://localhost:5002/posts/p1?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "post_title": "P1",
+        "source_image": "http://image.com/a",
+        "source_name": "A",
+      },
+      Object {
+        "post_image": "https://daily.dev/image.jpg",
+        "post_link": "http://localhost:5002/posts/p2?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "post_title": "P2",
+        "source_image": "http://image.com/b",
+        "source_name": "B",
+      },
+      Object {
+        "post_image": "https://daily.dev/image.jpg",
+        "post_link": "http://localhost:5002/posts/p3?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "post_title": "P3",
+        "source_image": "http://image.com/c",
+        "source_name": "C",
+      },
+      Object {
+        "post_image": "https://daily.dev/image.jpg",
+        "post_link": "http://localhost:5002/posts/p4?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "post_title": "P4",
+        "source_image": "http://image.com/a",
+        "source_name": "A",
+      },
+      Object {
+        "post_image": "https://daily.dev/image.jpg",
+        "post_link": "http://localhost:5002/posts/p5?utm_source=notification&utm_medium=email&utm_campaign=digest",
+        "post_title": "P5",
+        "source_image": "http://image.com/b",
+        "source_name": "B",
+      },
+    ],
+    "preview": "Every Monday, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!",
+    "title": "P1",
+  },
+  "from": Object {
+    "email": "digest@daily.dev",
+    "name": "Weekly Digest",
+  },
+  "replyTo": Object {
+    "email": "hi@daily.dev",
+    "name": "daily.dev",
+  },
+  "sendAt": Any<Number>,
+  "templateId": "d-328d1104d2e04fa1ab91e410e02751cb",
+  "to": Object {
+    "email": "ido@daily.dev",
+    "name": "Ido",
+  },
+  "trackingSettings": Object {
+    "clickTracking": Object {
+      "enable": true,
+    },
+    "openTracking": Object {
+      "enable": true,
+    },
+  },
 }
 `;
