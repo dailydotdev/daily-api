@@ -86,7 +86,7 @@ const getEmailVariation = async (
   dayName: string,
   posts: TemplatePostData[],
 ): Promise<Partial<MailDataRequired>> => {
-  const defaultPreview = `Every ${dayName}, we'll send you five posts you haven't read. Each post was carefully picked based topics you love reading about. Let's get to it!`;
+  const defaultPreview = `Every ${dayName}, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!`;
   const data = {
     day_name: dayName,
     first_name: firstName,
