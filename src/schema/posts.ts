@@ -1422,16 +1422,18 @@ export const resolvers: IResolvers<any, Context> = {
           : `- interval '1 second'`;
         const comparison = isNextPost ? '>=' : '<=';
 
-        await manager.query(
-          `
-          UPDATE post
-          SET "pinnedAt" = "pinnedAt" ${operation}
-          WHERE "pinnedAt" IS NOT NULL
-            AND "pinnedAt" ${comparison} $1
-            AND "sourceId" = $2
-        `,
-          [swapPinnedTime, post.sourceId],
-        );
+        await manager
+          .createQueryBuilder()
+          .update(Post)
+          .set({
+            pinnedAt: () => `"pinnedAt" ${operation}`,
+          })
+          .where('"pinnedAt" IS NOT NULL')
+          .andWhere(`"pinnedAt" ${comparison} :swapPinnedTime`, {
+            swapPinnedTime,
+          })
+          .andWhere('"sourceId" = :sourceId', { sourceId: post.sourceId })
+          .execute();
 
         await repo.update(
           { id },
