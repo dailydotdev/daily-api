@@ -6,6 +6,7 @@ import { parse } from 'csv-parse';
 (async (): Promise<void> => {
   const csvFilePath = process.argv[2];
   const variationArgument = process.argv[3];
+  const batch = +process.argv[4] || 10000;
   const splitBy = process.argv[4] || ',';
 
   if (!csvFilePath) {
@@ -49,17 +50,21 @@ import { parse } from 'csv-parse';
   const con = await createOrGetConnection();
 
   await con.transaction(async (manager) => {
-    await manager.query(
-      `
-        UPDATE user_personalized_digest
-        SET variation = $1
-        FROM public.user WHERE id IN (${userIds
-          .map((userId) => `'${userId}'`)
-          .filter(Boolean)
-          .join(',')});
-      `,
-      [variation],
-    );
+    for (let i = 0; i < userIds.length; i += batch) {
+      const userIdsBatch = userIds.slice(i, i + batch);
+
+      await manager.query(
+        `
+          UPDATE user_personalized_digest
+          SET variation = $1
+          FROM public.user WHERE id IN (${userIdsBatch
+            .map((userId) => `'${userId}'`)
+            .filter(Boolean)
+            .join(',')});
+        `,
+        [variation],
+      );
+    }
   });
 
   process.exit();
