@@ -1,53 +1,47 @@
 import '../src/config';
 import createOrGetConnection from '../src/db';
-import fs from 'fs';
-import { parse } from 'csv-parse';
 
 (async (): Promise<void> => {
-  const csvFilePath = process.argv[2];
-  const splitBy = process.argv[3] || ',';
+  const createdFromArgument = process.argv[2];
+  const createdToArgument = process.argv[3];
 
-  if (!csvFilePath) {
-    throw new Error('CSV file path is required');
+  if (!createdFromArgument || !createdToArgument) {
+    throw new Error('createdFrom and createdTo arguments are required');
   }
 
-  const userIds: string[] = [];
+  const createdFromDate = new Date(createdFromArgument);
 
-  console.log('reading csv file', csvFilePath);
+  if (Number.isNaN(createdFromDate.getTime())) {
+    throw new Error(
+      'createdFromDate argument is invalid, format should be ISO 6801',
+    );
+  }
 
-  const stream = fs
-    .createReadStream(csvFilePath)
-    .pipe(parse({ delimiter: splitBy, from_line: 2 }));
+  const createdToDate = new Date(createdToArgument);
 
-  stream.on('error', (err) => {
-    console.error('failed to read file: ', err.message);
-  });
+  if (Number.isNaN(createdToDate.getTime())) {
+    throw new Error(
+      'createdToDate argument is invalid, format should be ISO 6801',
+    );
+  }
 
-  stream.on('data', function ([userId]) {
-    if (!userId) {
-      return;
-    }
-
-    userIds.push(userId);
-  });
-
-  await new Promise((resolve) => {
-    stream.on('end', resolve);
-  });
-
-  console.log('running db query');
+  if (createdFromDate > createdToDate) {
+    throw new Error(
+      'createdFrom argument should be less than createdTo argument',
+    );
+  }
 
   const con = await createOrGetConnection();
 
   await con.transaction(async (manager) => {
     await manager.query(`
-        INSERT INTO user_personalized_digest ("userId", "preferredTimezone", "preferredHour", "preferredDay")
-        SELECT id AS "userId", COALESCE(timezone, 'Etc/UTC') AS "preferredTimezone", 8 AS "preferredHour", 3 AS "preferredDay"
-        FROM public.user WHERE id IN (${userIds
-          .map((userId) => `'${userId}'`)
-          .filter(Boolean)
-          .join(',')}) ON CONFLICT DO NOTHING;
-      `);
+      INSERT INTO user_personalized_digest ("userId", "preferredTimezone", "preferredHour", "preferredDay")
+      SELECT id AS "userId", COALESCE(timezone, 'Etc/UTC') AS "preferredTimezone", 8 AS "preferredHour", 3 AS "preferredDay"
+      FROM public.user
+      WHERE "infoConfirmed" IS TRUE
+      AND "createdAt" > '${createdFromDate.toISOString()}' AND "createdAt" < '${createdToDate.toISOString()}'
+      ON CONFLICT DO NOTHING;
+    `);
   });
 
   process.exit();
