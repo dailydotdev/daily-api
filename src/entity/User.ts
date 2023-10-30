@@ -251,6 +251,7 @@ const handleInsertError = async (
           reason: UserFailErrorKeys.UsernameEmailExists,
         };
       }
+
       if (error.message.indexOf('PK_') > -1) {
         if (shouldRetry) {
           data.id = await generateTrackingId(req, 'user creation');
@@ -258,6 +259,7 @@ const handleInsertError = async (
         }
         return { status: 'failed', reason: UserFailErrorKeys.UserExists };
       }
+
       // If it's not username or primary key than it's twitter and github.
       if (shouldRetry) {
         if (error.message.indexOf('users_twitter_unique') > -1) {
