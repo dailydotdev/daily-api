@@ -71,4 +71,30 @@ describe('userCreatedAddPersonalizedDigest worker', () => {
       preferredTimezone: 'Etc/UTC',
     });
   });
+
+  it('should subscribe user to UTC timezone if falsy value is set', async () => {
+    const user = await con.getRepository(User).findOneBy({
+      id: '1',
+    });
+
+    expect(user).toBeTruthy();
+
+    await expectSuccessfulBackground(worker, {
+      user: {
+        ...user,
+        timezone: null,
+      },
+    });
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: user?.id,
+      });
+    expect(personalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Wednesday,
+      preferredHour: 8,
+      preferredTimezone: 'Etc/UTC',
+    });
+  });
 });
