@@ -72,6 +72,31 @@ describe('query searchTags', () => {
     const res = await client.query(QUERY('web-dev'));
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should return no results if query length is less then 2', async () => {
+    const res = await client.query(QUERY('d'));
+    expect(res.data).toMatchObject({
+      searchTags: {
+        query: 'd',
+        hits: [],
+      },
+    });
+  });
+
+  it('should return no more then 100 results', async () => {
+    await con.getRepository(Keyword).save(
+      new Array(110).fill('tag').map((item, index) => ({
+        value: item + index,
+        occurances: 0,
+        status: 'allow',
+      })),
+    );
+
+    const res = await client.query(QUERY('tag'));
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.searchTags.hits.length).toBe(100);
+  });
 });
 
 describe('query onboardingTags', () => {
