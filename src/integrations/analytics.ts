@@ -1,4 +1,4 @@
-import { generateTrackingId } from '../ids';
+import { generateLongId } from '../ids';
 import { retryFetch } from './retry';
 
 const generateEventId = (now) => {
@@ -12,8 +12,8 @@ export async function sendAnalyticsEvent<
 >(events: T[]): Promise<void> {
   const now = new Date();
   const [visit_id, session_id] = await Promise.all([
-    generateTrackingId(),
-    generateTrackingId(),
+    generateLongId(),
+    generateLongId(),
   ]);
   const transformed = events.map((event) => ({
     event_id: generateEventId(now),

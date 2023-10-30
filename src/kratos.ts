@@ -72,7 +72,7 @@ export const clearAuthentication = async (
     },
     'clearing authentication',
   );
-  req.trackingId = await generateTrackingId();
+  req.trackingId = await generateTrackingId(req);
   req.userId = undefined;
   setTrackingId(req, res, req.trackingId);
   setCookie(req, res, 'auth', undefined);

@@ -20,6 +20,10 @@ type GQLTagResults = Pick<GQLTagSearchResults, 'hits'>;
 
 export const RECOMMENDED_TAGS_LIMIT = 5;
 
+export const MIN_SEARCH_QUERY_LENGTH = 2;
+
+export const SEARCH_TAGS_LIMIT = 100;
+
 export const typeDefs = /* GraphQL */ `
   """
   Post tag
@@ -98,6 +102,13 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { query }: { query: string },
       ctx,
     ): Promise<GQLTagSearchResults> => {
+      if (query.length < MIN_SEARCH_QUERY_LENGTH) {
+        return {
+          query,
+          hits: [],
+        };
+      }
+
       const hits = await ctx
         .getRepository(Keyword)
         .createQueryBuilder()
@@ -105,6 +116,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         .where(`status = 'allow'`)
         .andWhere(`value ilike :query`, { query: `%${query}%` })
         .orderBy('value', 'ASC')
+        .limit(SEARCH_TAGS_LIMIT)
         .getRawMany();
       return {
         query,
