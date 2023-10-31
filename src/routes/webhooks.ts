@@ -78,6 +78,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const events = body
         .map((event) => ({
           event_id: event.sg_event_id,
+          session_id: event.sg_event_id,
+          visit_id: event.sg_event_id,
           user_id: userIdsMap[event.email],
           event_timestamp: new Date(event.timestamp * 1000),
           event_name: `email ${event.event}`,
