@@ -26,7 +26,7 @@ along with other very useful endpoints.
 - NPM for managing dependencies.
 - Fastify as the web framework
 - Apollo for GraphQL
-- Typeform as a database layer
+- Typeorm as a database layer
 
 ## Project structure
 
