@@ -253,6 +253,14 @@ const handleInsertError = async (
       }
 
       if (error.message.indexOf('PK_') > -1) {
+        if (req.meter) {
+          req.meter
+            .createCounter('user_id_conflict', {
+              description:
+                'How many times a user id conflict happened on registration',
+            })
+            .add(1);
+        }
         if (shouldRetry) {
           data.id = await generateTrackingId(req, 'user creation');
           return safeInsertUser(req, con, data, maxIterations, iteration + 1);
