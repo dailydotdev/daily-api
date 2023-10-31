@@ -40,10 +40,12 @@ export const crons: Cron[] = [
     name: 'clean-zombie-images',
     schedule: '3 5 * * *',
   },
-  {
-    name: 'personalized-digest',
-    schedule: '15 0 * * *',
-  },
+  // disable until we re-evaluate sending
+  // at bigger scale
+  // {
+  //   name: 'personalized-digest',
+  //   schedule: '15 0 * * *',
+  // },
   // {
   //   name: 'generate-search-invites',
   //   schedule: '15 1 * * *',
