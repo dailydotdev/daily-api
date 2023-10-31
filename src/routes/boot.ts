@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import createOrGetConnection from '../db';
 import { DataSource, EntityManager } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
-import { generateLongId } from '../ids';
+import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
 import { GQLUser } from '../schema/users';
 import {
@@ -108,7 +108,7 @@ const visitSection = async (
   res: FastifyReply,
 ): Promise<BaseBoot['visit']> => {
   const [visitId, sessionId] = await Promise.all([
-    generateLongId(),
+    generateUUID(),
     generateSessionId(req, res),
   ]);
   return {

@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 import isbot from 'isbot';
 import { cookies, setCookie } from './cookies';
-import { generateLongId, generateTrackingId } from './ids';
+import { generateTrackingId, generateUUID } from './ids';
 
 const isBotRequest = (req: FastifyRequest): boolean =>
   !req.headers['user-agent'] || isbot(req.headers['user-agent']);
@@ -13,7 +13,7 @@ export const generateSessionId = async (
 ): Promise<string> => {
   if (!req.isBot && !req.service) {
     if (!req.sessionId?.length) {
-      req.sessionId = await generateLongId();
+      req.sessionId = await generateUUID();
     }
     // Refresh session cookie
     setCookie(req, res, 'session', req.sessionId);
