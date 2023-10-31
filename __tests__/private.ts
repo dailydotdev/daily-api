@@ -8,6 +8,8 @@ import { usersFixture } from './fixture/user';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
+import { UserPersonalizedDigest } from '../src/entity/UserPersonalizedDigest';
+import { DayOfWeek } from '../src/types';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -441,6 +443,96 @@ describe('POST /p/newUser', () => {
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].referralId).toEqual(usersFixture[1].id);
     expect(users[0].referralOrigin).toEqual('knightcampaign');
+  });
+
+  it('should subscribe to personalized digest', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        timezone: 'Europe/London',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: usersFixture[0].id,
+      });
+    expect(personalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Wednesday,
+      preferredHour: 8,
+      preferredTimezone: 'Europe/London',
+      variation: 1,
+    });
+  });
+
+  it('should subscribe to personalized digest in UTC timezone if not set', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        timezone: undefined,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: usersFixture[0].id,
+      });
+    expect(personalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Wednesday,
+      preferredHour: 8,
+      preferredTimezone: 'Etc/UTC',
+      variation: 1,
+    });
+  });
+
+  it('should subscribe to personalized digest in UTC timezone if falsy value is set', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        timezone: null,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: usersFixture[0].id,
+      });
+    expect(personalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Wednesday,
+      preferredHour: 8,
+      preferredTimezone: 'Etc/UTC',
+      variation: 1,
+    });
   });
 });
 

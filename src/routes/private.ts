@@ -9,6 +9,7 @@ import {
 import createOrGetConnection from '../db';
 import { ValidationError } from 'apollo-server-errors';
 import { validateAndTransformHandle } from '../common/handles';
+import { subscribeNewUserToPersonalizedDigest } from '../common';
 
 interface SearchUsername {
   search: string;
@@ -33,6 +34,15 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
     const body = { ...rest, referralId, referralOrigin };
     const operationResult = await addNewUser(con, body, req.log);
+
+    if (operationResult.status === 'ok') {
+      await subscribeNewUserToPersonalizedDigest({
+        con,
+        userData: body,
+        logger: req.log,
+      });
+    }
+
     return res.status(200).send(operationResult);
   });
   fastify.post<{ Body: UpdateUserEmailData }>(
