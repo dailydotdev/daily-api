@@ -609,6 +609,28 @@ describe('boot alerts', () => {
       banner.timestamp.toISOString(),
     );
   });
+
+  it('should return showGenericReferral as true', async () => {
+    mockLoggedIn();
+    const data = await con.getRepository(Alerts).save({
+      userId: '1',
+      myFeed: 'created',
+      lastChangelog: new Date('2023-02-05 12:00:00'),
+      lastBanner: new Date('2023-02-05 12:00:00'),
+      banner: false,
+      changelog: false,
+      showGenericReferral: true,
+    });
+    const alerts = new Object(data);
+    alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
+    alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
+    delete alerts['userId'];
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.alerts).toEqual(alerts);
+  });
 });
 
 describe('boot misc', () => {

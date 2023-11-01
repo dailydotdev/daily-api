@@ -1,6 +1,13 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
+export type AlertsFlags = Partial<{
+  lastReferralReminderEpoch: bigint;
+}>;
+
 @Entity()
+@Index('IDX_alerts_flags_last_referral_reminder_epoch', {
+  synchronize: false,
+})
 export class Alerts {
   @PrimaryColumn({ type: 'text' })
   @Index()
@@ -21,18 +28,25 @@ export class Alerts {
   @Column({ type: 'bool', default: true })
   squadTour: boolean;
 
+  @Column({ type: 'bool', default: false })
+  showGenericReferral: boolean;
+
   @Column({ type: 'timestamp without time zone', default: () => 'now()' })
   lastChangelog: Date | null;
 
   @Column({ type: 'timestamp without time zone', default: () => 'now()' })
   lastBanner: Date | null;
 
+  // Should not be exposed to the client
+  @Column({ type: 'jsonb', default: {} })
+  flags: AlertsFlags = {};
+
   changelog?: boolean;
 
   banner?: boolean;
 }
 
-export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
+export const ALERTS_DEFAULT: Omit<Alerts, 'userId' | 'flags'> = {
   filter: true,
   rankLastSeen: null,
   myFeed: null,
@@ -42,4 +56,5 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId'> = {
   changelog: false,
   banner: false,
   squadTour: true,
+  showGenericReferral: false,
 };
