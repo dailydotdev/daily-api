@@ -187,3 +187,31 @@ describe('dedicated api routes', () => {
     });
   });
 });
+
+describe('mutation updateLastReferralReminder', () => {
+  const MUTATION = `
+    mutation UpdateLastReferralReminder() {
+      updateLastReferralReminder() {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should update the last referral reminder and flags', async () => {
+    loggedUser = '1';
+    const epoch = Date.now();
+    await client.mutate(MUTATION);
+    const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(alerts.showGenericReferral).toEqual(true);
+    expect(alerts.flags.lastReferralReminderEpoch).toBeGreaterThan(epoch);
+  });
+});

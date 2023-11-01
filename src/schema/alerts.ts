@@ -1,10 +1,17 @@
-import { Alerts, ALERTS_DEFAULT, UserActionType } from '../entity';
+import {
+  Alerts,
+  ALERTS_DEFAULT,
+  SourceMember,
+  UserActionType,
+} from '../entity';
 
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { DataSource } from 'typeorm';
 import { insertOrIgnoreAction } from './actions';
+import { GQLEmptyResponse } from './common';
+import { updateFlagsStatement } from '../common';
 
 interface GQLAlerts {
   filter: boolean;
@@ -103,6 +110,11 @@ export const typeDefs = /* GraphQL */ `
     Update the alerts for user
     """
     updateUserAlerts(data: UpdateAlertsInput!): Alerts! @auth
+
+    """
+    Update the last referral reminder
+    """
+    updateLastReferralReminder: EmptyResponse! @auth
   }
 
   extend type Query {
@@ -151,6 +163,19 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { data }: { data: GQLUpdateAlertsInput },
       ctx,
     ): Promise<GQLAlerts> => updateAlerts(ctx.con, ctx.userId, data),
+    updateLastReferralReminder: async (
+      _,
+      __,
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await updateAlerts(ctx.con, ctx.userId, {
+        showGenericReferral: false,
+        flags: updateFlagsStatement<Alerts>({
+          lastReferralReminderEpoch: Date.now(),
+        }),
+      });
+      return;
+    },
   },
   Query: {
     userAlerts: (_, __, ctx): Promise<GQLAlerts> | GQLAlerts => {
