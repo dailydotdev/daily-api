@@ -1,5 +1,4 @@
 import { Alerts, ALERTS_DEFAULT, UserActionType } from '../entity';
-
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
@@ -59,6 +58,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to show the squad tour and sync across devices
     """
     squadTour: Boolean!
+
+    """
+    Whether to show the referral prompt
+    """
+    showGenericReferral: Boolean!
   }
 
   input UpdateAlertsInput {
@@ -113,6 +117,16 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+/**
+ * Remove the flags from the alerts object
+ * @param alerts
+ */
+export const saveReturnAlerts = (alerts: Alerts) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { flags, ...data } = alerts;
+  return data;
+};
+
 export const updateAlerts = async (
   con: DataSource,
   userId: string,
@@ -126,19 +140,21 @@ export const updateAlerts = async (
   }
 
   if (!alerts) {
-    return repo.save({ userId, ...data });
+    return saveReturnAlerts(await repo.save({ userId, ...data }));
   }
 
-  return repo.save({ ...alerts, ...data });
+  return saveReturnAlerts(await repo.save({ ...alerts, ...data }));
 };
 
 export const getAlerts = async (
   con: DataSource,
   userId: string,
-): Promise<Alerts> => {
-  const alerts = await con.getRepository(Alerts).findOneBy({ userId });
+): Promise<Omit<Alerts, 'flags'>> => {
+  const alerts = await con.getRepository(Alerts).findOneBy({
+    userId,
+  });
   if (alerts) {
-    return alerts;
+    return saveReturnAlerts(alerts);
   }
   return ALERTS_DEFAULT as Alerts;
 };
@@ -153,8 +169,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ): Promise<GQLAlerts> => updateAlerts(ctx.con, ctx.userId, data),
   },
   Query: {
-    userAlerts: (_, __, ctx): Promise<GQLAlerts> | GQLAlerts => {
-      return getAlerts(ctx.con, ctx.userId);
-    },
+    userAlerts: (_, __, ctx): Promise<GQLAlerts> | GQLAlerts =>
+      getAlerts(ctx.con, ctx.userId),
   },
 });
