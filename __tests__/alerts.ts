@@ -87,24 +87,6 @@ describe('query userAlerts', () => {
   });
 });
 
-it('should populate database', async () => {
-  const start = new Date('02/05/2020');
-  let loop = new Date(start);
-  for (let i = 0; i < 100000; i++) {
-    const newDate = loop.setDate(loop.getDate() + i);
-    loop = new Date(newDate);
-    const repo = con.getRepository(Alerts);
-    const alerts = repo.create({
-      userId: `${i}`,
-      filter: true,
-      flags: { lastReferralReminder: loop },
-    });
-    await repo.save(alerts);
-    console.log('done');
-  }
-  expect('something').toEqual('false');
-});
-
 describe('mutation updateUserAlerts', () => {
   const MUTATION = `
     mutation UpdateUserAlerts($data: UpdateAlertsInput!) {
