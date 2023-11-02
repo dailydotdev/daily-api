@@ -192,8 +192,8 @@ describe('dedicated api routes', () => {
 
 describe('mutation updateLastReferralReminder', () => {
   const MUTATION = `
-    mutation UpdateLastReferralReminder() {
-      updateLastReferralReminder() {
+    mutation UpdateLastReferralReminder {
+      updateLastReferralReminder {
         _
       }
     }
@@ -210,10 +210,13 @@ describe('mutation updateLastReferralReminder', () => {
 
   it('should update the last referral reminder and flags', async () => {
     loggedUser = '1';
-    const epoch = Date.now();
+    const date = new Date();
     await client.mutate(MUTATION);
     const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
-    expect(alerts.showGenericReferral).toEqual(true);
-    expect(alerts.flags.lastReferralReminderEpoch).toBeGreaterThan(epoch);
+    expect(alerts.showGenericReferral).toEqual(false);
+    expect(alerts.flags.lastReferralReminder).not.toBeNull();
+    expect(
+      new Date(alerts.flags.lastReferralReminder).getTime(),
+    ).toBeGreaterThan(+date);
   });
 });

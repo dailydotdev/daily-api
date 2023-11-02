@@ -134,10 +134,10 @@ export const saveReturnAlerts = (alerts: Alerts) => {
   return data;
 };
 
-export const updateAlerts = async (
+export const updateAlerts = async <T = GQLUpdateAlertsInput>(
   con: DataSource,
   userId: string,
-  data: GQLUpdateAlertsInput,
+  data: T & { filter?: boolean },
 ): Promise<GQLAlerts> => {
   const repo = con.getRepository(Alerts);
   const alerts = await repo.findOneBy({ userId });
@@ -179,11 +179,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       __,
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await updateAlerts(ctx.con, ctx.userId, {
+      await updateAlerts<Partial<Alerts>>(ctx.con, ctx.userId, {
         showGenericReferral: false,
-        flags: updateFlagsStatement<Alerts>({
-          lastReferralReminder: Date.now(),
-        }),
+        flags: {
+          lastReferralReminder: new Date(),
+        },
       });
       return;
     },
