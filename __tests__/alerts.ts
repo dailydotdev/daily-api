@@ -223,7 +223,8 @@ describe('mutation updateLastReferralReminder', () => {
   it('should update the last referral reminder and flags but keep existing flags', async () => {
     loggedUser = '1';
 
-    // @ts-ignore noOverloadMatch
+    // eslint-disable-next-line
+    // @ts-ignore
     await con.getRepository(Alerts).save({
       userId: loggedUser,
       flags: { existingFlag: 'value1' },

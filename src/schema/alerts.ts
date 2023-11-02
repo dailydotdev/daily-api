@@ -1,4 +1,4 @@
-import { Alerts, ALERTS_DEFAULT, Post, UserActionType } from '../entity';
+import { Alerts, ALERTS_DEFAULT, UserActionType } from '../entity';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
