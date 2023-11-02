@@ -151,7 +151,7 @@ export const updateAlerts = async (
       await repo.save({
         userId,
         ...data,
-        flags: { ...flags, lastReferralReminder: new Date() },
+        flags: flags ? flags : undefined,
       }),
     );
   }
@@ -160,7 +160,9 @@ export const updateAlerts = async (
     await repo.save({
       ...alerts,
       ...data,
-      flags: { ...alerts.flags, lastReferralReminder: new Date() },
+      flags: flags
+        ? { ...alerts.flags, lastReferralReminder: new Date() }
+        : undefined,
     }),
   );
 };
