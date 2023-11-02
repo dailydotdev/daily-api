@@ -1227,7 +1227,7 @@ describe('post report', () => {
 });
 
 describe('alerts', () => {
-  type ObjectType = Alerts;
+  type ObjectType = Omit<Alerts, 'flags'>;
   const rankLastSeen = new Date('2020-09-21T07:15:51.247Z');
   const rankLastSeenNew = new Date('2020-09-22T07:15:51.247Z');
   const base: ChangeObject<ObjectType> = {
@@ -1239,6 +1239,7 @@ describe('alerts', () => {
     lastChangelog: null,
     lastBanner: null,
     squadTour: true,
+    showGenericReferral: false,
   };
 
   it('should notify on alert.filter changed', async () => {

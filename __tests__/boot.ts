@@ -49,6 +49,7 @@ import { base64 } from 'graphql-relay/utils/base64';
 import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
 import { submitArticleThreshold } from '../src/common';
+import { saveReturnAlerts } from '../src/schema/alerts';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -378,7 +379,8 @@ describe('boot alerts', () => {
       userId: '1',
       myFeed: 'created',
     });
-    const alerts = new Object(data);
+
+    const alerts = new Object(saveReturnAlerts(data));
     alerts['changelog'] = false;
     alerts['banner'] = false;
     delete alerts['userId'];
@@ -402,7 +404,7 @@ describe('boot alerts', () => {
       lastChangelog: new Date('2023-02-05 12:00:00'),
       lastBanner: new Date('2023-02-05 12:00:00'),
     });
-    const alerts = new Object(data);
+    const alerts = new Object(saveReturnAlerts(data));
     alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
     alerts['changelog'] = true;
     alerts['banner'] = false;
@@ -425,7 +427,7 @@ describe('boot alerts', () => {
       lastChangelog: new Date('2023-02-06 12:00:00'),
       lastBanner: new Date('2023-02-06 12:00:00'),
     });
-    const alerts = new Object(data);
+    const alerts = new Object(saveReturnAlerts(data));
     alerts['lastChangelog'] = '2023-02-06T12:00:00.000Z';
     alerts['lastBanner'] = '2023-02-06T12:00:00.000Z';
     alerts['changelog'] = false;
@@ -459,7 +461,7 @@ describe('boot alerts', () => {
       createdAt: new Date('2023-02-06 12:00:00'),
       sourceId: 'daily_updates',
     });
-    const alerts = new Object(data);
+    const alerts = new Object(saveReturnAlerts(data));
     alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
     alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
     alerts['changelog'] = true;
@@ -496,7 +498,7 @@ describe('boot alerts', () => {
       createdAt: new Date('2023-02-05 12:00:00'),
       sourceId: 'daily_updates',
     });
-    const alerts = new Object(data);
+    const alerts = new Object(saveReturnAlerts(data));
     alerts['lastChangelog'] = '2023-02-06T12:00:00.000Z';
     alerts['lastBanner'] = '2023-02-06T12:00:00.000Z';
     alerts['changelog'] = false;
@@ -521,7 +523,7 @@ describe('boot alerts', () => {
       lastBanner: new Date('2023-02-05 12:00:00'),
       lastChangelog: new Date('2023-02-05 12:00:00'),
     });
-    const alerts = new Object(data);
+    const alerts = new Object(saveReturnAlerts(data));
     alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
     alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
     alerts['changelog'] = false;
@@ -543,7 +545,7 @@ describe('boot alerts', () => {
       lastBanner: new Date('2023-02-06 12:00:00'),
       lastChangelog: new Date('2023-02-06 12:00:00'),
     });
-    const alerts = new Object(data);
+    const alerts = new Object(saveReturnAlerts(data));
     alerts['lastChangelog'] = '2023-02-06T12:00:00.000Z';
     alerts['lastBanner'] = '2023-02-06T12:00:00.000Z';
     alerts['banner'] = false;
@@ -565,7 +567,7 @@ describe('boot alerts', () => {
       lastChangelog: new Date('2023-02-05 12:00:00'),
       lastBanner: new Date('2023-02-05 12:00:00'),
     });
-    const alerts = new Object(data);
+    const alerts = new Object(saveReturnAlerts(data));
     alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
     alerts['changelog'] = false;
     alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
@@ -594,7 +596,7 @@ describe('boot alerts', () => {
       url: 'test',
       theme: 'cabbage',
     });
-    const alerts = new Object(data);
+    const alerts = new Object(saveReturnAlerts(data));
     alerts['lastBanner'] = '2023-02-06T12:00:00.000Z';
     alerts['banner'] = true;
     alerts['changelog'] = false;
@@ -621,7 +623,7 @@ describe('boot alerts', () => {
       changelog: false,
       showGenericReferral: true,
     });
-    const alerts = new Object(data);
+    const alerts = new Object(saveReturnAlerts(data));
     alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
     alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
     delete alerts['userId'];

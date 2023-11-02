@@ -1,11 +1,11 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 export type AlertsFlags = Partial<{
-  lastReferralReminderEpoch: bigint;
+  lastReferralReminder: Date | null;
 }>;
 
 @Entity()
-@Index('IDX_alerts_flags_last_referral_reminder_epoch', {
+@Index('IDX_alerts_flags_last_referral_reminder', {
   synchronize: false,
 })
 export class Alerts {
@@ -38,7 +38,7 @@ export class Alerts {
   lastBanner: Date | null;
 
   // Should not be exposed to the client
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: 'jsonb', default: {}, select: false })
   flags: AlertsFlags = {};
 
   changelog?: boolean;

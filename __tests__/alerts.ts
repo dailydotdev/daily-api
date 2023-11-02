@@ -17,6 +17,7 @@ import {
 } from './helpers';
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
+import { saveReturnAlerts } from '../src/schema/alerts';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -49,6 +50,7 @@ describe('query userAlerts', () => {
       lastChangelog
       lastBanner
       squadTour
+      showGenericReferral
     }
   }`;
 
@@ -70,8 +72,9 @@ describe('query userAlerts', () => {
     const alerts = repo.create({
       userId: '1',
       filter: true,
+      flags: { lastReferralReminder: new Date('2023-02-05 12:00:00') },
     });
-    const expected = await repo.save(alerts);
+    const expected = saveReturnAlerts(await repo.save(alerts));
     const res = await client.query(QUERY);
 
     delete expected.userId;
@@ -82,6 +85,24 @@ describe('query userAlerts', () => {
       lastChangelog: expected.lastChangelog.toISOString(),
     });
   });
+});
+
+it('should populate database', async () => {
+  const start = new Date('02/05/2020');
+  let loop = new Date(start);
+  for (let i = 0; i < 100000; i++) {
+    const newDate = loop.setDate(loop.getDate() + i);
+    loop = new Date(newDate);
+    const repo = con.getRepository(Alerts);
+    const alerts = repo.create({
+      userId: `${i}`,
+      filter: true,
+      flags: { lastReferralReminder: loop },
+    });
+    await repo.save(alerts);
+    console.log('done');
+  }
+  expect('something').toEqual('false');
 });
 
 describe('mutation updateUserAlerts', () => {
@@ -171,8 +192,7 @@ describe('dedicated api routes', () => {
         userId: '1',
         myFeed: 'created',
       });
-      const data = await repo.save(alerts);
-      const expected = new Object(data);
+      const expected = saveReturnAlerts(await repo.save(alerts));
       delete expected['userId'];
 
       loggedUser = '1';
