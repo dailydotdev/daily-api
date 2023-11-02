@@ -5,7 +5,6 @@ import { Context } from '../Context';
 import { DataSource } from 'typeorm';
 import { insertOrIgnoreAction } from './actions';
 import { GQLEmptyResponse } from './common';
-import { updateFlagsStatement } from '../common';
 
 interface GQLAlerts {
   filter: boolean;
