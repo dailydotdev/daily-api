@@ -219,4 +219,22 @@ describe('mutation updateLastReferralReminder', () => {
       new Date(alerts.flags.lastReferralReminder).getTime(),
     ).toBeGreaterThan(+date);
   });
+
+  it('should update the last referral reminder and flags but keep existing flags', async () => {
+    loggedUser = '1';
+
+    // @ts-ignore noOverloadMatch
+    await con.getRepository(Alerts).save({
+      userId: loggedUser,
+      flags: { existingFlag: 'value1' },
+    });
+
+    await client.mutate(MUTATION);
+    const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(alerts.showGenericReferral).toEqual(false);
+    expect(alerts.flags).toEqual({
+      existingFlag: 'value1',
+      lastReferralReminder: alerts.flags.lastReferralReminder,
+    });
+  });
 });

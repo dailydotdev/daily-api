@@ -1,4 +1,4 @@
-import { Alerts, ALERTS_DEFAULT, UserActionType } from '../entity';
+import { Alerts, ALERTS_DEFAULT, Post, UserActionType } from '../entity';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
@@ -133,10 +133,11 @@ export const saveReturnAlerts = (alerts: Alerts) => {
   return data;
 };
 
-export const updateAlerts = async <T = GQLUpdateAlertsInput>(
+export const updateAlerts = async (
   con: DataSource,
   userId: string,
-  data: T & { filter?: boolean },
+  data: GQLUpdateAlertsInput & { showGenericReferral?: boolean },
+  flags?: Alerts['flags'],
 ): Promise<GQLAlerts> => {
   const repo = con.getRepository(Alerts);
   const alerts = await repo.findOneBy({ userId });
@@ -146,10 +147,22 @@ export const updateAlerts = async <T = GQLUpdateAlertsInput>(
   }
 
   if (!alerts) {
-    return saveReturnAlerts(await repo.save({ userId, ...data }));
+    return saveReturnAlerts(
+      await repo.save({
+        userId,
+        ...data,
+        flags: { ...flags, lastReferralReminder: new Date() },
+      }),
+    );
   }
 
-  return saveReturnAlerts(await repo.save({ ...alerts, ...data }));
+  return saveReturnAlerts(
+    await repo.save({
+      ...alerts,
+      ...data,
+      flags: { ...alerts.flags, lastReferralReminder: new Date() },
+    }),
+  );
 };
 
 export const getAlerts = async (
@@ -178,12 +191,14 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       __,
       ctx,
     ): Promise<GQLEmptyResponse> => {
-      await updateAlerts<Partial<Alerts>>(ctx.con, ctx.userId, {
-        showGenericReferral: false,
-        flags: {
-          lastReferralReminder: new Date(),
+      await updateAlerts(
+        ctx.con,
+        ctx.userId,
+        {
+          showGenericReferral: false,
         },
-      });
+        { lastReferralReminder: new Date() },
+      );
       return;
     },
   },
