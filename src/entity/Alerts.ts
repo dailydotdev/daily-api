@@ -38,7 +38,7 @@ export class Alerts {
   lastBanner: Date | null;
 
   // Should not be exposed to the client
-  @Column({ type: 'jsonb', default: {}, select: false })
+  @Column({ type: 'jsonb', default: {} })
   flags: AlertsFlags = {};
 
   changelog?: boolean;

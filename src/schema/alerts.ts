@@ -4,6 +4,7 @@ import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { DataSource } from 'typeorm';
 import { insertOrIgnoreAction } from './actions';
+import { GQLEmptyResponse } from './common';
 
 interface GQLAlerts {
   filter: boolean;
@@ -107,6 +108,11 @@ export const typeDefs = /* GraphQL */ `
     Update the alerts for user
     """
     updateUserAlerts(data: UpdateAlertsInput!): Alerts! @auth
+
+    """
+    Update the last referral reminder
+    """
+    updateLastReferralReminder: EmptyResponse! @auth
   }
 
   extend type Query {
@@ -130,7 +136,8 @@ export const saveReturnAlerts = (alerts: Alerts) => {
 export const updateAlerts = async (
   con: DataSource,
   userId: string,
-  data: GQLUpdateAlertsInput,
+  data: GQLUpdateAlertsInput & { showGenericReferral?: boolean },
+  flags?: Alerts['flags'],
 ): Promise<GQLAlerts> => {
   const repo = con.getRepository(Alerts);
   const alerts = await repo.findOneBy({ userId });
@@ -140,10 +147,22 @@ export const updateAlerts = async (
   }
 
   if (!alerts) {
-    return saveReturnAlerts(await repo.save({ userId, ...data }));
+    return saveReturnAlerts(
+      await repo.save({
+        userId,
+        ...data,
+        flags: flags ? flags : undefined,
+      }),
+    );
   }
 
-  return saveReturnAlerts(await repo.save({ ...alerts, ...data }));
+  return saveReturnAlerts(
+    await repo.save({
+      ...alerts,
+      ...data,
+      flags: flags ? { ...alerts.flags, ...flags } : undefined,
+    }),
+  );
 };
 
 export const getAlerts = async (
@@ -167,6 +186,21 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { data }: { data: GQLUpdateAlertsInput },
       ctx,
     ): Promise<GQLAlerts> => updateAlerts(ctx.con, ctx.userId, data),
+    updateLastReferralReminder: async (
+      _,
+      __,
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await updateAlerts(
+        ctx.con,
+        ctx.userId,
+        {
+          showGenericReferral: false,
+        },
+        { lastReferralReminder: new Date() },
+      );
+      return;
+    },
   },
   Query: {
     userAlerts: (_, __, ctx): Promise<GQLAlerts> | GQLAlerts =>
