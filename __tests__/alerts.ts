@@ -17,6 +17,7 @@ import {
 } from './helpers';
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
+import { saveReturnAlerts } from '../src/schema/alerts';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -49,6 +50,7 @@ describe('query userAlerts', () => {
       lastChangelog
       lastBanner
       squadTour
+      showGenericReferral
     }
   }`;
 
@@ -70,8 +72,9 @@ describe('query userAlerts', () => {
     const alerts = repo.create({
       userId: '1',
       filter: true,
+      flags: { lastReferralReminder: new Date('2023-02-05 12:00:00') },
     });
-    const expected = await repo.save(alerts);
+    const expected = saveReturnAlerts(await repo.save(alerts));
     const res = await client.query(QUERY);
 
     delete expected.userId;
@@ -171,8 +174,7 @@ describe('dedicated api routes', () => {
         userId: '1',
         myFeed: 'created',
       });
-      const data = await repo.save(alerts);
-      const expected = new Object(data);
+      const expected = saveReturnAlerts(await repo.save(alerts));
       delete expected['userId'];
 
       loggedUser = '1';
@@ -184,6 +186,56 @@ describe('dedicated api routes', () => {
         lastBanner: expected['lastBanner'].toISOString(),
         lastChangelog: expected['lastChangelog'].toISOString(),
       });
+    });
+  });
+});
+
+describe('mutation updateLastReferralReminder', () => {
+  const MUTATION = `
+    mutation UpdateLastReferralReminder {
+      updateLastReferralReminder {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should update the last referral reminder and flags', async () => {
+    loggedUser = '1';
+    const date = new Date();
+    await client.mutate(MUTATION);
+    const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(alerts.showGenericReferral).toEqual(false);
+    expect(alerts.flags.lastReferralReminder).not.toBeNull();
+    expect(
+      new Date(alerts.flags.lastReferralReminder).getTime(),
+    ).toBeGreaterThan(+date);
+  });
+
+  it('should update the last referral reminder and flags but keep existing flags', async () => {
+    loggedUser = '1';
+
+    // eslint-disable-next-line
+    // @ts-ignore
+    await con.getRepository(Alerts).save({
+      userId: loggedUser,
+      flags: { existingFlag: 'value1' },
+    });
+
+    await client.mutate(MUTATION);
+    const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(alerts.showGenericReferral).toEqual(false);
+    expect(alerts.flags).toEqual({
+      existingFlag: 'value1',
+      lastReferralReminder: alerts.flags.lastReferralReminder,
     });
   });
 });

@@ -5,6 +5,7 @@ import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exp
 
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
+import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 
 import { isProd } from '../common';
 
@@ -24,7 +25,7 @@ export const startMetrics = (serviceName: string): void => {
       [SemanticResourceAttributes.SERVICE_NAME]: serviceName,
     }).merge(
       resources.detectResourcesSync({
-        detectors: [containerDetector, gcpDetector],
+        detectors: [containerDetector, gcpDetector, new GcpDetectorSync()],
       }),
     ),
   });

@@ -62,7 +62,8 @@ describe('POST /p/newUser', () => {
       })
       .expect(200);
 
-    expect(body).toEqual({ status: 'failed', reason: 'USER_EXISTS' });
+    expect(body.status).toEqual('ok');
+    expect(body.userId).not.toEqual(usersFixture[0].id);
   });
 
   it('should handle existing username', async () => {
