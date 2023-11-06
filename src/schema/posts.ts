@@ -136,6 +136,11 @@ interface PinPostArgs {
   pinned: boolean;
 }
 
+interface SwapPinnedPostArgs {
+  id: Post['id'];
+  swapWithId: Post['id'];
+}
+
 type GQLPostQuestion = Pick<PostQuestion, 'id' | 'post' | 'question'>;
 
 export type GQLPostNotification = Pick<
@@ -744,6 +749,21 @@ export const typeDefs = /* GraphQL */ `
       Whether to pin the post or not
       """
       pinned: Boolean!
+    ): EmptyResponse @auth
+
+    """
+    Swap the order of 2 pinned posts based on their pinnedAt timestamp
+    """
+    swapPinnedPosts(
+      """
+      Id of the post to update the pinnedAt property
+      """
+      id: ID!
+
+      """
+      The post ID to swap with
+      """
+      swapWithId: ID!
     ): EmptyResponse @auth
 
     """
@@ -1367,6 +1387,66 @@ export const resolvers: IResolvers<any, Context> = {
         );
 
         await repo.update({ id }, { pinnedAt: pinned ? new Date() : null });
+      });
+
+      return { _: true };
+    },
+    swapPinnedPosts: async (
+      _,
+      { id, swapWithId }: SwapPinnedPostArgs,
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.transaction(async (manager) => {
+        const repo = manager.getRepository(Post);
+        const post = await repo.findOneBy({ id });
+        const swapWithPost = await repo.findOneBy({
+          id: swapWithId,
+        });
+
+        await ensureSourcePermissions(
+          ctx,
+          post.sourceId,
+          SourcePermissions.PostPin,
+        );
+
+        if (!post.pinnedAt || !swapWithPost.pinnedAt) {
+          throw new ValidationError('Posts must be pinned first');
+        }
+
+        const isNextPost = swapWithPost.pinnedAt > post.pinnedAt;
+        const swapPinnedTime = new Date(
+          swapWithPost.pinnedAt.getTime() + 1000 * (isNextPost ? 1 : -1),
+        );
+
+        let query = manager
+          .createQueryBuilder()
+          .update(Post)
+          .set({
+            pinnedAt: () =>
+              isNextPost
+                ? `"pinnedAt" + interval '1 second'`
+                : `"pinnedAt" - interval '1 second'`,
+          })
+          .where('"pinnedAt" IS NOT NULL')
+          .andWhere('"sourceId" = :sourceId', { sourceId: post.sourceId });
+
+        if (isNextPost) {
+          query = query.andWhere('"pinnedAt" >= :swapPinnedTime', {
+            swapPinnedTime,
+          });
+        } else {
+          query = query.andWhere('"pinnedAt" <= :swapPinnedTime', {
+            swapPinnedTime,
+          });
+        }
+
+        await query.execute();
+        await repo.update(
+          { id },
+          {
+            pinnedAt: swapPinnedTime,
+          },
+        );
       });
 
       return { _: true };
