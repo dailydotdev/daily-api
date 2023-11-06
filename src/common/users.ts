@@ -2,19 +2,9 @@ import { getPostCommenterIds } from './post';
 import { Post } from './../entity/posts';
 import { isSameDay } from 'date-fns';
 import { DataSource, In, Not } from 'typeorm';
-import {
-  CommentMention,
-  Comment,
-  View,
-  Source,
-  SourceMember,
-  AddUserData,
-} from '../entity';
+import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { User as DbUser } from './../entity/User';
-import { FastifyBaseLogger } from 'fastify';
-import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
-import { DayOfWeek } from '../types';
 
 export interface User {
   id: string;
@@ -331,32 +321,4 @@ export const getUserReadingRank = async (
     readToday: isSameDay(lastReadTime, now),
     tags,
   };
-};
-
-export const subscribeNewUserToPersonalizedDigest = async ({
-  con,
-  userData,
-  logger,
-}: {
-  con: DataSource;
-  userData: AddUserData;
-  logger: FastifyBaseLogger;
-}): Promise<void> => {
-  try {
-    await con.getRepository(UserPersonalizedDigest).save({
-      userId: userData.id,
-      preferredDay: DayOfWeek.Wednesday,
-      preferredHour: 8,
-      preferredTimezone: userData.timezone || undefined,
-    });
-  } catch (error) {
-    logger.error(
-      {
-        data: userData,
-        userId: userData.id,
-        error,
-      },
-      'failed to subscribe new user to personalized digest',
-    );
-  }
 };
