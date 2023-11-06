@@ -70,15 +70,15 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
         ),
       }),
     ),
-    '16': new FeedGenerator(
+    '17': new FeedGenerator(
       cachedFeedClient,
       new FeedUserStateConfigGenerator(snotraClient, {
         personalised: new FeedPreferencesConfigGenerator(
-          { feed_config_name: FeedConfigName.Vector },
+          { feed_config_name: FeedConfigName.VectorM3 },
           opts,
         ),
         non_personalised: new FeedPreferencesConfigGenerator(
-          { feed_config_name: FeedConfigName.PersonaliseOnboard },
+          { feed_config_name: FeedConfigName.PersonaliseM3 },
           opts,
         ),
       }),

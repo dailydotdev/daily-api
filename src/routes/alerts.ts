@@ -12,6 +12,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         lastChangelog
         lastBanner
         squadTour
+        showGenericReferral
       }
     }`;
 

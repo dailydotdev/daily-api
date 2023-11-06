@@ -1,10 +1,10 @@
 import { Alerts, ALERTS_DEFAULT, UserActionType } from '../entity';
-
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
 import { DataSource } from 'typeorm';
 import { insertOrIgnoreAction } from './actions';
+import { GQLEmptyResponse } from './common';
 
 interface GQLAlerts {
   filter: boolean;
@@ -59,6 +59,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to show the squad tour and sync across devices
     """
     squadTour: Boolean!
+
+    """
+    Whether to show the referral prompt
+    """
+    showGenericReferral: Boolean!
   }
 
   input UpdateAlertsInput {
@@ -103,6 +108,11 @@ export const typeDefs = /* GraphQL */ `
     Update the alerts for user
     """
     updateUserAlerts(data: UpdateAlertsInput!): Alerts! @auth
+
+    """
+    Update the last referral reminder
+    """
+    updateLastReferralReminder: EmptyResponse! @auth
   }
 
   extend type Query {
@@ -113,10 +123,21 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+/**
+ * Remove the flags from the alerts object
+ * @param alerts
+ */
+export const saveReturnAlerts = (alerts: Alerts) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { flags, ...data } = alerts;
+  return data;
+};
+
 export const updateAlerts = async (
   con: DataSource,
   userId: string,
-  data: GQLUpdateAlertsInput,
+  data: GQLUpdateAlertsInput & { showGenericReferral?: boolean },
+  flags?: Alerts['flags'],
 ): Promise<GQLAlerts> => {
   const repo = con.getRepository(Alerts);
   const alerts = await repo.findOneBy({ userId });
@@ -126,19 +147,33 @@ export const updateAlerts = async (
   }
 
   if (!alerts) {
-    return repo.save({ userId, ...data });
+    return saveReturnAlerts(
+      await repo.save({
+        userId,
+        ...data,
+        flags: flags ? flags : undefined,
+      }),
+    );
   }
 
-  return repo.save({ ...alerts, ...data });
+  return saveReturnAlerts(
+    await repo.save({
+      ...alerts,
+      ...data,
+      flags: flags ? { ...alerts.flags, ...flags } : undefined,
+    }),
+  );
 };
 
 export const getAlerts = async (
   con: DataSource,
   userId: string,
-): Promise<Alerts> => {
-  const alerts = await con.getRepository(Alerts).findOneBy({ userId });
+): Promise<Omit<Alerts, 'flags'>> => {
+  const alerts = await con.getRepository(Alerts).findOneBy({
+    userId,
+  });
   if (alerts) {
-    return alerts;
+    return saveReturnAlerts(alerts);
   }
   return ALERTS_DEFAULT as Alerts;
 };
@@ -151,10 +186,24 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       { data }: { data: GQLUpdateAlertsInput },
       ctx,
     ): Promise<GQLAlerts> => updateAlerts(ctx.con, ctx.userId, data),
+    updateLastReferralReminder: async (
+      _,
+      __,
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await updateAlerts(
+        ctx.con,
+        ctx.userId,
+        {
+          showGenericReferral: false,
+        },
+        { lastReferralReminder: new Date() },
+      );
+      return;
+    },
   },
   Query: {
-    userAlerts: (_, __, ctx): Promise<GQLAlerts> | GQLAlerts => {
-      return getAlerts(ctx.con, ctx.userId);
-    },
+    userAlerts: (_, __, ctx): Promise<GQLAlerts> | GQLAlerts =>
+      getAlerts(ctx.con, ctx.userId),
   },
 });

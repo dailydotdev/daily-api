@@ -17,7 +17,7 @@ const worker: Worker = {
       userId: user.id,
       preferredDay: DayOfWeek.Wednesday,
       preferredHour: 8,
-      preferredTimezone: user.timezone,
+      preferredTimezone: user.timezone || undefined,
     });
   },
 };

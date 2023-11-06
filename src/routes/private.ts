@@ -32,7 +32,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     const body = { ...rest, referralId, referralOrigin };
-    const operationResult = await addNewUser(con, body, req.log);
+    const operationResult = await addNewUser(con, body, req);
     return res.status(200).send(operationResult);
   });
   fastify.post<{ Body: UpdateUserEmailData }>(

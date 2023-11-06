@@ -14,6 +14,7 @@ import { NodeSDK, logs, node, api, resources } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 import { SemanticAttributes as SemAttr } from '@opentelemetry/semantic-conventions';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
+import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 // import { CloudPropagator } from '@google-cloud/opentelemetry-cloud-trace-propagator';
 
 import { containerDetector } from '@opentelemetry/resource-detector-container';
@@ -31,6 +32,7 @@ const resourceDetectors = [
   resources.processDetectorSync,
   containerDetector,
   gcpDetector,
+  new GcpDetectorSync(),
 ];
 
 // Try to get the app version from the header, then query param, then default to unknown

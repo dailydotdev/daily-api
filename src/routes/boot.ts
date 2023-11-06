@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import createOrGetConnection from '../db';
 import { DataSource, EntityManager } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
-import { generateTrackingId } from '../ids';
+import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
 import { GQLUser } from '../schema/users';
 import {
@@ -65,7 +65,7 @@ export type Experimentation = {
 
 export type BaseBoot = {
   visit: { visitId: string; sessionId: string };
-  alerts: Omit<Alerts, 'userId'>;
+  alerts: Omit<Alerts, 'userId' | 'flags'>;
   settings: Omit<Settings, 'userId' | 'updatedAt'>;
   notifications: { unreadNotificationsCount: number };
   squads: BootSquadSource[];
@@ -108,7 +108,7 @@ const visitSection = async (
   res: FastifyReply,
 ): Promise<BaseBoot['visit']> => {
   const [visitId, sessionId] = await Promise.all([
-    generateTrackingId(),
+    generateUUID(),
     generateSessionId(req, res),
   ]);
   return {
