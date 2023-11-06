@@ -506,7 +506,7 @@ describe('POST /p/newUser', () => {
     });
   });
 
-  it('should subscribe to personalized digest in UTC timezone if falsy value is set', async () => {
+  it('should subscribe to personalized digest in UTC timezone if null value is set', async () => {
     const { body } = await request(app.server)
       .post('/p/newUser')
       .set('Content-type', 'application/json')
@@ -518,6 +518,36 @@ describe('POST /p/newUser', () => {
         username: usersFixture[0].username,
         email: usersFixture[0].email,
         timezone: null,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: usersFixture[0].id,
+      });
+    expect(personalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Wednesday,
+      preferredHour: 8,
+      preferredTimezone: 'Etc/UTC',
+      variation: 1,
+    });
+  });
+
+  it('should subscribe to personalized digest in UTC timezone if empty string is set', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        timezone: '',
       })
       .expect(200);
 
