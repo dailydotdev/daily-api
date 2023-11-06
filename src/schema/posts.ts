@@ -1417,24 +1417,30 @@ export const resolvers: IResolvers<any, Context> = {
         const swapPinnedTime = new Date(
           swapWithPost.pinnedAt.getTime() + 1000 * (isNextPost ? 1 : -1),
         );
-        const operation = isNextPost
-          ? `+ interval '1 second'`
-          : `- interval '1 second'`;
-        const comparison = isNextPost ? '>=' : '<=';
 
-        await manager
+        let query = manager
           .createQueryBuilder()
           .update(Post)
           .set({
-            pinnedAt: () => `"pinnedAt" ${operation}`,
+            pinnedAt: () =>
+              isNextPost
+                ? `"pinnedAt" + interval '1 second'`
+                : `"pinnedAt" - interval '1 second'`,
           })
           .where('"pinnedAt" IS NOT NULL')
-          .andWhere(`"pinnedAt" ${comparison} :swapPinnedTime`, {
-            swapPinnedTime,
-          })
-          .andWhere('"sourceId" = :sourceId', { sourceId: post.sourceId })
-          .execute();
+          .andWhere('"sourceId" = :sourceId', { sourceId: post.sourceId });
 
+        if (isNextPost) {
+          query = query.andWhere('"pinnedAt" >= :swapPinnedTime', {
+            swapPinnedTime,
+          });
+        } else {
+          query = query.andWhere('"pinnedAt" <= :swapPinnedTime', {
+            swapPinnedTime,
+          });
+        }
+
+        await query.execute();
         await repo.update(
           { id },
           {
