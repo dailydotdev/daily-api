@@ -222,7 +222,8 @@ describe('mutation updateLastReferralReminder', () => {
   it('should update the last referral reminder and flags', async () => {
     loggedUser = '1';
     const date = new Date();
-    await client.mutate(MUTATION);
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
     const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
     expect(alerts.showGenericReferral).toEqual(false);
     expect(alerts.flags.lastReferralReminder).not.toBeNull();
@@ -241,7 +242,8 @@ describe('mutation updateLastReferralReminder', () => {
       flags: { existingFlag: 'value1' },
     });
 
-    await client.mutate(MUTATION);
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
     const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
     expect(alerts.showGenericReferral).toEqual(false);
     expect(alerts.flags).toEqual({

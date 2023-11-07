@@ -199,7 +199,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         },
         { lastReferralReminder: new Date() },
       );
-      return;
+      return { _: true };
     },
   },
   Query: {
