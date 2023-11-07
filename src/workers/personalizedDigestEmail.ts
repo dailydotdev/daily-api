@@ -229,6 +229,8 @@ const worker: Worker = {
       return;
     }
 
+    await sendEmail(emailPayload);
+
     await con.getRepository(UserPersonalizedDigest).update(
       {
         userId: personalizedDigest.userId,
@@ -237,8 +239,6 @@ const worker: Worker = {
         lastSendDate: currentDate,
       },
     );
-
-    await sendEmail(emailPayload);
   },
 };
 
