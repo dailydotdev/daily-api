@@ -108,6 +108,13 @@ const instrumentations = [
 api.diag.setLogger(new api.DiagConsoleLogger(), api.DiagLogLevel.INFO);
 
 export const tracer = (serviceName: string) => {
+  if (process.env.OTEL_ENABLED !== 'true') {
+    return {
+      start: () => {},
+      tracer: api.trace.getTracer('noop'),
+    };
+  }
+
   const traceExporter = isProd
     ? new TraceExporter()
     : new OTLPTraceExporter({
