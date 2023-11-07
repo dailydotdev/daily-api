@@ -12,7 +12,7 @@ import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import { messageToJson, Worker } from './worker';
 import { DayOfWeek } from '../types';
 import { MailDataRequired } from '@sendgrid/mail';
-import { format, nextDay, previousDay } from 'date-fns';
+import { format, isSameWeek, nextDay, previousDay } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import { FeedClient } from '../integrations/feed';
 
@@ -212,6 +212,31 @@ const worker: Worker = {
       category: 'Digests',
       ...variationProps,
     };
+
+    const personalizedDigestWithLastSendDate = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOne({
+        select: ['lastSendDate'],
+        where: {
+          userId: personalizedDigest.userId,
+        },
+      });
+
+    if (
+      personalizedDigestWithLastSendDate?.lastSendDate &&
+      isSameWeek(currentDate, personalizedDigestWithLastSendDate.lastSendDate)
+    ) {
+      return;
+    }
+
+    await con.getRepository(UserPersonalizedDigest).update(
+      {
+        userId: personalizedDigest.userId,
+      },
+      {
+        lastSendDate: currentDate,
+      },
+    );
 
     await sendEmail(emailPayload);
   },

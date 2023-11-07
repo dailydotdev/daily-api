@@ -9,6 +9,7 @@ import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
 import { sendEmail } from '../../src/common';
 import nock from 'nock';
+import { subDays } from 'date-fns';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -185,7 +186,7 @@ describe('personalizedDigestEmail worker', () => {
       User,
       usersFixture.map((item) => ({
         ...item,
-        name: null,
+        name: null as unknown,
       })),
     );
 
@@ -233,7 +234,7 @@ describe('personalizedDigestEmail worker', () => {
       .findOneBy({
         userId: '1',
       });
-    personalizedDigest.variation = 2;
+    personalizedDigest!.variation = 2;
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
@@ -245,5 +246,45 @@ describe('personalizedDigestEmail worker', () => {
     expect(emailData).toMatchSnapshot({
       sendAt: expect.any(Number),
     });
+  });
+
+  it('should not generate personalized digest for user if lastSendDate is in the same week as current date', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      lastSendDate: new Date(),
+    });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      generationTimestamp: Date.now(),
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not generate personalized digest for user if lastSendDate is in a past week', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      lastSendDate: subDays(new Date(), 7),
+    });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      generationTimestamp: Date.now(),
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 });
