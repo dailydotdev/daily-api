@@ -11,7 +11,7 @@ export class UserPersonalizedDigestSubscribeTrigger1699284661116 implements Migr
           AS
         $$
         BEGIN
-          INSERT INTO user_personalized_digest ("userId", "preferredTimezone", "preferredHour", "preferredDay") VALUES (NEW.id, COALESCE(NULLIF(NEW.timezone, ''), 'Etc/UTC'), 8, 3);
+          INSERT INTO user_personalized_digest ("userId", "preferredTimezone", "preferredHour", "preferredDay") VALUES (NEW.id, COALESCE(NULLIF(NEW.timezone, ''), 'Etc/UTC'), 8, 3) ON CONFLICT DO NOTHING;
           RETURN NEW;
         END;
         $$
