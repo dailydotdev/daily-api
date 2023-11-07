@@ -26,6 +26,7 @@ describe('personalizedDigest cron', () => {
     jest.resetAllMocks();
 
     await saveFixtures(con, User, usersFixture);
+    await con.getRepository(UserPersonalizedDigest).clear();
   });
 
   it('should schedule generation', async () => {
