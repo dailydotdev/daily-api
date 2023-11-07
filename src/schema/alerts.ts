@@ -61,7 +61,7 @@ export const typeDefs = /* GraphQL */ `
     squadTour: Boolean!
 
     """
-    Whether to show the referral prompt
+    Whether to show the generic referral reminder
     """
     showGenericReferral: Boolean!
   }
