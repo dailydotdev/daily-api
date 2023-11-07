@@ -29,6 +29,7 @@ beforeEach(async () => {
   nockBody = {};
 
   await saveFixtures(con, User, usersFixture);
+  await con.getRepository(UserPersonalizedDigest).clear();
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
   await con.getRepository(UserPersonalizedDigest).save({
