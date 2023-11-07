@@ -88,7 +88,7 @@ describe('query userAlerts', () => {
 });
 
 describe('mutation updateUserAlerts', () => {
-  const MUTATION = `
+  const MUTATION = (extra = '') => `
     mutation UpdateUserAlerts($data: UpdateAlertsInput!) {
       updateUserAlerts(data: $data) {
         filter
@@ -96,6 +96,7 @@ describe('mutation updateUserAlerts', () => {
         myFeed
         companionHelper
         squadTour
+        ${extra}
       }
     }
   `;
@@ -104,7 +105,7 @@ describe('mutation updateUserAlerts', () => {
     testMutationErrorCode(
       client,
       {
-        mutation: MUTATION,
+        mutation: MUTATION(),
         variables: { data: { filter: false } },
       },
       'UNAUTHENTICATED',
@@ -112,7 +113,7 @@ describe('mutation updateUserAlerts', () => {
 
   it('should create user alerts when does not exist', async () => {
     loggedUser = '1';
-    const res = await client.mutate(MUTATION, {
+    const res = await client.mutate(MUTATION(), {
       variables: { data: { filter: false } },
     });
     expect(res.data).toMatchSnapshot();
@@ -120,7 +121,7 @@ describe('mutation updateUserAlerts', () => {
 
   it('should create user action type for my feed if alert is false', async () => {
     loggedUser = '1';
-    const res = await client.mutate(MUTATION, {
+    const res = await client.mutate(MUTATION(), {
       variables: { data: { filter: false } },
     });
     const completed = await con
@@ -147,7 +148,7 @@ describe('mutation updateUserAlerts', () => {
     );
 
     const rankLastSeen = new Date('2020-09-22T12:15:51.247Z');
-    const res = await client.mutate(MUTATION, {
+    const res = await client.mutate(MUTATION(), {
       variables: {
         data: {
           rankLastSeen: rankLastSeen.toISOString(),
@@ -163,6 +164,16 @@ describe('mutation updateUserAlerts', () => {
 
     expect(completed).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should not update showGenericReferral alerts of user via updateAlerts', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION('showGenericReferral'), {
+      variables: { data: { showGenericReferral: false } },
+    });
+    expect(res.errors).toBeTruthy();
+    expect(res.errors[0].message).toEqual('Unexpected error');
   });
 });
 
@@ -211,7 +222,8 @@ describe('mutation updateLastReferralReminder', () => {
   it('should update the last referral reminder and flags', async () => {
     loggedUser = '1';
     const date = new Date();
-    await client.mutate(MUTATION);
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
     const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
     expect(alerts.showGenericReferral).toEqual(false);
     expect(alerts.flags.lastReferralReminder).not.toBeNull();
@@ -230,7 +242,8 @@ describe('mutation updateLastReferralReminder', () => {
       flags: { existingFlag: 'value1' },
     });
 
-    await client.mutate(MUTATION);
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
     const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
     expect(alerts.showGenericReferral).toEqual(false);
     expect(alerts.flags).toEqual({
