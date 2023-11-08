@@ -2,7 +2,7 @@ import { expectSuccessfulBackground, saveFixtures } from '../../helpers';
 import worker from '../../../src/workers/user/userCreatedInsertAlerts';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import {Alerts, ALERTS_DEFAULT, User} from '../../../src/entity';
+import { Alerts, ALERTS_DEFAULT, User } from '../../../src/entity';
 import { usersFixture } from '../../fixture/user';
 
 let con: DataSource;
