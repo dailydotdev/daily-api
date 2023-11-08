@@ -1,6 +1,10 @@
 interface Cron {
   name: string;
   schedule: string;
+  limits?: {
+    cpu: string;
+    memory: string;
+  }
 }
 
 export const crons: Cron[] = [
