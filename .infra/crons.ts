@@ -44,12 +44,14 @@ export const crons: Cron[] = [
     name: 'clean-zombie-images',
     schedule: '3 5 * * *',
   },
-  // disable until we re-evaluate sending
-  // at bigger scale
-  // {
-  //   name: 'personalized-digest',
-  //   schedule: '15 0 * * *',
-  // },
+  {
+    name: 'personalized-digest',
+    schedule: '15 0 * * *',
+    limits: {
+      cpu: '250m',
+      memory: '1Gi'
+    }
+  },
   {
     name: 'generate-search-invites',
     schedule: '15 1 * * *',
