@@ -49,7 +49,7 @@ export const crons: Cron[] = [
     schedule: '15 0 * * *',
     limits: {
       cpu: '250m',
-      memory: '1Gi'
+      memory: '256Mi'
     }
   },
   {
