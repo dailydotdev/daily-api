@@ -12,7 +12,7 @@ import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import { messageToJson, Worker } from './worker';
 import { DayOfWeek } from '../types';
 import { MailDataRequired } from '@sendgrid/mail';
-import { format, isSameWeek, nextDay, previousDay } from 'date-fns';
+import { format, isSameDay, nextDay, previousDay } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import { FeedClient } from '../integrations/feed';
 
@@ -231,7 +231,7 @@ const worker: Worker = {
 
     if (
       personalizedDigestWithLastSendDate?.lastSendDate &&
-      isSameWeek(currentDate, personalizedDigestWithLastSendDate.lastSendDate)
+      isSameDay(currentDate, personalizedDigestWithLastSendDate.lastSendDate)
     ) {
       return;
     }

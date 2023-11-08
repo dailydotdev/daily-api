@@ -255,7 +255,7 @@ describe('personalizedDigestEmail worker', () => {
     });
   });
 
-  it('should not generate personalized digest for user if lastSendDate is in the same week as current date', async () => {
+  it('should not generate personalized digest for user if lastSendDate is in the same day as current date', async () => {
     const personalizedDigest = await con
       .getRepository(UserPersonalizedDigest)
       .findOneBy({
@@ -276,7 +276,7 @@ describe('personalizedDigestEmail worker', () => {
     expect(sendEmail).toHaveBeenCalledTimes(0);
   });
 
-  it('should not generate personalized digest for user if lastSendDate is in a past week', async () => {
+  it('should generate personalized digest for user if lastSendDate is in the past', async () => {
     const personalizedDigest = await con
       .getRepository(UserPersonalizedDigest)
       .findOneBy({
