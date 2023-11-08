@@ -123,6 +123,7 @@ config:
       secure: AAABAMKT6wx502Nz24Oo7QyLHvLlkR+7ejsoo/4w8NkDiOYfQkhsrQq3YlWLdE78DkuzPA==
     webhookUrl:
       secure: AAABAINtY3LR2ciIEW/VPIBq7aqGyNJ5bjMKBi9GdN1ggEIIYWp4DA6HoWmCXQAgh2L845rO9NjEjbFK7XCV+fjQCU1lY2CjVcIXxDhIEYBjMf+wC+vP7nLt
+    digestConcurrency: 1000
   api:k8s:
     host: subs.daily.dev
     namespace: daily

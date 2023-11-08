@@ -72,5 +72,6 @@ config:
     typeormUser: postgres
     tz: UTC
     urlPrefix: http://api.local.com
+    digestConcurrency: 1000
   api:k8s:
     namespace: local
