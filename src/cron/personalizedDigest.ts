@@ -15,7 +15,7 @@ const cron: Cron = {
     const personalizedDigestStream = await personalizedDigestQuery.stream();
     const notifyQueueConcurrency = +process.env.DIGEST_CONCURRENCY;
     const notifyQueue = fastq.promise(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       digestCount += 1;
     }, notifyQueueConcurrency);
