@@ -14,6 +14,7 @@ import { subDays } from 'date-fns';
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
   sendEmail: jest.fn(),
+  createEemailBatchId: jest.fn(),
 }));
 
 let con: DataSource;
@@ -66,6 +67,7 @@ describe('personalizedDigestEmail worker', () => {
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
@@ -105,6 +107,7 @@ describe('personalizedDigestEmail worker', () => {
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
@@ -148,6 +151,7 @@ describe('personalizedDigestEmail worker', () => {
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
@@ -195,6 +199,7 @@ describe('personalizedDigestEmail worker', () => {
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
@@ -223,6 +228,7 @@ describe('personalizedDigestEmail worker', () => {
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(0);
@@ -239,6 +245,7 @@ describe('personalizedDigestEmail worker', () => {
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
@@ -263,6 +270,7 @@ describe('personalizedDigestEmail worker', () => {
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(0);
@@ -283,6 +291,7 @@ describe('personalizedDigestEmail worker', () => {
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);

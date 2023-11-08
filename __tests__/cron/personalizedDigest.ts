@@ -61,6 +61,7 @@ describe('personalizedDigest cron', () => {
         expect.anything(),
         personalizedDigest,
         expect.any(Number),
+        'test-email-batch-id',
       );
     });
   });
@@ -91,6 +92,7 @@ describe('personalizedDigest cron', () => {
         expect.anything(),
         personalizedDigest,
         expect.any(Number),
+        'test-email-batch-id',
       );
     });
   });

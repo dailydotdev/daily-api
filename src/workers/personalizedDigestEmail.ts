@@ -19,6 +19,7 @@ import { FeedClient } from '../integrations/feed';
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
   generationTimestamp: number;
+  emailBatchId: string;
 }
 
 type TemplatePostData = Pick<
@@ -29,6 +30,11 @@ type TemplatePostData = Pick<
   sourceImage: Source['image'];
 };
 
+type EmailSendDateProps = Pick<
+  Data,
+  'personalizedDigest' | 'generationTimestamp'
+>;
+
 const personalizedDigestPostsCount = 5;
 
 const emailTemplateId = 'd-328d1104d2e04fa1ab91e410e02751cb';
@@ -38,7 +44,7 @@ const personalizedDigestDateFormat = 'yyyy-MM-dd HH:mm:ss';
 const getEmailSendDate = ({
   personalizedDigest,
   generationTimestamp,
-}: Data): Date => {
+}: EmailSendDateProps): Date => {
   const nextPreferredDay = nextDay(
     new Date(generationTimestamp),
     personalizedDigest.preferredDay,
@@ -50,7 +56,7 @@ const getEmailSendDate = ({
 const getPreviousSendDate = ({
   personalizedDigest,
   generationTimestamp,
-}: Data): Date => {
+}: EmailSendDateProps): Date => {
   const nextPreferredDay = previousDay(
     new Date(generationTimestamp),
     personalizedDigest.preferredDay,
@@ -124,7 +130,7 @@ const worker: Worker = {
 
     const data = messageToJson<Data>(message);
 
-    const { personalizedDigest, generationTimestamp } = data;
+    const { personalizedDigest, generationTimestamp, emailBatchId } = data;
 
     const user = await con.getRepository(User).findOneBy({
       id: personalizedDigest.userId,
@@ -210,6 +216,7 @@ const worker: Worker = {
         groupId: 23809,
       },
       category: 'Digests',
+      batchId: emailBatchId,
       ...variationProps,
     };
 

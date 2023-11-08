@@ -35,6 +35,7 @@ const cron: Cron = {
           logger,
           personalizedDigest,
           timestamp,
+          emailBatchId,
         );
 
         digestCount += 1;
