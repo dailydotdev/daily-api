@@ -14,8 +14,14 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await saveFixtures(con, User, usersFixture);
   jest.resetAllMocks();
+  await saveFixtures(con, User, usersFixture);
+  await repo.delete({ userId: '1' });
+  await repo.save({
+    ...ALERTS_DEFAULT,
+    userId: '1',
+    showGenericReferral: false,
+  });
 });
 
 const expectReferralValue = async (before: boolean, after: boolean) => {
@@ -27,15 +33,6 @@ const expectReferralValue = async (before: boolean, after: boolean) => {
 };
 
 describe('newly registered users', () => {
-  beforeEach(async () => {
-    await repo.delete({ userId: '1' });
-    await repo.save({
-      ...ALERTS_DEFAULT,
-      userId: '1',
-      showGenericReferral: false,
-    });
-  });
-
   it('should not update reminder when it is already true', async () => {
     const threeWeeksAgo = subWeeks(new Date(), 3);
     await con.getRepository(User).update({}, { createdAt: threeWeeksAgo });
@@ -57,16 +54,6 @@ describe('newly registered users', () => {
 });
 
 describe('users that have seen the reminder at least once', () => {
-  beforeEach(async () => {
-    const repo = con.getRepository(Alerts);
-    await repo.delete({ userId: '1' });
-    await repo.save({
-      ...ALERTS_DEFAULT,
-      userId: '1',
-      showGenericReferral: false,
-    });
-  });
-
   it('should not update reminder when it is already true', async () => {
     const sevenMonthsAgo = subMonths(new Date(), 7);
     await con.getRepository(Alerts).update(
