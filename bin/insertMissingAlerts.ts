@@ -2,7 +2,7 @@ import '../src/config';
 import createOrGetConnection from '../src/db';
 import { Alerts, User } from '../src/entity';
 
-export const insertMissingAlerts = async () => {
+(async () => {
   const con = await createOrGetConnection();
   const usersQuery = con
     .getRepository(User)
@@ -14,6 +14,4 @@ export const insertMissingAlerts = async () => {
   await con
     .getRepository(Alerts)
     .query(`INSERT INTO public.alerts ("userId") ${usersQuery}`);
-};
-
-insertMissingAlerts();
+})();
