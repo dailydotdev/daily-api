@@ -331,6 +331,7 @@ describe('query referredUsers', () => {
   it('should return users that have been referred by the logged in user', async () => {
     loggedUser = '1';
     const referred = ['4', '2', '3'];
+    const outsideReferred = ['1', '5', '6'];
     await con
       .getRepository(User)
       .update({ id: In(referred) }, { referralId: '1' });
@@ -340,16 +341,6 @@ describe('query referredUsers', () => {
       referred.includes(node.id),
     );
     expect(isAllReferred).toBeTruthy();
-  });
-
-  it('should not return users that have been referred by the logged in user', async () => {
-    loggedUser = '1';
-    const outsideReferred = ['1', '5', '6'];
-    await con
-      .getRepository(User)
-      .update({ id: In(['4', '2', '3']) }, { referralId: '1' });
-    const res = await client.query(QUERY);
-    expect(res.errors).toBeFalsy();
     const noUnReferred = res.data.referredUsers.edges.every(
       ({ node }) => !outsideReferred.includes(node.id),
     );
