@@ -24,6 +24,7 @@ import {
 const isAdhocEnv = detectIsAdhocEnv();
 const name = 'api';
 const debeziumTopicName = `${name}.changes`;
+const isPersonalizedDigestEnabled = config.require('enablePersonalizedDigest') === 'true';
 
 const { image, imageTag } = getImageAndTag(`us.gcr.io/daily-ops/daily-${name}`);
 
@@ -85,23 +86,25 @@ const envVars: Record<string, Input<string>> = {
   redisHost,
 };
 
-const deadLetterTopic = new Stream(digestDeadLetter, {
-  isAdhocEnv,
-  name: digestDeadLetter,
-});
-
 createSubscriptionsFromWorkers(
   name,
   isAdhocEnv,
   addLabelsToWorkers(workers, { app: name, subapp: 'background' }),
 );
 
-createSubscriptionsFromWorkers(
-  name,
-  isAdhocEnv,
-  addLabelsToWorkers(personalizedDigestWorkers, { app: name, subapp: 'personalized-digest' }),
-  { dependsOn: [deadLetterTopic] },
-);
+if (isPersonalizedDigestEnabled) {
+  const deadLetterTopic = new Stream(digestDeadLetter, {
+    isAdhocEnv,
+    name: digestDeadLetter,
+  });
+
+  createSubscriptionsFromWorkers(
+    name,
+    isAdhocEnv,
+    addLabelsToWorkers(personalizedDigestWorkers, { app: name, subapp: 'personalized-digest' }),
+    { dependsOn: [deadLetterTopic] },
+  );
+}
 
 const memory = 512;
 const limits: pulumi.Input<{
@@ -216,7 +219,10 @@ if (isAdhocEnv) {
         'prometheus.io/port': '9464',
       },
     },
-    {
+  ];
+
+  if (isPersonalizedDigestEnabled) {
+    appsArgs.push({
       nameSuffix: 'personalized-digest',
       args: ['npm', 'run', 'dev:personalized-digest'],
       minReplicas: 1,
@@ -237,8 +243,8 @@ if (isAdhocEnv) {
         'prometheus.io/scrape': 'true',
         'prometheus.io/port': '9464',
       },
-    },
-  ];
+    })
+  }
 } else {
   appsArgs = [
     {
@@ -285,18 +291,6 @@ if (isAdhocEnv) {
       },
     },
     {
-      nameSuffix: 'personalized-digest',
-      args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
-      minReplicas: 1,
-      maxReplicas: 25,
-      limits: bgLimits,
-      metric: {
-        type: 'pubsub',
-        labels: { app: name, subapp: 'personalized-digest' },
-        targetAverageValue: 100,
-      },
-    },
-    {
       nameSuffix: 'private',
       port: 3000,
       env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }, ...jwtEnv],
@@ -315,6 +309,21 @@ if (isAdhocEnv) {
       ...jwtVols,
     },
   ];
+
+  if (isPersonalizedDigestEnabled) {
+    appsArgs.push({
+      nameSuffix: 'personalized-digest',
+      args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
+      minReplicas: 1,
+      maxReplicas: 25,
+      limits: bgLimits,
+      metric: {
+        type: 'pubsub',
+        labels: { app: name, subapp: 'personalized-digest' },
+        targetAverageValue: 100,
+      },
+    })
+  }
 }
 
 const vpcNativeProvider = isAdhocEnv ? undefined : getVpcNativeCluster();

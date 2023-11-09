@@ -40,6 +40,7 @@ config:
       -----END PUBLIC KEY-----
   api:debeziumDbPass: "12345"
   api:debeziumDbUser: postgres
+  api:enablePersonalizedDigest: "false"
   api:env:
     accessSecret: topsecret
     analyticsUrl: http://localhost:3000
