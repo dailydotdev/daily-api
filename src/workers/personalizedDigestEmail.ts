@@ -241,7 +241,7 @@ const worker: Worker = {
       ...variationProps,
     };
 
-    const { lastSendDate } =
+    const { lastSendDate = null } =
       (await con.getRepository(UserPersonalizedDigest).findOne({
         select: ['lastSendDate'],
         where: {
