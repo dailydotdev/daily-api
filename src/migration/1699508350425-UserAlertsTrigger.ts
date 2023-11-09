@@ -16,11 +16,11 @@ export class UserAlertsTrigger1699508350425 implements MigrationInterface {
         END;
         $$
       `)
-    queryRunner.query('CREATE TRIGGER user_create_trigger AFTER INSERT ON public."user" FOR EACH ROW EXECUTE PROCEDURE insert_user_alerts()')
+    queryRunner.query('CREATE TRIGGER user_create_alerts_trigger AFTER INSERT ON public."user" FOR EACH ROW EXECUTE PROCEDURE insert_user_alerts()')
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    queryRunner.query('DROP TRIGGER IF EXISTS user_create_trigger ON public.user')
+    queryRunner.query('DROP TRIGGER IF EXISTS user_create_alerts_trigger ON public.user')
     queryRunner.query('DROP FUNCTION IF EXISTS insert_user_alerts')
   }
 
