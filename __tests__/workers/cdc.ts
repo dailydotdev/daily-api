@@ -159,6 +159,7 @@ const defaultUser: ChangeObject<User> = {
   infoConfirmed: true,
   acceptedMarketing: true,
   notificationEmail: true,
+  createdAt: new Date(2023, 1, 1).getTime(),
 };
 
 describe('source request', () => {
