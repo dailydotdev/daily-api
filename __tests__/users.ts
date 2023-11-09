@@ -24,6 +24,7 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import {
+  Alerts,
   ArticlePost,
   Comment,
   DevCard,
@@ -46,6 +47,7 @@ import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { UserPersonalizedDigest } from '../src/entity/UserPersonalizedDigest';
 import { DayOfWeek } from '../src/types';
 import { CampaignType, Invite } from '../src/entity/Invite';
+import { usersFixture } from './fixture/user';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -2512,5 +2514,17 @@ describe('mutation acceptFeatureInvite', () => {
       .getRepository(Invite)
       .findOneBy({ token: 'd688afeb-381c-43b5-89af-533f81ccd036' });
     expect(invite.count).toEqual(1);
+  });
+});
+
+describe('user_create_alerts_trigger after insert trigger', () => {
+  it('should insert default alerts', async () => {
+    await con.getRepository(User).delete({});
+    const repo = con.getRepository(Alerts);
+    await repo.delete({});
+    const [user] = usersFixture;
+    await saveFixtures(con, User, [user]);
+    const alerts = await repo.findOneBy({ userId: user.id });
+    expect(alerts).toBeTruthy();
   });
 });
