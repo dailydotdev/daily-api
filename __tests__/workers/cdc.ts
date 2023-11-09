@@ -516,7 +516,7 @@ describe('comment', () => {
 });
 
 describe('user', () => {
-  type ObjectType = User;
+  type ObjectType = Omit<User, 'createdAt'>;
   const base: ChangeObject<ObjectType> = { ...defaultUser };
 
   it('should notify on user created', async () => {
