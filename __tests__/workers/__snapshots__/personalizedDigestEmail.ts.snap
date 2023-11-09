@@ -5,6 +5,7 @@ Object {
   "asm": Object {
     "groupId": 23809,
   },
+  "batchId": "test-email-batch-id",
   "category": "Digests",
   "dynamicTemplateData": Object {
     "day_name": "Monday",
@@ -91,6 +92,7 @@ Object {
   "asm": Object {
     "groupId": 23809,
   },
+  "batchId": "test-email-batch-id",
   "category": "Digests",
   "dynamicTemplateData": Object {
     "day_name": "Monday",
@@ -177,6 +179,7 @@ Object {
   "asm": Object {
     "groupId": 23809,
   },
+  "batchId": "test-email-batch-id",
   "category": "Digests",
   "dynamicTemplateData": Object {
     "day_name": "Monday",
@@ -263,6 +266,7 @@ Object {
   "asm": Object {
     "groupId": 23809,
   },
+  "batchId": "test-email-batch-id",
   "category": "Digests",
   "dynamicTemplateData": Object {
     "day_name": "Monday",
