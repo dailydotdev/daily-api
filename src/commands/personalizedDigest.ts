@@ -1,13 +1,13 @@
-import { runInRootSpan, opentelemetry } from './telemetry/opentelemetry';
+import { runInRootSpan, opentelemetry } from '../telemetry/opentelemetry';
 import 'reflect-metadata';
 import { PubSub } from '@google-cloud/pubsub';
 import pino from 'pino';
+import personalizedDigestEmailWorker from '../workers/personalizedDigestEmail';
 
 import './config';
 
-import { workers } from './workers';
-import createOrGetConnection from './db';
-import { workerSubscribe } from './common';
+import createOrGetConnection from '../db';
+import { workerSubscribe } from '../common';
 
 export default async function app(): Promise<void> {
   const logger = pino();
@@ -16,9 +16,10 @@ export default async function app(): Promise<void> {
     createOrGetConnection,
   );
   const pubsub = new PubSub();
-  const meter = opentelemetry.metrics.getMeter('api-bg');
+  const meter = opentelemetry.metrics.getMeter('api-personalized-digest');
+  const workers = [personalizedDigestEmailWorker];
 
-  logger.info('background processing in on');
+  logger.info('personalized-digest processing in on');
 
   workers.forEach((worker) =>
     workerSubscribe(
