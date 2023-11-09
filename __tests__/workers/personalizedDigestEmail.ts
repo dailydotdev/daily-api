@@ -9,10 +9,12 @@ import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
 import { sendEmail } from '../../src/common';
 import nock from 'nock';
+import { subDays } from 'date-fns';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
   sendEmail: jest.fn(),
+  createEemailBatchId: jest.fn(),
 }));
 
 let con: DataSource;
@@ -61,11 +63,19 @@ describe('personalizedDigestEmail worker', () => {
       });
 
     expect(personalizedDigest).toBeTruthy();
+    expect(personalizedDigest!.lastSendDate).toBeNull();
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
     });
+
+    const personalizedDigestAfterWorker = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
@@ -85,6 +95,8 @@ describe('personalizedDigestEmail worker', () => {
     expect(dateFrom.getDay()).toBe(personalizedDigest!.preferredDay);
     expect(dateFrom.getHours()).toBe(personalizedDigest!.preferredHour);
     expect(dateFrom.getTimezoneOffset()).toBe(0);
+
+    expect(personalizedDigestAfterWorker!.lastSendDate).not.toBeNull();
   });
 
   it('should generate personalized digest for user in timezone ahead UTC', async () => {
@@ -104,6 +116,7 @@ describe('personalizedDigestEmail worker', () => {
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
@@ -147,6 +160,7 @@ describe('personalizedDigestEmail worker', () => {
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
@@ -185,7 +199,7 @@ describe('personalizedDigestEmail worker', () => {
       User,
       usersFixture.map((item) => ({
         ...item,
-        name: null,
+        name: null as unknown,
       })),
     );
 
@@ -194,6 +208,7 @@ describe('personalizedDigestEmail worker', () => {
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
@@ -222,6 +237,7 @@ describe('personalizedDigestEmail worker', () => {
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(0);
@@ -233,11 +249,12 @@ describe('personalizedDigestEmail worker', () => {
       .findOneBy({
         userId: '1',
       });
-    personalizedDigest.variation = 2;
+    personalizedDigest!.variation = 2;
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
@@ -245,5 +262,82 @@ describe('personalizedDigestEmail worker', () => {
     expect(emailData).toMatchSnapshot({
       sendAt: expect.any(Number),
     });
+  });
+
+  it('should not generate personalized digest for user if lastSendDate is in the same day as current date', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      lastSendDate: new Date(),
+    });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(0);
+  });
+
+  it('should generate personalized digest for user if lastSendDate is in the past', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      lastSendDate: subDays(new Date(), 7),
+    });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('should revert lastSendDate if send email throws error', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    (sendEmail as jest.Mock).mockRejectedValue(new Error('test error'));
+
+    const lastSendDate = subDays(new Date(), 7);
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      lastSendDate,
+    });
+
+    await expect(() => {
+      return expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        generationTimestamp: Date.now(),
+        emailBatchId: 'test-email-batch-id',
+      });
+    }).rejects.toEqual(new Error('test error'));
+
+    const personalizedDigestAfterWorker = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    expect(personalizedDigestAfterWorker?.lastSendDate?.toISOString()).toBe(
+      lastSendDate.toISOString(),
+    );
   });
 });

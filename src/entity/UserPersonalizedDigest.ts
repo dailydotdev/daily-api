@@ -20,6 +20,9 @@ export class UserPersonalizedDigest {
   @Column({ default: 1, nullable: false })
   variation: number;
 
+  @Column({ nullable: true })
+  lastSendDate: Date;
+
   @OneToOne(() => User, {
     lazy: true,
     onDelete: 'CASCADE',
