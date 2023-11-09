@@ -15,6 +15,7 @@ import { MailDataRequired } from '@sendgrid/mail';
 import { format, isSameDay, nextDay, previousDay } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import { FeedClient } from '../integrations/feed';
+import { DataSource } from 'typeorm';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -34,6 +35,11 @@ type EmailSendDateProps = Pick<
   Data,
   'personalizedDigest' | 'generationTimestamp'
 >;
+
+type SetEmailSendDateProps = Pick<Data, 'personalizedDigest'> & {
+  con: DataSource;
+  date: Date;
+};
 
 const personalizedDigestPostsCount = 5;
 
@@ -119,6 +125,21 @@ const getEmailVariation = async (
       preview: defaultPreview,
     },
   };
+};
+
+const setEmailSendDate = async ({
+  con,
+  personalizedDigest,
+  date,
+}: SetEmailSendDateProps) => {
+  return con.getRepository(UserPersonalizedDigest).update(
+    {
+      userId: personalizedDigest.userId,
+    },
+    {
+      lastSendDate: date,
+    },
+  );
 };
 
 const worker: Worker = {
@@ -220,32 +241,37 @@ const worker: Worker = {
       ...variationProps,
     };
 
-    const personalizedDigestWithLastSendDate = await con
-      .getRepository(UserPersonalizedDigest)
-      .findOne({
+    const { lastSendDate } =
+      (await con.getRepository(UserPersonalizedDigest).findOne({
         select: ['lastSendDate'],
         where: {
           userId: personalizedDigest.userId,
         },
-      });
+      })) || {};
 
-    if (
-      personalizedDigestWithLastSendDate?.lastSendDate &&
-      isSameDay(currentDate, personalizedDigestWithLastSendDate.lastSendDate)
-    ) {
+    if (lastSendDate && isSameDay(currentDate, lastSendDate)) {
       return;
     }
 
-    await sendEmail(emailPayload);
+    await setEmailSendDate({
+      con,
+      personalizedDigest,
+      date: currentDate,
+    });
 
-    await con.getRepository(UserPersonalizedDigest).update(
-      {
-        userId: personalizedDigest.userId,
-      },
-      {
-        lastSendDate: currentDate,
-      },
-    );
+    try {
+      await sendEmail(emailPayload);
+    } catch (error) {
+      // since email did not send we revert the lastSendDate
+      // so worker can do it again in retry
+      await setEmailSendDate({
+        con,
+        personalizedDigest,
+        date: lastSendDate,
+      });
+
+      throw error;
+    }
   },
 };
 

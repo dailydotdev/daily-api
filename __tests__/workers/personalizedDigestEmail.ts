@@ -63,12 +63,19 @@ describe('personalizedDigestEmail worker', () => {
       });
 
     expect(personalizedDigest).toBeTruthy();
+    expect(personalizedDigest!.lastSendDate).toBeNull();
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
       generationTimestamp: Date.now(),
       emailBatchId: 'test-email-batch-id',
     });
+
+    const personalizedDigestAfterWorker = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
@@ -88,6 +95,8 @@ describe('personalizedDigestEmail worker', () => {
     expect(dateFrom.getDay()).toBe(personalizedDigest!.preferredDay);
     expect(dateFrom.getHours()).toBe(personalizedDigest!.preferredHour);
     expect(dateFrom.getTimezoneOffset()).toBe(0);
+
+    expect(personalizedDigestAfterWorker!.lastSendDate).not.toBeNull();
   });
 
   it('should generate personalized digest for user in timezone ahead UTC', async () => {
@@ -295,5 +304,40 @@ describe('personalizedDigestEmail worker', () => {
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('should revert lastSendDate if send email throws error', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    (sendEmail as jest.Mock).mockRejectedValue(new Error('test error'));
+
+    const lastSendDate = subDays(new Date(), 7);
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      lastSendDate,
+    });
+
+    await expect(() => {
+      return expectSuccessfulBackground(worker, {
+        personalizedDigest,
+        generationTimestamp: Date.now(),
+        emailBatchId: 'test-email-batch-id',
+      });
+    }).rejects.toEqual(new Error('test error'));
+
+    const personalizedDigestAfterWorker = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    expect(personalizedDigestAfterWorker?.lastSendDate?.toISOString()).toBe(
+      lastSendDate.toISOString(),
+    );
   });
 });
