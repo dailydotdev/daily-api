@@ -43,7 +43,6 @@ import {
 import experimentAllocated from './experimentAllocated';
 import sourceSquadCreatedUserAction from './sourceSquadCreatedUserAction';
 import sourceSquadCreatedOwnerMailing from './sourceSquadCreatedOwnerMailing';
-import userCreatedInsertAlerts from './user/userCreatedInsertAlerts';
 import userCreatedAddPersonalizedDigest from './userCreatedAddPersonalizedDigest';
 import personalizedDigestEmail from './personalizedDigestEmail';
 import deadLetterLog from './digestDeadLetterLog';
@@ -89,7 +88,6 @@ export const workers: Worker[] = [
   experimentAllocated,
   sourceSquadCreatedUserAction,
   sourceSquadCreatedOwnerMailing,
-  userCreatedInsertAlerts,
   userCreatedAddPersonalizedDigest,
   personalizedDigestEmail,
   deadLetterLog,

@@ -52,7 +52,7 @@ export const crons: Cron[] = [
   // },
   {
     name: 'generic-referral-reminder',
-    schedule: '12 1 * * *',
+    schedule: '12 3 * * *',
   },
   {
     name: 'update-tag-recommendations',

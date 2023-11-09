@@ -242,10 +242,6 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.user-created',
-    subscription: 'api.user-created-insert-alerts',
-  },
-  {
-    topic: 'api.v1.user-created',
     subscription: 'api.user-created-add-personalized-digest',
   },
   {
