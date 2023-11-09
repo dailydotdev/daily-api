@@ -1,11 +1,22 @@
 import fastq from 'fastq';
-import { notifyGeneratePersonalizedDigest } from '../common';
+import {
+  createEmailBatchId,
+  notifyGeneratePersonalizedDigest,
+} from '../common';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import { Cron } from './cron';
 
 const cron: Cron = {
   name: 'personalized-digest',
   handler: async (con, logger) => {
+    const emailBatchId = await createEmailBatchId();
+
+    if (!emailBatchId) {
+      throw new Error('failed to create email batch id');
+    }
+
+    logger.info({ emailBatchId }, 'starting personalized digest send');
+
     const nextPreferredDay = (new Date().getDay() + 1) % 7;
     const personalizedDigestQuery = con
       .createQueryBuilder()
@@ -24,6 +35,7 @@ const cron: Cron = {
           logger,
           personalizedDigest,
           timestamp,
+          emailBatchId,
         );
 
         digestCount += 1;
@@ -41,7 +53,7 @@ const cron: Cron = {
     await new Promise((resolve, reject) => {
       personalizedDigestStream.on('error', (error) => {
         logger.error(
-          { err: error },
+          { err: error, emailBatchId },
           'streaming personalized digest subscriptions failed',
         );
 
@@ -51,7 +63,7 @@ const cron: Cron = {
     });
     await notifyQueue.drained();
 
-    logger.info({ digestCount }, 'personalized digest sent');
+    logger.info({ digestCount, emailBatchId }, 'personalized digest sent');
   },
 };
 

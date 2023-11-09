@@ -443,12 +443,14 @@ export const notifySourceCreated = async (
 
 export const notifyGeneratePersonalizedDigest = async (
   log: EventLogger,
-  personalizedDigest: ChangeObject<UserPersonalizedDigest>,
+  personalizedDigest: UserPersonalizedDigest,
   generationTimestamp: number,
+  emailBatchId: string,
 ): Promise<void> =>
   publishEvent(log, generatePersonalizedDigestTopic, {
     personalizedDigest,
     generationTimestamp,
+    emailBatchId,
   });
 
 export const workerSubscribe = (

@@ -5,7 +5,10 @@ import createOrGetConnection from '../../src/db';
 import { User } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { UserPersonalizedDigest } from '../../src/entity/UserPersonalizedDigest';
-import { notifyGeneratePersonalizedDigest } from '../../src/common';
+import {
+  createEmailBatchId,
+  notifyGeneratePersonalizedDigest,
+} from '../../src/common';
 import pino from 'pino';
 
 let con: DataSource;
@@ -17,6 +20,7 @@ beforeAll(async () => {
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
   notifyGeneratePersonalizedDigest: jest.fn(),
+  createEmailBatchId: jest.fn(),
 }));
 
 describe('personalizedDigest cron', () => {
@@ -27,6 +31,8 @@ describe('personalizedDigest cron', () => {
 
     await saveFixtures(con, User, usersFixture);
     await con.getRepository(UserPersonalizedDigest).clear();
+
+    (createEmailBatchId as jest.Mock).mockResolvedValue('test-email-batch-id');
   });
 
   it('should schedule generation', async () => {
@@ -55,6 +61,7 @@ describe('personalizedDigest cron', () => {
         expect.anything(),
         personalizedDigest,
         expect.any(Number),
+        'test-email-batch-id',
       );
     });
   });
@@ -85,6 +92,7 @@ describe('personalizedDigest cron', () => {
         expect.anything(),
         personalizedDigest,
         expect.any(Number),
+        'test-email-batch-id',
       );
     });
   });
@@ -102,10 +110,53 @@ describe('personalizedDigest cron', () => {
     const logger = pino();
     const infoSpy = jest.spyOn(logger, 'info');
     await expectSuccessfulCron(cron, logger);
-    expect(infoSpy).toHaveBeenCalledTimes(1);
+    expect(infoSpy).toHaveBeenCalledTimes(2);
     expect(infoSpy).toHaveBeenCalledWith(
-      { digestCount: usersToSchedule.length },
+      {
+        digestCount: usersToSchedule.length,
+        emailBatchId: 'test-email-batch-id',
+      },
       'personalized digest sent',
     );
+  });
+
+  it('should log email batch id', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+      })),
+    );
+
+    const logger = pino();
+    const infoSpy = jest.spyOn(logger, 'info');
+
+    await expectSuccessfulCron(cron, logger);
+
+    expect(infoSpy).toHaveBeenCalledTimes(2);
+    expect(infoSpy).toHaveBeenCalledWith(
+      { emailBatchId: 'test-email-batch-id' },
+      'starting personalized digest send',
+    );
+    expect(createEmailBatchId).toHaveBeenCalledTimes(1);
+  });
+
+  it('should throw when email batch id is not created', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+      })),
+    );
+
+    (createEmailBatchId as jest.Mock).mockResolvedValueOnce(undefined);
+
+    await expect(() => {
+      return expectSuccessfulCron(cron);
+    }).rejects.toEqual(new Error('failed to create email batch id'));
   });
 });
