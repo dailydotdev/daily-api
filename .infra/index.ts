@@ -93,7 +93,7 @@ const deadLetterTopic = new Stream(digestDeadLetter, {
 createSubscriptionsFromWorkers(
   name,
   isAdhocEnv,
-  addLabelsToWorkers(workers, { app: name })
+  addLabelsToWorkers(workers, { app: name, subapp: 'background' }),
 );
 
 createSubscriptionsFromWorkers(
@@ -288,7 +288,7 @@ if (isAdhocEnv) {
       nameSuffix: 'personalized-digest',
       args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
       minReplicas: 1,
-      maxReplicas: 10,
+      maxReplicas: 25,
       limits: bgLimits,
       metric: {
         type: 'pubsub',
