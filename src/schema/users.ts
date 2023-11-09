@@ -78,7 +78,7 @@ export interface GQLUser {
   name: string;
   image?: string;
   infoConfirmed: boolean;
-  createdAt?: Date;
+  createdAt: Date;
   username?: string;
   bio?: string;
   twitter?: string;
@@ -377,6 +377,20 @@ export const typeDefs = /* GraphQL */ `
     preferredTimezone: String!
   }
 
+  type UserEdge {
+    node: User!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type UserConnection {
+    pageInfo: PageInfo!
+    edges: [UserEdge!]!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -497,6 +511,11 @@ export const typeDefs = /* GraphQL */ `
     Get personalized digest settings
     """
     personalizedDigest: PersonalizedDigest @auth
+
+    """
+    List of users that the logged in user has referred to the platform
+    """
+    referredUsers: UserConnection @auth
   }
 
   extend type Mutation {
@@ -909,6 +928,31 @@ export const resolvers: IResolvers<any, Context> = {
 
       return personalizedDigest;
     },
+    referredUsers: async (
+      _,
+      args: ConnectionArguments,
+      ctx: Context,
+      info,
+    ): Promise<Connection<GQLUser>> => {
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}."referralId" = :id`,
+              {
+                id: ctx.userId,
+              },
+            );
+            return builder;
+          },
+          orderByKey: 'DESC',
+        },
+      );
+    },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
@@ -1085,6 +1129,7 @@ export const resolvers: IResolvers<any, Context> = {
 
       return { _: true };
     },
+
     acceptFeatureInvite: async (
       _,
       {
