@@ -1,20 +1,23 @@
 import fastq from 'fastq';
+import { notifyGeneratePersonalizedDigest } from '../common';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import { Cron } from './cron';
-import { notifyGeneratePersonalizedDigest } from '../common';
 
 const cron: Cron = {
   name: 'personalized-digest',
   handler: async (con, logger) => {
-    // const nextPreferredDay = (new Date().getDay() + 1) % 7;
+    const nextPreferredDay = (new Date().getDay() + 1) % 7;
     const personalizedDigestQuery = con
       .createQueryBuilder()
-      .from(UserPersonalizedDigest, 'upd');
+      .from(UserPersonalizedDigest, 'upd')
+      .where('upd."preferredDay" = :nextPreferredDay', {
+        nextPreferredDay,
+      });
     const timestamp = Date.now();
     let digestCount = 0;
 
     const personalizedDigestStream = await personalizedDigestQuery.stream();
-    const notifyQueueConcurrency = +process.env.DIGEST_CONCURRENCY;
+    const notifyQueueConcurrency = +process.env.DIGEST_QUEUE_CONCURRENCY;
     const notifyQueue = fastq.promise(
       async (personalizedDigest: UserPersonalizedDigest) => {
         await notifyGeneratePersonalizedDigest(
