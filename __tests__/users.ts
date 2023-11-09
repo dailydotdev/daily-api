@@ -2064,6 +2064,10 @@ describe('query personalizedDigest', () => {
       }
   }`;
 
+  beforeEach(async () => {
+    await con.getRepository(UserPersonalizedDigest).clear();
+  });
+
   it('should require authentication', async () => {
     await testQueryErrorCode(
       client,
@@ -2110,6 +2114,10 @@ describe('mutation subscribePersonalizedDigest', () => {
       preferredTimezone
     }
   }`;
+
+  beforeEach(async () => {
+    await con.getRepository(UserPersonalizedDigest).clear();
+  });
 
   it('should require authentication', async () => {
     await testQueryErrorCode(
@@ -2277,6 +2285,10 @@ describe('mutation unsubscribePersonalizedDigest', () => {
       _
     }
   }`;
+
+  beforeEach(async () => {
+    await con.getRepository(UserPersonalizedDigest).clear();
+  });
 
   it('should require authentication', async () => {
     await testQueryErrorCode(

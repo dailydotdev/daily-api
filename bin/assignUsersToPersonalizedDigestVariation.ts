@@ -6,8 +6,8 @@ import { parse } from 'csv-parse';
 (async (): Promise<void> => {
   const csvFilePath = process.argv[2];
   const variationArgument = process.argv[3];
-  const batch = +process.argv[4] || 10000;
-  const splitBy = process.argv[4] || ',';
+  const batch = +process.argv[4] || 100;
+  const splitBy = process.argv[5] || ',';
 
   if (!csvFilePath) {
     throw new Error('CSV file path is required');
@@ -53,11 +53,13 @@ import { parse } from 'csv-parse';
     for (let i = 0; i < userIds.length; i += batch) {
       const userIdsBatch = userIds.slice(i, i + batch);
 
+      console.log('processing batch', i, 'of', userIds.length);
+
       await manager.query(
         `
           UPDATE user_personalized_digest
           SET variation = $1
-          FROM public.user WHERE id IN (${userIdsBatch
+          WHERE "userId" IN (${userIdsBatch
             .map((userId) => `'${userId}'`)
             .filter(Boolean)
             .join(',')});

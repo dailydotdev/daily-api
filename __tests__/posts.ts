@@ -40,7 +40,7 @@ import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 import { postsFixture, postTagsFixture } from './fixture/post';
 import { Roles } from '../src/roles';
-import { DataSource, DeepPartial } from 'typeorm';
+import { DataSource, DeepPartial, IsNull, Not } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
   postScraperOrigin,
@@ -3273,6 +3273,180 @@ describe('mutation updatePinPost', () => {
 
     const pinnedAgain = await getPost();
     expect(pinnedAgain.pinnedAt).not.toBeNull();
+  });
+});
+
+describe('mutation swapPinnedPosts', () => {
+  const MUTATION = `
+    mutation SwapPinnedPosts($id: ID!, $swapWithId: ID!) {
+      swapPinnedPosts(id: $id, swapWithId: $swapWithId) {
+        _
+      }
+    }
+  `;
+
+  const params = { id: 'p1', swapWithId: 'p2' };
+
+  beforeEach(async () => {
+    await saveSquadFixtures();
+
+    const currentDate = new Date();
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        pinnedAt: new Date(currentDate.getTime() - 2000),
+      },
+    );
+
+    await con.getRepository(Post).update(
+      { id: 'p2' },
+      {
+        pinnedAt: new Date(currentDate.getTime() - 1000),
+        sourceId: 'a',
+      },
+    );
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if user is not a moderator or an admin', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'FORBIDDEN',
+    );
+  });
+
+  describe('when authenticated w/ permissions', () => {
+    beforeEach(async () => {
+      await con
+        .getRepository(SourceMember)
+        .update({ userId: '1' }, { role: SourceMemberRoles.Admin });
+    });
+
+    it('should throw a validation error if posts are not pinned', async () => {
+      loggedUser = '1';
+
+      await con.getRepository(Post).update({ id: 'p1' }, { pinnedAt: null });
+
+      return testMutationError(
+        client,
+        { mutation: MUTATION, variables: params },
+        (errors) => {
+          expect(errors.length).toEqual(1);
+          expect(errors[0].message).toEqual('Posts must be pinned first');
+        },
+      );
+    });
+
+    it('should allow swapping w/ the next pinned post', async () => {
+      loggedUser = '1';
+
+      const pinnedQuery = () =>
+        con.getRepository(Post).find({
+          where: { pinnedAt: Not(IsNull()), sourceId: 'a' },
+          order: { pinnedAt: 'DESC' },
+        });
+
+      const postsBefore = await pinnedQuery();
+      expect(postsBefore.map((p) => p.id)).toEqual(['p2', 'p1']);
+
+      await client.mutate(MUTATION, {
+        variables: { id: 'p1', swapWithId: 'p2' },
+      });
+
+      const postsAfter = await pinnedQuery();
+      expect(postsAfter.map((p) => p.id)).toEqual(['p1', 'p2']);
+    });
+
+    it('should allow swapping w/ the previous pinned post', async () => {
+      loggedUser = '1';
+
+      const pinnedQuery = () =>
+        con.getRepository(Post).find({
+          where: { pinnedAt: Not(IsNull()), sourceId: 'a' },
+          order: { pinnedAt: 'DESC' },
+        });
+
+      const postsBefore = await pinnedQuery();
+      expect(postsBefore.map((p) => p.id)).toEqual(['p2', 'p1']);
+
+      await client.mutate(MUTATION, {
+        variables: { id: 'p2', swapWithId: 'p1' },
+      });
+
+      const postsAfter = await pinnedQuery();
+      expect(postsAfter.map((p) => p.id)).toEqual(['p1', 'p2']);
+    });
+
+    it('should increment relevant pinnedAt values to avoid duplicates', async () => {
+      loggedUser = '1';
+
+      // oldest of the 3 pinned posts: p2, p1, p3
+      await con.getRepository(Post).update(
+        { id: 'p3' },
+        {
+          pinnedAt: new Date(new Date().getTime() - 3000),
+          sourceId: 'a',
+        },
+      );
+
+      // to assert that the first pinned post pinnedAt timestamp is changed
+      const firstPostBefore = await con
+        .getRepository(Post)
+        .findOneBy({ id: 'p2' });
+
+      await client.mutate(MUTATION, {
+        variables: { id: 'p3', swapWithId: 'p1' },
+      });
+
+      const firstPostAfter = await con
+        .getRepository(Post)
+        .findOneBy({ id: 'p2' });
+
+      expect(firstPostAfter.pinnedAt.getTime()).toEqual(
+        firstPostBefore.pinnedAt.getTime() + 1000,
+      );
+    });
+
+    it('only touches pinned posts in the given source', async () => {
+      loggedUser = '1';
+
+      // oldest of the 3 pinned posts: p2, p1, p3
+      await con.getRepository(Post).update(
+        { id: 'p3' },
+        {
+          pinnedAt: new Date(new Date().getTime() - 3000),
+          sourceId: 'a',
+        },
+      );
+
+      // take p2 out of the source
+      await con.getRepository(Post).update({ id: 'p2' }, { sourceId: 'b' });
+
+      const firstPostBefore = await con
+        .getRepository(Post)
+        .findOneBy({ id: 'p2' });
+
+      await client.mutate(MUTATION, {
+        variables: { id: 'p3', swapWithId: 'p1' },
+      });
+
+      const firstPostAfter = await con
+        .getRepository(Post)
+        .findOneBy({ id: 'p2' });
+
+      expect(firstPostAfter.pinnedAt.getTime()).toEqual(
+        firstPostBefore.pinnedAt.getTime(),
+      );
+    });
   });
 });
 
