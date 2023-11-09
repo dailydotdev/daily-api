@@ -325,6 +325,9 @@ describe('query referredUsers', () => {
     }
   }`;
 
+  it('should not allow unauthenticated users', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
   it('should return users that have been referred by the logged in user', async () => {
     loggedUser = '1';
     const referred = ['4', '2', '3'];

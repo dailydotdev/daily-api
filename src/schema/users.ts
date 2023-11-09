@@ -1129,7 +1129,6 @@ export const resolvers: IResolvers<any, Context> = {
 
       return { _: true };
     },
-
     acceptFeatureInvite: async (
       _,
       {
