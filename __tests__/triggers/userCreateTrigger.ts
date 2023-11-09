@@ -14,7 +14,7 @@ beforeEach(async () => {
   jest.resetAllMocks();
 });
 
-describe('user_create_trigger after insert trigger', () => {
+describe('user_create_alerts_trigger after insert trigger', () => {
   it('should insert default alerts', async () => {
     const repo = con.getRepository(Alerts);
     const [user] = usersFixture;
