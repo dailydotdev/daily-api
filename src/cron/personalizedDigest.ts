@@ -1,6 +1,7 @@
 import fastq from 'fastq';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import { Cron } from './cron';
+import { notifyGeneratePersonalizedDigest } from '../common';
 
 const cron: Cron = {
   name: 'personalized-digest',
@@ -9,16 +10,23 @@ const cron: Cron = {
     const personalizedDigestQuery = con
       .createQueryBuilder()
       .from(UserPersonalizedDigest, 'upd');
-    // const timestamp = Date.now();
+    const timestamp = Date.now();
     let digestCount = 0;
 
     const personalizedDigestStream = await personalizedDigestQuery.stream();
     const notifyQueueConcurrency = +process.env.DIGEST_CONCURRENCY;
-    const notifyQueue = fastq.promise(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+    const notifyQueue = fastq.promise(
+      async (personalizedDigest: UserPersonalizedDigest) => {
+        await notifyGeneratePersonalizedDigest(
+          logger,
+          personalizedDigest,
+          timestamp,
+        );
 
-      digestCount += 1;
-    }, notifyQueueConcurrency);
+        digestCount += 1;
+      },
+      notifyQueueConcurrency,
+    );
 
     personalizedDigestStream.on(
       'data',
