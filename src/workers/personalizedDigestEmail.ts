@@ -12,13 +12,15 @@ import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import { messageToJson, Worker } from './worker';
 import { DayOfWeek } from '../types';
 import { MailDataRequired } from '@sendgrid/mail';
-import { format, nextDay, previousDay } from 'date-fns';
+import { format, isSameDay, nextDay, previousDay } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import { FeedClient } from '../integrations/feed';
+import { DataSource } from 'typeorm';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
   generationTimestamp: number;
+  emailBatchId: string;
 }
 
 type TemplatePostData = Pick<
@@ -27,6 +29,16 @@ type TemplatePostData = Pick<
 > & {
   sourceName: Source['name'];
   sourceImage: Source['image'];
+};
+
+type EmailSendDateProps = Pick<
+  Data,
+  'personalizedDigest' | 'generationTimestamp'
+>;
+
+type SetEmailSendDateProps = Pick<Data, 'personalizedDigest'> & {
+  con: DataSource;
+  date: Date;
 };
 
 const personalizedDigestPostsCount = 5;
@@ -38,7 +50,7 @@ const personalizedDigestDateFormat = 'yyyy-MM-dd HH:mm:ss';
 const getEmailSendDate = ({
   personalizedDigest,
   generationTimestamp,
-}: Data): Date => {
+}: EmailSendDateProps): Date => {
   const nextPreferredDay = nextDay(
     new Date(generationTimestamp),
     personalizedDigest.preferredDay,
@@ -50,7 +62,7 @@ const getEmailSendDate = ({
 const getPreviousSendDate = ({
   personalizedDigest,
   generationTimestamp,
-}: Data): Date => {
+}: EmailSendDateProps): Date => {
   const nextPreferredDay = previousDay(
     new Date(generationTimestamp),
     personalizedDigest.preferredDay,
@@ -115,6 +127,21 @@ const getEmailVariation = async (
   };
 };
 
+const setEmailSendDate = async ({
+  con,
+  personalizedDigest,
+  date,
+}: SetEmailSendDateProps) => {
+  return con.getRepository(UserPersonalizedDigest).update(
+    {
+      userId: personalizedDigest.userId,
+    },
+    {
+      lastSendDate: date,
+    },
+  );
+};
+
 const worker: Worker = {
   subscription: 'api.personalized-digest-email',
   handler: async (message, con, logger) => {
@@ -124,7 +151,7 @@ const worker: Worker = {
 
     const data = messageToJson<Data>(message);
 
-    const { personalizedDigest, generationTimestamp } = data;
+    const { personalizedDigest, generationTimestamp, emailBatchId } = data;
 
     const user = await con.getRepository(User).findOneBy({
       id: personalizedDigest.userId,
@@ -210,10 +237,41 @@ const worker: Worker = {
         groupId: 23809,
       },
       category: 'Digests',
+      batchId: emailBatchId,
       ...variationProps,
     };
 
-    await sendEmail(emailPayload);
+    const { lastSendDate = null } =
+      (await con.getRepository(UserPersonalizedDigest).findOne({
+        select: ['lastSendDate'],
+        where: {
+          userId: personalizedDigest.userId,
+        },
+      })) || {};
+
+    if (lastSendDate && isSameDay(currentDate, lastSendDate)) {
+      return;
+    }
+
+    await setEmailSendDate({
+      con,
+      personalizedDigest,
+      date: currentDate,
+    });
+
+    try {
+      await sendEmail(emailPayload);
+    } catch (error) {
+      // since email did not send we revert the lastSendDate
+      // so worker can do it again in retry
+      await setEmailSendDate({
+        con,
+        personalizedDigest,
+        date: lastSendDate,
+      });
+
+      throw error;
+    }
   },
 };
 

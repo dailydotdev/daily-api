@@ -201,3 +201,14 @@ export const updateUserContactLists = async (
     }
   }
 };
+
+export const createEmailBatchId = async (): Promise<string | undefined> => {
+  const request = {
+    method: 'POST' as HttpMethod,
+    url: '/v3/mail/batch',
+  };
+
+  const [, body] = await client.request(request);
+
+  return body?.batch_id;
+};
