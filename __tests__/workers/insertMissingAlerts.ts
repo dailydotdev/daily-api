@@ -1,6 +1,6 @@
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { Alerts, ALERTS_DEFAULT, User } from '../../src/entity';
+import { Alerts, User } from '../../src/entity';
 import {
   GraphQLTestingState,
   MockContext,
@@ -28,13 +28,15 @@ afterAll(() => disposeGraphQLTesting(state));
 
 describe('insert missing alerts script', () => {
   it('should insert alerts that does not exist', async () => {
+    const [, ...toRemove] = usersFixture;
     const users = await con.getRepository(User).find();
     const repo = con.getRepository(Alerts);
-    await repo.save({ ...ALERTS_DEFAULT, userId: users[0].id });
+    await repo.delete({ userId: In(toRemove.map(({ id }) => id)) });
+
     const before = await repo.find();
     expect(before.length).toEqual(1);
     await insertMissingAlerts();
-    const alerts = await con.getRepository(Alerts).find();
+    const alerts = await repo.find();
     expect(alerts.length).toEqual(users.length);
   });
 });
