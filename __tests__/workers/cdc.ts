@@ -145,7 +145,7 @@ beforeEach(async () => {
   nock.cleanAll();
 });
 
-const defaultUser: ChangeObject<User> = {
+const defaultUser: ChangeObject<Omit<User, 'createdAt'>> = {
   id: '1',
   name: 'Ido',
   email: 'ido@daily.dev',
@@ -159,7 +159,6 @@ const defaultUser: ChangeObject<User> = {
   infoConfirmed: true,
   acceptedMarketing: true,
   notificationEmail: true,
-  createdAt: new Date(2023, 1, 1).getTime(),
 };
 
 describe('source request', () => {
