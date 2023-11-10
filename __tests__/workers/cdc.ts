@@ -145,7 +145,7 @@ beforeEach(async () => {
   nock.cleanAll();
 });
 
-const defaultUser: ChangeObject<User> = {
+const defaultUser: ChangeObject<Omit<User, 'createdAt'>> = {
   id: '1',
   name: 'Ido',
   email: 'ido@daily.dev',
@@ -516,7 +516,7 @@ describe('comment', () => {
 });
 
 describe('user', () => {
-  type ObjectType = User;
+  type ObjectType = Omit<User, 'createdAt'>;
   const base: ChangeObject<ObjectType> = { ...defaultUser };
 
   it('should notify on user created', async () => {
