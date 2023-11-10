@@ -51,7 +51,7 @@ const nullIfNotSameUser = <T>(
 
 const obj = new GraphORM({
   User: {
-    requiredColumns: ['id', 'username'],
+    requiredColumns: ['id', 'username', 'createdAt'],
     fields: {
       infoConfirmed: {
         transform: nullIfNotSameUser,
