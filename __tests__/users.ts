@@ -37,7 +37,7 @@ import {
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
@@ -307,6 +307,44 @@ describe('query userStats', () => {
     const res = await client.query(QUERY, { variables: { id: '2' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query referredUsers', () => {
+  const QUERY = `query ReferredUsers {
+    referredUsers {
+      edges {
+        node {
+          id
+          name
+          username
+          bio
+          image
+        }
+      }
+    }
+  }`;
+
+  it('should not allow unauthenticated users', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it('should return users that have been referred by the logged in user', async () => {
+    loggedUser = '1';
+    const referred = ['4', '2', '3'];
+    const outsideReferred = ['1', '5', '6'];
+    await con
+      .getRepository(User)
+      .update({ id: In(referred) }, { referralId: '1' });
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    const isAllReferred = res.data.referredUsers.edges.every(({ node }) =>
+      referred.includes(node.id),
+    );
+    expect(isAllReferred).toBeTruthy();
+    const noUnReferred = res.data.referredUsers.edges.every(
+      ({ node }) => !outsideReferred.includes(node.id),
+    );
+    expect(noUnReferred).toBeTruthy();
   });
 });
 
