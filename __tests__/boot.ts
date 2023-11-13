@@ -376,6 +376,7 @@ describe('boot alerts', () => {
   it('should return user alerts', async () => {
     mockLoggedIn();
     const data = await con.getRepository(Alerts).save({
+      ...ALERTS_DEFAULT,
       userId: '1',
       myFeed: 'created',
     });
@@ -399,6 +400,7 @@ describe('boot alerts', () => {
     mockLoggedIn();
     await setRedisObject(REDIS_CHANGELOG_KEY, '2023-02-06 12:00:00');
     const data = await con.getRepository(Alerts).save({
+      ...ALERTS_DEFAULT,
       userId: '1',
       myFeed: 'created',
       lastChangelog: new Date('2023-02-05 12:00:00'),
@@ -422,6 +424,7 @@ describe('boot alerts', () => {
     mockLoggedIn();
     await setRedisObject(REDIS_CHANGELOG_KEY, '2023-02-05 12:00:00');
     const data = await con.getRepository(Alerts).save({
+      ...ALERTS_DEFAULT,
       userId: '1',
       myFeed: 'created',
       lastChangelog: new Date('2023-02-06 12:00:00'),
@@ -444,6 +447,7 @@ describe('boot alerts', () => {
     mockLoggedIn();
     await setRedisObject(REDIS_CHANGELOG_KEY, null);
     const data = await con.getRepository(Alerts).save({
+      ...ALERTS_DEFAULT,
       userId: '1',
       myFeed: 'created',
       lastChangelog: new Date('2023-02-05 12:00:00'),
@@ -481,6 +485,7 @@ describe('boot alerts', () => {
     mockLoggedIn();
     await setRedisObject(REDIS_CHANGELOG_KEY, null);
     const data = await con.getRepository(Alerts).save({
+      ...ALERTS_DEFAULT,
       userId: '1',
       myFeed: 'created',
       lastChangelog: new Date('2023-02-06 12:00:00'),
@@ -518,6 +523,7 @@ describe('boot alerts', () => {
     mockLoggedIn();
     await setRedisObject(REDIS_BANNER_KEY, '2023-02-06 12:00:00');
     const data = await con.getRepository(Alerts).save({
+      ...ALERTS_DEFAULT,
       userId: '1',
       myFeed: 'created',
       lastBanner: new Date('2023-02-05 12:00:00'),
@@ -540,6 +546,7 @@ describe('boot alerts', () => {
     mockLoggedIn();
     await setRedisObject(REDIS_BANNER_KEY, '2023-02-05 12:00:00');
     const data = await con.getRepository(Alerts).save({
+      ...ALERTS_DEFAULT,
       userId: '1',
       myFeed: 'created',
       lastBanner: new Date('2023-02-06 12:00:00'),
@@ -562,6 +569,7 @@ describe('boot alerts', () => {
     mockLoggedIn();
     await setRedisObject(REDIS_CHANGELOG_KEY, 'false');
     const data = await con.getRepository(Alerts).save({
+      ...ALERTS_DEFAULT,
       userId: '1',
       myFeed: 'created',
       lastChangelog: new Date('2023-02-05 12:00:00'),
@@ -583,6 +591,7 @@ describe('boot alerts', () => {
   it('should return banner as true if redis is empty', async () => {
     mockLoggedIn();
     const data = await con.getRepository(Alerts).save({
+      ...ALERTS_DEFAULT,
       userId: '1',
       myFeed: 'created',
       lastChangelog: new Date('2023-02-05 12:00:00'),
@@ -615,6 +624,7 @@ describe('boot alerts', () => {
   it('should return showGenericReferral as true', async () => {
     mockLoggedIn();
     const data = await con.getRepository(Alerts).save({
+      ...ALERTS_DEFAULT,
       userId: '1',
       myFeed: 'created',
       lastChangelog: new Date('2023-02-05 12:00:00'),
