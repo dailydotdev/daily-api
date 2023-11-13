@@ -92,7 +92,7 @@
     "lodash": "^4.17.21",
     "markdown-it": "^13.0.2",
     "markdown-to-txt": "^2.0.1",
-    "mercurius": "^13.1.0",
+    "mercurius": "^13.2.2",
     "mercurius-cache": "^5.0.0",
     "mercurius-upload": "^6.0.1",
     "nanoid": "^3.3.4",
