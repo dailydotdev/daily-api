@@ -28,6 +28,7 @@ import { Alerts, User } from '../src/entity';
     stream.on('end', () => {
       console.log('stream finished');
       resolve(null);
+      process.exit();
     });
   });
 })();
