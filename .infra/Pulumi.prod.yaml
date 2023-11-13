@@ -8,6 +8,7 @@ config:
     secure: AAABAHdC/62trKcIoEduX+v3nBKj/KJ1XDNPRwwEwqcq33TLhqLrVq9oJfFsq/aX
   api:debeziumDbUser:
     secure: AAABAO0E/09gCux4t78RzYaMt9h+ZVFXNo6KS9mwLuKX11/HvmX7sg==
+  api:enablePersonalizedDigest: "true"
   api:env:
     accessSecret:
       secure: AAABALdzzBMEk2sKYDjFrWsbsdYJDOvfDfmnOmaj6lvRkds8E6SYw1RNgQ/hpCky9W8BeJXFzu2b0W6jD30KkA==
@@ -38,6 +39,7 @@ config:
       secure: AAABAHpff5rGIhX2EmH5QBZx1br4VVzK+JHKbbAUjYRT
     defaultImageUrl:
       secure: AAABAKp3/LfYHhnzhQxriGmUaylvjnk9iSyKy+FEFfdZs2hWBVjVN4DkW0samRYP+yDoT53+8/EmwSLzeWOWSP+Ap0A5N/llgF3uV+pw7Z6bVjFDYuyG7yl1I7CzXIehjMtDEA0/s2NqFEm6R7uHNcDuoeQgkVwDITmm/1uvxqvdfc5wsn2VrCPXrXMF1FaoefwRB5A6X6S+V+H74QfSB41i0ZkXd1EkGzy8fBIeCePCq8K7xMhzeMJLOCoZ7z4SYknmOY2QlyPyyyCX+NGIlwnClZgwJ+rBdS/OdXF2vbPZZAZMmJd56uutyF+Tc3czHwA87A1M9SAK+1B2TXbFi+CA6Q/V2soLabNzCMR/76LgsWxSDCrT1ZxmLKud8HZrpxcSCxY2dw+aJ5Sve0OfEr7f0FMvBwRzkGObJ1xa68TqbrWAX42tF1c24YoSJ9+1uEB/8V/axg5EbuqlsZ4ZAvhbLp8th17nnePn0vbWLprZ2Zkkf0z+yb8xruS3QDR6g1Hsj2qTE2hPUuFxvBinSdDyEYUdTJpNMYPdlWAZ3AqVReNuMTI1cpvuwsr/sDHck4kWpp1Ia+cKsGFtHK7BECXt0OFAfo0qtcvABLA/01feFJGXzxWPvpMq2TUikTPPkZNoAyN8TQVjAj7oTGQx5UVCQlGAql19s9scK4/YHg9A2Q9TK8swr5gJ3A7ehbF6uBINNRNT4Do620xp1kH1k0e7D6bE0YDfDcBVaeWHYm87dowZyUZEm1hThFjoeMoZq8Ug5WnyKUdGDC7qy5GBGxTQbF3jUbsTJGXla5LsUcoZcoDe4iS01mz5oObvuEK5/e3kWP4ZxQ==
+    digestQueueConcurrency: 1000
     experimentationKey:
       secure: AAABADH0xT7H6UeMlZG0fUEGjohQ1dvwcbIgJ3WMI5wfqScub3Qp3nvUDhska0DunbFmvj7IrtH07noRL1lCYg==
     flagsmithKey: dontdelete

@@ -22,7 +22,17 @@ import {
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
-import { opentelemetry, runInSpan } from '../telemetry/opentelemetry';
+import {
+  addPubsubSpanLabels,
+  opentelemetry,
+  runInRootSpan,
+  runInSpan,
+} from '../telemetry/opentelemetry';
+import { Message } from '@google-cloud/pubsub';
+import { performance } from 'perf_hooks';
+import { DataSource } from 'typeorm';
+import { FastifyLoggerInstance } from 'fastify';
+import pino from 'pino';
 
 const pubsub = new PubSub();
 const sourceRequestTopic = pubsub.topic('pub-request');
@@ -442,3 +452,65 @@ export const notifyGeneratePersonalizedDigest = async (
     generationTimestamp,
     emailBatchId,
   });
+
+export const workerSubscribe = (
+  logger: pino.Logger,
+  pubsub: PubSub,
+  connection: DataSource,
+  subscription: string,
+  meter: opentelemetry.Meter,
+  handler: (
+    message: Message,
+    con: DataSource,
+    logger: FastifyLoggerInstance,
+    pubsub: PubSub,
+  ) => Promise<void>,
+  maxMessages = 1,
+): void => {
+  logger.info(`subscribing to ${subscription}`);
+  const sub = pubsub.subscription(subscription, {
+    flowControl: {
+      maxMessages,
+    },
+    batching: { maxMilliseconds: 10 },
+  });
+  const childLogger = logger.child({ subscription });
+  const histogram = meter.createHistogram('message_processing_time', {
+    unit: 'ms',
+    description: 'time to process a message',
+  });
+  sub.on('message', async (message) =>
+    runInRootSpan(
+      `message: ${subscription}`,
+      async (span) => {
+        const startTime = performance.now();
+        let success = true;
+        addPubsubSpanLabels(span, subscription, message);
+        try {
+          await runInSpan('handler', async () =>
+            handler(message, connection, childLogger, pubsub),
+          );
+          message.ack();
+        } catch (err) {
+          success = false;
+          childLogger.error(
+            {
+              messageId: message.id,
+              data: message.data.toString('utf-8'),
+              err,
+            },
+            'failed to process message',
+          );
+          message.nack();
+        }
+        histogram.record(performance.now() - startTime, {
+          subscription,
+          success,
+        });
+      },
+      {
+        kind: opentelemetry.SpanKind.CONSUMER,
+      },
+    ),
+  );
+};

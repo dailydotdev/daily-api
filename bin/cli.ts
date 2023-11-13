@@ -3,6 +3,7 @@ import { parseArgs } from 'node:util';
 import api from '../src';
 import background from '../src/background';
 import cron from '../src/cron';
+import personalizedDigest from '../src/commands/personalizedDigest';
 
 async function run(positionals) {
   switch (positionals[0]) {
@@ -21,6 +22,10 @@ async function run(positionals) {
     case 'cron':
       await cron(positionals[1]);
       process.exit();
+      break;
+    case 'personalized-digest':
+      tracer('personalized-digest').start();
+      await personalizedDigest();
       break;
     default:
       console.log('unknown command');
