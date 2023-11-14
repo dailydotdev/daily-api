@@ -1,4 +1,4 @@
-import fastq from "fastq";
+import fastq from 'fastq';
 import '../src/config';
 import createOrGetConnection from '../src/db';
 import { Alerts, User } from '../src/entity';
@@ -15,24 +15,21 @@ const QUEUE_CONCURRENCY = 1;
     .stream();
 
   let insertCount = 0;
-  const insertQueue = fastq.promise(
-    async (id: string) => {
-      console.log('inserting alerts for: ', id);
-      await con
-        .getRepository(Alerts)
-        .createQueryBuilder()
-        .insert()
-        .values({userId: id})
-        .orIgnore()
-        .execute();
-      console.log('alerts created for: ', id);
+  const insertQueue = fastq.promise(async (id: string) => {
+    console.log('inserting alerts for: ', id);
+    await con
+      .getRepository(Alerts)
+      .createQueryBuilder()
+      .insert()
+      .values({ userId: id })
+      .orIgnore()
+      .execute();
+    console.log('alerts created for: ', id);
 
-      insertCount += 1;
-    },
-    QUEUE_CONCURRENCY,
-  );
+    insertCount += 1;
+  }, QUEUE_CONCURRENCY);
 
-  stream.on('data', ({id}: { id: string }) => {
+  stream.on('data', ({ id }: { id: string }) => {
     insertQueue.push(id);
   });
 
