@@ -1108,7 +1108,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         builder.limit(limit).offset(offset),
       {
         removeHiddenPosts: true,
-        removeBannedPosts: false,
         allowPrivateSources: false,
         allowSquadPosts: false,
       },
