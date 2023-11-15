@@ -54,6 +54,7 @@ Object {
     "email": "informer@daily.dev",
     "name": "daily.dev",
   },
+  "hideWarnings": false,
   "replyTo": Object {
     "email": "hi@daily.dev",
     "name": "daily.dev",
@@ -141,6 +142,7 @@ Object {
     "email": "informer@daily.dev",
     "name": "daily.dev",
   },
+  "hideWarnings": false,
   "replyTo": Object {
     "email": "hi@daily.dev",
     "name": "daily.dev",
@@ -228,6 +230,7 @@ Object {
     "email": "informer@daily.dev",
     "name": "daily.dev",
   },
+  "hideWarnings": false,
   "replyTo": Object {
     "email": "hi@daily.dev",
     "name": "daily.dev",
@@ -315,6 +318,7 @@ Object {
     "email": "digest@daily.dev",
     "name": "Weekly Digest",
   },
+  "hideWarnings": false,
   "replyTo": Object {
     "email": "hi@daily.dev",
     "name": "daily.dev",
