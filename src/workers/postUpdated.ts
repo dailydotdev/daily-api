@@ -26,6 +26,7 @@ import { generateShortId } from '../ids';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
 import { updateFlagsStatement } from '../common';
+import { opentelemetry } from '../telemetry/opentelemetry';
 
 interface Data {
   id: string;
@@ -92,6 +93,7 @@ const handleRejection = async ({
 };
 
 type CreatePostProps = {
+  counter: opentelemetry.Counter;
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
@@ -100,6 +102,7 @@ type CreatePostProps = {
   questions: string[];
 };
 const createPost = async ({
+  counter,
   logger,
   entityManager,
   data,
@@ -117,6 +120,9 @@ const createPost = async ({
     )
     .getRawOne();
   if (existingPost) {
+    counter.add(1, {
+      reason: 'duplication_conflict',
+    });
     logger.info({ data }, 'failed creating post because it exists already');
     return null;
   }
@@ -186,6 +192,8 @@ const contentTypeFromPostType: Record<PostType, typeof Post> = {
 };
 
 type UpdatePostProps = {
+  counter: opentelemetry.Counter;
+  logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
   id: string;
@@ -194,6 +202,8 @@ type UpdatePostProps = {
   content_type: PostType;
 };
 const updatePost = async ({
+  counter,
+  logger,
   entityManager,
   data,
   id,
@@ -215,6 +225,13 @@ const updatePost = async ({
     databasePost.metadataChangedAt.toISOString() >=
       data.metadataChangedAt.toISOString()
   ) {
+    counter.add(1, {
+      reason: 'date_conflict',
+    });
+    logger.info(
+      { data },
+      'post not updated: database entry is newer than received update',
+    );
     return null;
   }
 
@@ -414,6 +431,8 @@ const fixData = async ({
 const worker: Worker = {
   subscription: 'api.content-published',
   handler: async (message, con, logger): Promise<void> => {
+    const meter = opentelemetry.metrics.getMeter('api-bg');
+    const counter = meter.createCounter('post_error');
     const data: Data = messageToJson(message);
     logger.info({ data }, 'content-updated received');
     try {
@@ -443,6 +462,7 @@ const worker: Worker = {
         if (!post_id) {
           // Handle creation of new post
           await createPost({
+            counter,
             logger,
             entityManager,
             data: fixedData,
@@ -453,6 +473,8 @@ const worker: Worker = {
         } else {
           // Handle update of existing post
           await updatePost({
+            counter,
+            logger,
             entityManager,
             data: fixedData,
             id: post_id,
