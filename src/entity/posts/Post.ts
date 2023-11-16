@@ -199,6 +199,8 @@ export class Post {
   @Index('IDX_yggdrasil_id')
   yggdrasilId: string;
 
-  @OneToMany(() => PostRelation, (postRelation) => postRelation.post)
-  public relatedPosts: PostRelation[];
+  @OneToMany(() => PostRelation, (postRelation) => postRelation.post, {
+    lazy: true,
+  })
+  public relatedPosts: Promise<PostRelation[]>;
 }
