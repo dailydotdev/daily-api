@@ -93,6 +93,7 @@ const handleRejection = async ({
 };
 
 type CreatePostProps = {
+  meter: opentelemetry.Meter;
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
@@ -101,6 +102,7 @@ type CreatePostProps = {
   questions: string[];
 };
 const createPost = async ({
+  meter,
   logger,
   entityManager,
   data,
@@ -108,73 +110,70 @@ const createPost = async ({
   mergedKeywords,
   questions,
 }: CreatePostProps) => {
-  const meter = opentelemetry.metrics.getMeter('api-bg');
-  return runInSpan('createPost', async () => {
-    const existingPost = await entityManager
-      .getRepository(Post)
-      .createQueryBuilder()
-      .select('id')
-      .where(
-        'url = :url or url = :canonicalUrl or "canonicalUrl" = :url or "canonicalUrl" = :canonicalUrl',
-        { url: data.url, canonicalUrl: data.canonicalUrl },
-      )
-      .getRawOne();
-    if (existingPost) {
-      meter
-        .createCounter('post_creation_conflict', {
-          description:
-            'How many posts were not created because they already exist',
-        })
-        .add(1);
-      logger.info({ data }, 'failed creating post because it exists already');
-      return null;
-    }
+  const existingPost = await entityManager
+    .getRepository(Post)
+    .createQueryBuilder()
+    .select('id')
+    .where(
+      'url = :url or url = :canonicalUrl or "canonicalUrl" = :url or "canonicalUrl" = :canonicalUrl',
+      { url: data.url, canonicalUrl: data.canonicalUrl },
+    )
+    .getRawOne();
+  if (existingPost) {
+    meter
+      .createCounter('post_creation_conflict', {
+        description:
+          'How many posts were not created because they already exist',
+      })
+      .add(1);
+    logger.info({ data }, 'failed creating post because it exists already');
+    return null;
+  }
 
-    if (submissionId) {
-      const submission = await entityManager
-        .getRepository(Submission)
-        .findOneBy({ id: submissionId });
+  if (submissionId) {
+    const submission = await entityManager
+      .getRepository(Submission)
+      .findOneBy({ id: submissionId });
 
-      if (submission) {
-        if (data.authorId === submission.userId) {
-          await entityManager.getRepository(Submission).update(
-            { id: submissionId },
-            {
-              status: SubmissionStatus.Rejected,
-              reason: SubmissionFailErrorKeys.ScoutIsAuthor,
-            },
-          );
-          return null;
-        }
-
+    if (submission) {
+      if (data.authorId === submission.userId) {
         await entityManager.getRepository(Submission).update(
           { id: submissionId },
           {
-            status: SubmissionStatus.Accepted,
+            status: SubmissionStatus.Rejected,
+            reason: SubmissionFailErrorKeys.ScoutIsAuthor,
           },
         );
-        data.scoutId = submission.userId;
+        return null;
       }
+
+      await entityManager.getRepository(Submission).update(
+        { id: submissionId },
+        {
+          status: SubmissionStatus.Accepted,
+        },
+      );
+      data.scoutId = submission.userId;
     }
+  }
 
-    const postId = await generateShortId();
-    const postCreatedAt = new Date();
-    data.id = postId;
-    data.shortId = postId;
-    data.createdAt = postCreatedAt;
-    data.score = Math.floor(postCreatedAt.getTime() / (1000 * 60));
-    data.origin = data?.scoutId
-      ? PostOrigin.CommunityPicks
-      : data.origin ?? PostOrigin.Crawler;
+  const postId = await generateShortId();
+  const postCreatedAt = new Date();
+  data.id = postId;
+  data.shortId = postId;
+  data.createdAt = postCreatedAt;
+  data.score = Math.floor(postCreatedAt.getTime() / (1000 * 60));
+  data.origin = data?.scoutId
+    ? PostOrigin.CommunityPicks
+    : data.origin ?? PostOrigin.Crawler;
 
-    const post = await entityManager.getRepository(ArticlePost).create(data);
-    await entityManager.save(post);
+  const post = await entityManager.getRepository(ArticlePost).create(data);
+  await entityManager.save(post);
 
-    await addKeywords(entityManager, mergedKeywords, data.id);
-    await addQuestions(entityManager, questions, data.id);
+  await addKeywords(entityManager, mergedKeywords, data.id);
+  await addQuestions(entityManager, questions, data.id);
 
-    return;
-  });
+  return;
 };
 
 const allowedFieldsMapping = {
@@ -196,6 +195,7 @@ const contentTypeFromPostType: Record<PostType, typeof Post> = {
 };
 
 type UpdatePostProps = {
+  meter: opentelemetry.Meter;
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
@@ -205,6 +205,7 @@ type UpdatePostProps = {
   content_type: PostType;
 };
 const updatePost = async ({
+  meter,
   logger,
   entityManager,
   data,
@@ -213,107 +214,104 @@ const updatePost = async ({
   questions,
   content_type = PostType.Article,
 }: UpdatePostProps) => {
-  const meter = opentelemetry.metrics.getMeter('api-bg');
-  return runInSpan('updatePost', async () => {
-    const postType = contentTypeFromPostType[content_type];
-    const databasePost = await entityManager
-      .getRepository(postType)
-      .findOneBy({ id });
+  const postType = contentTypeFromPostType[content_type];
+  const databasePost = await entityManager
+    .getRepository(postType)
+    .findOneBy({ id });
 
-    if (data?.origin === PostOrigin.Squad) {
-      data.sourceId = UNKNOWN_SOURCE;
-    }
+  if (data?.origin === PostOrigin.Squad) {
+    data.sourceId = UNKNOWN_SOURCE;
+  }
 
-    if (
-      !databasePost ||
-      databasePost.metadataChangedAt.toISOString() >=
-        data.metadataChangedAt.toISOString()
-    ) {
-      meter
-        .createCounter('post_update_date_conflict', {
-          description:
-            'How many posts were not updated because the database entry is newer than the received update',
-        })
-        .add(1);
-      logger.info(
-        { data },
-        'post not updated: database entry is newer than received update',
-      );
-      return null;
-    }
+  if (
+    !databasePost ||
+    databasePost.metadataChangedAt.toISOString() >=
+      data.metadataChangedAt.toISOString()
+  ) {
+    meter
+      .createCounter('post_update_date_conflict', {
+        description:
+          'How many posts were not updated because the database entry is newer than the received update',
+      })
+      .add(1);
+    logger.info(
+      { data },
+      'post not updated: database entry is newer than received update',
+    );
+    return null;
+  }
 
-    const title = data?.title || databasePost.title;
-    const updateBecameVisible =
-      content_type === PostType.Freeform
-        ? databasePost.visible
-        : !databasePost.visible && !!title?.length;
+  const title = data?.title || databasePost.title;
+  const updateBecameVisible =
+    content_type === PostType.Freeform
+      ? databasePost.visible
+      : !databasePost.visible && !!title?.length;
 
-    data.id = databasePost.id;
-    data.title = title;
-    data.visible = updateBecameVisible;
-    data.visibleAt = updateBecameVisible
-      ? databasePost.visibleAt ?? data.metadataChangedAt
-      : null;
-    data.sourceId = data.sourceId || databasePost.sourceId;
+  data.id = databasePost.id;
+  data.title = title;
+  data.visible = updateBecameVisible;
+  data.visibleAt = updateBecameVisible
+    ? databasePost.visibleAt ?? data.metadataChangedAt
+    : null;
+  data.sourceId = data.sourceId || databasePost.sourceId;
 
-    if (content_type in allowedFieldsMapping) {
-      const allowedFields = [
-        'id',
-        'visible',
-        'visibleAt',
-        'flags',
-        'yggdrasilId',
-        ...allowedFieldsMapping[content_type],
-      ];
+  if (content_type in allowedFieldsMapping) {
+    const allowedFields = [
+      'id',
+      'visible',
+      'visibleAt',
+      'flags',
+      'yggdrasilId',
+      ...allowedFieldsMapping[content_type],
+    ];
 
-      Object.keys(data).forEach((key) => {
-        if (allowedFields.indexOf(key) === -1) {
-          delete data[key];
-        }
-      });
-    }
+    Object.keys(data).forEach((key) => {
+      if (allowedFields.indexOf(key) === -1) {
+        delete data[key];
+      }
+    });
+  }
 
-    await entityManager.getRepository(postType).update(
-      { id: databasePost.id },
+  await entityManager.getRepository(postType).update(
+    { id: databasePost.id },
+    {
+      ...data,
+      flags: updateFlagsStatement<Post>({
+        ...data.flags,
+        visible: data.visible,
+      }),
+    },
+  );
+
+  if (updateBecameVisible) {
+    await entityManager.getRepository(SharePost).update(
+      { sharedPostId: data.id },
       {
-        ...data,
+        visible: true,
+        visibleAt: data.visibleAt,
+        private: data.private,
         flags: updateFlagsStatement<Post>({
           ...data.flags,
-          visible: data.visible,
+          private: data.private,
+          visible: true,
         }),
       },
     );
+  }
 
-    if (updateBecameVisible) {
-      await entityManager.getRepository(SharePost).update(
-        { sharedPostId: data.id },
-        {
-          visible: true,
-          visibleAt: data.visibleAt,
-          private: data.private,
-          flags: updateFlagsStatement<Post>({
-            ...data.flags,
-            private: data.private,
-            visible: true,
-          }),
-        },
+  if (databasePost.tagsStr !== data.tagsStr) {
+    if (databasePost.tagsStr?.length) {
+      await removeKeywords(
+        entityManager,
+        databasePost.tagsStr.split(','),
+        data.id,
       );
     }
+    await addKeywords(entityManager, mergedKeywords, data.id);
+  }
 
-    if (databasePost.tagsStr !== data.tagsStr) {
-      if (databasePost.tagsStr?.length) {
-        await removeKeywords(
-          entityManager,
-          databasePost.tagsStr.split(','),
-          data.id,
-        );
-      }
-      await addKeywords(entityManager, mergedKeywords, data.id);
-    }
-
-    await addQuestions(entityManager, questions, data.id, true);
-    return;
-  });
+  await addQuestions(entityManager, questions, data.id, true);
+  return;
 };
 
 type GetSourcePrivacyProps = {
@@ -439,63 +437,64 @@ const fixData = async ({
 const worker: Worker = {
   subscription: 'api.content-published',
   handler: async (message, con, logger): Promise<void> => {
-    return runInSpan('postUpdatedWorker', async () => {
-      const data: Data = messageToJson(message);
-      logger.info({ data }, 'content-updated received');
-      try {
-        // See if we received any rejections
-        const { reject_reason, post_id } = data;
-        await con.transaction(async (entityManager) => {
-          if (reject_reason) {
-            return handleRejection({ logger, data, entityManager });
-          }
+    const meter = opentelemetry.metrics.getMeter('api-bg');
+    const data: Data = messageToJson(message);
+    logger.info({ data }, 'content-updated received');
+    try {
+      // See if we received any rejections
+      const { reject_reason, post_id } = data;
+      await con.transaction(async (entityManager) => {
+        if (reject_reason) {
+          return handleRejection({ logger, data, entityManager });
+        }
 
-          if (bannedAuthors.indexOf(data?.extra?.creator_twitter) > -1) {
-            logger.info(
-              { data, messageId: message.messageId },
-              'post update failed because author is banned',
-            );
-            return;
-          }
+        if (bannedAuthors.indexOf(data?.extra?.creator_twitter) > -1) {
+          logger.info(
+            { data, messageId: message.messageId },
+            'post update failed because author is banned',
+          );
+          return;
+        }
 
-          const { mergedKeywords, questions, content_type, fixedData } =
-            await fixData({
-              logger,
-              entityManager,
-              data,
-            });
+        const { mergedKeywords, questions, content_type, fixedData } =
+          await fixData({
+            logger,
+            entityManager,
+            data,
+          });
 
-          // See if post id is not available
-          if (!post_id) {
-            // Handle creation of new post
-            await createPost({
-              logger,
-              entityManager,
-              data: fixedData,
-              submissionId: data?.submission_id,
-              mergedKeywords,
-              questions,
-            });
-          } else {
-            // Handle update of existing post
-            await updatePost({
-              logger,
-              entityManager,
-              data: fixedData,
-              id: post_id,
-              mergedKeywords,
-              questions,
-              content_type,
-            });
-          }
-        });
-      } catch (err) {
-        logger.error(
-          { data, messageId: message.messageId, err },
-          'failed to update post',
-        );
-      }
-    });
+        // See if post id is not available
+        if (!post_id) {
+          // Handle creation of new post
+          await createPost({
+            meter,
+            logger,
+            entityManager,
+            data: fixedData,
+            submissionId: data?.submission_id,
+            mergedKeywords,
+            questions,
+          });
+        } else {
+          // Handle update of existing post
+          await updatePost({
+            meter,
+            logger,
+            entityManager,
+            data: fixedData,
+            id: post_id,
+            mergedKeywords,
+            questions,
+            content_type,
+          });
+        }
+      });
+    } catch (err) {
+      logger.error(
+        { data, messageId: message.messageId, err },
+        'failed to update post',
+      );
+    }
   },
 };
 
