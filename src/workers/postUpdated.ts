@@ -26,7 +26,7 @@ import { generateShortId } from '../ids';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
 import { updateFlagsStatement } from '../common';
-import { runInSpan } from '../telemetry/opentelemetry';
+import { opentelemetry, runInSpan } from '../telemetry/opentelemetry';
 
 interface Data {
   id: string;
@@ -108,6 +108,7 @@ const createPost = async ({
   mergedKeywords,
   questions,
 }: CreatePostProps) => {
+  const meter = opentelemetry.metrics.getMeter('api-bg');
   return runInSpan('createPost', async () => {
     const existingPost = await entityManager
       .getRepository(Post)
@@ -119,6 +120,12 @@ const createPost = async ({
       )
       .getRawOne();
     if (existingPost) {
+      meter
+        .createCounter('post_creation_conflict', {
+          description:
+            'How many posts were not created because they already exist',
+        })
+        .add(1);
       logger.info({ data }, 'failed creating post because it exists already');
       return null;
     }
@@ -206,6 +213,7 @@ const updatePost = async ({
   questions,
   content_type = PostType.Article,
 }: UpdatePostProps) => {
+  const meter = opentelemetry.metrics.getMeter('api-bg');
   return runInSpan('updatePost', async () => {
     const postType = contentTypeFromPostType[content_type];
     const databasePost = await entityManager
@@ -221,6 +229,12 @@ const updatePost = async ({
       databasePost.metadataChangedAt.toISOString() >=
         data.metadataChangedAt.toISOString()
     ) {
+      meter
+        .createCounter('post_update_date_conflict', {
+          description:
+            'How many posts were not updated because the database entry is newer than the received update',
+        })
+        .add(1);
       logger.info(
         { data },
         'post not updated: database entry is newer than received update',
