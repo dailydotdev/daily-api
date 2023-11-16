@@ -99,10 +99,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         await sendAnalyticsEvent(events);
       }
 
-      req.log.info(
-        { count: events.length },
-        'pushed sendgrid events to analytics',
-      );
+      if (req.meter) {
+        req.meter
+          .createCounter('sendgrid_events', {
+            description: 'How many sendgrid events were to analytics',
+          })
+          .add(events.length);
+      }
       return res.status(204).send();
     },
   });
