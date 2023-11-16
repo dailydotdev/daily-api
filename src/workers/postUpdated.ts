@@ -186,6 +186,7 @@ const contentTypeFromPostType: Record<PostType, typeof Post> = {
 };
 
 type UpdatePostProps = {
+  logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
   id: string;
@@ -194,6 +195,7 @@ type UpdatePostProps = {
   content_type: PostType;
 };
 const updatePost = async ({
+  logger,
   entityManager,
   data,
   id,
@@ -215,6 +217,10 @@ const updatePost = async ({
     databasePost.metadataChangedAt.toISOString() >=
       data.metadataChangedAt.toISOString()
   ) {
+    logger.info(
+      { data },
+      'post not updated: database entry is newer than received update',
+    );
     return null;
   }
 
@@ -453,6 +459,7 @@ const worker: Worker = {
         } else {
           // Handle update of existing post
           await updatePost({
+            logger,
             entityManager,
             data: fixedData,
             id: post_id,
