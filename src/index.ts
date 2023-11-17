@@ -29,8 +29,7 @@ import { getSubscriptionSettings } from './subscription';
 import { ioRedisPool } from './redis';
 import { loadFeatures } from './growthbook';
 import { runInRootSpan } from './telemetry/opentelemetry';
-import {setupServer} from "msw/node";
-import {http, HttpResponse} from "msw";
+import { checkIsMocking, MOCK_USER_ID, mocks } from './mocks';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -62,27 +61,9 @@ export default async function app(
     createOrGetConnection,
   );
 
-  // const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
-  // const server = setupServer(
-  //   // Describe network behavior with request handlers.
-  //   // Tip: move the handlers into their own module and
-  //   // import it across your browser and Node.js setups!
-  //   http.get(`${heimdallOrigin}/api/whoami`, ({ request, params, cookies }) => {
-  //     console.log('called setup')
-  //     return HttpResponse.json([
-  //       {
-  //         id: 'f8dd058f-9006-4174-8d49-e3086bc39c21',
-  //         title: `Avoid Nesting When You're Testing`,
-  //       },
-  //       {
-  //         id: '8ac96078-6434-4959-80ed-cc834e7fef61',
-  //         title: `How I Built A Modern Website In 2021`,
-  //       },
-  //     ])
-  //   }),
-  // )
-  //
-  // server.listen();
+  if (checkIsMocking()) {
+    mocks.listen();
+  }
 
   const app = fastify({
     logger: {

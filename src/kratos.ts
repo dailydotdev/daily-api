@@ -6,7 +6,7 @@ import { setTrackingId } from './tracking';
 import { generateTrackingId } from './ids';
 import { HttpError, retryFetch } from './integrations/retry';
 
-const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
+export const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
 
 const addKratosHeaderCookies = (req: FastifyRequest): RequestInit => ({
