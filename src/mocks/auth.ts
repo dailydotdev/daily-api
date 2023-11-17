@@ -28,12 +28,12 @@ const handlers = [
         state_changed_at: '2023-11-16T14:58:31.132241Z',
         traits: {
           acceptedMarketing: false,
-          email: 'lee@daily.dev',
+          email: 'test@email.com',
           image:
             'https://lh3.googleusercontent.com/a/ACg8ocKrSSjpXo7WxoS6PsNOtWyQV8SNQlY_7976EZYuMqRtzQ=s96-c',
           name: 'Lee Hansel Solevilla',
           timezone: 'Asia/Chongqing',
-          userId: 'c6tXGU1SMxVtWUrmfYZnj',
+          userId: '404',
         },
         updated_at: '2023-11-16T14:58:31.140376Z',
         verifiable_addresses: [],

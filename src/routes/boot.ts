@@ -49,7 +49,6 @@ import { SourceMemberRoles } from '../roles';
 import { getEncryptedFeatures } from '../growthbook';
 import { differenceInMinutes } from 'date-fns';
 import { runInSpan } from '../telemetry/opentelemetry';
-import { checkIsMocking, MOCK_USER_ID } from '../mocks';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -465,10 +464,6 @@ export const getBootData = async (
   res: FastifyReply,
   middleware?: BootMiddleware,
 ): Promise<AnonymousBoot | LoggedInBoot> => {
-  if (checkIsMocking()) {
-    req.userId = MOCK_USER_ID;
-  }
-
   if (
     req.userId &&
     req.accessToken?.expiresIn &&
