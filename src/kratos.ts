@@ -5,6 +5,7 @@ import { cookies, setCookie } from './cookies';
 import { setTrackingId } from './tracking';
 import { generateTrackingId } from './ids';
 import { HttpError, retryFetch } from './integrations/retry';
+import { MOCK_USER_ID } from './mocks/common';
 
 export const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
@@ -97,7 +98,10 @@ type WhoamiResponse =
 export const dispatchWhoami = async (
   req: FastifyRequest,
 ): Promise<WhoamiResponse> => {
-  if (heimdallOrigin === 'disabled' || !req.cookies[cookies.kratos.key]) {
+  if (
+    !MOCK_USER_ID &&
+    (heimdallOrigin === 'disabled' || !req.cookies[cookies.kratos.key])
+  ) {
     return { valid: false };
   }
   try {

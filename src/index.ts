@@ -29,7 +29,8 @@ import { getSubscriptionSettings } from './subscription';
 import { ioRedisPool } from './redis';
 import { loadFeatures } from './growthbook';
 import { runInRootSpan } from './telemetry/opentelemetry';
-import { checkIsMocking, mocks } from './mocks';
+import { mocks } from './mocks';
+import { MOCK_USER_ID } from './mocks/common';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -61,7 +62,7 @@ export default async function app(
     createOrGetConnection,
   );
 
-  if (checkIsMocking()) {
+  if (MOCK_USER_ID) {
     mocks.listen();
   }
 
