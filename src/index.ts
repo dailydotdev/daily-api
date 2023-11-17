@@ -29,7 +29,7 @@ import { getSubscriptionSettings } from './subscription';
 import { ioRedisPool } from './redis';
 import { loadFeatures } from './growthbook';
 import { runInRootSpan } from './telemetry/opentelemetry';
-import { checkIsMocking, MOCK_USER_ID, mocks } from './mocks';
+import { checkIsMocking, mocks } from './mocks';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
