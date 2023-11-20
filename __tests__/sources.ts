@@ -2061,6 +2061,14 @@ describe('mutation joinSource', () => {
     });
     const source = await con.getRepository(Source).findOneBy({ id: 's1' });
     expect(source.active).toEqual(true);
+    const preference = await con
+      .getRepository(NotificationPreferenceSource)
+      .findOneBy({
+        userId: '1',
+        referenceId: 's1',
+        notificationType: NotificationType.SquadPostAdded,
+      });
+    expect(preference).toBeFalsy();
   });
 
   it('should succeed if an existing member tries to join again', async () => {
