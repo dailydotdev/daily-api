@@ -2016,7 +2016,15 @@ describe('mutation joinSource', () => {
 
   it('should add member to public squad without token', async () => {
     loggedUser = '1';
+    const getPreference = () =>
+      con.getRepository(NotificationPreferenceSource).findOneBy({
+        userId: '1',
+        referenceId: 's1',
+        notificationType: NotificationType.SquadPostAdded,
+      });
     await con.getRepository(Source).update({ id: 's1' }, { private: false });
+    const beforePreference = await getPreference();
+    expect(beforePreference).toBeFalsy();
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     expect(res.data.joinSource.id).toEqual('s1');
@@ -2024,22 +2032,6 @@ describe('mutation joinSource', () => {
       sourceId: 's1',
       userId: '1',
     });
-  });
-
-  it('should add member to public squad and mute post notifications', async () => {
-    loggedUser = '1';
-    await con.getRepository(Source).update({ id: 's1' }, { private: false });
-    const getPreference = () =>
-      con.getRepository(NotificationPreferenceSource).findOneBy({
-        userId: '1',
-        referenceId: 's1',
-        notificationType: NotificationType.SquadPostAdded,
-      });
-    const beforePreference = await getPreference();
-    expect(beforePreference).toBeFalsy();
-    const res = await client.mutate(MUTATION, { variables });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.joinSource.id).toEqual('s1');
     const afterPreference = await getPreference();
     expect(afterPreference.status).toEqual(NotificationPreferenceStatus.Muted);
   });
