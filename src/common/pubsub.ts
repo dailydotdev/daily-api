@@ -3,7 +3,6 @@ import { FastifyBaseLogger } from 'fastify';
 import {
   Post,
   SourceRequest,
-  Alerts,
   Settings,
   Submission,
   User,
@@ -46,7 +45,6 @@ const commentsUpdateTopic = pubsub.topic('update-comments');
 const userDeletedTopic = pubsub.topic('user-deleted');
 const userUpdatedTopic = pubsub.topic('user-updated');
 const usernameChangedTopic = pubsub.topic('username-changed');
-const alertsUpdatedTopic = pubsub.topic('alerts-updated');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
 const notificationsReadTopic = pubsub.topic('api.v1.notifications-read');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
@@ -230,11 +228,6 @@ export const notifyUsernameChanged = (
   newUsername: string,
 ): Promise<void> =>
   publishEvent(log, usernameChangedTopic, { userId, oldUsername, newUsername });
-
-export const notifyAlertsUpdated = (
-  log: EventLogger,
-  alerts: ChangeObject<Alerts>,
-): Promise<void> => publishEvent(log, alertsUpdatedTopic, alerts);
 
 export const notifySettingsUpdated = (
   log: EventLogger,
