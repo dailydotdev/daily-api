@@ -1,4 +1,5 @@
 import { Headers, RequestInit } from 'node-fetch';
+import { addDays } from 'date-fns';
 import { fetchOptions } from './http';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { cookies, setCookie } from './cookies';
@@ -90,6 +91,8 @@ export const clearAuthentication = async (
   }
 };
 
+const MOCK_USER_ID = process.env.MOCK_USER_ID;
+
 type WhoamiResponse =
   | { valid: true; userId: string; expires: Date; cookie?: string }
   | { valid: false };
@@ -97,6 +100,16 @@ type WhoamiResponse =
 export const dispatchWhoami = async (
   req: FastifyRequest,
 ): Promise<WhoamiResponse> => {
+  if (MOCK_USER_ID) {
+    const expires = addDays(new Date(), 1);
+
+    return Promise.resolve({
+      valid: true,
+      userId: MOCK_USER_ID,
+      expires,
+    });
+  }
+
   if (heimdallOrigin === 'disabled' || !req.cookies[cookies.kratos.key]) {
     return { valid: false };
   }
