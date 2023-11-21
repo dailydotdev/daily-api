@@ -51,6 +51,7 @@ const QUEUE_CONCURRENCY = 100;
         NotificationPreferenceStatus.Muted,
       );
       insertCount += 1;
+      console.log('muted notification for: ', userId, ' - source: ', sourceId);
     },
     QUEUE_CONCURRENCY,
   );
