@@ -26,6 +26,7 @@ import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import {
+  getInviteLink,
   getShortUrl,
   getUserReadingRank,
   isValidHttpUrl,
@@ -885,18 +886,16 @@ export const resolvers: IResolvers<any, Context> = {
       const { referralOrigin } = args;
       const userRepo = ctx.getRepository(User);
 
-      const campaignUrl = new URL('/join', process.env.COMMENTS_PREFIX);
-      campaignUrl.searchParams.append('cid', referralOrigin);
-      campaignUrl.searchParams.append('userid', ctx.userId);
-
       const userInvite = await ctx.getRepository(Invite).findOneBy({
         userId: ctx.userId,
         campaign: referralOrigin as CampaignType,
       });
 
-      if (userInvite) {
-        campaignUrl.searchParams.append('ctoken', userInvite.token);
-      }
+      const campaignUrl = getInviteLink({
+        referralOrigin,
+        userId: ctx.userId,
+        token: userInvite?.token,
+      });
 
       const [referredUsersCount, url] = await Promise.all([
         userInvite?.count ||
