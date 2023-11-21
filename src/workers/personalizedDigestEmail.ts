@@ -207,11 +207,6 @@ const worker: Worker = {
     ).execute();
 
     if (posts.length === 0) {
-      logger.warn(
-        { data: messageToJson(message) },
-        'no posts found for personalized digest',
-      );
-
       return;
     }
 
