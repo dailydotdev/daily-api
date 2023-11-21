@@ -4,6 +4,7 @@ import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { User } from './users';
 import { ChangeObject } from '../types';
 import { FastifyBaseLogger } from 'fastify';
+import { getInviteLink } from './links';
 
 if (process.env.SENDGRID_API_KEY) {
   client.setApiKey(process.env.SENDGRID_API_KEY);
@@ -90,10 +91,18 @@ interface EmailContact {
 }
 
 const profileToContact = (profile: User, contactId: string) => {
+  const genericInviteURL = getInviteLink({
+    referralOrigin: 'generic',
+    userId: profile.id,
+  });
+
   const contact: EmailContact = {
     id: contactId,
     email: profile.email,
-    custom_fields: { e1_T: profile.id },
+    custom_fields: {
+      e1_T: profile.id,
+      e2_T: genericInviteURL.toString(),
+    },
   };
 
   const name = profile.name && profile.name.trim();

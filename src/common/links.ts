@@ -1,4 +1,5 @@
 import { Source, SourceType } from '../entity';
+import type { Invite, User } from '../entity';
 import { Headers } from 'node-fetch';
 import { FastifyBaseLogger } from 'fastify';
 import { retryFetchParse } from '../integrations/retry';
@@ -55,6 +56,25 @@ export function isValidHttpUrl(link: string): boolean {
     return false;
   }
 }
+
+type GetInviteLinkProps = {
+  referralOrigin: string;
+  userId: User['id'];
+  token?: Invite['token'];
+};
+export const getInviteLink = ({
+  referralOrigin,
+  userId,
+  token,
+}: GetInviteLinkProps): URL => {
+  const campaignUrl = new URL('/join', process.env.COMMENTS_PREFIX);
+  campaignUrl.searchParams.append('cid', referralOrigin);
+  campaignUrl.searchParams.append('userid', userId);
+  if (token) {
+    campaignUrl.searchParams.append('ctoken', token);
+  }
+  return campaignUrl;
+};
 
 export const getShortUrl = async (
   url: string,
