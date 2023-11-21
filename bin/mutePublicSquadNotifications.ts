@@ -13,7 +13,7 @@ interface SourceMemberQueue {
   sourceId: string;
 }
 
-const QUEUE_CONCURRENCY = 1;
+const QUEUE_CONCURRENCY = 100;
 
 (async () => {
   const con = await createOrGetConnection();
