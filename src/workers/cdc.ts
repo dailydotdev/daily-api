@@ -38,7 +38,6 @@ import {
   notifyPostUpvoteCanceled,
   notifyPostUpvoted,
   notifySendAnalyticsReport,
-  notifyAlertsUpdated,
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
   notifySourceRequest,
@@ -74,7 +73,7 @@ import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
-import { PostReport, Alerts, ContentImage } from '../entity';
+import { PostReport, ContentImage } from '../entity';
 import { reportReasons } from '../schema/posts';
 import { updateAlerts } from '../schema/alerts';
 import { submissionAccessThreshold } from '../schema/submissions';
@@ -307,18 +306,6 @@ const onUserChange = async (
   }
   if (data.payload.op === 'd') {
     await notifyUserDeleted(logger, data.payload.before.id, true);
-  }
-};
-
-const onAlertsChange = async (
-  con: DataSource,
-  logger: FastifyBaseLogger,
-  data: ChangeMessage<Alerts>,
-): Promise<void> => {
-  if (data.payload.op === 'u') {
-    await notifyAlertsUpdated(logger, data.payload.after);
-  } else if (data.payload.op === 'c') {
-    await notifyAlertsUpdated(logger, data.payload.after);
   }
 };
 
@@ -657,9 +644,6 @@ const worker: Worker = {
           break;
         case getTableName(con, CommentReport):
           await onCommentReportChange(con, logger, data);
-          break;
-        case getTableName(con, Alerts):
-          await onAlertsChange(con, logger, data);
           break;
         case getTableName(con, Notification):
           await onNotificationsChange(con, logger, data);
