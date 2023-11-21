@@ -12,7 +12,6 @@ import {
   CampaignCtaPlacement,
 } from '../../src/entity';
 import {
-  notifyAlertsUpdated,
   notifyCommentCommented,
   notifyCommentUpvoteCanceled,
   notifyCommentUpvoted,
@@ -110,7 +109,6 @@ jest.mock('../../src/common', () => ({
   notifyPostBannedOrRemoved: jest.fn(),
   notifyPostReport: jest.fn(),
   notifyCommentReport: jest.fn(),
-  notifyAlertsUpdated: jest.fn(),
   notifySourceFeedAdded: jest.fn(),
   notifySourceFeedRemoved: jest.fn(),
   notifySettingsUpdated: jest.fn(),
@@ -1223,103 +1221,6 @@ describe('post report', () => {
       'Test comment',
       ['php', 'webdev'],
     );
-  });
-});
-
-describe('alerts', () => {
-  type ObjectType = Omit<Alerts, 'flags'>;
-  const rankLastSeen = new Date('2020-09-21T07:15:51.247Z');
-  const rankLastSeenNew = new Date('2020-09-22T07:15:51.247Z');
-  const base: ChangeObject<ObjectType> = {
-    userId: '1',
-    filter: true,
-    rankLastSeen: rankLastSeen.getTime(),
-    myFeed: 'created',
-    companionHelper: true,
-    lastChangelog: null,
-    lastBanner: null,
-    squadTour: true,
-    showGenericReferral: false,
-  };
-
-  it('should notify on alert.filter changed', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      filter: false,
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: base,
-        op: 'u',
-        table: 'alerts',
-      }),
-    );
-    expect(notifyAlertsUpdated).toBeCalledTimes(1);
-    expect(jest.mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([
-      after,
-    ]);
-  });
-
-  it('should notify on alert.rank changed', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      rankLastSeen: rankLastSeenNew.getTime(),
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: base,
-        op: 'u',
-        table: 'alerts',
-      }),
-    );
-    expect(notifyAlertsUpdated).toBeCalledTimes(1);
-    expect(jest.mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([
-      after,
-    ]);
-  });
-
-  it('should notify on alert.myFeed changed', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      myFeed: null,
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: base,
-        op: 'u',
-        table: 'alerts',
-      }),
-    );
-    expect(notifyAlertsUpdated).toBeCalledTimes(1);
-    expect(jest.mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([
-      after,
-    ]);
-  });
-
-  it('should notify on alerts created', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      filter: false,
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: null,
-        op: 'c',
-        table: 'alerts',
-      }),
-    );
-    expect(notifyAlertsUpdated).toBeCalledTimes(1);
-    expect(jest.mocked(notifyAlertsUpdated).mock.calls[0].slice(1)).toEqual([
-      after,
-    ]);
   });
 });
 
