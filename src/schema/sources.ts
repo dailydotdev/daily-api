@@ -48,6 +48,11 @@ import {
   ValidateRegex,
 } from '../common/object';
 import { validateAndTransformHandle } from '../common/handles';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+  saveNotificationPreference,
+} from '../notifications/common';
 
 export interface GQLSource {
   id: string;
@@ -1343,6 +1348,17 @@ export const resolvers: IResolvers<any, Context> = {
             userId: ctx.userId,
             role: SourceMemberRoles.Member,
           });
+
+          if (!source.private) {
+            await saveNotificationPreference(
+              entityManager,
+              ctx.userId,
+              sourceId,
+              NotificationType.SquadPostAdded,
+              NotificationPreferenceStatus.Muted,
+            );
+          }
+
           await entityManager
             .getRepository(Source)
             .update({ id: sourceId }, { active: true });
