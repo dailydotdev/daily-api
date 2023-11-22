@@ -2,7 +2,7 @@ import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Post } from './Post';
 
 export enum PostRelationType {
-  Collection = 'collection',
+  Collection = 'COLLECTION',
 }
 
 @Entity()
