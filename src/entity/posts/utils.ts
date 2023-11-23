@@ -23,6 +23,8 @@ import { getMentions, MentionedUser } from '../../schema/comments';
 import { markdown, renderMentions, saveMentions } from '../../common/markdown';
 import { PostMention } from './PostMention';
 import { PostQuestion } from './PostQuestion';
+import { PostRelation, PostRelationType } from './PostRelation';
+import { CollectionPost } from './CollectionPost';
 
 export type PostStats = {
   numPosts: number;
@@ -388,4 +390,76 @@ export const updateUsedImagesInContent = async (
       usedById: id,
     },
   );
+};
+
+export const addRelatedPosts = async ({
+  entityManager,
+  postId,
+  entries,
+  relationType,
+}: {
+  entityManager: EntityManager;
+  postId: Post['id'];
+  entries: string[];
+  relationType: PostRelationType;
+}): Promise<Post[]> => {
+  if (!entries.length) {
+    return [];
+  }
+
+  const posts = await entityManager.getRepository(Post).findBy({
+    yggdrasilId: In(entries),
+  });
+
+  await entityManager
+    .getRepository(PostRelation)
+    .createQueryBuilder()
+    .insert()
+    .values(
+      posts.map((post) => ({
+        postId,
+        relatedPostId: post.id,
+        relationType,
+      })),
+    )
+    .orIgnore()
+    .execute();
+
+  return posts;
+};
+
+export const relatePosts = async ({
+  entityManager,
+  postId,
+  entries,
+  relationType,
+}: {
+  entityManager: EntityManager;
+  postId: Post['id'];
+  entries: string[];
+  relationType: PostRelationType;
+}): Promise<CollectionPost[]> => {
+  if (!entries.length) {
+    return [];
+  }
+
+  const posts = await entityManager.getRepository(CollectionPost).findBy({
+    yggdrasilId: In(entries),
+  });
+
+  await entityManager
+    .getRepository(PostRelation)
+    .createQueryBuilder()
+    .insert()
+    .values(
+      posts.map((post) => ({
+        postId: post.id,
+        relatedPostId: postId,
+        relationType,
+      })),
+    )
+    .orIgnore()
+    .execute();
+
+  return posts;
 };

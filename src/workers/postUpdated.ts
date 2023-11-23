@@ -3,6 +3,7 @@ import * as he from 'he';
 import {
   addKeywords,
   addQuestions,
+  addRelatedPosts,
   ArticlePost,
   bannedAuthors,
   CollectionPost,
@@ -12,7 +13,9 @@ import {
   parseReadTime,
   Post,
   PostOrigin,
+  PostRelationType,
   PostType,
+  relatePosts,
   removeKeywords,
   SharePost,
   Source,
@@ -26,7 +29,7 @@ import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
-import { updateFlagsStatement } from '../common';
+import { notifyPostCollectionUpdated, updateFlagsStatement } from '../common';
 import { opentelemetry } from '../telemetry/opentelemetry';
 
 interface Data {
@@ -44,6 +47,7 @@ interface Data {
   updated_at?: Date;
   paid?: boolean;
   order?: number;
+  collection?: string[];
   extra?: {
     keywords?: string[];
     questions?: string[];
@@ -55,6 +59,7 @@ interface Data {
     creator_twitter?: string;
     toc?: Toc;
     content_curation?: string[];
+    origin_entries?: string[];
   };
 }
 
@@ -101,7 +106,10 @@ type CreatePostProps = {
   submissionId?: string;
   mergedKeywords: string[];
   questions: string[];
+  collectionYggdrasilIds: string[];
+  collectionRelatedPosts: string[];
 };
+
 const createPost = async ({
   counter,
   logger,
@@ -110,6 +118,8 @@ const createPost = async ({
   submissionId,
   mergedKeywords,
   questions,
+  collectionYggdrasilIds,
+  collectionRelatedPosts,
 }: CreatePostProps) => {
   const existingPost = await entityManager
     .getRepository(Post)
@@ -165,11 +175,44 @@ const createPost = async ({
     ? PostOrigin.CommunityPicks
     : data.origin ?? PostOrigin.Crawler;
 
-  const post = await entityManager.getRepository(ArticlePost).create(data);
+  const post = await entityManager
+    .getRepository(contentTypeFromPostType[data.type])
+    .create(data);
   await entityManager.save(post);
 
   await addKeywords(entityManager, mergedKeywords, data.id);
   await addQuestions(entityManager, questions, data.id);
+
+  let relatedCollections: CollectionPost[] = [];
+
+  if (post.type === PostType.Collection) {
+    await addRelatedPosts({
+      entityManager,
+      postId: post.id,
+      entries: collectionRelatedPosts,
+      relationType: PostRelationType.Collection,
+    });
+  } else if (collectionRelatedPosts) {
+    relatedCollections = await relatePosts({
+      entityManager,
+      postId: post.id,
+      entries: collectionYggdrasilIds,
+      relationType: PostRelationType.Collection,
+    });
+  }
+
+  const isCollectionUpdated =
+    post.type === PostType.Collection || relatedCollections.length > 0;
+
+  if (isCollectionUpdated) {
+    const collectionPosts = [post, ...relatedCollections];
+
+    await Promise.allSettled(
+      collectionPosts.map((collectionPost) => {
+        return notifyPostCollectionUpdated(logger, collectionPost);
+      }),
+    );
+  }
 
   return;
 };
@@ -471,6 +514,8 @@ const worker: Worker = {
             submissionId: data?.submission_id,
             mergedKeywords,
             questions,
+            collectionYggdrasilIds: data.collection || [],
+            collectionRelatedPosts: data.extra?.origin_entries || [],
           });
         } else {
           // Handle update of existing post
