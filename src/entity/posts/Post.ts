@@ -11,12 +11,14 @@ import { Source, UNKNOWN_SOURCE } from '../Source';
 import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { User } from '../User';
+import { PostRelation } from './PostRelation';
 
 export enum PostType {
   Article = 'article',
   Share = 'share',
   Freeform = 'freeform',
   Welcome = 'welcome',
+  Collection = 'collection',
 }
 
 export enum PostOrigin {
@@ -196,4 +198,9 @@ export class Post {
   @Column({ type: 'uuid', nullable: true })
   @Index('IDX_yggdrasil_id')
   yggdrasilId: string;
+
+  @OneToMany(() => PostRelation, (postRelation) => postRelation.post, {
+    lazy: true,
+  })
+  public relatedPosts: Promise<PostRelation[]>;
 }

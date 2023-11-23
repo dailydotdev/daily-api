@@ -5,6 +5,7 @@ import {
   addQuestions,
   ArticlePost,
   bannedAuthors,
+  CollectionPost,
   findAuthor,
   FreeformPost,
   mergeKeywords,
@@ -189,6 +190,7 @@ const contentTypeFromPostType: Record<PostType, typeof Post> = {
   [PostType.Freeform]: FreeformPost,
   [PostType.Share]: SharePost,
   [PostType.Welcome]: WelcomePost,
+  [PostType.Collection]: CollectionPost,
 };
 
 type UpdatePostProps = {
