@@ -21,6 +21,7 @@ import {
   Toc,
   UNKNOWN_SOURCE,
   WelcomePost,
+  YouTubePost,
 } from '../entity';
 import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
@@ -28,7 +29,6 @@ import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
 import { updateFlagsStatement } from '../common';
 import { opentelemetry } from '../telemetry/opentelemetry';
-import { YouTubePost } from '../entity/posts/YouTubePost';
 
 interface Data {
   id: string;
