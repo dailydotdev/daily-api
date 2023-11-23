@@ -78,6 +78,7 @@ const sourceCreatedTopic = pubsub.topic('api.v1.source-created');
 const generatePersonalizedDigestTopic = pubsub.topic(
   'api.v1.generate-personalized-digest',
 );
+const postYggdrasilIdSet = pubsub.topic('api.v1.post-yggdrasil-id-set');
 
 export enum NotificationReason {
   New = 'new',
@@ -444,6 +445,14 @@ export const notifyGeneratePersonalizedDigest = async (
     personalizedDigest,
     generationTimestamp,
     emailBatchId,
+  });
+
+export const notifyPostYggdrasilIdSet = async (
+  log: EventLogger,
+  post: ChangeObject<Post>,
+): Promise<void> =>
+  publishEvent(log, postYggdrasilIdSet, {
+    post,
   });
 
 export const workerSubscribe = (
