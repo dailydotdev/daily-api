@@ -2899,6 +2899,16 @@ describe('mutation editPost', () => {
 
     await con
       .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.Collection });
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: params },
+      'FORBIDDEN',
+    );
+
+    await con
+      .getRepository(Post)
       .update({ id: 'p1' }, { type: PostType.Article });
 
     return testMutationErrorCode(
