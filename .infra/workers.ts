@@ -239,6 +239,10 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.source-created',
     subscription: 'api.source-created-squad-owner-mailing',
+  },
+  {
+    topic: 'api.v1.post-collection-updated',
+    subscription: 'api.post-collection-updated-normalize-sources',
   }
 ];
 
