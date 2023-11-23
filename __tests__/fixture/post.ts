@@ -2,6 +2,8 @@ import { DeepPartial } from 'typeorm';
 import {
   ArticlePost,
   PostKeyword,
+  PostRelation,
+  PostRelationType,
   PostTag,
   PostType,
   SharePost,
@@ -178,5 +180,38 @@ export const postKeywordsFixture: DeepPartial<PostKeyword>[] = [
   {
     postId: postsFixture[4].id,
     keyword: 'javascript',
+  },
+];
+
+export const relatedPostsFixture: DeepPartial<PostRelation>[] = [
+  {
+    postId: postsFixture[0].id,
+    relatedPostId: postsFixture[1].id,
+    type: PostRelationType.Collection,
+  },
+  {
+    postId: postsFixture[0].id,
+    relatedPostId: postsFixture[2].id,
+    type: PostRelationType.Collection,
+  },
+  {
+    postId: postsFixture[0].id,
+    relatedPostId: postsFixture[3].id,
+    type: PostRelationType.Collection,
+  },
+  {
+    postId: postsFixture[1].id,
+    relatedPostId: postsFixture[2].id,
+    type: PostRelationType.Collection,
+  },
+  {
+    postId: postsFixture[1].id,
+    relatedPostId: postsFixture[3].id,
+    type: PostRelationType.Collection,
+  },
+  {
+    postId: postsFixture[2].id,
+    relatedPostId: postsFixture[3].id,
+    type: PostRelationType.Collection,
   },
 ];

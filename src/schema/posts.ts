@@ -58,6 +58,8 @@ import {
   updateSharePost,
   View,
   User,
+  PostRelationType,
+  PostRelation,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -187,6 +189,11 @@ interface ReportPostArgs {
   reason: string;
   comment: string;
   tags?: string[];
+}
+
+export interface GQLPostRelationArgs extends ConnectionArguments {
+  id: string;
+  relationType: PostRelationType;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -572,6 +579,10 @@ export const typeDefs = /* GraphQL */ `
     IRRELEVANT
   }
 
+  enum PostRelationType {
+    COLLECTION
+  }
+
   extend type Query {
     """
     Get post by id
@@ -614,6 +625,31 @@ export const typeDefs = /* GraphQL */ `
     ): UpvoteConnection!
 
     searchQuestionRecommendations: [PostQuestion]! @auth
+
+    """
+    Get related posts to a post by relation type
+    """
+    relatedPosts(
+      """
+      Post id
+      """
+      id: ID!
+
+      """
+      Relation type
+      """
+      relationType: PostRelationType!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): PostConnection!
   }
 
   extend type Mutation {
@@ -1217,6 +1253,46 @@ export const resolvers: IResolvers<any, Context> = {
       );
 
       return data;
+    },
+    relatedPosts: async (
+      _,
+      args: GQLPostRelationArgs,
+      ctx,
+      info,
+    ): Promise<ConnectionRelay<GQLPost>> => {
+      const post = await ctx.con
+        .getRepository(Post)
+        .findOneByOrFail({ id: args.id });
+      await ensureSourcePermissions(ctx, post.sourceId);
+
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder
+              .leftJoin(
+                PostRelation,
+                'pr',
+                `pr."relatedPostId" = ${builder.alias}.id`,
+                {
+                  postId: args.id,
+                },
+              )
+              .andWhere(`pr.postId = :postId`, {
+                postId: args.id,
+              })
+              .andWhere(`pr.type = :type`, {
+                type: args.relationType,
+              });
+
+            return builder;
+          },
+          orderByKey: 'DESC',
+        },
+      );
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
