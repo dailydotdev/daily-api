@@ -28,6 +28,7 @@ import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
 import { updateFlagsStatement } from '../common';
 import { opentelemetry } from '../telemetry/opentelemetry';
+import { YouTubePost } from '../entity/posts/YouTubePost';
 
 interface Data {
   id: string;
@@ -191,6 +192,7 @@ const contentTypeFromPostType: Record<PostType, typeof Post> = {
   [PostType.Share]: SharePost,
   [PostType.Welcome]: WelcomePost,
   [PostType.Collection]: CollectionPost,
+  [PostType.VideoYouTube]: YouTubePost,
 };
 
 type UpdatePostProps = {
