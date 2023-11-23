@@ -3,11 +3,11 @@ import {
   ArticlePost,
   PostKeyword,
   PostRelation,
-  PostRelationType,
   PostTag,
   PostType,
   SharePost,
 } from '../../src/entity';
+import { PostRelationType } from '../../src/entity/posts/PostRelation';
 
 const now = new Date();
 
