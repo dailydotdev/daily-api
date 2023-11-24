@@ -18,7 +18,8 @@ const worker: Worker = {
       .leftJoin(Post, 'p', 'p.id = pr."relatedPostId"')
       .leftJoin(Source, 's', 's.id = p."sourceId"')
       .where('pr."postId" = :postId', { postId: collection.id })
-      .groupBy('s.id')
+      .groupBy('s.id, pr."createdAt"')
+      .orderBy('pr."createdAt"', 'DESC')
       .getRawMany<Pick<Source, 'id'>>();
 
     await con.getRepository(CollectionPost).save({
