@@ -16,5 +16,5 @@ export class YouTubePost extends Post {
   readTime?: number;
 
   @Column({ type: 'text' })
-  video_id: string;
+  videoId: string;
 }
