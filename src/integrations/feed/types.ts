@@ -9,6 +9,7 @@ export enum FeedConfigName {
   Onboarding = 'onboarding',
   PersonaliseM3 = 'personalise_m3',
   VectorM3 = 'vector_m3',
+  VectorE1 = 'vector_e1',
 }
 
 export type FeedProvider = {
@@ -72,4 +73,4 @@ export interface IFeedClient {
   ): Promise<FeedResponse>;
 }
 
-export type FeedVersion = '15' | '17' | 'popular' | 'onboarding';
+export type FeedVersion = '15' | '17' | '19' | 'popular' | 'onboarding';
