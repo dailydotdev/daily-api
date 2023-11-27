@@ -71,6 +71,7 @@ import {
   notifyBannerRemoved,
   notifyFreeformContentRequested,
   notifySourceCreated,
+  notifyPostYggdrasilIdSet,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
@@ -339,6 +340,9 @@ const onPostChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<Post>,
 ): Promise<void> => {
+  if (data.payload.after?.yggdrasilId && !data.payload.before?.yggdrasilId) {
+    await notifyPostYggdrasilIdSet(logger, data.payload.after);
+  }
   if (data.payload.op === 'c') {
     if (data.payload.after.visible) {
       await notifyPostVisible(logger, data.payload.after);

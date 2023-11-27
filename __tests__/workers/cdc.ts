@@ -50,6 +50,7 @@ import {
   notifyFreeformContentRequested,
   notifyBannerCreated,
   notifyBannerRemoved,
+  notifyPostYggdrasilIdSet,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -133,6 +134,7 @@ jest.mock('../../src/common', () => ({
   notifyPostContentEdited: jest.fn(),
   notifyBannerCreated: jest.fn(),
   notifyBannerRemoved: jest.fn(),
+  notifyPostYggdrasilIdSet: jest.fn(),
 }));
 
 let con: DataSource;
@@ -1117,6 +1119,63 @@ describe('post', () => {
     );
 
     expect(notifyContentRequested).toBeCalledTimes(0);
+  });
+
+  it('should notify when yggdrasil id is available on creation', async () => {
+    const after = {
+      ...base,
+      yggdrasilId: 'yid',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: null,
+        op: 'c',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostYggdrasilIdSet).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifyPostYggdrasilIdSet).mock.calls[0].slice(1),
+    ).toEqual([after]);
+  });
+
+  it('should notify when yggdrasil id is available on update', async () => {
+    const after = {
+      ...base,
+      yggdrasilId: 'yid',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostYggdrasilIdSet).toBeCalledTimes(1);
+    expect(
+      jest.mocked(notifyPostYggdrasilIdSet).mock.calls[0].slice(1),
+    ).toEqual([after]);
+  });
+
+  it('should not notify when yggdrasil id was already available', async () => {
+    const after = {
+      ...base,
+      yggdrasilId: 'yid',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: after,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(notifyPostYggdrasilIdSet).toBeCalledTimes(0);
   });
 });
 
