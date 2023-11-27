@@ -29,7 +29,7 @@ import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
-import { notifyPostCollectionUpdated, updateFlagsStatement } from '../common';
+import { updateFlagsStatement } from '../common';
 import { opentelemetry } from '../telemetry/opentelemetry';
 
 interface Data {
@@ -111,7 +111,6 @@ type CreatePostProps = {
 
 const handleCollectionRelations = async ({
   entityManager,
-  logger,
   post,
   originalData,
 }: {
@@ -120,8 +119,6 @@ const handleCollectionRelations = async ({
   post: Pick<CollectionPost, 'id' | 'type'>;
   originalData: Data;
 }) => {
-  let collectionPosts: Pick<CollectionPost, 'id'>[] = [];
-
   if (post.type === PostType.Collection) {
     await addRelatedPosts({
       entityManager,
@@ -129,22 +126,14 @@ const handleCollectionRelations = async ({
       yggdrasilIds: originalData.extra?.origin_entries || [],
       relationType: PostRelationType.Collection,
     });
-
-    collectionPosts = [post];
   } else if (originalData.collections) {
-    collectionPosts = await relatePosts({
+    await relatePosts({
       entityManager,
       postId: post.id,
       yggdrasilIds: originalData.collections || [],
       relationType: PostRelationType.Collection,
     });
   }
-
-  await Promise.allSettled(
-    collectionPosts.map((collectionPost) => {
-      return notifyPostCollectionUpdated(logger, collectionPost);
-    }),
-  );
 };
 
 const createPost = async ({

@@ -17,7 +17,6 @@ import {
   ContentImage,
   Banner,
   FreeformPost,
-  CollectionPost,
 } from '../entity';
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
@@ -78,9 +77,6 @@ const commentDeletedTopic = pubsub.topic('api.v1.comment-deleted');
 const sourceCreatedTopic = pubsub.topic('api.v1.source-created');
 const generatePersonalizedDigestTopic = pubsub.topic(
   'api.v1.generate-personalized-digest',
-);
-const postCollectionUpdatedTopic = pubsub.topic(
-  'api.v1.post-collection-updated',
 );
 
 export enum NotificationReason {
@@ -511,9 +507,3 @@ export const workerSubscribe = (
     ),
   );
 };
-
-export const notifyPostCollectionUpdated = async (
-  log: EventLogger,
-  collection: Pick<CollectionPost, 'id'>,
-): Promise<void> =>
-  publishEvent(log, postCollectionUpdatedTopic, { collection });

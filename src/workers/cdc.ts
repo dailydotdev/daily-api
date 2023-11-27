@@ -26,6 +26,9 @@ import {
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
   UserPost,
   UserPostVote,
+  PostRelation,
+  PostRelationType,
+  CollectionPost,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -587,6 +590,32 @@ const onFeatureChange = async (
   }
 };
 
+const onPostRelationChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<PostRelation>,
+) => {
+  if (data.payload.op === 'c') {
+    if (data.payload.after.type === PostRelationType.Collection) {
+      const distinctSources = await con
+        .createQueryBuilder()
+        .select('s.id as id')
+        .from(PostRelation, 'pr')
+        .leftJoin(Post, 'p', 'p.id = pr."relatedPostId"')
+        .leftJoin(Source, 's', 's.id = p."sourceId"')
+        .where('pr."postId" = :postId', { postId: data.payload.after.postId })
+        .groupBy('s.id, pr."createdAt"')
+        .orderBy('pr."createdAt"', 'DESC')
+        .getRawMany<Pick<Source, 'id'>>();
+
+      await con.getRepository(CollectionPost).save({
+        id: data.payload.after.postId,
+        collectionSources: distinctSources.map((item) => item.id),
+      });
+    }
+  }
+};
+
 const getTableName = <Entity>(
   con: DataSource,
   target: EntityTarget<Entity>,
@@ -671,6 +700,8 @@ const worker: Worker = {
           break;
         case getTableName(con, ContentImage):
           await onContentImageChange(con, logger, data);
+        case getTableName(con, PostRelation):
+          await onPostRelationChange(con, logger, data);
           break;
       }
     } catch (err) {

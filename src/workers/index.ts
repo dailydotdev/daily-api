@@ -45,7 +45,6 @@ import sourceSquadCreatedUserAction from './sourceSquadCreatedUserAction';
 import sourceSquadCreatedOwnerMailing from './sourceSquadCreatedOwnerMailing';
 import personalizedDigestEmailWorker from '../workers/personalizedDigestEmail';
 import deadLetterLog from './digestDeadLetterLog';
-import postCollectionUpdatedNormalizeSources from './postCollectionUpdatedNormalizeSources';
 
 export { Worker } from './worker';
 
@@ -88,7 +87,6 @@ export const workers: Worker[] = [
   experimentAllocated,
   sourceSquadCreatedUserAction,
   sourceSquadCreatedOwnerMailing,
-  postCollectionUpdatedNormalizeSources,
   cdc,
   ...notificationWorkers,
 ];

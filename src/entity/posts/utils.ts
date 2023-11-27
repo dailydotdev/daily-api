@@ -24,7 +24,6 @@ import { markdown, renderMentions, saveMentions } from '../../common/markdown';
 import { PostMention } from './PostMention';
 import { PostQuestion } from './PostQuestion';
 import { PostRelation, PostRelationType } from './PostRelation';
-import { CollectionPost } from './CollectionPost';
 
 export type PostStats = {
   numPosts: number;
@@ -438,12 +437,12 @@ export const relatePosts = async ({
   postId: Post['id'];
   yggdrasilIds: string[];
   relationType: PostRelationType;
-}): Promise<CollectionPost[]> => {
+}): Promise<Post[]> => {
   if (!yggdrasilIds.length) {
     return [];
   }
 
-  const posts = await entityManager.getRepository(CollectionPost).findBy({
+  const posts = await entityManager.getRepository(Post).findBy({
     yggdrasilId: In(yggdrasilIds),
   });
 
