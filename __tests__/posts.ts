@@ -35,10 +35,16 @@ import {
   PostQuestion,
   UserPost,
   UserPostVote,
+  PostRelationType,
+  PostRelation,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
-import { postsFixture, postTagsFixture } from './fixture/post';
+import {
+  postsFixture,
+  postTagsFixture,
+  relatedPostsFixture,
+} from './fixture/post';
 import { Roles } from '../src/roles';
 import { DataSource, DeepPartial, IsNull, Not } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -4316,6 +4322,74 @@ describe('mutation dismissPostFeedback', () => {
       postId: 'p1',
       vote: UserPostVote.Up,
       flags: { feedbackDismiss: true },
+    });
+  });
+});
+
+describe('query relatedPosts', () => {
+  const QUERY = `
+  query relatedPosts($id: ID!, $relationType: PostRelationType!, $after: String, $first: Int) {
+    relatedPosts(id: $id, relationType: $relationType, after: $after, first: $first) {
+      edges {
+        node {
+          id
+          title
+        }
+      }
+    }
+  }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(PostRelation).save(relatedPostsFixture);
+  });
+
+  it('should throw error when user cannot access the post', async () => {
+    loggedUser = '1';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { id: 'p1', relationType: PostRelationType.Collection },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return related posts', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { id: 'p1', relationType: PostRelationType.Collection },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res).toMatchObject({
+      data: {
+        relatedPosts: {
+          edges: [
+            {
+              node: {
+                id: 'p2',
+                title: 'P2',
+              },
+            },
+            {
+              node: {
+                id: 'p3',
+                title: 'P3',
+              },
+            },
+            {
+              node: {
+                id: 'p4',
+                title: 'P4',
+              },
+            },
+          ],
+        },
+      },
     });
   });
 });
