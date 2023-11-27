@@ -1277,9 +1277,6 @@ export const resolvers: IResolvers<any, Context> = {
                 PostRelation,
                 'pr',
                 `pr."relatedPostId" = ${builder.alias}.id`,
-                {
-                  postId: args.id,
-                },
               )
               .andWhere(`pr.postId = :postId`, {
                 postId: args.id,
