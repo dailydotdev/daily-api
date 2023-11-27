@@ -42,7 +42,13 @@ export const formatMailDate = (date: Date): string =>
 
 export const baseNotificationEmailData: Pick<
   MailDataRequired,
-  'from' | 'replyTo' | 'trackingSettings' | 'asm' | 'category' | 'hideWarnings'
+  | 'from'
+  | 'replyTo'
+  | 'trackingSettings'
+  | 'asm'
+  | 'category'
+  | 'hideWarnings'
+  | 'ipPoolName'
 > = {
   from: {
     email: 'informer@daily.dev',
@@ -61,6 +67,7 @@ export const baseNotificationEmailData: Pick<
   },
   category: 'Notification',
   hideWarnings: process.env.NODE_ENV === 'production',
+  ipPoolName: 'Transactional',
 };
 
 export const sendEmail: typeof sgMail.send = (data) => {
