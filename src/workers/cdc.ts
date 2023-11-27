@@ -28,7 +28,7 @@ import {
   UserPostVote,
   PostRelation,
   PostRelationType,
-  CollectionPost,
+  normalizeCollectionPostSources,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -597,20 +597,9 @@ const onPostRelationChange = async (
 ) => {
   if (data.payload.op === 'c') {
     if (data.payload.after.type === PostRelationType.Collection) {
-      const distinctSources = await con
-        .createQueryBuilder()
-        .select('s.id as id')
-        .from(PostRelation, 'pr')
-        .leftJoin(Post, 'p', 'p.id = pr."relatedPostId"')
-        .leftJoin(Source, 's', 's.id = p."sourceId"')
-        .where('pr."postId" = :postId', { postId: data.payload.after.postId })
-        .groupBy('s.id, pr."createdAt"')
-        .orderBy('pr."createdAt"', 'DESC')
-        .getRawMany<Pick<Source, 'id'>>();
-
-      await con.getRepository(CollectionPost).save({
-        id: data.payload.after.postId,
-        collectionSources: distinctSources.map((item) => item.id),
+      await normalizeCollectionPostSources({
+        con,
+        postId: data.payload.after.postId,
       });
     }
   }
