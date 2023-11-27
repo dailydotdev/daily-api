@@ -3,20 +3,24 @@ import worker from '../../src/workers/postUpdated';
 import {
   ArticlePost,
   COMMUNITY_PICKS_SOURCE,
+  CollectionPost,
   FreeformPost,
   Keyword,
   Post,
   PostKeyword,
   PostOrigin,
   PostQuestion,
+  PostRelation,
   PostType,
   SharePost,
   Source,
   Submission,
   SubmissionStatus,
+  UNKNOWN_SOURCE,
   User,
   WelcomePost,
 } from '../../src/entity';
+import { PostRelationType } from '../../src/entity/posts/PostRelation';
 import { sourcesFixture } from '../fixture/source';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -731,5 +735,351 @@ describe('on post update', () => {
         expect.arrayContaining(DEFAULT_QUESTIONS),
       );
     });
+  });
+});
+
+describe('on collection post', () => {
+  beforeEach(async () => {
+    await con.getRepository(Source).save({
+      id: UNKNOWN_SOURCE,
+      name: 'Unknown',
+      handle: UNKNOWN_SOURCE,
+    });
+  });
+
+  it('should create a new collection post', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+      post_id: undefined,
+      title: 'New title',
+      image: 'http://image.com',
+      readTime: 10,
+      content_type: PostType.Collection,
+      extra: {
+        description: 'New description',
+        summary: 'New summary',
+        content: 'New content',
+        origin_entries: [
+          '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
+          '5a829977-189a-4ac9-85cc-9e822cc7c737',
+        ],
+        read_time: 10,
+      },
+    });
+
+    const collection = await con.getRepository(CollectionPost).findOneBy({
+      yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+    });
+    expect(collection).toMatchObject({
+      type: 'collection',
+      title: 'New title',
+      sourceId: 'unknown',
+      yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+      image: 'http://image.com',
+      content: 'New content',
+      readTime: 10,
+      description: 'New description',
+      summary: 'New summary',
+    });
+  });
+
+  it('should add post relations', async () => {
+    await con.getRepository(ArticlePost).save([
+      {
+        id: 'cp1',
+        shortId: 'cp1',
+        url: 'http://cp1.com',
+        score: 0,
+        metadataChangedAt: new Date('01-05-2020 12:00:00'),
+        sourceId: 'a',
+        visible: true,
+        createdAt: new Date('01-05-2020 12:00:00'),
+        origin: PostOrigin.Crawler,
+        yggdrasilId: '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
+      },
+      {
+        id: 'cp2',
+        shortId: 'cp2',
+        url: 'http://cp2.com',
+        score: 0,
+        metadataChangedAt: new Date('01-05-2020 12:00:00'),
+        sourceId: 'a',
+        visible: true,
+        createdAt: new Date('01-05-2020 12:00:00'),
+        origin: PostOrigin.Crawler,
+        yggdrasilId: '5a829977-189a-4ac9-85cc-9e822cc7c737',
+      },
+    ]);
+
+    await expectSuccessfulBackground(worker, {
+      id: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+      post_id: undefined,
+      title: 'New title',
+      content_type: PostType.Collection,
+      extra: {
+        origin_entries: [
+          '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
+          '5a829977-189a-4ac9-85cc-9e822cc7c737',
+        ],
+      },
+    });
+
+    const collection = await con.getRepository(Post).findOneBy({
+      yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+    });
+
+    expect(collection).not.toBeNull();
+
+    const postRelations = await con.getRepository(PostRelation).findBy({
+      postId: collection!.id,
+    });
+    expect(postRelations.length).toEqual(2);
+    expect(postRelations).toMatchObject([
+      {
+        relatedPostId: 'cp1',
+        postId: collection!.id,
+        type: PostRelationType.Collection,
+      },
+      {
+        relatedPostId: 'cp2',
+        postId: collection!.id,
+        type: PostRelationType.Collection,
+      },
+    ]);
+  });
+
+  it('should update post relations to existing collection', async () => {
+    await con.getRepository(ArticlePost).save([
+      {
+        id: 'cp1',
+        shortId: 'cp1',
+        url: 'http://cp1.com',
+        score: 0,
+        metadataChangedAt: new Date('01-05-2020 12:00:00'),
+        sourceId: 'a',
+        visible: true,
+        createdAt: new Date('01-05-2020 12:00:00'),
+        origin: PostOrigin.Crawler,
+        yggdrasilId: '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
+      },
+      {
+        id: 'cp2',
+        shortId: 'cp2',
+        url: 'http://cp2.com',
+        score: 0,
+        metadataChangedAt: new Date('01-05-2020 12:00:00'),
+        sourceId: 'a',
+        visible: true,
+        createdAt: new Date('01-05-2020 12:00:00'),
+        origin: PostOrigin.Crawler,
+        yggdrasilId: '5a829977-189a-4ac9-85cc-9e822cc7c737',
+      },
+    ]);
+
+    await expectSuccessfulBackground(worker, {
+      id: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+      post_id: undefined,
+      title: 'New title',
+      content_type: PostType.Collection,
+      extra: {
+        origin_entries: ['3d5da6ec-b960-4ad8-8278-665a66b71c1f'],
+      },
+    });
+
+    const collection = await con.getRepository(Post).findOneBy({
+      yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+    });
+
+    expect(collection).not.toBeNull();
+
+    const postRelations = await con.getRepository(PostRelation).findBy({
+      postId: collection!.id,
+    });
+    expect(postRelations.length).toEqual(1);
+    expect(postRelations).toMatchObject([
+      {
+        relatedPostId: 'cp1',
+        postId: collection!.id,
+        type: PostRelationType.Collection,
+      },
+    ]);
+
+    await expectSuccessfulBackground(worker, {
+      id: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+      post_id: collection!.id,
+      title: 'New title',
+      content_type: PostType.Collection,
+      extra: {
+        origin_entries: [
+          '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
+          '5a829977-189a-4ac9-85cc-9e822cc7c737',
+        ],
+      },
+    });
+
+    const postRelationsAfterUpdate = await con
+      .getRepository(PostRelation)
+      .findBy({
+        postId: collection!.id,
+      });
+    expect(postRelationsAfterUpdate.length).toEqual(2);
+    expect(postRelationsAfterUpdate).toMatchObject([
+      {
+        relatedPostId: 'cp1',
+        postId: collection!.id,
+        type: PostRelationType.Collection,
+      },
+      {
+        relatedPostId: 'cp2',
+        postId: collection!.id,
+        type: PostRelationType.Collection,
+      },
+    ]);
+  });
+
+  it('should ignore non existant posts', async () => {
+    await con.getRepository(ArticlePost).save([
+      {
+        id: 'cp1',
+        shortId: 'cp1',
+        url: 'http://cp1.com',
+        score: 0,
+        metadataChangedAt: new Date('01-05-2020 12:00:00'),
+        sourceId: 'a',
+        visible: true,
+        createdAt: new Date('01-05-2020 12:00:00'),
+        origin: PostOrigin.Crawler,
+        yggdrasilId: '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
+      },
+    ]);
+
+    await expectSuccessfulBackground(worker, {
+      id: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+      post_id: undefined,
+      title: 'New title',
+      content_type: PostType.Collection,
+      extra: {
+        origin_entries: [
+          '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
+          '5a829977-189a-4ac9-85cc-9e822cc7c737',
+        ],
+      },
+    });
+
+    const collection = await con.getRepository(Post).findOneBy({
+      yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+    });
+
+    expect(collection).not.toBeNull();
+
+    const postRelations = await con.getRepository(PostRelation).findBy({
+      postId: collection!.id,
+    });
+    expect(postRelations.length).toEqual(1);
+    expect(postRelations).toMatchObject([
+      {
+        relatedPostId: 'cp1',
+        postId: collection!.id,
+        type: PostRelationType.Collection,
+      },
+    ]);
+  });
+
+  it('should relate new post to collection', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+      post_id: undefined,
+      title: 'New title',
+      content_type: PostType.Collection,
+      extra: {
+        origin_entries: [
+          '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
+          '5a829977-189a-4ac9-85cc-9e822cc7c737',
+        ],
+      },
+    });
+
+    const collection = await con.getRepository(Post).findOneBy({
+      yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+    });
+
+    expect(collection).not.toBeNull();
+    expect(await collection!.relatedPosts).toHaveLength(0);
+
+    await expectSuccessfulBackground(worker, {
+      id: '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
+      post_id: undefined,
+      title: 'New title',
+      content_type: PostType.Article,
+      collections: ['7ec0bccb-e41f-4c77-a3b4-fe19d20b3874'],
+    });
+
+    const postRelations = await con.getRepository(PostRelation).findBy({
+      postId: collection!.id,
+    });
+
+    expect(postRelations.length).toEqual(1);
+    expect(postRelations).toMatchObject([
+      {
+        postId: collection!.id,
+        type: PostRelationType.Collection,
+      },
+    ]);
+  });
+
+  it('should relate existing post to collection', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+      post_id: undefined,
+      title: 'New title',
+      content_type: PostType.Collection,
+    });
+
+    await con.getRepository(ArticlePost).save([
+      {
+        id: 'cp1',
+        shortId: 'cp1',
+        url: 'http://cp1.com',
+        score: 0,
+        metadataChangedAt: new Date('01-05-2020 12:00:00'),
+        sourceId: 'a',
+        visible: true,
+        createdAt: new Date('01-05-2020 12:00:00'),
+        origin: PostOrigin.Crawler,
+        yggdrasilId: '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
+      },
+    ]);
+
+    const collection = await con.getRepository(Post).findOneBy({
+      yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+    });
+    const post = await con.getRepository(ArticlePost).findOneBy({
+      id: 'cp1',
+    });
+
+    expect(collection).not.toBeNull();
+    expect(post).not.toBeNull();
+    expect(await collection!.relatedPosts).toHaveLength(0);
+
+    await expectSuccessfulBackground(worker, {
+      id: '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
+      post_id: 'cp1',
+      title: 'New title',
+      content_type: PostType.Article,
+      collections: ['7ec0bccb-e41f-4c77-a3b4-fe19d20b3874'],
+    });
+
+    const postRelations = await con.getRepository(PostRelation).findBy({
+      postId: collection!.id,
+    });
+
+    expect(postRelations.length).toEqual(1);
+    expect(postRelations).toMatchObject([
+      {
+        relatedPostId: 'cp1',
+        postId: collection!.id,
+        type: PostRelationType.Collection,
+      },
+    ]);
   });
 });

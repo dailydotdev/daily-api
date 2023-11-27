@@ -395,20 +395,20 @@ export const updateUsedImagesInContent = async (
 export const addRelatedPosts = async ({
   entityManager,
   postId,
-  entries,
+  yggdrasilIds,
   relationType,
 }: {
   entityManager: EntityManager;
   postId: Post['id'];
-  entries: string[];
+  yggdrasilIds: string[];
   relationType: PostRelationType;
 }): Promise<Post[]> => {
-  if (!entries.length) {
+  if (!yggdrasilIds.length) {
     return [];
   }
 
   const posts = await entityManager.getRepository(Post).findBy({
-    yggdrasilId: In(entries),
+    yggdrasilId: In(yggdrasilIds),
   });
 
   await entityManager
@@ -431,20 +431,20 @@ export const addRelatedPosts = async ({
 export const relatePosts = async ({
   entityManager,
   postId,
-  entries,
+  yggdrasilIds,
   relationType,
 }: {
   entityManager: EntityManager;
   postId: Post['id'];
-  entries: string[];
+  yggdrasilIds: string[];
   relationType: PostRelationType;
 }): Promise<CollectionPost[]> => {
-  if (!entries.length) {
+  if (!yggdrasilIds.length) {
     return [];
   }
 
   const posts = await entityManager.getRepository(CollectionPost).findBy({
-    yggdrasilId: In(entries),
+    yggdrasilId: In(yggdrasilIds),
   });
 
   await entityManager
