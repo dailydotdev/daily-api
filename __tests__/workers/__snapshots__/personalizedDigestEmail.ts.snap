@@ -55,6 +55,7 @@ Object {
     "name": "daily.dev",
   },
   "hideWarnings": false,
+  "ipPoolName": "Transactional",
   "replyTo": Object {
     "email": "hi@daily.dev",
     "name": "daily.dev",
@@ -143,6 +144,7 @@ Object {
     "name": "daily.dev",
   },
   "hideWarnings": false,
+  "ipPoolName": "Transactional",
   "replyTo": Object {
     "email": "hi@daily.dev",
     "name": "daily.dev",
@@ -231,6 +233,7 @@ Object {
     "name": "daily.dev",
   },
   "hideWarnings": false,
+  "ipPoolName": "Transactional",
   "replyTo": Object {
     "email": "hi@daily.dev",
     "name": "daily.dev",
@@ -319,6 +322,7 @@ Object {
     "name": "Weekly Digest",
   },
   "hideWarnings": false,
+  "ipPoolName": "Transactional",
   "replyTo": Object {
     "email": "hi@daily.dev",
     "name": "daily.dev",
