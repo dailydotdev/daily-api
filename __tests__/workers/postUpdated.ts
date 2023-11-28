@@ -758,7 +758,7 @@ describe('on collection post', () => {
       extra: {
         description: 'New description',
         summary: 'New summary',
-        content: 'New content',
+        content: '## New heading\n\n New content',
         origin_entries: [
           '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
           '5a829977-189a-4ac9-85cc-9e822cc7c737',
@@ -776,11 +776,11 @@ describe('on collection post', () => {
       sourceId: 'unknown',
       yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
       image: 'http://image.com',
-      content: 'New content',
+      content: '## New heading\n\n New content',
       readTime: 10,
       description: 'New description',
       summary: 'New summary',
-      contentHtml: '<p>New content</p>\n',
+      contentHtml: '<h2>New heading</h2>\n<p>New content</p>\n',
     });
   });
 

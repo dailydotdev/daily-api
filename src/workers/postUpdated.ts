@@ -466,7 +466,7 @@ const fixData = async ({
       type: data?.content_type as PostType,
       content: data?.extra?.content,
       contentHtml: data?.extra?.content
-        ? markdown.render(data.extra.content, { mentions: [] })
+        ? markdown.render(data.extra.content)
         : undefined,
     },
   };
