@@ -14,7 +14,7 @@ interface Data {
 
 const worker: Worker = {
   subscription: 'api.source-created-squad-owner-mailing',
-  handler: async (message, con) => {
+  handler: async (message, con, logger) => {
     const data: Data = messageToJson(message);
 
     const { source } = data;
@@ -52,7 +52,12 @@ const worker: Worker = {
 
       const contactId = await getContactIdByEmail(user.email);
 
-      await addUserToContacts(user, [LIST_SQUAD_DRIP_CAMPAIGN], contactId);
+      await addUserToContacts(
+        user,
+        [LIST_SQUAD_DRIP_CAMPAIGN],
+        contactId,
+        logger,
+      );
     }
   },
 };
