@@ -106,11 +106,7 @@ const profileToContact = async (
     referralOrigin: 'generic',
     userId: profile.id,
   });
-
-  const [genericInviteURL] = await Promise.all([
-    getShortUrl(rawInviteURL.toString(), log),
-  ]);
-
+  const genericInviteURL = await getShortUrl(rawInviteURL.toString(), log);
   const contact: EmailContact = {
     id: contactId,
     email: profile.email,
