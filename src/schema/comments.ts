@@ -279,6 +279,11 @@ export const typeDefs = /* GraphQL */ `
     Markdown equivalent of the user's comment
     """
     commentPreview(content: String!, sourceId: String): String @auth
+
+    """
+    Fetch a comment by id
+    """
+    comment(id: ID!): Comment @auth
   }
 
   extend type Mutation {
@@ -665,6 +670,19 @@ export const resolvers: IResolvers<any, Context> = {
 
       return markdown.render(trimmed, { mentions });
     },
+    comment: async (
+      _,
+      { id }: { id: string },
+      ctx,
+      info,
+    ): Promise<GQLComment> =>
+      graphorm.queryOneOrFail<GQLComment>(ctx, info, (builder) => ({
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."id" = :id`,
+          { id },
+        ),
+        ...builder,
+      })),
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({

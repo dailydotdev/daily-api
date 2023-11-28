@@ -1311,3 +1311,28 @@ describe('mutation reportComment', () => {
     expect(res2.errors).toBeFalsy();
   });
 });
+
+describe('query comment', () => {
+  const QUERY = `
+    query Comment($id: ID!) {
+      comment(id: $id) {
+        id
+        content
+      }
+    }
+  `;
+
+  it('should not return comment by id when not authenticated', async () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: '123' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return comment by id', async () => {
+    loggedUser = '1';
+    const comment = await client.query(QUERY, { variables: { id: 'c1' } });
+    expect(comment.errors).toBeFalsy();
+    expect(comment.data.comment.id).toEqual('c1');
+  });
+});
