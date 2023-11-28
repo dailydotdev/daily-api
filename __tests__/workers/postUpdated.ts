@@ -780,6 +780,7 @@ describe('on collection post', () => {
       readTime: 10,
       description: 'New description',
       summary: 'New summary',
+      contentHtml: '<p>New content</p>\n',
     });
   });
 

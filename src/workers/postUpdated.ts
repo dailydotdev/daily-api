@@ -31,6 +31,7 @@ import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
 import { updateFlagsStatement } from '../common';
 import { opentelemetry } from '../telemetry/opentelemetry';
+import { markdown } from '../common/markdown';
 
 interface Data {
   id: string;
@@ -464,6 +465,9 @@ const fixData = async ({
       yggdrasilId: data?.id,
       type: data?.content_type as PostType,
       content: data?.extra?.content,
+      contentHtml: data?.extra?.content
+        ? markdown.render(data.extra.content, { mentions: [] })
+        : undefined,
     },
   };
 };
