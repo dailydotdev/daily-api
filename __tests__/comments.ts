@@ -1329,8 +1329,33 @@ describe('query comment', () => {
       'UNAUTHENTICATED',
     ));
 
+  it('should not return comment by id if user is not the author', async () => {
+    loggedUser = '2';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'c1' } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return error when not part of private squad', async () => {
+    loggedUser = '1';
+    await con.getRepository(Comment).update({ id: 'c1' }, { userId: '1' });
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { private: true, type: SourceType.Squad });
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'c1' } },
+      'FORBIDDEN',
+    );
+  });
+
   it('should return comment by id', async () => {
     loggedUser = '1';
+    await con.getRepository(Comment).update({ id: 'c1' }, { userId: '1' });
     const comment = await client.query(QUERY, { variables: { id: 'c1' } });
     expect(comment.errors).toBeFalsy();
     expect(comment.data.comment.id).toEqual('c1');

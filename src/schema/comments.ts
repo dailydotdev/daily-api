@@ -675,14 +675,25 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx,
       info,
-    ): Promise<GQLComment> =>
-      graphorm.queryOneOrFail<GQLComment>(ctx, info, (builder) => ({
+    ): Promise<GQLComment> => {
+      const comment = await ctx.con.getRepository(Comment).findOneOrFail({
+        where: { id, userId: ctx.userId },
+        select: ['postId'],
+      });
+      const post = await ctx.con
+        .getRepository(Post)
+        .findOneByOrFail({ id: comment.postId });
+
+      await ensureSourcePermissions(ctx, post.sourceId);
+
+      return graphorm.queryOneOrFail<GQLComment>(ctx, info, (builder) => ({
         queryBuilder: builder.queryBuilder.where(
           `"${builder.alias}"."id" = :id`,
           { id },
         ),
         ...builder,
-      })),
+      }));
+    },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
