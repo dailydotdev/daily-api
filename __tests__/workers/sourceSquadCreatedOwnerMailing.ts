@@ -80,6 +80,7 @@ describe('sourceSquadCreatedOwnerMailing worker', () => {
       user,
       [LIST_SQUAD_DRIP_CAMPAIGN],
       undefined,
+      expect.anything(),
     );
   });
 

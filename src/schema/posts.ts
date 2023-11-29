@@ -494,6 +494,11 @@ export const typeDefs = /* GraphQL */ `
     userState: UserPost @auth
 
     """
+    Time the post was updated
+    """
+    updatedAt: DateTime
+
+    """
     Related sources for collection post
     """
     collectionSources: [Source!]!
