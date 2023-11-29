@@ -11,7 +11,7 @@ export class AdvancedSettings {
   @Column({ type: 'text' })
   description: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', default: 'advanced' })
   group: string;
 
   @Column({ type: 'bool', default: true })
