@@ -17,6 +17,7 @@ import {
   ContentImage,
   Banner,
   FreeformPost,
+  CollectionPost,
 } from '../entity';
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
@@ -79,6 +80,9 @@ const generatePersonalizedDigestTopic = pubsub.topic(
   'api.v1.generate-personalized-digest',
 );
 const postYggdrasilIdSet = pubsub.topic('api.v1.post-yggdrasil-id-set');
+const postCollectionUpdatedTopic = pubsub.topic(
+  'api.v1.post-collection-updated',
+);
 
 export enum NotificationReason {
   New = 'new',
@@ -454,6 +458,12 @@ export const notifyPostYggdrasilIdSet = async (
   publishEvent(log, postYggdrasilIdSet, {
     post,
   });
+
+export const notifyPostCollectionUpdated = async (
+  log: EventLogger,
+  collection: Pick<CollectionPost, 'id'>,
+): Promise<void> =>
+  publishEvent(log, postCollectionUpdatedTopic, { collection });
 
 export const workerSubscribe = (
   logger: pino.Logger,

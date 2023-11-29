@@ -29,6 +29,7 @@ import {
   PostRelation,
   PostRelationType,
   normalizeCollectionPostSources,
+  CollectionPost,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -72,6 +73,7 @@ import {
   notifyFreeformContentRequested,
   notifySourceCreated,
   notifyPostYggdrasilIdSet,
+  notifyPostCollectionUpdated,
 } from '../common';
 import { ChangeMessage } from '../types';
 import { DataSource } from 'typeorm';
@@ -100,6 +102,12 @@ const isFreeformPostChangeLongEnough = (
     freeform.payload.before.content.length -
       freeform.payload.after.content.length,
   ) >= FREEFORM_POST_MINIMUM_CHANGE_LENGTH;
+
+const isCollectionUpdated = (
+  collection: ChangeMessage<CollectionPost>,
+): boolean =>
+  collection.payload.before.summary !== collection.payload.after.summary ||
+  collection.payload.before.content !== collection.payload.after.content;
 
 const onSourceRequestChange = async (
   con: DataSource,
@@ -365,6 +373,13 @@ const onPostChange = async (
         ) {
           await notifyPostContentEdited(logger, data.payload.after);
         }
+      }
+    }
+
+    if (data.payload.after.type === PostType.Collection) {
+      const collection = data as ChangeMessage<CollectionPost>;
+      if (isCollectionUpdated(collection)) {
+        await notifyPostCollectionUpdated(logger, data.payload.after);
       }
     }
 
