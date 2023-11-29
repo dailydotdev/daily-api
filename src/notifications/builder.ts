@@ -185,6 +185,21 @@ export class NotificationBuilder {
     return this;
   }
 
+  avatarManySources(sources: Reference<Source>[]): NotificationBuilder {
+    const newAvatars = sources.map(
+      (source, i): DeepPartial<NotificationAvatar> => ({
+        order: i + this.avatars.length,
+        type: 'source',
+        referenceId: source.id,
+        image: source.image,
+        name: source.name,
+        targetUrl: getSourceLink(source),
+      }),
+    );
+    this.avatars = this.avatars.concat(newAvatars);
+    return this;
+  }
+
   avatarManyUsers(users: Reference<User>[]): NotificationBuilder {
     const newAvatars = users.map(
       (user, i): DeepPartial<NotificationAvatar> => ({
@@ -211,6 +226,12 @@ export class NotificationBuilder {
       uniqueKey: upvotes.toString(),
       icon: NotificationIcon.Upvote,
     }).avatarManyUsers(upvoters);
+  }
+
+  numTotalAvatars(numTotalAvatars: number): NotificationBuilder {
+    return this.enrichNotification({
+      numTotalAvatars: numTotalAvatars,
+    });
   }
 
   sourceMemberRole(role: SourceMemberRoles): NotificationBuilder {

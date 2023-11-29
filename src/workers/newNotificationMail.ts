@@ -61,6 +61,7 @@ const notificationToTemplateId: Record<NotificationType, string> = {
   post_mention: '',
   promoted_to_moderator: 'd-b1dbd1e86ee14bf094f7616f7469fee8',
   squad_subscribe_to_notification: '',
+  collection_updated: '',
 };
 
 type TemplateDataFunc = (
@@ -499,6 +500,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         notification.type,
       ),
     };
+  },
+  collection_updated: async () => {
+    return null;
   },
 };
 

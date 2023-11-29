@@ -62,3 +62,8 @@ export type NotificationDoneByContext = NotificationBaseContext & {
 export type NotificationSourceMemberRoleContext = NotificationSourceContext & {
   role: Reference<SourceMemberRoles>;
 };
+
+export type NotificationCollectionContext = NotificationPostContext & {
+  distinctSources: Reference<Source>[];
+  total: number;
+};
