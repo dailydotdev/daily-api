@@ -492,6 +492,11 @@ export const typeDefs = /* GraphQL */ `
     User state for the post
     """
     userState: UserPost @auth
+
+    """
+    Time the post was updated
+    """
+    updatedAt: DateTime
   }
 
   type PostConnection {

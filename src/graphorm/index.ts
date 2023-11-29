@@ -199,6 +199,9 @@ const obj = new GraphORM({
           return value;
         },
       },
+      updatedAt: {
+        select: 'metadataChangedAt',
+      },
     },
   },
   Source: {
