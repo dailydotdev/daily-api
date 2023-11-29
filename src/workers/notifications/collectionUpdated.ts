@@ -1,6 +1,6 @@
-import { In, Not } from 'typeorm';
 import { messageToJson } from '../worker';
 import {
+  NotificationPreferencePost,
   Post,
   PostRelation,
   PostRelationType,
@@ -9,10 +9,12 @@ import {
 } from '../../entity';
 import { ChangeObject } from '../../types';
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
-import { buildPostContext, getSubscribedMembers } from './utils';
+import { buildPostContext } from './utils';
 import { NotificationCollectionContext } from '../../notifications';
-import { NotificationType } from '../../notifications/common';
-import { SourceMemberRoles } from '../../roles';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../notifications/common';
 
 interface Data {
   post: ChangeObject<Post>;
@@ -27,7 +29,7 @@ export const collectionUpdated: NotificationWorker = {
     if (!baseCtx) {
       return;
     }
-    const { post, source } = baseCtx;
+    const { post } = baseCtx;
 
     if (post.type !== PostType.Collection) {
       return;
@@ -52,16 +54,11 @@ export const collectionUpdated: NotificationWorker = {
 
     const numTotalAvatars = distinctSources[0].total;
 
-    const members = await getSubscribedMembers(
-      con,
-      NotificationType.CollectionUpdated,
-      source.id,
-      {
-        sourceId: source.id,
-        userId: Not(In([post.authorId])),
-        role: Not(SourceMemberRoles.Blocked),
-      },
-    );
+    const members = await con.getRepository(NotificationPreferencePost).findBy({
+      notificationType: NotificationType.CollectionUpdated,
+      referenceId: post.id,
+      status: NotificationPreferenceStatus.Subscribed,
+    });
 
     members.forEach(({ userId }) =>
       notifs.push({

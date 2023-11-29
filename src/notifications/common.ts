@@ -45,6 +45,7 @@ export enum NotificationPreferenceType {
 
 export enum NotificationPreferenceStatus {
   Muted = 'muted',
+  Subscribed = 'subscribed',
 }
 
 export const notificationPreferenceMap: Partial<
