@@ -113,6 +113,7 @@ it('should publish an event to redis', async () => {
           description: 'description',
           icon: 'icon',
           id: expect.any(String),
+          numTotalAvatars: null,
           public: true,
           readAt: null,
           referenceId: null,
