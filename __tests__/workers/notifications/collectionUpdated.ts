@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import {
-  expectSuccessfulBackground,
+  // expectSuccessfulBackground,
   invokeNotificationWorker,
   saveFixtures,
 } from '../../helpers';
@@ -9,15 +9,23 @@ import { collectionUpdated as worker } from '../../../src/workers/notifications/
 import {
   ArticlePost,
   CollectionPost,
-  FreeformPost,
+  NotificationPreferencePost,
+  // FreeformPost,
   PostOrigin,
   PostRelation,
   PostRelationType,
   PostType,
   Source,
+  User,
 } from '../../../src/entity';
 import { sourcesFixture } from '../../fixture/source';
-import { Worker } from '../../../src/workers/worker';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../../src/notifications/common';
+import { usersFixture } from '../../fixture/user';
+import { NotificationCollectionContext } from '../../../src/notifications';
+// import { Worker } from '../../../src/workers/worker';
 
 let con: DataSource;
 
@@ -28,6 +36,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
+  await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, ArticlePost, [
     {
       id: 'cp1',
@@ -113,6 +122,27 @@ beforeEach(async () => {
       type: PostRelationType.Collection,
     },
   ]);
+
+  await saveFixtures(con, NotificationPreferencePost, [
+    {
+      userId: '1',
+      referenceId: 'c1',
+      notificationType: NotificationType.CollectionUpdated,
+      status: NotificationPreferenceStatus.Subscribed,
+    },
+    {
+      userId: '2',
+      referenceId: 'c1',
+      notificationType: NotificationType.CollectionUpdated,
+      status: NotificationPreferenceStatus.Subscribed,
+    },
+    {
+      userId: '3',
+      referenceId: 'c1',
+      notificationType: NotificationType.CollectionUpdated,
+      status: NotificationPreferenceStatus.Subscribed,
+    },
+  ]);
 });
 
 it('should notifiy when a collection is updated', async () => {
@@ -123,4 +153,19 @@ it('should notifiy when a collection is updated', async () => {
       content_type: PostType.Collection,
     },
   });
+
+  expect(actual.length).toEqual(3);
+
+  actual.forEach((bundle) => {
+    const ctx = bundle.ctx as NotificationCollectionContext;
+    expect(bundle.type).toEqual('collection_updated');
+    expect(ctx.post.id).toEqual('c1');
+    expect(ctx.distinctSources.length).toEqual(3);
+    expect(ctx.total).toEqual('4');
+  });
+  expect(actual.map((bundle) => bundle.ctx.userId)).toEqual(['1', '2', '3']);
+
+  expect(
+    (actual[0].ctx as NotificationCollectionContext).distinctSources[0].name,
+  ).toEqual('A');
 });
