@@ -3,6 +3,7 @@ import * as he from 'he';
 import {
   addKeywords,
   addQuestions,
+  addRelatedPosts,
   ArticlePost,
   bannedAuthors,
   CollectionPost,
@@ -12,7 +13,9 @@ import {
   parseReadTime,
   Post,
   PostOrigin,
+  PostRelationType,
   PostType,
+  relatePosts,
   removeKeywords,
   SharePost,
   Source,
@@ -28,6 +31,7 @@ import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
 import { updateFlagsStatement } from '../common';
 import { opentelemetry } from '../telemetry/opentelemetry';
+import { markdown } from '../common/markdown';
 
 interface Data {
   id: string;
@@ -44,6 +48,7 @@ interface Data {
   updated_at?: Date;
   paid?: boolean;
   order?: number;
+  collections?: string[];
   extra?: {
     keywords?: string[];
     questions?: string[];
@@ -55,6 +60,8 @@ interface Data {
     creator_twitter?: string;
     toc?: Toc;
     content_curation?: string[];
+    origin_entries?: string[];
+    content: string;
   };
 }
 
@@ -102,6 +109,34 @@ type CreatePostProps = {
   mergedKeywords: string[];
   questions: string[];
 };
+
+const handleCollectionRelations = async ({
+  entityManager,
+  post,
+  originalData,
+}: {
+  entityManager: EntityManager;
+  logger: FastifyBaseLogger;
+  post: Pick<CollectionPost, 'id' | 'type'>;
+  originalData: Data;
+}) => {
+  if (post.type === PostType.Collection) {
+    await addRelatedPosts({
+      entityManager,
+      postId: post.id,
+      yggdrasilIds: originalData.extra?.origin_entries || [],
+      relationType: PostRelationType.Collection,
+    });
+  } else if (originalData.collections) {
+    await relatePosts({
+      entityManager,
+      postId: post.id,
+      yggdrasilIds: originalData.collections || [],
+      relationType: PostRelationType.Collection,
+    });
+  }
+};
+
 const createPost = async ({
   counter,
   logger,
@@ -110,7 +145,7 @@ const createPost = async ({
   submissionId,
   mergedKeywords,
   questions,
-}: CreatePostProps) => {
+}: CreatePostProps): Promise<Post | null> => {
   const existingPost = await entityManager
     .getRepository(Post)
     .createQueryBuilder()
@@ -165,13 +200,15 @@ const createPost = async ({
     ? PostOrigin.CommunityPicks
     : data.origin ?? PostOrigin.Crawler;
 
-  const post = await entityManager.getRepository(ArticlePost).create(data);
+  const post = await entityManager
+    .getRepository(contentTypeFromPostType[data.type] ?? ArticlePost)
+    .create(data);
   await entityManager.save(post);
 
   await addKeywords(entityManager, mergedKeywords, data.id);
   await addQuestions(entityManager, questions, data.id);
 
-  return;
+  return post;
 };
 
 const allowedFieldsMapping = {
@@ -354,7 +391,7 @@ type FixData = {
   mergedKeywords: string[];
   questions: string[];
   content_type: PostType;
-  fixedData: Partial<ArticlePost>;
+  fixedData: Partial<ArticlePost> & Partial<CollectionPost>;
 };
 const fixData = async ({
   logger,
@@ -426,6 +463,11 @@ const fixData = async ({
         sentAnalyticsReport: privacy || !authorId,
       },
       yggdrasilId: data?.id,
+      type: data?.content_type as PostType,
+      content: data?.extra?.content,
+      contentHtml: data?.extra?.content
+        ? markdown.render(data.extra.content)
+        : undefined,
     },
   };
 };
@@ -439,7 +481,7 @@ const worker: Worker = {
     logger.info({ data }, 'content-updated received');
     try {
       // See if we received any rejections
-      const { reject_reason, post_id } = data;
+      const { reject_reason } = data;
       await con.transaction(async (entityManager) => {
         if (reject_reason) {
           return handleRejection({ logger, data, entityManager });
@@ -453,6 +495,7 @@ const worker: Worker = {
           return;
         }
 
+        let postId = data.post_id;
         const { mergedKeywords, questions, content_type, fixedData } =
           await fixData({
             logger,
@@ -461,9 +504,9 @@ const worker: Worker = {
           });
 
         // See if post id is not available
-        if (!post_id) {
+        if (!postId) {
           // Handle creation of new post
-          await createPost({
+          const newPost = await createPost({
             counter,
             logger,
             entityManager,
@@ -472,6 +515,8 @@ const worker: Worker = {
             mergedKeywords,
             questions,
           });
+
+          postId = newPost?.id;
         } else {
           // Handle update of existing post
           await updatePost({
@@ -479,10 +524,22 @@ const worker: Worker = {
             logger,
             entityManager,
             data: fixedData,
-            id: post_id,
+            id: postId,
             mergedKeywords,
             questions,
             content_type,
+          });
+        }
+
+        if (postId) {
+          await handleCollectionRelations({
+            entityManager,
+            logger,
+            post: {
+              id: postId,
+              type: content_type,
+            },
+            originalData: data,
           });
         }
       });

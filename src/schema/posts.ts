@@ -497,6 +497,16 @@ export const typeDefs = /* GraphQL */ `
     Time the post was updated
     """
     updatedAt: DateTime
+
+    """
+    Related sources for collection post
+    """
+    collectionSources: [Source!]!
+
+    """
+    Total number of related sources for collection post
+    """
+    numCollectionSources: Int!
   }
 
   type PostConnection {

@@ -26,6 +26,9 @@ import {
   FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
   UserPost,
   UserPostVote,
+  PostRelation,
+  PostRelationType,
+  normalizeCollectionPostSources,
 } from '../entity';
 import {
   notifyCommentCommented,
@@ -591,6 +594,21 @@ const onFeatureChange = async (
   }
 };
 
+const onPostRelationChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<PostRelation>,
+) => {
+  if (data.payload.op === 'c') {
+    if (data.payload.after.type === PostRelationType.Collection) {
+      await normalizeCollectionPostSources({
+        con,
+        postId: data.payload.after.postId,
+      });
+    }
+  }
+};
+
 const getTableName = <Entity>(
   con: DataSource,
   target: EntityTarget<Entity>,
@@ -675,6 +693,8 @@ const worker: Worker = {
           break;
         case getTableName(con, ContentImage):
           await onContentImageChange(con, logger, data);
+        case getTableName(con, PostRelation):
+          await onPostRelationChange(con, logger, data);
           break;
       }
     } catch (err) {
