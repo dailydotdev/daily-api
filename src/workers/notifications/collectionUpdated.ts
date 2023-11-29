@@ -54,7 +54,7 @@ export const collectionUpdated: NotificationWorker = {
 
     const members = await getSubscribedMembers(
       con,
-      NotificationType.SquadPostAdded,
+      NotificationType.CollectionUpdated,
       source.id,
       {
         sourceId: source.id,
