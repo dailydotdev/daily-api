@@ -4,7 +4,7 @@ import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { User } from './users';
 import { ChangeObject } from '../types';
 import { FastifyBaseLogger } from 'fastify';
-import { getInviteLink } from './links';
+import { getInviteLink, getShortUrl } from './links';
 
 if (process.env.SENDGRID_API_KEY) {
   client.setApiKey(process.env.SENDGRID_API_KEY);
@@ -97,12 +97,16 @@ interface EmailContact {
   custom_fields: Record<string, string>;
 }
 
-const profileToContact = (profile: User, contactId: string) => {
-  const genericInviteURL = getInviteLink({
+const profileToContact = async (
+  profile: User,
+  contactId: string,
+  log: FastifyBaseLogger,
+) => {
+  const rawInviteURL = getInviteLink({
     referralOrigin: 'generic',
     userId: profile.id,
   });
-
+  const genericInviteURL = await getShortUrl(rawInviteURL.toString(), log);
   const contact: EmailContact = {
     id: contactId,
     email: profile.email,
@@ -124,17 +128,19 @@ const profileToContact = (profile: User, contactId: string) => {
   return contact;
 };
 
-export const addUserToContacts = (
+export const addUserToContacts = async (
   profile: User,
   lists: string[],
   contactId: string,
+  log: FastifyBaseLogger,
 ) => {
+  const contact = await profileToContact(profile, contactId, log);
   const request = {
     method: 'PUT' as HttpMethod,
     url: '/v3/marketing/contacts',
     body: {
       list_ids: lists || undefined,
-      contacts: [profileToContact(profile, contactId)],
+      contacts: [contact],
     },
   };
   return client.request(request);
@@ -198,7 +204,7 @@ export const updateUserContactLists = async (
         removeUserFromList(LIST_SQUAD_DRIP_CAMPAIGN, contactId),
       ]);
     }
-    await addUserToContacts(newProfile, lists, contactId);
+    await addUserToContacts(newProfile, lists, contactId, log);
   } catch (err) {
     if (
       err.code === 400 &&
