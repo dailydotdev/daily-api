@@ -1,5 +1,10 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
+export enum AdvancedSettingsGroup {
+  Advanced = 'advanced',
+  ContentTypes = 'content_types',
+}
+
 @Entity()
 export class AdvancedSettings {
   @PrimaryGeneratedColumn('increment')
@@ -13,4 +18,7 @@ export class AdvancedSettings {
 
   @Column({ type: 'bool', default: true })
   defaultEnabledState: boolean;
+
+  @Column({ type: 'text', default: AdvancedSettingsGroup.Advanced })
+  group: AdvancedSettingsGroup;
 }
