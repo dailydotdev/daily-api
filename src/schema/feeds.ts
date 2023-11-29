@@ -72,6 +72,7 @@ export const typeDefs = /* GraphQL */ `
   type FeedAdvancedSettings {
     id: Int!
     enabled: Boolean!
+    advancedSettings: AdvancedSettings
   }
 
   type FeedSettings {
