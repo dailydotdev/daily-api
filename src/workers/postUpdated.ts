@@ -24,6 +24,7 @@ import {
   Toc,
   UNKNOWN_SOURCE,
   WelcomePost,
+  YouTubePost,
 } from '../entity';
 import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
@@ -228,6 +229,7 @@ const contentTypeFromPostType: Record<PostType, typeof Post> = {
   [PostType.Share]: SharePost,
   [PostType.Welcome]: WelcomePost,
   [PostType.Collection]: CollectionPost,
+  [PostType.VideoYouTube]: YouTubePost,
 };
 
 type UpdatePostProps = {

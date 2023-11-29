@@ -19,6 +19,7 @@ export enum PostType {
   Freeform = 'freeform',
   Welcome = 'welcome',
   Collection = 'collection',
+  VideoYouTube = 'video:youtube',
 }
 
 export enum PostOrigin {

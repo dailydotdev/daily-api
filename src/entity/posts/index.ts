@@ -8,3 +8,4 @@ export * from './PostQuestion';
 export * from './utils';
 export * from './PostRelation';
 export * from './CollectionPost';
+export * from './YouTubePost';
