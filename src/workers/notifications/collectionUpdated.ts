@@ -1,12 +1,6 @@
 import { In, Not } from 'typeorm';
 import { messageToJson } from '../worker';
-import {
-  Notification,
-  Post,
-  PostRelation,
-  PostType,
-  Source,
-} from '../../entity';
+import { Post, PostRelation, PostType, Source } from '../../entity';
 import { ChangeObject } from '../../types';
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { buildPostContext, getSubscribedMembers } from './utils';
