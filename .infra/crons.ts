@@ -4,7 +4,7 @@ interface Cron {
   limits?: {
     cpu: string;
     memory: string;
-  }
+  };
 }
 
 export const crons: Cron[] = [
@@ -49,17 +49,17 @@ export const crons: Cron[] = [
     schedule: '15 0 * * *',
     limits: {
       cpu: '250m',
-      memory: '1Gi'
-    }
+      memory: '1Gi',
+    },
   },
   {
     name: 'generate-search-invites',
     schedule: '15 1 * * *',
   },
-  // {
-  //   name: 'generic-referral-reminder',
-  //   schedule: '12 3 * * *',
-  // },
+  {
+    name: 'generic-referral-reminder',
+    schedule: '12 3 * * *',
+  },
   {
     name: 'update-tag-recommendations',
     schedule: '5 3 * * 0',
