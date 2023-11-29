@@ -23,6 +23,8 @@ import { getMentions, MentionedUser } from '../../schema/comments';
 import { markdown, renderMentions, saveMentions } from '../../common/markdown';
 import { PostMention } from './PostMention';
 import { PostQuestion } from './PostQuestion';
+import { PostRelation, PostRelationType } from './PostRelation';
+import { CollectionPost } from './CollectionPost';
 
 export type PostStats = {
   numPosts: number;
@@ -388,4 +390,100 @@ export const updateUsedImagesInContent = async (
       usedById: id,
     },
   );
+};
+
+export const addRelatedPosts = async ({
+  entityManager,
+  postId,
+  yggdrasilIds,
+  relationType,
+}: {
+  entityManager: EntityManager;
+  postId: Post['id'];
+  yggdrasilIds: string[];
+  relationType: PostRelationType;
+}): Promise<Post[]> => {
+  if (!yggdrasilIds.length) {
+    return [];
+  }
+
+  const posts = await entityManager.getRepository(Post).findBy({
+    yggdrasilId: In(yggdrasilIds),
+  });
+
+  await entityManager
+    .getRepository(PostRelation)
+    .createQueryBuilder()
+    .insert()
+    .values(
+      posts.map((post) => ({
+        postId,
+        relatedPostId: post.id,
+        relationType,
+      })),
+    )
+    .orIgnore()
+    .execute();
+
+  return posts;
+};
+
+export const relatePosts = async ({
+  entityManager,
+  postId,
+  yggdrasilIds,
+  relationType,
+}: {
+  entityManager: EntityManager;
+  postId: Post['id'];
+  yggdrasilIds: string[];
+  relationType: PostRelationType;
+}): Promise<Post[]> => {
+  if (!yggdrasilIds.length) {
+    return [];
+  }
+
+  const posts = await entityManager.getRepository(Post).findBy({
+    yggdrasilId: In(yggdrasilIds),
+  });
+
+  await entityManager
+    .getRepository(PostRelation)
+    .createQueryBuilder()
+    .insert()
+    .values(
+      posts.map((post) => ({
+        postId: post.id,
+        relatedPostId: postId,
+        relationType,
+      })),
+    )
+    .orIgnore()
+    .execute();
+
+  return posts;
+};
+
+export const normalizeCollectionPostSources = async ({
+  con,
+  postId,
+}: {
+  con: DataSource | EntityManager;
+  postId: CollectionPost['id'];
+}) => {
+  const distinctSources = await con
+    .createQueryBuilder()
+    .select('s.id as id')
+    .from(PostRelation, 'pr')
+    .leftJoin(Post, 'p', 'p.id = pr."relatedPostId"')
+    .leftJoin(Source, 's', 's.id = p."sourceId"')
+    .where('pr."postId" = :postId', { postId: postId })
+    .groupBy('s.id, pr."createdAt"')
+    .orderBy('pr."createdAt"', 'DESC')
+    .getRawMany<Pick<Source, 'id'>>();
+
+  await con.getRepository(CollectionPost).save({
+    id: postId,
+    collectionSources: distinctSources.map((item) => item.id),
+  });
 };

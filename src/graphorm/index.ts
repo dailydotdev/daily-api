@@ -199,6 +199,25 @@ const obj = new GraphORM({
           return value;
         },
       },
+      updatedAt: {
+        select: 'metadataChangedAt',
+      },
+      collectionSources: {
+        relation: {
+          isMany: true,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
+            return qb
+              .where(
+                `${childAlias}.id = ANY(${parentAlias}."collectionSources")`,
+              )
+              .limit(3);
+          },
+        },
+      },
+      numCollectionSources: {
+        select: 'collectionSources',
+        transform: (value: string[]): number => value?.length ?? 0,
+      },
     },
   },
   Source: {

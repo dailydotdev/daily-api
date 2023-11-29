@@ -10,7 +10,10 @@ import {
   UserPost,
   UserPostVote,
   CampaignCtaPlacement,
+  CollectionPost,
+  PostRelation,
 } from '../../src/entity';
+import { PostRelationType } from '../../src/entity/posts/PostRelation';
 import {
   notifyCommentCommented,
   notifyCommentUpvoteCanceled,
@@ -1771,5 +1774,132 @@ describe('banner', () => {
     expect(jest.mocked(notifyBannerRemoved).mock.calls[0].slice(1)).toEqual([
       before,
     ]);
+  });
+});
+
+describe('post relation collection', () => {
+  type ObjectType = PostRelation;
+
+  beforeEach(async () => {
+    jest.resetAllMocks();
+
+    await con.getRepository(Source).save(sourcesFixture);
+    await con.getRepository(ArticlePost).save(postsFixture);
+    await con.getRepository(CollectionPost).save({
+      id: 'pc1',
+      shortId: 'pc1',
+      title: 'PC1',
+      description: 'pc1',
+      image: 'https://daily.dev/image.jpg',
+      sourceId: 'a',
+      tagsStr: 'javascript,webdev',
+      type: PostType.Collection,
+      collectionSources: [],
+    });
+  });
+
+  it('should update collection sources', async () => {
+    const collection = await con.getRepository(CollectionPost).findOneByOrFail({
+      id: 'pc1',
+    });
+
+    expect(collection.collectionSources.length).toBe(0);
+
+    const postRelations = await con.getRepository(PostRelation).save([
+      {
+        postId: 'pc1',
+        relatedPostId: 'p1',
+        type: PostRelationType.Collection,
+      },
+      {
+        postId: 'pc1',
+        relatedPostId: 'p2',
+        type: PostRelationType.Collection,
+      },
+    ]);
+
+    for (const postRelation of postRelations) {
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after: postRelation as unknown as ChangeObject<PostRelation>,
+          before: undefined,
+          op: 'c',
+          table: 'post_relation',
+        }),
+      );
+    }
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: postRelations[0] as unknown as ChangeObject<PostRelation>,
+        before: undefined,
+        op: 'c',
+        table: 'post_relation',
+      }),
+    );
+
+    const collectionAfterWorker = await con
+      .getRepository(CollectionPost)
+      .findOneByOrFail({
+        id: 'pc1',
+      });
+
+    expect(collectionAfterWorker.collectionSources.length).toBe(2);
+    expect(collectionAfterWorker.collectionSources).toMatchObject(['a', 'b']);
+  });
+
+  it('should deduplicate collection sources', async () => {
+    const collection = await con.getRepository(CollectionPost).findOneByOrFail({
+      id: 'pc1',
+    });
+
+    expect(collection.collectionSources.length).toBe(0);
+
+    await con.getRepository(ArticlePost).save([
+      {
+        id: 'p1',
+        sourceId: 'a',
+      },
+      {
+        id: 'p2',
+        sourceId: 'a',
+      },
+    ]);
+
+    const postRelations = await con.getRepository(PostRelation).save([
+      {
+        postId: 'pc1',
+        relatedPostId: 'p1',
+        type: PostRelationType.Collection,
+      },
+      {
+        postId: 'pc1',
+        relatedPostId: 'p2',
+        type: PostRelationType.Collection,
+      },
+    ]);
+
+    for (const postRelation of postRelations) {
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after: postRelation as unknown as ChangeObject<PostRelation>,
+          before: undefined,
+          op: 'c',
+          table: 'post_relation',
+        }),
+      );
+    }
+
+    const collectionAfterWorker = await con
+      .getRepository(CollectionPost)
+      .findOneByOrFail({
+        id: 'pc1',
+      });
+
+    expect(collectionAfterWorker.collectionSources.length).toBe(1);
+    expect(collectionAfterWorker.collectionSources).toMatchObject(['a']);
   });
 });
