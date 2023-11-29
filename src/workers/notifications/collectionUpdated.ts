@@ -1,6 +1,12 @@
 import { In, Not } from 'typeorm';
 import { messageToJson } from '../worker';
-import { Post, PostRelation, PostType, Source } from '../../entity';
+import {
+  Post,
+  PostRelation,
+  PostRelationType,
+  PostType,
+  Source,
+} from '../../entity';
 import { ChangeObject } from '../../types';
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { buildPostContext, getSubscribedMembers } from './utils';
@@ -38,7 +44,7 @@ export const collectionUpdated: NotificationWorker = {
       .leftJoin(Post, 'p', 'p.id = pr."relatedPostId"')
       .leftJoin(Source, 's', 's.id = p."sourceId"')
       .where('pr."postId" = :postId', { postId: post.id })
-      .andWhere('pr."type" = :type', { type: 'collection' })
+      .andWhere('pr."type" = :type', { type: PostRelationType.Collection })
       .groupBy('s.id, pr."createdAt"')
       .orderBy('pr."createdAt"', 'DESC')
       .limit(3)
