@@ -989,7 +989,11 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-const nullableImageType = [PostType.Freeform, PostType.Welcome];
+const nullableImageType = [
+  PostType.Freeform,
+  PostType.Welcome,
+  PostType.Collection,
+];
 
 const saveHiddenPost = async (
   con: DataSource,
