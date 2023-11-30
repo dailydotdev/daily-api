@@ -1,16 +1,11 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import {
-  // expectSuccessfulBackground,
-  invokeNotificationWorker,
-  saveFixtures,
-} from '../../helpers';
+import { invokeNotificationWorker, saveFixtures } from '../../helpers';
 import { collectionUpdated as worker } from '../../../src/workers/notifications/collectionUpdated';
 import {
   ArticlePost,
   CollectionPost,
   NotificationPreferencePost,
-  // FreeformPost,
   PostOrigin,
   PostRelation,
   PostRelationType,
@@ -25,7 +20,6 @@ import {
 } from '../../../src/notifications/common';
 import { usersFixture } from '../../fixture/user';
 import { NotificationCollectionContext } from '../../../src/notifications';
-// import { Worker } from '../../../src/workers/worker';
 
 let con: DataSource;
 
