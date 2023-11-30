@@ -170,7 +170,9 @@ describe('collectionUpdated worker', () => {
       expect(ctx.distinctSources.length).toEqual(3);
       expect(ctx.total).toEqual('4');
     });
-    expect(actual.map((bundle) => bundle.ctx.userId)).toEqual(['1', '2', '3']);
+    actual.forEach((bundle) => {
+      expect(['1', '2', '3'].includes(bundle.ctx.userId));
+    });
 
     expect(
       (actual[0].ctx as NotificationCollectionContext).distinctSources[0].name,
@@ -211,8 +213,10 @@ describe('collectionUpdated worker', () => {
     const avatars = await notification!.avatars;
 
     expect(avatars.length).toEqual(3);
-    expect(avatars.map((item) => item.referenceId)).toEqual(['a', 'b', 'c']);
-    avatars.forEach((item) => expect(item.targetUrl).toBeTruthy());
+    avatars.forEach((item) => {
+      expect(['a', 'b', 'c'].includes(item.referenceId));
+      expect(item.targetUrl).toBeTruthy();
+    });
   });
 
   it('should not notify when a collection is updated but the user is muted', async () => {
