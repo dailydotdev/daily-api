@@ -461,7 +461,7 @@ export const notifyPostYggdrasilIdSet = async (
 
 export const notifyPostCollectionUpdated = async (
   log: EventLogger,
-  collection: Pick<CollectionPost, 'id'>,
+  collection: ChangeObject<CollectionPost>,
 ): Promise<void> =>
   publishEvent(log, postCollectionUpdatedTopic, { collection });
 

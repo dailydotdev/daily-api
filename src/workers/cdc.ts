@@ -379,7 +379,7 @@ const onPostChange = async (
     if (data.payload.after.type === PostType.Collection) {
       const collection = data as ChangeMessage<CollectionPost>;
       if (isCollectionUpdated(collection)) {
-        await notifyPostCollectionUpdated(logger, data.payload.after);
+        await notifyPostCollectionUpdated(logger, collection.payload.after);
       }
     }
 
