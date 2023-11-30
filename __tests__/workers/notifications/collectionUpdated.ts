@@ -142,6 +142,12 @@ beforeEach(async () => {
       notificationType: NotificationType.CollectionUpdated,
       status: NotificationPreferenceStatus.Subscribed,
     },
+    {
+      userId: '4',
+      referenceId: 'c1',
+      notificationType: NotificationType.CollectionUpdated,
+      status: NotificationPreferenceStatus.Muted,
+    },
   ]);
 });
 
