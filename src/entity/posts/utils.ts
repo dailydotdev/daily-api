@@ -464,6 +464,23 @@ export const relatePosts = async ({
   return posts;
 };
 
+export const getDistinctSourcesBaseQuery = ({
+  con,
+  postId,
+}: {
+  con: DataSource | EntityManager;
+  postId: CollectionPost['id'];
+}) =>
+  con
+    .createQueryBuilder()
+    .from(PostRelation, 'pr')
+    .leftJoin(Post, 'p', 'p.id = pr."relatedPostId"')
+    .leftJoin(Source, 's', 's.id = p."sourceId"')
+    .where('pr."postId" = :postId', { postId })
+    .groupBy('s.id, pr."createdAt"')
+    .orderBy('pr."createdAt"', 'DESC')
+    .clone();
+
 export const normalizeCollectionPostSources = async ({
   con,
   postId,

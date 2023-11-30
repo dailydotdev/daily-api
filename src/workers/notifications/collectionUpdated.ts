@@ -2,10 +2,9 @@ import { messageToJson } from '../worker';
 import {
   NotificationPreferencePost,
   Post,
-  PostRelation,
-  PostRelationType,
   PostType,
   Source,
+  getDistinctSourcesBaseQuery,
 } from '../../entity';
 import { ChangeObject } from '../../types';
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
@@ -37,18 +36,13 @@ export const collectionUpdated: NotificationWorker = {
 
     const notifs: NotificationHandlerReturn = [];
 
-    const distinctSources = await con
-      .createQueryBuilder()
+    const distinctSources = await getDistinctSourcesBaseQuery({
+      con,
+      postId: post.id,
+    })
       .select(
         's.id as id, s."name" as name, s."image" as image, count(s."id") OVER() AS total',
       )
-      .from(PostRelation, 'pr')
-      .leftJoin(Post, 'p', 'p.id = pr."relatedPostId"')
-      .leftJoin(Source, 's', 's.id = p."sourceId"')
-      .where('pr."postId" = :postId', { postId: post.id })
-      .andWhere('pr."type" = :type', { type: PostRelationType.Collection })
-      .groupBy('s.id, pr."createdAt"')
-      .orderBy('pr."createdAt"', 'DESC')
       .limit(3)
       .getRawMany<Source & { total: number }>();
 
