@@ -306,7 +306,11 @@ describe('query notifications', () => {
   });
 });
 
-const prepareNotificationPreferences = async () => {
+const prepareNotificationPreferences = async ({
+  status,
+}: {
+  status: NotificationPreferenceStatus;
+}) => {
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
@@ -317,14 +321,14 @@ const prepareNotificationPreferences = async () => {
       postId: postsFixture[0].id,
       referenceId: postsFixture[0].id,
       notificationType: NotificationType.ArticleNewComment,
-      status: NotificationPreferenceStatus.Muted,
+      status,
     },
     {
       userId: '2',
       postId: postsFixture[1].id,
       referenceId: postsFixture[1].id,
       notificationType: NotificationType.ArticleNewComment,
-      status: NotificationPreferenceStatus.Muted,
+      status,
     },
   ]);
   await con.getRepository(NotificationPreferenceSource).save([
@@ -333,7 +337,7 @@ const prepareNotificationPreferences = async () => {
       sourceId: sourcesFixture[0].id,
       referenceId: sourcesFixture[0].id,
       notificationType: NotificationType.SquadPostAdded,
-      status: NotificationPreferenceStatus.Muted,
+      status,
     },
   ]);
 };
@@ -371,7 +375,9 @@ describe('query notificationPreferences', () => {
   it('should return based on notification preferences type and reference id', async () => {
     loggedUser = '1';
 
-    await prepareNotificationPreferences();
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
 
     const requestType = NotificationPreferenceType.Post;
     const res = await client.query(QUERY, {
@@ -395,7 +401,9 @@ describe('query notificationPreferences', () => {
   it('should return different reference types and ids using notification preferences type and reference id', async () => {
     loggedUser = '1';
 
-    await prepareNotificationPreferences();
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
 
     const postParam = {
       referenceId: postsFixture[0].id,
@@ -531,7 +539,9 @@ describe('mutation muteNotificationPreference', () => {
   it('should set notification preference to muted', async () => {
     loggedUser = '1';
 
-    await prepareNotificationPreferences();
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
 
     const params = {
       userId: loggedUser,
@@ -565,7 +575,9 @@ describe('mutation muteNotificationPreference', () => {
   it('should set notification preference to muted and fetch the reference id if it is article new comment or squad new comment', async () => {
     loggedUser = '1';
 
-    await prepareNotificationPreferences();
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
     const comment = {
       id: 'c1',
       postId: postsFixture[0].id,
@@ -607,7 +619,9 @@ describe('mutation muteNotificationPreference', () => {
   it('should ignore when preference is already muted', async () => {
     loggedUser = '1';
 
-    await prepareNotificationPreferences();
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
 
     const params = {
       userId: loggedUser,
@@ -669,7 +683,9 @@ describe('mutation clearNotificationPreference', () => {
   it('should remove preference if it exists', async () => {
     loggedUser = '1';
 
-    await prepareNotificationPreferences();
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
 
     const params = {
       userId: loggedUser,
@@ -706,7 +722,9 @@ describe('mutation clearNotificationPreference', () => {
   it('should clear notification preference by fetching the reference id if it is article new comment or squad new comment', async () => {
     loggedUser = '1';
 
-    await prepareNotificationPreferences();
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
     const repo = con.getRepository(NotificationPreference);
     const comment = {
       id: 'c1',
@@ -748,5 +766,191 @@ describe('mutation clearNotificationPreference', () => {
     });
 
     expect(muted).toBeFalsy();
+  });
+});
+
+describe('mutation subscribeNotificationPreference', () => {
+  const MUTATION = `
+    mutation SubscribeNotificationPreference($referenceId: ID!, $type: String!) {
+      subscribeNotificationPreference(referenceId: $referenceId, type: $type) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          referenceId: postsFixture[0].id,
+          type: NotificationType.ArticleNewComment,
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw an error when type is not yet defined in the map', () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { referenceId: '1', type: NotificationType.ArticlePicked },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw an error referenced id is not found', () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          referenceId: '1',
+          type: NotificationType.ArticleNewComment,
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should set notification preference to subscribed', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Subscribed,
+    });
+
+    const params = {
+      userId: loggedUser,
+      referenceId: postsFixture[2].id,
+      notificationType: NotificationType.ArticleNewComment,
+      status: NotificationPreferenceStatus.Subscribed,
+    };
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeFalsy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const notificationPreference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(notificationPreference).not.toBeNull();
+    expect(notificationPreference!.type).toEqual(
+      notificationPreferenceMap[params.notificationType],
+    );
+    expect(notificationPreference!.status).toEqual(
+      NotificationPreferenceStatus.Subscribed,
+    );
+  });
+
+  it('should set notification preference to subscribed and fetch the reference id if it is article new comment or squad new comment', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Subscribed,
+    });
+    const comment = {
+      id: 'c1',
+      postId: postsFixture[0].id,
+      content: '',
+      userId: '1',
+    };
+    await con.getRepository(Comment).save(comment);
+
+    const params = {
+      userId: loggedUser,
+      referenceId: 'c1',
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeFalsy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const notificationPreference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy({
+        notificationType: params.notificationType,
+        referenceId: comment.postId,
+        status: NotificationPreferenceStatus.Subscribed,
+      });
+
+    expect(notificationPreference).toBeTruthy();
+    expect(notificationPreference!.type).toEqual(
+      notificationPreferenceMap[params.notificationType],
+    );
+    expect(notificationPreference!.status).toEqual(
+      NotificationPreferenceStatus.Subscribed,
+    );
+  });
+
+  it('should ignore when preference is already subscribed', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Subscribed,
+    });
+
+    const params = {
+      userId: loggedUser,
+      referenceId: postsFixture[2].id,
+      notificationType: NotificationType.ArticleNewComment,
+      status: NotificationPreferenceStatus.Subscribed,
+    };
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeTruthy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const notificationPreference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(notificationPreference).toBeTruthy();
+    expect(notificationPreference!.status).toEqual(
+      NotificationPreferenceStatus.Subscribed,
+    );
   });
 });
