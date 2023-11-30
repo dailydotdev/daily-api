@@ -151,77 +151,79 @@ beforeEach(async () => {
   ]);
 });
 
-it('should notifiy when a collection is updated', async () => {
-  const actual = await invokeNotificationWorker(worker, {
-    post: {
-      id: 'c1',
-      title: 'My collection',
-      content_type: PostType.Collection,
-    },
+describe('collectionUpdated worker', () => {
+  it('should notifiy when a collection is updated', async () => {
+    const actual = await invokeNotificationWorker(worker, {
+      post: {
+        id: 'c1',
+        title: 'My collection',
+        content_type: PostType.Collection,
+      },
+    });
+
+    expect(actual.length).toEqual(3);
+
+    actual.forEach((bundle) => {
+      const ctx = bundle.ctx as NotificationCollectionContext;
+      expect(bundle.type).toEqual('collection_updated');
+      expect(ctx.post.id).toEqual('c1');
+      expect(ctx.distinctSources.length).toEqual(3);
+      expect(ctx.total).toEqual('4');
+    });
+    expect(actual.map((bundle) => bundle.ctx.userId)).toEqual(['1', '2', '3']);
+
+    expect(
+      (actual[0].ctx as NotificationCollectionContext).distinctSources[0].name,
+    ).toEqual('A');
   });
 
-  expect(actual.length).toEqual(3);
+  it('should generate valid notification', async () => {
+    await expectSuccessfulBackground(notificationWorkerToWorker(worker), {
+      post: {
+        id: 'c1',
+        title: 'My collection',
+        content_type: PostType.Collection,
+      },
+    });
 
-  actual.forEach((bundle) => {
-    const ctx = bundle.ctx as NotificationCollectionContext;
-    expect(bundle.type).toEqual('collection_updated');
-    expect(ctx.post.id).toEqual('c1');
-    expect(ctx.distinctSources.length).toEqual(3);
-    expect(ctx.total).toEqual('4');
-  });
-  expect(actual.map((bundle) => bundle.ctx.userId)).toEqual(['1', '2', '3']);
+    const notifications = await con.getRepository(Notification).findBy({
+      referenceId: 'c1',
+    });
 
-  expect(
-    (actual[0].ctx as NotificationCollectionContext).distinctSources[0].name,
-  ).toEqual('A');
-});
+    expect(notifications.length).toEqual(3);
 
-it('should generate valid notification', async () => {
-  await expectSuccessfulBackground(notificationWorkerToWorker(worker), {
-    post: {
-      id: 'c1',
-      title: 'My collection',
-      content_type: PostType.Collection,
-    },
-  });
+    const notification = notifications.find((item) => item.userId === '1');
 
-  const notifications = await con.getRepository(Notification).findBy({
-    referenceId: 'c1',
-  });
+    expect(notification).toMatchObject({
+      userId: '1',
+      type: 'collection_updated',
+      icon: 'DailyDev',
+      title:
+        'The collection <b>My collection</b> just got updated with new details',
+      description: null,
+      targetUrl: 'http://localhost:5002/posts/c1',
+      public: true,
+      referenceId: 'c1',
+      referenceType: 'post',
+      numTotalAvatars: 4,
+    });
 
-  expect(notifications.length).toEqual(3);
+    const avatars = await notification!.avatars;
 
-  const notification = notifications.find((item) => item.userId === '1');
-
-  expect(notification).toMatchObject({
-    userId: '1',
-    type: 'collection_updated',
-    icon: 'DailyDev',
-    title:
-      'The collection <b>My collection</b> just got updated with new details',
-    description: null,
-    targetUrl: 'http://localhost:5002/posts/c1',
-    public: true,
-    referenceId: 'c1',
-    referenceType: 'post',
-    numTotalAvatars: 4,
+    expect(avatars.length).toEqual(3);
+    expect(avatars.map((item) => item.referenceId)).toEqual(['a', 'b', 'c']);
+    avatars.forEach((item) => expect(item.targetUrl).toBeTruthy());
   });
 
-  const avatars = await notification!.avatars;
+  it('should not notify when a collection is updated but the user is muted', async () => {
+    const actual = await invokeNotificationWorker(worker, {
+      post: {
+        id: 'c1',
+        title: 'My collection',
+        content_type: PostType.Collection,
+      },
+    });
 
-  expect(avatars.length).toEqual(3);
-  expect(avatars.map((item) => item.referenceId)).toEqual(['a', 'b', 'c']);
-  avatars.forEach((item) => expect(item.targetUrl).toBeTruthy());
-});
-
-it('should not notify when a collection is updated but the user is muted', async () => {
-  const actual = await invokeNotificationWorker(worker, {
-    post: {
-      id: 'c1',
-      title: 'My collection',
-      content_type: PostType.Collection,
-    },
+    actual.map((bundle) => expect(bundle.ctx.userId).not.toEqual('4'));
   });
-
-  actual.map((bundle) => expect(bundle.ctx.userId).not.toEqual('4'));
 });
