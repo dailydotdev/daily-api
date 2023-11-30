@@ -464,6 +464,26 @@ export const relatePosts = async ({
   return posts;
 };
 
+export const getDistinctSourcesBaseQuery = ({
+  con,
+  postId,
+  relationType,
+}: {
+  con: DataSource | EntityManager;
+  postId: CollectionPost['id'];
+  relationType: PostRelationType;
+}) =>
+  con
+    .createQueryBuilder()
+    .from(PostRelation, 'pr')
+    .leftJoin(Post, 'p', 'p.id = pr."relatedPostId"')
+    .leftJoin(Source, 's', 's.id = p."sourceId"')
+    .where('pr."postId" = :postId', { postId })
+    .andWhere('pr."type" = :type', { type: relationType })
+    .groupBy('s.id, pr."createdAt"')
+    .orderBy('pr."createdAt"', 'DESC')
+    .clone();
+
 export const normalizeCollectionPostSources = async ({
   con,
   postId,
@@ -471,15 +491,12 @@ export const normalizeCollectionPostSources = async ({
   con: DataSource | EntityManager;
   postId: CollectionPost['id'];
 }) => {
-  const distinctSources = await con
-    .createQueryBuilder()
+  const distinctSources = await getDistinctSourcesBaseQuery({
+    con,
+    postId,
+    relationType: PostRelationType.Collection,
+  })
     .select('s.id as id')
-    .from(PostRelation, 'pr')
-    .leftJoin(Post, 'p', 'p.id = pr."relatedPostId"')
-    .leftJoin(Source, 's', 's.id = p."sourceId"')
-    .where('pr."postId" = :postId', { postId: postId })
-    .groupBy('s.id, pr."createdAt"')
-    .orderBy('pr."createdAt"', 'DESC')
     .getRawMany<Pick<Source, 'id'>>();
 
   await con.getRepository(CollectionPost).save({

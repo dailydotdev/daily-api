@@ -51,6 +51,7 @@ import {
   notifyBannerCreated,
   notifyBannerRemoved,
   notifyPostYggdrasilIdSet,
+  notifyPostCollectionUpdated,
 } from '../../src/common';
 import worker from '../../src/workers/cdc';
 import {
@@ -135,6 +136,7 @@ jest.mock('../../src/common', () => ({
   notifyBannerCreated: jest.fn(),
   notifyBannerRemoved: jest.fn(),
   notifyPostYggdrasilIdSet: jest.fn(),
+  notifyPostCollectionUpdated: jest.fn(),
 }));
 
 let con: DataSource;
@@ -1176,6 +1178,74 @@ describe('post', () => {
       }),
     );
     expect(notifyPostYggdrasilIdSet).toBeCalledTimes(0);
+  });
+
+  describe('collection', () => {
+    it('should notify when collection content is updated', async () => {
+      const before = {
+        ...base,
+        type: PostType.Collection,
+        content: 'before',
+      };
+
+      const after = { ...before, content: 'after' };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before,
+          op: 'u',
+          table: 'post',
+        }),
+      );
+      expect(notifyPostCollectionUpdated).toHaveBeenCalledTimes(1);
+    });
+
+    it('should notify when collection summary is updated', async () => {
+      const before = {
+        ...base,
+        type: PostType.Collection,
+        summary: 'before',
+      };
+      const after = { ...before, summary: 'after' };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before,
+          op: 'u',
+          table: 'post',
+        }),
+      );
+      expect(notifyPostCollectionUpdated).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not notify when neither collection summary or content is not updated', async () => {
+      const before = {
+        ...base,
+        type: PostType.Collection,
+        title: 'Before',
+        summary: 'before',
+        content: 'before',
+      };
+      const after = {
+        ...before,
+        after: 'After',
+      };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before,
+          op: 'u',
+          table: 'post',
+        }),
+      );
+      expect(notifyPostCollectionUpdated).toHaveBeenCalledTimes(0);
+    });
   });
 });
 

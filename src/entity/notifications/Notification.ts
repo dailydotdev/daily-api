@@ -71,6 +71,9 @@ export class Notification {
   @Column({ type: 'text', default: '0' })
   uniqueKey?: string;
 
+  @Column({ type: 'int', nullable: true })
+  numTotalAvatars?: number;
+
   @ManyToOne(() => User, {
     lazy: true,
     onDelete: 'CASCADE',

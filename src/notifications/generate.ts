@@ -9,6 +9,7 @@ import {
 } from '../common';
 import {
   NotificationBaseContext,
+  NotificationCollectionContext,
   NotificationCommentContext,
   NotificationCommenterContext,
   NotificationDoneByContext,
@@ -89,6 +90,8 @@ export const notificationTitleMap: Record<
     `You are now a <span class="text-theme-color-cabbage">moderator</span> in <b>${ctx.source.name}</b>`,
   post_mention: (ctx: NotificationPostContext & NotificationDoneByContext) =>
     `<b>${ctx.doneBy.username}</b> <span class="text-theme-color-cabbage">mentioned you</span> on a post in <b>${ctx.source.name}</b>.`,
+  collection_updated: (ctx: NotificationPostContext) =>
+    `The collection <b>${ctx.post.title}</b> just got updated with new details`,
 };
 
 export const generateNotificationMap: Record<
@@ -279,4 +282,11 @@ export const generateNotificationMap: Record<
         ['promoted', 'true'],
         ['sid', ctx.source.handle],
       ]),
+  collection_updated: (builder, ctx: NotificationCollectionContext) =>
+    builder
+      .icon(NotificationIcon.DailyDev)
+      .referencePost(ctx.post)
+      .targetPost(ctx.post)
+      .avatarManySources(ctx.distinctSources)
+      .numTotalAvatars(ctx.total),
 };

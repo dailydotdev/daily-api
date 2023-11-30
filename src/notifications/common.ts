@@ -34,6 +34,7 @@ export enum NotificationType {
   DemotedToMember = 'demoted_to_member',
   PromotedToModerator = 'promoted_to_moderator',
   PostMention = 'post_mention',
+  CollectionUpdated = 'collection_updated',
 }
 
 export enum NotificationPreferenceType {
@@ -44,6 +45,7 @@ export enum NotificationPreferenceType {
 
 export enum NotificationPreferenceStatus {
   Muted = 'muted',
+  Subscribed = 'subscribed',
 }
 
 export const notificationPreferenceMap: Partial<
@@ -55,6 +57,7 @@ export const notificationPreferenceMap: Partial<
   [NotificationType.SquadReply]: NotificationPreferenceType.Comment,
   [NotificationType.SquadPostAdded]: NotificationPreferenceType.Source,
   [NotificationType.SquadMemberJoined]: NotificationPreferenceType.Source,
+  [NotificationType.CollectionUpdated]: NotificationPreferenceType.Post,
 };
 
 export const commentReplyNotificationTypes = [

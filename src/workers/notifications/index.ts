@@ -23,7 +23,7 @@ import postMention from './postMention';
 import commentDeleted from './commentDeleted';
 import postDeleted from './postDeleted';
 
-function notificationWorkerToWorker(worker: NotificationWorker): Worker {
+export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
     ...worker,
     handler: async (message, con, logger) => {
