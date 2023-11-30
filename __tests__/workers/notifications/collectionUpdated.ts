@@ -213,3 +213,15 @@ it('should generate valid notification', async () => {
   expect(avatars.map((item) => item.referenceId)).toEqual(['a', 'b', 'c']);
   avatars.forEach((item) => expect(item.targetUrl).toBeTruthy());
 });
+
+it('should not notify when a collection is updated but the user is muted', async () => {
+  const actual = await invokeNotificationWorker(worker, {
+    post: {
+      id: 'c1',
+      title: 'My collection',
+      content_type: PostType.Collection,
+    },
+  });
+
+  actual.map((bundle) => expect(bundle.ctx.userId).not.toEqual('4'));
+});
