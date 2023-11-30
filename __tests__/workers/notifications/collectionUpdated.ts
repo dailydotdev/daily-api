@@ -169,8 +169,6 @@ describe('collectionUpdated worker', () => {
       expect(ctx.post.id).toEqual('c1');
       expect(ctx.distinctSources.length).toEqual(3);
       expect(ctx.total).toEqual('4');
-    });
-    actual.forEach((bundle) => {
       expect(['1', '2', '3'].includes(bundle.ctx.userId));
     });
 
