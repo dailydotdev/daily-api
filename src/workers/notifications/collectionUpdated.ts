@@ -40,7 +40,7 @@ export const collectionUpdated: NotificationWorker = {
     const distinctSources = await con
       .createQueryBuilder()
       .select(
-        's."name" as name, s."image" as image, count(s."id") OVER() AS total',
+        's.id as id, s."name" as name, s."image" as image, count(s."id") OVER() AS total',
       )
       .from(PostRelation, 'pr')
       .leftJoin(Post, 'p', 'p.id = pr."relatedPostId"')

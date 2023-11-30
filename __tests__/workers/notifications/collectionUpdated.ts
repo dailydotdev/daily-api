@@ -1,10 +1,15 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import { invokeNotificationWorker, saveFixtures } from '../../helpers';
+import {
+  expectSuccessfulBackground,
+  invokeNotificationWorker,
+  saveFixtures,
+} from '../../helpers';
 import { collectionUpdated as worker } from '../../../src/workers/notifications/collectionUpdated';
 import {
   ArticlePost,
   CollectionPost,
+  Notification,
   NotificationPreferencePost,
   PostOrigin,
   PostRelation,
@@ -20,6 +25,7 @@ import {
 } from '../../../src/notifications/common';
 import { usersFixture } from '../../fixture/user';
 import { NotificationCollectionContext } from '../../../src/notifications';
+import { notificationWorkerToWorker } from '../../../src/workers/notifications';
 
 let con: DataSource;
 
@@ -162,4 +168,42 @@ it('should notifiy when a collection is updated', async () => {
   expect(
     (actual[0].ctx as NotificationCollectionContext).distinctSources[0].name,
   ).toEqual('A');
+});
+
+it('should generate valid notification', async () => {
+  await expectSuccessfulBackground(notificationWorkerToWorker(worker), {
+    post: {
+      id: 'c1',
+      title: 'My collection',
+      content_type: PostType.Collection,
+    },
+  });
+
+  const notifications = await con.getRepository(Notification).findBy({
+    referenceId: 'c1',
+  });
+
+  expect(notifications.length).toEqual(3);
+
+  const notification = notifications.find((item) => item.userId === '1');
+
+  expect(notification).toMatchObject({
+    userId: '1',
+    type: 'collection_updated',
+    icon: 'DailyDev',
+    title:
+      'The collection <b>My collection</b> just got updated with new details',
+    description: null,
+    targetUrl: 'http://localhost:5002/posts/c1',
+    public: true,
+    referenceId: 'c1',
+    referenceType: 'post',
+    numTotalAvatars: 4,
+  });
+
+  const avatars = await notification!.avatars;
+
+  expect(avatars.length).toEqual(3);
+  expect(avatars.map((item) => item.referenceId)).toEqual(['a', 'b', 'c']);
+  avatars.forEach((item) => expect(item.targetUrl).toBeTruthy());
 });
