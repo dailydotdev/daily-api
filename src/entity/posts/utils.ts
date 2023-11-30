@@ -488,15 +488,8 @@ export const normalizeCollectionPostSources = async ({
   con: DataSource | EntityManager;
   postId: CollectionPost['id'];
 }) => {
-  const distinctSources = await con
-    .createQueryBuilder()
+  const distinctSources = await getDistinctSourcesBaseQuery({ con, postId })
     .select('s.id as id')
-    .from(PostRelation, 'pr')
-    .leftJoin(Post, 'p', 'p.id = pr."relatedPostId"')
-    .leftJoin(Source, 's', 's.id = p."sourceId"')
-    .where('pr."postId" = :postId', { postId: postId })
-    .groupBy('s.id, pr."createdAt"')
-    .orderBy('pr."createdAt"', 'DESC')
     .getRawMany<Pick<Source, 'id'>>();
 
   await con.getRepository(CollectionPost).save({
