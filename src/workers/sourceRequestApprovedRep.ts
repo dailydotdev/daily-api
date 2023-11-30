@@ -1,18 +1,12 @@
 import { ReputationEvent, ReputationReason, ReputationType } from '../entity';
-import { messageToJson, Worker } from './worker';
-import { SourceRequest } from '../entity';
+import { TypedWorker } from './worker';
 import { NotificationReason } from '../common';
 
-interface Data {
-  reason: NotificationReason;
-  sourceRequest: Pick<SourceRequest, 'id' | 'userId'>;
-}
-
-const worker: Worker = {
+const worker: TypedWorker<'pub-request'> = {
   subscription: 'pub-request-rep',
   handler: async (message, con, logger): Promise<void> => {
-    const data: Data = messageToJson(message);
-    const { reason, sourceRequest }: Data = messageToJson(message);
+    const { data } = message;
+    const { reason, sourceRequest } = data;
 
     if (reason !== NotificationReason.Publish) {
       return;

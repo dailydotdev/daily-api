@@ -1,4 +1,4 @@
-import { Worker } from './worker';
+import { BaseTypedWorker, Worker } from './worker';
 import newView from './newView';
 import commentUpvotedRep from './commentUpvotedRep';
 import commentUpvoteCanceledRep from './commentUpvoteCanceledRep';
@@ -69,7 +69,6 @@ export const workers: Worker[] = [
   postUpvotedRedis,
   postBannedRep,
   postDeletedCommentsCleanup,
-  sourceRequestApprovedRep,
   usernameChanged,
   updateComments,
   newNotificationRealTime,
@@ -89,6 +88,10 @@ export const workers: Worker[] = [
   cdc,
   cdcNotifications,
   ...notificationWorkers,
+];
+
+export const typedWorkers: BaseTypedWorker<unknown>[] = [
+  sourceRequestApprovedRep,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

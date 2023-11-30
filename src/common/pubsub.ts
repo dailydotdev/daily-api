@@ -2,7 +2,6 @@ import { PubSub, Topic } from '@google-cloud/pubsub';
 import { FastifyBaseLogger } from 'fastify';
 import {
   Post,
-  SourceRequest,
   Settings,
   Submission,
   User,
@@ -34,8 +33,7 @@ import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import pino from 'pino';
 
-const pubsub = new PubSub();
-const sourceRequestTopic = pubsub.topic('pub-request');
+export const pubsub = new PubSub();
 const postUpvotedTopic = pubsub.topic('post-upvoted');
 const postUpvoteCanceledTopic = pubsub.topic('post-upvote-canceled');
 const commentUpvotedTopic = pubsub.topic('comment-upvoted');
@@ -95,7 +93,7 @@ export enum NotificationReason {
 // Need to support console as well
 export type EventLogger = Omit<FastifyBaseLogger, 'fatal'>;
 
-const publishEvent = async (
+export const publishEvent = async (
   log: EventLogger,
   topic: Topic,
   payload: Record<string, unknown>,
@@ -123,16 +121,6 @@ const publishEvent = async (
       kind: opentelemetry.SpanKind.PRODUCER,
     },
   );
-
-export const notifySourceRequest = async (
-  log: EventLogger,
-  reason: NotificationReason,
-  sourceRequest: ChangeObject<SourceRequest>,
-): Promise<void> =>
-  publishEvent(log, sourceRequestTopic, {
-    reason,
-    sourceRequest,
-  });
 
 export const notifyPostUpvoted = async (
   log: EventLogger,
