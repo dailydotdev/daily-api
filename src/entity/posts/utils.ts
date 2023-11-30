@@ -467,9 +467,11 @@ export const relatePosts = async ({
 export const getDistinctSourcesBaseQuery = ({
   con,
   postId,
+  relationType,
 }: {
   con: DataSource | EntityManager;
   postId: CollectionPost['id'];
+  relationType: PostRelationType;
 }) =>
   con
     .createQueryBuilder()
@@ -477,6 +479,7 @@ export const getDistinctSourcesBaseQuery = ({
     .leftJoin(Post, 'p', 'p.id = pr."relatedPostId"')
     .leftJoin(Source, 's', 's.id = p."sourceId"')
     .where('pr."postId" = :postId', { postId })
+    .andWhere('pr."type" = :type', { type: relationType })
     .groupBy('s.id, pr."createdAt"')
     .orderBy('pr."createdAt"', 'DESC')
     .clone();
@@ -488,7 +491,11 @@ export const normalizeCollectionPostSources = async ({
   con: DataSource | EntityManager;
   postId: CollectionPost['id'];
 }) => {
-  const distinctSources = await getDistinctSourcesBaseQuery({ con, postId })
+  const distinctSources = await getDistinctSourcesBaseQuery({
+    con,
+    postId,
+    relationType: PostRelationType.Collection,
+  })
     .select('s.id as id')
     .getRawMany<Pick<Source, 'id'>>();
 

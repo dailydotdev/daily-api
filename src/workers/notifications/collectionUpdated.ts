@@ -2,6 +2,7 @@ import { messageToJson } from '../worker';
 import {
   NotificationPreferencePost,
   Post,
+  PostRelationType,
   PostType,
   Source,
   getDistinctSourcesBaseQuery,
@@ -39,6 +40,7 @@ export const collectionUpdated: NotificationWorker = {
     const distinctSources = await getDistinctSourcesBaseQuery({
       con,
       postId: post.id,
+      relationType: PostRelationType.Collection,
     })
       .select(
         's.id as id, s."name" as name, s."image" as image, count(s."id") OVER() AS total',
