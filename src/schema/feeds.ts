@@ -67,11 +67,13 @@ export const typeDefs = /* GraphQL */ `
     title: String!
     description: String!
     defaultEnabledState: Boolean!
+    group: String!
   }
 
   type FeedAdvancedSettings {
     id: Int!
     enabled: Boolean!
+    advancedSettings: AdvancedSettings
   }
 
   type FeedSettings {
