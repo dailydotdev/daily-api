@@ -656,6 +656,57 @@ describe('mutation muteNotificationPreference', () => {
     expect(muted).toBeTruthy();
     expect(muted.status).toEqual(NotificationPreferenceStatus.Muted);
   });
+
+  it('should update status when different preference is set', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
+
+    const params = {
+      userId: loggedUser,
+      referenceId: postsFixture[2].id,
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    const SUBSCRIBE_MUTATION = `
+      mutation SubscribeNotificationPreference($referenceId: ID!, $type: String!) {
+        subscribeNotificationPreference(referenceId: $referenceId, type: $type) {
+          _
+        }
+      }
+    `;
+
+    await client.mutate(SUBSCRIBE_MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeTruthy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const notificationPreference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(notificationPreference).toBeTruthy();
+    expect(notificationPreference!.status).toEqual(
+      NotificationPreferenceStatus.Muted,
+    );
+  });
 });
 
 describe('mutation clearNotificationPreference', () => {
@@ -831,7 +882,6 @@ describe('mutation subscribeNotificationPreference', () => {
       userId: loggedUser,
       referenceId: postsFixture[2].id,
       notificationType: NotificationType.ArticleNewComment,
-      status: NotificationPreferenceStatus.Subscribed,
     };
 
     const preference = await con
@@ -921,10 +971,60 @@ describe('mutation subscribeNotificationPreference', () => {
       userId: loggedUser,
       referenceId: postsFixture[2].id,
       notificationType: NotificationType.ArticleNewComment,
-      status: NotificationPreferenceStatus.Subscribed,
     };
 
     await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeTruthy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const notificationPreference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(notificationPreference).toBeTruthy();
+    expect(notificationPreference!.status).toEqual(
+      NotificationPreferenceStatus.Subscribed,
+    );
+  });
+
+  it('should update status when different preference is set', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Subscribed,
+    });
+
+    const params = {
+      userId: loggedUser,
+      referenceId: postsFixture[2].id,
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    const MUTE_MUTATION = `
+      mutation MuteNotificationPreference($referenceId: ID!, $type: String!) {
+        muteNotificationPreference(referenceId: $referenceId, type: $type) {
+          _
+        }
+      }
+    `;
+
+    await client.mutate(MUTE_MUTATION, {
       variables: {
         referenceId: params.referenceId,
         type: params.notificationType,
