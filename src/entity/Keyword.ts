@@ -23,6 +23,7 @@ export class Keyword {
   value: string;
 
   @Column({
+    type: 'text',
     default: 'pending',
   })
   @Index('IDX_keyword_status')
