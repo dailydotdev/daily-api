@@ -605,11 +605,13 @@ export interface GQLAdvancedSettings {
   id: number;
   title: string;
   description: string;
+  group: string;
 }
 
 export interface GQLFeedAdvancedSettings {
   id: number;
   enabled: boolean;
+  advancedSettings: GQLAdvancedSettings;
 }
 
 export interface GQLFeedAdvancedSettingsInput {
