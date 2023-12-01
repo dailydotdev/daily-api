@@ -11,5 +11,8 @@
   },
   "exclude": [
     "__tests__"
-  ]
+  ],
+  "ts-node": {
+    "swc": true
+  }
 }
