@@ -2019,18 +2019,42 @@ Object {
   "feedSettings": Object {
     "advancedSettings": Array [
       Object {
+        "advancedSettings": Object {
+          "description": "Description for Tech magazines",
+          "group": "advanced",
+          "id": 1,
+          "title": "Tech magazines",
+        },
         "enabled": true,
         "id": 1,
       },
       Object {
+        "advancedSettings": Object {
+          "description": "Description for Non-editorial content",
+          "group": "advanced",
+          "id": 2,
+          "title": "Non-editorial content",
+        },
         "enabled": false,
         "id": 2,
       },
       Object {
+        "advancedSettings": Object {
+          "description": "Description for Release notes",
+          "group": "advanced",
+          "id": 3,
+          "title": "Release notes",
+        },
         "enabled": false,
         "id": 3,
       },
       Object {
+        "advancedSettings": Object {
+          "description": "Description for Code examples",
+          "group": "advanced",
+          "id": 4,
+          "title": "Code examples",
+        },
         "enabled": true,
         "id": 4,
       },

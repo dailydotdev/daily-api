@@ -67,11 +67,13 @@ export const typeDefs = /* GraphQL */ `
     title: String!
     description: String!
     defaultEnabledState: Boolean!
+    group: String!
   }
 
   type FeedAdvancedSettings {
     id: Int!
     enabled: Boolean!
+    advancedSettings: AdvancedSettings
   }
 
   type FeedSettings {
@@ -603,11 +605,13 @@ export interface GQLAdvancedSettings {
   id: number;
   title: string;
   description: string;
+  group: string;
 }
 
 export interface GQLFeedAdvancedSettings {
   id: number;
   enabled: boolean;
+  advancedSettings: GQLAdvancedSettings;
 }
 
 export interface GQLFeedAdvancedSettingsInput {

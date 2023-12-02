@@ -91,7 +91,7 @@ export class User {
   @Column({ type: 'text', nullable: true })
   timezone?: string;
 
-  @Column({ default: false })
+  @Column({ type: 'boolean', default: false })
   @Index('IDX_user_profileConfirmed')
   profileConfirmed: boolean | null;
 

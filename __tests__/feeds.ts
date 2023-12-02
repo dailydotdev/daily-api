@@ -940,6 +940,12 @@ describe('query feedSettings', () => {
       advancedSettings {
         id
         enabled
+        advancedSettings {
+          id
+          title
+          description
+          group
+        }
       }
     }
   }`;
