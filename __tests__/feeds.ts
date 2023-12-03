@@ -1634,7 +1634,11 @@ describe('function feedToFilters', () => {
   it('should return filters having excluded sources based on advanced settings', async () => {
     loggedUser = '1';
     await saveAdvancedSettingsFiltersFixtures();
-    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.excludeSources).toEqual([
+      'excludedSource',
+      'settingsCombinationSource',
+    ]);
   });
 
   it('should return filters for tags/sources based on the values from our data', async () => {
