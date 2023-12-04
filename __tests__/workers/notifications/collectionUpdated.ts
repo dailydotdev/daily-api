@@ -25,7 +25,10 @@ import {
 } from '../../../src/notifications/common';
 import { usersFixture } from '../../fixture/user';
 import { NotificationCollectionContext } from '../../../src/notifications';
-import { notificationWorkerToWorker } from '../../../src/workers/notifications';
+import {
+  notificationWorkerToWorker,
+  workers,
+} from '../../../src/workers/notifications';
 
 let con: DataSource;
 
@@ -152,6 +155,15 @@ beforeEach(async () => {
 });
 
 describe('collectionUpdated worker', () => {
+  it('should be registered', () => {
+    const worker = workers.find(
+      (item) =>
+        item.subscription === 'api.post-collection-updated-notification',
+    );
+
+    expect(worker).toBeDefined();
+  });
+
   it('should notifiy when a collection is updated', async () => {
     const actual = await invokeNotificationWorker(worker, {
       post: {
@@ -197,9 +209,9 @@ describe('collectionUpdated worker', () => {
     expect(notification).toMatchObject({
       userId: '1',
       type: 'collection_updated',
-      icon: 'DailyDev',
+      icon: 'Bell',
       title:
-        'The collection <b>My collection</b> just got updated with new details',
+        'The collection "<b>My collection</b>" just got updated with new details',
       description: null,
       targetUrl: 'http://localhost:5002/posts/c1',
       public: true,
