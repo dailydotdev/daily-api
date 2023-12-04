@@ -148,7 +148,7 @@ export const saveNotificationPreference = async (
       .createQueryBuilder()
       .insert()
       .values(params)
-      .orIgnore()
+      .orUpdate(['status'], ['referenceId', 'userId', 'notificationType'])
       .execute();
   } catch (err) {
     if (err.code === TypeOrmError.FOREIGN_KEY) {
