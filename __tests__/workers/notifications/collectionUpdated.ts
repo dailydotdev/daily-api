@@ -206,6 +206,12 @@ describe('collectionUpdated worker', () => {
 
     const notification = notifications.find((item) => item.userId === '1');
 
+    const collectionPost = await con
+      .getRepository(CollectionPost)
+      .findOneBy({ id: 'c1' });
+
+    expect(collectionPost).not.toBeNull();
+
     expect(notification).toMatchObject({
       userId: '1',
       type: 'collection_updated',
@@ -218,6 +224,7 @@ describe('collectionUpdated worker', () => {
       referenceId: 'c1',
       referenceType: 'post',
       numTotalAvatars: 4,
+      uniqueKey: collectionPost?.metadataChangedAt.toString(),
     });
 
     const avatars = await notification!.avatars;
