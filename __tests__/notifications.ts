@@ -1053,4 +1053,65 @@ describe('mutation subscribeNotificationPreference', () => {
       NotificationPreferenceStatus.Subscribed,
     );
   });
+
+  it('should not update other user preferences of the same type', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Subscribed,
+    });
+
+    const params = {
+      userId: loggedUser,
+      referenceId: postsFixture[2].id,
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    const MUTE_MUTATION = `
+      mutation MuteNotificationPreference($referenceId: ID!, $type: String!) {
+        muteNotificationPreference(referenceId: $referenceId, type: $type) {
+          _
+        }
+      }
+    `;
+
+    await client.mutate(MUTE_MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    await client.mutate(MUTE_MUTATION, {
+      variables: {
+        referenceId: postsFixture[3].id,
+        type: params.notificationType,
+      },
+    });
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeTruthy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const notificationPreference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy({
+        ...params,
+        referenceId: postsFixture[3].id,
+      });
+
+    expect(notificationPreference).toBeTruthy();
+    expect(notificationPreference!.status).toEqual(
+      NotificationPreferenceStatus.Muted,
+    );
+  });
 });
