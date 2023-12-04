@@ -76,4 +76,4 @@ export interface IFeedClient {
   ): Promise<FeedResponse>;
 }
 
-export type FeedVersion = '15' | '17' | '19' | 'popular' | 'onboarding';
+export type FeedVersion = '15' | '17' | '18' | '19' | 'popular' | 'onboarding';
