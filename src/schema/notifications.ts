@@ -294,6 +294,21 @@ export const typeDefs = /* GraphQL */ `
       """
       type: String!
     ): EmptyResponse @auth
+
+    """
+    Set the status of the user's notification preference to "subscribed"
+    """
+    subscribeNotificationPreference(
+      """
+      The ID of the relevant entity to subscribe
+      """
+      referenceId: ID!
+
+      """
+      Notification type for which kind of notification you want to subscribe
+      """
+      type: String!
+    ): EmptyResponse @auth
   }
 
   type Subscription {
@@ -455,6 +470,25 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       await con
         .getRepository(NotificationPreference)
         .delete({ userId, notificationType: type, referenceId });
+
+      return { _: true };
+    },
+    subscribeNotificationPreference: async (
+      _,
+      { type, referenceId }: NotificationPreferenceMutationArgs,
+      { con, userId },
+    ): Promise<GQLEmptyResponse> => {
+      if (!Object.values(NotificationType).includes(type)) {
+        throw new ValidationError('Invalid notification type');
+      }
+
+      await saveNotificationPreference(
+        con,
+        userId,
+        referenceId,
+        type,
+        NotificationPreferenceStatus.Subscribed,
+      );
 
       return { _: true };
     },
