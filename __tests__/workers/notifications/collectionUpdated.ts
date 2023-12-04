@@ -156,12 +156,11 @@ beforeEach(async () => {
 
 describe('collectionUpdated worker', () => {
   it('should be registered', () => {
-    const worker = workers.find(
-      (item) =>
-        item.subscription === 'api.post-collection-updated-notification',
+    const registeredWorker = workers.find(
+      (item) => item.subscription === worker.subscription,
     );
 
-    expect(worker).toBeDefined();
+    expect(registeredWorker).toBeDefined();
   });
 
   it('should notifiy when a collection is updated', async () => {
