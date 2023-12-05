@@ -8,8 +8,10 @@ export enum FeedConfigName {
   Vector = 'vector',
   Onboarding = 'onboarding',
   PersonaliseM3 = 'personalise_m3',
+  PersonaliseV18 = 'personalise_v18',
   VectorM3 = 'vector_m3',
   VectorE1 = 'vector_e1',
+  VectorV18 = 'vector_v18',
 }
 
 export type FeedProvider = {
@@ -45,6 +47,7 @@ export type FeedConfig = {
   blocked_sources?: string[];
   squad_ids?: string[];
   providers?: Record<string, FeedProvider>;
+  source_types?: ('machine' | 'squad')[];
 };
 
 export interface FeedConfigGenerator {
@@ -73,4 +76,4 @@ export interface IFeedClient {
   ): Promise<FeedResponse>;
 }
 
-export type FeedVersion = '15' | '17' | '19' | 'popular' | 'onboarding';
+export type FeedVersion = '15' | '17' | '18' | '19' | 'popular' | 'onboarding';

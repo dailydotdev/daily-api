@@ -461,9 +461,8 @@ export const notifyPostYggdrasilIdSet = async (
 
 export const notifyPostCollectionUpdated = async (
   log: EventLogger,
-  collection: ChangeObject<CollectionPost>,
-): Promise<void> =>
-  publishEvent(log, postCollectionUpdatedTopic, { collection });
+  post: ChangeObject<CollectionPost>,
+): Promise<void> => publishEvent(log, postCollectionUpdatedTopic, { post });
 
 export const workerSubscribe = (
   logger: pino.Logger,

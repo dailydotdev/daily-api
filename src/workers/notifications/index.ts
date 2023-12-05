@@ -22,6 +22,7 @@ import { TypeOrmError } from '../../errors';
 import postMention from './postMention';
 import commentDeleted from './commentDeleted';
 import postDeleted from './postDeleted';
+import { collectionUpdated } from './collectionUpdated';
 
 export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -68,6 +69,7 @@ const notificationWorkers: NotificationWorker[] = [
   postAdded,
   memberJoinedSource,
   sourceMemberRoleChanged,
+  collectionUpdated,
 ];
 
 export const workers = [
