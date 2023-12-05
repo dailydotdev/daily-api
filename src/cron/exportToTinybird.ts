@@ -41,7 +41,7 @@ export class PostsRepository implements PostsRepositoryDependency {
     // remember to keep updated with columns in csv
     return await this.con.query(
       `SELECT "id",
-              "authorId"          AS "author_id",
+              COALESCE("scoutId", "authorId") AS "author_id",
               "createdAt"         AS "created_at",
               "metadataChangedAt" AS "metadata_changed_at",
               "creatorTwitter"    AS "creator_twitter",
