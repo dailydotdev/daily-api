@@ -91,7 +91,7 @@ export const notificationTitleMap: Record<
   post_mention: (ctx: NotificationPostContext & NotificationDoneByContext) =>
     `<b>${ctx.doneBy.username}</b> <span class="text-theme-color-cabbage">mentioned you</span> on a post in <b>${ctx.source.name}</b>.`,
   collection_updated: (ctx: NotificationPostContext) =>
-    `The collection <b>${ctx.post.title}</b> just got updated with new details`,
+    `The collection "<b>${ctx.post.title}</b>" just got updated with new details`,
 };
 
 export const generateNotificationMap: Record<
@@ -284,9 +284,10 @@ export const generateNotificationMap: Record<
       ]),
   collection_updated: (builder, ctx: NotificationCollectionContext) =>
     builder
-      .icon(NotificationIcon.DailyDev)
+      .icon(NotificationIcon.Bell)
       .referencePost(ctx.post)
       .targetPost(ctx.post)
       .avatarManySources(ctx.distinctSources)
-      .numTotalAvatars(ctx.total),
+      .numTotalAvatars(ctx.total)
+      .uniqueKey(ctx.post.metadataChangedAt?.toString()),
 };

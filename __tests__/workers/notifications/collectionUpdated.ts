@@ -25,7 +25,10 @@ import {
 } from '../../../src/notifications/common';
 import { usersFixture } from '../../fixture/user';
 import { NotificationCollectionContext } from '../../../src/notifications';
-import { notificationWorkerToWorker } from '../../../src/workers/notifications';
+import {
+  notificationWorkerToWorker,
+  workers,
+} from '../../../src/workers/notifications';
 
 let con: DataSource;
 
@@ -152,6 +155,14 @@ beforeEach(async () => {
 });
 
 describe('collectionUpdated worker', () => {
+  it('should be registered', () => {
+    const registeredWorker = workers.find(
+      (item) => item.subscription === worker.subscription,
+    );
+
+    expect(registeredWorker).toBeDefined();
+  });
+
   it('should notifiy when a collection is updated', async () => {
     const actual = await invokeNotificationWorker(worker, {
       post: {
@@ -194,18 +205,25 @@ describe('collectionUpdated worker', () => {
 
     const notification = notifications.find((item) => item.userId === '1');
 
+    const collectionPost = await con
+      .getRepository(CollectionPost)
+      .findOneBy({ id: 'c1' });
+
+    expect(collectionPost).not.toBeNull();
+
     expect(notification).toMatchObject({
       userId: '1',
       type: 'collection_updated',
-      icon: 'DailyDev',
+      icon: 'Bell',
       title:
-        'The collection <b>My collection</b> just got updated with new details',
+        'The collection "<b>My collection</b>" just got updated with new details',
       description: null,
       targetUrl: 'http://localhost:5002/posts/c1',
       public: true,
       referenceId: 'c1',
       referenceType: 'post',
       numTotalAvatars: 4,
+      uniqueKey: collectionPost?.metadataChangedAt.toString(),
     });
 
     const avatars = await notification!.avatars;

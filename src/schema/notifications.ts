@@ -137,6 +137,10 @@ export const typeDefs = /* GraphQL */ `
     Attachments of the notification
     """
     attachments: [NotificationAttachment!]
+    """
+    Total number of avatars
+    """
+    numTotalAvatars: Int
   }
 
   type NotificationEdge {
