@@ -447,9 +447,6 @@ const obj = new GraphORM({
           parentColumn: 'id',
         },
       },
-      numTotalAvatars: {
-        select: 'numTotalAvatars',
-      },
     },
   },
   UserPost: {
