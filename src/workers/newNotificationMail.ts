@@ -64,7 +64,7 @@ const notificationToTemplateId: Record<NotificationType, string> = {
   post_mention: '',
   promoted_to_moderator: 'd-b1dbd1e86ee14bf094f7616f7469fee8',
   squad_subscribe_to_notification: '',
-  collection_updated: '',
+  collection_updated: 'd-c051ffef97a148b6a6f14d5edb46b553',
 };
 
 type TemplateDataFunc = (
