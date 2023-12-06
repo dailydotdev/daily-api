@@ -2,12 +2,15 @@ import { messageToJson, Worker } from './worker';
 import { ChangeObject } from '../types';
 import {
   ArticlePost,
+  CollectionPost,
   Comment,
   getNotificationAndChildren,
   Notification,
   NotificationAttachment,
   NotificationAvatar,
   Post,
+  PostRelation,
+  PostRelationType,
   SharePost,
   Source,
   SourceRequest,
@@ -501,8 +504,54 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       ),
     };
   },
-  collection_updated: async () => {
-    return null;
+  collection_updated: async (con, user, notification) => {
+    const post = await con.getRepository(CollectionPost).findOne({
+      where: {
+        id: notification.referenceId,
+      },
+    });
+
+    if (!post) {
+      return;
+    }
+
+    const latestPostRelation = await con.getRepository(PostRelation).findOne({
+      where: {
+        postId: post.id,
+        type: PostRelationType.Collection,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+
+    if (!latestPostRelation) {
+      return;
+    }
+
+    const latestRelatedPost = await con.getRepository(ArticlePost).findOne({
+      where: {
+        id: latestPostRelation.relatedPostId,
+      },
+      relations: ['source'],
+    });
+    const latestRelatedPostSource = await latestRelatedPost.source;
+
+    return {
+      post_title: truncatePostToTweet(post),
+      post_image: post.image || pickImageUrl(post),
+      post_upvotes: post.upvotes,
+      post_comments: post.comments,
+      post_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      post_timestamp: formatMailDate(post.metadataChangedAt),
+      source_title: truncatePostToTweet(latestRelatedPost),
+      source_image: latestRelatedPost.image || pickImageUrl(latestRelatedPost),
+      source_timestamp: formatMailDate(latestPostRelation.createdAt),
+      source_name: latestRelatedPostSource.name,
+    };
   },
 };
 
