@@ -1062,6 +1062,10 @@ describe('collection_post notification', () => {
       createdAt: new Date('01-05-2020 12:00:00'),
       origin: PostOrigin.Crawler,
       yggdrasilId: '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
+      title: 'New title',
+      summary: 'New summary',
+      content: '## New heading\n\n New content',
+      contentHtml: '<h2>New heading</h2>\n<p>New content</p>\n',
     });
     await con.getRepository(ArticlePost).save({
       id: 'rp1',
@@ -1071,9 +1075,10 @@ describe('collection_post notification', () => {
       metadataChangedAt: new Date('01-05-2020 12:00:00'),
       sourceId: 'a',
       visible: true,
-      createdAt: new Date('01-05-2020 12:00:00'),
+      createdAt: new Date('01-07-2020 12:00:00'),
       origin: PostOrigin.Crawler,
       yggdrasilId: '3d5da6ec-b960-4ad8-8278-665a66b71ddd',
+      title: 'Related post title',
     });
     await con.getRepository(PostRelation).save({
       postId: 'cp1',
@@ -1111,13 +1116,13 @@ describe('collection_post notification', () => {
       post_link:
         'http://localhost:5002/posts/cp1?utm_source=notification&utm_medium=email&utm_campaign=collection_updated',
       post_timestamp: 'Jan 05, 2020',
-      post_title: '',
+      post_title: 'New title',
       post_upvotes: '0',
       source_image:
         'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
       source_name: 'A',
-      source_timestamp: 'Jan 05, 2020',
-      source_title: '',
+      source_timestamp: 'Jan 07, 2020',
+      source_title: 'Related post title',
     });
     expect(args.templateId).toEqual('d-c051ffef97a148b6a6f14d5edb46b553');
   });

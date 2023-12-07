@@ -554,7 +554,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       post_timestamp: formatMailDate(post.metadataChangedAt),
       source_title: truncatePostToTweet(latestRelatedPost),
       source_image: latestRelatedPost.image || pickImageUrl(latestRelatedPost),
-      source_timestamp: formatMailDate(latestPostRelation.createdAt),
+      source_timestamp: formatMailDate(latestRelatedPost.createdAt),
       source_name: latestRelatedPostSource.name,
     };
   },
