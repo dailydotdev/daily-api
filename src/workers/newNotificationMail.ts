@@ -535,6 +535,11 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       },
       relations: ['source'],
     });
+
+    if (!latestRelatedPost) {
+      return;
+    }
+
     const latestRelatedPostSource = await latestRelatedPost.source;
 
     return {
