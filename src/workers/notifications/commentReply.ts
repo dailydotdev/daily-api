@@ -57,7 +57,7 @@ const worker: NotificationWorker = {
         ],
       })
       .getRawMany();
-    const ctx: Omit<NotificationCommenterContext, 'userId'> = {
+    const ctx: Omit<NotificationCommenterContext, 'userIds'> = {
       ...postCtx,
       comment,
       commenter,
@@ -70,12 +70,17 @@ const worker: NotificationWorker = {
       ctx.source.type === SourceType.Squad
         ? NotificationType.SquadReply
         : NotificationType.CommentReply;
-    return userIds
-      .filter((id) => mutes.every(({ userId }) => userId !== id))
-      .map((userId) => ({
+    return [
+      {
         type,
-        ctx: { ...ctx, userId },
-      }));
+        ctx: {
+          ...ctx,
+          userIds: userIds.filter((id) =>
+            mutes.every(({ userId }) => userId !== id),
+          ),
+        },
+      },
+    ];
   },
 };
 

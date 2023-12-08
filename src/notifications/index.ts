@@ -13,11 +13,13 @@ export * from './types';
 export function generateNotification(
   type: NotificationType,
   ctx: NotificationBaseContext,
-): NotificationBundle {
-  const builder = NotificationBuilder.new(type, ctx.userId).title(
-    notificationTitleMap[type](ctx),
-  );
-  return generateNotificationMap[type](builder, ctx).build();
+): NotificationBundle[] {
+  return ctx.userIds.map((userId) => {
+    const builder = NotificationBuilder.new(type, userId).title(
+      notificationTitleMap[type](ctx),
+    );
+    return generateNotificationMap[type](builder, ctx).build();
+  });
 }
 
 const concatNotificationChildren = <

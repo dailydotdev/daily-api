@@ -32,7 +32,7 @@ export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
       if (!args) {
         return;
       }
-      const bundles = args.map(({ type, ctx }) =>
+      const bundles = args.flatMap(({ type, ctx }) =>
         generateNotification(type, ctx),
       );
       try {

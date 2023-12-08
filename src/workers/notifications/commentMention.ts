@@ -45,13 +45,17 @@ const worker: NotificationWorker = {
       return;
     }
     const commenter = await comment.user;
-    const ctx: NotificationCommenterContext = {
-      ...postCtx,
-      userId: data.commentMention.mentionedUserId,
-      commenter,
-      comment,
-    };
-    return [{ type: NotificationType.CommentMention, ctx }];
+    return [
+      {
+        type: NotificationType.CommentMention,
+        ctx: {
+          ...postCtx,
+          userIds: [data.commentMention.mentionedUserId],
+          commenter,
+          comment,
+        },
+      },
+    ];
   },
 };
 

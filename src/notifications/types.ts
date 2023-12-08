@@ -21,7 +21,7 @@ export type NotificationBundle = {
   attachments?: DeepPartial<NotificationAttachment>[];
 };
 
-export type NotificationBaseContext = { userId: string };
+export type NotificationBaseContext = { userIds: string[] };
 export type NotificationSubmissionContext = NotificationBaseContext & {
   submission: Pick<Submission, 'id'>;
 };

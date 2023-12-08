@@ -46,7 +46,7 @@ const worker: NotificationWorker = {
       comment,
       upvoters,
       upvotes: comment.upvotes,
-      userId: comment.userId,
+      userIds: [comment.userId],
     };
 
     if (source.type === SourceType.Squad) {
