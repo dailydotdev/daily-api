@@ -38,7 +38,6 @@
     "@google-cloud/opentelemetry-cloud-trace-propagator": "^0.17.0",
     "@google-cloud/opentelemetry-resource-util": "^2.1.0",
     "@google-cloud/pubsub": "^3.7.5",
-    "@google-cloud/trace-agent": "^7.1.2",
     "@graphql-tools/schema": "^9.0.19",
     "@growthbook/growthbook": "^0.31.0",
     "@grpc/grpc-js": "^1.9.10",
