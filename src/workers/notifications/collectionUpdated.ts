@@ -8,7 +8,7 @@ import {
   getDistinctSourcesBaseQuery,
 } from '../../entity';
 import { ChangeObject } from '../../types';
-import { NotificationHandlerReturn, NotificationWorker } from './worker';
+import { NotificationWorker } from './worker';
 import { buildPostContext } from './utils';
 import { NotificationCollectionContext } from '../../notifications';
 import {
