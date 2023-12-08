@@ -523,23 +523,19 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       order: {
         createdAt: 'DESC',
       },
+      relations: {
+        relatedPost: {
+          source: true,
+        },
+      },
     });
 
     if (!latestPostRelation) {
       return;
     }
 
-    const latestRelatedPost = await con.getRepository(ArticlePost).findOne({
-      where: {
-        id: latestPostRelation.relatedPostId,
-      },
-      relations: ['source'],
-    });
-
-    if (!latestRelatedPost) {
-      return;
-    }
-
+    const latestRelatedPost =
+      (await latestPostRelation.relatedPost) as ArticlePost;
     const latestRelatedPostSource = await latestRelatedPost.source;
 
     return {
