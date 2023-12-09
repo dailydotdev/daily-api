@@ -172,16 +172,14 @@ describe('collectionUpdated worker', () => {
       },
     });
 
-    expect(actual.length).toEqual(3);
+    expect(actual.length).toEqual(1);
 
-    actual.forEach((bundle) => {
-      const ctx = bundle.ctx as NotificationCollectionContext;
-      expect(bundle.type).toEqual('collection_updated');
-      expect(ctx.post.id).toEqual('c1');
-      expect(ctx.distinctSources.length).toEqual(3);
-      expect(ctx.total).toEqual('4');
-      expect(['1', '2', '3'].includes(bundle.ctx.userId));
-    });
+    const ctx = actual[0].ctx as NotificationCollectionContext;
+    expect(actual[0].type).toEqual('collection_updated');
+    expect(ctx.post.id).toEqual('c1');
+    expect(ctx.distinctSources.length).toEqual(3);
+    expect(ctx.total).toEqual('4');
+    expect(actual[0].ctx.userIds).toStrictEqual(['1', '2', '3']);
 
     expect(
       (actual[0].ctx as NotificationCollectionContext).distinctSources[0].name,
@@ -244,6 +242,7 @@ describe('collectionUpdated worker', () => {
       },
     });
 
-    actual.map((bundle) => expect(bundle.ctx.userId).not.toEqual('4'));
+    expect(actual.length).toEqual(1);
+    expect(actual[0].ctx.userIds.includes('4')).toBeFalsy();
   });
 });

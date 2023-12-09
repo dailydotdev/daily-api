@@ -71,7 +71,7 @@ it('should set parameters for community_picks_failed email', async () => {
     userId: '1',
   });
   const ctx: NotificationSubmissionContext = {
-    userId: '1',
+    userIds: ['1'],
     submission: { id: submission.id },
   };
 
@@ -109,7 +109,7 @@ it('should set parameters for community_picks_succeeded email', async () => {
     url: 'http://sample.abc.com',
   });
   const ctx: NotificationPostContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     source,
   };
@@ -141,7 +141,7 @@ it('should set parameters for community_picks_succeeded email', async () => {
 
 it('should set parameters for community_picks_granted email', async () => {
   const ctx: NotificationBaseContext = {
-    userId: '1',
+    userIds: ['1'],
   };
 
   const notificationId = await saveNotificationFixture(
@@ -166,7 +166,7 @@ it('should set parameters for community_picks_granted email', async () => {
 it('should set parameters for article_picked email', async () => {
   const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const ctx: NotificationPostContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     source,
   };
@@ -206,7 +206,7 @@ it('should set parameters for article_new_comment email', async () => {
   });
   const commenter = await con.getRepository(User).findOneBy({ id: '2' });
   const ctx: NotificationCommenterContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     source,
     comment,
@@ -242,7 +242,7 @@ it('should set parameters for article_new_comment email', async () => {
 it('should set parameters for article_upvote_milestone email', async () => {
   const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const ctx: NotificationPostContext & NotificationUpvotersContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     source,
     upvotes: 50,
@@ -276,7 +276,7 @@ it('should set parameters for article_upvote_milestone email', async () => {
 it('should set parameters for article_report_approved email', async () => {
   const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const ctx: NotificationPostContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     source,
   };
@@ -317,7 +317,7 @@ it('should set parameters for article_analytics email', async () => {
     authorId: '1',
   });
   const ctx: NotificationPostContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     source,
   };
@@ -361,7 +361,7 @@ it('should set parameters for source_approved email', async () => {
     closed: false,
   });
   const ctx: NotificationSourceRequestContext & NotificationSourceContext = {
-    userId: '1',
+    userIds: ['1'],
     source,
     sourceRequest,
   };
@@ -397,7 +397,7 @@ it('should set parameters for source_rejected email', async () => {
     closed: false,
   });
   const ctx: NotificationSourceRequestContext = {
-    userId: '1',
+    userIds: ['1'],
     sourceRequest,
   };
 
@@ -433,7 +433,7 @@ it('should set parameters for comment_mention email', async () => {
   });
   const commenter = await con.getRepository(User).findOneBy({ id: '2' });
   const ctx: NotificationCommenterContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     comment,
     commenter,
@@ -485,7 +485,7 @@ it('should set parameters for comment_reply email', async () => {
   });
   const commenter = await con.getRepository(User).findOneBy({ id: '2' });
   const ctx: NotificationCommenterContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     comment,
     commenter,
@@ -553,7 +553,7 @@ it('should set parameters for squad_reply email', async () => {
   });
   const commenter = await con.getRepository(User).findOneBy({ id: '2' });
   const ctx: NotificationCommenterContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     comment,
     commenter,
@@ -600,7 +600,7 @@ it('should set parameters for comment_upvote_milestone email', async () => {
     createdAt: new Date(2020, 1, 6, 0, 0),
   });
   const ctx: NotificationCommentContext & NotificationUpvotersContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     comment,
     upvotes: 50,
@@ -647,7 +647,7 @@ it('should not send email notification if the user prefers not to receive them',
     createdAt: new Date(2020, 1, 6, 0, 0),
   });
   const ctx: NotificationCommentContext & NotificationUpvotersContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     comment,
     upvotes: 50,
@@ -685,7 +685,7 @@ it('should set parameters for squad_post_added email', async () => {
   });
   const doneBy = await con.getRepository(User).findOneBy({ id: '2' });
   const ctx: NotificationPostContext & NotificationDoneByContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     sharedPost,
     source,
@@ -732,7 +732,7 @@ it('should set parameters for squad_member_joined email', async () => {
     .update({ id: post.id }, { id: 'welcome1' });
   post.id = 'welcome1'; // for a consistent id in the test
   const ctx: NotificationPostContext & NotificationDoneByContext = {
-    userId: '1',
+    userIds: ['1'],
     source,
     doneBy,
     post,
@@ -789,7 +789,7 @@ it('should set parameters for squad_new_comment email', async () => {
   });
   const commenter = await con.getRepository(User).findOneBy({ id: '2' });
   const ctx: NotificationCommenterContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     sharedPost,
     source,
@@ -845,7 +845,7 @@ it('should set parameters for squad_post_viewed email', async () => {
   });
   const doneBy = await con.getRepository(User).findOneBy({ id: '1' });
   const ctx: NotificationPostContext & NotificationDoneByContext = {
-    userId: '2',
+    userIds: ['2'],
     post,
     sharedPost,
     source,
@@ -884,7 +884,7 @@ it('should set parameters for squad_post_viewed email', async () => {
 
 it('should set parameters for squad_access email', async () => {
   const ctx: NotificationBaseContext = {
-    userId: '1',
+    userIds: ['1'],
   };
 
   const notificationId = await saveNotificationFixture(
@@ -912,7 +912,7 @@ it('should set parameters for promoted_to_admin email', async () => {
     .update({ id: 'a' }, { type: SourceType.Squad });
   const source = await con.getRepository(Source).findOneBy({ id: 'a' });
   const ctx: NotificationSourceContext = {
-    userId: '1',
+    userIds: ['1'],
     source,
   };
 
@@ -954,7 +954,7 @@ it('should set parameters for promoted_to_moderator email', async () => {
     .update({ id: 'a' }, { type: SourceType.Squad });
   const source = await con.getRepository(Source).findOneBy({ id: 'a' });
   const ctx: NotificationSourceContext = {
-    userId: '1',
+    userIds: ['1'],
     source,
   };
 
@@ -996,7 +996,7 @@ it('should not invoke demoted_to_member email', async () => {
     .update({ id: 'a' }, { type: SourceType.Squad });
   const source = await con.getRepository(Source).findOneBy({ id: 'a' });
   const ctx: NotificationSourceMemberRoleContext = {
-    userId: '1',
+    userIds: ['1'],
     source,
     role: SourceMemberRoles.Admin,
   };
@@ -1021,7 +1021,7 @@ it('should not invoke squad_blocked email', async () => {
     .update({ id: 'a' }, { type: SourceType.Squad });
   const source = await con.getRepository(Source).findOneBy({ id: 'a' });
   const ctx: NotificationSourceContext = {
-    userId: '1',
+    userIds: ['1'],
     source,
   };
 

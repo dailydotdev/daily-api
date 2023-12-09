@@ -73,14 +73,16 @@ const worker: NotificationWorker = {
             role: Not(SourceMemberRoles.Blocked),
           },
         );
-        notifs.push({
-          type: NotificationType.SquadPostAdded,
-          ctx: {
-            ...baseCtx,
-            doneBy,
-            userIds: members.map(({ userId }) => userId),
-          } as NotificationPostContext & Partial<NotificationDoneByContext>,
-        });
+        if (members.length) {
+          notifs.push({
+            type: NotificationType.SquadPostAdded,
+            ctx: {
+              ...baseCtx,
+              doneBy,
+              userIds: members.map(({ userId }) => userId),
+            } as NotificationPostContext & Partial<NotificationDoneByContext>,
+          });
+        }
 
         const hasPostShared = await con.getRepository(UserAction).findOneBy({
           userId: post.authorId,

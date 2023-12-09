@@ -88,7 +88,7 @@ describe('notificationWorkerToWorker', () => {
         type: 'post',
       },
     ]);
-    const notifications = await con.getRepository(NotificationV2).find({});
+    const notifications = await con.getRepository(NotificationV2).find();
     expect(notifications).toEqual([
       {
         attachments: attachments.map(({ id }) => id),
@@ -152,7 +152,7 @@ describe('notificationWorkerToWorker', () => {
       .getRepository(NotificationAttachmentV2)
       .find({ order: { referenceId: 'ASC' } });
     expect(attachments.length).toEqual(1);
-    const notifications = await con.getRepository(NotificationV2).find({});
+    const notifications = await con.getRepository(NotificationV2).find();
     expect(notifications[0].attachments).toEqual(
       attachments.map(({ id }) => id),
     );
@@ -176,7 +176,7 @@ describe('notificationWorkerToWorker', () => {
       },
     });
     await worker.handler(null, con, null, null);
-    const notifications = await con.getRepository(NotificationV2).find({});
+    const notifications = await con.getRepository(NotificationV2).find();
     expect(notifications.length).toEqual(1);
     expect(notifications[0].public).toEqual(false);
     const userNotifications = await con

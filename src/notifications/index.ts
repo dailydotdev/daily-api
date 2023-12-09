@@ -184,7 +184,7 @@ async function upsertAttachments(
 export async function storeNotificationBundleV2(
   entityManager: EntityManager,
   bundle: NotificationBundleV2,
-): Promise<string> {
+): Promise<void> {
   const [avatars, attachments] = await Promise.all([
     upsertAvatarsV2(entityManager, bundle.avatars || []),
     upsertAttachments(entityManager, bundle.attachments || []),
@@ -208,16 +208,18 @@ export async function storeNotificationBundleV2(
       })),
     )
     .execute();
-  return notification.id;
 }
 
 export async function generateAndStoreNotificationsV2(
   entityManager: EntityManager,
   args: NotificationHandlerReturn,
-): Promise<string[]> {
-  return Promise.all(
+): Promise<void> {
+  await Promise.all(
     args.map(({ type, ctx }) => {
       const bundle = generateNotificationV2(type, ctx);
+      if (!bundle.userIds.length) {
+        return;
+      }
       return storeNotificationBundleV2(entityManager, bundle);
     }),
   );
