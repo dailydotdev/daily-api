@@ -1,8 +1,8 @@
 import { NotificationWorker } from './worker';
 import { messageToJson, Worker } from '../worker';
 import {
-  generateNotification,
-  storeNotificationBundle,
+  generateAndStoreNotifications,
+  generateAndStoreNotificationsV2,
 } from '../../notifications';
 import communityPicksFailed from './communityPicksFailed';
 import communityPicksGranted from './communityPicksGranted';
@@ -32,13 +32,11 @@ export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
       if (!args) {
         return;
       }
-      const bundles = args.flatMap(({ type, ctx }) =>
-        generateNotification(type, ctx),
-      );
       try {
-        await con.transaction((entityManager) =>
-          storeNotificationBundle(entityManager, bundles),
-        );
+        await con.transaction(async (entityManager) => {
+          await generateAndStoreNotifications(entityManager, args);
+          await generateAndStoreNotificationsV2(entityManager, args);
+        });
       } catch (err) {
         if (err?.code === TypeOrmError.NULL_VIOLATION) {
           logger.warn(

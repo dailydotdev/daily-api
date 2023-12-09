@@ -2,7 +2,10 @@ import {
   Comment,
   Notification,
   NotificationAttachment,
+  NotificationAttachmentV2,
   NotificationAvatar,
+  NotificationAvatarV2,
+  NotificationV2,
   Post,
   Source,
   SourceRequest,
@@ -19,6 +22,13 @@ export type NotificationBundle = {
   notification: DeepPartial<Notification>;
   avatars?: DeepPartial<NotificationAvatar>[];
   attachments?: DeepPartial<NotificationAttachment>[];
+};
+
+export type NotificationBundleV2 = {
+  notification: DeepPartial<NotificationV2>;
+  userIds: string[];
+  avatars?: DeepPartial<NotificationAvatarV2>[];
+  attachments?: DeepPartial<NotificationAttachmentV2>[];
 };
 
 export type NotificationBaseContext = { userIds: string[] };
