@@ -100,6 +100,8 @@ export class NotificationBuilder {
     return this.enrichNotification({
       referenceId: 'system',
       referenceType: 'system',
+      // v2 will fail for uniqueness if we don't set this
+      uniqueKey: Date.now().toString(),
     });
   }
 

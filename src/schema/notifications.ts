@@ -24,6 +24,7 @@ import {
   notificationPreferenceMap,
 } from '../notifications/common';
 import { ValidationError } from 'apollo-server-errors';
+import { UserNotification } from '../entity/notifications/UserNotification';
 
 interface GQLBanner {
   timestamp: Date;
@@ -422,13 +423,18 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   },
   Mutation: {
     readNotifications: async (_, __, ctx): Promise<GQLEmptyResponse> => {
-      await ctx.getRepository(Notification).update(
-        {
-          userId: ctx.userId,
-          readAt: IsNull(),
-        },
-        { readAt: new Date() },
-      );
+      await ctx.con.transaction(async (entityManager) => {
+        const criteria = { userId: ctx.userId, readAt: IsNull() };
+        const partialEntity = { readAt: new Date() };
+        await Promise.all([
+          entityManager
+            .getRepository(Notification)
+            .update(criteria, partialEntity),
+          entityManager
+            .getRepository(UserNotification)
+            .update(criteria, partialEntity),
+        ]);
+      });
       await notifyNotificationsRead(ctx.log, {
         unreadNotificationsCount: 0,
       });
