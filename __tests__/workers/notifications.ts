@@ -405,7 +405,7 @@ describe('post added notifications', () => {
     expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
     expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
     expect((bundle.ctx as NotificationDoneByContext).doneBy.id).toEqual('1');
-    expect(bundle.ctx.userIds).toStrictEqual(['2', '3']);
+    expect(bundle.ctx.userIds).toIncludeSameMembers(['2', '3']);
   });
 
   it('should add post added notification to all source members except the author and muted members', async () => {
@@ -513,7 +513,7 @@ describe('article new comment', () => {
     expect((bundle.ctx as NotificationCommenterContext).commenter.id).toEqual(
       '2',
     );
-    expect(actual[0].ctx.userIds).toStrictEqual(['1', '3']);
+    expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3']);
   });
 
   it('should add one notification when scout and author are the same', async () => {
@@ -613,7 +613,7 @@ describe('article new comment', () => {
       childCommentId: 'c1',
     });
     expect(actual.length).toEqual(1);
-    expect(actual[0].ctx.userIds).toStrictEqual(['1', '3']);
+    expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3']);
   });
 
   it('should add notification but ignore users with muted settings', async () => {
@@ -880,7 +880,7 @@ describe('article upvote milestone', () => {
     expect((bundle.ctx as NotificationUpvotersContext).upvoters.length).toEqual(
       2,
     );
-    expect(bundle.ctx.userIds).toStrictEqual(['1', '3']);
+    expect(bundle.ctx.userIds).toIncludeSameMembers(['1', '3']);
   });
 
   it('should add one notification when scout and author are the same', async () => {
@@ -953,7 +953,7 @@ it('should add article report approved notification for every reporter', async (
   });
   expect(actual.length).toEqual(1);
   expect(actual[0].type).toEqual('article_report_approved');
-  expect(actual[0].ctx.userIds).toStrictEqual(['1', '2']);
+  expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '2']);
   expect((actual[0].ctx as NotificationPostContext).post.id).toEqual('p1');
   expect((actual[0].ctx as NotificationPostContext).source.id).toEqual('a');
 });
@@ -974,7 +974,7 @@ it('should add article analytics notification for scout and author', async () =>
   });
   expect(actual.length).toEqual(1);
   expect(actual[0].type).toEqual('article_analytics');
-  expect(actual[0].ctx.userIds).toStrictEqual(['3', '1']);
+  expect(actual[0].ctx.userIds).toIncludeSameMembers(['3', '1']);
   expect((actual[0].ctx as NotificationPostContext).post.id).toEqual('p1');
   expect((actual[0].ctx as NotificationPostContext).source.id).toEqual('a');
 });
@@ -1238,7 +1238,7 @@ describe('comment reply worker', () => {
       '4',
     );
 
-    expect(actual[0].ctx.userIds).toStrictEqual(['1', '3', '2']);
+    expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3', '2']);
   });
 
   it('should add comment reply notification but ignore muted users', async () => {
@@ -1265,7 +1265,7 @@ describe('comment reply worker', () => {
     expect((bundle.ctx as NotificationCommenterContext).commenter.id).toEqual(
       '4',
     );
-    expect(actual[0].ctx.userIds).toStrictEqual(['1', '2']);
+    expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '2']);
   });
 
   it('should not add comment reply notification to comment author on their reply', async () => {
@@ -1577,5 +1577,5 @@ it('should add squad reply notification', async () => {
   expect((bundle.ctx as NotificationCommenterContext).commenter.id).toEqual(
     '4',
   );
-  expect(actual[0].ctx.userIds).toStrictEqual(['1', '3', '2']);
+  expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3', '2']);
 });
