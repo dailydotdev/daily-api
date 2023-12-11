@@ -748,18 +748,37 @@ describe('on youtube post', () => {
         title: 'youtube post',
         score: 0,
         url: 'https://youtu.be/T_AbQGe7fuU',
+        videoId: 'T_AbQGe7fuU',
+        metadataChangedAt: new Date('01-05-2020 12:00:00'),
+        sourceId: 'a',
+        visible: true,
+        createdAt: new Date('01-05-2020 12:00:00'),
+        type: PostType.VideoYouTube,
+        origin: PostOrigin.Crawler,
+        yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
+      },
+    ]);
+
+    await con.getRepository(ArticlePost).save([
+      {
+        id: 'yt2',
+        shortId: 'yt2',
+        title: 'youtube post',
+        score: 0,
+        url: 'https://youtu.be/Oso6dYXw5lc',
         metadataChangedAt: new Date('01-05-2020 12:00:00'),
         sourceId: 'squad',
         visible: true,
         createdAt: new Date('01-05-2020 12:00:00'),
-        type: PostType.VideoYouTube,
+        type: PostType.Article,
         origin: PostOrigin.Squad,
-        yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
+        yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
       },
     ]);
 
     await createDefaultKeywords();
   });
+
   it('should create a new video post', async () => {
     await expectSuccessfulBackground(worker, {
       id: 'a7edf0c8-aec7-4586-b411-b1dd431ce8d6',
@@ -800,7 +819,7 @@ describe('on youtube post', () => {
       id: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
       post_id: 'yt1',
       updated_at: new Date('01-05-2023 12:00:00'),
-      source_id: 'squad',
+      source_id: 'a',
       extra: {
         content_curation: ['news', 'story', 'release'],
         duration: 12,
@@ -825,17 +844,49 @@ describe('on youtube post', () => {
       },
     });
     expect(postKeywords.length).toEqual(2);
-
     expect(post).toMatchObject({
       type: 'video:youtube',
       title: 'youtube post',
-      sourceId: 'squad',
+      sourceId: 'a',
       yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
       url: 'https://youtu.be/T_AbQGe7fuU',
       contentCuration: ['news', 'story', 'release'],
       readTime: 12,
       description: 'A description of a video',
       summary: 'A short summary of a video',
+      videoId: 'T_AbQGe7fuU',
+    });
+  });
+
+  it('should update the post type to youtube video when the post is a youtube video', async () => {
+    const beforePost = await con.getRepository(ArticlePost).findOneBy({
+      yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+    });
+    expect(beforePost?.type).toBe(PostType.Article);
+
+    await expectSuccessfulBackground(worker, {
+      id: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+      post_id: 'yt2',
+      updated_at: new Date('01-05-2023 12:00:00'),
+      source_id: 'squad',
+      content_type: PostType.VideoYouTube,
+      extra: {
+        video_id: 'Oso6dYXw5lc',
+      },
+    });
+
+    const post = await con.getRepository(YouTubePost).findOneBy({
+      yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+    });
+
+    expect(post?.type).toBe(PostType.VideoYouTube);
+    expect(post).toMatchObject({
+      type: 'video:youtube',
+      title: 'youtube post',
+      sourceId: 'squad',
+      yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+      url: 'https://youtu.be/Oso6dYXw5lc',
+      videoId: 'Oso6dYXw5lc',
     });
   });
 });
