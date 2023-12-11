@@ -215,16 +215,6 @@ const createPost = async ({
 };
 
 const allowedFieldsMapping = {
-  [PostType.VideoYouTube]: [
-    'type',
-    'videoId',
-    'contentCuration',
-    'description',
-    'metadataChangedAt',
-    'readTime',
-    'summary',
-    'tagsStr',
-  ],
   freeform: [
     'contentCuration',
     'description',
@@ -264,7 +254,7 @@ const updatePost = async ({
   questions,
   content_type = PostType.Article,
 }: UpdatePostProps) => {
-  let postType = contentTypeFromPostType[content_type];
+  const postType = contentTypeFromPostType[content_type];
   let databasePost = await entityManager
     .getRepository(postType)
     .findOneBy({ id });
@@ -272,7 +262,13 @@ const updatePost = async ({
   // If we don't find the post, we need to check if it's a youtube video and
   // try to find it again as an article
   if (!databasePost && content_type === PostType.VideoYouTube) {
-    postType = ArticlePost;
+    await entityManager.getRepository(ArticlePost).update(
+      { id },
+      {
+        type: PostType.VideoYouTube,
+      },
+    );
+
     databasePost = await entityManager
       .getRepository(postType)
       .findOneBy({ id });
