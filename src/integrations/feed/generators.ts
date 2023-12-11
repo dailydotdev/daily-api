@@ -38,8 +38,15 @@ export class FeedGenerator {
     userId: string | undefined,
     pageSize: number,
     offset: number,
+    cursor?: string,
   ): Promise<FeedResponse> {
-    const config = await this.config.generate(ctx, userId, pageSize, offset);
+    const config = await this.config.generate(
+      ctx,
+      userId,
+      pageSize,
+      offset,
+      cursor,
+    );
     return this.client.fetchFeed(ctx, this.feedId ?? userId, config);
   }
 }
@@ -111,6 +118,25 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
         ),
         non_personalised: new FeedPreferencesConfigGenerator(
           { feed_config_name: FeedConfigName.PersonaliseM3 },
+          opts,
+        ),
+      }),
+    ),
+    '20': new FeedGenerator(
+      feedClient,
+      new FeedUserStateConfigGenerator(snotraClient, {
+        personalised: new FeedPreferencesConfigGenerator(
+          {
+            feed_config_name: FeedConfigName.VectorV20,
+            source_types: ['machine', 'squad'],
+          },
+          opts,
+        ),
+        non_personalised: new FeedPreferencesConfigGenerator(
+          {
+            feed_config_name: FeedConfigName.PersonaliseV20,
+            source_types: ['machine', 'squad'],
+          },
           opts,
         ),
       }),

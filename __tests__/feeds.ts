@@ -467,8 +467,8 @@ describe('query feed', () => {
   };
 
   const QUERY = `
-  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
-    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
+  query Feed($ranking: Ranking, $first: Int, $after: String, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
+    feed(ranking: $ranking, first: $first, after: $after, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
       ${feedFields()}
     }
   }
@@ -605,6 +605,30 @@ describe('query feed', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.feed.edges.length).toEqual(2);
+  });
+
+  it('should support feed service side caching', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6001')
+      .post('/api/v1/user/profile', {
+        user_id: '1',
+        providers: {
+          personalise: {},
+        },
+      })
+      .reply(200, { personalise: { state: 'personalised' } });
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => body.cursor === 'a')
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+    const res = await client.query(QUERY, {
+      variables: { ...variables, version: 20, after: 'a' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feed.edges.length).toEqual(2);
+    expect(res.data.feed.pageInfo.endCursor).toEqual('b');
   });
 
   it('should return only article posts by default', async () => {
