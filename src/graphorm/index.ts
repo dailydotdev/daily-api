@@ -23,6 +23,7 @@ import { GQLBookmarkList } from '../schema/bookmarks';
 import { base64 } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
+import { UserNotification } from '../entity/notifications/UserNotification';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -430,24 +431,45 @@ const obj = new GraphORM({
     metadataFrom: 'View',
   },
   Notification: {
+    from: 'NotificationV2',
+    additionalQuery: (ctx, alias, qb) =>
+      qb.innerJoin(
+        UserNotification,
+        'un',
+        `"${alias}".id = un."notificationId"`,
+      ),
     fields: {
       avatars: {
         relation: {
           isMany: true,
-          sort: 'order',
-          childColumn: 'notificationId',
-          parentColumn: 'id',
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
+            return qb
+              .where(`"${childAlias}".id = any("${parentAlias}".avatars)`)
+              .orderBy(
+                `array_position("${parentAlias}".avatars, "${childAlias}".id)`,
+              );
+          },
         },
       },
       attachments: {
         relation: {
           isMany: true,
-          sort: 'order',
-          childColumn: 'notificationId',
-          parentColumn: 'id',
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder => {
+            return qb
+              .where(`"${childAlias}".id = any("${parentAlias}".attachments)`)
+              .orderBy(
+                `array_position("${parentAlias}".attachments, "${childAlias}".id)`,
+              );
+          },
         },
       },
     },
+  },
+  NotificationAttachment: {
+    from: 'NotificationAttachmentV2',
+  },
+  NotificationAvatar: {
+    from: 'NotificationAvatarV2',
   },
   UserPost: {
     requiredColumns: ['votedAt'],

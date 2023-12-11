@@ -18,7 +18,6 @@ import updateComments from './updateComments';
 import cdc from './cdc';
 import updateMailingList from './updateMailingList';
 import deleteUserFromMailingList from './deleteUserFromMailingList';
-import unreadNotificationCount from './unreadNotificationCount';
 import newNotificationRealTime from './newNotificationRealTime';
 import newNotificationMail from './newNotificationMail';
 import newNotificationPush from './newNotificationPush';
@@ -73,7 +72,6 @@ export const workers: Worker[] = [
   usernameChanged,
   usernameChangedUpdateNotifications,
   updateComments,
-  unreadNotificationCount,
   newNotificationRealTime,
   newNotificationMail,
   newNotificationPush,
