@@ -63,6 +63,8 @@ interface Data {
     content_curation?: string[];
     origin_entries?: string[];
     content: string;
+    video_id?: string;
+    duration?: number;
   };
 }
 
@@ -393,7 +395,9 @@ type FixData = {
   mergedKeywords: string[];
   questions: string[];
   content_type: PostType;
-  fixedData: Partial<ArticlePost> & Partial<CollectionPost>;
+  fixedData: Partial<ArticlePost> &
+    Partial<CollectionPost> &
+    Partial<YouTubePost>;
 };
 const fixData = async ({
   logger,
@@ -443,7 +447,7 @@ const fixData = async ({
       image: data?.image,
       sourceId: data?.source_id,
       title: data?.title && he.decode(data?.title),
-      readTime: parseReadTime(data?.extra?.read_time),
+      readTime: parseReadTime(data?.extra?.read_time || data?.extra?.duration),
       publishedAt: data?.published_at && new Date(data?.published_at),
       metadataChangedAt:
         (data?.updated_at && new Date(data.updated_at)) || new Date(),
@@ -470,6 +474,7 @@ const fixData = async ({
       contentHtml: data?.extra?.content
         ? markdown.render(data.extra.content)
         : undefined,
+      videoId: data?.extra?.video_id,
     },
   };
 };
