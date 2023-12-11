@@ -10,7 +10,11 @@ import {
 import worker from '../../src/workers/newNotificationMail';
 import {
   ArticlePost,
+  CollectionPost,
   Comment,
+  PostOrigin,
+  PostRelation,
+  PostRelationType,
   SharePost,
   Source,
   SourceRequest,
@@ -25,6 +29,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
   NotificationBaseContext,
+  NotificationCollectionContext,
   NotificationCommentContext,
   NotificationCommenterContext,
   NotificationDoneByContext,
@@ -40,6 +45,7 @@ import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
 import { SourceMemberRoles } from '../../src/roles';
 import { NotificationType } from '../../src/notifications/common';
+import { buildPostContext } from '../../src/workers/notifications/utils';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -1037,4 +1043,128 @@ it('should not invoke squad_blocked email', async () => {
     },
   });
   expect(sendEmail).toBeCalledTimes(0);
+});
+
+describe('collection_post notification', () => {
+  it('should send email', async () => {
+    const sourceA = await con.getRepository(Source).findOneBy({
+      id: 'a',
+    });
+
+    await con.getRepository(CollectionPost).save({
+      id: 'cp1',
+      shortId: 'cp1',
+      url: 'http://cp1.com',
+      score: 0,
+      metadataChangedAt: new Date('01-05-2020 12:00:00'),
+      sourceId: 'a',
+      visible: true,
+      createdAt: new Date('01-05-2020 12:00:00'),
+      origin: PostOrigin.Crawler,
+      yggdrasilId: '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
+      title: 'New title',
+      summary: 'New summary',
+      content: '## New heading\n\n New content',
+      contentHtml: '<h2>New heading</h2>\n<p>New content</p>\n',
+    });
+    await con.getRepository(ArticlePost).save({
+      id: 'rp1',
+      shortId: 'rp1',
+      url: 'http://rp1.com',
+      score: 0,
+      metadataChangedAt: new Date('01-05-2020 12:00:00'),
+      sourceId: 'a',
+      visible: true,
+      createdAt: new Date('01-07-2020 12:00:00'),
+      origin: PostOrigin.Crawler,
+      yggdrasilId: '3d5da6ec-b960-4ad8-8278-665a66b71ddd',
+      title: 'Related post title',
+    });
+    await con.getRepository(PostRelation).save({
+      postId: 'cp1',
+      relatedPostId: 'rp1',
+      createdAt: new Date('01-05-2020 12:00:00'),
+      type: PostRelationType.Collection,
+    });
+
+    const postContext = await buildPostContext(con, 'cp1');
+
+    const ctx: NotificationCollectionContext = {
+      ...postContext!,
+      userId: '3',
+      distinctSources: [sourceA!],
+      total: 4,
+    };
+
+    const notificationId = await saveNotificationFixture(
+      con,
+      NotificationType.CollectionUpdated,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
+    expect(args.dynamicTemplateData).toMatchObject({
+      post_comments: '0',
+      post_image:
+        'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+      post_link:
+        'http://localhost:5002/posts/cp1?utm_source=notification&utm_medium=email&utm_campaign=collection_updated',
+      post_timestamp: 'Jan 05, 2020',
+      post_title: 'New title',
+      post_upvotes: '0',
+      source_image:
+        'https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1',
+      source_name: 'A',
+      source_timestamp: 'Jan 07, 2020',
+      source_title: 'Related post title',
+    });
+    expect(args.templateId).toEqual('d-c051ffef97a148b6a6f14d5edb46b553');
+  });
+
+  it('should not send if post does not have related posts', async () => {
+    const sourceA = await con.getRepository(Source).findOneBy({
+      id: 'a',
+    });
+
+    await con.getRepository(CollectionPost).save({
+      id: 'cp1',
+      shortId: 'cp1',
+      url: 'http://cp1.com',
+      score: 0,
+      metadataChangedAt: new Date('01-05-2020 12:00:00'),
+      sourceId: 'a',
+      visible: true,
+      createdAt: new Date('01-05-2020 12:00:00'),
+      origin: PostOrigin.Crawler,
+      yggdrasilId: '3d5da6ec-b960-4ad8-8278-665a66b71c1f',
+    });
+
+    const postContext = await buildPostContext(con, 'cp1');
+
+    const ctx: NotificationCollectionContext = {
+      ...postContext!,
+      userId: '3',
+      distinctSources: [sourceA!],
+      total: 4,
+    };
+
+    const notificationId = await saveNotificationFixture(
+      con,
+      NotificationType.CollectionUpdated,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(0);
+  });
 });

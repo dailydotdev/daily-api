@@ -25,7 +25,10 @@ import {
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
-import { notificationFixture } from './fixture/notifications';
+import {
+  notificationFixture,
+  notificationV2Fixture,
+} from './fixture/notifications';
 import { subDays } from 'date-fns';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
@@ -38,6 +41,8 @@ import {
 } from '../src/notifications/common';
 import { postsFixture, sharedPostsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
+import { NotificationV2 } from '../src/entity/notifications/NotificationV2';
+import { UserNotification } from '../src/entity/notifications/UserNotification';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -480,6 +485,59 @@ describe('mutation readNotifications', () => {
     res1.map((notification) => expect(notification.readAt).toBeTruthy());
     const res2 = await con
       .getRepository(Notification)
+      .find({ where: { userId: '2' }, order: { createdAt: 'desc' } });
+    res2.map((notification) => expect(notification.readAt).toBeFalsy());
+  });
+
+  it('should set unread notifications as read v2', async () => {
+    loggedUser = '1';
+    const notifs = await con.getRepository(NotificationV2).save([
+      notificationV2Fixture,
+      {
+        ...notificationV2Fixture,
+        uniqueKey: '2',
+      },
+      {
+        ...notificationV2Fixture,
+        uniqueKey: '3',
+      },
+      {
+        ...notificationV2Fixture,
+        uniqueKey: '4',
+      },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+      {
+        userId: '1',
+        notificationId: notifs[1].id,
+        createdAt: subDays(notificationV2Fixture.createdAt as Date, 1),
+        readAt: new Date(),
+      },
+      {
+        userId: '1',
+        notificationId: notifs[2].id,
+        createdAt: subDays(notificationV2Fixture.createdAt as Date, 2),
+      },
+      {
+        userId: '1',
+        notificationId: notifs[3].id,
+        createdAt: subDays(notificationV2Fixture.createdAt as Date, 3),
+        readAt: new Date(),
+      },
+      { userId: '2', notificationId: notifs[0].id },
+    ]);
+    await client.mutate(QUERY);
+    const res1 = await con
+      .getRepository(UserNotification)
+      .find({ where: { userId: '1' }, order: { createdAt: 'desc' } });
+    res1.map((notification) => expect(notification.readAt).toBeTruthy());
+    const res2 = await con
+      .getRepository(UserNotification)
       .find({ where: { userId: '2' }, order: { createdAt: 'desc' } });
     res2.map((notification) => expect(notification.readAt).toBeFalsy());
   });
