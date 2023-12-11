@@ -2,12 +2,15 @@ import { messageToJson, Worker } from './worker';
 import { ChangeObject } from '../types';
 import {
   ArticlePost,
+  CollectionPost,
   Comment,
   getNotificationAndChildren,
   Notification,
   NotificationAttachment,
   NotificationAvatar,
   Post,
+  PostRelation,
+  PostRelationType,
   SharePost,
   Source,
   SourceRequest,
@@ -61,7 +64,7 @@ const notificationToTemplateId: Record<NotificationType, string> = {
   post_mention: '',
   promoted_to_moderator: 'd-b1dbd1e86ee14bf094f7616f7469fee8',
   squad_subscribe_to_notification: '',
-  collection_updated: '',
+  collection_updated: 'd-c051ffef97a148b6a6f14d5edb46b553',
 };
 
 type TemplateDataFunc = (
@@ -501,8 +504,55 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       ),
     };
   },
-  collection_updated: async () => {
-    return null;
+  collection_updated: async (con, user, notification) => {
+    const post = await con.getRepository(CollectionPost).findOne({
+      where: {
+        id: notification.referenceId,
+      },
+    });
+
+    if (!post) {
+      return;
+    }
+
+    const latestPostRelation = await con.getRepository(PostRelation).findOne({
+      where: {
+        postId: post.id,
+        type: PostRelationType.Collection,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+      relations: {
+        relatedPost: {
+          source: true,
+        },
+      },
+    });
+
+    if (!latestPostRelation) {
+      return;
+    }
+
+    const latestRelatedPost =
+      (await latestPostRelation.relatedPost) as ArticlePost;
+    const latestRelatedPostSource = await latestRelatedPost.source;
+
+    return {
+      post_title: truncatePostToTweet(post),
+      post_image: post.image || pickImageUrl(post),
+      post_upvotes: post.upvotes,
+      post_comments: post.comments,
+      post_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      post_timestamp: formatMailDate(post.metadataChangedAt),
+      source_title: truncatePostToTweet(latestRelatedPost),
+      source_image: latestRelatedPost.image || pickImageUrl(latestRelatedPost),
+      source_timestamp: formatMailDate(latestRelatedPost.createdAt),
+      source_name: latestRelatedPostSource.name,
+    };
   },
 };
 
