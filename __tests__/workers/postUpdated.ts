@@ -740,43 +740,7 @@ describe('on post update', () => {
 });
 
 describe('on youtube post', () => {
-  it('create a new video post', async () => {
-    await expectSuccessfulBackground(worker, {
-      id: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
-      post_id: undefined,
-      updated_at: new Date('01-05-2023 12:00:00'),
-      source_id: 'a',
-      title: 'test',
-      url: 'https://youtu.be/T_AbQGe7fuU',
-      extra: {
-        content_curation: ['news', 'story', 'release'],
-        duration: 12,
-        keywords: ['mongodb', 'alpinejs'],
-        keywords_native: ['ab-testing'],
-        description: 'A description of a video',
-        summary: 'A short summary of a video',
-      },
-      content_type: PostType.VideoYouTube,
-    });
-
-    const post = await con.getRepository(YouTubePost).findOneBy({
-      yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
-    });
-
-    expect(post).toMatchObject({
-      type: 'video:youtube',
-      title: 'test',
-      sourceId: 'a',
-      yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
-      url: 'https://youtu.be/T_AbQGe7fuU',
-      contentCuration: ['news', 'story', 'release'],
-      readTime: 12,
-      description: 'A description of a video',
-      summary: 'A short summary of a video',
-    });
-  });
-
-  it('should update a video post', async () => {
+  beforeEach(async () => {
     await con.getRepository(YouTubePost).save([
       {
         id: 'yt1',
@@ -795,6 +759,44 @@ describe('on youtube post', () => {
     ]);
 
     await createDefaultKeywords();
+  });
+  it('should create a new video post', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: 'a7edf0c8-aec7-4586-b411-b1dd431ce8d6',
+      post_id: undefined,
+      updated_at: new Date('01-05-2023 12:00:00'),
+      source_id: 'a',
+      title: 'test',
+      url: 'https://youtu.be/FftMDvlYDIg',
+      extra: {
+        content_curation: ['news', 'story', 'release'],
+        duration: 12,
+        keywords: ['mongodb', 'alpinejs'],
+        keywords_native: ['ab-testing'],
+        description: 'A description of a video',
+        summary: 'A short summary of a video',
+      },
+      content_type: PostType.VideoYouTube,
+    });
+
+    const post = await con.getRepository(YouTubePost).findOneBy({
+      yggdrasilId: 'a7edf0c8-aec7-4586-b411-b1dd431ce8d6',
+    });
+
+    expect(post).toMatchObject({
+      type: 'video:youtube',
+      title: 'test',
+      sourceId: 'a',
+      yggdrasilId: 'a7edf0c8-aec7-4586-b411-b1dd431ce8d6',
+      url: 'https://youtu.be/FftMDvlYDIg',
+      contentCuration: ['news', 'story', 'release'],
+      readTime: 12,
+      description: 'A description of a video',
+      summary: 'A short summary of a video',
+    });
+  });
+
+  it('should update a video post', async () => {
     await expectSuccessfulBackground(worker, {
       id: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
       post_id: 'yt1',
@@ -837,6 +839,35 @@ describe('on youtube post', () => {
       description: 'A description of a video',
       summary: 'A short summary of a video',
     });
+  });
+
+  it('should not duplicate keywords', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
+      post_id: 'yt1',
+      source_id: 'squad',
+      extra: {
+        keywords: ['mongodb', 'alpinejs'],
+        keywords_native: ['mongodb', 'alpinejs', 'ab-testing'],
+      },
+      content_type: PostType.VideoYouTube,
+    });
+
+    const post = await con.getRepository(YouTubePost).findOneBy({
+      yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
+    });
+
+    const tagsArray = post?.tagsStr.split(',');
+    expect(tagsArray?.length).toEqual(3);
+    ['mongodb', 'alpinejs', 'ab-testing'].forEach((item) => {
+      expect(tagsArray).toContain(item);
+    });
+    const postKeywords = await con.getRepository(PostKeyword).find({
+      where: {
+        postId: 'yt1',
+      },
+    });
+    expect(postKeywords.length).toEqual(3);
   });
 });
 
