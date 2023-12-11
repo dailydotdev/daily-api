@@ -772,7 +772,6 @@ describe('on youtube post', () => {
         content_curation: ['news', 'story', 'release'],
         duration: 12,
         keywords: ['mongodb', 'alpinejs'],
-        keywords_native: ['ab-testing'],
         description: 'A description of a video',
         summary: 'A short summary of a video',
       },
@@ -806,7 +805,6 @@ describe('on youtube post', () => {
         content_curation: ['news', 'story', 'release'],
         duration: 12,
         keywords: ['mongodb', 'alpinejs'],
-        keywords_native: ['ab-testing'],
         description: 'A description of a video',
         summary: 'A short summary of a video',
       },
@@ -818,7 +816,7 @@ describe('on youtube post', () => {
     });
 
     const tagsArray = post?.tagsStr.split(',');
-    ['mongodb', 'alpinejs', 'ab-testing'].forEach((item) => {
+    ['mongodb', 'alpinejs'].forEach((item) => {
       expect(tagsArray).toContain(item);
     });
     const postKeywords = await con.getRepository(PostKeyword).find({
@@ -826,7 +824,7 @@ describe('on youtube post', () => {
         postId: 'yt1',
       },
     });
-    expect(postKeywords.length).toEqual(3);
+    expect(postKeywords.length).toEqual(2);
 
     expect(post).toMatchObject({
       type: 'video:youtube',
@@ -839,35 +837,6 @@ describe('on youtube post', () => {
       description: 'A description of a video',
       summary: 'A short summary of a video',
     });
-  });
-
-  it('should not duplicate keywords', async () => {
-    await expectSuccessfulBackground(worker, {
-      id: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
-      post_id: 'yt1',
-      source_id: 'squad',
-      extra: {
-        keywords: ['mongodb', 'alpinejs'],
-        keywords_native: ['mongodb', 'alpinejs', 'ab-testing'],
-      },
-      content_type: PostType.VideoYouTube,
-    });
-
-    const post = await con.getRepository(YouTubePost).findOneBy({
-      yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
-    });
-
-    const tagsArray = post?.tagsStr.split(',');
-    expect(tagsArray?.length).toEqual(3);
-    ['mongodb', 'alpinejs', 'ab-testing'].forEach((item) => {
-      expect(tagsArray).toContain(item);
-    });
-    const postKeywords = await con.getRepository(PostKeyword).find({
-      where: {
-        postId: 'yt1',
-      },
-    });
-    expect(postKeywords.length).toEqual(3);
   });
 });
 

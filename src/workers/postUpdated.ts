@@ -52,7 +52,6 @@ interface Data {
   collections?: string[];
   extra?: {
     keywords?: string[];
-    keywords_native?: string[];
     questions?: string[];
     summary?: string;
     description?: string;
@@ -417,17 +416,9 @@ const fixData = async ({
     data,
   });
 
-  let keywords: string[] = [];
-  if (data?.extra?.keywords) {
-    keywords = keywords.concat(data.extra.keywords);
-  }
-  if (data?.extra?.keywords_native) {
-    keywords = keywords.concat(data.extra.keywords_native);
-  }
-
   const { allowedKeywords, mergedKeywords } = await mergeKeywords(
     entityManager,
-    keywords,
+    data?.extra?.keywords,
   );
 
   if (allowedKeywords.length > 5) {
