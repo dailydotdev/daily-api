@@ -261,11 +261,11 @@ const updatePost = async ({
 
   // If we don't find the post, we need to check if it's a youtube video and
   // try to find it again as an article
-  if (!databasePost && content_type === PostType.VideoYouTube) {
+  if (!databasePost) {
     await entityManager
       .createQueryBuilder()
       .update(Post)
-      .set({ type: PostType.VideoYouTube })
+      .set({ type: content_type })
       .where('id = :id', { id })
       .execute();
 
