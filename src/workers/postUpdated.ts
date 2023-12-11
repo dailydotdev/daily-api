@@ -255,9 +255,24 @@ const updatePost = async ({
   content_type = PostType.Article,
 }: UpdatePostProps) => {
   const postType = contentTypeFromPostType[content_type];
-  const databasePost = await entityManager
+  let databasePost = await entityManager
     .getRepository(postType)
     .findOneBy({ id });
+
+  // If we don't find the post, we need to check if it's a youtube video and
+  // try to find it again as an article
+  if (!databasePost) {
+    await entityManager
+      .createQueryBuilder()
+      .update(Post)
+      .set({ type: content_type })
+      .where('id = :id', { id })
+      .execute();
+
+    databasePost = await entityManager
+      .getRepository(postType)
+      .findOneBy({ id });
+  }
 
   if (data?.origin === PostOrigin.Squad) {
     data.sourceId = UNKNOWN_SOURCE;
