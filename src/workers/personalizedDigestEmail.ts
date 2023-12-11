@@ -196,7 +196,7 @@ const worker: Worker = {
 
     const posts: TemplatePostData[] = await fixedIdsFeedBuilder(
       {},
-      feedResponse.map(([postId]) => postId),
+      feedResponse.data.map(([postId]) => postId),
       con
         .createQueryBuilder(Post, 'p')
         .select(

@@ -39,6 +39,7 @@ import {
   Page,
   PageGenerator,
   getSearchQuery,
+  feedCursorPageGenerator,
 } from './common';
 import { GQLPost } from './posts';
 import { Connection, ConnectionArguments } from 'graphql-relay';
@@ -884,7 +885,7 @@ const feedResolverV2: IFieldResolver<
   (ctx, args, builder, alias, queryParams) =>
     fixedIdsFeedBuilder(
       ctx,
-      queryParams.map(([postId]) => postId as string),
+      queryParams.data.map(([postId]) => postId as string),
       builder,
       alias,
     ),
@@ -901,6 +902,37 @@ const feedResolverV2: IFieldResolver<
         ctx.userId || ctx.trackingId,
         page.limit,
         page.offset,
+      ),
+    warnOnPartialFirstPage: true,
+  },
+);
+
+const feedResolverCursor: IFieldResolver<
+  unknown,
+  Context,
+  FeedArgs & { generator: FeedGenerator }
+> = feedResolver(
+  (ctx, args, builder, alias, queryParams) =>
+    fixedIdsFeedBuilder(
+      ctx,
+      queryParams.data.map(([postId]) => postId as string),
+      builder,
+      alias,
+    ),
+  feedCursorPageGenerator(30, 50),
+  (ctx, args, page, builder) => builder,
+  {
+    fetchQueryParams: (
+      ctx,
+      args: FeedArgs & { generator: FeedGenerator },
+      page,
+    ) =>
+      args.generator.generate(
+        ctx,
+        ctx.userId || ctx.trackingId,
+        page.limit,
+        0,
+        page.cursor,
       ),
     warnOnPartialFirstPage: true,
   },
@@ -925,6 +957,18 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
+        // Temporary hack to enable caching only for v20 will be fixed once we roll it out to 100%
+        if (args.version === 20) {
+          return feedResolverCursor(
+            source,
+            {
+              ...(args as FeedArgs),
+              generator: versionToFeedGenerator(args.version),
+            },
+            ctx,
+            info,
+          );
+        }
         return feedResolverV2(
           source,
           {
