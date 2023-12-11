@@ -259,8 +259,7 @@ const updatePost = async ({
     .getRepository(postType)
     .findOneBy({ id });
 
-  // If we don't find the post, we need to check if it's a youtube video and
-  // try to find it again as an article
+  // Update the post type in the database so that it matches the content type
   if (!databasePost) {
     await entityManager
       .createQueryBuilder()
