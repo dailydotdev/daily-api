@@ -136,7 +136,7 @@ export class CachedFeedClient implements IFeedClient {
       );
       pipeline.set(
         `${key}:posts`,
-        JSON.stringify(items),
+        JSON.stringify(items.data),
         'EX',
         ONE_DAY_IN_SECONDS,
       );
@@ -157,10 +157,10 @@ export class CachedFeedClient implements IFeedClient {
     const cloneConfig = { ...config };
     delete cloneConfig.offset;
     const feedRes = await this.client.fetchFeed(ctx, feedId, cloneConfig);
-    if (feedRes.data.length) {
+    if (feedRes?.data.length) {
       // Don't wait for cache to update to gain some performance
       this.updateCache(feedId, config, feedRes);
     }
-    return { data: feedRes.data.slice(offset, pageSize + offset) };
+    return { data: feedRes?.data.slice(offset, pageSize + offset) };
   }
 }
