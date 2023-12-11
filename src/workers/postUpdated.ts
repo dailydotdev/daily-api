@@ -217,6 +217,7 @@ const createPost = async ({
 const allowedFieldsMapping = {
   [PostType.VideoYouTube]: [
     'type',
+    'videoId',
     'contentCuration',
     'description',
     'metadataChangedAt',

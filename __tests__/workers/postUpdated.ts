@@ -748,6 +748,7 @@ describe('on youtube post', () => {
         title: 'youtube post',
         score: 0,
         url: 'https://youtu.be/T_AbQGe7fuU',
+        videoId: 'T_AbQGe7fuU',
         metadataChangedAt: new Date('01-05-2020 12:00:00'),
         sourceId: 'a',
         visible: true,
@@ -818,7 +819,7 @@ describe('on youtube post', () => {
       id: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
       post_id: 'yt1',
       updated_at: new Date('01-05-2023 12:00:00'),
-      source_id: 'squad',
+      source_id: 'a',
       extra: {
         content_curation: ['news', 'story', 'release'],
         duration: 12,
@@ -853,6 +854,7 @@ describe('on youtube post', () => {
       readTime: 12,
       description: 'A description of a video',
       summary: 'A short summary of a video',
+      videoId: 'T_AbQGe7fuU',
     });
   });
 
@@ -868,6 +870,9 @@ describe('on youtube post', () => {
       updated_at: new Date('01-05-2023 12:00:00'),
       source_id: 'squad',
       content_type: PostType.VideoYouTube,
+      extra: {
+        video_id: 'Oso6dYXw5lc',
+      },
     });
 
     const post = await con.getRepository(YouTubePost).findOneBy({
@@ -881,6 +886,7 @@ describe('on youtube post', () => {
       sourceId: 'squad',
       yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
       url: 'https://youtu.be/Oso6dYXw5lc',
+      videoId: 'Oso6dYXw5lc',
     });
   });
 });
