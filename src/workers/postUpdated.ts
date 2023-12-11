@@ -417,9 +417,17 @@ const fixData = async ({
     data,
   });
 
+  let keywords: string[] = [];
+  if (data?.extra?.keywords) {
+    keywords = keywords.concat(data.extra.keywords);
+  }
+  if (data?.extra?.keywords_native) {
+    keywords = keywords.concat(data.extra.keywords_native);
+  }
+
   const { allowedKeywords, mergedKeywords } = await mergeKeywords(
     entityManager,
-    [...(data?.extra?.keywords || []), ...(data?.extra?.keywords_native || [])],
+    keywords,
   );
 
   if (allowedKeywords.length > 5) {
