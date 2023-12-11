@@ -19,6 +19,7 @@ import {
   UNKNOWN_SOURCE,
   User,
   WelcomePost,
+  YouTubePost,
 } from '../../src/entity';
 import { PostRelationType } from '../../src/entity/posts/PostRelation';
 import { sourcesFixture } from '../fixture/source';
@@ -734,6 +735,107 @@ describe('on post update', () => {
       expect(questionsAfter.map((q) => q.question)).toEqual(
         expect.arrayContaining(DEFAULT_QUESTIONS),
       );
+    });
+  });
+});
+
+describe('on youtube post', () => {
+  beforeEach(async () => {
+    await con.getRepository(YouTubePost).save([
+      {
+        id: 'yt1',
+        shortId: 'yt1',
+        title: 'youtube post',
+        score: 0,
+        url: 'https://youtu.be/T_AbQGe7fuU',
+        metadataChangedAt: new Date('01-05-2020 12:00:00'),
+        sourceId: 'squad',
+        visible: true,
+        createdAt: new Date('01-05-2020 12:00:00'),
+        type: PostType.VideoYouTube,
+        origin: PostOrigin.Squad,
+        yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
+      },
+    ]);
+
+    await createDefaultKeywords();
+  });
+  it('should create a new video post', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: 'a7edf0c8-aec7-4586-b411-b1dd431ce8d6',
+      post_id: undefined,
+      updated_at: new Date('01-05-2023 12:00:00'),
+      source_id: 'a',
+      title: 'test',
+      url: 'https://youtu.be/FftMDvlYDIg',
+      extra: {
+        content_curation: ['news', 'story', 'release'],
+        duration: 12,
+        keywords: ['mongodb', 'alpinejs'],
+        description: 'A description of a video',
+        summary: 'A short summary of a video',
+      },
+      content_type: PostType.VideoYouTube,
+    });
+
+    const post = await con.getRepository(YouTubePost).findOneBy({
+      yggdrasilId: 'a7edf0c8-aec7-4586-b411-b1dd431ce8d6',
+    });
+
+    expect(post).toMatchObject({
+      type: 'video:youtube',
+      title: 'test',
+      sourceId: 'a',
+      yggdrasilId: 'a7edf0c8-aec7-4586-b411-b1dd431ce8d6',
+      url: 'https://youtu.be/FftMDvlYDIg',
+      contentCuration: ['news', 'story', 'release'],
+      readTime: 12,
+      description: 'A description of a video',
+      summary: 'A short summary of a video',
+    });
+  });
+
+  it('should update a video post', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
+      post_id: 'yt1',
+      updated_at: new Date('01-05-2023 12:00:00'),
+      source_id: 'squad',
+      extra: {
+        content_curation: ['news', 'story', 'release'],
+        duration: 12,
+        keywords: ['mongodb', 'alpinejs'],
+        description: 'A description of a video',
+        summary: 'A short summary of a video',
+      },
+      content_type: PostType.VideoYouTube,
+    });
+
+    const post = await con.getRepository(YouTubePost).findOneBy({
+      yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
+    });
+
+    const tagsArray = post?.tagsStr.split(',');
+    ['mongodb', 'alpinejs'].forEach((item) => {
+      expect(tagsArray).toContain(item);
+    });
+    const postKeywords = await con.getRepository(PostKeyword).find({
+      where: {
+        postId: 'yt1',
+      },
+    });
+    expect(postKeywords.length).toEqual(2);
+
+    expect(post).toMatchObject({
+      type: 'video:youtube',
+      title: 'youtube post',
+      sourceId: 'squad',
+      yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
+      url: 'https://youtu.be/T_AbQGe7fuU',
+      contentCuration: ['news', 'story', 'release'],
+      readTime: 12,
+      description: 'A description of a video',
+      summary: 'A short summary of a video',
     });
   });
 });

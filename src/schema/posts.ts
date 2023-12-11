@@ -507,6 +507,11 @@ export const typeDefs = /* GraphQL */ `
     Total number of related sources for collection post
     """
     numCollectionSources: Int!
+
+    """
+    Video ID for video post
+    """
+    videoId: String
   }
 
   type PostConnection {
