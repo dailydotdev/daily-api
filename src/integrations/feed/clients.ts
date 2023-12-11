@@ -8,6 +8,7 @@ import { retryFetchParse } from '../retry';
 
 type RawFeedServiceResponse = {
   data: { post_id: string; metadata: Record<string, string> }[];
+  cursor?: string;
 };
 
 /**
@@ -37,12 +38,15 @@ export class FeedClient implements IFeedClient {
     );
     if (!res?.data?.length) {
       ctx?.log.warn({ config }, 'empty response received from feed service');
-      return [];
+      return { data: [] };
     }
-    return res.data.map(({ post_id, metadata }) => [
-      post_id,
-      (metadata && JSON.stringify(metadata)) || null,
-    ]);
+    return {
+      data: res.data.map(({ post_id, metadata }) => [
+        post_id,
+        (metadata && JSON.stringify(metadata)) || null,
+      ]),
+      cursor: res.cursor,
+    };
   }
 }
 
@@ -106,9 +110,11 @@ export class CachedFeedClient implements IFeedClient {
           cachedFeed.slice(offset, pageSize + offset);
         // Support legacy cache that contains only post id
         if (page.length && typeof page[0] === 'string') {
-          return (page as string[]).map((postId) => [postId, undefined]);
+          return {
+            data: (page as string[]).map((postId) => [postId, undefined]),
+          };
         }
-        return page as [string, string | undefined][];
+        return { data: page as [string, string | undefined][] };
       }
     }
     return undefined;
@@ -151,10 +157,10 @@ export class CachedFeedClient implements IFeedClient {
     const cloneConfig = { ...config };
     delete cloneConfig.offset;
     const feedRes = await this.client.fetchFeed(ctx, feedId, cloneConfig);
-    if (feedRes.length) {
+    if (feedRes.data.length) {
       // Don't wait for cache to update to gain some performance
       this.updateCache(feedId, config, feedRes);
     }
-    return feedRes.slice(offset, pageSize + offset);
+    return { data: feedRes.data.slice(offset, pageSize + offset) };
   }
 }
