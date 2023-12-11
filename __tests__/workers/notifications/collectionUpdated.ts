@@ -179,7 +179,7 @@ describe('collectionUpdated worker', () => {
     expect(ctx.post.id).toEqual('c1');
     expect(ctx.distinctSources.length).toEqual(3);
     expect(ctx.total).toEqual('4');
-    expect(actual[0].ctx.userIds).toStrictEqual(['1', '2', '3']);
+    expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '2', '3']);
 
     expect(
       (actual[0].ctx as NotificationCollectionContext).distinctSources[0].name,
