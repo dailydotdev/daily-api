@@ -14,7 +14,6 @@ import { Connection as ConnectionRelay } from 'graphql-relay/connection/connecti
 import graphorm from '../graphorm';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { GQLEmptyResponse } from './common';
-import { notifyNotificationsRead } from '../common';
 import { redisPubSub } from '../redis';
 import {
   NotificationPreferenceStatus,
@@ -368,9 +367,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           notificationsPageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
           builder.queryBuilder
-            .andWhere(`${builder.alias}."userId" = :user`, { user: ctx.userId })
-            .andWhere(`${builder.alias}."public" = true`)
-            .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+            .andWhere(`un."userId" = :user`, { user: ctx.userId })
+            .andWhere(`un."public" = true`)
+            .addOrderBy(`un."createdAt"`, 'DESC');
 
           builder.queryBuilder.limit(page.limit);
           if (page.timestamp) {
@@ -434,9 +433,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .getRepository(UserNotification)
             .update(criteria, partialEntity),
         ]);
-      });
-      await notifyNotificationsRead(ctx.log, {
-        unreadNotificationsCount: 0,
       });
       return { _: true };
     },
