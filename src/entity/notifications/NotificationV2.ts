@@ -1,6 +1,16 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  DataSource,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { NotificationType } from '../../notifications/common';
 import { NotificationReferenceType } from './Notification';
+import { NotificationAttachmentV2 } from './NotificationAttachmentV2';
+import { NotificationAvatarV2 } from './NotificationAvatarV2';
+import { UserNotification } from './UserNotification';
+import { ReadStream } from 'fs';
 
 @Entity()
 @Index('ID_notification_v2_reference', ['referenceId', 'referenceType'])
@@ -52,3 +62,42 @@ export class NotificationV2 {
   @Column({ type: 'uuid', array: true, default: null })
   avatars: string[];
 }
+
+export const getNotificationV2AndChildren = (
+  con: DataSource,
+  id: string,
+): Promise<
+  [NotificationV2 | null, NotificationAttachmentV2[], NotificationAvatarV2[]]
+> => {
+  return Promise.all([
+    con.getRepository(NotificationV2).findOneBy({ id }),
+    con
+      .createQueryBuilder()
+      .select('na.*')
+      .from(NotificationAttachmentV2, 'na')
+      .innerJoin(NotificationV2, 'n', 'na.id = any(n.attachments)')
+      .where('n.id = :id', { id })
+      .orderBy('array_position(n.attachments, na.id)', 'ASC')
+      .getRawMany(),
+    con
+      .createQueryBuilder()
+      .select('na.*')
+      .from(NotificationAvatarV2, 'na')
+      .innerJoin(NotificationV2, 'n', 'na.id = any(n.avatars)')
+      .where('n.id = :id', { id })
+      .orderBy('array_position(n.avatars, na.id)', 'ASC')
+      .getRawMany(),
+  ]);
+};
+
+export const streamNotificationUsers = (
+  con: DataSource,
+  id: string,
+): Promise<ReadStream> => {
+  const query = con
+    .createQueryBuilder()
+    .select('un."userId"')
+    .from(UserNotification, 'un')
+    .where('un."notificationId" = :id', { id });
+  return query.stream();
+};
