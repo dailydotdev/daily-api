@@ -909,7 +909,6 @@ describe('on youtube post', () => {
         summary:
           'Introducing daily.dev Search, a feature that allows users to dive deeper into topics they have read about on daily.dev. With search recommendations, users can easily find relevant content in their feeds.',
         view_count: 134,
-        // TODO: check why this was not included in the message from yggdrasil
         video_id: 'T_AbQGe7fuU',
       },
     });
