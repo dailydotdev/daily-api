@@ -16,6 +16,7 @@ function getDefaultConfig(
   userId: string | undefined,
   pageSize: number,
   offset: number,
+  cursor?: string,
 ): FeedConfig {
   const freshPageSize = Math.ceil(pageSize / 3).toFixed(0);
   const config: FeedConfig = {
@@ -28,6 +29,9 @@ function getDefaultConfig(
   if (userId) {
     config.user_id = userId;
   }
+  if (cursor) {
+    config.cursor = cursor;
+  }
   return config;
 }
 
@@ -38,8 +42,8 @@ export class SimpleFeedConfigGenerator implements FeedConfigGenerator {
     this.baseConfig = baseConfig;
   }
 
-  async generate(ctx, userId, pageSize, offset): Promise<FeedConfig> {
-    return getDefaultConfig(this.baseConfig, userId, pageSize, offset);
+  async generate(ctx, userId, pageSize, offset, cursor): Promise<FeedConfig> {
+    return getDefaultConfig(this.baseConfig, userId, pageSize, offset, cursor);
   }
 }
 
@@ -55,8 +59,14 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
     this.opts = opts;
   }
 
-  async generate(ctx, userId, pageSize, offset): Promise<FeedConfig> {
-    const config = getDefaultConfig(this.baseConfig, userId, pageSize, offset);
+  async generate(ctx, userId, pageSize, offset, cursor): Promise<FeedConfig> {
+    const config = getDefaultConfig(
+      this.baseConfig,
+      userId,
+      pageSize,
+      offset,
+      cursor,
+    );
     const filters = await feedToFilters(ctx.con, userId, userId);
     if (filters.includeTags?.length && this.opts.includeAllowedTags) {
       config.allowed_tags = filters.includeTags;
@@ -89,7 +99,7 @@ export class FeedUserStateConfigGenerator implements FeedConfigGenerator {
     this.generators = generators;
   }
 
-  async generate(ctx, userId, pageSize, offset): Promise<FeedConfig> {
+  async generate(ctx, userId, pageSize, offset, cursor): Promise<FeedConfig> {
     const userState = await this.snotraClient.fetchUserState({
       user_id: userId,
       providers: { personalise: {} },
@@ -99,6 +109,7 @@ export class FeedUserStateConfigGenerator implements FeedConfigGenerator {
       userId,
       pageSize,
       offset,
+      cursor,
     );
   }
 }

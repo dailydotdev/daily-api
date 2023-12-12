@@ -45,7 +45,7 @@ export const notifyPostReport = async (
     text: 'Post was just reported!',
     attachments: [
       {
-        title: post.title ?? '',
+        title: post.title ?? `Post ${post.id}`,
         title_link: getDiscussionLink(post.id),
         fields: [
           {
