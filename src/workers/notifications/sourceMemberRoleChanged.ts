@@ -43,7 +43,7 @@ const worker: NotificationWorker = {
       .getRepository(Source)
       .findOneBy({ id: member.sourceId });
     const baseCtx: NotificationSourceContext = {
-      userId: member.userId,
+      userIds: [member.userId],
       source,
     };
     if (!source) {
@@ -61,12 +61,10 @@ const worker: NotificationWorker = {
             ctx: { ...baseCtx, role: previousRole },
           },
         ];
-        break;
       case 'promoted_to_admin':
       case 'promoted_to_moderator':
       case 'squad_blocked':
         return [{ type: roleToNotificationMap, ctx: baseCtx }];
-        break;
     }
   },
 };

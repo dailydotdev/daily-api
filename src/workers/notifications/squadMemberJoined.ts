@@ -50,15 +50,17 @@ const worker: NotificationWorker = {
       return;
     }
 
-    return admins.map(({ userId }) => ({
-      type: NotificationType.SquadMemberJoined,
-      ctx: {
-        userId,
-        post,
-        source,
-        doneBy,
+    return [
+      {
+        type: NotificationType.SquadMemberJoined,
+        ctx: {
+          userIds: admins.map(({ userId }) => userId),
+          post,
+          source,
+          doneBy,
+        },
       },
-    }));
+    ];
   },
 };
 

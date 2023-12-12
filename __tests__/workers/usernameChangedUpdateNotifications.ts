@@ -42,7 +42,7 @@ it('should update targetUrl of user avatars', async () => {
   });
   const commenter1 = await con.getRepository(User).findOneBy({ id: '2' });
   const ctx1: NotificationCommenterContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     source,
     comment: comment1,
@@ -57,7 +57,7 @@ it('should update targetUrl of user avatars', async () => {
   });
   const commenter2 = await con.getRepository(User).findOneBy({ id: '3' });
   const ctx2: NotificationCommenterContext = {
-    userId: '1',
+    userIds: ['1'],
     post,
     source,
     comment: comment2,

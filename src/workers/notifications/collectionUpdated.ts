@@ -8,7 +8,7 @@ import {
   getDistinctSourcesBaseQuery,
 } from '../../entity';
 import { ChangeObject } from '../../types';
-import { NotificationHandlerReturn, NotificationWorker } from './worker';
+import { NotificationWorker } from './worker';
 import { buildPostContext } from './utils';
 import { NotificationCollectionContext } from '../../notifications';
 import {
@@ -35,8 +35,6 @@ export const collectionUpdated: NotificationWorker = {
       return;
     }
 
-    const notifs: NotificationHandlerReturn = [];
-
     const distinctSources = await getDistinctSourcesBaseQuery({
       con,
       postId: post.id,
@@ -56,17 +54,16 @@ export const collectionUpdated: NotificationWorker = {
       status: NotificationPreferenceStatus.Subscribed,
     });
 
-    members.forEach(({ userId }) =>
-      notifs.push({
+    return [
+      {
         type: NotificationType.CollectionUpdated,
         ctx: {
           ...baseCtx,
-          userId,
           distinctSources,
           total: numTotalAvatars,
+          userIds: members.map(({ userId }) => userId),
         } as NotificationCollectionContext,
-      }),
-    );
-    return notifs;
+      },
+    ];
   },
 };

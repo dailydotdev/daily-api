@@ -60,7 +60,7 @@ export const getSubscribedMembers = (
 export const buildPostContext = async (
   con: DataSource,
   postId: string,
-): Promise<Omit<NotificationPostContext, 'userId'> | null> => {
+): Promise<Omit<NotificationPostContext, 'userIds'> | null> => {
   const post = await con
     .getRepository(Post)
     .findOne({ where: { id: postId }, relations: ['source'] });
@@ -132,7 +132,7 @@ export async function articleNewCommentHandler(
   }
 
   const commenter = await comment.user;
-  const ctx: Omit<NotificationCommenterContext, 'userId'> = {
+  const ctx: Omit<NotificationCommenterContext, 'userIds'> = {
     ...postCtx,
     commenter,
     comment,
@@ -153,10 +153,12 @@ export async function articleNewCommentHandler(
       return;
     }
 
-    return members.map(({ userId }) => ({
-      type,
-      ctx: { ...ctx, userId },
-    }));
+    return [
+      {
+        type,
+        ctx: { ...ctx, userIds: members.map(({ userId }) => userId) },
+      },
+    ];
   }
 
   const muted = await con.getRepository(NotificationPreferencePost).findBy({
@@ -167,9 +169,17 @@ export async function articleNewCommentHandler(
     status: NotificationPreferenceStatus.Muted,
   });
 
-  return users
-    .filter((id) => muted.every(({ userId }) => userId !== id))
-    .map((userId) => ({ type, ctx: { ...ctx, userId } }));
+  return [
+    {
+      type,
+      ctx: {
+        ...ctx,
+        userIds: users.filter((id) =>
+          muted.every(({ userId }) => userId !== id),
+        ),
+      },
+    },
+  ];
 }
 
 export const UPVOTE_TITLES = {

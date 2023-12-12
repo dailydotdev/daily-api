@@ -1,0 +1,187 @@
+import { DataSource, In } from 'typeorm';
+import createOrGetConnection from '../../src/db';
+import { saveFixtures } from '../helpers';
+import {
+  ArticlePost,
+  NotificationAttachmentV2,
+  NotificationAvatarV2,
+  NotificationV2,
+  Source,
+  User,
+} from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
+import { postsFixture } from '../fixture/post';
+import { usersFixture } from '../fixture/user';
+import { notificationWorkerToWorker } from '../../src/workers/notifications';
+import { buildPostContext } from '../../src/workers/notifications/utils';
+import { NotificationType } from '../../src/notifications/common';
+import { UserNotification } from '../../src/entity/notifications/UserNotification';
+import { NotificationWorker } from '../../src/workers/notifications/worker';
+
+let con: DataSource;
+
+beforeAll(async () => {
+  con = await createOrGetConnection();
+});
+
+beforeEach(async () => {
+  await saveFixtures(con, Source, sourcesFixture);
+  await saveFixtures(con, ArticlePost, postsFixture);
+  await saveFixtures(con, User, usersFixture);
+});
+
+const baseWorker: NotificationWorker = {
+  subscription: 'sub',
+  handler: async (message, con) => {
+    const postCtx = await buildPostContext(con, 'p1');
+    const users = await con
+      .getRepository(User)
+      .find({ where: { id: In(['1', '2']) } });
+    return [
+      {
+        type: NotificationType.ArticleUpvoteMilestone,
+        ctx: {
+          ...postCtx,
+          upvoters: users,
+          upvotes: 2,
+          userIds: ['3', '4'],
+        },
+      },
+    ];
+  },
+};
+
+describe('notificationWorkerToWorker', () => {
+  it('should create notifications v2', async () => {
+    const worker = notificationWorkerToWorker(baseWorker);
+    await worker.handler(null, con, null, null);
+    const avatars = await con
+      .getRepository(NotificationAvatarV2)
+      .find({ order: { referenceId: 'ASC' } });
+    expect(avatars).toEqual([
+      {
+        id: expect.any(String),
+        image: 'https://daily.dev/ido.jpg',
+        name: 'Ido',
+        referenceId: '1',
+        targetUrl: 'http://localhost:5002/idoshamun',
+        type: 'user',
+      },
+      {
+        id: expect.any(String),
+        image: 'https://daily.dev/tsahi.jpg',
+        name: 'Tsahi',
+        referenceId: '2',
+        targetUrl: 'http://localhost:5002/tsahidaily',
+        type: 'user',
+      },
+    ]);
+    const attachments = await con
+      .getRepository(NotificationAttachmentV2)
+      .find({ order: { referenceId: 'ASC' } });
+    expect(attachments).toEqual([
+      {
+        id: expect.any(String),
+        image: 'https://daily.dev/image.jpg',
+        referenceId: 'p1',
+        title: 'P1',
+        type: 'post',
+      },
+    ]);
+    const notifications = await con.getRepository(NotificationV2).find();
+    expect(notifications).toEqual([
+      {
+        attachments: attachments.map(({ id }) => id),
+        avatars: avatars.map(({ id }) => id),
+        createdAt: expect.any(Date),
+        description: null,
+        icon: 'Upvote',
+        id: expect.any(String),
+        numTotalAvatars: null,
+        public: true,
+        referenceId: 'p1',
+        referenceType: 'post',
+        targetUrl: 'http://localhost:5002/posts/p1',
+        title: expect.any(String),
+        type: 'article_upvote_milestone',
+        uniqueKey: '2',
+      },
+    ]);
+    const userNotifications = await con
+      .getRepository(UserNotification)
+      .find({ order: { userId: 'ASC' } });
+    expect(userNotifications).toEqual([
+      {
+        createdAt: notifications[0].createdAt,
+        notificationId: notifications[0].id,
+        public: true,
+        readAt: null,
+        userId: '3',
+      },
+      {
+        createdAt: notifications[0].createdAt,
+        notificationId: notifications[0].id,
+        public: true,
+        readAt: null,
+        userId: '4',
+      },
+    ]);
+  });
+
+  it('should reuse attachments and avatars', async () => {
+    const worker = notificationWorkerToWorker(baseWorker);
+    await con.getRepository(NotificationAvatarV2).save({
+      image: 'https://daily.dev/ido.jpg',
+      name: 'Ido',
+      referenceId: '1',
+      targetUrl: 'http://localhost:5002/idoshamun',
+      type: 'user',
+    });
+    await con.getRepository(NotificationAttachmentV2).save({
+      image: 'https://daily.dev/image.jpg',
+      referenceId: 'p1',
+      title: 'P1',
+      type: 'post',
+    });
+    await worker.handler(null, con, null, null);
+    const avatars = await con
+      .getRepository(NotificationAvatarV2)
+      .find({ order: { referenceId: 'ASC' } });
+    expect(avatars.length).toEqual(2);
+    const attachments = await con
+      .getRepository(NotificationAttachmentV2)
+      .find({ order: { referenceId: 'ASC' } });
+    expect(attachments.length).toEqual(1);
+    const notifications = await con.getRepository(NotificationV2).find();
+    expect(notifications[0].attachments).toEqual(
+      attachments.map(({ id }) => id),
+    );
+    expect(notifications[0].avatars).toEqual(avatars.map(({ id }) => id));
+  });
+
+  it('should denormalize public properly', async () => {
+    const worker = notificationWorkerToWorker({
+      subscription: 'sub',
+      handler: async (message, con) => {
+        const postCtx = await buildPostContext(con, 'p1');
+        return [
+          {
+            type: NotificationType.ArticleReportApproved,
+            ctx: {
+              ...postCtx,
+              userIds: ['3', '4'],
+            },
+          },
+        ];
+      },
+    });
+    await worker.handler(null, con, null, null);
+    const notifications = await con.getRepository(NotificationV2).find();
+    expect(notifications.length).toEqual(1);
+    expect(notifications[0].public).toEqual(false);
+    const userNotifications = await con
+      .getRepository(UserNotification)
+      .find({ where: { public: false } });
+    expect(userNotifications.length).toEqual(2);
+  });
+});

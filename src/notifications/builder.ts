@@ -5,6 +5,7 @@ import {
   Notification,
   NotificationAttachment,
   NotificationAvatar,
+  NotificationV2,
   Post,
   PostType,
   Source,
@@ -16,7 +17,7 @@ import {
 import { getDiscussionLink, getSourceLink, pickImageUrl } from '../common';
 import { getUserPermalink } from '../schema/users';
 import { markdownToTxt } from 'markdown-to-txt';
-import { NotificationBundle, Reference } from './types';
+import { NotificationBundle, NotificationBundleV2, Reference } from './types';
 import { NotificationIcon } from './icons';
 import { SourceMemberRoles } from '../roles';
 import { NotificationType } from './common';
@@ -39,21 +40,36 @@ const roleToIcon: Record<SourceMemberRoles, NotificationIcon> = {
 };
 
 export class NotificationBuilder {
-  notification: DeepPartial<Notification> = {};
+  notification: DeepPartial<Omit<NotificationV2, 'attachments' | 'avatars'>> =
+    {};
   avatars: DeepPartial<NotificationAvatar>[] = [];
   attachments: DeepPartial<NotificationAttachment>[] = [];
+  userIds: string[] = [];
 
-  constructor(type: NotificationType, userId: string) {
-    this.notification = { type, userId, public: true };
+  constructor(type: NotificationType, userIds: string[]) {
+    this.notification = { type, public: true };
+    this.userIds = userIds;
   }
 
-  static new(type: NotificationType, userId: string): NotificationBuilder {
-    return new NotificationBuilder(type, userId);
+  static new(type: NotificationType, userIds: string[]): NotificationBuilder {
+    return new NotificationBuilder(type, userIds);
   }
 
   build(): NotificationBundle {
     return {
+      notification: {
+        ...this.notification,
+        userId: this.userIds[0],
+      },
+      avatars: this.avatars,
+      attachments: this.attachments,
+    };
+  }
+
+  buildV2(): NotificationBundleV2 {
+    return {
       notification: this.notification,
+      userIds: this.userIds,
       avatars: this.avatars,
       attachments: this.attachments,
     };
