@@ -2,7 +2,10 @@ import {
   Comment,
   Notification,
   NotificationAttachment,
+  NotificationAttachmentV2,
   NotificationAvatar,
+  NotificationAvatarV2,
+  NotificationV2,
   Post,
   Source,
   SourceRequest,
@@ -21,7 +24,14 @@ export type NotificationBundle = {
   attachments?: DeepPartial<NotificationAttachment>[];
 };
 
-export type NotificationBaseContext = { userId: string };
+export type NotificationBundleV2 = {
+  notification: DeepPartial<NotificationV2>;
+  userIds: string[];
+  avatars?: DeepPartial<NotificationAvatarV2>[];
+  attachments?: DeepPartial<NotificationAttachmentV2>[];
+};
+
+export type NotificationBaseContext = { userIds: string[] };
 export type NotificationSubmissionContext = NotificationBaseContext & {
   submission: Pick<Submission, 'id'>;
 };

@@ -24,10 +24,12 @@ const worker: NotificationWorker = {
     if (!users.length) {
       return;
     }
-    return users.map((userId) => ({
-      type: NotificationType.ArticleReportApproved,
-      ctx: { ...ctx, userId },
-    }));
+    return [
+      {
+        type: NotificationType.ArticleReportApproved,
+        ctx: { ...ctx, userIds: users },
+      },
+    ];
   },
 };
 

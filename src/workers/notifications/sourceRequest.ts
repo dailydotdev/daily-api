@@ -16,7 +16,7 @@ const worker: NotificationWorker = {
   handler: async (message, con) => {
     const data: Data = messageToJson(message);
     const ctx: NotificationSourceRequestContext = {
-      userId: data.sourceRequest.userId,
+      userIds: [data.sourceRequest.userId],
       sourceRequest: data.sourceRequest,
     };
     switch (data.reason) {

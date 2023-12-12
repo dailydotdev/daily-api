@@ -37,7 +37,7 @@ const worker: NotificationWorker = {
     const upvoters = await Promise.all(upvotes.map((upvote) => upvote.user));
     const ctx: Omit<
       NotificationPostContext & NotificationUpvotersContext,
-      'userId'
+      'userIds'
     > = {
       ...postCtx,
       upvoters,
@@ -55,16 +55,20 @@ const worker: NotificationWorker = {
         return;
       }
 
-      return members.map(({ userId }) => ({
-        type: NotificationType.ArticleUpvoteMilestone,
-        ctx: { ...ctx, userId },
-      }));
+      return [
+        {
+          type: NotificationType.ArticleUpvoteMilestone,
+          ctx: { ...ctx, userIds: members.map(({ userId }) => userId) },
+        },
+      ];
     }
 
-    return users.map((userId) => ({
-      type: NotificationType.ArticleUpvoteMilestone,
-      ctx: { ...ctx, userId },
-    }));
+    return [
+      {
+        type: NotificationType.ArticleUpvoteMilestone,
+        ctx: { ...ctx, userIds: users },
+      },
+    ];
   },
 };
 

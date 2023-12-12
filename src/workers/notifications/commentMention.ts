@@ -1,6 +1,5 @@
 import { messageToJson } from '../worker';
 import { Comment, CommentMention } from '../../entity';
-import { NotificationCommenterContext } from '../../notifications';
 import { NotificationType } from '../../notifications/common';
 import { NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
@@ -45,13 +44,17 @@ const worker: NotificationWorker = {
       return;
     }
     const commenter = await comment.user;
-    const ctx: NotificationCommenterContext = {
-      ...postCtx,
-      userId: data.commentMention.mentionedUserId,
-      commenter,
-      comment,
-    };
-    return [{ type: NotificationType.CommentMention, ctx }];
+    return [
+      {
+        type: NotificationType.CommentMention,
+        ctx: {
+          ...postCtx,
+          userIds: [data.commentMention.mentionedUserId],
+          commenter,
+          comment,
+        },
+      },
+    ];
   },
 };
 
