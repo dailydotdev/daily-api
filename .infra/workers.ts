@@ -105,10 +105,6 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.new-notification',
-    subscription: 'api.unread-notification-count',
-  },
-  {
-    topic: 'api.v1.new-notification',
     subscription: 'api.new-notification-real-time',
   },
   {
@@ -243,7 +239,7 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.post-collection-updated',
     subscription: 'api.post-collection-updated-notification',
-  }
+  },
 ];
 
 export const personalizedDigestWorkers = [
