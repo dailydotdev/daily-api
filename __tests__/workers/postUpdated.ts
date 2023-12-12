@@ -741,6 +741,11 @@ describe('on post update', () => {
 
 describe('on youtube post', () => {
   beforeEach(async () => {
+    await con.getRepository(Source).save({
+      id: UNKNOWN_SOURCE,
+      name: 'Unknown',
+      handle: UNKNOWN_SOURCE,
+    });
     await con.getRepository(YouTubePost).save([
       {
         id: 'yt1',
@@ -774,6 +779,19 @@ describe('on youtube post', () => {
         origin: PostOrigin.Squad,
         yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
       },
+      {
+        id: 'HR6jmCxzE',
+        shortId: 'HR6jmCxzE',
+        title: 'Introducing daily.dev Search',
+        score: 0,
+        url: 'https://www.youtube.com/watch?v=T_AbQGe7fuU',
+        metadataChangedAt: new Date('2023-12-11T13:28:31.470744'),
+        canonicalUrl: 'https://www.youtube.com/watch?v=T_AbQGe7fuU',
+        visible: true,
+        createdAt: new Date('2023-12-11T13:28:31.476Z'),
+        type: PostType.Article,
+        origin: PostOrigin.Squad
+      }
     ]);
 
     await createDefaultKeywords();
@@ -855,6 +873,65 @@ describe('on youtube post', () => {
       description: 'A description of a video',
       summary: 'A short summary of a video',
       videoId: 'T_AbQGe7fuU',
+    });
+  });
+
+  it('should update a real youtube video post', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: "7922f432-f554-5967-80b5-932fe7320ac2",
+      post_id: "HR6jmCxzE",
+      content_type: "video:youtube",
+      source_id: "unknown",
+      origin: "squads",
+      order: 0,
+      url: "https://www.youtube.com/watch?v=T_AbQGe7fuU",
+      image: "https://i.ytimg.com/vi/T_AbQGe7fuU/sddefault.jpg",
+      title: "Introducing daily.dev Search",
+      published_at: "2023-11-07T12:04:12Z",
+      updated_at: "2023-12-11T13:28:36.997703Z",
+      extra: {
+        channel_title: "daily dev",
+        comment_count: 3,
+        content_curation: [
+          "release"
+        ],
+        description: "Try it out: https://daily.dev/daily-dev-search",
+        duration: 63,
+        keywords: [
+          "developer-tools",
+          "search-recommendations",
+          "daily-dev-search"
+        ],
+        like_count: 13,
+        questions: [
+          "What is daily.dev Search?",
+          "How does search recommendations work on daily.dev?",
+          "What are the benefits of using daily.dev Search?"
+        ],
+        summary: "Introducing daily.dev Search, a feature that allows users to dive deeper into topics they have read about on daily.dev. With search recommendations, users can easily find relevant content in their feeds.",
+        view_count: 134,
+        // TODO: check why this was not included in the message from yggdrasil
+        video_id: "T_AbQGe7fuU",
+      }
+    });
+
+    const post = await con.getRepository(YouTubePost).findOneBy({
+      yggdrasilId: '7922f432-f554-5967-80b5-932fe7320ac2',
+    });
+    expect(post).not.toBeNull();
+    expect(post).toMatchObject({
+      contentCuration: [
+        "release",
+      ],
+      description: "Try it out: https://daily.dev/daily-dev-search",
+      readTime: 63,
+      sourceId: "unknown",
+      summary: "Introducing daily.dev Search, a feature that allows users to dive deeper into topics they have read about on daily.dev. With search recommendations, users can easily find relevant content in their feeds.",
+      title: "Introducing daily.dev Search",
+      type: "video:youtube",
+      url: "https://www.youtube.com/watch?v=T_AbQGe7fuU",
+      videoId: "T_AbQGe7fuU",
+      yggdrasilId: "7922f432-f554-5967-80b5-932fe7320ac2"
     });
   });
 
