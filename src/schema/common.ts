@@ -105,6 +105,10 @@ export interface OffsetPage extends Page {
   offset: number;
 }
 
+export interface CursorPage extends Page {
+  cursor?: string;
+}
+
 export interface PageGenerator<
   TReturn,
   TArgs extends ConnectionArguments,
@@ -168,8 +172,7 @@ export const offsetPageGenerator = <TReturn>(
 });
 
 export const fixedIdsPageGenerator = <
-  TId,
-  TReturn extends { id: TId; feedMeta?: string },
+  TReturn extends { id: string; feedMeta?: string },
 >(
   defaultLimit: number,
   maxLimit: number,
@@ -178,7 +181,7 @@ export const fixedIdsPageGenerator = <
   TReturn,
   ConnectionArguments,
   OffsetPage,
-  [TId, string][]
+  { data: [string, string][]; cursor?: string }
 > => ({
   connArgsToPage: (args: ConnectionArguments): OffsetPage => {
     const limit = Math.min(args.first || defaultLimit, maxLimit) + 1;
@@ -190,16 +193,49 @@ export const fixedIdsPageGenerator = <
   },
   nodeToCursor: (page, args, node, i, queryParams): string =>
     offsetToCursor(
-      page.offset + queryParams.findIndex(([postId]) => postId === node.id),
+      page.offset +
+        queryParams.data.findIndex(([postId]) => postId === node.id),
     ),
   hasNextPage: (page, nodesSize, total, queryParams): boolean =>
-    queryParams.length >= page.limit,
+    queryParams.data.length >= page.limit,
   hasPreviousPage: (page): boolean => page.offset > 0,
   transformNodes: (page, nodes, queryParams) => {
     // Add the metadata object
     return nodes.slice(0, page.limit - 1).map((node) => ({
       ...node,
-      feedMeta: queryParams.find(([postId]) => postId === node.id)?.[1],
+      feedMeta: queryParams.data.find(([postId]) => postId === node.id)?.[1],
+    }));
+  },
+});
+
+export const feedCursorPageGenerator = <
+  TReturn extends { id: string; feedMeta?: string },
+>(
+  defaultLimit: number,
+  maxLimit: number,
+): PageGenerator<
+  TReturn,
+  ConnectionArguments,
+  CursorPage,
+  { data: [string, string][]; cursor?: string }
+> => ({
+  connArgsToPage: (args: ConnectionArguments): CursorPage => {
+    const limit = Math.min(args.first || defaultLimit, maxLimit);
+    return {
+      limit,
+      cursor: args.after,
+    };
+  },
+  nodeToCursor: (page, args, node, i, queryParams): string =>
+    queryParams.cursor,
+  hasNextPage: (page, nodesSize, total, queryParams): boolean =>
+    queryParams.data.length >= page.limit,
+  hasPreviousPage: (page): boolean => !!page.cursor,
+  transformNodes: (page, nodes, queryParams) => {
+    // Add the metadata object
+    return nodes.map((node) => ({
+      ...node,
+      feedMeta: queryParams.data.find(([postId]) => postId === node.id)?.[1],
     }));
   },
 });

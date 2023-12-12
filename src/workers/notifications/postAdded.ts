@@ -42,7 +42,7 @@ const worker: NotificationWorker = {
     if (post.scoutId) {
       const ctx: NotificationPostContext = {
         ...baseCtx,
-        userId: post.scoutId,
+        userIds: [post.scoutId],
       };
       notifs.push({ type: NotificationType.CommunityPicksSucceeded, ctx });
     }
@@ -53,7 +53,7 @@ const worker: NotificationWorker = {
         if (post.authorId && !post.private) {
           const ctx: NotificationPostContext = {
             ...baseCtx,
-            userId: post.authorId,
+            userIds: [post.authorId],
           };
           notifs.push({ type: NotificationType.ArticlePicked, ctx });
         }
@@ -73,16 +73,16 @@ const worker: NotificationWorker = {
             role: Not(SourceMemberRoles.Blocked),
           },
         );
-        members.forEach(({ userId }) =>
+        if (members.length) {
           notifs.push({
             type: NotificationType.SquadPostAdded,
             ctx: {
               ...baseCtx,
               doneBy,
-              userId,
+              userIds: members.map(({ userId }) => userId),
             } as NotificationPostContext & Partial<NotificationDoneByContext>,
-          }),
-        );
+          });
+        }
 
         const hasPostShared = await con.getRepository(UserAction).findOneBy({
           userId: post.authorId,
@@ -102,7 +102,7 @@ const worker: NotificationWorker = {
           if (!subscribed) {
             notifs.push({
               type: NotificationType.SquadSubscribeToNotification,
-              ctx: { ...baseCtx, userId: post.authorId },
+              ctx: { ...baseCtx, userIds: [post.authorId] },
             });
           }
         }

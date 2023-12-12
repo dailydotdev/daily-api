@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { FastifyLoggerInstance } from 'fastify';
+import { FastifyBaseLogger } from 'fastify';
 import { Message } from '../worker';
 import { NotificationBaseContext } from '../../notifications';
 import { NotificationType } from '../../notifications/common';
@@ -14,7 +14,7 @@ export interface NotificationWorker {
   handler: (
     message: Message,
     con: DataSource,
-    logger: FastifyLoggerInstance,
+    logger: FastifyBaseLogger,
   ) => Promise<NotificationHandlerReturn>;
   maxMessages?: number;
 }

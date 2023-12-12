@@ -268,7 +268,7 @@ export const saveNotificationFixture = async (
   ctx: NotificationBaseContext,
 ): Promise<string> => {
   const res = await con.transaction((entityManager) =>
-    storeNotificationBundle(entityManager, [generateNotification(type, ctx)]),
+    storeNotificationBundle(entityManager, generateNotification(type, ctx)),
   );
   return res[0].id;
 };

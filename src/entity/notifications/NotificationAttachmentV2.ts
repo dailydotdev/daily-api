@@ -2,7 +2,9 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { NotificationAttachmentType } from './NotificationAttachment';
 
 @Entity()
-@Index('IDX_notification_attch_v2_type_reference_id', ['type', 'referenceId'])
+@Index('IDX_notification_attch_v2_type_reference_id', ['type', 'referenceId'], {
+  unique: true,
+})
 export class NotificationAttachmentV2 {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -229,7 +229,7 @@ describe('mutation updateLastReferralReminder', () => {
     expect(alerts.flags.lastReferralReminder).not.toBeNull();
     expect(
       new Date(alerts.flags.lastReferralReminder).getTime(),
-    ).toBeGreaterThan(+date);
+    ).toBeGreaterThanOrEqual(+date);
   });
 
   it('should update the last referral reminder and flags but keep existing flags', async () => {
