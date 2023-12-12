@@ -125,33 +125,45 @@ const upsertAndReturnIds = async <Entity>(
   const table = entityManager.getRepository(entity).metadata.tableName;
   const colsStr = cols.map((col) => `"${col.toString()}"`).join(',');
   const uniqueStr = unique.map((col) => `"${col.toString()}"`).join(',');
-  const values = records
+  const paramsPerRow = cols.length + 1;
+  const parametrizedValues = records
     .map(
-      (rec, index) =>
-        `(${index}, ${cols.map((col) => `'${rec[col]}'`).join(',')})`,
+      (_, index) =>
+        `(${new Array(paramsPerRow)
+          .fill(0)
+          .map((_, i) => `$${index * paramsPerRow + i + 1}`)
+          .join(',')})`,
     )
     .join(',');
-  const res = await entityManager.query(`
-    with new_values (i, ${colsStr}) as (values ${values}),
+  const params = records.flatMap((rec, index) => [
+    index,
+    ...cols.map((col) => rec[col]),
+  ]);
+  const res = await entityManager.query(
+    `
+    with new_values (i, ${colsStr}) as (values ${parametrizedValues}),
          ins as (
     insert
     into ${table} (${colsStr})
     select ${colsStr}
     from new_values on conflict do nothing
       returning id, ${uniqueStr}
-   ), recs as (
+      )
+       , recs as (
     select id, ${uniqueStr}
     from ins
     union all
     select id, ${uniqueStr}
     from ${table}
       join new_values using (${uniqueStr})
-   )
-   select id
-   from new_values
-   join recs using (${uniqueStr})
-   order by i;
-  `);
+      )
+    select id
+    from new_values
+           join recs using (${uniqueStr})
+    order by i;
+  `,
+    params,
+  );
   return res.map(({ id }) => id);
 };
 
