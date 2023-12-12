@@ -3,10 +3,15 @@ import {
   NotificationPreferencePost,
   NotificationPreferenceSource,
   Comment,
+  NotificationAttachmentV2,
+  NotificationAvatarV2,
+  NotificationV2,
 } from '../entity';
 import { ValidationError } from 'apollo-server-errors';
 import { DataSource, EntityManager } from 'typeorm';
 import { NotFoundError, TypeOrmError } from '../errors';
+import { ReadStream } from 'fs';
+import { UserNotification } from '../entity/notifications/UserNotification';
 
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
@@ -157,4 +162,43 @@ export const saveNotificationPreference = async (
 
     throw err;
   }
+};
+
+export const getNotificationV2AndChildren = (
+  con: DataSource,
+  id: string,
+): Promise<
+  [NotificationV2 | null, NotificationAttachmentV2[], NotificationAvatarV2[]]
+> => {
+  return Promise.all([
+    con.getRepository(NotificationV2).findOneBy({ id }),
+    con
+      .createQueryBuilder()
+      .select('na.*')
+      .from(NotificationAttachmentV2, 'na')
+      .innerJoin(NotificationV2, 'n', 'na.id = any(n.attachments)')
+      .where('n.id = :id', { id })
+      .orderBy('array_position(n.attachments, na.id)', 'ASC')
+      .getRawMany(),
+    con
+      .createQueryBuilder()
+      .select('na.*')
+      .from(NotificationAvatarV2, 'na')
+      .innerJoin(NotificationV2, 'n', 'na.id = any(n.avatars)')
+      .where('n.id = :id', { id })
+      .orderBy('array_position(n.avatars, na.id)', 'ASC')
+      .getRawMany(),
+  ]);
+};
+
+export const streamNotificationUsers = (
+  con: DataSource,
+  id: string,
+): Promise<ReadStream> => {
+  const query = con
+    .createQueryBuilder()
+    .select('un."userId"')
+    .from(UserNotification, 'un')
+    .where('un."notificationId" = :id', { id });
+  return query.stream();
 };

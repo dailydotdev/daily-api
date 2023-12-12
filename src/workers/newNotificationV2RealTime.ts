@@ -1,12 +1,12 @@
 import { messageToJson, Worker } from './worker';
 import { redisPubSub } from '../redis';
 import { ChangeObject } from '../types';
+import { NotificationV2 } from '../entity';
+import { processStream } from '../common/streaming';
 import {
   getNotificationV2AndChildren,
-  NotificationV2,
   streamNotificationUsers,
-} from '../entity/notifications/NotificationV2';
-import { processStream } from '../common/streaming';
+} from '../notifications/common';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
