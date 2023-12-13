@@ -433,11 +433,13 @@ const obj = new GraphORM({
   Notification: {
     from: 'NotificationV2',
     additionalQuery: (ctx, alias, qb) =>
-      qb.innerJoin(
-        UserNotification,
-        'un',
-        `"${alias}".id = un."notificationId"`,
-      ),
+      qb
+        .innerJoin(
+          UserNotification,
+          'un',
+          `"${alias}".id = un."notificationId"`,
+        )
+        .addSelect('un."readAt"'),
     fields: {
       avatars: {
         relation: {
