@@ -378,6 +378,26 @@ describe('query notifications', () => {
     });
     expect(res2.data).toMatchSnapshot();
   });
+
+  it('should populate the readAt field', async () => {
+    loggedUser = '1';
+    const notifs = await con
+      .getRepository(NotificationV2)
+      .save([{ ...notificationV2Fixture }]);
+    const date = new Date();
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+        readAt: date,
+      },
+    ]);
+    const res = await client.query(QUERY);
+    expect(res.data.notifications.edges[0].node.readAt).toEqual(
+      date.toISOString(),
+    );
+  });
 });
 
 const prepareNotificationPreferences = async ({
