@@ -12,8 +12,9 @@ import {
   CampaignCtaPlacement,
   CollectionPost,
   PostRelation,
+  PostRelationType,
+  NotificationV2,
 } from '../../src/entity';
-import { PostRelationType } from '../../src/entity/posts/PostRelation';
 import {
   notifyCommentCommented,
   notifyCommentUpvoteCanceled,
@@ -69,7 +70,6 @@ import {
   Feature,
   FeatureType,
   Feed,
-  Notification,
   Post,
   PostReport,
   Settings,
@@ -190,7 +190,7 @@ describe('source request', () => {
         table: 'source_request',
       }),
     );
-    expect(notifySourceRequest).toBeCalledTimes(1);
+    expect(notifySourceRequest).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
       'new',
       after,
@@ -215,7 +215,7 @@ describe('source request', () => {
         table: 'source_request',
       }),
     );
-    expect(notifySourceRequest).toBeCalledTimes(1);
+    expect(notifySourceRequest).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
       'publish',
       after,
@@ -239,7 +239,7 @@ describe('source request', () => {
         table: 'source_request',
       }),
     );
-    expect(notifySourceRequest).toBeCalledTimes(1);
+    expect(notifySourceRequest).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
       'decline',
       after,
@@ -263,7 +263,7 @@ describe('source request', () => {
         table: 'source_request',
       }),
     );
-    expect(notifySourceRequest).toBeCalledTimes(1);
+    expect(notifySourceRequest).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
       'approve',
       after,
@@ -295,8 +295,8 @@ describe('post upvote', () => {
         table: 'user_post',
       }),
     );
-    expect(notifyPostUpvoted).toBeCalledTimes(1);
-    expect(notifyPostUpvoteCanceled).toBeCalledTimes(0);
+    expect(notifyPostUpvoted).toHaveBeenCalledTimes(1);
+    expect(notifyPostUpvoteCanceled).toHaveBeenCalledTimes(0);
     expect(jest.mocked(notifyPostUpvoted).mock.calls[0].slice(1)).toEqual([
       'p1',
       '1',
@@ -313,8 +313,8 @@ describe('post upvote', () => {
         table: 'user_post',
       }),
     );
-    expect(notifyPostUpvoted).toBeCalledTimes(0);
-    expect(notifyPostUpvoteCanceled).toBeCalledTimes(1);
+    expect(notifyPostUpvoted).toHaveBeenCalledTimes(0);
+    expect(notifyPostUpvoteCanceled).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifyPostUpvoteCanceled).mock.calls[0].slice(1),
     ).toEqual(['p1', '1']);
@@ -333,8 +333,8 @@ describe('post upvote', () => {
         table: 'user_post',
       }),
     );
-    expect(notifyPostUpvoted).toBeCalledTimes(1);
-    expect(notifyPostUpvoteCanceled).toBeCalledTimes(0);
+    expect(notifyPostUpvoted).toHaveBeenCalledTimes(1);
+    expect(notifyPostUpvoteCanceled).toHaveBeenCalledTimes(0);
     expect(jest.mocked(notifyPostUpvoted).mock.calls[0].slice(1)).toEqual([
       'p1',
       '1',
@@ -354,8 +354,8 @@ describe('post upvote', () => {
         table: 'user_post',
       }),
     );
-    expect(notifyPostUpvoted).toBeCalledTimes(0);
-    expect(notifyPostUpvoteCanceled).toBeCalledTimes(1);
+    expect(notifyPostUpvoted).toHaveBeenCalledTimes(0);
+    expect(notifyPostUpvoteCanceled).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifyPostUpvoteCanceled).mock.calls[0].slice(1),
     ).toEqual(['p1', '1']);
@@ -377,8 +377,8 @@ describe('post upvote', () => {
         table: 'user_post',
       }),
     );
-    expect(notifyPostUpvoted).toBeCalledTimes(0);
-    expect(notifyPostUpvoteCanceled).toBeCalledTimes(0);
+    expect(notifyPostUpvoted).toHaveBeenCalledTimes(0);
+    expect(notifyPostUpvoteCanceled).toHaveBeenCalledTimes(0);
   });
 });
 
@@ -401,7 +401,7 @@ describe('comment upvote', () => {
         table: 'comment_upvote',
       }),
     );
-    expect(notifyCommentUpvoted).toBeCalledTimes(1);
+    expect(notifyCommentUpvoted).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyCommentUpvoted).mock.calls[0].slice(1)).toEqual([
       'c1',
       '1',
@@ -418,7 +418,7 @@ describe('comment upvote', () => {
         table: 'comment_upvote',
       }),
     );
-    expect(notifyCommentUpvoteCanceled).toBeCalledTimes(1);
+    expect(notifyCommentUpvoteCanceled).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifyCommentUpvoteCanceled).mock.calls[0].slice(1),
     ).toEqual(['c1', '1']);
@@ -452,7 +452,7 @@ describe('comment', () => {
         table: 'comment',
       }),
     );
-    expect(notifyPostCommented).toBeCalledTimes(1);
+    expect(notifyPostCommented).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyPostCommented).mock.calls[0].slice(1)).toEqual([
       'p1',
       '1',
@@ -474,7 +474,7 @@ describe('comment', () => {
         table: 'comment',
       }),
     );
-    expect(notifyCommentCommented).toBeCalledTimes(1);
+    expect(notifyCommentCommented).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyCommentCommented).mock.calls[0].slice(1)).toEqual([
       'p1',
       '1',
@@ -497,7 +497,7 @@ describe('comment', () => {
         table: 'comment',
       }),
     );
-    expect(notifyCommentEdited).toBeCalledTimes(1);
+    expect(notifyCommentEdited).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyCommentEdited).mock.calls[0].slice(1)).toEqual([
       after,
     ]);
@@ -513,7 +513,7 @@ describe('comment', () => {
         table: 'comment',
       }),
     );
-    expect(notifyCommentDeleted).toBeCalledTimes(1);
+    expect(notifyCommentDeleted).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyCommentDeleted).mock.calls[0].slice(1)).toEqual([
       base,
     ]);
@@ -533,7 +533,7 @@ describe('user', () => {
         op: 'c',
       }),
     );
-    expect(notifyUserCreated).toBeCalledTimes(1);
+    expect(notifyUserCreated).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyUserCreated).mock.calls[0].slice(1)).toEqual([
       base,
     ]);
@@ -553,7 +553,7 @@ describe('user', () => {
         op: 'u',
       }),
     );
-    expect(notifyUserUpdated).toBeCalledTimes(1);
+    expect(notifyUserUpdated).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyUserUpdated).mock.calls[0].slice(1)).toEqual([
       base,
       after,
@@ -574,7 +574,7 @@ describe('user', () => {
         op: 'u',
       }),
     );
-    expect(notifyUsernameChanged).toBeCalledTimes(1);
+    expect(notifyUsernameChanged).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyUsernameChanged).mock.calls[0].slice(1)).toEqual([
       '1',
       'idoshamun',
@@ -660,7 +660,7 @@ describe('user_state', () => {
         table: 'user_state',
       }),
     );
-    expect(notifySubmissionGrantedAccess).toBeCalledTimes(1);
+    expect(notifySubmissionGrantedAccess).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifySubmissionGrantedAccess).mock.calls[0].slice(1),
     ).toEqual(['1']);
@@ -686,7 +686,7 @@ describe('comment mention', () => {
         table: 'comment_mention',
       }),
     );
-    expect(notifyNewCommentMention).toBeCalledTimes(1);
+    expect(notifyNewCommentMention).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyNewCommentMention).mock.calls[0].slice(1)).toEqual(
       [after],
     );
@@ -712,7 +712,7 @@ describe('post mention', () => {
         table: 'post_mention',
       }),
     );
-    expect(notifyNewPostMention).toBeCalledTimes(1);
+    expect(notifyNewPostMention).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyNewPostMention).mock.calls[0].slice(1)).toEqual([
       after,
     ]);
@@ -742,7 +742,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostVisible).toBeCalledTimes(0);
+    expect(notifyPostVisible).toHaveBeenCalledTimes(0);
   });
 
   it('should notify on post visible on creation', async () => {
@@ -759,7 +759,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostVisible).toBeCalledTimes(1);
+    expect(notifyPostVisible).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyPostVisible).mock.calls[0].slice(1)).toEqual([
       after,
     ]);
@@ -779,7 +779,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostVisible).toBeCalledTimes(1);
+    expect(notifyPostVisible).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyPostVisible).mock.calls[0].slice(1)).toEqual([
       after,
     ]);
@@ -804,7 +804,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostContentEdited).toBeCalledTimes(0);
+    expect(notifyPostContentEdited).toHaveBeenCalledTimes(0);
   });
 
   it('should notify on post edited', async () => {
@@ -826,7 +826,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostContentEdited).toBeCalledTimes(1);
+    expect(notifyPostContentEdited).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyPostContentEdited).mock.calls[0].slice(1)).toEqual(
       [after],
     );
@@ -846,7 +846,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifySendAnalyticsReport).toBeCalledTimes(1);
+    expect(notifySendAnalyticsReport).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifySendAnalyticsReport).mock.calls[0].slice(1),
     ).toEqual(['p1']);
@@ -866,7 +866,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostBannedOrRemoved).toBeCalledTimes(1);
+    expect(notifyPostBannedOrRemoved).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1),
     ).toEqual([after]);
@@ -886,7 +886,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostBannedOrRemoved).toBeCalledTimes(1);
+    expect(notifyPostBannedOrRemoved).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifyPostBannedOrRemoved).mock.calls[0].slice(1),
     ).toEqual([after]);
@@ -910,7 +910,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostBannedOrRemoved).toBeCalledTimes(0);
+    expect(notifyPostBannedOrRemoved).toHaveBeenCalledTimes(0);
   });
 
   it('should update post metadata changed at', async () => {
@@ -998,7 +998,7 @@ describe('post', () => {
       }),
     );
 
-    expect(notifyFreeformContentRequested).toBeCalledTimes(1);
+    expect(notifyFreeformContentRequested).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifyFreeformContentRequested).mock.calls[0][1].payload
         .after,
@@ -1022,7 +1022,7 @@ describe('post', () => {
       }),
     );
 
-    expect(notifyFreeformContentRequested).toBeCalledTimes(0);
+    expect(notifyFreeformContentRequested).toHaveBeenCalledTimes(0);
   });
 
   it('should not notify on welcome post', async () => {
@@ -1042,7 +1042,7 @@ describe('post', () => {
       }),
     );
 
-    expect(notifyContentRequested).toBeCalledTimes(0);
+    expect(notifyContentRequested).toHaveBeenCalledTimes(0);
   });
 
   it('should not notify on shared post', async () => {
@@ -1062,7 +1062,7 @@ describe('post', () => {
       }),
     );
 
-    expect(notifyContentRequested).toBeCalledTimes(0);
+    expect(notifyContentRequested).toHaveBeenCalledTimes(0);
   });
 
   it('should notify for edited freeform post greater than 200 edited characters', async () => {
@@ -1087,7 +1087,7 @@ describe('post', () => {
       }),
     );
 
-    expect(notifyFreeformContentRequested).toBeCalledTimes(1);
+    expect(notifyFreeformContentRequested).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifyFreeformContentRequested).mock.calls[0][1].payload
         .before,
@@ -1120,7 +1120,7 @@ describe('post', () => {
       }),
     );
 
-    expect(notifyContentRequested).toBeCalledTimes(0);
+    expect(notifyContentRequested).toHaveBeenCalledTimes(0);
   });
 
   it('should notify when yggdrasil id is available on creation', async () => {
@@ -1137,7 +1137,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostYggdrasilIdSet).toBeCalledTimes(1);
+    expect(notifyPostYggdrasilIdSet).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifyPostYggdrasilIdSet).mock.calls[0].slice(1),
     ).toEqual([after]);
@@ -1157,7 +1157,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostYggdrasilIdSet).toBeCalledTimes(1);
+    expect(notifyPostYggdrasilIdSet).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifyPostYggdrasilIdSet).mock.calls[0].slice(1),
     ).toEqual([after]);
@@ -1177,7 +1177,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostYggdrasilIdSet).toBeCalledTimes(0);
+    expect(notifyPostYggdrasilIdSet).toHaveBeenCalledTimes(0);
   });
 
   describe('collection', () => {
@@ -1283,7 +1283,7 @@ describe('comment report', () => {
       }),
     );
     const comment = await con.getRepository(Comment).findOneBy({ id: 'c1' });
-    expect(notifyCommentReport).toBeCalledTimes(1);
+    expect(notifyCommentReport).toHaveBeenCalledTimes(1);
     expect(notifyCommentReport).toBeCalledWith(
       'u1',
       comment,
@@ -1320,7 +1320,7 @@ describe('post report', () => {
       }),
     );
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(notifyPostReport).toBeCalledTimes(1);
+    expect(notifyPostReport).toHaveBeenCalledTimes(1);
     expect(notifyPostReport).toBeCalledWith(
       'u1',
       post,
@@ -1345,7 +1345,7 @@ describe('post report', () => {
       }),
     );
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(notifyPostReport).toBeCalledTimes(1);
+    expect(notifyPostReport).toHaveBeenCalledTimes(1);
     expect(notifyPostReport).toBeCalledWith(
       'u1',
       post,
@@ -1415,7 +1415,7 @@ describe('settings', () => {
         table: 'settings',
       }),
     );
-    expect(notifySettingsUpdated).toBeCalledTimes(1);
+    expect(notifySettingsUpdated).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifySettingsUpdated).mock.calls[0].slice(1)).toEqual([
       after,
     ]);
@@ -1431,7 +1431,7 @@ describe('settings', () => {
         table: 'settings',
       }),
     );
-    expect(notifySettingsUpdated).toBeCalledTimes(1);
+    expect(notifySettingsUpdated).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifySettingsUpdated).mock.calls[0].slice(1)).toEqual([
       base,
     ]);
@@ -1457,7 +1457,7 @@ describe('source feed', () => {
         table: 'source_feed',
       }),
     );
-    expect(notifySourceFeedAdded).toBeCalledTimes(1);
+    expect(notifySourceFeedAdded).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifySourceFeedAdded).mock.calls[0].slice(1)).toEqual([
       base.sourceId,
       base.feed,
@@ -1474,7 +1474,7 @@ describe('source feed', () => {
         table: 'source_feed',
       }),
     );
-    expect(notifySourceFeedRemoved).toBeCalledTimes(1);
+    expect(notifySourceFeedRemoved).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifySourceFeedRemoved).mock.calls[0].slice(1)).toEqual(
       [base.sourceId, base.feed],
     );
@@ -1601,7 +1601,7 @@ describe('submission', () => {
         table: 'submission',
       }),
     );
-    expect(notifyContentRequested).toBeCalledTimes(1);
+    expect(notifyContentRequested).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
       {
         url: after.url,
@@ -1626,7 +1626,7 @@ describe('submission', () => {
         table: 'submission',
       }),
     );
-    expect(notifySubmissionRejected).toBeCalledTimes(1);
+    expect(notifySubmissionRejected).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifySubmissionRejected).mock.calls[0].slice(1),
     ).toEqual([after]);
@@ -1634,17 +1634,18 @@ describe('submission', () => {
 });
 
 describe('notification', () => {
-  type ObjectType = Notification;
+  type ObjectType = NotificationV2;
   const id = randomUUID();
   const base: ChangeObject<ObjectType> = {
     id,
-    userId: '1',
     type: NotificationType.CommunityPicksGranted,
     title: 'hello',
     targetUrl: 'target',
     icon: 'icon',
     public: true,
     createdAt: Date.now(),
+    attachments: [],
+    avatars: [],
   };
 
   it('should notify new notification', async () => {
@@ -1655,10 +1656,10 @@ describe('notification', () => {
         after,
         before: null,
         op: 'c',
-        table: 'notification',
+        table: 'notification_v2',
       }),
     );
-    expect(notifyNewNotification).toBeCalledTimes(1);
+    expect(notifyNewNotification).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyNewNotification).mock.calls[0].slice(1)).toEqual([
       after,
     ]);
@@ -1684,7 +1685,7 @@ describe('source member', () => {
         table: 'source_member',
       }),
     );
-    expect(notifyMemberJoinedSource).toBeCalledTimes(1);
+    expect(notifyMemberJoinedSource).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifyMemberJoinedSource).mock.calls[0].slice(1),
     ).toEqual([base]);
@@ -1705,7 +1706,7 @@ describe('source member', () => {
         table: 'source_member',
       }),
     );
-    expect(notifySourceMemberRoleChanged).toBeCalledTimes(1);
+    expect(notifySourceMemberRoleChanged).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifySourceMemberRoleChanged).mock.calls[0].slice(1),
     ).toEqual([base.role, after]);
@@ -1725,7 +1726,7 @@ describe('source member', () => {
         table: 'source_member',
       }),
     );
-    expect(notifySourceMemberRoleChanged).toBeCalledTimes(0);
+    expect(notifySourceMemberRoleChanged).toHaveBeenCalledTimes(0);
   });
 });
 
@@ -1747,7 +1748,7 @@ describe('feature', () => {
         table: 'feature',
       }),
     );
-    expect(notifyFeatureAccess).toBeCalledTimes(1);
+    expect(notifyFeatureAccess).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyFeatureAccess).mock.calls[0].slice(1)).toEqual([
       base,
     ]);
@@ -1772,7 +1773,7 @@ describe('source', () => {
         table: 'source',
       }),
     );
-    expect(notifySourcePrivacyUpdated).toBeCalledTimes(1);
+    expect(notifySourcePrivacyUpdated).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifySourcePrivacyUpdated).mock.calls[0].slice(1),
     ).toEqual([after]);
@@ -1795,7 +1796,7 @@ describe('content image', () => {
         table: 'content_image',
       }),
     );
-    expect(notifyContentImageDeleted).toBeCalledTimes(1);
+    expect(notifyContentImageDeleted).toHaveBeenCalledTimes(1);
     expect(
       jest.mocked(notifyContentImageDeleted).mock.calls[0].slice(1),
     ).toEqual([before]);
@@ -1824,7 +1825,7 @@ describe('banner', () => {
         table: 'banner',
       }),
     );
-    expect(notifyBannerCreated).toBeCalledTimes(1);
+    expect(notifyBannerCreated).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyBannerCreated).mock.calls[0].slice(1)).toEqual([
       before,
     ]);
@@ -1840,7 +1841,7 @@ describe('banner', () => {
         table: 'banner',
       }),
     );
-    expect(notifyBannerRemoved).toBeCalledTimes(1);
+    expect(notifyBannerRemoved).toHaveBeenCalledTimes(1);
     expect(jest.mocked(notifyBannerRemoved).mock.calls[0].slice(1)).toEqual([
       before,
     ]);

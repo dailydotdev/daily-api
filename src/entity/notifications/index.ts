@@ -11,3 +11,4 @@ export * from './NotificationPreferenceComment';
 export * from './NotificationV2';
 export * from './NotificationAvatarV2';
 export * from './NotificationAttachmentV2';
+export * from './UserNotification';
