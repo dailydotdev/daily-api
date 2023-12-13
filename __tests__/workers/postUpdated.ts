@@ -28,6 +28,7 @@ import createOrGetConnection from '../../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from '../fixture/user';
 import { SubmissionFailErrorMessage } from '../../src/errors';
+import { videoPostsFixture } from '../fixture/post';
 
 let con: DataSource;
 
@@ -748,39 +749,9 @@ describe('on youtube post', () => {
         handle: UNKNOWN_SOURCE,
       },
     ]);
-    await saveFixtures(con, YouTubePost, [
-      {
-        id: 'yt1',
-        shortId: 'yt1',
-        title: 'youtube post',
-        score: 0,
-        url: 'https://youtu.be/T_AbQGe7fuU',
-        videoId: 'T_AbQGe7fuU',
-        metadataChangedAt: new Date('01-05-2020 12:00:00'),
-        sourceId: 'a',
-        visible: true,
-        createdAt: new Date('01-05-2020 12:00:00'),
-        type: PostType.VideoYouTube,
-        origin: PostOrigin.Crawler,
-        yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
-      },
-    ]);
+    await saveFixtures(con, YouTubePost, videoPostsFixture);
 
     await saveFixtures(con, ArticlePost, [
-      {
-        id: 'yt2',
-        shortId: 'yt2',
-        title: 'youtube post',
-        score: 0,
-        url: 'https://youtu.be/Oso6dYXw5lc',
-        metadataChangedAt: new Date('01-05-2020 12:00:00'),
-        sourceId: 'squad',
-        visible: true,
-        createdAt: new Date('01-05-2020 12:00:00'),
-        type: PostType.Article,
-        origin: PostOrigin.Squad,
-        yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
-      },
       {
         id: 'HR6jmCxzE',
         shortId: 'HR6jmCxzE',

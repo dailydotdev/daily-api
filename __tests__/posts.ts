@@ -38,7 +38,6 @@ import {
   PostRelationType,
   PostRelation,
   YouTubePost,
-  PostOrigin,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
@@ -46,6 +45,7 @@ import {
   postsFixture,
   postTagsFixture,
   relatedPostsFixture,
+  videoPostsFixture,
 } from './fixture/post';
 import { Roles } from '../src/roles';
 import { DataSource, DeepPartial, IsNull, Not } from 'typeorm';
@@ -95,23 +95,7 @@ beforeEach(async () => {
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
-  await saveFixtures(con, YouTubePost, [
-    {
-      id: 'yt1',
-      shortId: 'yt1',
-      title: 'youtube post',
-      score: 0,
-      url: 'https://youtu.be/T_AbQGe7fuU',
-      videoId: 'T_AbQGe7fuU',
-      metadataChangedAt: new Date('01-05-2020 12:00:00'),
-      sourceId: 'a',
-      visible: true,
-      createdAt: new Date('01-05-2020 12:00:00'),
-      type: PostType.VideoYouTube,
-      origin: PostOrigin.Crawler,
-      yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
-    },
-  ]);
+  await saveFixtures(con, YouTubePost, videoPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await con
     .getRepository(User)
