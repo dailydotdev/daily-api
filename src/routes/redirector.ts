@@ -1,6 +1,6 @@
 import { URL } from 'url';
 import { FastifyInstance } from 'fastify';
-import { ArticlePost } from '../entity';
+import { ArticlePost, Post } from '../entity';
 import { notifyView } from '../common';
 import createOrGetConnection from '../db';
 
@@ -16,7 +16,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           'post.url AS url',
           'post.tagsStr AS "tagsStr"',
         ])
-        .from('post', 'post')
+        .from(Post, 'post')
         .where('post.id = :id OR post.shortId = :id', {
           id: req.params.postId,
         });
