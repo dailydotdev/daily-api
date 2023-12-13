@@ -184,12 +184,13 @@ export const generateNotificationMap: Record<
       .upvotes(ctx.upvotes, ctx.upvoters)
       .descriptionComment(ctx.comment)
       .targetPost(ctx.post, ctx.comment),
-  squad_access: (builder) =>
+  squad_access: (builder, ctx) =>
     builder
       .referenceSystem()
       .icon(NotificationIcon.DailyDev)
       .description(`Create your new Squad`)
-      .targetUrl(squadCreateLink),
+      .targetUrl(squadCreateLink)
+      .uniqueKey(ctx.userIds[0]),
   squad_post_added: (
     builder,
     ctx: NotificationPostContext & NotificationDoneByContext,
@@ -249,13 +250,15 @@ export const generateNotificationMap: Record<
       .targetUrl(process.env.COMMENTS_PREFIX)
       .avatarSource(ctx.source)
       .icon(NotificationIcon.Block)
-      .referenceSource(ctx.source),
+      .referenceSource(ctx.source)
+      .uniqueKey(ctx.userIds[0]),
   squad_subscribe_to_notification: (builder, ctx: NotificationSourceContext) =>
     builder
       .targetUrl(subscribeNotificationsLink)
       .avatarSource(ctx.source)
       .icon(NotificationIcon.Bell)
-      .referenceSource(ctx.source),
+      .referenceSource(ctx.source)
+      .uniqueKey(ctx.userIds[0]),
   promoted_to_admin: (builder, ctx: NotificationSourceContext) =>
     builder
       .avatarSource(ctx.source)
@@ -265,13 +268,15 @@ export const generateNotificationMap: Record<
       .setTargetUrlParameter([
         ['promoted', 'true'],
         ['sid', ctx.source.handle],
-      ]),
+      ])
+      .uniqueKey(ctx.userIds[0]),
   demoted_to_member: (builder, ctx: NotificationSourceMemberRoleContext) =>
     builder
       .avatarSource(ctx.source)
       .sourceMemberRole(ctx.role)
       .referenceSource(ctx.source)
-      .targetSource(ctx.source),
+      .targetSource(ctx.source)
+      .uniqueKey(ctx.userIds[0]),
   promoted_to_moderator: (builder, ctx: NotificationSourceContext) =>
     builder
       .avatarSource(ctx.source)
@@ -281,7 +286,8 @@ export const generateNotificationMap: Record<
       .setTargetUrlParameter([
         ['promoted', 'true'],
         ['sid', ctx.source.handle],
-      ]),
+      ])
+      .uniqueKey(ctx.userIds[0]),
   collection_updated: (builder, ctx: NotificationCollectionContext) =>
     builder
       .icon(NotificationIcon.Bell)

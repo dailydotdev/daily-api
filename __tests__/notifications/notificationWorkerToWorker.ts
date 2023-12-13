@@ -17,6 +17,7 @@ import { buildPostContext } from '../../src/workers/notifications/utils';
 import { NotificationType } from '../../src/notifications/common';
 import { UserNotification } from '../../src/entity/notifications/UserNotification';
 import { NotificationWorker } from '../../src/workers/notifications/worker';
+import { notificationV2Fixture } from '../fixture/notifications';
 
 let con: DataSource;
 
@@ -183,5 +184,21 @@ describe('notificationWorkerToWorker', () => {
       .getRepository(UserNotification)
       .find({ where: { public: false } });
     expect(userNotifications.length).toEqual(2);
+  });
+
+  it('should handle duplicate notification', async () => {
+    await con.getRepository(NotificationV2).save({
+      ...notificationV2Fixture,
+      type: NotificationType.ArticleUpvoteMilestone,
+      referenceId: 'p1',
+      referenceType: 'post',
+      uniqueKey: '2',
+    });
+    const worker = notificationWorkerToWorker(baseWorker);
+    await worker.handler(null, con, null, null);
+    const notifications = await con.getRepository(NotificationV2).find();
+    expect(notifications.length).toEqual(1);
+    const userNotifications = await con.getRepository(UserNotification).find();
+    expect(userNotifications.length).toEqual(0);
   });
 });

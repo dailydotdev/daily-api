@@ -47,7 +47,6 @@ const userDeletedTopic = pubsub.topic('user-deleted');
 const userUpdatedTopic = pubsub.topic('user-updated');
 const usernameChangedTopic = pubsub.topic('username-changed');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
-const notificationsReadTopic = pubsub.topic('api.v1.notifications-read');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
 const viewsTopic = pubsub.topic('views');
@@ -243,12 +242,6 @@ export const notifySourcePrivacyUpdated = (
   log: EventLogger,
   source: ChangeObject<Source>,
 ): Promise<void> => publishEvent(log, sourcePrivacyUpdatedTopic, { source });
-
-export const notifyNotificationsRead = (
-  log: EventLogger,
-  unreadNotificationsCount: ChangeObject<{ unreadNotificationsCount: number }>,
-): Promise<void> =>
-  publishEvent(log, notificationsReadTopic, unreadNotificationsCount);
 
 export const notifyCommentUpvoteCanceled = async (
   log: EventLogger,

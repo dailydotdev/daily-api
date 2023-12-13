@@ -12,6 +12,7 @@ import { User } from '../User';
 import { NotificationAvatar } from './NotificationAvatar';
 import { NotificationAttachment } from './NotificationAttachment';
 import { NotificationType } from '../../notifications/common';
+import { UserNotification } from './UserNotification';
 
 export type NotificationReferenceType =
   | 'source_request'
@@ -97,7 +98,7 @@ export const getUnreadNotificationsCount = async (
   con: DataSource,
   userId: string,
 ) =>
-  await con.getRepository(Notification).count({
+  await con.getRepository(UserNotification).count({
     where: {
       userId,
       public: true,
