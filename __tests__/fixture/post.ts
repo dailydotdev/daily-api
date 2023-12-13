@@ -2,14 +2,34 @@ import { DeepPartial } from 'typeorm';
 import {
   ArticlePost,
   PostKeyword,
+  PostOrigin,
   PostRelation,
   PostTag,
   PostType,
   SharePost,
+  YouTubePost,
 } from '../../src/entity';
 import { PostRelationType } from '../../src/entity/posts/PostRelation';
 
 const now = new Date();
+
+export const videoPostsFixture: DeepPartial<YouTubePost | SharePost>[] = [
+  {
+    id: 'yt1',
+    shortId: 'yt1',
+    title: 'youtube post',
+    score: 0,
+    url: 'https://youtu.be/T_AbQGe7fuU',
+    videoId: 'T_AbQGe7fuU',
+    metadataChangedAt: new Date('01-05-2020 12:00:00'),
+    sourceId: 'a',
+    visible: true,
+    createdAt: new Date('01-05-2020 12:00:00'),
+    type: PostType.VideoYouTube,
+    origin: PostOrigin.Crawler,
+    yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
+  },
+];
 
 export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
   {
@@ -101,6 +121,20 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     type: PostType.Article,
     visible: false,
     contentCuration: ['c1', 'c2'],
+  },
+  {
+    id: 'yt2',
+    shortId: 'yt2',
+    title: 'youtube post',
+    score: 0,
+    url: 'https://youtu.be/Oso6dYXw5lc',
+    metadataChangedAt: new Date('01-05-2020 12:00:00'),
+    sourceId: 'squad',
+    visible: true,
+    createdAt: new Date('01-05-2020 12:00:00'),
+    type: PostType.Article,
+    origin: PostOrigin.Squad,
+    yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
   },
 ];
 

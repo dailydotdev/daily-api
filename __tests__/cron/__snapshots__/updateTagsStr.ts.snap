@@ -34,5 +34,9 @@ Array [
     "id": "squadP1",
     "tagsStr": null,
   },
+  Post {
+    "id": "yt2",
+    "tagsStr": null,
+  },
 ]
 `;

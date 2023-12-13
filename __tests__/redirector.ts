@@ -1,10 +1,10 @@
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
 import { saveFixtures, TEST_UA } from './helpers';
-import { ArticlePost, Source } from '../src/entity';
+import { ArticlePost, Source, YouTubePost } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
-import { postsFixture } from './fixture/post';
+import { postsFixture, videoPostsFixture } from './fixture/post';
 import { notifyView } from '../src/common';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -29,6 +29,7 @@ beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
+  await saveFixtures(con, YouTubePost, videoPostsFixture);
 });
 
 describe('GET /r/:postId', () => {
@@ -41,6 +42,13 @@ describe('GET /r/:postId', () => {
       .get('/r/p1')
       .expect(302)
       .expect('Location', 'http://p1.com/?ref=dailydev');
+  });
+
+  it('should redirect to youtube post url', () => {
+    return request(app.server)
+      .get('/r/yt1')
+      .expect(302)
+      .expect('Location', 'https://youtu.be/T_AbQGe7fuU?ref=dailydev');
   });
 
   it('should render redirect html and notify view event', async () => {

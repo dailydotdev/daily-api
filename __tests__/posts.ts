@@ -37,6 +37,7 @@ import {
   UserPostVote,
   PostRelationType,
   PostRelation,
+  YouTubePost,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
@@ -44,6 +45,7 @@ import {
   postsFixture,
   postTagsFixture,
   relatedPostsFixture,
+  videoPostsFixture,
 } from './fixture/post';
 import { Roles } from '../src/roles';
 import { DataSource, DeepPartial, IsNull, Not } from 'typeorm';
@@ -93,6 +95,7 @@ beforeEach(async () => {
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
+  await saveFixtures(con, YouTubePost, videoPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await con
     .getRepository(User)
@@ -876,8 +879,8 @@ describe('query postByUrl', () => {
   it('should return post if query params on youtube link', async () => {
     await saveFixtures(con, ArticlePost, [
       {
-        id: 'yt1',
-        shortId: 'yt1',
+        id: 'yt0',
+        shortId: 'yt0',
         title: 'Youtube video',
         url: 'https://youtube.com/watch?v=123',
         score: 0,
@@ -2318,6 +2321,29 @@ describe('mutation submitExternalLink', () => {
     const sharedPost = await con
       .getRepository(SharePost)
       .findOneBy({ sharedPostId: articlePost.id });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should share existing youtube post to squad', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'https://youtu.be/T_AbQGe7fuU' },
+    });
+    expect(res.errors).toBeFalsy();
+    const youtubePost = await con
+      .getRepository(YouTubePost)
+      .findOneBy({ url: 'https://youtu.be/T_AbQGe7fuU' });
+    expect(youtubePost.url).toEqual('https://youtu.be/T_AbQGe7fuU');
+    expect(youtubePost.visible).toEqual(true);
+    expect(youtubePost.id).toEqual('yt1');
+
+    expect(notifyContentRequested).toHaveBeenCalledTimes(0);
+
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneBy({ sharedPostId: youtubePost.id });
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
     expect(sharedPost.visible).toEqual(true);
