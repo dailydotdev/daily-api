@@ -879,8 +879,8 @@ describe('query postByUrl', () => {
   it('should return post if query params on youtube link', async () => {
     await saveFixtures(con, ArticlePost, [
       {
-        id: 'yt1',
-        shortId: 'yt1',
+        id: 'yt0',
+        shortId: 'yt0',
         title: 'Youtube video',
         url: 'https://youtube.com/watch?v=123',
         score: 0,

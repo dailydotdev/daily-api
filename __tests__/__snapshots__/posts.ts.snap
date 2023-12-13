@@ -198,7 +198,7 @@ Object {
 exports[`query postByUrl should return post if query params on youtube link 1`] = `
 Object {
   "postByUrl": Object {
-    "id": "yt1",
+    "id": "yt0",
     "title": "Youtube video",
     "url": "https://youtube.com/watch?v=123",
   },
