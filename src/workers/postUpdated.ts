@@ -52,6 +52,7 @@ interface Data {
   collections?: string[];
   extra?: {
     keywords?: string[];
+    keywords_native?: string[];
     questions?: string[];
     summary?: string;
     description?: string;
@@ -430,9 +431,14 @@ const fixData = async ({
     data,
   });
 
+  let keywords = data?.extra?.keywords;
+  if (!data?.extra?.keywords && data?.content_type === PostType.VideoYouTube) {
+    keywords = data?.extra?.keywords_native;
+  }
+
   const { allowedKeywords, mergedKeywords } = await mergeKeywords(
     entityManager,
-    data?.extra?.keywords,
+    keywords,
   );
 
   if (allowedKeywords.length > 5) {

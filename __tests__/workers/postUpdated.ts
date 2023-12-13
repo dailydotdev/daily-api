@@ -963,6 +963,34 @@ describe('on youtube post', () => {
       videoId: 'Oso6dYXw5lc',
     });
   });
+
+  it('should fallback to keywords_native if keywords is missing', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
+      post_id: 'yt1',
+      updated_at: new Date('01-05-2023 12:00:00'),
+      source_id: 'a',
+      extra: {
+        keywords_native: ['mongodb', 'alpinejs'],
+      },
+      content_type: PostType.VideoYouTube,
+    });
+
+    const post = await con.getRepository(YouTubePost).findOneBy({
+      yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
+    });
+
+    const tagsArray = post?.tagsStr.split(',');
+    ['mongodb', 'alpinejs'].forEach((item) => {
+      expect(tagsArray).toContain(item);
+    });
+    const postKeywords = await con.getRepository(PostKeyword).find({
+      where: {
+        postId: 'yt1',
+      },
+    });
+    expect(postKeywords.length).toEqual(2);
+  });
 });
 
 describe('on collection post', () => {
