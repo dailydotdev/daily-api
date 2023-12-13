@@ -6,7 +6,6 @@ import {
   Settings,
   Submission,
   User,
-  Notification,
   CommentMention,
   SourceMember,
   Feature,
@@ -18,6 +17,7 @@ import {
   Banner,
   FreeformPost,
   CollectionPost,
+  NotificationV2,
 } from '../entity';
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
@@ -329,7 +329,7 @@ export const notifySourceMemberRoleChanged = async (
 
 export const notifyNewNotification = async (
   log: EventLogger,
-  notification: ChangeObject<Notification>,
+  notification: ChangeObject<NotificationV2>,
 ): Promise<void> => publishEvent(log, newNotificationTopic, { notification });
 
 export const notifyNewPostMention = async (
