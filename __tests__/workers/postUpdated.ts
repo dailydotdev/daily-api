@@ -741,12 +741,14 @@ describe('on post update', () => {
 
 describe('on youtube post', () => {
   beforeEach(async () => {
-    await con.getRepository(Source).save({
-      id: UNKNOWN_SOURCE,
-      name: 'Unknown',
-      handle: UNKNOWN_SOURCE,
-    });
-    await con.getRepository(YouTubePost).save([
+    await saveFixtures(con, Source, [
+      {
+        id: UNKNOWN_SOURCE,
+        name: 'Unknown',
+        handle: UNKNOWN_SOURCE,
+      },
+    ]);
+    await saveFixtures(con, YouTubePost, [
       {
         id: 'yt1',
         shortId: 'yt1',
@@ -764,7 +766,7 @@ describe('on youtube post', () => {
       },
     ]);
 
-    await con.getRepository(ArticlePost).save([
+    await saveFixtures(con, ArticlePost, [
       {
         id: 'yt2',
         shortId: 'yt2',

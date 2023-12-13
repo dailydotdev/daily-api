@@ -1,7 +1,13 @@
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
 import { saveFixtures, TEST_UA } from './helpers';
-import { ArticlePost, Source } from '../src/entity';
+import {
+  ArticlePost,
+  PostOrigin,
+  PostType,
+  Source,
+  YouTubePost,
+} from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
 import { postsFixture } from './fixture/post';
@@ -29,6 +35,23 @@ beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
+  await saveFixtures(con, YouTubePost, [
+    {
+      id: 'yt1',
+      shortId: 'yt1',
+      title: 'youtube post',
+      score: 0,
+      url: 'https://youtu.be/T_AbQGe7fuU',
+      videoId: 'T_AbQGe7fuU',
+      metadataChangedAt: new Date('01-05-2020 12:00:00'),
+      sourceId: 'a',
+      visible: true,
+      createdAt: new Date('01-05-2020 12:00:00'),
+      type: PostType.VideoYouTube,
+      origin: PostOrigin.Crawler,
+      yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
+    },
+  ]);
 });
 
 describe('GET /r/:postId', () => {
@@ -41,6 +64,13 @@ describe('GET /r/:postId', () => {
       .get('/r/p1')
       .expect(302)
       .expect('Location', 'http://p1.com/?ref=dailydev');
+  });
+
+  it('should redirect to youtube post url', () => {
+    return request(app.server)
+      .get('/r/yt1')
+      .expect(302)
+      .expect('Location', 'https://youtu.be/T_AbQGe7fuU?ref=dailydev');
   });
 
   it('should render redirect html and notify view event', async () => {
