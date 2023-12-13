@@ -24,8 +24,10 @@ import {
 } from '../src/workers/notifications/worker';
 import {
   generateNotification,
+  generateNotificationV2,
   NotificationBaseContext,
   storeNotificationBundle,
+  storeNotificationBundleV2,
 } from '../src/notifications';
 import { NotificationType } from '../src/notifications/common';
 import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
@@ -269,6 +271,17 @@ export const saveNotificationFixture = async (
 ): Promise<string> => {
   const res = await con.transaction((entityManager) =>
     storeNotificationBundle(entityManager, generateNotification(type, ctx)),
+  );
+  return res[0].id;
+};
+
+export const saveNotificationV2Fixture = async (
+  con: DataSource,
+  type: NotificationType,
+  ctx: NotificationBaseContext,
+): Promise<string> => {
+  const res = await con.transaction((entityManager) =>
+    storeNotificationBundleV2(entityManager, generateNotificationV2(type, ctx)),
   );
   return res[0].id;
 };

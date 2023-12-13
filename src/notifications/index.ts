@@ -196,12 +196,12 @@ async function upsertAttachments(
 export async function storeNotificationBundleV2(
   entityManager: EntityManager,
   bundle: NotificationBundleV2,
-): Promise<void> {
+): Promise<{ id: string }[]> {
   const [avatars, attachments] = await Promise.all([
     upsertAvatarsV2(entityManager, bundle.avatars || []),
     upsertAttachments(entityManager, bundle.attachments || []),
   ]);
-  const { generatedMaps } = await entityManager
+  const { identifiers, generatedMaps } = await entityManager
     .createQueryBuilder()
     .insert()
     .into(NotificationV2)
@@ -219,7 +219,7 @@ export async function storeNotificationBundleV2(
         'Notification was not inserted and no unique key was provided',
       );
     }
-    return;
+    return [];
   }
 
   const notification = generatedMaps[0];
@@ -236,6 +236,8 @@ export async function storeNotificationBundleV2(
       })),
     )
     .execute();
+
+  return identifiers as { id: string }[];
 }
 
 export async function generateAndStoreNotificationsV2(
