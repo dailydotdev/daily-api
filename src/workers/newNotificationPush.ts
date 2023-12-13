@@ -20,7 +20,7 @@ const worker: Worker = {
           notificationId: notification.id,
           order: 0,
         });
-        await sendPushNotification(notification, avatar);
+        await sendPushNotification([notification.userId], notification, avatar);
       }
     }
   },
