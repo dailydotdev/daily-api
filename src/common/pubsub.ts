@@ -213,10 +213,12 @@ export const notifyUserDeleted = async (
   log: EventLogger,
   userId: string,
   kratosUser = false,
+  email: string,
 ): Promise<void> =>
   publishEvent(log, userDeletedTopic, {
     id: userId,
     kratosUser,
+    email,
   });
 
 export const notifyUserUpdated = (

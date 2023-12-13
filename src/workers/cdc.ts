@@ -317,7 +317,12 @@ const onUserChange = async (
     }
   }
   if (data.payload.op === 'd') {
-    await notifyUserDeleted(logger, data.payload.before.id, true);
+    await notifyUserDeleted(
+      logger,
+      data.payload.before.id,
+      true,
+      data.payload.before.email,
+    );
   }
 };
 
