@@ -753,6 +753,20 @@ describe('on youtube post', () => {
 
     await saveFixtures(con, ArticlePost, [
       {
+        id: 'yt2',
+        shortId: 'yt2',
+        title: 'youtube post',
+        score: 0,
+        url: 'https://youtu.be/Oso6dYXw5lc',
+        metadataChangedAt: new Date('01-05-2020 12:00:00'),
+        sourceId: 'squad',
+        visible: true,
+        createdAt: new Date('01-05-2020 12:00:00'),
+        type: PostType.Article,
+        origin: PostOrigin.Squad,
+        yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+      },
+      {
         id: 'HR6jmCxzE',
         shortId: 'HR6jmCxzE',
         title: 'Introducing daily.dev Search',
