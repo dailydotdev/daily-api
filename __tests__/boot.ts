@@ -16,7 +16,6 @@ import {
   Feature,
   FeatureType,
   MachineSource,
-  Notification,
   Post,
   Settings,
   SETTINGS_DEFAULT,
@@ -29,7 +28,7 @@ import {
   UserPostVote,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
-import { notificationFixture } from './fixture/notifications';
+import { notificationV2Fixture } from './fixture/notifications';
 import { usersFixture } from './fixture/user';
 import { getRedisObject, ioRedisPool, setRedisObject } from '../src/redis';
 import {
@@ -50,6 +49,8 @@ import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
 import { submitArticleThreshold } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
+import { NotificationV2 } from '../src/entity/notifications/NotificationV2';
+import { UserNotification } from '../src/entity/notifications/UserNotification';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -666,13 +667,33 @@ describe('boot misc', () => {
 
   it('should return unread notifications count', async () => {
     mockLoggedIn();
-    await con
-      .getRepository(Notification)
-      .save([
-        notificationFixture,
-        { ...notificationFixture, uniqueKey: '2' },
-        { ...notificationFixture, uniqueKey: '3', readAt: new Date() },
-      ]);
+    const notifs = await con.getRepository(NotificationV2).save([
+      notificationV2Fixture,
+      {
+        ...notificationV2Fixture,
+        uniqueKey: '2',
+      },
+      {
+        ...notificationV2Fixture,
+        uniqueKey: '3',
+      },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+      {
+        userId: '1',
+        notificationId: notifs[1].id,
+      },
+      {
+        userId: '1',
+        notificationId: notifs[2].id,
+        readAt: new Date(),
+      },
+    ]);
     const res = await request(app.server)
       .get(BASE_PATH)
       .set('Cookie', 'ory_kratos_session=value;')

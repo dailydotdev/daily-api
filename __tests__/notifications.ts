@@ -12,8 +12,6 @@ import {
 import {
   Banner,
   Notification,
-  NotificationAttachment,
-  NotificationAvatar,
   NotificationPreferencePost,
   Post,
   User,
@@ -43,6 +41,8 @@ import { postsFixture, sharedPostsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { NotificationV2 } from '../src/entity/notifications/NotificationV2';
 import { UserNotification } from '../src/entity/notifications/UserNotification';
+import { NotificationAttachmentV2 } from '../src/entity/notifications/NotificationAttachmentV2';
+import { NotificationAvatarV2 } from '../src/entity/notifications/NotificationAvatarV2';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -91,22 +91,25 @@ describe('notifications route', () => {
   it('should return 1 notification if unread', async () => {
     loggedUser = '1';
     await con.getRepository(User).save([usersFixture[0]]);
-    const defaultNotification = {
-      userId: '1',
-      type: <NotificationType>'community_picks_failed',
-      icon: '1',
-      targetUrl: '#1',
-      title: 'Test',
-    };
-    const repo = con.getRepository(Notification);
-    const settings = [
-      repo.create({ ...defaultNotification }),
-      repo.create({
-        ...defaultNotification,
+    const notifs = await con.getRepository(NotificationV2).save([
+      { ...notificationV2Fixture },
+      {
+        ...notificationV2Fixture,
+        uniqueKey: '2',
+      },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+      {
+        userId: '1',
+        notificationId: notifs[1].id,
         readAt: new Date(),
-      }),
-    ];
-    await repo.save(settings);
+      },
+    ]);
 
     const expected = { unreadNotificationsCount: 1 };
     const res = await authorizeRequest(
@@ -129,20 +132,22 @@ describe('query notification count', () => {
 
   it('should return 1 if unread notifications', async () => {
     loggedUser = '1';
-    const defaultNotification = {
-      userId: '1',
-      type: <NotificationType>'community_picks_failed',
-      icon: '1',
-      targetUrl: '#1',
-      title: 'Test',
-    };
-    await con.getRepository(User).save([usersFixture[0]]);
-    await con.getRepository(Notification).save([
+    const notifs = await con.getRepository(NotificationV2).save([
+      { ...notificationV2Fixture },
       {
-        ...defaultNotification,
+        ...notificationV2Fixture,
+        uniqueKey: '2',
+      },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
       },
       {
-        ...defaultNotification,
+        userId: '1',
+        notificationId: notifs[1].id,
         readAt: new Date(),
       },
     ]);
@@ -221,82 +226,146 @@ describe('query notifications', () => {
 
   it('should return the notifications of the logged user', async () => {
     loggedUser = '1';
-    await con
-      .getRepository(Notification)
-      .save([
-        { ...notificationFixture },
-        { ...notificationFixture, userId: '2', title: 'notification #2' },
-      ]);
+    const notifs = await con.getRepository(NotificationV2).save([
+      { ...notificationV2Fixture },
+      {
+        ...notificationV2Fixture,
+        uniqueKey: '2',
+        title: 'notification #2',
+      },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+      {
+        userId: '2',
+        notificationId: notifs[1].id,
+      },
+    ]);
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return the public notifications', async () => {
     loggedUser = '1';
-    await con
-      .getRepository(Notification)
-      .save([
-        { ...notificationFixture },
-        { ...notificationFixture, public: false, title: 'notification #2' },
-      ]);
+    const notifs = await con.getRepository(NotificationV2).save([
+      { ...notificationV2Fixture },
+      {
+        ...notificationV2Fixture,
+        uniqueKey: '2',
+        public: false,
+      },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+      {
+        userId: '1',
+        notificationId: notifs[1].id,
+        public: false,
+      },
+    ]);
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return avatars and attachments', async () => {
     loggedUser = '1';
-    const { id } = await con
-      .getRepository(Notification)
-      .save({ ...notificationFixture });
-    await con.getRepository(NotificationAttachment).save([
+    const attchs = await con.getRepository(NotificationAttachmentV2).save([
       {
-        notificationId: id,
         image: 'img#1',
         title: 'att #1',
-        order: 2,
         type: 'post',
         referenceId: '1',
       },
       {
-        notificationId: id,
         image: 'img#2',
         title: 'att #2',
-        order: 1,
         type: 'post',
         referenceId: '2',
       },
     ]);
-    await con.getRepository(NotificationAvatar).save([
+    const avatars = await con.getRepository(NotificationAvatarV2).save([
       {
-        notificationId: id,
         image: 'img#1',
         referenceId: '1',
-        order: 2,
         type: 'user',
         targetUrl: 'user#1',
         name: 'User #1',
       },
       {
-        notificationId: id,
         image: 'img#2',
         referenceId: '2',
-        order: 1,
         type: 'source',
         targetUrl: 'source#1',
         name: 'Source #1',
       },
     ]);
+    const notifs = await con.getRepository(NotificationV2).save([
+      {
+        ...notificationV2Fixture,
+        attachments: [attchs[1].id, attchs[0].id],
+        avatars: [avatars[1].id, avatars[0].id],
+      },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+    ]);
     const res = await client.query(QUERY);
-    expect(res.data).toMatchSnapshot();
+    expect(res.data.notifications.edges[0].node.attachments).toEqual([
+      {
+        image: 'img#2',
+        title: 'att #2',
+        type: 'post',
+      },
+      {
+        image: 'img#1',
+        title: 'att #1',
+        type: 'post',
+      },
+    ]);
+    expect(res.data.notifications.edges[0].node.avatars).toEqual([
+      {
+        image: 'img#2',
+        name: 'Source #1',
+        targetUrl: 'source#1',
+        type: 'source',
+      },
+      {
+        image: 'img#1',
+        name: 'User #1',
+        targetUrl: 'user#1',
+        type: 'user',
+      },
+    ]);
   });
 
   it('should return pagination response', async () => {
     loggedUser = '1';
-    await con.getRepository(Notification).save(
+    const notifs = await con.getRepository(NotificationV2).save(
       Array.from(Array(5)).map((_, i) => ({
-        ...notificationFixture,
+        ...notificationV2Fixture,
         title: `notification #${i + 1}`,
-        createdAt: subDays(notificationFixture.createdAt as Date, i),
+        createdAt: subDays(notificationV2Fixture.createdAt as Date, i),
+        uniqueKey: i.toString(),
+      })),
+    );
+    await con.getRepository(UserNotification).insert(
+      notifs.map((n) => ({
+        notificationId: n.id,
+        userId: '1',
+        public: true,
+        createdAt: n.createdAt,
       })),
     );
     const res1 = await client.query(QUERY, { variables: { first: 2 } });
@@ -492,7 +561,7 @@ describe('mutation readNotifications', () => {
   it('should set unread notifications as read v2', async () => {
     loggedUser = '1';
     const notifs = await con.getRepository(NotificationV2).save([
-      notificationV2Fixture,
+      { ...notificationV2Fixture },
       {
         ...notificationV2Fixture,
         uniqueKey: '2',

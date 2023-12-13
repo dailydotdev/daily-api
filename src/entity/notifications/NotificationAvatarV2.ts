@@ -2,7 +2,11 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { NotificationAvatarType } from './NotificationAvatar';
 
 @Entity()
-@Index('IDX_notification_avatar_v2_type_reference_id', ['type', 'referenceId'])
+@Index(
+  'IDX_notification_avatar_v2_type_reference_id',
+  ['type', 'referenceId'],
+  { unique: true },
+)
 export class NotificationAvatarV2 {
   @PrimaryGeneratedColumn('uuid')
   id: string;

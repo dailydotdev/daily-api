@@ -18,56 +18,6 @@ Object {
 }
 `;
 
-exports[`query notifications should return avatars and attachments 1`] = `
-Object {
-  "notifications": Object {
-    "edges": Array [
-      Object {
-        "node": Object {
-          "attachments": Array [
-            Object {
-              "image": "img#2",
-              "title": "att #2",
-              "type": "post",
-            },
-            Object {
-              "image": "img#1",
-              "title": "att #1",
-              "type": "post",
-            },
-          ],
-          "avatars": Array [
-            Object {
-              "image": "img#2",
-              "name": "Source #1",
-              "targetUrl": "source#1",
-              "type": "source",
-            },
-            Object {
-              "image": "img#1",
-              "name": "User #1",
-              "targetUrl": "user#1",
-              "type": "user",
-            },
-          ],
-          "createdAt": "2021-05-02T00:00:00.000Z",
-          "description": "description",
-          "icon": "icon",
-          "readAt": null,
-          "targetUrl": "https://daily.dev",
-          "title": "notification #1",
-          "type": "comment_mention",
-        },
-      },
-    ],
-    "pageInfo": Object {
-      "endCursor": "dGltZToxNjE5OTEzNjAwMDAw",
-      "hasNextPage": false,
-    },
-  },
-}
-`;
-
 exports[`query notifications should return pagination response 1`] = `
 Object {
   "notifications": Object {

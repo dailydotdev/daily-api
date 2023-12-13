@@ -3,6 +3,9 @@ import { Post, PostType } from './Post';
 
 @ChildEntity(PostType.VideoYouTube)
 export class YouTubePost extends Post {
+  @Column({ nullable: true })
+  publishedAt?: Date;
+
   @Column({ type: 'text', nullable: true })
   image?: string;
 
