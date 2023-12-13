@@ -1,13 +1,16 @@
-import { UserState, UserStateKey } from './../entity/UserState';
-import { ReputationEvent } from './../entity/ReputationEvent';
-import { CommentMention } from './../entity/CommentMention';
+import {
+  UserState,
+  UserStateKey,
+  ReputationEvent,
+  CommentMention,
+  NotificationV2,
+} from '../entity';
 import { messageToJson, Worker } from './worker';
 import {
   Comment,
   CommentUpvote,
   COMMUNITY_PICKS_SOURCE,
   Feed,
-  Notification,
   Post,
   Settings,
   SourceFeed,
@@ -329,7 +332,7 @@ const onUserChange = async (
 const onNotificationsChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
-  data: ChangeMessage<Notification>,
+  data: ChangeMessage<NotificationV2>,
 ): Promise<void> => {
   if (data.payload.op === 'c') {
     await notifyNewNotification(logger, data.payload.after);
@@ -687,7 +690,7 @@ const worker: Worker = {
         case getTableName(con, CommentReport):
           await onCommentReportChange(con, logger, data);
           break;
-        case getTableName(con, Notification):
+        case getTableName(con, NotificationV2):
           await onNotificationsChange(con, logger, data);
           break;
         case getTableName(con, SourceFeed):
@@ -713,6 +716,7 @@ const worker: Worker = {
           break;
         case getTableName(con, ContentImage):
           await onContentImageChange(con, logger, data);
+          break;
         case getTableName(con, PostRelation):
           await onPostRelationChange(con, logger, data);
           break;
