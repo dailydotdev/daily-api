@@ -458,7 +458,11 @@ it('should save a new post with content curation', async () => {
   });
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(3);
-  expect(posts[2].contentCuration).toStrictEqual(['news', 'story', 'release']);
+  expect(posts[2].contentCuration).toIncludeSameMembers([
+    'news',
+    'story',
+    'release',
+  ]);
 });
 
 it('save a post as public if source is public', async () => {

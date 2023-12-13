@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import {
   expectSuccessfulBackground,
@@ -9,14 +9,16 @@ import { collectionUpdated as worker } from '../../../src/workers/notifications/
 import {
   ArticlePost,
   CollectionPost,
-  Notification,
+  NotificationAvatarV2,
   NotificationPreferencePost,
+  NotificationV2,
   PostOrigin,
   PostRelation,
   PostRelationType,
   PostType,
   Source,
   User,
+  UserNotification,
 } from '../../../src/entity';
 import { sourcesFixture } from '../../fixture/source';
 import {
@@ -195,13 +197,13 @@ describe('collectionUpdated worker', () => {
       },
     });
 
-    const notifications = await con.getRepository(Notification).findBy({
+    const notification = await con.getRepository(NotificationV2).findOneBy({
       referenceId: 'c1',
     });
-
-    expect(notifications.length).toEqual(3);
-
-    const notification = notifications.find((item) => item.userId === '1');
+    const users = await con
+      .getRepository(UserNotification)
+      .findBy({ notificationId: notification.id });
+    expect(users.length).toEqual(3);
 
     const collectionPost = await con
       .getRepository(CollectionPost)
@@ -210,7 +212,6 @@ describe('collectionUpdated worker', () => {
     expect(collectionPost).not.toBeNull();
 
     expect(notification).toMatchObject({
-      userId: '1',
       type: 'collection_updated',
       icon: 'Bell',
       title:
@@ -224,7 +225,9 @@ describe('collectionUpdated worker', () => {
       uniqueKey: collectionPost?.metadataChangedAt.toString(),
     });
 
-    const avatars = await notification!.avatars;
+    const avatars = await con
+      .getRepository(NotificationAvatarV2)
+      .find({ where: { id: In(notification.avatars) } });
 
     expect(avatars.length).toEqual(3);
     avatars.forEach((item) => {

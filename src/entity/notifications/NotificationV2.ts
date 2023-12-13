@@ -1,6 +1,13 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { NotificationType } from '../../notifications/common';
-import { NotificationReferenceType } from './Notification';
+
+export type NotificationReferenceType =
+  | 'source_request'
+  | 'post'
+  | 'submission'
+  | 'comment'
+  | 'source'
+  | 'system';
 
 @Entity()
 @Index('ID_notification_v2_reference', ['referenceId', 'referenceType'])

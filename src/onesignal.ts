@@ -1,5 +1,5 @@
 import * as OneSignal from '@onesignal/node-onesignal';
-import { Notification, NotificationAvatar } from './entity';
+import { NotificationV2, NotificationAvatarV2 } from './entity';
 import { addNotificationUtm, basicHtmlStrip } from './common';
 
 const appId = process.env.ONESIGNAL_APP_ID;
@@ -18,8 +18,8 @@ export async function sendPushNotification(
     title,
     type,
     targetUrl,
-  }: Pick<Notification, 'id' | 'title' | 'type' | 'targetUrl'>,
-  avatar?: Pick<NotificationAvatar, 'image'>,
+  }: Pick<NotificationV2, 'id' | 'title' | 'type' | 'targetUrl'>,
+  avatar?: Pick<NotificationAvatarV2, 'image'>,
 ): Promise<void> {
   if (!appId || !apiKey) return;
 

@@ -1,9 +1,7 @@
 import {
   Column,
-  DataSource,
   Entity,
   Index,
-  IsNull,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -12,15 +10,7 @@ import { User } from '../User';
 import { NotificationAvatar } from './NotificationAvatar';
 import { NotificationAttachment } from './NotificationAttachment';
 import { NotificationType } from '../../notifications/common';
-import { UserNotification } from './UserNotification';
-
-export type NotificationReferenceType =
-  | 'source_request'
-  | 'post'
-  | 'submission'
-  | 'comment'
-  | 'source'
-  | 'system';
+import { NotificationReferenceType } from './NotificationV2';
 
 @Entity()
 @Index('IDX_notification_user_id_created_at', ['userId', 'public', 'createdAt'])
@@ -93,34 +83,3 @@ export class Notification {
   )
   attachments: Promise<NotificationAttachment[]>;
 }
-
-export const getUnreadNotificationsCount = async (
-  con: DataSource,
-  userId: string,
-) =>
-  await con.getRepository(UserNotification).count({
-    where: {
-      userId,
-      public: true,
-      readAt: IsNull(),
-    },
-  });
-
-export const getNotificationAndChildren = (
-  con: DataSource,
-  id: string,
-): Promise<
-  [Notification | null, NotificationAttachment[], NotificationAvatar[]]
-> => {
-  return Promise.all([
-    con.getRepository(Notification).findOneBy({ id }),
-    con.getRepository(NotificationAttachment).find({
-      where: { notificationId: id },
-      order: { order: 'asc' },
-    }),
-    con.getRepository(NotificationAvatar).find({
-      where: { notificationId: id },
-      order: { order: 'asc' },
-    }),
-  ]);
-};
