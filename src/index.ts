@@ -63,6 +63,7 @@ export default async function app(
   const app = fastify({
     logger: {
       level: process.env.LOG_LEVEL || 'info',
+      messageKey: 'message',
     },
     disableRequestLogging: true,
     trustProxy: true,
