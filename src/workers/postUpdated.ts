@@ -301,7 +301,6 @@ const updatePost = async ({
 
   data.id = databasePost.id;
   data.title = title;
-  data.visible = updateBecameVisible;
   data.visibleAt = updateBecameVisible
     ? databasePost.visibleAt ?? data.metadataChangedAt
     : null;
