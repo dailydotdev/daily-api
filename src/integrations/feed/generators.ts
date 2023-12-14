@@ -103,11 +103,17 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
       cachedFeedClient,
       new FeedUserStateConfigGenerator(snotraClient, {
         personalised: new FeedPreferencesConfigGenerator(
-          { feed_config_name: FeedConfigName.VectorE1 },
+          {
+            feed_config_name: FeedConfigName.VectorE1,
+            source_types: ['machine', 'squad'],
+          },
           opts,
         ),
         non_personalised: new FeedPreferencesConfigGenerator(
-          { feed_config_name: FeedConfigName.PersonaliseM3 },
+          {
+            feed_config_name: FeedConfigName.PersonaliseV18,
+            source_types: ['machine', 'squad'],
+          },
           opts,
         ),
       }),
