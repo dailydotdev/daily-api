@@ -17,6 +17,7 @@ import { traceResolvers } from './trace';
 import {
   anonymousFeedBuilder,
   AnonymousFeedFilters,
+  applyFeedWhere,
   base64,
   configuredFeedBuilder,
   FeedArgs,
@@ -897,12 +898,11 @@ const feedResolverV2: IFieldResolver<
       args: FeedArgs & { generator: FeedGenerator },
       page,
     ) =>
-      args.generator.generate(
-        ctx,
-        ctx.userId || ctx.trackingId,
-        page.limit,
-        page.offset,
-      ),
+      args.generator.generate(ctx, {
+        user_id: ctx.userId || ctx.trackingId,
+        page_size: page.limit,
+        offset: page.offset,
+      }),
     warnOnPartialFirstPage: true,
   },
 );
@@ -927,15 +927,59 @@ const feedResolverCursor: IFieldResolver<
       args: FeedArgs & { generator: FeedGenerator },
       page,
     ) =>
-      args.generator.generate(
-        ctx,
-        ctx.userId || ctx.trackingId,
-        page.limit,
-        0,
-        page.cursor,
-      ),
+      args.generator.generate(ctx, {
+        user_id: ctx.userId || ctx.trackingId,
+        page_size: page.limit,
+        offset: 0,
+        cursor: page.cursor,
+      }),
     warnOnPartialFirstPage: true,
   },
+);
+
+const legacySimilarPostsResolver = randomPostsResolver(
+  (
+    ctx,
+    {
+      tags,
+      post,
+    }: { tags: string[]; post: string | null; first: number | null },
+    builder,
+    alias,
+  ) => {
+    let similarPostsQuery;
+    if (tags?.length > 0) {
+      similarPostsQuery = `select post.id
+                               from post
+                                      inner join (select count(*)           as similar,
+                                                         min(k.occurrences) as occurrences,
+                                                         pk."postId"
+                                                  from post_keyword pk
+                                                         inner join keyword k on pk.keyword = k.value
+                                                  where k.value in (:...tags)
+                                                    and k.status = 'allow'
+                                                  group by pk."postId") k
+                                                 on k."postId" = post.id
+                               where post.id != :postId
+                                 and post."createdAt" >= now() - interval '6 month'
+                                 and post.visible = true and post.deleted = false
+                               order by (pow(post.upvotes, k.similar) * 1000 /
+                                 k.occurrences) desc
+                                 limit 25`;
+    } else {
+      similarPostsQuery = `select post.id
+                               from post
+                               where post.id != :postId
+                                 and post."createdAt" >= now() - interval '6 month'
+                               order by post.upvotes desc
+                                 limit 25`;
+    }
+    return builder.andWhere(`${alias}."id" in (${similarPostsQuery})`, {
+      postId: post,
+      tags,
+    });
+  },
+  3,
 );
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1225,50 +1269,38 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       },
       3,
     ),
-    randomSimilarPostsByTags: randomPostsResolver(
-      (
-        ctx,
-        {
-          tags,
-          post,
-        }: { tags: string[]; post: string | null; first: number | null },
-        builder,
-        alias,
-      ) => {
-        let similarPostsQuery;
-        if (tags?.length > 0) {
-          similarPostsQuery = `select post.id
-                               from post
-                                      inner join (select count(*)           as similar,
-                                                         min(k.occurrences) as occurrences,
-                                                         pk."postId"
-                                                  from post_keyword pk
-                                                         inner join keyword k on pk.keyword = k.value
-                                                  where k.value in (:...tags)
-                                                    and k.status = 'allow'
-                                                  group by pk."postId") k
-                                                 on k."postId" = post.id
-                               where post.id != :postId
-                                 and post."createdAt" >= now() - interval '6 month'
-                                 and post.visible = true and post.deleted = false
-                               order by (pow(post.upvotes, k.similar) * 1000 /
-                                 k.occurrences) desc
-                                 limit 25`;
-        } else {
-          similarPostsQuery = `select post.id
-                               from post
-                               where post.id != :postId
-                                 and post."createdAt" >= now() - interval '6 month'
-                               order by post.upvotes desc
-                                 limit 25`;
-        }
-        return builder.andWhere(`${alias}."id" in (${similarPostsQuery})`, {
-          postId: post,
-          tags,
+    randomSimilarPostsByTags: async (
+      source,
+      args: { tags: string[]; post: string | null; first: number | null },
+      ctx,
+      info,
+    ): Promise<GQLPost[]> => {
+      const res = await feedGenerators['post_similarity'].generate(ctx, {
+        user_id: ctx.userId,
+        page_size: args.first || 3,
+        post_id: args.post,
+      });
+      if (res?.data?.length) {
+        return graphorm.query(ctx, info, (builder) => {
+          builder.queryBuilder = applyFeedWhere(
+            ctx,
+            fixedIdsFeedBuilder(
+              ctx,
+              res.data.map(([postId]) => postId as string),
+              builder.queryBuilder,
+              builder.alias,
+            ),
+            builder.alias,
+            ['article'],
+            true,
+            true,
+            false,
+          );
+          return builder;
         });
-      },
-      3,
-    ),
+      }
+      return legacySimilarPostsResolver(source, args, ctx, info);
+    },
     randomDiscussedPosts: randomPostsResolver(
       (
         ctx,

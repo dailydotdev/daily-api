@@ -1,4 +1,5 @@
 import {
+  DynamicConfig,
   FeedConfigGenerator,
   FeedConfigName,
   FeedResponse,
@@ -33,20 +34,9 @@ export class FeedGenerator {
     this.feedId = feedId;
   }
 
-  async generate(
-    ctx: Context,
-    userId: string | undefined,
-    pageSize: number,
-    offset: number,
-    cursor?: string,
-  ): Promise<FeedResponse> {
-    const config = await this.config.generate(
-      ctx,
-      userId,
-      pageSize,
-      offset,
-      cursor,
-    );
+  async generate(ctx: Context, opts: DynamicConfig): Promise<FeedResponse> {
+    const config = await this.config.generate(ctx, opts);
+    const userId = opts.user_id;
     return this.client.fetchFeed(ctx, this.feedId ?? userId, config);
   }
 }
@@ -170,6 +160,20 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
         opts,
       ),
       'onboarding',
+    ),
+    post_similarity: new FeedGenerator(
+      feedClient,
+      new FeedPreferencesConfigGenerator(
+        {
+          feed_config_name: FeedConfigName.PostSimilarity,
+          total_pages: 1,
+        },
+        {
+          includeBlockedTags: true,
+          includeBlockedSources: true,
+          includeSourceMemberships: true,
+        },
+      ),
     ),
   },
 );

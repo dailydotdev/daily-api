@@ -218,7 +218,11 @@ describe('FeedPreferencesConfigGenerator', () => {
       },
     );
 
-    const actual = await generator.generate(ctx, '1', 2, 3);
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
     expect(actual).toEqual({
       allowed_tags: expect.arrayContaining(['javascript', 'golang']),
       blocked_sources: expect.arrayContaining(['a', 'b']),
@@ -242,7 +246,11 @@ describe('FeedPreferencesConfigGenerator', () => {
       },
     );
 
-    const actual = await generator.generate(ctx, '1', 2, 3);
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
     expect(actual).toEqual({
       blocked_sources: expect.arrayContaining(['a', 'b']),
       blocked_tags: expect.arrayContaining(['python', 'java']),
@@ -260,7 +268,11 @@ describe('FeedPreferencesConfigGenerator', () => {
       config,
     );
 
-    const actual = await generator.generate(ctx, '1', 2, 3);
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
     expect(actual).toEqual({
       feed_config_name: FeedConfigName.Personalise,
       fresh_page_size: '1',
@@ -291,7 +303,11 @@ describe('FeedUserStateConfigGenerator', () => {
       mockClient,
       generators,
     );
-    const actual = await generator.generate(ctx, '1', 2, 3);
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
     expect(actual.user_id).toEqual('1');
     expect(actual.feed_config_name).toEqual('vector');
     expect(mockClient.fetchUserState).toBeCalledWith({
@@ -309,7 +325,11 @@ describe('FeedUserStateConfigGenerator', () => {
       mockClient,
       generators,
     );
-    const actual = await generator.generate(ctx, '1', 2, 3);
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
     expect(actual.feed_config_name).toEqual('personalise');
   });
 });
