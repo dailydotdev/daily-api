@@ -1275,30 +1275,31 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
       info,
     ): Promise<GQLPost[]> => {
-      const res = await feedGenerators['post_similarity'].generate(ctx, {
-        user_id: ctx.userId,
-        page_size: args.first || 3,
-        post_id: args.post,
-      });
-      ctx.log.info({ res }, 'randomSimilarPostsByTags');
-      if (res?.data?.length) {
-        return graphorm.query(ctx, info, (builder) => {
-          builder.queryBuilder = applyFeedWhere(
-            ctx,
-            fixedIdsFeedBuilder(
-              ctx,
-              res.data.map(([postId]) => postId as string),
-              builder.queryBuilder,
-              builder.alias,
-            ),
-            builder.alias,
-            ['article'],
-            true,
-            true,
-            false,
-          );
-          return builder;
+      if (false) {
+        const res = await feedGenerators['post_similarity'].generate(ctx, {
+          user_id: ctx.userId,
+          page_size: args.first || 3,
+          post_id: args.post,
         });
+        if (res?.data?.length) {
+          return graphorm.query(ctx, info, (builder) => {
+            builder.queryBuilder = applyFeedWhere(
+              ctx,
+              fixedIdsFeedBuilder(
+                ctx,
+                res.data.map(([postId]) => postId as string),
+                builder.queryBuilder,
+                builder.alias,
+              ),
+              builder.alias,
+              ['article'],
+              true,
+              true,
+              false,
+            );
+            return builder;
+          });
+        }
       }
       return legacySimilarPostsResolver(source, args, ctx, info);
     },
