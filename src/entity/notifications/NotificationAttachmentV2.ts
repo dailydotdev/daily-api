@@ -20,4 +20,7 @@ export class NotificationAttachmentV2 {
 
   @Column({ type: 'text' })
   referenceId: string;
+
+  @Column({ type: 'bool', default: false })
+  isAttachmentVideo: boolean;
 }

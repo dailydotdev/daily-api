@@ -90,6 +90,10 @@ export const typeDefs = /* GraphQL */ `
     Rich text (html) of the title
     """
     title: String!
+    """
+    Whether the attachment's origin is a video
+    """
+    isAttachmentVideo: Boolean
   }
 
   type Notification {
