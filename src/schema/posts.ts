@@ -1793,10 +1793,13 @@ export const resolvers: IResolvers<any, Context> = {
         }
 
         const existingPost: Pick<ArticlePost, 'id' | 'deleted' | 'visible'> =
-          await manager.getRepository(ArticlePost).findOne({
-            select: ['id', 'deleted', 'visible'],
-            where: [{ url: cleanUrl }, { canonicalUrl: cleanUrl }],
-          });
+          await manager
+            .createQueryBuilder(Post, 'post')
+            .select(['post.id', 'post.deleted', 'post.visible'])
+            .where('post.url = :url OR post.canonicalUrl = :url', {
+              url: cleanUrl,
+            })
+            .getOne();
         if (existingPost) {
           if (existingPost.deleted) {
             throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);

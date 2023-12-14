@@ -28,6 +28,7 @@ import createOrGetConnection from '../../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from '../fixture/user';
 import { SubmissionFailErrorMessage } from '../../src/errors';
+import { videoPostsFixture } from '../fixture/post';
 
 let con: DataSource;
 
@@ -745,30 +746,16 @@ describe('on post update', () => {
 
 describe('on youtube post', () => {
   beforeEach(async () => {
-    await con.getRepository(Source).save({
-      id: UNKNOWN_SOURCE,
-      name: 'Unknown',
-      handle: UNKNOWN_SOURCE,
-    });
-    await con.getRepository(YouTubePost).save([
+    await saveFixtures(con, Source, [
       {
-        id: 'yt1',
-        shortId: 'yt1',
-        title: 'youtube post',
-        score: 0,
-        url: 'https://youtu.be/T_AbQGe7fuU',
-        videoId: 'T_AbQGe7fuU',
-        metadataChangedAt: new Date('01-05-2020 12:00:00'),
-        sourceId: 'a',
-        visible: true,
-        createdAt: new Date('01-05-2020 12:00:00'),
-        type: PostType.VideoYouTube,
-        origin: PostOrigin.Crawler,
-        yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
+        id: UNKNOWN_SOURCE,
+        name: 'Unknown',
+        handle: UNKNOWN_SOURCE,
       },
     ]);
+    await saveFixtures(con, YouTubePost, videoPostsFixture);
 
-    await con.getRepository(ArticlePost).save([
+    await saveFixtures(con, ArticlePost, [
       {
         id: 'yt2',
         shortId: 'yt2',

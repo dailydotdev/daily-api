@@ -132,11 +132,6 @@ export async function storeNotificationBundleV2(
     .orIgnore()
     .execute();
   if (!generatedMaps?.[0]?.id) {
-    if (!bundle.notification.uniqueKey) {
-      throw new Error(
-        'Notification was not inserted and no unique key was provided',
-      );
-    }
     return [];
   }
 
