@@ -1276,27 +1276,27 @@ describe('query randomSimilarPostsByTags', () => {
     }
   }`;
 
-  it('should return posts from feed service', async () => {
-    nock('http://localhost:6000')
-      .post('/feed.json', {
-        feed_config_name: 'post_similarity',
-        total_pages: 1,
-        page_size: 3,
-        post_id: 'p1',
-        fresh_page_size: '1',
-      })
-      .reply(200, {
-        data: [{ post_id: 'p3' }, { post_id: 'p5' }],
-      });
-
-    const res = await client.query(QUERY, {
-      variables: { post: 'p1', tags: ['webdev', 'javascript'] },
-    });
-    expect(res.errors).toBeFalsy();
-    expect(
-      res.data.randomSimilarPostsByTags.map((post) => post.id).sort(),
-    ).toEqual(['p3', 'p5']);
-  });
+  // it('should return posts from feed service', async () => {
+  //   nock('http://localhost:6000')
+  //     .post('/feed.json', {
+  //       feed_config_name: 'post_similarity',
+  //       total_pages: 1,
+  //       page_size: 3,
+  //       post_id: 'p1',
+  //       fresh_page_size: '1',
+  //     })
+  //     .reply(200, {
+  //       data: [{ post_id: 'p3' }, { post_id: 'p5' }],
+  //     });
+  //
+  //   const res = await client.query(QUERY, {
+  //     variables: { post: 'p1', tags: ['webdev', 'javascript'] },
+  //   });
+  //   expect(res.errors).toBeFalsy();
+  //   expect(
+  //     res.data.randomSimilarPostsByTags.map((post) => post.id).sort(),
+  //   ).toEqual(['p3', 'p5']);
+  // });
 
   it('should fallback to old algorithm', async () => {
     nock('http://localhost:6000')

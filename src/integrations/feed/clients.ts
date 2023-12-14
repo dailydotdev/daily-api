@@ -37,7 +37,6 @@ export class FeedClient implements IFeedClient {
       { retries: 5 },
     );
     if (!res?.data?.length) {
-      ctx?.log.warn({ config }, 'empty response received from feed service');
       return { data: [] };
     }
     return {
