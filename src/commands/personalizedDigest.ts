@@ -10,7 +10,9 @@ import { workerSubscribe } from '../common';
 import { personalizedDigestWorkers as workers } from '../workers';
 
 export default async function app(): Promise<void> {
-  const logger = pino();
+  const logger = pino({
+    messageKey: 'message',
+  });
   const connection = await runInRootSpan(
     'createOrGetConnection',
     createOrGetConnection,

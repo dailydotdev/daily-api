@@ -452,6 +452,7 @@ const fixData = async ({
   }
 
   const becomesVisible = !!data?.title?.length;
+  const duration = data?.extra?.duration / 60;
 
   // Try and fix generic data here
   return {
@@ -467,7 +468,7 @@ const fixData = async ({
       image: data?.image,
       sourceId: data?.source_id,
       title: data?.title && he.decode(data?.title),
-      readTime: parseReadTime(data?.extra?.read_time || data?.extra?.duration),
+      readTime: parseReadTime(data?.extra?.read_time || duration),
       publishedAt: data?.published_at && new Date(data?.published_at),
       metadataChangedAt:
         (data?.updated_at && new Date(data.updated_at)) || new Date(),
