@@ -524,6 +524,20 @@ const worker: Worker = {
         }
 
         let postId = data.post_id;
+
+        if (!postId) {
+          const matchedYggdrasilPost = await con
+            .createQueryBuilder()
+            .from(Post, 'p')
+            .select('p.id as id')
+            .where('p."yggdrasilId" = :id', { id: data.id })
+            .getRawOne<{
+              id: string;
+            }>();
+
+          postId = matchedYggdrasilPost?.id;
+        }
+
         const { mergedKeywords, questions, content_type, fixedData } =
           await fixData({
             logger,
