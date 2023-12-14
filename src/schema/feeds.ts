@@ -1275,31 +1275,29 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
       info,
     ): Promise<GQLPost[]> => {
-      if (['28849d86070e4c099c877ab6837c61f0'].includes(ctx.userId)) {
-        const res = await feedGenerators['post_similarity'].generate(ctx, {
-          user_id: ctx.userId,
-          page_size: args.first || 3,
-          post_id: args.post,
-        });
-        if (res?.data?.length) {
-          return graphorm.query(ctx, info, (builder) => {
-            builder.queryBuilder = applyFeedWhere(
+      const res = await feedGenerators['post_similarity'].generate(ctx, {
+        user_id: ctx.userId,
+        page_size: args.first || 3,
+        post_id: args.post,
+      });
+      if (res?.data?.length) {
+        return graphorm.query(ctx, info, (builder) => {
+          builder.queryBuilder = applyFeedWhere(
+            ctx,
+            fixedIdsFeedBuilder(
               ctx,
-              fixedIdsFeedBuilder(
-                ctx,
-                res.data.map(([postId]) => postId as string),
-                builder.queryBuilder,
-                builder.alias,
-              ),
+              res.data.map(([postId]) => postId as string),
+              builder.queryBuilder,
               builder.alias,
-              ['article'],
-              true,
-              true,
-              false,
-            );
-            return builder;
-          });
-        }
+            ),
+            builder.alias,
+            ['article'],
+            true,
+            true,
+            false,
+          );
+          return builder;
+        });
       }
       return legacySimilarPostsResolver(source, args, ctx, info);
     },
