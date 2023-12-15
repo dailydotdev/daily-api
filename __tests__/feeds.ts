@@ -569,6 +569,34 @@ describe('query feed', () => {
         expect(post.node.type).not.toEqual('video:youtube');
       });
     });
+
+    it('can filter out article posts', async () => {
+      loggedUser = '1';
+
+      await saveFixtures(con, FeedAdvancedSettings, [
+        { feedId: '1', advancedSettingsId: 7, enabled: false },
+      ]);
+      await con.getRepository(AdvancedSettings).update(
+        { id: 7 },
+        {
+          options: {
+            type: PostType.Article,
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        variables: {
+          ...variables,
+          supportedTypes: ['article', 'video:youtube'],
+        },
+      });
+      expect(res.data).toMatchSnapshot();
+
+      res.data.feed.edges.map((post) => {
+        expect(post.node.type).not.toEqual('article');
+      });
+    });
   });
 
   it('should return preconfigured feed with tags filters only', async () => {

@@ -2297,6 +2297,35 @@ Object {
 }
 `;
 
+exports[`query feed youtube content can filter out article posts 1`] = `
+Object {
+  "feed": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "yt1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [],
+          "title": "youtube post",
+          "type": "video:youtube",
+          "url": "https://youtu.be/T_AbQGe7fuU",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "c2NvcmU6MA==",
+      "hasNextPage": false,
+    },
+  },
+}
+`;
+
 exports[`query feed youtube content should exclude video content when it is disabled by the user 1`] = `
 Object {
   "feed": Object {
