@@ -314,10 +314,12 @@ const updatePost = async ({
 
   if (updateBecameVisible) {
     data.visible = true;
-    data.visibleAt = data.metadataChangedAt;
   } else {
     data.visible = databasePost.visible;
-    data.visibleAt = databasePost.visibleAt ?? data.metadataChangedAt;
+  }
+
+  if (data.visible && !databasePost.visibleAt) {
+    data.visibleAt = data.metadataChangedAt;
   }
 
   if (content_type in allowedFieldsMapping) {
