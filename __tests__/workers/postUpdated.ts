@@ -459,7 +459,11 @@ it('should save a new post with content curation', async () => {
   });
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(3);
-  expect(posts[2].contentCuration).toStrictEqual(['news', 'story', 'release']);
+
+  const post = await con
+    .getRepository(Post)
+    .findOneBy({ yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816' });
+  expect(post?.contentCuration).toStrictEqual(['news', 'story', 'release']);
 });
 
 it('save a post as public if source is public', async () => {
