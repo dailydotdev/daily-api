@@ -12,7 +12,7 @@ const worker: Worker = {
     if (!process.env.SENDGRID_API_KEY) {
       return;
     }
-    
+
     const data = messageToJson<Data>(message);
     if (!data.email || !data.email.trim()) {
       log.warn(
