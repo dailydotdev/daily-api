@@ -9,6 +9,7 @@ import {
   CollectionPost,
   findAuthor,
   FreeformPost,
+  getPostVisible,
   mergeKeywords,
   parseReadTime,
   Post,
@@ -203,7 +204,7 @@ const createPost = async ({
   data.origin = data?.scoutId
     ? PostOrigin.CommunityPicks
     : data.origin ?? PostOrigin.Crawler;
-  data.visible = !!data.title?.length;
+  data.visible = getPostVisible({ post: data });
   data.visibleAt = data.visible ? postCreatedAt : null;
   data.flags = {
     ...data.flags,
@@ -308,7 +309,7 @@ const updatePost = async ({
   let updateBecameVisible = false;
 
   if (!databasePost.visible) {
-    updateBecameVisible = !!title?.length;
+    updateBecameVisible = getPostVisible({ post: { title } });
   }
 
   if (updateBecameVisible) {
