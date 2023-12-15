@@ -1,4 +1,4 @@
-import { FeedConfig, FeedConfigGenerator } from './types';
+import { DynamicConfig, FeedConfig, FeedConfigGenerator } from './types';
 import { feedToFilters } from '../../common';
 import { ISnotraClient, UserState } from '../snotra';
 
@@ -13,24 +13,17 @@ type BaseConfig = Partial<Omit<FeedConfig, 'user_id' | 'page_size' | 'offset'>>;
 
 function getDefaultConfig(
   baseConfig: BaseConfig,
-  userId: string | undefined,
-  pageSize: number,
-  offset: number,
-  cursor?: string,
+  dynamicConfig: DynamicConfig,
 ): FeedConfig {
-  const freshPageSize = Math.ceil(pageSize / 3).toFixed(0);
+  const freshPageSize = Math.ceil(dynamicConfig.page_size / 3).toFixed(0);
   const config: FeedConfig = {
     ...baseConfig,
-    page_size: pageSize,
-    offset,
+    ...dynamicConfig,
     total_pages: baseConfig.total_pages || 40,
     fresh_page_size: freshPageSize,
   };
-  if (userId) {
-    config.user_id = userId;
-  }
-  if (cursor) {
-    config.cursor = cursor;
+  if (config.user_id === null) {
+    delete config.user_id;
   }
   return config;
 }
@@ -42,8 +35,8 @@ export class SimpleFeedConfigGenerator implements FeedConfigGenerator {
     this.baseConfig = baseConfig;
   }
 
-  async generate(ctx, userId, pageSize, offset, cursor): Promise<FeedConfig> {
-    return getDefaultConfig(this.baseConfig, userId, pageSize, offset, cursor);
+  async generate(ctx, opts): Promise<FeedConfig> {
+    return getDefaultConfig(this.baseConfig, opts);
   }
 }
 
@@ -59,14 +52,9 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
     this.opts = opts;
   }
 
-  async generate(ctx, userId, pageSize, offset, cursor): Promise<FeedConfig> {
-    const config = getDefaultConfig(
-      this.baseConfig,
-      userId,
-      pageSize,
-      offset,
-      cursor,
-    );
+  async generate(ctx, opts): Promise<FeedConfig> {
+    const config = getDefaultConfig(this.baseConfig, opts);
+    const userId = opts.user_id;
     const filters = await feedToFilters(ctx.con, userId, userId);
     if (filters.includeTags?.length && this.opts.includeAllowedTags) {
       config.allowed_tags = filters.includeTags;
@@ -99,17 +87,11 @@ export class FeedUserStateConfigGenerator implements FeedConfigGenerator {
     this.generators = generators;
   }
 
-  async generate(ctx, userId, pageSize, offset, cursor): Promise<FeedConfig> {
+  async generate(ctx, opts): Promise<FeedConfig> {
     const userState = await this.snotraClient.fetchUserState({
-      user_id: userId,
+      user_id: opts.user_id,
       providers: { personalise: {} },
     });
-    return this.generators[userState.personalise.state].generate(
-      ctx,
-      userId,
-      pageSize,
-      offset,
-      cursor,
-    );
+    return this.generators[userState.personalise.state].generate(ctx, opts);
   }
 }

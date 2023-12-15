@@ -738,6 +738,30 @@ describe('on post update', () => {
       );
     });
   });
+
+  it('should resolve post id from yggdrasil id when post id is missing', async () => {
+    const postId = 'p1';
+
+    const existingPost = await con.getRepository(ArticlePost).save({
+      id: postId,
+      title: 'Post title',
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    });
+
+    expect(existingPost).not.toBeNull();
+    expect(existingPost.title).toEqual('Post title');
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: undefined,
+      title: 'New title 2',
+    });
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: postId,
+    });
+    expect(updatedPost!.title).toEqual('New title 2');
+  });
 });
 
 describe('on youtube post', () => {
@@ -794,7 +818,7 @@ describe('on youtube post', () => {
       url: 'https://youtu.be/FftMDvlYDIg',
       extra: {
         content_curation: ['news', 'story', 'release'],
-        duration: 12,
+        duration: 300,
         keywords: ['mongodb', 'alpinejs'],
         description: 'A description of a video',
         summary: 'A short summary of a video',
@@ -813,7 +837,7 @@ describe('on youtube post', () => {
       yggdrasilId: 'a7edf0c8-aec7-4586-b411-b1dd431ce8d6',
       url: 'https://youtu.be/FftMDvlYDIg',
       contentCuration: ['news', 'story', 'release'],
-      readTime: 12,
+      readTime: 5,
       description: 'A description of a video',
       summary: 'A short summary of a video',
     });
@@ -827,7 +851,7 @@ describe('on youtube post', () => {
       source_id: 'a',
       extra: {
         content_curation: ['news', 'story', 'release'],
-        duration: 12,
+        duration: 300,
         keywords: ['mongodb', 'alpinejs'],
         description: 'A description of a video',
         summary: 'A short summary of a video',
@@ -856,7 +880,7 @@ describe('on youtube post', () => {
       yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
       url: 'https://youtu.be/T_AbQGe7fuU',
       contentCuration: ['news', 'story', 'release'],
-      readTime: 12,
+      readTime: 5,
       description: 'A description of a video',
       summary: 'A short summary of a video',
       videoId: 'T_AbQGe7fuU',
@@ -907,7 +931,7 @@ describe('on youtube post', () => {
     expect(post).toMatchObject({
       contentCuration: ['release'],
       description: 'Try it out: https://daily.dev/daily-dev-search',
-      readTime: 63,
+      readTime: 1,
       sourceId: 'unknown',
       summary:
         'Introducing daily.dev Search, a feature that allows users to dive deeper into topics they have read about on daily.dev. With search recommendations, users can easily find relevant content in their feeds.',
