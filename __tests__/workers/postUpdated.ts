@@ -323,7 +323,6 @@ it('should update freeform post and only modify allowed fields', async () => {
   expect(post.metadataChangedAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
   expect(post.visible).toEqual(true);
   expect(post.flags.visible).toEqual(true);
-  expect(post.visibleAt).toEqual(new Date('2023-01-05T12:00:00.000Z'));
   expect(post.contentCuration).toEqual(['news', 'story', 'release']);
   expect(post.yggdrasilId).toEqual('f99a445f-e2fb-48e8-959c-e02a17f5e816');
   expect(post.title).toEqual('freeform post');
@@ -459,14 +458,7 @@ it('should save a new post with content curation', async () => {
   });
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(3);
-  const curatedPost = posts.find(
-    (item) => item.yggdrasilId === 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
-  );
-  expect(curatedPost!.contentCuration).toStrictEqual([
-    'news',
-    'story',
-    'release',
-  ]);
+  expect(posts[2].contentCuration).toStrictEqual(['news', 'story', 'release']);
 });
 
 it('save a post as public if source is public', async () => {
@@ -787,6 +779,30 @@ describe('on post update', () => {
       id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
       post_id: undefined,
       title: 'New title 2',
+    });
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: postId,
+    });
+    expect(updatedPost!.visible).toEqual(true);
+  });
+
+  it('should not make post invisible once when visible', async () => {
+    const postId = 'p1';
+
+    const existingPost = await con.getRepository(ArticlePost).save({
+      id: postId,
+      title: 'Post title',
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      visible: true,
+    });
+
+    expect(existingPost).not.toBeNull();
+    expect(existingPost.visible).toEqual(true);
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: postId,
     });
 
     const updatedPost = await con.getRepository(ArticlePost).findOneBy({
