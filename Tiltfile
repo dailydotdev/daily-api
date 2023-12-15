@@ -5,7 +5,7 @@ docker_build(
   'api-image',
   context='.',
   dockerfile='./Dockerfile.dev',
-  ignore=['./node_modules', './.infra', '__tests__'],
+  ignore=['./node_modules', './.infra', '__tests__', './seeds'],
   live_update=[
     sync('./src', '/opt/app/src'),
     sync('./bin', '/opt/app/bin'),

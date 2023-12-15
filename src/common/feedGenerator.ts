@@ -65,7 +65,7 @@ export const whereKeyword = (
 export const getExcludedAdvancedSettings = async (
   con: DataSource,
   feedId: string,
-): Promise<number[]> => {
+): Promise<Partial<AdvancedSettings>[]> => {
   const [settings, feedAdvancedSettings] = await Promise.all([
     con.getRepository(AdvancedSettings).find(),
     con.getRepository(FeedAdvancedSettings).findBy({ feedId }),
@@ -82,8 +82,11 @@ export const getExcludedAdvancedSettings = async (
 
     return adv.defaultEnabledState === false;
   });
-
-  return excludedSettings.map((adv) => adv.id);
+  return excludedSettings.map(({ id, group, options }) => ({
+    id,
+    group,
+    options,
+  }));
 };
 
 export const feedToFilters = async (
@@ -99,7 +102,7 @@ export const feedToFilters = async (
       .createQueryBuilder('s')
       .select('s.id AS "id"')
       .where(`s.advancedSettings && ARRAY[:...settings]::integer[]`, {
-        settings,
+        settings: settings.map((setting) => setting.id),
       })
       .orWhere((qb) => {
         const subQuery = qb
@@ -135,8 +138,16 @@ export const feedToFilters = async (
     },
     { includeTags: [], blockedTags: [] },
   );
+
+  const excludeTypes = settings
+    .filter(
+      (setting) => setting.group === 'content_types' && setting.options.type,
+    )
+    .map((setting) => setting.options.type);
+
   return {
     ...tagFilters,
+    excludeTypes,
     excludeSources: excludeSources.map((sources: Source) => sources.id),
     sourceIds: sourceIds.map(
       (member: Pick<SourceMember, 'sourceId'>) => member.sourceId,
@@ -280,6 +291,13 @@ export function feedResolver<
       (await runInSpan('feedResolver.fetchQueryParams', async () =>
         fetchQueryParams(context, args, page),
       ));
+    const excludedTypes =
+      queryParams && (queryParams as AnonymousFeedFilters).excludeTypes;
+
+    const supportedTypes = args.supportedTypes?.filter((type) => {
+      return excludedTypes ? !excludedTypes.includes(type) : true;
+    });
+
     const result = await runInSpan('feedResolver.queryPaginated', async () =>
       graphorm.queryPaginated<GQLPost>(
         context,
@@ -307,7 +325,7 @@ export function feedResolver<
               builder.alias,
             ),
             builder.alias,
-            args.supportedTypes || ['article'],
+            supportedTypes || ['article'],
             removeHiddenPosts,
             removeBannedPosts,
             allowPrivateSources,
@@ -378,6 +396,7 @@ export function randomPostsResolver<
 export interface AnonymousFeedFilters {
   includeSources?: string[];
   excludeSources?: string[];
+  excludeTypes?: string[];
   includeTags?: string[];
   blockedTags?: string[];
   sourceIds?: string[];
