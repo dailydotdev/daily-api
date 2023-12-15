@@ -1641,6 +1641,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
           { id: 2, enabled: true },
           { id: 3, enabled: true },
           { id: 4, enabled: false },
+          { id: 7, enabled: false },
         ],
       },
     });
@@ -1662,6 +1663,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
           { id: 2, enabled: false },
           { id: 3, enabled: false },
           { id: 4, enabled: true },
+          { id: 7, enabled: true },
         ],
       },
     });

@@ -213,10 +213,6 @@ Object {
   "updateFeedAdvancedSettings": Array [
     Object {
       "enabled": true,
-      "id": 7,
-    },
-    Object {
-      "enabled": true,
       "id": 1,
     },
     Object {
@@ -230,6 +226,10 @@ Object {
     Object {
       "enabled": true,
       "id": 4,
+    },
+    Object {
+      "enabled": true,
+      "id": 7,
     },
   ],
 }
@@ -254,10 +254,6 @@ exports[`mutation updateFeedAdvancedSettings should update existing feed advance
 Object {
   "updateFeedAdvancedSettings": Array [
     Object {
-      "enabled": true,
-      "id": 7,
-    },
-    Object {
       "enabled": false,
       "id": 1,
     },
@@ -272,6 +268,10 @@ Object {
     Object {
       "enabled": false,
       "id": 4,
+    },
+    Object {
+      "enabled": false,
+      "id": 7,
     },
   ],
 }
