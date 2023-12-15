@@ -4,6 +4,7 @@ import {
   ArticlePost,
   Notification,
   NotificationAttachment,
+  NotificationAttachmentType,
   NotificationAvatar,
   Post,
   PostOrigin,
@@ -68,7 +69,7 @@ beforeEach(async () => {
   await con.getRepository(NotificationAttachment).save({
     notificationId: '60e66c38-84a3-46cc-a97e-23080a31d410',
     order: 0,
-    type: 'post',
+    type: NotificationAttachmentType.Post,
     image: 'http://image.com',
     title: 'title',
     referenceId: 'referenceId',

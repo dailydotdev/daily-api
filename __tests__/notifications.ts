@@ -19,6 +19,7 @@ import {
   Source,
   NotificationPreferenceSource,
   NotificationPreference,
+  NotificationAttachmentType,
 } from '../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -281,13 +282,13 @@ describe('query notifications', () => {
       {
         image: 'img#1',
         title: 'att #1',
-        type: 'post',
+        type: NotificationAttachmentType.Post,
         referenceId: '1',
       },
       {
         image: 'img#2',
         title: 'att #2',
-        type: 'post',
+        type: NotificationAttachmentType.Post,
         referenceId: '2',
       },
     ]);
