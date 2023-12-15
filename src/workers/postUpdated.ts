@@ -533,7 +533,7 @@ const worker: Worker = {
 
         let postId = data.post_id;
 
-        if (!postId) {
+        if (!postId && data.id) {
           const matchedYggdrasilPost = await con
             .createQueryBuilder()
             .from(Post, 'p')
