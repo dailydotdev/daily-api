@@ -12,8 +12,20 @@ beforeEach(() => {
   jest.resetAllMocks();
 });
 
-it('should remove from mailing list', async () => {
-  await expectSuccessfulBackground(worker, { id: '1', email: 'lee@daily.dev' });
-  expect(getContactIdByEmail).toBeCalledTimes(1);
-  expect(removeUserContact).toBeCalledTimes(1);
+describe('remove user from mailing list worker', () => {
+  const OLD_ENV = { ...process.env };
+
+  afterAll(() => {
+    process.env = OLD_ENV;
+  });
+
+  it('should remove from mailing list', async () => {
+    process.env.SENDGRID_API_KEY = 'key';
+    await expectSuccessfulBackground(worker, {
+      id: '1',
+      email: 'lee@daily.dev',
+    });
+    expect(getContactIdByEmail).toBeCalledTimes(1);
+    expect(removeUserContact).toBeCalledTimes(1);
+  });
 });
