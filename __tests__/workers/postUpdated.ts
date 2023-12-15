@@ -738,6 +738,30 @@ describe('on post update', () => {
       );
     });
   });
+
+  it('should resolve post id from yggdrasil id when post id is missing', async () => {
+    const postId = 'p1';
+
+    const existingPost = await con.getRepository(ArticlePost).save({
+      id: postId,
+      title: 'Post title',
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    });
+
+    expect(existingPost).not.toBeNull();
+    expect(existingPost.title).toEqual('Post title');
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: undefined,
+      title: 'New title 2',
+    });
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: postId,
+    });
+    expect(updatedPost!.title).toEqual('New title 2');
+  });
 });
 
 describe('on youtube post', () => {
