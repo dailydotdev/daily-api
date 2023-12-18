@@ -10,7 +10,9 @@ import createOrGetConnection from './db';
 import { workerSubscribe } from './common';
 
 export default async function app(): Promise<void> {
-  const logger = pino();
+  const logger = pino({
+    messageKey: 'message',
+  });
   const connection = await runInRootSpan(
     'createOrGetConnection',
     createOrGetConnection,

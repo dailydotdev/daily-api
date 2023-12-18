@@ -9,6 +9,7 @@ import {
   CollectionPost,
   findAuthor,
   FreeformPost,
+  getPostVisible,
   mergeKeywords,
   parseReadTime,
   Post,
@@ -203,6 +204,12 @@ const createPost = async ({
   data.origin = data?.scoutId
     ? PostOrigin.CommunityPicks
     : data.origin ?? PostOrigin.Crawler;
+  data.visible = getPostVisible({ post: data });
+  data.visibleAt = data.visible ? postCreatedAt : null;
+  data.flags = {
+    ...data.flags,
+    visible: data.visible,
+  };
 
   const post = await entityManager
     .getRepository(contentTypeFromPostType[data.type] ?? ArticlePost)
@@ -294,18 +301,26 @@ const updatePost = async ({
   }
 
   const title = data?.title || databasePost.title;
-  const updateBecameVisible =
-    content_type === PostType.Freeform
-      ? databasePost.visible
-      : !databasePost.visible && !!title?.length;
 
   data.id = databasePost.id;
   data.title = title;
-  data.visible = updateBecameVisible;
-  data.visibleAt = updateBecameVisible
-    ? databasePost.visibleAt ?? data.metadataChangedAt
-    : null;
   data.sourceId = data.sourceId || databasePost.sourceId;
+
+  let updateBecameVisible = false;
+
+  if (!databasePost.visible) {
+    updateBecameVisible = getPostVisible({ post: { title } });
+  }
+
+  if (updateBecameVisible) {
+    data.visible = true;
+  } else {
+    data.visible = databasePost.visible;
+  }
+
+  if (data.visible && !databasePost.visibleAt) {
+    data.visibleAt = data.metadataChangedAt;
+  }
 
   if (content_type in allowedFieldsMapping) {
     const allowedFields = [
@@ -451,7 +466,7 @@ const fixData = async ({
     );
   }
 
-  const becomesVisible = !!data?.title?.length;
+  const duration = data?.extra?.duration / 60;
 
   // Try and fix generic data here
   return {
@@ -467,12 +482,10 @@ const fixData = async ({
       image: data?.image,
       sourceId: data?.source_id,
       title: data?.title && he.decode(data?.title),
-      readTime: parseReadTime(data?.extra?.read_time || data?.extra?.duration),
+      readTime: parseReadTime(data?.extra?.read_time || duration),
       publishedAt: data?.published_at && new Date(data?.published_at),
       metadataChangedAt:
         (data?.updated_at && new Date(data.updated_at)) || new Date(),
-      visible: becomesVisible,
-      visibleAt: becomesVisible ? new Date() : null,
       tagsStr: allowedKeywords?.join(',') || null,
       private: privacy,
       sentAnalyticsReport: privacy || !authorId,
@@ -484,7 +497,6 @@ const fixData = async ({
       showOnFeed: !data?.order,
       flags: {
         private: privacy,
-        visible: becomesVisible,
         showOnFeed: !data?.order,
         sentAnalyticsReport: privacy || !authorId,
       },
@@ -523,6 +535,20 @@ const worker: Worker = {
         }
 
         let postId = data.post_id;
+
+        if (!postId && data.id) {
+          const matchedYggdrasilPost = await con
+            .createQueryBuilder()
+            .from(Post, 'p')
+            .select('p.id as id')
+            .where('p."yggdrasilId" = :id', { id: data.id })
+            .getRawOne<{
+              id: string;
+            }>();
+
+          postId = matchedYggdrasilPost?.id;
+        }
+
         const { mergedKeywords, questions, content_type, fixedData } =
           await fixData({
             logger,

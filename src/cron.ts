@@ -8,7 +8,9 @@ import { crons } from './cron/index';
 import createOrGetConnection from './db';
 
 export default async function app(cronName: string): Promise<void> {
-  const logger = pino();
+  const logger = pino({
+    messageKey: 'message',
+  });
   const connection = await createOrGetConnection();
   const pubsub = new PubSub();
 

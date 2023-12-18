@@ -107,7 +107,9 @@ describe('personalizedDigest cron', () => {
       })),
     );
 
-    const logger = pino();
+    const logger = pino({
+      messageKey: 'message',
+    });
     const infoSpy = jest.spyOn(logger, 'info');
     await expectSuccessfulCron(cron, logger);
     expect(infoSpy).toHaveBeenCalledTimes(2);
@@ -130,7 +132,9 @@ describe('personalizedDigest cron', () => {
       })),
     );
 
-    const logger = pino();
+    const logger = pino({
+      messageKey: 'message',
+    });
     const infoSpy = jest.spyOn(logger, 'info');
 
     await expectSuccessfulCron(cron, logger);

@@ -17,6 +17,7 @@ export enum FeedConfigName {
   VectorE1 = 'vector_e1',
   VectorV18 = 'vector_v18',
   VectorV20 = 'vector_v20',
+  PostSimilarity = 'post_similarity',
 }
 
 export type FeedProvider = {
@@ -44,7 +45,7 @@ export type FeedConfig = {
   user_id?: string;
   feed_config_name?: FeedConfigName;
   page_size: number;
-  offset: number;
+  offset?: number;
   total_pages: number;
   fresh_page_size?: string;
   allowed_tags?: string[];
@@ -54,16 +55,13 @@ export type FeedConfig = {
   providers?: Record<string, FeedProvider>;
   source_types?: ('machine' | 'squad')[];
   cursor?: string;
+  post_id?: string;
 };
 
+export type DynamicConfig = Omit<FeedConfig, 'total_pages'>;
+
 export interface FeedConfigGenerator {
-  generate(
-    ctx: Context,
-    userId: string | undefined,
-    pageSize: number,
-    offset: number,
-    cursor?: string,
-  ): Promise<FeedConfig>;
+  generate(ctx: Context, opts: DynamicConfig): Promise<FeedConfig>;
 }
 
 /**
@@ -90,4 +88,5 @@ export type FeedVersion =
   | '19'
   | '20'
   | 'popular'
-  | 'onboarding';
+  | 'onboarding'
+  | 'post_similarity';

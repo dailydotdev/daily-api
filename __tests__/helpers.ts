@@ -193,7 +193,9 @@ export const invokeBackground = async (
 ): Promise<void> => {
   const con = await createOrGetConnection();
   const pubsub = new PubSub();
-  const logger = pino();
+  const logger = pino({
+    messageKey: 'message',
+  });
   await worker.handler(mockMessage(data).message, con, logger, pubsub);
 };
 
@@ -207,7 +209,9 @@ export const invokeNotificationWorker = async (
   data: Record<string, unknown>,
 ): Promise<NotificationHandlerReturn> => {
   const con = await createOrGetConnection();
-  const logger = pino();
+  const logger = pino({
+    messageKey: 'message',
+  });
   return worker.handler(mockMessage(data).message, con, logger);
 };
 
@@ -219,7 +223,9 @@ export const invokeCron = async (cron: Cron, logger: Logger): Promise<void> => {
 
 export const expectSuccessfulCron = (
   cron: Cron,
-  logger: Logger = pino(),
+  logger: Logger = pino({
+    messageKey: 'message',
+  }),
 ): Promise<void> => invokeCron(cron, logger);
 
 export const mockChangeMessage = <T>({
