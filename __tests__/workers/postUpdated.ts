@@ -766,6 +766,55 @@ describe('on post update', () => {
     });
     expect(updatedPost!.title).toEqual('New title 2');
   });
+
+  it('should retain visible state when title is present', async () => {
+    const postId = 'p1';
+
+    const existingPost = await con.getRepository(ArticlePost).save({
+      id: postId,
+      title: 'Post title',
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      visible: true,
+    });
+
+    expect(existingPost).not.toBeNull();
+    expect(existingPost.visible).toEqual(true);
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: undefined,
+      title: 'New title 2',
+    });
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: postId,
+    });
+    expect(updatedPost!.visible).toEqual(true);
+  });
+
+  it('should not make post invisible once when visible', async () => {
+    const postId = 'p1';
+
+    const existingPost = await con.getRepository(ArticlePost).save({
+      id: postId,
+      title: 'Post title',
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      visible: true,
+    });
+
+    expect(existingPost).not.toBeNull();
+    expect(existingPost.visible).toEqual(true);
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: postId,
+    });
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: postId,
+    });
+    expect(updatedPost!.visible).toEqual(true);
+  });
 });
 
 describe('on youtube post', () => {
