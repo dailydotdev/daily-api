@@ -49,8 +49,7 @@ import { cookies } from '../src/cookies';
 import { signJwt } from '../src/auth';
 import { submitArticleThreshold } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
-import { NotificationV2 } from '../src/entity/notifications/NotificationV2';
-import { UserNotification } from '../src/entity/notifications/UserNotification';
+import { NotificationV2, UserNotification } from '../src/entity';
 
 let app: FastifyInstance;
 let con: DataSource;

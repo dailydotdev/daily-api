@@ -24,7 +24,7 @@ export const videoPostsFixture: DeepPartial<YouTubePost | SharePost>[] = [
     metadataChangedAt: new Date('01-05-2020 12:00:00'),
     sourceId: 'a',
     visible: true,
-    createdAt: new Date('01-05-2020 12:00:00'),
+    createdAt: new Date(now.getTime() - 3000),
     type: PostType.VideoYouTube,
     origin: PostOrigin.Crawler,
     yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',

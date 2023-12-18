@@ -21,6 +21,7 @@ import {
   User,
   View,
   WelcomePost,
+  YouTubePost,
 } from '../src/entity';
 import { SourceMemberRoles } from '../src/roles';
 import { Category } from '../src/entity/Category';
@@ -40,6 +41,7 @@ import {
   postsFixture,
   postTagsFixture,
   sharedPostsFixture,
+  videoPostsFixture,
 } from './fixture/post';
 import nock from 'nock';
 import { deleteKeysByPattern, ioRedisPool } from '../src/redis';
@@ -116,6 +118,16 @@ const advancedSettings: Partial<AdvancedSettings>[] = [
     description: 'Description for Another Settings',
     defaultEnabledState: true,
   },
+  {
+    id: 7,
+    title: 'Setting with options',
+    description: 'Description for Another Settings',
+    defaultEnabledState: true,
+    group: 'content_types',
+    options: {
+      type: PostType.VideoYouTube,
+    },
+  },
 ];
 
 const categories: Partial<Category>[] = [
@@ -140,6 +152,7 @@ const saveFeedFixtures = async (): Promise<void> => {
     { feedId: '1', advancedSettingsId: 2, enabled: false },
     { feedId: '1', advancedSettingsId: 3, enabled: false },
     { feedId: '1', advancedSettingsId: 4, enabled: true },
+    { feedId: '1', advancedSettingsId: 7, enabled: true },
   ]);
   await saveFixtures(con, Category, categories);
   await saveFixtures(con, FeedTag, [
@@ -236,6 +249,7 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
     { feedId: '1', advancedSettingsId: 2, enabled: true },
     { feedId: '1', advancedSettingsId: 3, enabled: true },
     { feedId: '1', advancedSettingsId: 4, enabled: false },
+    { feedId: '1', advancedSettingsId: 7, enabled: false },
   ]);
 };
 
@@ -252,6 +266,7 @@ edges {
     title
     readTime
     tags
+    type
     source {
       id
       name
@@ -317,6 +332,7 @@ describe('query anonymousFeed', () => {
 
     const filters = await feedToFilters(con, '1', '1');
     delete filters.sourceIds;
+    delete filters.excludeTypes;
     const res = await client.query(QUERY, {
       variables: { ...variables, filters },
     });
@@ -483,6 +499,104 @@ describe('query feed', () => {
 
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
+  });
+
+  describe('youtube content', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, YouTubePost, videoPostsFixture);
+      await saveFeedFixtures();
+      await con.getRepository(PostKeyword).save([
+        { keyword: 'backend', postId: videoPostsFixture[0].id },
+        { keyword: 'javascript', postId: videoPostsFixture[0].id },
+      ]);
+    });
+
+    it('should include video content by default', async () => {
+      loggedUser = '1';
+
+      await con.getRepository(FeedAdvancedSettings).delete({
+        feedId: '1',
+        advancedSettingsId: 7,
+      });
+
+      const res = await client.query(QUERY, {
+        variables: {
+          ...variables,
+          supportedTypes: ['article', 'video:youtube'],
+        },
+      });
+      expect(res.data).toMatchSnapshot();
+      res.data.feed.edges.map((post) => {
+        expect(
+          ['article', 'video:youtube'].includes(post.node.type),
+        ).toBeTruthy();
+      });
+    });
+
+    it('should include video content when it is enabled by the user', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY, {
+        variables: {
+          ...variables,
+          supportedTypes: ['article', 'video:youtube'],
+        },
+      });
+      expect(res.data).toMatchSnapshot();
+      res.data.feed.edges.map((post) => {
+        expect(
+          ['article', 'video:youtube'].includes(post.node.type),
+        ).toBeTruthy();
+      });
+    });
+
+    it('should exclude video content when it is disabled by the user', async () => {
+      loggedUser = '1';
+
+      await saveFixtures(con, FeedAdvancedSettings, [
+        { feedId: '1', advancedSettingsId: 7, enabled: false },
+      ]);
+
+      const res = await client.query(QUERY, {
+        variables: {
+          ...variables,
+          supportedTypes: ['article', 'video:youtube'],
+        },
+      });
+      expect(res.data).toMatchSnapshot();
+
+      res.data.feed.edges.map((post) => {
+        expect(post.node.type).not.toEqual('video:youtube');
+      });
+    });
+
+    it('can filter out article posts', async () => {
+      loggedUser = '1';
+
+      await saveFixtures(con, FeedAdvancedSettings, [
+        { feedId: '1', advancedSettingsId: 7, enabled: false },
+      ]);
+      await con.getRepository(AdvancedSettings).update(
+        { id: 7 },
+        {
+          options: {
+            type: PostType.Article,
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        variables: {
+          ...variables,
+          supportedTypes: ['article', 'video:youtube'],
+        },
+      });
+      expect(res.data).toMatchSnapshot();
+
+      res.data.feed.edges.map((post) => {
+        expect(post.node.type).not.toEqual('article');
+      });
+    });
   });
 
   it('should return preconfigured feed with tags filters only', async () => {
@@ -1527,6 +1641,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
           { id: 2, enabled: true },
           { id: 3, enabled: true },
           { id: 4, enabled: false },
+          { id: 7, enabled: false },
         ],
       },
     });
@@ -1548,6 +1663,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
           { id: 2, enabled: false },
           { id: 3, enabled: false },
           { id: 4, enabled: true },
+          { id: 7, enabled: true },
         ],
       },
     });
@@ -1709,6 +1825,13 @@ describe('function feedToFilters', () => {
       'excludedSource',
       'settingsCombinationSource',
     ]);
+  });
+
+  it('should return filters having excluded content types based on advanced settings', async () => {
+    loggedUser = '1';
+    await saveAdvancedSettingsFiltersFixtures();
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.excludeTypes).toEqual(['video:youtube']);
   });
 
   it('should return filters for tags/sources based on the values from our data', async () => {

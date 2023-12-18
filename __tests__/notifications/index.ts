@@ -1,7 +1,7 @@
 import {
-  generateNotification,
+  generateNotificationV2,
   NotificationBaseContext,
-  NotificationBundle,
+  NotificationBundleV2,
   NotificationCommentContext,
   NotificationCommenterContext,
   NotificationDoneByContext,
@@ -12,16 +12,16 @@ import {
   NotificationSubmissionContext,
   NotificationUpvotersContext,
   Reference,
-  storeNotificationBundle,
+  storeNotificationBundleV2,
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import {
   Comment,
   FreeformPost,
-  Notification,
-  NotificationAttachment,
   NotificationAttachmentType,
-  NotificationAvatar,
+  NotificationAttachmentV2,
+  NotificationAvatarV2,
+  NotificationV2,
   Post,
   PostType,
   Source,
@@ -61,10 +61,10 @@ beforeAll(async () => {
 });
 
 describe('generateNotification', () => {
-  const verifyPostMention = (actual: NotificationBundle) => {
+  const verifyPostMention = (actual: NotificationBundleV2) => {
     const type = 'post_mention';
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.referenceId).toEqual('p1');
     expect(actual.notification.referenceType).toEqual('post');
     expect(actual.notification.targetUrl).toEqual(
@@ -74,7 +74,6 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 0,
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -98,10 +97,9 @@ describe('generateNotification', () => {
       doneTo: usersFixture[0] as Reference<User>,
     };
 
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    verifyPostMention(actual[0]);
-    expect(actual[0].notification.description).toEqual(title);
+    const actual = generateNotificationV2(type, ctx);
+    verifyPostMention(actual);
+    expect(actual.notification.description).toEqual(title);
   });
 
   it('should generate post_mention notification with mention on content', async () => {
@@ -124,10 +122,10 @@ describe('generateNotification', () => {
       doneTo: usersFixture[0] as Reference<User>,
     };
 
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    verifyPostMention(actual[0]);
-    expect(actual[0].notification.description).toEqual(content);
+    const actual = generateNotificationV2(type, ctx);
+
+    verifyPostMention(actual);
+    expect(actual.notification.description).toEqual(content);
   });
 
   it('should generate community_picks_failed notification', () => {
@@ -136,15 +134,15 @@ describe('generateNotification', () => {
       userIds: [userId],
       submission: { id: 's1' },
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(false);
-    expect(actual[0].notification.referenceId).toEqual('s1');
-    expect(actual[0].notification.referenceType).toEqual('submission');
-    expect(actual[0].avatars.length).toEqual(0);
-    expect(actual[0].attachments.length).toEqual(0);
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(false);
+    expect(actual.notification.referenceId).toEqual('s1');
+    expect(actual.notification.referenceType).toEqual('submission');
+    expect(actual.avatars.length).toEqual(0);
+    expect(actual.attachments.length).toEqual(0);
   });
 
   it('should generate community_picks_succeeded notification', () => {
@@ -155,21 +153,20 @@ describe('generateNotification', () => {
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('p1');
-    expect(actual[0].notification.referenceType).toEqual('post');
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/p1',
     );
-    expect(actual[0].avatars.length).toEqual(0);
-    expect(actual[0].attachments).toEqual([
+    expect(actual.avatars.length).toEqual(0);
+    expect(actual.attachments).toEqual([
       {
         image: 'https://daily.dev/image.jpg',
-        order: 0,
         referenceId: 'p1',
         title: 'P1',
         type: 'post',
@@ -180,16 +177,16 @@ describe('generateNotification', () => {
   it('should generate community_picks_granted notification', () => {
     const type = NotificationType.CommunityPicksGranted;
     const ctx: NotificationBaseContext = { userIds: [userId] };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('system');
-    expect(actual[0].notification.referenceType).toEqual('system');
-    expect(actual[0].notification.targetUrl).toEqual(scoutArticleLink);
-    expect(actual[0].avatars.length).toEqual(0);
-    expect(actual[0].attachments.length).toEqual(0);
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('system');
+    expect(actual.notification.referenceType).toEqual('system');
+    expect(actual.notification.targetUrl).toEqual(scoutArticleLink);
+    expect(actual.avatars.length).toEqual(0);
+    expect(actual.attachments.length).toEqual(0);
   });
 
   it('should generate article_picked notification', () => {
@@ -199,21 +196,21 @@ describe('generateNotification', () => {
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('p1');
-    expect(actual[0].notification.referenceType).toEqual('post');
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/p1',
     );
-    expect(actual[0].avatars.length).toEqual(0);
-    expect(actual[0].attachments).toEqual([
+    expect(actual.avatars.length).toEqual(0);
+    expect(actual.attachments).toEqual([
       {
         image: 'https://daily.dev/image.jpg',
-        order: 0,
+
         referenceId: 'p1',
         title: 'P1',
         type: 'post',
@@ -230,30 +227,29 @@ describe('generateNotification', () => {
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('c1');
-    expect(actual[0].notification.referenceType).toEqual('comment');
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('c1');
+    expect(actual.notification.referenceType).toEqual('comment');
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/p1#c-c1',
     );
-    expect(actual[0].notification.description).toEqual(
+    expect(actual.notification.description).toEqual(
       'Complex markdown comment that needs to be simplified',
     );
-    expect(actual[0].avatars).toEqual([
+    expect(actual.avatars).toEqual([
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 0,
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
       },
     ]);
-    expect(actual[0].attachments.length).toEqual(0);
+    expect(actual.attachments.length).toEqual(0);
   });
 
   it('should generate article_upvote_milestone notification', () => {
@@ -265,22 +261,22 @@ describe('generateNotification', () => {
       upvotes: 50,
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.uniqueKey).toEqual('50');
-    expect(actual[0].notification.referenceId).toEqual('p1');
-    expect(actual[0].notification.referenceType).toEqual('post');
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.uniqueKey).toEqual('50');
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/p1',
     );
-    expect(actual[0].avatars).toEqual([
+    expect(actual.avatars).toEqual([
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 0,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -288,16 +284,16 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/nimrod.jpg',
         name: 'Nimrod',
-        order: 1,
+
         referenceId: '3',
         targetUrl: 'http://localhost:5002/nimroddaily',
         type: 'user',
       },
     ]);
-    expect(actual[0].attachments).toEqual([
+    expect(actual.attachments).toEqual([
       {
         image: 'https://daily.dev/image.jpg',
-        order: 0,
+
         referenceId: 'p1',
         title: 'P1',
         type: 'post',
@@ -317,14 +313,12 @@ describe('generateNotification', () => {
       upvotes: 50,
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].attachments).toEqual([
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.attachments).toEqual([
       {
         image: 'https://daily.dev/image.jpg',
-        order: 0,
         referenceId: 'p1',
         title: 'P1',
         type: NotificationAttachmentType.Video,
@@ -344,14 +338,14 @@ describe('generateNotification', () => {
       upvotes: 50,
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].avatars).toEqual([
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',
         name: 'A',
-        order: 0,
+
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
@@ -359,7 +353,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 1,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -367,7 +361,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/nimrod.jpg',
         name: 'Nimrod',
-        order: 2,
+
         referenceId: '3',
         targetUrl: 'http://localhost:5002/nimroddaily',
         type: 'user',
@@ -382,15 +376,15 @@ describe('generateNotification', () => {
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(false);
-    expect(actual[0].notification.referenceId).toEqual('p1');
-    expect(actual[0].notification.referenceType).toEqual('post');
-    expect(actual[0].avatars.length).toEqual(0);
-    expect(actual[0].attachments.length).toEqual(0);
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(false);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.avatars.length).toEqual(0);
+    expect(actual.attachments.length).toEqual(0);
   });
 
   it('should generate article_analytics notification', () => {
@@ -400,15 +394,15 @@ describe('generateNotification', () => {
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(false);
-    expect(actual[0].notification.referenceId).toEqual('p1');
-    expect(actual[0].notification.referenceType).toEqual('post');
-    expect(actual[0].avatars.length).toEqual(0);
-    expect(actual[0].attachments.length).toEqual(0);
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(false);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.avatars.length).toEqual(0);
+    expect(actual.attachments.length).toEqual(0);
   });
 
   it('should generate source_approved notification', () => {
@@ -425,21 +419,21 @@ describe('generateNotification', () => {
         id: 'sr1',
       } as Reference<SourceRequest>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('sr1');
-    expect(actual[0].notification.referenceType).toEqual('source_request');
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('sr1');
+    expect(actual.notification.referenceType).toEqual('source_request');
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/sources/s1',
     );
-    expect(actual[0].avatars).toEqual([
+    expect(actual.avatars).toEqual([
       {
         image: 'https://daily.dev/s1.jpg',
         name: 'Source',
-        order: 0,
+
         referenceId: 's1',
         targetUrl: 'http://localhost:5002/sources/s1',
         type: 'source',
@@ -455,15 +449,15 @@ describe('generateNotification', () => {
         id: 'sr1',
       } as Reference<SourceRequest>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(false);
-    expect(actual[0].notification.referenceId).toEqual('sr1');
-    expect(actual[0].notification.referenceType).toEqual('source_request');
-    expect(actual[0].avatars.length).toEqual(0);
-    expect(actual[0].attachments.length).toEqual(0);
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(false);
+    expect(actual.notification.referenceId).toEqual('sr1');
+    expect(actual.notification.referenceType).toEqual('source_request');
+    expect(actual.avatars.length).toEqual(0);
+    expect(actual.attachments.length).toEqual(0);
   });
 
   it('should generate comment_mention notification', () => {
@@ -475,30 +469,30 @@ describe('generateNotification', () => {
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('c1');
-    expect(actual[0].notification.referenceType).toEqual('comment');
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('c1');
+    expect(actual.notification.referenceType).toEqual('comment');
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/p1#c-c1',
     );
-    expect(actual[0].notification.description).toEqual(
+    expect(actual.notification.description).toEqual(
       'Complex markdown comment that needs to be simplified',
     );
-    expect(actual[0].avatars).toEqual([
+    expect(actual.avatars).toEqual([
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 0,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
       },
     ]);
-    expect(actual[0].attachments.length).toEqual(0);
+    expect(actual.attachments.length).toEqual(0);
   });
 
   it('should generate comment_reply notification', () => {
@@ -510,30 +504,30 @@ describe('generateNotification', () => {
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('c1');
-    expect(actual[0].notification.referenceType).toEqual('comment');
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('c1');
+    expect(actual.notification.referenceType).toEqual('comment');
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/p1#c-c1',
     );
-    expect(actual[0].notification.description).toEqual(
+    expect(actual.notification.description).toEqual(
       'Complex markdown comment that needs to be simplified',
     );
-    expect(actual[0].avatars).toEqual([
+    expect(actual.avatars).toEqual([
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 0,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
       },
     ]);
-    expect(actual[0].attachments.length).toEqual(0);
+    expect(actual.attachments.length).toEqual(0);
   });
 
   it('should generate comment_upvote_milestone notification', () => {
@@ -546,25 +540,25 @@ describe('generateNotification', () => {
       upvotes: 50,
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.uniqueKey).toEqual('50');
-    expect(actual[0].notification.referenceId).toEqual('c1');
-    expect(actual[0].notification.referenceType).toEqual('comment');
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.uniqueKey).toEqual('50');
+    expect(actual.notification.referenceId).toEqual('c1');
+    expect(actual.notification.referenceType).toEqual('comment');
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/p1#c-c1',
     );
-    expect(actual[0].notification.description).toEqual(
+    expect(actual.notification.description).toEqual(
       'Complex markdown comment that needs to be simplified',
     );
-    expect(actual[0].avatars).toEqual([
+    expect(actual.avatars).toEqual([
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 0,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -572,13 +566,13 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/nimrod.jpg',
         name: 'Nimrod',
-        order: 1,
+
         referenceId: '3',
         targetUrl: 'http://localhost:5002/nimroddaily',
         type: 'user',
       },
     ]);
-    expect(actual[0].attachments.length).toEqual(0);
+    expect(actual.attachments.length).toEqual(0);
   });
 
   it('should generate squad_post_added notification', () => {
@@ -592,22 +586,22 @@ describe('generateNotification', () => {
       post: postsFixture[0] as Reference<Post>,
       doneBy: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('p1');
-    expect(actual[0].notification.referenceType).toEqual('post');
-    expect(actual[0].notification.description).toBeFalsy();
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('p1');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.description).toBeFalsy();
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/p1',
     );
-    expect(actual[0].avatars).toEqual([
+    expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',
         name: 'A',
-        order: 0,
+
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
@@ -615,16 +609,16 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 1,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
       },
     ]);
-    expect(actual[0].attachments).toEqual([
+    expect(actual.attachments).toEqual([
       {
         image: 'https://daily.dev/image.jpg',
-        order: 0,
+
         referenceId: 'p1',
         title: 'P1',
         type: 'post',
@@ -649,22 +643,22 @@ describe('generateNotification', () => {
       sharedPost: postsFixture[0] as Reference<Post>,
       doneBy: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('ps');
-    expect(actual[0].notification.referenceType).toEqual('post');
-    expect(actual[0].notification.description).toEqual('Commentary');
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('ps');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.description).toEqual('Commentary');
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/ps',
     );
-    expect(actual[0].avatars).toEqual([
+    expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',
         name: 'A',
-        order: 0,
+
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
@@ -672,16 +666,16 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 1,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
       },
     ]);
-    expect(actual[0].attachments).toEqual([
+    expect(actual.attachments).toEqual([
       {
         image: 'https://daily.dev/image.jpg',
-        order: 0,
+
         referenceId: 'p1',
         title: 'P1',
         type: 'post',
@@ -706,23 +700,23 @@ describe('generateNotification', () => {
       sharedPost: postsFixture[0] as Reference<Post>,
       doneBy: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('ps');
-    expect(actual[0].notification.referenceType).toEqual('post');
-    expect(actual[0].notification.description).toEqual('Commentary');
-    expect(actual[0].notification.uniqueKey).toEqual('2');
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('ps');
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.description).toEqual('Commentary');
+    expect(actual.notification.uniqueKey).toEqual('2');
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/ps',
     );
-    expect(actual[0].avatars).toEqual([
+    expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',
         name: 'A',
-        order: 0,
+
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
@@ -730,16 +724,16 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 1,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
       },
     ]);
-    expect(actual[0].attachments).toEqual([
+    expect(actual.attachments).toEqual([
       {
         image: 'https://daily.dev/image.jpg',
-        order: 0,
+
         referenceId: 'p1',
         title: 'P1',
         type: 'post',
@@ -772,22 +766,22 @@ describe('generateNotification', () => {
       source,
       doneBy: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual(post.id);
-    expect(actual[0].notification.referenceType).toEqual('post');
-    expect(actual[0].notification.uniqueKey).toEqual('2');
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(post.id);
+    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.uniqueKey).toEqual('2');
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/welcome1?comment=%40tsahidaily+welcome+to+A%21',
     );
-    expect(actual[0].avatars).toEqual([
+    expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',
         name: 'A',
-        order: 0,
+
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
@@ -795,13 +789,13 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 1,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
       },
     ]);
-    expect(actual[0].attachments.length).toEqual(0);
+    expect(actual.attachments.length).toEqual(0);
   });
 
   it('should generate squad_blocked notification', () => {
@@ -813,15 +807,15 @@ describe('generateNotification', () => {
         type: SourceType.Squad,
       } as Reference<Source>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('a');
-    expect(actual[0].notification.referenceType).toEqual('source');
-    expect(actual[0].notification.icon).toEqual('Block');
-    expect(actual[0].notification.title).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('a');
+    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.icon).toEqual('Block');
+    expect(actual.notification.title).toEqual(
       `You are no longer part of <b>${sourcesFixture[0].name}</b>`,
     );
   });
@@ -840,18 +834,18 @@ describe('generateNotification', () => {
     url.searchParams.set('promoted', 'true');
     url.searchParams.set('sid', sourcesFixture[0].handle);
 
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('a');
-    expect(actual[0].notification.referenceType).toEqual('source');
-    expect(actual[0].notification.icon).toEqual('Star');
-    expect(actual[0].notification.title).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('a');
+    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.icon).toEqual('Star');
+    expect(actual.notification.title).toEqual(
       `Congratulations! You are now an <span class="text-theme-color-cabbage">${SourceMemberRoles.Admin}</span> of <b>${sourcesFixture[0].name}</b>`,
     );
-    expect(actual[0].notification.targetUrl).toEqual(url.toString());
+    expect(actual.notification.targetUrl).toEqual(url.toString());
   });
 
   it('should generate demoted_to_member notification', () => {
@@ -864,18 +858,18 @@ describe('generateNotification', () => {
       } as Reference<Source>,
       role: SourceMemberRoles.Admin,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('a');
-    expect(actual[0].notification.referenceType).toEqual('source');
-    expect(actual[0].notification.icon).toEqual('Star');
-    expect(actual[0].notification.title).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('a');
+    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.icon).toEqual('Star');
+    expect(actual.notification.title).toEqual(
       `You are no longer a <span class="text-theme-color-cabbage">${SourceMemberRoles.Admin}</span> in <b>${sourcesFixture[0].name}</b>`,
     );
-    expect(actual[0].notification.targetUrl).toEqual(
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/squads/a',
     );
   });
@@ -892,18 +886,18 @@ describe('generateNotification', () => {
     const url = new URL(notificationsLink);
     url.searchParams.set('promoted', 'true');
     url.searchParams.set('sid', sourcesFixture[0].handle);
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('a');
-    expect(actual[0].notification.referenceType).toEqual('source');
-    expect(actual[0].notification.icon).toEqual('User');
-    expect(actual[0].notification.title).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('a');
+    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.icon).toEqual('User');
+    expect(actual.notification.title).toEqual(
       `You are now a <span class="text-theme-color-cabbage">moderator</span> in <b>${sourcesFixture[0].name}</b>`,
     );
-    expect(actual[0].notification.targetUrl).toEqual(url.toString());
+    expect(actual.notification.targetUrl).toEqual(url.toString());
   });
 });
 
@@ -921,16 +915,18 @@ describe('storeNotificationBundle', () => {
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
     };
     await con.transaction((manager) =>
-      storeNotificationBundle(
+      storeNotificationBundleV2(
         manager,
-        generateNotification(NotificationType.ArticleUpvoteMilestone, ctx),
+        generateNotificationV2(NotificationType.ArticleUpvoteMilestone, ctx),
       ),
     );
-    const notifications = await con.getRepository(Notification).find();
+    const notifications = await con.getRepository(NotificationV2).find();
     expect(notifications.length).toEqual(1);
-    const attachments = await con.getRepository(NotificationAttachment).find();
+    const attachments = await con
+      .getRepository(NotificationAttachmentV2)
+      .find();
     expect(attachments.length).toEqual(1);
-    const avatars = await con.getRepository(NotificationAvatar).find();
+    const avatars = await con.getRepository(NotificationAvatarV2).find();
     expect(avatars.length).toEqual(2);
   });
 
@@ -942,17 +938,23 @@ describe('storeNotificationBundle', () => {
       upvotes: 50,
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
     };
-    await con.transaction((manager) =>
-      storeNotificationBundle(manager, [
-        ...generateNotification(NotificationType.ArticleUpvoteMilestone, ctx),
-        ...generateNotification(NotificationType.ArticleUpvoteMilestone, ctx),
-      ]),
-    );
-    const notifications = await con.getRepository(Notification).find();
+    await con.transaction(async (manager) => {
+      await storeNotificationBundleV2(
+        manager,
+        generateNotificationV2(NotificationType.ArticleUpvoteMilestone, ctx),
+      );
+      await storeNotificationBundleV2(
+        manager,
+        generateNotificationV2(NotificationType.ArticleUpvoteMilestone, ctx),
+      );
+    });
+    const notifications = await con.getRepository(NotificationV2).find();
     expect(notifications.length).toEqual(1);
-    const attachments = await con.getRepository(NotificationAttachment).find();
+    const attachments = await con
+      .getRepository(NotificationAttachmentV2)
+      .find();
     expect(attachments.length).toEqual(1);
-    const avatars = await con.getRepository(NotificationAvatar).find();
+    const avatars = await con.getRepository(NotificationAvatarV2).find();
     expect(avatars.length).toEqual(2);
   });
 
@@ -968,24 +970,24 @@ describe('storeNotificationBundle', () => {
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('c1');
-    expect(actual[0].notification.referenceType).toEqual('comment');
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('c1');
+    expect(actual.notification.referenceType).toEqual('comment');
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/p1#c-c1',
     );
-    expect(actual[0].notification.description).toEqual(
+    expect(actual.notification.description).toEqual(
       'Complex markdown comment that needs to be simplified',
     );
-    expect(actual[0].avatars).toEqual([
+    expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',
         name: 'A',
-        order: 0,
+
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
@@ -993,13 +995,13 @@ describe('storeNotificationBundle', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 1,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
       },
     ]);
-    expect(actual[0].attachments.length).toEqual(0);
+    expect(actual.attachments.length).toEqual(0);
   });
 
   it('should generate squad_reply notification', () => {
@@ -1014,24 +1016,23 @@ describe('storeNotificationBundle', () => {
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('c1');
-    expect(actual[0].notification.referenceType).toEqual('comment');
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('c1');
+    expect(actual.notification.referenceType).toEqual('comment');
+    expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/p1#c-c1',
     );
-    expect(actual[0].notification.description).toEqual(
+    expect(actual.notification.description).toEqual(
       'Complex markdown comment that needs to be simplified',
     );
-    expect(actual[0].avatars).toEqual([
+    expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',
         name: 'A',
-        order: 0,
+
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
@@ -1039,13 +1040,13 @@ describe('storeNotificationBundle', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 1,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
       },
     ]);
-    expect(actual[0].attachments.length).toEqual(0);
+    expect(actual.attachments.length).toEqual(0);
   });
 
   it('should generate squad_access notification', () => {
@@ -1053,17 +1054,16 @@ describe('storeNotificationBundle', () => {
     const ctx: NotificationBaseContext = {
       userIds: [userId],
     };
-    const actual = generateNotification(type, ctx);
-    expect(actual.length).toEqual(1);
-    expect(actual[0].notification.type).toEqual(type);
-    expect(actual[0].notification.userId).toEqual(userId);
-    expect(actual[0].notification.public).toEqual(true);
-    expect(actual[0].notification.referenceId).toEqual('system');
-    expect(actual[0].notification.referenceType).toEqual('system');
-    expect(actual[0].notification.targetUrl).toEqual(
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('system');
+    expect(actual.notification.referenceType).toEqual('system');
+    expect(actual.notification.targetUrl).toEqual(
       `${process.env.COMMENTS_PREFIX}?squad=true`,
     );
-    expect(actual[0].notification.description).toEqual('Create your new Squad');
-    expect(actual[0].attachments.length).toEqual(0);
+    expect(actual.notification.description).toEqual('Create your new Squad');
+    expect(actual.attachments.length).toEqual(0);
   });
 });

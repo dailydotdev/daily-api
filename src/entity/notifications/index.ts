@@ -1,6 +1,3 @@
-export * from './Notification';
-export * from './NotificationAvatar';
-export * from './NotificationAttachment';
 export * from './NotificationV2';
 export * from './NotificationAvatarV2';
 export * from './NotificationAttachmentV2';

@@ -11,7 +11,6 @@ import {
 } from './helpers';
 import {
   Banner,
-  Notification,
   NotificationPreferencePost,
   Post,
   User,
@@ -24,10 +23,7 @@ import {
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
-import {
-  notificationFixture,
-  notificationV2Fixture,
-} from './fixture/notifications';
+import { notificationV2Fixture } from './fixture/notifications';
 import { subDays } from 'date-fns';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
@@ -40,10 +36,12 @@ import {
 } from '../src/notifications/common';
 import { postsFixture, sharedPostsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
-import { NotificationV2 } from '../src/entity/notifications/NotificationV2';
-import { UserNotification } from '../src/entity/notifications/UserNotification';
-import { NotificationAttachmentV2 } from '../src/entity/notifications/NotificationAttachmentV2';
-import { NotificationAvatarV2 } from '../src/entity/notifications/NotificationAvatarV2';
+import {
+  NotificationV2,
+  UserNotification,
+  NotificationAttachmentV2,
+  NotificationAvatarV2,
+} from '../src/entity';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -544,40 +542,6 @@ describe('mutation readNotifications', () => {
 
   it('should not authorize when not logged-in', () =>
     testMutationErrorCode(client, { mutation: QUERY }, 'UNAUTHENTICATED'));
-
-  it('should set unread notifications as read', async () => {
-    loggedUser = '1';
-    await con.getRepository(Notification).save([
-      { ...notificationFixture },
-      {
-        ...notificationFixture,
-        readAt: new Date(),
-        createdAt: subDays(notificationFixture.createdAt as Date, 1),
-      },
-      {
-        ...notificationFixture,
-        createdAt: subDays(notificationFixture.createdAt as Date, 2),
-      },
-      {
-        ...notificationFixture,
-        readAt: new Date(),
-        createdAt: subDays(notificationFixture.createdAt as Date, 3),
-      },
-      {
-        ...notificationFixture,
-        userId: '2',
-      },
-    ]);
-    await client.mutate(QUERY);
-    const res1 = await con
-      .getRepository(Notification)
-      .find({ where: { userId: '1' }, order: { createdAt: 'desc' } });
-    res1.map((notification) => expect(notification.readAt).toBeTruthy());
-    const res2 = await con
-      .getRepository(Notification)
-      .find({ where: { userId: '2' }, order: { createdAt: 'desc' } });
-    res2.map((notification) => expect(notification.readAt).toBeFalsy());
-  });
 
   it('should set unread notifications as read v2', async () => {
     loggedUser = '1';
