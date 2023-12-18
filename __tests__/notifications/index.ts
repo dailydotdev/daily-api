@@ -32,7 +32,6 @@ import {
   SquadSource,
   User,
   WelcomePost,
-  YouTubePost,
 } from '../../src/entity';
 import {
   createSquadWelcomePost,
