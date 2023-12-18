@@ -1,7 +1,7 @@
 import { PubSub } from '@google-cloud/pubsub';
 import pino from 'pino';
 import './src/config';
-import worker from './src/workers/cdc';
+import worker from './src/workers/cdc/primary';
 import createOrGetConnection from './src/db';
 
 (async () => {
