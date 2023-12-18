@@ -1,5 +1,6 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
-import { NotificationAttachmentType } from './NotificationAttachment';
+
+export type NotificationAttachmentType = 'post';
 
 @Entity()
 @Index('IDX_notification_attch_v2_type_reference_id', ['type', 'referenceId'], {

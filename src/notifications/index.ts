@@ -1,37 +1,18 @@
 import {
-  Notification,
-  NotificationAttachment,
   NotificationAttachmentV2,
-  NotificationAvatar,
   NotificationAvatarV2,
   NotificationV2,
+  UserNotification,
 } from '../entity';
 import { DeepPartial, EntityManager } from 'typeorm';
 import { NotificationBuilder } from './builder';
-import {
-  NotificationBaseContext,
-  NotificationBundle,
-  NotificationBundleV2,
-} from './types';
+import { NotificationBaseContext, NotificationBundleV2 } from './types';
 import { generateNotificationMap, notificationTitleMap } from './generate';
 import { NotificationType } from './common';
-import { UserNotification } from '../entity/notifications/UserNotification';
 import { NotificationHandlerReturn } from '../workers/notifications/worker';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 
 export * from './types';
-
-export function generateNotification(
-  type: NotificationType,
-  ctx: NotificationBaseContext,
-): NotificationBundle[] {
-  return ctx.userIds.map((userId) => {
-    const builder = NotificationBuilder.new(type, [userId]).title(
-      notificationTitleMap[type](ctx),
-    );
-    return generateNotificationMap[type](builder, ctx).build();
-  });
-}
 
 export function generateNotificationV2(
   type: NotificationType,
@@ -41,69 +22,6 @@ export function generateNotificationV2(
     notificationTitleMap[type](ctx),
   );
   return generateNotificationMap[type](builder, ctx).buildV2();
-}
-
-const concatNotificationChildren = <
-  T extends DeepPartial<{ notificationId: string }>,
->(
-  array: T[],
-  notificationId: string,
-  newItems: T[],
-): T[] =>
-  array.concat(
-    newItems.map((item) => ({
-      ...item,
-      notificationId,
-    })),
-  );
-
-export async function storeNotificationBundle(
-  entityManager: EntityManager,
-  bundles: NotificationBundle[],
-): Promise<{ id: string }[]> {
-  const { identifiers } = await entityManager
-    .createQueryBuilder()
-    .insert()
-    .into(Notification)
-    .values(bundles.map(({ notification }) => notification))
-    .orIgnore()
-    .execute();
-  let attachments: DeepPartial<NotificationAttachment>[] = [];
-  let avatars: DeepPartial<NotificationAvatar>[] = [];
-  for (let i = 0; i < identifiers.length && i < bundles.length; i++) {
-    // If the notification was not ignored due to duplication
-    if (identifiers[i]) {
-      if (bundles[i].attachments) {
-        attachments = concatNotificationChildren(
-          attachments,
-          identifiers[i].id,
-          bundles[i].attachments,
-        );
-      }
-      if (bundles[i].avatars) {
-        avatars = concatNotificationChildren(
-          avatars,
-          identifiers[i].id,
-          bundles[i].avatars,
-        );
-      }
-    }
-  }
-  await Promise.all([
-    entityManager.insert(NotificationAttachment, attachments),
-    entityManager.insert(NotificationAvatar, avatars),
-  ]);
-  return identifiers as { id: string }[];
-}
-
-export async function generateAndStoreNotifications(
-  entityManager: EntityManager,
-  args: NotificationHandlerReturn,
-): Promise<{ id: string }[]> {
-  const bundles = args.flatMap(({ type, ctx }) =>
-    generateNotification(type, ctx),
-  );
-  return storeNotificationBundle(entityManager, bundles);
 }
 
 /**
