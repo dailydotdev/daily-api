@@ -1,4 +1,5 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { PostType } from './posts';
 
 @Entity()
 export class AdvancedSettings {
@@ -16,4 +17,9 @@ export class AdvancedSettings {
 
   @Column({ type: 'bool', default: true })
   defaultEnabledState: boolean;
+
+  @Column({ type: 'jsonb', default: {} })
+  options: {
+    type?: PostType;
+  };
 }
