@@ -1,7 +1,6 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Notification } from './Notification';
-
-export type NotificationAvatarType = 'source' | 'user';
+import { NotificationAvatarType } from './NotificationAvatarV2';
 
 @Entity()
 @Index('IDX_notification_avatar_type_reference_id', ['type', 'referenceId'])

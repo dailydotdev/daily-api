@@ -1,9 +1,6 @@
 import { NotificationWorker } from './worker';
 import { messageToJson, Worker } from '../worker';
-import {
-  generateAndStoreNotifications,
-  generateAndStoreNotificationsV2,
-} from '../../notifications';
+import { generateAndStoreNotificationsV2 } from '../../notifications';
 import communityPicksFailed from './communityPicksFailed';
 import communityPicksGranted from './communityPicksGranted';
 import articleNewCommentPostCommented from './articleNewCommentPostCommented';
@@ -20,8 +17,6 @@ import memberJoinedSource from './squadMemberJoined';
 import sourceMemberRoleChanged from './sourceMemberRoleChanged';
 import { TypeOrmError } from '../../errors';
 import postMention from './postMention';
-import commentDeleted from './commentDeleted';
-import postDeleted from './postDeleted';
 import { collectionUpdated } from './collectionUpdated';
 
 export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
@@ -34,7 +29,6 @@ export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
       }
       try {
         await con.transaction(async (entityManager) => {
-          await generateAndStoreNotifications(entityManager, args);
           await generateAndStoreNotificationsV2(entityManager, args);
         });
       } catch (err) {
@@ -70,9 +64,4 @@ const notificationWorkers: NotificationWorker[] = [
   collectionUpdated,
 ];
 
-export const workers = [
-  ...notificationWorkers.map(notificationWorkerToWorker),
-  // Regular workers under notification scope
-  commentDeleted,
-  postDeleted,
-];
+export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

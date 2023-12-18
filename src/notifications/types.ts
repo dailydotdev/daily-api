@@ -1,9 +1,6 @@
 import {
   Comment,
-  Notification,
-  NotificationAttachment,
   NotificationAttachmentV2,
-  NotificationAvatar,
   NotificationAvatarV2,
   NotificationV2,
   Post,
@@ -17,12 +14,6 @@ import { DeepPartial } from 'typeorm';
 import { SourceMemberRoles } from '../roles';
 
 export type Reference<T> = ChangeObject<T> | T;
-
-export type NotificationBundle = {
-  notification: DeepPartial<Notification>;
-  avatars?: DeepPartial<NotificationAvatar>[];
-  attachments?: DeepPartial<NotificationAttachment>[];
-};
 
 export type NotificationBundleV2 = {
   notification: DeepPartial<NotificationV2>;

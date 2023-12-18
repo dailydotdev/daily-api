@@ -10,7 +10,6 @@ import {
   ALERTS_DEFAULT,
   Banner,
   Feature,
-  getUnreadNotificationsCount,
   Post,
   Settings,
   SETTINGS_DEFAULT,
@@ -49,6 +48,7 @@ import { SourceMemberRoles } from '../roles';
 import { getEncryptedFeatures } from '../growthbook';
 import { differenceInMinutes } from 'date-fns';
 import { runInSpan } from '../telemetry/opentelemetry';
+import { getUnreadNotificationsCount } from '../notifications/common';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;

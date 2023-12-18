@@ -2,9 +2,8 @@ import { DeepPartial } from 'typeorm';
 import {
   ArticlePost,
   Comment,
-  Notification,
-  NotificationAttachment,
-  NotificationAvatar,
+  NotificationAttachmentV2,
+  NotificationAvatarV2,
   NotificationV2,
   Post,
   PostType,
@@ -17,7 +16,7 @@ import {
 import { getDiscussionLink, getSourceLink, pickImageUrl } from '../common';
 import { getUserPermalink } from '../schema/users';
 import { markdownToTxt } from 'markdown-to-txt';
-import { NotificationBundle, NotificationBundleV2, Reference } from './types';
+import { NotificationBundleV2, Reference } from './types';
 import { NotificationIcon } from './icons';
 import { SourceMemberRoles } from '../roles';
 import { NotificationType } from './common';
@@ -42,8 +41,8 @@ const roleToIcon: Record<SourceMemberRoles, NotificationIcon> = {
 export class NotificationBuilder {
   notification: DeepPartial<Omit<NotificationV2, 'attachments' | 'avatars'>> =
     {};
-  avatars: DeepPartial<NotificationAvatar>[] = [];
-  attachments: DeepPartial<NotificationAttachment>[] = [];
+  avatars: DeepPartial<NotificationAvatarV2>[] = [];
+  attachments: DeepPartial<NotificationAttachmentV2>[] = [];
   userIds: string[] = [];
 
   constructor(type: NotificationType, userIds: string[]) {
@@ -54,18 +53,6 @@ export class NotificationBuilder {
   static new(type: NotificationType, userIds: string[]): NotificationBuilder {
     return new NotificationBuilder(type, userIds);
   }
-
-  build(): NotificationBundle {
-    return {
-      notification: {
-        ...this.notification,
-        userId: this.userIds[0],
-      },
-      avatars: this.avatars,
-      attachments: this.attachments,
-    };
-  }
-
   buildV2(): NotificationBundleV2 {
     return {
       notification: this.notification,
@@ -182,7 +169,6 @@ export class NotificationBuilder {
 
   attachmentPost(post: Reference<Post>): NotificationBuilder {
     this.attachments.push({
-      order: this.attachments.length,
       type: 'post',
       image: (post as ArticlePost)?.image || pickImageUrl(post),
       title: post.title ?? '',
@@ -193,7 +179,6 @@ export class NotificationBuilder {
 
   avatarSource(source: Reference<Source>): NotificationBuilder {
     this.avatars.push({
-      order: this.avatars.length,
       type: 'source',
       referenceId: source.id,
       image: source.image,
@@ -205,8 +190,7 @@ export class NotificationBuilder {
 
   avatarManySources(sources: Reference<Source>[]): NotificationBuilder {
     const newAvatars = sources.map(
-      (source, i): DeepPartial<NotificationAvatar> => ({
-        order: i + this.avatars.length,
+      (source): DeepPartial<NotificationAvatarV2> => ({
         type: 'source',
         referenceId: source.id,
         image: source.image,
@@ -220,8 +204,7 @@ export class NotificationBuilder {
 
   avatarManyUsers(users: Reference<User>[]): NotificationBuilder {
     const newAvatars = users.map(
-      (user, i): DeepPartial<NotificationAvatar> => ({
-        order: i + this.avatars.length,
+      (user): DeepPartial<NotificationAvatarV2> => ({
         type: 'user',
         referenceId: user.id,
         image: user.image,
@@ -283,7 +266,7 @@ export class NotificationBuilder {
   }
 
   private enrichNotification(
-    addition: DeepPartial<Notification>,
+    addition: DeepPartial<NotificationV2>,
   ): NotificationBuilder {
     this.notification = { ...this.notification, ...addition };
     return this;

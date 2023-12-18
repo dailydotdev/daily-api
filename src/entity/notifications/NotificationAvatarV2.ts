@@ -1,5 +1,6 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
-import { NotificationAvatarType } from './NotificationAvatar';
+
+export type NotificationAvatarType = 'source' | 'user';
 
 @Entity()
 @Index(
