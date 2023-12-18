@@ -6,7 +6,7 @@
     "build": "tsc",
     "postbuild": "cp -R ormconfig.js package.json package-lock.json seeds ./build",
     "cli": "node bin/cli",
-    "db:migrate:create": "npm run typeorm -- migration:create -d src/data-source.ts -n",
+    "db:migrate:create": "npm run typeorm -- migration:create",
     "db:migrate:latest": "npm run typeorm -- migration:run -d src/data-source.ts",
     "db:migrate:make": "npm run typeorm -- migration:generate -d src/data-source.ts",
     "db:migrate:reset": "npm run db:schema:drop && npm run db:migrate:latest",
