@@ -16,6 +16,7 @@ import {
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import {
+  ArticlePost,
   Comment,
   FreeformPost,
   NotificationAttachmentType,
@@ -31,6 +32,7 @@ import {
   SquadSource,
   User,
   WelcomePost,
+  YouTubePost,
 } from '../../src/entity';
 import {
   createSquadWelcomePost,
@@ -43,6 +45,7 @@ import { DataSource } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { SourceMemberRoles } from '../../src/roles';
 import { NotificationType } from '../../src/notifications/common';
+import { saveFixtures } from '../helpers';
 
 const userId = '1';
 const commentFixture: Reference<Comment> = {
@@ -324,6 +327,90 @@ describe('generateNotification', () => {
         type: NotificationAttachmentType.Video,
       },
     ]);
+  });
+
+  it('should update notification attachment when post type changes', async () => {
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, postsFixture);
+
+    const type = NotificationType.ArticleUpvoteMilestone;
+    const ctx: NotificationPostContext & NotificationUpvotersContext = {
+      userIds: [userId],
+      source: sourcesFixture[0] as Reference<Source>,
+      post: {
+        ...postsFixture[0],
+        type: PostType.Article,
+      } as Reference<Post>,
+      upvotes: 50,
+      upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
+    };
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+        referenceId: 'p1',
+        title: 'P1',
+        type: NotificationAttachmentType.Post,
+      },
+    ]);
+    await storeNotificationBundleV2(con.createEntityManager(), actual);
+
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { type: PostType.VideoYouTube });
+
+    const updated = await con
+      .getRepository(NotificationAttachmentV2)
+      .findOneBy({
+        referenceId: 'p1',
+      });
+
+    expect(updated!.type).toEqual(NotificationAttachmentType.Video);
+  });
+
+  it('should update notification attachment when post image changes', async () => {
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, postsFixture);
+
+    const type = NotificationType.ArticleUpvoteMilestone;
+    const ctx: NotificationPostContext & NotificationUpvotersContext = {
+      userIds: [userId],
+      source: sourcesFixture[0] as Reference<Source>,
+      post: {
+        ...postsFixture[0],
+        type: PostType.Article,
+      } as Reference<Post>,
+      upvotes: 50,
+      upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
+    };
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+        referenceId: 'p1',
+        title: 'P1',
+        type: NotificationAttachmentType.Post,
+      },
+    ]);
+    await storeNotificationBundleV2(con.createEntityManager(), actual);
+
+    await con
+      .getRepository(ArticlePost)
+      .update({ id: 'p1' }, { image: 'https://daily.dev/image2.jpg' });
+
+    const updated = await con
+      .getRepository(NotificationAttachmentV2)
+      .findOneBy({
+        referenceId: 'p1',
+      });
+
+    expect(updated!.image).toEqual('https://daily.dev/image2.jpg');
   });
 
   it('should add source avatar to article_upvote_milestone when it is a squad post', () => {
