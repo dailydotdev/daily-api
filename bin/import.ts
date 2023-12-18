@@ -18,6 +18,7 @@ const start = async (): Promise<void> => {
   await importEntity(con, 'AdvancedSettings');
   await importEntity(con, 'Source');
   await importEntity(con, 'Post');
+  await importEntity(con, 'YouTubePost');
   await importEntity(con, 'Category');
   await importEntity(con, 'PostKeyword');
   await importEntity(con, 'User');
