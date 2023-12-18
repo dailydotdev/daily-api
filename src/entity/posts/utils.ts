@@ -504,3 +504,7 @@ export const normalizeCollectionPostSources = async ({
     collectionSources: distinctSources.map((item) => item.id),
   });
 };
+
+export const getPostVisible = ({ post }: { post: Pick<Post, 'title'> }) => {
+  return !!post?.title?.length;
+};
