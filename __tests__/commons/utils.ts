@@ -2,6 +2,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { ArticlePost, Post, PostTag, Source } from '../../src/entity';
 import {
+  parseDate,
   removeEmptyValues,
   removeSpecialCharacters,
   uniqueifyArray,
@@ -101,5 +102,37 @@ describe('removeEmptyValues', () => {
   it('should remove empty values from a array of strings', () => {
     const actual = removeEmptyValues(['a', 'b', '', 'c', '']);
     expect(actual).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('parseDate', () => {
+  it('should return undefined for falsy values', () => {
+    expect(parseDate(undefined as unknown as Date)).toBeUndefined();
+    expect(parseDate(null as unknown as Date)).toBeUndefined();
+    expect(parseDate('')).toBeUndefined();
+  });
+
+  it('should return undefined for invalid Date string', () => {
+    expect(parseDate('55-22 Date')).toBeUndefined();
+  });
+
+  it('should return undefined for Date before UNIX time', () => {
+    expect(parseDate('0001-01-01T00:00:00Z')).toBeUndefined();
+  });
+
+  it('should return undefined for invalid Date', () => {
+    expect(parseDate(new Date('55-22 Date'))).toBeUndefined();
+  });
+
+  it('should return Date for valid Date string', () => {
+    expect(parseDate('2020-01-01T00:00:00Z')).toEqual(
+      new Date('2020-01-01T00:00:00Z'),
+    );
+  });
+
+  it('should return Date for valid Date', () => {
+    expect(parseDate(new Date('2020-01-01T00:00:00Z'))).toEqual(
+      new Date('2020-01-01T00:00:00Z'),
+    );
   });
 });

@@ -31,7 +31,7 @@ import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
-import { updateFlagsStatement } from '../common';
+import { parseDate, updateFlagsStatement } from '../common';
 import { opentelemetry } from '../telemetry/opentelemetry';
 import { markdown } from '../common/markdown';
 
@@ -483,9 +483,8 @@ const fixData = async ({
       sourceId: data?.source_id,
       title: data?.title && he.decode(data?.title),
       readTime: parseReadTime(data?.extra?.read_time || duration),
-      publishedAt: data?.published_at && new Date(data?.published_at),
-      metadataChangedAt:
-        (data?.updated_at && new Date(data.updated_at)) || new Date(),
+      publishedAt: parseDate(data?.published_at),
+      metadataChangedAt: parseDate(data?.updated_at) || new Date(),
       tagsStr: allowedKeywords?.join(',') || null,
       private: privacy,
       sentAnalyticsReport: privacy || !authorId,
