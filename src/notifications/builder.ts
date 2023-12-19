@@ -2,6 +2,7 @@ import { DeepPartial } from 'typeorm';
 import {
   ArticlePost,
   Comment,
+  NotificationAttachmentType,
   NotificationAttachmentV2,
   NotificationAvatarV2,
   NotificationV2,
@@ -36,6 +37,11 @@ const roleToIcon: Record<SourceMemberRoles, NotificationIcon> = {
   [SourceMemberRoles.Member]: NotificationIcon.Bell,
   [SourceMemberRoles.Moderator]: NotificationIcon.User,
   [SourceMemberRoles.Admin]: NotificationIcon.Star,
+};
+
+const postTypeToAttachmentType = {
+  [PostType.VideoYouTube]: NotificationAttachmentType.Video,
+  [PostType.Article]: NotificationAttachmentType.Post,
 };
 
 export class NotificationBuilder {
@@ -168,8 +174,11 @@ export class NotificationBuilder {
   }
 
   attachmentPost(post: Reference<Post>): NotificationBuilder {
+    const type =
+      postTypeToAttachmentType[post.type] ?? NotificationAttachmentType.Post;
+
     this.attachments.push({
-      type: 'post',
+      type,
       image: (post as ArticlePost)?.image || pickImageUrl(post),
       title: post.title ?? '',
       referenceId: post.id,

@@ -18,6 +18,7 @@ import { postsFixture } from '../fixture/post';
 import {
   Comment,
   FreeformPost,
+  NotificationAttachmentType,
   NotificationAttachmentV2,
   NotificationAvatarV2,
   NotificationV2,
@@ -296,6 +297,31 @@ describe('generateNotification', () => {
         referenceId: 'p1',
         title: 'P1',
         type: 'post',
+      },
+    ]);
+  });
+
+  it('should generate a notification with post attachment of video type', () => {
+    const type = NotificationType.ArticleUpvoteMilestone;
+    const ctx: NotificationPostContext & NotificationUpvotersContext = {
+      userIds: [userId],
+      source: sourcesFixture[0] as Reference<Source>,
+      post: {
+        ...postsFixture[0],
+        type: PostType.VideoYouTube,
+      } as Reference<Post>,
+      upvotes: 50,
+      upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
+    };
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+        referenceId: 'p1',
+        title: 'P1',
+        type: NotificationAttachmentType.Video,
       },
     ]);
   });
