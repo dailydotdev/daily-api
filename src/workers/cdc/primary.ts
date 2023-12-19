@@ -3,9 +3,8 @@ import {
   UserStateKey,
   ReputationEvent,
   CommentMention,
-  NotificationV2,
-} from '../entity';
-import { messageToJson, Worker } from './worker';
+} from '../../entity';
+import { messageToJson, Worker } from '../worker';
 import {
   Comment,
   CommentUpvote,
@@ -33,7 +32,7 @@ import {
   PostRelationType,
   normalizeCollectionPostSources,
   CollectionPost,
-} from '../entity';
+} from '../../entity';
 import {
   notifyCommentCommented,
   notifyCommentUpvoteCanceled,
@@ -57,7 +56,6 @@ import {
   notifyUserDeleted,
   notifyUserUpdated,
   notifyUsernameChanged,
-  notifyNewNotification,
   notifyNewCommentMention,
   notifyMemberJoinedSource,
   notifyUserCreated,
@@ -77,21 +75,18 @@ import {
   notifySourceCreated,
   notifyPostYggdrasilIdSet,
   notifyPostCollectionUpdated,
-} from '../common';
-import { ChangeMessage } from '../types';
+} from '../../common';
+import { ChangeMessage } from '../../types';
 import { DataSource } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
-import { EntityTarget } from 'typeorm/common/EntityTarget';
-import { PostReport, ContentImage } from '../entity';
-import { reportReasons } from '../schema/posts';
-import { updateAlerts } from '../schema/alerts';
-import { submissionAccessThreshold } from '../schema/submissions';
-import { TypeOrmError } from '../errors';
-import { CommentReport } from '../entity/CommentReport';
-import { reportCommentReasons } from '../schema/comments';
-
-const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
-  before[property] != after[property];
+import { PostReport, ContentImage } from '../../entity';
+import { reportReasons } from '../../schema/posts';
+import { updateAlerts } from '../../schema/alerts';
+import { submissionAccessThreshold } from '../../schema/submissions';
+import { TypeOrmError } from '../../errors';
+import { CommentReport } from '../../entity/CommentReport';
+import { reportCommentReasons } from '../../schema/comments';
+import { getTableName, isChanged } from './common';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -328,17 +323,6 @@ const onUserChange = async (
     );
   }
 };
-
-const onNotificationsChange = async (
-  con: DataSource,
-  logger: FastifyBaseLogger,
-  data: ChangeMessage<NotificationV2>,
-): Promise<void> => {
-  if (data.payload.op === 'c') {
-    await notifyNewNotification(logger, data.payload.after);
-  }
-};
-
 const onSettingsChange = async (
   _: DataSource,
   logger: FastifyBaseLogger,
@@ -632,11 +616,6 @@ const onPostRelationChange = async (
   }
 };
 
-const getTableName = <Entity>(
-  con: DataSource,
-  target: EntityTarget<Entity>,
-): string => con.getRepository(target).metadata.tableName;
-
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || null,
@@ -689,9 +668,6 @@ const worker: Worker = {
           break;
         case getTableName(con, CommentReport):
           await onCommentReportChange(con, logger, data);
-          break;
-        case getTableName(con, NotificationV2):
-          await onNotificationsChange(con, logger, data);
           break;
         case getTableName(con, SourceFeed):
           await onSourceFeedChange(con, logger, data);
