@@ -1,9 +1,10 @@
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/newNotificationV2Push';
 import {
-  NotificationV2,
+  NotificationAttachmentType,
   NotificationAttachmentV2,
   NotificationAvatarV2,
+  NotificationV2,
   User,
 } from '../../src/entity';
 import { DataSource } from 'typeorm';
@@ -36,13 +37,13 @@ beforeEach(async () => {
     {
       image: 'img#1',
       title: 'att #1',
-      type: 'post',
+      type: NotificationAttachmentType.Post,
       referenceId: '1',
     },
     {
       image: 'img#2',
       title: 'att #2',
-      type: 'post',
+      type: NotificationAttachmentType.Post,
       referenceId: '2',
     },
   ]);
