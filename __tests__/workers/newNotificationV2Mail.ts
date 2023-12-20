@@ -100,7 +100,7 @@ it('should set parameters for community_picks_failed email', async () => {
     submitted_at: 'Dec 12, 2022',
   });
   expect(args.personalizations).toEqual([
-    { to: 'ido@daily.dev', first_name: 'Ido' },
+    { to: 'ido@daily.dev', dynamicTemplateData: { first_name: 'Ido' } },
   ]);
   expect(args.templateId).toEqual('d-43cf7ff439ff4391839e946940499b30');
 });
@@ -144,7 +144,7 @@ it('should set parameters for community_picks_succeeded email', async () => {
     submitted_at: 'Dec 12, 2022',
   });
   expect(args.personalizations).toEqual([
-    { to: 'ido@daily.dev', first_name: 'Ido' },
+    { to: 'ido@daily.dev', dynamicTemplateData: { first_name: 'Ido' } },
   ]);
   expect(args.templateId).toEqual('d-ee7d7cfc461a43b4be776f70940fa867');
 });
@@ -169,7 +169,7 @@ it('should set parameters for community_picks_granted email', async () => {
   const args = jest.mocked(sendEmail).mock.calls[0][0] as MailDataRequired;
   expect(args.dynamicTemplateData).toEqual({});
   expect(args.personalizations).toEqual([
-    { to: 'ido@daily.dev', first_name: 'Ido' },
+    { to: 'ido@daily.dev', dynamicTemplateData: { first_name: 'Ido' } },
   ]);
   expect(args.templateId).toEqual('d-6d17b936f1f245e486f1a85323240332');
 });
@@ -356,11 +356,13 @@ it('should set parameters for article_analytics email', async () => {
   expect(args.personalizations).toEqual([
     {
       to: 'ido@daily.dev',
-      profile_link:
-        'http://localhost:5002/idoshamun?utm_source=notification&utm_medium=email&utm_campaign=article_analytics',
-      post_comments_total: '3',
-      post_upvotes_total: '11',
-      post_views_total: '21',
+      dynamicTemplateData: {
+        profile_link:
+          'http://localhost:5002/idoshamun?utm_source=notification&utm_medium=email&utm_campaign=article_analytics',
+        post_comments_total: '3',
+        post_upvotes_total: '11',
+        post_views_total: '21',
+      },
     },
   ]);
   expect(args.templateId).toEqual('d-97c75b0e2cf847399d20233455736ba0');
@@ -434,7 +436,7 @@ it('should set parameters for source_rejected email', async () => {
     rss_link: 'https://daily.dev',
   });
   expect(args.personalizations).toEqual([
-    { to: 'ido@daily.dev', first_name: 'Ido' },
+    { to: 'ido@daily.dev', dynamicTemplateData: { first_name: 'Ido' } },
   ]);
   expect(args.templateId).toEqual('d-48de63612ff944cb8156fec17f47f066');
 });
@@ -648,9 +650,11 @@ it('should set parameters for comment_upvote_milestone email', async () => {
   expect(args.personalizations).toEqual([
     {
       to: 'ido@daily.dev',
-      profile_image: 'https://daily.dev/ido.jpg',
-      user_name: 'Ido',
-      user_reputation: '10',
+      dynamicTemplateData: {
+        profile_image: 'https://daily.dev/ido.jpg',
+        user_name: 'Ido',
+        user_reputation: '10',
+      },
     },
   ]);
   expect(args.templateId).toEqual('d-92bca6102e3a4b41b6fc3f532f050429');
@@ -927,7 +931,9 @@ it('should set parameters for squad_access email', async () => {
   expect(args.personalizations).toEqual([
     {
       to: 'ido@daily.dev',
-      full_name: 'Ido',
+      dynamicTemplateData: {
+        full_name: 'Ido',
+      },
     },
   ]);
   expect(args.templateId).toEqual('d-6b3de457947b415d93d0029361edaf1d');
@@ -972,7 +978,7 @@ it('should set parameters for promoted_to_admin email', async () => {
     squad_name: 'A',
   });
   expect(args.personalizations).toEqual([
-    { to: 'ido@daily.dev', first_name: 'Ido' },
+    { to: 'ido@daily.dev', dynamicTemplateData: { first_name: 'Ido' } },
   ]);
   expect(args.templateId).toEqual('d-397a5e4a394a4b7f91ea33c29efb8d01');
 });
@@ -1016,7 +1022,7 @@ it('should set parameters for promoted_to_moderator email', async () => {
     squad_name: 'A',
   });
   expect(args.personalizations).toEqual([
-    { to: 'ido@daily.dev', first_name: 'Ido' },
+    { to: 'ido@daily.dev', dynamicTemplateData: { first_name: 'Ido' } },
   ]);
   expect(args.templateId).toEqual('d-b1dbd1e86ee14bf094f7616f7469fee8');
 });
@@ -1223,8 +1229,8 @@ it('should send email to multiple users', async () => {
     rss_link: 'https://daily.dev',
   });
   expect(args.personalizations).toEqual([
-    { to: 'ido@daily.dev', first_name: 'Ido' },
-    { to: 'tsahi@daily.dev', first_name: 'Tsahi' },
+    { to: 'ido@daily.dev', dynamicTemplateData: { first_name: 'Ido' } },
+    { to: 'tsahi@daily.dev', dynamicTemplateData: { first_name: 'Tsahi' } },
   ]);
   expect(args.templateId).toEqual('d-48de63612ff944cb8156fec17f47f066');
 });
