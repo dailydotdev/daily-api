@@ -683,7 +683,7 @@ const worker: Worker = {
             dynamicTemplateData: formattedData,
             personalizations: users.map((user, i) => ({
               to: user.email,
-              ...personalized?.[i],
+              dynamicTemplateData: personalized?.[i],
             })),
           });
         },
