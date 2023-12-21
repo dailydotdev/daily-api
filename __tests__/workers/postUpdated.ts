@@ -899,6 +899,31 @@ describe('on youtube post', () => {
     });
   });
 
+  it('should create a new video post with minimum 1m duration', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: 'a7edf0c8-aec7-4586-b411-b1dd431ce8d6',
+      post_id: undefined,
+      updated_at: new Date('01-05-2023 12:00:00'),
+      source_id: 'a',
+      title: 'test',
+      url: 'https://youtu.be/FftMDvlYDIg',
+      extra: {
+        content_curation: ['news', 'story', 'release'],
+        duration: 10,
+        keywords: ['mongodb', 'alpinejs'],
+        description: 'A description of a video',
+        summary: 'A short summary of a video',
+      },
+      content_type: PostType.VideoYouTube,
+    });
+
+    const post = await con.getRepository(YouTubePost).findOneBy({
+      yggdrasilId: 'a7edf0c8-aec7-4586-b411-b1dd431ce8d6',
+    });
+
+    expect(post.readTime).toEqual(1);
+  });
+
   it('should update a video post', async () => {
     await expectSuccessfulBackground(worker, {
       id: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',

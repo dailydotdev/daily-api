@@ -67,9 +67,9 @@ export const parseReadTime = (
     return undefined;
   }
   if (typeof readTime == 'number') {
-    return Math.floor(readTime);
+    return Math.floor(readTime) || 1;
   }
-  return Math.floor(parseInt(readTime));
+  return Math.floor(parseInt(readTime)) || 1;
 };
 
 export const bannedAuthors = ['@NewGenDeveloper'];
