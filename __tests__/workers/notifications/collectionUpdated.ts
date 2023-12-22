@@ -105,6 +105,19 @@ beforeEach(async () => {
       yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
     },
   ]);
+  await saveFixtures(con, CollectionPost, [
+    {
+      id: 'c2',
+      shortId: 'c2',
+      title: 'My collection 2',
+      score: 0,
+      metadataChangedAt: new Date('01-05-2020 12:00:00'),
+      sourceId: 'a',
+      visible: true,
+      createdAt: new Date('01-05-2020 12:00:00'),
+      yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+    },
+  ]);
   await saveFixtures(con, PostRelation, [
     {
       postId: 'c1',
@@ -247,5 +260,18 @@ describe('collectionUpdated worker', () => {
 
     expect(actual.length).toEqual(1);
     expect(actual[0].ctx.userIds.includes('4')).toBeFalsy();
+  });
+
+  it('should notify when a collection is updated but the no sources are found', async () => {
+    const actual = await invokeNotificationWorker(worker, {
+      post: {
+        id: 'c2',
+        title: 'My collection',
+        content_type: PostType.Collection,
+      },
+    });
+
+    expect(actual.length).toEqual(1);
+    expect((actual[0].ctx as NotificationCollectionContext).total).toEqual(0);
   });
 });
