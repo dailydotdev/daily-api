@@ -46,7 +46,7 @@ export const collectionUpdated: NotificationWorker = {
       .limit(3)
       .getRawMany<Source & { total: number }>();
 
-    const numTotalAvatars = distinctSources[0].total;
+    const numTotalAvatars = distinctSources[0]?.total || 0;
 
     const members = await con.getRepository(NotificationPreferencePost).findBy({
       notificationType: NotificationType.CollectionUpdated,
