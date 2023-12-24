@@ -3,6 +3,7 @@ import { Post } from './posts';
 
 @Entity()
 @Index('IDX_post_keyword_postId_status', ['postId', 'status'])
+@Index('IDX_post_keyword_keyword_postid', ['keyword', 'postId'])
 export class PostKeyword {
   @PrimaryColumn({ type: 'text' })
   @Index('IDX_post_keyword_postId')
