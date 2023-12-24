@@ -26,6 +26,7 @@ export const UNKNOWN_SOURCE = 'unknown';
 
 @Entity()
 @Index('IDX_source_active_private_image', ['active', 'private', 'image'])
+@Index('IDX_source_type_id', ['type', 'id'])
 @TableInheritance({
   column: { type: 'varchar', name: 'type', default: SourceType.Machine },
 })
