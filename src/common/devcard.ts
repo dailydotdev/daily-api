@@ -17,8 +17,8 @@ export const getMostReadTags = async (
   con: DataSource,
   args: ReadingDaysArgs,
 ): Promise<MostReadTag[]> => {
-  const result = [];
-  // const result = await getUserReadingTags(con, args);
+  // const result = [];
+  const result = await getUserReadingTags(con, args);
 
   return result.map(({ tag, readingDays, ...props }) => ({
     value: tag,
