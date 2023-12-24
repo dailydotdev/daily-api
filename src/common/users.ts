@@ -268,7 +268,7 @@ export const getUserReadingTags = (
         tr.tag,
         tr."readingDays",
         tr."readingDays" * 1.0 / dd.total_days AS percentage,
-        dd.total_days
+        dd.total_days AS total
       FROM
         tag_readings tr
         CROSS JOIN distinct_days dd
