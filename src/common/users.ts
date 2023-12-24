@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { getPostCommenterIds } from './post';
 import { Post } from './../entity/posts';
 import { isSameDay } from 'date-fns';
@@ -293,17 +294,19 @@ export const getUserReadingRank = async (
       return Promise.resolve(null);
     }
 
-    const start = getTimezonedStartOfISOWeek({
-      date: now,
-      timezone,
-    }).toISOString();
-    const end = getTimezonedEndOfISOWeek({ date: now, timezone }).toISOString();
+    // const start = getTimezonedStartOfISOWeek({
+    //   date: now,
+    //   timezone,
+    // }).toISOString();
+    // const end = getTimezonedEndOfISOWeek({ date: now, timezone }).toISOString();
 
-    return getUserReadingTags(con, {
-      limit,
-      userId,
-      dateRange: { start, end },
-    });
+    return [];
+
+    // return getUserReadingTags(con, {
+    //   limit,
+    //   userId,
+    //   dateRange: { start, end },
+    // });
   };
 
   const [{ thisWeek, lastWeek, lastReadTime }, tags] = await Promise.all([
