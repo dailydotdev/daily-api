@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { subYears } from 'date-fns';
 import { getUserReadingRank, ReadingRank, getUserReadingTags } from './users';
 import { Post, Source, View } from '../entity';
@@ -17,7 +16,6 @@ export const getMostReadTags = async (
   con: DataSource,
   args: ReadingDaysArgs,
 ): Promise<MostReadTag[]> => {
-  // const result = [];
   const result = await getUserReadingTags(con, args);
 
   return result.map(({ tag, readingDays, ...props }) => ({

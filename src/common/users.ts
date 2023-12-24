@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { getPostCommenterIds } from './post';
 import { Post } from './../entity/posts';
 import { isSameDay } from 'date-fns';
@@ -317,8 +316,6 @@ export const getUserReadingRank = async (
       timezone,
     }).toISOString();
     const end = getTimezonedEndOfISOWeek({ date: now, timezone }).toISOString();
-
-    // return [];
 
     return getUserReadingTags(con, {
       limit,
