@@ -12,12 +12,26 @@ export class AdditionalMissingIndexes1703422184359
     await queryRunner.query(
       `CREATE INDEX "IDX_source_type_id" ON "source" ("type", "id") `,
     );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_post_visible_type" ON "post" ("visible", "type") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_post_visible_sourceid" ON "post" ("visible", "sourceId") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_post_visible_metadatachanged" ON "post" ("visible", "metadataChangedAt") `,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP INDEX "public"."IDX_source_type_id"`);
     await queryRunner.query(
       `DROP INDEX "public"."IDX_source_member_userId_role"`,
+    );
+    await queryRunner.query(`DROP INDEX "public"."IDX_post_visible_type"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_post_visible_sourceid"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_post_visible_metadatachanged"`,
     );
   }
 }

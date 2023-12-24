@@ -47,6 +47,9 @@ export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
   'pinnedAt',
   'createdAt',
 ])
+@Index('IDX_post_visible_metadatachanged', ['visible', 'metadataChangedAt'])
+@Index('IDX_post_visible_sourceid', ['visible', 'sourceId'])
+@Index('IDX_post_visible_type', ['visible', 'type'])
 @TableInheritance({
   column: { type: 'varchar', name: 'type', default: PostType.Article },
 })
