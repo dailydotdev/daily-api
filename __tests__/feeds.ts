@@ -19,6 +19,8 @@ import {
   SourceMember,
   SourceType,
   User,
+  UserPost,
+  UserPostVote,
   View,
   WelcomePost,
   YouTubePost,
@@ -1963,5 +1965,62 @@ describe('query feedPreview', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.feedPreview.edges.length).toEqual(2);
+  });
+});
+
+describe('query userUpvotedFeed', () => {
+  const QUERY = `
+  query UserUpvotedFeed($userId: ID!, $first: Int, $after: String) {
+    userUpvotedFeed(userId: $userId, first: $first, after: $after) {
+      ${feedFields()}
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+    await con.getRepository(UserPost).insert([
+      {
+        userId: '2',
+        postId: 'p1',
+        vote: UserPostVote.Up,
+        votedAt: new Date(2023, 13, 26),
+      },
+      {
+        userId: '2',
+        postId: 'p3',
+        vote: UserPostVote.Up,
+        votedAt: new Date(2023, 13, 24),
+      },
+      {
+        userId: '2',
+        postId: 'p2',
+        vote: UserPostVote.Down,
+        votedAt: new Date(2023, 13, 23),
+      },
+      {
+        userId: '1',
+        postId: 'p4',
+        vote: UserPostVote.Up,
+        votedAt: new Date(2023, 13, 23),
+      },
+    ]);
+  });
+
+  it('should return upvotes ordered by time', async () => {
+    const res = await client.query(QUERY, { variables: { userId: '2' } });
+    expect(res.data.userUpvotedFeed.edges.map((edge) => edge.node.id)).toEqual([
+      'p1',
+      'p3',
+    ]);
+  });
+
+  it('should include banned posts', async () => {
+    await con.getRepository(Post).update({ id: 'p3' }, { banned: true });
+    const res = await client.query(QUERY, { variables: { userId: '2' } });
+    expect(res.data.userUpvotedFeed.edges.map((edge) => edge.node.id)).toEqual([
+      'p1',
+      'p3',
+    ]);
   });
 });
