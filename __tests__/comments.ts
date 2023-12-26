@@ -1140,7 +1140,7 @@ describe('permalink field', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.commentOnPost.permalink).toEqual(
-      'http://localhost:5002/posts/p1',
+      `http://localhost:5002/posts/p1#c-${res.data.commentOnPost.id}`,
     );
   });
 });
