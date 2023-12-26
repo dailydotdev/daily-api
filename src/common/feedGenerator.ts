@@ -206,9 +206,7 @@ export const applyFeedWhere = (
       .from(Source, 'source')
       .where('source.private = false')
       .andWhere(`source.id = "${alias}"."sourceId"`);
-    newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`, {
-      userId: ctx.userId,
-    });
+    newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`);
   }
 
   if (!allowSquadPosts) {

@@ -114,7 +114,8 @@ export interface GQLPost {
   private: boolean;
   // Used only for pagination (not part of the schema)
   score: number;
-  bookmarkedAt: Date;
+  bookmarkedAt?: Date;
+  votedAt?: Date;
   author?: GQLUser;
   scout?: GQLUser;
   views?: number;
