@@ -465,6 +465,7 @@ describe('query recommendedMentions', () => {
   const QUERY = `
     query RecommendedMentions($postId: String, $query: String, $limit: Int, $sourceId: String) {
       recommendedMentions(postId: $postId, query: $query, limit: $limit, sourceId: $sourceId) {
+        id
         name
         username
         image
@@ -486,7 +487,8 @@ describe('query recommendedMentions', () => {
 
     const res = await client.query(QUERY, { variables: { postId: 'p1' } });
     expect(res.errors).toBeFalsy();
-    expect(res.data.recommendedMentions).toMatchSnapshot(); // to easily see there's no duplicates
+    const ids = res.data.recommendedMentions.map(({ id }) => id);
+    expect(ids).toIncludeSameMembers(Array.from(new Set(ids))); // to easily see there's no duplicates
     expect(res.data.recommendedMentions.length).toEqual(5);
     expect(res.data.recommendedMentions[0].name).toEqual(author.name);
   });

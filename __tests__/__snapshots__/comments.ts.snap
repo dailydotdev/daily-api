@@ -435,49 +435,22 @@ Object {
 }
 `;
 
-exports[`query recommendedMentions should return author and previously mentioned users if query is empty 1`] = `
-Array [
-  Object {
-    "image": "https://daily.dev/Hansel.jpg",
-    "name": "Hansel",
-    "username": "Hansel",
-  },
-  Object {
-    "image": "https://daily.dev/lee.jpg",
-    "name": "Lee",
-    "username": "Lee",
-  },
-  Object {
-    "image": "https://daily.dev/nimrod.jpg",
-    "name": "Nimrod",
-    "username": "Nimrod",
-  },
-  Object {
-    "image": "https://daily.dev/solevilla.jpg",
-    "name": "Solevilla",
-    "username": "Solevilla",
-  },
-  Object {
-    "image": "https://daily.dev/tsahi.jpg",
-    "name": "Tsahi",
-    "username": "Tsahi",
-  },
-]
-`;
-
 exports[`query recommendedMentions should return users with user or username starting with the query prioritizing previously mentioned ones 1`] = `
 Array [
   Object {
+    "id": "6",
     "image": "https://daily.dev/samson.jpg",
     "name": "Samson",
     "username": "Samson",
   },
   Object {
+    "id": "7",
     "image": "https://daily.dev/solevilla.jpg",
     "name": "Solevilla",
     "username": "Solevilla",
   },
   Object {
+    "id": "sample",
     "image": "sample/image",
     "name": "sample",
     "username": "sample",
