@@ -114,10 +114,10 @@ export class User {
   referralOrigin?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  readme: string;
+  readme?: string;
 
   @Column({ type: 'text', nullable: true })
-  readmeHtml: string;
+  readmeHtml?: string;
 
   @ManyToOne(() => User, {
     lazy: true,
