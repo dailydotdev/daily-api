@@ -33,6 +33,7 @@ import {
   TagsReadingStatus,
   uploadAvatar,
   uploadDevCardBackground,
+  uploadProfileCover,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -51,6 +52,7 @@ import { DayOfWeek } from '../types';
 import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import { getTimezoneOffset } from 'date-fns-tz';
 import { CampaignType, Invite } from '../entity/Invite';
+import { markdown } from '../common/markdown';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -89,6 +91,9 @@ export interface GQLUser {
   reputation?: number;
   notificationEmail?: boolean;
   timezone?: string;
+  cover?: string;
+  readme?: string;
+  readmeHtml?: string;
 }
 
 export interface GQLView {
@@ -172,6 +177,10 @@ export const typeDefs = /* GraphQL */ `
     """
     image: String
     """
+    Cover image of the user
+    """
+    cover: String
+    """
     Username (handle) of the user
     """
     username: String
@@ -223,6 +232,14 @@ export const typeDefs = /* GraphQL */ `
     If the user should receive email for notifications
     """
     notificationEmail: Boolean
+    """
+    Markdown version of the user's readme
+    """
+    readme: String
+    """
+    HTML rendered version of the user's readme
+    """
+    readmeHtml: String
   }
 
   """
@@ -579,8 +596,39 @@ export const typeDefs = /* GraphQL */ `
       """
       feature: String!
     ): EmptyResponse @auth
+
+    """
+    Upload a new profile cover image
+    """
+    uploadCoverImage(
+      """
+      Asset to upload
+      """
+      image: Upload!
+    ): User! @auth @rateLimit(limit: 5, duration: 60)
+
+    """
+    Update the user's readme
+    """
+    updateReadme(
+      """
+      The readme content
+      """
+      content: String!
+    ): User! @auth
   }
 `;
+
+const getCurrentUser = (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+): Promise<GQLUser> =>
+  graphorm.queryOneOrFail<GQLUser>(ctx, info, (builder) => ({
+    queryBuilder: builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
+      id: ctx.userId,
+    }),
+    ...builder,
+  }));
 
 export const getUserPermalink = (
   user: Pick<GQLUser, 'id' | 'username'>,
@@ -661,7 +709,6 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLUserStats | null> => {
-      const isSameUser = ctx.userId === id;
       const [postStats, commentStats] = await Promise.all([
         getAuthorPostStats(ctx.con, id),
         await ctx.con
@@ -678,11 +725,9 @@ export const resolvers: IResolvers<any, Context> = {
       return {
         numPosts: postStats?.numPosts ?? 0,
         numComments: commentStats?.numComments ?? 0,
-        numPostViews: isSameUser ? postStats?.numPostViews ?? 0 : null,
-        numPostUpvotes: isSameUser ? postStats?.numPostUpvotes ?? 0 : null,
-        numCommentUpvotes: isSameUser
-          ? commentStats?.numCommentUpvotes ?? 0
-          : null,
+        numPostViews: postStats?.numPostViews ?? 0,
+        numPostUpvotes: postStats?.numPostUpvotes ?? 0,
+        numCommentUpvotes: commentStats?.numCommentUpvotes ?? 0,
       };
     },
     user: async (
@@ -1175,6 +1220,45 @@ export const resolvers: IResolvers<any, Context> = {
       });
 
       return { _: true };
+    },
+    uploadCoverImage: async (
+      _,
+      { image }: { image: Promise<FileUpload> },
+      ctx,
+      info,
+    ): Promise<GQLUser> => {
+      if (!image) {
+        throw new ValidationError('File is missing!');
+      }
+
+      if (!process.env.CLOUDINARY_URL) {
+        throw new Error('Unable to upload asset to cloudinary!');
+      }
+
+      const upload = await image;
+      const { url: imageUrl } = await uploadProfileCover(
+        ctx.userId,
+        upload.createReadStream(),
+      );
+      await ctx.con
+        .getRepository(User)
+        .update({ id: ctx.userId }, { cover: imageUrl });
+      return getCurrentUser(ctx, info);
+    },
+    updateReadme: async (
+      _,
+      { content }: { content: string },
+      ctx,
+      info,
+    ): Promise<GQLUser> => {
+      const contentHtml = markdown.render(content);
+      await ctx.con
+        .getRepository(User)
+        .update(
+          { id: ctx.userId },
+          { readme: content, readmeHtml: contentHtml },
+        );
+      return getCurrentUser(ctx, info);
     },
   }),
   User: {

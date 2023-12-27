@@ -544,16 +544,6 @@ Object {
 }
 `;
 
-exports[`query userStats should return partially null result when the user is not the stats owner 1`] = `
-Object {
-  "numCommentUpvotes": null,
-  "numComments": 1,
-  "numPostUpvotes": null,
-  "numPostViews": null,
-  "numPosts": 0,
-}
-`;
-
 exports[`query userStats should return the user stats 1`] = `
 Object {
   "userStats": Object {

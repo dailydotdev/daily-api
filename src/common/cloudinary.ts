@@ -27,6 +27,7 @@ export enum UploadPreset {
   PostBannerImage = 'post_image',
   FreeformImage = 'freeform_image',
   FreeformGif = 'freeform_gif',
+  ProfileCover = 'cover',
 }
 
 interface OptionalProps {
@@ -83,6 +84,13 @@ export const uploadSquadImage: UploadFn = (name, stream) =>
 
 export const uploadAvatar: UploadFn = (userId, stream) =>
   uploadFile(`${UploadPreset.Avatar}_${userId}`, UploadPreset.Avatar, stream);
+
+export const uploadProfileCover: UploadFn = (userId, stream) =>
+  uploadFile(
+    `${UploadPreset.ProfileCover}_${userId}`,
+    UploadPreset.ProfileCover,
+    stream,
+  );
 
 type PostPreset =
   | UploadPreset.PostBannerImage

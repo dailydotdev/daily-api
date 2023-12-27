@@ -290,15 +290,7 @@ describe('query userStats', () => {
     }
   }`;
 
-  it('should return partially null result when the user is not the stats owner', async () => {
-    loggedUser = '1';
-    const res = await client.query(QUERY, { variables: { id: '2' } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userStats).toMatchSnapshot();
-  });
-
   it('should return the user stats', async () => {
-    loggedUser = '1';
     const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
@@ -2564,6 +2556,42 @@ describe('mutation acceptFeatureInvite', () => {
       .getRepository(Invite)
       .findOneBy({ token: 'd688afeb-381c-43b5-89af-533f81ccd036' });
     expect(invite.count).toEqual(1);
+  });
+});
+
+describe('mutation updateReadme', () => {
+  const MUTATION = `mutation UpdateReadme($content: String!) {
+    updateReadme(content: $content) {
+      readme
+      readmeHtml
+    }
+  }`;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { content: 'test' },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should update the readme and render markdown', async () => {
+    loggedUser = '1';
+
+    const expected = `Hello
+
+**Readme!**`;
+    const res = await client.mutate(MUTATION, {
+      variables: { content: expected },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateReadme).toEqual({
+      readme: expected,
+      readmeHtml: '<p>Hello</p>\n<p><strong>Readme!</strong></p>\n',
+    });
   });
 });
 

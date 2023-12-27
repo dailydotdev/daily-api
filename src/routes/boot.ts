@@ -334,6 +334,31 @@ const getExperimentation = async (
   };
 };
 
+const getUser = (con: DataSource, userId: string): Promise<User> =>
+  con.getRepository(User).findOne({
+    where: { id: userId },
+    select: [
+      'id',
+      'username',
+      'name',
+      'email',
+      'image',
+      'company',
+      'title',
+      'infoConfirmed',
+      'notificationEmail',
+      'acceptedMarketing',
+      'reputation',
+      'bio',
+      'twitter',
+      'github',
+      'portfolio',
+      'hashnode',
+      'timezone',
+      'createdAt',
+    ],
+  });
+
 const loggedInBoot = async (
   con: DataSource,
   req: FastifyRequest,
@@ -357,7 +382,7 @@ const loggedInBoot = async (
       extra,
     ] = await Promise.all([
       visitSection(req, res),
-      con.getRepository(User).findOneBy({ id: userId }),
+      getUser(con, userId),
       getRoles(userId),
       getAlerts(con, userId),
       getSettings(con, userId),
