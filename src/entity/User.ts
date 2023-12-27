@@ -46,6 +46,9 @@ export class User {
   image: string;
 
   @Column({ type: 'text', nullable: true })
+  cover?: string;
+
+  @Column({ type: 'text', nullable: true })
   company?: string;
 
   @Column({ type: 'text', nullable: true })
@@ -109,6 +112,12 @@ export class User {
   @Column({ type: 'text', nullable: true })
   @Index('IDX_user_referral_origin')
   referralOrigin?: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  readme: string;
+
+  @Column({ type: 'text', nullable: true })
+  readmeHtml: string;
 
   @ManyToOne(() => User, {
     lazy: true,
