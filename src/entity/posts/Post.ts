@@ -47,6 +47,23 @@ export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
   'pinnedAt',
   'createdAt',
 ])
+@Index('IDX_post_visible_metadatachanged', ['visible', 'metadataChangedAt'])
+@Index('IDX_post_visible_sourceid', ['visible', 'sourceId'])
+@Index('IDX_post_visible_type', ['visible', 'type'])
+@Index('IDX_post_visible_deleted_id', ['visible', 'deleted', 'id'])
+@Index('IDX_post_deleted_visible_banned_showonfeed_id_type', [
+  'deleted',
+  'visible',
+  'banned',
+  'showOnFeed',
+  'id',
+  'type',
+])
+@Index('IDX_post_visible_deleted_createdat', [
+  'visible',
+  'deleted',
+  'createdAt',
+])
 @TableInheritance({
   column: { type: 'varchar', name: 'type', default: PostType.Article },
 })

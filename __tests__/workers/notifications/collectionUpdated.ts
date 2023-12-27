@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import {
   expectSuccessfulBackground,
@@ -9,14 +9,16 @@ import { collectionUpdated as worker } from '../../../src/workers/notifications/
 import {
   ArticlePost,
   CollectionPost,
-  Notification,
+  NotificationAvatarV2,
   NotificationPreferencePost,
+  NotificationV2,
   PostOrigin,
   PostRelation,
   PostRelationType,
   PostType,
   Source,
   User,
+  UserNotification,
 } from '../../../src/entity';
 import { sourcesFixture } from '../../fixture/source';
 import {
@@ -95,6 +97,19 @@ beforeEach(async () => {
       id: 'c1',
       shortId: 'c1',
       title: 'My collection',
+      score: 0,
+      metadataChangedAt: new Date('01-05-2020 12:00:00'),
+      sourceId: 'a',
+      visible: true,
+      createdAt: new Date('01-05-2020 12:00:00'),
+      yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
+    },
+  ]);
+  await saveFixtures(con, CollectionPost, [
+    {
+      id: 'c2',
+      shortId: 'c2',
+      title: 'My collection 2',
       score: 0,
       metadataChangedAt: new Date('01-05-2020 12:00:00'),
       sourceId: 'a',
@@ -195,13 +210,13 @@ describe('collectionUpdated worker', () => {
       },
     });
 
-    const notifications = await con.getRepository(Notification).findBy({
+    const notification = await con.getRepository(NotificationV2).findOneBy({
       referenceId: 'c1',
     });
-
-    expect(notifications.length).toEqual(3);
-
-    const notification = notifications.find((item) => item.userId === '1');
+    const users = await con
+      .getRepository(UserNotification)
+      .findBy({ notificationId: notification.id });
+    expect(users.length).toEqual(3);
 
     const collectionPost = await con
       .getRepository(CollectionPost)
@@ -210,7 +225,6 @@ describe('collectionUpdated worker', () => {
     expect(collectionPost).not.toBeNull();
 
     expect(notification).toMatchObject({
-      userId: '1',
       type: 'collection_updated',
       icon: 'Bell',
       title:
@@ -224,7 +238,9 @@ describe('collectionUpdated worker', () => {
       uniqueKey: collectionPost?.metadataChangedAt.toString(),
     });
 
-    const avatars = await notification!.avatars;
+    const avatars = await con
+      .getRepository(NotificationAvatarV2)
+      .find({ where: { id: In(notification.avatars) } });
 
     expect(avatars.length).toEqual(3);
     avatars.forEach((item) => {
@@ -244,5 +260,18 @@ describe('collectionUpdated worker', () => {
 
     expect(actual.length).toEqual(1);
     expect(actual[0].ctx.userIds.includes('4')).toBeFalsy();
+  });
+
+  it('should notify when a collection is updated but the no sources are found', async () => {
+    const actual = await invokeNotificationWorker(worker, {
+      post: {
+        id: 'c2',
+        title: 'My collection',
+        content_type: PostType.Collection,
+      },
+    });
+
+    expect(actual.length).toEqual(1);
+    expect((actual[0].ctx as NotificationCollectionContext).total).toEqual(0);
   });
 });

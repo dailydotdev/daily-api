@@ -3,6 +3,7 @@ import createOrGetConnection from '../../src/db';
 import { saveFixtures } from '../helpers';
 import {
   ArticlePost,
+  NotificationAttachmentType,
   NotificationAttachmentV2,
   NotificationAvatarV2,
   NotificationV2,
@@ -142,7 +143,7 @@ describe('notificationWorkerToWorker', () => {
       image: 'https://daily.dev/image.jpg',
       referenceId: 'p1',
       title: 'P1',
-      type: 'post',
+      type: NotificationAttachmentType.Post,
     });
     await worker.handler(null, con, null, null);
     const avatars = await con

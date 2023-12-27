@@ -12,10 +12,10 @@ import postUpvotedRedis from './postUpvotedRedis';
 import postBannedRep from './postBannedRep';
 import postDeletedCommentsCleanup from './postDeletedCommentsCleanup';
 import usernameChanged from './usernameChanged';
-import usernameChangedUpdateNotifications from './usernameChangedUpdateNotifications';
 import sourceRequestApprovedRep from './sourceRequestApprovedRep';
 import updateComments from './updateComments';
-import cdc from './cdc';
+import cdc from './cdc/primary';
+import cdcNotifications from './cdc/notifications';
 import updateMailingList from './updateMailingList';
 import deleteUserFromMailingList from './deleteUserFromMailingList';
 import newNotificationRealTime from './newNotificationV2RealTime';
@@ -70,7 +70,6 @@ export const workers: Worker[] = [
   postDeletedCommentsCleanup,
   sourceRequestApprovedRep,
   usernameChanged,
-  usernameChangedUpdateNotifications,
   updateComments,
   newNotificationRealTime,
   newNotificationMail,
@@ -86,6 +85,7 @@ export const workers: Worker[] = [
   sourceSquadCreatedUserAction,
   sourceSquadCreatedOwnerMailing,
   cdc,
+  cdcNotifications,
   ...notificationWorkers,
 ];
 

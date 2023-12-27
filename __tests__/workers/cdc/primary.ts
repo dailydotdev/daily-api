@@ -13,8 +13,7 @@ import {
   CollectionPost,
   PostRelation,
   PostRelationType,
-  NotificationV2,
-} from '../../src/entity';
+} from '../../../src/entity';
 import {
   notifyCommentCommented,
   notifyCommentUpvoteCanceled,
@@ -23,7 +22,6 @@ import {
   notifyMemberJoinedSource,
   notifyNewPostMention,
   notifyNewCommentMention,
-  notifyNewNotification,
   notifyPostBannedOrRemoved,
   notifyPostCommented,
   notifyPostReport,
@@ -53,13 +51,13 @@ import {
   notifyBannerRemoved,
   notifyPostYggdrasilIdSet,
   notifyPostCollectionUpdated,
-} from '../../src/common';
-import worker from '../../src/workers/cdc';
+} from '../../../src/common';
+import worker from '../../../src/workers/cdc/primary';
 import {
   expectSuccessfulBackground,
   mockChangeMessage,
   saveFixtures,
-} from '../helpers';
+} from '../../helpers';
 import {
   Alerts,
   ArticlePost,
@@ -83,22 +81,21 @@ import {
   UserState,
   UserStateKey,
   ContentImage,
-} from '../../src/entity';
-import { ChangeObject } from '../../src/types';
-import { sourcesFixture } from '../fixture/source';
-import { postsFixture } from '../fixture/post';
+} from '../../../src/entity';
+import { ChangeObject } from '../../../src/types';
+import { sourcesFixture } from '../../fixture/source';
+import { postsFixture } from '../../fixture/post';
 import { randomUUID } from 'crypto';
-import { submissionAccessThreshold } from '../../src/schema/submissions';
+import { submissionAccessThreshold } from '../../../src/schema/submissions';
 import { DataSource } from 'typeorm';
-import createOrGetConnection from '../../src/db';
-import { TypeOrmError } from '../../src/errors';
-import { SourceMemberRoles } from '../../src/roles';
-import { CommentReport } from '../../src/entity/CommentReport';
-import { usersFixture } from '../fixture/user';
-import { NotificationType } from '../../src/notifications/common';
+import createOrGetConnection from '../../../src/db';
+import { TypeOrmError } from '../../../src/errors';
+import { SourceMemberRoles } from '../../../src/roles';
+import { CommentReport } from '../../../src/entity/CommentReport';
+import { usersFixture } from '../../fixture/user';
 
-jest.mock('../../src/common', () => ({
-  ...(jest.requireActual('../../src/common') as Record<string, unknown>),
+jest.mock('../../../src/common', () => ({
+  ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
   notifySourceRequest: jest.fn(),
   notifyPostUpvoted: jest.fn(),
   notifyPostUpvoteCanceled: jest.fn(),
@@ -1630,39 +1627,6 @@ describe('submission', () => {
     expect(
       jest.mocked(notifySubmissionRejected).mock.calls[0].slice(1),
     ).toEqual([after]);
-  });
-});
-
-describe('notification', () => {
-  type ObjectType = NotificationV2;
-  const id = randomUUID();
-  const base: ChangeObject<ObjectType> = {
-    id,
-    type: NotificationType.CommunityPicksGranted,
-    title: 'hello',
-    targetUrl: 'target',
-    icon: 'icon',
-    public: true,
-    createdAt: Date.now(),
-    attachments: [],
-    avatars: [],
-  };
-
-  it('should notify new notification', async () => {
-    const after: ChangeObject<ObjectType> = base;
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: null,
-        op: 'c',
-        table: 'notification_v2',
-      }),
-    );
-    expect(notifyNewNotification).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(notifyNewNotification).mock.calls[0].slice(1)).toEqual([
-      after,
-    ]);
   });
 });
 

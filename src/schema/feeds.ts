@@ -7,6 +7,8 @@ import {
   FeedTag,
   Post,
   Source,
+  UserPost,
+  UserPostVote,
 } from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
@@ -445,6 +447,36 @@ export const typeDefs = /* GraphQL */ `
     ): PostConnection!
 
     """
+    Get a user's upvote feed
+    """
+    userUpvotedFeed(
+      """
+      Id of the user
+      """
+      userId: ID!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Ranking criteria for the feed
+      """
+      ranking: Ranking = POPULARITY
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection!
+
+    """
     Get the most upvoted articles in the past 7 days feed
     """
     mostUpvotedFeed(
@@ -723,6 +755,45 @@ const applyFeedPaging = (
     });
   } else if (page.timestamp) {
     newBuilder = newBuilder.andWhere(`${alias}."createdAt" < :timestamp`, {
+      timestamp: page.timestamp,
+    });
+  }
+  return newBuilder;
+};
+
+interface UpvotedPage extends Page {
+  timestamp?: Date;
+}
+
+const upvotedPageGenerator: PageGenerator<
+  GQLPost,
+  ConnectionArguments,
+  UpvotedPage
+> = {
+  connArgsToPage: ({ first, after }: FeedArgs) => {
+    const cursor = getCursorFromAfter(after);
+    const limit = Math.min(first || 30, 50);
+    if (cursor) {
+      return { limit, timestamp: new Date(parseInt(cursor)) };
+    }
+    return { limit };
+  },
+  nodeToCursor: (page, args, node) => {
+    return base64(`time:${node.votedAt.getTime()}`);
+  },
+  hasNextPage: (page, nodesSize) => page.limit === nodesSize,
+  hasPreviousPage: (page) => !!page.timestamp,
+};
+
+const applyUpvotedPaging = (
+  ctx: Context,
+  args,
+  page: UpvotedPage,
+  builder: SelectQueryBuilder<Post>,
+): SelectQueryBuilder<Post> => {
+  let newBuilder = builder.limit(page.limit).orderBy('up.createdAt', 'DESC');
+  if (page.timestamp) {
+    newBuilder = newBuilder.andWhere('up."createdAt" < :timestamp', {
       timestamp: page.timestamp,
     });
   }
@@ -1173,6 +1244,24 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           ),
       feedPageGenerator,
       applyFeedPaging,
+      {
+        removeHiddenPosts: false,
+        removeBannedPosts: false,
+        allowPrivateSources: false,
+      },
+    ),
+    userUpvotedFeed: feedResolver(
+      (ctx, { userId }: { userId: string } & FeedArgs, builder, alias) =>
+        builder
+          .addSelect('up.votedAt', 'votedAt')
+          .innerJoin(
+            UserPost,
+            'up',
+            `up."postId" = ${alias}.id AND up."userId" = :userId AND vote = :vote`,
+            { userId, vote: UserPostVote.Up },
+          ),
+      upvotedPageGenerator,
+      applyUpvotedPaging,
       {
         removeHiddenPosts: false,
         removeBannedPosts: false,

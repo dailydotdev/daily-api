@@ -19,19 +19,6 @@ Object {
 }
 `;
 
-exports[`featuredComments field should return array with the featured comments 1`] = `
-Array [
-  Object {
-    "author": Object {
-      "image": "https://daily.dev/ido.jpg",
-      "name": "Ido",
-    },
-    "content": "My comment",
-    "permalink": "http://localhost:5002/posts/p1",
-  },
-]
-`;
-
 exports[`image fields should return default image when no image exists 1`] = `
 Object {
   "post": Object {

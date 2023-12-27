@@ -53,6 +53,7 @@ import {
   NotificationType,
   saveNotificationPreference,
 } from '../notifications/common';
+import { QueryBuilder } from '../graphorm/graphorm';
 
 export interface GQLSource {
   id: string;
@@ -331,6 +332,26 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): SourceMemberConnection! @auth
+
+    """
+    Get user's public source memberships
+    """
+    publicSourceMemberships(
+      """
+      User ID
+      """
+      userId: ID!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourceMemberConnection!
 
     """
     Get source member by referral token
@@ -887,6 +908,34 @@ const togglePinnedPosts = async (
   return { _: true };
 };
 
+const paginateSourceMembers = (
+  query: (builder: QueryBuilder, alias: string) => QueryBuilder,
+  args: ConnectionArguments,
+  ctx: Context,
+  info: GraphQLResolveInfo,
+): Promise<Connection<GQLSourceMember>> => {
+  const page = membershipsPageGenerator.connArgsToPage(args);
+  return graphorm.queryPaginated(
+    ctx,
+    info,
+    (nodeSize) => membershipsPageGenerator.hasPreviousPage(page, nodeSize),
+    (nodeSize) => membershipsPageGenerator.hasNextPage(page, nodeSize),
+    (node, index) =>
+      membershipsPageGenerator.nodeToCursor(page, args, node, index),
+    (builder) => {
+      builder.queryBuilder = query(builder.queryBuilder, builder.alias);
+      builder.queryBuilder.limit(page.limit);
+      if (page.timestamp) {
+        builder.queryBuilder = builder.queryBuilder.andWhere(
+          `${builder.alias}."createdAt" < :timestamp`,
+          { timestamp: page.timestamp },
+        );
+      }
+      return builder;
+    },
+  );
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -968,55 +1017,42 @@ export const resolvers: IResolvers<any, Context> = {
           : SourcePermissions.View;
 
       await ensureSourcePermissions(ctx, sourceId, permission);
-      const page = membershipsPageGenerator.connArgsToPage(args);
-      return graphorm.queryPaginated(
-        ctx,
-        info,
-        (nodeSize) => membershipsPageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) => membershipsPageGenerator.hasNextPage(page, nodeSize),
-        (node, index) =>
-          membershipsPageGenerator.nodeToCursor(page, args, node, index),
-        (builder) => {
-          builder.queryBuilder
-            .andWhere(`${builder.alias}."sourceId" = :source`, {
+      return paginateSourceMembers(
+        (queryBuilder, alias) => {
+          queryBuilder
+            .andWhere(`${alias}."sourceId" = :source`, {
               source: sourceId,
             })
             .addOrderBy(
               graphorm.mappings.SourceMember.fields.roleRank.select as string,
               'DESC',
             )
-            .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+            .addOrderBy(`${alias}."createdAt"`, 'DESC');
 
           if (query) {
-            builder.queryBuilder = builder.queryBuilder
-              .innerJoin(User, 'u', `${builder.alias}."userId" = u.id`)
+            queryBuilder = queryBuilder
+              .innerJoin(User, 'u', `${alias}."userId" = u.id`)
               .andWhere(`(u.name ILIKE :name OR u.username ILIKE :name)`, {
                 name: `${query}%`,
               });
           }
 
           if (role) {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
-              `${builder.alias}.role = :role`,
-              { role },
-            );
+            queryBuilder = queryBuilder.andWhere(`${alias}.role = :role`, {
+              role,
+            });
           } else {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
+            queryBuilder = queryBuilder.andWhere(
               `${
                 graphorm.mappings.SourceMember.fields.roleRank.select as string
               } >= 0`,
             );
           }
-
-          builder.queryBuilder.limit(page.limit);
-          if (page.timestamp) {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
-              `${builder.alias}."createdAt" < :timestamp`,
-              { timestamp: page.timestamp },
-            );
-          }
-          return builder;
+          return queryBuilder;
         },
+        args,
+        ctx,
+        info,
       );
     },
     mySourceMemberships: async (
@@ -1025,33 +1061,44 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
-      const page = membershipsPageGenerator.connArgsToPage(args);
-      return graphorm.queryPaginated(
-        ctx,
-        info,
-        (nodeSize) => membershipsPageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) => membershipsPageGenerator.hasNextPage(page, nodeSize),
-        (node, index) =>
-          membershipsPageGenerator.nodeToCursor(page, args, node, index),
-        (builder) => {
-          builder.queryBuilder
-            .andWhere(`${builder.alias}."userId" = :user`, { user: ctx.userId })
+      return paginateSourceMembers(
+        (queryBuilder, alias) => {
+          return queryBuilder
+            .andWhere(`${alias}."userId" = :user`, { user: ctx.userId })
             .andWhere(
               `${
                 graphorm.mappings.SourceMember.fields.roleRank.select as string
               } >= 0`,
             )
-            .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
-
-          builder.queryBuilder.limit(page.limit);
-          if (page.timestamp) {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
-              `${builder.alias}."createdAt" < :timestamp`,
-              { timestamp: page.timestamp },
-            );
-          }
-          return builder;
+            .addOrderBy(`${alias}."createdAt"`, 'DESC');
         },
+        args,
+        ctx,
+        info,
+      );
+    },
+    publicSourceMemberships: async (
+      _,
+      { userId, ...args }: { userId: string } & ConnectionArguments,
+      ctx,
+      info,
+    ): Promise<Connection<GQLSourceMember>> => {
+      return paginateSourceMembers(
+        (queryBuilder, alias) => {
+          return queryBuilder
+            .andWhere(`${alias}."userId" = :user`, { user: userId })
+            .andWhere(
+              `${
+                graphorm.mappings.SourceMember.fields.roleRank.select as string
+              } >= 0`,
+            )
+            .addOrderBy(`${alias}."createdAt"`, 'DESC')
+            .innerJoin(Source, 's', `${alias}."sourceId" = s.id`)
+            .andWhere('s.private = false');
+        },
+        args,
+        ctx,
+        info,
       );
     },
     sourceMemberByToken: async (

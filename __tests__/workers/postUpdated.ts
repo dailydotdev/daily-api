@@ -459,11 +459,14 @@ it('should save a new post with content curation', async () => {
   });
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(3);
-
   const post = await con
     .getRepository(Post)
     .findOneBy({ yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816' });
-  expect(post?.contentCuration).toStrictEqual(['news', 'story', 'release']);
+  expect(post?.contentCuration).toIncludeSameMembers([
+    'news',
+    'story',
+    'release',
+  ]);
 });
 
 it('save a post as public if source is public', async () => {
@@ -894,6 +897,31 @@ describe('on youtube post', () => {
       description: 'A description of a video',
       summary: 'A short summary of a video',
     });
+  });
+
+  it('should create a new video post with minimum 1m duration', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: 'a7edf0c8-aec7-4586-b411-b1dd431ce8d6',
+      post_id: undefined,
+      updated_at: new Date('01-05-2023 12:00:00'),
+      source_id: 'a',
+      title: 'test',
+      url: 'https://youtu.be/FftMDvlYDIg',
+      extra: {
+        content_curation: ['news', 'story', 'release'],
+        duration: 10,
+        keywords: ['mongodb', 'alpinejs'],
+        description: 'A description of a video',
+        summary: 'A short summary of a video',
+      },
+      content_type: PostType.VideoYouTube,
+    });
+
+    const post = await con.getRepository(YouTubePost).findOneBy({
+      yggdrasilId: 'a7edf0c8-aec7-4586-b411-b1dd431ce8d6',
+    });
+
+    expect(post.readTime).toEqual(1);
   });
 
   it('should update a video post', async () => {

@@ -3,10 +3,10 @@ import { traceResolvers } from './trace';
 import { Context, SubscriptionContext } from '../Context';
 import {
   Banner,
-  getUnreadNotificationsCount,
-  Notification,
   NotificationPreference,
   Comment,
+  UserNotification,
+  NotificationV2,
 } from '../entity';
 import { ConnectionArguments } from 'graphql-relay';
 import { In, IsNull } from 'typeorm';
@@ -21,9 +21,9 @@ import {
   saveNotificationPreference,
   postNewCommentNotificationTypes,
   notificationPreferenceMap,
+  getUnreadNotificationsCount,
 } from '../notifications/common';
 import { ValidationError } from 'apollo-server-errors';
-import { UserNotification } from '../entity/notifications/UserNotification';
 
 interface GQLBanner {
   timestamp: Date;
@@ -324,7 +324,7 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 const notificationsPageGenerator = createDatePageGenerator<
-  Notification,
+  NotificationV2,
   'createdAt'
 >({
   key: 'createdAt',
@@ -355,7 +355,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       args: ConnectionArguments,
       ctx,
       info,
-    ): Promise<ConnectionRelay<Notification>> => {
+    ): Promise<ConnectionRelay<NotificationV2>> => {
       const page = notificationsPageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,
@@ -423,16 +423,12 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   Mutation: {
     readNotifications: async (_, __, ctx): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
-        const criteria = { userId: ctx.userId, readAt: IsNull() };
-        const partialEntity = { readAt: new Date() };
-        await Promise.all([
-          entityManager
-            .getRepository(Notification)
-            .update(criteria, partialEntity),
-          entityManager
-            .getRepository(UserNotification)
-            .update(criteria, partialEntity),
-        ]);
+        await entityManager
+          .getRepository(UserNotification)
+          .update(
+            { userId: ctx.userId, readAt: IsNull() },
+            { readAt: new Date() },
+          );
       });
       return { _: true };
     },

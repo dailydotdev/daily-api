@@ -61,3 +61,21 @@ export const removeEmptyValues = <T>(array: T[]): T[] => array.filter(Boolean);
  * @returns boolean
  */
 export const isProd = process.env.NODE_ENV === 'production';
+
+export const parseDate = (date: string | Date): Date | undefined => {
+  if (!date) {
+    return undefined;
+  }
+
+  const parsedDate = new Date(date);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return undefined;
+  }
+
+  if (parsedDate.getTime() < 0) {
+    return undefined;
+  }
+
+  return parsedDate;
+};

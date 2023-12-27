@@ -3,12 +3,17 @@ import * as gcp from '@pulumi/gcp';
 interface Worker {
   topic: string;
   subscription: string;
-  args?: { enableMessageOrdering?: boolean, ackDeadlineSeconds?: number, expirationPolicy?: {
-    ttl: string
-  }, deadLetterPolicy?: {
-    deadLetterTopic: string,
-    maxDeliveryAttempts: number
-  } };
+  args?: {
+    enableMessageOrdering?: boolean;
+    ackDeadlineSeconds?: number;
+    expirationPolicy?: {
+      ttl: string;
+    };
+    deadLetterPolicy?: {
+      deadLetterTopic: string;
+      maxDeliveryAttempts: number;
+    };
+  };
 }
 
 export const digestDeadLetter = 'api.v1.personalized-digest-email-dead-letter';
@@ -91,17 +96,17 @@ export const workers: Worker[] = [
     subscription: 'username-changed-api',
   },
   {
-    topic: 'username-changed',
-    subscription: 'api.username-changed-update-notifications',
-  },
-  {
     topic: 'update-comments',
     subscription: 'update-comments-mention',
   },
   {
     topic: 'api.changes',
     subscription: 'api-cdc',
-    args: {enableMessageOrdering: true},
+    args: { enableMessageOrdering: true },
+  },
+  {
+    topic: 'api.v1.cdc-notifications',
+    subscription: 'api.cdc-notifications',
   },
   {
     topic: 'api.v1.new-notification',
@@ -132,14 +137,6 @@ export const workers: Worker[] = [
     subscription: 'api.comment-deleted-images',
   },
   // Notifications
-  {
-    topic: 'api.v1.comment-deleted',
-    subscription: 'api.comment-deleted-notification-cleanup',
-  },
-  {
-    topic: 'post-banned-or-removed',
-    subscription: 'api.post-deleted-notification-cleanup',
-  },
   {
     topic: 'community-link-rejected',
     subscription: 'api.community-picks-failed-notification',
@@ -250,17 +247,17 @@ export const personalizedDigestWorkers = [
       ackDeadlineSeconds: 60,
       deadLetterPolicy: {
         deadLetterTopic: `projects/${gcp.config.project}/topics/${digestDeadLetter}`,
-        maxDeliveryAttempts: 5
-      }
-    }
+        maxDeliveryAttempts: 5,
+      },
+    },
   },
   {
     topic: digestDeadLetter,
     subscription: 'api.personalized-digest-email-dead-letter-log',
     args: {
       expirationPolicy: {
-        ttl: ''
-      }
-    }
-  }
+        ttl: '',
+      },
+    },
+  },
 ];

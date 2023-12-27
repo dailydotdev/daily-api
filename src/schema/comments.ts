@@ -931,6 +931,6 @@ export const resolvers: IResolvers<any, Context> = {
   }),
   Comment: {
     permalink: (comment: GQLComment): string =>
-      getDiscussionLink(comment.postId),
+      getDiscussionLink(comment.postId, comment.id),
   },
 };
