@@ -898,6 +898,46 @@ describe('query mySourceMemberships', () => {
   });
 });
 
+describe('query publicSourceMemberships', () => {
+  const QUERY = `
+    query SourceMemberships($userId: ID!) {
+      publicSourceMemberships(userId: $userId) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            user { id }
+            source { id }
+            role
+            roleRank
+          }
+        }
+      }
+    }
+  `;
+
+  it('should return source memberships', async () => {
+    const res = await client.query(QUERY, { variables: { userId: '2' } });
+    expect(res.errors).toBeFalsy();
+    const sources = res.data.publicSourceMemberships.edges.map(
+      ({ node }) => node.source.id,
+    );
+    expect(sources).toEqual(['a', 'b']);
+  });
+
+  it('should return only public sources', async () => {
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+    const res = await client.query(QUERY, { variables: { userId: '2' } });
+    expect(res.errors).toBeFalsy();
+    const sources = res.data.publicSourceMemberships.edges.map(
+      ({ node }) => node.source.id,
+    );
+    expect(sources).toEqual(['b']);
+  });
+});
+
 describe('query sourceMemberByToken', () => {
   const QUERY = `
 query SourceMemberByToken($token: String!) {
