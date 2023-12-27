@@ -68,7 +68,7 @@ import {
   TypeOrmError,
 } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
-import { getMentions, GQLComment } from './comments';
+import { getMentions } from './comments';
 import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import {
@@ -109,7 +109,6 @@ export interface GQLPost {
   bookmarkList?: GQLBookmarkList;
   numUpvotes: number;
   numComments: number;
-  featuredComments?: GQLComment[];
   deleted?: boolean;
   private: boolean;
   // Used only for pagination (not part of the schema)
@@ -408,11 +407,6 @@ export const typeDefs = /* GraphQL */ `
     Permanent link to the comments of the post
     """
     commentsPermalink: String!
-
-    """
-    Featured comments for the post
-    """
-    featuredComments: [Comment!] @deprecated(reason: "no longer maintained")
 
     """
     Author of the post (if they have a daily.dev account)

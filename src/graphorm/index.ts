@@ -153,10 +153,6 @@ const obj = new GraphORM({
       numComments: {
         select: 'comments',
       },
-      featuredComments: {
-        customQuery: (ctx, alias, qb): QueryBuilder =>
-          qb.distinctOn([`"userId"`]).andWhere(`"${alias}".featured is true`),
-      },
       publication: {
         alias: { field: 'source', type: 'Source' },
       },

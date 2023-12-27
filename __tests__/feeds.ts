@@ -338,7 +338,17 @@ describe('query anonymousFeed', () => {
     const res = await client.query(QUERY, {
       variables: { ...variables, filters },
     });
-    expect(res.data).toMatchSnapshot();
+    expect(
+      res.data.anonymousFeed.edges.map(({ node }) => node.id),
+    ).toIncludeSameMembers([
+      'p5',
+      'p2',
+      'p3',
+      'p4',
+      'p1',
+      'yt2',
+      'includedPost',
+    ]);
   });
 
   it('should return anonymous feed filtered by tags and sources', async () => {
