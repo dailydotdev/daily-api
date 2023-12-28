@@ -1092,6 +1092,10 @@ export const resolvers: IResolvers<any, Context> = {
                 graphorm.mappings.SourceMember.fields.roleRank.select as string
               } >= 0`,
             )
+            .addOrderBy(
+              graphorm.mappings.SourceMember.fields.roleRank.select as string,
+              'DESC',
+            )
             .addOrderBy(`${alias}."createdAt"`, 'DESC')
             .innerJoin(Source, 's', `${alias}."sourceId" = s.id`)
             .andWhere('s.private = false');

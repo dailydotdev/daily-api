@@ -688,6 +688,8 @@ const readHistoryResolver = async (
 const userTimezone = `at time zone COALESCE(timezone, 'utc')`;
 const timestampAtTimezone = `"timestamp"::timestamptz ${userTimezone}`;
 
+const MAX_README_LENGTH = 10_000;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1251,6 +1253,9 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLUser> => {
+      if (content.length >= MAX_README_LENGTH) {
+        throw new ValidationError(`Max content length is ${MAX_README_LENGTH}`);
+      }
       const contentHtml = markdown.render(content);
       await ctx.con
         .getRepository(User)

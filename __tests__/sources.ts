@@ -924,7 +924,7 @@ describe('query publicSourceMemberships', () => {
     const sources = res.data.publicSourceMemberships.edges.map(
       ({ node }) => node.source.id,
     );
-    expect(sources).toEqual(['a', 'b']);
+    expect(sources).toEqual(['b', 'a']);
   });
 
   it('should return only public sources', async () => {
