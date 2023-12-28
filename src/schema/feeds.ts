@@ -1257,8 +1257,8 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           .innerJoin(
             UserPost,
             'up',
-            `up."postId" = ${alias}.id AND up."userId" = :userId AND vote = :vote`,
-            { userId, vote: UserPostVote.Up },
+            `up."postId" = ${alias}.id AND up."userId" = :author AND vote = :vote`,
+            { author: userId, vote: UserPostVote.Up },
           ),
       upvotedPageGenerator,
       applyUpvotedPaging,
