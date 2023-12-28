@@ -356,6 +356,7 @@ const getUser = (con: DataSource, userId: string): Promise<User> =>
       'hashnode',
       'timezone',
       'createdAt',
+      'cover',
     ],
   });
 

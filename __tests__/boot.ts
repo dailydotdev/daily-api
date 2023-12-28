@@ -90,6 +90,7 @@ const LOGGED_IN_BODY = {
     notificationEmail: true,
     acceptedMarketing: false,
     company: null,
+    cover: null,
   },
 };
 
