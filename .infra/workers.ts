@@ -237,6 +237,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.post-collection-updated',
     subscription: 'api.post-collection-updated-notification',
   },
+  {
+    topic: 'api.v1.user-readme-updated',
+    subscription: 'api.user-readme-images',
+  },
 ];
 
 export const personalizedDigestWorkers = [

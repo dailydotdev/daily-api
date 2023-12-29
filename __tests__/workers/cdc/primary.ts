@@ -51,6 +51,7 @@ import {
   notifyBannerRemoved,
   notifyPostYggdrasilIdSet,
   notifyPostCollectionUpdated,
+  notifyUserReadmeUpdated,
 } from '../../../src/common';
 import worker from '../../../src/workers/cdc/primary';
 import {
@@ -134,6 +135,7 @@ jest.mock('../../../src/common', () => ({
   notifyBannerRemoved: jest.fn(),
   notifyPostYggdrasilIdSet: jest.fn(),
   notifyPostCollectionUpdated: jest.fn(),
+  notifyUserReadmeUpdated: jest.fn(),
 }));
 
 let con: DataSource;
@@ -639,6 +641,26 @@ describe('user', () => {
     );
     const state = await con.getRepository(UserState).find();
     expect(state.length).toEqual(1);
+  });
+
+  it('should notify on user readme updated', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      readme: 'hello',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        table: 'user',
+        op: 'u',
+      }),
+    );
+    expect(notifyUserReadmeUpdated).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(notifyUserReadmeUpdated).mock.calls[0].slice(1)).toEqual(
+      [after],
+    );
   });
 });
 

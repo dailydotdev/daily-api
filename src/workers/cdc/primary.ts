@@ -75,6 +75,7 @@ import {
   notifySourceCreated,
   notifyPostYggdrasilIdSet,
   notifyPostCollectionUpdated,
+  notifyUserReadmeUpdated,
 } from '../../common';
 import { ChangeMessage } from '../../types';
 import { DataSource } from 'typeorm';
@@ -312,6 +313,9 @@ const onUserChange = async (
         data.payload.before.username,
         data.payload.after.username,
       );
+    }
+    if (data.payload.before.readme !== data.payload.after.readme) {
+      await notifyUserReadmeUpdated(logger, data.payload.after);
     }
   }
   if (data.payload.op === 'd') {

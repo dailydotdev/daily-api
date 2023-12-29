@@ -82,6 +82,7 @@ const postYggdrasilIdSet = pubsub.topic('api.v1.post-yggdrasil-id-set');
 const postCollectionUpdatedTopic = pubsub.topic(
   'api.v1.post-collection-updated',
 );
+const userReadmeUpdatedTopic = pubsub.topic('api.v1.user-readme-updated');
 
 export enum NotificationReason {
   New = 'new',
@@ -226,6 +227,11 @@ export const notifyUserUpdated = (
   user: ChangeObject<User>,
   newProfile: ChangeObject<User>,
 ): Promise<void> => publishEvent(log, userUpdatedTopic, { user, newProfile });
+
+export const notifyUserReadmeUpdated = (
+  log: EventLogger,
+  user: ChangeObject<User>,
+): Promise<void> => publishEvent(log, userReadmeUpdatedTopic, { user });
 
 export const notifyUsernameChanged = (
   log: EventLogger,

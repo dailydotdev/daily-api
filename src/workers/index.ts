@@ -44,6 +44,7 @@ import sourceSquadCreatedUserAction from './sourceSquadCreatedUserAction';
 import sourceSquadCreatedOwnerMailing from './sourceSquadCreatedOwnerMailing';
 import personalizedDigestEmailWorker from '../workers/personalizedDigestEmail';
 import deadLetterLog from './digestDeadLetterLog';
+import userReadmeImages from './userReadmeImages';
 
 export { Worker } from './worker';
 
@@ -84,6 +85,7 @@ export const workers: Worker[] = [
   experimentAllocated,
   sourceSquadCreatedUserAction,
   sourceSquadCreatedOwnerMailing,
+  userReadmeImages,
   cdc,
   cdcNotifications,
   ...notificationWorkers,
