@@ -91,6 +91,18 @@ beforeEach(async () => {
       origin: PostOrigin.Crawler,
       yggdrasilId: '5a829977-189a-4ac9-85cc-9e822cc7c737',
     },
+    {
+      id: 'cp5',
+      shortId: 'cp5',
+      url: 'http://cp5.com',
+      score: 0,
+      metadataChangedAt: new Date('01-05-2020 12:00:00'),
+      sourceId: 'community',
+      visible: true,
+      createdAt: new Date('01-05-2020 12:00:00'),
+      origin: PostOrigin.Crawler,
+      yggdrasilId: '5a829977-189a-4ac9-85cc-9e822cc7c738',
+    },
   ]);
   await saveFixtures(con, CollectionPost, [
     {
@@ -104,8 +116,6 @@ beforeEach(async () => {
       createdAt: new Date('01-05-2020 12:00:00'),
       yggdrasilId: '7ec0bccb-e41f-4c77-a3b4-fe19d20b3874',
     },
-  ]);
-  await saveFixtures(con, CollectionPost, [
     {
       id: 'c2',
       shortId: 'c2',
@@ -192,12 +202,12 @@ describe('collectionUpdated worker', () => {
     const ctx = actual[0].ctx as NotificationCollectionContext;
     expect(actual[0].type).toEqual('collection_updated');
     expect(ctx.post.id).toEqual('c1');
-    expect(ctx.distinctSources.length).toEqual(3);
+    expect(ctx.sources.length).toEqual(3);
     expect(ctx.total).toEqual('4');
     expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '2', '3']);
 
     expect(
-      (actual[0].ctx as NotificationCollectionContext).distinctSources[0].name,
+      (actual[0].ctx as NotificationCollectionContext).sources[0].name,
     ).toEqual('A');
   });
 
@@ -273,5 +283,25 @@ describe('collectionUpdated worker', () => {
 
     expect(actual.length).toEqual(1);
     expect((actual[0].ctx as NotificationCollectionContext).total).toEqual(0);
+  });
+
+  it('should notify when a collection is updated with an existing source', async () => {
+    await saveFixtures(con, PostRelation, [
+      {
+        postId: 'c1',
+        relatedPostId: 'cp5',
+        type: PostRelationType.Collection,
+      },
+    ]);
+    const actual = await invokeNotificationWorker(worker, {
+      post: {
+        id: 'c1',
+        title: 'My collection',
+        content_type: PostType.Collection,
+      },
+    });
+
+    expect(actual.length).toEqual(1);
+    expect((actual[0].ctx as NotificationCollectionContext).total).toEqual('5');
   });
 });

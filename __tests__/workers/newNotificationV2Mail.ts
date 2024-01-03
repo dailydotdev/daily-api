@@ -1123,7 +1123,7 @@ describe('collection_post notification', () => {
     const ctx: NotificationCollectionContext = {
       ...postContext!,
       userIds: ['3'],
-      distinctSources: [sourceA!],
+      sources: [sourceA!],
       total: 4,
     };
 
@@ -1181,7 +1181,7 @@ describe('collection_post notification', () => {
     const ctx: NotificationCollectionContext = {
       ...postContext!,
       userIds: ['3'],
-      distinctSources: [sourceA!],
+      sources: [sourceA!],
       total: 4,
     };
 
