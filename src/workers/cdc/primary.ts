@@ -75,11 +75,11 @@ import {
   notifyPostYggdrasilIdSet,
   notifyPostCollectionUpdated,
   notifyUserReadmeUpdated,
+  triggerTypedEvent,
 } from '../../common';
 import { ChangeMessage } from '../../types';
 import { DataSource } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
-import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { PostReport, ContentImage } from '../../entity';
 import { reportReasons } from '../../schema/posts';
 import { updateAlerts } from '../../schema/alerts';
@@ -88,7 +88,6 @@ import { TypeOrmError } from '../../errors';
 import { CommentReport } from '../../entity/CommentReport';
 import { reportCommentReasons } from '../../schema/comments';
 import { getTableName, isChanged } from './common';
-import { triggerTypedEvent } from '../common/typedPubsub';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,

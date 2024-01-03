@@ -33,7 +33,6 @@ import {
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
   notifySourcePrivacyUpdated,
-  notifySourceRequest,
   notifySubmissionGrantedAccess,
   notifySubmissionRejected,
   notifyUserCreated,
@@ -52,6 +51,7 @@ import {
   notifyPostYggdrasilIdSet,
   notifyPostCollectionUpdated,
   notifyUserReadmeUpdated,
+  triggerTypedEvent,
 } from '../../../src/common';
 import worker from '../../../src/workers/cdc/primary';
 import {
@@ -97,7 +97,7 @@ import { usersFixture } from '../../fixture/user';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
-  notifySourceRequest: jest.fn(),
+  triggerTypedEvent: jest.fn(),
   notifyPostUpvoted: jest.fn(),
   notifyPostUpvoteCanceled: jest.fn(),
   notifyCommentUpvoteCanceled: jest.fn(),
@@ -189,10 +189,10 @@ describe('source request', () => {
         table: 'source_request',
       }),
     );
-    expect(notifySourceRequest).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
-      'new',
-      after,
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'pub-request',
+      { reason: 'new', sourceRequest: after },
     ]);
   });
 
@@ -214,10 +214,10 @@ describe('source request', () => {
         table: 'source_request',
       }),
     );
-    expect(notifySourceRequest).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
-      'publish',
-      after,
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'pub-request',
+      { reason: 'publish', sourceRequest: after },
     ]);
   });
 
@@ -238,10 +238,10 @@ describe('source request', () => {
         table: 'source_request',
       }),
     );
-    expect(notifySourceRequest).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
-      'decline',
-      after,
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'pub-request',
+      { reason: 'decline', sourceRequest: after },
     ]);
   });
 
@@ -262,10 +262,10 @@ describe('source request', () => {
         table: 'source_request',
       }),
     );
-    expect(notifySourceRequest).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(notifySourceRequest).mock.calls[0].slice(1)).toEqual([
-      'approve',
-      after,
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'pub-request',
+      { reason: 'approve', sourceRequest: after },
     ]);
   });
 });
