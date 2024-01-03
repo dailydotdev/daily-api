@@ -8,8 +8,8 @@ import { DataSource, DeepPartial, ObjectType } from 'typeorm';
 import request from 'supertest';
 import { GraphQLFormattedError } from 'graphql';
 import { Context } from '../src/Context';
-import { Message, Worker } from '../src/workers/worker';
-import { base64 } from '../src/common';
+import { Message, TypedWorker, Worker } from '../src/workers/worker';
+import { base64, PubSubSchema } from '../src/common';
 import { Roles } from '../src/roles';
 import { Cron } from '../src/cron/cron';
 import { ChangeMessage, ChangeObject } from '../src/types';
@@ -301,3 +301,20 @@ export class MockDataLoaderService extends DataLoaderService {
     });
   }
 }
+
+export const invokeTypedBackground = async <T extends keyof PubSubSchema>(
+  worker: TypedWorker<T>,
+  data: PubSubSchema[T],
+): Promise<void> => {
+  const con = await createOrGetConnection();
+  const pubsub = new PubSub();
+  const logger = pino({
+    messageKey: 'message',
+  });
+  await worker.handler({ data, messageId: 'msg' }, con, logger, pubsub);
+};
+
+export const expectSuccessfulTypedBackground = <T extends keyof PubSubSchema>(
+  worker: TypedWorker<T>,
+  data: PubSubSchema[T],
+): Promise<void> => invokeTypedBackground(worker, data);
