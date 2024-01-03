@@ -1907,7 +1907,7 @@ describe('post relation collection', () => {
     expect(collectionAfterWorker.collectionSources).toMatchObject(['a', 'b']);
   });
 
-  it('should deduplicate collection sources', async () => {
+  it(`shouldn't deduplicate collection sources`, async () => {
     const collection = await con.getRepository(CollectionPost).findOneByOrFail({
       id: 'pc1',
     });
@@ -1956,7 +1956,7 @@ describe('post relation collection', () => {
         id: 'pc1',
       });
 
-    expect(collectionAfterWorker.collectionSources.length).toBe(1);
-    expect(collectionAfterWorker.collectionSources).toMatchObject(['a']);
+    expect(collectionAfterWorker.collectionSources.length).toBe(2);
+    expect(collectionAfterWorker.collectionSources).toMatchObject(['a', 'a']);
   });
 });

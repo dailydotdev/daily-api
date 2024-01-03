@@ -293,7 +293,7 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Bell)
       .referencePost(ctx.post)
       .targetPost(ctx.post)
-      .avatarManySources(ctx.distinctSources)
+      .avatarManySources(ctx.sources)
       .numTotalAvatars(ctx.total)
       .uniqueKey(ctx.post.metadataChangedAt?.toString()),
 };

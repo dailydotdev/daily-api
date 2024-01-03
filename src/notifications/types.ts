@@ -65,6 +65,6 @@ export type NotificationSourceMemberRoleContext = NotificationSourceContext & {
 };
 
 export type NotificationCollectionContext = NotificationPostContext & {
-  distinctSources: Reference<Source>[];
+  sources: Reference<Source>[];
   total: number;
 };

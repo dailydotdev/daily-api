@@ -464,7 +464,7 @@ export const relatePosts = async ({
   return posts;
 };
 
-export const getDistinctSourcesBaseQuery = ({
+export const getAllSourcesBaseQuery = ({
   con,
   postId,
   relationType,
@@ -480,7 +480,6 @@ export const getDistinctSourcesBaseQuery = ({
     .leftJoin(Source, 's', 's.id = p."sourceId"')
     .where('pr."postId" = :postId', { postId })
     .andWhere('pr."type" = :type', { type: relationType })
-    .groupBy('s.id, pr."createdAt"')
     .orderBy('pr."createdAt"', 'DESC')
     .clone();
 
@@ -491,7 +490,7 @@ export const normalizeCollectionPostSources = async ({
   con: DataSource | EntityManager;
   postId: CollectionPost['id'];
 }) => {
-  const distinctSources = await getDistinctSourcesBaseQuery({
+  const sources = await getAllSourcesBaseQuery({
     con,
     postId,
     relationType: PostRelationType.Collection,
@@ -501,7 +500,7 @@ export const normalizeCollectionPostSources = async ({
 
   await con.getRepository(CollectionPost).save({
     id: postId,
-    collectionSources: distinctSources.map((item) => item.id),
+    collectionSources: sources.map((item) => item.id),
   });
 };
 

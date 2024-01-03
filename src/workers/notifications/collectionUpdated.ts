@@ -5,7 +5,7 @@ import {
   PostRelationType,
   PostType,
   Source,
-  getDistinctSourcesBaseQuery,
+  getAllSourcesBaseQuery,
 } from '../../entity';
 import { ChangeObject } from '../../types';
 import { NotificationWorker } from './worker';
@@ -35,7 +35,7 @@ export const collectionUpdated: NotificationWorker = {
       return;
     }
 
-    const distinctSources = await getDistinctSourcesBaseQuery({
+    const sources = await getAllSourcesBaseQuery({
       con,
       postId: post.id,
       relationType: PostRelationType.Collection,
@@ -46,7 +46,7 @@ export const collectionUpdated: NotificationWorker = {
       .limit(3)
       .getRawMany<Source & { total: number }>();
 
-    const numTotalAvatars = distinctSources[0]?.total || 0;
+    const numTotalAvatars = sources[0]?.total || 0;
 
     const members = await con.getRepository(NotificationPreferencePost).findBy({
       notificationType: NotificationType.CollectionUpdated,
@@ -59,7 +59,7 @@ export const collectionUpdated: NotificationWorker = {
         type: NotificationType.CollectionUpdated,
         ctx: {
           ...baseCtx,
-          distinctSources,
+          sources,
           total: numTotalAvatars,
           userIds: members.map(({ userId }) => userId),
         } as NotificationCollectionContext,
