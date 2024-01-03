@@ -1,11 +1,12 @@
-import { ReputationEvent } from './../../src/entity/ReputationEvent';
-import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import { ReputationEvent } from '../../src/entity';
+import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/sourceRequestApprovedRep';
 import { Source, SourceRequest, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { NotificationReason } from '../../src/common';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
+import { ChangeObject } from '../../src/types';
 
 let con: DataSource;
 
@@ -37,12 +38,12 @@ beforeEach(async () => {
 });
 
 it('should create a reputation event that increases reputation', async () => {
-  await expectSuccessfulBackground(worker, {
+  await expectSuccessfulTypedBackground(worker, {
     reason: NotificationReason.Publish,
     sourceRequest: {
       id,
       userId: '1',
-    },
+    } as unknown as ChangeObject<SourceRequest>,
   });
   const event = await con
     .getRepository(ReputationEvent)
@@ -51,12 +52,12 @@ it('should create a reputation event that increases reputation', async () => {
 });
 
 it('should not create a reputation event that increases reputation when type is not publish', async () => {
-  await expectSuccessfulBackground(worker, {
+  await expectSuccessfulTypedBackground(worker, {
     sourceRequest: {
       id,
       userId: '1',
-    },
-    type: NotificationReason.Approve,
+    } as unknown as ChangeObject<SourceRequest>,
+    reason: NotificationReason.Approve,
   });
   const event = await con.getRepository(ReputationEvent).find();
   expect(event.length).toEqual(0);
