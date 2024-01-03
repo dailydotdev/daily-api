@@ -66,7 +66,6 @@ export const uploadFile = (
             version: callResult.version,
             secure: true,
             fetch_format: 'auto',
-            quality: 'auto',
             sign_url: true,
           }),
           id: callResult.public_id,

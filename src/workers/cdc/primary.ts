@@ -46,7 +46,6 @@ import {
   notifySendAnalyticsReport,
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
-  notifySourceRequest,
   notifySettingsUpdated,
   increaseReputation,
   decreaseReputation,
@@ -76,6 +75,7 @@ import {
   notifyPostYggdrasilIdSet,
   notifyPostCollectionUpdated,
   notifyUserReadmeUpdated,
+  triggerTypedEvent,
 } from '../../common';
 import { ChangeMessage } from '../../types';
 import { DataSource } from 'typeorm';
@@ -115,35 +115,31 @@ const onSourceRequestChange = async (
 ): Promise<void> => {
   if (data.payload.op === 'c') {
     // New source request
-    await notifySourceRequest(
-      logger,
-      NotificationReason.New,
-      data.payload.after,
-    );
+    await triggerTypedEvent(logger, 'pub-request', {
+      reason: NotificationReason.New,
+      sourceRequest: data.payload.after,
+    });
   } else if (data.payload.op === 'u') {
     if (!data.payload.before.closed && data.payload.after.closed) {
       if (data.payload.after.approved) {
         // Source request published
-        await notifySourceRequest(
-          logger,
-          NotificationReason.Publish,
-          data.payload.after,
-        );
+        await triggerTypedEvent(logger, 'pub-request', {
+          reason: NotificationReason.Publish,
+          sourceRequest: data.payload.after,
+        });
       } else {
         // Source request declined
-        await notifySourceRequest(
-          logger,
-          NotificationReason.Decline,
-          data.payload.after,
-        );
+        await triggerTypedEvent(logger, 'pub-request', {
+          reason: NotificationReason.Decline,
+          sourceRequest: data.payload.after,
+        });
       }
     } else if (!data.payload.before.approved && data.payload.after.approved) {
       // Source request approved
-      await notifySourceRequest(
-        logger,
-        NotificationReason.Approve,
-        data.payload.after,
-      );
+      await triggerTypedEvent(logger, 'pub-request', {
+        reason: NotificationReason.Approve,
+        sourceRequest: data.payload.after,
+      });
     }
   }
 };
