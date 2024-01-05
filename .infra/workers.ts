@@ -202,10 +202,6 @@ export const workers: Worker[] = [
     subscription: 'api.add-to-mailing-list',
   },
   {
-    topic: 'api.v1.post-visible',
-    subscription: 'api.post-changelog-added-v2',
-  },
-  {
     topic: 'api.v1.banner-added',
     subscription: 'api.banner-added',
   },

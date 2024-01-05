@@ -34,7 +34,6 @@ import { getRedisObject, ioRedisPool, setRedisObject } from '../src/redis';
 import {
   generateStorageKey,
   REDIS_BANNER_KEY,
-  REDIS_CHANGELOG_KEY,
   StorageTopic,
 } from '../src/config';
 import nock from 'nock';
@@ -445,7 +444,6 @@ describe('boot alerts', () => {
 
   it('should return banner as false if redis is false', async () => {
     mockLoggedIn();
-    await setRedisObject(REDIS_CHANGELOG_KEY, 'false');
     const data = await con.getRepository(Alerts).save({
       ...ALERTS_DEFAULT,
       userId: '1',
