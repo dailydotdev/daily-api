@@ -246,34 +246,6 @@ const getAndUpdateLastBannerRedis = async (
   return bannerFromRedis;
 };
 
-// const getAndUpdateLastChangelogRedis = async (
-//   con: DataSource,
-// ): Promise<string> => {
-//   let lastChangelogFromRedis = await getRedisObject(REDIS_CHANGELOG_KEY);
-//
-//   if (!lastChangelogFromRedis) {
-//     const post: Pick<Post, 'createdAt'> = await con
-//       .getRepository(Post)
-//       .findOne({
-//         select: ['createdAt'],
-//         where: [{ sourceId: 'daily_updates' }],
-//         order: {
-//           createdAt: {
-//             direction: 'DESC',
-//           },
-//         },
-//       });
-//
-//     if (post) {
-//       lastChangelogFromRedis = post.createdAt.toISOString();
-//
-//       await setRedisObject(REDIS_CHANGELOG_KEY, lastChangelogFromRedis);
-//     }
-//   }
-//
-//   return lastChangelogFromRedis;
-// };
-
 export function getReferralFromCookie({
   req,
 }: {
@@ -371,7 +343,6 @@ const loggedInBoot = async (
       settings,
       unreadNotificationsCount,
       squads,
-      // lastChangelog,
       lastBanner,
       exp,
       extra,
@@ -383,7 +354,6 @@ const loggedInBoot = async (
       getSettings(con, userId),
       getUnreadNotificationsCount(con, userId),
       getSquads(con, userId),
-      // getAndUpdateLastChangelogRedis(con),
       getAndUpdateLastBannerRedis(con),
       getExperimentation(userId, con),
       middleware ? middleware(con, req, res) : {},
@@ -412,9 +382,8 @@ const loggedInBoot = async (
       visit,
       alerts: {
         ...excludeProperties(alerts, ['userId']),
-        // read only, used in frontend to decide if changelog post should be fetched
-        //changelog: alerts.lastChangelog < new Date(lastChangelog),
         // We decided to try and turn off the changelog for now in favor of squad promotion
+        // PR: https://github.com/dailydotdev/daily-api/pull/1633
         changelog: false,
         // read only, used in frontend to decide if banner should be fetched
         banner:
