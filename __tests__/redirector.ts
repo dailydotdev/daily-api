@@ -1,13 +1,14 @@
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
 import { saveFixtures, TEST_UA } from './helpers';
-import { ArticlePost, Source, YouTubePost } from '../src/entity';
+import { ArticlePost, Source, User, YouTubePost } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
 import { postsFixture, videoPostsFixture } from './fixture/post';
 import { notifyView } from '../src/common';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { fallbackImages } from '../src/config';
 
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
@@ -95,5 +96,33 @@ describe('GET /r/:postId', () => {
       .get('/r/p1')
       .expect(302)
       .expect('Location', 'http://p1.com/?a=b&ref=dailydev');
+  });
+});
+
+describe('GET /:id/profile-image', () => {
+  beforeEach(async () => {
+    await con.getRepository(User).save([
+      {
+        id: '1',
+        name: 'Ido',
+        image: 'https://daily.dev/ido.jpg',
+        timezone: 'utc',
+        createdAt: new Date(),
+      },
+    ]);
+  });
+
+  it('should return profile picture for user', async () => {
+    return request(app.server)
+      .get('/1/profile-image')
+      .expect(302)
+      .expect('Location', 'https://daily.dev/ido.jpg');
+  });
+
+  it('should return default image for non existing user', async () => {
+    return request(app.server)
+      .get('/123/profile-image')
+      .expect(302)
+      .expect('Location', fallbackImages.avatar);
   });
 });
