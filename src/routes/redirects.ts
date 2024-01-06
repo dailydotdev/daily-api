@@ -5,6 +5,8 @@ import { DataSource } from 'typeorm';
 import { getBootData } from './boot';
 import createOrGetConnection from '../db';
 import { sendAnalyticsEvent } from '../integrations/analytics';
+import { User } from '../entity';
+import { fallbackImages } from '../config';
 
 const sendRedirectAnalytics = async (
   con: DataSource,
@@ -64,6 +66,24 @@ const redirectToStore =
     }
   };
 
+const redirectToProfileImage = async (
+  con: DataSource,
+  res: FastifyReply,
+  id: string,
+) => {
+  const { image } =
+    (await con.getRepository(User).findOne({
+      select: ['image'],
+      where: { id },
+    })) || {};
+
+  if (!image) {
+    return res.redirect(fallbackImages.avatar);
+  }
+
+  return res.redirect(image);
+};
+
 const redirectToLanding = (
   req: FastifyRequest,
   res: FastifyReply,
@@ -80,4 +100,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   );
   fastify.get('/download', redirectToStore(con));
   fastify.get('/get', redirectToStore(con));
+  fastify.get<{ Params: { id: string } }>('/:id/profile-image', (req, res) =>
+    redirectToProfileImage(con, res, req.params.id),
+  );
 }
