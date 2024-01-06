@@ -34,7 +34,6 @@ import { getRedisObject, ioRedisPool, setRedisObject } from '../src/redis';
 import {
   generateStorageKey,
   REDIS_BANNER_KEY,
-  REDIS_CHANGELOG_KEY,
   StorageTopic,
 } from '../src/config';
 import nock from 'nock';
@@ -397,129 +396,6 @@ describe('boot alerts', () => {
     });
   });
 
-  it('should return changelog as true', async () => {
-    mockLoggedIn();
-    await setRedisObject(REDIS_CHANGELOG_KEY, '2023-02-06 12:00:00');
-    const data = await con.getRepository(Alerts).save({
-      ...ALERTS_DEFAULT,
-      userId: '1',
-      myFeed: 'created',
-      lastChangelog: new Date('2023-02-05 12:00:00'),
-      lastBanner: new Date('2023-02-05 12:00:00'),
-    });
-    const alerts = new Object(saveReturnAlerts(data));
-    alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
-    alerts['changelog'] = true;
-    alerts['banner'] = false;
-    alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
-
-    delete alerts['userId'];
-    const res = await request(app.server)
-      .get(BASE_PATH)
-      .set('Cookie', 'ory_kratos_session=value;')
-      .expect(200);
-    expect(res.body.alerts).toEqual(alerts);
-  });
-
-  it('should return changelog as false', async () => {
-    mockLoggedIn();
-    await setRedisObject(REDIS_CHANGELOG_KEY, '2023-02-05 12:00:00');
-    const data = await con.getRepository(Alerts).save({
-      ...ALERTS_DEFAULT,
-      userId: '1',
-      myFeed: 'created',
-      lastChangelog: new Date('2023-02-06 12:00:00'),
-      lastBanner: new Date('2023-02-06 12:00:00'),
-    });
-    const alerts = new Object(saveReturnAlerts(data));
-    alerts['lastChangelog'] = '2023-02-06T12:00:00.000Z';
-    alerts['lastBanner'] = '2023-02-06T12:00:00.000Z';
-    alerts['changelog'] = false;
-    alerts['banner'] = false;
-    delete alerts['userId'];
-    const res = await request(app.server)
-      .get(BASE_PATH)
-      .set('Cookie', 'ory_kratos_session=value;')
-      .expect(200);
-    expect(res.body.alerts).toEqual(alerts);
-  });
-
-  it('should return changelog as true if redis is empty', async () => {
-    mockLoggedIn();
-    await setRedisObject(REDIS_CHANGELOG_KEY, null);
-    const data = await con.getRepository(Alerts).save({
-      ...ALERTS_DEFAULT,
-      userId: '1',
-      myFeed: 'created',
-      lastChangelog: new Date('2023-02-05 12:00:00'),
-      lastBanner: new Date('2023-02-05 12:00:00'),
-    });
-    await con.getRepository(Source).save({
-      id: 'daily_updates',
-      name: 'daily_updates',
-      handle: 'daily_updates',
-    });
-    const post = await con.getRepository(Post).save({
-      id: 'daily_updates_1',
-      shortId: 'du1',
-      title: 'daily_updates_1',
-      createdAt: new Date('2023-02-06 12:00:00'),
-      sourceId: 'daily_updates',
-    });
-    const alerts = new Object(saveReturnAlerts(data));
-    alerts['lastChangelog'] = '2023-02-05T12:00:00.000Z';
-    alerts['lastBanner'] = '2023-02-05T12:00:00.000Z';
-    alerts['changelog'] = true;
-    alerts['banner'] = false;
-    delete alerts['userId'];
-    const res = await request(app.server)
-      .get(BASE_PATH)
-      .set('Cookie', 'ory_kratos_session=value;')
-      .expect(200);
-    expect(res.body.alerts).toEqual(alerts);
-    expect(await getRedisObject(REDIS_CHANGELOG_KEY)).toEqual(
-      post.createdAt.toISOString(),
-    );
-  });
-
-  it('should return changelog as false if redis is empty', async () => {
-    mockLoggedIn();
-    await setRedisObject(REDIS_CHANGELOG_KEY, null);
-    const data = await con.getRepository(Alerts).save({
-      ...ALERTS_DEFAULT,
-      userId: '1',
-      myFeed: 'created',
-      lastChangelog: new Date('2023-02-06 12:00:00'),
-      lastBanner: new Date('2023-02-06 12:00:00'),
-    });
-    await con.getRepository(Source).save({
-      id: 'daily_updates',
-      name: 'daily_updates',
-      handle: 'daily_updates',
-    });
-    const post = await con.getRepository(Post).save({
-      id: 'daily_updates_1',
-      shortId: 'du1',
-      title: 'daily_updates_1',
-      createdAt: new Date('2023-02-05 12:00:00'),
-      sourceId: 'daily_updates',
-    });
-    const alerts = new Object(saveReturnAlerts(data));
-    alerts['lastChangelog'] = '2023-02-06T12:00:00.000Z';
-    alerts['lastBanner'] = '2023-02-06T12:00:00.000Z';
-    alerts['changelog'] = false;
-    alerts['banner'] = false;
-    delete alerts['userId'];
-    const res = await request(app.server)
-      .get(BASE_PATH)
-      .set('Cookie', 'ory_kratos_session=value;')
-      .expect(200);
-    expect(res.body.alerts).toEqual(alerts);
-    expect(await getRedisObject(REDIS_CHANGELOG_KEY)).toEqual(
-      post.createdAt.toISOString(),
-    );
-  });
-
   it('should return banner as true', async () => {
     mockLoggedIn();
     await setRedisObject(REDIS_BANNER_KEY, '2023-02-06 12:00:00');
@@ -568,7 +444,6 @@ describe('boot alerts', () => {
 
   it('should return banner as false if redis is false', async () => {
     mockLoggedIn();
-    await setRedisObject(REDIS_CHANGELOG_KEY, 'false');
     const data = await con.getRepository(Alerts).save({
       ...ALERTS_DEFAULT,
       userId: '1',

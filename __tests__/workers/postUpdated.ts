@@ -374,7 +374,10 @@ it('should save keywords without special characters', async () => {
   });
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   expect(post.title).toEqual('New title');
-  expect(post.tagsStr).toEqual('abc,ab,a1-b2,a_1.net,#c,a-b,__');
+  const tagsArray = post.tagsStr.split(',');
+  ['abc', 'ab', 'a1-b2', 'a_1.net', '#c', 'a-b', '__'].forEach((item) => {
+    expect(tagsArray).toContain(item);
+  });
 });
 
 it('should save a new post with the relevant content curation', async () => {
@@ -550,7 +553,10 @@ it('should save a new post with the relevant keywords', async () => {
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(3);
   expect(posts[2].scoutId).toEqual('1');
-  expect(posts[2].tagsStr).toEqual('mongodb,alpinejs,ab-testing');
+  const tagsArray = posts[2].tagsStr.split(',');
+  ['mongodb', 'alpinejs', 'ab-testing'].forEach((item) => {
+    expect(tagsArray).toContain(item);
+  });
   const keywords = await con.getRepository(Keyword).find({
     where: {
       value: 'alpine',

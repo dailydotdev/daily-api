@@ -24,7 +24,6 @@ import newNotificationPush from './newNotificationV2Push';
 import addToMailingList from './addToMailingList';
 import { workers as notificationWorkers } from './notifications';
 import sourcePrivacyUpdated from './sourcePrivacyUpdated';
-import postChangelogAdded from './postChangelogAdded';
 import postUpdated from './postUpdated';
 import postFreeformImages from './postFreeformImages';
 import postEditedFreeformImages from './postEditedFreeformImages';
@@ -76,7 +75,6 @@ export const workers: Worker[] = [
   newNotificationPush,
   addToMailingList,
   sourcePrivacyUpdated,
-  postChangelogAdded,
   postUpdated,
   postFreeformImages,
   postEditedFreeformImages,
