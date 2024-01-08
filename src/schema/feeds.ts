@@ -1365,9 +1365,11 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       info,
     ): Promise<GQLPost[]> => {
       if (
-        ['28849d86070e4c099c877ab6837c61f0', 'oZNkfnj0bUhkbhHe9g5wO'].includes(
-          ctx.userId,
-        )
+        [
+          '28849d86070e4c099c877ab6837c61f0',
+          'oZNkfnj0bUhkbhHe9g5wO',
+          'bntUgdlUSW5CtWzGmHvQB',
+        ].includes(ctx.userId)
       ) {
         const res = await feedGenerators['post_similarity'].generate(ctx, {
           user_id: ctx.userId,
