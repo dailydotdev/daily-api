@@ -4,7 +4,7 @@ import {
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, EntityManager, MoreThan } from 'typeorm';
+import { DataSource, MoreThan } from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
@@ -39,19 +39,16 @@ import {
   ExternalLink,
   ExternalLinkPreview,
   FreeformPost,
-  HiddenPost,
   Post,
   PostFlagsPublic,
   PostMention,
   PostReport,
   PostType,
   Toc,
-  Upvote,
   UserActionType,
   WelcomePost,
   ContentImage,
   PostQuestion,
-  Downvote,
   UserPost,
   UserPostFlagsPublic,
   UserPostVote,
@@ -527,13 +524,6 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
-  type Upvote {
-    createdAt: DateTime!
-
-    user: User!
-    post: Post!
-  }
-
   type UpvoteEdge {
     node: UserPost!
 
@@ -838,26 +828,6 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth(requires: [MODERATOR])
 
     """
-    Upvote to the post
-    """
-    upvote(
-      """
-      Id of the post to upvote
-      """
-      id: ID!
-    ): EmptyResponse @auth
-
-    """
-    Cancel an upvote of a post
-    """
-    cancelUpvote(
-      """
-      Id of the post
-      """
-      id: ID!
-    ): EmptyResponse @auth
-
-    """
     Fetch external link's title and image preview
     """
     checkLinkPreview(
@@ -936,26 +906,6 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
-    Downvote to the post
-    """
-    downvote(
-      """
-      Id of the post to downvote
-      """
-      id: ID!
-    ): EmptyResponse @auth
-
-    """
-    Cancel an downvote of a post
-    """
-    cancelDownvote(
-      """
-      Id of the post
-      """
-      id: ID!
-    ): EmptyResponse @auth
-
-    """
     Vote post
     """
     votePost(
@@ -1007,11 +957,6 @@ const saveHiddenPost = async (
 ): Promise<boolean> => {
   try {
     await con.transaction(async (entityManager) => {
-      await entityManager.getRepository(HiddenPost).insert({
-        postId,
-        userId,
-      });
-
       await entityManager.getRepository(UserPost).save({
         postId,
         userId,
@@ -1029,26 +974,6 @@ const saveHiddenPost = async (
     }
   }
   return true;
-};
-
-const revertPostDownvote = async (
-  con: DataSource | EntityManager,
-  postId: string,
-  userId: string,
-): Promise<void> => {
-  await con.getRepository(Downvote).delete({
-    postId,
-    userId,
-  });
-
-  await con.getRepository(UserPost).save({
-    postId,
-    userId,
-    vote: UserPostVote.None,
-    hidden: false,
-  });
-
-  await con.getRepository(HiddenPost).delete({ postId, userId });
 };
 
 const editablePostTypes = [PostType.Welcome, PostType.Freeform];
@@ -1327,10 +1252,6 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
-        await entityManager
-          .getRepository(HiddenPost)
-          .delete({ postId: id, userId: ctx.userId });
-
         await entityManager.getRepository(UserPost).save({
           postId: id,
           userId: ctx.userId,
@@ -1702,59 +1623,6 @@ export const resolvers: IResolvers<any, Context> = {
       }
       return { _: true };
     },
-    upvote: async (
-      source,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
-      try {
-        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
-        await ensureSourcePermissions(ctx, post.sourceId);
-        await ctx.con.transaction(async (entityManager) => {
-          await entityManager.getRepository(Upvote).insert({
-            postId: id,
-            userId: ctx.userId,
-          });
-
-          await revertPostDownvote(entityManager, id, ctx.userId);
-
-          await entityManager.getRepository(UserPost).save({
-            postId: id,
-            userId: ctx.userId,
-            vote: UserPostVote.Up,
-          });
-        });
-      } catch (err) {
-        // Foreign key violation
-        if (err?.code === TypeOrmError.FOREIGN_KEY) {
-          throw new NotFoundError('Post or user not found');
-        }
-        // Unique violation
-        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
-          throw err;
-        }
-      }
-      return { _: true };
-    },
-    cancelUpvote: async (
-      source,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
-      await ctx.con.transaction(async (entityManager) => {
-        await entityManager.getRepository(Upvote).delete({
-          postId: id,
-          userId: ctx.userId,
-        });
-
-        await entityManager.getRepository(UserPost).save({
-          postId: id,
-          userId: ctx.userId,
-          vote: UserPostVote.None,
-        });
-      });
-      return { _: true };
-    },
     checkLinkPreview: async (
       _,
       { url }: SubmitExternalLinkArgs,
@@ -1880,58 +1748,6 @@ export const resolvers: IResolvers<any, Context> = {
           post.tagsStr?.split?.(',') ?? [],
         );
       }
-      return { _: true };
-    },
-    downvote: async (
-      source,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
-      try {
-        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
-        await ensureSourcePermissions(ctx, post.sourceId);
-        await ctx.con.transaction(async (entityManager) => {
-          await entityManager.getRepository(Downvote).insert({
-            postId: id,
-            userId: ctx.userId,
-          });
-
-          await saveHiddenPost(entityManager.connection, {
-            userId: ctx.userId,
-            postId: id,
-          });
-
-          await entityManager.getRepository(UserPost).save({
-            postId: id,
-            userId: ctx.userId,
-            vote: UserPostVote.Down,
-          });
-
-          await entityManager.getRepository(Upvote).delete({
-            postId: id,
-            userId: ctx.userId,
-          });
-        });
-      } catch (err) {
-        // Foreign key violation
-        if (err?.code === TypeOrmError.FOREIGN_KEY) {
-          throw new NotFoundError('Post or user not found');
-        }
-        // Unique violation
-        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
-          throw err;
-        }
-      }
-      return { _: true };
-    },
-    cancelDownvote: async (
-      source,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
-      await ctx.con.transaction(async (entityManager) => {
-        await revertPostDownvote(entityManager, id, ctx.userId);
-      });
       return { _: true };
     },
     votePost: async (

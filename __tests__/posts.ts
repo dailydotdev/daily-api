@@ -15,7 +15,6 @@ import {
   BookmarkList,
   Comment,
   FreeformPost,
-  HiddenPost,
   Post,
   PostMention,
   PostReport,
@@ -27,11 +26,9 @@ import {
   SourceType,
   SquadSource,
   UNKNOWN_SOURCE,
-  Upvote,
   User,
   View,
   WelcomePost,
-  Downvote,
   PostQuestion,
   UserPost,
   UserPostVote,
@@ -1030,14 +1027,9 @@ describe('mutation hidePost', () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(HiddenPost).find({
-      where: { userId: loggedUser, postId: 'p1' },
-      select: ['postId', 'userId'],
-    });
     const actualUserPost = await con
       .getRepository(UserPost)
       .findOneBy({ userId: loggedUser });
-    expect(actual).toMatchSnapshot();
     expect(actualUserPost).toMatchObject({
       postId: 'p1',
       userId: loggedUser,
@@ -1047,8 +1039,6 @@ describe('mutation hidePost', () => {
 
   it('should ignore conflicts', async () => {
     loggedUser = '1';
-    const repo = con.getRepository(HiddenPost);
-    await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
@@ -1056,14 +1046,9 @@ describe('mutation hidePost', () => {
     });
     const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
-    const actual = await repo.find({
-      where: { userId: loggedUser, postId: 'p1' },
-      select: ['postId', 'userId'],
-    });
     const actualUserPost = await con
       .getRepository(UserPost)
       .findOneBy({ userId: loggedUser, postId: 'p1' });
-    expect(actual).toMatchSnapshot();
     expect(actualUserPost).toMatchObject({
       postId: 'p1',
       userId: loggedUser,
@@ -1090,26 +1075,20 @@ describe('mutation unhidePost', () => {
 
   it('should unhide post', async () => {
     loggedUser = '1';
-    const repo = con.getRepository(HiddenPost);
-    await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
     await con.getRepository(UserPost).save({
       postId: 'p1',
       userId: loggedUser,
       hidden: true,
     });
-    const initial = await repo.findBy({ userId: loggedUser, postId: 'p1' });
     const initialUserPost = await con
       .getRepository(UserPost)
       .findOneBy({ userId: loggedUser, postId: 'p1' });
-    expect(initial.length).toBeGreaterThan(0);
     expect(initialUserPost?.hidden).toBe(true);
     const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
     expect(res.errors).toBeFalsy();
-    const actual = await repo.findBy({ userId: loggedUser, postId: 'p1' });
     const actualUserPost = await con
       .getRepository(UserPost)
       .findOneBy({ userId: loggedUser, postId: 'p1' });
-    expect(actual.length).toEqual(0);
     expect(actualUserPost?.hidden).toEqual(false);
   });
 });
@@ -1418,15 +1397,10 @@ describe('mutation reportPost', () => {
       variables: { id: 'p1', reason: 'BROKEN', comment: 'Test comment' },
     });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(HiddenPost).find({
-      where: { userId: loggedUser, postId: 'p1' },
-      select: ['postId', 'userId'],
-    });
     const actualUserPost = await con.getRepository(UserPost).findOneBy({
       userId: loggedUser,
       postId: 'p1',
     });
-    expect(actual).toMatchSnapshot();
     expect(actualUserPost).toMatchObject({
       userId: loggedUser,
       postId: 'p1',
@@ -1452,14 +1426,10 @@ describe('mutation reportPost', () => {
       variables: { id: 'p1', reason: 'BROKEN' },
     });
     expect(res.errors).toBeFalsy();
-    const actual = await con
-      .getRepository(HiddenPost)
-      .find({ where: { userId: loggedUser }, select: ['postId', 'userId'] });
     const actualUserPost = await con.getRepository(UserPost).findOneBy({
       userId: loggedUser,
       postId: 'p1',
     });
-    expect(actual).toMatchSnapshot();
     expect(actualUserPost).toMatchObject({
       userId: loggedUser,
       postId: 'p1',
@@ -1481,8 +1451,6 @@ describe('mutation reportPost', () => {
 
   it('should ignore conflicts', async () => {
     loggedUser = '1';
-    const repo = con.getRepository(HiddenPost);
-    await repo.save(repo.create({ postId: 'p1', userId: loggedUser }));
     await con.getRepository(UserPost).save({
       userId: loggedUser,
       postId: 'p1',
@@ -1492,15 +1460,10 @@ describe('mutation reportPost', () => {
       variables: { id: 'p1', reason: 'BROKEN', comment: 'Test comment' },
     });
     expect(res.errors).toBeFalsy();
-    const actual = await repo.find({
-      where: { userId: loggedUser, postId: 'p1' },
-      select: ['postId', 'userId'],
-    });
     const actualUserPost = await con.getRepository(UserPost).findOneBy({
       userId: loggedUser,
       postId: 'p1',
     });
-    expect(actual).toMatchSnapshot();
     expect(actualUserPost).toMatchObject({
       userId: loggedUser,
       postId: 'p1',
@@ -1515,15 +1478,10 @@ describe('mutation reportPost', () => {
       variables: { id: 'p1', tags, reason: 'IRRELEVANT' },
     });
     expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(HiddenPost).find({
-      where: { userId: loggedUser, postId: 'p1' },
-      select: ['postId', 'userId'],
-    });
     const actualUserPost = await con.getRepository(UserPost).findOneBy({
       userId: loggedUser,
       postId: 'p1',
     });
-    expect(actual.length).toEqual(1);
     expect(actualUserPost).toMatchObject({
       userId: loggedUser,
       postId: 'p1',
@@ -1564,13 +1522,6 @@ describe('mutation reportPost', () => {
 
   it('should save report if post is hidden already', async () => {
     loggedUser = '1';
-    await con
-      .getRepository(HiddenPost)
-      .save(
-        con
-          .getRepository(HiddenPost)
-          .create({ postId: 'p1', userId: loggedUser }),
-      );
     await con.getRepository(UserPost).save({
       userId: loggedUser,
       postId: 'p1',
@@ -1588,203 +1539,6 @@ describe('mutation reportPost', () => {
       postId: 'p1',
       userId: '1',
     });
-  });
-});
-
-describe('mutation upvote', () => {
-  const MUTATION = `
-  mutation Upvote($id: ID!) {
-  upvote(id: $id) {
-    _
-  }
-}`;
-
-  it('should not authorize when not logged in', () =>
-    testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { id: 'p1' },
-      },
-      'UNAUTHENTICATED',
-    ));
-
-  it('should throw not found when cannot find post', () => {
-    loggedUser = '1';
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { id: 'invalid' },
-      },
-      'NOT_FOUND',
-    );
-  });
-
-  it('should throw not found when cannot find user', () => {
-    loggedUser = '3';
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { id: 'p1' },
-      },
-      'NOT_FOUND',
-    );
-  });
-
-  it('should throw error when user cannot access the post', async () => {
-    loggedUser = '1';
-    await con.getRepository(Source).update({ id: 'a' }, { private: true });
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { id: 'p1' },
-      },
-      'FORBIDDEN',
-    );
-  });
-
-  it('should upvote post', async () => {
-    loggedUser = '1';
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await con
-      .getRepository(Upvote)
-      .find({ select: ['postId', 'userId'] });
-    expect(actual).toMatchSnapshot();
-    const userPost = await con.getRepository(UserPost).findOneBy({
-      userId: loggedUser,
-      postId: 'p1',
-    });
-    expect(userPost).toMatchObject({
-      userId: loggedUser,
-      postId: 'p1',
-      vote: UserPostVote.Up,
-    });
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post.upvotes).toEqual(1);
-  });
-
-  it('should ignore conflicts', async () => {
-    loggedUser = '1';
-    const repo = con.getRepository(Upvote);
-    await repo.save({ postId: 'p1', userId: loggedUser });
-    await con.getRepository(UserPost).save({
-      userId: loggedUser,
-      postId: 'p1',
-      vote: UserPostVote.Up,
-    });
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await repo.find({
-      select: ['postId', 'userId'],
-    });
-    expect(actual).toMatchSnapshot();
-    const userPost = await con.getRepository(UserPost).findOneBy({
-      userId: loggedUser,
-      postId: 'p1',
-    });
-    expect(userPost).toMatchObject({
-      userId: loggedUser,
-      postId: 'p1',
-      vote: UserPostVote.Up,
-    });
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post.upvotes).toEqual(1);
-  });
-
-  it('should remove downvote and hidden when upvoting', async () => {
-    loggedUser = '1';
-    await con
-      .getRepository(Downvote)
-      .save({ postId: 'p1', userId: loggedUser });
-    await con
-      .getRepository(HiddenPost)
-      .save({ postId: 'p1', userId: loggedUser });
-    await con.getRepository(UserPost).save({
-      userId: loggedUser,
-      postId: 'p1',
-      vote: UserPostVote.Down,
-      hidden: true,
-    });
-
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
-
-    const upvote = await con
-      .getRepository(Downvote)
-      .findOneBy({ postId: 'p1', userId: loggedUser });
-    expect(upvote).toBeNull();
-    const hiddenPost = await con
-      .getRepository(HiddenPost)
-      .findOneBy({ postId: 'p1', userId: loggedUser });
-    const userPost = await con
-      .getRepository(UserPost)
-      .findOneBy({ postId: 'p1', userId: loggedUser });
-    expect(hiddenPost).toBeNull();
-    expect(userPost).toMatchObject({
-      userId: loggedUser,
-      postId: 'p1',
-      vote: UserPostVote.Up,
-      hidden: false,
-    });
-  });
-});
-
-describe('mutation cancelUpvote', () => {
-  const MUTATION = `
-  mutation CancelUpvote($id: ID!) {
-  cancelUpvote(id: $id) {
-    _
-  }
-}`;
-
-  it('should not authorize when not logged in', () =>
-    testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { id: 'p1' },
-      },
-      'UNAUTHENTICATED',
-    ));
-
-  it('should cancel post upvote', async () => {
-    loggedUser = '1';
-    const repo = con.getRepository(Upvote);
-    await repo.save({ postId: 'p1', userId: loggedUser });
-    await con.getRepository(UserPost).save({
-      postId: 'p1',
-      userId: loggedUser,
-      vote: UserPostVote.Up,
-    });
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Upvote).find();
-    expect(actual).toEqual([]);
-    const userPost = await con.getRepository(UserPost).findOneBy({
-      userId: loggedUser,
-      postId: 'p1',
-    });
-    expect(userPost).toMatchObject({
-      userId: loggedUser,
-      postId: 'p1',
-      vote: UserPostVote.None,
-    });
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post.upvotes).toEqual(0);
-  });
-
-  it('should ignore if no upvotes', async () => {
-    loggedUser = '1';
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Upvote).find();
-    expect(actual).toEqual([]);
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post.upvotes).toEqual(0);
   });
 });
 
@@ -3499,212 +3253,6 @@ describe('downvoted field', () => {
     );
     const res = await client.query(QUERY);
     expect(res.data.post.downvoted).toEqual(true);
-  });
-});
-
-describe('mutation downvote', () => {
-  const MUTATION = `
-  mutation Downvote($id: ID!) {
-  downvote(id: $id) {
-    _
-  }
-}`;
-
-  it('should not authorize when not logged in', () =>
-    testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { id: 'p1' },
-      },
-      'UNAUTHENTICATED',
-    ));
-
-  it('should throw not found when cannot find post', () => {
-    loggedUser = '1';
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { id: 'invalid' },
-      },
-      'NOT_FOUND',
-    );
-  });
-
-  it('should throw not found when cannot find user', () => {
-    loggedUser = '3';
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { id: 'p1' },
-      },
-      'NOT_FOUND',
-    );
-  });
-
-  it('should throw error when user cannot access the post', async () => {
-    loggedUser = '1';
-    await con.getRepository(Source).update({ id: 'a' }, { private: true });
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { id: 'p1' },
-      },
-      'FORBIDDEN',
-    );
-  });
-
-  it('should downvote post', async () => {
-    loggedUser = '1';
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await con
-      .getRepository(Downvote)
-      .findOneBy({ postId: 'p1', userId: loggedUser });
-    expect(actual).toMatchObject({
-      postId: 'p1',
-      userId: loggedUser,
-    });
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.downvotes).toEqual(1);
-    const hiddenPost = await con.getRepository(HiddenPost).findOneBy({
-      postId: 'p1',
-      userId: loggedUser,
-    });
-    expect(hiddenPost).toMatchObject({
-      postId: 'p1',
-      userId: loggedUser,
-    });
-    const userPost = await con.getRepository(UserPost).findOneBy({
-      postId: 'p1',
-      userId: loggedUser,
-    });
-    expect(userPost).toMatchObject({
-      postId: 'p1',
-      userId: loggedUser,
-      vote: UserPostVote.Down,
-    });
-  });
-
-  it('should ignore conflicts', async () => {
-    loggedUser = '1';
-    const repo = con.getRepository(Downvote);
-    await repo.save({ postId: 'p1', userId: loggedUser });
-    await con.getRepository(UserPost).save({
-      postId: 'p1',
-      userId: loggedUser,
-      vote: UserPostVote.Down,
-    });
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await repo.findOneBy({ postId: 'p1', userId: loggedUser });
-    expect(actual).toMatchObject({
-      postId: 'p1',
-      userId: loggedUser,
-    });
-    const userPost = await con.getRepository(UserPost).findOneBy({
-      postId: 'p1',
-      userId: loggedUser,
-    });
-    expect(userPost).toMatchObject({
-      postId: 'p1',
-      userId: loggedUser,
-      vote: UserPostVote.Down,
-    });
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.downvotes).toEqual(1);
-  });
-
-  it('should remove upvote when downvoting', async () => {
-    loggedUser = '1';
-    await con.getRepository(Upvote).save({ postId: 'p1', userId: loggedUser });
-    await con.getRepository(UserPost).save({
-      postId: 'p1',
-      userId: loggedUser,
-      vote: UserPostVote.Up,
-    });
-
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
-
-    const upvote = await con
-      .getRepository(Upvote)
-      .findOneBy({ postId: 'p1', userId: loggedUser });
-    const userPost = await con.getRepository(UserPost).findOneBy({
-      postId: 'p1',
-      userId: loggedUser,
-    });
-    expect(upvote).toBeNull();
-    expect(userPost).toMatchObject({
-      postId: 'p1',
-      userId: loggedUser,
-      vote: UserPostVote.Down,
-    });
-  });
-});
-
-describe('mutation cancelDownvote', () => {
-  const MUTATION = `
-  mutation CancelDownvote($id: ID!) {
-  cancelDownvote(id: $id) {
-    _
-  }
-}`;
-
-  it('should not authorize when not logged in', () =>
-    testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { id: 'p1' },
-      },
-      'UNAUTHENTICATED',
-    ));
-
-  it('should cancel post downvote', async () => {
-    loggedUser = '1';
-    const repo = con.getRepository(Downvote);
-    await repo.save({ postId: 'p1', userId: loggedUser });
-    await con.getRepository(UserPost).save({
-      postId: 'p1',
-      userId: loggedUser,
-      vote: UserPostVote.Down,
-      hidden: true,
-    });
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Downvote).find();
-    expect(actual).toEqual([]);
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.downvotes).toEqual(0);
-    const hiddenPost = await con.getRepository(HiddenPost).findOneBy({
-      postId: 'p1',
-      userId: loggedUser,
-    });
-    expect(hiddenPost).toBeNull();
-    const userPost = await con.getRepository(UserPost).findOneBy({
-      postId: 'p1',
-      userId: loggedUser,
-    });
-    expect(userPost).toMatchObject({
-      postId: 'p1',
-      userId: loggedUser,
-      hidden: false,
-      vote: UserPostVote.None,
-    });
-  });
-
-  it('should ignore if no downvote', async () => {
-    loggedUser = '1';
-    const res = await client.mutate(MUTATION, { variables: { id: 'p1' } });
-    expect(res.errors).toBeFalsy();
-    const actual = await con.getRepository(Downvote).find();
-    expect(actual).toEqual([]);
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.downvotes).toEqual(0);
   });
 });
 

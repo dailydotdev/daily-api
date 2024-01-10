@@ -66,70 +66,7 @@ exports[`mutation editPost should allow mention as part of the content 1`] = `
 
 exports[`mutation editSharePost should update with mentioned users 1`] = `"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\">@lee</a> @non-existent</p>"`;
 
-exports[`mutation hidePost should hide the post 1`] = `
-Array [
-  HiddenPost {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
-
-exports[`mutation hidePost should ignore conflicts 1`] = `
-Array [
-  HiddenPost {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
-
-exports[`mutation reportPost should ignore conflicts 1`] = `
-Array [
-  HiddenPost {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
-
-exports[`mutation reportPost should report post with comment 1`] = `
-Array [
-  HiddenPost {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
-
-exports[`mutation reportPost should report post without comment 1`] = `
-Array [
-  HiddenPost {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
-
 exports[`mutation sharePost should share to squad with mentioned users 1`] = `"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\">@lee</a> @non-existent</p>"`;
-
-exports[`mutation upvote should ignore conflicts 1`] = `
-Array [
-  Upvote {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
-
-exports[`mutation upvote should upvote post 1`] = `
-Array [
-  Upvote {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
 
 exports[`query post should return post by id 1`] = `
 Object {
