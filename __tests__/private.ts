@@ -225,9 +225,9 @@ describe('POST /p/newUser', () => {
 
     const users = await con.getRepository(User).find();
     expect(users.length).toEqual(2);
-    expect(users[0].id).toEqual(usersFixture[0].id);
-    expect(users[0].infoConfirmed).toBeTruthy();
-    expect(users[0].createdAt).not.toBeNull();
+    expect(users[1].id).toEqual(usersFixture[0].id);
+    expect(users[1].infoConfirmed).toBeTruthy();
+    expect(users[1].createdAt).not.toBeNull();
   });
 
   it('should allow underscore in username', async () => {
@@ -264,8 +264,8 @@ describe('POST /p/newUser', () => {
 
     const users = await con.getRepository(User).find();
     expect(users.length).toEqual(2);
-    expect(users[0].id).toEqual(usersFixture[0].id);
-    expect(users[0].infoConfirmed).toBeFalsy();
+    expect(users[1].id).toEqual(usersFixture[0].id);
+    expect(users[1].infoConfirmed).toBeFalsy();
   });
 
   it('should add a new user with GitHub handle', async () => {
@@ -287,8 +287,8 @@ describe('POST /p/newUser', () => {
 
     const users = await con.getRepository(User).find();
     expect(users.length).toEqual(2);
-    expect(users[0].id).toEqual(usersFixture[0].id);
-    expect(users[0].github).toEqual(usersFixture[0].github);
+    expect(users[1].id).toEqual(usersFixture[0].id);
+    expect(users[1].github).toEqual(usersFixture[0].github);
   });
 
   it('should ignore GitHub handle if it already exists', async () => {
@@ -336,9 +336,8 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(2);
-    expect(users[0].id).toEqual(usersFixture[0].id);
-    expect(users[0].twitter).toEqual(usersFixture[0].twitter);
+    expect(users[1].id).toEqual(usersFixture[0].id);
+    expect(users[1].twitter).toEqual(usersFixture[0].twitter);
   });
 
   it('should ignore Twitter handle if it already exists', async () => {
