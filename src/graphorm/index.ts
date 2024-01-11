@@ -74,9 +74,6 @@ const obj = new GraphORM({
   CommentUpvote: {
     requiredColumns: ['createdAt'],
   },
-  Upvote: {
-    requiredColumns: ['createdAt'],
-  },
   Post: {
     additionalQuery: (ctx, alias, qb) =>
       qb

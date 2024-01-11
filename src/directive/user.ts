@@ -9,13 +9,11 @@ import {
   CommentUpvote,
   DevCard,
   Feed,
-  HiddenPost,
   Post,
   PostReport,
   Settings,
   SourceDisplay,
   SourceRequest,
-  Upvote,
   User,
   View,
 } from '../entity';
@@ -42,12 +40,10 @@ export const deleteUser = async (
       await entityManager.getRepository(Comment).delete({ userId });
       await entityManager.getRepository(DevCard).delete({ userId });
       await entityManager.getRepository(Feed).delete({ userId });
-      await entityManager.getRepository(HiddenPost).delete({ userId });
       await entityManager.getRepository(PostReport).delete({ userId });
       await entityManager.getRepository(Settings).delete({ userId });
       await entityManager.getRepository(SourceDisplay).delete({ userId });
       await entityManager.getRepository(SourceRequest).delete({ userId });
-      await entityManager.getRepository(Upvote).delete({ userId });
       await entityManager
         .getRepository(ArticlePost)
         .update({ authorId: userId }, { authorId: null });
