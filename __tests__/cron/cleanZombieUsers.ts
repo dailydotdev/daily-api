@@ -23,7 +23,7 @@ it('should delete users with info confirmed false that are older than one hour',
 
   await expectSuccessfulCron(cron);
   const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-  expect(users.length).toEqual(2);
+  expect(users.length).toEqual(3);
   expect(users[0].id).toEqual('1');
   expect(users[1].id).toEqual('2');
 });

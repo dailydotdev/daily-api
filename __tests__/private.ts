@@ -224,7 +224,7 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(1);
+    expect(users.length).toEqual(2);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].infoConfirmed).toBeTruthy();
     expect(users[0].createdAt).not.toBeNull();
@@ -263,7 +263,7 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(1);
+    expect(users.length).toEqual(2);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].infoConfirmed).toBeFalsy();
   });
@@ -286,7 +286,7 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(1);
+    expect(users.length).toEqual(2);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].github).toEqual(usersFixture[0].github);
   });
@@ -313,7 +313,7 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(2);
+    expect(users.length).toEqual(3);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].github).toEqual(null);
   });
@@ -336,7 +336,7 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(1);
+    expect(users.length).toEqual(2);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].twitter).toEqual(usersFixture[0].twitter);
   });
@@ -363,7 +363,7 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(2);
+    expect(users.length).toEqual(3);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].twitter).toEqual(null);
   });
@@ -388,7 +388,7 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(2);
+    expect(users.length).toEqual(3);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].referralId).toEqual(usersFixture[1].id);
   });
@@ -413,7 +413,7 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(2);
+    expect(users.length).toEqual(3);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].referralId).toEqual(usersFixture[1].id);
     expect(users[0].referralOrigin).toEqual('squad');
@@ -440,7 +440,7 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(2);
+    expect(users.length).toEqual(3);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].referralId).toEqual(usersFixture[1].id);
     expect(users[0].referralOrigin).toEqual('knightcampaign');
@@ -664,7 +664,7 @@ describe('POST /p/updateUserEmail', () => {
     expect(body).toEqual({ status: 'failed', reason: 'USER_DOESNT_EXIST' });
 
     const users = await con.getRepository(User).find();
-    expect(users.length).toBe(0);
+    expect(users.length).toBe(1);
   });
 
   it('should return correct response if exists', async () => {
