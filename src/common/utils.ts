@@ -3,6 +3,11 @@ import { zonedTimeToUtc } from 'date-fns-tz';
 
 const REMOVE_SPECIAL_CHARACTERS_REGEX = /[^a-zA-Z0-9-_#.]/g;
 
+export const ghostUser = {
+  id: '404',
+  username: 'inactive_user',
+};
+
 interface GetTimezonedIsoWeekProps {
   date: Date;
   timezone: string;
