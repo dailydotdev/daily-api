@@ -998,7 +998,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
         // Temporary hack to enable caching only for v20 will be fixed once we roll it out to 100%
-        if (args.version === 20) {
+        if (args.version >= 20) {
           return feedResolverCursor(
             source,
             {
