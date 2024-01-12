@@ -2881,6 +2881,65 @@ Object {
 }
 `;
 
+exports[`query searchPostSuggestions should return search suggestions 1`] = `
+Object {
+  "searchPostSuggestions": Object {
+    "hits": Array [
+      Object {
+        "title": "<strong>P1</strong>",
+      },
+    ],
+    "query": "p1",
+  },
+}
+`;
+
+exports[`query searchPosts should return search empty feed 1`] = `
+Object {
+  "searchPosts": Object {
+    "edges": Array [],
+    "pageInfo": Object {
+      "endCursor": null,
+      "hasNextPage": false,
+    },
+    "query": "not found",
+  },
+}
+`;
+
+exports[`query searchPosts should return search feed 1`] = `
+Object {
+  "searchPosts": Object {
+    "edges": Array [
+      Object {
+        "node": Object {
+          "id": "p1",
+          "readTime": null,
+          "source": Object {
+            "id": "a",
+            "image": "http://image.com/a",
+            "name": "A",
+            "public": true,
+          },
+          "tags": Array [
+            "javascript",
+            "webdev",
+          ],
+          "title": "P1",
+          "type": "article",
+          "url": "http://p1.com",
+        },
+      },
+    ],
+    "pageInfo": Object {
+      "endCursor": "YXJyYXljb25uZWN0aW9uOjA=",
+      "hasNextPage": false,
+    },
+    "query": "p1",
+  },
+}
+`;
+
 exports[`query sourceFeed should display return the right posts after the first page being a mix of pinned and unpinned posts 1`] = `
 Array [
   Object {

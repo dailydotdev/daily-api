@@ -255,7 +255,7 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
   ]);
 };
 
-export const feedFields = (extra = '') => `
+const feedFields = (extra = '') => `
 pageInfo {
   endCursor
   hasNextPage
@@ -1107,6 +1107,43 @@ describe('query feedSettings', () => {
     loggedUser = '1';
     await saveFeedFixtures();
     const res = await client.query(QUERY);
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query searchPostSuggestions', () => {
+  const QUERY = (query: string): string => `{
+    searchPostSuggestions(query: "${query}") {
+      query
+      hits {
+        title
+      }
+    }
+  }
+`;
+
+  it('should return search suggestions', async () => {
+    const res = await client.query(QUERY('p1'));
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query searchPosts', () => {
+  const QUERY = (query: string, now = new Date(), first = 10): string => `{
+    searchPosts(query: "${query}", now: "${now.toISOString()}", first: ${first}) {
+      query
+      ${feedFields()}
+    }
+  }
+`;
+
+  it('should return search feed', async () => {
+    const res = await client.query(QUERY('p1'));
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return search empty feed', async () => {
+    const res = await client.query(QUERY('not found'));
     expect(res.data).toMatchSnapshot();
   });
 });

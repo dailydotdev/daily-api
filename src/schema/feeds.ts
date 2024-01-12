@@ -41,10 +41,11 @@ import {
   offsetPageGenerator,
   Page,
   PageGenerator,
+  getSearchQuery,
   feedCursorPageGenerator,
 } from './common';
 import { GQLPost } from './posts';
-import { ConnectionArguments } from 'graphql-relay';
+import { Connection, ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
 import { ioRedisPool } from '../redis';
 import {
@@ -86,6 +87,15 @@ export const typeDefs = /* GraphQL */ `
     blockedTags: [String]
     excludeSources: [Source]
     advancedSettings: [FeedAdvancedSettings]
+  }
+
+  type SearchPostSuggestion {
+    title: String!
+  }
+
+  type SearchPostSuggestionsResults {
+    query: String!
+    hits: [SearchPostSuggestion!]!
   }
 
   type RSSFeed {
@@ -362,6 +372,46 @@ export const typeDefs = /* GraphQL */ `
     feedSettings: FeedSettings! @auth
 
     """
+    Get suggestions for search post query
+    """
+    searchPostSuggestions(
+      """
+      The query to search for
+      """
+      query: String!
+    ): SearchPostSuggestionsResults!
+
+    """
+    Get a posts feed of a search query
+    """
+    searchPosts(
+      """
+      The query to search for
+      """
+      query: String!
+
+      """
+      Time the pagination started to ignore new items
+      """
+      now: DateTime
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection!
+
+    """
     Returns the user's RSS feeds
     """
     rssFeeds: [RSSFeed!]! @auth
@@ -614,6 +664,15 @@ export interface GQLFeedSettings {
 
 export type GQLFiltersInput = AnonymousFeedFilters;
 
+interface GQLSearchPostSuggestion {
+  title: string;
+}
+
+export interface GQLSearchPostSuggestionsResults {
+  query: string;
+  hits: GQLSearchPostSuggestion[];
+}
+
 interface AnonymousFeedArgs extends FeedArgs {
   filters?: GQLFiltersInput;
   version: number;
@@ -827,6 +886,22 @@ const getFeedSettings = async (
     advancedSettings: [],
   };
 };
+
+const searchResolver = feedResolver(
+  (ctx, { query }: FeedArgs & { query: string }, builder, alias) =>
+    builder
+      .andWhere(`${alias}.tsv @@ (${getSearchQuery(':query')})`, {
+        query,
+      })
+      .orderBy('views', 'DESC'),
+  offsetPageGenerator(30, 50),
+  (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
+  {
+    removeHiddenPosts: true,
+    removeBannedPosts: false,
+    allowPrivateSources: false,
+  },
+);
 
 const anonymousFeedResolverV1: IFieldResolver<
   unknown,
@@ -1100,6 +1175,42 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ),
     feedSettings: (source, args, ctx, info): Promise<GQLFeedSettings> =>
       getFeedSettings(ctx, info),
+    searchPostSuggestions: async (
+      source,
+      { query }: { query: string },
+      ctx,
+    ): Promise<GQLSearchPostSuggestionsResults> => {
+      const hits: { title: string }[] = await ctx.con.query(
+        `
+          WITH search AS (${getSearchQuery('$1')})
+          select ts_headline(process_text(title), search.query,
+                             'StartSel = <strong>, StopSel = </strong>') as title
+          from post
+                 inner join search on true
+                 inner join source on source.id = post."sourceId"
+          where tsv @@ search.query and source.private = false
+          order by views desc
+            limit 5;
+        `,
+        [query],
+      );
+      return {
+        query,
+        hits,
+      };
+    },
+    searchPosts: async (
+      source,
+      args: FeedArgs & { query: string },
+      ctx,
+      info,
+    ): Promise<Connection<GQLPost> & { query: string }> => {
+      const res = await searchResolver(source, args, ctx, info);
+      return {
+        ...res,
+        query: args.query,
+      };
+    },
     rssFeeds: async (source, args, ctx): Promise<GQLRSSFeed[]> => {
       const urlPrefix = `${process.env.URL_PREFIX}/rss`;
       const lists = await ctx.getRepository(BookmarkList).find({
