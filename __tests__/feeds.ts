@@ -458,6 +458,7 @@ describe('query anonymousFeed', () => {
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
       });
     const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
