@@ -29,6 +29,7 @@ import { SourceMemberRoles } from '../src/roles';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
 import {
+  feedFields,
   GraphQLTestClient,
   GraphQLTestingState,
   initializeGraphQLTesting,
@@ -253,29 +254,6 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
     { feedId: '1', advancedSettingsId: 7, enabled: false },
   ]);
 };
-
-export const feedFields = (extra = '') => `
-pageInfo {
-  endCursor
-  hasNextPage
-}
-edges {
-  node {
-    ${extra}
-    id
-    url
-    title
-    readTime
-    tags
-    type
-    source {
-      id
-      name
-      image
-      public
-    }
-  }
-}`;
 
 describe('query anonymousFeed', () => {
   const variables = {

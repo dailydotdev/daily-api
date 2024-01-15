@@ -318,3 +318,26 @@ export const expectSuccessfulTypedBackground = <T extends keyof PubSubSchema>(
   worker: TypedWorker<T>,
   data: PubSubSchema[T],
 ): Promise<void> => invokeTypedBackground(worker, data);
+
+export const feedFields = (extra = '') => `
+pageInfo {
+  endCursor
+  hasNextPage
+}
+edges {
+  node {
+    ${extra}
+    id
+    url
+    title
+    readTime
+    tags
+    type
+    source {
+      id
+      name
+      image
+      public
+    }
+  }
+}`;
