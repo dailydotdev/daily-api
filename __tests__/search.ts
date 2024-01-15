@@ -11,7 +11,7 @@ import createOrGetConnection from '../src/db';
 import nock from 'nock';
 import { GraphQLTestClient } from './helpers';
 import { magniOrigin, SearchResultFeedback } from '../src/integrations';
-import { feedFields } from './feeds';
+import { feedFields } from './helpers';
 
 let con: DataSource;
 let state: GraphQLTestingState;

@@ -950,7 +950,7 @@ Object {
       },
     ],
     "pageInfo": Object {
-      "endCursor": null,
+      "endCursor": "b",
       "hasNextPage": false,
     },
   },
