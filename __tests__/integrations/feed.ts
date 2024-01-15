@@ -1,16 +1,14 @@
 import {
-  CachedFeedClient,
   FeedClient,
   FeedConfig,
   FeedConfigGenerator,
   FeedConfigName,
   FeedPreferencesConfigGenerator,
   FeedResponse,
-  IFeedClient,
   SimpleFeedConfigGenerator,
 } from '../../src/integrations/feed';
 import { MockContext, saveFixtures } from '../helpers';
-import { deleteKeysByPattern, ioRedisPool } from '../../src/redis';
+import { deleteKeysByPattern } from '../../src/redis';
 import createOrGetConnection from '../../src/db';
 import { DataSource } from 'typeorm';
 import { Context } from '../../src/Context';
@@ -63,14 +61,6 @@ const feedResponse: FeedResponse = {
   ],
 };
 
-const setCache = (
-  key: string,
-  ids: string[] | [string, string | undefined][],
-) =>
-  ioRedisPool.execute(async (client) => {
-    return client.set(`${key}:posts`, JSON.stringify(ids));
-  });
-
 beforeAll(async () => {
   con = await createOrGetConnection();
   ctx = new MockContext(con);
@@ -92,87 +82,6 @@ describe('FeedClient', () => {
     const feedClient = new FeedClient(url);
     const feed = await feedClient.fetchFeed(ctx, 'id', config);
     expect(feed).toEqual(feedResponse);
-  });
-});
-
-describe('CachedFeedClient', () => {
-  it('should fetch subsequent pages from cache', async () => {
-    const mockClient = mock<IFeedClient>();
-    mockClient.fetchFeed.mockResolvedValueOnce(feedResponse);
-    const feedClient = new CachedFeedClient(mockClient, ioRedisPool);
-    const page0 = await feedClient.fetchFeed(ctx, 'id', config);
-    expect(page0.data).toEqual(feedResponse.data.slice(0, 2));
-    await new Promise(process.nextTick);
-    const page1 = await feedClient.fetchFeed(ctx, 'id', {
-      ...config,
-      offset: 2,
-    });
-    expect(page1.data).toEqual(feedResponse.data.slice(2, 4));
-  });
-
-  it('should fetch from origin when cache is old', async () => {
-    const mockClient = mock<IFeedClient>();
-    mockClient.fetchFeed.mockResolvedValueOnce(feedResponse);
-    const feedClient = new CachedFeedClient(mockClient, ioRedisPool);
-
-    const feedId = 'f1';
-    const key = feedClient.getCacheKey(config.user_id, feedId);
-    await ioRedisPool.execute(async (client) => {
-      return client.set(
-        `${key}:time`,
-        new Date(new Date().getTime() - 60 * 60 * 1000).toISOString(),
-      );
-    });
-    await setCache(key, ['7', '8']);
-
-    const page0 = await feedClient.fetchFeed(ctx, feedId, config);
-    expect(page0.data).toEqual(feedResponse.data.slice(0, 2));
-  });
-
-  it('should fetch from cache when it is still fresh', async () => {
-    const mockClient = mock<IFeedClient>();
-    const feedClient = new CachedFeedClient(mockClient, ioRedisPool);
-
-    const feedId = 'f2';
-    const key = feedClient.getCacheKey(config.user_id, feedId);
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${key}:time`, new Date().toISOString());
-    });
-    await setCache(key, [
-      ['7', JSON.stringify({ p: 'a' })],
-      ['8', JSON.stringify({ p: 'b' })],
-    ]);
-
-    const page0 = await feedClient.fetchFeed(ctx, feedId, config);
-    expect(page0.data).toEqual([
-      ['7', JSON.stringify({ p: 'a' })],
-      ['8', JSON.stringify({ p: 'b' })],
-    ]);
-  });
-
-  it('should fetch from origin when last updated time is greater than last generated', async () => {
-    const mockClient = mock<IFeedClient>();
-    mockClient.fetchFeed.mockResolvedValueOnce(feedResponse);
-    const feedClient = new CachedFeedClient(mockClient, ioRedisPool);
-
-    const feedId = 'f3';
-    const key = feedClient.getCacheKey(config.user_id, feedId);
-    await ioRedisPool.execute(async (client) => {
-      return client.set(
-        `${feedClient.getCacheKeyPrefix(feedId)}:update`,
-        new Date(new Date().getTime() - 10 * 1000).toISOString(),
-      );
-    });
-    await ioRedisPool.execute(async (client) => {
-      return client.set(
-        `${key}:time`,
-        new Date(new Date().getTime() - 60 * 1000).toISOString(),
-      );
-    });
-    await setCache(key, ['7', '8']);
-
-    const page0 = await feedClient.fetchFeed(ctx, feedId, config);
-    expect(page0.data).toEqual(feedResponse.data.slice(0, 2));
   });
 });
 

@@ -83,10 +83,6 @@ export interface IFeedClient {
 }
 
 export type FeedVersion =
-  | '15'
-  | '17'
-  | '18'
-  | '19'
   | '20'
   | '21'
   | 'popular'

@@ -7,8 +7,7 @@ import {
   IFeedClient,
 } from './types';
 import { Context } from '../../Context';
-import { CachedFeedClient, FeedClient } from './clients';
-import { ioRedisPool } from '../../redis';
+import { FeedClient } from './clients';
 import {
   FeedPreferencesConfigGenerator,
   FeedUserStateConfigGenerator,
@@ -43,7 +42,6 @@ export class FeedGenerator {
 
 export const snotraClient = new SnotraClient();
 export const feedClient = new FeedClient();
-export const cachedFeedClient = new CachedFeedClient(feedClient, ioRedisPool);
 
 const opts = {
   includeBlockedTags: true,
@@ -54,70 +52,6 @@ const opts = {
 
 export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
   {
-    '15': new FeedGenerator(
-      cachedFeedClient,
-      new FeedUserStateConfigGenerator(snotraClient, {
-        personalised: new FeedPreferencesConfigGenerator(
-          { feed_config_name: FeedConfigName.Vector },
-          opts,
-        ),
-        non_personalised: new FeedPreferencesConfigGenerator(
-          { feed_config_name: FeedConfigName.Personalise },
-          opts,
-        ),
-      }),
-    ),
-    '17': new FeedGenerator(
-      cachedFeedClient,
-      new FeedUserStateConfigGenerator(snotraClient, {
-        personalised: new FeedPreferencesConfigGenerator(
-          { feed_config_name: FeedConfigName.VectorM3 },
-          opts,
-        ),
-        non_personalised: new FeedPreferencesConfigGenerator(
-          { feed_config_name: FeedConfigName.PersonaliseM3 },
-          opts,
-        ),
-      }),
-    ),
-    '18': new FeedGenerator(
-      cachedFeedClient,
-      new FeedUserStateConfigGenerator(snotraClient, {
-        personalised: new FeedPreferencesConfigGenerator(
-          {
-            feed_config_name: FeedConfigName.VectorV18,
-            source_types: ['machine', 'squad'],
-          },
-          opts,
-        ),
-        non_personalised: new FeedPreferencesConfigGenerator(
-          {
-            feed_config_name: FeedConfigName.PersonaliseV18,
-            source_types: ['machine', 'squad'],
-          },
-          opts,
-        ),
-      }),
-    ),
-    '19': new FeedGenerator(
-      cachedFeedClient,
-      new FeedUserStateConfigGenerator(snotraClient, {
-        personalised: new FeedPreferencesConfigGenerator(
-          {
-            feed_config_name: FeedConfigName.VectorE1,
-            source_types: ['machine', 'squad'],
-          },
-          opts,
-        ),
-        non_personalised: new FeedPreferencesConfigGenerator(
-          {
-            feed_config_name: FeedConfigName.PersonaliseV18,
-            source_types: ['machine', 'squad'],
-          },
-          opts,
-        ),
-      }),
-    ),
     '20': new FeedGenerator(
       feedClient,
       new FeedUserStateConfigGenerator(snotraClient, {
@@ -157,7 +91,7 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
       }),
     ),
     popular: new FeedGenerator(
-      cachedFeedClient,
+      feedClient,
       new SimpleFeedConfigGenerator({
         providers: {
           fresh: {
@@ -204,5 +138,5 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
 );
 
 export const versionToFeedGenerator = (version: number): FeedGenerator => {
-  return feedGenerators[version.toString()] ?? feedGenerators['18'];
+  return feedGenerators[version.toString()] ?? feedGenerators['20'];
 };

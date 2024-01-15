@@ -37,7 +37,6 @@ import {
 import { In, SelectQueryBuilder } from 'typeorm';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
-  fixedIdsPageGenerator,
   offsetPageGenerator,
   Page,
   PageGenerator,
@@ -46,9 +45,7 @@ import {
 import { GQLPost } from './posts';
 import { ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
-import { ioRedisPool } from '../redis';
 import {
-  cachedFeedClient,
   feedClient,
   FeedGenerator,
   feedGenerators,
@@ -732,9 +729,9 @@ const applyUpvotedPaging = (
   page: UpvotedPage,
   builder: SelectQueryBuilder<Post>,
 ): SelectQueryBuilder<Post> => {
-  let newBuilder = builder.limit(page.limit).orderBy('up.createdAt', 'DESC');
+  let newBuilder = builder.limit(page.limit).orderBy('up.votedAt', 'DESC');
   if (page.timestamp) {
-    newBuilder = newBuilder.andWhere('up."createdAt" < :timestamp', {
+    newBuilder = newBuilder.andWhere('up."votedAt" < :timestamp', {
       timestamp: page.timestamp,
     });
   }
@@ -858,51 +855,6 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
     },
   );
 
-const invalidateFeedCache = async (feedId: string): Promise<void> => {
-  try {
-    const key = cachedFeedClient.getCacheKeyPrefix(feedId);
-    await ioRedisPool.execute(async (client) => {
-      return client.set(
-        `${key}:update`,
-        new Date().toISOString(),
-        'EX',
-        24 * 60 * 60,
-      );
-    });
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-const feedResolverV2: IFieldResolver<
-  unknown,
-  Context,
-  FeedArgs & { generator: FeedGenerator }
-> = feedResolver(
-  (ctx, args, builder, alias, queryParams) =>
-    fixedIdsFeedBuilder(
-      ctx,
-      queryParams.data.map(([postId]) => postId as string),
-      builder,
-      alias,
-    ),
-  fixedIdsPageGenerator(30, 50),
-  (ctx, args, page, builder) => builder,
-  {
-    fetchQueryParams: (
-      ctx,
-      args: FeedArgs & { generator: FeedGenerator },
-      page,
-    ) =>
-      args.generator.generate(ctx, {
-        user_id: ctx.userId || ctx.trackingId,
-        page_size: page.limit,
-        offset: page.offset,
-      }),
-    warnOnPartialFirstPage: true,
-  },
-);
-
 const feedResolverCursor: IFieldResolver<
   unknown,
   Context,
@@ -983,7 +935,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
-        return feedResolverV2(
+        return feedResolverCursor(
           source,
           {
             ...(args as FeedArgs),
@@ -997,19 +949,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
-        // Temporary hack to enable caching only for v20 will be fixed once we roll it out to 100%
-        if (args.version >= 20) {
-          return feedResolverCursor(
-            source,
-            {
-              ...(args as FeedArgs),
-              generator: versionToFeedGenerator(args.version),
-            },
-            ctx,
-            info,
-          );
-        }
-        return feedResolverV2(
+        return feedResolverCursor(
           source,
           {
             ...(args as FeedArgs),
@@ -1027,7 +967,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx: Context,
       info,
     ) => {
-      return feedResolverV2(
+      return feedResolverCursor(
         source,
         {
           ...(args as FeedArgs),
@@ -1054,7 +994,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         feedClient,
         new SimpleFeedConfigGenerator(JSON.parse(args.config)),
       );
-      return feedResolverV2(
+      return feedResolverCursor(
         source,
         {
           ...(args as ConnectionArguments),
@@ -1371,7 +1311,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .execute();
         }
       });
-      await invalidateFeedCache(feedId);
       return getFeedSettings(ctx, info);
     },
     removeFiltersFromFeed: async (
@@ -1402,7 +1341,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           });
         }
       });
-      await invalidateFeedCache(feedId);
       return getFeedSettings(ctx, info);
     },
     updateFeedAdvancedSettings: async (
@@ -1434,8 +1372,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           '("advancedSettingsId", "feedId") DO UPDATE SET enabled = excluded.enabled',
         )
         .execute();
-
-      await invalidateFeedCache(feedId);
 
       return feedAdvSettingsrepo
         .createQueryBuilder()
