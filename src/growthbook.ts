@@ -52,3 +52,12 @@ export async function loadFeatures(log: FastifyBaseLogger): Promise<void> {
 export function getEncryptedFeatures(): string {
   return encryptedFeatures;
 }
+
+export function getUserGrowthBookInstace(userId: string): GrowthBook {
+  return new GrowthBook({
+    attributes: {
+      userId,
+    },
+    features: gb.getFeatures(),
+  });
+}
