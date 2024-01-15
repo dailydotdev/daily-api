@@ -3,11 +3,10 @@ export {
   FeedPreferencesConfigGenerator,
   SimpleFeedConfigGenerator,
 } from './configs';
-export { FeedClient, CachedFeedClient } from './clients';
+export { FeedClient } from './clients';
 export {
   FeedGenerator,
   feedGenerators,
   versionToFeedGenerator,
-  cachedFeedClient,
   feedClient,
 } from './generators';

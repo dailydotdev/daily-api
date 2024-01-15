@@ -898,7 +898,7 @@ Object {
       },
     ],
     "pageInfo": Object {
-      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "endCursor": "b",
       "hasNextPage": false,
     },
   },
@@ -950,7 +950,7 @@ Object {
       },
     ],
     "pageInfo": Object {
-      "endCursor": "YXJyYXljb25uZWN0aW9uOjE=",
+      "endCursor": null,
       "hasNextPage": false,
     },
   },

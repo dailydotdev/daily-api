@@ -46,13 +46,12 @@ import {
   videoPostsFixture,
 } from './fixture/post';
 import nock from 'nock';
-import { deleteKeysByPattern, ioRedisPool } from '../src/redis';
+import { deleteKeysByPattern } from '../src/redis';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
-import { cachedFeedClient } from '../src/integrations/feed';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -384,8 +383,9 @@ describe('query anonymousFeed', () => {
     nock('http://localhost:6000')
       .post('/feed.json', {
         total_pages: 40,
-        page_size: 11,
+        page_size: 10,
         fresh_page_size: '4',
+        offset: 0,
         providers: {
           fresh: {
             enable: true,
@@ -402,6 +402,7 @@ describe('query anonymousFeed', () => {
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
       });
     const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
@@ -437,8 +438,9 @@ describe('query anonymousFeed', () => {
     nock('http://localhost:6000')
       .post('/feed.json', {
         total_pages: 40,
-        page_size: 11,
+        page_size: 10,
         fresh_page_size: '4',
+        offset: 0,
         providers: {
           fresh: {
             enable: true,
@@ -718,10 +720,12 @@ describe('query feed', () => {
     nock('http://localhost:6000')
       .post('/feed.json', {
         total_pages: 40,
-        page_size: 11,
+        page_size: 10,
+        offset: 0,
         fresh_page_size: '4',
-        feed_config_name: 'vector',
+        feed_config_name: 'vector_v20',
         user_id: '1',
+        source_types: ['machine', 'squad'],
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -814,7 +818,7 @@ describe('query feedByConfig', () => {
       .post('/feed.json', {
         key: 'value',
         total_pages: 40,
-        page_size: 11,
+        page_size: 10,
         fresh_page_size: '4',
         offset: 0,
       })
@@ -1560,12 +1564,6 @@ describe('mutation updateFeedAdvancedSettings', () => {
 
   it('should add the new feed advanced settings', async () => {
     loggedUser = '1';
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${cachedFeedClient.getCacheKey('2', '1')}:time`, '1');
-    });
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${cachedFeedClient.getCacheKey('2', '2')}:time`, '2');
-    });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, AdvancedSettings, advancedSettings);
     const res = await client.mutate(MUTATION, {
@@ -1578,11 +1576,6 @@ describe('mutation updateFeedAdvancedSettings', () => {
     });
 
     expect(res.data).toMatchSnapshot();
-    expect(
-      await ioRedisPool.execute(async (client) => {
-        return client.get(`${cachedFeedClient.getCacheKeyPrefix('1')}:update`);
-      }),
-    ).toBeTruthy();
   });
 
   it('should not fail if feed entity does not exists', async () => {
@@ -1602,12 +1595,6 @@ describe('mutation updateFeedAdvancedSettings', () => {
 
   it('should update existing feed advanced settings', async () => {
     loggedUser = '1';
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${cachedFeedClient.getCacheKey('2', '1')}:time`, '1');
-    });
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${cachedFeedClient.getCacheKey('2', '2')}:time`, '2');
-    });
     await saveFeedFixtures();
     const res = await client.mutate(MUTATION, {
       variables: {
@@ -1621,11 +1608,6 @@ describe('mutation updateFeedAdvancedSettings', () => {
       },
     });
     expect(res.data).toMatchSnapshot();
-    expect(
-      await ioRedisPool.execute(async (client) => {
-        return client.get(`${cachedFeedClient.getCacheKeyPrefix('1')}:update`);
-      }),
-    ).toBeTruthy();
   });
 
   it('should ignore duplicates', async () => {
@@ -1679,12 +1661,6 @@ describe('mutation addFiltersToFeed', () => {
 
   it('should add the new feed settings', async () => {
     loggedUser = '1';
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${cachedFeedClient.getCacheKey('2', '1')}:time`, '1');
-    });
-    await ioRedisPool.execute(async (client) => {
-      await client.set(`${cachedFeedClient.getCacheKey('2', '2')}:time`, '2');
-    });
     await saveFixtures(con, Feed, [{ id: '2', userId: '1' }]);
     await saveFixtures(con, AdvancedSettings, advancedSettings);
     const res = await client.mutate(MUTATION, {
@@ -1697,11 +1673,6 @@ describe('mutation addFiltersToFeed', () => {
       },
     });
     expect(res.data).toMatchSnapshot();
-    expect(
-      await ioRedisPool.execute(async (client) => {
-        return client.get(`${cachedFeedClient.getCacheKeyPrefix('1')}:update`);
-      }),
-    ).toBeTruthy();
   });
 
   it('should ignore duplicates', async () => {
@@ -1766,12 +1737,6 @@ describe('mutation removeFiltersFromFeed', () => {
 
   it('should remove existing filters', async () => {
     loggedUser = '1';
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${cachedFeedClient.getCacheKey('2', '1')}:time`, '1');
-    });
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${cachedFeedClient.getCacheKey('2', '2')}:time`, '2');
-    });
     await saveFeedFixtures();
     const res = await client.mutate(MUTATION, {
       variables: {
@@ -1783,11 +1748,6 @@ describe('mutation removeFiltersFromFeed', () => {
       },
     });
     expect(res.data).toMatchSnapshot();
-    expect(
-      await ioRedisPool.execute(async (client) => {
-        return client.get(`${cachedFeedClient.getCacheKeyPrefix('1')}:update`);
-      }),
-    ).toBeTruthy();
   });
 });
 
@@ -1924,7 +1884,7 @@ describe('query feedPreview', () => {
       .post('/feed.json', {
         feed_config_name: 'onboarding',
         total_pages: 1,
-        page_size: 21,
+        page_size: 20,
         offset: 0,
         fresh_page_size: '7',
         user_id: '1',
