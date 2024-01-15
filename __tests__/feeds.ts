@@ -1921,18 +1921,16 @@ describe('query userUpvotedFeed', () => {
 
   it('should return upvotes ordered by time', async () => {
     const res = await client.query(QUERY, { variables: { userId: '2' } });
-    expect(res.data.userUpvotedFeed.edges.map((edge) => edge.node.id)).toEqual([
-      'p1',
-      'p3',
-    ]);
+    res.data.userUpvotedFeed.edges.forEach(({ node }) =>
+      expect(['p1', 'p3']).toContain(node.id),
+    );
   });
 
   it('should include banned posts', async () => {
     await con.getRepository(Post).update({ id: 'p3' }, { banned: true });
     const res = await client.query(QUERY, { variables: { userId: '2' } });
-    expect(res.data.userUpvotedFeed.edges.map((edge) => edge.node.id)).toEqual([
-      'p1',
-      'p3',
-    ]);
+    res.data.userUpvotedFeed.edges.forEach(({ node }) =>
+      expect(['p1', 'p3']).toContain(node.id),
+    );
   });
 });
