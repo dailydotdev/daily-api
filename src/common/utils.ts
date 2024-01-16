@@ -5,7 +5,8 @@ const REMOVE_SPECIAL_CHARACTERS_REGEX = /[^a-zA-Z0-9-_#.]/g;
 
 export const ghostUser = {
   id: '404',
-  username: 'inactive_user',
+  username: 'ghost',
+  name: 'Deleted user',
 };
 
 interface GetTimezonedIsoWeekProps {
