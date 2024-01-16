@@ -881,6 +881,7 @@ const feedResolverCursor: IFieldResolver<
         page_size: page.limit,
         offset: 0,
         cursor: page.cursor,
+        allowed_post_types: args.supportedTypes,
       }),
     warnOnPartialFirstPage: true,
   },

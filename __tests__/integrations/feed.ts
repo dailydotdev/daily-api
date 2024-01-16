@@ -15,9 +15,13 @@ import { Context } from '../../src/Context';
 import nock from 'nock';
 import { mock } from 'jest-mock-extended';
 import {
+  AdvancedSettings,
   Feed,
+  FeedAdvancedSettings,
   FeedSource,
   FeedTag,
+  PostType,
+  postTypes,
   Source,
   SourceMember,
   User,
@@ -114,6 +118,26 @@ describe('FeedPreferencesConfigGenerator', () => {
         referralToken: 'rt2',
       },
     ]);
+    await con.getRepository(AdvancedSettings).save([
+      {
+        title: 'Videos',
+        group: 'content_types',
+        description: '',
+        defaultEnabledState: true,
+        options: { type: PostType.VideoYouTube },
+      },
+      {
+        title: 'Articles',
+        group: 'content_types',
+        description: '',
+        defaultEnabledState: true,
+        options: { type: PostType.Article },
+      },
+    ]);
+    await con.getRepository(FeedAdvancedSettings).save([
+      { feedId: '1', advancedSettingsId: 1, enabled: false },
+      { feedId: '1', advancedSettingsId: 2, enabled: true },
+    ]);
   });
 
   it('should generate feed config with feed preferences', async () => {
@@ -124,6 +148,7 @@ describe('FeedPreferencesConfigGenerator', () => {
         includeBlockedSources: true,
         includeBlockedTags: true,
         includeAllowedTags: true,
+        includePostTypes: true,
       },
     );
 
@@ -136,6 +161,7 @@ describe('FeedPreferencesConfigGenerator', () => {
       allowed_tags: expect.arrayContaining(['javascript', 'golang']),
       blocked_sources: expect.arrayContaining(['a', 'b']),
       blocked_tags: expect.arrayContaining(['python', 'java']),
+      allowed_post_types: postTypes.filter((x) => x !== PostType.VideoYouTube),
       feed_config_name: FeedConfigName.Personalise,
       fresh_page_size: '1',
       offset: 3,

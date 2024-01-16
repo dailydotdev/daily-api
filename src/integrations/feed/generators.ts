@@ -48,6 +48,7 @@ const opts = {
   includeAllowedTags: true,
   includeBlockedSources: true,
   includeSourceMemberships: true,
+  includePostTypes: true,
 };
 
 export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
