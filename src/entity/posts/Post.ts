@@ -22,6 +22,8 @@ export enum PostType {
   VideoYouTube = 'video:youtube',
 }
 
+export const postTypes: string[] = Object.values(PostType);
+
 export enum PostOrigin {
   CommunityPicks = 'community_picks',
   Squad = 'squads',

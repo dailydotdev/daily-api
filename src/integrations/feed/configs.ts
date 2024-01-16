@@ -1,12 +1,14 @@
 import { DynamicConfig, FeedConfig, FeedConfigGenerator } from './types';
 import { feedToFilters } from '../../common';
 import { ISnotraClient, UserState } from '../snotra';
+import { postTypes } from '../../entity';
 
 type Options = {
   includeAllowedTags?: boolean;
   includeBlockedTags?: boolean;
   includeBlockedSources?: boolean;
   includeSourceMemberships?: boolean;
+  includePostTypes?: boolean;
 };
 
 type BaseConfig = Partial<Omit<FeedConfig, 'user_id' | 'page_size' | 'offset'>>;
@@ -67,6 +69,11 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
     }
     if (filters.sourceIds?.length && this.opts.includeSourceMemberships) {
       config.squad_ids = filters.sourceIds;
+    }
+    if (filters.excludeTypes?.length && this.opts.includePostTypes) {
+      config.allowed_post_types = (
+        config.allowed_post_types || postTypes
+      ).filter((x) => !filters.excludeTypes.includes(x));
     }
     return config;
   }
