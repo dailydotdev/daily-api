@@ -360,7 +360,7 @@ describe('query anonymousFeed', () => {
   it('should return anonymous feed v2', async () => {
     nock('http://localhost:6000')
       .post('/feed.json', {
-        total_pages: 40,
+        total_pages: 1,
         page_size: 10,
         fresh_page_size: '4',
         offset: 0,
@@ -415,7 +415,7 @@ describe('query anonymousFeed', () => {
 
     nock('http://localhost:6000')
       .post('/feed.json', {
-        total_pages: 40,
+        total_pages: 1,
         page_size: 10,
         fresh_page_size: '4',
         offset: 0,
@@ -698,7 +698,7 @@ describe('query feed', () => {
       .reply(200, { personalise: { state: 'personalised' } });
     nock('http://localhost:6000')
       .post('/feed.json', {
-        total_pages: 40,
+        total_pages: 1,
         page_size: 10,
         offset: 0,
         fresh_page_size: '4',
@@ -856,7 +856,7 @@ describe('query feedByConfig', () => {
     nock('http://localhost:6000')
       .post('/feed.json', {
         key: 'value',
-        total_pages: 40,
+        total_pages: 1,
         page_size: 10,
         fresh_page_size: '4',
         offset: 0,
