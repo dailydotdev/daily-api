@@ -21,7 +21,7 @@ function getDefaultConfig(
   const config: FeedConfig = {
     ...baseConfig,
     ...dynamicConfig,
-    total_pages: baseConfig.total_pages || 40,
+    total_pages: baseConfig.total_pages || 1,
     fresh_page_size: freshPageSize,
   };
   if (config.user_id === null) {
