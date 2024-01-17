@@ -20,6 +20,7 @@ export function traceResolver<TSource, TArgs, TReturn>(
       context.span.setAttributes({
         ['graphql.operation.name']: info.operation?.name?.value,
         ['graphql.operation.type']: info.operation.operation,
+        ['graphql.variableValues']: JSON.stringify(info.variableValues),
       });
 
       context.metricGraphqlCounter.add(1, {
