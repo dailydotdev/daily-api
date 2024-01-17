@@ -2,6 +2,7 @@ import { DynamicConfig, FeedConfig, FeedConfigGenerator } from './types';
 import { feedToFilters } from '../../common';
 import { ISnotraClient, UserState } from '../snotra';
 import { postTypes } from '../../entity';
+import { runInSpan } from '../../telemetry/opentelemetry';
 
 type Options = {
   includeAllowedTags?: boolean;
@@ -55,27 +56,29 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
   }
 
   async generate(ctx, opts): Promise<FeedConfig> {
-    const config = getDefaultConfig(this.baseConfig, opts);
-    const userId = opts.user_id;
-    const filters = await feedToFilters(ctx.con, userId, userId);
-    if (filters.includeTags?.length && this.opts.includeAllowedTags) {
-      config.allowed_tags = filters.includeTags;
-    }
-    if (filters.blockedTags?.length && this.opts.includeBlockedTags) {
-      config.blocked_tags = filters.blockedTags;
-    }
-    if (filters.excludeSources?.length && this.opts.includeBlockedSources) {
-      config.blocked_sources = filters.excludeSources;
-    }
-    if (filters.sourceIds?.length && this.opts.includeSourceMemberships) {
-      config.squad_ids = filters.sourceIds;
-    }
-    if (filters.excludeTypes?.length && this.opts.includePostTypes) {
-      config.allowed_post_types = (
-        config.allowed_post_types || postTypes
-      ).filter((x) => !filters.excludeTypes.includes(x));
-    }
-    return config;
+    return runInSpan('FeedPreferencesConfigGenerator', async () => {
+      const config = getDefaultConfig(this.baseConfig, opts);
+      const userId = opts.user_id;
+      const filters = await feedToFilters(ctx.con, userId, userId);
+      if (filters.includeTags?.length && this.opts.includeAllowedTags) {
+        config.allowed_tags = filters.includeTags;
+      }
+      if (filters.blockedTags?.length && this.opts.includeBlockedTags) {
+        config.blocked_tags = filters.blockedTags;
+      }
+      if (filters.excludeSources?.length && this.opts.includeBlockedSources) {
+        config.blocked_sources = filters.excludeSources;
+      }
+      if (filters.sourceIds?.length && this.opts.includeSourceMemberships) {
+        config.squad_ids = filters.sourceIds;
+      }
+      if (filters.excludeTypes?.length && this.opts.includePostTypes) {
+        config.allowed_post_types = (
+          config.allowed_post_types || postTypes
+        ).filter((x) => !filters.excludeTypes.includes(x));
+      }
+      return config;
+    });
   }
 }
 
@@ -95,10 +98,12 @@ export class FeedUserStateConfigGenerator implements FeedConfigGenerator {
   }
 
   async generate(ctx, opts): Promise<FeedConfig> {
-    const userState = await this.snotraClient.fetchUserState({
-      user_id: opts.user_id,
-      providers: { personalise: {} },
+    return runInSpan('FeedUserStateConfigGenerator', async () => {
+      const userState = await this.snotraClient.fetchUserState({
+        user_id: opts.user_id,
+        providers: { personalise: {} },
+      });
+      return this.generators[userState.personalise.state].generate(ctx, opts);
     });
-    return this.generators[userState.personalise.state].generate(ctx, opts);
   }
 }
