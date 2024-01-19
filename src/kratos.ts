@@ -94,7 +94,13 @@ export const clearAuthentication = async (
 const MOCK_USER_ID = process.env.MOCK_USER_ID;
 
 type WhoamiResponse =
-  | { valid: true; userId: string; expires: Date; cookie?: string }
+  | {
+      valid: true;
+      userId: string;
+      expires: Date;
+      cookie?: string;
+      verified: boolean;
+    }
   | { valid: false };
 
 export const dispatchWhoami = async (
@@ -107,6 +113,7 @@ export const dispatchWhoami = async (
       valid: true,
       userId: MOCK_USER_ID,
       expires,
+      verified: true,
     });
   }
 
@@ -118,11 +125,13 @@ export const dispatchWhoami = async (
       req,
       `${heimdallOrigin}/api/whoami`,
     );
-    if (whoami?.identity?.traits?.userId) {
+    const { session, verified } = whoami;
+    if (session?.identity?.traits?.userId) {
       return {
+        verified,
         valid: true,
-        userId: whoami.identity.traits.userId,
-        expires: new Date(whoami.expires_at),
+        userId: session.identity.traits.userId,
+        expires: new Date(session.expires_at),
         cookie: headers.get('set-cookie'),
       };
     }
