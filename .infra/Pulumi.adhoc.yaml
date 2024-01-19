@@ -40,6 +40,7 @@ config:
       -----END PUBLIC KEY-----
   api:debeziumDbPass: "12345"
   api:debeziumDbUser: postgres
+  api:enablePersonalizedDigest: "false"
   api:env:
     accessSecret: topsecret
     analyticsUrl: http://localhost:3000
@@ -47,6 +48,7 @@ config:
     cookiesKey: topsecret
     defaultImageRatio: 1
     defaultImageUrl: https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/1,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/2,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/3,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/4,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/5,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/6,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/7,https://res.cloudinary.com/daily-now/image/upload/f_auto/v1/placeholders/8
+    digestQueueConcurrency: 1000
     enablePubsub: true
     gcloudProject: local
     heimdallOrigin: http://heimdall-api
@@ -56,6 +58,10 @@ config:
     kratosOrigin: http://heimdall-kratos-public
     logLevel: info
     nodeEnv: development
+    otelEnabled: false
+    otelExporterOtlpEndpoint: http://jaeger-collector.local.svc.cluster.local:4317
+    otelTracesSampler: parentbased_traceidratio
+    otelTracesSamplerArg: 1
     postScraperOrigin: http://post-scraper-one-ai-server
     pubsubEmulatorHost: pubsub:8085
     pubsubProjectId: local

@@ -8,7 +8,6 @@ import { messageToJson } from '../worker';
 
 interface Content {
   id: string;
-  contentHtml: string;
 }
 
 interface Data<T extends Content> {
@@ -24,6 +23,7 @@ export const generateEditImagesHandler =
     key: keyof T,
     type: ContentImageUsedByType,
     { shouldClearOnly }: OptionalParams = {},
+    contentKey: keyof Data<Content> = 'contentHtml',
   ) =>
   async (message, con): Promise<void> => {
     const data: T = messageToJson(message);
@@ -39,8 +39,13 @@ export const generateEditImagesHandler =
           { usedByType: null, usedById: null },
         );
 
-      if (!obj.contentHtml || shouldClearOnly) return;
+      if (!obj[contentKey] || shouldClearOnly) return;
 
-      await updateUsedImagesInContent(entityManager, type, obj);
+      await updateUsedImagesInContent(
+        entityManager,
+        type,
+        obj.id,
+        obj[contentKey],
+      );
     });
   };

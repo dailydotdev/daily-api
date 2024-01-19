@@ -3,10 +3,10 @@ import { traceResolvers } from './trace';
 import { Context, SubscriptionContext } from '../Context';
 import {
   Banner,
-  getUnreadNotificationsCount,
-  Notification,
   NotificationPreference,
   Comment,
+  UserNotification,
+  NotificationV2,
 } from '../entity';
 import { ConnectionArguments } from 'graphql-relay';
 import { In, IsNull } from 'typeorm';
@@ -14,7 +14,6 @@ import { Connection as ConnectionRelay } from 'graphql-relay/connection/connecti
 import graphorm from '../graphorm';
 import { createDatePageGenerator } from '../common/datePageGenerator';
 import { GQLEmptyResponse } from './common';
-import { notifyNotificationsRead } from '../common';
 import { redisPubSub } from '../redis';
 import {
   NotificationPreferenceStatus,
@@ -22,6 +21,7 @@ import {
   saveNotificationPreference,
   postNewCommentNotificationTypes,
   notificationPreferenceMap,
+  getUnreadNotificationsCount,
 } from '../notifications/common';
 import { ValidationError } from 'apollo-server-errors';
 
@@ -137,6 +137,10 @@ export const typeDefs = /* GraphQL */ `
     Attachments of the notification
     """
     attachments: [NotificationAttachment!]
+    """
+    Total number of avatars
+    """
+    numTotalAvatars: Int
   }
 
   type NotificationEdge {
@@ -294,6 +298,21 @@ export const typeDefs = /* GraphQL */ `
       """
       type: String!
     ): EmptyResponse @auth
+
+    """
+    Set the status of the user's notification preference to "subscribed"
+    """
+    subscribeNotificationPreference(
+      """
+      The ID of the relevant entity to subscribe
+      """
+      referenceId: ID!
+
+      """
+      Notification type for which kind of notification you want to subscribe
+      """
+      type: String!
+    ): EmptyResponse @auth
   }
 
   type Subscription {
@@ -305,7 +324,7 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 const notificationsPageGenerator = createDatePageGenerator<
-  Notification,
+  NotificationV2,
   'createdAt'
 >({
   key: 'createdAt',
@@ -336,7 +355,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       args: ConnectionArguments,
       ctx,
       info,
-    ): Promise<ConnectionRelay<Notification>> => {
+    ): Promise<ConnectionRelay<NotificationV2>> => {
       const page = notificationsPageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,
@@ -348,9 +367,9 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           notificationsPageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
           builder.queryBuilder
-            .andWhere(`${builder.alias}."userId" = :user`, { user: ctx.userId })
-            .andWhere(`${builder.alias}."public" = true`)
-            .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+            .andWhere(`un."userId" = :user`, { user: ctx.userId })
+            .andWhere(`un."public" = true`)
+            .addOrderBy(`un."createdAt"`, 'DESC');
 
           builder.queryBuilder.limit(page.limit);
           if (page.timestamp) {
@@ -403,15 +422,13 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   },
   Mutation: {
     readNotifications: async (_, __, ctx): Promise<GQLEmptyResponse> => {
-      await ctx.getRepository(Notification).update(
-        {
-          userId: ctx.userId,
-          readAt: IsNull(),
-        },
-        { readAt: new Date() },
-      );
-      await notifyNotificationsRead(ctx.log, {
-        unreadNotificationsCount: 0,
+      await ctx.con.transaction(async (entityManager) => {
+        await entityManager
+          .getRepository(UserNotification)
+          .update(
+            { userId: ctx.userId, readAt: IsNull() },
+            { readAt: new Date() },
+          );
       });
       return { _: true };
     },
@@ -455,6 +472,25 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       await con
         .getRepository(NotificationPreference)
         .delete({ userId, notificationType: type, referenceId });
+
+      return { _: true };
+    },
+    subscribeNotificationPreference: async (
+      _,
+      { type, referenceId }: NotificationPreferenceMutationArgs,
+      { con, userId },
+    ): Promise<GQLEmptyResponse> => {
+      if (!Object.values(NotificationType).includes(type)) {
+        throw new ValidationError('Invalid notification type');
+      }
+
+      await saveNotificationPreference(
+        con,
+        userId,
+        referenceId,
+        type,
+        NotificationPreferenceStatus.Subscribed,
+      );
 
       return { _: true };
     },

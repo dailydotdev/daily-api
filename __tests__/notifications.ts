@@ -11,9 +11,6 @@ import {
 } from './helpers';
 import {
   Banner,
-  Notification,
-  NotificationAttachment,
-  NotificationAvatar,
   NotificationPreferencePost,
   Post,
   User,
@@ -21,11 +18,12 @@ import {
   Source,
   NotificationPreferenceSource,
   NotificationPreference,
+  NotificationAttachmentType,
 } from '../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
-import { notificationFixture } from './fixture/notifications';
+import { notificationV2Fixture } from './fixture/notifications';
 import { subDays } from 'date-fns';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
@@ -38,6 +36,12 @@ import {
 } from '../src/notifications/common';
 import { postsFixture, sharedPostsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
+import {
+  NotificationV2,
+  UserNotification,
+  NotificationAttachmentV2,
+  NotificationAvatarV2,
+} from '../src/entity';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -86,22 +90,25 @@ describe('notifications route', () => {
   it('should return 1 notification if unread', async () => {
     loggedUser = '1';
     await con.getRepository(User).save([usersFixture[0]]);
-    const defaultNotification = {
-      userId: '1',
-      type: <NotificationType>'community_picks_failed',
-      icon: '1',
-      targetUrl: '#1',
-      title: 'Test',
-    };
-    const repo = con.getRepository(Notification);
-    const settings = [
-      repo.create({ ...defaultNotification }),
-      repo.create({
-        ...defaultNotification,
+    const notifs = await con.getRepository(NotificationV2).save([
+      { ...notificationV2Fixture },
+      {
+        ...notificationV2Fixture,
+        uniqueKey: '2',
+      },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+      {
+        userId: '1',
+        notificationId: notifs[1].id,
         readAt: new Date(),
-      }),
-    ];
-    await repo.save(settings);
+      },
+    ]);
 
     const expected = { unreadNotificationsCount: 1 };
     const res = await authorizeRequest(
@@ -124,20 +131,22 @@ describe('query notification count', () => {
 
   it('should return 1 if unread notifications', async () => {
     loggedUser = '1';
-    const defaultNotification = {
-      userId: '1',
-      type: <NotificationType>'community_picks_failed',
-      icon: '1',
-      targetUrl: '#1',
-      title: 'Test',
-    };
-    await con.getRepository(User).save([usersFixture[0]]);
-    await con.getRepository(Notification).save([
+    const notifs = await con.getRepository(NotificationV2).save([
+      { ...notificationV2Fixture },
       {
-        ...defaultNotification,
+        ...notificationV2Fixture,
+        uniqueKey: '2',
+      },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
       },
       {
-        ...defaultNotification,
+        userId: '1',
+        notificationId: notifs[1].id,
         readAt: new Date(),
       },
     ]);
@@ -216,82 +225,146 @@ describe('query notifications', () => {
 
   it('should return the notifications of the logged user', async () => {
     loggedUser = '1';
-    await con
-      .getRepository(Notification)
-      .save([
-        { ...notificationFixture },
-        { ...notificationFixture, userId: '2', title: 'notification #2' },
-      ]);
+    const notifs = await con.getRepository(NotificationV2).save([
+      { ...notificationV2Fixture },
+      {
+        ...notificationV2Fixture,
+        uniqueKey: '2',
+        title: 'notification #2',
+      },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+      {
+        userId: '2',
+        notificationId: notifs[1].id,
+      },
+    ]);
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return the public notifications', async () => {
     loggedUser = '1';
-    await con
-      .getRepository(Notification)
-      .save([
-        { ...notificationFixture },
-        { ...notificationFixture, public: false, title: 'notification #2' },
-      ]);
+    const notifs = await con.getRepository(NotificationV2).save([
+      { ...notificationV2Fixture },
+      {
+        ...notificationV2Fixture,
+        uniqueKey: '2',
+        public: false,
+      },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+      {
+        userId: '1',
+        notificationId: notifs[1].id,
+        public: false,
+      },
+    ]);
     const res = await client.query(QUERY);
     expect(res.data).toMatchSnapshot();
   });
 
   it('should return avatars and attachments', async () => {
     loggedUser = '1';
-    const { id } = await con
-      .getRepository(Notification)
-      .save({ ...notificationFixture });
-    await con.getRepository(NotificationAttachment).save([
+    const attchs = await con.getRepository(NotificationAttachmentV2).save([
       {
-        notificationId: id,
         image: 'img#1',
         title: 'att #1',
-        order: 2,
-        type: 'post',
+        type: NotificationAttachmentType.Post,
         referenceId: '1',
       },
       {
-        notificationId: id,
         image: 'img#2',
         title: 'att #2',
-        order: 1,
-        type: 'post',
+        type: NotificationAttachmentType.Post,
         referenceId: '2',
       },
     ]);
-    await con.getRepository(NotificationAvatar).save([
+    const avatars = await con.getRepository(NotificationAvatarV2).save([
       {
-        notificationId: id,
         image: 'img#1',
         referenceId: '1',
-        order: 2,
         type: 'user',
         targetUrl: 'user#1',
         name: 'User #1',
       },
       {
-        notificationId: id,
         image: 'img#2',
         referenceId: '2',
-        order: 1,
         type: 'source',
         targetUrl: 'source#1',
         name: 'Source #1',
       },
     ]);
+    const notifs = await con.getRepository(NotificationV2).save([
+      {
+        ...notificationV2Fixture,
+        attachments: [attchs[1].id, attchs[0].id],
+        avatars: [avatars[1].id, avatars[0].id],
+      },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+    ]);
     const res = await client.query(QUERY);
-    expect(res.data).toMatchSnapshot();
+    expect(res.data.notifications.edges[0].node.attachments).toEqual([
+      {
+        image: 'img#2',
+        title: 'att #2',
+        type: 'post',
+      },
+      {
+        image: 'img#1',
+        title: 'att #1',
+        type: 'post',
+      },
+    ]);
+    expect(res.data.notifications.edges[0].node.avatars).toEqual([
+      {
+        image: 'img#2',
+        name: 'Source #1',
+        targetUrl: 'source#1',
+        type: 'source',
+      },
+      {
+        image: 'img#1',
+        name: 'User #1',
+        targetUrl: 'user#1',
+        type: 'user',
+      },
+    ]);
   });
 
   it('should return pagination response', async () => {
     loggedUser = '1';
-    await con.getRepository(Notification).save(
+    const notifs = await con.getRepository(NotificationV2).save(
       Array.from(Array(5)).map((_, i) => ({
-        ...notificationFixture,
+        ...notificationV2Fixture,
         title: `notification #${i + 1}`,
-        createdAt: subDays(notificationFixture.createdAt as Date, i),
+        createdAt: subDays(notificationV2Fixture.createdAt as Date, i),
+        uniqueKey: i.toString(),
+      })),
+    );
+    await con.getRepository(UserNotification).insert(
+      notifs.map((n) => ({
+        notificationId: n.id,
+        userId: '1',
+        public: true,
+        createdAt: n.createdAt,
       })),
     );
     const res1 = await client.query(QUERY, { variables: { first: 2 } });
@@ -304,9 +377,33 @@ describe('query notifications', () => {
     });
     expect(res2.data).toMatchSnapshot();
   });
+
+  it('should populate the readAt field', async () => {
+    loggedUser = '1';
+    const notifs = await con
+      .getRepository(NotificationV2)
+      .save([{ ...notificationV2Fixture }]);
+    const date = new Date();
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+        readAt: date,
+      },
+    ]);
+    const res = await client.query(QUERY);
+    expect(res.data.notifications.edges[0].node.readAt).toEqual(
+      date.toISOString(),
+    );
+  });
 });
 
-const prepareNotificationPreferences = async () => {
+const prepareNotificationPreferences = async ({
+  status,
+}: {
+  status: NotificationPreferenceStatus;
+}) => {
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, Post, postsFixture);
@@ -317,14 +414,14 @@ const prepareNotificationPreferences = async () => {
       postId: postsFixture[0].id,
       referenceId: postsFixture[0].id,
       notificationType: NotificationType.ArticleNewComment,
-      status: NotificationPreferenceStatus.Muted,
+      status,
     },
     {
       userId: '2',
       postId: postsFixture[1].id,
       referenceId: postsFixture[1].id,
       notificationType: NotificationType.ArticleNewComment,
-      status: NotificationPreferenceStatus.Muted,
+      status,
     },
   ]);
   await con.getRepository(NotificationPreferenceSource).save([
@@ -333,7 +430,7 @@ const prepareNotificationPreferences = async () => {
       sourceId: sourcesFixture[0].id,
       referenceId: sourcesFixture[0].id,
       notificationType: NotificationType.SquadPostAdded,
-      status: NotificationPreferenceStatus.Muted,
+      status,
     },
   ]);
 };
@@ -371,7 +468,9 @@ describe('query notificationPreferences', () => {
   it('should return based on notification preferences type and reference id', async () => {
     loggedUser = '1';
 
-    await prepareNotificationPreferences();
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
 
     const requestType = NotificationPreferenceType.Post;
     const res = await client.query(QUERY, {
@@ -395,7 +494,9 @@ describe('query notificationPreferences', () => {
   it('should return different reference types and ids using notification preferences type and reference id', async () => {
     loggedUser = '1';
 
-    await prepareNotificationPreferences();
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
 
     const postParam = {
       referenceId: postsFixture[0].id,
@@ -442,36 +543,55 @@ describe('mutation readNotifications', () => {
   it('should not authorize when not logged-in', () =>
     testMutationErrorCode(client, { mutation: QUERY }, 'UNAUTHENTICATED'));
 
-  it('should set unread notifications as read', async () => {
+  it('should set unread notifications as read v2', async () => {
     loggedUser = '1';
-    await con.getRepository(Notification).save([
-      { ...notificationFixture },
+    const notifs = await con.getRepository(NotificationV2).save([
+      { ...notificationV2Fixture },
       {
-        ...notificationFixture,
+        ...notificationV2Fixture,
+        uniqueKey: '2',
+      },
+      {
+        ...notificationV2Fixture,
+        uniqueKey: '3',
+      },
+      {
+        ...notificationV2Fixture,
+        uniqueKey: '4',
+      },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+      {
+        userId: '1',
+        notificationId: notifs[1].id,
+        createdAt: subDays(notificationV2Fixture.createdAt as Date, 1),
         readAt: new Date(),
-        createdAt: subDays(notificationFixture.createdAt as Date, 1),
       },
       {
-        ...notificationFixture,
-        createdAt: subDays(notificationFixture.createdAt as Date, 2),
+        userId: '1',
+        notificationId: notifs[2].id,
+        createdAt: subDays(notificationV2Fixture.createdAt as Date, 2),
       },
       {
-        ...notificationFixture,
+        userId: '1',
+        notificationId: notifs[3].id,
+        createdAt: subDays(notificationV2Fixture.createdAt as Date, 3),
         readAt: new Date(),
-        createdAt: subDays(notificationFixture.createdAt as Date, 3),
       },
-      {
-        ...notificationFixture,
-        userId: '2',
-      },
+      { userId: '2', notificationId: notifs[0].id },
     ]);
     await client.mutate(QUERY);
     const res1 = await con
-      .getRepository(Notification)
+      .getRepository(UserNotification)
       .find({ where: { userId: '1' }, order: { createdAt: 'desc' } });
     res1.map((notification) => expect(notification.readAt).toBeTruthy());
     const res2 = await con
-      .getRepository(Notification)
+      .getRepository(UserNotification)
       .find({ where: { userId: '2' }, order: { createdAt: 'desc' } });
     res2.map((notification) => expect(notification.readAt).toBeFalsy());
   });
@@ -531,7 +651,9 @@ describe('mutation muteNotificationPreference', () => {
   it('should set notification preference to muted', async () => {
     loggedUser = '1';
 
-    await prepareNotificationPreferences();
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
 
     const params = {
       userId: loggedUser,
@@ -565,7 +687,9 @@ describe('mutation muteNotificationPreference', () => {
   it('should set notification preference to muted and fetch the reference id if it is article new comment or squad new comment', async () => {
     loggedUser = '1';
 
-    await prepareNotificationPreferences();
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
     const comment = {
       id: 'c1',
       postId: postsFixture[0].id,
@@ -607,7 +731,9 @@ describe('mutation muteNotificationPreference', () => {
   it('should ignore when preference is already muted', async () => {
     loggedUser = '1';
 
-    await prepareNotificationPreferences();
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
 
     const params = {
       userId: loggedUser,
@@ -642,6 +768,57 @@ describe('mutation muteNotificationPreference', () => {
     expect(muted).toBeTruthy();
     expect(muted.status).toEqual(NotificationPreferenceStatus.Muted);
   });
+
+  it('should update status when different preference is set', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
+
+    const params = {
+      userId: loggedUser,
+      referenceId: postsFixture[2].id,
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    const SUBSCRIBE_MUTATION = `
+      mutation SubscribeNotificationPreference($referenceId: ID!, $type: String!) {
+        subscribeNotificationPreference(referenceId: $referenceId, type: $type) {
+          _
+        }
+      }
+    `;
+
+    await client.mutate(SUBSCRIBE_MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeTruthy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const notificationPreference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(notificationPreference).toBeTruthy();
+    expect(notificationPreference!.status).toEqual(
+      NotificationPreferenceStatus.Muted,
+    );
+  });
 });
 
 describe('mutation clearNotificationPreference', () => {
@@ -669,7 +846,9 @@ describe('mutation clearNotificationPreference', () => {
   it('should remove preference if it exists', async () => {
     loggedUser = '1';
 
-    await prepareNotificationPreferences();
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
 
     const params = {
       userId: loggedUser,
@@ -706,7 +885,9 @@ describe('mutation clearNotificationPreference', () => {
   it('should clear notification preference by fetching the reference id if it is article new comment or squad new comment', async () => {
     loggedUser = '1';
 
-    await prepareNotificationPreferences();
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Muted,
+    });
     const repo = con.getRepository(NotificationPreference);
     const comment = {
       id: 'c1',
@@ -748,5 +929,301 @@ describe('mutation clearNotificationPreference', () => {
     });
 
     expect(muted).toBeFalsy();
+  });
+});
+
+describe('mutation subscribeNotificationPreference', () => {
+  const MUTATION = `
+    mutation SubscribeNotificationPreference($referenceId: ID!, $type: String!) {
+      subscribeNotificationPreference(referenceId: $referenceId, type: $type) {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged-in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          referenceId: postsFixture[0].id,
+          type: NotificationType.ArticleNewComment,
+        },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw an error when type is not yet defined in the map', () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { referenceId: '1', type: NotificationType.ArticlePicked },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw an error referenced id is not found', () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          referenceId: '1',
+          type: NotificationType.ArticleNewComment,
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should set notification preference to subscribed', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Subscribed,
+    });
+
+    const params = {
+      userId: loggedUser,
+      referenceId: postsFixture[2].id,
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeFalsy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const notificationPreference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(notificationPreference).not.toBeNull();
+    expect(notificationPreference!.type).toEqual(
+      notificationPreferenceMap[params.notificationType],
+    );
+    expect(notificationPreference!.status).toEqual(
+      NotificationPreferenceStatus.Subscribed,
+    );
+  });
+
+  it('should set notification preference to subscribed and fetch the reference id if it is article new comment or squad new comment', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Subscribed,
+    });
+    const comment = {
+      id: 'c1',
+      postId: postsFixture[0].id,
+      content: '',
+      userId: '1',
+    };
+    await con.getRepository(Comment).save(comment);
+
+    const params = {
+      userId: loggedUser,
+      referenceId: 'c1',
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeFalsy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const notificationPreference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy({
+        notificationType: params.notificationType,
+        referenceId: comment.postId,
+        status: NotificationPreferenceStatus.Subscribed,
+      });
+
+    expect(notificationPreference).toBeTruthy();
+    expect(notificationPreference!.type).toEqual(
+      notificationPreferenceMap[params.notificationType],
+    );
+    expect(notificationPreference!.status).toEqual(
+      NotificationPreferenceStatus.Subscribed,
+    );
+  });
+
+  it('should ignore when preference is already subscribed', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Subscribed,
+    });
+
+    const params = {
+      userId: loggedUser,
+      referenceId: postsFixture[2].id,
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeTruthy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const notificationPreference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(notificationPreference).toBeTruthy();
+    expect(notificationPreference!.status).toEqual(
+      NotificationPreferenceStatus.Subscribed,
+    );
+  });
+
+  it('should update status when different preference is set', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Subscribed,
+    });
+
+    const params = {
+      userId: loggedUser,
+      referenceId: postsFixture[2].id,
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    const MUTE_MUTATION = `
+      mutation MuteNotificationPreference($referenceId: ID!, $type: String!) {
+        muteNotificationPreference(referenceId: $referenceId, type: $type) {
+          _
+        }
+      }
+    `;
+
+    await client.mutate(MUTE_MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeTruthy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const notificationPreference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(notificationPreference).toBeTruthy();
+    expect(notificationPreference!.status).toEqual(
+      NotificationPreferenceStatus.Subscribed,
+    );
+  });
+
+  it('should not update other user preferences of the same type', async () => {
+    loggedUser = '1';
+
+    await prepareNotificationPreferences({
+      status: NotificationPreferenceStatus.Subscribed,
+    });
+
+    const params = {
+      userId: loggedUser,
+      referenceId: postsFixture[2].id,
+      notificationType: NotificationType.ArticleNewComment,
+    };
+
+    const MUTE_MUTATION = `
+      mutation MuteNotificationPreference($referenceId: ID!, $type: String!) {
+        muteNotificationPreference(referenceId: $referenceId, type: $type) {
+          _
+        }
+      }
+    `;
+
+    await client.mutate(MUTE_MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    await client.mutate(MUTE_MUTATION, {
+      variables: {
+        referenceId: postsFixture[3].id,
+        type: params.notificationType,
+      },
+    });
+
+    const preference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy(params);
+
+    expect(preference).toBeTruthy();
+
+    await client.mutate(MUTATION, {
+      variables: {
+        referenceId: params.referenceId,
+        type: params.notificationType,
+      },
+    });
+
+    const notificationPreference = await con
+      .getRepository(NotificationPreference)
+      .findOneBy({
+        ...params,
+        referenceId: postsFixture[3].id,
+      });
+
+    expect(notificationPreference).toBeTruthy();
+    expect(notificationPreference!.status).toEqual(
+      NotificationPreferenceStatus.Muted,
+    );
   });
 });

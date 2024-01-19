@@ -1,6 +1,8 @@
 import { Source, SourceType } from '../entity';
-import fetch, { Headers } from 'node-fetch';
+import type { Invite, User } from '../entity';
+import { Headers } from 'node-fetch';
 import { FastifyBaseLogger } from 'fastify';
+import { retryFetchParse } from '../integrations/retry';
 
 const excludeFromStandardization = [
   'youtube.com',
@@ -55,6 +57,25 @@ export function isValidHttpUrl(link: string): boolean {
   }
 }
 
+type GetInviteLinkProps = {
+  referralOrigin: string;
+  userId: User['id'];
+  token?: Invite['token'];
+};
+export const getInviteLink = ({
+  referralOrigin,
+  userId,
+  token,
+}: GetInviteLinkProps): URL => {
+  const campaignUrl = new URL('/join', process.env.COMMENTS_PREFIX);
+  campaignUrl.searchParams.append('cid', referralOrigin);
+  campaignUrl.searchParams.append('userid', userId);
+  if (token) {
+    campaignUrl.searchParams.append('ctoken', token);
+  }
+  return campaignUrl;
+};
+
 export const getShortUrl = async (
   url: string,
   log: FastifyBaseLogger,
@@ -71,18 +92,16 @@ export const getShortUrl = async (
     Authorization: `Bearer ${urlShortenerSecret}`,
   });
 
-  const response = await fetch(fetchUrl, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ url }),
-  });
+  try {
+    const result = await retryFetchParse<{ url: string }>(fetchUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ url }),
+    });
 
-  if (!response.ok) {
-    log.warn({ status: response.status, url }, 'failed to shorten url');
+    return result.url;
+  } catch (err) {
+    log.warn({ err }, 'failed to shorten url');
     return url;
   }
-
-  const result = await response.json();
-
-  return result.url;
 };

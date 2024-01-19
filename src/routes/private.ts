@@ -7,7 +7,8 @@ import {
   User,
 } from '../entity';
 import createOrGetConnection from '../db';
-import { checkDisallowHandle } from '../entity/DisallowHandle';
+import { ValidationError } from 'apollo-server-errors';
+import { validateAndTransformHandle } from '../common/handles';
 
 interface SearchUsername {
   search: string;
@@ -31,7 +32,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     const body = { ...rest, referralId, referralOrigin };
-    const operationResult = await addNewUser(con, body, req.log);
+    const operationResult = await addNewUser(con, body, req);
     return res.status(200).send(operationResult);
   });
   fastify.post<{ Body: UpdateUserEmailData }>(
@@ -60,11 +61,22 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       }
 
       const con = await createOrGetConnection();
-      const [user, disallowHandle] = await Promise.all([
-        con.getRepository(User).findOneBy({ username: search }),
-        checkDisallowHandle(con, search),
-      ]);
-      return res.status(200).send({ isTaken: !!user || disallowHandle });
+      try {
+        const handle = await validateAndTransformHandle(
+          search,
+          'username',
+          con,
+        );
+        const user = await con
+          .getRepository(User)
+          .findOneBy({ username: handle });
+        return res.status(200).send({ isTaken: !!user });
+      } catch (err) {
+        if (err instanceof ValidationError) {
+          return res.status(200).send({ isTaken: true });
+        }
+        throw err;
+      }
     },
   );
 }

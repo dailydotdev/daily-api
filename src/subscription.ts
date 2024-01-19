@@ -26,6 +26,21 @@ export const isUserConnected = async (userId: string): Promise<boolean> => {
   return val === DEFAULT_VALUE;
 };
 
+export const getDisconnectedUsers = async (
+  userIds: string[],
+): Promise<string[]> => {
+  const val = await ioRedisPool.execute((client) =>
+    client.mget(userIds.map(getKey)),
+  );
+  const connected: string[] = [];
+  for (let i = 0; i < userIds.length; i++) {
+    if (val[i] !== DEFAULT_VALUE) {
+      connected.push(userIds[i]);
+    }
+  }
+  return connected;
+};
+
 export const getSubscriptionSettings = (
   connection: DataSource,
 ): MercuriusCommonOptions['subscription'] | undefined => {

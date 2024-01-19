@@ -2,6 +2,7 @@ import {
   AfterLoad,
   Column,
   DataSource,
+  DeepPartial,
   Entity,
   EntityManager,
   Index,
@@ -11,14 +12,23 @@ import {
 } from 'typeorm';
 import { Post } from './posts';
 import { DevCard } from './DevCard';
-import { FastifyLoggerInstance } from 'fastify';
+import { FastifyBaseLogger, FastifyRequest } from 'fastify';
 import {
   TypeOrmError,
   UpdateUserFailErrorKeys,
   UserFailErrorKeys,
 } from '../errors';
 import { fallbackImages } from '../config';
-import { checkDisallowHandle } from './DisallowHandle';
+import { validateAndTransformHandle } from '../common/handles';
+import { ValidationError } from 'apollo-server-errors';
+import { GQLUpdateUserInput } from '../schema/users';
+import {
+  socialHandleRegex,
+  nameRegex,
+  validateRegex,
+  ValidateRegex,
+} from '../common/object';
+import { generateTrackingId } from '../ids';
 
 @Entity()
 export class User {
@@ -29,10 +39,14 @@ export class User {
   name: string;
 
   @Column({ type: 'text', nullable: true })
+  @Index('IDX_user_email')
   email: string;
 
   @Column({ type: 'text', nullable: true })
   image: string;
+
+  @Column({ type: 'text', nullable: true })
+  cover?: string;
 
   @Column({ type: 'text', nullable: true })
   company?: string;
@@ -80,13 +94,13 @@ export class User {
   @Column({ type: 'text', nullable: true })
   timezone?: string;
 
-  @Column({ default: false })
+  @Column({ type: 'boolean', default: false })
   @Index('IDX_user_profileConfirmed')
   profileConfirmed: boolean | null;
 
-  @Column({ nullable: true })
+  @Column({ nullable: false, default: () => 'now()' })
   @Index('IDX_user_createdAt')
-  createdAt?: Date;
+  createdAt: Date;
 
   @Column({ nullable: true })
   updatedAt?: Date;
@@ -98,6 +112,12 @@ export class User {
   @Column({ type: 'text', nullable: true })
   @Index('IDX_user_referral_origin')
   referralOrigin?: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  readme?: string;
+
+  @Column({ type: 'text', nullable: true })
+  readmeHtml?: string;
 
   @ManyToOne(() => User, {
     lazy: true,
@@ -148,46 +168,20 @@ const checkRequiredFields = (data: AddUserData): boolean => {
   return !!(data && data.id);
 };
 
-const checkUsernameAndEmail = async (
-  entityManager: EntityManager,
-  data: AddUserData,
+const checkEmail = async (
+  entityManager: DataSource | EntityManager,
+  email: string,
+  id?: string,
 ): Promise<boolean> => {
-  const { email, username } = data;
-  const user = await entityManager
+  let query = entityManager
     .getRepository(User)
     .createQueryBuilder()
     .select('id')
-    .where('email = :email or username = :username', {
-      email,
-      username,
-    })
-    .getRawOne();
-  return !user;
-};
-
-const checkGitHubHandle = async (
-  entityManager: EntityManager,
-  github: string,
-): Promise<boolean> => {
-  const user = await entityManager
-    .getRepository(User)
-    .createQueryBuilder()
-    .select('id')
-    .where({ github })
-    .getRawOne();
-  return !user;
-};
-
-const checkTwitterHandle = async (
-  entityManager: EntityManager,
-  twitter: string,
-): Promise<boolean> => {
-  const user = await entityManager
-    .getRepository(User)
-    .createQueryBuilder()
-    .select('id')
-    .where({ twitter })
-    .getRawOne();
+    .where({ email: email.toLowerCase() });
+  if (id) {
+    query = query.andWhere('id != :id', { id });
+  }
+  const user = await query.getRawOne();
   return !user;
 };
 
@@ -197,7 +191,7 @@ type UpdateUserEmailResult =
 export const updateUserEmail = async (
   con: DataSource,
   data: UpdateUserEmailData,
-  logger: FastifyLoggerInstance,
+  logger: FastifyBaseLogger,
 ): Promise<UpdateUserEmailResult> => {
   if (!data.email || !data.id) {
     return { status: 'failed', reason: UpdateUserFailErrorKeys.MissingFields };
@@ -238,86 +232,167 @@ export const updateUserEmail = async (
 const isInfoConfirmed = (user: AddUserData) =>
   !!(user.name && user.email && user.username);
 
+const handleInsertError = async (
+  error: Error,
+  req: FastifyRequest,
+  con: DataSource | EntityManager,
+  data: DeepPartial<User>,
+  maxIterations = 5,
+  iteration = 0,
+): Promise<AddNewUserResult> => {
+  req.log.error(
+    {
+      data,
+      userId: data.id,
+      error,
+      iteration,
+      maxIterations,
+    },
+    'failed to create user profile',
+  );
+  const shouldRetry = iteration < maxIterations;
+  if ('code' in error) {
+    // Unique
+    if (error.code === TypeOrmError.DUPLICATE_ENTRY) {
+      if (error.message.indexOf('users_username_unique') > -1) {
+        return {
+          status: 'failed',
+          reason: UserFailErrorKeys.UsernameEmailExists,
+        };
+      }
+
+      if (error.message.indexOf('PK_') > -1) {
+        if (req.meter) {
+          req.meter
+            .createCounter('user_id_conflict', {
+              description:
+                'How many times a user id conflict happened on registration',
+            })
+            .add(1);
+        }
+        if (shouldRetry) {
+          data.id = await generateTrackingId(req, 'user creation');
+          return safeInsertUser(req, con, data, maxIterations, iteration + 1);
+        }
+        return { status: 'failed', reason: UserFailErrorKeys.UserExists };
+      }
+
+      // If it's not username or primary key than it's twitter and github.
+      if (shouldRetry) {
+        if (error.message.indexOf('users_twitter_unique') > -1) {
+          data.twitter = null;
+        } else if (error.message.indexOf('users_github_unique') > -1) {
+          data.github = null;
+        }
+        return safeInsertUser(req, con, data, maxIterations, iteration + 1);
+      }
+    }
+  }
+
+  throw error;
+};
+
+const safeInsertUser = async (
+  req: FastifyRequest,
+  con: DataSource | EntityManager,
+  data: DeepPartial<User>,
+  maxIterations = 5,
+  iteration = 0,
+): Promise<AddNewUserResult> => {
+  try {
+    await con.getRepository(User).insert(data);
+    req.log.info(`Created profile for user with ID: ${data.id}`);
+    return { status: 'ok', userId: data.id };
+  } catch (error) {
+    return handleInsertError(error, req, con, data, maxIterations, iteration);
+  }
+};
+
 export const addNewUser = async (
   con: DataSource,
   data: AddUserData,
-  logger: FastifyLoggerInstance,
+  req: FastifyRequest,
 ): Promise<AddNewUserResult> => {
   if (!checkRequiredFields(data)) {
-    logger.info({ data }, 'missing fields when adding new user');
+    req.log.info({ data }, 'missing fields when adding new user');
     return { status: 'failed', reason: UserFailErrorKeys.MissingFields };
   }
 
-  return con.transaction(async (entityManager) => {
-    const [isUniqueUser, isDissalowHandle] = await Promise.all([
-      checkUsernameAndEmail(entityManager, data),
-      checkDisallowHandle(entityManager, data.username),
-    ]);
+  const isEmailAvailable = await checkEmail(con, data.email);
+  if (!isEmailAvailable) {
+    return {
+      status: 'failed',
+      reason: UserFailErrorKeys.UsernameEmailExists,
+    };
+  }
 
-    if (!isUniqueUser || isDissalowHandle) {
+  try {
+    return safeInsertUser(req, con, {
+      id: data.id,
+      name: data.name,
+      image: data.image ?? fallbackImages.avatar,
+      username: data.username
+        ? await validateAndTransformHandle(data.username, 'username', con)
+        : undefined,
+      email: data.email,
+      profileConfirmed: data.profileConfirmed,
+      infoConfirmed: isInfoConfirmed(data),
+      createdAt: data.createdAt,
+      referralId: data.referralId,
+      referralOrigin: data.referralOrigin,
+      acceptedMarketing: data.acceptedMarketing,
+      timezone: data.timezone,
+      github: data.github,
+      twitter: data.twitter,
+    });
+  } catch (error) {
+    if (error instanceof ValidationError) {
       return {
         status: 'failed',
         reason: UserFailErrorKeys.UsernameEmailExists,
       };
     }
+    throw error;
+  }
+};
 
-    // Clear GitHub handle in case it already exists
-    let github = data.github;
-    if (github) {
-      const isGitHubAvailable = await checkGitHubHandle(entityManager, github);
-      if (!isGitHubAvailable) {
-        github = null;
-      }
-    }
-
-    // Clear Twitter handle in case it already exists
-    let twitter = data.twitter;
-    if (twitter) {
-      const isTwitterAvailable = await checkTwitterHandle(
-        entityManager,
-        twitter,
+export const validateUserUpdate = async (
+  user: User,
+  data: GQLUpdateUserInput,
+  entityManager: DataSource | EntityManager,
+): Promise<GQLUpdateUserInput> => {
+  const { email, username } = data;
+  if (email && email !== user.email) {
+    const isEmailAvailable = await checkEmail(entityManager, email, user.id);
+    if (!isEmailAvailable) {
+      throw new ValidationError(
+        JSON.stringify({ email: 'email is already used' }),
       );
-      if (!isTwitterAvailable) {
-        twitter = null;
-      }
     }
+  }
 
-    try {
-      await entityManager.getRepository(User).insert({
-        id: data.id,
-        name: data.name,
-        image: data.image ?? fallbackImages.avatar,
-        username: data.username,
-        email: data.email,
-        profileConfirmed: data.profileConfirmed,
-        infoConfirmed: isInfoConfirmed(data),
-        createdAt: data.createdAt,
-        referralId: data.referralId,
-        referralOrigin: data.referralOrigin,
-        acceptedMarketing: data.acceptedMarketing,
-        timezone: data.timezone,
-        github,
-        twitter,
-      });
+  if ((username && username !== user.username) || !user.username) {
+    data.username = await validateAndTransformHandle(
+      username,
+      'username',
+      entityManager,
+    );
+  }
 
-      logger.info(`Created profile for user with ID: ${data.id}`);
-      return { status: 'ok', userId: data.id };
-    } catch (error) {
-      logger.error(
-        {
-          data,
-          userId: data.id,
-          error,
-        },
-        'failed to create user profile',
-      );
-
-      // Unique
-      if (error?.code === TypeOrmError.DUPLICATE_ENTRY) {
-        return { status: 'failed', reason: UserFailErrorKeys.UserExists };
-      }
-
-      throw error;
+  ['name', 'twitter', 'github', 'hashnode'].forEach((key) => {
+    if (data[key]) {
+      data[key] = data[key].replace('@', '').trim();
     }
   });
+
+  const regexParams: ValidateRegex[] = [
+    ['name', data.name, nameRegex, !user.name],
+    ['github', data.github, socialHandleRegex],
+    ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
+    ['hashnode', data.hashnode, socialHandleRegex],
+  ];
+
+  validateRegex(regexParams);
+
+  return data;
 };

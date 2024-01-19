@@ -21,7 +21,7 @@ import { Context } from '../Context';
 import { Page, PageGenerator, getSearchQuery } from '../schema/common';
 import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
-import { runInSpan } from '../trace';
+import { runInSpan } from '../telemetry/opentelemetry';
 
 export const whereTags = (
   tags: string[],
@@ -65,7 +65,7 @@ export const whereKeyword = (
 export const getExcludedAdvancedSettings = async (
   con: DataSource,
   feedId: string,
-): Promise<number[]> => {
+): Promise<Partial<AdvancedSettings>[]> => {
   const [settings, feedAdvancedSettings] = await Promise.all([
     con.getRepository(AdvancedSettings).find(),
     con.getRepository(FeedAdvancedSettings).findBy({ feedId }),
@@ -82,8 +82,11 @@ export const getExcludedAdvancedSettings = async (
 
     return adv.defaultEnabledState === false;
   });
-
-  return excludedSettings.map((adv) => adv.id);
+  return excludedSettings.map(({ id, group, options }) => ({
+    id,
+    group,
+    options,
+  }));
 };
 
 export const feedToFilters = async (
@@ -99,7 +102,7 @@ export const feedToFilters = async (
       .createQueryBuilder('s')
       .select('s.id AS "id"')
       .where(`s.advancedSettings && ARRAY[:...settings]::integer[]`, {
-        settings,
+        settings: settings.map((setting) => setting.id),
       })
       .orWhere((qb) => {
         const subQuery = qb
@@ -135,8 +138,16 @@ export const feedToFilters = async (
     },
     { includeTags: [], blockedTags: [] },
   );
+
+  const excludeTypes = settings
+    .filter(
+      (setting) => setting.group === 'content_types' && setting.options.type,
+    )
+    .map((setting) => setting.options.type);
+
   return {
     ...tagFilters,
+    excludeTypes,
     excludeSources: excludeSources.map((sources: Source) => sources.id),
     sourceIds: sourceIds.map(
       (member: Pick<SourceMember, 'sourceId'>) => member.sourceId,
@@ -195,9 +206,7 @@ export const applyFeedWhere = (
       .from(Source, 'source')
       .where('source.private = false')
       .andWhere(`source.id = "${alias}"."sourceId"`);
-    newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`, {
-      userId: ctx.userId,
-    });
+    newBuilder = builder.andWhere(`EXISTS${selectSource.getQuery()}`);
   }
 
   if (!allowSquadPosts) {
@@ -277,56 +286,55 @@ export function feedResolver<
     const page = pageGenerator.connArgsToPage(args);
     const queryParams =
       fetchQueryParams &&
-      (await runInSpan(context.span, 'feedResolver.fetchQueryParams', () =>
+      (await runInSpan('feedResolver.fetchQueryParams', async () =>
         fetchQueryParams(context, args, page),
       ));
-    const result = await runInSpan(
-      context.span,
-      'feedResolver.queryPaginated',
-      () =>
-        graphorm.queryPaginated<GQLPost>(
-          context,
-          info,
-          (nodeSize) =>
-            pageGenerator.hasPreviousPage(
-              page,
-              nodeSize,
-              undefined,
-              queryParams,
-            ),
-          (nodeSize) =>
-            pageGenerator.hasNextPage(page, nodeSize, undefined, queryParams),
-          (node, index) =>
-            pageGenerator.nodeToCursor(page, args, node, index, queryParams),
-          (builder) => {
-            builder.queryBuilder = applyFeedWhere(
+    const excludedTypes =
+      queryParams && (queryParams as AnonymousFeedFilters).excludeTypes;
+
+    const supportedTypes = args.supportedTypes?.filter((type) => {
+      return excludedTypes ? !excludedTypes.includes(type) : true;
+    });
+
+    const result = await runInSpan('feedResolver.queryPaginated', async () =>
+      graphorm.queryPaginated<GQLPost>(
+        context,
+        info,
+        (nodeSize) =>
+          pageGenerator.hasPreviousPage(page, nodeSize, undefined, queryParams),
+        (nodeSize) =>
+          pageGenerator.hasNextPage(page, nodeSize, undefined, queryParams),
+        (node, index) =>
+          pageGenerator.nodeToCursor(page, args, node, index, queryParams),
+        (builder) => {
+          builder.queryBuilder = applyFeedWhere(
+            context,
+            applyPaging(
               context,
-              applyPaging(
+              args,
+              page,
+              query(
                 context,
                 args,
-                page,
-                query(
-                  context,
-                  args,
-                  builder.queryBuilder,
-                  builder.alias,
-                  queryParams,
-                ),
+                builder.queryBuilder,
                 builder.alias,
+                queryParams,
               ),
               builder.alias,
-              args.supportedTypes || ['article'],
-              removeHiddenPosts,
-              removeBannedPosts,
-              allowPrivateSources,
-              allowSquadPosts,
-            );
-            // console.log(builder.queryBuilder.getSql());
-            return builder;
-          },
-          (nodes) =>
-            pageGenerator.transformNodes?.(page, nodes, queryParams) ?? nodes,
-        ),
+            ),
+            builder.alias,
+            supportedTypes || ['article'],
+            removeHiddenPosts,
+            removeBannedPosts,
+            allowPrivateSources,
+            allowSquadPosts,
+          );
+          // console.log(builder.queryBuilder.getSql());
+          return builder;
+        },
+        (nodes) =>
+          pageGenerator.transformNodes?.(page, nodes, queryParams) ?? nodes,
+      ),
     );
     // Sometimes the feed can have a bit less posts than requested due to recent ban or deletion
     if (
@@ -386,6 +394,7 @@ export function randomPostsResolver<
 export interface AnonymousFeedFilters {
   includeSources?: string[];
   excludeSources?: string[];
+  excludeTypes?: string[];
   includeTags?: string[];
   blockedTags?: string[];
   sourceIds?: string[];
@@ -502,7 +511,7 @@ export const tagFeedBuilder = (
   builder.andWhere((subBuilder) => whereTags([tag], subBuilder, alias));
 
 export const fixedIdsFeedBuilder = (
-  ctx: Context,
+  ctx: unknown,
   ids: string[],
   builder: SelectQueryBuilder<Post & { feedMeta?: string }>,
   alias: string,

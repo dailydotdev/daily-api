@@ -3,6 +3,7 @@
 exports[`mutation allowKeyword should allow existing keyword 1`] = `
 Array [
   Keyword {
+    "flags": Object {},
     "occurrences": 20,
     "status": "allow",
     "value": "java",
@@ -13,6 +14,7 @@ Array [
 exports[`mutation allowKeyword should create a new keyword and allow it 1`] = `
 Array [
   Keyword {
+    "flags": Object {},
     "occurrences": 1,
     "status": "allow",
     "value": "java",
@@ -23,6 +25,7 @@ Array [
 exports[`mutation denyKeyword should create a new keyword and deny it 1`] = `
 Array [
   Keyword {
+    "flags": Object {},
     "occurrences": 1,
     "status": "deny",
     "value": "java",
@@ -33,6 +36,7 @@ Array [
 exports[`mutation denyKeyword should deny existing keyword 1`] = `
 Array [
   Keyword {
+    "flags": Object {},
     "occurrences": 20,
     "status": "deny",
     "value": "java",
@@ -43,11 +47,13 @@ Array [
 exports[`mutation setKeywordAsSynonym should create keywords if they do not exist 1`] = `
 Array [
   Keyword {
+    "flags": Object {},
     "occurrences": 1,
     "status": "synonym",
     "value": "react",
   },
   Keyword {
+    "flags": Object {},
     "occurrences": 1,
     "status": "allow",
     "value": "reactjs",
@@ -118,11 +124,13 @@ Array [
 exports[`mutation setKeywordAsSynonym should set keyword as synonym and rename existing occurrences 1`] = `
 Array [
   Keyword {
+    "flags": Object {},
     "occurrences": 100,
     "status": "synonym",
     "value": "react",
   },
   Keyword {
+    "flags": Object {},
     "occurrences": 20,
     "status": "allow",
     "value": "reactjs",

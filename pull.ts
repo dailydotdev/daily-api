@@ -1,13 +1,15 @@
 import { PubSub } from '@google-cloud/pubsub';
 import pino from 'pino';
 import './src/config';
-import worker from './src/workers/cdc';
+import worker from './src/workers/cdc/primary';
 import createOrGetConnection from './src/db';
 
 (async () => {
   const pubsub = new PubSub();
   const con = await createOrGetConnection();
-  const logger = pino();
+  const logger = pino({
+    messageKey: 'message',
+  });
   const sub = pubsub.subscription('api-cdc', {
     flowControl: {
       maxMessages: 20,

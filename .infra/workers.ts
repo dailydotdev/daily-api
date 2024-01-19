@@ -1,8 +1,22 @@
+import * as gcp from '@pulumi/gcp';
+
 interface Worker {
   topic: string;
   subscription: string;
-  args?: { enableMessageOrdering?: boolean };
+  args?: {
+    enableMessageOrdering?: boolean;
+    ackDeadlineSeconds?: number;
+    expirationPolicy?: {
+      ttl: string;
+    };
+    deadLetterPolicy?: {
+      deadLetterTopic: string;
+      maxDeliveryAttempts: number;
+    };
+  };
 }
+
+export const digestDeadLetter = 'api.v1.personalized-digest-email-dead-letter';
 
 export const workers: Worker[] = [
   {
@@ -70,16 +84,16 @@ export const workers: Worker[] = [
     subscription: 'post-banned-rep',
   },
   {
+    topic: 'post-banned-or-removed',
+    subscription: 'api.post-deleted-comments-cleanup',
+  },
+  {
     topic: 'pub-request',
     subscription: 'pub-request-rep',
   },
   {
     topic: 'username-changed',
     subscription: 'username-changed-api',
-  },
-  {
-    topic: 'username-changed',
-    subscription: 'api.username-changed-update-notifications',
   },
   {
     topic: 'update-comments',
@@ -91,8 +105,8 @@ export const workers: Worker[] = [
     args: { enableMessageOrdering: true },
   },
   {
-    topic: 'api.v1.new-notification',
-    subscription: 'api.unread-notification-count',
+    topic: 'api.v1.cdc-notifications',
+    subscription: 'api.cdc-notifications',
   },
   {
     topic: 'api.v1.new-notification',
@@ -188,10 +202,6 @@ export const workers: Worker[] = [
     subscription: 'api.add-to-mailing-list',
   },
   {
-    topic: 'api.v1.post-visible',
-    subscription: 'api.post-changelog-added-v2',
-  },
-  {
     topic: 'api.v1.banner-added',
     subscription: 'api.banner-added',
   },
@@ -218,5 +228,36 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.source-created',
     subscription: 'api.source-created-squad-owner-mailing',
+  },
+  {
+    topic: 'api.v1.post-collection-updated',
+    subscription: 'api.post-collection-updated-notification',
+  },
+  {
+    topic: 'api.v1.user-readme-updated',
+    subscription: 'api.user-readme-images',
+  },
+];
+
+export const personalizedDigestWorkers = [
+  {
+    topic: 'api.v1.generate-personalized-digest',
+    subscription: 'api.personalized-digest-email',
+    args: {
+      ackDeadlineSeconds: 60,
+      deadLetterPolicy: {
+        deadLetterTopic: `projects/${gcp.config.project}/topics/${digestDeadLetter}`,
+        maxDeliveryAttempts: 5,
+      },
+    },
+  },
+  {
+    topic: digestDeadLetter,
+    subscription: 'api.personalized-digest-email-dead-letter-log',
+    args: {
+      expirationPolicy: {
+        ttl: '',
+      },
+    },
   },
 ];

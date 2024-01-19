@@ -1,6 +1,9 @@
+import * as matchers from 'jest-extended';
 import '../src/config';
 import createOrGetConnection from '../src/db';
 import { ioRedisPool, redisPubSub, singleRedisClient } from '../src/redis';
+
+expect.extend(matchers);
 
 jest.mock('../src/growthbook', () => ({
   ...(jest.requireActual('../src/growthbook') as Record<string, unknown>),

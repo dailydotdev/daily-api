@@ -3,10 +3,15 @@ import {
   NotificationPreferencePost,
   NotificationPreferenceSource,
   Comment,
+  NotificationAttachmentV2,
+  NotificationAvatarV2,
+  NotificationV2,
 } from '../entity';
 import { ValidationError } from 'apollo-server-errors';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, IsNull } from 'typeorm';
 import { NotFoundError, TypeOrmError } from '../errors';
+import { ReadStream } from 'fs';
+import { UserNotification } from '../entity/notifications/UserNotification';
 
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
@@ -34,6 +39,7 @@ export enum NotificationType {
   DemotedToMember = 'demoted_to_member',
   PromotedToModerator = 'promoted_to_moderator',
   PostMention = 'post_mention',
+  CollectionUpdated = 'collection_updated',
 }
 
 export enum NotificationPreferenceType {
@@ -44,6 +50,7 @@ export enum NotificationPreferenceType {
 
 export enum NotificationPreferenceStatus {
   Muted = 'muted',
+  Subscribed = 'subscribed',
 }
 
 export const notificationPreferenceMap: Partial<
@@ -55,6 +62,7 @@ export const notificationPreferenceMap: Partial<
   [NotificationType.SquadReply]: NotificationPreferenceType.Comment,
   [NotificationType.SquadPostAdded]: NotificationPreferenceType.Source,
   [NotificationType.SquadMemberJoined]: NotificationPreferenceType.Source,
+  [NotificationType.CollectionUpdated]: NotificationPreferenceType.Post,
 };
 
 export const commentReplyNotificationTypes = [
@@ -145,7 +153,7 @@ export const saveNotificationPreference = async (
       .createQueryBuilder()
       .insert()
       .values(params)
-      .orIgnore()
+      .orUpdate(['status'], ['referenceId', 'userId', 'notificationType'])
       .execute();
   } catch (err) {
     if (err.code === TypeOrmError.FOREIGN_KEY) {
@@ -155,3 +163,54 @@ export const saveNotificationPreference = async (
     throw err;
   }
 };
+
+export const getNotificationV2AndChildren = (
+  con: DataSource,
+  id: string,
+): Promise<
+  [NotificationV2 | null, NotificationAttachmentV2[], NotificationAvatarV2[]]
+> => {
+  return Promise.all([
+    con.getRepository(NotificationV2).findOneBy({ id }),
+    con
+      .createQueryBuilder()
+      .select('na.*')
+      .from(NotificationAttachmentV2, 'na')
+      .innerJoin(NotificationV2, 'n', 'na.id = any(n.attachments)')
+      .where('n.id = :id', { id })
+      .orderBy('array_position(n.attachments, na.id)', 'ASC')
+      .getRawMany(),
+    con
+      .createQueryBuilder()
+      .select('na.*')
+      .from(NotificationAvatarV2, 'na')
+      .innerJoin(NotificationV2, 'n', 'na.id = any(n.avatars)')
+      .where('n.id = :id', { id })
+      .orderBy('array_position(n.avatars, na.id)', 'ASC')
+      .getRawMany(),
+  ]);
+};
+
+export const streamNotificationUsers = (
+  con: DataSource,
+  id: string,
+): Promise<ReadStream> => {
+  const query = con
+    .createQueryBuilder()
+    .select('un."userId"')
+    .from(UserNotification, 'un')
+    .where('un."notificationId" = :id', { id });
+  return query.stream();
+};
+
+export const getUnreadNotificationsCount = async (
+  con: DataSource,
+  userId: string,
+) =>
+  await con.getRepository(UserNotification).count({
+    where: {
+      userId,
+      public: true,
+      readAt: IsNull(),
+    },
+  });

@@ -11,13 +11,18 @@ import { Source, UNKNOWN_SOURCE } from '../Source';
 import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
 import { User } from '../User';
+import { PostRelation } from './PostRelation';
 
 export enum PostType {
   Article = 'article',
   Share = 'share',
   Freeform = 'freeform',
   Welcome = 'welcome',
+  Collection = 'collection',
+  VideoYouTube = 'video:youtube',
 }
+
+export const postTypes: string[] = Object.values(PostType);
 
 export enum PostOrigin {
   CommunityPicks = 'community_picks',
@@ -42,6 +47,23 @@ export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
 @Index('IDX_post_source_id_pinned_at_created_at', [
   'sourceId',
   'pinnedAt',
+  'createdAt',
+])
+@Index('IDX_post_visible_metadatachanged', ['visible', 'metadataChangedAt'])
+@Index('IDX_post_visible_sourceid', ['visible', 'sourceId'])
+@Index('IDX_post_visible_type', ['visible', 'type'])
+@Index('IDX_post_visible_deleted_id', ['visible', 'deleted', 'id'])
+@Index('IDX_post_deleted_visible_banned_showonfeed_id_type', [
+  'deleted',
+  'visible',
+  'banned',
+  'showOnFeed',
+  'id',
+  'type',
+])
+@Index('IDX_post_visible_deleted_createdat', [
+  'visible',
+  'deleted',
   'createdAt',
 ])
 @TableInheritance({
@@ -196,4 +218,9 @@ export class Post {
   @Column({ type: 'uuid', nullable: true })
   @Index('IDX_yggdrasil_id')
   yggdrasilId: string;
+
+  @OneToMany(() => PostRelation, (postRelation) => postRelation.post, {
+    lazy: true,
+  })
+  public relatedPosts: Promise<PostRelation[]>;
 }

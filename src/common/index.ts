@@ -13,3 +13,4 @@ export * from './mailing';
 export * from './post';
 export * from './links';
 export * from './utils';
+export * from './typedPubsub';

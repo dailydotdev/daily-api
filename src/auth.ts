@@ -1,8 +1,4 @@
-import {
-  FastifyInstance,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  FastifyRequest,
-} from 'fastify';
+import { FastifyInstance } from 'fastify';
 import fp from 'fastify-plugin';
 import jwt from 'jsonwebtoken';
 import { Roles } from './roles';
@@ -12,17 +8,7 @@ import * as fs from 'fs';
 let publicKey: Buffer = undefined;
 let privateKey: Buffer = undefined;
 
-declare module 'fastify' {
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  interface FastifyRequest {
-    userId?: string;
-    premium?: boolean;
-    roles?: Roles[];
-    service?: boolean;
-  }
-
-  /* eslint-enable @typescript-eslint/no-unused-vars */
-}
+export type AccessToken = { token: string; expiresIn: Date };
 
 interface Options {
   secret: string;
@@ -32,9 +18,8 @@ interface AuthPayload {
   userId: string;
   premium: boolean;
   roles?: Roles[];
+  exp: number;
 }
-
-export type AccessToken = { token: string; expiresIn: Date };
 
 export const verifyJwt = (token: string): Promise<AuthPayload | null> =>
   new Promise((resolve, reject) => {
@@ -85,6 +70,11 @@ export const signJwt = <T>(
     );
   });
 
+export const loadAuthKeys = (): void => {
+  publicKey = fs.readFileSync(process.env.JWT_PUBLIC_KEY_PATH);
+  privateKey = fs.readFileSync(process.env.JWT_PRIVATE_KEY_PATH);
+};
+
 const plugin = async (
   fastify: FastifyInstance,
   opts: Options,
@@ -93,13 +83,14 @@ const plugin = async (
     publicKey = Buffer.from('test');
     privateKey = Buffer.from('test');
   } else {
-    publicKey = fs.readFileSync(process.env.JWT_PUBLIC_KEY_PATH);
-    privateKey = fs.readFileSync(process.env.JWT_PRIVATE_KEY_PATH);
+    loadAuthKeys();
   }
 
   fastify.decorateRequest('userId', null);
   fastify.decorateRequest('premium', null);
   fastify.decorateRequest('roles', null);
+  fastify.decorateRequest('accessToken', null);
+
   // Machine-to-machine authentication
   fastify.addHook('preHandler', async (req) => {
     if (
@@ -127,6 +118,10 @@ const plugin = async (
             req.userId = payload.userId;
             req.premium = payload.premium;
             req.roles = payload.roles;
+            req.accessToken = {
+              token: unsigned.value,
+              expiresIn: new Date(payload.exp * 1000),
+            };
           }
         }
       } catch (err) {

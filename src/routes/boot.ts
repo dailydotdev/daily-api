@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import createOrGetConnection from '../db';
 import { DataSource, EntityManager } from 'typeorm';
 import { clearAuthentication, dispatchWhoami } from '../kratos';
-import { generateTrackingId } from '../ids';
+import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
 import { GQLUser } from '../schema/users';
 import {
@@ -10,8 +10,6 @@ import {
   ALERTS_DEFAULT,
   Banner,
   Feature,
-  getUnreadNotificationsCount,
-  Post,
   Settings,
   SETTINGS_DEFAULT,
   SourceMember,
@@ -23,13 +21,6 @@ import {
   GQLSource,
   SourcePermissions,
 } from '../schema/sources';
-import {
-  adjustAnonymousFlags,
-  adjustFlagsToUser,
-  FeatureFlag,
-  getUserFeatureFlags,
-  submitArticleThreshold,
-} from '../featureFlags';
 import { getAlerts } from '../schema/alerts';
 import { getSettings } from '../schema/settings';
 import {
@@ -39,13 +30,8 @@ import {
   setRedisObject,
   setRedisObjectWithExpiry,
 } from '../redis';
-import {
-  generateStorageKey,
-  REDIS_BANNER_KEY,
-  REDIS_CHANGELOG_KEY,
-  StorageTopic,
-} from '../config';
-import { base64, getSourceLink } from '../common';
+import { generateStorageKey, REDIS_BANNER_KEY, StorageTopic } from '../config';
+import { base64, getSourceLink, submitArticleThreshold } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
 import { parse } from 'graphql/language/parser';
@@ -54,6 +40,9 @@ import { schema } from '../graphql';
 import { Context } from '../Context';
 import { SourceMemberRoles } from '../roles';
 import { getEncryptedFeatures } from '../growthbook';
+import { differenceInMinutes } from 'date-fns';
+import { runInSpan } from '../telemetry/opentelemetry';
+import { getUnreadNotificationsCount } from '../notifications/common';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -70,8 +59,7 @@ export type Experimentation = {
 
 export type BaseBoot = {
   visit: { visitId: string; sessionId: string };
-  flags: FeatureFlag;
-  alerts: Omit<Alerts, 'userId'>;
+  alerts: Omit<Alerts, 'userId' | 'flags'>;
   settings: Omit<Settings, 'userId' | 'updatedAt'>;
   notifications: { unreadNotificationsCount: number };
   squads: BootSquadSource[];
@@ -114,7 +102,7 @@ const visitSection = async (
   res: FastifyReply,
 ): Promise<BaseBoot['visit']> => {
   const [visitId, sessionId] = await Promise.all([
-    generateTrackingId(),
+    generateUUID(),
     generateSessionId(req, res),
   ]);
   return {
@@ -138,52 +126,53 @@ const excludeProperties = <T, K extends keyof T>(
 const getSquads = async (
   con: DataSource,
   userId: string,
-): Promise<BootSquadSource[]> => {
-  const sources = await con
-    .createQueryBuilder()
-    .select('id')
-    .addSelect('type')
-    .addSelect('name')
-    .addSelect('handle')
-    .addSelect('image')
-    .addSelect('NOT private', 'public')
-    .addSelect('active')
-    .addSelect('role')
-    .addSelect('"memberPostingRank"')
-    .from(SourceMember, 'sm')
-    .innerJoin(
-      SquadSource,
-      's',
-      'sm."sourceId" = s."id" and s."type" = \'squad\'',
-    )
-    .where('sm."userId" = :userId', { userId })
-    .andWhere('sm."role" != :role', { role: SourceMemberRoles.Blocked })
-    .orderBy('LOWER(s.name)', 'ASC')
-    .getRawMany<
-      GQLSource & { role: SourceMemberRoles; memberPostingRank: number }
-    >();
+): Promise<BootSquadSource[]> =>
+  runInSpan('getSquads', async () => {
+    const sources = await con
+      .createQueryBuilder()
+      .select('id')
+      .addSelect('type')
+      .addSelect('name')
+      .addSelect('handle')
+      .addSelect('image')
+      .addSelect('NOT private', 'public')
+      .addSelect('active')
+      .addSelect('role')
+      .addSelect('"memberPostingRank"')
+      .from(SourceMember, 'sm')
+      .innerJoin(
+        SquadSource,
+        's',
+        'sm."sourceId" = s."id" and s."type" = \'squad\'',
+      )
+      .where('sm."userId" = :userId', { userId })
+      .andWhere('sm."role" != :role', { role: SourceMemberRoles.Blocked })
+      .orderBy('LOWER(s.name)', 'ASC')
+      .getRawMany<
+        GQLSource & { role: SourceMemberRoles; memberPostingRank: number }
+      >();
 
-  return sources.map((source) => {
-    const { role, memberPostingRank, ...restSource } = source;
+    return sources.map((source) => {
+      const { role, memberPostingRank, ...restSource } = source;
 
-    const permissions = getPermissionsForMember(
-      { role },
-      { memberPostingRank },
-    );
-    // we only send posting permissions from boot to keep the payload small
-    const postingPermissions = permissions.filter(
-      (item) => item === SourcePermissions.Post,
-    );
+      const permissions = getPermissionsForMember(
+        { role },
+        { memberPostingRank },
+      );
+      // we only send posting permissions from boot to keep the payload small
+      const postingPermissions = permissions.filter(
+        (item) => item === SourcePermissions.Post,
+      );
 
-    return {
-      ...restSource,
-      permalink: getSourceLink(source),
-      currentMember: {
-        permissions: postingPermissions,
-      },
-    };
+      return {
+        ...restSource,
+        permalink: getSourceLink(source),
+        currentMember: {
+          permissions: postingPermissions,
+        },
+      };
+    });
   });
-};
 
 const moderators = [
   '1d339aa5b85c4e0ba85fdedb523c48d4',
@@ -257,34 +246,6 @@ const getAndUpdateLastBannerRedis = async (
   return bannerFromRedis;
 };
 
-const getAndUpdateLastChangelogRedis = async (
-  con: DataSource,
-): Promise<string> => {
-  let lastChangelogFromRedis = await getRedisObject(REDIS_CHANGELOG_KEY);
-
-  if (!lastChangelogFromRedis) {
-    const post: Pick<Post, 'createdAt'> = await con
-      .getRepository(Post)
-      .findOne({
-        select: ['createdAt'],
-        where: [{ sourceId: 'daily_updates' }],
-        order: {
-          createdAt: {
-            direction: 'DESC',
-          },
-        },
-      });
-
-    if (post) {
-      lastChangelogFromRedis = post.createdAt.toISOString();
-
-      await setRedisObject(REDIS_CHANGELOG_KEY, lastChangelogFromRedis);
-    }
-  }
-
-  return lastChangelogFromRedis;
-};
-
 export function getReferralFromCookie({
   req,
 }: {
@@ -312,95 +273,134 @@ const getExperimentation = async (
   userId: string,
   con: DataSource | EntityManager,
 ): Promise<Experimentation> => {
-  const [hash, features] = await Promise.all([
-    ioRedisPool.execute((client) => client.hgetall(`exp:${userId}`)),
-    con.getRepository(Feature).findBy({ userId }),
-  ]);
-  const e = Object.keys(hash || {}).map((key) => {
-    const [variation] = hash[key].split(':');
-    return base64(`${key}:${variation}`);
-  });
+  if (userId) {
+    const [hash, features] = await Promise.all([
+      ioRedisPool.execute((client) => client.hgetall(`exp:${userId}`)),
+      con
+        .getRepository(Feature)
+        .find({ where: { userId }, select: ['feature', 'value'] }),
+    ]);
+    const e = Object.keys(hash || {}).map((key) => {
+      const [variation] = hash[key].split(':');
+      return base64(`${key}:${variation}`);
+    });
+    return {
+      f: getEncryptedFeatures(),
+      e,
+      a: features.reduce(
+        (acc, { feature, value }) => ({ [feature]: value, ...acc }),
+        {},
+      ),
+    };
+  }
   return {
     f: getEncryptedFeatures(),
-    e,
-    a: features.reduce((acc, { feature }) => ({ [feature]: true, ...acc }), {}),
+    e: [],
+    a: {},
   };
 };
+
+const getUser = (con: DataSource, userId: string): Promise<User> =>
+  con.getRepository(User).findOne({
+    where: { id: userId },
+    select: [
+      'id',
+      'username',
+      'name',
+      'email',
+      'image',
+      'company',
+      'title',
+      'infoConfirmed',
+      'notificationEmail',
+      'acceptedMarketing',
+      'reputation',
+      'bio',
+      'twitter',
+      'github',
+      'portfolio',
+      'hashnode',
+      'timezone',
+      'createdAt',
+      'cover',
+    ],
+  });
 
 const loggedInBoot = async (
   con: DataSource,
   req: FastifyRequest,
   res: FastifyReply,
+  refreshToken: boolean,
   middleware?: BootMiddleware,
-): Promise<LoggedInBoot | AnonymousBoot> => {
-  const { userId } = req;
-  const [
-    visit,
-    user,
-    roles,
-    alerts,
-    settings,
-    unreadNotificationsCount,
-    squads,
-    lastChangelog,
-    lastBanner,
-    exp,
-    extra,
-  ] = await Promise.all([
-    visitSection(req, res),
-    con.getRepository(User).findOneBy({ id: userId }),
-    getRoles(userId),
-    getAlerts(con, userId),
-    getSettings(con, userId),
-    getUnreadNotificationsCount(con, userId),
-    getSquads(con, userId),
-    getAndUpdateLastChangelogRedis(con),
-    getAndUpdateLastBannerRedis(con),
-    getExperimentation(userId, con),
-    middleware ? middleware(con, req, res) : {},
-  ]);
-  if (!user) {
-    return handleNonExistentUser(con, req, res, middleware);
-  }
-  const flags = getUserFeatureFlags(req);
-  const accessToken = await setAuthCookie(req, res, userId, roles);
-
-  return {
-    user: {
-      ...excludeProperties(user, [
-        'updatedAt',
-        'referralId',
-        'referralOrigin',
-        'profileConfirmed',
-        'devcardEligible',
-      ]),
-      providers: [null],
+): Promise<LoggedInBoot | AnonymousBoot> =>
+  runInSpan('loggedInBoot', async () => {
+    const { userId } = req;
+    const [
+      visit,
+      user,
       roles,
-      permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
-      canSubmitArticle: user.reputation >= submitArticleThreshold,
-    },
-    visit,
-    flags: adjustFlagsToUser(flags, user),
-    alerts: {
-      ...excludeProperties(alerts, ['userId']),
-      // read only, used in frontend to decide if changelog post should be fetched
-      changelog: alerts.lastChangelog < new Date(lastChangelog),
-      // read only, used in frontend to decide if banner should be fetched
-      banner:
-        lastBanner !== 'false' && alerts.lastBanner < new Date(lastBanner),
-    },
-    settings: excludeProperties(settings, [
-      'userId',
-      'updatedAt',
-      'bookmarkSlug',
-    ]),
-    notifications: { unreadNotificationsCount },
-    squads,
-    accessToken,
-    exp,
-    ...extra,
-  };
-};
+      alerts,
+      settings,
+      unreadNotificationsCount,
+      squads,
+      lastBanner,
+      exp,
+      extra,
+    ] = await Promise.all([
+      visitSection(req, res),
+      getUser(con, userId),
+      getRoles(userId),
+      getAlerts(con, userId),
+      getSettings(con, userId),
+      getUnreadNotificationsCount(con, userId),
+      getSquads(con, userId),
+      getAndUpdateLastBannerRedis(con),
+      getExperimentation(userId, con),
+      middleware ? middleware(con, req, res) : {},
+    ]);
+    if (!user) {
+      return handleNonExistentUser(con, req, res, middleware);
+    }
+    const accessToken = refreshToken
+      ? await setAuthCookie(req, res, userId, roles)
+      : req.accessToken;
+
+    return {
+      user: {
+        ...excludeProperties(user, [
+          'updatedAt',
+          'referralId',
+          'referralOrigin',
+          'profileConfirmed',
+          'devcardEligible',
+        ]),
+        providers: [null],
+        roles,
+        permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
+        canSubmitArticle: user.reputation >= submitArticleThreshold,
+      },
+      visit,
+      alerts: {
+        ...excludeProperties(alerts, ['userId']),
+        // We decided to try and turn off the changelog for now in favor of squad promotion
+        // PR: https://github.com/dailydotdev/daily-api/pull/1633
+        changelog: false,
+        // read only, used in frontend to decide if banner should be fetched
+        banner:
+          lastBanner !== 'false' && alerts.lastBanner < new Date(lastBanner),
+      },
+      settings: excludeProperties(settings, [
+        'userId',
+        'updatedAt',
+        'bookmarkSlug',
+      ]),
+      notifications: { unreadNotificationsCount },
+      squads,
+      accessToken,
+      exp,
+      ...extra,
+    };
+  });
 
 const getAnonymousFirstVisit = async (trackingId: string) => {
   if (!trackingId) return null;
@@ -431,17 +431,6 @@ const anonymousBoot = async (
     getAnonymousFirstVisit(req.trackingId),
     getExperimentation(req.trackingId, con),
   ]);
-  const flags = getUserFeatureFlags(req);
-  const isPreOnboardingV2 = firstVisit
-    ? new Date(firstVisit) < onboardingV2Requirement
-    : false;
-
-  const anonymousFlags = adjustAnonymousFlags(flags, [
-    {
-      checkIsApplicable: () => !isPreOnboardingV2,
-      feature: 'onboarding_v2',
-    },
-  ]);
 
   return {
     user: {
@@ -450,7 +439,6 @@ const anonymousBoot = async (
       ...getReferralFromCookie({ req }),
     },
     visit,
-    flags: anonymousFlags,
     alerts: { ...ALERTS_DEFAULT, changelog: false },
     settings: SETTINGS_DEFAULT,
     notifications: { unreadNotificationsCount: 0 },
@@ -467,6 +455,13 @@ export const getBootData = async (
   res: FastifyReply,
   middleware?: BootMiddleware,
 ): Promise<AnonymousBoot | LoggedInBoot> => {
+  if (
+    req.userId &&
+    req.accessToken?.expiresIn &&
+    differenceInMinutes(req.accessToken?.expiresIn, new Date()) > 3
+  ) {
+    return loggedInBoot(con, req, res, false, middleware);
+  }
   const whoami = await dispatchWhoami(req);
   if (whoami.valid) {
     if (whoami.cookie) {
@@ -477,8 +472,8 @@ export const getBootData = async (
       req.trackingId = req.userId;
       setTrackingId(req, res, req.trackingId);
     }
-    return loggedInBoot(con, req, res, middleware);
-  } else if (req.userId || req.cookies[cookies.kratos.key]) {
+    return loggedInBoot(con, req, res, true, middleware);
+  } else if (req.cookies[cookies.kratos.key]) {
     await clearAuthentication(req, res, 'invalid cookie');
     return anonymousBoot(con, req, res, middleware, true);
   }

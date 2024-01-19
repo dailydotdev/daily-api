@@ -1,9 +1,6 @@
 import { NotificationWorker } from './worker';
 import { messageToJson, Worker } from '../worker';
-import {
-  generateNotification,
-  storeNotificationBundle,
-} from '../../notifications';
+import { generateAndStoreNotificationsV2 } from '../../notifications';
 import communityPicksFailed from './communityPicksFailed';
 import communityPicksGranted from './communityPicksGranted';
 import articleNewCommentPostCommented from './articleNewCommentPostCommented';
@@ -20,8 +17,9 @@ import memberJoinedSource from './squadMemberJoined';
 import sourceMemberRoleChanged from './sourceMemberRoleChanged';
 import { TypeOrmError } from '../../errors';
 import postMention from './postMention';
+import { collectionUpdated } from './collectionUpdated';
 
-function notificationWorkerToWorker(worker: NotificationWorker): Worker {
+export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
     ...worker,
     handler: async (message, con, logger) => {
@@ -29,13 +27,10 @@ function notificationWorkerToWorker(worker: NotificationWorker): Worker {
       if (!args) {
         return;
       }
-      const bundles = args.map(({ type, ctx }) =>
-        generateNotification(type, ctx),
-      );
       try {
-        await con.transaction((entityManager) =>
-          storeNotificationBundle(entityManager, bundles),
-        );
+        await con.transaction(async (entityManager) => {
+          await generateAndStoreNotificationsV2(entityManager, args);
+        });
       } catch (err) {
         if (err?.code === TypeOrmError.NULL_VIOLATION) {
           logger.warn(
@@ -66,6 +61,7 @@ const notificationWorkers: NotificationWorker[] = [
   postAdded,
   memberJoinedSource,
   sourceMemberRoleChanged,
+  collectionUpdated,
 ];
 
-export const workers = notificationWorkers.map(notificationWorkerToWorker);
+export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

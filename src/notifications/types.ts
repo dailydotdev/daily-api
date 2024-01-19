@@ -1,8 +1,8 @@
 import {
   Comment,
-  Notification,
-  NotificationAttachment,
-  NotificationAvatar,
+  NotificationAttachmentV2,
+  NotificationAvatarV2,
+  NotificationV2,
   Post,
   Source,
   SourceRequest,
@@ -15,13 +15,14 @@ import { SourceMemberRoles } from '../roles';
 
 export type Reference<T> = ChangeObject<T> | T;
 
-export type NotificationBundle = {
-  notification: DeepPartial<Notification>;
-  avatars?: DeepPartial<NotificationAvatar>[];
-  attachments?: DeepPartial<NotificationAttachment>[];
+export type NotificationBundleV2 = {
+  notification: DeepPartial<NotificationV2>;
+  userIds: string[];
+  avatars?: DeepPartial<NotificationAvatarV2>[];
+  attachments?: DeepPartial<NotificationAttachmentV2>[];
 };
 
-export type NotificationBaseContext = { userId: string };
+export type NotificationBaseContext = { userIds: string[] };
 export type NotificationSubmissionContext = NotificationBaseContext & {
   submission: Pick<Submission, 'id'>;
 };
@@ -61,4 +62,9 @@ export type NotificationDoneByContext = NotificationBaseContext & {
 
 export type NotificationSourceMemberRoleContext = NotificationSourceContext & {
   role: Reference<SourceMemberRoles>;
+};
+
+export type NotificationCollectionContext = NotificationPostContext & {
+  sources: Reference<Source>[];
+  total: number;
 };

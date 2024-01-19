@@ -10,6 +10,7 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import {
+  NotificationPreferenceSource,
   Post,
   SharePost,
   Source,
@@ -31,6 +32,10 @@ import { SourcePermissions } from '../src/schema/sources';
 import { SourcePermissionErrorKeys } from '../src/errors';
 import { updateFlagsStatement, WELCOME_POST_TITLE } from '../src/common';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../src/notifications/common';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -492,20 +497,19 @@ describe('query sourceHandleExists', () => {
     }
   `;
 
-  const updateHandle = (handle = 'a') =>
+  const updateHandle = (handle = 'aaa') =>
     con.getRepository(Source).update({ id: 'a' }, { handle, private: true });
 
   it('should not authorize when user is not logged in', () =>
     testQueryErrorCode(
       client,
-      { query: QUERY, variables: { handle: 'a' } },
+      { query: QUERY, variables: { handle: 'aaa' } },
       'UNAUTHENTICATED',
     ));
 
-  it('should throw validation error when the handle did not pass our criteria', async () => {
+  it('should throw validation error when the handle did not pass our criteria', () => {
     loggedUser = '3';
-    await updateHandle();
-    testQueryErrorCode(
+    return testQueryErrorCode(
       client,
       { query: QUERY, variables: { handle: 'aa aa' } },
       'GRAPHQL_VALIDATION_FAILED',
@@ -515,14 +519,14 @@ describe('query sourceHandleExists', () => {
   it('should return false if the source handle is not taken', async () => {
     loggedUser = '3';
     await updateHandle();
-    const res = await client.query(QUERY, { variables: { handle: 'aa' } });
+    const res = await client.query(QUERY, { variables: { handle: 'aaaa' } });
     expect(res.data.sourceHandleExists).toBeFalsy();
   });
 
   it('should return true if the source handle is taken', async () => {
     loggedUser = '3';
     await updateHandle();
-    const res = await client.query(QUERY, { variables: { handle: 'a' } });
+    const res = await client.query(QUERY, { variables: { handle: 'aaa' } });
     expect(res.data.sourceHandleExists).toBeTruthy();
   });
 
@@ -547,7 +551,7 @@ describe('query sourceHandleExists', () => {
   it('should return true if the source handle is taken considering uppercase characters', async () => {
     loggedUser = '3';
     await updateHandle();
-    const res = await client.query(QUERY, { variables: { handle: 'A' } });
+    const res = await client.query(QUERY, { variables: { handle: 'AAA' } });
     expect(res.data.sourceHandleExists).toBeTruthy();
   });
 });
@@ -655,22 +659,26 @@ query Source($id: ID!) {
 
 describe('query sourceMembers', () => {
   const QUERY = `
-query SourceMembers($id: ID!, $role: String) {
-  sourceMembers(sourceId: $id, role: $role) {
-    pageInfo {
-      endCursor
-      hasNextPage
-    }
-    edges {
-      node {
-        role
-        roleRank
-        user { id }
-        source { id }
+    query SourceMembers($id: ID!, $role: String, $query: String) {
+      sourceMembers(sourceId: $id, role: $role, query: $query) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            role
+            roleRank
+            user {
+              id
+              name
+              username
+            }
+            source { id }
+          }
+        }
       }
     }
-  }
-}
   `;
 
   it('should not authorize when source does not exist', () =>
@@ -693,6 +701,25 @@ query SourceMembers($id: ID!, $role: String) {
     const res = await client.query(QUERY, { variables: { id: 'a' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return source members without blocked members and based on query', async () => {
+    const res = await client.query(QUERY, {
+      variables: { id: 'a', query: 'i' },
+    });
+    expect(res.errors).toBeFalsy();
+    const [found] = res.data.sourceMembers.edges;
+    expect(found.node.user.name).toEqual('Ido');
+  });
+
+  it('should return source members based on query with spaces', async () => {
+    await con.getRepository(User).update({ id: '1' }, { name: 'Lee Hansel' });
+    const res = await client.query(QUERY, {
+      variables: { id: 'a', query: 'lee h' },
+    });
+    expect(res.errors).toBeFalsy();
+    const [found] = res.data.sourceMembers.edges;
+    expect(found.node.user.id).toEqual('1');
   });
 
   it('should return source members and order by their role', async () => {
@@ -871,47 +898,43 @@ describe('query mySourceMemberships', () => {
   });
 });
 
-describe('query checkUserMembership', () => {
+describe('query publicSourceMemberships', () => {
   const QUERY = `
-    query CheckUserMembership($userId: ID!, $sourceId: ID!) {
-      member: checkUserMembership(memberId: $userId, sourceId: $sourceId) {
-        role
+    query SourceMemberships($userId: ID!) {
+      publicSourceMemberships(userId: $userId) {
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+        edges {
+          node {
+            user { id }
+            source { id }
+            role
+            roleRank
+          }
+        }
       }
     }
   `;
 
-  it('should not authorize when source does not exist', () =>
-    testQueryErrorCode(
-      client,
-      { query: QUERY, variables: { userId: '2', sourceId: 'a' } },
-      'UNAUTHENTICATED',
-    ));
-
-  it('should return forbidden when user is not a member', async () => {
-    loggedUser = '3';
-    const params = { userId: '2', sourceId: 'a' };
-    await con.getRepository(SourceMember).delete(params);
-    await con.getRepository(Source).update({ id: 'a' }, { private: true });
-
-    return testQueryErrorCode(
-      client,
-      { query: QUERY, variables: params },
-      'FORBIDDEN',
+  it('should return source memberships', async () => {
+    const res = await client.query(QUERY, { variables: { userId: '2' } });
+    expect(res.errors).toBeFalsy();
+    const sources = res.data.publicSourceMemberships.edges.map(
+      ({ node }) => node.source.id,
     );
+    expect(sources).toEqual(['b', 'a']);
   });
 
-  it('should return member', async () => {
-    loggedUser = '1';
-    const params = { userId: '2', sourceId: 'a' };
-    await con
-      .getRepository(SourceMember)
-      .update(params, { role: SourceMemberRoles.Blocked });
+  it('should return only public sources', async () => {
     await con.getRepository(Source).update({ id: 'a' }, { private: true });
-    const res = await client.query(QUERY, {
-      variables: params,
-    });
+    const res = await client.query(QUERY, { variables: { userId: '2' } });
     expect(res.errors).toBeFalsy();
-    expect(res.data.member).toBeTruthy();
+    const sources = res.data.publicSourceMemberships.edges.map(
+      ({ node }) => node.source.id,
+    );
+    expect(sources).toEqual(['b']);
   });
 });
 
@@ -2033,7 +2056,15 @@ describe('mutation joinSource', () => {
 
   it('should add member to public squad without token', async () => {
     loggedUser = '1';
+    const getPreference = () =>
+      con.getRepository(NotificationPreferenceSource).findOneBy({
+        userId: '1',
+        referenceId: 's1',
+        notificationType: NotificationType.SquadPostAdded,
+      });
     await con.getRepository(Source).update({ id: 's1' }, { private: false });
+    const beforePreference = await getPreference();
+    expect(beforePreference).toBeFalsy();
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     expect(res.data.joinSource.id).toEqual('s1');
@@ -2041,6 +2072,8 @@ describe('mutation joinSource', () => {
       sourceId: 's1',
       userId: '1',
     });
+    const afterPreference = await getPreference();
+    expect(afterPreference.status).toEqual(NotificationPreferenceStatus.Muted);
   });
 
   it('should add member to private squad with token', async () => {
@@ -2060,6 +2093,14 @@ describe('mutation joinSource', () => {
     });
     const source = await con.getRepository(Source).findOneBy({ id: 's1' });
     expect(source.active).toEqual(true);
+    const preference = await con
+      .getRepository(NotificationPreferenceSource)
+      .findOneBy({
+        userId: '1',
+        referenceId: 's1',
+        notificationType: NotificationType.SquadPostAdded,
+      });
+    expect(preference).toBeFalsy();
   });
 
   it('should succeed if an existing member tries to join again', async () => {
@@ -2452,12 +2493,197 @@ describe('mutation showSourceFeedPosts', () => {
   });
 });
 
+describe('mutation collapsePinnedPosts', () => {
+  const MUTATION = `
+    mutation CollapsePinnedPosts($sourceId: ID!) {
+      collapsePinnedPosts(sourceId: $sourceId) {
+        _
+      }
+  }`;
+
+  const variables = {
+    sourceId: 's1',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw when user is not a member', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).delete({
+      sourceId: 's1',
+      userId: '1',
+    });
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw when user is blocked', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).update(
+      {
+        sourceId: 's1',
+        userId: '1',
+      },
+      {
+        role: SourceMemberRoles.Blocked,
+      },
+    );
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should set flags.collapsePinnedPosts to true', async () => {
+    loggedUser = '1';
+    let sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember).toBeTruthy();
+    expect(sourceMember?.flags.collapsePinnedPosts).toEqual(undefined);
+
+    await client.mutate(MUTATION, { variables: { sourceId: 's1' } });
+    sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember?.flags.collapsePinnedPosts).toEqual(true);
+  });
+});
+
+describe('mutation expandPinnedPosts', () => {
+  const MUTATION = `
+    mutation ExpandPinnedPosts($sourceId: ID!) {
+      expandPinnedPosts(sourceId: $sourceId) {
+      _
+    }
+  }`;
+
+  const variables = {
+    sourceId: 's1',
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SquadSource).save({
+      id: 's1',
+      handle: 's1',
+      name: 'Squad',
+      private: true,
+    });
+    await con.getRepository(SourceMember).save({
+      sourceId: 's1',
+      userId: '1',
+      referralToken: 'rt2',
+      role: SourceMemberRoles.Member,
+    });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should throw when user is not a member', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).delete({
+      sourceId: 's1',
+      userId: '1',
+    });
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw when user is blocked', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).update(
+      {
+        sourceId: 's1',
+        userId: '1',
+      },
+      {
+        role: SourceMemberRoles.Blocked,
+      },
+    );
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should set flags.collapsePinnedPosts to false', async () => {
+    loggedUser = '1';
+    let sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember).toBeTruthy();
+    expect(sourceMember?.flags.collapsePinnedPosts).toEqual(undefined);
+
+    await client.mutate(MUTATION, { variables: { sourceId: 's1' } });
+    sourceMember = await con.getRepository(SourceMember).findOneBy({
+      sourceId: 's1',
+      userId: '1',
+    });
+    expect(sourceMember?.flags.collapsePinnedPosts).toEqual(false);
+  });
+});
+
 describe('SourceMember flags field', () => {
   const QUERY = `{
     source(id: "a") {
       currentMember {
         flags {
           hideFeedPosts
+          collapsePinnedPosts
         }
       }
     }
@@ -2468,13 +2694,17 @@ describe('SourceMember flags field', () => {
     await con.getRepository(SourceMember).update(
       { userId: '1', sourceId: 'a' },
       {
-        flags: updateFlagsStatement({ hideFeedPosts: true }),
+        flags: updateFlagsStatement({
+          hideFeedPosts: true,
+          collapsePinnedPosts: true,
+        }),
       },
     );
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
     expect(res.data.source.currentMember.flags).toEqual({
       hideFeedPosts: true,
+      collapsePinnedPosts: true,
     });
   });
 
@@ -2483,6 +2713,7 @@ describe('SourceMember flags field', () => {
     const res = await client.query(QUERY);
     expect(res.data.source.currentMember.flags).toEqual({
       hideFeedPosts: null,
+      collapsePinnedPosts: null,
     });
   });
 });

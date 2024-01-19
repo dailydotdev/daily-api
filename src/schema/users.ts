@@ -1,18 +1,24 @@
-import {
-  handleRegex,
-  nameRegex,
-  validateRegex,
-  ValidateRegex,
-} from './../common/object';
+import { isNullOrUndefined } from './../common/object';
 import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
-import { Post, DevCard, User, Comment, PostStats, View } from '../entity';
+import {
+  Comment,
+  DevCard,
+  Feature,
+  FeatureType,
+  FeatureValue,
+  Post,
+  PostStats,
+  User,
+  validateUserUpdate,
+  View,
+} from '../entity';
 import { getAuthorPostStats } from '../entity/posts';
 import {
   AuthenticationError,
-  ValidationError,
   ForbiddenError,
+  ValidationError,
 } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
@@ -20,22 +26,33 @@ import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import {
+  getInviteLink,
   getShortUrl,
   getUserReadingRank,
   isValidHttpUrl,
   TagsReadingStatus,
   uploadAvatar,
   uploadDevCardBackground,
+  uploadProfileCover,
 } from '../common';
-import { getSearchQuery } from './common';
+import { getSearchQuery, GQLEmptyResponse } from './common';
 import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
-import { TypeOrmError, NotFoundError } from '../errors';
+import {
+  NotFoundError,
+  SubmissionFailErrorKeys,
+  TypeOrmError,
+} from '../errors';
 import { deleteUser } from '../directive/user';
 import { randomInt } from 'crypto';
 import { In } from 'typeorm';
-import { checkDisallowHandle, DisallowHandle } from '../entity/DisallowHandle';
+import { DisallowHandle } from '../entity/DisallowHandle';
+import { DayOfWeek } from '../types';
+import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
+import { getTimezoneOffset } from 'date-fns-tz';
+import { CampaignType, Invite } from '../entity/Invite';
+import { markdown } from '../common/markdown';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -64,7 +81,7 @@ export interface GQLUser {
   name: string;
   image?: string;
   infoConfirmed: boolean;
-  createdAt?: Date;
+  createdAt: Date;
   username?: string;
   bio?: string;
   twitter?: string;
@@ -74,6 +91,9 @@ export interface GQLUser {
   reputation?: number;
   notificationEmail?: boolean;
   timezone?: string;
+  cover?: string;
+  readme?: string;
+  readmeHtml?: string;
 }
 
 export interface GQLView {
@@ -116,7 +136,15 @@ export interface ReadingRankArgs {
 
 export interface ReferralCampaign {
   referredUsersCount: number;
+  referralCountLimit: number;
+  referralToken: string;
   url: string;
+}
+
+export interface GQLPersonalizedDigest {
+  preferredDay: DayOfWeek;
+  preferredHour: number;
+  preferredTimezone: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -148,6 +176,10 @@ export const typeDefs = /* GraphQL */ `
     Profile image of the user
     """
     image: String
+    """
+    Cover image of the user
+    """
+    cover: String
     """
     Username (handle) of the user
     """
@@ -200,6 +232,14 @@ export const typeDefs = /* GraphQL */ `
     If the user should receive email for notifications
     """
     notificationEmail: Boolean
+    """
+    Markdown version of the user's readme
+    """
+    readme: String
+    """
+    HTML rendered version of the user's readme
+    """
+    readmeHtml: String
   }
 
   """
@@ -344,7 +384,29 @@ export const typeDefs = /* GraphQL */ `
 
   type ReferralCampaign {
     referredUsersCount: Int!
+    referralCountLimit: Int
+    referralToken: String
     url: String!
+  }
+
+  type PersonalizedDigest {
+    preferredDay: Int!
+    preferredHour: Int!
+    preferredTimezone: String!
+  }
+
+  type UserEdge {
+    node: User!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type UserConnection {
+    pageInfo: PageInfo!
+    edges: [UserEdge!]!
   }
 
   extend type Query {
@@ -462,6 +524,16 @@ export const typeDefs = /* GraphQL */ `
       """
       referralOrigin: String!
     ): ReferralCampaign! @auth
+
+    """
+    Get personalized digest settings
+    """
+    personalizedDigest: PersonalizedDigest @auth
+
+    """
+    List of users that the logged in user has referred to the platform
+    """
+    referredUsers: UserConnection @auth
   }
 
   extend type Mutation {
@@ -484,8 +556,79 @@ export const typeDefs = /* GraphQL */ `
     Delete user's account
     """
     deleteUser: EmptyResponse @auth
+
+    """
+    The mutation to subscribe to the personalized digest
+    """
+    subscribePersonalizedDigest(
+      """
+      Preferred hour of the day. Expected value is 0-23.
+      """
+      hour: Int
+      """
+      Preferred day of the week. Expected value is 0-6
+      """
+      day: Int
+      """
+      Preferred timezone relevant to the hour and day.
+      """
+      timezone: String
+    ): PersonalizedDigest @auth
+
+    """
+    The mutation to unsubscribe from the personalized digest
+    """
+    unsubscribePersonalizedDigest: EmptyResponse @auth
+    """
+    The mutation to accept feature invites from another user
+    """
+    acceptFeatureInvite(
+      """
+      The token to validate whether the inviting user has access to the relevant feature
+      """
+      token: String!
+      """
+      The user id of the inviting user to cross-check token validity
+      """
+      referrerId: ID!
+      """
+      Name of the feature the user is getting invited to
+      """
+      feature: String!
+    ): EmptyResponse @auth
+
+    """
+    Upload a new profile cover image
+    """
+    uploadCoverImage(
+      """
+      Asset to upload
+      """
+      image: Upload!
+    ): User! @auth @rateLimit(limit: 5, duration: 60)
+
+    """
+    Update the user's readme
+    """
+    updateReadme(
+      """
+      The readme content
+      """
+      content: String!
+    ): User! @auth
   }
 `;
+
+const getCurrentUser = (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+): Promise<GQLUser> =>
+  graphorm.queryOneOrFail<GQLUser>(ctx, info, (builder) => ({
+    queryBuilder: builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
+      id: ctx.userId,
+    }),
+    ...builder,
+  }));
 
 export const getUserPermalink = (
   user: Pick<GQLUser, 'id' | 'username'>,
@@ -545,6 +688,8 @@ const readHistoryResolver = async (
 const userTimezone = `at time zone COALESCE(timezone, 'utc')`;
 const timestampAtTimezone = `"timestamp"::timestamptz ${userTimezone}`;
 
+const MAX_README_LENGTH = 10_000;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -566,7 +711,6 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLUserStats | null> => {
-      const isSameUser = ctx.userId === id;
       const [postStats, commentStats] = await Promise.all([
         getAuthorPostStats(ctx.con, id),
         await ctx.con
@@ -583,11 +727,9 @@ export const resolvers: IResolvers<any, Context> = {
       return {
         numPosts: postStats?.numPosts ?? 0,
         numComments: commentStats?.numComments ?? 0,
-        numPostViews: isSameUser ? postStats?.numPostViews ?? 0 : null,
-        numPostUpvotes: isSameUser ? postStats?.numPostUpvotes ?? 0 : null,
-        numCommentUpvotes: isSameUser
-          ? commentStats?.numCommentUpvotes ?? 0
-          : null,
+        numPostViews: postStats?.numPostViews ?? 0,
+        numPostUpvotes: postStats?.numPostUpvotes ?? 0,
+        numCommentUpvotes: commentStats?.numCommentUpvotes ?? 0,
       };
     },
     user: async (
@@ -791,21 +933,71 @@ export const resolvers: IResolvers<any, Context> = {
       const { referralOrigin } = args;
       const userRepo = ctx.getRepository(User);
 
-      const campaignUrl = new URL('/join', process.env.COMMENTS_PREFIX);
-      campaignUrl.searchParams.append('cid', referralOrigin);
-      campaignUrl.searchParams.append('userid', ctx.userId);
+      const userInvite = await ctx.getRepository(Invite).findOneBy({
+        userId: ctx.userId,
+        campaign: referralOrigin as CampaignType,
+      });
+
+      const campaignUrl = getInviteLink({
+        referralOrigin,
+        userId: ctx.userId,
+        token: userInvite?.token,
+      });
 
       const [referredUsersCount, url] = await Promise.all([
-        userRepo.count({
-          where: { referralId: ctx.userId, referralOrigin },
-        }),
+        userInvite?.count ||
+          userRepo.count({
+            where: { referralId: ctx.userId, referralOrigin },
+          }),
         getShortUrl(campaignUrl.toString(), ctx.log),
       ]);
 
       return {
         referredUsersCount,
+        referralCountLimit: userInvite?.limit,
+        referralToken: userInvite?.token,
         url,
       };
+    },
+    personalizedDigest: async (
+      _,
+      args,
+      ctx: Context,
+    ): Promise<GQLPersonalizedDigest> => {
+      const personalizedDigest = await ctx
+        .getRepository(UserPersonalizedDigest)
+        .findOneBy({ userId: ctx.userId });
+
+      if (!personalizedDigest) {
+        throw new NotFoundError('Not subscribed to personalized digest');
+      }
+
+      return personalizedDigest;
+    },
+    referredUsers: async (
+      _,
+      args: ConnectionArguments,
+      ctx: Context,
+      info,
+    ): Promise<Connection<GQLUser>> => {
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}."referralId" = :id`,
+              {
+                id: ctx.userId,
+              },
+            );
+            return builder;
+          },
+          orderByKey: 'DESC',
+        },
+      );
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -861,44 +1053,13 @@ export const resolvers: IResolvers<any, Context> = {
         // Only accept email changes from Service calls
         delete data.email;
         delete data.infoConfirmed;
-      } else if (data.email !== undefined) {
-        const emailCheck = await repo.findBy({ email: data.email });
-        if (emailCheck.length) {
-          if (emailCheck.some(({ id }) => id !== user.id)) {
-            throw new ValidationError(
-              JSON.stringify({ email: 'email already used' }),
-            );
-          }
-        }
       }
-
-      ['name', 'username', 'twitter', 'github', 'hashnode'].forEach((key) => {
-        if (data[key]) {
-          data[key] = data[key].replace('@', '').trim();
-        }
-      });
-
-      const regexParams: ValidateRegex[] = [
-        ['name', data.name, nameRegex, !user.name],
-        ['username', data.username, handleRegex, !user.username],
-        ['github', data.github, handleRegex],
-        ['twitter', data.twitter, new RegExp(/^@?(\w){1,15}$/)],
-        ['hashnode', data.hashnode, handleRegex],
-      ];
-
-      validateRegex(regexParams);
+      data = await validateUserUpdate(user, data, ctx.con);
 
       const avatar =
         upload && process.env.CLOUDINARY_URL
           ? (await uploadAvatar(user.id, (await upload).createReadStream())).url
           : data.image || user.image;
-
-      const disallowHandle = await checkDisallowHandle(ctx.con, data.username);
-      if (disallowHandle) {
-        throw new ValidationError(
-          JSON.stringify({ handle: 'handle is already used' }),
-        );
-      }
 
       try {
         const updatedUser = { ...user, ...data, image: avatar };
@@ -913,11 +1074,6 @@ export const resolvers: IResolvers<any, Context> = {
         return await ctx.con.getRepository(User).save(updatedUser);
       } catch (err) {
         if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
-          if (err.message.indexOf('users_email_unique') > -1) {
-            throw new ValidationError(
-              JSON.stringify({ email: 'email is already used' }),
-            );
-          }
           if (err.message.indexOf('users_username_unique') > -1) {
             throw new ValidationError(
               JSON.stringify({ username: 'username already exists' }),
@@ -967,6 +1123,148 @@ export const resolvers: IResolvers<any, Context> = {
         )
         .andWhere('"userId" = :userId', { userId: ctx.userId })
         .execute(),
+    subscribePersonalizedDigest: async (
+      _,
+      args: {
+        hour?: number;
+        day?: number;
+        timezone?: string;
+      },
+      ctx: Context,
+    ): Promise<GQLPersonalizedDigest> => {
+      const { hour, day, timezone } = args;
+
+      if (!isNullOrUndefined(hour) && (hour < 0 || hour > 23)) {
+        throw new ValidationError('Invalid hour');
+      }
+
+      if (!isNullOrUndefined(hour) && (day < 0 || day > 6)) {
+        throw new ValidationError('Invalid day');
+      }
+
+      if (
+        !isNullOrUndefined(timezone) &&
+        Number.isNaN(getTimezoneOffset(timezone))
+      ) {
+        throw new ValidationError('Invalid timezone');
+      }
+
+      const repo = ctx.con.getRepository(UserPersonalizedDigest);
+
+      const personalizedDigest = await repo.save({
+        userId: ctx.userId,
+        preferredDay: day,
+        preferredHour: hour,
+        preferredTimezone: timezone,
+      });
+
+      return personalizedDigest;
+    },
+    unsubscribePersonalizedDigest: async (
+      _,
+      args,
+      ctx: Context,
+    ): Promise<unknown> => {
+      const repo = ctx.con.getRepository(UserPersonalizedDigest);
+
+      if (ctx.userId) {
+        await repo.delete({
+          userId: ctx.userId,
+        });
+      }
+
+      return { _: true };
+    },
+    acceptFeatureInvite: async (
+      _,
+      {
+        token,
+        referrerId,
+        feature,
+      }: {
+        token: string;
+        referrerId: string;
+        feature: string;
+      },
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      const referrerInvite = await ctx.con
+        .getRepository(Invite)
+        .findOneByOrFail({
+          userId: referrerId,
+          token: token,
+          campaign: feature as CampaignType,
+        });
+
+      if (referrerInvite.count >= referrerInvite.limit) {
+        throw new ValidationError(SubmissionFailErrorKeys.InviteLimitReached);
+      }
+
+      await ctx.con.transaction(async (entityManager): Promise<void> => {
+        try {
+          await entityManager.getRepository(Feature).insert({
+            userId: ctx.userId,
+            feature: feature as FeatureType,
+            invitedById: referrerId,
+            value: FeatureValue.Allow,
+          });
+        } catch (err) {
+          if (err.code === TypeOrmError.DUPLICATE_ENTRY) return;
+          throw err;
+        }
+
+        await entityManager.getRepository(Invite).update(
+          { token: token },
+          {
+            count: referrerInvite.count + 1,
+          },
+        );
+      });
+
+      return { _: true };
+    },
+    uploadCoverImage: async (
+      _,
+      { image }: { image: Promise<FileUpload> },
+      ctx,
+      info,
+    ): Promise<GQLUser> => {
+      if (!image) {
+        throw new ValidationError('File is missing!');
+      }
+
+      if (!process.env.CLOUDINARY_URL) {
+        throw new Error('Unable to upload asset to cloudinary!');
+      }
+
+      const upload = await image;
+      const { url: imageUrl } = await uploadProfileCover(
+        ctx.userId,
+        upload.createReadStream(),
+      );
+      await ctx.con
+        .getRepository(User)
+        .update({ id: ctx.userId }, { cover: imageUrl });
+      return getCurrentUser(ctx, info);
+    },
+    updateReadme: async (
+      _,
+      { content }: { content: string },
+      ctx,
+      info,
+    ): Promise<GQLUser> => {
+      if (content.length >= MAX_README_LENGTH) {
+        throw new ValidationError(`Max content length is ${MAX_README_LENGTH}`);
+      }
+      const contentHtml = markdown.render(content);
+      await ctx.con
+        .getRepository(User)
+        .update(
+          { id: ctx.userId },
+          { readme: content, readmeHtml: contentHtml },
+        );
+      return getCurrentUser(ctx, info);
+    },
   }),
   User: {
     permalink: getUserPermalink,

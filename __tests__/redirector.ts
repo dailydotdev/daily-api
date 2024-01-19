@@ -1,13 +1,14 @@
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
 import { saveFixtures, TEST_UA } from './helpers';
-import { ArticlePost, Source } from '../src/entity';
+import { ArticlePost, Source, User, YouTubePost } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
-import { postsFixture } from './fixture/post';
+import { postsFixture, videoPostsFixture } from './fixture/post';
 import { notifyView } from '../src/common';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
+import { fallbackImages } from '../src/config';
 
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
@@ -29,6 +30,7 @@ beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
+  await saveFixtures(con, YouTubePost, videoPostsFixture);
 });
 
 describe('GET /r/:postId', () => {
@@ -40,7 +42,14 @@ describe('GET /r/:postId', () => {
     return request(app.server)
       .get('/r/p1')
       .expect(302)
-      .expect('Location', 'http://p1.com');
+      .expect('Location', 'http://p1.com/?ref=dailydev');
+  });
+
+  it('should redirect to youtube post url', () => {
+    return request(app.server)
+      .get('/r/yt1')
+      .expect(302)
+      .expect('Location', 'https://youtu.be/T_AbQGe7fuU?ref=dailydev');
   });
 
   it('should render redirect html and notify view event', async () => {
@@ -52,9 +61,9 @@ describe('GET /r/:postId', () => {
       .expect(200)
       .expect('content-type', 'text/html')
       .expect('referrer-policy', 'origin, origin-when-cross-origin')
-      .expect('link', `<http://p1.com>; rel="preconnect"`)
+      .expect('link', `<http://p1.com/?ref=dailydev>; rel="preconnect"`)
       .expect(
-        '<html><head><meta http-equiv="refresh" content="0;URL=http://p1.com"></head></html>',
+        '<html><head><meta http-equiv="refresh" content="0;URL=http://p1.com/?ref=dailydev"></head></html>',
       );
     expect(notifyView).toBeCalledWith(
       expect.anything(),
@@ -73,9 +82,47 @@ describe('GET /r/:postId', () => {
       .expect(200)
       .expect('content-type', 'text/html')
       .expect('referrer-policy', 'origin, origin-when-cross-origin')
-      .expect('link', `<http://p1.com>; rel="preconnect"`)
+      .expect('link', `<http://p1.com/?ref=dailydev>; rel="preconnect"`)
       .expect(
-        '<html><head><meta http-equiv="refresh" content="0;URL=http://p1.com#id"></head></html>',
+        '<html><head><meta http-equiv="refresh" content="0;URL=http://p1.com/?ref=dailydev#id"></head></html>',
       );
+  });
+
+  it('should concat query params correctly', async () => {
+    await con
+      .getRepository(ArticlePost)
+      .update({ id: 'p1' }, { url: 'http://p1.com/?a=b' });
+    return request(app.server)
+      .get('/r/p1')
+      .expect(302)
+      .expect('Location', 'http://p1.com/?a=b&ref=dailydev');
+  });
+});
+
+describe('GET /:id/profile-image', () => {
+  beforeEach(async () => {
+    await con.getRepository(User).save([
+      {
+        id: '1',
+        name: 'Ido',
+        image: 'https://daily.dev/ido.jpg',
+        timezone: 'utc',
+        createdAt: new Date(),
+      },
+    ]);
+  });
+
+  it('should return profile picture for user', async () => {
+    return request(app.server)
+      .get('/1/profile-image')
+      .expect(302)
+      .expect('Location', 'https://daily.dev/ido.jpg');
+  });
+
+  it('should return default image for non existing user', async () => {
+    return request(app.server)
+      .get('/123/profile-image')
+      .expect(302)
+      .expect('Location', fallbackImages.avatar);
   });
 });

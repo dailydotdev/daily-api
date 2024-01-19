@@ -10,7 +10,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: dependency-v2-cache-{{ checksum "package-lock.json" }}
+          key: dependency-v3-cache-{{ checksum "package-lock.json" }}
       - run:
           name: Install dependencies
           command: npm install
@@ -18,7 +18,7 @@ jobs:
           name: Build
           command: npm run build
       - save_cache:
-          key: dependency-v2-cache-{{ checksum "package-lock.json" }}
+          key: dependency-v3-cache-{{ checksum "package-lock.json" }}
           paths:
             - ./node_modules
       - persist_to_workspace:
@@ -29,7 +29,7 @@ jobs:
     resource_class: medium+
     docker:
       - image: cimg/node:18.17
-      - image: postgres:11.6-alpine
+      - image: postgres:15-alpine
         environment:
           - POSTGRES_DB: api_test
           - POSTGRES_PASSWORD: 12345
@@ -37,7 +37,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: dependency-v2-cache-{{ checksum "package-lock.json" }}
+          key: dependency-v3-cache-{{ checksum "package-lock.json" }}
       - run:
           name: Wait for PostgreSQL
           command: |

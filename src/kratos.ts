@@ -1,10 +1,11 @@
-import fetch, { RequestInit, Headers } from 'node-fetch';
-import pRetry, { AbortError } from 'p-retry';
+import { Headers, RequestInit } from 'node-fetch';
+import { addDays } from 'date-fns';
 import { fetchOptions } from './http';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { cookies, setCookie } from './cookies';
 import { setTrackingId } from './tracking';
 import { generateTrackingId } from './ids';
+import { HttpError, retryFetch } from './integrations/retry';
 
 const heimdallOrigin = process.env.HEIMDALL_ORIGIN;
 const kratosOrigin = process.env.KRATOS_ORIGIN;
@@ -31,27 +32,32 @@ const fetchKratos = async (
   req: FastifyRequest,
   endpoint: string,
   opts: RequestInit = {},
+  parseResponse = true,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<{ res: any; headers: Headers }> => {
-  return pRetry(
-    async () => {
-      const res = await fetch(endpoint, {
-        ...fetchOptions,
-        ...addKratosHeaderCookies(req),
-        ...opts,
-      });
-      if (res.status < 300) {
-        return { res: await res.json(), headers: res.headers };
+  try {
+    const res = await retryFetch(endpoint, {
+      ...fetchOptions,
+      ...addKratosHeaderCookies(req),
+      ...opts,
+    });
+    return {
+      res: parseResponse ? await res.json() : null,
+      headers: res.headers,
+    };
+  } catch (err) {
+    if (err instanceof HttpError) {
+      const kratosError = new KratosError(err.statusCode, err.response);
+      if (err.statusCode >= 500) {
+        req.log.warn({ err: kratosError }, 'unexpected error from kratos');
       }
-      const err = new KratosError(res.status, await res.text());
-      if (res.status >= 500) {
-        req.log.warn({ err }, 'unexpected error from kratos');
-        throw err;
+      if (err.statusCode !== 303 && err.statusCode !== 401) {
+        req.log.info({ err: kratosError }, 'non-401 error from kratos');
       }
-      throw new AbortError(err);
-    },
-    { retries: 5 },
-  );
+      throw err;
+    }
+    throw err;
+  }
 };
 
 export const clearAuthentication = async (
@@ -67,13 +73,25 @@ export const clearAuthentication = async (
     },
     'clearing authentication',
   );
-  req.trackingId = await generateTrackingId();
+  req.trackingId = await generateTrackingId(req, 'clear authentication');
   req.userId = undefined;
   setTrackingId(req, res, req.trackingId);
   setCookie(req, res, 'auth', undefined);
   setCookie(req, res, 'kratosContinuity', undefined);
   setCookie(req, res, 'kratos', undefined);
+
+  if (req.meter) {
+    req.meter
+      .createCounter('clear_authentication', {
+        description: 'How many times the authentication has been cleared',
+      })
+      .add(1, {
+        reason,
+      });
+  }
 };
+
+const MOCK_USER_ID = process.env.MOCK_USER_ID;
 
 type WhoamiResponse =
   | { valid: true; userId: string; expires: Date; cookie?: string }
@@ -82,6 +100,16 @@ type WhoamiResponse =
 export const dispatchWhoami = async (
   req: FastifyRequest,
 ): Promise<WhoamiResponse> => {
+  if (MOCK_USER_ID) {
+    const expires = addDays(new Date(), 1);
+
+    return Promise.resolve({
+      valid: true,
+      userId: MOCK_USER_ID,
+      expires,
+    });
+  }
+
   if (heimdallOrigin === 'disabled' || !req.cookies[cookies.kratos.key]) {
     return { valid: false };
   }
@@ -98,6 +126,7 @@ export const dispatchWhoami = async (
         cookie: headers.get('set-cookie'),
       };
     }
+    req.log.info({ whoami }, 'invalid whoami response');
   } catch (e) {
     if (e.statusCode !== 401) {
       throw e;
@@ -119,11 +148,11 @@ export const logout = async (
     if (logoutFlow?.logout_url) {
       const logoutParts = logoutFlow.logout_url.split('/self-service/');
       const logoutUrl = `${kratosOrigin}/self-service/${logoutParts[1]}`;
-      await fetchKratos(req, logoutUrl, { redirect: 'manual' });
+      await fetchKratos(req, logoutUrl, { redirect: 'manual' }, false);
     }
   } catch (e) {
     if (e.statusCode !== 303 && e.statusCode !== 401) {
-      throw e;
+      req.log.warn({ err: e }, 'unexpected error while logging out');
     }
   }
   await clearAuthentication(req, res, 'manual logout');

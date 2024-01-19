@@ -20,25 +20,34 @@ import {
   saveFixtures,
   TEST_UA,
   testMutationErrorCode,
+  testQueryError,
   testQueryErrorCode,
 } from './helpers';
 import {
+  Alerts,
+  ArticlePost,
   Comment,
+  DevCard,
+  Feature,
+  FeatureType,
+  FeatureValue,
   Post,
   Source,
   User,
   View,
-  DevCard,
-  ArticlePost,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
 import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
+import { UserPersonalizedDigest } from '../src/entity/UserPersonalizedDigest';
+import { DayOfWeek } from '../src/types';
+import { CampaignType, Invite } from '../src/entity/Invite';
+import { usersFixture } from './fixture/user';
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -281,15 +290,7 @@ describe('query userStats', () => {
     }
   }`;
 
-  it('should return partially null result when the user is not the stats owner', async () => {
-    loggedUser = '1';
-    const res = await client.query(QUERY, { variables: { id: '2' } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userStats).toMatchSnapshot();
-  });
-
   it('should return the user stats', async () => {
-    loggedUser = '1';
     const res = await client.query(QUERY, { variables: { id: '1' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
@@ -300,6 +301,44 @@ describe('query userStats', () => {
     const res = await client.query(QUERY, { variables: { id: '2' } });
     expect(res.errors).toBeFalsy();
     expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query referredUsers', () => {
+  const QUERY = `query ReferredUsers {
+    referredUsers {
+      edges {
+        node {
+          id
+          name
+          username
+          bio
+          image
+        }
+      }
+    }
+  }`;
+
+  it('should not allow unauthenticated users', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it('should return users that have been referred by the logged in user', async () => {
+    loggedUser = '1';
+    const referred = ['4', '2', '3'];
+    const outsideReferred = ['1', '5', '6'];
+    await con
+      .getRepository(User)
+      .update({ id: In(referred) }, { referralId: '1' });
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    const isAllReferred = res.data.referredUsers.edges.every(({ node }) =>
+      referred.includes(node.id),
+    );
+    expect(isAllReferred).toBeTruthy();
+    const noUnReferred = res.data.referredUsers.edges.every(
+      ({ node }) => !outsideReferred.includes(node.id),
+    );
+    expect(noUnReferred).toBeTruthy();
   });
 });
 
@@ -1587,6 +1626,16 @@ describe('mutation updateUserProfile', () => {
     );
   });
 
+  it('should not allow duplicated username with different case', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { data: { username: 'Lee' } } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should not allow disallowed username', async () => {
     loggedUser = '1';
 
@@ -1646,7 +1695,7 @@ describe('mutation updateUserProfile', () => {
     const user = await repo.findOneBy({ id: loggedUser });
     const timezone = 'Asia/Manila';
     const res = await client.mutate(MUTATION, {
-      variables: { data: { timezone, username: 'a1', name: 'Ido' } },
+      variables: { data: { timezone, username: 'aaa1', name: 'Ido' } },
     });
 
     expect(res.errors?.length).toBeFalsy();
@@ -1664,7 +1713,7 @@ describe('mutation updateUserProfile', () => {
     const repo = con.getRepository(User);
     await repo.update({ id: loggedUser }, { email: 'sample@daily.dev' });
     const user = await repo.findOneBy({ id: loggedUser });
-    const username = 'a1';
+    const username = 'aaa1';
     expect(user?.infoConfirmed).toBeFalsy();
     const res = await client.mutate(MUTATION, {
       variables: { data: { username, name: user.name } },
@@ -1683,7 +1732,7 @@ describe('mutation updateUserProfile', () => {
     const email = 'sample@daily.dev';
     expect(user?.infoConfirmed).toBeFalsy();
     const res = await client.mutate(MUTATION, {
-      variables: { data: { email, username: 'u1', name: user.name } },
+      variables: { data: { email, username: 'uuu1', name: user.name } },
     });
     expect(res.errors?.length).toBeFalsy();
     const updatedUser = await repo.findOneBy({ id: loggedUser });
@@ -1853,11 +1902,7 @@ describe('POST /v1/users/logout', () => {
 describe('DELETE /v1/users/me', () => {
   const BASE_PATH = '/v1/users/me';
 
-  it('should not authorize when not logged in', async () => {
-    await request(app.server).delete(BASE_PATH).expect(401);
-  });
-
-  it('should delete user from database', async () => {
+  beforeEach(async () => {
     await con.getRepository(User).save([
       {
         id: '404',
@@ -1867,7 +1912,13 @@ describe('DELETE /v1/users/me', () => {
         createdAt: new Date(),
       },
     ]);
+  });
 
+  it('should not authorize when not logged in', async () => {
+    await request(app.server).delete(BASE_PATH).expect(401);
+  });
+
+  it('should delete user from database', async () => {
     mockLogout();
     await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
 
@@ -1879,15 +1930,6 @@ describe('DELETE /v1/users/me', () => {
   });
 
   it('should clear cookies', async () => {
-    await con.getRepository(User).save([
-      {
-        id: '404',
-        name: 'Not found',
-        image: 'https://daily.dev/404.jpg',
-        timezone: 'utc',
-        createdAt: new Date(),
-      },
-    ]);
     mockLogout();
     const res = await authorizeRequest(request(app.server).delete(BASE_PATH))
       .set('User-Agent', TEST_UA)
@@ -1898,6 +1940,33 @@ describe('DELETE /v1/users/me', () => {
     expect(cookies['da2'].value).toBeTruthy();
     expect(cookies['da2'].value).not.toEqual('1');
     expect(cookies['da3'].value).toBeFalsy();
+  });
+
+  it('clears invitedBy from associated features', async () => {
+    await con.getRepository(Feature).insert({
+      feature: FeatureType.Search,
+      userId: '2',
+      value: FeatureValue.Allow,
+      invitedById: '1',
+    });
+
+    mockLogout();
+    await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
+
+    const feature = await con.getRepository(Feature).findOneBy({ userId: '2' });
+    expect(feature.invitedById).toBeNull();
+  });
+
+  it('removes associated invite records', async () => {
+    await con.getRepository(Invite).insert({
+      userId: '1',
+      campaign: CampaignType.Search,
+    });
+
+    mockLogout();
+    await authorizeRequest(request(app.server).delete(BASE_PATH)).expect(204);
+
+    expect(await con.getRepository(Invite).count()).toEqual(0);
   });
 });
 
@@ -1935,9 +2004,21 @@ describe('query referralCampaign', () => {
     query ReferralCampaign($referralOrigin: String!) {
       referralCampaign(referralOrigin: $referralOrigin) {
         referredUsersCount
+        referralCountLimit
+        referralToken
         url
       }
   }`;
+
+  beforeEach(async () => {
+    await con.getRepository(Invite).save({
+      userId: '1',
+      campaign: CampaignType.Search,
+      limit: 5,
+      count: 1,
+      token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+    });
+  });
 
   it('should return campaign progress for user', async () => {
     loggedUser = '1';
@@ -1971,5 +2052,557 @@ describe('query referralCampaign', () => {
       { query: QUERY, variables: { referralOrigin: 'knightcampaign' } },
       'UNAUTHENTICATED',
     );
+  });
+
+  describe('with an existing invite record for the user', () => {
+    it('should include the campaign progress & token from the invite', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY, {
+        variables: { referralOrigin: 'search' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.referralCampaign.referredUsersCount).toBe(1);
+      expect(res.data.referralCampaign.referralCountLimit).toBe(5);
+      expect(res.data.referralCampaign.referralToken).toBe(
+        'd688afeb-381c-43b5-89af-533f81ccd036',
+      );
+    });
+
+    it('should include the invite token in the URL', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY, {
+        variables: { referralOrigin: 'search' },
+      });
+
+      expect(res.data.referralCampaign.url).toBe(
+        `${process.env.COMMENTS_PREFIX}/join?cid=search&userid=1&ctoken=d688afeb-381c-43b5-89af-533f81ccd036`,
+      );
+    });
+  });
+});
+
+describe('query personalizedDigest', () => {
+  const QUERY = `
+    query PersonalizedDigest {
+      personalizedDigest {
+        preferredDay
+        preferredHour
+        preferredTimezone
+      }
+  }`;
+
+  beforeEach(async () => {
+    await con.getRepository(UserPersonalizedDigest).clear();
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: {} },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should throw not found exception when user is not subscribed', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { token: 'notfound' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return personalized digest settings for user', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: loggedUser,
+    });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.personalizedDigest).toMatchObject({
+      preferredDay: 1,
+      preferredHour: 9,
+      preferredTimezone: 'Etc/UTC',
+    });
+  });
+});
+
+describe('mutation subscribePersonalizedDigest', () => {
+  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $timezone: String) {
+    subscribePersonalizedDigest(hour: $hour, day: $day, timezone: $timezone) {
+      preferredDay
+      preferredHour
+      preferredTimezone
+    }
+  }`;
+
+  beforeEach(async () => {
+    await con.getRepository(UserPersonalizedDigest).clear();
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          day: DayOfWeek.Monday,
+          hour: 9,
+          timezone: 'Etc/UTC',
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should throw validation error if day param is less then 0', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          day: -1,
+          hour: 9,
+          timezone: 'Etc/UTC',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw validation error if day param is more then 6', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          day: 7,
+          hour: 9,
+          timezone: 'Etc/UTC',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw validation error if day param is less then 0', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          day: DayOfWeek.Monday,
+          hour: -1,
+          timezone: 'Etc/UTC',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw validation error if hour param is more then 23', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          day: DayOfWeek.Monday,
+          hour: 24,
+          timezone: 'Etc/UTC',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw validation error if invalid timezone is provided', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          day: DayOfWeek.Monday,
+          hour: 9,
+          timezone: 'Space/Mars',
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should subscribe to personal digest for user with default settings', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {},
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.subscribePersonalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Monday,
+      preferredHour: 9,
+      preferredTimezone: 'Etc/UTC',
+    });
+  });
+
+  it('should subscribe to personal digest for user with settings', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        day: DayOfWeek.Wednesday,
+        hour: 17,
+        timezone: 'Europe/Zagreb',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.subscribePersonalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Wednesday,
+      preferredHour: 17,
+      preferredTimezone: 'Europe/Zagreb',
+    });
+  });
+
+  it('should update settings for personal digest if already exists', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        day: DayOfWeek.Wednesday,
+        hour: 17,
+        timezone: 'Europe/Zagreb',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const resUpdate = await client.mutate(MUTATION, {
+      variables: {
+        day: DayOfWeek.Friday,
+        hour: 22,
+        timezone: 'Europe/Athens',
+      },
+    });
+    expect(resUpdate.errors).toBeFalsy();
+    expect(resUpdate.data.subscribePersonalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Friday,
+      preferredHour: 22,
+      preferredTimezone: 'Europe/Athens',
+    });
+  });
+});
+
+describe('mutation unsubscribePersonalizedDigest', () => {
+  const MUTATION = `mutation UnsubscribePersonalizedDigest {
+    unsubscribePersonalizedDigest {
+      _
+    }
+  }`;
+
+  beforeEach(async () => {
+    await con.getRepository(UserPersonalizedDigest).clear();
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should unsubscribe from personal digest for user', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: loggedUser,
+    });
+
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: loggedUser,
+      });
+    expect(personalizedDigest).toBeNull();
+  });
+
+  it('should not throw error if not subscribed', async () => {
+    loggedUser = '1';
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: loggedUser,
+      });
+    expect(personalizedDigest).toBeNull();
+
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
+  });
+});
+
+describe('mutation acceptFeatureInvite', () => {
+  const MUTATION = `mutation AcceptFeatureInvite($token: String!, $referrerId: ID!, $feature: String!) {
+    acceptFeatureInvite(token: $token, referrerId: $referrerId, feature: $feature) {
+      _
+    }
+  }`;
+
+  beforeEach(async () => {
+    await con.getRepository(Invite).save({
+      userId: '2',
+      campaign: CampaignType.Search,
+      limit: 5,
+      count: 1,
+      token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+    });
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+          referrerId: 2,
+          feature: CampaignType.Search,
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return a 404 if the token and referrer mismatch', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+          referrerId: 1,
+          feature: CampaignType.Search,
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should raise a validation error if the invite limit has been reached', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(Invite)
+      .update(
+        { token: 'd688afeb-381c-43b5-89af-533f81ccd036' },
+        { limit: 5, count: 5 },
+      );
+
+    await testQueryError(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+          referrerId: 2,
+          feature: CampaignType.Search,
+        },
+      },
+      (errors) => {
+        expect(errors[0].extensions.code).toEqual('GRAPHQL_VALIDATION_FAILED');
+        expect(errors[0].message).toEqual('INVITE_LIMIT_REACHED');
+      },
+    );
+  });
+
+  it('should do nothing if the feature already exists', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Feature).save({
+      feature: FeatureType.Search,
+      userId: loggedUser,
+      value: FeatureValue.Allow,
+    });
+
+    // pre-check
+    const inviteBefore = await con
+      .getRepository(Invite)
+      .findOneBy({ token: 'd688afeb-381c-43b5-89af-533f81ccd036' });
+    expect(inviteBefore.count).toEqual(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+        referrerId: '2',
+        feature: CampaignType.Search,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const inviteAfter = await con
+      .getRepository(Invite)
+      .findOneBy({ token: 'd688afeb-381c-43b5-89af-533f81ccd036' });
+    expect(inviteAfter.count).toEqual(1);
+  });
+
+  it('should update the invite count for the referrer', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+        referrerId: '2',
+        feature: CampaignType.Search,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const invite = await con
+      .getRepository(Invite)
+      .findOneBy({ token: 'd688afeb-381c-43b5-89af-533f81ccd036' });
+    expect(invite.count).toEqual(2);
+  });
+
+  it('should create a feature and enable it for the referred', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+        referrerId: '2',
+        feature: CampaignType.Search,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(
+      await con.getRepository(Feature).count({
+        where: {
+          userId: loggedUser,
+          feature: FeatureType.Search,
+        },
+      }),
+    ).toEqual(1);
+
+    const feature = await con.getRepository(Feature).findOneBy({
+      userId: loggedUser,
+      feature: FeatureType.Search,
+    });
+
+    expect(feature.value).toEqual(FeatureValue.Allow);
+    expect(feature.invitedById).toEqual('2');
+  });
+
+  it('should not enable the feature or increment invites count for the referred if it already exists', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Feature).save({
+      userId: loggedUser,
+      feature: FeatureType.Search,
+      value: FeatureValue.Block,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        token: 'd688afeb-381c-43b5-89af-533f81ccd036',
+        referrerId: '2',
+        feature: CampaignType.Search,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(
+      await con.getRepository(Feature).count({
+        where: {
+          userId: loggedUser,
+          feature: FeatureType.Search,
+        },
+      }),
+    ).toEqual(1);
+
+    const feature = await con.getRepository(Feature).findOneBy({
+      userId: loggedUser,
+      feature: FeatureType.Search,
+    });
+
+    expect(feature.value).toEqual(FeatureValue.Block);
+    expect(feature.invitedById).toBeNull();
+
+    const invite = await con
+      .getRepository(Invite)
+      .findOneBy({ token: 'd688afeb-381c-43b5-89af-533f81ccd036' });
+    expect(invite.count).toEqual(1);
+  });
+});
+
+describe('mutation updateReadme', () => {
+  const MUTATION = `mutation UpdateReadme($content: String!) {
+    updateReadme(content: $content) {
+      readme
+      readmeHtml
+    }
+  }`;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { content: 'test' },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should update the readme and render markdown', async () => {
+    loggedUser = '1';
+
+    const expected = `Hello
+
+**Readme!**`;
+    const res = await client.mutate(MUTATION, {
+      variables: { content: expected },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateReadme).toEqual({
+      readme: expected,
+      readmeHtml: '<p>Hello</p>\n<p><strong>Readme!</strong></p>\n',
+    });
+  });
+});
+
+describe('user_create_alerts_trigger after insert trigger', () => {
+  it('should insert default alerts', async () => {
+    await con.getRepository(User).delete({});
+    const repo = con.getRepository(Alerts);
+    await repo.delete({});
+    const [user] = usersFixture;
+    await saveFixtures(con, User, [user]);
+    const alerts = await repo.findOneBy({ userId: user.id });
+    expect(alerts).toBeTruthy();
   });
 });

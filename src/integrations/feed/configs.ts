@@ -1,32 +1,32 @@
-import { FeedConfig, FeedConfigGenerator } from './types';
+import { DynamicConfig, FeedConfig, FeedConfigGenerator } from './types';
 import { feedToFilters } from '../../common';
 import { ISnotraClient, UserState } from '../snotra';
+import { postTypes } from '../../entity';
+import { runInSpan } from '../../telemetry/opentelemetry';
 
 type Options = {
   includeAllowedTags?: boolean;
   includeBlockedTags?: boolean;
   includeBlockedSources?: boolean;
   includeSourceMemberships?: boolean;
+  includePostTypes?: boolean;
 };
 
 type BaseConfig = Partial<Omit<FeedConfig, 'user_id' | 'page_size' | 'offset'>>;
 
 function getDefaultConfig(
   baseConfig: BaseConfig,
-  userId: string | undefined,
-  pageSize: number,
-  offset: number,
+  dynamicConfig: DynamicConfig,
 ): FeedConfig {
-  const freshPageSize = Math.ceil(pageSize / 3).toFixed(0);
+  const freshPageSize = Math.ceil(dynamicConfig.page_size / 3).toFixed(0);
   const config: FeedConfig = {
     ...baseConfig,
-    page_size: pageSize,
-    offset,
-    total_pages: baseConfig.total_pages || 40,
+    ...dynamicConfig,
+    total_pages: baseConfig.total_pages || 1,
     fresh_page_size: freshPageSize,
   };
-  if (userId) {
-    config.user_id = userId;
+  if (config.user_id === null) {
+    delete config.user_id;
   }
   return config;
 }
@@ -38,8 +38,8 @@ export class SimpleFeedConfigGenerator implements FeedConfigGenerator {
     this.baseConfig = baseConfig;
   }
 
-  async generate(ctx, userId, pageSize, offset): Promise<FeedConfig> {
-    return getDefaultConfig(this.baseConfig, userId, pageSize, offset);
+  async generate(ctx, opts): Promise<FeedConfig> {
+    return getDefaultConfig(this.baseConfig, opts);
   }
 }
 
@@ -55,22 +55,30 @@ export class FeedPreferencesConfigGenerator implements FeedConfigGenerator {
     this.opts = opts;
   }
 
-  async generate(ctx, userId, pageSize, offset): Promise<FeedConfig> {
-    const config = getDefaultConfig(this.baseConfig, userId, pageSize, offset);
-    const filters = await feedToFilters(ctx.con, userId, userId);
-    if (filters.includeTags?.length && this.opts.includeAllowedTags) {
-      config.allowed_tags = filters.includeTags;
-    }
-    if (filters.blockedTags?.length && this.opts.includeBlockedTags) {
-      config.blocked_tags = filters.blockedTags;
-    }
-    if (filters.excludeSources?.length && this.opts.includeBlockedSources) {
-      config.blocked_sources = filters.excludeSources;
-    }
-    if (filters.sourceIds?.length && this.opts.includeSourceMemberships) {
-      config.squad_ids = filters.sourceIds;
-    }
-    return config;
+  async generate(ctx, opts): Promise<FeedConfig> {
+    return runInSpan('FeedPreferencesConfigGenerator', async () => {
+      const config = getDefaultConfig(this.baseConfig, opts);
+      const userId = opts.user_id;
+      const filters = await feedToFilters(ctx.con, userId, userId);
+      if (filters.includeTags?.length && this.opts.includeAllowedTags) {
+        config.allowed_tags = filters.includeTags;
+      }
+      if (filters.blockedTags?.length && this.opts.includeBlockedTags) {
+        config.blocked_tags = filters.blockedTags;
+      }
+      if (filters.excludeSources?.length && this.opts.includeBlockedSources) {
+        config.blocked_sources = filters.excludeSources;
+      }
+      if (filters.sourceIds?.length && this.opts.includeSourceMemberships) {
+        config.squad_ids = filters.sourceIds;
+      }
+      if (filters.excludeTypes?.length && this.opts.includePostTypes) {
+        config.allowed_post_types = (
+          config.allowed_post_types || postTypes
+        ).filter((x) => !filters.excludeTypes.includes(x));
+      }
+      return config;
+    });
   }
 }
 
@@ -89,16 +97,13 @@ export class FeedUserStateConfigGenerator implements FeedConfigGenerator {
     this.generators = generators;
   }
 
-  async generate(ctx, userId, pageSize, offset): Promise<FeedConfig> {
-    const userState = await this.snotraClient.fetchUserState({
-      user_id: userId,
-      providers: { personalise: {} },
+  async generate(ctx, opts): Promise<FeedConfig> {
+    return runInSpan('FeedUserStateConfigGenerator', async () => {
+      const userState = await this.snotraClient.fetchUserState({
+        user_id: opts.user_id,
+        providers: { personalise: {} },
+      });
+      return this.generators[userState.personalise.state].generate(ctx, opts);
     });
-    return this.generators[userState.personalise.state].generate(
-      ctx,
-      userId,
-      pageSize,
-      offset,
-    );
   }
 }

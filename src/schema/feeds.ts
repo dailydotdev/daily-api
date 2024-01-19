@@ -7,6 +7,8 @@ import {
   FeedTag,
   Post,
   Source,
+  UserPost,
+  UserPostVote,
 } from '../entity';
 import { Category } from '../entity/Category';
 import { GraphQLResolveInfo } from 'graphql';
@@ -17,6 +19,7 @@ import { traceResolvers } from './trace';
 import {
   anonymousFeedBuilder,
   AnonymousFeedFilters,
+  applyFeedWhere,
   base64,
   configuredFeedBuilder,
   FeedArgs,
@@ -34,18 +37,15 @@ import {
 import { In, SelectQueryBuilder } from 'typeorm';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
-  fixedIdsPageGenerator,
   offsetPageGenerator,
   Page,
   PageGenerator,
-  getSearchQuery,
+  feedCursorPageGenerator,
 } from './common';
 import { GQLPost } from './posts';
-import { Connection, ConnectionArguments } from 'graphql-relay';
+import { ConnectionArguments } from 'graphql-relay';
 import graphorm from '../graphorm';
-import { ioRedisPool } from '../redis';
 import {
-  cachedFeedClient,
   feedClient,
   FeedGenerator,
   feedGenerators,
@@ -53,6 +53,7 @@ import {
   versionToFeedGenerator,
 } from '../integrations/feed';
 import { AuthenticationError } from 'apollo-server-errors';
+import { getUserGrowthBookInstace } from '../growthbook';
 
 interface GQLTagsCategory {
   id: string;
@@ -67,11 +68,13 @@ export const typeDefs = /* GraphQL */ `
     title: String!
     description: String!
     defaultEnabledState: Boolean!
+    group: String!
   }
 
   type FeedAdvancedSettings {
     id: Int!
     enabled: Boolean!
+    advancedSettings: AdvancedSettings
   }
 
   type FeedSettings {
@@ -81,15 +84,6 @@ export const typeDefs = /* GraphQL */ `
     blockedTags: [String]
     excludeSources: [Source]
     advancedSettings: [FeedAdvancedSettings]
-  }
-
-  type SearchPostSuggestion {
-    title: String!
-  }
-
-  type SearchPostSuggestionsResults {
-    query: String!
-    hits: [SearchPostSuggestion!]!
   }
 
   type RSSFeed {
@@ -231,6 +225,16 @@ export const typeDefs = /* GraphQL */ `
     ): PostConnection! @auth
 
     """
+    Get feed preview
+    """
+    feedPreview(
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection! @auth
+
+    """
     Get an adhoc feed using a provided config
     """
     feedByConfig(
@@ -356,46 +360,6 @@ export const typeDefs = /* GraphQL */ `
     feedSettings: FeedSettings! @auth
 
     """
-    Get suggestions for search post query
-    """
-    searchPostSuggestions(
-      """
-      The query to search for
-      """
-      query: String!
-    ): SearchPostSuggestionsResults!
-
-    """
-    Get a posts feed of a search query
-    """
-    searchPosts(
-      """
-      The query to search for
-      """
-      query: String!
-
-      """
-      Time the pagination started to ignore new items
-      """
-      now: DateTime
-
-      """
-      Paginate after opaque cursor
-      """
-      after: String
-
-      """
-      Paginate first
-      """
-      first: Int
-
-      """
-      Array of supported post types
-      """
-      supportedTypes: [String!]
-    ): PostConnection!
-
-    """
     Returns the user's RSS feeds
     """
     rssFeeds: [RSSFeed!]! @auth
@@ -408,6 +372,36 @@ export const typeDefs = /* GraphQL */ `
       Id of the author
       """
       author: ID!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Ranking criteria for the feed
+      """
+      ranking: Ranking = POPULARITY
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection!
+
+    """
+    Get a user's upvote feed
+    """
+    userUpvotedFeed(
+      """
+      Id of the user
+      """
+      userId: ID!
 
       """
       Paginate after opaque cursor
@@ -593,11 +587,13 @@ export interface GQLAdvancedSettings {
   id: number;
   title: string;
   description: string;
+  group: string;
 }
 
 export interface GQLFeedAdvancedSettings {
   id: number;
   enabled: boolean;
+  advancedSettings: GQLAdvancedSettings;
 }
 
 export interface GQLFeedAdvancedSettingsInput {
@@ -615,15 +611,6 @@ export interface GQLFeedSettings {
 }
 
 export type GQLFiltersInput = AnonymousFeedFilters;
-
-interface GQLSearchPostSuggestion {
-  title: string;
-}
-
-export interface GQLSearchPostSuggestionsResults {
-  query: string;
-  hits: GQLSearchPostSuggestion[];
-}
 
 interface AnonymousFeedArgs extends FeedArgs {
   filters?: GQLFiltersInput;
@@ -707,6 +694,45 @@ const applyFeedPaging = (
     });
   } else if (page.timestamp) {
     newBuilder = newBuilder.andWhere(`${alias}."createdAt" < :timestamp`, {
+      timestamp: page.timestamp,
+    });
+  }
+  return newBuilder;
+};
+
+interface UpvotedPage extends Page {
+  timestamp?: Date;
+}
+
+const upvotedPageGenerator: PageGenerator<
+  GQLPost,
+  ConnectionArguments,
+  UpvotedPage
+> = {
+  connArgsToPage: ({ first, after }: FeedArgs) => {
+    const cursor = getCursorFromAfter(after);
+    const limit = Math.min(first || 30, 50);
+    if (cursor) {
+      return { limit, timestamp: new Date(parseInt(cursor)) };
+    }
+    return { limit };
+  },
+  nodeToCursor: (page, args, node) => {
+    return base64(`time:${node.votedAt.getTime()}`);
+  },
+  hasNextPage: (page, nodesSize) => page.limit === nodesSize,
+  hasPreviousPage: (page) => !!page.timestamp,
+};
+
+const applyUpvotedPaging = (
+  ctx: Context,
+  args,
+  page: UpvotedPage,
+  builder: SelectQueryBuilder<Post>,
+): SelectQueryBuilder<Post> => {
+  let newBuilder = builder.limit(page.limit).orderBy('up.votedAt', 'DESC');
+  if (page.timestamp) {
+    newBuilder = newBuilder.andWhere('up."votedAt" < :timestamp', {
       timestamp: page.timestamp,
     });
   }
@@ -800,22 +826,6 @@ const getFeedSettings = async (
   };
 };
 
-const searchResolver = feedResolver(
-  (ctx, { query }: FeedArgs & { query: string }, builder, alias) =>
-    builder
-      .andWhere(`${alias}.tsv @@ (${getSearchQuery(':query')})`, {
-        query,
-      })
-      .orderBy('views', 'DESC'),
-  offsetPageGenerator(30, 50),
-  (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
-  {
-    removeHiddenPosts: true,
-    removeBannedPosts: false,
-    allowPrivateSources: false,
-  },
-);
-
 const anonymousFeedResolverV1: IFieldResolver<
   unknown,
   Context,
@@ -846,23 +856,7 @@ const feedResolverV1: IFieldResolver<unknown, Context, ConfiguredFeedArgs> =
     },
   );
 
-const invalidateFeedCache = async (feedId: string): Promise<void> => {
-  try {
-    const key = cachedFeedClient.getCacheKeyPrefix(feedId);
-    await ioRedisPool.execute(async (client) => {
-      return client.set(
-        `${key}:update`,
-        new Date().toISOString(),
-        'EX',
-        24 * 60 * 60,
-      );
-    });
-  } catch (err) {
-    console.error(err);
-  }
-};
-
-const feedResolverV2: IFieldResolver<
+const feedResolverCursor: IFieldResolver<
   unknown,
   Context,
   FeedArgs & { generator: FeedGenerator }
@@ -870,11 +864,11 @@ const feedResolverV2: IFieldResolver<
   (ctx, args, builder, alias, queryParams) =>
     fixedIdsFeedBuilder(
       ctx,
-      queryParams.map(([postId]) => postId as string),
+      queryParams.data.map(([postId]) => postId as string),
       builder,
       alias,
     ),
-  fixedIdsPageGenerator(30, 50),
+  feedCursorPageGenerator(30, 50),
   (ctx, args, page, builder) => builder,
   {
     fetchQueryParams: (
@@ -882,14 +876,60 @@ const feedResolverV2: IFieldResolver<
       args: FeedArgs & { generator: FeedGenerator },
       page,
     ) =>
-      args.generator.generate(
-        ctx,
-        ctx.userId || ctx.trackingId,
-        page.limit,
-        page.offset,
-      ),
+      args.generator.generate(ctx, {
+        user_id: ctx.userId || ctx.trackingId,
+        page_size: page.limit,
+        offset: 0,
+        cursor: page.cursor,
+        allowed_post_types: args.supportedTypes,
+      }),
     warnOnPartialFirstPage: true,
   },
+);
+
+const legacySimilarPostsResolver = randomPostsResolver(
+  (
+    ctx,
+    {
+      tags,
+      post,
+    }: { tags: string[]; post: string | null; first: number | null },
+    builder,
+    alias,
+  ) => {
+    let similarPostsQuery;
+    if (tags?.length > 0) {
+      similarPostsQuery = `select post.id
+                               from post
+                                      inner join (select count(*)           as similar,
+                                                         min(k.occurrences) as occurrences,
+                                                         pk."postId"
+                                                  from post_keyword pk
+                                                         inner join keyword k on pk.keyword = k.value
+                                                  where k.value in (:...tags)
+                                                    and k.status = 'allow'
+                                                  group by pk."postId") k
+                                                 on k."postId" = post.id
+                               where post.id != :postId
+                                 and post."createdAt" >= now() - interval '6 month'
+                                 and post.visible = true and post.deleted = false
+                               order by (pow(post.upvotes, k.similar) * 1000 /
+                                 k.occurrences) desc
+                                 limit 25`;
+    } else {
+      similarPostsQuery = `select post.id
+                               from post
+                               where post.id != :postId
+                                 and post."createdAt" >= now() - interval '6 month'
+                               order by post.upvotes desc
+                                 limit 25`;
+    }
+    return builder.andWhere(`${alias}."id" in (${similarPostsQuery})`, {
+      postId: post,
+      tags,
+    });
+  },
+  3,
 );
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -897,7 +937,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
-        return feedResolverV2(
+        return feedResolverCursor(
           source,
           {
             ...(args as FeedArgs),
@@ -911,7 +951,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
-        return feedResolverV2(
+        return feedResolverCursor(
           source,
           {
             ...(args as FeedArgs),
@@ -922,6 +962,24 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         );
       }
       return feedResolverV1(source, args, ctx, info);
+    },
+    feedPreview: (
+      source,
+      args: Pick<ConfiguredFeedArgs, 'supportedTypes'>,
+      ctx: Context,
+      info,
+    ) => {
+      return feedResolverCursor(
+        source,
+        {
+          ...(args as FeedArgs),
+          first: 20,
+          ranking: Ranking.POPULARITY,
+          generator: feedGenerators.onboarding,
+        },
+        ctx,
+        info,
+      );
     },
     feedByConfig: (
       source,
@@ -938,7 +996,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         feedClient,
         new SimpleFeedConfigGenerator(JSON.parse(args.config)),
       );
-      return feedResolverV2(
+      return feedResolverCursor(
         source,
         {
           ...(args as ConnectionArguments),
@@ -984,42 +1042,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ),
     feedSettings: (source, args, ctx, info): Promise<GQLFeedSettings> =>
       getFeedSettings(ctx, info),
-    searchPostSuggestions: async (
-      source,
-      { query }: { query: string },
-      ctx,
-    ): Promise<GQLSearchPostSuggestionsResults> => {
-      const hits: { title: string }[] = await ctx.con.query(
-        `
-          WITH search AS (${getSearchQuery('$1')})
-          select ts_headline(process_text(title), search.query,
-                             'StartSel = <strong>, StopSel = </strong>') as title
-          from post
-                 inner join search on true
-                 inner join source on source.id = post."sourceId"
-          where tsv @@ search.query and source.private = false
-          order by views desc
-            limit 5;
-        `,
-        [query],
-      );
-      return {
-        query,
-        hits,
-      };
-    },
-    searchPosts: async (
-      source,
-      args: FeedArgs & { query: string },
-      ctx,
-      info,
-    ): Promise<Connection<GQLPost> & { query: string }> => {
-      const res = await searchResolver(source, args, ctx, info);
-      return {
-        ...res,
-        query: args.query,
-      };
-    },
     rssFeeds: async (source, args, ctx): Promise<GQLRSSFeed[]> => {
       const urlPrefix = `${process.env.URL_PREFIX}/rss`;
       const lists = await ctx.getRepository(BookmarkList).find({
@@ -1059,6 +1081,24 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         allowPrivateSources: false,
       },
     ),
+    userUpvotedFeed: feedResolver(
+      (ctx, { userId }: { userId: string } & FeedArgs, builder, alias) =>
+        builder
+          .addSelect('up.votedAt', 'votedAt')
+          .innerJoin(
+            UserPost,
+            'up',
+            `up."postId" = ${alias}.id AND up."userId" = :author AND vote = :vote`,
+            { author: userId, vote: UserPostVote.Up },
+          ),
+      upvotedPageGenerator,
+      applyUpvotedPaging,
+      {
+        removeHiddenPosts: false,
+        removeBannedPosts: false,
+        allowPrivateSources: false,
+      },
+    ),
     mostUpvotedFeed: feedResolver(
       (
         ctx,
@@ -1080,7 +1120,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
         builder.limit(limit).offset(offset),
       {
         removeHiddenPosts: true,
-        removeBannedPosts: false,
         allowPrivateSources: false,
         allowSquadPosts: false,
       },
@@ -1150,50 +1189,41 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       },
       3,
     ),
-    randomSimilarPostsByTags: randomPostsResolver(
-      (
-        ctx,
-        {
-          tags,
-          post,
-        }: { tags: string[]; post: string | null; first: number | null },
-        builder,
-        alias,
-      ) => {
-        let similarPostsQuery;
-        if (tags?.length > 0) {
-          similarPostsQuery = `select post.id
-                               from post
-                                      inner join (select count(*)           as similar,
-                                                         min(k.occurrences) as occurrences,
-                                                         pk."postId"
-                                                  from post_keyword pk
-                                                         inner join keyword k on pk.keyword = k.value
-                                                  where k.value in (:...tags)
-                                                    and k.status = 'allow'
-                                                  group by pk."postId") k
-                                                 on k."postId" = post.id
-                               where post.id != :postId
-                                 and post."createdAt" >= now() - interval '6 month'
-                                 and post.visible = true and post.deleted = false
-                               order by (pow(post.upvotes, k.similar) * 1000 /
-                                 k.occurrences) desc
-                                 limit 25`;
-        } else {
-          similarPostsQuery = `select post.id
-                               from post
-                               where post.id != :postId
-                                 and post."createdAt" >= now() - interval '6 month'
-                               order by post.upvotes desc
-                                 limit 25`;
-        }
-        return builder.andWhere(`${alias}."id" in (${similarPostsQuery})`, {
-          postId: post,
-          tags,
+    randomSimilarPostsByTags: async (
+      source,
+      args: { tags: string[]; post: string | null; first: number | null },
+      ctx,
+      info,
+    ): Promise<GQLPost[]> => {
+      const gb = getUserGrowthBookInstace(ctx.userId);
+      if (gb.isOn('post_similarity')) {
+        const res = await feedGenerators['post_similarity'].generate(ctx, {
+          user_id: ctx.userId,
+          page_size: args.first || 3,
+          post_id: args.post,
         });
-      },
-      3,
-    ),
+        if (res?.data?.length) {
+          return graphorm.query(ctx, info, (builder) => {
+            builder.queryBuilder = applyFeedWhere(
+              ctx,
+              fixedIdsFeedBuilder(
+                ctx,
+                res.data.map(([postId]) => postId as string),
+                builder.queryBuilder,
+                builder.alias,
+              ),
+              builder.alias,
+              ['article'],
+              true,
+              true,
+              false,
+            );
+            return builder;
+          });
+        }
+      }
+      return legacySimilarPostsResolver(source, args, ctx, info);
+    },
     randomDiscussedPosts: randomPostsResolver(
       (
         ctx,
@@ -1278,7 +1308,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
             .execute();
         }
       });
-      await invalidateFeedCache(feedId);
       return getFeedSettings(ctx, info);
     },
     removeFiltersFromFeed: async (
@@ -1309,7 +1338,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           });
         }
       });
-      await invalidateFeedCache(feedId);
       return getFeedSettings(ctx, info);
     },
     updateFeedAdvancedSettings: async (
@@ -1341,8 +1369,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           '("advancedSettingsId", "feedId") DO UPDATE SET enabled = excluded.enabled',
         )
         .execute();
-
-      await invalidateFeedCache(feedId);
 
       return feedAdvSettingsrepo
         .createQueryBuilder()

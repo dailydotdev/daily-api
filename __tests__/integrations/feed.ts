@@ -1,25 +1,27 @@
 import {
-  CachedFeedClient,
   FeedClient,
   FeedConfig,
   FeedConfigGenerator,
   FeedConfigName,
   FeedPreferencesConfigGenerator,
   FeedResponse,
-  IFeedClient,
   SimpleFeedConfigGenerator,
 } from '../../src/integrations/feed';
 import { MockContext, saveFixtures } from '../helpers';
-import { deleteKeysByPattern, ioRedisPool } from '../../src/redis';
+import { deleteKeysByPattern } from '../../src/redis';
 import createOrGetConnection from '../../src/db';
 import { DataSource } from 'typeorm';
 import { Context } from '../../src/Context';
 import nock from 'nock';
 import { mock } from 'jest-mock-extended';
 import {
+  AdvancedSettings,
   Feed,
+  FeedAdvancedSettings,
   FeedSource,
   FeedTag,
+  PostType,
+  postTypes,
   Source,
   SourceMember,
   User,
@@ -52,22 +54,16 @@ const rawFeedResponse = {
     { post_id: '6' },
   ],
 };
-const feedResponse: FeedResponse = [
-  ['1', '{"p":"a"}'],
-  ['2', '{"p":"b"}'],
-  ['3', '{"p":"c"}'],
-  ['4', null],
-  ['5', null],
-  ['6', null],
-];
-
-const setCache = (
-  key: string,
-  ids: string[] | [string, string | undefined][],
-) =>
-  ioRedisPool.execute(async (client) => {
-    return client.set(`${key}:posts`, JSON.stringify(ids));
-  });
+const feedResponse: FeedResponse = {
+  data: [
+    ['1', '{"p":"a"}'],
+    ['2', '{"p":"b"}'],
+    ['3', '{"p":"c"}'],
+    ['4', null],
+    ['5', null],
+    ['6', null],
+  ],
+};
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -90,87 +86,6 @@ describe('FeedClient', () => {
     const feedClient = new FeedClient(url);
     const feed = await feedClient.fetchFeed(ctx, 'id', config);
     expect(feed).toEqual(feedResponse);
-  });
-});
-
-describe('CachedFeedClient', () => {
-  it('should fetch subsequent pages from cache', async () => {
-    const mockClient = mock<IFeedClient>();
-    mockClient.fetchFeed.mockResolvedValueOnce(feedResponse);
-    const feedClient = new CachedFeedClient(mockClient, ioRedisPool);
-    const page0 = await feedClient.fetchFeed(ctx, 'id', config);
-    expect(page0).toEqual(feedResponse.slice(0, 2));
-    await new Promise(process.nextTick);
-    const page1 = await feedClient.fetchFeed(ctx, 'id', {
-      ...config,
-      offset: 2,
-    });
-    expect(page1).toEqual(feedResponse.slice(2, 4));
-  });
-
-  it('should fetch from origin when cache is old', async () => {
-    const mockClient = mock<IFeedClient>();
-    mockClient.fetchFeed.mockResolvedValueOnce(feedResponse);
-    const feedClient = new CachedFeedClient(mockClient, ioRedisPool);
-
-    const feedId = 'f1';
-    const key = feedClient.getCacheKey(config.user_id, feedId);
-    await ioRedisPool.execute(async (client) => {
-      return client.set(
-        `${key}:time`,
-        new Date(new Date().getTime() - 60 * 60 * 1000).toISOString(),
-      );
-    });
-    await setCache(key, ['7', '8']);
-
-    const page0 = await feedClient.fetchFeed(ctx, feedId, config);
-    expect(page0).toEqual(feedResponse.slice(0, 2));
-  });
-
-  it('should fetch from cache when it is still fresh', async () => {
-    const mockClient = mock<IFeedClient>();
-    const feedClient = new CachedFeedClient(mockClient, ioRedisPool);
-
-    const feedId = 'f2';
-    const key = feedClient.getCacheKey(config.user_id, feedId);
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${key}:time`, new Date().toISOString());
-    });
-    await setCache(key, [
-      ['7', JSON.stringify({ p: 'a' })],
-      ['8', JSON.stringify({ p: 'b' })],
-    ]);
-
-    const page0 = await feedClient.fetchFeed(ctx, feedId, config);
-    expect(page0).toEqual([
-      ['7', JSON.stringify({ p: 'a' })],
-      ['8', JSON.stringify({ p: 'b' })],
-    ]);
-  });
-
-  it('should fetch from origin when last updated time is greater than last generated', async () => {
-    const mockClient = mock<IFeedClient>();
-    mockClient.fetchFeed.mockResolvedValueOnce(feedResponse);
-    const feedClient = new CachedFeedClient(mockClient, ioRedisPool);
-
-    const feedId = 'f3';
-    const key = feedClient.getCacheKey(config.user_id, feedId);
-    await ioRedisPool.execute(async (client) => {
-      return client.set(
-        `${feedClient.getCacheKeyPrefix(feedId)}:update`,
-        new Date(new Date().getTime() - 10 * 1000).toISOString(),
-      );
-    });
-    await ioRedisPool.execute(async (client) => {
-      return client.set(
-        `${key}:time`,
-        new Date(new Date().getTime() - 60 * 1000).toISOString(),
-      );
-    });
-    await setCache(key, ['7', '8']);
-
-    const page0 = await feedClient.fetchFeed(ctx, feedId, config);
-    expect(page0).toEqual(feedResponse.slice(0, 2));
   });
 });
 
@@ -203,21 +118,50 @@ describe('FeedPreferencesConfigGenerator', () => {
         referralToken: 'rt2',
       },
     ]);
+    await con.getRepository(AdvancedSettings).save([
+      {
+        title: 'Videos',
+        group: 'content_types',
+        description: '',
+        defaultEnabledState: true,
+        options: { type: PostType.VideoYouTube },
+      },
+      {
+        title: 'Articles',
+        group: 'content_types',
+        description: '',
+        defaultEnabledState: true,
+        options: { type: PostType.Article },
+      },
+    ]);
+    await con.getRepository(FeedAdvancedSettings).save([
+      { feedId: '1', advancedSettingsId: 1, enabled: false },
+      { feedId: '1', advancedSettingsId: 2, enabled: true },
+    ]);
   });
 
   it('should generate feed config with feed preferences', async () => {
-    const generator = new FeedPreferencesConfigGenerator(config, {
-      includeSourceMemberships: true,
-      includeBlockedSources: true,
-      includeBlockedTags: true,
-      includeAllowedTags: true,
-    });
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+      {
+        includeSourceMemberships: true,
+        includeBlockedSources: true,
+        includeBlockedTags: true,
+        includeAllowedTags: true,
+        includePostTypes: true,
+      },
+    );
 
-    const actual = await generator.generate(ctx, '1', 2, 3);
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
     expect(actual).toEqual({
       allowed_tags: expect.arrayContaining(['javascript', 'golang']),
       blocked_sources: expect.arrayContaining(['a', 'b']),
       blocked_tags: expect.arrayContaining(['python', 'java']),
+      allowed_post_types: postTypes.filter((x) => x !== PostType.VideoYouTube),
       feed_config_name: FeedConfigName.Personalise,
       fresh_page_size: '1',
       offset: 3,
@@ -229,12 +173,19 @@ describe('FeedPreferencesConfigGenerator', () => {
   });
 
   it('should generate feed config with blocked tags and sources', async () => {
-    const generator = new FeedPreferencesConfigGenerator(config, {
-      includeBlockedSources: true,
-      includeBlockedTags: true,
-    });
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+      {
+        includeBlockedSources: true,
+        includeBlockedTags: true,
+      },
+    );
 
-    const actual = await generator.generate(ctx, '1', 2, 3);
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
     expect(actual).toEqual({
       blocked_sources: expect.arrayContaining(['a', 'b']),
       blocked_tags: expect.arrayContaining(['python', 'java']),
@@ -248,9 +199,15 @@ describe('FeedPreferencesConfigGenerator', () => {
   });
 
   it('should generate feed config with no preferences', async () => {
-    const generator = new FeedPreferencesConfigGenerator(config);
+    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
+      config,
+    );
 
-    const actual = await generator.generate(ctx, '1', 2, 3);
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
     expect(actual).toEqual({
       feed_config_name: FeedConfigName.Personalise,
       fresh_page_size: '1',
@@ -277,8 +234,15 @@ describe('FeedUserStateConfigGenerator', () => {
     mockClient.fetchUserState.mockResolvedValueOnce({
       personalise: { state: 'personalised' },
     });
-    const generator = new FeedUserStateConfigGenerator(mockClient, generators);
-    const actual = await generator.generate(ctx, '1', 2, 3);
+    const generator: FeedConfigGenerator = new FeedUserStateConfigGenerator(
+      mockClient,
+      generators,
+    );
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
     expect(actual.user_id).toEqual('1');
     expect(actual.feed_config_name).toEqual('vector');
     expect(mockClient.fetchUserState).toBeCalledWith({
@@ -292,8 +256,15 @@ describe('FeedUserStateConfigGenerator', () => {
     mockClient.fetchUserState.mockResolvedValueOnce({
       personalise: { state: 'non_personalised' },
     });
-    const generator = new FeedUserStateConfigGenerator(mockClient, generators);
-    const actual = await generator.generate(ctx, '1', 2, 3);
+    const generator: FeedConfigGenerator = new FeedUserStateConfigGenerator(
+      mockClient,
+      generators,
+    );
+    const actual = await generator.generate(ctx, {
+      user_id: '1',
+      page_size: 2,
+      offset: 3,
+    });
     expect(actual.feed_config_name).toEqual('personalise');
   });
 });

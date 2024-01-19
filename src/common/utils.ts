@@ -3,6 +3,12 @@ import { zonedTimeToUtc } from 'date-fns-tz';
 
 const REMOVE_SPECIAL_CHARACTERS_REGEX = /[^a-zA-Z0-9-_#.]/g;
 
+export const ghostUser = {
+  id: '404',
+  username: 'ghost',
+  name: 'Deleted user',
+};
+
 interface GetTimezonedIsoWeekProps {
   date: Date;
   timezone: string;
@@ -54,3 +60,28 @@ export const uniqueifyArray = <T>(array: T[]): T[] => {
  * @param array
  */
 export const removeEmptyValues = <T>(array: T[]): T[] => array.filter(Boolean);
+
+/**
+ * Check if the current environment is production
+ *
+ * @returns boolean
+ */
+export const isProd = process.env.NODE_ENV === 'production';
+
+export const parseDate = (date: string | Date): Date | undefined => {
+  if (!date) {
+    return undefined;
+  }
+
+  const parsedDate = new Date(date);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return undefined;
+  }
+
+  if (parsedDate.getTime() < 0) {
+    return undefined;
+  }
+
+  return parsedDate;
+};

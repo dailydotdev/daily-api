@@ -7,7 +7,6 @@ import { messageToJson } from '../worker';
 
 interface Content {
   id: string;
-  contentHtml: string;
 }
 
 interface Data<T extends Content> {
@@ -18,12 +17,13 @@ export const generateNewImagesHandler =
   <T extends Data<Content> = Data<Content>>(
     key: keyof T,
     type: ContentImageUsedByType,
+    contentKey: keyof Data<Content> = 'contentHtml',
   ) =>
   async (message, con): Promise<void> => {
     const data: T = messageToJson(message);
     const obj = data[key];
 
-    if (!obj || !obj?.id || !obj?.contentHtml) return;
+    if (!obj || !obj?.id || !obj?.[contentKey]) return;
 
-    await updateUsedImagesInContent(con, type, obj);
+    await updateUsedImagesInContent(con, type, obj.id, obj[contentKey]);
   };

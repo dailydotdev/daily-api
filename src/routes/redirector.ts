@@ -1,5 +1,6 @@
+import { URL } from 'url';
 import { FastifyInstance } from 'fastify';
-import { ArticlePost } from '../entity';
+import { ArticlePost, Post } from '../entity';
 import { notifyView } from '../common';
 import createOrGetConnection from '../db';
 
@@ -8,14 +9,27 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     '/:postId',
     async (req, res) => {
       const con = await createOrGetConnection();
-      const post = await con.getRepository(ArticlePost).findOne({
-        select: ['id', 'url', 'tagsStr'],
-        where: [{ id: req.params.postId }, { shortId: req.params.postId }],
-      });
+      const q = con
+        .createQueryBuilder()
+        .select([
+          'post.id AS id',
+          'post.url AS url',
+          'post.tagsStr AS "tagsStr"',
+        ])
+        .from(Post, 'post')
+        .where('post.id = :id OR post.shortId = :id', {
+          id: req.params.postId,
+        });
+
+      const post =
+        await q.getRawOne<Pick<ArticlePost, 'id' | 'url' | 'tagsStr'>>();
+
       if (!post) {
         return res.status(404).send();
       }
-      const encodedUri = encodeURI(post.url);
+      const url = new URL(post.url);
+      url.searchParams.append('ref', 'dailydev');
+      const encodedUri = encodeURI(url.href);
       if (req.isBot) {
         return res.status(302).redirect(encodedUri);
       }

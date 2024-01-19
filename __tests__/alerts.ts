@@ -17,6 +17,7 @@ import {
 } from './helpers';
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
+import { saveReturnAlerts } from '../src/schema/alerts';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -49,6 +50,7 @@ describe('query userAlerts', () => {
       lastChangelog
       lastBanner
       squadTour
+      showGenericReferral
     }
   }`;
 
@@ -70,8 +72,9 @@ describe('query userAlerts', () => {
     const alerts = repo.create({
       userId: '1',
       filter: true,
+      flags: { lastReferralReminder: new Date('2023-02-05 12:00:00') },
     });
-    const expected = await repo.save(alerts);
+    const expected = saveReturnAlerts(await repo.save(alerts));
     const res = await client.query(QUERY);
 
     delete expected.userId;
@@ -85,7 +88,7 @@ describe('query userAlerts', () => {
 });
 
 describe('mutation updateUserAlerts', () => {
-  const MUTATION = `
+  const MUTATION = (extra = '') => `
     mutation UpdateUserAlerts($data: UpdateAlertsInput!) {
       updateUserAlerts(data: $data) {
         filter
@@ -93,6 +96,7 @@ describe('mutation updateUserAlerts', () => {
         myFeed
         companionHelper
         squadTour
+        ${extra}
       }
     }
   `;
@@ -101,7 +105,7 @@ describe('mutation updateUserAlerts', () => {
     testMutationErrorCode(
       client,
       {
-        mutation: MUTATION,
+        mutation: MUTATION(),
         variables: { data: { filter: false } },
       },
       'UNAUTHENTICATED',
@@ -109,7 +113,7 @@ describe('mutation updateUserAlerts', () => {
 
   it('should create user alerts when does not exist', async () => {
     loggedUser = '1';
-    const res = await client.mutate(MUTATION, {
+    const res = await client.mutate(MUTATION(), {
       variables: { data: { filter: false } },
     });
     expect(res.data).toMatchSnapshot();
@@ -117,7 +121,7 @@ describe('mutation updateUserAlerts', () => {
 
   it('should create user action type for my feed if alert is false', async () => {
     loggedUser = '1';
-    const res = await client.mutate(MUTATION, {
+    const res = await client.mutate(MUTATION(), {
       variables: { data: { filter: false } },
     });
     const completed = await con
@@ -144,7 +148,7 @@ describe('mutation updateUserAlerts', () => {
     );
 
     const rankLastSeen = new Date('2020-09-22T12:15:51.247Z');
-    const res = await client.mutate(MUTATION, {
+    const res = await client.mutate(MUTATION(), {
       variables: {
         data: {
           rankLastSeen: rankLastSeen.toISOString(),
@@ -161,6 +165,16 @@ describe('mutation updateUserAlerts', () => {
     expect(completed).toBeFalsy();
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should not update showGenericReferral alerts of user via updateAlerts', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION('showGenericReferral'), {
+      variables: { data: { showGenericReferral: false } },
+    });
+    expect(res.errors).toBeTruthy();
+    expect(res.errors[0].message).toEqual('Unexpected error');
+  });
 });
 
 describe('dedicated api routes', () => {
@@ -171,8 +185,7 @@ describe('dedicated api routes', () => {
         userId: '1',
         myFeed: 'created',
       });
-      const data = await repo.save(alerts);
-      const expected = new Object(data);
+      const expected = saveReturnAlerts(await repo.save(alerts));
       delete expected['userId'];
 
       loggedUser = '1';
@@ -184,6 +197,58 @@ describe('dedicated api routes', () => {
         lastBanner: expected['lastBanner'].toISOString(),
         lastChangelog: expected['lastChangelog'].toISOString(),
       });
+    });
+  });
+});
+
+describe('mutation updateLastReferralReminder', () => {
+  const MUTATION = `
+    mutation UpdateLastReferralReminder {
+      updateLastReferralReminder {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should update the last referral reminder and flags', async () => {
+    loggedUser = '1';
+    const date = new Date();
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
+    const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(alerts.showGenericReferral).toEqual(false);
+    expect(alerts.flags.lastReferralReminder).not.toBeNull();
+    expect(
+      new Date(alerts.flags.lastReferralReminder).getTime(),
+    ).toBeGreaterThanOrEqual(+date);
+  });
+
+  it('should update the last referral reminder and flags but keep existing flags', async () => {
+    loggedUser = '1';
+
+    // eslint-disable-next-line
+    // @ts-ignore
+    await con.getRepository(Alerts).save({
+      userId: loggedUser,
+      flags: { existingFlag: 'value1' },
+    });
+
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
+    const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(alerts.showGenericReferral).toEqual(false);
+    expect(alerts.flags).toEqual({
+      existingFlag: 'value1',
+      lastReferralReminder: alerts.flags.lastReferralReminder,
     });
   });
 });

@@ -1,7 +1,7 @@
 import {
-  generateNotification,
+  generateNotificationV2,
   NotificationBaseContext,
-  NotificationBundle,
+  NotificationBundleV2,
   NotificationCommentContext,
   NotificationCommenterContext,
   NotificationDoneByContext,
@@ -12,15 +12,16 @@ import {
   NotificationSubmissionContext,
   NotificationUpvotersContext,
   Reference,
-  storeNotificationBundle,
+  storeNotificationBundleV2,
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import {
   Comment,
   FreeformPost,
-  Notification,
-  NotificationAttachment,
-  NotificationAvatar,
+  NotificationAttachmentType,
+  NotificationAttachmentV2,
+  NotificationAvatarV2,
+  NotificationV2,
   Post,
   PostType,
   Source,
@@ -60,10 +61,10 @@ beforeAll(async () => {
 });
 
 describe('generateNotification', () => {
-  const verifyPostMention = (actual: NotificationBundle) => {
+  const verifyPostMention = (actual: NotificationBundleV2) => {
     const type = 'post_mention';
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.referenceId).toEqual('p1');
     expect(actual.notification.referenceType).toEqual('post');
     expect(actual.notification.targetUrl).toEqual(
@@ -73,7 +74,6 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 0,
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -87,7 +87,7 @@ describe('generateNotification', () => {
     const title = `Some title mention @${usersFixture[0].username}`;
     const post = { ...postsFixture[0], title } as Reference<Post>;
     const ctx: NotificationPostContext & NotificationDoneByContext = {
-      userId,
+      userIds: [userId],
       source: {
         ...sourcesFixture[0],
         type: SourceType.Squad,
@@ -97,7 +97,7 @@ describe('generateNotification', () => {
       doneTo: usersFixture[0] as Reference<User>,
     };
 
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
     verifyPostMention(actual);
     expect(actual.notification.description).toEqual(title);
   });
@@ -112,7 +112,7 @@ describe('generateNotification', () => {
       content,
     } as Reference<FreeformPost>;
     const ctx: NotificationPostContext & NotificationDoneByContext = {
-      userId,
+      userIds: [userId],
       source: {
         ...sourcesFixture[0],
         type: SourceType.Squad,
@@ -122,7 +122,8 @@ describe('generateNotification', () => {
       doneTo: usersFixture[0] as Reference<User>,
     };
 
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     verifyPostMention(actual);
     expect(actual.notification.description).toEqual(content);
   });
@@ -130,12 +131,13 @@ describe('generateNotification', () => {
   it('should generate community_picks_failed notification', () => {
     const type = NotificationType.CommunityPicksFailed;
     const ctx: NotificationSubmissionContext = {
-      userId,
+      userIds: [userId],
       submission: { id: 's1' },
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(false);
     expect(actual.notification.referenceId).toEqual('s1');
     expect(actual.notification.referenceType).toEqual('submission');
@@ -146,14 +148,15 @@ describe('generateNotification', () => {
   it('should generate community_picks_succeeded notification', () => {
     const type = NotificationType.CommunityPicksSucceeded;
     const ctx: NotificationSubmissionContext & NotificationPostContext = {
-      userId,
+      userIds: [userId],
       submission: { id: 's1' },
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('p1');
     expect(actual.notification.referenceType).toEqual('post');
@@ -164,7 +167,6 @@ describe('generateNotification', () => {
     expect(actual.attachments).toEqual([
       {
         image: 'https://daily.dev/image.jpg',
-        order: 0,
         referenceId: 'p1',
         title: 'P1',
         type: 'post',
@@ -174,10 +176,11 @@ describe('generateNotification', () => {
 
   it('should generate community_picks_granted notification', () => {
     const type = NotificationType.CommunityPicksGranted;
-    const ctx: NotificationBaseContext = { userId };
-    const actual = generateNotification(type, ctx);
+    const ctx: NotificationBaseContext = { userIds: [userId] };
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('system');
     expect(actual.notification.referenceType).toEqual('system');
@@ -189,13 +192,14 @@ describe('generateNotification', () => {
   it('should generate article_picked notification', () => {
     const type = NotificationType.ArticlePicked;
     const ctx: NotificationPostContext = {
-      userId,
+      userIds: [userId],
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('p1');
     expect(actual.notification.referenceType).toEqual('post');
@@ -206,7 +210,7 @@ describe('generateNotification', () => {
     expect(actual.attachments).toEqual([
       {
         image: 'https://daily.dev/image.jpg',
-        order: 0,
+
         referenceId: 'p1',
         title: 'P1',
         type: 'post',
@@ -217,15 +221,16 @@ describe('generateNotification', () => {
   it('should generate article_new_comment notification', () => {
     const type = NotificationType.ArticleNewComment;
     const ctx: NotificationCommenterContext = {
-      userId,
+      userIds: [userId],
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('c1');
     expect(actual.notification.referenceType).toEqual('comment');
@@ -239,7 +244,6 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 0,
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -251,15 +255,16 @@ describe('generateNotification', () => {
   it('should generate article_upvote_milestone notification', () => {
     const type = NotificationType.ArticleUpvoteMilestone;
     const ctx: NotificationPostContext & NotificationUpvotersContext = {
-      userId,
+      userIds: [userId],
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       upvotes: 50,
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.uniqueKey).toEqual('50');
     expect(actual.notification.referenceId).toEqual('p1');
@@ -271,7 +276,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 0,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -279,7 +284,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/nimrod.jpg',
         name: 'Nimrod',
-        order: 1,
+
         referenceId: '3',
         targetUrl: 'http://localhost:5002/nimroddaily',
         type: 'user',
@@ -288,7 +293,7 @@ describe('generateNotification', () => {
     expect(actual.attachments).toEqual([
       {
         image: 'https://daily.dev/image.jpg',
-        order: 0,
+
         referenceId: 'p1',
         title: 'P1',
         type: 'post',
@@ -296,10 +301,35 @@ describe('generateNotification', () => {
     ]);
   });
 
+  it('should generate a notification with post attachment of video type', () => {
+    const type = NotificationType.ArticleUpvoteMilestone;
+    const ctx: NotificationPostContext & NotificationUpvotersContext = {
+      userIds: [userId],
+      source: sourcesFixture[0] as Reference<Source>,
+      post: {
+        ...postsFixture[0],
+        type: PostType.VideoYouTube,
+      } as Reference<Post>,
+      upvotes: 50,
+      upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
+    };
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+        referenceId: 'p1',
+        title: 'P1',
+        type: NotificationAttachmentType.Video,
+      },
+    ]);
+  });
+
   it('should add source avatar to article_upvote_milestone when it is a squad post', () => {
     const type = NotificationType.ArticleUpvoteMilestone;
     const ctx: NotificationPostContext & NotificationUpvotersContext = {
-      userId,
+      userIds: [userId],
       source: {
         ...sourcesFixture[0],
         type: SourceType.Squad,
@@ -308,13 +338,14 @@ describe('generateNotification', () => {
       upvotes: 50,
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
     expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',
         name: 'A',
-        order: 0,
+
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
@@ -322,7 +353,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 1,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -330,7 +361,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/nimrod.jpg',
         name: 'Nimrod',
-        order: 2,
+
         referenceId: '3',
         targetUrl: 'http://localhost:5002/nimroddaily',
         type: 'user',
@@ -341,13 +372,14 @@ describe('generateNotification', () => {
   it('should generate article_report_approved notification', () => {
     const type = NotificationType.ArticleReportApproved;
     const ctx: NotificationPostContext = {
-      userId,
+      userIds: [userId],
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(false);
     expect(actual.notification.referenceId).toEqual('p1');
     expect(actual.notification.referenceType).toEqual('post');
@@ -358,13 +390,14 @@ describe('generateNotification', () => {
   it('should generate article_analytics notification', () => {
     const type = NotificationType.ArticleAnalytics;
     const ctx: NotificationPostContext = {
-      userId,
+      userIds: [userId],
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(false);
     expect(actual.notification.referenceId).toEqual('p1');
     expect(actual.notification.referenceType).toEqual('post');
@@ -375,7 +408,7 @@ describe('generateNotification', () => {
   it('should generate source_approved notification', () => {
     const type = NotificationType.SourceApproved;
     const ctx: NotificationSourceRequestContext & NotificationSourceContext = {
-      userId,
+      userIds: [userId],
       source: {
         id: 's1',
         name: 'Source',
@@ -386,9 +419,10 @@ describe('generateNotification', () => {
         id: 'sr1',
       } as Reference<SourceRequest>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('sr1');
     expect(actual.notification.referenceType).toEqual('source_request');
@@ -399,7 +433,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/s1.jpg',
         name: 'Source',
-        order: 0,
+
         referenceId: 's1',
         targetUrl: 'http://localhost:5002/sources/s1',
         type: 'source',
@@ -410,14 +444,15 @@ describe('generateNotification', () => {
   it('should generate source_rejected notification', () => {
     const type = NotificationType.SourceRejected;
     const ctx: NotificationSourceRequestContext = {
-      userId,
+      userIds: [userId],
       sourceRequest: {
         id: 'sr1',
       } as Reference<SourceRequest>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(false);
     expect(actual.notification.referenceId).toEqual('sr1');
     expect(actual.notification.referenceType).toEqual('source_request');
@@ -428,15 +463,16 @@ describe('generateNotification', () => {
   it('should generate comment_mention notification', () => {
     const type = NotificationType.CommentMention;
     const ctx: NotificationCommenterContext = {
-      userId,
+      userIds: [userId],
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('c1');
     expect(actual.notification.referenceType).toEqual('comment');
@@ -450,7 +486,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 0,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -462,15 +498,16 @@ describe('generateNotification', () => {
   it('should generate comment_reply notification', () => {
     const type = NotificationType.CommentReply;
     const ctx: NotificationCommenterContext = {
-      userId,
+      userIds: [userId],
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('c1');
     expect(actual.notification.referenceType).toEqual('comment');
@@ -484,7 +521,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 0,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -496,16 +533,17 @@ describe('generateNotification', () => {
   it('should generate comment_upvote_milestone notification', () => {
     const type = NotificationType.CommentUpvoteMilestone;
     const ctx: NotificationCommentContext & NotificationUpvotersContext = {
-      userId,
+      userIds: [userId],
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       comment: commentFixture,
       upvotes: 50,
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.uniqueKey).toEqual('50');
     expect(actual.notification.referenceId).toEqual('c1');
@@ -520,7 +558,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 0,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -528,7 +566,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/nimrod.jpg',
         name: 'Nimrod',
-        order: 1,
+
         referenceId: '3',
         targetUrl: 'http://localhost:5002/nimroddaily',
         type: 'user',
@@ -540,7 +578,7 @@ describe('generateNotification', () => {
   it('should generate squad_post_added notification', () => {
     const type = NotificationType.SquadPostAdded;
     const ctx: NotificationPostContext & NotificationDoneByContext = {
-      userId,
+      userIds: [userId],
       source: {
         ...sourcesFixture[0],
         type: SourceType.Squad,
@@ -548,9 +586,10 @@ describe('generateNotification', () => {
       post: postsFixture[0] as Reference<Post>,
       doneBy: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('p1');
     expect(actual.notification.referenceType).toEqual('post');
@@ -562,7 +601,7 @@ describe('generateNotification', () => {
       {
         image: 'http://image.com/a',
         name: 'A',
-        order: 0,
+
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
@@ -570,7 +609,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 1,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -579,7 +618,7 @@ describe('generateNotification', () => {
     expect(actual.attachments).toEqual([
       {
         image: 'https://daily.dev/image.jpg',
-        order: 0,
+
         referenceId: 'p1',
         title: 'P1',
         type: 'post',
@@ -590,7 +629,7 @@ describe('generateNotification', () => {
   it('should set attachment as shared post on squad_post_added notification', () => {
     const type = NotificationType.SquadPostAdded;
     const ctx: NotificationPostContext & NotificationDoneByContext = {
-      userId,
+      userIds: [userId],
       source: {
         ...sourcesFixture[0],
         type: SourceType.Squad,
@@ -604,9 +643,10 @@ describe('generateNotification', () => {
       sharedPost: postsFixture[0] as Reference<Post>,
       doneBy: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('ps');
     expect(actual.notification.referenceType).toEqual('post');
@@ -618,7 +658,7 @@ describe('generateNotification', () => {
       {
         image: 'http://image.com/a',
         name: 'A',
-        order: 0,
+
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
@@ -626,7 +666,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 1,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -635,7 +675,7 @@ describe('generateNotification', () => {
     expect(actual.attachments).toEqual([
       {
         image: 'https://daily.dev/image.jpg',
-        order: 0,
+
         referenceId: 'p1',
         title: 'P1',
         type: 'post',
@@ -646,7 +686,7 @@ describe('generateNotification', () => {
   it('should generate squad_post_viewed notification', () => {
     const type = NotificationType.SquadPostViewed;
     const ctx: NotificationPostContext & NotificationDoneByContext = {
-      userId,
+      userIds: [userId],
       source: {
         ...sourcesFixture[0],
         type: SourceType.Squad,
@@ -660,9 +700,10 @@ describe('generateNotification', () => {
       sharedPost: postsFixture[0] as Reference<Post>,
       doneBy: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('ps');
     expect(actual.notification.referenceType).toEqual('post');
@@ -675,7 +716,7 @@ describe('generateNotification', () => {
       {
         image: 'http://image.com/a',
         name: 'A',
-        order: 0,
+
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
@@ -683,7 +724,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 1,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -692,7 +733,7 @@ describe('generateNotification', () => {
     expect(actual.attachments).toEqual([
       {
         image: 'https://daily.dev/image.jpg',
-        order: 0,
+
         referenceId: 'p1',
         title: 'P1',
         type: 'post',
@@ -720,14 +761,15 @@ describe('generateNotification', () => {
       .update({ id: post.id }, { id: 'welcome1' });
     post.id = 'welcome1'; // for a consistent id in the test
     const ctx: NotificationPostContext & NotificationDoneByContext = {
-      userId,
+      userIds: [userId],
       post,
       source,
       doneBy: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual(post.id);
     expect(actual.notification.referenceType).toEqual('post');
@@ -739,7 +781,7 @@ describe('generateNotification', () => {
       {
         image: 'http://image.com/a',
         name: 'A',
-        order: 0,
+
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
@@ -747,7 +789,7 @@ describe('generateNotification', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 1,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -759,15 +801,16 @@ describe('generateNotification', () => {
   it('should generate squad_blocked notification', () => {
     const type = NotificationType.SquadBlocked;
     const ctx: NotificationSourceContext = {
-      userId,
+      userIds: [userId],
       source: {
         ...sourcesFixture[0],
         type: SourceType.Squad,
       } as Reference<Source>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('a');
     expect(actual.notification.referenceType).toEqual('source');
@@ -780,7 +823,7 @@ describe('generateNotification', () => {
   it('should generate promoted_to_admin notification', () => {
     const type = NotificationType.PromotedToAdmin;
     const ctx: NotificationSourceMemberRoleContext = {
-      userId,
+      userIds: [userId],
       source: {
         ...sourcesFixture[0],
         type: SourceType.Squad,
@@ -791,9 +834,10 @@ describe('generateNotification', () => {
     url.searchParams.set('promoted', 'true');
     url.searchParams.set('sid', sourcesFixture[0].handle);
 
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('a');
     expect(actual.notification.referenceType).toEqual('source');
@@ -807,16 +851,17 @@ describe('generateNotification', () => {
   it('should generate demoted_to_member notification', () => {
     const type = NotificationType.DemotedToMember;
     const ctx: NotificationSourceMemberRoleContext = {
-      userId,
+      userIds: [userId],
       source: {
         ...sourcesFixture[0],
         type: SourceType.Squad,
       } as Reference<Source>,
       role: SourceMemberRoles.Admin,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('a');
     expect(actual.notification.referenceType).toEqual('source');
@@ -832,7 +877,7 @@ describe('generateNotification', () => {
   it('should generate promoted_to_moderator notification', () => {
     const type = NotificationType.PromotedToModerator;
     const ctx: NotificationSourceContext = {
-      userId,
+      userIds: [userId],
       source: {
         ...sourcesFixture[0],
         type: SourceType.Squad,
@@ -841,9 +886,10 @@ describe('generateNotification', () => {
     const url = new URL(notificationsLink);
     url.searchParams.set('promoted', 'true');
     url.searchParams.set('sid', sourcesFixture[0].handle);
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('a');
     expect(actual.notification.referenceType).toEqual('source');
@@ -862,51 +908,60 @@ describe('storeNotificationBundle', () => {
 
   it('should save the notification and its children', async () => {
     const ctx: NotificationPostContext & NotificationUpvotersContext = {
-      userId,
+      userIds: [userId],
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       upvotes: 50,
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
     };
     await con.transaction((manager) =>
-      storeNotificationBundle(manager, [
-        generateNotification(NotificationType.ArticleUpvoteMilestone, ctx),
-      ]),
+      storeNotificationBundleV2(
+        manager,
+        generateNotificationV2(NotificationType.ArticleUpvoteMilestone, ctx),
+      ),
     );
-    const notifications = await con.getRepository(Notification).find();
+    const notifications = await con.getRepository(NotificationV2).find();
     expect(notifications.length).toEqual(1);
-    const attachments = await con.getRepository(NotificationAttachment).find();
+    const attachments = await con
+      .getRepository(NotificationAttachmentV2)
+      .find();
     expect(attachments.length).toEqual(1);
-    const avatars = await con.getRepository(NotificationAvatar).find();
+    const avatars = await con.getRepository(NotificationAvatarV2).find();
     expect(avatars.length).toEqual(2);
   });
 
   it('should ignore duplicates', async () => {
     const ctx: NotificationPostContext & NotificationUpvotersContext = {
-      userId,
+      userIds: [userId],
       source: sourcesFixture[0] as Reference<Source>,
       post: postsFixture[0] as Reference<Post>,
       upvotes: 50,
       upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
     };
-    await con.transaction((manager) =>
-      storeNotificationBundle(manager, [
-        generateNotification(NotificationType.ArticleUpvoteMilestone, ctx),
-        generateNotification(NotificationType.ArticleUpvoteMilestone, ctx),
-      ]),
-    );
-    const notifications = await con.getRepository(Notification).find();
+    await con.transaction(async (manager) => {
+      await storeNotificationBundleV2(
+        manager,
+        generateNotificationV2(NotificationType.ArticleUpvoteMilestone, ctx),
+      );
+      await storeNotificationBundleV2(
+        manager,
+        generateNotificationV2(NotificationType.ArticleUpvoteMilestone, ctx),
+      );
+    });
+    const notifications = await con.getRepository(NotificationV2).find();
     expect(notifications.length).toEqual(1);
-    const attachments = await con.getRepository(NotificationAttachment).find();
+    const attachments = await con
+      .getRepository(NotificationAttachmentV2)
+      .find();
     expect(attachments.length).toEqual(1);
-    const avatars = await con.getRepository(NotificationAvatar).find();
+    const avatars = await con.getRepository(NotificationAvatarV2).find();
     expect(avatars.length).toEqual(2);
   });
 
   it('should generate squad_new_comment notification', () => {
     const type = NotificationType.SquadNewComment;
     const ctx: NotificationCommenterContext = {
-      userId,
+      userIds: [userId],
       source: {
         ...sourcesFixture[0],
         type: SourceType.Squad,
@@ -915,9 +970,10 @@ describe('storeNotificationBundle', () => {
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
+
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('c1');
     expect(actual.notification.referenceType).toEqual('comment');
@@ -931,7 +987,7 @@ describe('storeNotificationBundle', () => {
       {
         image: 'http://image.com/a',
         name: 'A',
-        order: 0,
+
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
@@ -939,7 +995,7 @@ describe('storeNotificationBundle', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 1,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -951,7 +1007,7 @@ describe('storeNotificationBundle', () => {
   it('should generate squad_reply notification', () => {
     const type = NotificationType.SquadReply;
     const ctx: NotificationCommenterContext = {
-      userId,
+      userIds: [userId],
       source: {
         ...sourcesFixture[0],
         type: SourceType.Squad,
@@ -960,9 +1016,9 @@ describe('storeNotificationBundle', () => {
       comment: commentFixture,
       commenter: usersFixture[1] as Reference<User>,
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('c1');
     expect(actual.notification.referenceType).toEqual('comment');
@@ -976,7 +1032,7 @@ describe('storeNotificationBundle', () => {
       {
         image: 'http://image.com/a',
         name: 'A',
-        order: 0,
+
         referenceId: 'a',
         targetUrl: 'http://localhost:5002/squads/a',
         type: 'source',
@@ -984,7 +1040,7 @@ describe('storeNotificationBundle', () => {
       {
         image: 'https://daily.dev/tsahi.jpg',
         name: 'Tsahi',
-        order: 1,
+
         referenceId: '2',
         targetUrl: 'http://localhost:5002/tsahidaily',
         type: 'user',
@@ -996,11 +1052,11 @@ describe('storeNotificationBundle', () => {
   it('should generate squad_access notification', () => {
     const type = NotificationType.SquadAccess;
     const ctx: NotificationBaseContext = {
-      userId,
+      userIds: [userId],
     };
-    const actual = generateNotification(type, ctx);
+    const actual = generateNotificationV2(type, ctx);
     expect(actual.notification.type).toEqual(type);
-    expect(actual.notification.userId).toEqual(userId);
+    expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('system');
     expect(actual.notification.referenceType).toEqual('system');

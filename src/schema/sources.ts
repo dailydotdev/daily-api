@@ -12,6 +12,7 @@ import {
   SourceMemberFlagsPublic,
   SourceType,
   SquadSource,
+  User,
 } from '../entity';
 import {
   SourceMemberRoles,
@@ -42,12 +43,17 @@ import { GraphQLResolveInfo } from 'graphql';
 import { SourcePermissionErrorKeys, TypeOrmError } from '../errors';
 import {
   descriptionRegex,
-  handleRegex,
   nameRegex,
   validateRegex,
   ValidateRegex,
 } from '../common/object';
-import { checkDisallowHandle } from '../entity/DisallowHandle';
+import { validateAndTransformHandle } from '../common/handles';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+  saveNotificationPreference,
+} from '../notifications/common';
+import { QueryBuilder } from '../graphorm/graphorm';
 
 export interface GQLSource {
   id: string;
@@ -80,12 +86,8 @@ interface UpdateMemberRoleArgs {
 
 interface SourceMemberArgs extends ConnectionArguments {
   sourceId: string;
+  query?: string;
   role?: SourceMemberRoles;
-}
-
-interface CheckUserMembershipArgs {
-  sourceId: string;
-  memberId: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -203,6 +205,10 @@ export const typeDefs = /* GraphQL */ `
     Whether the source posts are hidden from feed for member
     """
     hideFeedPosts: Boolean
+    """
+    Whether the source pinned posts are collapsed or not
+    """
+    collapsePinnedPosts: Boolean
   }
 
   type SourceMember {
@@ -305,6 +311,11 @@ export const typeDefs = /* GraphQL */ `
       Should return users with this specific role only
       """
       role: String
+
+      """
+      Property to utilize for searching members
+      """
+      query: String
     ): SourceMemberConnection!
 
     """
@@ -323,19 +334,24 @@ export const typeDefs = /* GraphQL */ `
     ): SourceMemberConnection! @auth
 
     """
-    Check whether user has membership access to a squad
+    Get user's public source memberships
     """
-    checkUserMembership(
+    publicSourceMemberships(
       """
-      The source to check whether the user is a part of
+      User ID
       """
-      sourceId: ID!
+      userId: ID!
 
       """
-      User id of the member to check
+      Paginate after opaque cursor
       """
-      memberId: ID!
-    ): SourceMember @auth
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): SourceMemberConnection!
 
     """
     Get source member by referral token
@@ -509,6 +525,26 @@ export const typeDefs = /* GraphQL */ `
       """
       sourceId: ID!
     ): EmptyResponse! @auth
+
+    """
+    Collapse source pinned posts
+    """
+    collapsePinnedPosts(
+      """
+      Source id to collapse posts in
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
+
+    """
+    Expand source pinned posts
+    """
+    expandPinnedPosts(
+      """
+      Source id to expand posts in
+      """
+      sourceId: ID!
+    ): EmptyResponse! @auth
   }
 `;
 
@@ -655,20 +691,25 @@ export const canPostToSquad = (
   return sourceRoleRank[sourceMember.role] >= squad.memberPostingRank;
 };
 
-const validateSquadData = ({
-  handle,
-  name,
-  description,
-  memberPostingRole,
-  memberInviteRole,
-}: Pick<SquadSource, 'handle' | 'name' | 'description'> & {
-  memberPostingRole?: SourceMemberRoles;
-  memberInviteRole?: SourceMemberRoles;
-}): string => {
-  handle = handle.replace('@', '').trim();
+const validateSquadData = async (
+  {
+    handle,
+    name,
+    description,
+    memberPostingRole,
+    memberInviteRole,
+  }: Pick<SquadSource, 'handle' | 'name' | 'description'> & {
+    memberPostingRole?: SourceMemberRoles;
+    memberInviteRole?: SourceMemberRoles;
+  },
+  entityManager: DataSource | EntityManager,
+  handleChanged = true,
+): Promise<string> => {
+  if (handleChanged) {
+    handle = await validateAndTransformHandle(handle, 'handle', entityManager);
+  }
   const regexParams: ValidateRegex[] = [
     ['name', name, nameRegex, true],
-    ['handle', handle, handleRegex, true],
     ['description', description, descriptionRegex, false],
   ];
 
@@ -848,6 +889,53 @@ const updateHideFeedPostsFlag = async (
   return { _: true };
 };
 
+const togglePinnedPosts = async (
+  ctx: Context,
+  sourceId: string,
+  value: boolean,
+): Promise<GQLEmptyResponse> => {
+  await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
+
+  await ctx.con.getRepository(SourceMember).update(
+    { sourceId, userId: ctx.userId },
+    {
+      flags: updateFlagsStatement<SourceMember>({
+        collapsePinnedPosts: value,
+      }),
+    },
+  );
+
+  return { _: true };
+};
+
+const paginateSourceMembers = (
+  query: (builder: QueryBuilder, alias: string) => QueryBuilder,
+  args: ConnectionArguments,
+  ctx: Context,
+  info: GraphQLResolveInfo,
+): Promise<Connection<GQLSourceMember>> => {
+  const page = membershipsPageGenerator.connArgsToPage(args);
+  return graphorm.queryPaginated(
+    ctx,
+    info,
+    (nodeSize) => membershipsPageGenerator.hasPreviousPage(page, nodeSize),
+    (nodeSize) => membershipsPageGenerator.hasNextPage(page, nodeSize),
+    (node, index) =>
+      membershipsPageGenerator.nodeToCursor(page, args, node, index),
+    (builder) => {
+      builder.queryBuilder = query(builder.queryBuilder, builder.alias);
+      builder.queryBuilder.limit(page.limit);
+      if (page.timestamp) {
+        builder.queryBuilder = builder.queryBuilder.andWhere(
+          `${builder.alias}."createdAt" < :timestamp`,
+          { timestamp: page.timestamp },
+        );
+      }
+      return builder;
+    },
+  );
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -896,17 +984,30 @@ export const resolvers: IResolvers<any, Context> = {
       return getSourceById(ctx, info, id);
     },
     sourceHandleExists: async (_, { handle }: { handle: string }, ctx) => {
-      validateRegex([['handle', handle, handleRegex, true]]);
-
-      const [source, disallowHandle] = await Promise.all([
-        ctx.getRepository(Source).findOneBy({ handle: handle.toLowerCase() }),
-        checkDisallowHandle(ctx.con, handle),
-      ]);
-      return !!source || disallowHandle;
+      try {
+        const transformed = await validateAndTransformHandle(
+          handle,
+          'handle',
+          ctx.con,
+        );
+        const source = await ctx.getRepository(Source).findOne({
+          where: { handle: transformed },
+          select: ['id'],
+        });
+        return !!source;
+      } catch (err) {
+        if (
+          err instanceof ValidationError &&
+          err.message.indexOf('invalid') < 0
+        ) {
+          return true;
+        }
+        throw err;
+      }
     },
     sourceMembers: async (
       _,
-      { role, sourceId, ...args }: SourceMemberArgs,
+      { role, sourceId, query, ...args }: SourceMemberArgs,
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
@@ -916,48 +1017,42 @@ export const resolvers: IResolvers<any, Context> = {
           : SourcePermissions.View;
 
       await ensureSourcePermissions(ctx, sourceId, permission);
-      const page = membershipsPageGenerator.connArgsToPage(args);
-      return graphorm.queryPaginated(
-        ctx,
-        info,
-        (nodeSize) => membershipsPageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) => membershipsPageGenerator.hasNextPage(page, nodeSize),
-        (node, index) =>
-          membershipsPageGenerator.nodeToCursor(page, args, node, index),
-        (builder) => {
-          builder.queryBuilder
-            .andWhere(`${builder.alias}."sourceId" = :source`, {
+      return paginateSourceMembers(
+        (queryBuilder, alias) => {
+          queryBuilder
+            .andWhere(`${alias}."sourceId" = :source`, {
               source: sourceId,
             })
-
             .addOrderBy(
               graphorm.mappings.SourceMember.fields.roleRank.select as string,
               'DESC',
             )
-            .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
+            .addOrderBy(`${alias}."createdAt"`, 'DESC');
+
+          if (query) {
+            queryBuilder = queryBuilder
+              .innerJoin(User, 'u', `${alias}."userId" = u.id`)
+              .andWhere(`(u.name ILIKE :name OR u.username ILIKE :name)`, {
+                name: `${query}%`,
+              });
+          }
 
           if (role) {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
-              `${builder.alias}.role = :role`,
-              { role },
-            );
+            queryBuilder = queryBuilder.andWhere(`${alias}.role = :role`, {
+              role,
+            });
           } else {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
+            queryBuilder = queryBuilder.andWhere(
               `${
                 graphorm.mappings.SourceMember.fields.roleRank.select as string
               } >= 0`,
             );
           }
-
-          builder.queryBuilder.limit(page.limit);
-          if (page.timestamp) {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
-              `${builder.alias}."createdAt" < :timestamp`,
-              { timestamp: page.timestamp },
-            );
-          }
-          return builder;
+          return queryBuilder;
         },
+        args,
+        ctx,
+        info,
       );
     },
     mySourceMemberships: async (
@@ -966,54 +1061,48 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<Connection<GQLSourceMember>> => {
-      const page = membershipsPageGenerator.connArgsToPage(args);
-      return graphorm.queryPaginated(
-        ctx,
-        info,
-        (nodeSize) => membershipsPageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) => membershipsPageGenerator.hasNextPage(page, nodeSize),
-        (node, index) =>
-          membershipsPageGenerator.nodeToCursor(page, args, node, index),
-        (builder) => {
-          builder.queryBuilder
-            .andWhere(`${builder.alias}."userId" = :user`, { user: ctx.userId })
+      return paginateSourceMembers(
+        (queryBuilder, alias) => {
+          return queryBuilder
+            .andWhere(`${alias}."userId" = :user`, { user: ctx.userId })
             .andWhere(
               `${
                 graphorm.mappings.SourceMember.fields.roleRank.select as string
               } >= 0`,
             )
-            .addOrderBy(`${builder.alias}."createdAt"`, 'DESC');
-
-          builder.queryBuilder.limit(page.limit);
-          if (page.timestamp) {
-            builder.queryBuilder = builder.queryBuilder.andWhere(
-              `${builder.alias}."createdAt" < :timestamp`,
-              { timestamp: page.timestamp },
-            );
-          }
-          return builder;
+            .addOrderBy(`${alias}."createdAt"`, 'DESC');
         },
-      );
-    },
-    checkUserMembership: async (
-      _,
-      { sourceId, memberId }: CheckUserMembershipArgs,
-      ctx,
-      info,
-    ): Promise<GQLSourceMember> => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.View);
-
-      return graphorm.queryOneOrFail<GQLSourceMember>(
+        args,
         ctx,
         info,
-        (builder) => {
-          builder.queryBuilder = builder.queryBuilder.andWhere({
-            sourceId,
-            userId: memberId,
-          });
-          return builder;
+      );
+    },
+    publicSourceMemberships: async (
+      _,
+      { userId, ...args }: { userId: string } & ConnectionArguments,
+      ctx,
+      info,
+    ): Promise<Connection<GQLSourceMember>> => {
+      return paginateSourceMembers(
+        (queryBuilder, alias) => {
+          return queryBuilder
+            .andWhere(`${alias}."userId" = :user`, { user: userId })
+            .andWhere(
+              `${
+                graphorm.mappings.SourceMember.fields.roleRank.select as string
+              } >= 0`,
+            )
+            .addOrderBy(
+              graphorm.mappings.SourceMember.fields.roleRank.select as string,
+              'DESC',
+            )
+            .addOrderBy(`${alias}."createdAt"`, 'DESC')
+            .innerJoin(Source, 's', `${alias}."sourceId" = s.id`)
+            .andWhere('s.private = false');
         },
-        SourceMember,
+        args,
+        ctx,
+        info,
       );
     },
     sourceMemberByToken: async (
@@ -1055,25 +1144,18 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLSource> => {
-      const handle = validateSquadData({
-        handle: inputHandle,
-        name,
-        description,
-        memberPostingRole,
-        memberInviteRole,
-      });
+      const handle = await validateSquadData(
+        {
+          handle: inputHandle,
+          name,
+          description,
+          memberPostingRole,
+          memberInviteRole,
+        },
+        ctx.con,
+      );
       try {
         const sourceId = await ctx.con.transaction(async (entityManager) => {
-          const disallowHandle = await checkDisallowHandle(
-            entityManager,
-            handle,
-          );
-          if (disallowHandle) {
-            throw new ValidationError(
-              JSON.stringify({ handle: 'handle is already used' }),
-            );
-          }
-
           const id = randomUUID();
           const repo = entityManager.getRepository(SquadSource);
           // Create a new source
@@ -1141,32 +1223,26 @@ export const resolvers: IResolvers<any, Context> = {
       ctx,
       info,
     ): Promise<GQLSource> => {
-      await ensureSourcePermissions(ctx, sourceId, SourcePermissions.Edit);
-      const handle = validateSquadData({
-        handle: inputHandle,
-        name,
-        description,
-        memberPostingRole,
-        memberInviteRole,
-      });
+      const current = await ensureSourcePermissions(
+        ctx,
+        sourceId,
+        SourcePermissions.Edit,
+      );
+      const handle = await validateSquadData(
+        {
+          handle: inputHandle,
+          name,
+          description,
+          memberPostingRole,
+          memberInviteRole,
+        },
+        ctx.con,
+        inputHandle !== current.handle,
+      );
 
       try {
         const editedSourceId = await ctx.con.transaction(
           async (entityManager) => {
-            const current = await entityManager
-              .getRepository(SquadSource)
-              .findOneOrFail({ where: { id: sourceId }, select: ['handle'] });
-            const disallowHandle =
-              current.handle === handle
-                ? false
-                : await checkDisallowHandle(entityManager, handle);
-
-            if (disallowHandle) {
-              throw new ValidationError(
-                JSON.stringify({ handle: 'handle is already used' }),
-              );
-            }
-
             const repo = entityManager.getRepository(SquadSource);
             // Update existing squad
             await repo.update(
@@ -1323,6 +1399,17 @@ export const resolvers: IResolvers<any, Context> = {
             userId: ctx.userId,
             role: SourceMemberRoles.Member,
           });
+
+          if (!source.private) {
+            await saveNotificationPreference(
+              entityManager,
+              ctx.userId,
+              sourceId,
+              NotificationType.SquadPostAdded,
+              NotificationPreferenceStatus.Muted,
+            );
+          }
+
           await entityManager
             .getRepository(Source)
             .update({ id: sourceId }, { active: true });
@@ -1340,6 +1427,12 @@ export const resolvers: IResolvers<any, Context> = {
     },
     showSourceFeedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
       return updateHideFeedPostsFlag(ctx, sourceId, false);
+    },
+    collapsePinnedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+      return togglePinnedPosts(ctx, sourceId, true);
+    },
+    expandPinnedPosts: async (_, { sourceId }: { sourceId: string }, ctx) => {
+      return togglePinnedPosts(ctx, sourceId, false);
     },
   }),
   Source: {

@@ -25,6 +25,7 @@ export enum UserPostVote {
 @Entity()
 @Index(['postId', 'userId'], { unique: true })
 @Index(['userId', 'vote', 'votedAt'])
+@Index('IDX_user_post_postid_userid_hidden', ['postId', 'userId', 'hidden'])
 export class UserPost {
   @PrimaryColumn({ type: 'text' })
   postId: string;

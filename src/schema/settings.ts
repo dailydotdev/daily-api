@@ -1,12 +1,11 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
-import { Settings } from '../entity';
+import { CampaignCtaPlacement, Settings, SETTINGS_DEFAULT } from '../entity';
 import { isValidHttpUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 import { v4 as uuidv4 } from 'uuid';
 import { DataSource } from 'typeorm';
-import { TypeOrmError } from '../errors';
 
 interface GQLSettings {
   userId: string;
@@ -40,6 +39,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   companionExpanded?: boolean;
   sortingEnabled?: boolean;
   autoDismissNotifications?: boolean;
+  campaignCtaPlacement?: CampaignCtaPlacement;
   customLinks?: string[];
 }
 
@@ -129,6 +129,11 @@ export const typeDefs = /* GraphQL */ `
     autoDismissNotifications: Boolean!
 
     """
+    Which campaign to use for as the main CTA
+    """
+    campaignCtaPlacement: String
+
+    """
     Time of last update
     """
     updatedAt: DateTime!
@@ -215,6 +220,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to automatically dismiss notifications
     """
     autoDismissNotifications: Boolean
+
+    """
+    Which campaign to use for as the main CTA
+    """
+    campaignCtaPlacement: String
   }
 
   extend type Mutation {
@@ -246,18 +256,13 @@ export const getSettings = async (
   userId: string,
 ): Promise<Settings> => {
   try {
-    return await con.transaction(async (entityManager) => {
-      const repo = entityManager.getRepository(Settings);
-      const settings = await repo.findOneBy({ userId });
-      if (!settings) {
-        return repo.save({ userId });
-      }
-      return settings;
-    });
-  } catch (err) {
-    if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
-      return con.getRepository(Settings).findOneBy({ userId });
+    const repo = con.getRepository(Settings);
+    const settings = await repo.findOneBy({ userId });
+    if (!settings) {
+      return { ...SETTINGS_DEFAULT, updatedAt: null, userId };
     }
+    return settings;
+  } catch (err) {
     throw err;
   }
 };
@@ -272,6 +277,13 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
     ): Promise<GQLSettings> => {
       if (data.customLinks?.length && !data.customLinks.every(isValidHttpUrl)) {
         throw new ValidationError('One of the links is invalid');
+      }
+
+      if (
+        data.campaignCtaPlacement &&
+        !Object.values(CampaignCtaPlacement).includes(data.campaignCtaPlacement)
+      ) {
+        throw new ValidationError(`Invalid value for 'campaignCtaPlacement'`);
       }
 
       return con.transaction(async (manager): Promise<Settings> => {

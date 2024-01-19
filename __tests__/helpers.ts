@@ -6,19 +6,15 @@ import {
 } from 'fastify';
 import { DataSource, DeepPartial, ObjectType } from 'typeorm';
 import request from 'supertest';
-import {
-  RootSpan,
-  Span,
-} from '@google-cloud/trace-agent/build/src/plugin-types';
 import { GraphQLFormattedError } from 'graphql';
 import { Context } from '../src/Context';
-import { Message, Worker } from '../src/workers/worker';
-import { base64 } from '../src/common';
+import { Message, TypedWorker, Worker } from '../src/workers/worker';
+import { base64, PubSubSchema } from '../src/common';
 import { Roles } from '../src/roles';
 import { Cron } from '../src/cron/cron';
 import { ChangeMessage, ChangeObject } from '../src/types';
 import { PubSub } from '@google-cloud/pubsub';
-import pino from 'pino';
+import pino, { Logger } from 'pino';
 import { createMercuriusTestClient } from 'mercurius-integration-testing';
 import appFunc from '../src';
 import createOrGetConnection from '../src/db';
@@ -27,15 +23,16 @@ import {
   NotificationWorker,
 } from '../src/workers/notifications/worker';
 import {
-  generateNotification,
+  generateNotificationV2,
   NotificationBaseContext,
-  storeNotificationBundle,
+  storeNotificationBundleV2,
 } from '../src/notifications';
 import { NotificationType } from '../src/notifications/common';
 import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
+import { opentelemetry } from '../src/telemetry/opentelemetry';
 
 export class MockContext extends Context {
-  mockSpan: MockProxy<RootSpan> & RootSpan;
+  mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
   mockUserId: string | null;
   mockPremium: boolean;
   mockRoles: Roles[];
@@ -48,15 +45,17 @@ export class MockContext extends Context {
     roles = [],
   ) {
     super(mock<FastifyRequest>(), con);
-    this.mockSpan = mock<RootSpan>();
-    this.mockSpan.createChildSpan.mockImplementation(() => mock<Span>());
+    this.mockSpan = mock<opentelemetry.Span>();
+    this.mockSpan.setAttributes.mockImplementation(() =>
+      mock<opentelemetry.Span>(),
+    );
     this.mockUserId = userId;
     this.mockPremium = premium;
     this.mockRoles = roles;
     this.logger = mock<FastifyLoggerInstance>();
   }
 
-  get span(): RootSpan {
+  get span(): opentelemetry.Span {
     return this.mockSpan;
   }
 
@@ -194,7 +193,9 @@ export const invokeBackground = async (
 ): Promise<void> => {
   const con = await createOrGetConnection();
   const pubsub = new PubSub();
-  const logger = pino();
+  const logger = pino({
+    messageKey: 'message',
+  });
   await worker.handler(mockMessage(data).message, con, logger, pubsub);
 };
 
@@ -208,19 +209,24 @@ export const invokeNotificationWorker = async (
   data: Record<string, unknown>,
 ): Promise<NotificationHandlerReturn> => {
   const con = await createOrGetConnection();
-  const logger = pino();
+  const logger = pino({
+    messageKey: 'message',
+  });
   return worker.handler(mockMessage(data).message, con, logger);
 };
 
-export const invokeCron = async (cron: Cron): Promise<void> => {
+export const invokeCron = async (cron: Cron, logger: Logger): Promise<void> => {
   const con = await createOrGetConnection();
   const pubsub = new PubSub();
-  const logger = pino();
   await cron.handler(con, logger, pubsub);
 };
 
-export const expectSuccessfulCron = (cron: Cron): Promise<void> =>
-  invokeCron(cron);
+export const expectSuccessfulCron = (
+  cron: Cron,
+  logger: Logger = pino({
+    messageKey: 'message',
+  }),
+): Promise<void> => invokeCron(cron, logger);
 
 export const mockChangeMessage = <T>({
   before,
@@ -262,13 +268,13 @@ export const mockChangeMessage = <T>({
   },
 });
 
-export const saveNotificationFixture = async (
+export const saveNotificationV2Fixture = async (
   con: DataSource,
   type: NotificationType,
   ctx: NotificationBaseContext,
 ): Promise<string> => {
   const res = await con.transaction((entityManager) =>
-    storeNotificationBundle(entityManager, [generateNotification(type, ctx)]),
+    storeNotificationBundleV2(entityManager, generateNotificationV2(type, ctx)),
   );
   return res[0].id;
 };
@@ -295,3 +301,43 @@ export class MockDataLoaderService extends DataLoaderService {
     });
   }
 }
+
+export const invokeTypedBackground = async <T extends keyof PubSubSchema>(
+  worker: TypedWorker<T>,
+  data: PubSubSchema[T],
+): Promise<void> => {
+  const con = await createOrGetConnection();
+  const pubsub = new PubSub();
+  const logger = pino({
+    messageKey: 'message',
+  });
+  await worker.handler({ data, messageId: 'msg' }, con, logger, pubsub);
+};
+
+export const expectSuccessfulTypedBackground = <T extends keyof PubSubSchema>(
+  worker: TypedWorker<T>,
+  data: PubSubSchema[T],
+): Promise<void> => invokeTypedBackground(worker, data);
+
+export const feedFields = (extra = '') => `
+pageInfo {
+  endCursor
+  hasNextPage
+}
+edges {
+  node {
+    ${extra}
+    id
+    url
+    title
+    readTime
+    tags
+    type
+    source {
+      id
+      name
+      image
+      public
+    }
+  }
+}`;

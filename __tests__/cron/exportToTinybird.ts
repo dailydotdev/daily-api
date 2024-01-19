@@ -4,9 +4,10 @@ import createOrGetConnection from '../../src/db';
 import { ArticlePost, PostTag, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import {
-  postsFixture,
+  postAuthorsFixture,
   postTagsFixture,
   sharedPostsFixture,
+  tinybirdPostsFixture,
 } from '../fixture/post';
 import {
   PostsMetadataRepositoryDependency,
@@ -34,9 +35,9 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   jest.clearAllMocks();
-
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, ArticlePost, postsFixture);
+  await saveFixtures(con, User, postAuthorsFixture);
+  await saveFixtures(con, ArticlePost, tinybirdPostsFixture);
   await saveFixtures(con, ArticlePost, sharedPostsFixture);
   await saveFixtures(con, PostTag, postTagsFixture);
   await con
@@ -62,7 +63,7 @@ describe('PostsRepository', () => {
     });
     expect(posts).toHaveLength(7);
     expect(posts).toContainEqual<TinybirdPost>({
-      author_id: null,
+      author_id: 'scout1',
       banned: 0,
       content_curation: ['c1', 'c2'],
       created_at: '',
@@ -78,7 +79,7 @@ describe('PostsRepository', () => {
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
     });
     expect(posts).toContainEqual<TinybirdPost>({
-      author_id: null,
+      author_id: 'author2',
       banned: 0,
       content_curation: ['c1', 'c2'],
       created_at: '',
@@ -94,7 +95,7 @@ describe('PostsRepository', () => {
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
     });
     expect(posts).toContainEqual<TinybirdPost>({
-      author_id: null,
+      author_id: 'scout3',
       banned: 0,
       content_curation: ['c1', 'c2'],
       created_at: '',
@@ -110,7 +111,7 @@ describe('PostsRepository', () => {
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
     });
     expect(posts).toContainEqual<TinybirdPost>({
-      author_id: null,
+      author_id: 'scout4',
       banned: 0,
       content_curation: ['c1', 'c2'],
       created_at: '',
@@ -126,7 +127,7 @@ describe('PostsRepository', () => {
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
     });
     expect(posts).toContainEqual<TinybirdPost>({
-      author_id: null,
+      author_id: 'author5',
       banned: 0,
       content_curation: ['c1', 'c2'],
       created_at: '',
@@ -142,7 +143,7 @@ describe('PostsRepository', () => {
         '{"visible": true, "showOnFeed": true, "sentAnalyticsReport": true}',
     });
     expect(posts).toContainEqual<TinybirdPost>({
-      author_id: null,
+      author_id: 'scout6',
       banned: 0,
       content_curation: ['c1', 'c2'],
       created_at: '',

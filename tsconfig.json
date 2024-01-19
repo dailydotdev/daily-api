@@ -11,5 +11,13 @@
   },
   "exclude": [
     "__tests__"
+  ],
+  "ts-node": {
+    "swc": true
+  },
+  "files": ["node_modules/jest-extended/types/index.d.ts"],
+  "include": [
+    "bin/**/*.ts",
+    "src/**/*.ts"
   ]
 }

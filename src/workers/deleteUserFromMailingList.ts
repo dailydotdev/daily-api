@@ -9,6 +9,10 @@ interface Data {
 const worker: Worker = {
   subscription: 'user-deleted-api-mailing',
   handler: async (message, _, log) => {
+    if (!process.env.SENDGRID_API_KEY) {
+      return;
+    }
+
     const data = messageToJson<Data>(message);
     if (!data.email || !data.email.trim()) {
       log.warn(

@@ -19,13 +19,17 @@ import {
   SourceMember,
   SourceType,
   User,
+  UserPost,
+  UserPostVote,
   View,
   WelcomePost,
+  YouTubePost,
 } from '../src/entity';
 import { SourceMemberRoles } from '../src/roles';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
 import {
+  feedFields,
   GraphQLTestClient,
   GraphQLTestingState,
   initializeGraphQLTesting,
@@ -40,15 +44,15 @@ import {
   postsFixture,
   postTagsFixture,
   sharedPostsFixture,
+  videoPostsFixture,
 } from './fixture/post';
 import nock from 'nock';
-import { deleteKeysByPattern, ioRedisPool } from '../src/redis';
+import { deleteKeysByPattern } from '../src/redis';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { randomUUID } from 'crypto';
 import { usersFixture } from './fixture/user';
 import { base64 } from 'graphql-relay/utils/base64';
-import { cachedFeedClient } from '../src/integrations/feed';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -116,6 +120,16 @@ const advancedSettings: Partial<AdvancedSettings>[] = [
     description: 'Description for Another Settings',
     defaultEnabledState: true,
   },
+  {
+    id: 7,
+    title: 'Setting with options',
+    description: 'Description for Another Settings',
+    defaultEnabledState: true,
+    group: 'content_types',
+    options: {
+      type: PostType.VideoYouTube,
+    },
+  },
 ];
 
 const categories: Partial<Category>[] = [
@@ -140,6 +154,7 @@ const saveFeedFixtures = async (): Promise<void> => {
     { feedId: '1', advancedSettingsId: 2, enabled: false },
     { feedId: '1', advancedSettingsId: 3, enabled: false },
     { feedId: '1', advancedSettingsId: 4, enabled: true },
+    { feedId: '1', advancedSettingsId: 7, enabled: true },
   ]);
   await saveFixtures(con, Category, categories);
   await saveFixtures(con, FeedTag, [
@@ -236,30 +251,9 @@ const saveAdvancedSettingsFiltersFixtures = async (): Promise<void> => {
     { feedId: '1', advancedSettingsId: 2, enabled: true },
     { feedId: '1', advancedSettingsId: 3, enabled: true },
     { feedId: '1', advancedSettingsId: 4, enabled: false },
+    { feedId: '1', advancedSettingsId: 7, enabled: false },
   ]);
 };
-
-const feedFields = (extra = '') => `
-pageInfo {
-  endCursor
-  hasNextPage
-}
-edges {
-  node {
-    ${extra}
-    id
-    url
-    title
-    readTime
-    tags
-    source {
-      id
-      name
-      image
-      public
-    }
-  }
-}`;
 
 describe('query anonymousFeed', () => {
   const variables = {
@@ -317,10 +311,21 @@ describe('query anonymousFeed', () => {
 
     const filters = await feedToFilters(con, '1', '1');
     delete filters.sourceIds;
+    delete filters.excludeTypes;
     const res = await client.query(QUERY, {
       variables: { ...variables, filters },
     });
-    expect(res.data).toMatchSnapshot();
+    expect(
+      res.data.anonymousFeed.edges.map(({ node }) => node.id),
+    ).toIncludeSameMembers([
+      'p5',
+      'p2',
+      'p3',
+      'p4',
+      'p1',
+      'yt2',
+      'includedPost',
+    ]);
   });
 
   it('should return anonymous feed filtered by tags and sources', async () => {
@@ -355,9 +360,10 @@ describe('query anonymousFeed', () => {
   it('should return anonymous feed v2', async () => {
     nock('http://localhost:6000')
       .post('/feed.json', {
-        total_pages: 40,
-        page_size: 11,
+        total_pages: 1,
+        page_size: 10,
         fresh_page_size: '4',
+        offset: 0,
         providers: {
           fresh: {
             enable: true,
@@ -374,6 +380,7 @@ describe('query anonymousFeed', () => {
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
       });
     const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
@@ -408,9 +415,10 @@ describe('query anonymousFeed', () => {
 
     nock('http://localhost:6000')
       .post('/feed.json', {
-        total_pages: 40,
-        page_size: 11,
+        total_pages: 1,
+        page_size: 10,
         fresh_page_size: '4',
+        offset: 0,
         providers: {
           fresh: {
             enable: true,
@@ -428,6 +436,7 @@ describe('query anonymousFeed', () => {
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
       });
     const res = await client.query(QUERY, {
       variables: { ...variables, version: 2 },
@@ -467,8 +476,8 @@ describe('query feed', () => {
   };
 
   const QUERY = `
-  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
-    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
+  query Feed($ranking: Ranking, $first: Int, $after: String, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
+    feed(ranking: $ranking, first: $first, after: $after, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
       ${feedFields()}
     }
   }
@@ -483,6 +492,104 @@ describe('query feed', () => {
 
     const res = await client.query(QUERY, { variables });
     expect(res.data).toMatchSnapshot();
+  });
+
+  describe('youtube content', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, YouTubePost, videoPostsFixture);
+      await saveFeedFixtures();
+      await con.getRepository(PostKeyword).save([
+        { keyword: 'backend', postId: videoPostsFixture[0].id },
+        { keyword: 'javascript', postId: videoPostsFixture[0].id },
+      ]);
+    });
+
+    it('should include video content by default', async () => {
+      loggedUser = '1';
+
+      await con.getRepository(FeedAdvancedSettings).delete({
+        feedId: '1',
+        advancedSettingsId: 7,
+      });
+
+      const res = await client.query(QUERY, {
+        variables: {
+          ...variables,
+          supportedTypes: ['article', 'video:youtube'],
+        },
+      });
+      expect(res.data).toMatchSnapshot();
+      res.data.feed.edges.map((post) => {
+        expect(
+          ['article', 'video:youtube'].includes(post.node.type),
+        ).toBeTruthy();
+      });
+    });
+
+    it('should include video content when it is enabled by the user', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY, {
+        variables: {
+          ...variables,
+          supportedTypes: ['article', 'video:youtube'],
+        },
+      });
+      expect(res.data).toMatchSnapshot();
+      res.data.feed.edges.map((post) => {
+        expect(
+          ['article', 'video:youtube'].includes(post.node.type),
+        ).toBeTruthy();
+      });
+    });
+
+    it('should exclude video content when it is disabled by the user', async () => {
+      loggedUser = '1';
+
+      await saveFixtures(con, FeedAdvancedSettings, [
+        { feedId: '1', advancedSettingsId: 7, enabled: false },
+      ]);
+
+      const res = await client.query(QUERY, {
+        variables: {
+          ...variables,
+          supportedTypes: ['article', 'video:youtube'],
+        },
+      });
+      expect(res.data).toMatchSnapshot();
+
+      res.data.feed.edges.map((post) => {
+        expect(post.node.type).not.toEqual('video:youtube');
+      });
+    });
+
+    it('can filter out article posts', async () => {
+      loggedUser = '1';
+
+      await saveFixtures(con, FeedAdvancedSettings, [
+        { feedId: '1', advancedSettingsId: 7, enabled: false },
+      ]);
+      await con.getRepository(AdvancedSettings).update(
+        { id: 7 },
+        {
+          options: {
+            type: PostType.Article,
+          },
+        },
+      );
+
+      const res = await client.query(QUERY, {
+        variables: {
+          ...variables,
+          supportedTypes: ['article', 'video:youtube'],
+        },
+      });
+      expect(res.data).toMatchSnapshot();
+
+      res.data.feed.edges.map((post) => {
+        expect(post.node.type).not.toEqual('article');
+      });
+    });
   });
 
   it('should return preconfigured feed with tags filters only', async () => {
@@ -579,59 +686,6 @@ describe('query feed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should return feed v2', async () => {
-    loggedUser = '1';
-    await con.getRepository(Feed).save({ id: '1', userId: '1' });
-    await con.getRepository(FeedTag).save([
-      { feedId: '1', tag: 'javascript' },
-      { feedId: '1', tag: 'golang' },
-      { feedId: '1', tag: 'python', blocked: true },
-      { feedId: '1', tag: 'java', blocked: true },
-    ]);
-    await con.getRepository(FeedSource).save([
-      { feedId: '1', sourceId: 'a' },
-      { feedId: '1', sourceId: 'b' },
-    ]);
-
-    nock('http://localhost:6000')
-      .post('/feed.json', {
-        total_pages: 40,
-        page_size: 11,
-        fresh_page_size: '4',
-        feed_config_name: 'personalise',
-        user_id: '1',
-        allowed_tags: ['javascript', 'golang'],
-        blocked_tags: ['python', 'java'],
-        blocked_sources: ['a', 'b'],
-      })
-      .reply(200, {
-        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
-      });
-    const res = await client.query(QUERY, {
-      variables: { ...variables, version: 2 },
-    });
-    expect(res.data).toMatchSnapshot();
-  });
-
-  it('should return feed with vector config', async () => {
-    loggedUser = '1';
-    nock('http://localhost:6000')
-      .post('/feed.json', {
-        total_pages: 40,
-        page_size: 11,
-        fresh_page_size: '4',
-        feed_config_name: 'vector',
-        user_id: '1',
-      })
-      .reply(200, {
-        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
-      });
-    const res = await client.query(QUERY, {
-      variables: { ...variables, version: 14 },
-    });
-    expect(res.data).toMatchSnapshot();
-  });
-
   it('should return feed with vector config based on user state', async () => {
     loggedUser = '1';
     nock('http://localhost:6001')
@@ -644,11 +698,13 @@ describe('query feed', () => {
       .reply(200, { personalise: { state: 'personalised' } });
     nock('http://localhost:6000')
       .post('/feed.json', {
-        total_pages: 40,
-        page_size: 11,
+        total_pages: 1,
+        page_size: 10,
+        offset: 0,
         fresh_page_size: '4',
-        feed_config_name: 'vector',
+        feed_config_name: 'vector_v20',
         user_id: '1',
+        source_types: ['machine', 'squad'],
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -660,41 +716,88 @@ describe('query feed', () => {
     expect(res.data.feed.edges.length).toEqual(2);
   });
 
-  it('should return feed v2 with metadata', async () => {
+  it('should support feed service side caching', async () => {
     loggedUser = '1';
-    nock('http://localhost:6000')
-      .post('/feed.json', {
-        total_pages: 40,
-        page_size: 11,
-        fresh_page_size: '4',
-        feed_config_name: 'personalise',
+    nock('http://localhost:6001')
+      .post('/api/v1/user/profile', {
         user_id: '1',
+        providers: {
+          personalise: {},
+        },
+      })
+      .reply(200, { personalise: { state: 'personalised' } });
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => body.cursor === 'a')
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+    const res = await client.query(QUERY, {
+      variables: { ...variables, version: 20, after: 'a' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feed.edges.length).toEqual(2);
+    expect(res.data.feed.pageInfo.endCursor).toEqual('b');
+  });
+
+  it('should provide feed service with supported types', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6001')
+      .post('/api/v1/user/profile', {
+        user_id: '1',
+        providers: {
+          personalise: {},
+        },
+      })
+      .reply(200, { personalise: { state: 'personalised' } });
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        expect(body.allowed_post_types).toEqual(['article']);
+        return true;
       })
       .reply(200, {
-        data: [
-          { post_id: 'p1', metadata: { p: 'a' } },
-          {
-            post_id: 'p4',
-            metadata: { p: 'b' },
-          },
-        ],
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
       });
-    const QUERY = `
-  query Feed($ranking: Ranking, $first: Int, $version: Int, $unreadOnly: Boolean, $supportedTypes: [String!]) {
-    feed(ranking: $ranking, first: $first, version: $version, unreadOnly: $unreadOnly, supportedTypes: $supportedTypes) {
-      edges {
-        node {
-          id
-          feedMeta
-        }
-      }
-    }
-  }
-`;
     const res = await client.query(QUERY, {
-      variables: { ...variables, version: 2 },
+      variables: { ...variables, version: 20, supportedTypes: ['article'] },
     });
-    expect(res.data).toMatchSnapshot();
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feed.edges.length).toEqual(2);
+  });
+
+  it('should exclude types based on feed settings', async () => {
+    loggedUser = '1';
+    await saveFeedFixtures();
+    await saveFixtures(con, FeedAdvancedSettings, [
+      { feedId: '1', advancedSettingsId: 7, enabled: false },
+    ]);
+    nock('http://localhost:6001')
+      .post('/api/v1/user/profile', {
+        user_id: '1',
+        providers: {
+          personalise: {},
+        },
+      })
+      .reply(200, { personalise: { state: 'personalised' } });
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        expect(body.allowed_post_types).toEqual(['article', 'collections']);
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+    const res = await client.query(QUERY, {
+      variables: {
+        ...variables,
+        version: 20,
+        supportedTypes: ['article', 'video:youtube', 'collections'],
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feed.edges.length).toEqual(2);
   });
 
   it('should return only article posts by default', async () => {
@@ -753,8 +856,8 @@ describe('query feedByConfig', () => {
     nock('http://localhost:6000')
       .post('/feed.json', {
         key: 'value',
-        total_pages: 40,
-        page_size: 11,
+        total_pages: 1,
+        page_size: 10,
         fresh_page_size: '4',
         offset: 0,
       })
@@ -1030,6 +1133,12 @@ describe('query feedSettings', () => {
       advancedSettings {
         id
         enabled
+        advancedSettings {
+          id
+          title
+          description
+          group
+        }
       }
     }
   }`;
@@ -1041,43 +1150,6 @@ describe('query feedSettings', () => {
     loggedUser = '1';
     await saveFeedFixtures();
     const res = await client.query(QUERY);
-    expect(res.data).toMatchSnapshot();
-  });
-});
-
-describe('query searchPostSuggestions', () => {
-  const QUERY = (query: string): string => `{
-    searchPostSuggestions(query: "${query}") {
-      query
-      hits {
-        title
-      }
-    }
-  }
-`;
-
-  it('should return search suggestions', async () => {
-    const res = await client.query(QUERY('p1'));
-    expect(res.data).toMatchSnapshot();
-  });
-});
-
-describe('query searchPosts', () => {
-  const QUERY = (query: string, now = new Date(), first = 10): string => `{
-    searchPosts(query: "${query}", now: "${now.toISOString()}", first: ${first}) {
-      query
-      ${feedFields()}
-    }
-  }
-`;
-
-  it('should return search feed', async () => {
-    const res = await client.query(QUERY('p1'));
-    expect(res.data).toMatchSnapshot();
-  });
-
-  it('should return search empty feed', async () => {
-    const res = await client.query(QUERY('not found'));
     expect(res.data).toMatchSnapshot();
   });
 });
@@ -1336,7 +1408,41 @@ describe('query randomSimilarPostsByTags', () => {
     }
   }`;
 
-  it('should return random similar posts by tags', async () => {
+  // it('should return posts from feed service', async () => {
+  //   nock('http://localhost:6000')
+  //     .post('/feed.json', {
+  //       feed_config_name: 'post_similarity',
+  //       total_pages: 1,
+  //       page_size: 3,
+  //       post_id: 'p1',
+  //       fresh_page_size: '1',
+  //     })
+  //     .reply(200, {
+  //       data: [{ post_id: 'p3' }, { post_id: 'p5' }],
+  //     });
+  //
+  //   const res = await client.query(QUERY, {
+  //     variables: { post: 'p1', tags: ['webdev', 'javascript'] },
+  //   });
+  //   expect(res.errors).toBeFalsy();
+  //   expect(
+  //     res.data.randomSimilarPostsByTags.map((post) => post.id).sort(),
+  //   ).toEqual(['p3', 'p5']);
+  // });
+
+  it('should fallback to old algorithm', async () => {
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        feed_config_name: 'post_similarity',
+        total_pages: 1,
+        page_size: 3,
+        post_id: 'p1',
+        fresh_page_size: '1',
+      })
+      .reply(200, {
+        data: [],
+      });
+
     const repo = con.getRepository(Post);
     const now = new Date();
     await con.getRepository(Keyword).save([
@@ -1364,7 +1470,19 @@ describe('query randomSimilarPostsByTags', () => {
     ).toEqual(['p3', 'p5']);
   });
 
-  it('should return random similar posts even when tags not provided', async () => {
+  it('should fallback to old algorithm even when tags not provided', async () => {
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        feed_config_name: 'post_similarity',
+        total_pages: 1,
+        page_size: 3,
+        post_id: 'p1',
+        fresh_page_size: '1',
+      })
+      .reply(200, {
+        data: [],
+      });
+
     const repo = con.getRepository(Post);
     const now = new Date();
     await con.getRepository(Keyword).save([
@@ -1485,12 +1603,6 @@ describe('mutation updateFeedAdvancedSettings', () => {
 
   it('should add the new feed advanced settings', async () => {
     loggedUser = '1';
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${cachedFeedClient.getCacheKey('2', '1')}:time`, '1');
-    });
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${cachedFeedClient.getCacheKey('2', '2')}:time`, '2');
-    });
     await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
     await saveFixtures(con, AdvancedSettings, advancedSettings);
     const res = await client.mutate(MUTATION, {
@@ -1503,11 +1615,6 @@ describe('mutation updateFeedAdvancedSettings', () => {
     });
 
     expect(res.data).toMatchSnapshot();
-    expect(
-      await ioRedisPool.execute(async (client) => {
-        return client.get(`${cachedFeedClient.getCacheKeyPrefix('1')}:update`);
-      }),
-    ).toBeTruthy();
   });
 
   it('should not fail if feed entity does not exists', async () => {
@@ -1527,12 +1634,6 @@ describe('mutation updateFeedAdvancedSettings', () => {
 
   it('should update existing feed advanced settings', async () => {
     loggedUser = '1';
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${cachedFeedClient.getCacheKey('2', '1')}:time`, '1');
-    });
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${cachedFeedClient.getCacheKey('2', '2')}:time`, '2');
-    });
     await saveFeedFixtures();
     const res = await client.mutate(MUTATION, {
       variables: {
@@ -1541,15 +1642,11 @@ describe('mutation updateFeedAdvancedSettings', () => {
           { id: 2, enabled: true },
           { id: 3, enabled: true },
           { id: 4, enabled: false },
+          { id: 7, enabled: false },
         ],
       },
     });
     expect(res.data).toMatchSnapshot();
-    expect(
-      await ioRedisPool.execute(async (client) => {
-        return client.get(`${cachedFeedClient.getCacheKeyPrefix('1')}:update`);
-      }),
-    ).toBeTruthy();
   });
 
   it('should ignore duplicates', async () => {
@@ -1562,6 +1659,7 @@ describe('mutation updateFeedAdvancedSettings', () => {
           { id: 2, enabled: false },
           { id: 3, enabled: false },
           { id: 4, enabled: true },
+          { id: 7, enabled: true },
         ],
       },
     });
@@ -1602,12 +1700,6 @@ describe('mutation addFiltersToFeed', () => {
 
   it('should add the new feed settings', async () => {
     loggedUser = '1';
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${cachedFeedClient.getCacheKey('2', '1')}:time`, '1');
-    });
-    await ioRedisPool.execute(async (client) => {
-      await client.set(`${cachedFeedClient.getCacheKey('2', '2')}:time`, '2');
-    });
     await saveFixtures(con, Feed, [{ id: '2', userId: '1' }]);
     await saveFixtures(con, AdvancedSettings, advancedSettings);
     const res = await client.mutate(MUTATION, {
@@ -1620,11 +1712,6 @@ describe('mutation addFiltersToFeed', () => {
       },
     });
     expect(res.data).toMatchSnapshot();
-    expect(
-      await ioRedisPool.execute(async (client) => {
-        return client.get(`${cachedFeedClient.getCacheKeyPrefix('1')}:update`);
-      }),
-    ).toBeTruthy();
   });
 
   it('should ignore duplicates', async () => {
@@ -1689,12 +1776,6 @@ describe('mutation removeFiltersFromFeed', () => {
 
   it('should remove existing filters', async () => {
     loggedUser = '1';
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${cachedFeedClient.getCacheKey('2', '1')}:time`, '1');
-    });
-    await ioRedisPool.execute(async (client) => {
-      return client.set(`${cachedFeedClient.getCacheKey('2', '2')}:time`, '2');
-    });
     await saveFeedFixtures();
     const res = await client.mutate(MUTATION, {
       variables: {
@@ -1706,11 +1787,6 @@ describe('mutation removeFiltersFromFeed', () => {
       },
     });
     expect(res.data).toMatchSnapshot();
-    expect(
-      await ioRedisPool.execute(async (client) => {
-        return client.get(`${cachedFeedClient.getCacheKeyPrefix('1')}:update`);
-      }),
-    ).toBeTruthy();
   });
 });
 
@@ -1718,7 +1794,18 @@ describe('function feedToFilters', () => {
   it('should return filters having excluded sources based on advanced settings', async () => {
     loggedUser = '1';
     await saveAdvancedSettingsFiltersFixtures();
-    expect(await feedToFilters(con, '1', '1')).toMatchSnapshot();
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.excludeSources).toEqual([
+      'excludedSource',
+      'settingsCombinationSource',
+    ]);
+  });
+
+  it('should return filters having excluded content types based on advanced settings', async () => {
+    loggedUser = '1';
+    await saveAdvancedSettingsFiltersFixtures();
+    const filters = await feedToFilters(con, '1', '1');
+    expect(filters.excludeTypes).toEqual(['video:youtube']);
   });
 
   it('should return filters for tags/sources based on the values from our data', async () => {
@@ -1808,5 +1895,102 @@ describe('function feedToFilters', () => {
     ]);
     const filters = await feedToFilters(con, '1', '1');
     expect(filters.sourceIds).toContain('a');
+  });
+});
+
+describe('query feedPreview', () => {
+  const QUERY = `
+  query FeedPreview($supportedTypes: [String!]) {
+    feedPreview(supportedTypes: $supportedTypes) {
+      ${feedFields()}
+    }
+  }
+`;
+
+  it('should not authorize when not logged-in', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: {} },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return feed', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, Feed, [{ id: '1', userId: '1' }]);
+    await saveFixtures(con, FeedTag, [{ feedId: '1', tag: 'html' }]);
+    nock('http://localhost:6000')
+      .post('/feed.json', {
+        feed_config_name: 'onboarding',
+        total_pages: 1,
+        page_size: 20,
+        offset: 0,
+        fresh_page_size: '7',
+        user_id: '1',
+        allowed_tags: ['html'],
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+      });
+
+    const res = await client.query(QUERY, { variables: {} });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feedPreview.edges.length).toEqual(2);
+  });
+});
+
+describe('query userUpvotedFeed', () => {
+  const QUERY = `
+  query UserUpvotedFeed($userId: ID!, $first: Int, $after: String) {
+    userUpvotedFeed(userId: $userId, first: $first, after: $after) {
+      ${feedFields()}
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+    await con.getRepository(UserPost).insert([
+      {
+        userId: '2',
+        postId: 'p1',
+        vote: UserPostVote.Up,
+        votedAt: new Date(2023, 13, 26),
+      },
+      {
+        userId: '2',
+        postId: 'p3',
+        vote: UserPostVote.Up,
+        votedAt: new Date(2023, 13, 24),
+      },
+      {
+        userId: '2',
+        postId: 'p2',
+        vote: UserPostVote.Down,
+        votedAt: new Date(2023, 13, 23),
+      },
+      {
+        userId: '1',
+        postId: 'p4',
+        vote: UserPostVote.Up,
+        votedAt: new Date(2023, 13, 23),
+      },
+    ]);
+  });
+
+  it('should return upvotes ordered by time', async () => {
+    const res = await client.query(QUERY, { variables: { userId: '2' } });
+    res.data.userUpvotedFeed.edges.forEach(({ node }) =>
+      expect(['p1', 'p3']).toContain(node.id),
+    );
+  });
+
+  it('should include banned posts', async () => {
+    await con.getRepository(Post).update({ id: 'p3' }, { banned: true });
+    const res = await client.query(QUERY, { variables: { userId: '2' } });
+    res.data.userUpvotedFeed.edges.forEach(({ node }) =>
+      expect(['p1', 'p3']).toContain(node.id),
+    );
   });
 });

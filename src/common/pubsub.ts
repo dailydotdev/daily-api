@@ -2,12 +2,9 @@ import { PubSub, Topic } from '@google-cloud/pubsub';
 import { FastifyBaseLogger } from 'fastify';
 import {
   Post,
-  SourceRequest,
-  Alerts,
   Settings,
   Submission,
   User,
-  Notification,
   CommentMention,
   SourceMember,
   Feature,
@@ -18,12 +15,25 @@ import {
   ContentImage,
   Banner,
   FreeformPost,
+  CollectionPost,
+  NotificationV2,
 } from '../entity';
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
+import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
+import {
+  addPubsubSpanLabels,
+  opentelemetry,
+  runInRootSpan,
+  runInSpan,
+} from '../telemetry/opentelemetry';
+import { Message } from '@google-cloud/pubsub';
+import { performance } from 'perf_hooks';
+import { DataSource } from 'typeorm';
+import { FastifyLoggerInstance } from 'fastify';
+import pino from 'pino';
 
-const pubsub = new PubSub();
-const sourceRequestTopic = pubsub.topic('pub-request');
+export const pubsub = new PubSub();
 const postUpvotedTopic = pubsub.topic('post-upvoted');
 const postUpvoteCanceledTopic = pubsub.topic('post-upvote-canceled');
 const commentUpvotedTopic = pubsub.topic('comment-upvoted');
@@ -34,9 +44,7 @@ const commentsUpdateTopic = pubsub.topic('update-comments');
 const userDeletedTopic = pubsub.topic('user-deleted');
 const userUpdatedTopic = pubsub.topic('user-updated');
 const usernameChangedTopic = pubsub.topic('username-changed');
-const alertsUpdatedTopic = pubsub.topic('alerts-updated');
 const settingsUpdatedTopic = pubsub.topic('settings-updated');
-const notificationsReadTopic = pubsub.topic('api.v1.notifications-read');
 const commentUpvoteCanceledTopic = pubsub.topic('comment-upvote-canceled');
 const sendAnalyticsReportTopic = pubsub.topic('send-analytics-report');
 const viewsTopic = pubsub.topic('views');
@@ -65,6 +73,14 @@ const postContentEditedTopic = pubsub.topic('api.v1.post-content-edited');
 const commentEditedTopic = pubsub.topic('api.v1.comment-edited');
 const commentDeletedTopic = pubsub.topic('api.v1.comment-deleted');
 const sourceCreatedTopic = pubsub.topic('api.v1.source-created');
+const generatePersonalizedDigestTopic = pubsub.topic(
+  'api.v1.generate-personalized-digest',
+);
+const postYggdrasilIdSet = pubsub.topic('api.v1.post-yggdrasil-id-set');
+const postCollectionUpdatedTopic = pubsub.topic(
+  'api.v1.post-collection-updated',
+);
+const userReadmeUpdatedTopic = pubsub.topic('api.v1.user-readme-updated');
 
 export enum NotificationReason {
   New = 'new',
@@ -77,37 +93,34 @@ export enum NotificationReason {
 // Need to support console as well
 export type EventLogger = Omit<FastifyBaseLogger, 'fatal'>;
 
-const publishEvent = async (
+export const publishEvent = async (
   log: EventLogger,
   topic: Topic,
   payload: Record<string, unknown>,
-): Promise<void> => {
-  if (
-    process.env.NODE_ENV === 'production' ||
-    process.env.ENABLE_PUBSUB === 'true'
-  ) {
-    try {
-      await topic.publishMessage({
-        json: payload,
-      });
-    } catch (err) {
-      log.error(
-        { err, topic: topic.name, payload },
-        'failed to publish message',
-      );
-    }
-  }
-};
-
-export const notifySourceRequest = async (
-  log: EventLogger,
-  reason: NotificationReason,
-  sourceRequest: ChangeObject<SourceRequest>,
 ): Promise<void> =>
-  publishEvent(log, sourceRequestTopic, {
-    reason,
-    sourceRequest,
-  });
+  runInSpan(
+    `publishEvent ${topic.name}`,
+    async () => {
+      if (
+        process.env.NODE_ENV === 'production' ||
+        process.env.ENABLE_PUBSUB === 'true'
+      ) {
+        try {
+          await topic.publishMessage({
+            json: payload,
+          });
+        } catch (err) {
+          log.error(
+            { err, topic: topic.name, payload },
+            'failed to publish message',
+          );
+        }
+      }
+    },
+    {
+      kind: opentelemetry.SpanKind.PRODUCER,
+    },
+  );
 
 export const notifyPostUpvoted = async (
   log: EventLogger,
@@ -189,10 +202,12 @@ export const notifyUserDeleted = async (
   log: EventLogger,
   userId: string,
   kratosUser = false,
+  email: string,
 ): Promise<void> =>
   publishEvent(log, userDeletedTopic, {
     id: userId,
     kratosUser,
+    email,
   });
 
 export const notifyUserUpdated = (
@@ -201,6 +216,11 @@ export const notifyUserUpdated = (
   newProfile: ChangeObject<User>,
 ): Promise<void> => publishEvent(log, userUpdatedTopic, { user, newProfile });
 
+export const notifyUserReadmeUpdated = (
+  log: EventLogger,
+  user: ChangeObject<User>,
+): Promise<void> => publishEvent(log, userReadmeUpdatedTopic, { user });
+
 export const notifyUsernameChanged = (
   log: EventLogger,
   userId: string,
@@ -208,11 +228,6 @@ export const notifyUsernameChanged = (
   newUsername: string,
 ): Promise<void> =>
   publishEvent(log, usernameChangedTopic, { userId, oldUsername, newUsername });
-
-export const notifyAlertsUpdated = (
-  log: EventLogger,
-  alerts: ChangeObject<Alerts>,
-): Promise<void> => publishEvent(log, alertsUpdatedTopic, alerts);
 
 export const notifySettingsUpdated = (
   log: EventLogger,
@@ -223,12 +238,6 @@ export const notifySourcePrivacyUpdated = (
   log: EventLogger,
   source: ChangeObject<Source>,
 ): Promise<void> => publishEvent(log, sourcePrivacyUpdatedTopic, { source });
-
-export const notifyNotificationsRead = (
-  log: EventLogger,
-  unreadNotificationsCount: ChangeObject<{ unreadNotificationsCount: number }>,
-): Promise<void> =>
-  publishEvent(log, notificationsReadTopic, unreadNotificationsCount);
 
 export const notifyCommentUpvoteCanceled = async (
   log: EventLogger,
@@ -314,7 +323,7 @@ export const notifySourceMemberRoleChanged = async (
 
 export const notifyNewNotification = async (
   log: EventLogger,
-  notification: ChangeObject<Notification>,
+  notification: ChangeObject<NotificationV2>,
 ): Promise<void> => publishEvent(log, newNotificationTopic, { notification });
 
 export const notifyNewPostMention = async (
@@ -418,3 +427,90 @@ export const notifySourceCreated = async (
   log: EventLogger,
   source: ChangeObject<Source>,
 ): Promise<void> => publishEvent(log, sourceCreatedTopic, { source });
+
+export const notifyGeneratePersonalizedDigest = async (
+  log: EventLogger,
+  personalizedDigest: UserPersonalizedDigest,
+  generationTimestamp: number,
+  emailBatchId: string,
+): Promise<void> =>
+  publishEvent(log, generatePersonalizedDigestTopic, {
+    personalizedDigest,
+    generationTimestamp,
+    emailBatchId,
+  });
+
+export const notifyPostYggdrasilIdSet = async (
+  log: EventLogger,
+  post: ChangeObject<Post>,
+): Promise<void> =>
+  publishEvent(log, postYggdrasilIdSet, {
+    post,
+  });
+
+export const notifyPostCollectionUpdated = async (
+  log: EventLogger,
+  post: ChangeObject<CollectionPost>,
+): Promise<void> => publishEvent(log, postCollectionUpdatedTopic, { post });
+
+export const workerSubscribe = (
+  logger: pino.Logger,
+  pubsub: PubSub,
+  connection: DataSource,
+  subscription: string,
+  meter: opentelemetry.Meter,
+  handler: (
+    message: Message,
+    con: DataSource,
+    logger: FastifyLoggerInstance,
+    pubsub: PubSub,
+  ) => Promise<void>,
+  maxMessages = 1,
+): void => {
+  logger.info(`subscribing to ${subscription}`);
+  const sub = pubsub.subscription(subscription, {
+    flowControl: {
+      maxMessages,
+    },
+    batching: { maxMilliseconds: 10 },
+  });
+  const childLogger = logger.child({ subscription });
+  const histogram = meter.createHistogram('message_processing_time', {
+    unit: 'ms',
+    description: 'time to process a message',
+  });
+  sub.on('message', async (message) =>
+    runInRootSpan(
+      `message: ${subscription}`,
+      async (span) => {
+        const startTime = performance.now();
+        let success = true;
+        addPubsubSpanLabels(span, subscription, message);
+        try {
+          await runInSpan('handler', async () =>
+            handler(message, connection, childLogger, pubsub),
+          );
+          message.ack();
+        } catch (err) {
+          success = false;
+          childLogger.error(
+            {
+              messageId: message.id,
+              data: message.data.toString('utf-8'),
+              err,
+            },
+            'failed to process message',
+          );
+          message.nack();
+        }
+        histogram.record(performance.now() - startTime, {
+          subscription,
+          success,
+        });
+      },
+      {
+        kind: opentelemetry.SpanKind.CONSUMER,
+      },
+    ),
+  );
+};

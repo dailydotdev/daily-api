@@ -4,6 +4,7 @@ import { MailDataRequired } from '@sendgrid/helpers/classes/mail';
 import { User } from './users';
 import { ChangeObject } from '../types';
 import { FastifyBaseLogger } from 'fastify';
+import { getInviteLink, getShortUrl } from './links';
 
 if (process.env.SENDGRID_API_KEY) {
   client.setApiKey(process.env.SENDGRID_API_KEY);
@@ -41,7 +42,13 @@ export const formatMailDate = (date: Date): string =>
 
 export const baseNotificationEmailData: Pick<
   MailDataRequired,
-  'from' | 'replyTo' | 'trackingSettings' | 'asm' | 'category'
+  | 'from'
+  | 'replyTo'
+  | 'trackingSettings'
+  | 'asm'
+  | 'category'
+  | 'hideWarnings'
+  | 'ipPoolName'
 > = {
   from: {
     email: 'informer@daily.dev',
@@ -53,11 +60,14 @@ export const baseNotificationEmailData: Pick<
   },
   trackingSettings: {
     openTracking: { enable: true },
+    clickTracking: { enable: true },
   },
   asm: {
     groupId: 12850,
   },
   category: 'Notification',
+  hideWarnings: process.env.NODE_ENV === 'production',
+  ipPoolName: 'Transactional',
 };
 
 export const sendEmail: typeof sgMail.send = (data) => {
@@ -87,11 +97,23 @@ interface EmailContact {
   custom_fields: Record<string, string>;
 }
 
-const profileToContact = (profile: User, contactId: string) => {
+const profileToContact = async (
+  profile: User,
+  contactId: string,
+  log: FastifyBaseLogger,
+) => {
+  const rawInviteURL = getInviteLink({
+    referralOrigin: 'generic',
+    userId: profile.id,
+  });
+  const genericInviteURL = await getShortUrl(rawInviteURL.toString(), log);
   const contact: EmailContact = {
     id: contactId,
     email: profile.email,
-    custom_fields: { e1_T: profile.id },
+    custom_fields: {
+      e1_T: profile.id,
+      e2_T: genericInviteURL.toString(),
+    },
   };
 
   const name = profile.name && profile.name.trim();
@@ -106,17 +128,19 @@ const profileToContact = (profile: User, contactId: string) => {
   return contact;
 };
 
-export const addUserToContacts = (
+export const addUserToContacts = async (
   profile: User,
   lists: string[],
   contactId: string,
+  log: FastifyBaseLogger,
 ) => {
+  const contact = await profileToContact(profile, contactId, log);
   const request = {
     method: 'PUT' as HttpMethod,
     url: '/v3/marketing/contacts',
     body: {
       list_ids: lists || undefined,
-      contacts: [profileToContact(profile, contactId)],
+      contacts: [contact],
     },
   };
   return client.request(request);
@@ -180,7 +204,7 @@ export const updateUserContactLists = async (
         removeUserFromList(LIST_SQUAD_DRIP_CAMPAIGN, contactId),
       ]);
     }
-    await addUserToContacts(newProfile, lists, contactId);
+    await addUserToContacts(newProfile, lists, contactId, log);
   } catch (err) {
     if (
       err.code === 400 &&
@@ -199,4 +223,15 @@ export const updateUserContactLists = async (
       throw err;
     }
   }
+};
+
+export const createEmailBatchId = async (): Promise<string | undefined> => {
+  const request = {
+    method: 'POST' as HttpMethod,
+    url: '/v3/mail/batch',
+  };
+
+  const [, body] = await client.request(request);
+
+  return body?.batch_id;
 };

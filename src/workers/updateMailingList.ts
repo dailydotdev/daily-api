@@ -1,4 +1,4 @@
-import { updateUserContactLists, User } from '../common';
+import { ghostUser, updateUserContactLists, User } from '../common';
 import { messageToJson, Worker } from './worker';
 
 interface Data {
@@ -14,6 +14,11 @@ const worker: Worker = {
     }
     const data = messageToJson<Data>(message);
     const { user: oldProfile, newProfile } = data;
+
+    if (oldProfile.id === ghostUser.id) {
+      return;
+    }
+
     if (
       newProfile.infoConfirmed &&
       (newProfile.email !== oldProfile.email ||

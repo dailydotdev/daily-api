@@ -12,7 +12,7 @@ const worker: NotificationWorker = {
   handler: async (message) => {
     const data: Data = messageToJson(message);
     const ctx: NotificationBaseContext = {
-      userId: data.userId,
+      userIds: [data.userId],
     };
     return [{ type: NotificationType.CommunityPicksGranted, ctx }];
   },

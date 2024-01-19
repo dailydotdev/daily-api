@@ -1,4 +1,4 @@
-import { Worker } from './worker';
+import { BaseTypedWorker, Worker } from './worker';
 import newView from './newView';
 import commentUpvotedRep from './commentUpvotedRep';
 import commentUpvoteCanceledRep from './commentUpvoteCanceledRep';
@@ -10,21 +10,20 @@ import postUpvoteCanceledRep from './postUpvoteCanceledRep';
 import postCommentedRedis from './postCommentedRedis';
 import postUpvotedRedis from './postUpvotedRedis';
 import postBannedRep from './postBannedRep';
+import postDeletedCommentsCleanup from './postDeletedCommentsCleanup';
 import usernameChanged from './usernameChanged';
-import usernameChangedUpdateNotifications from './usernameChangedUpdateNotifications';
 import sourceRequestApprovedRep from './sourceRequestApprovedRep';
 import updateComments from './updateComments';
-import cdc from './cdc';
+import cdc from './cdc/primary';
+import cdcNotifications from './cdc/notifications';
 import updateMailingList from './updateMailingList';
 import deleteUserFromMailingList from './deleteUserFromMailingList';
-import unreadNotificationCount from './unreadNotificationCount';
-import newNotificationRealTime from './newNotificationRealTime';
-import newNotificationMail from './newNotificationMail';
-import newNotificationPush from './newNotificationPush';
+import newNotificationRealTime from './newNotificationV2RealTime';
+import newNotificationMail from './newNotificationV2Mail';
+import newNotificationPush from './newNotificationV2Push';
 import addToMailingList from './addToMailingList';
 import { workers as notificationWorkers } from './notifications';
 import sourcePrivacyUpdated from './sourcePrivacyUpdated';
-import postChangelogAdded from './postChangelogAdded';
 import postUpdated from './postUpdated';
 import postFreeformImages from './postFreeformImages';
 import postEditedFreeformImages from './postEditedFreeformImages';
@@ -42,6 +41,9 @@ import {
 import experimentAllocated from './experimentAllocated';
 import sourceSquadCreatedUserAction from './sourceSquadCreatedUserAction';
 import sourceSquadCreatedOwnerMailing from './sourceSquadCreatedOwnerMailing';
+import personalizedDigestEmailWorker from '../workers/personalizedDigestEmail';
+import deadLetterLog from './digestDeadLetterLog';
+import userReadmeImages from './userReadmeImages';
 
 export { Worker } from './worker';
 
@@ -65,17 +67,14 @@ export const workers: Worker[] = [
   postCommentedRedis,
   postUpvotedRedis,
   postBannedRep,
-  sourceRequestApprovedRep,
+  postDeletedCommentsCleanup,
   usernameChanged,
-  usernameChangedUpdateNotifications,
   updateComments,
-  unreadNotificationCount,
   newNotificationRealTime,
   newNotificationMail,
   newNotificationPush,
   addToMailingList,
   sourcePrivacyUpdated,
-  postChangelogAdded,
   postUpdated,
   postFreeformImages,
   postEditedFreeformImages,
@@ -83,6 +82,17 @@ export const workers: Worker[] = [
   experimentAllocated,
   sourceSquadCreatedUserAction,
   sourceSquadCreatedOwnerMailing,
+  userReadmeImages,
   cdc,
+  cdcNotifications,
   ...notificationWorkers,
+];
+
+export const typedWorkers: BaseTypedWorker<unknown>[] = [
+  sourceRequestApprovedRep,
+];
+
+export const personalizedDigestWorkers: Worker[] = [
+  personalizedDigestEmailWorker,
+  deadLetterLog,
 ];

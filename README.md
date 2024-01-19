@@ -16,7 +16,7 @@
 </p>
 
 The project started as a monolith service for everything the extension needed (thus Daily API).
-Safely and slowly it was tore apart to other services to make every service has only one responsibility.
+Safely and slowly it was torn apart to other services to make every service have only one responsibility.
 The so called Daily API kept to itself the content domain. The feed you know very well is delivered from here,
 along with other very useful endpoints.
 

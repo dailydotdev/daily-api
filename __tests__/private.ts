@@ -8,6 +8,8 @@ import { usersFixture } from './fixture/user';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
+import { UserPersonalizedDigest } from '../src/entity/UserPersonalizedDigest';
+import { DayOfWeek } from '../src/types';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -60,7 +62,8 @@ describe('POST /p/newUser', () => {
       })
       .expect(200);
 
-    expect(body).toEqual({ status: 'failed', reason: 'USER_EXISTS' });
+    expect(body.status).toEqual('ok');
+    expect(body.userId).not.toEqual(usersFixture[0].id);
   });
 
   it('should handle existing username', async () => {
@@ -70,10 +73,28 @@ describe('POST /p/newUser', () => {
       .set('Content-type', 'application/json')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
       .send({
-        id: usersFixture[0].id,
+        id: '100',
         name: usersFixture[0].name,
         image: usersFixture[0].image,
         username: usersFixture[0].username,
+        email: 'randomNewEmail@gmail.com',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' });
+  });
+
+  it('should handle existing username with different case', async () => {
+    await createDefaultUser();
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: '100',
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username.toUpperCase(),
         email: 'randomNewEmail@gmail.com',
       })
       .expect(200);
@@ -99,8 +120,7 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' });
   });
 
-  it('should handle existing email', async () => {
-    await createDefaultUser();
+  it('should not allow dashes in handle', async () => {
     const { body } = await request(app.server)
       .post('/p/newUser')
       .set('Content-type', 'application/json')
@@ -109,8 +129,78 @@ describe('POST /p/newUser', () => {
         id: usersFixture[0].id,
         name: usersFixture[0].name,
         image: usersFixture[0].image,
+        username: 'h-ello',
+        email: 'randomNewEmail@gmail.com',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' });
+  });
+
+  it('should not allow slashes in handle', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: 'h/ello',
+        email: 'randomNewEmail@gmail.com',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' });
+  });
+
+  it('should not allow short handle', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: 'he',
+        email: 'randomNewEmail@gmail.com',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' });
+  });
+
+  it('should handle existing email', async () => {
+    await createDefaultUser();
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: '100',
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
         username: 'randomName',
         email: usersFixture[0].email,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'failed', reason: 'USERNAME_EMAIL_EXISTS' });
+  });
+
+  it('should handle existing email with different case', async () => {
+    await createDefaultUser();
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: '100',
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: 'randomName',
+        email: usersFixture[0].email.toUpperCase(),
       })
       .expect(200);
 
@@ -133,10 +223,28 @@ describe('POST /p/newUser', () => {
 
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
-    const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(1);
+    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
+    expect(users.length).toEqual(2);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].infoConfirmed).toBeTruthy();
+    expect(users[0].createdAt).not.toBeNull();
+  });
+
+  it('should allow underscore in username', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: 'h_ello',
+        email: usersFixture[0].email,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
   });
 
   it('should add a new user with false info confirmed if data is incomplete', async () => {
@@ -154,8 +262,8 @@ describe('POST /p/newUser', () => {
 
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
-    const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(1);
+    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
+    expect(users.length).toEqual(2);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].infoConfirmed).toBeFalsy();
   });
@@ -177,8 +285,8 @@ describe('POST /p/newUser', () => {
 
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
-    const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(1);
+    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
+    expect(users.length).toEqual(2);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].github).toEqual(usersFixture[0].github);
   });
@@ -205,7 +313,7 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(2);
+    expect(users.length).toEqual(3);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].github).toEqual(null);
   });
@@ -227,8 +335,7 @@ describe('POST /p/newUser', () => {
 
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
-    const users = await con.getRepository(User).find();
-    expect(users.length).toEqual(1);
+    const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].twitter).toEqual(usersFixture[0].twitter);
   });
@@ -255,7 +362,7 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(2);
+    expect(users.length).toEqual(3);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].twitter).toEqual(null);
   });
@@ -280,7 +387,7 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(2);
+    expect(users.length).toEqual(3);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].referralId).toEqual(usersFixture[1].id);
   });
@@ -305,7 +412,7 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(2);
+    expect(users.length).toEqual(3);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].referralId).toEqual(usersFixture[1].id);
     expect(users[0].referralOrigin).toEqual('squad');
@@ -332,10 +439,130 @@ describe('POST /p/newUser', () => {
     expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
 
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
-    expect(users.length).toEqual(2);
+    expect(users.length).toEqual(3);
     expect(users[0].id).toEqual(usersFixture[0].id);
     expect(users[0].referralId).toEqual(usersFixture[1].id);
     expect(users[0].referralOrigin).toEqual('knightcampaign');
+  });
+
+  it('should subscribe to personalized digest', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        timezone: 'Europe/London',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: usersFixture[0].id,
+      });
+    expect(personalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Wednesday,
+      preferredHour: 8,
+      preferredTimezone: 'Europe/London',
+      variation: 1,
+    });
+  });
+
+  it('should subscribe to personalized digest in UTC timezone if not set', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        timezone: undefined,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: usersFixture[0].id,
+      });
+    expect(personalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Wednesday,
+      preferredHour: 8,
+      preferredTimezone: 'Etc/UTC',
+      variation: 1,
+    });
+  });
+
+  it('should subscribe to personalized digest in UTC timezone if null value is set', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        timezone: null,
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: usersFixture[0].id,
+      });
+    expect(personalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Wednesday,
+      preferredHour: 8,
+      preferredTimezone: 'Etc/UTC',
+      variation: 1,
+    });
+  });
+
+  it('should subscribe to personalized digest in UTC timezone if empty string is set', async () => {
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: usersFixture[0].id,
+        name: usersFixture[0].name,
+        image: usersFixture[0].image,
+        username: usersFixture[0].username,
+        email: usersFixture[0].email,
+        timezone: '',
+      })
+      .expect(200);
+
+    expect(body).toEqual({ status: 'ok', userId: usersFixture[0].id });
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: usersFixture[0].id,
+      });
+    expect(personalizedDigest).toMatchObject({
+      preferredDay: DayOfWeek.Wednesday,
+      preferredHour: 8,
+      preferredTimezone: 'Etc/UTC',
+      variation: 1,
+    });
   });
 });
 
@@ -356,6 +583,17 @@ describe('POST /p/checkUsername', () => {
     await createDefaultUser();
     const { body } = await request(app.server)
       .get('/p/checkUsername?search=idoshamun')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send()
+      .expect(200);
+
+    expect(body).toEqual({ isTaken: true });
+  });
+
+  it('should normalize to lowercase and find duplicates', async () => {
+    await createDefaultUser();
+    const { body } = await request(app.server)
+      .get('/p/checkUsername?search=IdoShamun')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
       .send()
       .expect(200);
@@ -425,7 +663,7 @@ describe('POST /p/updateUserEmail', () => {
     expect(body).toEqual({ status: 'failed', reason: 'USER_DOESNT_EXIST' });
 
     const users = await con.getRepository(User).find();
-    expect(users.length).toBe(0);
+    expect(users.length).toBe(1);
   });
 
   it('should return correct response if exists', async () => {

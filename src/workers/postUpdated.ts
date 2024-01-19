@@ -2,15 +2,21 @@ import { messageToJson, Worker } from './worker';
 import * as he from 'he';
 import {
   addKeywords,
+  addQuestions,
+  addRelatedPosts,
   ArticlePost,
   bannedAuthors,
+  CollectionPost,
   findAuthor,
   FreeformPost,
+  getPostVisible,
   mergeKeywords,
   parseReadTime,
   Post,
   PostOrigin,
+  PostRelationType,
   PostType,
+  relatePosts,
   removeKeywords,
   SharePost,
   Source,
@@ -19,12 +25,15 @@ import {
   Toc,
   UNKNOWN_SOURCE,
   WelcomePost,
+  YouTubePost,
 } from '../entity';
 import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
 import { generateShortId } from '../ids';
 import { FastifyBaseLogger } from 'fastify';
 import { EntityManager } from 'typeorm';
-import { updateFlagsStatement } from '../common';
+import { parseDate, updateFlagsStatement } from '../common';
+import { opentelemetry } from '../telemetry/opentelemetry';
+import { markdown } from '../common/markdown';
 
 interface Data {
   id: string;
@@ -41,8 +50,11 @@ interface Data {
   updated_at?: Date;
   paid?: boolean;
   order?: number;
+  collections?: string[];
   extra?: {
     keywords?: string[];
+    keywords_native?: string[];
+    questions?: string[];
     summary?: string;
     description?: string;
     read_time?: number;
@@ -51,6 +63,10 @@ interface Data {
     creator_twitter?: string;
     toc?: Toc;
     content_curation?: string[];
+    origin_entries?: string[];
+    content: string;
+    video_id?: string;
+    duration?: number;
   };
 }
 
@@ -90,19 +106,51 @@ const handleRejection = async ({
 };
 
 type CreatePostProps = {
+  counter: opentelemetry.Counter;
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
   submissionId?: string;
   mergedKeywords: string[];
+  questions: string[];
 };
+
+const handleCollectionRelations = async ({
+  entityManager,
+  post,
+  originalData,
+}: {
+  entityManager: EntityManager;
+  logger: FastifyBaseLogger;
+  post: Pick<CollectionPost, 'id' | 'type'>;
+  originalData: Data;
+}) => {
+  if (post.type === PostType.Collection) {
+    await addRelatedPosts({
+      entityManager,
+      postId: post.id,
+      yggdrasilIds: originalData.extra?.origin_entries || [],
+      relationType: PostRelationType.Collection,
+    });
+  } else if (originalData.collections) {
+    await relatePosts({
+      entityManager,
+      postId: post.id,
+      yggdrasilIds: originalData.collections || [],
+      relationType: PostRelationType.Collection,
+    });
+  }
+};
+
 const createPost = async ({
+  counter,
   logger,
   entityManager,
   data,
   submissionId,
   mergedKeywords,
-}: CreatePostProps) => {
+  questions,
+}: CreatePostProps): Promise<Post | null> => {
   const existingPost = await entityManager
     .getRepository(Post)
     .createQueryBuilder()
@@ -113,6 +161,9 @@ const createPost = async ({
     )
     .getRawOne();
   if (existingPost) {
+    counter.add(1, {
+      reason: 'duplication_conflict',
+    });
     logger.info({ data }, 'failed creating post because it exists already');
     return null;
   }
@@ -153,13 +204,22 @@ const createPost = async ({
   data.origin = data?.scoutId
     ? PostOrigin.CommunityPicks
     : data.origin ?? PostOrigin.Crawler;
+  data.visible = getPostVisible({ post: data });
+  data.visibleAt = data.visible ? postCreatedAt : null;
+  data.flags = {
+    ...data.flags,
+    visible: data.visible,
+  };
 
-  const post = await entityManager.getRepository(ArticlePost).create(data);
+  const post = await entityManager
+    .getRepository(contentTypeFromPostType[data.type] ?? ArticlePost)
+    .create(data);
   await entityManager.save(post);
 
   await addKeywords(entityManager, mergedKeywords, data.id);
+  await addQuestions(entityManager, questions, data.id);
 
-  return;
+  return post;
 };
 
 const allowedFieldsMapping = {
@@ -178,26 +238,48 @@ const contentTypeFromPostType: Record<PostType, typeof Post> = {
   [PostType.Freeform]: FreeformPost,
   [PostType.Share]: SharePost,
   [PostType.Welcome]: WelcomePost,
+  [PostType.Collection]: CollectionPost,
+  [PostType.VideoYouTube]: YouTubePost,
 };
 
 type UpdatePostProps = {
+  counter: opentelemetry.Counter;
+  logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
   id: string;
   mergedKeywords: string[];
+  questions: string[];
   content_type: PostType;
 };
 const updatePost = async ({
+  counter,
+  logger,
   entityManager,
   data,
   id,
   mergedKeywords,
+  questions,
   content_type = PostType.Article,
 }: UpdatePostProps) => {
   const postType = contentTypeFromPostType[content_type];
-  const databasePost = await entityManager
+  let databasePost = await entityManager
     .getRepository(postType)
     .findOneBy({ id });
+
+  // Update the post type in the database so that it matches the content type
+  if (!databasePost) {
+    await entityManager
+      .createQueryBuilder()
+      .update(Post)
+      .set({ type: content_type })
+      .where('id = :id', { id })
+      .execute();
+
+    databasePost = await entityManager
+      .getRepository(postType)
+      .findOneBy({ id });
+  }
 
   if (data?.origin === PostOrigin.Squad) {
     data.sourceId = UNKNOWN_SOURCE;
@@ -208,22 +290,37 @@ const updatePost = async ({
     databasePost.metadataChangedAt.toISOString() >=
       data.metadataChangedAt.toISOString()
   ) {
+    counter.add(1, {
+      reason: 'date_conflict',
+    });
+    logger.info(
+      { data },
+      'post not updated: database entry is newer than received update',
+    );
     return null;
   }
 
   const title = data?.title || databasePost.title;
-  const updateBecameVisible =
-    content_type === PostType.Freeform
-      ? databasePost.visible
-      : !databasePost.visible && !!title?.length;
 
   data.id = databasePost.id;
   data.title = title;
-  data.visible = updateBecameVisible;
-  data.visibleAt = updateBecameVisible
-    ? databasePost.visibleAt ?? data.metadataChangedAt
-    : null;
   data.sourceId = data.sourceId || databasePost.sourceId;
+
+  let updateBecameVisible = false;
+
+  if (!databasePost.visible) {
+    updateBecameVisible = getPostVisible({ post: { title } });
+  }
+
+  if (updateBecameVisible) {
+    data.visible = true;
+  } else {
+    data.visible = databasePost.visible;
+  }
+
+  if (data.visible && !databasePost.visibleAt) {
+    data.visibleAt = data.metadataChangedAt;
+  }
 
   if (content_type in allowedFieldsMapping) {
     const allowedFields = [
@@ -280,6 +377,7 @@ const updatePost = async ({
     await addKeywords(entityManager, mergedKeywords, data.id);
   }
 
+  await addQuestions(entityManager, questions, data.id, true);
   return;
 };
 
@@ -325,8 +423,11 @@ type FixDataProps = {
 };
 type FixData = {
   mergedKeywords: string[];
+  questions: string[];
   content_type: PostType;
-  fixedData: Partial<ArticlePost>;
+  fixedData: Partial<ArticlePost> &
+    Partial<CollectionPost> &
+    Partial<YouTubePost>;
 };
 const fixData = async ({
   logger,
@@ -345,9 +446,14 @@ const fixData = async ({
     data,
   });
 
+  let keywords = data?.extra?.keywords;
+  if (!data?.extra?.keywords && data?.content_type === PostType.VideoYouTube) {
+    keywords = data?.extra?.keywords_native;
+  }
+
   const { allowedKeywords, mergedKeywords } = await mergeKeywords(
     entityManager,
-    data?.extra?.keywords,
+    keywords,
   );
 
   if (allowedKeywords.length > 5) {
@@ -360,11 +466,12 @@ const fixData = async ({
     );
   }
 
-  const becomesVisible = !!data?.title?.length;
+  const duration = data?.extra?.duration / 60;
 
   // Try and fix generic data here
   return {
     mergedKeywords,
+    questions: data?.extra?.questions || [],
     content_type: data?.content_type as PostType,
     fixedData: {
       origin: data?.origin as PostOrigin,
@@ -375,12 +482,9 @@ const fixData = async ({
       image: data?.image,
       sourceId: data?.source_id,
       title: data?.title && he.decode(data?.title),
-      readTime: parseReadTime(data?.extra?.read_time),
-      publishedAt: data?.published_at && new Date(data?.published_at),
-      metadataChangedAt:
-        (data?.updated_at && new Date(data.updated_at)) || new Date(),
-      visible: becomesVisible,
-      visibleAt: becomesVisible ? new Date() : null,
+      readTime: parseReadTime(data?.extra?.read_time || duration),
+      publishedAt: parseDate(data?.published_at),
+      metadataChangedAt: parseDate(data?.updated_at) || new Date(),
       tagsStr: allowedKeywords?.join(',') || null,
       private: privacy,
       sentAnalyticsReport: privacy || !authorId,
@@ -392,11 +496,16 @@ const fixData = async ({
       showOnFeed: !data?.order,
       flags: {
         private: privacy,
-        visible: becomesVisible,
         showOnFeed: !data?.order,
         sentAnalyticsReport: privacy || !authorId,
       },
       yggdrasilId: data?.id,
+      type: data?.content_type as PostType,
+      content: data?.extra?.content,
+      contentHtml: data?.extra?.content
+        ? markdown.render(data.extra.content)
+        : undefined,
+      videoId: data?.extra?.video_id,
     },
   };
 };
@@ -404,11 +513,13 @@ const fixData = async ({
 const worker: Worker = {
   subscription: 'api.content-published',
   handler: async (message, con, logger): Promise<void> => {
+    const meter = opentelemetry.metrics.getMeter('api-bg');
+    const counter = meter.createCounter('post_error');
     const data: Data = messageToJson(message);
     logger.info({ data }, 'content-updated received');
     try {
       // See if we received any rejections
-      const { reject_reason, post_id } = data;
+      const { reject_reason } = data;
       await con.transaction(async (entityManager) => {
         if (reject_reason) {
           return handleRejection({ logger, data, entityManager });
@@ -422,30 +533,65 @@ const worker: Worker = {
           return;
         }
 
-        const { mergedKeywords, content_type, fixedData } = await fixData({
-          logger,
-          entityManager,
-          data,
-        });
+        let postId = data.post_id;
+
+        if (!postId && data.id) {
+          const matchedYggdrasilPost = await con
+            .createQueryBuilder()
+            .from(Post, 'p')
+            .select('p.id as id')
+            .where('p."yggdrasilId" = :id', { id: data.id })
+            .getRawOne<{
+              id: string;
+            }>();
+
+          postId = matchedYggdrasilPost?.id;
+        }
+
+        const { mergedKeywords, questions, content_type, fixedData } =
+          await fixData({
+            logger,
+            entityManager,
+            data,
+          });
 
         // See if post id is not available
-        if (!post_id) {
+        if (!postId) {
           // Handle creation of new post
-          await createPost({
+          const newPost = await createPost({
+            counter,
             logger,
             entityManager,
             data: fixedData,
             submissionId: data?.submission_id,
             mergedKeywords,
+            questions,
           });
+
+          postId = newPost?.id;
         } else {
           // Handle update of existing post
           await updatePost({
+            counter,
+            logger,
             entityManager,
             data: fixedData,
-            id: post_id,
+            id: postId,
             mergedKeywords,
+            questions,
             content_type,
+          });
+        }
+
+        if (postId) {
+          await handleCollectionRelations({
+            entityManager,
+            logger,
+            post: {
+              id: postId,
+              type: content_type,
+            },
+            originalData: data,
           });
         }
       });

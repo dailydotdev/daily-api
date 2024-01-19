@@ -2,7 +2,7 @@ import * as gcp from '@pulumi/gcp';
 import * as k8s from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import { Input, ProviderResource } from '@pulumi/pulumi';
-import { workers } from './workers';
+import {digestDeadLetter, personalizedDigestWorkers, workers} from './workers';
 import { crons } from './crons';
 import {
   config,
@@ -18,11 +18,13 @@ import {
   Redis,
   detectIsAdhocEnv,
   SqlDatabase,
+  Stream
 } from '@dailydotdev/pulumi-common';
 
 const isAdhocEnv = detectIsAdhocEnv();
 const name = 'api';
 const debeziumTopicName = `${name}.changes`;
+const isPersonalizedDigestEnabled = config.require('enablePersonalizedDigest') === 'true';
 
 const { image, imageTag } = getImageAndTag(`us.gcr.io/daily-ops/daily-${name}`);
 
@@ -33,6 +35,7 @@ const { serviceAccount } = createServiceAccountAndGrantRoles(
   [
     { name: 'profiler', role: 'roles/cloudprofiler.agent' },
     { name: 'trace', role: 'roles/cloudtrace.agent' },
+    { name: 'monitoring', role: 'roles/monitoring.metricWriter' },
     { name: 'secret', role: 'roles/secretmanager.secretAccessor' },
     { name: 'pubsub', role: 'roles/pubsub.editor' },
   ],
@@ -86,8 +89,22 @@ const envVars: Record<string, Input<string>> = {
 createSubscriptionsFromWorkers(
   name,
   isAdhocEnv,
-  addLabelsToWorkers(workers, { app: name }),
+  addLabelsToWorkers(workers, { app: name, subapp: 'background' }),
 );
+
+if (isPersonalizedDigestEnabled) {
+  const deadLetterTopic = new Stream(digestDeadLetter, {
+    isAdhocEnv,
+    name: digestDeadLetter,
+  });
+
+  createSubscriptionsFromWorkers(
+    name,
+    isAdhocEnv,
+    addLabelsToWorkers(personalizedDigestWorkers, { app: name, subapp: 'personalized-digest' }),
+    { dependsOn: [deadLetterTopic] },
+  );
+}
 
 const memory = 512;
 const limits: pulumi.Input<{
@@ -148,7 +165,6 @@ if (isAdhocEnv) {
   appsArgs = [
     {
       args: ['npm', 'run', 'dev'],
-      port: 3000,
       env: [
         nodeOptions(memory),
         {
@@ -166,6 +182,18 @@ if (isAdhocEnv) {
       maxReplicas: 15,
       limits,
       metric: { type: 'memory_cpu', cpu: 70 },
+      ports: [
+        { containerPort: 3000, name: 'http' },
+        { containerPort: 9464, name: 'metrics' },
+      ],
+      servicePorts: [
+        { targetPort: 3000, port: 80, name: 'http' },
+        { targetPort: 9464, port: 9464, name: 'metrics' },
+      ],
+      podAnnotations: {
+        'prometheus.io/scrape': 'true',
+        'prometheus.io/port': '9464',
+      },
       createService: true,
       ...jwtVols,
     },
@@ -180,15 +208,50 @@ if (isAdhocEnv) {
         labels: { app: name },
         targetAverageValue: 50,
       },
+      ports: [
+        { containerPort: 9464, name: 'metrics' },
+      ],
+      servicePorts: [
+        { targetPort: 9464, port: 9464, name: 'metrics' },
+      ],
+      podAnnotations: {
+        'prometheus.io/scrape': 'true',
+        'prometheus.io/port': '9464',
+      },
     },
   ];
+
+  if (isPersonalizedDigestEnabled) {
+    appsArgs.push({
+      nameSuffix: 'personalized-digest',
+      args: ['npm', 'run', 'dev:personalized-digest'],
+      minReplicas: 1,
+      maxReplicas: 10,
+      limits: bgLimits,
+      metric: {
+        type: 'pubsub',
+        labels: { app: name, subapp: 'personalized-digest' },
+        targetAverageValue: 50,
+      },
+      ports: [
+        { containerPort: 9464, name: 'metrics' },
+      ],
+      servicePorts: [
+        { targetPort: 9464, port: 9464, name: 'metrics' },
+      ],
+      podAnnotations: {
+        'prometheus.io/scrape': 'true',
+        'prometheus.io/port': '9464',
+      },
+    })
+  }
 } else {
   appsArgs = [
     {
       port: 3000,
       env: [nodeOptions(memory), ...jwtEnv],
       minReplicas: 3,
-      maxReplicas: 15,
+      maxReplicas: 25,
       limits,
       readinessProbe,
       livenessProbe,
@@ -246,6 +309,21 @@ if (isAdhocEnv) {
       ...jwtVols,
     },
   ];
+
+  if (isPersonalizedDigestEnabled) {
+    appsArgs.push({
+      nameSuffix: 'personalized-digest',
+      args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
+      minReplicas: 1,
+      maxReplicas: 25,
+      limits: bgLimits,
+      metric: {
+        type: 'pubsub',
+        labels: { app: name, subapp: 'personalized-digest' },
+        targetAverageValue: 100,
+      },
+    })
+  }
 }
 
 const vpcNativeProvider = isAdhocEnv ? undefined : getVpcNativeCluster();
@@ -302,7 +380,7 @@ const [apps] = deployApplicationSuite(
           nameSuffix: cron.name,
           args: ['dumb-init', 'node', 'bin/cli', 'cron', cron.name],
           schedule: cron.schedule,
-          limits: bgLimits,
+          limits: cron.limits ?? bgLimits,
           activeDeadlineSeconds: 300,
         })),
     isAdhocEnv,

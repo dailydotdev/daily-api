@@ -7,7 +7,9 @@ import updateDiscussionScore from './updateDiscussionScore';
 import exportToTinybird from './exportToTinybird';
 import cleanZombieUsers from './cleanZombieUsers';
 import cleanZombieImages from './cleanZombieImages';
-import refreshUserSubscriptions from './refreshUserSubscriptions';
+import personalizedDigest from './personalizedDigest';
+import generateSearchInvites from './generateSearchInvites';
+import checkReferralReminder from './checkReferralReminder';
 
 export const crons: Cron[] = [
   updateViews,
@@ -18,5 +20,7 @@ export const crons: Cron[] = [
   exportToTinybird,
   cleanZombieUsers,
   cleanZombieImages,
-  refreshUserSubscriptions,
+  personalizedDigest,
+  generateSearchInvites,
+  checkReferralReminder,
 ];

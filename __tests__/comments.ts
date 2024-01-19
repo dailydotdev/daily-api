@@ -465,6 +465,7 @@ describe('query recommendedMentions', () => {
   const QUERY = `
     query RecommendedMentions($postId: String, $query: String, $limit: Int, $sourceId: String) {
       recommendedMentions(postId: $postId, query: $query, limit: $limit, sourceId: $sourceId) {
+        id
         name
         username
         image
@@ -486,7 +487,8 @@ describe('query recommendedMentions', () => {
 
     const res = await client.query(QUERY, { variables: { postId: 'p1' } });
     expect(res.errors).toBeFalsy();
-    expect(res.data.recommendedMentions).toMatchSnapshot(); // to easily see there's no duplicates
+    const ids = res.data.recommendedMentions.map(({ id }) => id);
+    expect(ids).toIncludeSameMembers(Array.from(new Set(ids))); // to easily see there's no duplicates
     expect(res.data.recommendedMentions.length).toEqual(5);
     expect(res.data.recommendedMentions[0].name).toEqual(author.name);
   });
@@ -1140,7 +1142,7 @@ describe('permalink field', () => {
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.commentOnPost.permalink).toEqual(
-      'http://localhost:5002/posts/p1',
+      `http://localhost:5002/posts/p1#c-${res.data.commentOnPost.id}`,
     );
   });
 });
@@ -1309,5 +1311,55 @@ describe('mutation reportComment', () => {
       variables: { commentId: 'c1', reason: 'HATEFUL' },
     });
     expect(res2.errors).toBeFalsy();
+  });
+});
+
+describe('query comment', () => {
+  const QUERY = `
+    query Comment($id: ID!) {
+      comment(id: $id) {
+        id
+        content
+      }
+    }
+  `;
+
+  it('should not return comment by id when not authenticated', async () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: '123' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not return comment by id if user is not the author', async () => {
+    loggedUser = '2';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'c1' } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return error when not part of private squad', async () => {
+    loggedUser = '1';
+    await con.getRepository(Comment).update({ id: 'c1' }, { userId: '1' });
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { private: true, type: SourceType.Squad });
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'c1' } },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return comment by id', async () => {
+    loggedUser = '1';
+    await con.getRepository(Comment).update({ id: 'c1' }, { userId: '1' });
+    const comment = await client.query(QUERY, { variables: { id: 'c1' } });
+    expect(comment.errors).toBeFalsy();
+    expect(comment.data.comment.id).toEqual('c1');
   });
 });

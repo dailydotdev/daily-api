@@ -19,19 +19,6 @@ Object {
 }
 `;
 
-exports[`featuredComments field should return array with the featured comments 1`] = `
-Array [
-  Object {
-    "author": Object {
-      "image": "https://daily.dev/ido.jpg",
-      "name": "Ido",
-    },
-    "content": "My comment",
-    "permalink": "http://localhost:5002/posts/p1",
-  },
-]
-`;
-
 exports[`image fields should return default image when no image exists 1`] = `
 Object {
   "post": Object {
@@ -77,72 +64,9 @@ exports[`mutation editPost should allow mention as part of the content 1`] = `
 "
 `;
 
-exports[`mutation hidePost should hide the post 1`] = `
-Array [
-  HiddenPost {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
-
-exports[`mutation hidePost should ignore conflicts 1`] = `
-Array [
-  HiddenPost {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
-
-exports[`mutation reportPost should ignore conflicts 1`] = `
-Array [
-  HiddenPost {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
-
-exports[`mutation reportPost should report post with comment 1`] = `
-Array [
-  HiddenPost {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
-
-exports[`mutation reportPost should report post without comment 1`] = `
-Array [
-  HiddenPost {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
-
-exports[`mutation sharePost should escape html content on the title 1`] = `"<p>&lt;style&gt;html { color: red !important; }&lt;/style&gt;</p>"`;
+exports[`mutation editSharePost should update with mentioned users 1`] = `"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\">@lee</a> @non-existent</p>"`;
 
 exports[`mutation sharePost should share to squad with mentioned users 1`] = `"<p>Test <a href=\\"http://localhost:5002/lee\\" data-mention-id=\\"2\\" data-mention-username=\\"lee\\">@lee</a> @non-existent</p>"`;
-
-exports[`mutation upvote should ignore conflicts 1`] = `
-Array [
-  Upvote {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
-
-exports[`mutation upvote should upvote post 1`] = `
-Array [
-  Upvote {
-    "postId": "p1",
-    "userId": "1",
-  },
-]
-`;
 
 exports[`query post should return post by id 1`] = `
 Object {
@@ -198,7 +122,7 @@ Object {
 exports[`query postByUrl should return post if query params on youtube link 1`] = `
 Object {
   "postByUrl": Object {
-    "id": "yt1",
+    "id": "yt0",
     "title": "Youtube video",
     "url": "https://youtube.com/watch?v=123",
   },

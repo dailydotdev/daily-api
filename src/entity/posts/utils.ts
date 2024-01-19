@@ -16,12 +16,14 @@ import { MAX_COMMENTARY_LENGTH, SharePost } from './SharePost';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { Source, UNKNOWN_SOURCE } from '../Source';
 import { generateShortId } from '../../ids';
-import { FreeformPost } from './FreeformPost';
 import { parse } from 'node-html-parser';
 import { ContentImage, ContentImageUsedByType } from '../ContentImage';
 import { getMentions, MentionedUser } from '../../schema/comments';
 import { markdown, renderMentions, saveMentions } from '../../common/markdown';
 import { PostMention } from './PostMention';
+import { PostQuestion } from './PostQuestion';
+import { PostRelation, PostRelationType } from './PostRelation';
+import { CollectionPost } from './CollectionPost';
 
 export type PostStats = {
   numPosts: number;
@@ -64,9 +66,9 @@ export const parseReadTime = (
     return undefined;
   }
   if (typeof readTime == 'number') {
-    return Math.floor(readTime);
+    return Math.floor(readTime) || 1;
   }
-  return Math.floor(parseInt(readTime));
+  return Math.floor(parseInt(readTime)) || 1;
 };
 
 export const bannedAuthors = ['@NewGenDeveloper'];
@@ -172,15 +174,44 @@ export const addKeywords = async (
   return;
 };
 
-const validateCommentary = async (commentary: string) => {
-  if (commentary?.length > MAX_COMMENTARY_LENGTH) {
+export const addQuestions = async (
+  entityManager: EntityManager,
+  questions: string[],
+  postId: Post['id'],
+  existingPost: boolean = false,
+) => {
+  let existingQuestion: PostQuestion | undefined;
+
+  if (existingPost) {
+    existingQuestion = await entityManager
+      .getRepository(PostQuestion)
+      .findOneBy({ postId });
+  }
+
+  // for now, we only add questions if there aren't any existing ones
+  // this means that questions don't change on a post once initially created
+  if (existingQuestion) return;
+
+  await entityManager.getRepository(PostQuestion).insert(
+    questions.map((question) => ({
+      question,
+      postId,
+    })),
+  );
+};
+
+const validateCommentary = async (commentary?: string) => {
+  const strippedCommentary = commentary?.trim() || null;
+
+  if ((strippedCommentary?.length ?? 0) > MAX_COMMENTARY_LENGTH) {
     throw new ValidationError(
       JSON.stringify({
         commentary: `max size is ${MAX_COMMENTARY_LENGTH} chars`,
       }),
     );
   }
-  return true;
+
+  return strippedCommentary;
 };
 
 export interface ExternalLinkPreview {
@@ -256,16 +287,8 @@ export const createSharePost = async (
   commentary: string | null,
   visible = true,
 ): Promise<SharePost> => {
-  let strippedCommentary = commentary;
+  const strippedCommentary = await validateCommentary(commentary);
 
-  if (commentary?.length) {
-    strippedCommentary = commentary.trim();
-    await validateCommentary(strippedCommentary);
-  } else {
-    strippedCommentary = null;
-  }
-
-  const id = await generateShortId();
   try {
     const mentions = await getMentions(con, commentary, userId, sourceId);
     const titleHtml = commentary?.length
@@ -274,6 +297,8 @@ export const createSharePost = async (
     const { private: privacy } = await con
       .getRepository(Source)
       .findOneBy({ id: sourceId });
+
+    const id = await generateShortId();
 
     const post = await con.getRepository(SharePost).save({
       id,
@@ -313,10 +338,47 @@ export const createSharePost = async (
   }
 };
 
+export const updateSharePost = async (
+  con: DataSource | EntityManager,
+  userId: string,
+  postId: string,
+  sourceId: string,
+  commentary: string | null,
+) => {
+  const strippedCommentary = await validateCommentary(commentary);
+
+  try {
+    const mentions = await getMentions(con, commentary, userId, sourceId);
+    const titleHtml = commentary?.length
+      ? generateTitleHtml(commentary, mentions)
+      : null;
+
+    await con
+      .getRepository(SharePost)
+      .update({ id: postId }, { title: strippedCommentary, titleHtml });
+
+    if (mentions.length) {
+      await saveMentions(con, postId, userId, mentions, PostMention);
+    }
+
+    return { postId };
+  } catch (err) {
+    if (err.code === TypeOrmError.FOREIGN_KEY) {
+      if (err.detail.indexOf('sharedPostId') > -1) {
+        throw new ForbiddenError(
+          JSON.stringify({ postId: 'post does not exist' }),
+        );
+      }
+    }
+    throw err;
+  }
+};
+
 export const updateUsedImagesInContent = async (
   con: DataSource | EntityManager,
   type: ContentImageUsedByType,
-  { id, contentHtml }: Pick<FreeformPost, 'contentHtml' | 'id'>,
+  id: string,
+  contentHtml: string,
 ): Promise<void> => {
   const root = parse(contentHtml);
   const images = root.querySelectorAll('img');
@@ -328,4 +390,120 @@ export const updateUsedImagesInContent = async (
       usedById: id,
     },
   );
+};
+
+export const addRelatedPosts = async ({
+  entityManager,
+  postId,
+  yggdrasilIds,
+  relationType,
+}: {
+  entityManager: EntityManager;
+  postId: Post['id'];
+  yggdrasilIds: string[];
+  relationType: PostRelationType;
+}): Promise<Post[]> => {
+  if (!yggdrasilIds.length) {
+    return [];
+  }
+
+  const posts = await entityManager.getRepository(Post).findBy({
+    yggdrasilId: In(yggdrasilIds),
+  });
+
+  await entityManager
+    .getRepository(PostRelation)
+    .createQueryBuilder()
+    .insert()
+    .values(
+      posts.map((post) => ({
+        postId,
+        relatedPostId: post.id,
+        relationType,
+      })),
+    )
+    .orIgnore()
+    .execute();
+
+  return posts;
+};
+
+export const relatePosts = async ({
+  entityManager,
+  postId,
+  yggdrasilIds,
+  relationType,
+}: {
+  entityManager: EntityManager;
+  postId: Post['id'];
+  yggdrasilIds: string[];
+  relationType: PostRelationType;
+}): Promise<Post[]> => {
+  if (!yggdrasilIds.length) {
+    return [];
+  }
+
+  const posts = await entityManager.getRepository(Post).findBy({
+    yggdrasilId: In(yggdrasilIds),
+  });
+
+  await entityManager
+    .getRepository(PostRelation)
+    .createQueryBuilder()
+    .insert()
+    .values(
+      posts.map((post) => ({
+        postId: post.id,
+        relatedPostId: postId,
+        relationType,
+      })),
+    )
+    .orIgnore()
+    .execute();
+
+  return posts;
+};
+
+export const getAllSourcesBaseQuery = ({
+  con,
+  postId,
+  relationType,
+}: {
+  con: DataSource | EntityManager;
+  postId: CollectionPost['id'];
+  relationType: PostRelationType;
+}) =>
+  con
+    .createQueryBuilder()
+    .from(PostRelation, 'pr')
+    .leftJoin(Post, 'p', 'p.id = pr."relatedPostId"')
+    .leftJoin(Source, 's', 's.id = p."sourceId"')
+    .where('pr."postId" = :postId', { postId })
+    .andWhere('pr."type" = :type', { type: relationType })
+    .orderBy('pr."createdAt"', 'DESC')
+    .clone();
+
+export const normalizeCollectionPostSources = async ({
+  con,
+  postId,
+}: {
+  con: DataSource | EntityManager;
+  postId: CollectionPost['id'];
+}) => {
+  const sources = await getAllSourcesBaseQuery({
+    con,
+    postId,
+    relationType: PostRelationType.Collection,
+  })
+    .select('s.id as id')
+    .getRawMany<Pick<Source, 'id'>>();
+
+  await con.getRepository(CollectionPost).save({
+    id: postId,
+    collectionSources: sources.map((item) => item.id),
+  });
+};
+
+export const getPostVisible = ({ post }: { post: Pick<Post, 'title'> }) => {
+  return !!post?.title?.length;
 };

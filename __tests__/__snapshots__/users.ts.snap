@@ -49,10 +49,10 @@ Object {
   "infoConfirmed": false,
   "name": "Ido",
   "notificationEmail": true,
-  "permalink": "http://localhost:5002/a1",
+  "permalink": "http://localhost:5002/aaa1",
   "timezone": "Asia/Manila",
   "twitter": null,
-  "username": "a1",
+  "username": "aaa1",
 }
 `;
 
@@ -541,16 +541,6 @@ Object {
     "numPostViews": 0,
     "numPosts": 0,
   },
-}
-`;
-
-exports[`query userStats should return partially null result when the user is not the stats owner 1`] = `
-Object {
-  "numCommentUpvotes": null,
-  "numComments": 1,
-  "numPostUpvotes": null,
-  "numPostViews": null,
-  "numPosts": 0,
 }
 `;
 

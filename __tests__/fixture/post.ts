@@ -2,12 +2,34 @@ import { DeepPartial } from 'typeorm';
 import {
   ArticlePost,
   PostKeyword,
+  PostOrigin,
+  PostRelation,
   PostTag,
   PostType,
   SharePost,
+  YouTubePost,
 } from '../../src/entity';
+import { PostRelationType } from '../../src/entity/posts/PostRelation';
 
 const now = new Date();
+
+export const videoPostsFixture: DeepPartial<YouTubePost | SharePost>[] = [
+  {
+    id: 'yt1',
+    shortId: 'yt1',
+    title: 'youtube post',
+    score: 0,
+    url: 'https://youtu.be/T_AbQGe7fuU',
+    videoId: 'T_AbQGe7fuU',
+    metadataChangedAt: new Date('01-05-2020 12:00:00'),
+    sourceId: 'a',
+    visible: true,
+    createdAt: new Date(now.getTime() - 3000),
+    type: PostType.VideoYouTube,
+    origin: PostOrigin.Crawler,
+    yggdrasilId: '3cf9ba23-ff30-4578-b232-a98ea733ba0a',
+  },
+];
 
 export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
   {
@@ -100,6 +122,127 @@ export const postsFixture: DeepPartial<ArticlePost | SharePost>[] = [
     visible: false,
     contentCuration: ['c1', 'c2'],
   },
+  {
+    id: 'yt2',
+    shortId: 'yt2',
+    title: 'youtube post',
+    score: 0,
+    url: 'https://youtu.be/Oso6dYXw5lc',
+    metadataChangedAt: new Date('01-05-2020 12:00:00'),
+    sourceId: 'squad',
+    visible: true,
+    createdAt: new Date('01-05-2020 12:00:00'),
+    type: PostType.Article,
+    origin: PostOrigin.Squad,
+    yggdrasilId: 'd1053f05-4d41-4fc7-885c-c0f7c841a7b6',
+  },
+];
+
+export const tinybirdPostsFixture: DeepPartial<ArticlePost | SharePost>[] = [
+  {
+    id: 'p1',
+    shortId: 'sp1',
+    title: 'P1',
+    url: 'http://p1.com',
+    canonicalUrl: 'http://p1c.com',
+    image: 'https://daily.dev/image.jpg',
+    score: 1,
+    sourceId: 'a',
+    createdAt: now,
+    tagsStr: 'javascript,webdev',
+    type: PostType.Article,
+    contentCuration: ['c1', 'c2'],
+    authorId: 'author1',
+    scoutId: 'scout1',
+  },
+  {
+    id: 'p2',
+    shortId: 'sp2',
+    title: 'P2',
+    url: 'http://p2.com',
+    image: 'https://daily.dev/image.jpg',
+    score: 7,
+    sourceId: 'b',
+    createdAt: new Date(now.getTime() - 1000),
+    type: PostType.Article,
+    contentCuration: ['c1', 'c2'],
+    authorId: 'author2',
+    scoutId: null,
+  },
+  {
+    id: 'p3',
+    shortId: 'sp3',
+    title: 'P3',
+    url: 'http://p3.com',
+    image: 'https://daily.dev/image.jpg',
+    score: 4,
+    sourceId: 'c',
+    createdAt: new Date(now.getTime() - 2000),
+    type: PostType.Article,
+    contentCuration: ['c1', 'c2'],
+    authorId: null,
+    scoutId: 'scout3',
+  },
+  {
+    id: 'p4',
+    shortId: 'sp4',
+    title: 'P4',
+    url: 'http://p4.com',
+    image: 'https://daily.dev/image.jpg',
+    score: 3,
+    sourceId: 'a',
+    createdAt: new Date(now.getTime() - 3000),
+    tagsStr: 'backend,data,javascript',
+    type: PostType.Article,
+    contentCuration: ['c1', 'c2'],
+    authorId: 'author4',
+    scoutId: 'scout4',
+  },
+  {
+    id: 'p5',
+    shortId: 'sp5',
+    title: 'P5',
+    url: 'http://p5.com',
+    image: 'https://daily.dev/image.jpg',
+    score: 10,
+    sourceId: 'b',
+    createdAt: new Date(now.getTime() - 4000),
+    tagsStr: 'html,javascript',
+    type: PostType.Article,
+    contentCuration: ['c1', 'c2'],
+    authorId: 'author5',
+    scoutId: null,
+  },
+  {
+    id: 'p6',
+    shortId: 'sp6',
+    title: 'P6',
+    url: 'http://p6.com',
+    image: 'https://daily.dev/image.jpg',
+    score: 10,
+    sourceId: 'p',
+    createdAt: new Date(now.getTime() - 5000),
+    type: PostType.Article,
+    private: true,
+    contentCuration: ['c1', 'c2'],
+    authorId: null,
+    scoutId: 'scout6',
+  },
+  {
+    id: 'p7',
+    shortId: 'sp7',
+    title: 'P7',
+    url: 'http://p7.com',
+    image: 'https://daily.dev/image.jpg',
+    score: 10,
+    sourceId: 'p',
+    createdAt: new Date(now.getTime() - 5000),
+    type: PostType.Article,
+    visible: false,
+    contentCuration: ['c1', 'c2'],
+    authorId: null,
+    scoutId: null,
+  },
 ];
 
 export const sharedPostsFixture: DeepPartial<ArticlePost | SharePost>[] = [
@@ -178,5 +321,111 @@ export const postKeywordsFixture: DeepPartial<PostKeyword>[] = [
   {
     postId: postsFixture[4].id,
     keyword: 'javascript',
+  },
+];
+
+export const relatedPostsFixture: DeepPartial<PostRelation>[] = [
+  {
+    postId: postsFixture[0].id,
+    relatedPostId: postsFixture[1].id,
+    type: PostRelationType.Collection,
+  },
+  {
+    postId: postsFixture[0].id,
+    relatedPostId: postsFixture[2].id,
+    type: PostRelationType.Collection,
+  },
+  {
+    postId: postsFixture[0].id,
+    relatedPostId: postsFixture[3].id,
+    type: PostRelationType.Collection,
+  },
+  {
+    postId: postsFixture[1].id,
+    relatedPostId: postsFixture[2].id,
+    type: PostRelationType.Collection,
+  },
+  {
+    postId: postsFixture[1].id,
+    relatedPostId: postsFixture[3].id,
+    type: PostRelationType.Collection,
+  },
+  {
+    postId: postsFixture[2].id,
+    relatedPostId: postsFixture[3].id,
+    type: PostRelationType.Collection,
+  },
+];
+
+export const postAuthorsFixture = [
+  {
+    id: 'author1',
+    name: 'author1',
+    image: 'https://daily.dev/ido.jpg',
+  },
+  {
+    id: 'scout1',
+    name: 'scout1',
+    image: 'https://daily.dev/ido.jpg',
+  },
+  {
+    id: 'author2',
+    name: 'author2',
+    image: 'https://daily.dev/ido.jpg',
+  },
+  {
+    id: 'scout2',
+    name: 'scout2',
+    image: 'https://daily.dev/ido.jpg',
+  },
+  {
+    id: 'author3',
+    name: 'author3',
+    image: 'https://daily.dev/ido.jpg',
+  },
+  {
+    id: 'scout3',
+    name: 'scout3',
+    image: 'https://daily.dev/ido.jpg',
+  },
+  {
+    id: 'author4',
+    name: 'author4',
+    image: 'https://daily.dev/ido.jpg',
+  },
+  {
+    id: 'scout4',
+    name: 'scout4',
+    image: 'https://daily.dev/ido.jpg',
+  },
+  {
+    id: 'author5',
+    name: 'author5',
+    image: 'https://daily.dev/ido.jpg',
+  },
+  {
+    id: 'scout5',
+    name: 'scout5',
+    image: 'https://daily.dev/ido.jpg',
+  },
+  {
+    id: 'author6',
+    name: 'author6',
+    image: 'https://daily.dev/ido.jpg',
+  },
+  {
+    id: 'scout6',
+    name: 'scout6',
+    image: 'https://daily.dev/ido.jpg',
+  },
+  {
+    id: 'author7',
+    name: 'author7',
+    image: 'https://daily.dev/ido.jpg',
+  },
+  {
+    id: 'scout7',
+    name: 'scout7',
+    image: 'https://daily.dev/ido.jpg',
   },
 ];

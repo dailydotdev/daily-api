@@ -4,14 +4,11 @@ import { URL } from 'node:url';
 import { DataSource } from 'typeorm';
 import { getBootData } from './boot';
 import createOrGetConnection from '../db';
+import { sendAnalyticsEvent } from '../integrations/analytics';
+import { User } from '../entity';
+import { fallbackImages } from '../config';
 
-const generateEventId = (now) => {
-  const randomStr = (Math.random() + 1).toString(36).substring(8);
-  const timePart = (now.getTime() / 1000).toFixed(0);
-  return `${timePart}${randomStr}`;
-};
-
-const sendAnalyticsEvent = async (
+const sendRedirectAnalytics = async (
   con: DataSource,
   req: FastifyRequest,
   res: FastifyReply,
@@ -21,17 +18,14 @@ const sendAnalyticsEvent = async (
     const query = req.query as Record<string, string>;
     const queryStr = JSON.stringify(query);
     const now = new Date();
-    const events = [
+    await sendAnalyticsEvent([
       {
         event_timestamp: now,
-        event_id: generateEventId(now),
         event_name: 'page view',
         event_page: '/get',
         app_platform: 'redirector',
         query_params: queryStr.length > 2 ? queryStr : undefined,
-        session_id: boot.visit.sessionId,
         user_id: boot.user.id,
-        visit_id: boot.visit.visitId,
         utm_campaign: query?.utm_campaign,
         utm_content: query?.utm_content,
         utm_medium: query?.utm_medium,
@@ -39,14 +33,7 @@ const sendAnalyticsEvent = async (
         utm_term: query?.utm_term,
         page_referrer: req.headers.referer,
       },
-    ];
-    await fetch(`${process.env.ANALYTICS_URL}/e`, {
-      method: 'POST',
-      body: JSON.stringify({ events }),
-      headers: {
-        'content-type': 'application/json',
-      },
-    });
+    ]);
   } catch (err) {
     req.log.error({ err }, 'failed to send analytics event');
   }
@@ -63,7 +50,7 @@ const redirectToStore =
     const ua = uaParser(req.headers['user-agent']);
     const browser = ua.browser.name.toLowerCase();
     const url = new URL(req.raw.url, 'http://localhost');
-    await sendAnalyticsEvent(con, req, res);
+    await sendRedirectAnalytics(con, req, res);
     if (browser.includes('firefox') || browser.includes('mozilla')) {
       return res.redirect(
         `https://addons.mozilla.org/en-US/firefox/addon/daily/${url.search}`,
@@ -78,6 +65,24 @@ const redirectToStore =
       );
     }
   };
+
+const redirectToProfileImage = async (
+  con: DataSource,
+  res: FastifyReply,
+  id: string,
+) => {
+  const { image } =
+    (await con.getRepository(User).findOne({
+      select: ['image'],
+      where: { id },
+    })) || {};
+
+  if (!image) {
+    return res.redirect(fallbackImages.avatar);
+  }
+
+  return res.redirect(image);
+};
 
 const redirectToLanding = (
   req: FastifyRequest,
@@ -95,4 +100,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   );
   fastify.get('/download', redirectToStore(con));
   fastify.get('/get', redirectToStore(con));
+  fastify.get<{ Params: { id: string } }>('/:id/profile-image', (req, res) =>
+    redirectToProfileImage(con, res, req.params.id),
+  );
 }

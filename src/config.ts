@@ -10,8 +10,6 @@ export const fallbackImages = {
     'https://daily-now-res.cloudinary.com/image/upload/f_auto/v1664367305/placeholders/placeholder3',
 };
 
-export const REDIS_CHANGELOG_KEY = 'boot:latest_changelog';
-
 export const REDIS_BANNER_KEY = 'boot:latest_banner';
 
 export enum StorageTopic {

@@ -11,6 +11,7 @@ import createOrGetConnection from '../src/db';
 import nock from 'nock';
 import { GraphQLTestClient } from './helpers';
 import { magniOrigin, SearchResultFeedback } from '../src/integrations';
+import { feedFields } from './helpers';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -288,5 +289,42 @@ describe('searchSession query', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.searchSession).toEqual(mockResponse);
+  });
+});
+
+describe('query searchPostSuggestions', () => {
+  const QUERY = (query: string): string => `{
+    searchPostSuggestions(query: "${query}") {
+      query
+      hits {
+        title
+      }
+    }
+  }
+`;
+
+  it('should return search suggestions', async () => {
+    const res = await client.query(QUERY('p1'));
+    expect(res.data).toMatchSnapshot();
+  });
+});
+
+describe('query searchPosts', () => {
+  const QUERY = (query: string, now = new Date(), first = 10): string => `{
+    searchPosts(query: "${query}", now: "${now.toISOString()}", first: ${first}) {
+      query
+      ${feedFields()}
+    }
+  }
+`;
+
+  it('should return search feed', async () => {
+    const res = await client.query(QUERY('p1'));
+    expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return search empty feed', async () => {
+    const res = await client.query(QUERY('not found'));
+    expect(res.data).toMatchSnapshot();
   });
 });

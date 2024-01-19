@@ -4,7 +4,7 @@ import {
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, MoreThan } from 'typeorm';
 import {
   ensureSourcePermissions,
   GQLSource,
@@ -39,22 +39,24 @@ import {
   ExternalLink,
   ExternalLinkPreview,
   FreeformPost,
-  HiddenPost,
   Post,
   PostFlagsPublic,
   PostMention,
   PostReport,
   PostType,
   Toc,
-  Upvote,
   UserActionType,
   WelcomePost,
   ContentImage,
   PostQuestion,
-  Downvote,
   UserPost,
   UserPostFlagsPublic,
   UserPostVote,
+  updateSharePost,
+  View,
+  User,
+  PostRelationType,
+  PostRelation,
 } from '../entity';
 import { GQLEmptyResponse } from './common';
 import {
@@ -63,7 +65,7 @@ import {
   TypeOrmError,
 } from '../errors';
 import { GQLBookmarkList } from './bookmarks';
-import { getMentions, GQLComment } from './comments';
+import { getMentions } from './comments';
 import graphorm from '../graphorm';
 import { GQLUser } from './users';
 import {
@@ -80,6 +82,7 @@ import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
 import { generateStorageKey, StorageTopic } from '../config';
+import { subDays } from 'date-fns';
 
 export interface GQLPost {
   id: string;
@@ -103,12 +106,12 @@ export interface GQLPost {
   bookmarkList?: GQLBookmarkList;
   numUpvotes: number;
   numComments: number;
-  featuredComments?: GQLComment[];
   deleted?: boolean;
   private: boolean;
   // Used only for pagination (not part of the schema)
   score: number;
-  bookmarkedAt: Date;
+  bookmarkedAt?: Date;
+  votedAt?: Date;
   author?: GQLUser;
   scout?: GQLUser;
   views?: number;
@@ -130,6 +133,11 @@ export interface GQLPost {
 interface PinPostArgs {
   id: string;
   pinned: boolean;
+}
+
+interface SwapPinnedPostArgs {
+  id: Post['id'];
+  swapWithId: Post['id'];
 }
 
 type GQLPostQuestion = Pick<PostQuestion, 'id' | 'post' | 'question'>;
@@ -178,6 +186,11 @@ interface ReportPostArgs {
   reason: string;
   comment: string;
   tags?: string[];
+}
+
+export interface GQLPostRelationArgs extends ConnectionArguments {
+  id: string;
+  relationType: PostRelationType;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -393,11 +406,6 @@ export const typeDefs = /* GraphQL */ `
     commentsPermalink: String!
 
     """
-    Featured comments for the post
-    """
-    featuredComments: [Comment!] @deprecated(reason: "no longer maintained")
-
-    """
     Author of the post (if they have a daily.dev account)
     """
     author: User
@@ -476,6 +484,26 @@ export const typeDefs = /* GraphQL */ `
     User state for the post
     """
     userState: UserPost @auth
+
+    """
+    Time the post was updated
+    """
+    updatedAt: DateTime
+
+    """
+    Related sources for collection post
+    """
+    collectionSources: [Source!]!
+
+    """
+    Total number of related sources for collection post
+    """
+    numCollectionSources: Int!
+
+    """
+    Video ID for video post
+    """
+    videoId: String
   }
 
   type PostConnection {
@@ -494,13 +522,6 @@ export const typeDefs = /* GraphQL */ `
     Used in \`before\` and \`after\` args
     """
     cursor: String!
-  }
-
-  type Upvote {
-    createdAt: DateTime!
-
-    user: User!
-    post: Post!
   }
 
   type UpvoteEdge {
@@ -563,6 +584,10 @@ export const typeDefs = /* GraphQL */ `
     IRRELEVANT
   }
 
+  enum PostRelationType {
+    COLLECTION
+  }
+
   extend type Query {
     """
     Get post by id
@@ -605,6 +630,31 @@ export const typeDefs = /* GraphQL */ `
     ): UpvoteConnection!
 
     searchQuestionRecommendations: [PostQuestion]! @auth
+
+    """
+    Get related posts to a post by relation type
+    """
+    relatedPosts(
+      """
+      Post id
+      """
+      id: ID!
+
+      """
+      Relation type
+      """
+      relationType: PostRelationType!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+    ): PostConnection!
   }
 
   extend type Mutation {
@@ -743,6 +793,21 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
+    Swap the order of 2 pinned posts based on their pinnedAt timestamp
+    """
+    swapPinnedPosts(
+      """
+      Id of the post to update the pinnedAt property
+      """
+      id: ID!
+
+      """
+      The post ID to swap with
+      """
+      swapWithId: ID!
+    ): EmptyResponse @auth
+
+    """
     Delete a post permanently
     """
     deletePost(
@@ -761,26 +826,6 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID
     ): EmptyResponse @auth(requires: [MODERATOR])
-
-    """
-    Upvote to the post
-    """
-    upvote(
-      """
-      Id of the post to upvote
-      """
-      id: ID!
-    ): EmptyResponse @auth
-
-    """
-    Cancel an upvote of a post
-    """
-    cancelUpvote(
-      """
-      Id of the post
-      """
-      id: ID!
-    ): EmptyResponse @auth
 
     """
     Fetch external link's title and image preview
@@ -837,31 +882,25 @@ export const typeDefs = /* GraphQL */ `
     ): Post @auth
 
     """
+    Update share type post
+    """
+    editSharePost(
+      """
+      Post to update
+      """
+      id: ID!
+      """
+      Commentary for the share
+      """
+      commentary: String
+    ): Post @auth
+
+    """
     Submit a view event to a post
     """
     viewPost(
       """
       Post to share in the source
-      """
-      id: ID!
-    ): EmptyResponse @auth
-
-    """
-    Downvote to the post
-    """
-    downvote(
-      """
-      Id of the post to downvote
-      """
-      id: ID!
-    ): EmptyResponse @auth
-
-    """
-    Cancel an downvote of a post
-    """
-    cancelDownvote(
-      """
-      Id of the post
       """
       id: ID!
     ): EmptyResponse @auth
@@ -900,7 +939,11 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-const nullableImageType = [PostType.Freeform, PostType.Welcome];
+const nullableImageType = [
+  PostType.Freeform,
+  PostType.Welcome,
+  PostType.Collection,
+];
 
 const saveHiddenPost = async (
   con: DataSource,
@@ -914,11 +957,6 @@ const saveHiddenPost = async (
 ): Promise<boolean> => {
   try {
     await con.transaction(async (entityManager) => {
-      await entityManager.getRepository(HiddenPost).insert({
-        postId,
-        userId,
-      });
-
       await entityManager.getRepository(UserPost).save({
         postId,
         userId,
@@ -936,26 +974,6 @@ const saveHiddenPost = async (
     }
   }
   return true;
-};
-
-const revertPostDownvote = async (
-  con: DataSource | EntityManager,
-  postId: string,
-  userId: string,
-): Promise<void> => {
-  await con.getRepository(Downvote).delete({
-    postId,
-    userId,
-  });
-
-  await con.getRepository(UserPost).save({
-    postId,
-    userId,
-    vote: UserPostVote.None,
-    hidden: false,
-  });
-
-  await con.getRepository(HiddenPost).delete({ postId, userId });
 };
 
 const editablePostTypes = [PostType.Welcome, PostType.Freeform];
@@ -1031,6 +1049,15 @@ const getPostById = async (
     return res[0];
   }
   throw new NotFoundError('Post not found');
+};
+
+const validateEditAllowed = (
+  authorId: Post['authorId'],
+  userId: User['id'],
+) => {
+  if (authorId !== userId) {
+    throw new ForbiddenError(`Editing other people's posts is not allowed!`);
+  }
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1143,17 +1170,20 @@ export const resolvers: IResolvers<any, Context> = {
                   .subQuery()
                   .select('id')
                   .from(PostQuestion, 'pq')
-                  .where(`"pq"."postId" = "up"."postId"`);
+                  .where(`"pq"."postId" = "v"."postId"`);
                 return query
-                  .select('up."postId"')
-                  .from(UserPost, 'up')
-                  .where({ userId: ctx.userId, vote: UserPostVote.Up })
+                  .select('v."postId"')
+                  .from(View, 'v')
+                  .where({
+                    userId: ctx.userId,
+                    timestamp: MoreThan(subDays(new Date(), 30)),
+                  })
                   .andWhere(`exists(${sub.getQuery()})`)
-                  .orderBy('up."votedAt"', 'DESC')
+                  .orderBy('v."timestamp"', 'DESC')
                   .limit(10);
               },
-              'upvoted',
-              `"${builder.alias}"."postId" = upvoted."postId"`,
+              'views',
+              `"${builder.alias}"."postId" = views."postId"`,
             )
             .orderBy('random()', 'DESC')
             .limit(3),
@@ -1167,6 +1197,43 @@ export const resolvers: IResolvers<any, Context> = {
       );
 
       return data;
+    },
+    relatedPosts: async (
+      _,
+      args: GQLPostRelationArgs,
+      ctx,
+      info,
+    ): Promise<ConnectionRelay<GQLPost>> => {
+      const post = await ctx.con
+        .getRepository(Post)
+        .findOneByOrFail({ id: args.id });
+      await ensureSourcePermissions(ctx, post.sourceId);
+
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder
+              .leftJoin(
+                PostRelation,
+                'pr',
+                `pr."relatedPostId" = ${builder.alias}.id`,
+              )
+              .andWhere(`pr.postId = :postId`, {
+                postId: args.id,
+              })
+              .andWhere(`pr.type = :type`, {
+                type: args.relationType,
+              });
+
+            return builder;
+          },
+          orderByKey: 'DESC',
+        },
+      );
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1185,10 +1252,6 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con.transaction(async (entityManager) => {
-        await entityManager
-          .getRepository(HiddenPost)
-          .delete({ postId: id, userId: ctx.userId });
-
         await entityManager.getRepository(UserPost).save({
           postId: id,
           userId: ctx.userId,
@@ -1337,6 +1400,66 @@ export const resolvers: IResolvers<any, Context> = {
         );
 
         await repo.update({ id }, { pinnedAt: pinned ? new Date() : null });
+      });
+
+      return { _: true };
+    },
+    swapPinnedPosts: async (
+      _,
+      { id, swapWithId }: SwapPinnedPostArgs,
+      ctx: Context,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.transaction(async (manager) => {
+        const repo = manager.getRepository(Post);
+        const post = await repo.findOneBy({ id });
+        const swapWithPost = await repo.findOneBy({
+          id: swapWithId,
+        });
+
+        await ensureSourcePermissions(
+          ctx,
+          post.sourceId,
+          SourcePermissions.PostPin,
+        );
+
+        if (!post.pinnedAt || !swapWithPost.pinnedAt) {
+          throw new ValidationError('Posts must be pinned first');
+        }
+
+        const isNextPost = swapWithPost.pinnedAt > post.pinnedAt;
+        const swapPinnedTime = new Date(
+          swapWithPost.pinnedAt.getTime() + 1000 * (isNextPost ? 1 : -1),
+        );
+
+        let query = manager
+          .createQueryBuilder()
+          .update(Post)
+          .set({
+            pinnedAt: () =>
+              isNextPost
+                ? `"pinnedAt" + interval '1 second'`
+                : `"pinnedAt" - interval '1 second'`,
+          })
+          .where('"pinnedAt" IS NOT NULL')
+          .andWhere('"sourceId" = :sourceId', { sourceId: post.sourceId });
+
+        if (isNextPost) {
+          query = query.andWhere('"pinnedAt" >= :swapPinnedTime', {
+            swapPinnedTime,
+          });
+        } else {
+          query = query.andWhere('"pinnedAt" <= :swapPinnedTime', {
+            swapPinnedTime,
+          });
+        }
+
+        await query.execute();
+        await repo.update(
+          { id },
+          {
+            pinnedAt: swapPinnedTime,
+          },
+        );
       });
 
       return { _: true };
@@ -1500,59 +1623,6 @@ export const resolvers: IResolvers<any, Context> = {
       }
       return { _: true };
     },
-    upvote: async (
-      source,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
-      try {
-        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
-        await ensureSourcePermissions(ctx, post.sourceId);
-        await ctx.con.transaction(async (entityManager) => {
-          await entityManager.getRepository(Upvote).insert({
-            postId: id,
-            userId: ctx.userId,
-          });
-
-          await revertPostDownvote(entityManager, id, ctx.userId);
-
-          await entityManager.getRepository(UserPost).save({
-            postId: id,
-            userId: ctx.userId,
-            vote: UserPostVote.Up,
-          });
-        });
-      } catch (err) {
-        // Foreign key violation
-        if (err?.code === TypeOrmError.FOREIGN_KEY) {
-          throw new NotFoundError('Post or user not found');
-        }
-        // Unique violation
-        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
-          throw err;
-        }
-      }
-      return { _: true };
-    },
-    cancelUpvote: async (
-      source,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
-      await ctx.con.transaction(async (entityManager) => {
-        await entityManager.getRepository(Upvote).delete({
-          postId: id,
-          userId: ctx.userId,
-        });
-
-        await entityManager.getRepository(UserPost).save({
-          postId: id,
-          userId: ctx.userId,
-          vote: UserPostVote.None,
-        });
-      });
-      return { _: true };
-    },
     checkLinkPreview: async (
       _,
       { url }: SubmitExternalLinkArgs,
@@ -1586,10 +1656,13 @@ export const resolvers: IResolvers<any, Context> = {
         }
 
         const existingPost: Pick<ArticlePost, 'id' | 'deleted' | 'visible'> =
-          await manager.getRepository(ArticlePost).findOne({
-            select: ['id', 'deleted', 'visible'],
-            where: [{ url: cleanUrl }, { canonicalUrl: cleanUrl }],
-          });
+          await manager
+            .createQueryBuilder(Post, 'post')
+            .select(['post.id', 'post.deleted', 'post.visible'])
+            .where('post.url = :url OR post.canonicalUrl = :url', {
+              url: cleanUrl,
+            })
+            .getOne();
         if (existingPost) {
           if (existingPost.deleted) {
             throw new ValidationError(SubmissionFailErrorMessage.POST_DELETED);
@@ -1638,6 +1711,26 @@ export const resolvers: IResolvers<any, Context> = {
       );
       return getPostById(ctx, info, newPost.id);
     },
+    editSharePost: async (
+      _,
+      { id, commentary }: { id: string; commentary: string },
+      ctx,
+      info,
+    ): Promise<GQLPost> => {
+      const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      validateEditAllowed(post.authorId, ctx.userId);
+
+      await ensureSourcePermissions(ctx, post.sourceId, SourcePermissions.Post);
+
+      const { postId } = await updateSharePost(
+        ctx.con,
+        ctx.userId,
+        id,
+        post.sourceId,
+        commentary,
+      );
+      return getPostById(ctx, info, postId);
+    },
     viewPost: async (
       _,
       { id }: { id: string },
@@ -1655,58 +1748,6 @@ export const resolvers: IResolvers<any, Context> = {
           post.tagsStr?.split?.(',') ?? [],
         );
       }
-      return { _: true };
-    },
-    downvote: async (
-      source,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
-      try {
-        const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
-        await ensureSourcePermissions(ctx, post.sourceId);
-        await ctx.con.transaction(async (entityManager) => {
-          await entityManager.getRepository(Downvote).insert({
-            postId: id,
-            userId: ctx.userId,
-          });
-
-          await saveHiddenPost(entityManager.connection, {
-            userId: ctx.userId,
-            postId: id,
-          });
-
-          await entityManager.getRepository(UserPost).save({
-            postId: id,
-            userId: ctx.userId,
-            vote: UserPostVote.Down,
-          });
-
-          await entityManager.getRepository(Upvote).delete({
-            postId: id,
-            userId: ctx.userId,
-          });
-        });
-      } catch (err) {
-        // Foreign key violation
-        if (err?.code === TypeOrmError.FOREIGN_KEY) {
-          throw new NotFoundError('Post or user not found');
-        }
-        // Unique violation
-        if (err?.code !== TypeOrmError.DUPLICATE_ENTRY) {
-          throw err;
-        }
-      }
-      return { _: true };
-    },
-    cancelDownvote: async (
-      source,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<GQLEmptyResponse> => {
-      await ctx.con.transaction(async (entityManager) => {
-        await revertPostDownvote(entityManager, id, ctx.userId);
-      });
       return { _: true };
     },
     votePost: async (

@@ -1,11 +1,10 @@
 import { DeepPartial } from 'typeorm';
-import { Notification } from '../../src/entity';
 import { NotificationType } from '../../src/notifications/common';
+import { NotificationV2 } from '../../src/entity';
 
 const now = new Date(2021, 4, 2);
 
-export const notificationFixture: DeepPartial<Notification> = {
-  userId: '1',
+export const notificationV2Fixture: DeepPartial<NotificationV2> = {
   createdAt: now,
   icon: 'icon',
   title: 'notification #1',

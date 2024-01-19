@@ -9,12 +9,17 @@ const randomBytesAsync = promisify(randomBytes);
 
 export type SourceMemberFlags = Partial<{
   hideFeedPosts: boolean;
+  collapsePinnedPosts: boolean;
 }>;
 
-export type SourceMemberFlagsPublic = Pick<SourceMemberFlags, 'hideFeedPosts'>;
+export type SourceMemberFlagsPublic = Pick<
+  SourceMemberFlags,
+  'hideFeedPosts' | 'collapsePinnedPosts'
+>;
 
 @Entity()
 @Index('IDX_source_member_userId_flags_hideFeedPosts', { synchronize: false })
+@Index('IDX_source_member_userId_role', ['userId', 'role'])
 export class SourceMember {
   @PrimaryColumn({ type: 'text' })
   @Index('IDX_source_member_sourceId')

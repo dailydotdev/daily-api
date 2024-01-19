@@ -12,7 +12,7 @@ const worker: NotificationWorker = {
   handler: async (message) => {
     const data: Data = messageToJson(message);
     const ctx: NotificationSubmissionContext = {
-      userId: data.userId,
+      userIds: [data.userId],
       submission: data,
     };
     return [{ type: NotificationType.CommunityPicksFailed, ctx }];
