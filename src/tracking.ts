@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
-import isbot from 'isbot';
+import { isbot } from 'isbot';
 import { cookies, setCookie } from './cookies';
 import { generateTrackingId, generateUUID } from './ids';
 
