@@ -7,17 +7,12 @@ export type FeedResponse = {
 
 export enum FeedConfigName {
   Personalise = 'personalise',
-  PersonaliseOnboard = 'personalise_onboard',
   Vector = 'vector',
   Onboarding = 'onboarding',
-  PersonaliseM3 = 'personalise_m3',
-  PersonaliseV18 = 'personalise_v18',
   PersonaliseV20 = 'personalise_v20',
-  VectorM3 = 'vector_m3',
-  VectorE1 = 'vector_e1',
-  VectorV18 = 'vector_v18',
   VectorV20 = 'vector_v20',
   VectorV21 = 'vector_v21',
+  VectorV22 = 'vector_v22',
   PostSimilarity = 'post_similarity',
 }
 
@@ -86,6 +81,7 @@ export interface IFeedClient {
 export type FeedVersion =
   | '20'
   | '21'
+  | '22'
   | 'popular'
   | 'onboarding'
   | 'post_similarity';

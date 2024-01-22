@@ -702,7 +702,7 @@ describe('query feed', () => {
         page_size: 10,
         offset: 0,
         fresh_page_size: '4',
-        feed_config_name: 'vector_v20',
+        feed_config_name: 'vector_v21',
         user_id: '1',
         source_types: ['machine', 'squad'],
       })
