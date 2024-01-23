@@ -5,7 +5,7 @@ import {
   Column,
   BeforeInsert,
 } from 'typeorm';
-import { User } from './User';
+import { User } from './user';
 
 export enum ReputationReason {
   PostUpvoted = 'post_upvoted',

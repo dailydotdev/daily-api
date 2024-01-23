@@ -1,14 +1,13 @@
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
 import { saveFixtures } from './helpers';
-import { Source, User } from '../src/entity';
+import { Source, User, UserPersonalizedDigest } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
 import { usersFixture } from './fixture/user';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
-import { UserPersonalizedDigest } from '../src/entity/UserPersonalizedDigest';
 import { DayOfWeek } from '../src/types';
 
 let app: FastifyInstance;

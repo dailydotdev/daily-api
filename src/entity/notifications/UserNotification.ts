@@ -1,5 +1,5 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { User } from '../User';
+import { User } from '../user';
 import { NotificationV2 } from './NotificationV2';
 
 @Entity()

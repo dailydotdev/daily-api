@@ -10,25 +10,25 @@ import {
   OneToMany,
   PrimaryColumn,
 } from 'typeorm';
-import { Post } from './posts';
-import { DevCard } from './DevCard';
+import { Post } from '../posts';
+import { DevCard } from '../DevCard';
 import { FastifyBaseLogger, FastifyRequest } from 'fastify';
 import {
   TypeOrmError,
   UpdateUserFailErrorKeys,
   UserFailErrorKeys,
-} from '../errors';
-import { fallbackImages } from '../config';
-import { validateAndTransformHandle } from '../common/handles';
+} from '../../errors';
+import { fallbackImages } from '../../config';
+import { validateAndTransformHandle } from '../../common/handles';
 import { ValidationError } from 'apollo-server-errors';
-import { GQLUpdateUserInput } from '../schema/users';
+import { GQLUpdateUserInput } from '../../schema/users';
 import {
   socialHandleRegex,
   nameRegex,
   validateRegex,
   ValidateRegex,
-} from '../common/object';
-import { generateTrackingId } from '../ids';
+} from '../../common/object';
+import { generateTrackingId } from '../../ids';
 
 @Entity()
 export class User {

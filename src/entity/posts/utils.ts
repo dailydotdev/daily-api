@@ -8,7 +8,7 @@ import {
   removeSpecialCharacters,
   uniqueifyArray,
 } from '../../common';
-import { User } from '../User';
+import { User } from '../user';
 import { PostKeyword } from '../PostKeyword';
 import { ArticlePost } from './ArticlePost';
 import { Post, PostOrigin } from './Post';

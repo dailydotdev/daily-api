@@ -3,7 +3,7 @@ import {
   createEmailBatchId,
   notifyGeneratePersonalizedDigest,
 } from '../common';
-import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
+import { UserPersonalizedDigest } from '../entity';
 import { Cron } from './cron';
 
 const cron: Cron = {

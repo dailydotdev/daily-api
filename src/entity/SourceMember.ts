@@ -1,7 +1,7 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
 import { randomBytes } from 'crypto';
 import { Source } from './Source';
-import { User } from './User';
+import { User } from './user';
 import { promisify } from 'util';
 import { SourceMemberRoles } from '../roles';
 

@@ -1,7 +1,7 @@
 import { subYears } from 'date-fns';
 import { getUserReadingRank, ReadingRank, getUserReadingTags } from './users';
 import { Post, Source, View } from '../entity';
-import { User } from '../entity/User';
+import { User } from '../entity';
 import { ReadingDaysArgs } from './users';
 import { ActiveView } from '../entity/ActiveView';
 import { DataSource } from 'typeorm';
