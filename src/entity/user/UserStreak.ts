@@ -1,5 +1,6 @@
-import { Index, Column, PrimaryColumn } from 'typeorm';
+import { Index, Column, PrimaryColumn, Entity } from 'typeorm';
 
+@Entity()
 export class UserStreak {
   @PrimaryColumn({ type: 'text' })
   @Index()
