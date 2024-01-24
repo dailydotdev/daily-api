@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class UserStreakTrigger1706000373565 implements MigrationInterface {
-  name = 'UserStreakTrigger1706000373565';
+export class UserStreakTrigger1706110501504 implements MigrationInterface {
+  name = 'UserStreakTrigger1706110501504';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create the trigger function
