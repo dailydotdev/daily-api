@@ -1,8 +1,12 @@
-import { ReputationEvent } from './../../src/entity/ReputationEvent';
-
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/commentUpvotedRep';
-import { ArticlePost, Comment, Source, User } from '../../src/entity';
+import {
+  ArticlePost,
+  Comment,
+  Source,
+  User,
+  ReputationEvent,
+} from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { DataSource } from 'typeorm';
