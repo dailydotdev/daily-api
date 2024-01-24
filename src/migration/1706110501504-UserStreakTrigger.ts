@@ -4,6 +4,10 @@ export class UserStreakTrigger1706110501504 implements MigrationInterface {
   name = 'UserStreakTrigger1706110501504';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "user_streak" ALTER COLUMN "lastViewAt" DROP NOT NULL`,
+    );
+
     // Create the trigger function
     await queryRunner.query(`
       CREATE OR REPLACE FUNCTION create_user_streak()
@@ -33,5 +37,9 @@ export class UserStreakTrigger1706110501504 implements MigrationInterface {
 
     // Drop the trigger function
     await queryRunner.query(`DROP FUNCTION IF EXISTS create_user_streak;`);
+
+    await queryRunner.query(
+      `ALTER TABLE "user_streak" ALTER COLUMN "lastViewAt" SET NOT NULL`,
+    );
   }
 }

@@ -22,7 +22,7 @@ export class UserStreak {
   @Column({ type: 'integer', default: 0 })
   maxStreak: number;
 
-  @Column({ type: 'timestamptz' })
+  @Column({ type: 'timestamptz', default: null })
   lastViewAt: Date;
 
   @Column({ type: 'timestamptz', default: () => 'now()' })
