@@ -35,6 +35,7 @@ import {
   Source,
   User,
   View,
+  UserPersonalizedDigest,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
@@ -44,7 +45,6 @@ import request from 'supertest';
 import { FastifyInstance } from 'fastify';
 import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
-import { UserPersonalizedDigest } from '../src/entity/UserPersonalizedDigest';
 import { DayOfWeek } from '../src/types';
 import { CampaignType, Invite } from '../src/entity/Invite';
 import { usersFixture } from './fixture/user';

@@ -5,6 +5,7 @@ import {
   NotificationAttachmentV2,
   NotificationAvatarV2,
   NotificationV2,
+  UserNotification,
   User,
 } from '../../src/entity';
 import { redisPubSub } from '../../src/redis';
@@ -13,7 +14,6 @@ import createOrGetConnection from '../../src/db';
 import { usersFixture } from '../fixture/user';
 import { notificationV2Fixture } from '../fixture/notifications';
 import { NotificationType } from '../../src/notifications/common';
-import { UserNotification } from '../../src/entity/notifications/UserNotification';
 import { Readable } from 'stream';
 
 let con: DataSource;

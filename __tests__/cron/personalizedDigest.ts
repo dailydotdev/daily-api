@@ -2,9 +2,8 @@ import cron from '../../src/cron/personalizedDigest';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import { User } from '../../src/entity';
+import { User, UserPersonalizedDigest } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
-import { UserPersonalizedDigest } from '../../src/entity/UserPersonalizedDigest';
 import {
   createEmailBatchId,
   notifyGeneratePersonalizedDigest,

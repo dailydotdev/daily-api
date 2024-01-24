@@ -8,27 +8,29 @@ import {
   Index,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryColumn,
 } from 'typeorm';
-import { Post } from './posts';
-import { DevCard } from './DevCard';
+import { Post } from '../posts';
+import { DevCard } from '../DevCard';
 import { FastifyBaseLogger, FastifyRequest } from 'fastify';
 import {
   TypeOrmError,
   UpdateUserFailErrorKeys,
   UserFailErrorKeys,
-} from '../errors';
-import { fallbackImages } from '../config';
-import { validateAndTransformHandle } from '../common/handles';
+} from '../../errors';
+import { fallbackImages } from '../../config';
+import { validateAndTransformHandle } from '../../common/handles';
 import { ValidationError } from 'apollo-server-errors';
-import { GQLUpdateUserInput } from '../schema/users';
+import { GQLUpdateUserInput } from '../../schema/users';
 import {
   socialHandleRegex,
   nameRegex,
   validateRegex,
   ValidateRegex,
-} from '../common/object';
-import { generateTrackingId } from '../ids';
+} from '../../common/object';
+import { generateTrackingId } from '../../ids';
+import { UserStreak } from './UserStreak';
 
 @Entity()
 export class User {
@@ -130,6 +132,12 @@ export class User {
 
   @OneToMany(() => DevCard, (devcard) => devcard.user, { lazy: true })
   devCards: Promise<DevCard[]>;
+
+  @OneToOne(() => UserStreak, (streak) => streak.user, {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  streak: Promise<UserStreak>;
 
   permalink: string;
 
