@@ -1,11 +1,14 @@
+import { expectSuccessfulBackground, saveFixtures } from '../helpers';
+import worker from '../../src/workers/commentUpvoteCanceledRep';
 import {
+  ArticlePost,
+  Comment,
+  Source,
+  User,
   ReputationEvent,
   ReputationType,
   ReputationReason,
-} from './../../src/entity/ReputationEvent';
-import { expectSuccessfulBackground, saveFixtures } from '../helpers';
-import worker from '../../src/workers/commentUpvoteCanceledRep';
-import { ArticlePost, Comment, Source, User } from '../../src/entity';
+} from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { DataSource } from 'typeorm';
