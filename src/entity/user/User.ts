@@ -8,6 +8,7 @@ import {
   Index,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryColumn,
 } from 'typeorm';
 import { Post } from '../posts';
@@ -29,6 +30,7 @@ import {
   ValidateRegex,
 } from '../../common/object';
 import { generateTrackingId } from '../../ids';
+import { UserStreak } from './UserStreak';
 
 @Entity()
 export class User {
@@ -130,6 +132,12 @@ export class User {
 
   @OneToMany(() => DevCard, (devcard) => devcard.user, { lazy: true })
   devCards: Promise<DevCard[]>;
+
+  @OneToOne(() => UserStreak, (streak) => streak.user, {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  streak: Promise<UserStreak>;
 
   permalink: string;
 

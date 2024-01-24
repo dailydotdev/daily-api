@@ -1,15 +1,16 @@
-import { Column, PrimaryColumn, Entity, OneToOne } from 'typeorm';
-import { User } from './User';
+import { Column, PrimaryColumn, Entity, OneToOne, JoinColumn } from 'typeorm';
+import { User } from './';
 
 @Entity()
 export class UserStreak {
-  @PrimaryColumn({ type: 'text' })
+  @PrimaryColumn({ length: 36 })
   userId: string;
 
-  @OneToOne(() => User, {
+  @OneToOne(() => User, (user) => user.streak, {
     lazy: true,
     onDelete: 'CASCADE',
   })
+  @JoinColumn({ name: 'userId' })
   user: Promise<User>;
 
   @Column({ type: 'integer', default: 0 })
