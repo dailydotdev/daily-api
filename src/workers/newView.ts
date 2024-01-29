@@ -26,14 +26,21 @@ const addView = async (con: DataSource, entity: View): Promise<boolean> => {
 
 const DEFAULT_TIMEZONE = 'UTC'; // in case user doesn't have a timezone set
 const INC_STREAK_QUERY = `
+-- Get the timezone of the user, defaulting to DEFAULT_TIMEZONE if not set
 WITH u AS (
   SELECT "id", COALESCE("timezone", $3) AS timezone
   FROM public.user
   WHERE public.user.id = $1
 ),
+-- Create a today variable in the timezone we got above
 vars AS (
   SELECT (DATE($2 AT TIME ZONE u.timezone)) AS today FROM u
 ),
+/* Store some more variables based on previous results
+   * Get the date difference between the lastViewAt and today and store it in dateDiff
+   * Extract current day of week from today
+   * Return other columns needed below
+*/
 d AS (
   SELECT "userId", "currentStreak", today, (today - DATE("lastViewAt" AT TIME ZONE u.timezone)) AS dateDiff, EXTRACT(DOW FROM today) AS dayOfWeek
   FROM user_streak
@@ -41,7 +48,16 @@ d AS (
   JOIN vars ON TRUE
 ),
 cond AS (
---   shouldIncrement is set to true if dateDiff is NULL, the difference between days is 1 or today is Monday and difference between days is more than 1 and less than 3 (assuming 2 day weekend)
+/* shouldIncrement is set to true if
+   a) currentStreak is 0
+   b) dateDiff is NULL - this is to cover new users who never had a view before
+   c) last view was yesterday (the date difference between today and lastViewAt is 1
+   d) today is Monday and last view was Friday, Saturday or Sunday
+      (the date difference is more than 1 and less than 3 - assuming 2 day weekend on Sat and Sun)
+ shouldReset is set to true if
+   a) today is Monday and the date difference is more than 3 (assuming 2 day weekend)
+   b) today is not Monday and the date difference is more than 1
+*/
   SELECT (
     "currentStreak" = 0 OR
       (dateDiff IS NULL OR
@@ -54,6 +70,13 @@ cond AS (
     "userId"
   FROM d
 ),
+/* The update query to run if shouldIncrement is true
+   * Increment currentStreak by 1
+   * Increment total streak by 1
+   * Increment max streak if it's equal to current streak
+   * set lastViewAt to the time of the event
+   * set updateAt to now
+*/
 incrementCurrent AS (
   UPDATE user_streak AS us
   SET
@@ -66,6 +89,11 @@ incrementCurrent AS (
   WHERE us."userId" = cond."userId" AND shouldIncrement
   RETURNING TRUE
 ),
+/* The update query to run if shouldIncrement is false
+   * set lastViewAt to the time of the event
+   * set updatedAt to now
+   * set currentStreak to 1 if shouldReset is true
+*/
 noIncrementCurrent AS (
   UPDATE user_streak AS us
   SET
@@ -76,6 +104,9 @@ noIncrementCurrent AS (
   WHERE us."userId" = cond."userId" AND NOT shouldIncrement
   RETURNING FALSE
 )
+/* Run both update queries, only one of them will actually update,
+   depending on the shouldIncrement value
+*/
 SELECT * FROM incrementCurrent
 UNION ALL
 SELECT * FROM noIncrementCurrent
