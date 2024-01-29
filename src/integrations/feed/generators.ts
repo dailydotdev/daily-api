@@ -91,6 +91,25 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
         ),
       }),
     ),
+    '22': new FeedGenerator(
+      feedClient,
+      new FeedUserStateConfigGenerator(snotraClient, {
+        personalised: new FeedPreferencesConfigGenerator(
+          {
+            feed_config_name: FeedConfigName.VectorV22,
+            source_types: ['machine', 'squad'],
+          },
+          opts,
+        ),
+        non_personalised: new FeedPreferencesConfigGenerator(
+          {
+            feed_config_name: FeedConfigName.PersonaliseV20,
+            source_types: ['machine', 'squad'],
+          },
+          opts,
+        ),
+      }),
+    ),
     popular: new FeedGenerator(
       feedClient,
       new SimpleFeedConfigGenerator({
@@ -139,5 +158,5 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
 );
 
 export const versionToFeedGenerator = (version: number): FeedGenerator => {
-  return feedGenerators[version.toString()] ?? feedGenerators['20'];
+  return feedGenerators[version.toString()] ?? feedGenerators['21'];
 };

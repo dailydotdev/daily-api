@@ -6,7 +6,7 @@ import {
   Index,
   Generated,
 } from 'typeorm';
-import { User } from './User';
+import { User } from './user';
 import { FeatureType } from './Feature';
 
 export enum CampaignType {

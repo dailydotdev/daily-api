@@ -5,7 +5,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { User } from './User';
+import { User } from './user';
 import { SubmissionFailErrorKeys } from '../errors';
 
 export enum SubmissionStatus {

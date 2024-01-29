@@ -17,10 +17,10 @@ import {
   FreeformPost,
   CollectionPost,
   NotificationV2,
+  UserPersonalizedDigest,
 } from '../entity';
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
-import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import {
   addPubsubSpanLabels,
   opentelemetry,
