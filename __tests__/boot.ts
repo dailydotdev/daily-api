@@ -329,7 +329,6 @@ describe('logged in boot', () => {
     expect(cookies[trackingCookie].value).not.toEqual('1');
     expect(res.body).toEqual({
       ...ANONYMOUS_BODY,
-      shouldLogout: true,
     });
   });
 
@@ -346,7 +345,6 @@ describe('logged in boot', () => {
     expect(cookies[trackingCookie].value).not.toEqual('2');
     expect(res.body).toEqual({
       ...ANONYMOUS_BODY,
-      shouldLogout: true,
     });
   });
 
