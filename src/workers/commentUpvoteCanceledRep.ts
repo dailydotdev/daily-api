@@ -1,10 +1,10 @@
+import { messageToJson, Worker } from './worker';
 import {
+  Comment,
   ReputationEvent,
   ReputationReason,
   ReputationType,
-} from './../entity/ReputationEvent';
-import { messageToJson, Worker } from './worker';
-import { Comment } from '../entity';
+} from '../entity';
 
 interface Data {
   userId: string;

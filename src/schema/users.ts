@@ -13,8 +13,11 @@ import {
   User,
   validateUserUpdate,
   View,
+  CampaignType,
+  Invite,
+  UserPersonalizedDigest,
+  getAuthorPostStats,
 } from '../entity';
-import { getAuthorPostStats } from '../entity/posts';
 import {
   AuthenticationError,
   ForbiddenError,
@@ -49,9 +52,7 @@ import { randomInt } from 'crypto';
 import { In } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { DayOfWeek } from '../types';
-import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
 import { getTimezoneOffset } from 'date-fns-tz';
-import { CampaignType, Invite } from '../entity/Invite';
 import { markdown } from '../common/markdown';
 
 export interface GQLUpdateUserInput {

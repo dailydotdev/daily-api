@@ -1,6 +1,6 @@
 import { Column, Entity, Index, OneToOne, PrimaryColumn } from 'typeorm';
 import { User } from './';
-import { DayOfWeek } from '../types';
+import { DayOfWeek } from '../../types';
 
 @Entity()
 export class UserPersonalizedDigest {

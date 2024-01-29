@@ -1,10 +1,9 @@
 import { getPostCommenterIds } from './post';
-import { Post } from './../entity/posts';
+import { Post, User as DbUser } from './../entity';
 import { isSameDay } from 'date-fns';
 import { DataSource, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
-import { User as DbUser } from './../entity/User';
 
 export interface User {
   id: string;

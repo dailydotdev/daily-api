@@ -10,7 +10,7 @@ import {
 import { Source, UNKNOWN_SOURCE } from '../Source';
 import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
-import { User } from '../User';
+import { User } from '../user';
 import { PostRelation } from './PostRelation';
 
 export enum PostType {

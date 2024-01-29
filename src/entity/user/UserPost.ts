@@ -7,7 +7,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Post } from './posts';
+import { Post } from '../posts';
 import { User } from './User';
 
 export type UserPostFlags = Partial<{

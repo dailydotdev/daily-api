@@ -1,5 +1,10 @@
-import { Submission, SubmissionStatus } from '../src/entity/Submission';
-import { ArticlePost, Source, User } from '../src/entity';
+import {
+  ArticlePost,
+  Source,
+  User,
+  Submission,
+  SubmissionStatus,
+} from '../src/entity';
 import {
   disposeGraphQLTesting,
   GraphQLTestClient,

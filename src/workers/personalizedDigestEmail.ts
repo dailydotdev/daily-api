@@ -7,8 +7,13 @@ import {
   pickImageUrl,
   sendEmail,
 } from '../common';
-import { ArticlePost, Post, Source, User } from '../entity';
-import { UserPersonalizedDigest } from '../entity/UserPersonalizedDigest';
+import {
+  ArticlePost,
+  Post,
+  Source,
+  User,
+  UserPersonalizedDigest,
+} from '../entity';
 import { messageToJson, Worker } from './worker';
 import { DayOfWeek } from '../types';
 import { MailDataRequired } from '@sendgrid/mail';
