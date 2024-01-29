@@ -425,6 +425,7 @@ const anonymousBoot = async (
   res: FastifyReply,
   middleware?: BootMiddleware,
   shouldVerify = false,
+  email?: string,
 ): Promise<AnonymousBoot> => {
   const [visit, extra, firstVisit, exp] = await Promise.all([
     visitSection(req, res),
@@ -438,7 +439,7 @@ const anonymousBoot = async (
       firstVisit,
       id: req.trackingId,
       ...getReferralFromCookie({ req }),
-      ...(shouldVerify && { email: 'test@bla.com' }),
+      ...(shouldVerify && { email }),
       shouldVerify,
     },
     visit,
@@ -471,7 +472,7 @@ export const getBootData = async (
       setRawCookie(res, whoami.cookie);
     }
     if (whoami.verified === false) {
-      return anonymousBoot(con, req, res, middleware, true);
+      return anonymousBoot(con, req, res, middleware, true, whoami?.email);
     }
     if (req.userId !== whoami.userId) {
       req.userId = whoami.userId;

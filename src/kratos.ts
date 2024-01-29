@@ -100,6 +100,7 @@ type WhoamiResponse =
       expires: Date;
       cookie?: string;
       verified: boolean;
+      email?: string;
     }
   | { valid: false };
 
@@ -126,6 +127,7 @@ export const dispatchWhoami = async (
       `${heimdallOrigin}/api/whoami`,
     );
     const { session, verified } = whoami;
+
     if (session?.identity?.traits?.userId) {
       return {
         verified,
@@ -133,6 +135,7 @@ export const dispatchWhoami = async (
         userId: session.identity.traits.userId,
         expires: new Date(session.expires_at),
         cookie: headers.get('set-cookie'),
+        email: session.identity.traits.email,
       };
     }
     req.log.info({ whoami }, 'invalid whoami response');
