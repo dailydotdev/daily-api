@@ -126,7 +126,16 @@ export const dispatchWhoami = async (
       req,
       `${heimdallOrigin}/api/whoami`,
     );
-    const { session, verified } = whoami;
+
+    // To support both legacy and new whoami responses
+    let session, verified: boolean;
+    if (whoami.hasOwnProperty('session')) {
+      session = whoami.session;
+      verified = whoami.verified;
+    } else {
+      session = whoami;
+      verified = true;
+    }
 
     if (session?.identity?.traits?.userId) {
       return {

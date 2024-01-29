@@ -138,6 +138,12 @@ const mockLoggedIn = (userId = '1') =>
     verified: true,
   });
 
+const mockLegacyLoggedIn = (userId = '1') =>
+  mockWhoami({
+    identity: { traits: { userId } },
+    expires_at: KRATOS_EXPIRATION,
+  });
+
 describe('anonymous boot', () => {
   it('should return defaults', async () => {
     const res = await request(app.server)
@@ -276,6 +282,23 @@ describe('anonymous boot', () => {
 describe('logged in boot', () => {
   it('should boot data when no access token cookie but whoami succeeds', async () => {
     mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body).toEqual({
+      ...LOGGED_IN_BODY,
+      user: {
+        ...LOGGED_IN_BODY.user,
+        canSubmitArticle:
+          LOGGED_IN_BODY.user.reputation >= submitArticleThreshold,
+      },
+    });
+  });
+
+  it('should boot data when legacy kratos whoami is returned', async () => {
+    mockLegacyLoggedIn();
     const res = await request(app.server)
       .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
