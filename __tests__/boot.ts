@@ -99,8 +99,8 @@ const ANONYMOUS_BODY = {
   user: {
     id: expect.any(String),
     firstVisit: expect.any(String),
+    shouldVerify: false,
   },
-  shouldLogout: false,
 };
 
 beforeAll(async () => {
@@ -131,8 +131,11 @@ const mockWhoami = (expected: unknown, statusCode = 200) => {
 
 const mockLoggedIn = (userId = '1') =>
   mockWhoami({
-    identity: { traits: { userId } },
-    expires_at: KRATOS_EXPIRATION,
+    session: {
+      identity: { traits: { userId } },
+      expires_at: KRATOS_EXPIRATION,
+    },
+    verified: true,
   });
 
 describe('anonymous boot', () => {
@@ -165,6 +168,7 @@ describe('anonymous boot', () => {
       user: {
         id: null,
         firstVisit: null,
+        shouldVerify: false,
       },
       visit: {
         visitId: expect.any(String),
@@ -184,6 +188,7 @@ describe('anonymous boot', () => {
         firstVisit: null,
         referralId: '1',
         referralOrigin: 'knightcampaign',
+        shouldVerify: false,
       },
       visit: {
         visitId: expect.any(String),
