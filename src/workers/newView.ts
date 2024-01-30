@@ -67,7 +67,7 @@ const incrementReadingStreak = async (
 
   // TODO: This code is temporary here for now because we didn't run the migration yet,
   // so not every user is going to have a row in the user_streak table and we need to create it.
-  // We can get rid of it once/if we implement the migration in MI-70.
+  // We can get rid of it once/if we implement the migration in https://dailydotdev.atlassian.net/browse/MI-70
   const existing = await repo.findOne({ where: { userId } });
   if (!existing) {
     await repo.save(
