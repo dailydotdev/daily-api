@@ -892,11 +892,11 @@ export const resolvers: IResolvers<any, Context> = {
       }
 
       if (dayToday === Day.Monday) {
-        if (difference - FREEZE_DAYS_IN_A_WEEK < 2) {
-          return streak;
+        if (difference > FREEZE_DAYS_IN_A_WEEK + 1) {
+          return clearThenGetUserStreak(ctx, info, ctx.userId);
         }
 
-        return clearThenGetUserStreak(ctx, info, ctx.userId);
+        return streak;
       }
 
       if (difference > 1) {
