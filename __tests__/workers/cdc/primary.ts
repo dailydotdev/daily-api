@@ -13,6 +13,8 @@ import {
   CollectionPost,
   PostRelation,
   PostRelationType,
+  FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
+  FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
 } from '../../../src/entity';
 import {
   notifyCommentCommented,
@@ -1000,11 +1002,11 @@ describe('post', () => {
     );
   });
 
-  it('should notify for new freeform post greater than 1000 characters', async () => {
+  it('should notify for new freeform post greater than the required amount characters', async () => {
     const after = {
       ...base,
       type: PostType.Freeform,
-      content: '1'.repeat(1000),
+      content: '1'.repeat(FREEFORM_POST_MINIMUM_CONTENT_LENGTH),
     };
 
     await expectSuccessfulBackground(
@@ -1024,11 +1026,11 @@ describe('post', () => {
     ).toEqual(after);
   });
 
-  it('should not notify for new freeform post less than 1000 characters', async () => {
+  it('should not notify for new freeform post less than the required amount characters', async () => {
     const after = {
       ...base,
       type: PostType.Freeform,
-      content: '1'.repeat(999),
+      content: '1'.repeat(FREEFORM_POST_MINIMUM_CONTENT_LENGTH - 1),
     };
 
     await expectSuccessfulBackground(
@@ -1048,7 +1050,7 @@ describe('post', () => {
     const after = {
       ...base,
       type: PostType.Welcome,
-      content: '1'.repeat(1000),
+      content: '1'.repeat(FREEFORM_POST_MINIMUM_CONTENT_LENGTH),
     };
 
     await expectSuccessfulBackground(
@@ -1068,7 +1070,7 @@ describe('post', () => {
     const after = {
       ...base,
       type: PostType.Share,
-      content: '1'.repeat(1000),
+      content: '1'.repeat(FREEFORM_POST_MINIMUM_CONTENT_LENGTH),
     };
 
     await expectSuccessfulBackground(
@@ -1084,7 +1086,7 @@ describe('post', () => {
     expect(notifyContentRequested).toHaveBeenCalledTimes(0);
   });
 
-  it('should notify for edited freeform post greater than 200 edited characters', async () => {
+  it('should notify for edited freeform post greater than the required amount edited characters', async () => {
     const before = {
       ...base,
       type: PostType.Freeform,
@@ -1093,7 +1095,7 @@ describe('post', () => {
 
     const after = {
       ...before,
-      content: before.content + '2'.repeat(200),
+      content: before.content + '2'.repeat(FREEFORM_POST_MINIMUM_CHANGE_LENGTH),
     };
 
     await expectSuccessfulBackground(
@@ -1117,7 +1119,7 @@ describe('post', () => {
     ).toEqual(after);
   });
 
-  it('should not notify for edited freeform post less than 200 edited characters', async () => {
+  it('should not notify for edited freeform post less than the required amount edited characters', async () => {
     const before = {
       ...base,
       type: PostType.Freeform,
@@ -1126,7 +1128,8 @@ describe('post', () => {
 
     const after = {
       ...before,
-      content: before.content + '2'.repeat(100),
+      content:
+        before.content + '2'.repeat(FREEFORM_POST_MINIMUM_CHANGE_LENGTH - 1),
     };
 
     await expectSuccessfulBackground(
