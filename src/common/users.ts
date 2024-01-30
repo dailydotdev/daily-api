@@ -1,6 +1,6 @@
 import { getPostCommenterIds } from './post';
 import { Post, User as DbUser, UserStreak } from './../entity';
-import { isSameDay } from 'date-fns';
+import { differenceInDays, isSameDay } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
@@ -364,29 +364,62 @@ export enum Day {
 export const Weekends = [Day.Sunday, Day.Saturday];
 export const FREEZE_DAYS_IN_A_WEEK = Weekends.length;
 
-export const getUserStreak = (
+export const clearUserStreak = async (
+  con: DataSource | EntityManager,
+  userId,
+): Promise<boolean> => {
+  const result = await con
+    .getRepository(UserStreak)
+    .update({ userId }, { currentStreak: 0, updatedAt: new Date() });
+
+  return result.affected > 0;
+};
+
+export const checkAndClearUserStreak = async (
   ctx: Context,
   info: GraphQLResolveInfo,
-  userId: string,
-) =>
-  graphorm.queryOneOrFail<GQLUserStreak>(ctx, info, (builder) => ({
-    queryBuilder: builder.queryBuilder.where(
-      `"${builder.alias}"."userId" = :id`,
-      { id: userId },
-    ),
-    ...builder,
-  }));
+  streak: GQLUserStreak,
+): Promise<boolean> => {
+  const { lastViewAt } = streak;
+  const clearStreak = () => clearUserStreak(ctx.con, ctx.userId);
 
-export const clearThenGetUserStreak = (
-  ctx: Context,
-  info: GraphQLResolveInfo,
-  userId: string,
-) => {
-  return ctx.con.transaction(async (manager) => {
-    await manager
-      .getRepository(UserStreak)
-      .update({ userId }, { currentStreak: 0, updatedAt: new Date() });
+  if (!lastViewAt) {
+    return false;
+  }
 
-    return getUserStreak(ctx, info, userId);
-  });
+  const today = new Date();
+  const dayToday = today.getDay();
+  const difference = differenceInDays(today, lastViewAt);
+
+  if (difference === 0) {
+    return false;
+  }
+
+  // Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
+  // Due to the fact that when Monday comes, we will clear it anyway when we notice the gap in Friday
+  if (Weekends.includes(dayToday)) {
+    if (dayToday === Day.Saturday && difference > 1) {
+      return clearStreak();
+    }
+
+    if (dayToday === Day.Sunday && difference > 2) {
+      return clearStreak();
+    }
+
+    return false;
+  }
+
+  if (dayToday === Day.Monday) {
+    if (difference > FREEZE_DAYS_IN_A_WEEK + 1) {
+      return clearStreak();
+    }
+
+    return false;
+  }
+
+  if (difference > 1) {
+    return clearStreak();
+  }
+
+  return false;
 };
