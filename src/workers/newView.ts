@@ -36,10 +36,7 @@ WITH u AS (
       ("lastViewAt" is NULL OR
        "currentStreak" = 0 OR
        DATE("lastViewAt" AT TIME ZONE COALESCE("timezone", $3)) <> DATE($2 AT TIME ZONE COALESCE("timezone", $3))
-      ) AS shouldIncrementStreak,
-
-      -- Increment maxStreak if it's the same as currentStreak
-      "currentStreak" >= "maxStreak" AS shouldUpdateMaxStreak
+      ) AS shouldIncrementStreak
   FROM public.user AS users
   INNER JOIN user_streak ON user_streak."userId" = users.id
   WHERE users.id = $1
@@ -49,7 +46,7 @@ UPDATE user_streak AS us SET
   "updatedAt" = now(),
   "currentStreak" = CASE WHEN shouldIncrementStreak THEN us."currentStreak" + 1 ELSE us."currentStreak" END,
   "totalStreak" = CASE WHEN shouldIncrementStreak THEN us."totalStreak" + 1 ELSE us."totalStreak" END,
-  "maxStreak" = CASE WHEN shouldIncrementStreak AND shouldUpdateMaxStreak THEN us."maxStreak" + 1 ELSE us."maxStreak" END
+  "maxStreak" = CASE WHEN shouldIncrementStreak THEN GREATEST(us."maxStreak", us."currentStreak" + 1) ELSE us."maxStreak" END
 FROM u
 WHERE us."userId" = u.id
 RETURNING shouldIncrementStreak
