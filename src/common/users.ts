@@ -390,10 +390,6 @@ export const checkAndClearUserStreak = async (
   const day = today.getDay();
   const difference = differenceInDays(today, lastViewAt);
 
-  if (difference === 0) {
-    return false;
-  }
-
   // Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
   // Due to the fact that when Monday comes, we will clear it anyway when we notice the gap in Friday
   if (
