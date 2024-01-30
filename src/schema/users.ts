@@ -97,6 +97,13 @@ export interface GQLUser {
   readmeHtml?: string;
 }
 
+export interface GQLUserStreak {
+  max?: number;
+  total?: number;
+  current?: number;
+  lastViewAt?: Date;
+}
+
 export interface GQLView {
   post: Post;
   timestamp: Date;
@@ -410,6 +417,13 @@ export const typeDefs = /* GraphQL */ `
     edges: [UserEdge!]!
   }
 
+  type UserStreak {
+    max: Int
+    total: Int
+    current: Int
+    lastViewAt: DateTime
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -419,6 +433,10 @@ export const typeDefs = /* GraphQL */ `
     Get the statistics of the user
     """
     userStats(id: ID!): UserStats
+    """
+    Get User Streak
+    """
+    userStreak: UserStreak @auth
     """
     Get the reading rank of the user
     """
@@ -832,6 +850,14 @@ export const resolvers: IResolvers<any, Context> = {
         .orderBy('date')
         .getRawMany();
     },
+    userStreak: (_, __, ctx: Context, info): Promise<GQLUserStreak> =>
+      graphorm.queryOneOrFail<GQLUserStreak>(ctx, info, (builder) => ({
+        queryBuilder: builder.queryBuilder.where(
+          `"${builder.alias}"."userId" = :id`,
+          { id: ctx.userId },
+        ),
+        ...builder,
+      })),
     userReads: async (): Promise<number> => {
       // Kept for backwards compatability
       return 0;
