@@ -304,6 +304,26 @@ describe('query userStats', () => {
   });
 });
 
+describe('query userStreaks', () => {
+  const QUERY = `query UserStreak {
+    userStreak {
+      max
+      total
+      current
+      lastViewAt
+    }
+  }`;
+
+  it('should not allow unauthenticated users', () =>
+    testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
+
+  it('should return the user stats', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+  });
+});
+
 describe('query referredUsers', () => {
   const QUERY = `query ReferredUsers {
     referredUsers {

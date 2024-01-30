@@ -74,6 +74,13 @@ const obj = new GraphORM({
   CommentUpvote: {
     requiredColumns: ['createdAt'],
   },
+  UserStreak: {
+    fields: {
+      max: { select: 'maxStreak' },
+      total: { select: 'totalStreak' },
+      current: { select: 'currentStreak' },
+    },
+  },
   Post: {
     additionalQuery: (ctx, alias, qb) =>
       qb
