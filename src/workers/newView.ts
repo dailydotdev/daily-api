@@ -39,7 +39,7 @@ WITH u AS (
       ) AS shouldIncrementStreak,
 
       -- Increment maxStreak if it's the same as currentStreak
-      "currentStreak" = "maxStreak" AS shouldUpdateMaxStreak
+      "currentStreak" >= "maxStreak" AS shouldUpdateMaxStreak
   FROM public.user AS users
   INNER JOIN user_streak ON user_streak."userId" = users.id
   WHERE users.id = $1
