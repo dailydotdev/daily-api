@@ -1,4 +1,11 @@
-import { Column, PrimaryColumn, Entity, OneToOne, JoinColumn } from 'typeorm';
+import {
+  Column,
+  PrimaryColumn,
+  Entity,
+  OneToOne,
+  JoinColumn,
+  BeforeUpdate,
+} from 'typeorm';
 import { User } from './';
 
 @Entity()
@@ -27,4 +34,9 @@ export class UserStreak {
 
   @Column({ type: 'timestamptz', default: () => 'now()' })
   updatedAt: Date;
+
+  @BeforeUpdate()
+  private setUpdatedAt(): void {
+    this.updatedAt = new Date();
+  }
 }
