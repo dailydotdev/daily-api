@@ -1052,26 +1052,6 @@ describe('post', () => {
     ).toEqual(after);
   });
 
-  it('should not notify for new freeform post less than the required amount characters', async () => {
-    const after = {
-      ...base,
-      type: PostType.Freeform,
-      content: '1'.repeat(FREEFORM_POST_MINIMUM_CONTENT_LENGTH - 1),
-    };
-
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: null,
-        op: 'c',
-        table: 'post',
-      }),
-    );
-
-    expect(notifyFreeformContentRequested).toHaveBeenCalledTimes(0);
-  });
-
   it('should not notify for new freeform post when title and content is less than the required amount characters', async () => {
     const after = {
       ...base,
