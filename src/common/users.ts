@@ -1,9 +1,12 @@
 import { getPostCommenterIds } from './post';
-import { Post, User as DbUser } from './../entity';
+import { Post, User as DbUser, UserStreak } from './../entity';
 import { isSameDay } from 'date-fns';
-import { DataSource, In, Not } from 'typeorm';
+import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
+import graphorm from '../graphorm';
+import { Context } from '../Context';
+import { GraphQLResolveInfo } from 'graphql';
 
 export interface User {
   id: string;
@@ -17,6 +20,14 @@ export interface User {
   username?: string;
   timezone?: string;
   acceptedMarketing?: boolean;
+}
+
+export interface GQLUserStreak {
+  max?: number;
+  total?: number;
+  current?: number;
+  lastViewAt?: Date;
+  userId: string;
 }
 
 export const fetchUser = async (
@@ -338,4 +349,52 @@ export const getUserReadingRank = async (
     readToday: isSameDay(lastReadTime, now),
     tags,
   };
+};
+
+export const getStreakLastView = async (
+  con: DataSource | EntityManager,
+  streak: GQLUserStreak,
+): Promise<Date> => {
+  if (streak.lastViewAt) {
+    return streak.lastViewAt;
+  }
+
+  const view = await con
+    .getRepository(View)
+    .findOneBy({ userId: streak.userId });
+
+  return view?.timestamp;
+};
+
+export enum Day {
+  Sunday,
+  Monday,
+  Tuesday,
+  Wednesday,
+  Thursday,
+  Friday,
+  Saturday,
+}
+
+export const WEEKENDS = [Day.Sunday, Day.Saturday];
+export const FREEZE_DAYS_IN_A_WEEK = WEEKENDS.length;
+
+export const clearThenGetUserStreak = (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+  userId: string,
+) => {
+  return ctx.con.transaction(async (manager) => {
+    await manager
+      .getRepository(UserStreak)
+      .update({ userId }, { currentStreak: 0 });
+
+    return graphorm.queryOneOrFail<GQLUserStreak>(ctx, info, (builder) => ({
+      queryBuilder: builder.queryBuilder.where(
+        `"${builder.alias}"."userId" = :id`,
+        { id: userId },
+      ),
+      ...builder,
+    }));
+  });
 };

@@ -29,10 +29,16 @@ import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import {
+  Day,
+  FREEZE_DAYS_IN_A_WEEK,
+  clearThenGetUserStreak,
   getInviteLink,
   getShortUrl,
+  getStreakLastView,
   getUserReadingRank,
+  GQLUserStreak,
   isValidHttpUrl,
+  WEEKENDS,
   TagsReadingStatus,
   uploadAvatar,
   uploadDevCardBackground,
@@ -54,6 +60,7 @@ import { DisallowHandle } from '../entity/DisallowHandle';
 import { DayOfWeek } from '../types';
 import { getTimezoneOffset } from 'date-fns-tz';
 import { markdown } from '../common/markdown';
+import { differenceInDays } from 'date-fns';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -95,13 +102,6 @@ export interface GQLUser {
   cover?: string;
   readme?: string;
   readmeHtml?: string;
-}
-
-export interface GQLUserStreak {
-  max?: number;
-  total?: number;
-  current?: number;
-  lastViewAt?: Date;
 }
 
 export interface GQLView {
@@ -850,14 +850,61 @@ export const resolvers: IResolvers<any, Context> = {
         .orderBy('date')
         .getRawMany();
     },
-    userStreak: (_, __, ctx: Context, info): Promise<GQLUserStreak> =>
-      graphorm.queryOneOrFail<GQLUserStreak>(ctx, info, (builder) => ({
-        queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."userId" = :id`,
-          { id: ctx.userId },
-        ),
-        ...builder,
-      })),
+    userStreak: async (_, __, ctx: Context, info): Promise<GQLUserStreak> => {
+      const streak = await graphorm.queryOneOrFail<GQLUserStreak>(
+        ctx,
+        info,
+        (builder) => ({
+          queryBuilder: builder.queryBuilder.where(
+            `"${builder.alias}"."userId" = :id`,
+            { id: ctx.userId },
+          ),
+          ...builder,
+        }),
+      );
+
+      const lastView = await getStreakLastView(ctx.con, streak);
+
+      if (!lastView) {
+        return streak;
+      }
+
+      const today = new Date();
+      const dayToday = today.getDay();
+      const difference = differenceInDays(today, lastView);
+
+      if (difference === 0) {
+        return streak;
+      }
+
+      // Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
+      // Due to the fact that when Monday comes, we will clear it anyway when we notice the gap in Friday
+      if (WEEKENDS.includes(dayToday)) {
+        if (dayToday === Day.Saturday && difference > 1) {
+          return clearThenGetUserStreak(ctx, info, ctx.userId);
+        }
+
+        if (dayToday === Day.Sunday && difference > 2) {
+          return clearThenGetUserStreak(ctx, info, ctx.userId);
+        }
+
+        return streak;
+      }
+
+      if (dayToday === Day.Monday) {
+        if (difference - FREEZE_DAYS_IN_A_WEEK < 2) {
+          return streak;
+        }
+
+        return clearThenGetUserStreak(ctx, info, ctx.userId);
+      }
+
+      if (difference > 1) {
+        return clearThenGetUserStreak(ctx, info, ctx.userId);
+      }
+
+      return streak;
+    },
     userReads: async (): Promise<number> => {
       // Kept for backwards compatability
       return 0;
