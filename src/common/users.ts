@@ -4,7 +4,6 @@ import { differenceInDays, isSameDay } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
-import graphorm from '../graphorm';
 import { Context } from '../Context';
 import { GraphQLResolveInfo } from 'graphql';
 
@@ -363,6 +362,7 @@ export enum Day {
 
 export const Weekends = [Day.Sunday, Day.Saturday];
 export const FREEZE_DAYS_IN_A_WEEK = Weekends.length;
+export const MISSED_LIMIT = 1;
 
 export const clearUserStreak = async (
   con: DataSource | EntityManager,
@@ -381,14 +381,13 @@ export const checkAndClearUserStreak = async (
   streak: GQLUserStreak,
 ): Promise<boolean> => {
   const { lastViewAt } = streak;
-  const clearStreak = () => clearUserStreak(ctx.con, ctx.userId);
 
   if (!lastViewAt) {
     return false;
   }
 
   const today = new Date();
-  const dayToday = today.getDay();
+  const day = today.getDay();
   const difference = differenceInDays(today, lastViewAt);
 
   if (difference === 0) {
@@ -397,28 +396,12 @@ export const checkAndClearUserStreak = async (
 
   // Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
   // Due to the fact that when Monday comes, we will clear it anyway when we notice the gap in Friday
-  if (Weekends.includes(dayToday)) {
-    if (dayToday === Day.Saturday && difference > 1) {
-      return clearStreak();
-    }
-
-    if (dayToday === Day.Sunday && difference > 2) {
-      return clearStreak();
-    }
-
-    return false;
-  }
-
-  if (dayToday === Day.Monday) {
-    if (difference > FREEZE_DAYS_IN_A_WEEK + 1) {
-      return clearStreak();
-    }
-
-    return false;
-  }
-
-  if (difference > 1) {
-    return clearStreak();
+  if (
+    (day === Day.Sunday && difference > FREEZE_DAYS_IN_A_WEEK) ||
+    (day === Day.Monday && difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT) ||
+    (day > Day.Monday && difference > MISSED_LIMIT)
+  ) {
+    return clearUserStreak(ctx.con, ctx.userId);
   }
 
   return false;

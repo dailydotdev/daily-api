@@ -1,11 +1,4 @@
-import {
-  Column,
-  PrimaryColumn,
-  Entity,
-  OneToOne,
-  JoinColumn,
-  BeforeUpdate,
-} from 'typeorm';
+import { Column, PrimaryColumn, Entity, OneToOne, JoinColumn } from 'typeorm';
 import { User } from './';
 
 @Entity()
