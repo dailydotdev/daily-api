@@ -99,8 +99,8 @@ const ANONYMOUS_BODY = {
   user: {
     id: expect.any(String),
     firstVisit: expect.any(String),
+    shouldVerify: false,
   },
-  shouldLogout: false,
 };
 
 beforeAll(async () => {
@@ -130,6 +130,15 @@ const mockWhoami = (expected: unknown, statusCode = 200) => {
 };
 
 const mockLoggedIn = (userId = '1') =>
+  mockWhoami({
+    session: {
+      identity: { traits: { userId } },
+      expires_at: KRATOS_EXPIRATION,
+    },
+    verified: true,
+  });
+
+const mockLegacyLoggedIn = (userId = '1') =>
   mockWhoami({
     identity: { traits: { userId } },
     expires_at: KRATOS_EXPIRATION,
@@ -165,6 +174,7 @@ describe('anonymous boot', () => {
       user: {
         id: null,
         firstVisit: null,
+        shouldVerify: false,
       },
       visit: {
         visitId: expect.any(String),
@@ -184,6 +194,7 @@ describe('anonymous boot', () => {
         firstVisit: null,
         referralId: '1',
         referralOrigin: 'knightcampaign',
+        shouldVerify: false,
       },
       visit: {
         visitId: expect.any(String),
@@ -286,6 +297,23 @@ describe('logged in boot', () => {
     });
   });
 
+  it('should boot data when legacy kratos whoami is returned', async () => {
+    mockLegacyLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body).toEqual({
+      ...LOGGED_IN_BODY,
+      user: {
+        ...LOGGED_IN_BODY.user,
+        canSubmitArticle:
+          LOGGED_IN_BODY.user.reputation >= submitArticleThreshold,
+      },
+    });
+  });
+
   it('should set kratos cookie expiration', async () => {
     mockLoggedIn();
     const kratosCookie = 'ory_kratos_session';
@@ -324,7 +352,6 @@ describe('logged in boot', () => {
     expect(cookies[trackingCookie].value).not.toEqual('1');
     expect(res.body).toEqual({
       ...ANONYMOUS_BODY,
-      shouldLogout: true,
     });
   });
 
@@ -341,7 +368,6 @@ describe('logged in boot', () => {
     expect(cookies[trackingCookie].value).not.toEqual('2');
     expect(res.body).toEqual({
       ...ANONYMOUS_BODY,
-      shouldLogout: true,
     });
   });
 
