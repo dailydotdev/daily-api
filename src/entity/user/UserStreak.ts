@@ -34,9 +34,4 @@ export class UserStreak {
 
   @Column({ type: 'timestamptz', default: () => 'now()' })
   updatedAt: Date;
-
-  @BeforeUpdate()
-  private setUpdatedAt(): void {
-    this.updatedAt = new Date();
-  }
 }

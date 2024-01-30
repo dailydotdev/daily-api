@@ -351,21 +351,6 @@ export const getUserReadingRank = async (
   };
 };
 
-export const getStreakLastView = async (
-  con: DataSource | EntityManager,
-  streak: GQLUserStreak,
-): Promise<Date> => {
-  if (streak.lastViewAt) {
-    return streak.lastViewAt;
-  }
-
-  const view = await con
-    .getRepository(View)
-    .findOneBy({ userId: streak.userId });
-
-  return view?.timestamp;
-};
-
 export enum Day {
   Sunday,
   Monday,
@@ -400,7 +385,7 @@ export const clearThenGetUserStreak = (
   return ctx.con.transaction(async (manager) => {
     await manager
       .getRepository(UserStreak)
-      .update({ userId }, { currentStreak: 0 });
+      .update({ userId }, { currentStreak: 0, updatedAt: new Date() });
 
     return getUserStreak(ctx, info, userId);
   });

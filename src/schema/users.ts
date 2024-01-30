@@ -35,7 +35,6 @@ import {
   clearThenGetUserStreak,
   getInviteLink,
   getShortUrl,
-  getStreakLastView,
   getUserReadingRank,
   GQLUserStreak,
   isValidHttpUrl,
@@ -858,17 +857,18 @@ export const resolvers: IResolvers<any, Context> = {
         .createQueryBuilder()
         .select('"lastViewAt"') // needs to consider user's timezone
         .addSelect('"userId"')
-        .getRawOne();
-      const getStreak = () => getUserStreak(ctx, info, ctx.userId);
-      const lastView = await getStreakLastView(ctx.con, streak);
+        .getRawOne<UserStreak>();
 
-      if (!lastView) {
+      const getStreak = () => getUserStreak(ctx, info, ctx.userId);
+      const { lastViewAt } = streak;
+
+      if (!lastViewAt) {
         return getStreak();
       }
 
       const today = new Date();
       const dayToday = today.getDay();
-      const difference = differenceInDays(today, lastView);
+      const difference = differenceInDays(today, lastViewAt);
 
       if (difference === 0) {
         return getStreak();
