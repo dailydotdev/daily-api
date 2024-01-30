@@ -376,8 +376,8 @@ export enum Day {
   Saturday,
 }
 
-export const WEEKENDS = [Day.Sunday, Day.Saturday];
-export const FREEZE_DAYS_IN_A_WEEK = WEEKENDS.length;
+export const Weekends = [Day.Sunday, Day.Saturday];
+export const FREEZE_DAYS_IN_A_WEEK = Weekends.length;
 
 export const getUserStreak = (
   ctx: Context,

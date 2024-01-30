@@ -39,7 +39,7 @@ import {
   getUserReadingRank,
   GQLUserStreak,
   isValidHttpUrl,
-  WEEKENDS,
+  Weekends,
   TagsReadingStatus,
   uploadAvatar,
   uploadDevCardBackground,
@@ -876,7 +876,7 @@ export const resolvers: IResolvers<any, Context> = {
 
       // Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
       // Due to the fact that when Monday comes, we will clear it anyway when we notice the gap in Friday
-      if (WEEKENDS.includes(dayToday)) {
+      if (Weekends.includes(dayToday)) {
         if (dayToday === Day.Saturday && difference > 1) {
           return clearThenGetUserStreak(ctx, info, ctx.userId);
         }
