@@ -75,6 +75,7 @@ const obj = new GraphORM({
     requiredColumns: ['createdAt'],
   },
   UserStreak: {
+    requiredColumns: ['lastViewAt'],
     fields: {
       max: { select: 'maxStreak' },
       total: { select: 'totalStreak' },
