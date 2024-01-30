@@ -74,11 +74,12 @@ export type BootUserReferral = Partial<{
 interface AnonymousUser extends BootUserReferral {
   id: string;
   firstVisit: string;
+  shouldVerify?: boolean;
+  email?: string;
 }
 
 export type AnonymousBoot = BaseBoot & {
   user: AnonymousUser;
-  shouldLogout: boolean;
 };
 
 export type LoggedInBoot = BaseBoot & {
@@ -201,7 +202,7 @@ const handleNonExistentUser = async (
     'could not find the logged user in the api',
   );
   await clearAuthentication(req, res, 'user not found');
-  return anonymousBoot(con, req, res, middleware, true);
+  return anonymousBoot(con, req, res, middleware);
 };
 
 const setAuthCookie = async (
@@ -423,7 +424,8 @@ const anonymousBoot = async (
   req: FastifyRequest,
   res: FastifyReply,
   middleware?: BootMiddleware,
-  shouldLogout = false,
+  shouldVerify = false,
+  email?: string,
 ): Promise<AnonymousBoot> => {
   const [visit, extra, firstVisit, exp] = await Promise.all([
     visitSection(req, res),
@@ -437,13 +439,14 @@ const anonymousBoot = async (
       firstVisit,
       id: req.trackingId,
       ...getReferralFromCookie({ req }),
+      ...(shouldVerify && { email }),
+      shouldVerify,
     },
     visit,
     alerts: { ...ALERTS_DEFAULT, changelog: false },
     settings: SETTINGS_DEFAULT,
     notifications: { unreadNotificationsCount: 0 },
     squads: [],
-    shouldLogout,
     exp,
     ...extra,
   };
@@ -462,10 +465,14 @@ export const getBootData = async (
   ) {
     return loggedInBoot(con, req, res, false, middleware);
   }
+
   const whoami = await dispatchWhoami(req);
   if (whoami.valid) {
     if (whoami.cookie) {
       setRawCookie(res, whoami.cookie);
+    }
+    if (whoami.verified === false) {
+      return anonymousBoot(con, req, res, middleware, true, whoami?.email);
     }
     if (req.userId !== whoami.userId) {
       req.userId = whoami.userId;
@@ -475,7 +482,7 @@ export const getBootData = async (
     return loggedInBoot(con, req, res, true, middleware);
   } else if (req.cookies[cookies.kratos.key]) {
     await clearAuthentication(req, res, 'invalid cookie');
-    return anonymousBoot(con, req, res, middleware, true);
+    return anonymousBoot(con, req, res, middleware);
   }
   return anonymousBoot(con, req, res, middleware);
 };

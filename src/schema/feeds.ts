@@ -1222,6 +1222,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           });
         }
       }
+
       return legacySimilarPostsResolver(source, args, ctx, info);
     },
     randomDiscussedPosts: randomPostsResolver(
