@@ -17,7 +17,6 @@ import {
   Invite,
   UserPersonalizedDigest,
   getAuthorPostStats,
-  UserStreak,
 } from '../entity';
 import {
   AuthenticationError,
