@@ -228,43 +228,4 @@ describe('reading streaks', () => {
   it('should not increment a reading streak if lastViewAt is the same day', async () => {
     await runTest('2024-01-26T19:17Z', '2024-01-26T17:23Z');
   });
-
-  it('should reset a reading streak if last view was more than 1 day ago', async () => {
-    await runTest('2024-01-26T19:17Z', '2024-01-24T17:23Z');
-  });
-
-  it(`should increment a reading streak if it's Monday and last view was on Friday before`, async () => {
-    //            Monday 2024-01-22   Friday 2024-01-19
-    await runTest('2024-01-22T08:04Z', '2024-01-19T22:14Z');
-  });
-
-  it(`should increment a reading streak if it's Monday and last view was on Saturday before`, async () => {
-    //            Monday 2024-01-22   Saturday 2024-01-20
-    await runTest('2024-01-22T08:04Z', '2024-01-20T22:14Z');
-  });
-
-  it(`should increment a reading streak if it's Saturday and last view was on Friday before`, async () => {
-    //            Saturday 2024-01-20   Friday 2024-01-19
-    await runTest('2024-01-20T08:04Z', '2024-01-19T22:14Z');
-  });
-
-  it(`should increment a reading streak if it's Sunday and last view was on Friday before`, async () => {
-    //            Sunday 2024-01-21   Friday 2024-01-19
-    await runTest('2024-01-21T08:04Z', '2024-01-19T22:14Z');
-  });
-
-  it(`should reset a reading streak if it's Monday and last view was on Thursday before`, async () => {
-    //            Monday 2024-01-22   Thursday 2024-01-18
-    await runTest('2024-01-22T08:04Z', '2024-01-18T22:14Z');
-  });
-
-  it(`should reset a reading streak if it's Sunday and last view was on Thursday before`, async () => {
-    //            Sunday 2024-01-21   Thursday 2024-01-18
-    await runTest('2024-01-21T08:04Z', '2024-01-18T22:14Z');
-  });
-
-  it(`should reset a reading streak if it's Saturday and last view was on Thursday before`, async () => {
-    //            Saturday 2024-01-20   Thursday 2024-01-18
-    await runTest('2024-01-20T08:04Z', '2024-01-18T22:14Z');
-  });
 });

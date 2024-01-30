@@ -26,90 +26,33 @@ const addView = async (con: DataSource, entity: View): Promise<boolean> => {
 
 const DEFAULT_TIMEZONE = 'UTC'; // in case user doesn't have a timezone set
 const INC_STREAK_QUERY = `
--- Get the timezone of the user, defaulting to DEFAULT_TIMEZONE if not set
 WITH u AS (
-  SELECT "id", COALESCE("timezone", $3) AS timezone
-  FROM public.user
-  WHERE public.user.id = $1
-),
--- Create a today variable in the timezone we got above
-vars AS (
-  SELECT (DATE($2 AT TIME ZONE u.timezone)) AS today FROM u
-),
-/* Store some more variables based on previous results
-   * Get the date difference between the lastViewAt and today and store it in dateDiff
-   * Extract current day of week from today
-   * Return other columns needed below
-*/
-d AS (
-  SELECT "userId", "currentStreak", today, (today - DATE("lastViewAt" AT TIME ZONE u.timezone)) AS dateDiff, EXTRACT(DOW FROM today) AS dayOfWeek
-  FROM user_streak
-  INNER JOIN u ON "userId" = u.id
-  JOIN vars ON TRUE
-),
-cond AS (
-/* shouldIncrement is set to true if
-   a) currentStreak is 0
-   b) dateDiff is NULL - this is to cover new users who never had a view before
-   c) last view was yesterday (the date difference between today and lastViewAt is 1
-   d) today is Monday and last view was Friday, Saturday or Sunday
-      (the date difference is more than 1 and less than 3 - assuming 2 day weekend on Sat and Sun)
- shouldReset is set to true if
-   a) today is Monday and the date difference is more than 3 (assuming 2 day weekend)
-   b) today is not Monday and the date difference is more than 1
-*/
-  SELECT (
-    "currentStreak" = 0 OR
-      (dateDiff IS NULL OR
-        dateDiff = 1 OR
-        (dayOfWeek = 1 AND dateDiff > 1 AND dateDiff <= 3) OR
-        (dayOfWeek = 0 AND dateDiff = 2)
-    )) AS shouldIncrement,
-    ((dayOfWeek <= 1 AND dateDiff > 2 + dayOfWeek) OR -- Monday and difference between days is more than 3 or Sunday and difference is more than 2
-     (dayOfWeek > 1 AND dateDiff > 1)) AS shouldReset, -- any other day of week and difference between days is more than 1
-    "userId"
-  FROM d
-),
-/* The update query to run if shouldIncrement is true
-   * Increment currentStreak by 1
-   * Increment total streak by 1
-   * Increment max streak if it's equal to current streak
-   * set lastViewAt to the time of the event
-   * set updateAt to now
-*/
-incrementCurrent AS (
-  UPDATE user_streak AS us
-  SET
-    "lastViewAt" = $2,
-    "updatedAt" = now(),
-    "currentStreak" = us."currentStreak" + 1,
-    "totalStreak" = us."totalStreak" + 1,
-    "maxStreak" = CASE WHEN us."maxStreak" = us."currentStreak" THEN us."maxStreak" + 1 ELSE us."maxStreak" END
-  FROM cond
-  WHERE us."userId" = cond."userId" AND shouldIncrement
-  RETURNING TRUE
-),
-/* The update query to run if shouldIncrement is false
-   * set lastViewAt to the time of the event
-   * set updatedAt to now
-   * set currentStreak to 1 if shouldReset is true
-*/
-noIncrementCurrent AS (
-  UPDATE user_streak AS us
-  SET
-    "lastViewAt" = $2,
-    "updatedAt" = now(),
-    "currentStreak" = CASE WHEN shouldReset THEN 1 ELSE us."currentStreak" END
-  FROM cond
-  WHERE us."userId" = cond."userId" AND NOT shouldIncrement
-  RETURNING FALSE
+  SELECT "id",
+      /* Increment the current streak if
+        a) lastViewAt is NULL - this is a new user, we should start a new streak
+        b) the currentStreak is 0 - we should start a new streak
+        c) we didn't do it today already
+      */
+      ("lastViewAt" is NULL OR
+       "currentStreak" = 0 OR
+       DATE("lastViewAt" AT TIME ZONE COALESCE("timezone", $3)) <> DATE($2 AT TIME ZONE COALESCE("timezone", $3))
+      ) AS shouldIncrementStreak,
+
+      -- Increment maxStreak if it's the same as currentStreak
+      "currentStreak" = "maxStreak" AS shouldUpdateMaxStreak
+  FROM public.user AS users
+  INNER JOIN user_streak ON user_streak."userId" = users.id
+  WHERE users.id = $1
 )
-/* Run both update queries, only one of them will actually update,
-   depending on the shouldIncrement value
-*/
-SELECT * FROM incrementCurrent
-UNION ALL
-SELECT * FROM noIncrementCurrent
+UPDATE user_streak AS us SET
+  "lastViewAt" = $2,
+  "updatedAt" = now(),
+  "currentStreak" = CASE WHEN shouldIncrementStreak THEN us."currentStreak" + 1 ELSE us."currentStreak" END,
+  "totalStreak" = CASE WHEN shouldIncrementStreak THEN us."totalStreak" + 1 ELSE us."totalStreak" END,
+  "maxStreak" = CASE WHEN shouldIncrementStreak AND shouldUpdateMaxStreak THEN us."maxStreak" + 1 ELSE us."maxStreak" END
+FROM u
+WHERE us."userId" = u.id
+RETURNING shouldIncrementStreak
 `;
 
 const incrementReadingStreak = async (

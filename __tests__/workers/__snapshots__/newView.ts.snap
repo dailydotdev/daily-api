@@ -1,49 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`reading streaks should increment a reading streak if it's Monday and last view was on Friday before 1`] = `
-Object {
-  "currentStreak": 5,
-  "lastViewAt": 2024-01-22T08:04:00.000Z,
-  "maxStreak": 10,
-  "totalStreak": 43,
-  "updatedAt": Any<Date>,
-  "userId": "u1",
-}
-`;
-
-exports[`reading streaks should increment a reading streak if it's Monday and last view was on Saturday before 1`] = `
-Object {
-  "currentStreak": 5,
-  "lastViewAt": 2024-01-22T08:04:00.000Z,
-  "maxStreak": 10,
-  "totalStreak": 43,
-  "updatedAt": Any<Date>,
-  "userId": "u1",
-}
-`;
-
-exports[`reading streaks should increment a reading streak if it's Saturday and last view was on Friday before 1`] = `
-Object {
-  "currentStreak": 5,
-  "lastViewAt": 2024-01-20T08:04:00.000Z,
-  "maxStreak": 10,
-  "totalStreak": 43,
-  "updatedAt": Any<Date>,
-  "userId": "u1",
-}
-`;
-
-exports[`reading streaks should increment a reading streak if it's Sunday and last view was on Friday before 1`] = `
-Object {
-  "currentStreak": 5,
-  "lastViewAt": 2024-01-21T08:04:00.000Z,
-  "maxStreak": 10,
-  "totalStreak": 43,
-  "updatedAt": Any<Date>,
-  "userId": "u1",
-}
-`;
-
 exports[`reading streaks should increment a reading streak if lastViewAt was yesterday 1`] = `
 Object {
   "currentStreak": 5,
@@ -83,50 +39,6 @@ Object {
   "lastViewAt": 2024-01-26T19:17:00.000Z,
   "maxStreak": 10,
   "totalStreak": 99,
-  "updatedAt": Any<Date>,
-  "userId": "u1",
-}
-`;
-
-exports[`reading streaks should reset a reading streak if it's Monday and last view was on Thursday before 1`] = `
-Object {
-  "currentStreak": 1,
-  "lastViewAt": 2024-01-22T08:04:00.000Z,
-  "maxStreak": 10,
-  "totalStreak": 42,
-  "updatedAt": Any<Date>,
-  "userId": "u1",
-}
-`;
-
-exports[`reading streaks should reset a reading streak if it's Saturday and last view was on Thursday before 1`] = `
-Object {
-  "currentStreak": 1,
-  "lastViewAt": 2024-01-20T08:04:00.000Z,
-  "maxStreak": 10,
-  "totalStreak": 42,
-  "updatedAt": Any<Date>,
-  "userId": "u1",
-}
-`;
-
-exports[`reading streaks should reset a reading streak if it's Sunday and last view was on Thursday before 1`] = `
-Object {
-  "currentStreak": 1,
-  "lastViewAt": 2024-01-21T08:04:00.000Z,
-  "maxStreak": 10,
-  "totalStreak": 42,
-  "updatedAt": Any<Date>,
-  "userId": "u1",
-}
-`;
-
-exports[`reading streaks should reset a reading streak if last view was more than 1 day ago 1`] = `
-Object {
-  "currentStreak": 1,
-  "lastViewAt": 2024-01-26T19:17:00.000Z,
-  "maxStreak": 10,
-  "totalStreak": 42,
   "updatedAt": Any<Date>,
   "userId": "u1",
 }
