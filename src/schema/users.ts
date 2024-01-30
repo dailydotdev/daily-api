@@ -17,6 +17,7 @@ import {
   Invite,
   UserPersonalizedDigest,
   getAuthorPostStats,
+  UserStreak,
 } from '../entity';
 import {
   AuthenticationError,
@@ -43,6 +44,7 @@ import {
   uploadAvatar,
   uploadDevCardBackground,
   uploadProfileCover,
+  getUserStreak,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -851,22 +853,17 @@ export const resolvers: IResolvers<any, Context> = {
         .getRawMany();
     },
     userStreak: async (_, __, ctx: Context, info): Promise<GQLUserStreak> => {
-      const streak = await graphorm.queryOneOrFail<GQLUserStreak>(
-        ctx,
-        info,
-        (builder) => ({
-          queryBuilder: builder.queryBuilder.where(
-            `"${builder.alias}"."userId" = :id`,
-            { id: ctx.userId },
-          ),
-          ...builder,
-        }),
-      );
-
+      const streak = await ctx.con
+        .getRepository(UserStreak)
+        .createQueryBuilder()
+        .select('"lastViewAt"') // needs to consider user's timezone
+        .addSelect('"userId"')
+        .getRawOne();
+      const getStreak = () => getUserStreak(ctx, info, ctx.userId);
       const lastView = await getStreakLastView(ctx.con, streak);
 
       if (!lastView) {
-        return streak;
+        return getStreak();
       }
 
       const today = new Date();
@@ -874,7 +871,7 @@ export const resolvers: IResolvers<any, Context> = {
       const difference = differenceInDays(today, lastView);
 
       if (difference === 0) {
-        return streak;
+        return getStreak();
       }
 
       // Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
@@ -888,7 +885,7 @@ export const resolvers: IResolvers<any, Context> = {
           return clearThenGetUserStreak(ctx, info, ctx.userId);
         }
 
-        return streak;
+        return getStreak();
       }
 
       if (dayToday === Day.Monday) {
@@ -896,14 +893,14 @@ export const resolvers: IResolvers<any, Context> = {
           return clearThenGetUserStreak(ctx, info, ctx.userId);
         }
 
-        return streak;
+        return getStreak();
       }
 
       if (difference > 1) {
         return clearThenGetUserStreak(ctx, info, ctx.userId);
       }
 
-      return streak;
+      return getStreak();
     },
     userReads: async (): Promise<number> => {
       // Kept for backwards compatability

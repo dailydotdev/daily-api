@@ -379,6 +379,19 @@ export enum Day {
 export const WEEKENDS = [Day.Sunday, Day.Saturday];
 export const FREEZE_DAYS_IN_A_WEEK = WEEKENDS.length;
 
+export const getUserStreak = (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+  userId: string,
+) =>
+  graphorm.queryOneOrFail<GQLUserStreak>(ctx, info, (builder) => ({
+    queryBuilder: builder.queryBuilder.where(
+      `"${builder.alias}"."userId" = :id`,
+      { id: userId },
+    ),
+    ...builder,
+  }));
+
 export const clearThenGetUserStreak = (
   ctx: Context,
   info: GraphQLResolveInfo,
@@ -389,12 +402,6 @@ export const clearThenGetUserStreak = (
       .getRepository(UserStreak)
       .update({ userId }, { currentStreak: 0 });
 
-    return graphorm.queryOneOrFail<GQLUserStreak>(ctx, info, (builder) => ({
-      queryBuilder: builder.queryBuilder.where(
-        `"${builder.alias}"."userId" = :id`,
-        { id: userId },
-      ),
-      ...builder,
-    }));
+    return getUserStreak(ctx, info, userId);
   });
 };
