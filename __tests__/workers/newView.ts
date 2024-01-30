@@ -146,6 +146,7 @@ describe('reading streaks', () => {
     currentDate: Date | string,
     previousDate: Date | string | undefined,
     previousStreak = defaultStreak,
+    expectedStreak?: Partial<UserStreak>,
   ) => {
     await prepareTest(currentDate, previousDate, previousStreak);
 
@@ -155,9 +156,9 @@ describe('reading streaks', () => {
         lastViewAt: new Date(currentDate),
       },
     });
-    expect(streak).toMatchSnapshot({
-      updatedAt: expect.any(Date),
-    });
+    for (const key in expectedStreak) {
+      expect(streak?.[key]).toEqual(expectedStreak[key]);
+    }
   };
 
   it('updates reading streak without a timestamp', async () => {
@@ -198,34 +199,72 @@ describe('reading streaks', () => {
   });
 
   it('should start a reading streak if there was none before', async () => {
-    await runTest('2024-01-26T17:17Z', undefined, {
-      currentStreak: 0,
-      totalStreak: 0,
-      maxStreak: 0,
-    });
+    await runTest(
+      '2024-01-26T17:17Z',
+      undefined,
+      {
+        currentStreak: 0,
+        totalStreak: 0,
+        maxStreak: 0,
+      },
+      {
+        currentStreak: 1,
+        totalStreak: 1,
+        maxStreak: 1,
+        lastViewAt: new Date('2024-01-26T17:17Z'),
+      },
+    );
   });
 
   it('should increment a reading streak if lastViewAt was yesterday', async () => {
-    await runTest('2024-01-26T19:17Z', '2024-01-25T17:23Z');
+    await runTest('2024-01-26T19:17Z', '2024-01-25T17:23Z', defaultStreak, {
+      currentStreak: 5,
+      totalStreak: 43,
+      maxStreak: 10,
+      lastViewAt: new Date('2024-01-26T19:17Z'),
+    });
   });
 
   it('should increment maxStreak if lastViewAt was yesterday and current streak is bigger', async () => {
-    await runTest('2024-01-26T19:17Z', '2024-01-25T17:23Z', {
-      currentStreak: 4,
-      totalStreak: 98,
-      maxStreak: 4,
-    });
+    await runTest(
+      '2024-01-26T19:17Z',
+      '2024-01-25T17:23Z',
+      {
+        currentStreak: 4,
+        totalStreak: 98,
+        maxStreak: 4,
+      },
+      {
+        currentStreak: 5,
+        totalStreak: 99,
+        maxStreak: 5,
+        lastViewAt: new Date('2024-01-26T19:17Z'),
+      },
+    );
   });
 
   it('should not increment maxStreak if lastViewAt was yesterday and current streak is smaller', async () => {
-    await runTest('2024-01-26T19:17Z', '2024-01-25T17:23Z', {
-      currentStreak: 4,
-      totalStreak: 98,
-      maxStreak: 10,
-    });
+    await runTest(
+      '2024-01-26T19:17Z',
+      '2024-01-25T17:23Z',
+      {
+        currentStreak: 4,
+        totalStreak: 98,
+        maxStreak: 10,
+      },
+      {
+        currentStreak: 5,
+        totalStreak: 99,
+        maxStreak: 10,
+        lastViewAt: new Date('2024-01-26T19:17Z'),
+      },
+    );
   });
 
   it('should not increment a reading streak if lastViewAt is the same day', async () => {
-    await runTest('2024-01-26T19:17Z', '2024-01-26T17:23Z');
+    await runTest('2024-01-26T19:17Z', '2024-01-26T17:23Z', defaultStreak, {
+      ...defaultStreak,
+      lastViewAt: new Date('2024-01-26T19:17Z'),
+    });
   });
 });
