@@ -198,6 +198,30 @@ describe('reading streaks', () => {
     expect(streak2?.currentStreak).toEqual(streak1?.currentStreak);
   });
 
+  it('does not update reading streak if view does not have userId', async () => {
+    await prepareTest('2024-01-25T17:17Z', '2024-01-24T14:17Z');
+
+    const streak1 = await con
+      .getRepository(UserStreak)
+      .findOne({ where: { userId: 'u1', currentStreak: 5 } });
+    expect(streak1).not.toBeNull();
+
+    const data = {
+      postId: 'p1',
+      referer: 'referer',
+      agent: 'agent',
+      ip: '127.0.0.1',
+      timestamp: new Date('2024-01-26T17:17Z'),
+    };
+    await expectSuccessfulBackground(worker, data);
+
+    const streak2 = await con
+      .getRepository(UserStreak)
+      .findOne({ where: { userId: 'u1' } });
+    expect(streak2?.updatedAt).toEqual(streak1?.updatedAt);
+    expect(streak2?.currentStreak).toEqual(streak1?.currentStreak);
+  });
+
   it('should start a reading streak if there was none before', async () => {
     await runTest(
       '2024-01-26T17:17Z',

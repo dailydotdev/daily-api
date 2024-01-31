@@ -79,7 +79,6 @@ const incrementReadingStreak = async (
         lastViewAt: viewTime,
       }),
     );
-    return;
   } else {
     await repo.query(INC_STREAK_QUERY, [userId, viewTime, DEFAULT_TIMEZONE]);
   }
@@ -133,8 +132,8 @@ const worker: Worker = {
       throw err;
     }
 
-    // no need to touch reading streaks if we didn't save a new view event
-    if (!didSave) {
+    // no need to touch reading streaks if we didn't save a new view event or if we don't have a userId
+    if (!didSave || !data.userId) {
       return;
     }
 
