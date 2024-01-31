@@ -129,7 +129,7 @@ export default async function app(
   // });
 
   app.register(MercuriusGQLUpload, {
-    maxFileSize: 1024 * 1024 * 5,
+    maxFileSize: 1024 * 1024 * 20,
     maxFiles: 1,
   });
 
