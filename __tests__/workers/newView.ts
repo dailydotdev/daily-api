@@ -222,6 +222,25 @@ describe('reading streaks', () => {
     expect(streak2?.currentStreak).toEqual(streak1?.currentStreak);
   });
 
+  it('does not update reading streak if userId does not match existing user', async () => {
+    await prepareTest('2024-01-25T17:17Z', '2024-01-24T14:17Z');
+
+    const data = {
+      postId: 'p1',
+      userId: '__this_userId_should_not_exist__',
+      referer: 'referer',
+      agent: 'agent',
+      ip: '127.0.0.1',
+      timestamp: new Date('2024-01-26T17:17Z'),
+    };
+    await expectSuccessfulBackground(worker, data);
+
+    const streak = await con
+      .getRepository(UserStreak)
+      .findOne({ where: { userId: '__this_userId_should_not_exist__' } });
+    expect(streak).toBeNull();
+  });
+
   it('should start a reading streak if there was none before', async () => {
     await runTest(
       '2024-01-26T17:17Z',
