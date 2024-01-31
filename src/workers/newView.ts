@@ -73,7 +73,8 @@ const incrementReadingStreak = async (
     where: { id: userId },
     relations: ['streak'],
   });
-  if (user && !user.streak) {
+  const streak = await user?.streak;
+  if (user && !streak) {
     await repo.save(
       repo.create({
         userId,
