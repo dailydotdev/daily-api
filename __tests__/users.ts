@@ -421,7 +421,7 @@ describe('query userStreaks', () => {
     await expectStreak(5, 5, lastViewAt);
   });
 
-  it('should not reset streak on if last view is the same day today', async () => {
+  it('should not reset streak if last view is the same day today', async () => {
     loggedUser = '1';
     const fakeToday = new Date(2024, 0, 9); // Tuesday
     const lastViewAt = subDays(fakeToday, 0); // Tuesday
