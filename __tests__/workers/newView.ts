@@ -14,6 +14,8 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  await con.getRepository(UserStreak).clear();
+  await con.getRepository(View).clear();
   await saveFixtures(
     con,
     User,
@@ -121,15 +123,15 @@ describe('reading streaks', () => {
   const prepareTest = async (
     currentDate: Date | string | undefined,
     previousDate: Date | string | undefined,
-    previousStreak = defaultStreak,
+    previousStreak: Partial<UserStreak> | null | undefined = defaultStreak,
   ) => {
-    await con.getRepository(UserStreak).update(
-      { userId: 'u1' },
-      {
+    if (previousStreak) {
+      await con.getRepository(UserStreak).save({
         ...previousStreak,
+        userId: previousStreak.userId ?? 'u1',
         lastViewAt: previousDate ? new Date(previousDate) : undefined,
-      },
-    );
+      });
+    }
 
     const data = {
       postId: 'p1',
@@ -145,7 +147,7 @@ describe('reading streaks', () => {
   const runTest = async (
     currentDate: Date | string,
     previousDate: Date | string | undefined,
-    previousStreak = defaultStreak,
+    previousStreak: Partial<UserStreak> | null | undefined = defaultStreak,
     expectedStreak?: Partial<UserStreak>,
   ) => {
     await prepareTest(currentDate, previousDate, previousStreak);
@@ -199,13 +201,6 @@ describe('reading streaks', () => {
   });
 
   it('does not update reading streak if view does not have userId', async () => {
-    await prepareTest('2024-01-25T17:17Z', '2024-01-24T14:17Z');
-
-    const streak1 = await con
-      .getRepository(UserStreak)
-      .findOne({ where: { userId: 'u1', currentStreak: 5 } });
-    expect(streak1).not.toBeNull();
-
     const data = {
       postId: 'p1',
       referer: 'referer',
@@ -215,11 +210,36 @@ describe('reading streaks', () => {
     };
     await expectSuccessfulBackground(worker, data);
 
-    const streak2 = await con
-      .getRepository(UserStreak)
-      .findOne({ where: { userId: 'u1' } });
-    expect(streak2?.updatedAt).toEqual(streak1?.updatedAt);
-    expect(streak2?.currentStreak).toEqual(streak1?.currentStreak);
+    const streak = await con.getRepository(UserStreak).findOne({
+      where: { lastViewAt: new Date('2024-01-26T17:17Z') },
+    });
+    expect(streak).toBeNull();
+  });
+
+  it('does not update reading streak if userId does not match existing user', async () => {
+    const data = {
+      postId: 'p1',
+      userId: '__this_userId_should_not_exist__',
+      referer: 'referer',
+      agent: 'agent',
+      ip: '127.0.0.1',
+      timestamp: new Date('2024-01-26T17:17Z'),
+    };
+    await expectSuccessfulBackground(worker, data);
+
+    const streak = await con.getRepository(UserStreak).findOne({
+      where: { lastViewAt: new Date('2024-01-26T17:17Z') },
+    });
+    expect(streak).toBeNull();
+  });
+
+  it('should start a reading streak if there was no row in user_streak table', async () => {
+    await runTest('2024-01-26T17:17Z', undefined, null, {
+      currentStreak: 1,
+      totalStreak: 1,
+      maxStreak: 1,
+      lastViewAt: new Date('2024-01-26T17:17Z'),
+    });
   });
 
   it('should start a reading streak if there was none before', async () => {

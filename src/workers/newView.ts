@@ -1,5 +1,5 @@
 import { DataSource, DeepPartial } from 'typeorm';
-import { UserStreak, View } from '../entity';
+import { User, UserStreak, View } from '../entity';
 import { messageToJson, Worker } from './worker';
 import { TypeOrmError } from '../errors';
 
@@ -56,6 +56,7 @@ const incrementReadingStreak = async (
   con: DataSource,
   data: DeepPartial<View>,
 ): Promise<boolean> => {
+  const users = con.getRepository(User);
   const repo = con.getRepository(UserStreak);
   const { userId, timestamp } = data;
 
@@ -68,8 +69,12 @@ const incrementReadingStreak = async (
   // TODO: This code is temporary here for now because we didn't run the migration yet,
   // so not every user is going to have a row in the user_streak table and we need to create it.
   // We can get rid of it once/if we implement the migration in https://dailydotdev.atlassian.net/browse/MI-70
-  const existing = await repo.findOne({ where: { userId } });
-  if (!existing) {
+  const user = await users.findOne({
+    where: { id: userId },
+    relations: ['streak'],
+  });
+  const streak = await user?.streak;
+  if (user && !streak) {
     await repo.save(
       repo.create({
         userId,
