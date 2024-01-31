@@ -1,4 +1,4 @@
-import { DataSource, DeepPartial, createQueryBuilder } from 'typeorm';
+import { DataSource, DeepPartial } from 'typeorm';
 import { User, UserStreak, View } from '../entity';
 import { messageToJson, Worker } from './worker';
 import { TypeOrmError } from '../errors';
