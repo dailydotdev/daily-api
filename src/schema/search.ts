@@ -202,7 +202,7 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       { query }: { query: string },
       ctx,
     ): Promise<GQLSearchPostSuggestionsResults> => {
-      const hits: { title: string }[] = await ctx.con.query(
+      const hits: GQLSearchPostSuggestion[] = await ctx.con.query(
         `
             WITH search AS (${getSearchQuery('$1')})
             select post.id, ts_headline(process_text(title), search.query,
