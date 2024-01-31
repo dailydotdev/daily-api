@@ -10,9 +10,9 @@ export enum FeedConfigName {
   Vector = 'vector',
   Onboarding = 'onboarding',
   PersonaliseV20 = 'personalise_v20',
+  PersonaliseV23 = 'personalise_v23',
   VectorV20 = 'vector_v20',
   VectorV21 = 'vector_v21',
-  VectorV22 = 'vector_v22',
   PostSimilarity = 'post_similarity',
 }
 
@@ -81,7 +81,7 @@ export interface IFeedClient {
 export type FeedVersion =
   | '20'
   | '21'
-  | '22'
+  | '23'
   | 'popular'
   | 'onboarding'
   | 'post_similarity';
