@@ -39,6 +39,7 @@ import {
   uploadDevCardBackground,
   uploadProfileCover,
   checkAndClearUserStreak,
+  GQLUserStreakTz,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -846,14 +847,16 @@ export const resolvers: IResolvers<any, Context> = {
         .getRawMany();
     },
     userStreak: async (_, __, ctx: Context, info): Promise<GQLUserStreak> => {
-      const streak = await graphorm.queryOneOrFail<GQLUserStreak>(
+      const streak = await graphorm.queryOneOrFail<GQLUserStreakTz>(
         ctx,
         info,
         (builder) => ({
-          queryBuilder: builder.queryBuilder.where(
-            `"${builder.alias}"."userId" = :id`,
-            { id: ctx.userId },
-          ),
+          queryBuilder: builder.queryBuilder
+            .addSelect(
+              `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz"`,
+            )
+            .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
+            .where(`"${builder.alias}"."userId" = :id`, { id: ctx.userId }),
           ...builder,
         }),
       );

@@ -429,6 +429,34 @@ describe('query userStreaks', () => {
     jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
     await expectStreak(5, 5, lastViewAt);
   });
+
+  it('should reset streak when considering user timezone', async () => {
+    loggedUser = '1';
+    const tz = 'America/Tijuana';
+    await con.getRepository(User).update({ id: loggedUser }, { timezone: tz });
+    const fakeToday = new Date(2024, 0, 6); // Saturday
+    const lastViewAt = subDays(fakeToday, 2); // Thursday
+    const lastViewAtTz = addHours(lastViewAt, 22); // by UTC time, this should be Friday
+    // No reset should happen if we are not considering timezone
+    // but here, it should reset
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 0, lastViewAtTz);
+  });
+
+  it('should not reset streak when considering user timezone', async () => {
+    loggedUser = '1';
+    const tz = 'Asia/Manila';
+    await con.getRepository(User).update({ id: loggedUser }, { timezone: tz });
+    const fakeToday = new Date(2024, 0, 6); // Saturday
+    const lastViewAt = subDays(fakeToday, 2); // Thursday
+    const lastViewAtTz = addHours(lastViewAt, 22); // by UTC time, this should still be Thursday
+    // Reset should happen if we are not considering timezone
+    // but here, it should not reset since from that time in Asia/Manila, it is already Friday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 5, lastViewAtTz);
+  });
 });
 
 describe('query referredUsers', () => {

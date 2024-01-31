@@ -29,6 +29,11 @@ export interface GQLUserStreak {
   userId: string;
 }
 
+export interface GQLUserStreakTz extends GQLUserStreak {
+  timezone: string;
+  lastViewAtTz: Date;
+}
+
 export const fetchUser = async (
   userId: string,
   con: DataSource,
@@ -378,15 +383,16 @@ export const clearUserStreak = async (
 export const checkAndClearUserStreak = async (
   ctx: Context,
   info: GraphQLResolveInfo,
-  streak: GQLUserStreak,
+  streak: GQLUserStreakTz,
 ): Promise<boolean> => {
-  const { lastViewAt } = streak;
+  const { lastViewAtTz: lastViewAt, timezone: timeZone } = streak;
 
   if (!lastViewAt) {
     return false;
   }
 
-  const today = new Date();
+  const timeZonedToday = new Date().toLocaleDateString('en', { timeZone });
+  const today = new Date(timeZonedToday);
   const day = today.getDay();
   const difference = differenceInDays(today, lastViewAt);
 
