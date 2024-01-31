@@ -92,7 +92,8 @@ import { getTableName, isChanged } from './common';
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
 ): boolean =>
-  freeform.payload.after.content.length >= FREEFORM_POST_MINIMUM_CONTENT_LENGTH;
+  freeform.payload.after.title.length + freeform.payload.after.content.length >=
+  FREEFORM_POST_MINIMUM_CONTENT_LENGTH;
 
 const isFreeformPostChangeLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
