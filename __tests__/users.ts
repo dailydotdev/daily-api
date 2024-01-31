@@ -435,12 +435,13 @@ describe('query userStreaks', () => {
     const tz = 'America/Tijuana';
     await con.getRepository(User).update({ id: loggedUser }, { timezone: tz });
     const fakeToday = new Date(2024, 0, 6); // Saturday
+    const fakeTodayTz = addHours(fakeToday, 16); // To ensure UTC offset would not make today as Friday
     const lastViewAt = subDays(fakeToday, 2); // Thursday
     const lastViewAtTz = addHours(lastViewAt, 22); // by UTC time, this should be Friday
     // No reset should happen if we are not considering timezone
     // but here, it should reset
 
-    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    jest.useFakeTimers({ advanceTimers: true, now: fakeTodayTz });
     await expectStreak(5, 0, lastViewAtTz);
   });
 
@@ -449,12 +450,13 @@ describe('query userStreaks', () => {
     const tz = 'Asia/Manila';
     await con.getRepository(User).update({ id: loggedUser }, { timezone: tz });
     const fakeToday = new Date(2024, 0, 6); // Saturday
+    const fakeTodayTz = addHours(fakeToday, 12); // To ensure UTC offset would not make today as Friday
     const lastViewAt = subDays(fakeToday, 2); // Thursday
     const lastViewAtTz = addHours(lastViewAt, 22); // by UTC time, this should still be Thursday
     // Reset should happen if we are not considering timezone
     // but here, it should not reset since from that time in Asia/Manila, it is already Friday
 
-    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    jest.useFakeTimers({ advanceTimers: true, now: fakeTodayTz });
     await expectStreak(5, 5, lastViewAtTz);
   });
 });
