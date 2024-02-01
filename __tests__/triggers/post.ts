@@ -38,3 +38,21 @@ it('should set tags str of shared post on insert and update', async () => {
     .find({ where: { tagsStr: 'a,b' }, order: { id: 'ASC' }, select: ['id'] });
   expect(obj2.map((x) => x.id)).toEqual(['p1', 'sp']);
 });
+
+it('should set tags str of shared post on update when original post had no tags', async () => {
+  await con.getRepository(SharePost).insert({
+    id: 'sp',
+    shortId: 'sp',
+    title: 'T',
+    sharedPostId: 'p2',
+    sourceId: postsFixture[0].sourceId,
+  });
+  const obj = await con.getRepository(Post).findOneBy({ id: 'sp' });
+  expect(obj.tagsStr).toBeFalsy();
+  await con.getRepository(ArticlePost).update({ id: 'p2' }, { tagsStr: 'a,b' });
+  // Make sure only sp gets affected
+  const obj2 = await con
+    .getRepository(Post)
+    .find({ where: { tagsStr: 'a,b' }, order: { id: 'ASC' }, select: ['id'] });
+  expect(obj2.map((x) => x.id)).toEqual(['p2', 'sp']);
+});
