@@ -359,24 +359,11 @@ describe('query anonymousFeed', () => {
 
   it('should return anonymous feed v2', async () => {
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/popular', {
         total_pages: 1,
         page_size: 10,
         fresh_page_size: '4',
         offset: 0,
-        providers: {
-          fresh: {
-            enable: true,
-            remove_engaged_posts: true,
-            page_size_fraction: 0.1,
-          },
-          engaged: {
-            enable: true,
-            remove_engaged_posts: true,
-            page_size_fraction: 1,
-            fallback_provider: 'fresh',
-          },
-        },
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
@@ -389,7 +376,7 @@ describe('query anonymousFeed', () => {
   });
 
   it('should safetly handle a case where the feed is empty', async () => {
-    nock('http://localhost:6000').post('/feed.json').reply(200, {
+    nock('http://localhost:6000').post('/popular').reply(200, {
       data: [],
     });
     const res = await client.query(QUERY, {
@@ -399,7 +386,7 @@ describe('query anonymousFeed', () => {
     expect(res.data).toMatchSnapshot();
   });
 
-  it('should return anonymous feed v2 and ignore existing filters', async () => {
+  it('should return anonymous feed v2 and include blocked filters', async () => {
     loggedUser = '1';
     await con.getRepository(Feed).save({ id: '1', userId: '1' });
     await con.getRepository(FeedTag).save([
@@ -414,24 +401,13 @@ describe('query anonymousFeed', () => {
     ]);
 
     nock('http://localhost:6000')
-      .post('/feed.json', {
+      .post('/popular', {
         total_pages: 1,
         page_size: 10,
         fresh_page_size: '4',
         offset: 0,
-        providers: {
-          fresh: {
-            enable: true,
-            remove_engaged_posts: true,
-            page_size_fraction: 0.1,
-          },
-          engaged: {
-            enable: true,
-            remove_engaged_posts: true,
-            page_size_fraction: 1,
-            fallback_provider: 'fresh',
-          },
-        },
+        blocked_tags: ['python', 'java'],
+        blocked_sources: ['a', 'b'],
         user_id: '1',
       })
       .reply(200, {
