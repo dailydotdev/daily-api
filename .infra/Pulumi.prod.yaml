@@ -72,6 +72,8 @@ config:
     otelTracesSamplerArg: 0.05
     personalizedDigestFeed:
       secure: AAABAGP/d+fM8gESq9WXxiaYwkOKuNYIkM2xsxIh0gBoFnHaoak40gPpBfPYgE2GYZGjjln+XhVt406Ci+IIPcw=
+    popularFeed:
+      secure: AAABAPkvxV6qnIyQxIS/vn7knHmUPD5vIAWDct4xtRdFFwwP8Gr2ZHYJ01ZyzEgL0AjQwF/WpIc23SrI2AJWBPkxu9p2vghyEjX0qdK5
     postScraperOrigin:
       secure: AAABAEUYh/1vRaV7hqp+NfWzHu739GHVadQkJ1veHLTdHjV2kdthStN60SD5VwdPMD7XMLaUu9Yd0jc+gNh57ABjmLigxZnzeTv7ZuEBBzAqPrm/bqCoWEfqdw==
     redisPass:
