@@ -24,6 +24,7 @@ import { GQLPost } from './posts';
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
 interface GQLSearchPostSuggestion {
+  id: string;
   title: string;
 }
 
@@ -83,6 +84,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type SearchPostSuggestion {
+    id: String!
     title: String!
   }
 
@@ -200,10 +202,10 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       { query }: { query: string },
       ctx,
     ): Promise<GQLSearchPostSuggestionsResults> => {
-      const hits: { title: string }[] = await ctx.con.query(
+      const hits: GQLSearchPostSuggestion[] = await ctx.con.query(
         `
             WITH search AS (${getSearchQuery('$1')})
-            select ts_headline(process_text(title), search.query,
+            select post.id, ts_headline(process_text(title), search.query,
                                'StartSel = <strong>, StopSel = </strong>') as title
             from post
                    inner join search on true

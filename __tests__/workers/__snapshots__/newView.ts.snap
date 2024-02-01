@@ -1,5 +1,16 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`reading streaks updates reading streak without a timestamp 1`] = `
+Object {
+  "currentStreak": 5,
+  "lastViewAt": Any<Date>,
+  "maxStreak": 10,
+  "totalStreak": 43,
+  "updatedAt": Any<Date>,
+  "userId": "u1",
+}
+`;
+
 exports[`should not save a new view within a week since the last view 1`] = `
 View {
   "hidden": false,
@@ -26,6 +37,17 @@ View {
   "postId": "p1",
   "referer": "referer",
   "timestamp": 2020-06-11T01:17:00.000Z,
+  "userId": "u1",
+}
+`;
+
+exports[`should save a new view with the provided timestamp 2`] = `
+Object {
+  "currentStreak": 1,
+  "lastViewAt": 2020-06-11T01:17:00.000Z,
+  "maxStreak": 1,
+  "totalStreak": 1,
+  "updatedAt": Any<Date>,
   "userId": "u1",
 }
 `;

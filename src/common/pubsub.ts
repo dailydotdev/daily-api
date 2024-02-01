@@ -379,7 +379,10 @@ type ContentRequestedSubmission = { submissionId: string } & Pick<
   'sourceId' | 'url'
 >;
 type ContentRequestedURL = Pick<ArticlePost, 'id' | 'origin' | 'url'>;
-type ContentRequestedFreeForm = Pick<FreeformPost, 'id' | 'content'> & {
+type ContentRequestedFreeForm = Pick<
+  FreeformPost,
+  'id' | 'content' | 'title'
+> & {
   post_type;
 };
 export type ContentRequested =
@@ -399,6 +402,7 @@ export const notifyFreeformContentRequested = async (
   notifyContentRequested(logger, {
     id: freeform.payload.after.id,
     content: freeform.payload.after.content,
+    title: freeform.payload.after.title,
     post_type: freeform.payload.after.type,
   });
 
