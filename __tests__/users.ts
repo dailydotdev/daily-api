@@ -435,14 +435,13 @@ describe('query userStreaks', () => {
     const tz = 'America/Tijuana';
     await con.getRepository(User).update({ id: loggedUser }, { timezone: tz });
     const fakeToday = new Date(2024, 0, 6); // Saturday
-    const fakeTodayTz = addHours(fakeToday, 16); // To ensure UTC offset would not make today as Friday
-    const lastViewAt = subDays(fakeToday, 2); // Thursday
-    const lastViewAtTz = addHours(lastViewAt, 22); // by UTC time, this should be Friday
+    const fakeTodayTz = addHours(fakeToday, 12); // To ensure UTC offset would not make today as Friday
+    const lastViewAt = subDays(fakeToday, 1); // Friday on UTC - but on user's timezone, this is still Thursday
     // No reset should happen if we are not considering timezone
     // but here, it should reset
 
     jest.useFakeTimers({ advanceTimers: true, now: fakeTodayTz });
-    await expectStreak(5, 0, lastViewAtTz);
+    await expectStreak(5, 0, lastViewAt);
   });
 
   it('should not reset streak when considering user timezone', async () => {

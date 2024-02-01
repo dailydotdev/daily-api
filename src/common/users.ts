@@ -391,7 +391,8 @@ export const checkAndClearUserStreak = async (
     return false;
   }
 
-  const timeZonedToday = new Date().toLocaleDateString('en', { timeZone });
+  const now = new Date();
+  const timeZonedToday = now.toLocaleDateString('en', { timeZone });
   const today = new Date(timeZonedToday);
   const day = today.getDay();
   const difference = differenceInDays(today, lastViewAt);

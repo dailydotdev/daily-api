@@ -855,6 +855,7 @@ export const resolvers: IResolvers<any, Context> = {
             .addSelect(
               `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz"`,
             )
+            .addSelect('u.timezone', 'timezone')
             .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
             .where(`"${builder.alias}"."userId" = :id`, { id: ctx.userId }),
           ...builder,
