@@ -1,10 +1,4 @@
-import {
-  DataSource,
-  Equal,
-  FindOptionsWhere,
-  MoreThan,
-  MoreThanOrEqual,
-} from 'typeorm';
+import { DataSource, Equal, FindOptionsWhere, MoreThan } from 'typeorm';
 import { Cron } from './cron';
 import { User } from '../entity';
 import { notifySeedUserStreak } from '../common';
