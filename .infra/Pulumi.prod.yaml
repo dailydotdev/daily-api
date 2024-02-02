@@ -9,6 +9,7 @@ config:
   api:debeziumDbUser:
     secure: AAABAO0E/09gCux4t78RzYaMt9h+ZVFXNo6KS9mwLuKX11/HvmX7sg==
   api:enablePersonalizedDigest: "true"
+  api:enableUserStreakScheduler: "false"
   api:env:
     accessSecret:
       secure: AAABALdzzBMEk2sKYDjFrWsbsdYJDOvfDfmnOmaj6lvRkds8E6SYw1RNgQ/hpCky9W8BeJXFzu2b0W6jD30KkA==

@@ -10,6 +10,7 @@ import cleanZombieImages from './cleanZombieImages';
 import personalizedDigest from './personalizedDigest';
 import generateSearchInvites from './generateSearchInvites';
 import checkReferralReminder from './checkReferralReminder';
+import seedUserStreaksScheduler from './seedUserStreaksScheduler';
 
 export const crons: Cron[] = [
   updateViews,
@@ -23,4 +24,5 @@ export const crons: Cron[] = [
   personalizedDigest,
   generateSearchInvites,
   checkReferralReminder,
+  seedUserStreaksScheduler,
 ];

@@ -76,6 +76,7 @@ const sourceCreatedTopic = pubsub.topic('api.v1.source-created');
 const generatePersonalizedDigestTopic = pubsub.topic(
   'api.v1.generate-personalized-digest',
 );
+const seedUserStreakTopic = pubsub.topic('api.v1.seed-user-streak');
 const postYggdrasilIdSet = pubsub.topic('api.v1.post-yggdrasil-id-set');
 const postCollectionUpdatedTopic = pubsub.topic(
   'api.v1.post-collection-updated',
@@ -456,6 +457,11 @@ export const notifyPostCollectionUpdated = async (
   log: EventLogger,
   post: ChangeObject<CollectionPost>,
 ): Promise<void> => publishEvent(log, postCollectionUpdatedTopic, { post });
+
+export const notifySeedUserStreak = async (
+  log: EventLogger,
+  users: User[],
+): Promise<void> => publishEvent(log, seedUserStreakTopic, { users });
 
 export const workerSubscribe = (
   logger: pino.Logger,

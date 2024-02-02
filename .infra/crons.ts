@@ -64,4 +64,8 @@ export const crons: Cron[] = [
     name: 'update-tag-recommendations',
     schedule: '5 3 * * 0',
   },
+  {
+    name: 'seed-user-streaks',
+    schedule: '* * * * *',
+  },
 ];
