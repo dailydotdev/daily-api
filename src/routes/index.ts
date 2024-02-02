@@ -14,6 +14,7 @@ import users from './users';
 import redirects from './redirects';
 import webhooks from './webhooks';
 import localAds from './localAds';
+import automations from './automations';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -32,6 +33,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(users, { prefix: '/v1/users' });
   fastify.register(webhooks, { prefix: '/webhooks' });
   fastify.register(redirects);
+  fastify.register(automations, { prefix: '/auto' });
 
   if (process.env.NODE_ENV === 'development') {
     fastify.register(localAds);
