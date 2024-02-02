@@ -2,7 +2,11 @@ import * as gcp from '@pulumi/gcp';
 import * as k8s from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import { Input, ProviderResource } from '@pulumi/pulumi';
-import {digestDeadLetter, personalizedDigestWorkers, workers} from './workers';
+import {
+  digestDeadLetter,
+  personalizedDigestWorkers,
+  workers,
+} from './workers';
 import { crons } from './crons';
 import {
   config,
@@ -18,13 +22,14 @@ import {
   Redis,
   detectIsAdhocEnv,
   SqlDatabase,
-  Stream
+  Stream,
 } from '@dailydotdev/pulumi-common';
 
 const isAdhocEnv = detectIsAdhocEnv();
 const name = 'api';
 const debeziumTopicName = `${name}.changes`;
-const isPersonalizedDigestEnabled = config.require('enablePersonalizedDigest') === 'true';
+const isPersonalizedDigestEnabled =
+  config.require('enablePersonalizedDigest') === 'true';
 
 const { image, imageTag } = getImageAndTag(`us.gcr.io/daily-ops/daily-${name}`);
 
@@ -101,7 +106,10 @@ if (isPersonalizedDigestEnabled) {
   createSubscriptionsFromWorkers(
     name,
     isAdhocEnv,
-    addLabelsToWorkers(personalizedDigestWorkers, { app: name, subapp: 'personalized-digest' }),
+    addLabelsToWorkers(personalizedDigestWorkers, {
+      app: name,
+      subapp: 'personalized-digest',
+    }),
     { dependsOn: [deadLetterTopic] },
   );
 }
@@ -208,12 +216,8 @@ if (isAdhocEnv) {
         labels: { app: name },
         targetAverageValue: 50,
       },
-      ports: [
-        { containerPort: 9464, name: 'metrics' },
-      ],
-      servicePorts: [
-        { targetPort: 9464, port: 9464, name: 'metrics' },
-      ],
+      ports: [{ containerPort: 9464, name: 'metrics' }],
+      servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       podAnnotations: {
         'prometheus.io/scrape': 'true',
         'prometheus.io/port': '9464',
@@ -233,17 +237,13 @@ if (isAdhocEnv) {
         labels: { app: name, subapp: 'personalized-digest' },
         targetAverageValue: 50,
       },
-      ports: [
-        { containerPort: 9464, name: 'metrics' },
-      ],
-      servicePorts: [
-        { targetPort: 9464, port: 9464, name: 'metrics' },
-      ],
+      ports: [{ containerPort: 9464, name: 'metrics' }],
+      servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       podAnnotations: {
         'prometheus.io/scrape': 'true',
         'prometheus.io/port': '9464',
       },
-    })
+    });
   }
 } else {
   appsArgs = [
@@ -259,6 +259,7 @@ if (isAdhocEnv) {
       createService: true,
       enableCdn: true,
       disableLifecycle: true,
+      serviceTimeout: 60,
       ...jwtVols,
     },
     {
@@ -322,7 +323,7 @@ if (isAdhocEnv) {
         labels: { app: name, subapp: 'personalized-digest' },
         targetAverageValue: 100,
       },
-    })
+    });
   }
 }
 
