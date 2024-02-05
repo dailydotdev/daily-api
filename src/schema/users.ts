@@ -32,11 +32,14 @@ import {
   getInviteLink,
   getShortUrl,
   getUserReadingRank,
+  GQLUserStreak,
   isValidHttpUrl,
   TagsReadingStatus,
   uploadAvatar,
   uploadDevCardBackground,
   uploadProfileCover,
+  checkAndClearUserStreak,
+  GQLUserStreakTz,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -95,13 +98,6 @@ export interface GQLUser {
   cover?: string;
   readme?: string;
   readmeHtml?: string;
-}
-
-export interface GQLUserStreak {
-  max?: number;
-  total?: number;
-  current?: number;
-  lastViewAt?: Date;
 }
 
 export interface GQLView {
@@ -850,14 +846,30 @@ export const resolvers: IResolvers<any, Context> = {
         .orderBy('date')
         .getRawMany();
     },
-    userStreak: (_, __, ctx: Context, info): Promise<GQLUserStreak> =>
-      graphorm.queryOneOrFail<GQLUserStreak>(ctx, info, (builder) => ({
-        queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."userId" = :id`,
-          { id: ctx.userId },
-        ),
-        ...builder,
-      })),
+    userStreak: async (_, __, ctx: Context, info): Promise<GQLUserStreak> => {
+      const streak = await graphorm.queryOneOrFail<GQLUserStreakTz>(
+        ctx,
+        info,
+        (builder) => ({
+          queryBuilder: builder.queryBuilder
+            .addSelect(
+              `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz"`,
+            )
+            .addSelect('u.timezone', 'timezone')
+            .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
+            .where(`"${builder.alias}"."userId" = :id`, { id: ctx.userId }),
+          ...builder,
+        }),
+      );
+
+      const hasClearedStreak = checkAndClearUserStreak(ctx, info, streak);
+
+      if (hasClearedStreak) {
+        return { ...streak, current: 0 };
+      }
+
+      return streak;
+    },
     userReads: async (): Promise<number> => {
       // Kept for backwards compatability
       return 0;

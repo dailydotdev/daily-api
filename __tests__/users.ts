@@ -36,6 +36,7 @@ import {
   User,
   View,
   UserPersonalizedDigest,
+  UserStreak,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
@@ -314,13 +315,148 @@ describe('query userStreaks', () => {
     }
   }`;
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('should not allow unauthenticated users', () =>
     testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
 
-  it('should return the user stats', async () => {
+  it('should return the user streaks', async () => {
     loggedUser = '1';
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
+  });
+
+  it('should return the user streaks when last view is null', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+  });
+
+  const expectStreak = async (
+    currentStreak: number,
+    expectedCurrentStreak: number,
+    lastViewAt: Date,
+  ) => {
+    const repo = con.getRepository(UserStreak);
+    await repo.update({ userId: loggedUser }, { currentStreak, lastViewAt });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+
+    const streak = await repo.findOneBy({ userId: loggedUser });
+    expect(streak.currentStreak).toEqual(expectedCurrentStreak);
+  };
+
+  it('should reset streak on Saturday when last read is Thursday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 6); // Saturday
+    const lastViewAt = subDays(fakeToday, 2); // Thursday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 0, lastViewAt);
+  });
+
+  it('should reset streak on Sunday when last read is Thursday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 7); // Sunday
+    const lastViewAt = subDays(fakeToday, 3); // Thursday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 0, lastViewAt);
+  });
+
+  it('should not reset streak on Saturday when last read is Friday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 6); // Saturday
+    const lastViewAt = subDays(fakeToday, 1); // Friday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 5, lastViewAt);
+  });
+
+  it('should not reset streak on Sunday when last read is Friday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 7); // Sunday
+    const lastViewAt = subDays(fakeToday, 2); // Friday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 5, lastViewAt);
+  });
+
+  it('should reset streak on Monday when last read was Thursday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 8); // Monday
+    const lastViewAt = subDays(fakeToday, 4); // Thursday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 0, lastViewAt);
+  });
+
+  it('should not reset streak on Monday when last read was Friday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 8); // Monday
+    const lastViewAt = subDays(fakeToday, 3); // Friday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 5, lastViewAt);
+  });
+
+  it('should reset streak on Tuesday when last read was Friday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 9); // Tuesday
+    const lastViewAt = subDays(fakeToday, 4); // Friday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 0, lastViewAt);
+  });
+
+  it('should not reset streak on Tuesday when last read was Monday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 9); // Tuesday
+    const lastViewAt = subDays(fakeToday, 1); // Monday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 5, lastViewAt);
+  });
+
+  it('should not reset streak if last view is the same day today', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 9); // Tuesday
+    const lastViewAt = subDays(fakeToday, 0); // Tuesday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 5, lastViewAt);
+  });
+
+  it('should reset streak when considering user timezone', async () => {
+    loggedUser = '1';
+    const tz = 'America/Tijuana';
+    await con.getRepository(User).update({ id: loggedUser }, { timezone: tz });
+    const fakeToday = new Date(2024, 0, 6); // Saturday
+    const fakeTodayTz = addHours(fakeToday, 12); // To ensure UTC offset would not make today as Friday
+    const lastViewAt = subDays(fakeToday, 1); // Friday on UTC - but on user's timezone, this is still Thursday
+    // No reset should happen if we are not considering timezone
+    // but here, it should reset
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeTodayTz });
+    await expectStreak(5, 0, lastViewAt);
+  });
+
+  it('should not reset streak when considering user timezone', async () => {
+    loggedUser = '1';
+    const tz = 'Asia/Manila';
+    await con.getRepository(User).update({ id: loggedUser }, { timezone: tz });
+    const fakeToday = new Date(2024, 0, 6); // Saturday
+    const fakeTodayTz = addHours(fakeToday, 12); // To ensure UTC offset would not make today as Friday
+    const lastViewAt = subDays(fakeToday, 2); // Thursday
+    const lastViewAtTz = addHours(lastViewAt, 22); // by UTC time, this should still be Thursday
+    // Reset should happen if we are not considering timezone
+    // but here, it should not reset since from that time in Asia/Manila, it is already Friday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeTodayTz });
+    await expectStreak(5, 5, lastViewAtTz);
   });
 });
 

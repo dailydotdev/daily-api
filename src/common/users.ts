@@ -1,9 +1,12 @@
 import { getPostCommenterIds } from './post';
-import { Post, User as DbUser } from './../entity';
-import { isSameDay } from 'date-fns';
-import { DataSource, In, Not } from 'typeorm';
+import { Post, User as DbUser, UserStreak } from './../entity';
+import { differenceInDays, isSameDay } from 'date-fns';
+import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
 import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
+import { Context } from '../Context';
+import { GraphQLResolveInfo } from 'graphql';
+import { getTodayTz } from './date';
 
 export interface User {
   id: string;
@@ -17,6 +20,19 @@ export interface User {
   username?: string;
   timezone?: string;
   acceptedMarketing?: boolean;
+}
+
+export interface GQLUserStreak {
+  max?: number;
+  total?: number;
+  current?: number;
+  lastViewAt?: Date;
+  userId: string;
+}
+
+export interface GQLUserStreakTz extends GQLUserStreak {
+  timezone: string;
+  lastViewAtTz: Date;
 }
 
 export const fetchUser = async (
@@ -338,4 +354,57 @@ export const getUserReadingRank = async (
     readToday: isSameDay(lastReadTime, now),
     tags,
   };
+};
+
+export enum Day {
+  Sunday,
+  Monday,
+  Tuesday,
+  Wednesday,
+  Thursday,
+  Friday,
+  Saturday,
+}
+
+export const Weekends = [Day.Sunday, Day.Saturday];
+export const FREEZE_DAYS_IN_A_WEEK = Weekends.length;
+export const MISSED_LIMIT = 1;
+
+export const clearUserStreak = async (
+  con: DataSource | EntityManager,
+  userId,
+): Promise<boolean> => {
+  const result = await con
+    .getRepository(UserStreak)
+    .update({ userId }, { currentStreak: 0, updatedAt: new Date() });
+
+  return result.affected > 0;
+};
+
+export const checkAndClearUserStreak = async (
+  ctx: Context,
+  info: GraphQLResolveInfo,
+  streak: GQLUserStreakTz,
+): Promise<boolean> => {
+  const { lastViewAtTz: lastViewAt, timezone } = streak;
+
+  if (!lastViewAt) {
+    return false;
+  }
+
+  const today = getTodayTz(timezone);
+  const day = today.getDay();
+  const difference = differenceInDays(today, lastViewAt);
+
+  // Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
+  // Due to the fact that when Monday comes, we will clear it anyway when we notice the gap in Friday
+  if (
+    (day === Day.Sunday && difference > FREEZE_DAYS_IN_A_WEEK) ||
+    (day === Day.Monday && difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT) ||
+    (day > Day.Monday && difference > MISSED_LIMIT)
+  ) {
+    return clearUserStreak(ctx.con, ctx.userId);
+  }
+
+  return false;
 };
