@@ -72,12 +72,16 @@ config:
     otelTracesSamplerArg: 0.05
     personalizedDigestFeed:
       secure: AAABAGP/d+fM8gESq9WXxiaYwkOKuNYIkM2xsxIh0gBoFnHaoak40gPpBfPYgE2GYZGjjln+XhVt406Ci+IIPcw=
+    popularFeed:
+      secure: AAABAPkvxV6qnIyQxIS/vn7knHmUPD5vIAWDct4xtRdFFwwP8Gr2ZHYJ01ZyzEgL0AjQwF/WpIc23SrI2AJWBPkxu9p2vghyEjX0qdK5
     postScraperOrigin:
       secure: AAABAEUYh/1vRaV7hqp+NfWzHu739GHVadQkJ1veHLTdHjV2kdthStN60SD5VwdPMD7XMLaUu9Yd0jc+gNh57ABjmLigxZnzeTv7ZuEBBzAqPrm/bqCoWEfqdw==
     redisPass:
       secure: AAABANFezuRPJ0g9WusbSHLxDXj8VAzDXUPHnQoMgn2bqt+Txwn/SfVvApyjx2lya+riz/+Ro31zCjlBwwj06S7LSi0=
     redisPort:
       secure: AAABABhjFqukaljivmDU5MmPI9UZr6axFjlVVldUV+XnpBWJ
+    roasterUrl:
+      secure: AAABAG345FgrKQUdnHkiyTstCqLN33wENnz6dIoBkxqaUAbJPS2h+kPwSH/W0i8+TWHmE4npH37runeN8qm/fyoZxz425ATWQsyrTVJU4KMAApeHwGUI4pgtAvDB11x96eWDX5SBLW2t4UemyaHXw1kYagdwWkd9LP4e3j8E7oKXJE7YwHRaIT4LI09JoTQWTuMLwYfZY1vWzAy5BOHqouf1v1+hGWWSF+NTdFHHkw==
     scraperUrl:
       secure: AAABALFXdGGbuGr3p/bpvpYyWy/vnsRVXk/ndp7Vv4BY0tWPZG1uz3E3uhfkvA==
     sendgridApiKey:

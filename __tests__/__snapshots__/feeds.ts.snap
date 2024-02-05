@@ -905,7 +905,7 @@ Object {
 }
 `;
 
-exports[`query anonymousFeed should return anonymous feed v2 and ignore existing filters 1`] = `
+exports[`query anonymousFeed should return anonymous feed v2 and include blocked filters 1`] = `
 Object {
   "anonymousFeed": Object {
     "edges": Array [

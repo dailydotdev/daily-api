@@ -11,7 +11,6 @@ import { FeedClient } from './clients';
 import {
   FeedPreferencesConfigGenerator,
   FeedUserStateConfigGenerator,
-  SimpleFeedConfigGenerator,
 } from './configs';
 import { SnotraClient } from '../snotra';
 
@@ -111,22 +110,15 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
       }),
     ),
     popular: new FeedGenerator(
-      feedClient,
-      new SimpleFeedConfigGenerator({
-        providers: {
-          fresh: {
-            enable: true,
-            remove_engaged_posts: true,
-            page_size_fraction: 0.1,
-          },
-          engaged: {
-            enable: true,
-            remove_engaged_posts: true,
-            page_size_fraction: 1,
-            fallback_provider: 'fresh',
-          },
+      new FeedClient(process.env.POPULAR_FEED),
+      new FeedPreferencesConfigGenerator(
+        {},
+        {
+          includePostTypes: true,
+          includeBlockedSources: true,
+          includeBlockedTags: true,
         },
-      }),
+      ),
       'popular',
     ),
     onboarding: new FeedGenerator(
