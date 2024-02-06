@@ -36,7 +36,7 @@ export class DevCard {
   @Column({ type: 'enum', enum: DevCardTheme, default: DevCardTheme.Default })
   theme: DevCardTheme;
 
-  @Column({ type: 'bool' })
+  @Column({ type: 'bool', default: false })
   isProfileCover: boolean;
 
   @Column({ type: 'bool', default: true })

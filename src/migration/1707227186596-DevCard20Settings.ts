@@ -11,7 +11,7 @@ export class DevCard20Settings1707227186596 implements MigrationInterface {
       `ALTER TABLE "dev_card" ADD "theme" "public"."dev_card_theme_enum" NOT NULL DEFAULT 'default'`,
     );
     await queryRunner.query(
-      `ALTER TABLE "dev_card" ADD "isProfileCover" boolean NOT NULL`,
+      `ALTER TABLE "dev_card" ADD "isProfileCover" boolean NOT NULL DEFAULT false`,
     );
     await queryRunner.query(
       `ALTER TABLE "dev_card" ADD "showBorder" boolean NOT NULL DEFAULT true`,
