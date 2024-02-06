@@ -33,7 +33,7 @@ export class DevCard {
   @Column({ type: 'text', nullable: true })
   background: string | null;
 
-  @Column({ type: 'enum', enum: DevCardTheme, default: DevCardTheme.Default })
+  @Column({ type: 'text', default: DevCardTheme.Default })
   theme: DevCardTheme;
 
   @Column({ type: 'bool', default: false })

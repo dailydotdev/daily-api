@@ -5,10 +5,7 @@ export class DevCard20Settings1707227186596 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE TYPE "public"."dev_card_theme_enum" AS ENUM('default', 'iron', 'bronze', 'silver', 'gold', 'platinum', 'diamond', 'legendary')`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "dev_card" ADD "theme" "public"."dev_card_theme_enum" NOT NULL DEFAULT 'default'`,
+      `ALTER TABLE "dev_card" ADD "theme" text NOT NULL DEFAULT 'default'`,
     );
     await queryRunner.query(
       `ALTER TABLE "dev_card" ADD "isProfileCover" boolean NOT NULL DEFAULT false`,
@@ -24,6 +21,5 @@ export class DevCard20Settings1707227186596 implements MigrationInterface {
       `ALTER TABLE "dev_card" DROP COLUMN "isProfileCover"`,
     );
     await queryRunner.query(`ALTER TABLE "dev_card" DROP COLUMN "theme"`);
-    await queryRunner.query(`DROP TYPE "public"."dev_card_theme_enum"`);
   }
 }
