@@ -76,6 +76,7 @@ import {
   notifyPostCollectionUpdated,
   notifyUserReadmeUpdated,
   triggerTypedEvent,
+  notifyDevCardUnlocked
 } from '../../common';
 import { ChangeMessage } from '../../types';
 import { DataSource } from 'typeorm';
@@ -88,6 +89,7 @@ import { TypeOrmError } from '../../errors';
 import { CommentReport } from '../../entity/CommentReport';
 import { reportCommentReasons } from '../../schema/comments';
 import { getTableName, isChanged } from './common';
+import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from "../notifications/devCardUnlocked";
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -299,6 +301,12 @@ const onUserChange = async (
           throw ex;
         }
       }
+    }
+    if (
+      data.payload.after.reputation >= DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD &&
+      data.payload.before.reputation < DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD
+    ) {
+        await notifyDevCardUnlocked(logger, data.payload.after.id);
     }
     if (
       data.payload.before.infoConfirmed &&

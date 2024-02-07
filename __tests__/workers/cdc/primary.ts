@@ -14,8 +14,8 @@ import {
   PostRelation,
   PostRelationType,
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
-  FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
-} from '../../../src/entity';
+  FREEFORM_POST_MINIMUM_CHANGE_LENGTH, UserAction, UserActionType
+} from "../../../src/entity";
 import {
   notifyCommentCommented,
   notifyCommentUpvoteCanceled,
@@ -96,6 +96,7 @@ import { TypeOrmError } from '../../../src/errors';
 import { SourceMemberRoles } from '../../../src/roles';
 import { CommentReport } from '../../../src/entity/CommentReport';
 import { usersFixture } from '../../fixture/user';
+import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from "../../../src/workers/notifications/devCardUnlocked";
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -643,6 +644,42 @@ describe('user', () => {
     );
     const state = await con.getRepository(UserState).find();
     expect(state.length).toEqual(1);
+  });
+
+  it('should create user action when the user had passed the reputation threshold for devcard unlock notification', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      reputation: DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD,
+    };
+    await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: base,
+          op: 'u',
+          table: 'user',
+        }),
+    );
+    const devCardUnlockedAction = await con.getRepository(UserAction).findOneBy({ userId: after.id })
+    expect(devCardUnlockedAction).toEqual(UserActionType.DevCardUnlocked);
+  });
+
+  it('should return null if the user action is already created', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      reputation: DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD,
+    };
+    after.id = '1234567890123456789012345678901234567'; // 37 characters - exceeds limit
+      await expectSuccessfulBackground(
+          worker,
+          mockChangeMessage<ObjectType>({
+            after,
+            before: base,
+            op: 'u',
+            table: 'user',
+          }),
+      );
+      //TODO: check if WE ARE RETURNING
   });
 
   it('should notify on user readme updated', async () => {

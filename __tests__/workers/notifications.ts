@@ -106,6 +106,20 @@ it('should add community picks granted notification', async () => {
   });
 });
 
+it('should add devcard unlocked notification', async () => {
+  const worker = await import(
+      '../../src/workers/notifications/devCardUnlocked'
+      );
+  const actual = await invokeNotificationWorker(worker.default, {
+    userId: '1',
+  });
+  expect(actual.length).toEqual(1);
+  expect(actual[0].type).toEqual('dev_card_unlocked');
+  expect(actual[0].ctx).toEqual({
+    userIds: ['1'],
+  });
+});
+
 describe('source member role changed', () => {
   const baseMember = {
     userId: '1',

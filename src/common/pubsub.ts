@@ -81,6 +81,7 @@ const postCollectionUpdatedTopic = pubsub.topic(
   'api.v1.post-collection-updated',
 );
 const userReadmeUpdatedTopic = pubsub.topic('api.v1.user-readme-updated');
+const devCardUnlockedTopic = pubsub.topic('dev_card-unlocked');
 
 export enum NotificationReason {
   New = 'new',
@@ -456,6 +457,14 @@ export const notifyPostCollectionUpdated = async (
   log: EventLogger,
   post: ChangeObject<CollectionPost>,
 ): Promise<void> => publishEvent(log, postCollectionUpdatedTopic, { post });
+
+export const notifyDevCardUnlocked = async (
+  log: EventLogger,
+  userId: string,
+): Promise<void> =>
+  publishEvent(log, devCardUnlockedTopic, {
+    userId,
+  });
 
 export const workerSubscribe = (
   logger: pino.Logger,

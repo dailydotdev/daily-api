@@ -2,6 +2,7 @@ import { PostType, FreeformPost } from '../entity';
 import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
 import {
+  generateDevCard,
   notificationsLink,
   scoutArticleLink,
   squadCreateLink,
@@ -92,6 +93,7 @@ export const notificationTitleMap: Record<
     `<b>${ctx.doneBy.username}</b> <span class="text-theme-color-cabbage">mentioned you</span> on a post in <b>${ctx.source.name}</b>.`,
   collection_updated: (ctx: NotificationPostContext) =>
     `The collection "<b>${ctx.post.title}</b>" just got updated with new details`,
+  dev_card_unlocked: () => 'DevCard unlocked!',
 };
 
 export const generateNotificationMap: Record<
@@ -296,4 +298,11 @@ export const generateNotificationMap: Record<
       .avatarManySources(ctx.sources)
       .numTotalAvatars(ctx.total)
       .uniqueKey(ctx.post.metadataChangedAt?.toString()),
+  dev_card_unlocked: (builder) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .description(
+        'You can now generate your own DevCard to showcase your daily.dev achievements.',
+      )
+      .targetUrl(generateDevCard),
 };
