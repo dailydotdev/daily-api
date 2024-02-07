@@ -30,7 +30,7 @@ interface FavoriteSourcesProps {
   limit: number;
 }
 
-export const generateGetFavoriteSources = (
+export const generateFavoriteSourcesQuery = (
   con: DataSource,
   userId: string,
   { alias = 'source', limit = 5 }: Partial<FavoriteSourcesProps> = {},
@@ -67,7 +67,7 @@ export const getFavoriteSourcesIds = async (
   userId: string,
   limit = 5,
 ): Promise<string[]> => {
-  const query = generateGetFavoriteSources(con, userId, { limit });
+  const query = generateFavoriteSourcesQuery(con, userId, { limit });
   const sources = await query.getRawMany();
 
   return sources.map((source) => source.id);
@@ -78,7 +78,7 @@ export const getFavoriteSourcesLogos = async (
   userId: string,
 ): Promise<string[]> => {
   const alias = 'source';
-  const query = generateGetFavoriteSources(con, userId, {
+  const query = generateFavoriteSourcesQuery(con, userId, {
     alias,
     limit: 5,
   }).addSelect(`min("${alias}".image)`, 'image');
