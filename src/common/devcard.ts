@@ -25,13 +25,14 @@ export const getMostReadTags = async (
   }));
 };
 
-const getFavoriteSourcesLogos = async (
+export const generateGetFavoriteSources = (
   con: DataSource,
   userId: string,
-): Promise<string[]> => {
-  const sources = await con
+  alias = 'source',
+) => {
+  return con
     .createQueryBuilder()
-    .select('min(source.image)', 'image')
+    .select(`p."sourceId"`, 'id')
     .from(View, 'v')
     .innerJoin(Post, 'p', 'v."postId" = p.id')
     .innerJoin(
@@ -46,15 +47,37 @@ const getFavoriteSourcesLogos = async (
     )
     .innerJoin(
       Source,
-      'source',
-      'source.id = p."sourceId" and source.active = true and source.private = false',
+      alias,
+      `"${alias}".id = p."sourceId" and "${alias}".active = true and "${alias}".private = false`,
     )
     .where('v."userId" = :id', { id: userId })
     .andWhere(`s.count > 10`)
     .groupBy('p."sourceId"')
     .orderBy('count(*) * 1.0 / min(s.count)', 'DESC')
-    .limit(5)
-    .getRawMany();
+    .limit(5);
+};
+
+export const getFavoriteSourcesIds = async (
+  con: DataSource,
+  userId: string,
+): Promise<string[]> => {
+  const query = generateGetFavoriteSources(con, userId);
+  const sources = await query.getRawMany();
+
+  return sources.map((source) => source.id);
+};
+
+export const getFavoriteSourcesLogos = async (
+  con: DataSource,
+  userId: string,
+): Promise<string[]> => {
+  const alias = 'source';
+  const query = generateGetFavoriteSources(con, userId, alias).addSelect(
+    `min("${alias}".image)`,
+    'image',
+  );
+  const sources = await query.getRawMany();
+
   return sources.map((source) => source.image);
 };
 

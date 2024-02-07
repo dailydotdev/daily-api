@@ -20,9 +20,11 @@ import {
   SquadSource,
   User,
   WelcomePost,
+  View,
+  ArticlePost,
 } from '../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
-import { DataSource, In } from 'typeorm';
+import { DataSource, DeepPartial, In } from 'typeorm';
 import { randomUUID } from 'crypto';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
@@ -36,6 +38,7 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from '../src/notifications/common';
+import { cloneDeep } from 'lodash';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -220,6 +223,81 @@ query SourceByFeed($data: String!) {
       image: 'http://image.com/a',
       public: true,
     });
+  });
+});
+
+describe('query favoriteSources', () => {
+  const QUERY = `
+    query FavoriteSources($userId: ID!) {
+      favoriteSources(userId: $userId) {
+        id
+        name
+        image
+        permalink
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, Post, postsFixture);
+  });
+
+  it('should return user favorite publications', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(View)
+      .save(postsFixture.map(({ id }) => ({ postId: id, userId: loggedUser })));
+
+    const clone = cloneDeep(postsFixture);
+    for (let i = 0; i < 10; i += 1) {
+      const updated: DeepPartial<ArticlePost | SharePost>[] = clone.map(
+        (obj) => {
+          const keys = Object.keys(obj);
+          return keys.reduce((final, key) => {
+            const data = obj[key];
+            if (typeof data !== 'string') {
+              return { ...final, [key]: data };
+            }
+
+            if (key === 'yggdrasilId') {
+              return { ...final, yggdrasilId: null };
+            }
+
+            if (
+              [
+                'authorId',
+                'scoutId',
+                'sourceId',
+                'tagsStr',
+                'type',
+                'post_tag',
+              ].includes(key)
+            ) {
+              return { ...final, [key]: data };
+            }
+
+            return { ...final, [key]: data + i.toString() };
+          }, {});
+        },
+      );
+
+      await saveFixtures(con, Post, updated);
+      await con
+        .getRepository(View)
+        .save(updated.map(({ id }) => ({ postId: id, userId: loggedUser })));
+    }
+
+    const views = await con.getRepository(View).findBy({ userId: loggedUser });
+    expect(views.length).toEqual(88);
+
+    const res = await client.query(QUERY, {
+      variables: { userId: loggedUser },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.favoriteSources.length).toEqual(3);
+    // not enough reading to get 5
   });
 });
 

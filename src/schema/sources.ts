@@ -54,6 +54,7 @@ import {
   saveNotificationPreference,
 } from '../notifications/common';
 import { QueryBuilder } from '../graphorm/graphorm';
+import { getFavoriteSourcesIds } from '../common/devcard';
 
 export interface GQLSource {
   id: string;
@@ -282,6 +283,11 @@ export const typeDefs = /* GraphQL */ `
     Get the source that matches the feed
     """
     sourceByFeed(feed: String!): Source @auth
+
+    """
+    Get user's favorite sources
+    """
+    favoriteSources(userId: ID!): [Source]
 
     """
     Get source by ID
@@ -982,6 +988,26 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<GQLSource> => {
       await ensureSourcePermissions(ctx, id);
       return getSourceById(ctx, info, id);
+    },
+    favoriteSources: async (
+      _,
+      { userId }: { userId: string },
+      ctx,
+      info,
+    ): Promise<GQLSource[]> => {
+      const sourceIds = await getFavoriteSourcesIds(ctx.con, userId);
+
+      if (sourceIds.length === 0) {
+        return [];
+      }
+
+      return graphorm.query<GQLSource>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder.andWhere(
+          `${builder.alias}.id IN (:...ids)`,
+          { ids: sourceIds },
+        );
+        return builder;
+      });
     },
     sourceHandleExists: async (_, { handle }: { handle: string }, ctx) => {
       try {
