@@ -25,10 +25,15 @@ export const getMostReadTags = async (
   }));
 };
 
+interface FavoriteSourcesProps {
+  alias: string;
+  limit: number;
+}
+
 export const generateGetFavoriteSources = (
   con: DataSource,
   userId: string,
-  alias = 'source',
+  { alias = 'source', limit = 5 }: Partial<FavoriteSourcesProps> = {},
 ) => {
   return con
     .createQueryBuilder()
@@ -54,14 +59,15 @@ export const generateGetFavoriteSources = (
     .andWhere(`s.count > 10`)
     .groupBy('p."sourceId"')
     .orderBy('count(*) * 1.0 / min(s.count)', 'DESC')
-    .limit(5);
+    .limit(limit);
 };
 
 export const getFavoriteSourcesIds = async (
   con: DataSource,
   userId: string,
+  limit = 5,
 ): Promise<string[]> => {
-  const query = generateGetFavoriteSources(con, userId);
+  const query = generateGetFavoriteSources(con, userId, { limit });
   const sources = await query.getRawMany();
 
   return sources.map((source) => source.id);
@@ -72,10 +78,10 @@ export const getFavoriteSourcesLogos = async (
   userId: string,
 ): Promise<string[]> => {
   const alias = 'source';
-  const query = generateGetFavoriteSources(con, userId, alias).addSelect(
-    `min("${alias}".image)`,
-    'image',
-  );
+  const query = generateGetFavoriteSources(con, userId, {
+    alias,
+    limit: 5,
+  }).addSelect(`min("${alias}".image)`, 'image');
   const sources = await query.getRawMany();
 
   return sources.map((source) => source.image);

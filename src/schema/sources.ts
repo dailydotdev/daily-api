@@ -91,6 +91,11 @@ interface SourceMemberArgs extends ConnectionArguments {
   role?: SourceMemberRoles;
 }
 
+interface FavoriteSourcesArgs {
+  userId: string;
+  limit?: number;
+}
+
 export const typeDefs = /* GraphQL */ `
   """
   Source to discover posts from (usually blogs)
@@ -287,7 +292,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get user's favorite sources
     """
-    favoriteSources(userId: ID!): [Source]
+    favoriteSources(userId: ID!, limit: Int): [Source]
 
     """
     Get source by ID
@@ -991,11 +996,11 @@ export const resolvers: IResolvers<any, Context> = {
     },
     favoriteSources: async (
       _,
-      { userId }: { userId: string },
+      { userId, limit }: FavoriteSourcesArgs,
       ctx,
       info,
     ): Promise<GQLSource[]> => {
-      const sourceIds = await getFavoriteSourcesIds(ctx.con, userId);
+      const sourceIds = await getFavoriteSourcesIds(ctx.con, userId, limit);
 
       if (sourceIds.length === 0) {
         return [];
