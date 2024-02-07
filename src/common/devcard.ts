@@ -1,5 +1,5 @@
 import { subYears } from 'date-fns';
-import { getUserReadingRank, ReadingRank, getUserReadingTags } from './users';
+import { getUserReadingTags } from './users';
 import { Post, Source, View } from '../entity';
 import { User } from '../entity';
 import { ReadingDaysArgs } from './users';
@@ -58,13 +58,12 @@ const getFavoriteSourcesLogos = async (
   return sources.map((source) => source.image);
 };
 
-type DevCardData = {
-  user: User;
+export interface DevCardData {
+  reputation: User['reputation'];
   articlesRead: number;
-  tags: { value: string; count: number }[];
+  tags: string[];
   sourcesLogos: string[];
-  rank: ReadingRank;
-};
+}
 
 export async function getDevCardData(
   userId: string,
@@ -73,14 +72,26 @@ export async function getDevCardData(
   const now = new Date();
   const start = subYears(now, 1).toISOString();
   const end = now.toISOString();
+
   const user = await con.getRepository(User).findOneByOrFail({ id: userId });
-  const [articlesRead, tags, sourcesLogos, rank] = await Promise.all([
+  const [articlesRead, tags, sourcesLogos] = await Promise.all([
     con.getRepository(ActiveView).countBy({ userId }),
-    getMostReadTags(con, { userId, limit: 4, dateRange: { start, end } }),
+    (
+      await getMostReadTags(con, {
+        userId,
+        limit: 5,
+        dateRange: { start, end },
+      })
+    ).map(({ value }) => value),
     getFavoriteSourcesLogos(con, userId),
-    getUserReadingRank(con, userId, user?.timezone, 2),
   ]);
-  return { user, articlesRead, tags, sourcesLogos, rank };
+
+  return {
+    reputation: user.reputation,
+    articlesRead,
+    tags,
+    sourcesLogos,
+  };
 }
 
 const uppercaseTags = ['css', 'html', 'aws', 'gcp'];
