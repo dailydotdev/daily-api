@@ -120,6 +120,25 @@ describe('mutation generateDevCard', () => {
       ),
     );
   });
+
+  it('updates an existing dev card entity', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(DevCard)
+      .insert({ userId: '1', theme: DevCardTheme.Gold });
+    const res = await client.mutate(MUTATION, {
+      variables: { theme: DevCardTheme.Silver.toLocaleUpperCase() },
+    });
+    expect(res.errors).toBeFalsy();
+    const devCards = await con.getRepository(DevCard).find();
+    expect(devCards.length).toEqual(1);
+    expect(devCards[0].theme).toEqual(DevCardTheme.Silver);
+    expect(res.data.generateDevCard.imageUrl).toMatch(
+      new RegExp(
+        `http://localhost:3000/devcards/${devCards[0].userId}.png\\?r=.*`,
+      ),
+    );
+  });
 });
 
 describe('query devCard(id)', () => {
