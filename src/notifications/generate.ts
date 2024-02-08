@@ -298,11 +298,12 @@ export const generateNotificationMap: Record<
       .avatarManySources(ctx.sources)
       .numTotalAvatars(ctx.total)
       .uniqueKey(ctx.post.metadataChangedAt?.toString()),
-  dev_card_unlocked: (builder) =>
+  dev_card_unlocked: (builder, ctx) =>
     builder
       .icon(NotificationIcon.DevCard)
       .description(
         'You can now generate your own DevCard to showcase your daily.dev achievements.',
       )
-      .targetUrl(generateDevCard),
+      .targetUrl(generateDevCard)
+      .uniqueKey(ctx.userIds[0]),
 };
