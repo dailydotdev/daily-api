@@ -81,7 +81,7 @@ const postCollectionUpdatedTopic = pubsub.topic(
   'api.v1.post-collection-updated',
 );
 const userReadmeUpdatedTopic = pubsub.topic('api.v1.user-readme-updated');
-const devCardUnlockedTopic = pubsub.topic('dev-card-unlocked');
+const userReputatioUpdatedTopic = pubsub.topic('user-reputation-updated');
 
 export enum NotificationReason {
   New = 'new',
@@ -458,12 +458,14 @@ export const notifyPostCollectionUpdated = async (
   post: ChangeObject<CollectionPost>,
 ): Promise<void> => publishEvent(log, postCollectionUpdatedTopic, { post });
 
-export const notifyDevCardUnlocked = async (
+export const notifyReputationIncrease = async (
   log: EventLogger,
-  userId: string,
+  user: ChangeObject<User>,
+  userAfter: ChangeObject<User>,
 ): Promise<void> =>
-  publishEvent(log, devCardUnlockedTopic, {
-    userId,
+  publishEvent(log, userReputatioUpdatedTopic, {
+    user,
+    userAfter,
   });
 
 export const workerSubscribe = (
