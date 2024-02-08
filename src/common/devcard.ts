@@ -37,9 +37,9 @@ const getFavoriteSources = async (
   const sources = await con
     .createQueryBuilder()
     .select('min(source.image)', 'image')
-    .select('min(source.name)', 'name')
-    .select('min(source.handle)', 'handle')
-    .select('min(source.type)', 'type')
+    .addSelect('min(source.name)', 'name')
+    .addSelect('min(source.handle)', 'handle')
+    .addSelect('min(source.type)', 'type')
     .from(View, 'v')
     .innerJoin(Post, 'p', 'v."postId" = p.id')
     .innerJoin(
