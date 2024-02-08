@@ -85,7 +85,9 @@ describe('mutation generateDevCard', () => {
     const devCards = await con.getRepository(DevCard).find();
     expect(devCards.length).toEqual(1);
     expect(res.data.generateDevCard.imageUrl).toMatch(
-      new RegExp(`http://localhost:3000/devcards/${devCards[0].id}.png\\?r=.*`),
+      new RegExp(
+        `http://localhost:3000/devcards/${devCards[0].userId}.png\\?r=.*`,
+      ),
     );
   });
 
@@ -99,7 +101,9 @@ describe('mutation generateDevCard', () => {
     expect(devCards.length).toEqual(1);
     expect(devCards[0].theme).toEqual(DevCardTheme.Gold);
     expect(res.data.generateDevCard.imageUrl).toMatch(
-      new RegExp(`http://localhost:3000/devcards/${devCards[0].id}.png\\?r=.*`),
+      new RegExp(
+        `http://localhost:3000/devcards/${devCards[0].userId}.png\\?r=.*`,
+      ),
     );
   });
 
@@ -111,13 +115,15 @@ describe('mutation generateDevCard', () => {
     const devCards = await con.getRepository(DevCard).find();
     expect(devCards.length).toEqual(1);
     expect(res.data.generateDevCard.imageUrl).toMatch(
-      new RegExp(`http://localhost:3000/devcards/${devCards[0].id}.png\\?r=.*`),
+      new RegExp(
+        `http://localhost:3000/devcards/${devCards[0].userId}.png\\?r=.*`,
+      ),
     );
   });
 });
 
 describe('query devCard(id)', () => {
-  const QUERY = `query DevCardById($id: ID!) {
+  const QUERY = `query DevCardByUserId($id: ID!) {
     devCard(id: $id) {
       id
       user {
@@ -143,12 +149,13 @@ describe('query devCard(id)', () => {
   }
 `;
 
+  const userId = '1';
   const devCardId = uuidv4();
 
   beforeEach(async () => {
     await con.getRepository(DevCard).save({
       id: devCardId,
-      userId: '1',
+      userId,
       theme: DevCardTheme.Gold,
       isProfileCover: true,
       showBorder: false,
@@ -160,7 +167,7 @@ describe('query devCard(id)', () => {
       client,
       {
         query: QUERY,
-        variables: { id: devCardId },
+        variables: { id: userId },
       },
       (errors) => {
         expect(errors).toBeFalsy();
@@ -168,13 +175,13 @@ describe('query devCard(id)', () => {
     ));
 
   it('should return not found if there is no devcard', async () => {
-    const res = await client.query(QUERY, { variables: { id: uuidv4() } });
+    const res = await client.query(QUERY, { variables: { id: '42' } });
     expect(res.errors).toBeTruthy();
     expect(res.errors?.[0].message).toMatch(/not found/i);
   });
 
   it('should return stored devcard', async () => {
-    const res = await client.query(QUERY, { variables: { id: devCardId } });
+    const res = await client.query(QUERY, { variables: { id: userId } });
     expect(res.errors).toBeFalsy();
     expect(res.data.devCard).toEqual({
       id: devCardId,
