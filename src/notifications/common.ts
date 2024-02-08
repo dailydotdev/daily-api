@@ -11,7 +11,7 @@ import { ValidationError } from 'apollo-server-errors';
 import { DataSource, EntityManager, IsNull } from 'typeorm';
 import { NotFoundError, TypeOrmError } from '../errors';
 import { ReadStream } from 'fs';
-import { UserNotification } from "../entity";
+import { UserNotification } from '../entity';
 
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',

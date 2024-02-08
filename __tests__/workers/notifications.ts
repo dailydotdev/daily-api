@@ -106,17 +106,39 @@ it('should add community picks granted notification', async () => {
   });
 });
 
-it('should add devcard unlocked notification', async () => {
-  const worker = await import(
-      '../../src/workers/notifications/devCardUnlocked'
+describe('DevCardUnlocked notification', () => {
+  describe('DevCardUnlocked user action does not exist', () => {
+    it('should add devcard unlocked notification if DevCardUnlocked user action does not exist', async () => {
+      const worker = await import(
+        '../../src/workers/notifications/devCardUnlocked'
       );
-  const actual = await invokeNotificationWorker(worker.default, {
-    userId: '1',
+      const actual = await invokeNotificationWorker(worker.default, {
+        userId: '1',
+      });
+      expect(actual.length).toEqual(1);
+      expect(actual[0].type).toEqual('dev_card_unlocked');
+      expect(actual[0].ctx).toEqual({
+        userIds: ['1'],
+      });
+    });
   });
-  expect(actual.length).toEqual(1);
-  expect(actual[0].type).toEqual('dev_card_unlocked');
-  expect(actual[0].ctx).toEqual({
-    userIds: ['1'],
+
+  describe('DevCardUnlocked user actions', () => {
+    beforeEach(async () => {
+      await con.getRepository(UserAction).save({
+        userId: '1',
+        type: UserActionType.DevCardUnlocked,
+      });
+    });
+    it('should return null if DevCard user action exists', async () => {
+      const worker = await import(
+        '../../src/workers/notifications/devCardUnlocked'
+      );
+      const actual = await invokeNotificationWorker(worker.default, {
+        userId: '1',
+      });
+      expect(actual).toEqual(null);
+    });
   });
 });
 

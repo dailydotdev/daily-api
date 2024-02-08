@@ -14,8 +14,8 @@ import {
   PostRelation,
   PostRelationType,
   FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
-  FREEFORM_POST_MINIMUM_CHANGE_LENGTH, UserAction, UserActionType
-} from "../../../src/entity";
+  FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
+} from '../../../src/entity';
 import {
   notifyCommentCommented,
   notifyCommentUpvoteCanceled,
@@ -54,6 +54,7 @@ import {
   notifyPostCollectionUpdated,
   notifyUserReadmeUpdated,
   triggerTypedEvent,
+  notifyDevCardUnlocked,
 } from '../../../src/common';
 import worker from '../../../src/workers/cdc/primary';
 import {
@@ -96,7 +97,7 @@ import { TypeOrmError } from '../../../src/errors';
 import { SourceMemberRoles } from '../../../src/roles';
 import { CommentReport } from '../../../src/entity/CommentReport';
 import { usersFixture } from '../../fixture/user';
-import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from "../../../src/workers/notifications/devCardUnlocked";
+import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from '../../../src/workers/notifications/devCardUnlocked';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -139,6 +140,7 @@ jest.mock('../../../src/common', () => ({
   notifyPostYggdrasilIdSet: jest.fn(),
   notifyPostCollectionUpdated: jest.fn(),
   notifyUserReadmeUpdated: jest.fn(),
+  notifyDevCardUnlocked: jest.fn(),
 }));
 
 let con: DataSource;
@@ -646,40 +648,41 @@ describe('user', () => {
     expect(state.length).toEqual(1);
   });
 
-  it('should create user action when the user had passed the reputation threshold for devcard unlock notification', async () => {
+  it('should call notifyDevCardUnlocked when the user had passed the reputation threshold for devcard unlock notification', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
       reputation: DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD,
     };
     await expectSuccessfulBackground(
-        worker,
-        mockChangeMessage<ObjectType>({
-          after,
-          before: base,
-          op: 'u',
-          table: 'user',
-        }),
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'user',
+      }),
     );
-    const devCardUnlockedAction = await con.getRepository(UserAction).findOneBy({ userId: after.id })
-    expect(devCardUnlockedAction).toEqual(UserActionType.DevCardUnlocked);
+    expect(notifyDevCardUnlocked).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(notifyDevCardUnlocked).mock.calls[0].slice(1)).toEqual([
+      after.id,
+    ]);
   });
 
-  it('should return null if the user action is already created', async () => {
+  it('should NOT call notifyDevCardUnlocked when the user has not passed the reputation threshold for devcard', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
-      reputation: DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD,
+      reputation: 10,
     };
-    after.id = '1234567890123456789012345678901234567'; // 37 characters - exceeds limit
-      await expectSuccessfulBackground(
-          worker,
-          mockChangeMessage<ObjectType>({
-            after,
-            before: base,
-            op: 'u',
-            table: 'user',
-          }),
-      );
-      //TODO: check if WE ARE RETURNING
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'user',
+      }),
+    );
+    expect(notifyDevCardUnlocked).not.toHaveBeenCalled();
   });
 
   it('should notify on user readme updated', async () => {

@@ -11,12 +11,12 @@ interface Data {
 }
 
 const worker: NotificationWorker = {
-  subscription: 'api.dev_card_unlocked-notification',
+  subscription: 'api.dev-card-unlocked-notification',
   handler: async (message, con) => {
     const data: Data = messageToJson(message);
     const userAction = await con
       .getRepository(UserAction)
-      .findOneBy({ userId: data.userId });
+      .findOneBy({ userId: data.userId, type: UserActionType.DevCardUnlocked });
     if (userAction) return null;
     await con.getRepository(UserAction).insert({
       userId: data.userId,
