@@ -27,7 +27,6 @@ import {
   Alerts,
   ArticlePost,
   Comment,
-  DevCard,
   Feature,
   FeatureType,
   FeatureValue,
@@ -1466,86 +1465,6 @@ describe('query readHistory', () => {
       res.data.readHistory.edges[0].node.timestampDb,
     );
     expect(res.data).toMatchSnapshot();
-  });
-});
-
-describe('mutation generateDevCard', () => {
-  const MUTATION = `mutation GenerateDevCard($file: Upload, $url: String){
-    generateDevCard(file: $file, url: $url) {
-      imageUrl
-    }
-  }`;
-
-  it('should not authorize when not logged in', () =>
-    testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-      },
-      'UNAUTHENTICATED',
-    ));
-
-  it('should not validate passed url', () => {
-    loggedUser = '1';
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { url: 'hh::/not-a-valid-url.test' },
-      },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should generate new dev card', async () => {
-    loggedUser = '1';
-    const res = await client.mutate(MUTATION);
-    expect(res.errors).toBeFalsy();
-    const devCards = await con.getRepository(DevCard).find();
-    expect(devCards.length).toEqual(1);
-    expect(res.data.generateDevCard.imageUrl).toMatch(
-      new RegExp(
-        `http://localhost:4000/devcards/${devCards[0].id.replace(
-          /-/g,
-          '',
-        )}.png\\?r=.*`,
-      ),
-    );
-  });
-
-  it('should generate new dev card based from the url', async () => {
-    loggedUser = '1';
-    const url =
-      'https://daily-now-res.cloudinary.com/image/upload/v1634801813/devcard/bg/halloween.jpg';
-    const res = await client.mutate(MUTATION, { variables: { url } });
-    expect(res.errors).toBeFalsy();
-    const devCards = await con.getRepository(DevCard).find();
-    expect(devCards.length).toEqual(1);
-    expect(res.data.generateDevCard.imageUrl).toMatch(
-      new RegExp(
-        `http://localhost:4000/devcards/${devCards[0].id.replace(
-          /-/g,
-          '',
-        )}.png\\?r=.*`,
-      ),
-    );
-  });
-
-  it('should use an existing dev card entity', async () => {
-    loggedUser = '1';
-    await con.getRepository(DevCard).insert({ userId: '1' });
-    const res = await client.mutate(MUTATION);
-    expect(res.errors).toBeFalsy();
-    const devCards = await con.getRepository(DevCard).find();
-    expect(devCards.length).toEqual(1);
-    expect(res.data.generateDevCard.imageUrl).toMatch(
-      new RegExp(
-        `http://localhost:4000/devcards/${devCards[0].id.replace(
-          /-/g,
-          '',
-        )}.png\\?r=.*`,
-      ),
-    );
   });
 });
 
