@@ -41,26 +41,6 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
-  Source for dev card frequent sources
-  """
-  type DevCardSource {
-    """
-    URL of the source's image
-    """
-    image: String!
-
-    """
-    Name of the source
-    """
-    name: String!
-
-    """
-    Permalink to the source
-    """
-    permalink: String!
-  }
-
-  """
   Dev card
   """
   type DevCardData {
@@ -112,7 +92,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Sources logo image URLs
     """
-    sources: [DevCardSource!]!
+    sources: [Source!]!
   }
 
   """
