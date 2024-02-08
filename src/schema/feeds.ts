@@ -53,7 +53,6 @@ import {
   versionToFeedGenerator,
 } from '../integrations/feed';
 import { AuthenticationError } from 'apollo-server-errors';
-import { getUserGrowthBookInstace } from '../growthbook';
 
 interface GQLTagsCategory {
   id: string;
