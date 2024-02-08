@@ -18,6 +18,7 @@ import sourceMemberRoleChanged from './sourceMemberRoleChanged';
 import { TypeOrmError } from '../../errors';
 import postMention from './postMention';
 import { collectionUpdated } from './collectionUpdated';
+import devCardUnlocked from './devCardUnlocked';
 
 export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -62,6 +63,7 @@ const notificationWorkers: NotificationWorker[] = [
   memberJoinedSource,
   sourceMemberRoleChanged,
   collectionUpdated,
+  devCardUnlocked,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

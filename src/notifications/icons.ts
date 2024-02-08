@@ -8,4 +8,5 @@ export enum NotificationIcon {
   Block = 'Block',
   User = 'User',
   Star = 'Star',
+  DevCard = 'DevCard',
 }
