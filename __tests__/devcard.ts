@@ -36,6 +36,7 @@ beforeEach(async () => {
     {
       id: '1',
       name: 'Ido',
+      username: 'ido',
       image: 'https://daily.dev/ido.jpg',
       timezone: 'utc',
       createdAt: new Date(),
@@ -119,15 +120,26 @@ describe('query devCard(id)', () => {
   const QUERY = `query DevCardById($id: ID!) {
     devCard(id: $id) {
       id
-      userId
+      user {
+        ...UserShortInfo
+      }
       createdAt
       theme
       isProfileCover
       showBorder
-      reputation
       articlesRead
       tags
     }
+  }
+
+  fragment UserShortInfo on User {
+    id
+    name
+    image
+    permalink
+    username
+    bio
+    reputation
   }
 `;
 
@@ -166,12 +178,19 @@ describe('query devCard(id)', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.devCard).toEqual({
       id: devCardId,
-      userId: '1',
+      user: {
+        bio: null,
+        id: '1',
+        image: 'https://daily.dev/ido.jpg',
+        name: 'Ido',
+        permalink: 'http://localhost:5002/ido',
+        reputation: 10,
+        username: 'ido',
+      },
       createdAt: expect.any(String),
       theme: DevCardTheme.Gold,
       isProfileCover: true,
       showBorder: false,
-      reputation: 10,
       articlesRead: 0,
       tags: [],
     });

@@ -70,7 +70,7 @@ const getFavoriteSources = async (
 };
 
 export interface DevCardData {
-  reputation: User['reputation'];
+  user: User;
   articlesRead: number;
   tags: string[];
   sources: DevCardSource[];
@@ -98,7 +98,7 @@ export async function getDevCardData(
   ]);
 
   return {
-    reputation: user.reputation,
+    user,
     articlesRead,
     tags,
     sources,
