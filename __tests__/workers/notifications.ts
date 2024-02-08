@@ -106,18 +106,42 @@ it('should add community picks granted notification', async () => {
   });
 });
 
-it('should add devcard unlocked notification', async () => {
+it('should add devcard unlocked notification if user has reached the reputation threshold', async () => {
   const worker = await import(
     '../../src/workers/notifications/devCardUnlocked'
   );
   const actual = await invokeNotificationWorker(worker.default, {
-    userId: '1',
+    user: {
+      id: '1',
+      reputation: 10,
+    },
+    userAfter: {
+      id: '1',
+      reputation: 21,
+    },
   });
   expect(actual.length).toEqual(1);
   expect(actual[0].type).toEqual('dev_card_unlocked');
   expect(actual[0].ctx).toEqual({
     userIds: ['1'],
   });
+});
+
+it('should NOT add devcard unlocked notification if user has NOT reached the reputation threshold', async () => {
+  const worker = await import(
+    '../../src/workers/notifications/devCardUnlocked'
+  );
+  const actual = await invokeNotificationWorker(worker.default, {
+    user: {
+      id: '1',
+      reputation: 10,
+    },
+    userAfter: {
+      id: '1',
+      reputation: 15,
+    },
+  });
+  expect(actual).toEqual(null);
 });
 
 describe('source member role changed', () => {
