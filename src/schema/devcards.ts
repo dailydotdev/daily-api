@@ -156,14 +156,13 @@ export const resolvers: IResolvers<any, Context> = {
     ): Promise<{ imageUrl: string }> => {
       const repo = ctx.con.getRepository(DevCard);
       let devCard: DevCard = await repo.findOneBy({ userId: ctx.userId });
-      if (!devCard) {
-        devCard = await repo.save({
-          userId: ctx.userId,
-          theme: theme?.toLocaleLowerCase() as DevCardTheme | undefined,
-          isProfileCover,
-          showBorder,
-        });
-      }
+      devCard = await repo.save({
+        id: devCard === null ? undefined : devCard.id,
+        userId: ctx.userId,
+        theme: theme?.toLocaleLowerCase() as DevCardTheme | undefined,
+        isProfileCover,
+        showBorder,
+      });
 
       // Avoid caching issues when devcard is generated again
       const randomStr = Math.random().toString(36).substring(2, 5);
