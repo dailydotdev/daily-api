@@ -4,7 +4,6 @@ import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
   Comment,
-  DevCard,
   Feature,
   FeatureType,
   FeatureValue,
@@ -33,10 +32,8 @@ import {
   getShortUrl,
   getUserReadingRank,
   GQLUserStreak,
-  isValidHttpUrl,
   TagsReadingStatus,
   uploadAvatar,
-  uploadDevCardBackground,
   uploadProfileCover,
   checkAndClearUserStreak,
   GQLUserStreakTz,
@@ -362,10 +359,6 @@ export const typeDefs = /* GraphQL */ `
     hits: [SearchReadingHistorySuggestion!]!
   }
 
-  type DevCard {
-    imageUrl: String!
-  }
-
   type ReadingHistory {
     timestamp: DateTime!
     timestampDb: DateTime!
@@ -556,11 +549,6 @@ export const typeDefs = /* GraphQL */ `
     Update user profile information
     """
     updateUserProfile(data: UpdateUserInput, upload: Upload): User @auth
-
-    """
-    Generates or updates the user's Dev Card preferences
-    """
-    generateDevCard(file: Upload, url: String): DevCard @auth
 
     """
     Hide user's read history
@@ -1041,41 +1029,6 @@ export const resolvers: IResolvers<any, Context> = {
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
-    generateDevCard: async (
-      source,
-      { file, url }: { file?: FileUpload; url: string },
-      ctx: Context,
-    ): Promise<{ imageUrl: string }> => {
-      const repo = ctx.con.getRepository(DevCard);
-      let devCard: DevCard = await repo.findOneBy({ userId: ctx.userId });
-      if (!devCard) {
-        devCard = await repo.save({ userId: ctx.userId });
-      } else if (!file && !url) {
-        await repo.update(devCard.id, { background: null });
-      }
-      if (file) {
-        const { createReadStream } = await file;
-        const stream = createReadStream();
-        const { url: backgroundImage } = await uploadDevCardBackground(
-          devCard.id,
-          stream,
-        );
-        await repo.update(devCard.id, { background: backgroundImage });
-      } else if (url) {
-        if (!isValidHttpUrl(url)) {
-          throw new ValidationError('Invalid url');
-        }
-        await repo.update(devCard.id, { background: url });
-      }
-      // Avoid caching issues with the new version
-      const randomStr = Math.random().toString(36).substring(2, 5);
-      return {
-        imageUrl: `${process.env.URL_PREFIX}/devcards/${devCard.id.replace(
-          /-/g,
-          '',
-        )}.png?r=${randomStr}`,
-      };
-    },
     updateUserProfile: async (
       _,
       { data, upload }: GQLUserParameters,

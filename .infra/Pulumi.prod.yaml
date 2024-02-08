@@ -63,6 +63,8 @@ config:
     magniOrigin:
       secure: AAABAHxH1dQ0e4nHwnseCd65qMd7qz3vSsKV/H0vMQIKWjxS4H7BemSLMpPGEH7YsDLUM9hEMw==
     nodeEnv: production
+    ogUrl:
+      secure: AAABAALHhEXgjaHbmM/389iGJ+mAweDwlWup8z1We+zmalk8DXIGAg+jjEC/58kl5VeBJw==
     onesignalApiKey:
       secure: AAABAI/bDI+xz5PMlMZseI2kW5oanHk3z1KcAOZJb+/G8arhgSP1EMdqdOTk0kku1t6KTWtl9+oSSDKWYNH1CG5D+Ac1ZPFAWc/ldmEb/iU=
     onesignalAppId:
