@@ -123,7 +123,7 @@ describe('DevCardUnlocked notification', () => {
     });
   });
 
-  describe('DevCardUnlocked user actions', () => {
+  describe('DevCardUnlocked user action exist', () => {
     beforeEach(async () => {
       await con.getRepository(UserAction).save({
         userId: '1',

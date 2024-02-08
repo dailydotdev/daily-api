@@ -81,7 +81,7 @@ const postCollectionUpdatedTopic = pubsub.topic(
   'api.v1.post-collection-updated',
 );
 const userReadmeUpdatedTopic = pubsub.topic('api.v1.user-readme-updated');
-const devCardUnlockedTopic = pubsub.topic('dev_card-unlocked');
+const devCardUnlockedTopic = pubsub.topic('dev-card-unlocked');
 
 export enum NotificationReason {
   New = 'new',

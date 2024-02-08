@@ -648,7 +648,7 @@ describe('user', () => {
     expect(state.length).toEqual(1);
   });
 
-  it('should call notifyDevCardUnlocked when the user had passed the reputation threshold for devcard unlock notification', async () => {
+  it('should call notifyDevCardUnlocked when the user had passed the reputation threshold', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
       reputation: DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD,
