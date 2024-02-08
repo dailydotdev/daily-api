@@ -54,7 +54,7 @@ import {
   notifyPostCollectionUpdated,
   notifyUserReadmeUpdated,
   triggerTypedEvent,
-  notifyDevCardUnlocked,
+  notifyReputationIncrease,
 } from '../../../src/common';
 import worker from '../../../src/workers/cdc/primary';
 import {
@@ -140,7 +140,7 @@ jest.mock('../../../src/common', () => ({
   notifyPostYggdrasilIdSet: jest.fn(),
   notifyPostCollectionUpdated: jest.fn(),
   notifyUserReadmeUpdated: jest.fn(),
-  notifyDevCardUnlocked: jest.fn(),
+  notifyReputationIncrease: jest.fn(),
 }));
 
 let con: DataSource;
@@ -648,7 +648,7 @@ describe('user', () => {
     expect(state.length).toEqual(1);
   });
 
-  it('should call notifyDevCardUnlocked when the user had passed the reputation threshold', async () => {
+  it('should call notifyReputationIncrease when the user reputation has increased', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
       reputation: DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD,
@@ -662,16 +662,18 @@ describe('user', () => {
         table: 'user',
       }),
     );
-    expect(notifyDevCardUnlocked).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(notifyDevCardUnlocked).mock.calls[0].slice(1)).toEqual([
-      after.id,
-    ]);
+    expect(notifyReputationIncrease).toHaveBeenCalledTimes(1);
+    expect(
+      jest.mocked(notifyReputationIncrease).mock.calls[0].slice(1)[0],
+    ).toEqual(base);
+    expect(
+      jest.mocked(notifyReputationIncrease).mock.calls[0].slice(2)[0],
+    ).toEqual(after);
   });
 
-  it('should NOT call notifyDevCardUnlocked when the user has not passed the reputation threshold for devcard', async () => {
+  it('should NOT call notifyReputationIncrease when the user reputation has not increased', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
-      reputation: 10,
     };
     await expectSuccessfulBackground(
       worker,
@@ -682,7 +684,7 @@ describe('user', () => {
         table: 'user',
       }),
     );
-    expect(notifyDevCardUnlocked).not.toHaveBeenCalled();
+    expect(notifyReputationIncrease).not.toHaveBeenCalled();
   });
 
   it('should notify on user readme updated', async () => {
