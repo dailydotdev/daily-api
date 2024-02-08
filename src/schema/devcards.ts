@@ -176,7 +176,7 @@ export const resolvers: IResolvers<any, Context> = {
         ),
       ).toString();
       const url = new URL(
-        `/devcards/${devCard.userId}.png`,
+        `/devcards/v2/${devCard.userId}.png`,
         process.env.OG_URL,
       );
       url.search = queryStr;
