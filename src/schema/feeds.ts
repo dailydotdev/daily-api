@@ -19,7 +19,6 @@ import { traceResolvers } from './trace';
 import {
   anonymousFeedBuilder,
   AnonymousFeedFilters,
-  applyFeedWhere,
   base64,
   configuredFeedBuilder,
   FeedArgs,
