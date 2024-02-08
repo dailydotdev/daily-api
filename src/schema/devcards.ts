@@ -145,11 +145,8 @@ export const resolvers: IResolvers<any, Context> = {
       ctx: Context,
     ): Promise<DevCardByIdResult> => {
       const res = await ctx.con.getRepository(DevCard).findOneBy({ id });
-      console.log('dev card table', res);
       if (res !== null) {
-        console.log('Before data');
         const data = await getDevCardData(res.userId, ctx.con);
-        console.log('The data', data);
         return { ...res, ...data };
       }
       throw new NotFoundError('DevCard not found');
