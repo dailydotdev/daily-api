@@ -157,14 +157,12 @@ describe('query devCard(id)', () => {
     ));
 
   it('should return not found if there is no devcard', async () => {
-    loggedUser = '1';
     const res = await client.query(QUERY, { variables: { id: uuidv4() } });
     expect(res.errors).toBeTruthy();
     expect(res.errors?.[0].message).toMatch(/not found/i);
   });
 
   it('should return stored devcard', async () => {
-    loggedUser = '1';
     const res = await client.query(QUERY, { variables: { id: devCardId } });
     expect(res.errors).toBeFalsy();
     expect(res.data.devCard).toEqual({
