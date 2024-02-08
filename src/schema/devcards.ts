@@ -50,9 +50,9 @@ export const typeDefs = /* GraphQL */ `
     id: String!
 
     """
-    ID of the user that dev card belongs to
+    The user that dev card belongs to
     """
-    userId: String!
+    user: User!
 
     """
     Timestamp the dev card was created
@@ -73,11 +73,6 @@ export const typeDefs = /* GraphQL */ `
     Whether the dev card has a border, default true
     """
     showBorder: Boolean!
-
-    """
-    User reputation
-    """
-    reputation: Int!
 
     """
     Number of articles read
@@ -132,7 +127,7 @@ interface GenerateDevCardInput
   type: 'DEFAULT' | 'WIDE' | 'X';
 }
 
-interface DevCardByIdResult extends DevCard, DevCardData {}
+interface DevCardByIdResult extends Omit<DevCard, 'user'>, DevCardData {}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const resolvers: IResolvers<any, Context> = {
