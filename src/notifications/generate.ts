@@ -300,7 +300,7 @@ export const generateNotificationMap: Record<
       .uniqueKey(ctx.post.metadataChangedAt?.toString()),
   dev_card_unlocked: (builder) =>
     builder
-      .icon(NotificationIcon.Bell)
+      .icon(NotificationIcon.DevCard)
       .description(
         'You can now generate your own DevCard to showcase your daily.dev achievements.',
       )
