@@ -633,9 +633,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
 
     return {
       static: {
-        full_name: users[0].name,
-        user_handle: users[0].username,
-        profile_image: users[0].image,
+        user_id: users[0].id,
       },
     };
   },
