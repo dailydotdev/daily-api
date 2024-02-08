@@ -144,6 +144,23 @@ it('should NOT add devcard unlocked notification if user has NOT reached the rep
   expect(actual).toEqual(null);
 });
 
+it('should NOT add devcard unlocked notification if user had already reached the dev card threshold', async () => {
+  const worker = await import(
+    '../../src/workers/notifications/devCardUnlocked'
+  );
+  const actual = await invokeNotificationWorker(worker.default, {
+    user: {
+      id: '1',
+      reputation: 30,
+    },
+    userAfter: {
+      id: '1',
+      reputation: 40,
+    },
+  });
+  expect(actual).toEqual(null);
+});
+
 describe('source member role changed', () => {
   const baseMember = {
     userId: '1',

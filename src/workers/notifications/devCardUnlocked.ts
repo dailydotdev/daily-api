@@ -16,7 +16,10 @@ const worker: NotificationWorker = {
   subscription: 'api.user-reputation-updated-notification',
   handler: async (message) => {
     const data: Data = messageToJson(message);
-    if (data.user.reputation > DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD || data.userAfter.reputation < DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD)
+    if (
+      data.user.reputation > DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD ||
+      data.userAfter.reputation < DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD
+    )
       return null;
 
     const ctx: NotificationBaseContext = {
