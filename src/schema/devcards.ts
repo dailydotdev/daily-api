@@ -1,5 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
-import qs from 'qs';
+import { omitBy, isEmpty } from 'lodash';
 
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
@@ -38,6 +38,26 @@ export const typeDefs = /* GraphQL */ `
     DEFAULT
     WIDE
     X
+  }
+
+  """
+  Source for dev card frequent sources
+  """
+  type DevCardSource {
+    """
+    URL of the source's image
+    """
+    image: String!
+
+    """
+    Name of the source
+    """
+    name: String!
+
+    """
+    Permalink to the source
+    """
+    permalink: String!
   }
 
   """
@@ -92,7 +112,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Sources logo image URLs
     """
-    sourcesLogos: [String!]!
+    sources: [DevCardSource!]!
   }
 
   """
@@ -127,10 +147,8 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-interface GenerateDevCardInput {
-  theme: DevCard['theme'];
-  isProfileCover: DevCard['isProfileCover'];
-  showBorder: DevCard['showBorder'];
+interface GenerateDevCardInput
+  extends Pick<DevCard, 'theme' | 'isProfileCover' | 'showBorder'> {
   type: 'DEFAULT' | 'WIDE' | 'X';
 }
 
@@ -172,13 +190,20 @@ export const resolvers: IResolvers<any, Context> = {
 
       // Avoid caching issues when devcard is generated again
       const randomStr = Math.random().toString(36).substring(2, 5);
-      const queryStr = qs.stringify({
-        type,
-        r: randomStr,
-      });
+      const queryStr = new URLSearchParams(
+        omitBy(
+          {
+            type,
+            r: randomStr,
+          },
+          isEmpty,
+        ),
+      ).toString();
+      const url = new URL(`/devcards/${devCard.id}.png`, process.env.OG_URL);
+      url.search = queryStr;
 
       return {
-        imageUrl: `${process.env.OG_URL}/devcards/${devCard.id}.png?${queryStr}`,
+        imageUrl: url.toString(),
       };
     },
   }),

@@ -5,6 +5,7 @@ import { User } from '../entity';
 import { ReadingDaysArgs } from './users';
 import { ActiveView } from '../entity/ActiveView';
 import { DataSource } from 'typeorm';
+import { getSourceLink } from './links';
 
 export interface MostReadTag {
   value: string;
@@ -25,13 +26,20 @@ export const getMostReadTags = async (
   }));
 };
 
-const getFavoriteSourcesLogos = async (
+interface DevCardSource extends Pick<Source, 'image' | 'name'> {
+  permalink: string;
+}
+
+const getFavoriteSources = async (
   con: DataSource,
   userId: string,
-): Promise<string[]> => {
+): Promise<DevCardSource[]> => {
   const sources = await con
     .createQueryBuilder()
     .select('min(source.image)', 'image')
+    .select('min(source.name)', 'name')
+    .select('min(source.handle)', 'handle')
+    .select('min(source.type)', 'type')
     .from(View, 'v')
     .innerJoin(Post, 'p', 'v."postId" = p.id')
     .innerJoin(
@@ -55,14 +63,17 @@ const getFavoriteSourcesLogos = async (
     .orderBy('count(*) * 1.0 / min(s.count)', 'DESC')
     .limit(5)
     .getRawMany();
-  return sources.map((source) => source.image);
+  return sources.map((source) => ({
+    ...source,
+    permalink: getSourceLink(source),
+  }));
 };
 
 export interface DevCardData {
   reputation: User['reputation'];
   articlesRead: number;
   tags: string[];
-  sourcesLogos: string[];
+  sources: DevCardSource[];
 }
 
 export async function getDevCardData(
@@ -74,7 +85,7 @@ export async function getDevCardData(
   const end = now.toISOString();
 
   const user = await con.getRepository(User).findOneByOrFail({ id: userId });
-  const [articlesRead, tags, sourcesLogos] = await Promise.all([
+  const [articlesRead, tags, sources] = await Promise.all([
     con.getRepository(ActiveView).countBy({ userId }),
     (
       await getMostReadTags(con, {
@@ -83,14 +94,14 @@ export async function getDevCardData(
         dateRange: { start, end },
       })
     ).map(({ value }) => value),
-    getFavoriteSourcesLogos(con, userId),
+    getFavoriteSources(con, userId),
   ]);
 
   return {
     reputation: user.reputation,
     articlesRead,
     tags,
-    sourcesLogos,
+    sources,
   };
 }
 

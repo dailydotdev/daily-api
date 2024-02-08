@@ -1,5 +1,7 @@
 import nock from 'nock';
 import { DataSource } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
+
 import createOrGetConnection from '../src/db';
 import { DevCard, DevCardTheme, User } from '../src/entity';
 import {
@@ -9,6 +11,8 @@ import {
   disposeGraphQLTesting,
   initializeGraphQLTesting,
   testMutationErrorCode,
+  testQueryError,
+  testQueryErrorCode,
 } from './helpers';
 
 let con: DataSource;
@@ -109,5 +113,70 @@ describe('mutation generateDevCard', () => {
     expect(res.data.generateDevCard.imageUrl).toMatch(
       new RegExp(`http://localhost:3000/devcards/${devCards[0].id}.png\\?r=.*`),
     );
+  });
+});
+
+describe('query devCard(id)', () => {
+  const QUERY = `query DevCardById($id: ID!) {
+    devCard(id: $id) {
+      id
+      userId
+      createdAt
+      theme
+      isProfileCover
+      showBorder
+      reputation
+      articlesRead
+      tags
+    }
+  }
+`;
+
+  const devCardId = uuidv4();
+
+  beforeEach(async () => {
+    await con.getRepository(DevCard).save({
+      id: devCardId,
+      userId: '1',
+      theme: DevCardTheme.Gold,
+      isProfileCover: true,
+      showBorder: false,
+    });
+  });
+
+  it('query is public, no auth required', () =>
+    testQueryError(
+      client,
+      {
+        query: QUERY,
+        variables: { id: devCardId },
+      },
+      (errors) => {
+        expect(errors).toBeFalsy();
+      },
+    ));
+
+  it('should return not found if there is no devcard', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, { variables: { id: uuidv4() } });
+    expect(res.errors).toBeTruthy();
+    expect(res.errors?.[0].message).toMatch(/not found/i);
+  });
+
+  it('should return stored devcard', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, { variables: { id: devCardId } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.devCard).toEqual({
+      id: devCardId,
+      userId: '1',
+      createdAt: expect.any(String),
+      theme: DevCardTheme.Gold,
+      isProfileCover: true,
+      showBorder: false,
+      reputation: 10,
+      articlesRead: 0,
+      tags: [],
+    });
   });
 });
