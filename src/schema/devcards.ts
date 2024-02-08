@@ -137,9 +137,11 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<DevCardByIdResult> => {
-      const res = await ctx.con.getRepository(DevCard).findOneBy({ id });
+      const res = await ctx.con
+        .getRepository(DevCard)
+        .findOneBy({ userId: id });
       if (res !== null) {
-        const data = await getDevCardData(res.userId, ctx.con);
+        const data = await getDevCardData(id, ctx.con);
         return { ...res, ...data };
       }
       throw new NotFoundError('DevCard not found');
@@ -174,7 +176,10 @@ export const resolvers: IResolvers<any, Context> = {
           isEmpty,
         ),
       ).toString();
-      const url = new URL(`/devcards/${devCard.id}.png`, process.env.OG_URL);
+      const url = new URL(
+        `/devcards/${devCard.userId}.png`,
+        process.env.OG_URL,
+      );
       url.search = queryStr;
 
       return {
