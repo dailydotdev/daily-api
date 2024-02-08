@@ -11,6 +11,7 @@ import { FeedClient } from './clients';
 import {
   FeedPreferencesConfigGenerator,
   FeedUserStateConfigGenerator,
+  SimpleFeedConfigGenerator,
 } from './configs';
 import { SnotraClient } from '../snotra';
 
@@ -134,17 +135,10 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
     ),
     post_similarity: new FeedGenerator(
       feedClient,
-      new FeedPreferencesConfigGenerator(
-        {
-          feed_config_name: FeedConfigName.PostSimilarity,
-          total_pages: 1,
-        },
-        {
-          includeBlockedTags: true,
-          includeBlockedSources: true,
-          includeSourceMemberships: true,
-        },
-      ),
+      new SimpleFeedConfigGenerator({
+        feed_config_name: FeedConfigName.PostSimilarity,
+        total_pages: 1,
+      }),
     ),
   },
 );
