@@ -12,7 +12,6 @@ import {
   initializeGraphQLTesting,
   testMutationErrorCode,
   testQueryError,
-  testQueryErrorCode,
 } from './helpers';
 
 let con: DataSource;
