@@ -110,6 +110,25 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
         ),
       }),
     ),
+    '24': new FeedGenerator(
+      feedClient,
+      new FeedUserStateConfigGenerator(snotraClient, {
+        personalised: new FeedPreferencesConfigGenerator(
+          {
+            feed_config_name: FeedConfigName.VectorV24,
+            source_types: ['machine', 'squad'],
+          },
+          opts,
+        ),
+        non_personalised: new FeedPreferencesConfigGenerator(
+          {
+            feed_config_name: FeedConfigName.PersonaliseV20,
+            source_types: ['machine', 'squad'],
+          },
+          opts,
+        ),
+      }),
+    ),
     popular: new FeedGenerator(
       new FeedClient(process.env.POPULAR_FEED),
       new FeedPreferencesConfigGenerator(
