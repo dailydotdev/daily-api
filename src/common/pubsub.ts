@@ -28,7 +28,7 @@ import {
   runInSpan,
 } from '../telemetry/opentelemetry';
 import { Message } from '@google-cloud/pubsub';
-import { performance } from 'perf_hooks';
+// import { performance } from 'perf_hooks';
 import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import pino from 'pino';
@@ -490,16 +490,16 @@ export const workerSubscribe = (
     batching: { maxMilliseconds: 10 },
   });
   const childLogger = logger.child({ subscription });
-  const histogram = meter.createHistogram('message_processing_time', {
-    unit: 'ms',
-    description: 'time to process a message',
-  });
+  // const histogram = meter.createHistogram('message_processing_time', {
+  //   unit: 'ms',
+  //   description: 'time to process a message',
+  // });
   sub.on('message', async (message) =>
     runInRootSpan(
       `message: ${subscription}`,
       async (span) => {
-        const startTime = performance.now();
-        let success = true;
+        // const startTime = performance.now();
+        // let success = true;
         addPubsubSpanLabels(span, subscription, message);
         try {
           await runInSpan('handler', async () =>
@@ -507,7 +507,7 @@ export const workerSubscribe = (
           );
           message.ack();
         } catch (err) {
-          success = false;
+          // success = false;
           childLogger.error(
             {
               messageId: message.id,
@@ -518,10 +518,10 @@ export const workerSubscribe = (
           );
           message.nack();
         }
-        histogram.record(performance.now() - startTime, {
-          subscription,
-          success,
-        });
+        // histogram.record(performance.now() - startTime, {
+        //   subscription,
+        //   success,
+        // });
       },
       {
         kind: opentelemetry.SpanKind.CONSUMER,
