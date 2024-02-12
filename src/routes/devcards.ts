@@ -21,8 +21,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { name: string } }>(
     '/v2/:name',
     async (req, res): Promise<FastifyReply> => {
-      console.log('V2');
-
       const [userId, format] = req.params.name.split('.');
       if (format !== 'png') {
         return res.status(404).send();
