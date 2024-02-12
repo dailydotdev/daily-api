@@ -498,8 +498,8 @@ export const workerSubscribe = (
     runInRootSpan(
       `message: ${subscription}`,
       async (span) => {
-        const startTime = performance.now();
-        let success = true;
+        // const startTime = performance.now();
+        // let success = true;
         addPubsubSpanLabels(span, subscription, message);
         try {
           await runInSpan('handler', async () =>
@@ -507,7 +507,7 @@ export const workerSubscribe = (
           );
           message.ack();
         } catch (err) {
-          success = false;
+          // success = false;
           childLogger.error(
             {
               messageId: message.id,
