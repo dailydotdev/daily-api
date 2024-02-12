@@ -86,7 +86,7 @@ describe('mutation generateDevCard', () => {
     expect(devCards.length).toEqual(1);
     expect(res.data.generateDevCard.imageUrl).toMatch(
       new RegExp(
-        `http://localhost:3000/devcards/${devCards[0].userId}.png\\?r=.*`,
+        `http://localhost:3000/devcards/v2/${devCards[0].userId}.png\\?r=.*`,
       ),
     );
   });
@@ -102,7 +102,7 @@ describe('mutation generateDevCard', () => {
     expect(devCards[0].theme).toEqual(DevCardTheme.Gold);
     expect(res.data.generateDevCard.imageUrl).toMatch(
       new RegExp(
-        `http://localhost:3000/devcards/${devCards[0].userId}.png\\?r=.*`,
+        `http://localhost:3000/devcards/v2/${devCards[0].userId}.png\\?r=.*`,
       ),
     );
   });
@@ -116,7 +116,7 @@ describe('mutation generateDevCard', () => {
     expect(devCards.length).toEqual(1);
     expect(res.data.generateDevCard.imageUrl).toMatch(
       new RegExp(
-        `http://localhost:3000/devcards/${devCards[0].userId}.png\\?r=.*`,
+        `http://localhost:3000/devcards/v2/${devCards[0].userId}.png\\?r=.*`,
       ),
     );
   });
@@ -135,7 +135,7 @@ describe('mutation generateDevCard', () => {
     expect(devCards[0].theme).toEqual(DevCardTheme.Silver);
     expect(res.data.generateDevCard.imageUrl).toMatch(
       new RegExp(
-        `http://localhost:3000/devcards/${devCards[0].userId}.png\\?r=.*`,
+        `http://localhost:3000/devcards/v2/${devCards[0].userId}.png\\?r=.*`,
       ),
     );
   });
