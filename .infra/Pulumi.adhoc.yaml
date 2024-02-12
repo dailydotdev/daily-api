@@ -58,6 +58,7 @@ config:
     kratosOrigin: http://heimdall-kratos-public
     logLevel: info
     nodeEnv: development
+    ogUrl: http://localhost:3000
     otelEnabled: false
     otelExporterOtlpEndpoint: http://jaeger-collector.local.svc.cluster.local:4317
     otelTracesSampler: parentbased_traceidratio

@@ -70,6 +70,7 @@ const notificationToTemplateId: Record<NotificationType, string> = {
   promoted_to_moderator: 'd-b1dbd1e86ee14bf094f7616f7469fee8',
   squad_subscribe_to_notification: '',
   collection_updated: 'd-c051ffef97a148b6a6f14d5edb46b553',
+  dev_card_unlocked: 'd-3d3402ec873640e788f549a0680c40bb',
 };
 
 type TemplateData = Record<string, string | number>;
@@ -624,6 +625,15 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
           latestRelatedPost.image || pickImageUrl(latestRelatedPost),
         source_timestamp: formatMailDate(latestRelatedPost.createdAt),
         source_name: latestRelatedPostSource.name,
+      },
+    };
+  },
+  dev_card_unlocked: async (con, users) => {
+    if (!users[0]) return;
+
+    return {
+      static: {
+        user_id: users[0].id,
       },
     };
   },

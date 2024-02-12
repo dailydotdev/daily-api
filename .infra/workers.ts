@@ -182,6 +182,9 @@ export const workers: Worker[] = [
     subscription: 'api.comment-mention-notification',
   },
   {
+    topic: 'user-reputation-updated',
+    subscription: 'api.user-reputation-updated-notification'},
+  {
     topic: 'comment-commented',
     subscription: 'api.comment-reply-notification',
   },
