@@ -28,7 +28,7 @@ import {
   runInSpan,
 } from '../telemetry/opentelemetry';
 import { Message } from '@google-cloud/pubsub';
-import { performance } from 'perf_hooks';
+// import { performance } from 'perf_hooks';
 import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import pino from 'pino';
