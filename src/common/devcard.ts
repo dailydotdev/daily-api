@@ -1,5 +1,5 @@
 import { subYears } from 'date-fns';
-import { getUserReadingTags } from './users';
+import { ReadingRank, getUserReadingRank, getUserReadingTags } from './users';
 import { Post, Source, View } from '../entity';
 import { User } from '../entity';
 import { ReadingDaysArgs } from './users';
@@ -74,6 +74,37 @@ export interface DevCardData {
   articlesRead: number;
   tags: string[];
   sources: DevCardSource[];
+}
+
+export interface DevCardDataV1 {
+  user: User;
+  articlesRead: number;
+  tags: { value: string; count: number }[];
+  sourcesLogos: string[];
+  rank: ReadingRank;
+}
+
+export async function getDevCardDataV1(
+  userId: string,
+  con: DataSource,
+): Promise<DevCardDataV1> {
+  const now = new Date();
+  const start = subYears(now, 1).toISOString();
+  const end = now.toISOString();
+  const user = await con.getRepository(User).findOneByOrFail({ id: userId });
+  const [articlesRead, tags, sources, rank] = await Promise.all([
+    con.getRepository(ActiveView).countBy({ userId }),
+    getMostReadTags(con, { userId, limit: 4, dateRange: { start, end } }),
+    getFavoriteSources(con, userId),
+    getUserReadingRank(con, userId, user?.timezone, 2),
+  ]);
+  return {
+    user,
+    articlesRead,
+    tags,
+    sourcesLogos: sources.map((source) => source.image),
+    rank,
+  };
 }
 
 export async function getDevCardData(
