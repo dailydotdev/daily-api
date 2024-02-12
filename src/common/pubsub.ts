@@ -490,10 +490,10 @@ export const workerSubscribe = (
     batching: { maxMilliseconds: 10 },
   });
   const childLogger = logger.child({ subscription });
-  const histogram = meter.createHistogram('message_processing_time', {
-    unit: 'ms',
-    description: 'time to process a message',
-  });
+  // const histogram = meter.createHistogram('message_processing_time', {
+  //   unit: 'ms',
+  //   description: 'time to process a message',
+  // });
   sub.on('message', async (message) =>
     runInRootSpan(
       `message: ${subscription}`,
@@ -518,10 +518,10 @@ export const workerSubscribe = (
           );
           message.nack();
         }
-        histogram.record(performance.now() - startTime, {
-          subscription,
-          success,
-        });
+        // histogram.record(performance.now() - startTime, {
+        //   subscription,
+        //   success,
+        // });
       },
       {
         kind: opentelemetry.SpanKind.CONSUMER,
