@@ -92,7 +92,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         if (!devCard) {
           return res.status(404).send();
         }
-        const url = `${process.env.COMMENTS_PREFIX}/devcards/${userId}`;
+        const url = `https://preview.app.daily.dev/devcards/${userId}`;
         const response = await retryFetch(
           `${process.env.SCRAPER_URL}/screenshot`,
           {
