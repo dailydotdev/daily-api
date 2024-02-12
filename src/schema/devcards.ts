@@ -1,11 +1,14 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { omitBy, isEmpty } from 'lodash';
+import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 
 import { Context } from '../Context';
 import { traceResolverObject } from './trace';
 import { DevCardTheme, DevCard } from '../entity';
 import { NotFoundError } from '../errors';
 import { DevCardData, getDevCardData } from '../common/devcard';
+import { isValidHttpUrl, uploadDevCardBackground } from '../common';
+import { ValidationError } from 'apollo-server-errors';
 
 export interface GQLDevCard {
   id: string;
@@ -17,6 +20,10 @@ export interface GQLDevCard {
 }
 
 export const typeDefs = /* GraphQL */ `
+  type DevCard {
+    imageUrl: String!
+  }
+
   """
   Defines available themes for dev cards
   """
@@ -113,7 +120,12 @@ export const typeDefs = /* GraphQL */ `
     """
     Generates or updates the user's Dev Card preferences
     """
-    generateDevCard(
+    generateDevCard(file: Upload, url: String): DevCard @auth
+
+    """
+    Generates or updates the user's Dev Card preferences
+    """
+    generateDevCardV2(
       theme: DevCardTheme
       type: DevCardType
       isProfileCover: Boolean
@@ -150,6 +162,41 @@ export const resolvers: IResolvers<any, Context> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
     generateDevCard: async (
+      source,
+      { file, url }: { file?: FileUpload; url: string },
+      ctx: Context,
+    ): Promise<{ imageUrl: string }> => {
+      const repo = ctx.con.getRepository(DevCard);
+      let devCard: DevCard = await repo.findOneBy({ userId: ctx.userId });
+      if (!devCard) {
+        devCard = await repo.save({ userId: ctx.userId });
+      } else if (!file && !url) {
+        await repo.update(devCard.id, { background: null });
+      }
+      if (file) {
+        const { createReadStream } = await file;
+        const stream = createReadStream();
+        const { url: backgroundImage } = await uploadDevCardBackground(
+          devCard.id,
+          stream,
+        );
+        await repo.update(devCard.id, { background: backgroundImage });
+      } else if (url) {
+        if (!isValidHttpUrl(url)) {
+          throw new ValidationError('Invalid url');
+        }
+        await repo.update(devCard.id, { background: url });
+      }
+      // Avoid caching issues with the new version
+      const randomStr = Math.random().toString(36).substring(2, 5);
+      return {
+        imageUrl: `${process.env.URL_PREFIX}/devcards/${devCard.id.replace(
+          /-/g,
+          '',
+        )}.png?r=${randomStr}`,
+      };
+    },
+    generateDevCardV2: async (
       source,
       { theme, isProfileCover, showBorder, type }: GenerateDevCardInput,
       ctx: Context,

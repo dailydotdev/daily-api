@@ -63,8 +63,88 @@ beforeEach(async () => {
 afterAll(() => disposeGraphQLTesting(state));
 
 describe('mutation generateDevCard', () => {
+  const MUTATION = `mutation GenerateDevCard($file: Upload, $url: String){
+    generateDevCard(file: $file, url: $url) {
+      imageUrl
+    }
+  }`;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not validate passed url', () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { url: 'hh::/not-a-valid-url.test' },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should generate new dev card', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
+    const devCards = await con.getRepository(DevCard).find();
+    expect(devCards.length).toEqual(1);
+    expect(res.data.generateDevCard.imageUrl).toMatch(
+      new RegExp(
+        `http://localhost:4000/devcards/${devCards[0].id.replace(
+          /-/g,
+          '',
+        )}.png\\?r=.*`,
+      ),
+    );
+  });
+
+  it('should generate new dev card based from the url', async () => {
+    loggedUser = '1';
+    const url =
+      'https://daily-now-res.cloudinary.com/image/upload/v1634801813/devcard/bg/halloween.jpg';
+    const res = await client.mutate(MUTATION, { variables: { url } });
+    expect(res.errors).toBeFalsy();
+    const devCards = await con.getRepository(DevCard).find();
+    expect(devCards.length).toEqual(1);
+    expect(res.data.generateDevCard.imageUrl).toMatch(
+      new RegExp(
+        `http://localhost:4000/devcards/${devCards[0].id.replace(
+          /-/g,
+          '',
+        )}.png\\?r=.*`,
+      ),
+    );
+  });
+
+  it('should use an existing dev card entity', async () => {
+    loggedUser = '1';
+    await con.getRepository(DevCard).insert({ userId: '1' });
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
+    const devCards = await con.getRepository(DevCard).find();
+    expect(devCards.length).toEqual(1);
+    expect(res.data.generateDevCard.imageUrl).toMatch(
+      new RegExp(
+        `http://localhost:4000/devcards/${devCards[0].id.replace(
+          /-/g,
+          '',
+        )}.png\\?r=.*`,
+      ),
+    );
+  });
+});
+
+describe('mutation generateDevCardV2', () => {
   const MUTATION = `mutation GenerateDevCard($theme: DevCardTheme, $type: DevCardType, $isProfileCover: Boolean, $showBorder: Boolean){
-    generateDevCard(theme: $theme, type: $type, isProfileCover: $isProfileCover, showBorder: $showBorder) {
+    generateDevCardV2(theme: $theme, type: $type, isProfileCover: $isProfileCover, showBorder: $showBorder) {
       imageUrl
     }
   }`;
@@ -84,7 +164,7 @@ describe('mutation generateDevCard', () => {
     expect(res.errors).toBeFalsy();
     const devCards = await con.getRepository(DevCard).find();
     expect(devCards.length).toEqual(1);
-    expect(res.data.generateDevCard.imageUrl).toMatch(
+    expect(res.data.generateDevCardV2.imageUrl).toMatch(
       new RegExp(
         `http://localhost:3000/devcards/v2/${devCards[0].userId}.png\\?r=.*`,
       ),
@@ -100,7 +180,7 @@ describe('mutation generateDevCard', () => {
     const devCards = await con.getRepository(DevCard).find();
     expect(devCards.length).toEqual(1);
     expect(devCards[0].theme).toEqual(DevCardTheme.Gold);
-    expect(res.data.generateDevCard.imageUrl).toMatch(
+    expect(res.data.generateDevCardV2.imageUrl).toMatch(
       new RegExp(
         `http://localhost:3000/devcards/v2/${devCards[0].userId}.png\\?r=.*`,
       ),
@@ -114,7 +194,7 @@ describe('mutation generateDevCard', () => {
     expect(res.errors).toBeFalsy();
     const devCards = await con.getRepository(DevCard).find();
     expect(devCards.length).toEqual(1);
-    expect(res.data.generateDevCard.imageUrl).toMatch(
+    expect(res.data.generateDevCardV2.imageUrl).toMatch(
       new RegExp(
         `http://localhost:3000/devcards/v2/${devCards[0].userId}.png\\?r=.*`,
       ),
@@ -133,7 +213,7 @@ describe('mutation generateDevCard', () => {
     const devCards = await con.getRepository(DevCard).find();
     expect(devCards.length).toEqual(1);
     expect(devCards[0].theme).toEqual(DevCardTheme.Silver);
-    expect(res.data.generateDevCard.imageUrl).toMatch(
+    expect(res.data.generateDevCardV2.imageUrl).toMatch(
       new RegExp(
         `http://localhost:3000/devcards/v2/${devCards[0].userId}.png\\?r=.*`,
       ),
