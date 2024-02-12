@@ -224,7 +224,7 @@ export const resolvers: IResolvers<any, Context> = {
       ).toString();
       const url = new URL(
         `/devcards/v2/${devCard.userId}.png`,
-        process.env.OG_URL,
+        process.env.URL_PREFIX,
       );
       url.search = queryStr;
 
