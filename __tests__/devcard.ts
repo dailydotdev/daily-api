@@ -187,6 +187,22 @@ describe('mutation generateDevCardV2', () => {
     );
   });
 
+  it('should generate new dev card based on type', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { theme: DevCardTheme.Gold.toLocaleUpperCase(), type: 'X' },
+    });
+    expect(res.errors).toBeFalsy();
+    const devCards = await con.getRepository(DevCard).find();
+    expect(devCards.length).toEqual(1);
+    expect(devCards[0].theme).toEqual(DevCardTheme.Gold);
+    expect(res.data.generateDevCardV2.imageUrl).toMatch(
+      new RegExp(
+        `http://localhost:4000/devcards/v2/${devCards[0].userId}.png\\?type=X&r=.*`,
+      ),
+    );
+  });
+
   it('should use an existing dev card entity', async () => {
     loggedUser = '1';
     await con.getRepository(DevCard).insert({ userId: '1' });
