@@ -149,14 +149,21 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<DevCardByIdResult> => {
-      const res = await ctx.con
-        .getRepository(DevCard)
-        .findOneBy({ userId: id });
-      if (res !== null) {
-        const data = await getDevCardData(id, ctx.con);
-        return { ...res, ...data };
+      const repo = await ctx.con.getRepository(DevCard);
+      let res = await repo.findOneBy({ userId: id });
+      if (res == null) {
+        try {
+          // create devcard row if none found
+          res = await repo.save({
+            userId: id,
+          });
+        } catch (e) {
+          throw new NotFoundError('DevCard not found');
+        }
       }
-      throw new NotFoundError('DevCard not found');
+
+      const data = await getDevCardData(id, ctx.con);
+      return { ...res, ...data };
     },
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -216,7 +223,7 @@ export const resolvers: IResolvers<any, Context> = {
       const queryStr = new URLSearchParams(
         omitBy(
           {
-            type,
+            type: type?.toLocaleLowerCase(),
             r: randomStr,
           },
           isEmpty,

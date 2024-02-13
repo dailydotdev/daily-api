@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
-import { DevCard } from '../entity';
+import { DevCard, User } from '../entity';
 import createOrGetConnection from '../db';
 import { retryFetch } from '../integrations/retry';
 import { getDevCardDataV1 } from '../common/devcard';
@@ -88,8 +88,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       }
       const con = await createOrGetConnection();
       try {
-        const devCard = await con.getRepository(DevCard).findOneBy({ userId });
-        if (!devCard) {
+        const user = await con.getRepository(User).findOneBy({ id: userId });
+        if (!user) {
           return res.status(404).send();
         }
         const type = req.query?.type?.toLowerCase() ?? 'default';

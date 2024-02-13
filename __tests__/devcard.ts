@@ -198,7 +198,7 @@ describe('mutation generateDevCardV2', () => {
     expect(devCards[0].theme).toEqual(DevCardTheme.Gold);
     expect(res.data.generateDevCardV2.imageUrl).toMatch(
       new RegExp(
-        `http://localhost:4000/devcards/v2/${devCards[0].userId}.png\\?type=X&r=.*`,
+        `http://localhost:4000/devcards/v2/${devCards[0].userId}.png\\?type=x&r=.*`,
       ),
     );
   });
@@ -289,10 +289,27 @@ describe('query devCard(id)', () => {
       },
     ));
 
-  it('should return not found if there is no devcard', async () => {
-    const res = await client.query(QUERY, { variables: { id: '42' } });
-    expect(res.errors).toBeTruthy();
-    expect(res.errors?.[0].message).toMatch(/not found/i);
+  it('should create a new devcard with defaults if none is found', async () => {
+    const res = await client.query(QUERY, { variables: { id: '3' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.devCard).toEqual({
+      id: expect.any(String),
+      user: {
+        bio: null,
+        id: '3',
+        image: 'https://daily.dev/lee.jpg',
+        name: 'Lee',
+        permalink: 'http://localhost:5002/lee',
+        reputation: 10,
+        username: 'lee',
+      },
+      createdAt: expect.any(String),
+      theme: DevCardTheme.Default,
+      isProfileCover: false,
+      showBorder: true,
+      articlesRead: 0,
+      tags: [],
+    });
   });
 
   it('should return stored devcard', async () => {
