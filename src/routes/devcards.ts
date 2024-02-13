@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
-import { DevCard } from '../entity';
+import { DevCard, User } from '../entity';
 import createOrGetConnection from '../db';
 import { retryFetch } from '../integrations/retry';
 import { getDevCardDataV1 } from '../common/devcard';
@@ -86,7 +86,12 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       if (format !== 'png') {
         return res.status(404).send();
       }
+      const con = await createOrGetConnection();
       try {
+        const user = await con.getRepository(User).findOneBy({ id: userId });
+        if (!user) {
+          return res.status(404).send();
+        }
         const type = req.query?.type?.toLowerCase() ?? 'default';
         const url = new URL(`https://preview.app.daily.dev/devcards/${userId}`);
         url.searchParams.set('type', type);
