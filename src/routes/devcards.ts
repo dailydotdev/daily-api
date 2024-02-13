@@ -86,12 +86,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       if (format !== 'png') {
         return res.status(404).send();
       }
-      const con = await createOrGetConnection();
       try {
-        const devCard = await con.getRepository(DevCard).findOneBy({ userId });
-        if (!devCard) {
-          return res.status(404).send();
-        }
         const type = req.query?.type?.toLowerCase() ?? 'default';
         const url = new URL(`https://preview.app.daily.dev/devcards/${userId}`);
         url.searchParams.set('type', type);
