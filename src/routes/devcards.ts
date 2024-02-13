@@ -79,10 +79,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   //   },
   // );
 
-  fastify.get<{ Params: { name: string } }>(
+  fastify.get<{ Params: { name: string; type: string } }>(
     '/v2/:name',
     async (req, res): Promise<FastifyReply> => {
-      const [userId, format] = req.params.name.split('.');
+      const { name, type } = req.params;
+      const [userId, format] = name.split('.');
       if (format !== 'png') {
         return res.status(404).send();
       }
@@ -92,7 +93,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         if (!devCard) {
           return res.status(404).send();
         }
-        const url = `https://preview.app.daily.dev/devcards/${userId}`;
+        const url = new URL(`https://preview.app.daily.dev/devcards/${userId}`);
+        url.searchParams.set('type', type?.toLocaleLowerCase() ?? 'default');
         const response = await retryFetch(
           `${process.env.SCRAPER_URL}/screenshot`,
           {
