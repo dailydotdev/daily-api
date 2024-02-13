@@ -152,10 +152,14 @@ export const resolvers: IResolvers<any, Context> = {
       const repo = await ctx.con.getRepository(DevCard);
       let res = await repo.findOneBy({ userId: id });
       if (res == null) {
-        // create devcard row if none found
-        res = await repo.save({
-          userId: id,
-        });
+        try {
+          // create devcard row if none found
+          res = await repo.save({
+            userId: id,
+          });
+        } catch (e) {
+          throw new NotFoundError('DevCard not found');
+        }
       }
 
       const data = await getDevCardData(id, ctx.con);
