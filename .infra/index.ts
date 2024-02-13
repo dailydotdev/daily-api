@@ -114,7 +114,7 @@ if (isPersonalizedDigestEnabled) {
   );
 }
 
-const memory = 512;
+const memory = 640;
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
@@ -255,7 +255,7 @@ if (isAdhocEnv) {
       limits,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 85 },
+      metric: { type: 'memory_cpu', cpu: 80 },
       createService: true,
       enableCdn: true,
       disableLifecycle: true,
