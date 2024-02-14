@@ -106,7 +106,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             .send(svgString);
         }
 
-        const url = new URL(`https://preview.app.daily.dev/devcards/${userId}`);
+        const url = new URL(`/devcards/${userId}`, process.env.COMMENTS_PREFIX);
         url.searchParams.set('type', type);
         const response = await retryFetch(
           `${process.env.SCRAPER_URL}/screenshot`,
