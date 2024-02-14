@@ -43,14 +43,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             .type(response.headers.get('content-type'))
             .header('cross-origin-opener-policy', 'cross-origin')
             .header('cross-origin-resource-policy', 'cross-origin')
-            .header('cache-control', 'public, max-age=3600')
+            .header('cache-control', 'public, max-age=3600, s-max-age=3600')
             .send(await response.buffer());
         }
         return res
           .type('image/svg+xml')
           .header('cross-origin-opener-policy', 'cross-origin')
           .header('cross-origin-resource-policy', 'cross-origin')
-          .header('cache-control', 'public, max-age=3600')
+          .header('cache-control', 'public, max-age=3600, s-max-age=3600')
           .send(svgString);
       } catch (err) {
         if (err.code === '22P02') {
@@ -107,7 +107,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           .type(response.headers.get('content-type'))
           .header('cross-origin-opener-policy', 'cross-origin')
           .header('cross-origin-resource-policy', 'cross-origin')
-          .header('cache-control', 'public, max-age=3600')
+          .header('cache-control', 'public, max-age=3600, s-max-age=3600')
           .send(await response.buffer());
       } catch (err) {
         if (err.code === '22P02') {
