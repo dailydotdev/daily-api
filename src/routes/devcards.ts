@@ -96,7 +96,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
         // for svg, return the same image as png, wrapped in svg tag
         if (format === 'svg') {
-          const svgString = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><image xlink:href="${req.protocol}://${req.hostname}${req.originalUrl.replace('.svg', '.png')}" /></svg>`;
+          const svgString = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><image xlink:href="${process.env.URL_PREFIX}${req.originalUrl.replace('.svg', '.png')}" /></svg>`;
 
           return res
             .type('image/svg+xml')
