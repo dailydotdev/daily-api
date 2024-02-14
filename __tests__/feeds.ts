@@ -358,6 +358,7 @@ describe('query anonymousFeed', () => {
   });
 
   it('should return anonymous feed v2', async () => {
+    loggedUser = '1';
     nock('http://localhost:6000')
       .post('/popular', {
         total_pages: 1,
@@ -376,6 +377,7 @@ describe('query anonymousFeed', () => {
   });
 
   it('should safetly handle a case where the feed is empty', async () => {
+    loggedUser = '1';
     nock('http://localhost:6000').post('/popular').reply(200, {
       data: [],
     });
