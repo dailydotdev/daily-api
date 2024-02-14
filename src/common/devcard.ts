@@ -43,24 +43,14 @@ const getFavoriteSources = async (
     .from(View, 'v')
     .innerJoin(Post, 'p', 'v."postId" = p.id')
     .innerJoin(
-      (qb) =>
-        qb
-          .select('"sourceId"')
-          .addSelect('count(*)', 'count')
-          .from(Post, 'post')
-          .groupBy('"sourceId"'),
-      's',
-      's."sourceId" = p."sourceId"',
-    )
-    .innerJoin(
       Source,
       'source',
       'source.id = p."sourceId" and source.active = true and source.private = false',
     )
     .where('v."userId" = :id', { id: userId })
-    .andWhere(`s.count > 10`)
+    .andWhere('v."timestamp" > now() - interval \'1 year\'')
     .groupBy('p."sourceId"')
-    .orderBy('count(*) * 1.0 / min(s.count)', 'DESC')
+    .orderBy('count(*)', 'DESC')
     .limit(5)
     .getRawMany();
   return sources.map((source) => ({
@@ -115,7 +105,19 @@ export async function getDevCardData(
   const start = subYears(now, 1).toISOString();
   const end = now.toISOString();
 
-  const user = await con.getRepository(User).findOneByOrFail({ id: userId });
+  const user = await con.getRepository(User).findOneOrFail({
+    where: { id: userId },
+    select: [
+      'id',
+      'name',
+      'image',
+      'username',
+      'bio',
+      'createdAt',
+      'reputation',
+      'cover',
+    ],
+  });
   const [articlesRead, tags, sources] = await Promise.all([
     con.getRepository(ActiveView).countBy({ userId }),
     (
