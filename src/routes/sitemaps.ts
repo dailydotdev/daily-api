@@ -31,7 +31,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
     return res
       .type('text/plain')
-      .header('cache-control', 'public, max-age=14400')
+      .header('cache-control', 'public, max-age=14400, s-max-age=14400')
       .send(stream);
   });
 
@@ -76,7 +76,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
     return res
       .type('text/plain')
-      .header('cache-control', 'public, max-age=3600')
+      .header('cache-control', 'public, max-age=3600, s-max-age=3600')
       .send(stream);
   });
 }
