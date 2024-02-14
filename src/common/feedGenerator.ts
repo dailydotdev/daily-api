@@ -96,7 +96,7 @@ export const feedToFilters = async (
 ): Promise<AnonymousFeedFilters> => {
   const settings = await getExcludedAdvancedSettings(con, feedId);
   const [tags, excludeSources, sourceIds] = await Promise.all([
-    con.getRepository(FeedTag).find({ where: { feedId } }),
+    con.getRepository(FeedTag).find({ where: { feedId: feedId ?? '' } }),
     con
       .getRepository(Source)
       .createQueryBuilder('s')
