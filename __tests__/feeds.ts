@@ -359,12 +359,14 @@ describe('query anonymousFeed', () => {
 
   it('should return anonymous feed v2', async () => {
     loggedUser = '1';
+
     nock('http://localhost:6000')
       .post('/popular', {
         total_pages: 1,
         page_size: 10,
         fresh_page_size: '4',
         offset: 0,
+        user_id: '1',
       })
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p4' }],
