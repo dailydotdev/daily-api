@@ -149,7 +149,7 @@ export const resolvers: IResolvers<any, Context> = {
       { id }: { id: string },
       ctx: Context,
     ): Promise<DevCardByIdResult> => {
-      const repo = await ctx.con.getRepository(DevCard);
+      const repo = ctx.con.getRepository(DevCard);
       let res = await repo.findOneBy({ userId: id });
       if (res == null) {
         try {
