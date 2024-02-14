@@ -83,7 +83,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     '/v2/:name',
     async (req, res): Promise<FastifyReply> => {
       const [userId, format] = req.params.name.split('.');
-      if (format !== 'png') {
+      if (!['png', 'svg'].includes(format)) {
         return res.status(404).send();
       }
       const con = await createOrGetConnection();
@@ -93,7 +93,20 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           return res.status(404).send();
         }
         const type = req.query?.type?.toLowerCase() ?? 'default';
-        const url = new URL(`https://preview.app.daily.dev/devcards/${userId}`);
+
+        // for svg, return the same image as png, wrapped in svg tag
+        if (format === 'svg') {
+          const svgString = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><image xlink:href="${req.protocol}://${req.hostname}${req.originalUrl.replace('.svg', '.png')}" /></svg>`;
+
+          return res
+            .type('image/svg+xml')
+            .header('cross-origin-opener-policy', 'cross-origin')
+            .header('cross-origin-resource-policy', 'cross-origin')
+            .header('cache-control', 'public, max-age=3600')
+            .send(svgString);
+        }
+
+        const url = new URL(`/devcards/${userId}`, process.env.COMMENTS_PREFIX);
         url.searchParams.set('type', type);
         const response = await retryFetch(
           `${process.env.SCRAPER_URL}/screenshot`,
