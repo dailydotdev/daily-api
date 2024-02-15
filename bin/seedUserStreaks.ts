@@ -6,6 +6,11 @@ import createOrGetConnection from '../src/db';
 import { User, UserStreak, View } from '../src/entity';
 import { DataSource, DeepPartial, Equal, IsNull, MoreThan, Not } from 'typeorm';
 import { DayOfWeek as Day } from '../src/types';
+import {
+  FREEZE_DAYS_IN_A_WEEK,
+  MISSED_LIMIT,
+  shouldResetStreak,
+} from '../src/common';
 
 const QUEUE_CONCURRENCY = 1;
 const BATCH_SIZE = 1000;
@@ -71,9 +76,6 @@ interface ViewWithDateTz extends View {
   maxTimestamp: Date;
 }
 
-const FREEZE_DAYS_IN_A_WEEK = 2;
-const MISSED_LIMIT = 1;
-
 const computeReadingStreaksData = async (
   con: DataSource,
   user: Partial<User>,
@@ -83,8 +85,7 @@ const computeReadingStreaksData = async (
   const views: ViewWithDateTz[] = await con
     .getRepository(View)
     .createQueryBuilder()
-    .select([])
-    .addSelect('MAX(timestamp)', 'maxTimestamp')
+    .select('MAX(timestamp)', 'maxTimestamp')
     .addSelect('DATE(timestamp::timestamptz AT TIME ZONE :timezone)', 'date')
     .where({ userId: user.id, timestamp: Not(IsNull()) })
     .setParameter('timezone', timeZone)
@@ -113,12 +114,7 @@ const computeReadingStreaksData = async (
       let currentStreak = acc.currentStreak + 1;
 
       // restart streak if difference is greater than 1, taking freezes into account
-      if (
-        (day === Day.Sunday && difference > FREEZE_DAYS_IN_A_WEEK) ||
-        (day === Day.Monday &&
-          difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT) ||
-        (day > Day.Monday && difference > MISSED_LIMIT)
-      ) {
+      if (shouldResetStreak(day, difference)) {
         currentStreak = 1;
       }
 

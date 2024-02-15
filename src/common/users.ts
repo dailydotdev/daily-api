@@ -381,6 +381,14 @@ export const clearUserStreak = async (
   return result.affected > 0;
 };
 
+export const shouldResetStreak = (day: number, difference: number) => {
+  return (
+    (day === Day.Sunday && difference > FREEZE_DAYS_IN_A_WEEK) ||
+    (day === Day.Monday && difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT) ||
+    (day > Day.Monday && difference > MISSED_LIMIT)
+  );
+};
+
 export const checkAndClearUserStreak = async (
   ctx: Context,
   info: GraphQLResolveInfo,
@@ -398,11 +406,7 @@ export const checkAndClearUserStreak = async (
 
   // Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
   // Due to the fact that when Monday comes, we will clear it anyway when we notice the gap in Friday
-  if (
-    (day === Day.Sunday && difference > FREEZE_DAYS_IN_A_WEEK) ||
-    (day === Day.Monday && difference > FREEZE_DAYS_IN_A_WEEK + MISSED_LIMIT) ||
-    (day > Day.Monday && difference > MISSED_LIMIT)
-  ) {
+  if (shouldResetStreak(day, difference)) {
     return clearUserStreak(ctx.con, ctx.userId);
   }
 
