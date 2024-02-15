@@ -70,10 +70,7 @@ export class IndexCleanup1707995262750 implements MigrationInterface {
     await queryRunner.query(
       `DROP INDEX "public"."IDX_434222b69243c6c160201e8841"`,
     );
-    await queryRunner.query(`DROP INDEX "public"."users_twitter_unique"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_user_profileConfirmed"`);
-    await queryRunner.query(`DROP INDEX "public"."users_hashnode_unique"`);
-    await queryRunner.query(`DROP INDEX "public"."users_github_unique"`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
@@ -168,16 +165,7 @@ export class IndexCleanup1707995262750 implements MigrationInterface {
       `CREATE INDEX "IDX_434222b69243c6c160201e8841" ON "tag_segment" ("segment") `,
     );
     await queryRunner.query(
-      `CREATE UNIQUE INDEX "users_twitter_unique" ON "user" ("twitter") `,
-    );
-    await queryRunner.query(
       `CREATE INDEX "IDX_user_profileConfirmed" ON "user" ("profileConfirmed") `,
-    );
-    await queryRunner.query(
-      `CREATE UNIQUE INDEX "users_hashnode_unique" ON "user" ("hashnode") `,
-    );
-    await queryRunner.query(
-      `CREATE UNIQUE INDEX "users_github_unique" ON "user" ("github") `,
     );
   }
 }
