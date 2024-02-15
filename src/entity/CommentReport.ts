@@ -4,7 +4,6 @@ import { User } from './user';
 @Entity()
 export class CommentReport {
   @PrimaryColumn({ type: 'text' })
-  @Index('IDX_comment_report_comment_id')
   commentId: string;
 
   @PrimaryColumn({ length: 36 })

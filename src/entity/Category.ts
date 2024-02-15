@@ -1,15 +1,8 @@
-import {
-  Column,
-  Entity,
-  Index,
-  PrimaryColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity()
 export class Category {
   @PrimaryColumn({ type: 'text' })
-  @Index('IDX_category_id')
   id: string;
 
   @Column({ type: 'text' })
