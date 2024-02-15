@@ -27,7 +27,6 @@ import {
   Alerts,
   ArticlePost,
   Comment,
-  DevCard,
   Feature,
   FeatureType,
   FeatureValue,
@@ -36,6 +35,7 @@ import {
   User,
   View,
   UserPersonalizedDigest,
+  UserStreak,
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { getTimezonedStartOfISOWeek } from '../src/common';
@@ -314,13 +314,148 @@ describe('query userStreaks', () => {
     }
   }`;
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('should not allow unauthenticated users', () =>
     testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
 
-  it('should return the user stats', async () => {
+  it('should return the user streaks', async () => {
     loggedUser = '1';
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
+  });
+
+  it('should return the user streaks when last view is null', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+  });
+
+  const expectStreak = async (
+    currentStreak: number,
+    expectedCurrentStreak: number,
+    lastViewAt: Date,
+  ) => {
+    const repo = con.getRepository(UserStreak);
+    await repo.update({ userId: loggedUser }, { currentStreak, lastViewAt });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+
+    const streak = await repo.findOneBy({ userId: loggedUser });
+    expect(streak.currentStreak).toEqual(expectedCurrentStreak);
+  };
+
+  it('should reset streak on Saturday when last read is Thursday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 6); // Saturday
+    const lastViewAt = subDays(fakeToday, 2); // Thursday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 0, lastViewAt);
+  });
+
+  it('should reset streak on Sunday when last read is Thursday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 7); // Sunday
+    const lastViewAt = subDays(fakeToday, 3); // Thursday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 0, lastViewAt);
+  });
+
+  it('should not reset streak on Saturday when last read is Friday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 6); // Saturday
+    const lastViewAt = subDays(fakeToday, 1); // Friday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 5, lastViewAt);
+  });
+
+  it('should not reset streak on Sunday when last read is Friday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 7); // Sunday
+    const lastViewAt = subDays(fakeToday, 2); // Friday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 5, lastViewAt);
+  });
+
+  it('should reset streak on Monday when last read was Thursday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 8); // Monday
+    const lastViewAt = subDays(fakeToday, 4); // Thursday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 0, lastViewAt);
+  });
+
+  it('should not reset streak on Monday when last read was Friday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 8); // Monday
+    const lastViewAt = subDays(fakeToday, 3); // Friday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 5, lastViewAt);
+  });
+
+  it('should reset streak on Tuesday when last read was Friday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 9); // Tuesday
+    const lastViewAt = subDays(fakeToday, 4); // Friday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 0, lastViewAt);
+  });
+
+  it('should not reset streak on Tuesday when last read was Monday', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 9); // Tuesday
+    const lastViewAt = subDays(fakeToday, 1); // Monday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 5, lastViewAt);
+  });
+
+  it('should not reset streak if last view is the same day today', async () => {
+    loggedUser = '1';
+    const fakeToday = new Date(2024, 0, 9); // Tuesday
+    const lastViewAt = subDays(fakeToday, 0); // Tuesday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeToday });
+    await expectStreak(5, 5, lastViewAt);
+  });
+
+  it('should reset streak when considering user timezone', async () => {
+    loggedUser = '1';
+    const tz = 'America/Tijuana';
+    await con.getRepository(User).update({ id: loggedUser }, { timezone: tz });
+    const fakeToday = new Date(2024, 0, 6); // Saturday
+    const fakeTodayTz = addHours(fakeToday, 12); // To ensure UTC offset would not make today as Friday
+    const lastViewAt = subDays(fakeToday, 1); // Friday on UTC - but on user's timezone, this is still Thursday
+    // No reset should happen if we are not considering timezone
+    // but here, it should reset
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeTodayTz });
+    await expectStreak(5, 0, lastViewAt);
+  });
+
+  it('should not reset streak when considering user timezone', async () => {
+    loggedUser = '1';
+    const tz = 'Asia/Manila';
+    await con.getRepository(User).update({ id: loggedUser }, { timezone: tz });
+    const fakeToday = new Date(2024, 0, 6); // Saturday
+    const fakeTodayTz = addHours(fakeToday, 12); // To ensure UTC offset would not make today as Friday
+    const lastViewAt = subDays(fakeToday, 2); // Thursday
+    const lastViewAtTz = addHours(lastViewAt, 22); // by UTC time, this should still be Thursday
+    // Reset should happen if we are not considering timezone
+    // but here, it should not reset since from that time in Asia/Manila, it is already Friday
+
+    jest.useFakeTimers({ advanceTimers: true, now: fakeTodayTz });
+    await expectStreak(5, 5, lastViewAtTz);
   });
 });
 
@@ -1330,86 +1465,6 @@ describe('query readHistory', () => {
       res.data.readHistory.edges[0].node.timestampDb,
     );
     expect(res.data).toMatchSnapshot();
-  });
-});
-
-describe('mutation generateDevCard', () => {
-  const MUTATION = `mutation GenerateDevCard($file: Upload, $url: String){
-    generateDevCard(file: $file, url: $url) {
-      imageUrl
-    }
-  }`;
-
-  it('should not authorize when not logged in', () =>
-    testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-      },
-      'UNAUTHENTICATED',
-    ));
-
-  it('should not validate passed url', () => {
-    loggedUser = '1';
-    return testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { url: 'hh::/not-a-valid-url.test' },
-      },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should generate new dev card', async () => {
-    loggedUser = '1';
-    const res = await client.mutate(MUTATION);
-    expect(res.errors).toBeFalsy();
-    const devCards = await con.getRepository(DevCard).find();
-    expect(devCards.length).toEqual(1);
-    expect(res.data.generateDevCard.imageUrl).toMatch(
-      new RegExp(
-        `http://localhost:4000/devcards/${devCards[0].id.replace(
-          /-/g,
-          '',
-        )}.png\\?r=.*`,
-      ),
-    );
-  });
-
-  it('should generate new dev card based from the url', async () => {
-    loggedUser = '1';
-    const url =
-      'https://daily-now-res.cloudinary.com/image/upload/v1634801813/devcard/bg/halloween.jpg';
-    const res = await client.mutate(MUTATION, { variables: { url } });
-    expect(res.errors).toBeFalsy();
-    const devCards = await con.getRepository(DevCard).find();
-    expect(devCards.length).toEqual(1);
-    expect(res.data.generateDevCard.imageUrl).toMatch(
-      new RegExp(
-        `http://localhost:4000/devcards/${devCards[0].id.replace(
-          /-/g,
-          '',
-        )}.png\\?r=.*`,
-      ),
-    );
-  });
-
-  it('should use an existing dev card entity', async () => {
-    loggedUser = '1';
-    await con.getRepository(DevCard).insert({ userId: '1' });
-    const res = await client.mutate(MUTATION);
-    expect(res.errors).toBeFalsy();
-    const devCards = await con.getRepository(DevCard).find();
-    expect(devCards.length).toEqual(1);
-    expect(res.data.generateDevCard.imageUrl).toMatch(
-      new RegExp(
-        `http://localhost:4000/devcards/${devCards[0].id.replace(
-          /-/g,
-          '',
-        )}.png\\?r=.*`,
-      ),
-    );
   });
 });
 

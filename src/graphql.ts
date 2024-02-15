@@ -18,6 +18,7 @@ import * as alerts from './schema/alerts';
 import * as actions from './schema/actions';
 import * as search from './schema/search';
 import * as keywords from './schema/keywords';
+import * as devcards from './schema/devcards';
 import * as authDirective from './directive/auth';
 import * as urlDirective from './directive/url';
 import { makeExecutableSchema } from '@graphql-tools/schema';
@@ -52,6 +53,7 @@ export const schema = urlDirective.transformer(
           submissions.typeDefs,
           actions.typeDefs,
           search.typeDefs,
+          devcards.typeDefs,
         ],
         resolvers: merge(
           common.resolvers,
@@ -72,6 +74,7 @@ export const schema = urlDirective.transformer(
           submissions.resolvers,
           actions.resolvers,
           search.resolvers,
+          devcards.resolvers,
         ),
       }),
     ),

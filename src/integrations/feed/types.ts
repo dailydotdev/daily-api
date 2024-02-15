@@ -13,6 +13,7 @@ export enum FeedConfigName {
   PersonaliseV23 = 'personalise_v23',
   VectorV20 = 'vector_v20',
   VectorV21 = 'vector_v21',
+  VectorV24 = 'vector_v24',
   PostSimilarity = 'post_similarity',
 }
 
@@ -82,6 +83,7 @@ export type FeedVersion =
   | '20'
   | '21'
   | '23'
+  | '24'
   | 'popular'
   | 'onboarding'
   | 'post_similarity';

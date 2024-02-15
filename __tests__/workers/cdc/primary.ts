@@ -54,6 +54,7 @@ import {
   notifyPostCollectionUpdated,
   notifyUserReadmeUpdated,
   triggerTypedEvent,
+  notifyReputationIncrease,
 } from '../../../src/common';
 import worker from '../../../src/workers/cdc/primary';
 import {
@@ -96,6 +97,7 @@ import { TypeOrmError } from '../../../src/errors';
 import { SourceMemberRoles } from '../../../src/roles';
 import { CommentReport } from '../../../src/entity/CommentReport';
 import { usersFixture } from '../../fixture/user';
+import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from '../../../src/workers/notifications/devCardUnlocked';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -138,6 +140,7 @@ jest.mock('../../../src/common', () => ({
   notifyPostYggdrasilIdSet: jest.fn(),
   notifyPostCollectionUpdated: jest.fn(),
   notifyUserReadmeUpdated: jest.fn(),
+  notifyReputationIncrease: jest.fn(),
 }));
 
 let con: DataSource;
@@ -643,6 +646,45 @@ describe('user', () => {
     );
     const state = await con.getRepository(UserState).find();
     expect(state.length).toEqual(1);
+  });
+
+  it('should call notifyReputationIncrease when the user reputation has increased', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      reputation: DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'user',
+      }),
+    );
+    expect(notifyReputationIncrease).toHaveBeenCalledTimes(1);
+    expect(
+      jest.mocked(notifyReputationIncrease).mock.calls[0].slice(1)[0],
+    ).toEqual(base);
+    expect(
+      jest.mocked(notifyReputationIncrease).mock.calls[0].slice(2)[0],
+    ).toEqual(after);
+  });
+
+  it('should NOT call notifyReputationIncrease when the user reputation has not increased', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'user',
+      }),
+    );
+    expect(notifyReputationIncrease).not.toHaveBeenCalled();
   });
 
   it('should notify on user readme updated', async () => {

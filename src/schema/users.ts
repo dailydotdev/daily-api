@@ -4,7 +4,6 @@ import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
   Comment,
-  DevCard,
   Feature,
   FeatureType,
   FeatureValue,
@@ -32,11 +31,12 @@ import {
   getInviteLink,
   getShortUrl,
   getUserReadingRank,
-  isValidHttpUrl,
+  GQLUserStreak,
   TagsReadingStatus,
   uploadAvatar,
-  uploadDevCardBackground,
   uploadProfileCover,
+  checkAndClearUserStreak,
+  GQLUserStreakTz,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -95,13 +95,6 @@ export interface GQLUser {
   cover?: string;
   readme?: string;
   readmeHtml?: string;
-}
-
-export interface GQLUserStreak {
-  max?: number;
-  total?: number;
-  current?: number;
-  lastViewAt?: Date;
 }
 
 export interface GQLView {
@@ -366,10 +359,6 @@ export const typeDefs = /* GraphQL */ `
     hits: [SearchReadingHistorySuggestion!]!
   }
 
-  type DevCard {
-    imageUrl: String!
-  }
-
   type ReadingHistory {
     timestamp: DateTime!
     timestampDb: DateTime!
@@ -560,11 +549,6 @@ export const typeDefs = /* GraphQL */ `
     Update user profile information
     """
     updateUserProfile(data: UpdateUserInput, upload: Upload): User @auth
-
-    """
-    Generates or updates the user's Dev Card preferences
-    """
-    generateDevCard(file: Upload, url: String): DevCard @auth
 
     """
     Hide user's read history
@@ -850,14 +834,30 @@ export const resolvers: IResolvers<any, Context> = {
         .orderBy('date')
         .getRawMany();
     },
-    userStreak: (_, __, ctx: Context, info): Promise<GQLUserStreak> =>
-      graphorm.queryOneOrFail<GQLUserStreak>(ctx, info, (builder) => ({
-        queryBuilder: builder.queryBuilder.where(
-          `"${builder.alias}"."userId" = :id`,
-          { id: ctx.userId },
-        ),
-        ...builder,
-      })),
+    userStreak: async (_, __, ctx: Context, info): Promise<GQLUserStreak> => {
+      const streak = await graphorm.queryOneOrFail<GQLUserStreakTz>(
+        ctx,
+        info,
+        (builder) => ({
+          queryBuilder: builder.queryBuilder
+            .addSelect(
+              `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz"`,
+            )
+            .addSelect('u.timezone', 'timezone')
+            .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
+            .where(`"${builder.alias}"."userId" = :id`, { id: ctx.userId }),
+          ...builder,
+        }),
+      );
+
+      const hasClearedStreak = checkAndClearUserStreak(ctx, info, streak);
+
+      if (hasClearedStreak) {
+        return { ...streak, current: 0 };
+      }
+
+      return streak;
+    },
     userReads: async (): Promise<number> => {
       // Kept for backwards compatability
       return 0;
@@ -1029,41 +1029,6 @@ export const resolvers: IResolvers<any, Context> = {
   }),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Mutation: traceResolverObject<any, any>({
-    generateDevCard: async (
-      source,
-      { file, url }: { file?: FileUpload; url: string },
-      ctx: Context,
-    ): Promise<{ imageUrl: string }> => {
-      const repo = ctx.con.getRepository(DevCard);
-      let devCard: DevCard = await repo.findOneBy({ userId: ctx.userId });
-      if (!devCard) {
-        devCard = await repo.save({ userId: ctx.userId });
-      } else if (!file && !url) {
-        await repo.update(devCard.id, { background: null });
-      }
-      if (file) {
-        const { createReadStream } = await file;
-        const stream = createReadStream();
-        const { url: backgroundImage } = await uploadDevCardBackground(
-          devCard.id,
-          stream,
-        );
-        await repo.update(devCard.id, { background: backgroundImage });
-      } else if (url) {
-        if (!isValidHttpUrl(url)) {
-          throw new ValidationError('Invalid url');
-        }
-        await repo.update(devCard.id, { background: url });
-      }
-      // Avoid caching issues with the new version
-      const randomStr = Math.random().toString(36).substring(2, 5);
-      return {
-        imageUrl: `${process.env.URL_PREFIX}/devcards/${devCard.id.replace(
-          /-/g,
-          '',
-        )}.png?r=${randomStr}`,
-      };
-    },
     updateUserProfile: async (
       _,
       { data, upload }: GQLUserParameters,

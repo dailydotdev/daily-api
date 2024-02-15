@@ -30,8 +30,6 @@ const name = 'api';
 const debeziumTopicName = `${name}.changes`;
 const isPersonalizedDigestEnabled =
   config.require('enablePersonalizedDigest') === 'true';
-const isSeedUserStreakSchedulerEnabled =
-  config.require('enableUserStreakScheduler') === 'true';
 
 const { image, imageTag } = getImageAndTag(`us.gcr.io/daily-ops/daily-${name}`);
 
@@ -116,7 +114,7 @@ if (isPersonalizedDigestEnabled) {
   );
 }
 
-const memory = 512;
+const memory = 640;
 const limits: pulumi.Input<{
   [key: string]: pulumi.Input<string>;
 }> = {
@@ -257,10 +255,11 @@ if (isAdhocEnv) {
       limits,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 85 },
+      metric: { type: 'memory_cpu', cpu: 80 },
       createService: true,
       enableCdn: true,
       disableLifecycle: true,
+      serviceTimeout: 60,
       ...jwtVols,
     },
     {

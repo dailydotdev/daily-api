@@ -7,6 +7,17 @@ import {
 } from 'typeorm';
 import { User } from './user';
 
+export enum DevCardTheme {
+  Default = 'default',
+  Iron = 'iron',
+  Bronze = 'bronze',
+  Silver = 'silver',
+  Gold = 'gold',
+  Platinum = 'platinum',
+  Diamond = 'diamond',
+  Legendary = 'legendary',
+}
+
 @Entity()
 export class DevCard {
   @PrimaryGeneratedColumn('uuid')
@@ -21,6 +32,15 @@ export class DevCard {
 
   @Column({ type: 'text', nullable: true })
   background: string | null;
+
+  @Column({ type: 'text', default: DevCardTheme.Default })
+  theme: DevCardTheme;
+
+  @Column({ type: 'bool', default: false })
+  isProfileCover: boolean;
+
+  @Column({ type: 'bool', default: true })
+  showBorder: boolean;
 
   @ManyToOne(() => User, (user) => user.devCards, {
     lazy: true,

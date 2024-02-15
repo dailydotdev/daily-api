@@ -76,6 +76,7 @@ import {
   notifyPostCollectionUpdated,
   notifyUserReadmeUpdated,
   triggerTypedEvent,
+  notifyReputationIncrease,
 } from '../../common';
 import { ChangeMessage } from '../../types';
 import { DataSource } from 'typeorm';
@@ -299,6 +300,13 @@ const onUserChange = async (
           throw ex;
         }
       }
+    }
+    if (data.payload.after.reputation > data.payload.before.reputation) {
+      await notifyReputationIncrease(
+        logger,
+        data.payload.before,
+        data.payload.after,
+      );
     }
     if (
       data.payload.before.infoConfirmed &&

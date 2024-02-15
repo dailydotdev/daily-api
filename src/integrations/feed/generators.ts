@@ -11,6 +11,7 @@ import { FeedClient } from './clients';
 import {
   FeedPreferencesConfigGenerator,
   FeedUserStateConfigGenerator,
+  SimpleFeedConfigGenerator,
 } from './configs';
 import { SnotraClient } from '../snotra';
 
@@ -109,6 +110,25 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
         ),
       }),
     ),
+    '24': new FeedGenerator(
+      feedClient,
+      new FeedUserStateConfigGenerator(snotraClient, {
+        personalised: new FeedPreferencesConfigGenerator(
+          {
+            feed_config_name: FeedConfigName.VectorV24,
+            source_types: ['machine', 'squad'],
+          },
+          opts,
+        ),
+        non_personalised: new FeedPreferencesConfigGenerator(
+          {
+            feed_config_name: FeedConfigName.PersonaliseV20,
+            source_types: ['machine', 'squad'],
+          },
+          opts,
+        ),
+      }),
+    ),
     popular: new FeedGenerator(
       new FeedClient(process.env.POPULAR_FEED),
       new FeedPreferencesConfigGenerator(
@@ -134,17 +154,10 @@ export const feedGenerators: Record<FeedVersion, FeedGenerator> = Object.freeze(
     ),
     post_similarity: new FeedGenerator(
       feedClient,
-      new FeedPreferencesConfigGenerator(
-        {
-          feed_config_name: FeedConfigName.PostSimilarity,
-          total_pages: 1,
-        },
-        {
-          includeBlockedTags: true,
-          includeBlockedSources: true,
-          includeSourceMemberships: true,
-        },
-      ),
+      new SimpleFeedConfigGenerator({
+        feed_config_name: FeedConfigName.PostSimilarity,
+        total_pages: 1,
+      }),
     ),
   },
 );

@@ -1,10 +1,11 @@
 import { subYears } from 'date-fns';
-import { getUserReadingRank, ReadingRank, getUserReadingTags } from './users';
+import { ReadingRank, getUserReadingRank, getUserReadingTags } from './users';
 import { Post, Source, View } from '../entity';
 import { User } from '../entity';
 import { ReadingDaysArgs } from './users';
 import { ActiveView } from '../entity/ActiveView';
 import { DataSource } from 'typeorm';
+import { getSourceLink } from './links';
 
 export interface MostReadTag {
   value: string;
@@ -25,46 +26,76 @@ export const getMostReadTags = async (
   }));
 };
 
-const getFavoriteSourcesLogos = async (
+interface DevCardSource extends Pick<Source, 'image' | 'name'> {
+  permalink: string;
+}
+
+const getFavoriteSources = async (
   con: DataSource,
   userId: string,
-): Promise<string[]> => {
+): Promise<DevCardSource[]> => {
   const sources = await con
     .createQueryBuilder()
     .select('min(source.image)', 'image')
+    .addSelect('min(source.name)', 'name')
+    .addSelect('min(source.handle)', 'handle')
+    .addSelect('min(source.type)', 'type')
     .from(View, 'v')
     .innerJoin(Post, 'p', 'v."postId" = p.id')
-    .innerJoin(
-      (qb) =>
-        qb
-          .select('"sourceId"')
-          .addSelect('count(*)', 'count')
-          .from(Post, 'post')
-          .groupBy('"sourceId"'),
-      's',
-      's."sourceId" = p."sourceId"',
-    )
     .innerJoin(
       Source,
       'source',
       'source.id = p."sourceId" and source.active = true and source.private = false',
     )
     .where('v."userId" = :id', { id: userId })
-    .andWhere(`s.count > 10`)
+    .andWhere('v."timestamp" > now() - interval \'1 year\'')
     .groupBy('p."sourceId"')
-    .orderBy('count(*) * 1.0 / min(s.count)', 'DESC')
+    .orderBy('count(*)', 'DESC')
     .limit(5)
     .getRawMany();
-  return sources.map((source) => source.image);
+  return sources.map((source) => ({
+    ...source,
+    permalink: getSourceLink(source),
+  }));
 };
 
-type DevCardData = {
+export interface DevCardData {
+  user: User;
+  articlesRead: number;
+  tags: string[];
+  sources: DevCardSource[];
+}
+
+export interface DevCardDataV1 {
   user: User;
   articlesRead: number;
   tags: { value: string; count: number }[];
   sourcesLogos: string[];
   rank: ReadingRank;
-};
+}
+
+export async function getDevCardDataV1(
+  userId: string,
+  con: DataSource,
+): Promise<DevCardDataV1> {
+  const now = new Date();
+  const start = subYears(now, 1).toISOString();
+  const end = now.toISOString();
+  const user = await con.getRepository(User).findOneByOrFail({ id: userId });
+  const [articlesRead, tags, sources, rank] = await Promise.all([
+    con.getRepository(ActiveView).countBy({ userId }),
+    getMostReadTags(con, { userId, limit: 4, dateRange: { start, end } }),
+    getFavoriteSources(con, userId),
+    getUserReadingRank(con, userId, user?.timezone, 2),
+  ]);
+  return {
+    user,
+    articlesRead,
+    tags,
+    sourcesLogos: sources.map((source) => source.image),
+    rank,
+  };
+}
 
 export async function getDevCardData(
   userId: string,
@@ -73,14 +104,38 @@ export async function getDevCardData(
   const now = new Date();
   const start = subYears(now, 1).toISOString();
   const end = now.toISOString();
-  const user = await con.getRepository(User).findOneByOrFail({ id: userId });
-  const [articlesRead, tags, sourcesLogos, rank] = await Promise.all([
+
+  const user = await con.getRepository(User).findOneOrFail({
+    where: { id: userId },
+    select: [
+      'id',
+      'name',
+      'image',
+      'username',
+      'bio',
+      'createdAt',
+      'reputation',
+      'cover',
+    ],
+  });
+  const [articlesRead, tags, sources] = await Promise.all([
     con.getRepository(ActiveView).countBy({ userId }),
-    getMostReadTags(con, { userId, limit: 4, dateRange: { start, end } }),
-    getFavoriteSourcesLogos(con, userId),
-    getUserReadingRank(con, userId, user?.timezone, 2),
+    (
+      await getMostReadTags(con, {
+        userId,
+        limit: 5,
+        dateRange: { start, end },
+      })
+    ).map(({ value }) => value),
+    getFavoriteSources(con, userId),
   ]);
-  return { user, articlesRead, tags, sourcesLogos, rank };
+
+  return {
+    user,
+    articlesRead,
+    tags,
+    sources,
+  };
 }
 
 const uppercaseTags = ['css', 'html', 'aws', 'gcp'];

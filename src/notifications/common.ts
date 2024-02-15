@@ -11,7 +11,7 @@ import { ValidationError } from 'apollo-server-errors';
 import { DataSource, EntityManager, IsNull } from 'typeorm';
 import { NotFoundError, TypeOrmError } from '../errors';
 import { ReadStream } from 'fs';
-import { UserNotification } from '../entity/notifications/UserNotification';
+import { UserNotification } from '../entity';
 
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
@@ -40,6 +40,7 @@ export enum NotificationType {
   PromotedToModerator = 'promoted_to_moderator',
   PostMention = 'post_mention',
   CollectionUpdated = 'collection_updated',
+  DevCardUnlocked = 'dev_card_unlocked',
 }
 
 export enum NotificationPreferenceType {

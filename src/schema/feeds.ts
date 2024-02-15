@@ -53,7 +53,6 @@ import {
   versionToFeedGenerator,
 } from '../integrations/feed';
 import { AuthenticationError } from 'apollo-server-errors';
-import { getUserGrowthBookInstace } from '../growthbook';
 
 interface GQLTagsCategory {
   id: string;
@@ -936,7 +935,11 @@ const legacySimilarPostsResolver = randomPostsResolver(
 export const resolvers: IResolvers<any, Context> = traceResolvers({
   Query: {
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
-      if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
+      if (
+        args.version >= 2 &&
+        args.ranking === Ranking.POPULARITY &&
+        ctx.userId
+      ) {
         return feedResolverCursor(
           source,
           {
@@ -1195,8 +1198,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       ctx,
       info,
     ): Promise<GQLPost[]> => {
-      const gb = getUserGrowthBookInstace(ctx.userId);
-      if (gb.isOn('post_similarity')) {
+      if (args.post && ctx.userId) {
         const res = await feedGenerators['post_similarity'].generate(ctx, {
           user_id: ctx.userId,
           page_size: args.first || 3,
@@ -1222,7 +1224,6 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           });
         }
       }
-
       return legacySimilarPostsResolver(source, args, ctx, info);
     },
     randomDiscussedPosts: randomPostsResolver(

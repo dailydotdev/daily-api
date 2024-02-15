@@ -28,7 +28,7 @@ import {
   runInSpan,
 } from '../telemetry/opentelemetry';
 import { Message } from '@google-cloud/pubsub';
-import { performance } from 'perf_hooks';
+// import { performance } from 'perf_hooks';
 import { DataSource } from 'typeorm';
 import { FastifyLoggerInstance } from 'fastify';
 import pino from 'pino';
@@ -76,12 +76,12 @@ const sourceCreatedTopic = pubsub.topic('api.v1.source-created');
 const generatePersonalizedDigestTopic = pubsub.topic(
   'api.v1.generate-personalized-digest',
 );
-const seedUserStreakTopic = pubsub.topic('api.v1.seed-user-streak');
 const postYggdrasilIdSet = pubsub.topic('api.v1.post-yggdrasil-id-set');
 const postCollectionUpdatedTopic = pubsub.topic(
   'api.v1.post-collection-updated',
 );
 const userReadmeUpdatedTopic = pubsub.topic('api.v1.user-readme-updated');
+const userReputatioUpdatedTopic = pubsub.topic('user-reputation-updated');
 
 export enum NotificationReason {
   New = 'new',
@@ -458,10 +458,15 @@ export const notifyPostCollectionUpdated = async (
   post: ChangeObject<CollectionPost>,
 ): Promise<void> => publishEvent(log, postCollectionUpdatedTopic, { post });
 
-export const notifySeedUserStreak = async (
+export const notifyReputationIncrease = async (
   log: EventLogger,
-  users: User[],
-): Promise<void> => publishEvent(log, seedUserStreakTopic, { users });
+  user: ChangeObject<User>,
+  userAfter: ChangeObject<User>,
+): Promise<void> =>
+  publishEvent(log, userReputatioUpdatedTopic, {
+    user,
+    userAfter,
+  });
 
 export const workerSubscribe = (
   logger: pino.Logger,
@@ -485,16 +490,16 @@ export const workerSubscribe = (
     batching: { maxMilliseconds: 10 },
   });
   const childLogger = logger.child({ subscription });
-  const histogram = meter.createHistogram('message_processing_time', {
-    unit: 'ms',
-    description: 'time to process a message',
-  });
+  // const histogram = meter.createHistogram('message_processing_time', {
+  //   unit: 'ms',
+  //   description: 'time to process a message',
+  // });
   sub.on('message', async (message) =>
     runInRootSpan(
       `message: ${subscription}`,
       async (span) => {
-        const startTime = performance.now();
-        let success = true;
+        // const startTime = performance.now();
+        // let success = true;
         addPubsubSpanLabels(span, subscription, message);
         try {
           await runInSpan('handler', async () =>
@@ -502,7 +507,7 @@ export const workerSubscribe = (
           );
           message.ack();
         } catch (err) {
-          success = false;
+          // success = false;
           childLogger.error(
             {
               messageId: message.id,
@@ -513,10 +518,10 @@ export const workerSubscribe = (
           );
           message.nack();
         }
-        histogram.record(performance.now() - startTime, {
-          subscription,
-          success,
-        });
+        // histogram.record(performance.now() - startTime, {
+        //   subscription,
+        //   success,
+        // });
       },
       {
         kind: opentelemetry.SpanKind.CONSUMER,
