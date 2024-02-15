@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
+import { encode } from 'he';
 import { DevCard, User } from '../entity';
 import createOrGetConnection from '../db';
 import { retryFetch } from '../integrations/retry';
@@ -96,7 +97,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
         // for svg, return the same image as png, wrapped in svg tag
         if (format === 'svg') {
-          const svgString = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><image xlink:href="${process.env.URL_PREFIX}${req.originalUrl.replace('.svg', '.png')}" /></svg>`;
+          const pngUrl = `${process.env.URL_PREFIX}${req.originalUrl.replace('.svg', '.png')}`;
+          const encodedUrl = encode(pngUrl, { useNamedReferences: true });
+          const svgString = `<svg xmlns="http://www.w3.org/2000/svg"><image href="${encodedUrl}" /></svg>`;
 
           return res
             .type('image/svg+xml')
