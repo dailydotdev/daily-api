@@ -377,20 +377,13 @@ const [apps] = deployApplicationSuite(
     apps: appsArgs,
     crons: isAdhocEnv
       ? []
-      : crons
-          // only include the user streaks cron if the feature is enabled in the config
-          .filter(
-            (cron) =>
-              isSeedUserStreakSchedulerEnabled ||
-              cron.name !== 'seed-user-streaks',
-          )
-          .map((cron) => ({
-            nameSuffix: cron.name,
-            args: ['dumb-init', 'node', 'bin/cli', 'cron', cron.name],
-            schedule: cron.schedule,
-            limits: cron.limits ?? bgLimits,
-            activeDeadlineSeconds: 300,
-          })),
+      : crons.map((cron) => ({
+          nameSuffix: cron.name,
+          args: ['dumb-init', 'node', 'bin/cli', 'cron', cron.name],
+          schedule: cron.schedule,
+          limits: cron.limits ?? bgLimits,
+          activeDeadlineSeconds: 300,
+        })),
     isAdhocEnv,
     dependsOn,
   },
