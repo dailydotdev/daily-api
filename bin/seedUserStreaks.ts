@@ -5,12 +5,7 @@ import '../src/config';
 import createOrGetConnection from '../src/db';
 import { User, UserStreak, View } from '../src/entity';
 import { DataSource, DeepPartial, Equal, IsNull, MoreThan, Not } from 'typeorm';
-import { DayOfWeek as Day } from '../src/types';
-import {
-  FREEZE_DAYS_IN_A_WEEK,
-  MISSED_LIMIT,
-  shouldResetStreak,
-} from '../src/common';
+import { shouldResetStreak } from '../src/common';
 
 const QUEUE_CONCURRENCY = 1;
 const BATCH_SIZE = 1000;
