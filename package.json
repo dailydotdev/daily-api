@@ -60,6 +60,7 @@
     "@sendgrid/eventwebhook": "^8.0.0",
     "@sendgrid/mail": "^8.1.0",
     "@slack/webhook": "^7.0.2",
+    "@types/he": "^1.2.3",
     "@types/shortid": "0.0.32",
     "apollo-server-errors": "^3.3.0",
     "apollo-server-types": "^3.8.0",
