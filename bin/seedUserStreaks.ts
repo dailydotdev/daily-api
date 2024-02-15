@@ -87,7 +87,6 @@ const computeReadingStreaksData = async (
     .addSelect('MAX(timestamp)', 'maxTimestamp')
     .addSelect('DATE(timestamp::timestamptz AT TIME ZONE :timezone)', 'date')
     .where({ userId: user.id, timestamp: Not(IsNull()) })
-    .innerJoin(User, 'u', `"userId" = u.id`)
     .setParameter('timezone', timeZone)
     .addGroupBy('"date"')
     .orderBy('"maxTimestamp"', 'ASC')
@@ -167,10 +166,9 @@ const computeReadingStreaksData = async (
   }, QUEUE_CONCURRENCY);
 
   let nextUser = undefined;
-  let i = 0;
-  while (nextUser !== null && i++ < 6) {
+  while (nextUser !== null) {
     nextUser = await addNextBatch(con, insertQueue, nextUser);
-    console.log('nextUser', nextUser);
+    console.log('userPointer', nextUser);
   }
 
   await insertQueue.drained();
