@@ -20,6 +20,7 @@ export type SourceMemberFlagsPublic = Pick<
 @Entity()
 @Index('IDX_source_member_userId_flags_hideFeedPosts', { synchronize: false })
 @Index('IDX_source_member_userId_role', ['userId', 'role'])
+@Index('IDX_source_member_sourceId_role', ['sourceId', 'role'])
 export class SourceMember {
   @PrimaryColumn({ type: 'text' })
   @Index('IDX_source_member_sourceId')

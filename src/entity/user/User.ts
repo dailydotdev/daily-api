@@ -33,6 +33,8 @@ import { generateTrackingId } from '../../ids';
 import { UserStreak } from './UserStreak';
 
 @Entity()
+@Index('IDX_user_lowerusername_username', { synchronize: false })
+@Index('IDX_user_lowertwitter', { synchronize: false })
 export class User {
   @PrimaryColumn({ length: 36 })
   id: string;
