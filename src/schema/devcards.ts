@@ -200,7 +200,7 @@ export const resolvers: IResolvers<any, Context> = {
         imageUrl: `${process.env.URL_PREFIX}/devcards/${devCard.id.replace(
           /-/g,
           '',
-        )}.png?r=${randomStr}`,
+        )}.svg?r=${randomStr}`,
       };
     },
     generateDevCardV2: async (
