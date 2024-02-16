@@ -64,6 +64,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to show the generic referral reminder
     """
     showGenericReferral: Boolean!
+
+    """
+    Whether to show the reading streaks milestone banner
+    """
+    showStreakMilestone: Boolean!
   }
 
   input UpdateAlertsInput {
@@ -101,6 +106,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to show the squad tour and sync across devices
     """
     squadTour: Boolean
+
+    """
+    Whether to show the reading streaks milestone banner
+    """
+    showStreakMilestone: Boolean
   }
 
   extend type Mutation {

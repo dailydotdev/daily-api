@@ -850,8 +850,7 @@ export const resolvers: IResolvers<any, Context> = {
         }),
       );
 
-      const hasClearedStreak = checkAndClearUserStreak(ctx, info, streak);
-
+      const hasClearedStreak = await checkAndClearUserStreak(ctx, info, streak);
       if (hasClearedStreak) {
         return { ...streak, current: 0 };
       }

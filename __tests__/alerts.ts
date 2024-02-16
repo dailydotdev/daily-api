@@ -51,6 +51,7 @@ describe('query userAlerts', () => {
       lastBanner
       squadTour
       showGenericReferral
+      showStreakMilestone
     }
   }`;
 

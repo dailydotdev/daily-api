@@ -1,7 +1,14 @@
 import worker from '../../src/workers/newView';
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import { postsFixture } from '../fixture/post';
-import { ArticlePost, Source, User, UserStreak, View } from '../../src/entity';
+import {
+  Alerts,
+  ArticlePost,
+  Source,
+  User,
+  UserStreak,
+  View,
+} from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { usersFixture } from '../fixture/user';
 import { DataSource, IsNull, Not } from 'typeorm';
@@ -309,6 +316,75 @@ describe('reading streaks', () => {
     await runTest('2024-01-26T19:17Z', '2024-01-26T17:23Z', defaultStreak, {
       ...defaultStreak,
       lastViewAt: new Date('2024-01-26T19:17Z'),
+    });
+  });
+
+  describe('showMilestone is set correctly', () => {
+    beforeEach(async () => {
+      await con.getRepository(Alerts).clear();
+    });
+
+    it('should set showStreakMilestone to true if current streak is a fibonacci number', async () => {
+      await runTest('2024-01-26T19:17Z', '2024-01-25T17:23Z', defaultStreak, {
+        currentStreak: 5,
+        totalStreak: 43,
+        maxStreak: 10,
+        lastViewAt: new Date('2024-01-26T19:17Z'),
+      });
+
+      const alerts = await con
+        .getRepository(Alerts)
+        .findOne({ where: { userId: 'u1' } });
+      expect(alerts?.showStreakMilestone).toBe(true);
+    });
+
+    it('should set showStreakMilestone to false if current streak is NOT a fibonacci number', async () => {
+      await runTest(
+        '2024-01-26T19:17Z',
+        '2024-01-25T17:23Z',
+        {
+          ...defaultStreak,
+          currentStreak: 5,
+        },
+        {
+          currentStreak: 6,
+          totalStreak: 43,
+          maxStreak: 10,
+          lastViewAt: new Date('2024-01-26T19:17Z'),
+        },
+      );
+
+      const alerts = await con
+        .getRepository(Alerts)
+        .findOne({ where: { userId: 'u1' } });
+      expect(alerts?.showStreakMilestone).toBe(false);
+    });
+
+    it('should set showStreakMilestone to false even if previous value is true', async () => {
+      await con.getRepository(Alerts).save({
+        userId: 'u1',
+        showStreakMilestone: true,
+      });
+
+      await runTest(
+        '2024-01-26T19:17Z',
+        '2024-01-25T17:23Z',
+        {
+          ...defaultStreak,
+          currentStreak: 5,
+        },
+        {
+          currentStreak: 6,
+          totalStreak: 43,
+          maxStreak: 10,
+          lastViewAt: new Date('2024-01-26T19:17Z'),
+        },
+      );
+
+      const alerts = await con
+        .getRepository(Alerts)
+        .findOne({ where: { userId: 'u1' } });
+      expect(alerts?.showStreakMilestone).toBe(false);
     });
   });
 });
