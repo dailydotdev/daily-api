@@ -21,6 +21,7 @@ import { format, isSameDay, nextDay, previousDay } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import { FeedClient } from '../integrations/feed';
 import { DataSource } from 'typeorm';
+import { features, getUserGrowthBookInstace } from '../growthbook';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -45,10 +46,6 @@ type SetEmailSendDateProps = Pick<Data, 'personalizedDigest'> & {
   con: DataSource;
   date: Date;
 };
-
-const personalizedDigestPostsCount = 5;
-
-const emailTemplateId = 'd-328d1104d2e04fa1ab91e410e02751cb';
 
 const personalizedDigestDateFormat = 'yyyy-MM-dd HH:mm:ss';
 
@@ -97,39 +94,56 @@ const getPostsTemplateData = ({ posts }: { posts: TemplatePostData[] }) => {
   });
 };
 
-const getEmailVariation = async (
-  variation: number,
-  firstName: string,
-  dayName: string,
-  posts: TemplatePostData[],
-): Promise<Partial<MailDataRequired>> => {
-  const defaultPreview = `Every ${dayName}, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!`;
+const getEmailVariation = async ({
+  personalizedDigest,
+  posts,
+  user,
+  feature,
+}: {
+  personalizedDigest: UserPersonalizedDigest;
+  posts: TemplatePostData[];
+  user: User;
+  feature: typeof features.personalizedDigest.defaultValue;
+}): Promise<Partial<MailDataRequired>> => {
+  const [dayName] = Object.entries(DayOfWeek).find(
+    ([, value]) => value === personalizedDigest.preferredDay,
+  );
+  const userName = user.name?.trim().split(' ')[0] || user.username;
   const data = {
     day_name: dayName,
-    first_name: firstName,
+    first_name: userName,
     posts: getPostsTemplateData({ posts }),
   };
-  if (variation === 2) {
-    return {
-      dynamicTemplateData: {
-        ...data,
-        title: posts[0].title,
-        preview: posts[0].summary || defaultPreview,
-      },
-      from: {
-        email: 'digest@daily.dev',
-        name: 'Weekly Digest',
-      },
-    };
-  }
 
-  return {
+  const mailData = {
+    from: {
+      email: feature.meta.from.email,
+      name: feature.meta.from.name,
+    },
+    to: {
+      email: user.email,
+      name: userName,
+    },
     dynamicTemplateData: {
       ...data,
-      title: `${firstName}, your personal weekly update from daily.dev is ready`,
-      preview: defaultPreview,
+      title: `${userName}, your personal weekly update from daily.dev is ready`,
+      preview: `Every ${dayName}, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!`,
     },
   };
+
+  if (personalizedDigest.variation === 2) {
+    mailData.from = {
+      email: 'digest@daily.dev',
+      name: 'Weekly Digest',
+    };
+    mailData.dynamicTemplateData.title = posts[0].title;
+
+    if (posts[0].summary) {
+      mailData.dynamicTemplateData.preview = posts[0].summary;
+    }
+  }
+
+  return mailData;
 };
 
 const setEmailSendDate = async ({
@@ -166,6 +180,18 @@ const worker: Worker = {
       return;
     }
 
+    const growthbookClient = getUserGrowthBookInstace(user.id, {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      trackingCallback: (experiment, result) => {
+        // TODO notify allocation
+      },
+    });
+
+    const digestFeature = growthbookClient.getFeatureValue(
+      features.personalizedDigest.id,
+      features.personalizedDigest.defaultValue,
+    );
+
     const currentDate = new Date();
     const emailSendDate = getEmailSendDate({
       personalizedDigest,
@@ -190,7 +216,7 @@ const worker: Worker = {
       personalizedDigest.userId,
       {
         user_id: personalizedDigest.userId,
-        total_posts: personalizedDigestPostsCount,
+        total_posts: digestFeature.maxPosts,
         date_from: format(previousSendDate, personalizedDigestDateFormat),
         date_to: format(currentDate, personalizedDigestDateFormat),
         allowed_tags: feedConfig.includeTags,
@@ -215,28 +241,20 @@ const worker: Worker = {
       return;
     }
 
-    const [dayName] = Object.entries(DayOfWeek).find(
-      ([, value]) => value === personalizedDigest.preferredDay,
-    );
-    const userName = user.name?.trim().split(' ')[0] || user.username;
-    const variationProps = await getEmailVariation(
-      personalizedDigest.variation,
-      userName,
-      dayName,
+    const variationProps = await getEmailVariation({
+      personalizedDigest,
       posts,
-    );
+      user,
+      feature: digestFeature,
+    });
     const emailPayload: MailDataRequired = {
       ...baseNotificationEmailData,
-      to: {
-        email: user.email,
-        name: userName,
-      },
       sendAt: Math.floor(emailSendDate.getTime() / 1000),
-      templateId: emailTemplateId,
+      templateId: digestFeature.templateId,
       asm: {
-        groupId: 23809,
+        groupId: digestFeature.meta.asmGroupId,
       },
-      category: 'Digests',
+      category: digestFeature.meta.category,
       batchId: emailBatchId,
       ...variationProps,
     };
