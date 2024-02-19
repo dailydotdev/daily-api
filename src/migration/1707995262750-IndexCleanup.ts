@@ -28,16 +28,12 @@ export class IndexCleanup1707995262750 implements MigrationInterface {
     await queryRunner.query(
       `DROP INDEX "public"."IDX_65a9ca0600dbc72c6ff76501a6"`,
     );
-    await queryRunner.query(`DROP INDEX "IDX_post_flags_deleted"`);
     await queryRunner.query(
       `DROP INDEX "public"."IDX_83c8ae07417cd6de65b8b99458"`,
     );
     await queryRunner.query(`DROP INDEX "public"."IDX_post_last_trending"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_post_tsv"`);
     await queryRunner.query(`DROP INDEX "public"."IDX_post_deleted"`);
-    await queryRunner.query(`DROP INDEX "IDX_post_flags_sentAnalyticsReport"`);
-    await queryRunner.query(`DROP INDEX "IDX_post_flags_banned"`);
-    await queryRunner.query(`DROP INDEX "IDX_post_flags_promoteToPublic"`);
     await queryRunner.query(
       `DROP INDEX "public"."IDX_31d41971830ac861579df2b064"`,
     );
@@ -105,9 +101,6 @@ export class IndexCleanup1707995262750 implements MigrationInterface {
       `CREATE INDEX "IDX_65a9ca0600dbc72c6ff76501a6" ON "notification_preference" ("type") `,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_post_flags_deleted" ON post USING HASH (((flags->'deleted')::boolean))`,
-    );
-    await queryRunner.query(
       `CREATE INDEX "IDX_83c8ae07417cd6de65b8b99458" ON "post" ("sourceId") `,
     );
     await queryRunner.query(`CREATE INDEX "IDX_post_tsv" ON "post" ("tsv") `);
@@ -116,15 +109,6 @@ export class IndexCleanup1707995262750 implements MigrationInterface {
     );
     await queryRunner.query(
       `CREATE INDEX "IDX_post_deleted" ON "post" ("deleted") `,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_post_flags_sentAnalyticsReport" ON post USING HASH (((flags->'sentAnalyticsReport')::boolean))`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_post_flags_banned" ON post USING HASH (((flags->'banned')::boolean))`,
-    );
-    await queryRunner.query(
-      `CREATE INDEX "IDX_post_flags_promoteToPublic" ON post USING BTREE (((flags->>'promoteToPublic')::integer))`,
     );
     await queryRunner.query(
       `CREATE INDEX "IDX_31d41971830ac861579df2b064" ON "source" ("active") `,

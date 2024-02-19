@@ -211,6 +211,10 @@ export class Post {
   downvotes: number;
 
   @Column({ type: 'jsonb', default: {} })
+  @Index('IDX_post_flags_sentAnalyticsReport', { synchronize: false })
+  @Index('IDX_post_flags_banned', { synchronize: false })
+  @Index('IDX_post_flags_deleted', { synchronize: false })
+  @Index('IDX_post_flags_promoteToPublic', { synchronize: false })
   flags: PostFlags;
 
   @Column({ type: 'uuid', nullable: true })
