@@ -6,6 +6,7 @@ import {
   PageGenerator,
   offsetPageGenerator,
   getSearchQuery,
+  processSearchQuery,
 } from './common';
 import { traceResolvers } from './trace';
 import { Context } from '../Context';
@@ -356,7 +357,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
       const hits: { title: string }[] = await ctx.con.query(
         `
           WITH search AS (${getSearchQuery('$2')})
-          select ts_headline(process_text(title), search.query,
+          select ts_headline(title, search.query,
                              'StartSel = <strong>, StopSel = </strong>') as title
           from post
                  INNER JOIN bookmark ON bookmark."postId" = post.id AND
@@ -366,7 +367,7 @@ export const resolvers: IResolvers<any, Context> = traceResolvers({
           order by views desc
             limit 5;
         `,
-        [ctx.userId, query],
+        [ctx.userId, processSearchQuery(query)],
       );
       return {
         query,
