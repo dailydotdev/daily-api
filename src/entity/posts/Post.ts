@@ -182,6 +182,7 @@ export class Post {
   deleted: boolean;
 
   @Column({ nullable: true, type: 'tsvector', select: false })
+  @Index('IDX_post_tsv', { synchronize: false })
   tsv: unknown;
 
   @Column({ default: false })
