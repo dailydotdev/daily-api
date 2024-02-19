@@ -1,14 +1,11 @@
 import {
   Column,
   Entity,
-  Index,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 @Entity()
-@Index(['createdAt', 'closed'])
-@Index(['createdAt', 'closed', 'approved'])
 export class SourceRequest {
   @PrimaryGeneratedColumn('uuid')
   id: string;

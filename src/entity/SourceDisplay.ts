@@ -15,7 +15,6 @@ export class SourceDisplay {
   id: string;
 
   @Column()
-  @Index()
   sourceId: string;
 
   @ManyToOne(() => Source, (source) => source.displays, {
@@ -34,6 +33,5 @@ export class SourceDisplay {
   enabled: boolean;
 
   @Column({ type: 'text', nullable: true })
-  @Index()
   userId?: string;
 }

@@ -8,7 +8,6 @@ export enum ContentImageUsedByType {
 
 @Entity()
 @Index('IDX_content_image_used_by', ['usedByType', 'usedById'])
-@Index('IDX_content_image_created_at_type', ['createdAt', 'usedByType'])
 export class ContentImage {
   @PrimaryColumn({ type: 'text' })
   url: string;
