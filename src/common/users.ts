@@ -381,6 +381,9 @@ export const clearUserStreak = async (
   return result.affected > 0;
 };
 
+// Computes whether we should reset user streak
+// Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
+// Due to the fact that when Monday comes, we will clear it anyway when we notice the gap in Friday
 export const shouldResetStreak = (day: number, difference: number) => {
   return (
     (day === Day.Sunday && difference > FREEZE_DAYS_IN_A_WEEK) ||
@@ -404,8 +407,6 @@ export const checkAndClearUserStreak = async (
   const day = today.getDay();
   const difference = differenceInDays(today, lastViewAt);
 
-  // Even though it is the weekend, we should still clear the streak for when the user's last read was Thursday
-  // Due to the fact that when Monday comes, we will clear it anyway when we notice the gap in Friday
   if (shouldResetStreak(day, difference)) {
     return clearUserStreak(ctx.con, ctx.userId);
   }

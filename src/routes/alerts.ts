@@ -13,6 +13,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         lastBanner
         squadTour
         showGenericReferral
+        showStreakMilestone
       }
     }`;
 
