@@ -10,11 +10,9 @@ export class Bookmark {
   postId: string;
 
   @PrimaryColumn({ type: 'text' })
-  @Index()
   userId: string;
 
   @Column({ type: 'uuid', nullable: true })
-  @Index()
   listId: string;
 
   @ManyToOne(() => Post, {

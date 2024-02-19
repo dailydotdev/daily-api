@@ -25,7 +25,6 @@ export enum SourceType {
 export const UNKNOWN_SOURCE = 'unknown';
 
 @Entity()
-@Index('IDX_source_active_private_image', ['active', 'private', 'image'])
 @Index('IDX_source_activ_priva_img_name_handl_type', [
   'active',
   'private',
@@ -109,7 +108,6 @@ export class MachineSource extends Source {
   rankBoost: number;
 
   @Column({ type: 'int', array: true, default: [] })
-  @Index('IDX_source_advancedSettings')
   advancedSettings: number[];
 }
 

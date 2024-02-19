@@ -5,7 +5,6 @@ import { Source } from './Source';
 @Index(['sourceId', 'feed'], { unique: true })
 export class SourceFeed {
   @Column()
-  @Index()
   sourceId: string;
 
   @ManyToOne(() => Source, (source) => source.feeds, {
