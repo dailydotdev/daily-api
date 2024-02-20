@@ -40,6 +40,16 @@ export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
           );
           return;
         }
+        if (
+          err?.code === TypeOrmError.FOREIGN_KEY &&
+          err?.constraint === TypeOrmError.USER_CONSTRAINT
+        ) {
+          logger.warn(
+            { data: messageToJson(message) },
+            'user constraint failed when creating a notification',
+          );
+          return;
+        }
         throw err;
       }
     },

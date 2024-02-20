@@ -101,7 +101,6 @@ export class Post {
   metadataChangedAt: Date;
 
   @Column({ type: 'text', default: UNKNOWN_SOURCE })
-  @Index()
   sourceId: string;
 
   @ManyToOne(() => Source, (source) => source.posts, {
@@ -169,7 +168,6 @@ export class Post {
   trending?: number;
 
   @Column({ nullable: true })
-  @Index('IDX_post_last_trending')
   lastTrending?: Date;
 
   @Column({ type: 'integer', nullable: true })
@@ -181,11 +179,10 @@ export class Post {
   banned: boolean;
 
   @Column({ default: false })
-  @Index('IDX_post_deleted')
   deleted: boolean;
 
   @Column({ nullable: true, type: 'tsvector', select: false })
-  @Index('IDX_post_tsv')
+  @Index('IDX_post_tsv', { synchronize: false })
   tsv: unknown;
 
   @Column({ default: false })

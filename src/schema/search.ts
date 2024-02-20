@@ -14,6 +14,7 @@ import {
   GQLEmptyResponse,
   getSearchQuery,
   offsetPageGenerator,
+  processSearchQuery,
 } from './common';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
 import graphorm from '../graphorm';
@@ -167,9 +168,10 @@ const searchResolver = feedResolver(
   (ctx, { query }: FeedArgs & { query: string }, builder, alias) =>
     builder
       .andWhere(`${alias}.tsv @@ (${getSearchQuery(':query')})`, {
-        query,
+        query: processSearchQuery(query),
       })
-      .orderBy('views', 'DESC'),
+      .orderBy('ts_rank(tsv, search.query)', 'DESC')
+      .orderBy('"createdAt"', 'DESC'),
   offsetPageGenerator(30, 50),
   (ctx, args, page, builder) => builder.limit(page.limit).offset(page.offset),
   {
@@ -205,16 +207,15 @@ export const resolvers: IResolvers<unknown, Context> = traceResolvers({
       const hits: GQLSearchPostSuggestion[] = await ctx.con.query(
         `
             WITH search AS (${getSearchQuery('$1')})
-            select post.id, ts_headline(process_text(title), search.query,
+            select post.id, ts_headline(title, search.query,
                                'StartSel = <strong>, StopSel = </strong>') as title
             from post
-                   inner join search on true
-                   inner join source on source.id = post."sourceId"
-            where tsv @@ search.query and source.private = false
-            order by views desc
+            inner join search on true
+            where tsv @@ search.query and not private
+            order by ts_rank(tsv, search.query) desc, "createdAt" desc
               limit 5;
           `,
-        [query],
+        [processSearchQuery(query)],
       );
       return {
         query,

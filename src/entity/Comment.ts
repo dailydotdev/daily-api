@@ -36,11 +36,9 @@ export class Comment {
   upvotes: number;
 
   @Column({ type: 'integer', default: 0 })
-  @Index('IDX_comment_comments')
   comments: number;
 
   @Column({ default: false })
-  @Index('IDX_comment_featured')
   featured: boolean;
 
   @ManyToOne(() => Post, {

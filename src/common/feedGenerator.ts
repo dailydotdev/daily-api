@@ -18,7 +18,12 @@ import {
 } from '../entity';
 import { GQLPost } from '../schema/posts';
 import { Context } from '../Context';
-import { Page, PageGenerator, getSearchQuery } from '../schema/common';
+import {
+  Page,
+  PageGenerator,
+  getSearchQuery,
+  processSearchQuery,
+} from '../schema/common';
 import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
 import { runInSpan } from '../telemetry/opentelemetry';
@@ -480,7 +485,7 @@ export const bookmarksFeedBuilder = (
     newBuilder = newBuilder.andWhere(
       `${alias}.tsv @@ (${getSearchQuery(':query')})`,
       {
-        query,
+        query: processSearchQuery(query),
       },
     );
   }

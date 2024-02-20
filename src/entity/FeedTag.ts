@@ -5,11 +5,9 @@ import { Feed } from './Feed';
 @Index('IDX_feed_id_blocked', ['feedId', 'blocked'])
 export class FeedTag {
   @PrimaryColumn({ type: 'text' })
-  @Index()
   feedId: string;
 
   @PrimaryColumn({ type: 'text' })
-  @Index()
   tag: string;
 
   @Column({ default: false })

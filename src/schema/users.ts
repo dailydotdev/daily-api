@@ -38,7 +38,7 @@ import {
   checkAndClearUserStreak,
   GQLUserStreakTz,
 } from '../common';
-import { getSearchQuery, GQLEmptyResponse } from './common';
+import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
@@ -669,7 +669,7 @@ const readHistoryResolver = async (
 
     if (args?.query) {
       builder.queryBuilder.andWhere(`p.tsv @@ (${getSearchQuery(':query')})`, {
-        query: args?.query,
+        query: processSearchQuery(args.query),
       });
     }
     if (args?.isPublic) {
@@ -850,8 +850,7 @@ export const resolvers: IResolvers<any, Context> = {
         }),
       );
 
-      const hasClearedStreak = checkAndClearUserStreak(ctx, info, streak);
-
+      const hasClearedStreak = await checkAndClearUserStreak(ctx, info, streak);
       if (hasClearedStreak) {
         return { ...streak, current: 0 };
       }
@@ -870,7 +869,7 @@ export const resolvers: IResolvers<any, Context> = {
       const hits: { title: string }[] = await ctx.con.query(
         `
           WITH search AS (${getSearchQuery('$2')})
-          select distinct(ts_headline(process_text(title), search.query,
+          select distinct(ts_headline(title, search.query,
                                       ('StartSel = <strong>, StopSel = </strong>'))) as title
           from post
                  INNER JOIN view
@@ -882,7 +881,7 @@ export const resolvers: IResolvers<any, Context> = {
           order by title desc
             limit 5;
         `,
-        [ctx.userId, query],
+        [ctx.userId, processSearchQuery(query)],
       );
       return {
         query,

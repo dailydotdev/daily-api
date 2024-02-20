@@ -75,6 +75,7 @@ export enum TypeOrmError {
   NULL_VIOLATION = '23502',
   FOREIGN_KEY = '23503',
   DUPLICATE_ENTRY = '23505',
+  USER_CONSTRAINT = 'FK_dce2a8927967051c447ae10bc8b',
 }
 
 export enum SourcePermissionErrorKeys {

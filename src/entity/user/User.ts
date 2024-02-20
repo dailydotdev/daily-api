@@ -99,7 +99,6 @@ export class User {
   timezone?: string;
 
   @Column({ type: 'boolean', default: false })
-  @Index('IDX_user_profileConfirmed')
   profileConfirmed: boolean | null;
 
   @Column({ nullable: false, default: () => 'now()' })

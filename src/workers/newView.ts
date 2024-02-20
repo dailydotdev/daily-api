@@ -1,7 +1,8 @@
 import { DataSource, DeepPartial } from 'typeorm';
-import { User, UserStreak, View } from '../entity';
+import { Alerts, User, UserStreak, View } from '../entity';
 import { messageToJson, Worker } from './worker';
 import { TypeOrmError } from '../errors';
+import { isFibonacci } from '../common/fibonacci';
 
 const ONE_WEEK = 604800000;
 
@@ -49,7 +50,7 @@ UPDATE user_streak AS us SET
   "maxStreak" = CASE WHEN shouldIncrementStreak THEN GREATEST(us."maxStreak", us."currentStreak" + 1) ELSE us."maxStreak" END
 FROM u
 WHERE us."userId" = u.id
-RETURNING shouldIncrementStreak
+RETURNING "currentStreak"
 `;
 
 const incrementReadingStreak = async (
@@ -85,7 +86,22 @@ const incrementReadingStreak = async (
       }),
     );
   } else {
-    await repo.query(INC_STREAK_QUERY, [userId, viewTime, DEFAULT_TIMEZONE]);
+    const results = await repo.query(INC_STREAK_QUERY, [
+      userId,
+      viewTime,
+      DEFAULT_TIMEZONE,
+    ]);
+
+    const currentStreak = results?.[0]?.[0]?.currentStreak;
+
+    if (currentStreak !== null && currentStreak > 0) {
+      // milestones are currently defined on fibonacci sequence
+      const showStreakMilestone = isFibonacci(currentStreak);
+      await con.getRepository(Alerts).save({
+        userId,
+        showStreakMilestone,
+      });
+    }
   }
   return true;
 };
