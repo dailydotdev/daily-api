@@ -115,6 +115,7 @@ Object {
   "blocked_tags": Array [],
   "date_from": Any<String>,
   "date_to": Any<String>,
+  "feed_config_name": "vector_v21",
   "total_posts": 5,
   "user_id": "1",
 }
@@ -235,6 +236,7 @@ Object {
   "blocked_tags": Array [],
   "date_from": Any<String>,
   "date_to": Any<String>,
+  "feed_config_name": "vector_v21",
   "total_posts": 5,
   "user_id": "1",
 }
@@ -355,6 +357,7 @@ Object {
   "blocked_tags": Array [],
   "date_from": Any<String>,
   "date_to": Any<String>,
+  "feed_config_name": "vector_v21",
   "total_posts": 5,
   "user_id": "1",
 }

@@ -243,6 +243,7 @@ const worker: Worker = {
         allowed_tags: feedConfig.includeTags,
         blocked_tags: feedConfig.blockedTags,
         blocked_sources: feedConfig.excludeSources,
+        feed_config_name: digestFeature.feedConfig,
       },
     );
 
