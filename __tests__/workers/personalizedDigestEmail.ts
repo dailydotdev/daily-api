@@ -32,12 +32,22 @@ beforeEach(async () => {
   await saveFixtures(con, User, usersFixture);
   await con.getRepository(UserPersonalizedDigest).clear();
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+
+  const postsFixtureWithAddedData = postsFixture.map((item) => ({
+    ...item,
+    readTime: 15,
+    summary: 'test summary',
+    upvotes: 10,
+    comments: 5,
+    views: 200,
+  }));
+
+  await saveFixtures(con, Post, postsFixtureWithAddedData);
   await con.getRepository(UserPersonalizedDigest).save({
     userId: '1',
   });
 
-  const mockedPostIds = postsFixture
+  const mockedPostIds = postsFixtureWithAddedData
     .slice(0, 5)
     .map((post) => ({ post_id: post.id }));
 

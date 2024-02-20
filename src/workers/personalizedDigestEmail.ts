@@ -31,7 +31,15 @@ interface Data {
 
 type TemplatePostData = Pick<
   ArticlePost,
-  'id' | 'title' | 'image' | 'createdAt' | 'summary'
+  | 'id'
+  | 'title'
+  | 'image'
+  | 'createdAt'
+  | 'summary'
+  | 'upvotes'
+  | 'comments'
+  | 'readTime'
+  | 'views'
 > & {
   sourceName: Source['name'];
   sourceImage: Source['image'];
@@ -88,6 +96,11 @@ const getPostsTemplateData = ({ posts }: { posts: TemplatePostData[] }) => {
         'email',
         'digest',
       ),
+      post_upvotes: post.upvotes || 0,
+      post_comments: post.comments || 0,
+      post_summary: post.summary,
+      post_read_time: post.readTime,
+      post_views: post.views || 0,
       source_name: post.sourceName,
       source_image: post.sourceImage,
     };
@@ -99,11 +112,13 @@ const getEmailVariation = async ({
   posts,
   user,
   feature,
+  currentDate,
 }: {
   personalizedDigest: UserPersonalizedDigest;
   posts: TemplatePostData[];
   user: User;
   feature: typeof features.personalizedDigest.defaultValue;
+  currentDate: Date;
 }): Promise<Partial<MailDataRequired>> => {
   const [dayName] = Object.entries(DayOfWeek).find(
     ([, value]) => value === personalizedDigest.preferredDay,
@@ -113,6 +128,12 @@ const getEmailVariation = async ({
     day_name: dayName,
     first_name: userName,
     posts: getPostsTemplateData({ posts }),
+    date: format(currentDate, 'MMM d, yyyy'),
+    user: {
+      username: user.username,
+      image: user.image,
+      reputation: user.reputation,
+    },
   };
 
   const mailData = {
@@ -231,7 +252,19 @@ const worker: Worker = {
       con
         .createQueryBuilder(Post, 'p')
         .select(
-          'p.id, p.title, p.image, p."createdAt", p.summary, s.name as "sourceName", s.image as "sourceImage"',
+          [
+            'p.id',
+            'p.title',
+            'p.image',
+            'p."createdAt"',
+            'p.summary',
+            'p.upvotes',
+            'p.comments',
+            'p."readTime"',
+            'p.views',
+            's.name as "sourceName"',
+            's.image as "sourceImage"',
+          ].join(', '),
         )
         .leftJoin(Source, 's', 'p."sourceId" = s.id'),
       'p',
@@ -246,6 +279,7 @@ const worker: Worker = {
       posts,
       user,
       feature: digestFeature,
+      currentDate,
     });
     const emailPayload: MailDataRequired = {
       ...baseNotificationEmailData,
