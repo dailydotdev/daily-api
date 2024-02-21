@@ -61,6 +61,7 @@ export function getUserGrowthBookInstace(
 ): GrowthBook {
   return new GrowthBook({
     ...params,
+    clientKey: process.env.GROWTHBOOK_CLIENT_KEY,
     attributes: {
       ...params.attributes,
       userId,

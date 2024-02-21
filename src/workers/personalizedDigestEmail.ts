@@ -22,6 +22,9 @@ import { zonedTimeToUtc } from 'date-fns-tz';
 import { FeedClient } from '../integrations/feed';
 import { DataSource } from 'typeorm';
 import { features, getUserGrowthBookInstace } from '../growthbook';
+import { AnalyticsEvent, sendAnalyticsEvent } from '../integrations/analytics';
+import fastq from 'fastq';
+import deepmerge from 'deepmerge';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -201,16 +204,53 @@ const worker: Worker = {
       return;
     }
 
+    const analyticsQueue = fastq.promise(
+      async (
+        data: {
+          user_id: string;
+          device_id: string;
+          experiment_id: string;
+          variation_id: number;
+        } & AnalyticsEvent,
+      ) => {
+        await sendAnalyticsEvent([data]);
+      },
+      1,
+    );
+
     const growthbookClient = getUserGrowthBookInstace(user.id, {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      trackingCallback: (experiment, result) => {
-        // TODO notify allocation
+      enableDevMode: process.env.NODE_ENV !== 'production',
+      subscribeToChanges: false,
+      trackingCallback: async (experiment, result) => {
+        analyticsQueue.push({
+          event_name: 'allocation',
+          event_timestamp: new Date(),
+          user_id: user.id,
+          device_id: 'api',
+          experiment_id: experiment.key,
+          variation_id: result.variationId,
+        });
       },
     });
 
-    const digestFeature = growthbookClient.getFeatureValue(
+    try {
+      await growthbookClient.loadFeatures();
+    } catch (error) {
+      logger.error(
+        { personalizedDigest, err: error },
+        'Failed to load features',
+      );
+    }
+
+    const featureValue = growthbookClient.getFeatureValue(
       features.personalizedDigest.id,
       features.personalizedDigest.defaultValue,
+    );
+
+    // gb does not handle default values for nested objects
+    const digestFeature = deepmerge(
+      features.personalizedDigest.defaultValue,
+      featureValue,
     );
 
     const currentDate = new Date();
@@ -325,6 +365,8 @@ const worker: Worker = {
 
       throw error;
     }
+
+    await analyticsQueue.drained();
   },
 };
 

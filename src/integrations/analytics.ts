@@ -7,9 +7,15 @@ const generateEventId = (now) => {
   return `${timePart}${randomStr}`;
 };
 
-export async function sendAnalyticsEvent<
-  T extends { event_name: string; event_timestamp: Date; user_id: string },
->(events: T[]): Promise<void> {
+export type AnalyticsEvent = {
+  event_name: string;
+  event_timestamp: Date;
+  user_id: string;
+};
+
+export async function sendAnalyticsEvent<T extends AnalyticsEvent>(
+  events: T[],
+): Promise<void> {
   const now = new Date();
   const [visit_id, session_id] = await Promise.all([
     generateUUID(),

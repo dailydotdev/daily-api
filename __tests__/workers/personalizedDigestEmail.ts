@@ -9,11 +9,47 @@ import { sourcesFixture } from '../fixture/source';
 import { sendEmail } from '../../src/common';
 import nock from 'nock';
 import { subDays } from 'date-fns';
+import { features, getUserGrowthBookInstace } from '../../src/growthbook';
+import { sendAnalyticsEvent } from '../../src/integrations/analytics';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
   sendEmail: jest.fn(),
   createEemailBatchId: jest.fn(),
+}));
+
+jest.mock('../../src/integrations/analytics', () => ({
+  ...(jest.requireActual('../../src/integrations/analytics') as Record<
+    string,
+    unknown
+  >),
+  sendAnalyticsEvent: jest.fn(),
+}));
+
+getUserGrowthBookInstace;
+
+jest.mock('../../src/growthbook', () => ({
+  ...(jest.requireActual('../../src/growthbook') as Record<string, unknown>),
+  getUserGrowthBookInstace: (_userId: string, { trackingCallback }) => {
+    return {
+      getFeatures: jest.fn(),
+      getFeatureValue: (featureId: string) => {
+        if (typeof trackingCallback === 'function') {
+          trackingCallback(
+            { key: featureId },
+            {
+              featureId,
+              variationId: 0,
+            },
+          );
+        }
+
+        return Object.values(features).find(
+          (feature) => feature.id === featureId,
+        )?.defaultValue;
+      },
+    };
+  },
 }));
 
 let con: DataSource;
@@ -360,5 +396,37 @@ describe('personalizedDigestEmail worker', () => {
     expect(personalizedDigestAfterWorker?.lastSendDate?.toISOString()).toBe(
       lastSendDate.toISOString(),
     );
+  });
+
+  it('should send allocation analytics event for experiment', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      lastSendDate: subDays(new Date(), 7),
+    });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendAnalyticsEvent).toHaveBeenCalledTimes(1);
+    expect(sendAnalyticsEvent).toHaveBeenCalledWith([
+      {
+        device_id: 'api',
+        event_name: 'allocation',
+        event_timestamp: expect.any(Date),
+        experiment_id: 'personalized_digest',
+        user_id: '1',
+        variation_id: 0,
+      },
+    ]);
   });
 });
