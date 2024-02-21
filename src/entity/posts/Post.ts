@@ -44,6 +44,7 @@ export type PostFlags = Partial<{
 export type PostFlagsPublic = Pick<PostFlags, 'private' | 'promoteToPublic'>;
 
 @Entity()
+@Index('IDX_post_id_sourceid', ['id', 'sourceId'])
 @Index('IDX_post_deleted_visible_type_views', [
   'deleted',
   'visible',

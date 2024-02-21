@@ -33,6 +33,14 @@ export const UNKNOWN_SOURCE = 'unknown';
   'handle',
   'type',
 ])
+@Index('IDX_source_activ_priva_id_img_name_handl', [
+  'active',
+  'private',
+  'id',
+  'image',
+  'name',
+  'handle',
+])
 @Index('IDX_source_type_id', ['type', 'id'])
 @Index('IDX_source_private_id', ['private', 'id'])
 @TableInheritance({
