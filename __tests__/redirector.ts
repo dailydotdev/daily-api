@@ -63,7 +63,7 @@ describe('GET /r/:postId', () => {
       .expect('referrer-policy', 'origin, origin-when-cross-origin')
       .expect('link', `<http://p1.com/?ref=dailydev>; rel="preconnect"`)
       .expect(
-        '<html><head><meta http-equiv="refresh" content="0;URL=http://p1.com/?ref=dailydev"></head></html>',
+        '<html><head><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;URL=http://p1.com/?ref=dailydev"></head></html>',
       );
     expect(notifyView).toBeCalledWith(
       expect.anything(),
@@ -84,7 +84,7 @@ describe('GET /r/:postId', () => {
       .expect('referrer-policy', 'origin, origin-when-cross-origin')
       .expect('link', `<http://p1.com/?ref=dailydev>; rel="preconnect"`)
       .expect(
-        '<html><head><meta http-equiv="refresh" content="0;URL=http://p1.com/?ref=dailydev#id"></head></html>',
+        '<html><head><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;URL=http://p1.com/?ref=dailydev#id"></head></html>',
       );
   });
 
