@@ -51,7 +51,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         })
         .type('text/html')
         .send(
-          `<html><head><meta http-equiv="refresh" content="0;URL=${encodedUri}${
+          `<html><head><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;URL=${encodedUri}${
             req.query.a ? `#${req.query.a}` : ''
           }"></head></html>`,
         );
