@@ -37,6 +37,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(automations, { prefix: '/auto' });
   fastify.register(sitemaps, { prefix: '/sitemaps' });
 
+  fastify.get('/robots.txt', (req, res) => {
+    return res.type('text/plain').send('User-agent: *\nDisallow: /');
+  });
+
   if (process.env.NODE_ENV === 'development') {
     fastify.register(localAds);
   }
