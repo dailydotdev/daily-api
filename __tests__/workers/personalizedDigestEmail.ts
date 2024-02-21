@@ -32,6 +32,7 @@ jest.mock('../../src/growthbook', () => ({
   ...(jest.requireActual('../../src/growthbook') as Record<string, unknown>),
   getUserGrowthBookInstace: (_userId: string, { trackingCallback }) => {
     return {
+      loadFeatures: jest.fn(),
       getFeatures: jest.fn(),
       getFeatureValue: (featureId: string) => {
         if (typeof trackingCallback === 'function') {
