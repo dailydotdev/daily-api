@@ -155,18 +155,6 @@ const getEmailVariation = async ({
     },
   };
 
-  if (personalizedDigest.variation === 2) {
-    mailData.from = {
-      email: 'digest@daily.dev',
-      name: 'Weekly Digest',
-    };
-    mailData.dynamicTemplateData.title = posts[0].title;
-
-    if (posts[0].summary) {
-      mailData.dynamicTemplateData.preview = posts[0].summary;
-    }
-  }
-
   return mailData;
 };
 
