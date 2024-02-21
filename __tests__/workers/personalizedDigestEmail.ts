@@ -90,6 +90,9 @@ describe('personalizedDigestEmail worker', () => {
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
     expect(emailData).toMatchSnapshot({
       sendAt: expect.any(Number),
+      dynamicTemplateData: {
+        date: expect.any(String),
+      },
     });
 
     expect(nockScope.isDone()).toBe(true);
@@ -132,6 +135,9 @@ describe('personalizedDigestEmail worker', () => {
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
     expect(emailData).toMatchSnapshot({
       sendAt: expect.any(Number),
+      dynamicTemplateData: {
+        date: expect.any(String),
+      },
     });
     const sentAtDate = new Date(emailData.sendAt * 1000);
     expect(sentAtDate.getDay()).toBe(personalizedDigest!.preferredDay);
@@ -176,6 +182,9 @@ describe('personalizedDigestEmail worker', () => {
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
     expect(emailData).toMatchSnapshot({
       sendAt: expect.any(Number),
+      dynamicTemplateData: {
+        date: expect.any(String),
+      },
     });
     const sentAtDate = new Date(emailData.sendAt * 1000);
     expect(sentAtDate.getDay()).toBe(personalizedDigest!.preferredDay);
@@ -270,6 +279,9 @@ describe('personalizedDigestEmail worker', () => {
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
     expect(emailData).toMatchSnapshot({
       sendAt: expect.any(Number),
+      dynamicTemplateData: {
+        date: expect.any(String),
+      },
     });
   });
 

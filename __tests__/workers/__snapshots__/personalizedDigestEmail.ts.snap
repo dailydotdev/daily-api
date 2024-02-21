@@ -8,7 +8,7 @@ Object {
   "batchId": "test-email-batch-id",
   "category": "Digests",
   "dynamicTemplateData": Object {
-    "date": "Feb 20, 2024",
+    "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
     "posts": Array [
@@ -129,7 +129,7 @@ Object {
   "batchId": "test-email-batch-id",
   "category": "Digests",
   "dynamicTemplateData": Object {
-    "date": "Feb 20, 2024",
+    "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
     "posts": Array [
@@ -250,7 +250,7 @@ Object {
   "batchId": "test-email-batch-id",
   "category": "Digests",
   "dynamicTemplateData": Object {
-    "date": "Feb 20, 2024",
+    "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
     "posts": Array [
@@ -371,7 +371,7 @@ Object {
   "batchId": "test-email-batch-id",
   "category": "Digests",
   "dynamicTemplateData": Object {
-    "date": "Feb 20, 2024",
+    "date": Any<String>,
     "day_name": "Monday",
     "first_name": "Ido",
     "posts": Array [
