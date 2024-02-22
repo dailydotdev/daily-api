@@ -40,15 +40,15 @@ export async function sendAnalyticsEvent<T extends AnalyticsEvent>(
   );
 }
 
-export type ExperimentAnalyticsEvent = {
+export type ExperimentAllocationEvent = {
   event_timestamp: Date;
   user_id: string;
   experiment_id: string;
   variation_id: number;
 };
 
-export async function sendExperimentAnalyticsEvent<
-  T extends ExperimentAnalyticsEvent,
+export async function sendExperimentAllocationEvent<
+  T extends ExperimentAllocationEvent,
 >(event: T): Promise<void> {
   const device_id = generateUUID();
   const transformed = {

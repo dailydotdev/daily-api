@@ -23,8 +23,8 @@ import { FeedClient } from '../integrations/feed';
 import { DataSource } from 'typeorm';
 import { features, getUserGrowthBookInstace } from '../growthbook';
 import {
-  ExperimentAnalyticsEvent,
-  sendExperimentAnalyticsEvent,
+  ExperimentAllocationEvent,
+  sendExperimentAllocationEvent,
 } from '../integrations/analytics';
 import fastq from 'fastq';
 import deepmerge from 'deepmerge';
@@ -196,8 +196,8 @@ const worker: Worker = {
     }
 
     const analyticsQueue = fastq.promise(
-      async (data: ExperimentAnalyticsEvent) => {
-        await sendExperimentAnalyticsEvent(data);
+      async (data: ExperimentAllocationEvent) => {
+        await sendExperimentAllocationEvent(data);
       },
       1,
     );

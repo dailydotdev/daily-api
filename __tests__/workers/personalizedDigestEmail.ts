@@ -10,7 +10,7 @@ import { sendEmail } from '../../src/common';
 import nock from 'nock';
 import { subDays } from 'date-fns';
 import { features } from '../../src/growthbook';
-import { sendExperimentAnalyticsEvent } from '../../src/integrations/analytics';
+import { sendExperimentAllocationEvent } from '../../src/integrations/analytics';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -23,7 +23,7 @@ jest.mock('../../src/integrations/analytics', () => ({
     string,
     unknown
   >),
-  sendExperimentAnalyticsEvent: jest.fn(),
+  sendExperimentAllocationEvent: jest.fn(),
 }));
 
 jest.mock('../../src/growthbook', () => ({
@@ -392,8 +392,8 @@ describe('personalizedDigestEmail worker', () => {
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
-    expect(sendExperimentAnalyticsEvent).toHaveBeenCalledTimes(1);
-    expect(sendExperimentAnalyticsEvent).toHaveBeenCalledWith({
+    expect(sendExperimentAllocationEvent).toHaveBeenCalledTimes(1);
+    expect(sendExperimentAllocationEvent).toHaveBeenCalledWith({
       event_timestamp: expect.any(Date),
       experiment_id: 'personalized_digest',
       user_id: '1',
