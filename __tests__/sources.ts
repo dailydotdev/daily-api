@@ -32,10 +32,7 @@ import { SourcePermissions } from '../src/schema/sources';
 import { SourcePermissionErrorKeys } from '../src/errors';
 import { updateFlagsStatement, WELCOME_POST_TITLE } from '../src/common';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
-import {
-  NotificationPreferenceStatus,
-  NotificationType,
-} from '../src/notifications/common';
+import { NotificationType } from '../src/notifications/common';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -2056,15 +2053,7 @@ describe('mutation joinSource', () => {
 
   it('should add member to public squad without token', async () => {
     loggedUser = '1';
-    const getPreference = () =>
-      con.getRepository(NotificationPreferenceSource).findOneBy({
-        userId: '1',
-        referenceId: 's1',
-        notificationType: NotificationType.SquadPostAdded,
-      });
     await con.getRepository(Source).update({ id: 's1' }, { private: false });
-    const beforePreference = await getPreference();
-    expect(beforePreference).toBeFalsy();
     const res = await client.mutate(MUTATION, { variables });
     expect(res.errors).toBeFalsy();
     expect(res.data.joinSource.id).toEqual('s1');
@@ -2072,8 +2061,6 @@ describe('mutation joinSource', () => {
       sourceId: 's1',
       userId: '1',
     });
-    const afterPreference = await getPreference();
-    expect(afterPreference.status).toEqual(NotificationPreferenceStatus.Muted);
   });
 
   it('should add member to private squad with token', async () => {

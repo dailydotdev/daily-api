@@ -48,11 +48,6 @@ import {
   ValidateRegex,
 } from '../common/object';
 import { validateAndTransformHandle } from '../common/handles';
-import {
-  NotificationPreferenceStatus,
-  NotificationType,
-  saveNotificationPreference,
-} from '../notifications/common';
 import { QueryBuilder } from '../graphorm/graphorm';
 
 export interface GQLSource {
@@ -1399,16 +1394,6 @@ export const resolvers: IResolvers<any, Context> = {
             userId: ctx.userId,
             role: SourceMemberRoles.Member,
           });
-
-          if (!source.private) {
-            await saveNotificationPreference(
-              entityManager,
-              ctx.userId,
-              sourceId,
-              NotificationType.SquadPostAdded,
-              NotificationPreferenceStatus.Muted,
-            );
-          }
 
           await entityManager
             .getRepository(Source)
