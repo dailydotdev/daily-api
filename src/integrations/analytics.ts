@@ -50,16 +50,11 @@ export type ExperimentAllocationEvent = {
 export async function sendExperimentAllocationEvent<
   T extends ExperimentAllocationEvent,
 >(event: T): Promise<void> {
-  const device_id = generateUUID();
-  const transformed = {
-    device_id,
-    ...event,
-  };
   await retryFetch(
     `${process.env.ANALYTICS_URL}/e/x`,
     {
       method: 'POST',
-      body: JSON.stringify(transformed),
+      body: JSON.stringify(event),
       headers: {
         'content-type': 'application/json',
       },
