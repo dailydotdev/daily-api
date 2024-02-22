@@ -39,3 +39,31 @@ export async function sendAnalyticsEvent<T extends AnalyticsEvent>(
     { retries: 3 },
   );
 }
+
+export type ExperimentAnalyticsEvent = {
+  event_timestamp: Date;
+  user_id: string;
+  experiment_id: string;
+  variation_id: number;
+};
+
+export async function sendExperimentAnalyticsEvent<
+  T extends ExperimentAnalyticsEvent,
+>(event: T): Promise<void> {
+  const device_id = generateUUID();
+  const transformed = {
+    device_id,
+    ...event,
+  };
+  await retryFetch(
+    `${process.env.ANALYTICS_URL}/e/x`,
+    {
+      method: 'POST',
+      body: JSON.stringify(transformed),
+      headers: {
+        'content-type': 'application/json',
+      },
+    },
+    { retries: 3 },
+  );
+}

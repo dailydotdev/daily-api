@@ -22,7 +22,10 @@ import { zonedTimeToUtc } from 'date-fns-tz';
 import { FeedClient } from '../integrations/feed';
 import { DataSource } from 'typeorm';
 import { features, getUserGrowthBookInstace } from '../growthbook';
-import { AnalyticsEvent, sendAnalyticsEvent } from '../integrations/analytics';
+import {
+  ExperimentAnalyticsEvent,
+  sendExperimentAnalyticsEvent,
+} from '../integrations/analytics';
 import fastq from 'fastq';
 import deepmerge from 'deepmerge';
 
@@ -193,15 +196,8 @@ const worker: Worker = {
     }
 
     const analyticsQueue = fastq.promise(
-      async (
-        data: {
-          user_id: string;
-          device_id: string;
-          experiment_id: string;
-          variation_id: number;
-        } & AnalyticsEvent,
-      ) => {
-        await sendAnalyticsEvent([data]);
+      async (data: ExperimentAnalyticsEvent) => {
+        await sendExperimentAnalyticsEvent(data);
       },
       1,
     );
@@ -211,10 +207,8 @@ const worker: Worker = {
       subscribeToChanges: false,
       trackingCallback: async (experiment, result) => {
         analyticsQueue.push({
-          event_name: 'allocation',
           event_timestamp: new Date(),
           user_id: user.id,
-          device_id: 'api',
           experiment_id: experiment.key,
           variation_id: result.variationId,
         });
