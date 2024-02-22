@@ -31,7 +31,7 @@ const updateFeatures = (log: FastifyBaseLogger) => async () => {
   } else {
     encryptedFeatures = JSON.stringify(features);
   }
-  log.info('updated features');
+  log.debug('updated features');
 };
 
 export type Features = Record<string, FeatureDefinition<unknown>>;

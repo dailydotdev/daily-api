@@ -215,15 +215,6 @@ const worker: Worker = {
       },
     });
 
-    try {
-      await growthbookClient.loadFeatures();
-    } catch (error) {
-      logger.error(
-        { personalizedDigest, err: error },
-        'Failed to load features',
-      );
-    }
-
     const featureValue = growthbookClient.getFeatureValue(
       features.personalizedDigest.id,
       features.personalizedDigest.defaultValue,
