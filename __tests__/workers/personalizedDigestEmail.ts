@@ -9,7 +9,7 @@ import { sourcesFixture } from '../fixture/source';
 import { sendEmail } from '../../src/common';
 import nock from 'nock';
 import { subDays } from 'date-fns';
-import { features, getUserGrowthBookInstace } from '../../src/growthbook';
+import { features } from '../../src/growthbook';
 import { sendAnalyticsEvent } from '../../src/integrations/analytics';
 
 jest.mock('../../src/common', () => ({
@@ -25,8 +25,6 @@ jest.mock('../../src/integrations/analytics', () => ({
   >),
   sendAnalyticsEvent: jest.fn(),
 }));
-
-getUserGrowthBookInstace;
 
 jest.mock('../../src/growthbook', () => ({
   ...(jest.requireActual('../../src/growthbook') as Record<string, unknown>),
