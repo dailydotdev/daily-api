@@ -7,9 +7,15 @@ const generateEventId = (now) => {
   return `${timePart}${randomStr}`;
 };
 
-export async function sendAnalyticsEvent<
-  T extends { event_name: string; event_timestamp: Date; user_id: string },
->(events: T[]): Promise<void> {
+export type AnalyticsEvent = {
+  event_name: string;
+  event_timestamp: Date;
+  user_id: string;
+};
+
+export async function sendAnalyticsEvent<T extends AnalyticsEvent>(
+  events: T[],
+): Promise<void> {
   const now = new Date();
   const [visit_id, session_id] = await Promise.all([
     generateUUID(),
@@ -26,6 +32,29 @@ export async function sendAnalyticsEvent<
     {
       method: 'POST',
       body: JSON.stringify({ events: transformed }),
+      headers: {
+        'content-type': 'application/json',
+      },
+    },
+    { retries: 3 },
+  );
+}
+
+export type ExperimentAllocationEvent = {
+  event_timestamp: Date;
+  user_id: string;
+  experiment_id: string;
+  variation_id: number;
+};
+
+export async function sendExperimentAllocationEvent<
+  T extends ExperimentAllocationEvent,
+>(event: T): Promise<void> {
+  await retryFetch(
+    `${process.env.ANALYTICS_URL}/e/x`,
+    {
+      method: 'POST',
+      body: JSON.stringify(event),
       headers: {
         'content-type': 'application/json',
       },

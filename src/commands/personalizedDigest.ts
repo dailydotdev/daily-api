@@ -8,6 +8,7 @@ import '../config';
 import createOrGetConnection from '../db';
 import { workerSubscribe } from '../common';
 import { personalizedDigestWorkers as workers } from '../workers';
+import { loadFeatures } from '../growthbook';
 
 export default async function app(): Promise<void> {
   const logger = pino({
@@ -19,6 +20,8 @@ export default async function app(): Promise<void> {
   );
   const pubsub = new PubSub();
   const meter = opentelemetry.metrics.getMeter('api-personalized-digest');
+
+  await loadFeatures(logger);
 
   logger.info('personalized-digest processing in on');
 

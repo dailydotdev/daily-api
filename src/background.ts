@@ -9,6 +9,7 @@ import { typedWorkers, workers } from './workers';
 import createOrGetConnection from './db';
 import { workerSubscribe } from './common';
 import { messageToJson } from './workers/worker';
+import { loadFeatures } from './growthbook';
 
 export default async function app(): Promise<void> {
   const logger = pino({
@@ -20,6 +21,8 @@ export default async function app(): Promise<void> {
   );
   const pubsub = new PubSub();
   const meter = opentelemetry.metrics.getMeter('api-bg');
+
+  await loadFeatures(logger);
 
   logger.info('background processing in on');
 

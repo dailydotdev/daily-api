@@ -69,6 +69,7 @@
     "dataloader": "^2.2.2",
     "date-fns": "^2.30.0",
     "date-fns-tz": "^2.0.0",
+    "deepmerge": "^4.3.1",
     "eventsource": "^2.0.2",
     "fast-json-stringify": "^5.10.0",
     "fastify": "^4.25.2",

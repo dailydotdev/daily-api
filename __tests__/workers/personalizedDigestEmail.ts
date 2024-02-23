@@ -9,11 +9,46 @@ import { sourcesFixture } from '../fixture/source';
 import { sendEmail } from '../../src/common';
 import nock from 'nock';
 import { subDays } from 'date-fns';
+import { features } from '../../src/growthbook';
+import { sendExperimentAllocationEvent } from '../../src/integrations/analytics';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
   sendEmail: jest.fn(),
   createEemailBatchId: jest.fn(),
+}));
+
+jest.mock('../../src/integrations/analytics', () => ({
+  ...(jest.requireActual('../../src/integrations/analytics') as Record<
+    string,
+    unknown
+  >),
+  sendExperimentAllocationEvent: jest.fn(),
+}));
+
+jest.mock('../../src/growthbook', () => ({
+  ...(jest.requireActual('../../src/growthbook') as Record<string, unknown>),
+  getUserGrowthBookInstace: (_userId: string, { trackingCallback }) => {
+    return {
+      loadFeatures: jest.fn(),
+      getFeatures: jest.fn(),
+      getFeatureValue: (featureId: string) => {
+        if (typeof trackingCallback === 'function') {
+          trackingCallback(
+            { key: featureId },
+            {
+              featureId,
+              variationId: 0,
+            },
+          );
+        }
+
+        return Object.values(features).find(
+          (feature) => feature.id === featureId,
+        )?.defaultValue;
+      },
+    };
+  },
 }));
 
 let con: DataSource;
@@ -32,12 +67,22 @@ beforeEach(async () => {
   await saveFixtures(con, User, usersFixture);
   await con.getRepository(UserPersonalizedDigest).clear();
   await saveFixtures(con, Source, sourcesFixture);
-  await saveFixtures(con, Post, postsFixture);
+
+  const postsFixtureWithAddedData = postsFixture.map((item) => ({
+    ...item,
+    readTime: 15,
+    summary: 'test summary',
+    upvotes: 10,
+    comments: 5,
+    views: 200,
+  }));
+
+  await saveFixtures(con, Post, postsFixtureWithAddedData);
   await con.getRepository(UserPersonalizedDigest).save({
     userId: '1',
   });
 
-  const mockedPostIds = postsFixture
+  const mockedPostIds = postsFixtureWithAddedData
     .slice(0, 5)
     .map((post) => ({ post_id: post.id }));
 
@@ -80,6 +125,9 @@ describe('personalizedDigestEmail worker', () => {
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
     expect(emailData).toMatchSnapshot({
       sendAt: expect.any(Number),
+      dynamicTemplateData: {
+        date: expect.any(String),
+      },
     });
 
     expect(nockScope.isDone()).toBe(true);
@@ -122,6 +170,9 @@ describe('personalizedDigestEmail worker', () => {
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
     expect(emailData).toMatchSnapshot({
       sendAt: expect.any(Number),
+      dynamicTemplateData: {
+        date: expect.any(String),
+      },
     });
     const sentAtDate = new Date(emailData.sendAt * 1000);
     expect(sentAtDate.getDay()).toBe(personalizedDigest!.preferredDay);
@@ -166,6 +217,9 @@ describe('personalizedDigestEmail worker', () => {
     const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
     expect(emailData).toMatchSnapshot({
       sendAt: expect.any(Number),
+      dynamicTemplateData: {
+        date: expect.any(String),
+      },
     });
     const sentAtDate = new Date(emailData.sendAt * 1000);
     expect(sentAtDate.getDay()).toBe(personalizedDigest!.preferredDay);
@@ -240,27 +294,6 @@ describe('personalizedDigestEmail worker', () => {
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(0);
-  });
-
-  it('should set parameters based on variation', async () => {
-    const personalizedDigest = await con
-      .getRepository(UserPersonalizedDigest)
-      .findOneBy({
-        userId: '1',
-      });
-    personalizedDigest!.variation = 2;
-
-    await expectSuccessfulBackground(worker, {
-      personalizedDigest,
-      generationTimestamp: Date.now(),
-      emailBatchId: 'test-email-batch-id',
-    });
-
-    expect(sendEmail).toHaveBeenCalledTimes(1);
-    const emailData = (sendEmail as jest.Mock).mock.calls[0][0];
-    expect(emailData).toMatchSnapshot({
-      sendAt: expect.any(Number),
-    });
   });
 
   it('should not generate personalized digest for user if lastSendDate is in the same day as current date', async () => {
@@ -338,5 +371,33 @@ describe('personalizedDigestEmail worker', () => {
     expect(personalizedDigestAfterWorker?.lastSendDate?.toISOString()).toBe(
       lastSendDate.toISOString(),
     );
+  });
+
+  it('should send allocation analytics event for experiment', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      lastSendDate: subDays(new Date(), 7),
+    });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      generationTimestamp: Date.now(),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(sendExperimentAllocationEvent).toHaveBeenCalledTimes(1);
+    expect(sendExperimentAllocationEvent).toHaveBeenCalledWith({
+      event_timestamp: expect.any(Date),
+      experiment_id: 'personalized_digest',
+      user_id: '1',
+      variation_id: 0,
+    });
   });
 });

@@ -21,6 +21,13 @@ import { format, isSameDay, nextDay, previousDay } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import { FeedClient } from '../integrations/feed';
 import { DataSource } from 'typeorm';
+import { features, getUserGrowthBookInstace } from '../growthbook';
+import {
+  ExperimentAllocationEvent,
+  sendExperimentAllocationEvent,
+} from '../integrations/analytics';
+import fastq from 'fastq';
+import deepmerge from 'deepmerge';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -30,7 +37,15 @@ interface Data {
 
 type TemplatePostData = Pick<
   ArticlePost,
-  'id' | 'title' | 'image' | 'createdAt' | 'summary'
+  | 'id'
+  | 'title'
+  | 'image'
+  | 'createdAt'
+  | 'summary'
+  | 'upvotes'
+  | 'comments'
+  | 'readTime'
+  | 'views'
 > & {
   sourceName: Source['name'];
   sourceImage: Source['image'];
@@ -45,10 +60,6 @@ type SetEmailSendDateProps = Pick<Data, 'personalizedDigest'> & {
   con: DataSource;
   date: Date;
 };
-
-const personalizedDigestPostsCount = 5;
-
-const emailTemplateId = 'd-328d1104d2e04fa1ab91e410e02751cb';
 
 const personalizedDigestDateFormat = 'yyyy-MM-dd HH:mm:ss';
 
@@ -91,45 +102,63 @@ const getPostsTemplateData = ({ posts }: { posts: TemplatePostData[] }) => {
         'email',
         'digest',
       ),
+      post_upvotes: post.upvotes || 0,
+      post_comments: post.comments || 0,
+      post_summary: post.summary,
+      post_read_time: post.readTime,
+      post_views: post.views || 0,
       source_name: post.sourceName,
       source_image: post.sourceImage,
     };
   });
 };
 
-const getEmailVariation = async (
-  variation: number,
-  firstName: string,
-  dayName: string,
-  posts: TemplatePostData[],
-): Promise<Partial<MailDataRequired>> => {
-  const defaultPreview = `Every ${dayName}, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!`;
+const getEmailVariation = async ({
+  personalizedDigest,
+  posts,
+  user,
+  feature,
+  currentDate,
+}: {
+  personalizedDigest: UserPersonalizedDigest;
+  posts: TemplatePostData[];
+  user: User;
+  feature: typeof features.personalizedDigest.defaultValue;
+  currentDate: Date;
+}): Promise<Partial<MailDataRequired>> => {
+  const [dayName] = Object.entries(DayOfWeek).find(
+    ([, value]) => value === personalizedDigest.preferredDay,
+  );
+  const userName = user.name?.trim().split(' ')[0] || user.username;
   const data = {
     day_name: dayName,
-    first_name: firstName,
+    first_name: userName,
     posts: getPostsTemplateData({ posts }),
-  };
-  if (variation === 2) {
-    return {
-      dynamicTemplateData: {
-        ...data,
-        title: posts[0].title,
-        preview: posts[0].summary || defaultPreview,
-      },
-      from: {
-        email: 'digest@daily.dev',
-        name: 'Weekly Digest',
-      },
-    };
-  }
-
-  return {
-    dynamicTemplateData: {
-      ...data,
-      title: `${firstName}, your personal weekly update from daily.dev is ready`,
-      preview: defaultPreview,
+    date: format(currentDate, 'MMM d, yyyy'),
+    user: {
+      username: user.username,
+      image: user.image,
+      reputation: user.reputation,
     },
   };
+
+  const mailData = {
+    from: {
+      email: feature.meta.from.email,
+      name: feature.meta.from.name,
+    },
+    to: {
+      email: user.email,
+      name: userName,
+    },
+    dynamicTemplateData: {
+      ...data,
+      title: `${userName}, your personal weekly update from daily.dev is ready`,
+      preview: `Every ${dayName}, we'll send you five posts you haven't read. Each post was carefully picked based on topics you love reading about. Let's get to it!`,
+    },
+  };
+
+  return mailData;
 };
 
 const setEmailSendDate = async ({
@@ -166,6 +195,37 @@ const worker: Worker = {
       return;
     }
 
+    const analyticsQueue = fastq.promise(
+      async (data: ExperimentAllocationEvent) => {
+        await sendExperimentAllocationEvent(data);
+      },
+      1,
+    );
+
+    const growthbookClient = getUserGrowthBookInstace(user.id, {
+      enableDevMode: process.env.NODE_ENV !== 'production',
+      subscribeToChanges: false,
+      trackingCallback: async (experiment, result) => {
+        analyticsQueue.push({
+          event_timestamp: new Date(),
+          user_id: user.id,
+          experiment_id: experiment.key,
+          variation_id: result.variationId,
+        });
+      },
+    });
+
+    const featureValue = growthbookClient.getFeatureValue(
+      features.personalizedDigest.id,
+      features.personalizedDigest.defaultValue,
+    );
+
+    // gb does not handle default values for nested objects
+    const digestFeature = deepmerge(
+      features.personalizedDigest.defaultValue,
+      featureValue,
+    );
+
     const currentDate = new Date();
     const emailSendDate = getEmailSendDate({
       personalizedDigest,
@@ -190,12 +250,13 @@ const worker: Worker = {
       personalizedDigest.userId,
       {
         user_id: personalizedDigest.userId,
-        total_posts: personalizedDigestPostsCount,
+        total_posts: digestFeature.maxPosts,
         date_from: format(previousSendDate, personalizedDigestDateFormat),
         date_to: format(currentDate, personalizedDigestDateFormat),
         allowed_tags: feedConfig.includeTags,
         blocked_tags: feedConfig.blockedTags,
         blocked_sources: feedConfig.excludeSources,
+        feed_config_name: digestFeature.feedConfig,
       },
     );
 
@@ -205,7 +266,19 @@ const worker: Worker = {
       con
         .createQueryBuilder(Post, 'p')
         .select(
-          'p.id, p.title, p.image, p."createdAt", p.summary, s.name as "sourceName", s.image as "sourceImage"',
+          [
+            'p.id',
+            'p.title',
+            'p.image',
+            'p."createdAt"',
+            'p.summary',
+            'p.upvotes',
+            'p.comments',
+            'p."readTime"',
+            'p.views',
+            's.name as "sourceName"',
+            's.image as "sourceImage"',
+          ].join(', '),
         )
         .leftJoin(Source, 's', 'p."sourceId" = s.id'),
       'p',
@@ -215,28 +288,21 @@ const worker: Worker = {
       return;
     }
 
-    const [dayName] = Object.entries(DayOfWeek).find(
-      ([, value]) => value === personalizedDigest.preferredDay,
-    );
-    const userName = user.name?.trim().split(' ')[0] || user.username;
-    const variationProps = await getEmailVariation(
-      personalizedDigest.variation,
-      userName,
-      dayName,
+    const variationProps = await getEmailVariation({
+      personalizedDigest,
       posts,
-    );
+      user,
+      feature: digestFeature,
+      currentDate,
+    });
     const emailPayload: MailDataRequired = {
       ...baseNotificationEmailData,
-      to: {
-        email: user.email,
-        name: userName,
-      },
       sendAt: Math.floor(emailSendDate.getTime() / 1000),
-      templateId: emailTemplateId,
+      templateId: digestFeature.templateId,
       asm: {
-        groupId: 23809,
+        groupId: digestFeature.meta.asmGroupId,
       },
-      category: 'Digests',
+      category: digestFeature.meta.category,
       batchId: emailBatchId,
       ...variationProps,
     };
@@ -272,6 +338,8 @@ const worker: Worker = {
 
       throw error;
     }
+
+    await analyticsQueue.drained();
   },
 };
 
