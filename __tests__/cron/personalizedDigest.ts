@@ -60,6 +60,7 @@ describe('personalizedDigest cron', () => {
         expect.anything(),
         personalizedDigest,
         expect.any(Number),
+        expect.any(Number),
         'test-email-batch-id',
       );
     });
@@ -90,6 +91,7 @@ describe('personalizedDigest cron', () => {
       expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith(
         expect.anything(),
         personalizedDigest,
+        expect.any(Number),
         expect.any(Number),
         'test-email-batch-id',
       );
