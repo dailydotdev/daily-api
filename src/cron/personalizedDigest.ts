@@ -42,13 +42,13 @@ const cron: Cron = {
           generationTimestamp: timestamp,
         }).getTime();
 
-        await notifyGeneratePersonalizedDigest(
-          logger,
+        await notifyGeneratePersonalizedDigest({
+          log: logger,
           personalizedDigest,
           emailSendTimestamp,
           previousSendTimestamp,
           emailBatchId,
-        );
+        });
 
         digestCount += 1;
       },

@@ -433,18 +433,27 @@ export const notifySourceCreated = async (
   source: ChangeObject<Source>,
 ): Promise<void> => publishEvent(log, sourceCreatedTopic, { source });
 
-export const notifyGeneratePersonalizedDigest = async (
-  log: EventLogger,
-  personalizedDigest: UserPersonalizedDigest,
-  emailSendTimestamp: number,
-  previousSendTimestamp: number,
-  emailBatchId?: string,
-): Promise<void> =>
+export const notifyGeneratePersonalizedDigest = async ({
+  log,
+  personalizedDigest,
+  emailSendTimestamp,
+  previousSendTimestamp,
+  emailBatchId,
+  deduplicate,
+}: {
+  log: EventLogger;
+  personalizedDigest: UserPersonalizedDigest;
+  emailSendTimestamp: number;
+  previousSendTimestamp: number;
+  emailBatchId?: string;
+  deduplicate?: boolean;
+}): Promise<void> =>
   publishEvent(log, generatePersonalizedDigestTopic, {
     personalizedDigest,
     emailSendTimestamp,
     previousSendTimestamp,
     emailBatchId,
+    deduplicate: deduplicate ?? true,
   });
 
 export const notifyPostYggdrasilIdSet = async (

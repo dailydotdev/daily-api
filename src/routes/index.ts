@@ -102,18 +102,19 @@ Disallow: /`);
             return;
           }
 
-          await notifyGeneratePersonalizedDigest(
-            req.log,
+          await notifyGeneratePersonalizedDigest({
+            log: req.log,
             personalizedDigest,
-            getPersonalizedDigestSendDate({
+            emailSendTimestamp: getPersonalizedDigestSendDate({
               personalizedDigest,
               generationTimestamp: timestamp,
             }).getTime(),
-            getPersonalizedDigestPreviousSendDate({
+            previousSendTimestamp: getPersonalizedDigestPreviousSendDate({
               personalizedDigest,
               generationTimestamp: timestamp,
             }).getTime(),
-          );
+            deduplicate: false,
+          });
         }),
       );
 
