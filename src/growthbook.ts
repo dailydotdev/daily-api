@@ -57,13 +57,13 @@ export function getEncryptedFeatures(): string {
 
 export function getUserGrowthBookInstace(
   userId: string,
-  params: Omit<GrowthBookContext, 'features'>,
+  params?: Omit<GrowthBookContext, 'features'>,
 ): GrowthBook {
   return new GrowthBook({
     ...params,
     clientKey: process.env.GROWTHBOOK_CLIENT_KEY,
     attributes: {
-      ...params.attributes,
+      ...params?.attributes,
       userId,
     },
     features: gb.getFeatures(),
@@ -92,7 +92,7 @@ export const features = {
       category: 'Digests',
       asmGroupId: 23809,
     },
-    feedConfig: 'vector_v21',
+    feedConfig: 'digest',
     maxPosts: 5,
   }),
 };
