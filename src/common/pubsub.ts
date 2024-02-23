@@ -438,7 +438,7 @@ export const notifyGeneratePersonalizedDigest = async (
   personalizedDigest: UserPersonalizedDigest,
   emailSendTimestamp: number,
   previousSendTimestamp: number,
-  emailBatchId: string,
+  emailBatchId?: string,
 ): Promise<void> =>
   publishEvent(log, generatePersonalizedDigestTopic, {
     personalizedDigest,

@@ -15,7 +15,7 @@ interface Data {
   personalizedDigest: UserPersonalizedDigest;
   emailSendTimestamp: number;
   previousSendTimestamp: number;
-  emailBatchId: string;
+  emailBatchId?: string;
 }
 
 type SetEmailSendDateProps = Pick<Data, 'personalizedDigest'> & {

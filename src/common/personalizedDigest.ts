@@ -154,8 +154,8 @@ export const getPersonalizedDigestEmailPayload = async ({
   logger: FastifyBaseLogger;
   personalizedDigest: UserPersonalizedDigest;
   user: User;
-  emailBatchId: string;
-  emailSendDate?: Date;
+  emailBatchId?: string;
+  emailSendDate: Date;
   currentDate: Date;
   previousSendDate: Date;
   feature: typeof features.personalizedDigest.defaultValue;
@@ -222,15 +222,13 @@ export const getPersonalizedDigestEmailPayload = async ({
 
   const emailPayload: MailDataRequired = {
     ...baseNotificationEmailData,
-    sendAt: emailSendDate
-      ? Math.floor(emailSendDate.getTime() / 1000)
-      : undefined,
+    sendAt: Math.floor(emailSendDate.getTime() / 1000),
     templateId: feature.templateId,
     asm: {
       groupId: feature.meta.asmGroupId,
     },
     category: feature.meta.category,
-    batchId: emailSendDate ? emailBatchId : undefined,
+    batchId: emailBatchId,
     ...variationProps,
   };
 
