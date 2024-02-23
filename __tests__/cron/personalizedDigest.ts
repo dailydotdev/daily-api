@@ -56,24 +56,17 @@ describe('personalizedDigest cron', () => {
       usersToSchedule.length,
     );
     scheduledPersonalizedDigests.forEach((personalizedDigest) => {
-      expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith({
+        log: expect.anything(),
         personalizedDigest,
-        expect.any(Number),
-        expect.any(Number),
-        'test-email-batch-id',
-      );
+        emailSendTimestamp: expect.any(Number),
+        previousSendTimestamp: expect.any(Number),
+        emailBatchId: 'test-email-batch-id',
+      });
     });
     (notifyGeneratePersonalizedDigest as jest.Mock).mock.calls.forEach(
       (call) => {
-        const [
-          /* eslint-disable @typescript-eslint/no-unused-vars */
-          logger,
-          personalizedDigest,
-          /* eslint-enable @typescript-eslint/no-unused-vars */
-          emailSendTimestamp,
-          previousSendTimestamp,
-        ] = call;
+        const { emailSendTimestamp, previousSendTimestamp } = call?.[0] || {};
 
         expect(emailSendTimestamp).toBeGreaterThan(previousSendTimestamp);
       },
@@ -102,24 +95,17 @@ describe('personalizedDigest cron', () => {
       usersToSchedule.length,
     );
     scheduledPersonalizedDigests.forEach((personalizedDigest) => {
-      expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith({
+        log: expect.anything(),
         personalizedDigest,
-        expect.any(Number),
-        expect.any(Number),
-        'test-email-batch-id',
-      );
+        emailSendTimestamp: expect.any(Number),
+        previousSendTimestamp: expect.any(Number),
+        emailBatchId: 'test-email-batch-id',
+      });
     });
     (notifyGeneratePersonalizedDigest as jest.Mock).mock.calls.forEach(
       (call) => {
-        const [
-          /* eslint-disable @typescript-eslint/no-unused-vars */
-          logger,
-          personalizedDigest,
-          /* eslint-enable @typescript-eslint/no-unused-vars */
-          emailSendTimestamp,
-          previousSendTimestamp,
-        ] = call;
+        const { emailSendTimestamp, previousSendTimestamp } = call?.[0] || {};
 
         expect(emailSendTimestamp).toBeGreaterThan(previousSendTimestamp);
       },
