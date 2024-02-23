@@ -420,4 +420,61 @@ describe('personalizedDigestEmail worker', () => {
       variation_id: 0,
     });
   });
+
+  it('should ignore lastSendDate if deduplicate param is false', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    const lastSendDate = new Date();
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      lastSendDate,
+    });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+      deduplicate: false,
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not set lastSendDate if deduplicate param is false', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    const lastSendDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      lastSendDate,
+    });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+      deduplicate: false,
+    });
+
+    const personalizedDigestAfterWorker = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(personalizedDigestAfterWorker?.lastSendDate?.toISOString()).toBe(
+      lastSendDate.toISOString(),
+    );
+  });
 });

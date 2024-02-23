@@ -16,9 +16,13 @@ interface Data {
   emailSendTimestamp: number;
   previousSendTimestamp: number;
   emailBatchId?: string;
+  deduplicate?: boolean;
 }
 
-type SetEmailSendDateProps = Pick<Data, 'personalizedDigest'> & {
+type SetEmailSendDateProps = Pick<
+  Data,
+  'personalizedDigest' | 'deduplicate'
+> & {
   con: DataSource;
   date: Date;
 };
@@ -27,7 +31,12 @@ const setEmailSendDate = async ({
   con,
   personalizedDigest,
   date,
+  deduplicate,
 }: SetEmailSendDateProps) => {
+  if (!deduplicate) {
+    return;
+  }
+
   return con.getRepository(UserPersonalizedDigest).update(
     {
       userId: personalizedDigest.userId,
@@ -52,6 +61,7 @@ const worker: Worker = {
       emailSendTimestamp,
       previousSendTimestamp,
       emailBatchId,
+      deduplicate = true,
     } = data;
     const emailSendDate = new Date(emailSendTimestamp);
     const previousSendDate = new Date(previousSendTimestamp);
@@ -117,7 +127,7 @@ const worker: Worker = {
         },
       })) || {};
 
-    if (lastSendDate && isSameDay(currentDate, lastSendDate)) {
+    if (deduplicate && lastSendDate && isSameDay(currentDate, lastSendDate)) {
       return;
     }
 
@@ -125,6 +135,7 @@ const worker: Worker = {
       con,
       personalizedDigest,
       date: currentDate,
+      deduplicate,
     });
 
     try {
@@ -136,6 +147,7 @@ const worker: Worker = {
         con,
         personalizedDigest,
         date: lastSendDate,
+        deduplicate,
       });
 
       throw error;
