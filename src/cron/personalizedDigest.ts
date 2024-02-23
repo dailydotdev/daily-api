@@ -1,6 +1,8 @@
 import fastq from 'fastq';
 import {
   createEmailBatchId,
+  getPersonalizedDigestPreviousSendDate,
+  getPersonalizedDigestSendDate,
   notifyGeneratePersonalizedDigest,
 } from '../common';
 import { UserPersonalizedDigest } from '../entity';
@@ -31,10 +33,20 @@ const cron: Cron = {
     const notifyQueueConcurrency = +process.env.DIGEST_QUEUE_CONCURRENCY;
     const notifyQueue = fastq.promise(
       async (personalizedDigest: UserPersonalizedDigest) => {
+        const emailSendTimestamp = getPersonalizedDigestSendDate({
+          personalizedDigest,
+          generationTimestamp: timestamp,
+        }).getTime();
+        const previousSendTimestamp = getPersonalizedDigestPreviousSendDate({
+          personalizedDigest,
+          generationTimestamp: timestamp,
+        }).getTime();
+
         await notifyGeneratePersonalizedDigest(
           logger,
           personalizedDigest,
-          timestamp,
+          emailSendTimestamp,
+          previousSendTimestamp,
           emailBatchId,
         );
 
