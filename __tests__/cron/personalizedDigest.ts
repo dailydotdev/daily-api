@@ -64,6 +64,20 @@ describe('personalizedDigest cron', () => {
         'test-email-batch-id',
       );
     });
+    (notifyGeneratePersonalizedDigest as jest.Mock).mock.calls.forEach(
+      (call) => {
+        const [
+          /* eslint-disable @typescript-eslint/no-unused-vars */
+          logger,
+          personalizedDigest,
+          /* eslint-enable @typescript-eslint/no-unused-vars */
+          emailSendTimestamp,
+          previousSendTimestamp,
+        ] = call;
+
+        expect(emailSendTimestamp).toBeGreaterThan(previousSendTimestamp);
+      },
+    );
   });
 
   it('should only schedule generation for next day subscriptions', async () => {
@@ -96,6 +110,20 @@ describe('personalizedDigest cron', () => {
         'test-email-batch-id',
       );
     });
+    (notifyGeneratePersonalizedDigest as jest.Mock).mock.calls.forEach(
+      (call) => {
+        const [
+          /* eslint-disable @typescript-eslint/no-unused-vars */
+          logger,
+          personalizedDigest,
+          /* eslint-enable @typescript-eslint/no-unused-vars */
+          emailSendTimestamp,
+          previousSendTimestamp,
+        ] = call;
+
+        expect(emailSendTimestamp).toBeGreaterThan(previousSendTimestamp);
+      },
+    );
   });
 
   it('should log notify count', async () => {
