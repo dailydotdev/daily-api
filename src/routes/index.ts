@@ -16,6 +16,13 @@ import webhooks from './webhooks';
 import localAds from './localAds';
 import automations from './automations';
 import sitemaps from './sitemaps';
+import createOrGetConnection from '../db';
+import { UserPersonalizedDigest } from '../entity';
+import {
+  getPersonalizedDigestPreviousSendDate,
+  getPersonalizedDigestSendDate,
+  notifyGeneratePersonalizedDigest,
+} from '../common';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -61,4 +68,58 @@ Disallow: /`);
     req.log.debug({ body: req.body }, 'allocation received');
     return res.status(204).send();
   });
+
+  fastify.post<{ Body: { userIds: string[] } }>(
+    '/digest/send',
+    async (req, res) => {
+      // TODO AS-122-email-schedule-endpoint authenticate here
+
+      const userCountLimit = 100;
+      res.header('content-type', 'application/json');
+
+      const { userIds } = req.body || {};
+
+      if (!Array.isArray(userIds)) {
+        return res.status(400).send({ message: 'userIds must be an array' });
+      }
+
+      if (userIds.length > userCountLimit) {
+        return res.status(400).send({
+          message: `too many userIds`,
+        });
+      }
+
+      const timestamp = Date.now();
+
+      await Promise.allSettled(
+        userIds.map(async (userId) => {
+          const con = await createOrGetConnection();
+          const personalizedDigest = await con
+            .getRepository(UserPersonalizedDigest)
+            .findOneBy({ userId });
+
+          if (!personalizedDigest) {
+            return;
+          }
+
+          await notifyGeneratePersonalizedDigest(
+            req.log,
+            personalizedDigest,
+            getPersonalizedDigestSendDate({
+              personalizedDigest,
+              generationTimestamp: timestamp,
+            }).getTime(),
+            getPersonalizedDigestPreviousSendDate({
+              personalizedDigest,
+              generationTimestamp: timestamp,
+            }).getTime(),
+          );
+        }),
+      );
+
+      return res.status(201).send({
+        message: 'ok',
+      });
+    },
+  );
 }
