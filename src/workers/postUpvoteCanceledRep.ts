@@ -18,6 +18,10 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     try {
       const post = await con.getRepository(Post).findOneBy({ id: data.postId });
+      if (!post?.authorId && !post?.scoutId) {
+        return;
+      }
+
       const userIds = [];
 
       if (post?.authorId && post.authorId !== data.userId) {

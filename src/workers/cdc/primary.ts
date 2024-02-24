@@ -211,9 +211,9 @@ const handlePostDownvoteChange = async (
       );
       break;
     case 'u': {
-      const isUpvoteCanceled = data.payload.after.vote === UserPostVote.None;
+      const isDownvoteCanceled = data.payload.after.vote === UserPostVote.None;
 
-      if (isUpvoteCanceled) {
+      if (isDownvoteCanceled) {
         await notifyPostDownvoteCanceled(
           logger,
           data.payload.before.postId,

@@ -48,8 +48,10 @@ const worker: Worker = {
         };
 
         const events = [];
+        let hasScout = false;
 
         if (post.scoutId && post.scoutId !== data.userId) {
+          hasScout = true;
           events.push(
             repo.create({
               grantToId: post.scoutId,
@@ -61,7 +63,7 @@ const worker: Worker = {
         /**
          * Business logic states that we only decrease reputation of the author if there is no scout associated with the post
          */
-        if (post.authorId && post.authorId !== data.userId && !events.length) {
+        if (post.authorId && post.authorId !== data.userId && !hasScout) {
           events.push(
             repo.create({
               grantToId: post.authorId,

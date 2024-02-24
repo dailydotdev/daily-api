@@ -11,6 +11,7 @@ import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
+import { workers } from '../../src/workers';
 
 let con: DataSource;
 
@@ -45,51 +46,61 @@ beforeEach(async () => {
   await con.getRepository(Post).update('p1', { authorId: '1' });
 });
 
-it('should create a reputation event that decreases reputation', async () => {
-  await expectSuccessfulBackground(worker, {
-    userId: '2',
-    postId: 'p1',
-  });
-  const event = await con
-    .getRepository(ReputationEvent)
-    .findOne({ where: { targetId: 'p1', grantById: '2', grantToId: '1' } });
-  expect(event.amount).toEqual(-10);
-});
+describe('postDownvotedRep worker', () => {
+  it('should be registered', () => {
+    const registeredWorker = workers.find(
+      (item) => item.subscription === worker.subscription,
+    );
 
-it('should not create a reputation event when the upvoting user is ineligible', async () => {
-  await con.getRepository(User).update({ id: '2' }, { reputation: 249 });
-  await expectSuccessfulBackground(worker, {
-    userId: '2',
-    postId: 'p1',
-  });
-  const event = await con
-    .getRepository(ReputationEvent)
-    .findOneBy({ targetId: 'p1', grantById: '2', grantToId: '1' });
-  expect(event).toEqual(null);
-});
-
-it('should not create a reputation event when the author is the downvoted user', async () => {
-  await expectSuccessfulBackground(worker, {
-    userId: '1',
-    postId: 'p1',
+    expect(registeredWorker).toBeDefined();
   });
 
-  const event = await con
-    .getRepository(ReputationEvent)
-    .findOneBy({ targetId: 'p1', grantById: '2', grantToId: '1' });
-  expect(event).toEqual(null);
-});
-
-it('should not create a reputation event for author when there is a scout set for the post', async () => {
-  await con.getRepository(Post).update('p1', { scoutId: '2' });
-  await expectSuccessfulBackground(worker, {
-    userId: '3',
-    postId: 'p1',
+  it('should create a reputation event that decreases reputation', async () => {
+    await expectSuccessfulBackground(worker, {
+      userId: '2',
+      postId: 'p1',
+    });
+    const event = await con
+      .getRepository(ReputationEvent)
+      .findOne({ where: { targetId: 'p1', grantById: '2', grantToId: '1' } });
+    expect(event.amount).toEqual(-10);
   });
 
-  const event = await con
-    .getRepository(ReputationEvent)
-    .findBy({ targetId: 'p1', grantById: '3' });
-  expect(event.length).toEqual(1);
-  expect(event[0].grantToId).toEqual('2');
+  it('should not create a reputation event when the upvoting user is ineligible', async () => {
+    await con.getRepository(User).update({ id: '2' }, { reputation: 249 });
+    await expectSuccessfulBackground(worker, {
+      userId: '2',
+      postId: 'p1',
+    });
+    const event = await con
+      .getRepository(ReputationEvent)
+      .findOneBy({ targetId: 'p1', grantById: '2', grantToId: '1' });
+    expect(event).toEqual(null);
+  });
+
+  it('should not create a reputation event when the author is the downvoted user', async () => {
+    await expectSuccessfulBackground(worker, {
+      userId: '1',
+      postId: 'p1',
+    });
+
+    const event = await con
+      .getRepository(ReputationEvent)
+      .findOneBy({ targetId: 'p1', grantById: '2', grantToId: '1' });
+    expect(event).toEqual(null);
+  });
+
+  it('should not create a reputation event for author when there is a scout set for the post', async () => {
+    await con.getRepository(Post).update('p1', { scoutId: '2' });
+    await expectSuccessfulBackground(worker, {
+      userId: '3',
+      postId: 'p1',
+    });
+
+    const event = await con
+      .getRepository(ReputationEvent)
+      .findBy({ targetId: 'p1', grantById: '3' });
+    expect(event.length).toEqual(1);
+    expect(event[0].grantToId).toEqual('2');
+  });
 });
