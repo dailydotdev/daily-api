@@ -6,7 +6,11 @@ import { Post, Source, User, UserPersonalizedDigest } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
-import { sendEmail } from '../../src/common';
+import {
+  getPersonalizedDigestPreviousSendDate,
+  getPersonalizedDigestSendDate,
+  sendEmail,
+} from '../../src/common';
 import nock from 'nock';
 import { subDays } from 'date-fns';
 import { features } from '../../src/growthbook';
@@ -98,6 +102,22 @@ beforeEach(async () => {
     });
 });
 
+const getDates = (
+  personalizedDigest: UserPersonalizedDigest,
+  timestamp: number,
+) => {
+  return {
+    emailSendTimestamp: getPersonalizedDigestSendDate({
+      personalizedDigest,
+      generationTimestamp: timestamp,
+    }).getTime(),
+    previousSendTimestamp: getPersonalizedDigestPreviousSendDate({
+      personalizedDigest,
+      generationTimestamp: timestamp,
+    }).getTime(),
+  };
+};
+
 describe('personalizedDigestEmail worker', () => {
   it('should generate personalized digest for user with subscription', async () => {
     const personalizedDigest = await con
@@ -111,7 +131,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
-      generationTimestamp: Date.now(),
+      ...getDates(personalizedDigest!, Date.now()),
       emailBatchId: 'test-email-batch-id',
     });
 
@@ -162,7 +182,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
-      generationTimestamp: Date.now(),
+      ...getDates(personalizedDigest!, Date.now()),
       emailBatchId: 'test-email-batch-id',
     });
 
@@ -209,7 +229,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
-      generationTimestamp: Date.now(),
+      ...getDates(personalizedDigest!, Date.now()),
       emailBatchId: 'test-email-batch-id',
     });
 
@@ -260,7 +280,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
-      generationTimestamp: Date.now(),
+      ...getDates(personalizedDigest!, Date.now()),
       emailBatchId: 'test-email-batch-id',
     });
 
@@ -289,7 +309,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
-      generationTimestamp: Date.now(),
+      ...getDates(personalizedDigest!, Date.now()),
       emailBatchId: 'test-email-batch-id',
     });
 
@@ -310,7 +330,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
-      generationTimestamp: Date.now(),
+      ...getDates(personalizedDigest!, Date.now()),
       emailBatchId: 'test-email-batch-id',
     });
 
@@ -331,7 +351,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
-      generationTimestamp: Date.now(),
+      ...getDates(personalizedDigest!, Date.now()),
       emailBatchId: 'test-email-batch-id',
     });
 
@@ -357,7 +377,7 @@ describe('personalizedDigestEmail worker', () => {
     await expect(() => {
       return expectSuccessfulBackground(worker, {
         personalizedDigest,
-        generationTimestamp: Date.now(),
+        ...getDates(personalizedDigest!, Date.now()),
         emailBatchId: 'test-email-batch-id',
       });
     }).rejects.toEqual(new Error('test error'));
@@ -387,7 +407,7 @@ describe('personalizedDigestEmail worker', () => {
 
     await expectSuccessfulBackground(worker, {
       personalizedDigest,
-      generationTimestamp: Date.now(),
+      ...getDates(personalizedDigest!, Date.now()),
       emailBatchId: 'test-email-batch-id',
     });
 
@@ -399,5 +419,98 @@ describe('personalizedDigestEmail worker', () => {
       user_id: '1',
       variation_id: 0,
     });
+  });
+
+  it('should ignore lastSendDate if deduplicate param is false', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    const lastSendDate = new Date();
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      lastSendDate,
+    });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+      deduplicate: false,
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not set lastSendDate if deduplicate param is false', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    const lastSendDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      lastSendDate,
+    });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+      deduplicate: false,
+    });
+
+    const personalizedDigestAfterWorker = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(personalizedDigestAfterWorker?.lastSendDate?.toISOString()).toBe(
+      lastSendDate.toISOString(),
+    );
+  });
+
+  it('should not generate personalized digest if no posts are returned from feed', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    const lastSendDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      lastSendDate,
+    });
+
+    nock.cleanAll();
+
+    nockScope = nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        nockBody = body;
+
+        return true;
+      })
+      .reply(200, {
+        data: [],
+        rows: 0,
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(0);
   });
 });

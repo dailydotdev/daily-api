@@ -16,6 +16,9 @@ import webhooks from './webhooks';
 import localAds from './localAds';
 import automations from './automations';
 import sitemaps from './sitemaps';
+import createOrGetConnection from '../db';
+import { UserPersonalizedDigest } from '../entity';
+import { notifyGeneratePersonalizedDigest } from '../common';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -61,4 +64,64 @@ Disallow: /`);
     req.log.debug({ body: req.body }, 'allocation received');
     return res.status(204).send();
   });
+
+  fastify.post<{ Body: { userIds: string[] } }>(
+    '/digest/send',
+    async (req, res) => {
+      const authorization = req.headers.authorization;
+
+      if (
+        !authorization ||
+        authorization !== `Bearer ${process.env.PERSONALIZED_DIGEST_SECRET}`
+      ) {
+        return res.status(401).send({
+          message: 'unauthorized',
+        });
+      }
+
+      const userCountLimit = 100;
+      res.header('content-type', 'application/json');
+
+      const { userIds } = req.body || {};
+
+      if (!Array.isArray(userIds)) {
+        return res.status(400).send({ message: 'userIds must be an array' });
+      }
+
+      if (userIds.length > userCountLimit) {
+        return res.status(400).send({
+          message: `too many userIds`,
+        });
+      }
+
+      const timestamp = Date.now();
+      const oneWeek = 7 * 24 * 60 * 60 * 1000;
+      const previousDate = new Date(timestamp - oneWeek);
+
+      await Promise.allSettled(
+        userIds.map(async (userId) => {
+          const con = await createOrGetConnection();
+          const personalizedDigest = await con
+            .getRepository(UserPersonalizedDigest)
+            .findOneBy({ userId });
+
+          if (!personalizedDigest) {
+            return;
+          }
+
+          await notifyGeneratePersonalizedDigest({
+            log: req.log,
+            personalizedDigest,
+            emailSendTimestamp: timestamp,
+            previousSendTimestamp: previousDate.getTime(),
+            deduplicate: false,
+          });
+        }),
+      );
+
+      return res.status(201).send({
+        message: 'ok',
+      });
+    },
+  );
 }

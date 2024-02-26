@@ -56,13 +56,21 @@ describe('personalizedDigest cron', () => {
       usersToSchedule.length,
     );
     scheduledPersonalizedDigests.forEach((personalizedDigest) => {
-      expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith({
+        log: expect.anything(),
         personalizedDigest,
-        expect.any(Number),
-        'test-email-batch-id',
-      );
+        emailSendTimestamp: expect.any(Number),
+        previousSendTimestamp: expect.any(Number),
+        emailBatchId: 'test-email-batch-id',
+      });
     });
+    (notifyGeneratePersonalizedDigest as jest.Mock).mock.calls.forEach(
+      (call) => {
+        const { emailSendTimestamp, previousSendTimestamp } = call?.[0] || {};
+
+        expect(emailSendTimestamp).toBeGreaterThan(previousSendTimestamp);
+      },
+    );
   });
 
   it('should only schedule generation for next day subscriptions', async () => {
@@ -87,13 +95,21 @@ describe('personalizedDigest cron', () => {
       usersToSchedule.length,
     );
     scheduledPersonalizedDigests.forEach((personalizedDigest) => {
-      expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith(
-        expect.anything(),
+      expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledWith({
+        log: expect.anything(),
         personalizedDigest,
-        expect.any(Number),
-        'test-email-batch-id',
-      );
+        emailSendTimestamp: expect.any(Number),
+        previousSendTimestamp: expect.any(Number),
+        emailBatchId: 'test-email-batch-id',
+      });
     });
+    (notifyGeneratePersonalizedDigest as jest.Mock).mock.calls.forEach(
+      (call) => {
+        const { emailSendTimestamp, previousSendTimestamp } = call?.[0] || {};
+
+        expect(emailSendTimestamp).toBeGreaterThan(previousSendTimestamp);
+      },
+    );
   });
 
   it('should log notify count', async () => {

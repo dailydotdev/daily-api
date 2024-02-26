@@ -14,3 +14,4 @@ export * from './post';
 export * from './links';
 export * from './utils';
 export * from './typedPubsub';
+export * from './personalizedDigest';
