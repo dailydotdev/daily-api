@@ -212,6 +212,9 @@ export class Post {
   @Index('IDX_post_downvotes')
   downvotes: number;
 
+  @Column({ type: 'text', nullable: true, default: 'en' })
+  language: string;
+
   @Column({ type: 'jsonb', default: {} })
   @Index('IDX_post_flags_sentAnalyticsReport', { synchronize: false })
   @Index('IDX_post_flags_banned', { synchronize: false })
