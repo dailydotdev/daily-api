@@ -21,6 +21,7 @@ Object {
   },
   "id": Any<String>,
   "image": null,
+  "language": "en",
   "lastTrending": null,
   "metadataChangedAt": Any<Date>,
   "origin": "crawler",

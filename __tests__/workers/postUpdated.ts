@@ -422,6 +422,26 @@ it('should save a new post with basic information', async () => {
     sourceId: 'a',
     title: 'Title',
     showOnFeed: true,
+    language: 'en',
+  });
+});
+
+it('should save a new post with with non-default language', async () => {
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    title: 'Title',
+    url: 'https://post.com',
+    source_id: 'a',
+    order: 0,
+    language: 'nb',
+  });
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(3);
+  expect(posts[2]).toMatchObject({
+    sourceId: 'a',
+    title: 'Title',
+    showOnFeed: true,
+    language: 'nb',
   });
 });
 

@@ -51,6 +51,7 @@ interface Data {
   paid?: boolean;
   order?: number;
   collections?: string[];
+  language?: string;
   extra?: {
     keywords?: string[];
     keywords_native?: string[];
@@ -506,6 +507,7 @@ const fixData = async ({
         ? markdown.render(data.extra.content)
         : undefined,
       videoId: data?.extra?.video_id,
+      language: data?.language,
     },
   };
 };
