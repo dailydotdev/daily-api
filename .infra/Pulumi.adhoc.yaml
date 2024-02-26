@@ -63,6 +63,7 @@ config:
     otelExporterOtlpEndpoint: http://jaeger-collector.local.svc.cluster.local:4317
     otelTracesSampler: parentbased_traceidratio
     otelTracesSamplerArg: 1
+    personalizedDigestSecret: topsecret
     postScraperOrigin: http://post-scraper-one-ai-server
     pubsubEmulatorHost: pubsub:8085
     pubsubProjectId: local

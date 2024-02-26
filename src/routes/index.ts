@@ -72,7 +72,16 @@ Disallow: /`);
   fastify.post<{ Body: { userIds: string[] } }>(
     '/digest/send',
     async (req, res) => {
-      // TODO AS-122-email-schedule-endpoint authenticate here
+      const authorization = req.headers.authorization;
+
+      if (
+        !authorization ||
+        authorization !== `Bearer ${process.env.PERSONALIZED_DIGEST_SECRET}`
+      ) {
+        return res.status(401).send({
+          message: 'unauthorized',
+        });
+      }
 
       const userCountLimit = 100;
       res.header('content-type', 'application/json');
