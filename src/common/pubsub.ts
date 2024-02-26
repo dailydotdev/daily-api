@@ -36,6 +36,8 @@ import pino from 'pino';
 export const pubsub = new PubSub();
 const postUpvotedTopic = pubsub.topic('post-upvoted');
 const postUpvoteCanceledTopic = pubsub.topic('post-upvote-canceled');
+const postDownvotedTopic = pubsub.topic('api.v1.post-downvoted');
+const postDownvoteCanceledTopic = pubsub.topic('api.v1.post-downvote-canceled');
 const commentUpvotedTopic = pubsub.topic('comment-upvoted');
 const postCommentedTopic = pubsub.topic('post-commented');
 const commentCommentedTopic = pubsub.topic('comment-commented');
@@ -139,6 +141,26 @@ export const notifyPostUpvoteCanceled = async (
   userId: string,
 ): Promise<void> =>
   publishEvent(log, postUpvoteCanceledTopic, {
+    postId,
+    userId,
+  });
+
+export const notifyPostDownvoted = async (
+  log: EventLogger,
+  postId: string,
+  userId: string,
+): Promise<void> =>
+  publishEvent(log, postDownvotedTopic, {
+    postId,
+    userId,
+  });
+
+export const notifyPostDownvoteCanceled = async (
+  log: EventLogger,
+  postId: string,
+  userId: string,
+): Promise<void> =>
+  publishEvent(log, postDownvoteCanceledTopic, {
     postId,
     userId,
   });

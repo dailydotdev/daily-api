@@ -64,6 +64,14 @@ export const workers: Worker[] = [
     subscription: 'post-upvote-canceled-rep',
   },
   {
+    topic: 'api.v1.post-downvoted',
+    subscription: 'api.post-downvoted-rep',
+  },
+  {
+    topic: 'api.v1.post-downvote-canceled',
+    subscription: 'api.post-downvote-canceled-rep',
+  },
+  {
     topic: 'post-commented',
     subscription: 'api.post-commented-images',
   },
@@ -183,7 +191,8 @@ export const workers: Worker[] = [
   },
   {
     topic: 'user-reputation-updated',
-    subscription: 'api.user-reputation-updated-notification'},
+    subscription: 'api.user-reputation-updated-notification',
+  },
   {
     topic: 'comment-commented',
     subscription: 'api.comment-reply-notification',

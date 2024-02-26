@@ -44,6 +44,8 @@ import sourceSquadCreatedOwnerMailing from './sourceSquadCreatedOwnerMailing';
 import personalizedDigestEmailWorker from '../workers/personalizedDigestEmail';
 import deadLetterLog from './digestDeadLetterLog';
 import userReadmeImages from './userReadmeImages';
+import postDownvotedRep from './postDownvotedRep';
+import postDownvoteCanceledRep from './postDownvoteCanceledRep';
 
 export { Worker } from './worker';
 
@@ -64,6 +66,8 @@ export const workers: Worker[] = [
   postCommentedSlackMessage,
   postUpvotedRep,
   postUpvoteCanceledRep,
+  postDownvotedRep,
+  postDownvoteCanceledRep,
   postCommentedRedis,
   postUpvotedRedis,
   postBannedRep,

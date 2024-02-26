@@ -2,9 +2,9 @@ import {
   ReputationEvent,
   ReputationReason,
   ReputationType,
-} from './../entity/ReputationEvent';
+  Post,
+} from '../entity';
 import { messageToJson, Worker } from './worker';
-import { Post } from '../entity';
 import { In } from 'typeorm';
 
 interface Data {
@@ -13,7 +13,7 @@ interface Data {
 }
 
 const worker: Worker = {
-  subscription: 'post-upvote-canceled-rep',
+  subscription: 'api.post-downvote-canceled-rep',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     try {
@@ -38,7 +38,7 @@ const worker: Worker = {
           grantToId: In(userIds),
           targetId: post.id,
           targetType: ReputationType.Post,
-          reason: ReputationReason.PostUpvoted,
+          reason: ReputationReason.PostDownvoted,
         });
 
         logger.info(
@@ -46,7 +46,7 @@ const worker: Worker = {
             data,
             messageId: message.messageId,
           },
-          'decreased reputation due to post upvote cancellation',
+          'increased reputation due to post downvote cancellation',
         );
       }
     } catch (err) {
@@ -56,7 +56,7 @@ const worker: Worker = {
           messageId: message.messageId,
           err,
         },
-        'failed to increase reputation due to post upvote cancellation',
+        'failed to increase reputation due to post downvote cancellation',
       );
     }
   },

@@ -8,6 +8,7 @@ import {
 import { User } from './user';
 
 export enum ReputationReason {
+  PostDownvoted = 'post_downvoted',
   PostUpvoted = 'post_upvoted',
   PostBanned = 'post_banned',
   CommentUpvoted = 'comment_upvoted',
@@ -22,6 +23,7 @@ export enum ReputationType {
 }
 
 const reputationReasonAmount: Record<ReputationReason, number> = {
+  [ReputationReason.PostDownvoted]: -10,
   [ReputationReason.PostUpvoted]: 10,
   [ReputationReason.PostBanned]: -100,
   [ReputationReason.CommentUpvoted]: 50,
