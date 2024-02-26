@@ -18,11 +18,7 @@ import automations from './automations';
 import sitemaps from './sitemaps';
 import createOrGetConnection from '../db';
 import { UserPersonalizedDigest } from '../entity';
-import {
-  getPersonalizedDigestPreviousSendDate,
-  getPersonalizedDigestSendDate,
-  notifyGeneratePersonalizedDigest,
-} from '../common';
+import { notifyGeneratePersonalizedDigest } from '../common';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -99,6 +95,8 @@ Disallow: /`);
       }
 
       const timestamp = Date.now();
+      const oneWeek = 7 * 24 * 60 * 60 * 1000;
+      const previousDate = new Date(timestamp - oneWeek);
 
       await Promise.allSettled(
         userIds.map(async (userId) => {
@@ -114,14 +112,8 @@ Disallow: /`);
           await notifyGeneratePersonalizedDigest({
             log: req.log,
             personalizedDigest,
-            emailSendTimestamp: getPersonalizedDigestSendDate({
-              personalizedDigest,
-              generationTimestamp: timestamp,
-            }).getTime(),
-            previousSendTimestamp: getPersonalizedDigestPreviousSendDate({
-              personalizedDigest,
-              generationTimestamp: timestamp,
-            }).getTime(),
+            emailSendTimestamp: timestamp,
+            previousSendTimestamp: previousDate.getTime(),
             deduplicate: false,
           });
         }),
