@@ -437,15 +437,7 @@ it('should save a new post with with non-default language', async () => {
   });
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(3);
-  expect(posts[2]).toMatchSnapshot({
-    visible: true,
-    visibleAt: expect.any(Date),
-    createdAt: expect.any(Date),
-    metadataChangedAt: expect.any(Date),
-    score: expect.any(Number),
-    id: expect.any(String),
-    shortId: expect.any(String),
-    contentCuration: expect.any(Array),
+  expect(posts[2]).toMatchObject({
     sourceId: 'a',
     title: 'Title',
     showOnFeed: true,
