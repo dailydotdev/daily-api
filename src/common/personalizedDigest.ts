@@ -159,7 +159,7 @@ export const getPersonalizedDigestEmailPayload = async ({
   currentDate: Date;
   previousSendDate: Date;
   feature: typeof features.personalizedDigest.defaultValue;
-}) => {
+}): Promise<MailDataRequired | undefined> => {
   const feedConfig = await feedToFilters(
     con,
     personalizedDigest.userId,
@@ -209,7 +209,7 @@ export const getPersonalizedDigestEmailPayload = async ({
   ).execute();
 
   if (posts.length === 0) {
-    return;
+    return undefined;
   }
 
   const variationProps = await getEmailVariation({

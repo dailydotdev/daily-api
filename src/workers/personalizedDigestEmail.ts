@@ -119,6 +119,10 @@ const worker: Worker = {
       feature: digestFeature,
     });
 
+    if (!emailPayload) {
+      return;
+    }
+
     const { lastSendDate = null } =
       (await con.getRepository(UserPersonalizedDigest).findOne({
         select: ['lastSendDate'],

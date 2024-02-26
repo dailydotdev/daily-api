@@ -477,4 +477,40 @@ describe('personalizedDigestEmail worker', () => {
       lastSendDate.toISOString(),
     );
   });
+
+  it('should not generate personalized digest if no posts are returned from feed', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    const lastSendDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    await con.getRepository(UserPersonalizedDigest).save({
+      userId: '1',
+      lastSendDate,
+    });
+
+    nock.cleanAll();
+
+    nockScope = nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        nockBody = body;
+
+        return true;
+      })
+      .reply(200, {
+        data: [],
+        rows: 0,
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(0);
+  });
 });
