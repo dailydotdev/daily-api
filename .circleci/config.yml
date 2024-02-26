@@ -26,7 +26,7 @@ jobs:
           paths:
             - build
   test:
-    resource_class: medium+
+    resource_class: large
     docker:
       - image: cimg/node:18.17
       - image: postgres:15-alpine
