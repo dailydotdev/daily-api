@@ -122,6 +122,9 @@ export class User {
   @Column({ type: 'text', nullable: true })
   readmeHtml?: string;
 
+  @Column({ type: 'text', nullable: true })
+  acquisitionChannel: string;
+
   @ManyToOne(() => User, {
     lazy: true,
     onDelete: 'SET NULL',
