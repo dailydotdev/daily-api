@@ -44,7 +44,7 @@ export type ExperimentAllocationEvent = {
   event_timestamp: Date;
   user_id: string;
   experiment_id: string;
-  variation_id: number;
+  variation_id: string;
 };
 
 export async function sendExperimentAllocationEvent<
