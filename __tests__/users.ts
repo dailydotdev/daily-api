@@ -2694,14 +2694,14 @@ describe('addUserAcquisitionChannel mutation', () => {
   it('should not allow unauthenticated users', () =>
     testMutationErrorCode(
       client,
-      { mutation: MUTATION, variables: { source: 'friend' } },
+      { mutation: MUTATION, variables: { acquisitionChannel: 'friend' } },
       'UNAUTHENTICATED',
     ));
 
   it('should throw an error when value is not found', () =>
     testMutationErrorCode(
       client,
-      { mutation: MUTATION, variables: { source: 'random' } },
+      { mutation: MUTATION, variables: { acquisitionChannel: 'random' } },
       'UNEXPECTED',
     ));
 
@@ -2711,7 +2711,9 @@ describe('addUserAcquisitionChannel mutation', () => {
     const user = await con.getRepository(User).findOneBy({ id: loggedUser });
     expect(user.acquisitionChannel).toBeNull();
 
-    await client.mutate(MUTATION, { variables: { source: 'friend' } });
+    await client.mutate(MUTATION, {
+      variables: { acquisitionChannel: 'friend' },
+    });
 
     const updatedUser = await con
       .getRepository(User)
