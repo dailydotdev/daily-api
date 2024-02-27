@@ -413,6 +413,16 @@ export const typeDefs = /* GraphQL */ `
     lastViewAt: DateTime
   }
 
+  enum AcquisitionChannel {
+    friend
+    social_media
+    search_engine
+    blog
+    extension_store
+    ad
+    other
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -619,6 +629,11 @@ export const typeDefs = /* GraphQL */ `
       """
       content: String!
     ): User! @auth
+
+    """
+    Stores user source tracking information
+    """
+    addUserAcquisitionChannel(source: AcquisitionChannel!): EmptyResponse @auth
   }
 `;
 
@@ -1255,6 +1270,17 @@ export const resolvers: IResolvers<any, Context> = {
           { readme: content, readmeHtml: contentHtml },
         );
       return getCurrentUser(ctx, info);
+    },
+    addUserAcquisitionChannel: async (
+      _,
+      { source }: { source: string },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con
+        .getRepository(User)
+        .update({ id: ctx.userId }, { acquisitionChannel: source });
+
+      return { _: null };
     },
   }),
   User: {

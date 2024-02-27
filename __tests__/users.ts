@@ -2681,3 +2681,41 @@ describe('user_create_alerts_trigger after insert trigger', () => {
     expect(alerts).toBeTruthy();
   });
 });
+
+describe('addUserAcquisitionChannel mutation', () => {
+  const MUTATION = `
+    mutation AddUserAcquisitionChannel($source: AcquisitionChannel!) {
+      addUserAcquisitionChannel(source: $source) {
+        _
+      }
+    }
+  `;
+
+  it('should not allow unauthenticated users', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { source: 'friend' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should not throw an error when value is not found', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { source: 'random' } },
+      'UNEXPECTED',
+    ));
+
+  it('should not throw an error when value is not found', async () => {
+    loggedUser = '1';
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user.acquisitionChannel).toBeNull();
+
+    await client.mutate(MUTATION, { variables: { source: 'friend' } });
+
+    const updatedUser = await con
+      .getRepository(User)
+      .findOneBy({ id: loggedUser });
+    expect(updatedUser.acquisitionChannel).toEqual('friend');
+  });
+});
