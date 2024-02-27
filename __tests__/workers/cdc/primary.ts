@@ -168,6 +168,7 @@ const defaultUser: ChangeObject<Omit<User, 'createdAt'>> = {
   infoConfirmed: true,
   acceptedMarketing: true,
   notificationEmail: true,
+  acquisitionChannel: null,
 };
 
 describe('source request', () => {
