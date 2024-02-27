@@ -13,5 +13,5 @@ module.exports = {
     escapeString: true,
     printBasicPrototype: true,
   },
-  workerIdleMemoryLimit: '1024MB',
+  workerIdleMemoryLimit: '2048MB',
 };
