@@ -22,7 +22,7 @@
     "start": "npm run cli -- api",
     "start:background": "npm run cli -- background",
     "pretest": "npm run lint && cross-env NODE_ENV=test npm run db:migrate:reset",
-    "test": "jest --testEnvironment=node --runInBand",
+    "test": "jest --testEnvironment=node --runInBand --logHeapUsage",
     "typeorm": "typeorm-ts-node-commonjs"
   },
   "dependencies": {
