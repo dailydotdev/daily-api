@@ -633,7 +633,9 @@ export const typeDefs = /* GraphQL */ `
     """
     Stores user source tracking information
     """
-    addUserAcquisitionChannel(source: AcquisitionChannel!): EmptyResponse @auth
+    addUserAcquisitionChannel(
+      acquisitionChannel: AcquisitionChannel!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -1273,12 +1275,12 @@ export const resolvers: IResolvers<any, Context> = {
     },
     addUserAcquisitionChannel: async (
       _,
-      { source }: { source: string },
+      { acquisitionChannel }: { acquisitionChannel: string },
       ctx,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con
         .getRepository(User)
-        .update({ id: ctx.userId }, { acquisitionChannel: source });
+        .update({ id: ctx.userId }, { acquisitionChannel });
 
       return { _: null };
     },
