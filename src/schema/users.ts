@@ -16,6 +16,7 @@ import {
   Invite,
   UserPersonalizedDigest,
   getAuthorPostStats,
+  AcquisitionChannel,
 } from '../entity';
 import {
   AuthenticationError,
@@ -37,6 +38,7 @@ import {
   uploadProfileCover,
   checkAndClearUserStreak,
   GQLUserStreakTz,
+  toGQLEnum,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -413,15 +415,7 @@ export const typeDefs = /* GraphQL */ `
     lastViewAt: DateTime
   }
 
-  enum AcquisitionChannel {
-    friend
-    social_media
-    search_engine
-    blog
-    extension_store
-    ad
-    other
-  }
+  ${toGQLEnum(AcquisitionChannel, 'AcquisitionChannel')}
 
   extend type Query {
     """
@@ -1275,7 +1269,7 @@ export const resolvers: IResolvers<any, Context> = {
     },
     addUserAcquisitionChannel: async (
       _,
-      { acquisitionChannel }: { acquisitionChannel: string },
+      { acquisitionChannel }: { acquisitionChannel: AcquisitionChannel },
       ctx,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con

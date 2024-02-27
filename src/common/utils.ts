@@ -85,3 +85,7 @@ export const parseDate = (date: string | Date): Date | undefined => {
 
   return parsedDate;
 };
+
+export const toGQLEnum = (value: Record<string, string>, name: string) => {
+  return `enum ${name} { ${Object.keys(value).join(' ')} }`;
+};
