@@ -15,6 +15,8 @@ import pino from 'pino';
 
 (async (): Promise<void> => {
   const lastSendDateArgument = process.argv[2];
+  const offsetArgument = process.argv[3];
+  const limitArgument = process.argv[4];
 
   const lastSendDate = new Date(lastSendDateArgument);
 
@@ -24,6 +26,18 @@ import pino from 'pino';
     );
   }
 
+  const offset = +offsetArgument;
+
+  if (Number.isNaN(offset)) {
+    throw new Error('offset argument is invalid, it should be a number');
+  }
+
+  const limit = +limitArgument;
+
+  if (Number.isNaN(limit)) {
+    throw new Error('limit argument is invalid, it should be a number');
+  }
+
   const con = await createOrGetConnection();
 
   const personalizedDigestQuery = con
@@ -31,7 +45,10 @@ import pino from 'pino';
     .from(UserPersonalizedDigest, 'upd')
     .where('upd."lastSendDate" > :lastSendDate', {
       lastSendDate,
-    });
+    })
+    .orderBy('"userId"', 'ASC')
+    .offset(offset)
+    .limit(limit);
 
   await loadFeatures(pino());
 
@@ -41,7 +58,6 @@ import pino from 'pino';
   );
   const allocationQueue = fastq.promise(
     async (data: ExperimentAllocationEvent) => {
-      // console.log('allocation', data);
       await sendExperimentAllocationEvent(data);
     },
     allocationQueueConcurrency,
