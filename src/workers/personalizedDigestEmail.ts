@@ -89,7 +89,7 @@ const worker: Worker = {
           event_timestamp: new Date(),
           user_id: user.id,
           experiment_id: experiment.key,
-          variation_id: result.variationId,
+          variation_id: result.variationId.toString(),
         });
       },
     });

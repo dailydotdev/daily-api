@@ -417,7 +417,7 @@ describe('personalizedDigestEmail worker', () => {
       event_timestamp: expect.any(Date),
       experiment_id: 'personalized_digest',
       user_id: '1',
-      variation_id: 0,
+      variation_id: '0',
     });
   });
 

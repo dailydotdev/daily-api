@@ -16,6 +16,7 @@ import {
   Invite,
   UserPersonalizedDigest,
   getAuthorPostStats,
+  AcquisitionChannel,
 } from '../entity';
 import {
   AuthenticationError,
@@ -37,6 +38,7 @@ import {
   uploadProfileCover,
   checkAndClearUserStreak,
   GQLUserStreakTz,
+  toGQLEnum,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -413,6 +415,8 @@ export const typeDefs = /* GraphQL */ `
     lastViewAt: DateTime
   }
 
+  ${toGQLEnum(AcquisitionChannel, 'AcquisitionChannel')}
+
   extend type Query {
     """
     Get user based on logged in session
@@ -619,6 +623,13 @@ export const typeDefs = /* GraphQL */ `
       """
       content: String!
     ): User! @auth
+
+    """
+    Stores user source tracking information
+    """
+    addUserAcquisitionChannel(
+      acquisitionChannel: AcquisitionChannel!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -1255,6 +1266,17 @@ export const resolvers: IResolvers<any, Context> = {
           { readme: content, readmeHtml: contentHtml },
         );
       return getCurrentUser(ctx, info);
+    },
+    addUserAcquisitionChannel: async (
+      _,
+      { acquisitionChannel }: { acquisitionChannel: AcquisitionChannel },
+      ctx,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con
+        .getRepository(User)
+        .update({ id: ctx.userId }, { acquisitionChannel });
+
+      return { _: null };
     },
   }),
   User: {

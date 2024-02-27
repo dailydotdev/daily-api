@@ -122,6 +122,9 @@ export class User {
   @Column({ type: 'text', nullable: true })
   readmeHtml?: string;
 
+  @Column({ type: 'text', nullable: true })
+  acquisitionChannel: AcquisitionChannel;
+
   @ManyToOne(() => User, {
     lazy: true,
     onDelete: 'SET NULL',
@@ -405,3 +408,13 @@ export const validateUserUpdate = async (
 
   return data;
 };
+
+export enum AcquisitionChannel {
+  friend = 'friend',
+  social_media = 'social_media',
+  search_engine = 'search_engine',
+  blog = 'blog',
+  extension_store = 'extension_store',
+  ad = 'ad',
+  other = 'other',
+}
