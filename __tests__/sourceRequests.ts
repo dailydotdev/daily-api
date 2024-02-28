@@ -365,45 +365,6 @@ describe('query pendingSourceRequests', () => {
 });
 
 describe('compatibility routes', () => {
-  describe('POST /publications/request', () => {
-    it('should not authorize when not logged in', () => {
-      return request(app.server)
-        .post('/v1/publications/request')
-        .send({ source: 'http://source.com' })
-        .expect(401);
-    });
-
-    it('should return bad request when url is not valid', async () => {
-      await con.getRepository(User).save([usersFixture[0]]);
-      loggedUser = '1';
-      return authorizeRequest(
-        request(app.server).post('/v1/publications/request'),
-      )
-        .send({ source: 'invalid' })
-        .expect(400);
-    });
-
-    it('should request new source', async () => {
-      await con.getRepository(User).save([usersFixture[0]]);
-      loggedUser = '1';
-      return authorizeRequest(
-        request(app.server).post('/v1/publications/request'),
-      )
-        .send({ source: 'http://source.com' })
-        .expect(204);
-    });
-
-    it('should request new source (/requests)', async () => {
-      await con.getRepository(User).save([usersFixture[0]]);
-      loggedUser = '1';
-      return authorizeRequest(
-        request(app.server).post('/v1/publications/requests'),
-      )
-        .send({ source: 'http://source.com' })
-        .expect(204);
-    });
-  });
-
   describe('GET /publications/requests/open', () => {
     it('should return pending source requests', async () => {
       await con.getRepository(SourceRequest).save(sourceRequestFixture);

@@ -1,35 +1,9 @@
-import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { injectGraphql } from './utils';
 import { SourceRequest } from '../entity';
 import { toLegacySourceRequest } from './entity';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
-  const requestSource = (
-    req: FastifyRequest<{ Body: { source: string } }>,
-    res: FastifyReply,
-  ): Promise<FastifyReply> => {
-    const query = `
-  mutation RequestSource($data: RequestSourceInput!) {
-  requestSource(data: $data) {
-    sourceUrl
-    userId
-    userName
-    userEmail
-  }
-}`;
-
-    return injectGraphql(
-      fastify,
-      { query, variables: { data: { sourceUrl: req.body.source } } },
-      () => undefined,
-      req,
-      res,
-    );
-  };
-
-  fastify.post('/request', requestSource);
-  fastify.post('/requests', requestSource);
-
   fastify.get('/requests/open', async (req, res) => {
     const query = `{
   pendingSourceRequests(first: 100) {
