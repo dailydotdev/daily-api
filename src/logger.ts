@@ -23,3 +23,5 @@ export const loggerConfig: LoggerOptions = {
     },
   },
 };
+
+export const logger = pino(loggerConfig);

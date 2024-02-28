@@ -14,7 +14,7 @@ import { Roles } from '../src/roles';
 import { Cron } from '../src/cron/cron';
 import { ChangeMessage, ChangeObject } from '../src/types';
 import { PubSub } from '@google-cloud/pubsub';
-import pino, { Logger } from 'pino';
+import { Logger } from 'pino';
 import { createMercuriusTestClient } from 'mercurius-integration-testing';
 import appFunc from '../src';
 import createOrGetConnection from '../src/db';
@@ -30,6 +30,7 @@ import {
 import { NotificationType } from '../src/notifications/common';
 import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
 import { opentelemetry } from '../src/telemetry/opentelemetry';
+import { logger } from '../src/logger';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
@@ -193,9 +194,6 @@ export const invokeBackground = async (
 ): Promise<void> => {
   const con = await createOrGetConnection();
   const pubsub = new PubSub();
-  const logger = pino({
-    messageKey: 'message',
-  });
   await worker.handler(mockMessage(data).message, con, logger, pubsub);
 };
 
@@ -209,9 +207,6 @@ export const invokeNotificationWorker = async (
   data: Record<string, unknown>,
 ): Promise<NotificationHandlerReturn> => {
   const con = await createOrGetConnection();
-  const logger = pino({
-    messageKey: 'message',
-  });
   return worker.handler(mockMessage(data).message, con, logger);
 };
 
@@ -221,12 +216,8 @@ export const invokeCron = async (cron: Cron, logger: Logger): Promise<void> => {
   await cron.handler(con, logger, pubsub);
 };
 
-export const expectSuccessfulCron = (
-  cron: Cron,
-  logger: Logger = pino({
-    messageKey: 'message',
-  }),
-): Promise<void> => invokeCron(cron, logger);
+export const expectSuccessfulCron = (cron: Cron): Promise<void> =>
+  invokeCron(cron, logger);
 
 export const mockChangeMessage = <T>({
   before,
@@ -308,9 +299,6 @@ export const invokeTypedBackground = async <T extends keyof PubSubSchema>(
 ): Promise<void> => {
   const con = await createOrGetConnection();
   const pubsub = new PubSub();
-  const logger = pino({
-    messageKey: 'message',
-  });
   await worker.handler({ data, messageId: 'msg' }, con, logger, pubsub);
 };
 
