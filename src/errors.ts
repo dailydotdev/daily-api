@@ -63,6 +63,16 @@ export const SubmissionFailErrorMessage: Record<
   ONBOARDING_TAG_LIMIT_REACHED: 'Tag limit reached',
 };
 
+export enum SourceRequestErrorKeys {
+  AccessDenied = 'ACCESS_DENIED',
+}
+
+export const SourceRequestErrorMessage: Record<SourceRequestErrorKeys, string> =
+  {
+    ACCESS_DENIED:
+      'You do not have sufficient permissions and or reputation to submit a source request yet.',
+  };
+
 export class NotFoundError extends ApolloError {
   constructor(message: string) {
     super(message, 'NOT_FOUND');

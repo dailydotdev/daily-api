@@ -79,6 +79,11 @@ describe('mutation requestSource', () => {
   }
 }`;
 
+  const userWithReputation = {
+    ...usersFixture[0],
+    reputation: 250,
+  };
+
   it('should not authorize when not logged in', () =>
     testMutationErrorCode(
       client,
@@ -102,11 +107,30 @@ describe('mutation requestSource', () => {
   });
 
   it('should add new source request', async () => {
-    await con.getRepository(User).save([usersFixture[0]]);
+    await con.getRepository(User).save([userWithReputation]);
     loggedUser = '1';
     const data: GQLRequestSourceInput = { sourceUrl: 'http://source.com' };
     const res = await client.mutate(MUTATION, { variables: { data } });
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should throw forbidden error when user reputation is below threshold', async () => {
+    await con.getRepository(User).save([
+      {
+        ...userWithReputation,
+        reputation: 10,
+      },
+    ]);
+    loggedUser = '1';
+    const data: GQLRequestSourceInput = { sourceUrl: 'http://source.com' };
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { data },
+      },
+      'FORBIDDEN',
+    );
   });
 });
 
@@ -485,6 +509,57 @@ describe('compatibility routes', () => {
           select: ['approved', 'closed'],
         }),
       ).toMatchSnapshot();
+    });
+  });
+});
+
+describe('query sourceRequestAvailability', () => {
+  const QUERY = `{
+    sourceRequestAvailability {
+      hasAccess
+  }
+}`;
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return access when user reputaion is above threshold', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(User).save({
+      ...usersFixture[0],
+      reputation: 250,
+    });
+
+    const res = await client.query(QUERY);
+
+    expect(res.data).toMatchObject({
+      sourceRequestAvailability: {
+        hasAccess: true,
+      },
+    });
+  });
+
+  it('should not return access when user reputaion is below threshold', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(User).save({
+      ...usersFixture[0],
+      reputation: 10,
+    });
+
+    const res = await client.query(QUERY);
+
+    expect(res.data).toMatchObject({
+      sourceRequestAvailability: {
+        hasAccess: false,
+      },
     });
   });
 });
