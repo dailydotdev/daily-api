@@ -95,7 +95,7 @@ const instrumentations = [
     logKeys: {
       traceId: 'trace',
       spanId: 'spanId',
-      traceFlags: 'traceFlags',
+      traceFlags: 'traceSampled',
     },
   }),
   // Did not really get anything from IORedis
