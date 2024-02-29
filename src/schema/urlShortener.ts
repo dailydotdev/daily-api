@@ -15,7 +15,7 @@ export const typeDefs = /* GraphQL */ `
       Url to shorten
       """
       url: String!
-    ): String
+    ): String @auth
   }
 `;
 
@@ -27,7 +27,10 @@ export const resolvers: IResolvers<any, Context> = {
       { url }: { url: string },
       ctx: Context,
     ): Promise<string> => {
-      if (!isValidHttpUrl(url)) {
+      if (
+        !isValidHttpUrl(url) ||
+        !url.startsWith(process.env.COMMENTS_PREFIX)
+      ) {
         throw new ValidationError('Invalid url');
       }
 
