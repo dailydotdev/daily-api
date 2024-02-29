@@ -846,27 +846,42 @@ export const resolvers: IResolvers<any, Context> = {
         .getRawMany();
     },
     userStreak: async (_, __, ctx: Context, info): Promise<GQLUserStreak> => {
-      const streak = await graphorm.queryOneOrFail<GQLUserStreakTz>(
-        ctx,
-        info,
-        (builder) => ({
-          queryBuilder: builder.queryBuilder
-            .addSelect(
-              `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz"`,
-            )
-            .addSelect('u.timezone', 'timezone')
-            .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
-            .where(`"${builder.alias}"."userId" = :id`, { id: ctx.userId }),
-          ...builder,
-        }),
-      );
+      try {
+        const streak = await graphorm.queryOneOrFail<GQLUserStreakTz>(
+          ctx,
+          info,
+          (builder) => ({
+            queryBuilder: builder.queryBuilder
+              .addSelect(
+                `(date_trunc('day', "${builder.alias}"."lastViewAt" at time zone COALESCE(u.timezone, 'utc'))::date) AS "lastViewAtTz"`,
+              )
+              .addSelect('u.timezone', 'timezone')
+              .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
+              .where(`"${builder.alias}"."userId" = :id`, { id: ctx.userId }),
+            ...builder,
+          }),
+        );
 
-      const hasClearedStreak = await checkAndClearUserStreak(ctx, info, streak);
-      if (hasClearedStreak) {
-        return { ...streak, current: 0 };
+        const hasClearedStreak = await checkAndClearUserStreak(
+          ctx,
+          info,
+          streak,
+        );
+        if (hasClearedStreak) {
+          return { ...streak, current: 0 };
+        }
+
+        return streak;
+      } catch (err) {
+        ctx.log.error('Error fetching user streak', err);
+        return {
+          max: 0,
+          total: 0,
+          current: 0,
+          lastViewAt: null,
+          userId: ctx.userId,
+        };
       }
-
-      return streak;
     },
     userReads: async (): Promise<number> => {
       // Kept for backwards compatability
