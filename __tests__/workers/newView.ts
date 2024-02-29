@@ -324,6 +324,25 @@ describe('reading streaks', () => {
       await con.getRepository(Alerts).clear();
     });
 
+    it('should set showStreakMilestone to true if current streak is same as max streak and not a fibonacci number', async () => {
+      await runTest(
+        '2024-01-26T19:17Z',
+        '2024-01-25T17:23Z',
+        { ...defaultStreak, currentStreak: 5, maxStreak: 5 },
+        {
+          currentStreak: 6,
+          totalStreak: 43,
+          maxStreak: 6,
+          lastViewAt: new Date('2024-01-26T19:17Z'),
+        },
+      );
+
+      const alerts = await con
+        .getRepository(Alerts)
+        .findOne({ where: { userId: 'u1' } });
+      expect(alerts?.showStreakMilestone).toBe(true);
+    });
+
     it('should set showStreakMilestone to true if current streak is a fibonacci number', async () => {
       await runTest('2024-01-26T19:17Z', '2024-01-25T17:23Z', defaultStreak, {
         currentStreak: 5,
@@ -338,7 +357,7 @@ describe('reading streaks', () => {
       expect(alerts?.showStreakMilestone).toBe(true);
     });
 
-    it('should set showStreakMilestone to false if current streak is NOT a fibonacci number', async () => {
+    it('should set showStreakMilestone to false if current streak is NOT a fibonacci number and maxStreak is bigger', async () => {
       await runTest(
         '2024-01-26T19:17Z',
         '2024-01-25T17:23Z',

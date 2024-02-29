@@ -50,7 +50,7 @@ UPDATE user_streak AS us SET
   "maxStreak" = CASE WHEN shouldIncrementStreak THEN GREATEST(us."maxStreak", us."currentStreak" + 1) ELSE us."maxStreak" END
 FROM u
 WHERE us."userId" = u.id
-RETURNING "currentStreak"
+RETURNING "currentStreak", "maxStreak"
 `;
 
 const incrementReadingStreak = async (
@@ -92,11 +92,12 @@ const incrementReadingStreak = async (
       DEFAULT_TIMEZONE,
     ]);
 
-    const currentStreak = results?.[0]?.[0]?.currentStreak;
+    const { currentStreak, maxStreak } = results?.[0]?.[0] ?? {};
 
-    if (currentStreak !== null && currentStreak > 0) {
+    if (currentStreak > 0) {
       // milestones are currently defined on fibonacci sequence
-      const showStreakMilestone = isFibonacci(currentStreak);
+      const showStreakMilestone =
+        isFibonacci(currentStreak) || currentStreak >= maxStreak;
       await con.getRepository(Alerts).save({
         userId,
         showStreakMilestone,
