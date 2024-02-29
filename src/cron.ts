@@ -1,16 +1,13 @@
 import 'reflect-metadata';
 import { PubSub } from '@google-cloud/pubsub';
-import pino from 'pino';
 
 import './config';
 
 import { crons } from './cron/index';
 import createOrGetConnection from './db';
+import { logger } from './logger';
 
 export default async function app(cronName: string): Promise<void> {
-  const logger = pino({
-    messageKey: 'message',
-  });
   const connection = await createOrGetConnection();
   const pubsub = new PubSub();
 

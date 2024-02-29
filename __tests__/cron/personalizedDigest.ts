@@ -8,7 +8,7 @@ import {
   createEmailBatchId,
   notifyGeneratePersonalizedDigest,
 } from '../../src/common';
-import pino from 'pino';
+import { logger } from '../../src/logger';
 
 let con: DataSource;
 
@@ -122,11 +122,8 @@ describe('personalizedDigest cron', () => {
       })),
     );
 
-    const logger = pino({
-      messageKey: 'message',
-    });
     const infoSpy = jest.spyOn(logger, 'info');
-    await expectSuccessfulCron(cron, logger);
+    await expectSuccessfulCron(cron);
     expect(infoSpy).toHaveBeenCalledTimes(2);
     expect(infoSpy).toHaveBeenCalledWith(
       {
@@ -146,13 +143,9 @@ describe('personalizedDigest cron', () => {
         preferredDay,
       })),
     );
-
-    const logger = pino({
-      messageKey: 'message',
-    });
     const infoSpy = jest.spyOn(logger, 'info');
 
-    await expectSuccessfulCron(cron, logger);
+    await expectSuccessfulCron(cron);
 
     expect(infoSpy).toHaveBeenCalledTimes(2);
     expect(infoSpy).toHaveBeenCalledWith(

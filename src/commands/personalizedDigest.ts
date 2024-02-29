@@ -1,7 +1,6 @@
 import { runInRootSpan, opentelemetry } from '../telemetry/opentelemetry';
 import 'reflect-metadata';
 import { PubSub } from '@google-cloud/pubsub';
-import pino from 'pino';
 
 import '../config';
 
@@ -9,11 +8,9 @@ import createOrGetConnection from '../db';
 import { workerSubscribe } from '../common';
 import { personalizedDigestWorkers as workers } from '../workers';
 import { loadFeatures } from '../growthbook';
+import { logger } from '../logger';
 
 export default async function app(): Promise<void> {
-  const logger = pino({
-    messageKey: 'message',
-  });
   const connection = await runInRootSpan(
     'createOrGetConnection',
     createOrGetConnection,
