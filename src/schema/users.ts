@@ -846,7 +846,7 @@ export const resolvers: IResolvers<any, Context> = {
         .getRawMany();
     },
     userStreak: async (_, __, ctx: Context, info): Promise<GQLUserStreak> => {
-      const streak = await graphorm.queryOneOrFail<GQLUserStreakTz>(
+      const streak = await graphorm.query<GQLUserStreakTz>(
         ctx,
         info,
         (builder) => ({
@@ -861,12 +861,26 @@ export const resolvers: IResolvers<any, Context> = {
         }),
       );
 
-      const hasClearedStreak = await checkAndClearUserStreak(ctx, info, streak);
-      if (hasClearedStreak) {
-        return { ...streak, current: 0 };
+      if (!streak.length) {
+        return {
+          max: 0,
+          total: 0,
+          current: 0,
+          lastViewAt: null,
+          userId: ctx.userId,
+        };
       }
 
-      return streak;
+      const hasClearedStreak = await checkAndClearUserStreak(
+        ctx,
+        info,
+        streak[0],
+      );
+      if (hasClearedStreak) {
+        return { ...streak[0], current: 0 };
+      }
+
+      return streak[0];
     },
     userReads: async (): Promise<number> => {
       // Kept for backwards compatability
