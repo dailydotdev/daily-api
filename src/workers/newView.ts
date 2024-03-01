@@ -56,56 +56,63 @@ RETURNING "currentStreak", "maxStreak"
 const incrementReadingStreak = async (
   con: DataSource,
   data: DeepPartial<View>,
-): Promise<boolean> => {
-  const users = con.getRepository(User);
-  const repo = con.getRepository(UserStreak);
-  const { userId, timestamp } = data;
+): Promise<boolean> =>
+  con.transaction(async (entityManager) => {
+    const users = entityManager.getRepository(User);
+    const repo = entityManager.getRepository(UserStreak);
+    const { userId, timestamp } = data;
 
-  if (!userId) {
-    return false;
-  }
-
-  const viewTime = timestamp ? new Date(timestamp as string) : new Date();
-
-  // TODO: This code is temporary here for now because we didn't run the migration yet,
-  // so not every user is going to have a row in the user_streak table and we need to create it.
-  // We can get rid of it once/if we implement the migration in https://dailydotdev.atlassian.net/browse/MI-70
-  const user = await users.findOne({
-    where: { id: userId },
-    relations: ['streak'],
-  });
-  const streak = await user?.streak;
-  if (user && !streak) {
-    await repo.save(
-      repo.create({
-        userId,
-        currentStreak: 1,
-        totalStreak: 1,
-        maxStreak: 1,
-        lastViewAt: viewTime,
-      }),
-    );
-  } else {
-    const results = await repo.query(INC_STREAK_QUERY, [
-      userId,
-      viewTime,
-      DEFAULT_TIMEZONE,
-    ]);
-
-    const { currentStreak, maxStreak } = results?.[0]?.[0] ?? {};
-
-    if (currentStreak > 0) {
-      // milestones are currently defined on fibonacci sequence
-      const showStreakMilestone =
-        isFibonacci(currentStreak) || currentStreak >= maxStreak;
-      await con.getRepository(Alerts).save({
-        userId,
-        showStreakMilestone,
-      });
+    if (!userId) {
+      return false;
     }
-  }
-  return true;
-};
+
+    const viewTime = timestamp ? new Date(timestamp as string) : new Date();
+
+    // TODO: This code is temporary here for now because we didn't run the migration yet,
+    // so not every user is going to have a row in the user_streak table and we need to create it.
+    // We can get rid of it once/if we implement the migration in https://dailydotdev.atlassian.net/browse/MI-70
+    const user = await users.findOne({
+      where: { id: userId },
+      relations: ['streak'],
+    });
+
+    const streak = await user?.streak;
+    // we need to check before we actually update the max streak
+    // otherwise we end up in a spot where we create an alert record
+    // every time a post is viewed, even if we already alerted the user
+    const { currentStreak, maxStreak } = streak || {
+      currentStreak: 0,
+      maxStreak: 0,
+    };
+
+    // milestones are currently defined on fibonacci sequence
+    const showStreakMilestone =
+      isFibonacci(currentStreak + 1) &&
+      streak?.lastViewAt?.getDate() !== viewTime.getDate();
+
+    const showMaxStreakMilestone =
+      showStreakMilestone && currentStreak + 1 > maxStreak;
+
+    await entityManager.getRepository(Alerts).save({
+      userId,
+      showStreakMilestone: showStreakMilestone || showMaxStreakMilestone,
+    });
+
+    if (user && !streak) {
+      await repo.save(
+        repo.create({
+          userId,
+          currentStreak: 1,
+          totalStreak: 1,
+          maxStreak: 1,
+          lastViewAt: viewTime,
+        }),
+      );
+    } else {
+      await repo.query(INC_STREAK_QUERY, [userId, viewTime, DEFAULT_TIMEZONE]);
+    }
+    return true;
+  });
 
 const worker: Worker = {
   subscription: 'add-views-v2',
