@@ -846,7 +846,7 @@ export const resolvers: IResolvers<any, Context> = {
         .getRawMany();
     },
     userStreak: async (_, __, ctx: Context, info): Promise<GQLUserStreak> => {
-      const streak = await graphorm.query<GQLUserStreakTz>(
+      const streak = await graphorm.queryOne<GQLUserStreakTz>(
         ctx,
         info,
         (builder) => ({
@@ -861,7 +861,7 @@ export const resolvers: IResolvers<any, Context> = {
         }),
       );
 
-      if (!streak.length) {
+      if (!streak) {
         return {
           max: 0,
           total: 0,
