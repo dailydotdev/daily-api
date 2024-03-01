@@ -575,6 +575,28 @@ export class GraphORM {
   }
 
   /**
+   * Queries the database to fulfill a GraphQL request.
+   * Returns the first result or null if none is found
+   *
+   * @param ctx GraphQL context of the request
+   * @param resolveInfo GraphQL resolve info of the request
+   * @param beforeQuery A callback function that is called before executing the query
+   */
+  async queryOne<T>(
+    ctx: Context,
+    resolveInfo: GraphQLResolveInfo,
+    beforeQuery?: (builder: GraphORMBuilder) => GraphORMBuilder,
+  ): Promise<T | null> {
+    const res = await this.query<T>(ctx, resolveInfo, beforeQuery);
+
+    if (!res.length) {
+      return null;
+    }
+
+    return res[0];
+  }
+
+  /**
    * Queries the database to fulfill a Partial GraphQL request
    * @param ctx GraphQL context of the request
    * @param resolveInfo GraphQL resolve info of the request
