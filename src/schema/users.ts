@@ -871,16 +871,12 @@ export const resolvers: IResolvers<any, Context> = {
         };
       }
 
-      const hasClearedStreak = await checkAndClearUserStreak(
-        ctx,
-        info,
-        streak[0],
-      );
+      const hasClearedStreak = await checkAndClearUserStreak(ctx, info, streak);
       if (hasClearedStreak) {
-        return { ...streak[0], current: 0 };
+        return { ...streak, current: 0 };
       }
 
-      return streak[0];
+      return streak;
     },
     userReads: async (): Promise<number> => {
       // Kept for backwards compatability
