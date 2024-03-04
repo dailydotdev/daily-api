@@ -11,9 +11,11 @@ export enum FeedConfigName {
   Onboarding = 'onboarding',
   PersonaliseV20 = 'personalise_v20',
   PersonaliseV25 = 'personalise_v25',
+  PersonaliseV27 = 'personalise_v27',
   VectorV20 = 'vector_v20',
   VectorV21 = 'vector_v21',
   VectorV25 = 'vector_v25',
+  VectorV27 = 'vector_v27',
   PostSimilarity = 'post_similarity',
 }
 
