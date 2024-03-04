@@ -94,5 +94,6 @@ export const features = {
     },
     feedConfig: 'digest',
     maxPosts: 5,
+    longTextLimit: 150,
   }),
 };
