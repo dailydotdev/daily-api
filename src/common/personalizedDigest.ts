@@ -70,7 +70,13 @@ export const getPersonalizedDigestPreviousSendDate = ({
   return sendDateInPreferredTimezone;
 };
 
-const getPostsTemplateData = ({ posts }: { posts: TemplatePostData[] }) => {
+const getPostsTemplateData = ({
+  posts,
+  feature,
+}: {
+  posts: TemplatePostData[];
+  feature: typeof features.personalizedDigest.defaultValue;
+}) => {
   return posts.map((post) => {
     return {
       post_title: post.title,
@@ -83,8 +89,8 @@ const getPostsTemplateData = ({ posts }: { posts: TemplatePostData[] }) => {
       post_upvotes: post.upvotes || 0,
       post_comments: post.comments || 0,
       post_summary:
-        post.summary?.length > 150
-          ? `${post.summary.slice(0, 150).trim()}...`
+        post.summary?.length > feature.longTextLimit
+          ? `${post.summary.slice(0, feature.longTextLimit).trim()}...`
           : post.summary,
       post_read_time: post.readTime,
       post_views: post.views || 0,
@@ -114,7 +120,7 @@ const getEmailVariation = async ({
   const data = {
     day_name: dayName,
     first_name: userName,
-    posts: getPostsTemplateData({ posts }),
+    posts: getPostsTemplateData({ posts, feature }),
     date: format(currentDate, 'MMM d, yyyy'),
     user: {
       username: user.username,
