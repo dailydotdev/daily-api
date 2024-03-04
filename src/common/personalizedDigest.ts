@@ -82,7 +82,10 @@ const getPostsTemplateData = ({ posts }: { posts: TemplatePostData[] }) => {
       ),
       post_upvotes: post.upvotes || 0,
       post_comments: post.comments || 0,
-      post_summary: post.summary,
+      post_summary:
+        post.summary?.length > 150
+          ? `${post.summary.slice(0, 150).trim()}...`
+          : post.summary,
       post_read_time: post.readTime,
       post_views: post.views || 0,
       source_name: post.sourceName,
